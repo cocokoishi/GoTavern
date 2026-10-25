@@ -386,6 +386,18 @@ jobs:
         # artefacts; the Go registry is a cross-check, never evidence. A stale/absent artefact is its
         # own cell status, and a pinned-vs-product source mismatch fails here instead of being smoothed.
         run: node tools/generate-coverage-matrix.mjs --check
+      - name: Verify the compatibility matrix cannot claim what this tree does not show
+        # docs/compatibility-matrix.json is the capability-level evidence layer; docs/compatibility-matrix.md
+        # is GENERATED from it and from counts computed off the tree. This step fails when a row cites a path
+        # that does not exist, a test name that no *_test.go declares, or a CI job that no workflow defines
+        # (the "phantom evidence" shape that reads as proof); when a PASS row still carries an evidence gap, a
+        # PARTIAL/FAIL row names no gap, a NOT_APPLICABLE row is a euphemism for unwritten work, or the ranks
+        # have holes; when a row does not name the test that would go red if the row were wrong; when the
+        # committed Markdown differs from the generator's output; and when the `derived` counts disagree with
+        # a recount of this tree (AGENTS.md 36: documentation may not claim ahead of evidence).
+        # Teeth demonstrated in the commit that added it: a phantom test name, a phantom path, a PASS row with
+        # a gap, a stale Markdown and a stale derived count each went red naming the row and the citation.
+        run: node tools/compat-matrix/check.mjs
       - name: Test the oracle execution core
         # The double-run policy and the probe-execution primitive are CONTROL-PLANE code: they decide how many
         # times every probe runs, what happens when a run fails, and whether an empty selection is a success.

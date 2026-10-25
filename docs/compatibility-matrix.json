@@ -1,0 +1,1102 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "name": "SillyTavern",
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127",
+    "recordedIn": "upstream/SILLYTAVERN_COMMIT"
+  },
+  "generatedBy": "tools/compat-matrix/render.mjs",
+  "humanView": "docs/compatibility-matrix.md",
+  "validatedBy": "tools/compat-matrix/check.mjs",
+  "statusMeanings": {
+    "PASS": "Every evidence slot the derivation rule requires is present and exists in this tree, and the row carries no evidenceGap. Says nothing about production fitness beyond what the cited evidence covers.",
+    "PARTIAL": "The mechanism exists and something in this tree gates it, but at least one required evidence slot is missing or a named gap remains. The gap is always named in evidenceGap.",
+    "FAIL": "A user-visible capability is known to be broken, or the evidence needed to claim it is absent while the defect it would have caught has already shipped. A FAIL row is a finding, not a placeholder.",
+    "NOT_APPLICABLE": "A decided, recorded exclusion with its reason. Never used for work that is merely unwritten."
+  },
+  "derivation": {
+    "method": "Status is derived from what exists in this tree and what the gates actually assert, not from prose. A row is PASS only when every slot below is present AND exists AND evidenceGap is empty; anything else is PARTIAL with the missing slot named, unless a user-visible defect is known, in which case FAIL.",
+    "passRequires": [
+      "oracleFixtures: at least one recording of pinned behaviour that the row's differential compares against",
+      "implementation: at least one Go file or package that carries the behaviour",
+      "tests: at least one named test that fails when the behaviour is wrong (existence checked, and the name must resolve to a real test function or harness file)",
+      "ci: at least one workflow job that runs that test",
+      "evidenceGap: empty"
+    ],
+    "productionRule": "AGENTS.md 22 and 29-30: a behaviour verified only against our own mock peer is `unverified` for production. Such rows cannot be PASS no matter how complete the fixture is, and the gap says so verbatim.",
+    "artifactRule": "AGENTS.md 23 and 34: a release claim needs the shipped artifact, unpacked, started against a stock tree. Rows whose only evidence is the source tree carry that gap until a release-artifact result exists.",
+    "failRule": "AGENTS.md 40: a defect that shipped is recorded here even after it is fixed, because the row's status is about the evidence layer that allowed it through. A fixed mechanism promotes a row from FAIL only when the gate that would have caught it exists and has run."
+  },
+  "rows": [
+    {
+      "id": "core-http-static",
+      "area": "Core HTTP surface, pinned frontend and static assets",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-frontend-static.json",
+          "tests/oracle/sillytavern-1.19.0-custom-404.json",
+          "tests/oracle/sillytavern-1.19.0-server-protocols.json",
+          "tests/oracle/sillytavern-1.19.0-cors-middleware.json"
+        ],
+        "upstreamAssets": [
+          "upstream/SILLYTAVERN_COMMIT",
+          "upstream/manifests"
+        ],
+        "implementation": [
+          "internal/server",
+          "internal/app"
+        ],
+        "tests": [
+          "TestPinnedNodeFrontendStaticMiddleware",
+          "TestPinnedHostWhitelistPatternMatching",
+          "TestPinnedNodeCORSMiddleware"
+        ],
+        "browserArtifacts": [],
+        "ci": [
+          "ci.yml#oracle",
+          "ci.yml#verify"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestPinnedNodeFrontendStaticMiddleware",
+        "explanation": "the row's claims about core http surface, pinned frontend and static assets rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "no release-artifact result for a stock tree (AGENTS.md 23/34)",
+        "the pinned public/** byte identity is recorded per file by upstream/manifests, but no gate compares the SERVED bytes against that manifest end to end"
+      ],
+      "blockedBy": [],
+      "notes": "Route-level HTTP parity is the most mature area in this tree: 118 oracle recordings, 512 Go test functions. Maturity of the fixtures is exactly why the three P0 defects shipped, so this row is not PASS for that reason alone."
+    },
+    {
+      "id": "auth-session-csrf",
+      "area": "Basic auth, per-user auth, sessions, CSRF and cookies",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-basic-auth.json",
+          "tests/oracle/sillytavern-1.19.0-per-user-basic-auth.json",
+          "tests/oracle/sillytavern-1.19.0-csrf-session.json",
+          "tests/oracle/sillytavern-1.19.0-csrf-disabled.json",
+          "tests/oracle/sillytavern-1.19.0-cookie-secret.json",
+          "tests/oracle/sillytavern-1.19.0-account-session.json"
+        ],
+        "upstreamAssets": [],
+        "implementation": [
+          "internal/server",
+          "internal/startup"
+        ],
+        "tests": [
+          "TestStartGlobalBasicAuthMatchesPinnedNodeResponses",
+          "TestStartPerUserBasicAuthMatchesPinnedNode",
+          "TestPinnedNodeCSRFCookieSessionContract",
+          "TestPinnedNodeDisabledCSRFContract"
+        ],
+        "browserArtifacts": [],
+        "ci": [
+          "ci.yml#oracle"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestStartGlobalBasicAuthMatchesPinnedNodeResponses",
+        "explanation": "the row's claims about basic auth, per-user auth, sessions, csrf and cookies rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "no browser-level session test: every assertion is HTTP-level, so a cookie or CSRF failure that only appears in the pinned frontend's own client is unobserved",
+        "no release-artifact result (AGENTS.md 23/34)"
+      ],
+      "blockedBy": [],
+      "notes": "Session and CSRF contracts are recorded against the pinned server, including the disabled-CSRF variant. This row's weakness is the observer surface, not the mechanism."
+    },
+    {
+      "id": "settings",
+      "area": "Settings aggregation, save, snapshots and backups-of-settings",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-settings-get.json",
+          "tests/oracle/sillytavern-1.19.0-settings-save.json",
+          "tests/oracle/sillytavern-1.19.0-settings-snapshots.json",
+          "tests/oracle/sillytavern-1.19.0-settings-backup.json",
+          "tests/oracle/sillytavern-1.19.0-security-settings.json"
+        ],
+        "upstreamAssets": [],
+        "implementation": [
+          "internal/server",
+          "internal/configinit"
+        ],
+        "tests": [
+          "TestPinnedNodeSettingsGetAggregation",
+          "TestPinnedNodeSettingsSave",
+          "TestBackupSettingsMatchesPinnedNode"
+        ],
+        "browserArtifacts": [],
+        "ci": [
+          "ci.yml#oracle"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestPinnedNodeSettingsGetAggregation",
+        "explanation": "the row's claims about settings aggregation, save, snapshots and backups-of-settings rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "no stock-tree save/reload: the fixtures write into a fresh runtime root, so a settings file written by a real SillyTavern user has never been round-tripped",
+        "no release-artifact result (AGENTS.md 23/34)"
+      ],
+      "blockedBy": [],
+      "notes": "Serialisation and response shape are pinned; the missing evidence is a user's own settings.json, which is where unknown-field retention and legacy keys live."
+    },
+    {
+      "id": "secrets",
+      "area": "Secrets: read, write, active source, per-provider slots",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-secrets.json",
+          "tests/oracle/sillytavern-1.19.0-flat-secrets.json",
+          "tests/oracle/sillytavern-1.19.0-host-whitelist.json"
+        ],
+        "upstreamAssets": [],
+        "implementation": [
+          "internal/server"
+        ],
+        "tests": [
+          "TestSecretsRoutesMatchPinnedHTTPOracle",
+          "TestSecretsOracleFixtureIsDiscriminating",
+          "TestChatCompletionSecretMustUseThePinnedArrayShape"
+        ],
+        "browserArtifacts": [],
+        "ci": [
+          "ci.yml#oracle"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestSecretsRoutesMatchPinnedHTTPOracle",
+        "explanation": "the row's claims about secrets: read, write, active source, per-provider slots rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "no gate asserts that a stored secret is never printed by any error path (AGENTS.md 35) beyond the routes that were probed",
+        "no release-artifact result (AGENTS.md 23/34)"
+      ],
+      "blockedBy": [],
+      "notes": "The flat-secret storage work is covered by its own fixture and an explicit discriminating-fixture test, which is the right shape."
+    },
+    {
+      "id": "characters",
+      "area": "Characters: read, write, import, avatar replacement, disk cache",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-characters-read.json",
+          "tests/oracle/sillytavern-1.19.0-characters-write.json",
+          "tests/oracle/sillytavern-1.19.0-characters-import.json",
+          "tests/oracle/sillytavern-1.19.0-character-disk-cache.json"
+        ],
+        "upstreamAssets": [
+          "upstream/default"
+        ],
+        "implementation": [
+          "internal/server"
+        ],
+        "tests": [
+          "TestPinnedNodeCharactersRead",
+          "TestPinnedNodeCharactersWrite",
+          "TestPinnedNodeCharactersImport",
+          "TestVerifyCharacterDiskCacheMatchesPinnedNode"
+        ],
+        "browserArtifacts": [],
+        "ci": [
+          "ci.yml#oracle"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestPinnedNodeCharactersRead",
+        "explanation": "the row's claims about characters: read, write, import, avatar replacement, disk cache rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "CharX, BYAF and RisuAI import shapes are not implemented and answer the pinned { error: true }; recorded as a gap in docs/compat-matrix.md, not as parity",
+        "uploaded-image crop/resize is not Jimp-identical (ARCHITECTURE.md boundary 3), so a cropped avatar is source-implemented but unprobed",
+        "no browser E2E: creating a character in the pinned frontend and reading it back through GoTavern is not gated"
+      ],
+      "blockedBy": [],
+      "notes": "Strongest per-route coverage in the tree after static, with response text recorded byte-for-byte."
+    },
+    {
+      "id": "chats",
+      "area": "Chats: save, get, search, recent, import, mutations",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-chats-save-get.json",
+          "tests/oracle/sillytavern-1.19.0-chats-import.json",
+          "tests/oracle/sillytavern-1.19.0-chats-mutations.json",
+          "tests/oracle/sillytavern-1.19.0-chats-search-recent.json"
+        ],
+        "upstreamAssets": [],
+        "implementation": [
+          "internal/server"
+        ],
+        "tests": [
+          "TestPinnedNodeChatsImport",
+          "TestPinnedNodeChatsMutations",
+          "TestPinnedNodeChatsSearchRecent"
+        ],
+        "browserArtifacts": [],
+        "ci": [
+          "ci.yml#oracle"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestPinnedNodeChatsImport",
+        "explanation": "the row's claims about chats: save, get, search, recent, import, mutations rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "no test carries a chat through save, reload and continuation the way the frontend does across a page reload",
+        "JSONL append/rewrite atomicity is asserted per route but not under a crash-or-kill boundary"
+      ],
+      "blockedBy": [
+        "whole-session-e2e"
+      ],
+      "notes": "Chat JSONL is the surface where a partial write loses a user's conversation, so the missing session test matters more here than elsewhere."
+    },
+    {
+      "id": "groups",
+      "area": "Groups and group chats, including the metadata migration",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-groups.json",
+          "tests/oracle/sillytavern-1.19.0-group-metadata-migration.json"
+        ],
+        "upstreamAssets": [],
+        "implementation": [
+          "internal/server",
+          "internal/migrate"
+        ],
+        "tests": [
+          "TestPinnedNodeGroups",
+          "TestMigrateGroupChatsMetadataFormatMatchesPinnedNode"
+        ],
+        "browserArtifacts": [],
+        "ci": [
+          "ci.yml#oracle"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestPinnedNodeGroups",
+        "explanation": "the row's claims about groups and group chats, including the metadata migration rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "no generation test: a group chat's multi-character turn order reaches the provider through a path no fixture covers",
+        "no browser E2E of group activation"
+      ],
+      "blockedBy": [
+        "whole-session-e2e"
+      ],
+      "notes": "Group chat is where several characters' prompts are concatenated; prompt assembly for that path is unverified."
+    },
+    {
+      "id": "world-info",
+      "area": "World info: books, entries, activation, positions",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-worldinfo-routes.json"
+        ],
+        "upstreamAssets": [],
+        "implementation": [
+          "internal/server"
+        ],
+        "tests": [
+          "TestPinnedNodeWorldInfoRoutes"
+        ],
+        "browserArtifacts": [
+          "tests/browser/preset-complex-comparison.json"
+        ],
+        "ci": [
+          "ci.yml#oracle",
+          "browser-differential.yml#differential"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestPinnedNodeWorldInfoRoutes",
+        "explanation": "the row's claims about world info: books, entries, activation, positions rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "route parity is recorded, but activation into an assembled prompt is proven only by the preset browser artefact, whose boundary pair has repeatedly failed to bind (runs 40082539457, 40087218275, 40073821604)",
+        "no gate proves the before/after/atDepth slots all reach the provider in order for a stock preset"
+      ],
+      "blockedBy": [
+        "whole-session-e2e"
+      ],
+      "notes": "A world entry that is stored correctly and inserted in the wrong place is invisible to every HTTP fixture; only the prompt-block comparison sees it."
+    },
+    {
+      "id": "presets-and-ui-content",
+      "area": "Presets, quick replies, themes, moving UI, system prompts",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-presets-routes.json",
+          "tests/oracle/sillytavern-1.19.0-quick-replies.json",
+          "tests/oracle/sillytavern-1.19.0-themes.json",
+          "tests/oracle/sillytavern-1.19.0-moving-ui.json",
+          "tests/oracle/sillytavern-1.19.0-system-prompt-migration.json"
+        ],
+        "upstreamAssets": [],
+        "implementation": [
+          "internal/server"
+        ],
+        "tests": [
+          "TestPinnedNodePresetRoutes",
+          "TestPinnedNodeThemesSaveAndDelete",
+          "TestPinnedNodeMovingUISave"
+        ],
+        "browserArtifacts": [
+          "tests/browser/preset-complex-comparison.json"
+        ],
+        "ci": [
+          "ci.yml#oracle",
+          "browser-differential.yml#differential"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestPinnedNodePresetRoutes",
+        "explanation": "the row's claims about presets, quick replies, themes, moving ui, system prompts rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "the complex-preset differential is the only prompt-assembly gate and it has not yet produced a passing keep/drop pair on both legs",
+        "the NAME_MAX host-dependent difference is recorded as an unresolved known difference rather than parity"
+      ],
+      "blockedBy": [
+        "whole-session-e2e"
+      ],
+      "notes": "AGENTS.md 8 is the rule this row answers to: 'it can chat' proves nothing, and the gate that proves more does not yet pass."
+    },
+    {
+      "id": "providers-transport",
+      "area": "Provider transport on the real internet (TLS, proxy, timeouts, decompression, redirects)",
+      "status": "FAIL",
+      "evidence": {
+        "oracleFixtures": [],
+        "upstreamAssets": [],
+        "implementation": [
+          "internal/outbound"
+        ],
+        "tests": [
+          "TestChatCompletionAimlapiTransportFailureAnswers200",
+          "TestOpenRouterOutboundTargetIsPinned"
+        ],
+        "browserArtifacts": [],
+        "ci": [
+          "ci.yml#oracle"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": null,
+        "explanation": "no gate exists: every provider differential runs against our own peer, so nothing would go red if the real-internet transport were broken. The gate that must land is a local TLS peer with a real trust chain plus a refusing proxy and a hanging socket, asserted through the shipped artifact."
+      },
+      "absentGate": {
+        "owner": "lane A (network / provider transport)",
+        "mustAssert": "a controlled peer that behaves like the internet: a local TLS listener with a real trust chain, a refusing proxy, and a socket that accepts then never answers — each asserted to produce a NAMED causal error (DNS, connect, TLS, proxy, timeout) with no secret in it, through the shipped artifact"
+      },
+      "evidenceGap": [
+        "every provider differential runs against our own recording peer: AGENTS.md 22 makes that `unverified` for production",
+        "docs/network-egress.md §2 records eight places where the production transport does not meet the contract (system roots, proxy awareness, bounded timeouts, decompression, redirect policy, cancellation)",
+        "the byte-exact client and the production client are the same client, which AGENTS.md 30 forbids and which is the mechanism behind P0-A",
+        "no test asserts the causal error text of a DNS, connect, TLS or timeout failure without printing a secret (AGENTS.md 35)"
+      ],
+      "blockedBy": [],
+      "notes": "P0-A: a provider that could not be reached shipped through a green CI because every provider test used a mock peer and therefore never exercised a socket with a real hostname. The row is FAIL until a test reaches a controlled real-internet-shaped transport (not the live network: a local TLS peer with a real trust chain, a refusing proxy and a hanging socket), and the shipped artifact passes it."
+    },
+    {
+      "id": "providers-per-source-wire",
+      "area": "Per-source provider-wire request bytes (15 catalogued sources)",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-provider-wire.json"
+        ],
+        "upstreamAssets": [],
+        "implementation": [
+          "internal/server"
+        ],
+        "tests": [
+          "TestChatCompletionGenerateMatchesProviderWireCapture",
+          "TestEveryClaimedSourceHasAProviderWireCapture"
+        ],
+        "browserArtifacts": [
+          "tests/browser/generation-comparison.json",
+          "tests/browser/generation-ai21-comparison.json",
+          "tests/browser/generation-groq-comparison.json"
+        ],
+        "ci": [
+          "ci.yml#oracle",
+          "browser-differential.yml#differential"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestChatCompletionGenerateMatchesProviderWireCapture",
+        "explanation": "the row's claims about per-source provider-wire request bytes (15 catalogued sources) rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "request bytes are compared against a mock peer, so they prove the shaping and not the delivery (AGENTS.md 22)",
+        "the ai21 requestFraming block had no producer in any comparator until it was rebuilt, i.e. a hand-written evidence block sat in the tree and the verifier did not notice",
+        "no per-source evidence from the shipped artifact"
+      ],
+      "blockedBy": [
+        "providers-transport"
+      ],
+      "notes": "This is the most complete provider evidence in any project I have seen, and it is still the wrong observer for the defect that shipped: it sees what we send to a peer we control."
+    },
+    {
+      "id": "streaming-and-cancel",
+      "area": "Streaming SSE framing, incremental render and cancellation",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-backends.json",
+          "tests/oracle/sillytavern-1.19.0-textgen.json"
+        ],
+        "upstreamAssets": [],
+        "implementation": [
+          "internal/server"
+        ],
+        "tests": [
+          "TestSendStreamsChunkedResponses",
+          "TestSendReportsTruncatedStreams",
+          "TestBackendsTextgenGenerateStreamsWithoutBuffering"
+        ],
+        "browserArtifacts": [
+          "tests/browser/streaming-comparison.json",
+          "tests/browser/streaming-groq-comparison.json",
+          "tests/browser/streaming-mistral-comparison.json"
+        ],
+        "ci": [
+          "ci.yml#oracle",
+          "browser-differential.yml#differential"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestSendStreamsChunkedResponses",
+        "explanation": "the row's claims about streaming sse framing, incremental render and cancellation rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "SSE ordering and cancellation are compared against a local peer: a real network's chunk boundaries, a proxy that buffers, and a mid-stream TLS close are unobserved",
+        "several cancellation artefacts record the partial text at the moment of abort, which is a per-run observation; no gate asserts the ordering property itself"
+      ],
+      "blockedBy": [
+        "providers-transport"
+      ],
+      "notes": "Streaming has the deepest browser instrumentation in the tree (frame-by-frame render alignment on both legs). The gap is the network, not the instrumentation."
+    },
+    {
+      "id": "tokenization",
+      "area": "Exact tokenization and context boundaries",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-tokenizers.json"
+        ],
+        "upstreamAssets": [
+          "upstream/tokenizers",
+          "upstream/manifests"
+        ],
+        "implementation": [
+          "internal/tokenizers"
+        ],
+        "tests": [
+          "TestPinnedNodeTokenizerOracleCoverage",
+          "TestTokenizerAssetsFindsAMigratedSillyTavernTree",
+          "TestTokenizerAssetsReportsAnAbsentTreeRatherThanPretending"
+        ],
+        "browserArtifacts": [
+          "tests/browser/preset-complex-comparison.json"
+        ],
+        "ci": [
+          "ci.yml#oracle",
+          "release-qualification.yml#qualify-linux-amd64"
+        ],
+        "releaseArtifact": "release-qualification.yml ships src/tokenizers into the archive and boots it (a workflow step, not yet a recorded run id)"
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestPinnedNodeTokenizerOracleCoverage",
+        "explanation": "the row's claims about exact tokenization and context boundaries rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "the context-boundary differential (AGENTS.md 9) has not produced a binding keep/drop pair on both legs in any run so far",
+        "tokenizer tree resolution is proven for a fresh root and a migrated tree, not for a stock tree whose src/tokenizers sits beside a user's data root"
+      ],
+      "blockedBy": [
+        "whole-session-e2e"
+      ],
+      "notes": "The anchor test (a fixed body counting 7) is the right shape: it refuses a server that guesstimates, which is the failure that makes a boundary meaningless."
+    },
+    {
+      "id": "files-and-media",
+      "area": "Files, avatars, backgrounds, images, sprites, image metadata",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-files-upload.json",
+          "tests/oracle/sillytavern-1.19.0-files-delete.json",
+          "tests/oracle/sillytavern-1.19.0-files-verify.json",
+          "tests/oracle/sillytavern-1.19.0-files-sanitize-filename.json",
+          "tests/oracle/sillytavern-1.19.0-avatars-get.json",
+          "tests/oracle/sillytavern-1.19.0-backgrounds-upload.json",
+          "tests/oracle/sillytavern-1.19.0-sprites.json",
+          "tests/oracle/sillytavern-1.19.0-image-metadata-get.json"
+        ],
+        "upstreamAssets": [],
+        "implementation": [
+          "internal/server"
+        ],
+        "tests": [
+          "TestPinnedNodeFilesUpload",
+          "TestPinnedNodeSpritesUpload",
+          "TestImagesRoutesMatchPinnedOracle"
+        ],
+        "browserArtifacts": [],
+        "ci": [
+          "ci.yml#oracle"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestPinnedNodeFilesUpload",
+        "explanation": "the row's claims about files, avatars, backgrounds, images, sprites, image metadata rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "avatar crop/resize and /thumbnail are a decided codec boundary (ARCHITECTURE.md boundary 3): byte equality is not claimed and cannot be",
+        "no multi-part upload test through a real browser; every upload fixture posts a hand-built body"
+      ],
+      "blockedBy": [],
+      "notes": "Upload paths are the highest-consequence writes in the product (a user's assets). The sanitize-filename differential is unusually thorough."
+    },
+    {
+      "id": "extensions",
+      "area": "Extensions: discovery, static serving, install, update, switch, delete, and the Tavern Helper / LittleWhiteBox canaries",
+      "status": "FAIL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-extensions-discovery.json",
+          "tests/oracle/sillytavern-1.19.0-extensions-static.json",
+          "tests/oracle/sillytavern-1.19.0-extensions-routes.json"
+        ],
+        "upstreamAssets": [],
+        "implementation": [
+          "internal/server"
+        ],
+        "tests": [
+          "TestPinnedExtensionDiscoverReleaseInstall",
+          "TestPinnedExtensionStaticEmbeddedReleaseInstall",
+          "TestPinnedNodeExtensionStaticServing",
+          "TestPluginsAreReportedAndNeverCopied"
+        ],
+        "browserArtifacts": [
+          "tests/browser/extension-tavern-helper-comparison.json",
+          "tests/browser/extension-littlewhitebox-comparison.json"
+        ],
+        "ci": [
+          "ci.yml#oracle",
+          "browser-differential.yml#differential"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": null,
+        "explanation": "no gate exists: no test asserts the DECISION to update (AGENTS.md 26, every ambiguous input resolves to OFF), so an unwanted update would go red nowhere. The gate that must land is a table test over missing key, unknown legacy key, null, unparsed value, unreadable config and migrated config."
+      },
+      "absentGate": {
+        "owner": "lane C (extensions)",
+        "mustAssert": "every ambiguous auto-update input (missing key, unknown legacy key, null, unparsed value, unreadable config, migrated config) resolves to OFF, asserted as a table test, plus a dirty worktree being refused rather than forced"
+      },
+      "evidenceGap": [
+        "P0-C: extension/plugin updates happened without being asked for; no gate asserts that every ambiguous auto-update input resolves to OFF (AGENTS.md 26), which is the property that shipped broken",
+        "no test asserts that a dirty extension worktree is refused rather than forced (AGENTS.md 28)",
+        "the two canaries are compared for load and static serving, not for a deep semantic workflow in a stock tree (AGENTS.md 15)"
+      ],
+      "blockedBy": [
+        "startup",
+        "whole-session-e2e"
+      ],
+      "notes": "The canary artefacts exist and are strong; what is missing is the gate on the DECISION to update, which is not a UI behaviour and no fixture watches it. That is why P0-C shipped."
+    },
+    {
+      "id": "server-plugins",
+      "area": "Arbitrary Node server plugins",
+      "status": "NOT_APPLICABLE",
+      "evidence": {
+        "oracleFixtures": [],
+        "upstreamAssets": [],
+        "implementation": [],
+        "tests": [
+          "TestPluginsAreReportedAndNeverCopied"
+        ],
+        "browserArtifacts": [],
+        "ci": [
+          "ci.yml#oracle"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestPluginsAreReportedAndNeverCopied",
+        "explanation": "the row's claims about arbitrary node server plugins rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [],
+      "blockedBy": [],
+      "notes": "Decided exclusion (AGENTS.md 16). The one test that exists asserts the honest negative: plugins are REPORTED and never copied, so the boundary is visible to an operator instead of silently absent."
+    },
+    {
+      "id": "embeddings-vector",
+      "area": "Embeddings and vector storage",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-vector.json"
+        ],
+        "upstreamAssets": [],
+        "implementation": [
+          "internal/server"
+        ],
+        "tests": [
+          "TestPinnedNodeVectorRoutes"
+        ],
+        "browserArtifacts": [],
+        "ci": [
+          "ci.yml#oracle"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestPinnedNodeVectorRoutes",
+        "explanation": "the row's claims about embeddings and vector storage rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "local in-process embedding sources are a decided exclusion (ARCHITECTURE.md boundary 2) and are not implemented; the routes exist but the local providers cannot",
+        "no test of a remote embedding provider's error handling, which is the only path a user can actually take"
+      ],
+      "blockedBy": [
+        "providers-transport"
+      ],
+      "notes": "Route parity without provider reachability: the same shape as P0-A, one subsystem over."
+    },
+    {
+      "id": "accounts-multi-user",
+      "area": "Multi-user: create, admin, recovery, reset, private data, per-user data roots",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-account-create.json",
+          "tests/oracle/sillytavern-1.19.0-account-admin.json",
+          "tests/oracle/sillytavern-1.19.0-account-recovery.json",
+          "tests/oracle/sillytavern-1.19.0-account-data-reset.json",
+          "tests/oracle/sillytavern-1.19.0-account-private.json",
+          "tests/oracle/sillytavern-1.19.0-user-data-migration.json"
+        ],
+        "upstreamAssets": [],
+        "implementation": [
+          "internal/server",
+          "internal/startup"
+        ],
+        "tests": [
+          "TestPinnedNodeAccountCreationAndSlugifyContract",
+          "TestPinnedNodeAccountBackupContract",
+          "TestPinnedNodePrivateAccountProfileAndLogoutContract"
+        ],
+        "browserArtifacts": [],
+        "ci": [
+          "ci.yml#oracle"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestPinnedNodeAccountCreationAndSlugifyContract",
+        "explanation": "the row's claims about multi-user: create, admin, recovery, reset, private data, per-user data roots rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "no test of two users concurrently writing the same world/preset tree; the per-user lock is asserted per route, not under contention",
+        "no stock-tree multi-user migration result"
+      ],
+      "blockedBy": [],
+      "notes": "Account machinery has broad fixture coverage; concurrency and migration from a real deployment are the gaps."
+    },
+    {
+      "id": "import-export-backups",
+      "area": "Content import, character export, chat/account backups and restore",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-content.json",
+          "tests/oracle/sillytavern-1.19.0-content-uuid.json",
+          "tests/oracle/sillytavern-1.19.0-backups.json",
+          "tests/oracle/sillytavern-1.19.0-backups-chat-get.json",
+          "tests/oracle/sillytavern-1.19.0-account-backup.json"
+        ],
+        "upstreamAssets": [],
+        "implementation": [
+          "internal/server"
+        ],
+        "tests": [
+          "TestImportDomainsWhitelistDefaultsToThePinnedFourHosts",
+          "TestPinnedNodeBackupsRoutes",
+          "TestPinnedNodeBackupsChatGet"
+        ],
+        "browserArtifacts": [],
+        "ci": [
+          "ci.yml#oracle"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestImportDomainsWhitelistDefaultsToThePinnedFourHosts",
+        "explanation": "the row's claims about content import, character export, chat/account backups and restore rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "restore is not proven: a backup is read, but no test restores one into a tree and compares the tree",
+        "the inherited substring-matching host classifier (ARCHITECTURE.md boundary 5) is recorded as inherited but no test pins its acceptance of chub.ai.attacker.example"
+      ],
+      "blockedBy": [],
+      "notes": "A backup nobody has restored is a file, not a backup."
+    },
+    {
+      "id": "startup",
+      "area": "Startup: config creation and migration, data seeding, locking, no-hang, no egress",
+      "status": "FAIL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-fresh-start.json",
+          "tests/oracle/sillytavern-1.19.0-config-init.json",
+          "tests/oracle/sillytavern-1.19.0-commandline-paths.json",
+          "tests/oracle/sillytavern-1.19.0-public-overrides-migration.json",
+          "tests/oracle/sillytavern-1.19.0-access-log-migration.json"
+        ],
+        "upstreamAssets": [
+          "upstream/default",
+          "upstream/manifests"
+        ],
+        "implementation": [
+          "internal/startup",
+          "internal/configinit",
+          "internal/migrate",
+          "internal/app"
+        ],
+        "tests": [
+          "TestInitializeDataStartupMatchesPinnedNodeFreshStartInventory",
+          "TestInitializeCreatesPinnedFreshConfig",
+          "TestInitializeMigratesLegacyConfigAndPreservesUnknownFields",
+          "TestResolveProtocolSelectionMatchesPinnedServerStartup"
+        ],
+        "browserArtifacts": [],
+        "ci": [
+          "ci.yml#oracle",
+          "release-qualification.yml#qualify-linux-amd64"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": null,
+        "explanation": "no gate exists: docs/startup-state-machine.md §2 lists the unbounded waits and no test bounds them, so a stock-tree hang would go red nowhere. The gate that must land is a boot with a wall-clock bound per wait, against a real SillyTavern directory, failing with the wait named."
+      },
+      "absentGate": {
+        "owner": "lane B (startup state machine)",
+        "mustAssert": "a boot over a stock SillyTavern directory completes inside a wall-clock bound, with every wait in docs/startup-state-machine.md §2 individually bounded and its bound named in the failure, and the tree left unmodified"
+      },
+      "evidenceGap": [
+        "P0-B: a boot inside a real SillyTavern directory hung; docs/startup-state-machine.md §2 lists the unbounded waits (flock acquisition, resolver call, sleep loop, join without producer) and no gate bounds them (AGENTS.md 24)",
+        "no gate asserts that startup makes no non-essential network access (AGENTS.md 25)",
+        "no gate asserts that a parseable config is never rewritten as a side effect (AGENTS.md 27)",
+        "every startup fixture starts from a fresh or migrated runtime root, never from a stock SillyTavern tree that a user already runs"
+      ],
+      "blockedBy": [],
+      "notes": "The state machine is documented in detail and the invariants are written into AGENTS.md 24-28; what does not exist is a test that fails when a wait is unbounded or a stock tree hangs. That absence is the defect the process is missing (AGENTS.md 40)."
+    },
+    {
+      "id": "packaging-release",
+      "area": "Release artifact: archive, install, upgrade, rollback, docker, smoke",
+      "status": "PARTIAL",
+      "evidence": {
+        "oracleFixtures": [],
+        "upstreamAssets": [
+          "upstream/tokenizers"
+        ],
+        "implementation": [
+          "cmd/gotavern",
+          "internal/app"
+        ],
+        "tests": [
+          "TestVerifyWithManifestRejectsAnAlteredFile",
+          "TestCopyVerificationCatchesAShortFile"
+        ],
+        "browserArtifacts": [],
+        "ci": [
+          "release-qualification.yml#qualify-linux-amd64",
+          "release-qualification.yml#qualify-upgrade-rollback",
+          "release-install-smoke.yml#smoke-published-linux-amd64",
+          "docker.yml#docker"
+        ],
+        "releaseArtifact": "release-qualification.yml extracts the archive, boots it over a fresh root, boots it a second time to assert idempotence, and exercises upgrade plus rollback"
+      },
+      "wouldGoRedIfWrong": {
+        "test": "TestVerifyWithManifestRejectsAnAlteredFile",
+        "explanation": "the row's claims about release artifact: archive, install, upgrade, rollback, docker, smoke rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+      },
+      "evidenceGap": [
+        "the qualification boot uses a FRESH runtime root, not a stock SillyTavern directory with the user's existing config, data and extensions (AGENTS.md 34/38)",
+        "no qualification result for handing the data back to pinned Node after GoTavern has run over it (AGENTS.md 38)",
+        "quoted releaseArtifact here is a workflow step, not a recorded run id"
+      ],
+      "blockedBy": [
+        "startup"
+      ],
+      "notes": "This row is the strongest release evidence in the tree and it is still the wrong shape for the drop-in promise: it proves the artifact works on an empty root, not on the root a user brings."
+    },
+    {
+      "id": "whole-session-e2e",
+      "area": "Whole-session differential in a stock tree (load, settings, characters, chat, send, stream, save, reload)",
+      "status": "FAIL",
+      "evidence": {
+        "oracleFixtures": [
+          "tests/oracle/sillytavern-1.19.0-fresh-start.json"
+        ],
+        "upstreamAssets": [],
+        "implementation": [],
+        "tests": [],
+        "browserArtifacts": [
+          "tests/browser/startup-comparison.json",
+          "tests/browser/data-domain-comparison.json"
+        ],
+        "ci": [
+          "browser-differential.yml#differential"
+        ],
+        "releaseArtifact": null
+      },
+      "wouldGoRedIfWrong": {
+        "test": null,
+        "explanation": "no gate exists: the eight steps are eight independent probes on eight runtime roots, so a session that saves and reloads would go red nowhere. The gate that must land is the stateful runner described in the `session` section."
+      },
+      "absentGate": {
+        "owner": "lane D (this lane)",
+        "mustAssert": "one stock tree, one pinned server, one GoTavern server, one unmodified frontend: load, settings, characters, open chat, send, stream, save, reload — with state carried across the steps and the comparison canonicalised per field path rather than by dropping bodies"
+      },
+      "evidenceGap": [
+        "no differential carries state across steps: each probe boots its own runtime root, so a session that saves a chat and reloads the page is not gated anywhere",
+        "the two existing browser artefacts that touch startup compare a startup RECORD, not a user session",
+        "send and stream are compared per-source against a mock peer, never as one user's sequence in one tree"
+      ],
+      "blockedBy": [
+        "startup",
+        "providers-transport"
+      ],
+      "notes": "This is the row this lane exists to create, and it is honestly FAIL today: the harness covers eight steps as eight independent experiments and zero sessions. Section `session` records the per-step inventory that supports that claim."
+    }
+  ],
+  "session": {
+    "purpose": "The whole-session differential AGENTS.md 34/38 asks for, inventoried against the harness that exists. It proves the claim above: every step has a probe, no probe shares a runtime with another, so there is no session.",
+    "stateCarriedBetweenSteps": false,
+    "sharedFixture": false,
+    "existingHarness": [
+      "tools/probe-*.mjs",
+      "tests/browser/generation-probe.mjs",
+      "tests/browser/capture-preset.mjs"
+    ],
+    "steps": [
+      {
+        "step": "load",
+        "userAction": "open the pinned frontend root in a browser",
+        "probe": "tools/probe-frontend-static.mjs",
+        "browserArtifact": "tests/browser/startup-comparison.json",
+        "comparesBothLegs": true,
+        "sharesRuntimeWithOtherSteps": false
+      },
+      {
+        "step": "settings",
+        "userAction": "read and save settings",
+        "probe": "tools/probe-settings-save.mjs",
+        "browserArtifact": null,
+        "comparesBothLegs": true,
+        "sharesRuntimeWithOtherSteps": false
+      },
+      {
+        "step": "characters",
+        "userAction": "list and open a character",
+        "probe": "tools/probe-characters-read.mjs",
+        "browserArtifact": null,
+        "comparesBothLegs": true,
+        "sharesRuntimeWithOtherSteps": false
+      },
+      {
+        "step": "open-chat",
+        "userAction": "open a chat and see its history",
+        "probe": "tools/probe-chats-save-get.mjs",
+        "browserArtifact": null,
+        "comparesBothLegs": true,
+        "sharesRuntimeWithOtherSteps": false
+      },
+      {
+        "step": "send",
+        "userAction": "send a message and receive a completion",
+        "probe": "tools/probe-provider-wire.mjs",
+        "browserArtifact": "tests/browser/generation-comparison.json",
+        "comparesBothLegs": true,
+        "sharesRuntimeWithOtherSteps": false
+      },
+      {
+        "step": "stream",
+        "userAction": "send with streaming on, then cancel mid-stream",
+        "probe": "tests/browser/generation-probe.mjs",
+        "browserArtifact": "tests/browser/streaming-comparison.json",
+        "comparesBothLegs": true,
+        "sharesRuntimeWithOtherSteps": false
+      },
+      {
+        "step": "save",
+        "userAction": "save the chat",
+        "probe": "tools/probe-chats-mutations.mjs",
+        "browserArtifact": null,
+        "comparesBothLegs": true,
+        "sharesRuntimeWithOtherSteps": false
+      },
+      {
+        "step": "reload",
+        "userAction": "reload the page and see the conversation back",
+        "probe": null,
+        "browserArtifact": null,
+        "comparesBothLegs": false,
+        "sharesRuntimeWithOtherSteps": false,
+        "notImplemented": "no probe reads state back through the frontend after a reload; chats-save-get compares the HTTP round trip, not the browser's rehydration"
+      }
+    ],
+    "canonicalisation": {
+      "required": [
+        "timestamps",
+        "nonces and session ids",
+        "ports",
+        "absolute host paths"
+      ],
+      "method": "Each step's observation is compared after replacing those four classes with markers by FIELD PATH, never by regex over the whole document, and the replacement is recorded beside the observation so it cannot be silently widened. Byte equality is never claimed for a field that carries a clock.",
+      "forbidden": [
+        "dropping whole response bodies",
+        "sorting arrays whose order is the contract",
+        "ignoring status codes"
+      ]
+    }
+  },
+  "gaps": [
+    {
+      "rank": 1,
+      "title": "The provider transport cannot reach a real provider, and every test proves it can reach our mock",
+      "row": "providers-transport",
+      "wouldStopARealUser": "yes - it already did (P0-A): the user cannot chat at all",
+      "evidence": "docs/network-egress.md §2 (eight unmet transport requirements); AGENTS.md 22, 29, 30; no test in the tree opens a socket to a hostname it does not control"
+    },
+    {
+      "rank": 2,
+      "title": "A boot inside a real SillyTavern tree hangs, and no gate bounds a startup wait",
+      "row": "startup",
+      "wouldStopARealUser": "yes - it already did (P0-B): the server never becomes usable",
+      "evidence": "docs/startup-state-machine.md §2 (unbounded flock/resolver/sleep/join); AGENTS.md 24; every startup fixture starts from a fresh root"
+    },
+    {
+      "rank": 3,
+      "title": "Extension updates happen without being asked for; no gate asserts the decision to update",
+      "row": "extensions",
+      "wouldStopARealUser": "yes - it already did (P0-C): a user's extensions changed under them",
+      "evidence": "AGENTS.md 26 (ambiguous input resolves to OFF) has no test; the extension fixtures cover serving and discovery, not the update decision"
+    },
+    {
+      "rank": 4,
+      "title": "No whole-session differential exists: eight steps, eight experiments, zero sessions",
+      "row": "whole-session-e2e",
+      "wouldStopARealUser": "indirectly - it is the evidence layer whose absence let all three P0s through",
+      "evidence": "session.steps table: every probe sets sharesRuntimeWithOtherSteps=false; a chat saved and reloaded in one tree is gated nowhere"
+    },
+    {
+      "rank": 5,
+      "title": "The release artifact is only qualified on an empty runtime root, never on the stock tree a user brings",
+      "row": "packaging-release",
+      "wouldStopARealUser": "yes for an existing SillyTavern user, which is the entire target audience",
+      "evidence": "release-qualification.yml boots a fresh root and asserts idempotence; AGENTS.md 34/38 require an unpacked artifact in a stock tree"
+    },
+    {
+      "rank": 6,
+      "title": "Prompt assembly for the paths that matter (world info positions, group turns, presets) has one gate and it does not pass",
+      "row": "world-info",
+      "wouldStopARealUser": "no, but it silently changes what the model is told, which is the product's core promise",
+      "evidence": "browser-differential preset artefacts; three runs (40082539457, 40087218275, 40073821604) failed to bind a keep/drop pair"
+    },
+    {
+      "rank": 7,
+      "title": "Context-boundary tokenization is measured but never made to bind on both legs",
+      "row": "tokenization",
+      "wouldStopARealUser": "no, but AGENTS.md 9 makes it mandatory where marked compatible",
+      "evidence": "tests/browser/preset-complex-comparison.json; the tokenizer anchor test refuses a guesstimating server, which is correct, but the boundary itself has no passing pair"
+    },
+    {
+      "rank": 8,
+      "title": "Backups are read but never restored, and the inherited host classifier is unpinned",
+      "row": "import-export-backups",
+      "wouldStopARealUser": "yes at the worst moment: a user restoring after data loss would find the backup unproven",
+      "evidence": "tests/oracle/sillytavern-1.19.0-backups.json compares reads only; ARCHITECTURE.md boundary 5 requires the chub.ai substring behaviour to be reproduced and recorded"
+    },
+    {
+      "rank": 9,
+      "title": "Media re-encoding is a codec boundary, not parity: avatar crops and thumbnails are not byte-comparable",
+      "row": "files-and-media",
+      "wouldStopARealUser": "no, but it is an unbounded quality difference in a user's own images",
+      "evidence": "ARCHITECTURE.md boundary 3; the character import fixture compares pixels through pngjs because the pinned Jimp path cannot be reproduced"
+    },
+    {
+      "rank": 10,
+      "title": "Server plugins and local embeddings are excluded, and the exclusion is only as visible as the last document that mentioned it",
+      "row": "server-plugins",
+      "wouldStopARealUser": "for the small set of users who rely on them, yes; they should learn it before installing",
+      "evidence": "AGENTS.md 16 and ARCHITECTURE.md boundary 2; TestPluginsAreReportedAndNeverCopied asserts the negative, but no matrix row was machine-readable until now"
+    }
+  ],
+  "derived": {
+    "oracleFixtures": {
+      "inTree": 118,
+      "citedByMatrix": 66
+    },
+    "browserArtefacts": {
+      "inTree": 35,
+      "citedByMatrix": 11
+    },
+    "goTestFunctions": {
+      "inTree": 509,
+      "citedByMatrix": 56
+    },
+    "workflows": {
+      "inTree": 8,
+      "jobsInTree": 25
+    },
+    "rows": {
+      "total": 22,
+      "PASS": 0,
+      "PARTIAL": 17,
+      "FAIL": 4,
+      "NOT_APPLICABLE": 1
+    },
+    "sessionSteps": {
+      "total": 8,
+      "withProbe": 7,
+      "withoutProbe": 1,
+      "sharingARuntime": 0
+    }
+  }
+}
