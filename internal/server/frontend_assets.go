@@ -51,26 +51,50 @@ func init() {
 	domainRouteRegistrars = append(domainRouteRegistrars, registerFrontendAssetRoutes)
 }
 
+// userDataMounts is the GoTavern registration for the pinned user-data static trees. Pinned declares
+// SEVEN mounts at src/users.js:1213-1219:
+//
+//	router.use('/backgrounds/*',                    ... directories.backgrounds);   :1213
+//	router.use('/characters/*',                     ... directories.characters);    :1214
+//	router.use('/User%20Avatars/*',                 ... directories.avatars);       :1215
+//	router.use('/assets/*',                         ... directories.assets);        :1216
+//	router.use('/user/images/*',                    ... directories.userImages);    :1217
+//	router.use('/user/files/*',                     ... directories.files);         :1218
+//	router.use('/scripts/extensions/third-party/*', ... directories.extensions);    :1219
+//	                                                   (served by the frontend static path)
+//
+// THE THREE USER-DATA ROWS IN THE MIDDLE WERE MISSING, and that is why a real user's page showed
+// broken images: a character's full-size avatar, its sprites and its live2d are all fetched from
+// /characters/<file>.png, which answered 404 while /characters/ existed on disk as a directory nobody
+// could fetch (AGENTS.md 42/44). No fixture requested those URLs, so nothing failed. The list is a
+// package-level value so the inventory test diffs it against the pinned declarations instead of
+// trusting this comment.
+//
+// /User%20Avatars/*: net/http decodes the request target before matching, so the pattern carries the
+// DECODED literal (`/User Avatars/`). A request for /User%20Avatars/x.png has r.URL.Path
+// "/User Avatars/x.png" and matches it. The percent-encoded spelling is what the pinned frontend
+// builds; the space is what this mux matches.
+var userDataMounts = []struct{ pattern, directoryKey string }{
+	{"/backgrounds/{rest...}", "backgrounds"},
+	{"/characters/{rest...}", "characters"},
+	{"/User Avatars/{rest...}", "avatars"},
+	{"/assets/{rest...}", "assets"},
+	{"/user/images/{rest...}", "userImages"},
+	{"/user/files/{rest...}", "files"},
+}
+
 func registerFrontendAssetRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	// router.use matches every method, so neither pattern names one. The patterns need the trailing
 	// slash for the same reason the pinned mount does: `/backgrounds` alone is not this route.
 
-	// The same createRouteHandler shape serves the three user-data asset trees; the two below are
-	// src/users.js:1217-1218, and /backgrounds/* is :1213:
-	//
-	//	router.use('/user/images/*', createRouteHandler(req => req.user.directories.userImages));
-	//	router.use('/user/files/*',  createRouteHandler(req => req.user.directories.files));
-	//
-	// They are the URLs the frontend fetches chat images and uploaded files from, with a `?v=`
-	// cache-buster the route ignores (it decodes only the wildcard capture). The extension E2E found
-	// them missing: LittleWhiteBox uploads its user data through /api/files/upload and then reads it
-	// back through /user/files/<name>?v=..., which answered 404 on GoTavern on every attempt while
-	// pinned answered 200 -- the extension could store state it could never load.
-	for _, userDataRoute := range []struct{ pattern, directoryKey string }{
-		{"/user/images/{rest...}", "userImages"},
-		{"/user/files/{rest...}", "files"},
-		{"/backgrounds/{rest...}", "backgrounds"},
-	} {
+	// The same createRouteHandler shape serves every user-data asset tree (see userDataMounts). Each
+	// one is a URL the pinned frontend fetches: chat images and uploaded files with a `?v=`
+	// cache-buster the route ignores, character avatars/sprites/live2d, User Avatars, and the assets
+	// tree. The extension E2E found two of them missing: LittleWhiteBox uploads its user data through
+	// /api/files/upload and then reads it back through /user/files/<name>?v=..., which answered 404 on
+	// GoTavern on every attempt while pinned answered 200 -- the extension could store state it could
+	// never load. A user report found the other three.
+	for _, userDataRoute := range userDataMounts {
 		directoryKey := userDataRoute.directoryKey
 		mux.HandleFunc(userDataRoute.pattern, func(w http.ResponseWriter, r *http.Request) {
 			accounts.serveUserDataStatic(w, r, directoryKey, notFoundPage)
