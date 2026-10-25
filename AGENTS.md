@@ -420,6 +420,7 @@ fixture or runs a test suite happens in GitHub Actions.
 - **Forbidden locally:** `go build`, `go test`, `go vet`, `gofmt` over the tree, `npm`, Playwright,
   `tools/build-generated-lib.mjs`, the browser harness, any probe. The machine cannot afford them and
   a Windows result is not the Linux gate anyway (see the CRLF and host-path traps in the rules above).
+- **A relative path in a .NET or PowerShell file API does not follow `cd`.** `[System.IO.File]::WriteAllText('internal/x.go', …)` resolves against the PROCESS working directory, which is the session workspace, while `cd` only changes PowerShell's location. An edit aimed at another worktree therefore lands in this checkout, silently, and the read-back that would have caught it is the only thing that does. Two lanes have already written into the wrong tree this way. Use absolute paths for every write (`Resolve-Path` first, then write), and after any edit in a worktree that is not this one, read the file back and confirm which tree changed before reporting it.
 - **No pull requests.** Branch count and duplicated multi-hour sweeps got out of control: five PRs
   meant five oracle jobs. A task gets ONE lane branch; when it is done and its cheap checks pass, it
   is pushed once and the lead merges it into `main` locally, then deletes the lane. `main` is the only
