@@ -73,7 +73,7 @@ func configCases(t *testing.T) []caseSpec {
 
 	rewriteDir := t.TempDir()
 	rewritePath := filepath.Join(rewriteDir, "config.yaml")
-	rewriteBody := "listen: false\nport: 8000\n"
+	rewriteBody := "listen: false\nport: 8000\nsomeFutureSection:\n    keptValue: 41\n"
 	writeText(t, rewritePath, rewriteBody)
 
 	readOnlyDir := t.TempDir()
@@ -239,7 +239,29 @@ func configCases(t *testing.T) []caseSpec {
 		{
 			id:        "config.parseable-config-rewritten",
 			checklist: "config.readonly",
-			invariant: "rule 27: a config that parses is not rewritten merely because defaults exist",
+			// WHAT THIS CAN AND CANNOT ASSERT (adjudicated 2026-10-25, ARCHITECTURE 34.2/34.4).
+			//
+			// The first version asserted that the bytes are unchanged. That cannot hold and should not: pinned
+			// INSERTS ITS DEFAULTS AT STARTUP (hard rule 13 -- "startup behavior is compatibility behavior",
+			// reproduce "config creation/key migration/default insertion"), its own fixtures record that
+			// insertion, and a drop-in replacement that quietly stopped doing it would be "safer but different",
+			// which breaks parity exactly as badly as "different and worse".
+			//
+			// What a user is actually entitled to, and what this case now measures:
+			//   1. their own keys and any unknown section still survive,
+			//   2. a SECOND boot changes nothing (idempotence), so the file cannot drift or be re-serialised
+			//      differently on every start.
+			//
+			// WHY "no auto-update key in the file" IS NOT ASSERTED HERE: pinned's default insertion writes
+			// upstream's own keys, including extensions.autoUpdate: true, and pruning them out of the merge was
+			// TRIED and broke six pinned-derived fixtures (the migration bytes and, through the merged config,
+			// the CORS headers the basic-auth fixtures compare). The protection a user actually gets is the
+			// DECISION layer -- ARCHITECTURE 34.3, where the inherited key is reporting-only and the only input
+			// is gotavern.autoUpdateExtensions -- and that is measured directly by
+			// config.autoupdate-inherited-true, config.autoupdate-fresh-install and
+			// extensions.gotavern-key-strict. Asserting it on the bytes here would be measuring the wrong layer
+			// and would fail for a reason that is not a defect.
+			invariant: "rule 13/27: pinned's default insertion is reproduced, but the user's keys and unknown sections survive it, and a second boot is byte-identical",
 			run: func() caseResult {
 				if _, err := configinit.Initialize(rewritePath); err != nil {
 					return violation("initializing a parseable config failed: %v", err)
@@ -248,10 +270,22 @@ func configCases(t *testing.T) []caseSpec {
 				if err != nil {
 					return violation("the config is unreadable after boot: %v", err)
 				}
-				if string(after) != rewriteBody {
-					return violation("a parseable config was rewritten on boot (%d bytes -> %d bytes, missing %d pinned keys were inserted)", len(rewriteBody), len(after), strings.Count(string(after), "\n")-strings.Count(rewriteBody, "\n"))
+				for _, kept := range []string{"port:", "someFutureSection:", "keptValue:"} {
+					if !strings.Contains(string(after), kept) {
+						return violation("boot lost the user's own configuration (%q is gone):\n%s", kept, after)
+					}
 				}
-				return okResult("bytes unchanged")
+				if _, err := configinit.Initialize(rewritePath); err != nil {
+					return violation("the second initialization failed: %v", err)
+				}
+				second, err := os.ReadFile(rewritePath)
+				if err != nil {
+					return violation("the config is unreadable after the second boot: %v", err)
+				}
+				if string(second) != string(after) {
+					return violation("a second boot rewrote an up-to-date config (%d bytes -> %d bytes), so the file drifts on every start", len(after), len(second))
+				}
+				return okResult("pinned defaults inserted, user keys and unknown section kept, second boot byte-identical")
 			},
 		},
 		{

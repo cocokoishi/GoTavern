@@ -7,26 +7,19 @@
 #     `invariant` field and its detail line in the CI log for the measurement).
 #
 # Delete a line only when its case holds, so the fix is recorded with its gate.
-
-# P0-C / ARCHITECTURE 34.3: the inherited keys are reported and never acted on.
-# internal/commandline/options.go:250 resolves extensions.autoUpdate with a
-# fallback of true and treats any configured value as an input;
-# internal/server/settings_get.go:70 then reports it, and the frontend's
-# autoUpdateExtensions() (upstream/public/scripts/extensions.js:1988-2010)
-# drives POST /api/extensions/update from it.
-
-# rule 26: an unparseable value is an OFF input; jsBoolean("maybe") is true.
-
-# rule 27: a parseable config is rewritten on boot by mergeDefaults.
-config.parseable-config-rewritten
+#
+# A FIXED ENTRY LEAVES NO COMMENT BEHIND. Two versions of this file kept the prose of fixed
+# violations, which makes a reader believe three invariants are still broken when they are being
+# measured as held. If an invariant is not listed below, it is not violated.
 
 # rule 24/27: a config that parses is not a licence to resolve a relative
-# dataRoot against two different roots (internal/commandline/paths.go:155 uses
-# the working directory, :175 uses the server directory).
+# dataRoot against two different roots (internal/commandline/paths.go uses the
+# working directory to create it and the server directory to use it, so a fresh
+# tree booted from elsewhere dies with ENOENT in the cookie-secret writer).
+# The fix is pinned-grounded (server.js:11 chdir, src/command-line.js:293) but
+# changes a value the command-line parser fixture compares, so it needs a NAMED
+# exemption in that fixture before it can land.
 boot.foreign-cwd-relative-data-root
-
-# rule 24: flock.Lock() has no bounded acquisition (internal/configinit/config.go:169,
-# internal/startup/*.go lock helpers), so a held lock blocks the second process.
 
 # rule 24/33: the pinned ten-second legacy warning is spent in silence before any
 # output, and main prints nothing until app.Start returns
@@ -36,13 +29,3 @@ boot.legacy-migration-cost
 # rule 9/22: with no tokenizer tree the route answers 200 with a Guesstimate
 # count instead of failing loudly (internal/server/tokenizers.go:363-372).
 boot.missing-tokenizers
-
-# rule 29/30: the wire client advertises accept-encoding gzip/deflate/br and
-# never decompresses (internal/outbound/raw.go has no compress/* import).
-
-# rule 29: 3xx is returned to the caller as the provider's answer; no Location
-# handling exists in internal/outbound/raw.go.
-
-
-# rule 35/12: a credential containing CR/LF is written verbatim by
-# internal/outbound/raw.go:149-151, so it forges a request header.
