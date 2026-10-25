@@ -620,3 +620,15 @@ lane: a report that cannot answer "does this move us toward `GOAL.md`?" is rejec
 53. **Every lane, commit and report answers the goal question.** "Does this move us closer to
     `GOAL.md`?" A change that adds coverage of a behaviour no user can observe, or that raises a number
     without changing an answer to the scorecard in `GOAL.md` §7, is not progress.
+54. **A gate that compares two declarations cannot see the failure that happens when one is executed.**
+    Measured 2026-10-25: a lane registered `/User Avatars/{rest...}`, and the inventory gate written to police
+    exactly that set compared the PINNED declaration string with the REGISTERED string. It was green. The
+    server panicked inside `mux.HandleFunc`, because `net/http` reads a space in a pattern as a method
+    separator (`src/net/http/pattern.go:96`), so `main` stopped opening a port: `verify` failed, four unrelated
+    suites went red (account-admin, global basic-auth, the adversarial ratchet, and the DeepSeek e2e whose
+    binary "exited 2 before answering GET /version"), and a merged commit was unrunnable. Two duties follow.
+    When the acceptance of a value is an EXECUTION — registering a pattern, opening a listener, constructing the
+    handler, parsing the document — the gate must execute it and not compare spellings; the set-comparison gate
+    may stay, but only as a second opinion beside one that builds the real object. And when a merged commit
+    cannot start, the report's FIRST line says so: "some tests are red" describes a symptom and hides a
+    regression that a revert fixes in a minute.
