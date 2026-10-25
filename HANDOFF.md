@@ -20,6 +20,17 @@ grown to eighty lanes. Nothing was lost: the deleted history is archived in
 What has landed since the previous checkpoint (latest first; every count below is from the generated
 facts or a named fixture):
 
+0. **`v0.1.0-alpha.2` is published** (annotated tag at `d3198b8`, release run `40149842943`, docker
+   `40149842928`, qualification `40149842917`, install smoke `40150649597`). Six canonical archives plus
+   `checksums.txt`, all six listed in the checksums, `releases/latest` still 404 for a prerelease, and the
+   published `gotavern-linux-amd64.tar.gz` downloaded and SHA-256-matched against the published checksums
+   (`2b96d087…`). Its `BUILD-INFO.txt` names the release and the pinned baseline. The tree also gained, in
+   the pre-release audit: every recorded provider request compared and its COUNT asserted (the
+   `azure-openai-status-ok` capture records a models GET and a 95-byte chat POST, and only the first was ever
+   compared), a `timeout-minutes` on all ten jobs in the five workflows (the rule in AGENTS.md was not true
+   of three of them), one BOM removed, four CP1252-round-tripped comments repaired, and eleven documentation
+   claims corrected — see item 7 for the one measured limit that is still open.
+
 1. **Provider-wire breadth is now <!-- BEGIN GENERATED: provider-wire.scenarios -->`219`<!-- END GENERATED: provider-wire.scenarios --> recorded scenarios** (was 205 before the final sweep). The fixture is `tests/oracle/sillytavern-1.19.0-provider-wire.json`; `TestChatCompletionGenerateMatchesProviderWireCapture` replays every scenario input.
 2. **The status fall-through is CLOSED.** AI21, VERTEXAI and PERPLEXITY now answer the pinned closing-else `400 {"error":true}` with ZERO outbound, not 501. The six new observations are `status.{ai21,vertexai,perplexity}.{noBranch,reverseProxy}` in `tests/oracle/sillytavern-1.19.0-backends.json`, which moved from 110 to 116 observations. The route is `internal/server/backends_status.go` (the no-arm set and the shared refusal at `:75-84`).
 3. **The route-wide request gaps are recorded.** `custom_prompt_post_processing` is observed by `openai-custom-prompt-post-processing`; the OPENAI reasoning-effort/verbosity tables by `openai-reasoning-effort-{fixed,map,outside-table}`; OpenRouter audio embedding by `openrouter-media-audio-embed` and `-passthrough`; OpenRouter reasoning signatures by `openrouter-reasoning-signatures*`. The Go side is `chat_completions.go:176-219` (post-processing) and `:423-534` (tables), plus `openrouter_media.go`.
