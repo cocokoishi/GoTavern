@@ -839,7 +839,11 @@ jobs:
           for committed in "$work"/committed/*; do
             artifact="$(basename "$committed")"
             case "$artifact" in
-              *.absent) continue ;;
+              *.absent)
+                echo "NOT-COMMITTED ${artifact%.absent}: this run recorded it and the repository does not carry it (nothing to compare against, and nothing here reads as a pass)" | tee -a "$GITHUB_STEP_SUMMARY"
+                missing=$((missing + 1))
+                continue
+                ;;
             esac
             if [ ! -f "tests/browser/$artifact" ]; then
               echo "NOT-RECORDED $artifact (this run did not produce it)" | tee -a "$GITHUB_STEP_SUMMARY"

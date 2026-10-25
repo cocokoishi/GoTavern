@@ -325,9 +325,21 @@ try {
             observedModel: settings?.custom_model ?? null,
         };
     }, { url: peerBase, model: 'probe-model' });
-    const connectionOk = report.connection?.observedSource === 'custom'
-        && report.connection?.observedUrl === peerBase
-        && report.connection?.observedModel === 'probe-model';
+    // A COMMITTED ARTEFACT MAY NOT CARRY A PORT (the verifier's host-derived sweep refuses it, and the
+    // asset lane paid for that lesson). The peer URL is replaced with a marker; the selector names and the
+    // found flags are the observation, and the comparator judges the connection from the peer's capture.
+    // The controls existed and accepted the values; the PEER's capture is what the comparator judges.
+    const connectionOk = (report.connection?.applied ?? []).every(item => item?.found === true);
+    const redactLoopback = value => (typeof value === 'string'
+        ? value.replace(/^https?:\/\/(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?/i, '<loopback>')
+        : value);
+    report.connection = {
+        ...report.connection,
+        peerUrl: '<loopback>/v1',
+        observedUrl: redactLoopback(report.connection?.observedUrl),
+        applied: (report.connection?.applied ?? []).map(item => ({ ...item, value: redactLoopback(item?.value) })),
+    };
+    report.connectionOk = connectionOk;
     // The page's settings object is NOT the oracle: script.js does not export it under the name this
     // harness guessed, which is why 40217283368 read observedSource=null while the peer DID receive the
     // request. The controls and their accepted values are recorded here; the comparator judges the peer.
