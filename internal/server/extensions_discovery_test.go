@@ -392,7 +392,7 @@ func TestPinnedExtensionDiscoverDiskWins(t *testing.T) {
 }
 
 // TestPinnedExtensionStaticEmbeddedReleaseInstall covers the second-order
-// effect of the fix: the frontend now requests /scripts/extensions/<built-in>/â€¦
+// effect of the fix: the frontend now requests /scripts/extensions/<built-in>/...
 // for every name discovery reports, so the static middleware must answer them on
 // a release-shaped install, from the embedded tree, with the pinned bytes and
 // headers. It also answers the coverage question directly: does the embedded

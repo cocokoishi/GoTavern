@@ -1,4 +1,4 @@
-﻿// Measure the preset boundary WITH THE PINNED LEG ITSELF.
+// Measure the preset boundary WITH THE PINNED LEG ITSELF.
 //
 // WHY THIS EXISTS, IN ONE SENTENCE: seven runs failed because the boundary was measured by a procedure
 // that was merely SIMILAR to the one that produces the compared request. The capture bisected a dry

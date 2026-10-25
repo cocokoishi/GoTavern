@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // @gotavern-oracle: fixture=sillytavern-1.19.0-openai-caption.json label="openai caption"
-// Probe `/api/openai/caption-image` (openai.js:16) â€” COMMIT 1 of wave D: the BRANCH DISPATCH.
+// Probe `/api/openai/caption-image` (openai.js:16) -- COMMIT 1 of wave D: the BRANCH DISPATCH.
 //
 // THE TABLE IS THE WORK. The pinned handler selects on `request.body.api` with NINETEEN distinct values,
 // each changing the secret, the URL and sometimes the body. Four of them (ooba, koboldcpp, llamacpp, vllm)

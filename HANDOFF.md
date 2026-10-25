@@ -223,6 +223,21 @@ These are now also in `AGENTS.md`; the instances below are what they cost.
    non-NTFS volume is NOT COVERED.
 
 6. **A cross-baseline upgrade** is still unexecuted, and so is a running-server replacement test.
+
+7. **The tokenizer fixture cannot decide response BYTES, and that is measured, not suspected.** The
+   fixture records parsed JSON, and `tests/oracle/sillytavern-1.19.0-tokenizers.json` has **26 of 1022**
+   cases whose bodies carry **129 U+FFFD** characters: a byte-level BPE tokenizer answers with chunks that
+   are fragments of a multi-byte character, so six of the nine `gpt2/encode#cjk` chunks are replacement
+   characters that decode identically from DIFFERENT bytes. `chunks` is compared as text, so those cases
+   (gpt2 and the HuggingFace `openai` family, plus three `decode#roundtrip_emoji` cases) pass for the wrong
+   reason -- a green that cannot fail, and the class rule 7 names. A second, independent byte difference is
+   visible in the same file: **222 of 1022** bodies contain `<` or `>` (special tokens such as `<|endoftext|>`
+   inside chunks), which `encoding/json` escapes as `\u003c`/`\u003e` while Express does not, so our bytes
+   differ from pinned wherever the parsed values agree. Remedy, one slice: record `bodySha256` of the pinned
+   RAW bytes in `tools/probe-tokenizers.mjs::request`, assert it in the Go replay (the character-write
+   fixture already gates its PNG body that way, via `ResponseSHA256`), and stop HTML-escaping in the
+   tokenizer serialization. Until that lands, the tokenizer rows are `partial` on this specific ground and
+   must not be read as byte parity.
 ## 7. Working agreements
 
 - Teammates own their lane branch and push it; the Lead merges and pushes main in batches.

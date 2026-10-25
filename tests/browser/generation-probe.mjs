@@ -24,7 +24,7 @@
 //
 // ONE question: does a send driven from the pinned frontend produce a provider request at all?
 // It drives one generation against the recording mock provider, then reports whether a request
-// arrived and what shape it had. It does NOT assert a boundary, a count, or a prompt shape â€”
+// arrived and what shape it had. It does NOT assert a boundary, a count, or a prompt shape --
 // those come later and only if this answers yes.
 //
 // Why this is separate from the pinned suite: no spec in that suite drives a generation turn, so

@@ -30,7 +30,7 @@ export function requiredDriveParameters(source) {
  * A gate that fails on a missing sentence teaches people to add sentences. The facts below are the ones
  * a reader NEEDS in order to check the row's claim -- which seam aimed the Go leg, which body-derived
  * value the drive selected, whether the credential travelled -- and they are required. The rest of a
- * source's `driveParameters` prose (`peerRoute`, `seamUsage`, `peerKeying`, `pinnedRedirectRequired`, â€¦)
+ * source's `driveParameters` prose (`peerRoute`, `seamUsage`, `peerKeying`, `pinnedRedirectRequired`, ...)
  * is documentation: its absence is reported as STALENESS ("this artefact predates the current recorder;
  * re-record it"), never as a failure, because documentation that lags the recorder does not make the
  * measured numbers wrong.
