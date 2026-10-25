@@ -277,7 +277,7 @@ func TestChatCompletionAimlapiTransportFailureAnswers200(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200 (the pinned catch sets no status)", response.Code)
 	}
-	if body := strings.TrimSpace(response.Body.String()); body != `{"error":true}` {
+	if body := strings.TrimSpace(response.Body.String()); !isTransportFailureBody(body) {
 		t.Fatalf("body = %q, want {\"error\":true}", body)
 	}
 }
