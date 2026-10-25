@@ -173,6 +173,16 @@ const CARD_FILE = 'Probe Asset Card.png';
 const BACKGROUND_FILE = 'probe-asset-background.png';
 const PERSONA_FILE = 'probe-asset-persona.png';
 
+// THE USER DIRECTORY, READ FROM THE PINNED SOURCE RATHER THAN ASSUMED. Pinned resolves every user-data
+// directory as `path.join(DATA_ROOT, handle, template)` (src/users.js `getUserDirectories`) with
+// `DEFAULT_USER.handle === 'default-user'` (src/constants.js:54-55), so a card staged at
+// `<dataRoot>/characters/` is a card nobody can see. Run 40202318194 measured exactly that: on BOTH legs the
+// character list rendered zero rows, the persona thumbnail 404'd, and the chat opened onto the template's
+// empty `<img src="">` -- four guards red, identically on both legs, which is a harness-faithfulness
+// failure and not a product finding. The handle is recorded in the fixture block so the comparator compares
+// the tree the legs actually used.
+const USER_HANDLE = 'default-user';
+
 function digest(bytes) {
     return createHash('sha256').update(bytes).digest('hex');
 }
@@ -182,9 +192,9 @@ function digest(bytes) {
 // comparator can refuse a pair that did not start identical.
 async function stageFixture(dataRoot) {
     const files = [
-        { relative: path.join('characters', CARD_FILE), bytes: buildPng([textChunk('chara', Buffer.from(JSON.stringify(CARD), 'utf8').toString('base64'))]) },
-        { relative: path.join('backgrounds', BACKGROUND_FILE), bytes: buildPng([textChunk('Comment', 'probe asset background')]) },
-        { relative: path.join('User Avatars', PERSONA_FILE), bytes: buildPng([textChunk('Comment', 'probe asset persona')]) },
+        { relative: path.join(USER_HANDLE, 'characters', CARD_FILE), bytes: buildPng([textChunk('chara', Buffer.from(JSON.stringify(CARD), 'utf8').toString('base64'))]) },
+        { relative: path.join(USER_HANDLE, 'backgrounds', BACKGROUND_FILE), bytes: buildPng([textChunk('Comment', 'probe asset background')]) },
+        { relative: path.join(USER_HANDLE, 'User Avatars', PERSONA_FILE), bytes: buildPng([textChunk('Comment', 'probe asset persona')]) },
     ];
     const staged = [];
     for (const file of files) {
@@ -263,7 +273,7 @@ const report = {
     provenance: {
         subject: external ? 'pinned' : 'gotavern',
         configFile: legConfig,
-        fixture: { files: stagedFixture, stagedBy: 'asset-probe.mjs (the same builder on both legs)' },
+        fixture: { userHandle: USER_HANDLE, files: stagedFixture, stagedBy: 'asset-probe.mjs (the same builder on both legs); user data lives at <dataRoot>/<handle>/… (src/users.js getUserDirectories)' },
         // Recorded so a reader can tell a probe-faithfulness failure (nothing was requested) from a
         // product failure (things were requested and answered wrongly).
         assetPrefixes: ASSET_PREFIXES,
@@ -339,7 +349,10 @@ try {
         });
         const characterList = [...document.querySelectorAll('#rm_print_characters_block .avatar[data-type="character"] img')].map(describeImage);
         const personas = [...document.querySelectorAll('.avatar[data-type="persona"] img')].map(describeImage);
-        const messages = [...document.querySelectorAll('.mes .mesAvatarWrapper .avatar img')].map(describeImage);
+        // THE TEMPLATE PLACEHOLDER IS NOT AN AVATAR. #message_template carries `<img src="">`, and a run that
+        // opens no chat leaves those in the DOM with complete=true and naturalWidth=0 -- which run 40202318194
+        // counted as two broken avatars on both legs. Only an image the page actually gave a src is an avatar.
+        const messages = [...document.querySelectorAll('.mes .mesAvatarWrapper .avatar img')].map(describeImage).filter(image => String(image.src ?? '') !== '');
         const backgroundElement = document.querySelector('#bg1');
         return {
             characterListCount: document.querySelectorAll('#rm_print_characters_block .avatar[data-type="character"]').length,
