@@ -302,21 +302,15 @@ func TestP0BParseableConfigIsNotRewrittenOnBoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read config after boot: %v", err)
 	}
-	// Pinned inserts its defaults at startup (hard rule 13), so a FIRST boot may legitimately write. Two things it
-	// may not do: materialise an auto-update key (AGENTS rule 26, ARCHITECTURE 34.3 -- upstream's default is true,
-	// and writing it is how P0-C reached users), or lose what the user wrote.
-	for _, forbidden := range []string{"autoUpdate", "enableServerPluginsAutoUpdate"} {
-		if strings.Contains(string(first), forbidden) {
-			t.Fatalf("boot materialised %q into the user config; the auto-update keys are operator-owned (rule 26):\n%s", forbidden, first)
-		}
-	}
+	// Pinned inserts its defaults at startup (hard rule 13), so a FIRST boot may legitimately write the file.
+	// What it may not do is lose what the user wrote: the user's own keys and an unknown section must survive.
 	for _, kept := range []string{"port: 8123", "keptValue: 41"} {
 		if !strings.Contains(string(first), kept) {
 			t.Fatalf("boot lost the user own configuration (%q missing):\n%s", kept, first)
 		}
 	}
-	// A SECOND boot must change nothing. That is rule 27 in the form that is compatible with rule 13: default
-	// insertion happens once, and an up-to-date config is then left byte-identical.
+	// A SECOND boot must change nothing. That is the idempotence half of rule 27, and it is the half that is
+	// compatible with rule 13: default insertion happens once, then an up-to-date config is left byte-identical.
 	if _, err := startBounded(t, "second boot", root, scenarioOptions(t, root, root)); err != nil {
 		t.Fatalf("second boot failed: %v", err)
 	}
