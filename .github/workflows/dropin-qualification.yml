@@ -1,0 +1,259 @@
+name: GoTavern drop-in qualification
+
+# THE USER'S OWN PATH, ON EVERY PUSH TO MAIN, AGAINST THE BINARY THAT PUSH BUILT.
+#
+# WHY THIS WORKFLOW EXISTS. `scripts/qualify-dropin.sh` -- unpack a release-shaped archive into a STOCK
+# SillyTavern tree and prove it boots there -- existed and worked, but only ONE workflow ran it
+# (`release-qualification.yml`, job `qualify-dropin-linux`), and only on a `v*` tag or a manual dispatch.
+# So it was answerable only for a release someone had already decided to cut, and the last time it ran it
+# was measuring an archive built from an older commit: run 40153128342, recorded in
+# docs/dropin-qualification.md. Between that run and the commit this gate was written for, three P0 fixes
+# landed (P0-A provider transport, P0-B unbounded startup waits, P0-C ambiguous auto-update resolution),
+# and NONE of them could be shown to keep the drop-in path working, because nothing re-ran it. AGENTS.md
+# 23, 34 and 38 make the shipped shape, in a stock tree, the thing a release claim rests on; a gate that
+# runs only when a release is already being cut cannot fail a commit.
+#
+# WHAT IT DOES
+#   1. builds the linux/amd64 binary FROM THIS COMMIT and assembles an archive around it with
+#      `release.yml`'s build-job staging (gotavern, LICENSE, THIRD_PARTY_NOTICES.txt, start.sh,
+#      src/tokenizers, BUILD-INFO.txt) and release.yml's own packer (`tar -czf ... -C stage .`);
+#   2. asserts the archive's LAYOUT by name and by mode before anything boots, so a staging change in
+#      release.yml cannot silently stop being what this gate tests;
+#   3. runs `scripts/qualify-dropin.sh` for BOTH layouts it supports and BOTH config modes it supports:
+#        cwd-root     CWD = the tree      (the documented "put the binary in your directory" path)
+#        foreign-cwd  binary in the tree, CWD elsewhere
+#      and, for each, `--config full` (the pristine pinned config) and `--config minimal` (a used,
+#      trimmed config, which is the only input that exercises the boot-time config rewrite, P0-C's
+#      mechanism);
+#   4. each scenario builds a stock tree from the vendored pinned baseline, unpacks the archive over it,
+#      boots with a HARD 30 s readiness bound that POLLS `/version` (never a fixed sleep: AGENTS 33),
+#      runs the API smoke through the real CSRF handshake, asserts boot mutated no extension repository
+#      and no pre-existing user file, stops gracefully, RESTARTS, and re-reads the chat;
+#   5. on any failure the server log, the diffs and the built tree are uploaded, so a red run names its
+#      own cause instead of reporting an exit status.
+#
+# WHAT THIS DOES NOT COVER, stated so a green is not read as more (the same list is in
+# docs/dropin-qualification.md):
+#   - PACKAGING FIDELITY. The archive is assembled from release.yml's staging steps, but it is NOT the
+#     release workflow's artifact: no `checksums.txt`, no upload, no publish, no tag-derived version
+#     string (`-X main.version` names the COMMIT, so BUILD-INFO and `gotavern version` name the tree the
+#     gate measured rather than a tag that may never be cut), and only the linux/amd64 asset of the six
+#     canonical ones. `release.yml` remains the only producer of shipped bytes and
+#     `release-install-smoke.yml` remains the gate that always has them. A green here is evidence about
+#     the ARCHIVE LAYOUT plus the BINARY, not about the release pipeline.
+#   - The Windows archive and `Start.cmd`: only the Linux archive is opened, because the harness is a
+#     POSIX shell script and a Windows twin has not been written. Named, not implied.
+#   - Updater EGRESS is sampled (two socket samples), not proven absent; the MUTATION half of P0-C is
+#     proven exactly by recursive hashes and a `git status` per extension repository.
+#   - `install.sh` is not executed here: `release-qualification.yml` runs the installer against a
+#     loopback mirror, and duplicating it in a per-push gate would pay for the same claim twice.
+#
+# WHY A SEPARATE WORKFLOW RATHER THAN A JOB IN ci.yml. Two reasons, both about the gate being useful:
+#   * ci.yml triggers on `main` only (AGENTS.md "Working mode" removed the pull_request trigger, and no
+#     task pushes anything but `lane/**` before the lead merges). A gate that first runs on the merge
+#     commit can never be shown RED before it judges anything, so its teeth would be unprovable without
+#     poisoning `main` -- the exact shape of "a gate that cannot fail is decoration".
+#   * `verify` is MEASURED at ~3.6 min with a 30-minute bound (its own comment). This job builds FOUR
+#     stock trees and boots a server EIGHT times; sharing verify's bound would let one wedged boot spend
+#     the budget of thirteen unrelated checks and report "verify failed".
+# It therefore carries its own concurrency group and its own `timeout-minutes`, sized from the measured
+# run quoted on the job below.
+#
+# TEETH. A green here means the four scenarios ran; whether they CAN fail was demonstrated by mutating
+# them (see docs/dropin-qualification.md "Can this gate fail?") with the red run ids named there.
+
+on:
+  push:
+    branches:
+      - main
+      - 'lane/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dropin-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dropin-current-head:
+    runs-on: ubuntu-latest
+    # SIZED FROM THE MEASURED RUN, and the measurement keeps its run id in docs/dropin-qualification.md.
+    # Measured on 40173675219: 49 s door to door for the whole job -- checkout + toolchain 14 s, the archive
+    # build 17 s, and the four drop-in scenarios 4 s, 3 s, 3 s and 2 s. Fifteen minutes is ~18x that. The
+    # variance a bound must absorb here is a COLD runner (module and toolchain download on a cache miss)
+    # and a slower disk for the four stock-tree builds -- NOT a slow boot: a boot that does not become ready
+    # fails at the harness's own 30 s readiness poll, which is never widened, and red run 40174700084 shows
+    # it doing exactly that with a goroutine dump naming the blocked frames (AGENTS 33). A wedged step fails
+    # this job instead of holding a runner for GitHub's 6-hour default.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Assemble the release-shaped archive from THIS commit
+        id: package
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          set -eu
+          commit="$(git rev-parse HEAD)"
+          short="$(printf '%s' "$commit" | cut -c1-12)"
+          rm -rf stage dist-dropin
+          mkdir -p stage dist-dropin
+          # release.yml's `Build the release binary`, with a COMMIT-derived version string instead of a
+          # tag: `gotavern version` and BUILD-INFO.txt must name the tree this gate measured.
+          go build -trimpath -ldflags="-s -w -X main.version=dropin-${short}" \
+            -o stage/gotavern ./cmd/gotavern
+          # release.yml's `Assemble the archive contents`: binary + licence + notices + launcher, and the
+          # tokenizer tree at src/tokenizers, which upstream reads by that relative path
+          # (src/endpoints/tokenizers.js:251-254). Not shipped here: anything the release does not ship.
+          cp LICENSE THIRD_PARTY_NOTICES.txt start.sh stage/
+          mkdir -p stage/src
+          cp -R upstream/tokenizers stage/src/tokenizers
+          {
+            printf 'GoTavern drop-in qualification archive\n'
+            printf 'commit %s\n' "$commit"
+            printf 'target linux/amd64\n'
+            printf '\n'
+            printf 'This is NOT a published release asset. It is assembled in this run, from the commit\n'
+            printf 'above, with release.yml build-job staging and release.yml own packer (tar -czf),\n'
+            printf 'so that the drop-in gate can execute a release-SHAPED artifact on every push.\n'
+            printf '\n'
+            ./stage/gotavern version || true
+          } > stage/BUILD-INFO.txt
+          # release.yml asserts these too, and a drop-in tree is precisely where such a file does damage.
+          test ! -e stage/config.yaml
+          test ! -e stage/data
+          test ! -e stage/extensions
+          chmod +x stage/gotavern stage/start.sh
+          # release.yml's `Create the canonical archive`, same invocation, different output name so this
+          # artifact cannot be mistaken for the shipped one.
+          ( cd stage && tar -czf ../dist-dropin/gotavern-linux-amd64-dropin.tar.gz . )
+          test -s dist-dropin/gotavern-linux-amd64-dropin.tar.gz
+          ls -l dist-dropin/gotavern-linux-amd64-dropin.tar.gz
+          sha256sum dist-dropin/gotavern-linux-amd64-dropin.tar.gz
+          echo "archive=${PWD}/dist-dropin/gotavern-linux-amd64-dropin.tar.gz" >> "$GITHUB_OUTPUT"
+          echo "commit=${commit}" >> "$GITHUB_OUTPUT"
+
+      - name: Assert the archive's LAYOUT and modes before anything boots
+        # THE ARCHIVE IS THE INPUT TO EVERY CLAIM BELOW, so its shape is asserted rather than assumed. The
+        # expected member list is a TRANSCRIPTION of release.yml's build-job staging, which is the one
+        # drift surface this step has: if release.yml starts staging something else, this gate is testing
+        # a layout that no longer ships, and the failure says so and names both lists.
+        run: |
+          set -eu
+          layout="$(mktemp -d)"
+          tar -xzf "${{ steps.package.outputs.archive }}" -C "$layout"
+          actual="$( cd "$layout" && find . -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort | tr '\n' ' ' )"
+          expected="BUILD-INFO.txt LICENSE THIRD_PARTY_NOTICES.txt gotavern src start.sh "
+          if [ "$actual" != "$expected" ]; then
+            echo "the archive top level is not release.yml's staging:" >&2
+            echo "  expected: ${expected}" >&2
+            echo "  actual:   ${actual}" >&2
+            echo "The expected list is transcribed from release.yml build-job staging (binary, LICENSE," >&2
+            echo "THIRD_PARTY_NOTICES.txt, launcher, BUILD-INFO.txt, src/tokenizers). If release.yml changed," >&2
+            echo "this gate is measuring a layout that does not ship: update the staging AND this list." >&2
+            exit 1
+          fi
+          test -x "$layout/gotavern" || { echo "the archive's gotavern is not executable" >&2; exit 1; }
+          test -x "$layout/start.sh" || { echo "the archive's start.sh is not executable" >&2; exit 1; }
+          # The tokenizer tree is compared against the vendored baseline, not against a typed constant:
+          # a number here would be a second copy of a fact the tree already holds.
+          archived="$( cd "$layout/src/tokenizers" && find . -type f | wc -l )"
+          baseline="$( cd upstream/tokenizers && find . -type f | wc -l )"
+          if [ "$archived" -ne "$baseline" ]; then
+            echo "the archive carries ${archived} tokenizer file(s); the vendored baseline has ${baseline}" >&2
+            exit 1
+          fi
+          echo "archive layout: ${actual}"
+          echo "tokenizer files: ${archived} (equal to upstream/tokenizers)"
+          rm -rf "$layout"
+
+      - name: 'Drop-in qualification 1/4 -- cwd-root, pristine pinned config'
+        # The documented path: the binary sits in the SillyTavern directory, CWD is that directory, and
+        # the API must return the USER'S OWN seeded character, chat and settings.
+        run: |
+          set -eu
+          start=$(date +%s)
+          sh scripts/qualify-dropin.sh --archive "${{ steps.package.outputs.archive }}" \
+            --layout cwd-root --config full --port 8797
+          echo "scenario cwd-root/full passed in $(( $(date +%s) - start ))s"
+
+      - name: 'Drop-in qualification 2/4 -- cwd-root, a USED (trimmed) config.yaml'
+        # The tree a user actually has after running SillyTavern once. This is the only input that makes
+        # startup merge the pinned defaults back in, which is P0-C's mechanism: the rewrite must keep the
+        # user's `extensions.autoUpdate: false`, not adopt the pinned `true`.
+        run: |
+          set -eu
+          start=$(date +%s)
+          sh scripts/qualify-dropin.sh --archive "${{ steps.package.outputs.archive }}" \
+            --layout cwd-root --config minimal --port 8798
+          echo "scenario cwd-root/minimal passed in $(( $(date +%s) - start ))s"
+
+      - name: 'Drop-in qualification 3/4 -- foreign CWD, pristine pinned config'
+        # Launched from somewhere else, with the binary in the tree. Measured behaviour (not derivation):
+        # the runtime root FOLLOWS THE TREE, so the user still gets their data -- and the run must not
+        # modify or delete any pre-existing file while doing it.
+        run: |
+          set -eu
+          start=$(date +%s)
+          sh scripts/qualify-dropin.sh --archive "${{ steps.package.outputs.archive }}" \
+            --layout foreign-cwd --config full --port 8799
+          echo "scenario foreign-cwd/full passed in $(( $(date +%s) - start ))s"
+
+      - name: 'Drop-in qualification 4/4 -- foreign CWD, a USED (trimmed) config.yaml'
+        # The fourth combination. Kept because it is the only one where a TRIMMED config meets a foreign
+        # CWD: the config is rewritten by the merge and the pre-existing-file assertions still apply.
+        run: |
+          set -eu
+          start=$(date +%s)
+          sh scripts/qualify-dropin.sh --archive "${{ steps.package.outputs.archive }}" \
+            --layout foreign-cwd --config minimal --port 8800
+          echo "scenario foreign-cwd/minimal passed in $(( $(date +%s) - start ))s"
+
+      - name: Report failure context
+        # The harness prints its own server log and goroutine dump; what it cannot show is the tree it
+        # built and which scenario left what behind, which is what a reader needs when the FIXTURE is
+        # the suspect.
+        if: failure()
+        run: |
+          set -u
+          echo "::group::the archive under test"
+          ls -l dist-dropin 2>/dev/null || echo "(no archive was produced)"
+          sha256sum dist-dropin/*.tar.gz 2>/dev/null || true
+          echo "::endgroup::"
+          echo "::group::drop-in work trees (failure keeps the tree; success removes it)"
+          for work in .dropin-work/*; do
+            [ -d "$work" ] || continue
+            echo "--- ${work} ---"
+            find "$work" -maxdepth 2 -mindepth 1 -printf '%y %p\n' 2>/dev/null | LC_ALL=C sort | head -80 || true
+          done
+          echo "::endgroup::"
+          echo "::group::diffs the harness wrote"
+          for diff in .dropin-work/*/*.diff; do
+            [ -f "$diff" ] || continue
+            echo "--- ${diff} ---"
+            tail -120 "$diff" || true
+          done
+          echo "::endgroup::"
+
+      - name: Upload the evidence of a failing run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dropin-failure-evidence
+          path: |
+            .dropin-work/*/server.log
+            .dropin-work/*/*.diff
+            .dropin-work/*/*.before
+            .dropin-work/*/*.after
+          if-no-files-found: warn
+          retention-days: 7

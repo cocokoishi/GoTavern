@@ -201,9 +201,26 @@ server_pid=""
 
 start_server() {
     : > "$LOG"
-    ( cd "$RUN_DIR" && exec "$BIN" start --port "$PORT" ) >> "$LOG" 2>&1 &
+    # THE STAGE TRACE IS ASKED FOR EXPLICITLY. The tracer that landed on `main` while this lane ran
+    # (`internal/app/startup_trace.go`) is QUIET BY DEFAULT: it prints a stage only when the stage was slow
+    # (>= SlowStageThreshold, 200 ms) or when GOTAVERN_STARTUP_TRACE is truthy. A green qualification boot is
+    # fast, so with the default it prints nothing and this harness would keep reporting "no stage trace
+    # exists" about a tree that has one -- a false statement in the one place a reader goes when a boot hangs
+    # (docs/startup-state-machine.md section 5.2). Setting the variable turns printing ON and changes nothing
+    # else; the count of stage lines is then REPORTED on every run, so the trace's presence is measured rather
+    # than assumed, and a red run can quote the last stage that opened.
+    ( cd "$RUN_DIR" && export GOTAVERN_STARTUP_TRACE=1 && exec "$BIN" start --port "$PORT" ) >> "$LOG" 2>&1 &
     server_pid=$!
     echo "$server_pid" > "$WORK/server.pid"
+}
+
+# The tracer's line format, read from internal/app/startup_trace.go:96:
+#   gotavern: startup stage <name> took <duration> (total <duration>)
+# The older pattern (`startup.begin` ... `startup.ready`) is kept because docs/startup-state-machine.md 5.2
+# proposed it and a future tracer may adopt it; BOTH are counted, so neither format can leave the tally at
+# zero while a trace is present.
+stage_line_count() {
+    grep -cE 'startup\.(begin|ready|[a-z_]+)|gotavern: startup stage ' "$1" 2>/dev/null || true
 }
 
 diagnose_hang() {
@@ -227,13 +244,17 @@ diagnose_hang() {
     fi
     echo "::endgroup::"
     echo "::group::startup stage trace"
-    stages=$(grep -cE 'startup\.(begin|ready|[a-z_]+)' "$LOG" 2>/dev/null || true)
+    stages=$(stage_line_count "$LOG")
     echo "stage markers found in the log: ${stages:-0}"
     if [ "${stages:-0}" -eq 0 ]; then
-        echo "NO STAGE TRACE EXISTS at this commit. docs/startup-state-machine.md section 5.2 asks for named"
-        echo "stages (startup.begin ... startup.ready) so a hang names itself; until that lands this"
-        echo "harness can only report the bound, the log and the goroutine dump. The absence is the"
-        echo "finding, not a harness defect."
+        echo "NO STAGE TRACE EXISTS in this boot's log, although the harness requested one"
+        echo "(GOTAVERN_STARTUP_TRACE=1). docs/startup-state-machine.md section 5.2 asks for named stages so a"
+        echo "hang names itself; with none, this harness can only report the bound, the log and the goroutine"
+        echo "dump. The absence is the finding, not a harness defect."
+    else
+        echo "--- the last stage lines the boot printed ---"
+        grep -E 'startup\.(begin|ready|[a-z_]+)|gotavern: startup stage ' "$LOG" | tail -8
+        echo "--- a hang here would name the stage that never printed ---"
     fi
     echo "::endgroup::"
     dump_context
@@ -283,6 +304,13 @@ case "$ready_status" in
         ;;
 esac
 cat "$WORK/version.json"
+
+# REPORTED, NOT ASSERTED, and the reason is stated rather than left implicit: the drop-in contract is that a
+# stock tree boots and serves, not that the binary narrates its startup. Printing the count on every run is
+# what makes "the stage trace is wired" a measurement instead of a reading of the source -- and a hang's red
+# run repeats the same count plus the stages that did print (diagnose_hang).
+boot1_stage_lines=$(stage_line_count "$LOG")
+echo "startup stage lines in the boot-1 log: ${boot1_stage_lines:-0} (requested with GOTAVERN_STARTUP_TRACE=1; the tracer prints only stages slower than 200 ms by default)"
 
 # --- 6. API smoke, through the browser's real CSRF handshake --------------------------------
 COOKIES="$WORK/cookies.txt"

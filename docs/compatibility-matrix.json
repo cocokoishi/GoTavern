@@ -852,23 +852,24 @@
           "release-qualification.yml#qualify-linux-amd64",
           "release-qualification.yml#qualify-upgrade-rollback",
           "release-install-smoke.yml#smoke-published-linux-amd64",
+          "dropin-qualification.yml#dropin-current-head",
           "docker.yml#docker"
         ],
-        "releaseArtifact": "release-qualification.yml extracts the archive, boots it over a fresh root, boots it a second time to assert idempotence, and exercises upgrade plus rollback"
+        "releaseArtifact": "release-qualification.yml extracts the archive, boots it over a fresh root, boots it a second time to assert idempotence, and exercises upgrade plus rollback; release-qualification.yml#qualify-dropin-linux and dropin-qualification.yml#dropin-current-head unpack an archive into a STOCK SillyTavern tree and boot it there (both layouts and both config modes, see docs/dropin-qualification.md)"
       },
       "wouldGoRedIfWrong": {
         "test": "TestVerifyWithManifestRejectsAnAlteredFile",
         "explanation": "the row's claims about release artifact: archive, install, upgrade, rollback, docker, smoke rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
       },
       "evidenceGap": [
-        "the qualification boot uses a FRESH runtime root, not a stock SillyTavern directory with the user's existing config, data and extensions (AGENTS.md 34/38)",
+        "the stock-tree qualification (release-qualification.yml#qualify-dropin-linux, and dropin-qualification.yml#dropin-current-head on every push) executes only the LINUX archive, against a tree DERIVED from the pinned source rather than recorded from a pinned Node run: the Windows archive and Start.cmd are never executed, so AGENTS.md 34/38 is covered for one platform and one derived tree (docs/dropin-qualification.md, Limits)",
         "no qualification result for handing the data back to pinned Node after GoTavern has run over it (AGENTS.md 38)",
         "quoted releaseArtifact here is a workflow step, not a recorded run id"
       ],
       "blockedBy": [
         "startup"
       ],
-      "notes": "This row is the strongest release evidence in the tree and it is still the wrong shape for the drop-in promise: it proves the artifact works on an empty root, not on the root a user brings."
+      "notes": "This row is the strongest release evidence in the tree, and its shape is now split in two: the release pipeline (archive, install into a fresh prefix, upgrade, rollback, docker) is exercised by release-qualification.yml, release-install-smoke.yml and docker.yml, and the drop-in promise (a stock tree, unpacked archive, existing config and data) by qualify-dropin-linux and by dropin-qualification.yml on every push to main. What is still missing is the platform and tree half named in evidenceGap: only the Linux archive is ever executed, and the stock tree is derived from the pinned source rather than recorded from a pinned Node run."
     },
     {
       "id": "whole-session-e2e",
@@ -1032,10 +1033,10 @@
     },
     {
       "rank": 5,
-      "title": "The release artifact is only qualified on an empty runtime root, never on the stock tree a user brings",
+      "title": "The stock tree a user brings is qualified for the Linux archive only, and from a tree derived from the pinned source",
       "row": "packaging-release",
       "wouldStopARealUser": "yes for an existing SillyTavern user, which is the entire target audience",
-      "evidence": "release-qualification.yml boots a fresh root and asserts idempotence; AGENTS.md 34/38 require an unpacked artifact in a stock tree"
+      "evidence": "release-qualification.yml#qualify-dropin-linux and dropin-qualification.yml#dropin-current-head unpack an archive into a stock tree and boot it (both layouts, both config modes), so the empty-root half of this gap is closed; what remains is that only the Linux archive is executed (no .zip, no Start.cmd) and that scripts/build-stock-tree.sh DERIVES the tree from upstream/** rather than recording a pinned Node run (docs/dropin-qualification.md, Limits)"
     },
     {
       "rank": 6,
@@ -1087,8 +1088,8 @@
       "citedByMatrix": 58
     },
     "workflows": {
-      "inTree": 8,
-      "jobsInTree": 26
+      "inTree": 9,
+      "jobsInTree": 28
     },
     "rows": {
       "total": 22,

@@ -479,18 +479,18 @@ Row id: `packaging-release`
 - Go implementation: `cmd/gotavern`, `internal/app`
 - Named tests: `TestVerifyWithManifestRejectsAnAlteredFile`, `TestCopyVerificationCatchesAShortFile`
 - Browser artefacts: _none_
-- CI jobs: `release-qualification.yml#qualify-linux-amd64`, `release-qualification.yml#qualify-upgrade-rollback`, `release-install-smoke.yml#smoke-published-linux-amd64`, `docker.yml#docker`
-- Release artifact: release-qualification.yml extracts the archive, boots it over a fresh root, boots it a second time to assert idempotence, and exercises upgrade plus rollback
+- CI jobs: `release-qualification.yml#qualify-linux-amd64`, `release-qualification.yml#qualify-upgrade-rollback`, `release-install-smoke.yml#smoke-published-linux-amd64`, `dropin-qualification.yml#dropin-current-head`, `docker.yml#docker`
+- Release artifact: release-qualification.yml extracts the archive, boots it over a fresh root, boots it a second time to assert idempotence, and exercises upgrade plus rollback; release-qualification.yml#qualify-dropin-linux and dropin-qualification.yml#dropin-current-head unpack an archive into a STOCK SillyTavern tree and boot it there (both layouts and both config modes, see docs/dropin-qualification.md)
 
 **Evidence gap**
 
-- the qualification boot uses a FRESH runtime root, not a stock SillyTavern directory with the user's existing config, data and extensions (AGENTS.md 34/38)
+- the stock-tree qualification (release-qualification.yml#qualify-dropin-linux, and dropin-qualification.yml#dropin-current-head on every push) executes only the LINUX archive, against a tree DERIVED from the pinned source rather than recorded from a pinned Node run: the Windows archive and Start.cmd are never executed, so AGENTS.md 34/38 is covered for one platform and one derived tree (docs/dropin-qualification.md, Limits)
 - no qualification result for handing the data back to pinned Node after GoTavern has run over it (AGENTS.md 38)
 - quoted releaseArtifact here is a workflow step, not a recorded run id
 
 Blocked by: `startup`
 
-This row is the strongest release evidence in the tree and it is still the wrong shape for the drop-in promise: it proves the artifact works on an empty root, not on the root a user brings.
+This row is the strongest release evidence in the tree, and its shape is now split in two: the release pipeline (archive, install into a fresh prefix, upgrade, rollback, docker) is exercised by release-qualification.yml, release-install-smoke.yml and docker.yml, and the drop-in promise (a stock tree, unpacked archive, existing config and data) by qualify-dropin-linux and by dropin-qualification.yml on every push to main. What is still missing is the platform and tree half named in evidenceGap: only the Linux archive is ever executed, and the stock tree is derived from the pinned source rather than recorded from a pinned Node run.
 
 ### Whole-session differential in a stock tree (load, settings, characters, chat, send, stream, save, reload) — `FAIL`
 
@@ -547,7 +547,7 @@ Forbidden: dropping whole response bodies; sorting arrays whose order is the con
 | 2 | A boot inside a real SillyTavern tree hangs, and no gate bounds a startup wait | `startup` | yes - it already did (P0-B): the server never becomes usable | docs/startup-state-machine.md §2 (unbounded flock/resolver/sleep/join); AGENTS.md 24; every startup fixture starts from a fresh root |
 | 3 | Extension updates happen without being asked for; no gate asserts the decision to update | `extensions` | yes - it already did (P0-C): a user's extensions changed under them | AGENTS.md 26 (ambiguous input resolves to OFF) has no test; the extension fixtures cover serving and discovery, not the update decision |
 | 4 | No whole-session differential exists: eight steps, eight experiments, zero sessions | `whole-session-e2e` | indirectly - it is the evidence layer whose absence let all three P0s through | session.steps table: every probe sets sharesRuntimeWithOtherSteps=false; a chat saved and reloaded in one tree is gated nowhere |
-| 5 | The release artifact is only qualified on an empty runtime root, never on the stock tree a user brings | `packaging-release` | yes for an existing SillyTavern user, which is the entire target audience | release-qualification.yml boots a fresh root and asserts idempotence; AGENTS.md 34/38 require an unpacked artifact in a stock tree |
+| 5 | The stock tree a user brings is qualified for the Linux archive only, and from a tree derived from the pinned source | `packaging-release` | yes for an existing SillyTavern user, which is the entire target audience | release-qualification.yml#qualify-dropin-linux and dropin-qualification.yml#dropin-current-head unpack an archive into a stock tree and boot it (both layouts, both config modes), so the empty-root half of this gap is closed; what remains is that only the Linux archive is executed (no .zip, no Start.cmd) and that scripts/build-stock-tree.sh DERIVES the tree from upstream/** rather than recording a pinned Node run (docs/dropin-qualification.md, Limits) |
 | 6 | Prompt assembly for the paths that matter (world info positions, group turns, presets) has one gate and it does not pass | `world-info` | no, but it silently changes what the model is told, which is the product's core promise | browser-differential preset artefacts; three runs (40082539457, 40087218275, 40073821604) failed to bind a keep/drop pair |
 | 7 | Context-boundary tokenization is measured but never made to bind on both legs | `tokenization` | no, but AGENTS.md 9 makes it mandatory where marked compatible | tests/browser/preset-complex-comparison.json; the tokenizer anchor test refuses a guesstimating server, which is correct, but the boundary itself has no passing pair |
 | 8 | Backups are read but never restored, and the inherited host classifier is unpinned | `import-export-backups` | yes at the worst moment: a user restoring after data loss would find the backup unproven | tests/oracle/sillytavern-1.19.0-backups.json compares reads only; ARCHITECTURE.md boundary 5 requires the chub.ai substring behaviour to be reproduced and recorded |
@@ -564,6 +564,6 @@ numbers cannot drift away from the tree the way four documents once disagreed ab
 | Oracle fixtures | 118 | 66 |
 | Browser artefacts | 35 | 11 |
 | Go test functions | 549 | 58 |
-| Workflow jobs | 26 in 8 workflow(s) | _n/a_ |
+| Workflow jobs | 28 in 9 workflow(s) | _n/a_ |
 | Rows | 22 | PASS 0, PARTIAL 17, FAIL 4, NOT_APPLICABLE 1 |
 | Session steps | 8 | 7 with a probe, 1 without, 0 sharing a runtime |
