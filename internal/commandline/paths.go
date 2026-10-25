@@ -45,10 +45,7 @@ type ResolvedPaths struct {
 	DataRootCreationPath string
 	DataRootCreated      bool
 	RuntimeDataRoot      string
-	// RuntimeDataRootCreated reports that the tree the runtime uses had to be created because the creation path
-	// (resolved against the caller's CWD, as pinned does after its own chdir) was a different directory.
-	RuntimeDataRootCreated bool
-	Warnings               []PathWarning
+	Warnings             []PathWarning
 }
 
 type pathArguments struct {
@@ -155,15 +152,7 @@ func ResolvePaths(options ResolveOptions) (ResolvedPaths, error) {
 		}
 	}
 
-	// THE CREATION PATH IS RESOLVED AGAINST THE SERVER DIRECTORY, NOT THE CALLER'S CWD. Pinned changes its own
-	// working directory to the server directory at startup (server.js:11 `process.chdir(serverDirectory)`), so
-	// every relative path in its command-line/config parsing -- including the `fs.mkdirSync(dataRoot, {recursive:
-	// true})` at src/command-line.js:293 -- is relative to the server directory. GoTavern supports being started
-	// from somewhere else, so resolving creation against the caller's CWD created `<CWD>/data` while the runtime
-	// went on to use `<serverDirectory>/data`: the cookie-secret writer then failed with ENOENT on a fresh tree
-	// (measured in internal/app/startup_p0b_test.go scenario (b)), and a stray `data/` was left in whatever
-	// directory the user happened to run the binary from.
-	result.DataRootCreationPath, err = absolutePathFrom(serverDirectory, result.DataRoot)
+	result.DataRootCreationPath, err = absolutePathFrom(workingDirectory, result.DataRoot)
 	if err != nil {
 		return result, fmt.Errorf("resolve data root for initialization: %w", err)
 	}
@@ -186,30 +175,6 @@ func ResolvePaths(options ResolveOptions) (ResolvedPaths, error) {
 	result.RuntimeDataRoot, err = absolutePathFrom(serverDirectory, result.DataRoot)
 	if err != nil {
 		return result, fmt.Errorf("resolve runtime data root: %w", err)
-	}
-	// THE TREE THE RUNTIME ACTUALLY USES MUST EXIST, AND IT IS NOT ALWAYS THE ONE CREATED ABOVE. The creation
-	// path above is resolved against the caller's working directory because that is what the pinned probe
-	// observed (pinned calls process.chdir(serverDirectory) at server.js:11 and then mkdirSync's the data root at
-	// src/command-line.js:293, so for pinned the two bases coincide and the recorded expectation is the only one
-	// available). GoTavern accepts being started from anywhere, and then the runtime resolves the SAME relative
-	// value against the install root -- so on a fresh tree the cookie-secret writer was the first thing to touch a
-	// directory nobody had created: "open <installRoot>/data/.gotavern-content-log-*.tmp: no such file or
-	// directory" (internal/app/startup_p0b_test.go scenario (b), run 40152447850).
-	//
-	// Creating it here rather than changing the creation base keeps every pinned-derived path fixture exact while
-	// making the drop-in layout work: pinned itself creates the data root during path resolution, before any
-	// secret is read (src/server-main.js:161 reads the cookie secret before its :480-485 chain).
-	if result.RuntimeDataRoot != "" {
-		if _, statErr := os.Stat(result.RuntimeDataRoot); errors.Is(statErr, fs.ErrNotExist) {
-			if createErr := os.MkdirAll(result.RuntimeDataRoot, 0o777); createErr != nil {
-				result.Warnings = append(result.Warnings, PathWarning{
-					Message: fmt.Sprintf("Warning: Failed to create data root directory at %s. Please make sure the path is correct and writable.", result.RuntimeDataRoot),
-					Err:     createErr,
-				})
-			} else {
-				result.RuntimeDataRootCreated = true
-			}
-		}
 	}
 	return result, nil
 }
