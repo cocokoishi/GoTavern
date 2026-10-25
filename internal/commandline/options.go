@@ -83,13 +83,9 @@ type StartupSettings struct {
 	ThumbnailDimensionsAvatar  any  `json:"thumbnailDimensionsAvatar"`
 	ThumbnailDimensionsPersona any  `json:"thumbnailDimensionsPersona"`
 	ThumbnailDimensionsSet     bool `json:"-"`
-	// thumbnails.enabled / .format / .quality are parsed by /thumbnail with pinned's predicates
-	// (internal/server/thumbnails.go). The shapes are loose on purpose: a value that does not parse
-	// must resolve to pinned's default, never to a Go zero value that would silently disable a user's
-	// thumbnails.
-	ThumbnailsEnabled any `json:"thumbnailsEnabled"`
-	ThumbnailsFormat  any `json:"thumbnailsFormat"`
-	ThumbnailsQuality any `json:"thumbnailsQuality"`
+	ThumbnailsEnabled          any  `json:"thumbnailsEnabled"`
+	ThumbnailsFormat           any  `json:"thumbnailsFormat"`
+	ThumbnailsQuality          any  `json:"thumbnailsQuality"`
 	ForwardedXRealIP           any  `json:"forwardedXRealIP"`
 	ForwardedCFConnectingIP    any  `json:"forwardedCFConnectingIP"`
 	ForwardedXForwardedFor     any  `json:"forwardedXForwardedFor"`
