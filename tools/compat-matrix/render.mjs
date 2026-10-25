@@ -1,0 +1,265 @@
+#!/usr/bin/env node
+// Render docs/compatibility-matrix.md from docs/compatibility-matrix.json.
+//
+// The JSON is the source of truth; this view is generated so the two can never disagree. `check.mjs`
+// regenerates into memory and refuses a tree whose committed Markdown differs, which is the gate that
+// stops the document drifting ahead of the data (AGENTS.md 36: documentation may not claim ahead of
+// evidence) and the reason this file exists at all rather than a hand-written table.
+//
+// Deterministic by construction: rows are emitted in JSON order, no timestamps, no host paths, no counts
+// computed from the environment. Two runs on two machines produce identical bytes.
+
+import { readFileSync, readdirSync } from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+import { fileURLToPath } from 'node:url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+export const repoRoot = path.resolve(here, '..', '..');
+export const matrixPath = path.join(repoRoot, 'docs', 'compatibility-matrix.json');
+export const markdownPath = path.join(repoRoot, 'docs', 'compatibility-matrix.md');
+
+export function loadMatrix() {
+    return JSON.parse(readFileSync(matrixPath, 'utf8'));
+}
+
+// ---------------------------------------------------------------------------------------------------
+// THE COUNTS ARE MEASURED FROM THE TREE, NOT TYPED. A hand-maintained number in a compatibility document
+// is exactly the shape that let four documents here disagree about the same fact (73/86/187 routes).
+// `check.mjs` recounts these and fails on a disagreement, so deleting a fixture, renaming a test or adding
+// a CI job turns the matrix red until it is regenerated — which is what makes this a gate and not a
+// document (AGENTS.md 36: documentation may not claim ahead of evidence).
+// ---------------------------------------------------------------------------------------------------
+function walk(directory, accept, found = []) {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        if (entry.name === '.git' || entry.name === 'node_modules' || entry.name === 'upstream') continue;
+        const full = path.join(directory, entry.name);
+        if (entry.isDirectory()) walk(full, accept, found);
+        else if (accept(entry.name)) found.push(full);
+    }
+    return found;
+}
+
+export function computeDerived(matrix) {
+    const fixtureDir = path.join(repoRoot, 'tests', 'oracle');
+    const browserDir = path.join(repoRoot, 'tests', 'browser');
+    const oracleFixtures = readdirSync(fixtureDir).filter(name => name.endsWith('.json'));
+    const browserArtefacts = readdirSync(browserDir).filter(name => name.endsWith('-comparison.json'));
+
+    const goTestFunctions = new Set();
+    for (const file of walk(repoRoot, name => name.endsWith('_test.go'))) {
+        for (const match of readFileSync(file, 'utf8').matchAll(/^func (Test[A-Za-z0-9_]+)\(/gm)) goTestFunctions.add(match[1]);
+    }
+
+    const workflowDir = path.join(repoRoot, '.github', 'workflows');
+    const workflows = readdirSync(workflowDir).filter(name => name.endsWith('.yml'));
+    let ciJobs = 0;
+    for (const workflow of workflows) {
+        const source = readFileSync(path.join(workflowDir, workflow), 'utf8');
+        ciJobs += [...source.matchAll(/^ {2}[a-z0-9-]+:\s*$/gm)].length;
+    }
+
+    const cited = slot => new Set(matrix.rows.flatMap(row => (row.evidence?.[slot] ?? []).map(entry => String(entry).replace(/^\.\//, ''))));
+    const citedFixtures = cited('oracleFixtures');
+    const citedArtefacts = cited('browserArtifacts');
+    const citedTests = cited('tests');
+
+    const statuses = {};
+    for (const row of matrix.rows) statuses[row.status] = (statuses[row.status] || 0) + 1;
+
+    return {
+        oracleFixtures: {
+            inTree: oracleFixtures.length,
+            citedByMatrix: oracleFixtures.filter(name => citedFixtures.has(`tests/oracle/${name}`)).length,
+        },
+        browserArtefacts: {
+            inTree: browserArtefacts.length,
+            citedByMatrix: browserArtefacts.filter(name => citedArtefacts.has(`tests/browser/${name}`)).length,
+        },
+        goTestFunctions: {
+            inTree: goTestFunctions.size,
+            citedByMatrix: [...citedTests].filter(entry => goTestFunctions.has(entry)).length,
+        },
+        workflows: { inTree: workflows.length, jobsInTree: ciJobs },
+        rows: {
+            total: matrix.rows.length,
+            PASS: statuses.PASS ?? 0,
+            PARTIAL: statuses.PARTIAL ?? 0,
+            FAIL: statuses.FAIL ?? 0,
+            NOT_APPLICABLE: statuses.NOT_APPLICABLE ?? 0,
+        },
+        sessionSteps: {
+            total: matrix.session?.steps?.length ?? 0,
+            withProbe: (matrix.session?.steps ?? []).filter(step => step.probe).length,
+            withoutProbe: (matrix.session?.steps ?? []).filter(step => !step.probe).length,
+            sharingARuntime: (matrix.session?.steps ?? []).filter(step => step.sharesRuntimeWithOtherSteps).length,
+        },
+    };
+}
+
+
+const cell = value => String(value ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+
+function codeList(items) {
+    if (!items || items.length === 0) return '_none_';
+    return items.map(item => '`' + cell(item) + '`').join(', ');
+}
+
+export function render(matrix) {
+    const lines = [];
+    const push = line => lines.push(line);
+
+    push('# Compatibility matrix (generated)');
+    push('');
+    push('**Generated from `docs/compatibility-matrix.json` by `tools/compat-matrix/render.mjs`. Do not edit this file:');
+    push('edit the JSON and run the generator. `tools/compat-matrix/check.mjs` fails the build when the two differ, when a');
+    push('cited path or test does not exist, or when a `PASS` row carries an evidence gap.**');
+    push('');
+    push(`Pinned baseline: **${cell(matrix.baseline.name)} ${cell(matrix.baseline.version)}**, commit \`${cell(matrix.baseline.commit)}\`.`);
+    push('');
+    push('This matrix is the coarse, capability-level answer to "how far is GoTavern from usable". The per-route');
+    push('detail lives in `docs/compat-matrix.md` history; this file is the layer that states, per capability area,');
+    push('what is claimed, what evidences the claim, and — where the claim is short — exactly what is missing.');
+    push('');
+
+    const counts = {};
+    for (const row of matrix.rows) counts[row.status] = (counts[row.status] || 0) + 1;
+    push('## Status meanings and counts');
+    push('');
+    push('| Status | Count | Meaning |');
+    push('|---|---|---|');
+    for (const status of ['PASS', 'PARTIAL', 'FAIL', 'NOT_APPLICABLE']) {
+        push(`| ${status} | ${counts[status] || 0} | ${cell(matrix.statusMeanings[status])} |`);
+    }
+    push('');
+    push('## How a status is derived');
+    push('');
+    push(cell(matrix.derivation.method));
+    push('');
+    push('A row is `PASS` only when every one of these holds:');
+    push('');
+    for (const requirement of matrix.derivation.passRequires) push(`- ${cell(requirement)}`);
+    push('');
+    push(`**Production rule.** ${cell(matrix.derivation.productionRule)}`);
+    push('');
+    push(`**Artifact rule.** ${cell(matrix.derivation.artifactRule)}`);
+    push('');
+    push(`**Fail rule.** ${cell(matrix.derivation.failRule)}`);
+    push('');
+
+    push('## Rows');
+    push('');
+    push('| # | Capability area | Status | Evidence present | Evidence gap |');
+    push('|---|---|---|---|---|');
+    matrix.rows.forEach((row, index) => {
+        const present = [];
+        if (row.evidence.oracleFixtures?.length) present.push(`${row.evidence.oracleFixtures.length} oracle fixture(s)`);
+        if (row.evidence.upstreamAssets?.length) present.push('upstream assets');
+        if (row.evidence.implementation?.length) present.push('Go implementation');
+        if (row.evidence.tests?.length) present.push(`${row.evidence.tests.length} named test(s)`);
+        if (row.evidence.browserArtifacts?.length) present.push(`${row.evidence.browserArtifacts.length} browser artefact(s)`);
+        if (row.evidence.ci?.length) present.push('CI job(s)');
+        if (row.evidence.releaseArtifact) present.push('release-artifact step');
+        push(`| ${index + 1} | ${cell(row.area)} | **${row.status}** | ${cell(present.join(', ') || '_none_')} | ${row.evidenceGap.length ? cell(row.evidenceGap.length + ' item(s)') : '_none_'} |`);
+    });
+    push('');
+
+    push('## Evidence and gaps, per row');
+    push('');
+    for (const row of matrix.rows) {
+        push(`### ${cell(row.area)} — \`${row.status}\``);
+        push('');
+        push(`Row id: \`${cell(row.id)}\``);
+        push('');
+        push(`- Oracle fixtures: ${codeList(row.evidence.oracleFixtures)}`);
+        push(`- Upstream assets: ${codeList(row.evidence.upstreamAssets)}`);
+        push(`- Go implementation: ${codeList(row.evidence.implementation)}`);
+        push(`- Named tests: ${codeList(row.evidence.tests)}`);
+        push(`- Browser artefacts: ${codeList(row.evidence.browserArtifacts)}`);
+        push(`- CI jobs: ${codeList(row.evidence.ci)}`);
+        push(`- Release artifact: ${row.evidence.releaseArtifact ? cell(row.evidence.releaseArtifact) : '_none_'}`);
+        push('');
+        if (row.evidenceGap.length) {
+            push('**Evidence gap**');
+            push('');
+            for (const gap of row.evidenceGap) push(`- ${cell(gap)}`);
+            push('');
+        } else {
+            push('**Evidence gap**: none.');
+            push('');
+        }
+        if (row.blockedBy?.length) {
+            push(`Blocked by: ${row.blockedBy.map(id => '`' + cell(id) + '`').join(', ')}`);
+            push('');
+        }
+        push(cell(row.notes));
+        push('');
+    }
+
+    push('## The whole-session differential (what exists today)');
+    push('');
+    push(cell(matrix.session.purpose));
+    push('');
+    push(`- State carried between steps: **${matrix.session.stateCarriedBetweenSteps}**`);
+    push(`- One shared runtime/fixture across steps: **${matrix.session.sharedFixture}**`);
+    push(`- Harness reused: ${codeList(matrix.session.existingHarness)}`);
+    push('');
+    push('| Step | What the user does | Probe | Both legs compared | Shares runtime with other steps |');
+    push('|---|---|---|---|---|');
+    for (const step of matrix.session.steps) {
+        const probe = step.probe ? '`' + cell(step.probe) + '`' : `_not implemented_: ${cell(step.notImplemented)}`;
+        push(`| ${cell(step.step)} | ${cell(step.userAction)} | ${probe} | ${step.comparesBothLegs} | ${step.sharesRuntimeWithOtherSteps} |`);
+    }
+    push('');
+    push('**Canonicalisation.** ' + cell(matrix.session.canonicalisation.method));
+    push('');
+    push('Replaced per field path, never by whole-document regex: ' + matrix.session.canonicalisation.required.map(v => '`' + cell(v) + '`').join(', ') + '.');
+    push('');
+    push('Forbidden: ' + matrix.session.canonicalisation.forbidden.map(v => cell(v)).join('; ') + '.');
+    push('');
+
+    push('## Top gaps, ranked by "would this stop a real user"');
+    push('');
+    push('| Rank | Gap | Row | Would it stop a real user? | Evidence |');
+    push('|---|---|---|---|---|');
+    for (const gap of matrix.gaps) {
+        push(`| ${gap.rank} | ${cell(gap.title)} | \`${cell(gap.row)}\` | ${cell(gap.wouldStopARealUser)} | ${cell(gap.evidence)} |`);
+    }
+    push('');
+
+    if (matrix.derived) {
+        push('## Counts measured from this tree');
+        push('');
+        push('Recomputed by `tools/compat-matrix/check.mjs` on every run; a disagreement fails the build, so these');
+        push('numbers cannot drift away from the tree the way four documents once disagreed about one route count.');
+        push('');
+        push('| Measure | In the tree | Cited by this matrix |');
+        push('|---|---|---|');
+        const { oracleFixtures, browserArtefacts, goTestFunctions, workflows, rows, sessionSteps } = matrix.derived;
+        push(`| Oracle fixtures | ${oracleFixtures.inTree} | ${oracleFixtures.citedByMatrix} |`);
+        push(`| Browser artefacts | ${browserArtefacts.inTree} | ${browserArtefacts.citedByMatrix} |`);
+        push(`| Go test functions | ${goTestFunctions.inTree} | ${goTestFunctions.citedByMatrix} |`);
+        push(`| Workflow jobs | ${workflows.jobsInTree} in ${workflows.inTree} workflow(s) | _n/a_ |`);
+        push(`| Rows | ${rows.total} | PASS ${rows.PASS}, PARTIAL ${rows.PARTIAL}, FAIL ${rows.FAIL}, NOT_APPLICABLE ${rows.NOT_APPLICABLE} |`);
+        push(`| Session steps | ${sessionSteps.total} | ${sessionSteps.withProbe} with a probe, ${sessionSteps.withoutProbe} without, ${sessionSteps.sharingARuntime} sharing a runtime |`);
+        push('');
+    }
+
+    return lines.join('\n');
+}
+
+if (process.argv[1] && process.argv[1] === fileURLToPath(import.meta.url)) {
+    const { writeFileSync } = await import('node:fs');
+    const matrix = loadMatrix();
+    // `--emit` refreshes the derived counts INTO the JSON (the generator writes the data it measures);
+    // the default writes the human view, which needs the counts to already be present.
+    if (process.argv.includes('--emit')) {
+        matrix.derived = computeDerived(matrix);
+        writeFileSync(matrixPath, JSON.stringify(matrix, null, 2) + '\n', 'utf8');
+        process.stdout.write(`updated docs/compatibility-matrix.json derived counts: ${JSON.stringify(matrix.derived.rows)}\n`);
+    }
+    const markdown = render(matrix);
+    writeFileSync(markdownPath, markdown, 'utf8');
+    process.stdout.write(`wrote docs/compatibility-matrix.md (${markdown.split('\n').length} lines)\n`);
+}
+
