@@ -250,8 +250,15 @@ func freePort(t *testing.T) int {
 func bootServer(t *testing.T, extraEnvironment map[string]string) *serverProcess {
 	t.Helper()
 	installRoot := t.TempDir()
+	return bootServerAt(t, installRoot, filepath.Join(installRoot, "data"), extraEnvironment)
+}
+
+// bootServerAt is bootServer with the roots chosen by the caller, so a test can boot the shipped binary
+// against a tree it built itself -- tests/e2e/longlived_test.go's long-lived user directory -- instead of
+// the freshly seeded one this harness invents. Every other caller keeps using bootServer.
+func bootServerAt(t *testing.T, installRoot, dataRoot string, extraEnvironment map[string]string) *serverProcess {
+	t.Helper()
 	binary := resolveBinary(t, installRoot)
-	dataRoot := filepath.Join(installRoot, "data")
 	port := freePort(t)
 
 	command := exec.Command(binary, []string{
