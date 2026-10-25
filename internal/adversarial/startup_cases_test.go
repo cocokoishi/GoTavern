@@ -90,7 +90,7 @@ func startupCases(t *testing.T) []caseSpec {
 	tokenizerHandler := server.NewHTTPHandlerWithOptions(server.HTTPHandlerOptions{
 		InstallRoot: t.TempDir(),
 		DataRoot:    t.TempDir(),
-		DisableCSRF:  true,
+		DisableCSRF: true,
 	})
 
 	// 8. Two boots of one tree at once.
