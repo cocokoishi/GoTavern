@@ -41,6 +41,53 @@ was recorded as a *codec boundary* (`AGENTS.md` architecture boundary 3, and the
 `/thumbnail` 404 differences) — so the 404 was a documented, accepted value. Nothing in the suite ever loaded
 a page and looked at a picture, and no gate compared the mount sets. `AGENTS.md` rules 42-46 are the result.
 
+**The audited surface (2026-10-25, from pinned source; `docs/gate-blindspots.md` for the process side).**
+`/thumbnail` is not one of eleven asset URLs — it is the single surface behind *most* of them:
+
+| Frontend surface | URL built by | State before the fix |
+|---|---|---|
+| character list (every avatar) | `script.js:2565` `buildAvatarList` → `getThumbnailUrl('avatar', …)` | `/thumbnail` **404** |
+| **every chat message avatar, both directions** | `script.js:2619` (persona), `:2628` (character) | `/thumbnail` **404** |
+| group collage avatars | `group-chats.js:606`,`:885`,`:1686` | `/thumbnail` **404** |
+| persona list / persona image / zoomed persona | `personas.js:177`,`:243`,`:580` | `/thumbnail` **404** |
+| background gallery tiles and folder covers | `backgrounds.js:860`,`:1434` | `/thumbnail` **404** |
+| clicked-character full image | `script.js:12230`,`:12246` → `/characters/<avatar>` | mount **missing** |
+| expression sprites | `src/endpoints/sprites.js:142` hands out `/characters/<name>/<file>` | mount **missing** |
+| zoomed persona full size | `personas.js:100`,`:137` → `User Avatars/<id>` | mount **missing** |
+| Live2D / VRM models | `assets.js:132`,`:148`,`:159` → `/assets/...` | mount **missing** |
+| the applied background itself | `backgrounds.js:288` → `/backgrounds/<file>` | implemented |
+
+Three consequences that make this worse than a rendering bug:
+
+- **The defect is written into user data.** The frontend persists `mes.force_avatar` as a literal
+  `/thumbnail?type=…` URL inside the chat `.jsonl` (`script.js:5894`, `:6773`, `personas.js:1864`,
+  `slash-commands.js:5800`, `bookmarks.js:420`). Old chats saved under pinned Node therefore carry a URL that
+  GoTavern answers 404 for, so this cannot be worked around in the frontend and cannot be forgotten by users.
+- **The server lists URLs it does not serve** — for the third time in this codebase. `GET /api/sprites/get`
+  returns `path: /characters/<name>/<file>` (`internal/startup/user_sprites.go:56`) and `/api/assets/get` /
+  `/api/assets/character` return `/assets/…` and `/characters/<name>/<cat>/<file>` (`assets.go:366`); both were
+  404s before the mount fix. The `__transparent.png` precedent is already documented at
+  `internal/server/frontend_assets.go:17-19`, which is the general form of this defect: *a listing must be
+  answerable by the server's own routes.*
+- **A persona avatar cannot be created at all.** `POST /api/avatars/upload` is not registered in this server
+  (`nanogpt.go:21` is a comment, not a route), so even after `/thumbnail` exists a user can display a persona
+  but not set one.
+
+Corrections this audit produced, because the earlier plan would have implemented the wrong contract:
+**`forcePng` does not exist** in this baseline (zero hits repo-wide); the pinned handler reads only `file`,
+`type` and `animated`; the served MIME comes from the **original filename's extension** while the bytes are the
+configured format (`res.sendFile(file, {root: thumbnailFolder})`), so a `.png` original with JPEG bytes is
+served `image/png`; animated detection is a **200-byte scan** for `acTL` (APNG) or `ANIM`/`ANMF` (WebP), not a
+decode; `thumbnails.quality` is clamped to 1..100 via `parseInt` and `thumbnails.format` is compared as
+`String(v).toLowerCase().trim() === 'png'`; `SKIPPED_EXTENSIONS` includes `.gif`, which is also short-circuited
+separately; and `invalidateFirefoxCache` only rewrites `Cache-Control` for a Firefox UA on an `image/*` path.
+
+Documents that recorded the 404 as acceptable and are corrected in the same lane, because leaving them is how
+the next reader re-closes the defect: `docs/api-inventory.md:348` (which also misnames the route —
+`/thumbnail` is a query-parameter URL, not `/thumbnail/<computed>`), `docs/frontend-startup-calls.md:56`
+("cosmetic"), `docs/frontend-compatibility-measurement.md:745-753` and `:782`, `docs/surface-coverage.md:85`
+and `:172`/`:188`, `docs/compat-matrix.md:61`/`:101`/`:153`, `docs/compatibility-matrix.md:351`/`:555`.
+
 ### P0-D — 酒馆助手 / JS-Slash-Runner does not work
 
 The extension is pinned at `N0VI028/JS-Slash-Runner@837a6288…` in `AGENTS.md`, but the audit of what it
