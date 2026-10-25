@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	neturl "net/url"
 	"os"
 	"strings"
 	"sync"
@@ -97,10 +98,20 @@ func readRequestHead(connection net.Conn) (string, error) {
 
 func jsonProbeRequest(url string) outbound.Request {
 	body := []byte(`{"model":"probe"}`)
+	// Host is REQUIRED: this probe writes the request itself (net/http is not in
+	// the path), and an HTTP/1.1 peer answers 400 to a request without it. Its
+	// absence made three cases measure a 400 page instead of the peer the case
+	// built, which is the "probe never reached the subject" failure this package
+	// exists to avoid.
+	host := ""
+	if parsed, err := neturl.Parse(url); err == nil {
+		host = parsed.Host
+	}
 	return outbound.Request{
 		URL:    url,
 		Method: http.MethodPost,
 		Headers: []outbound.Header{
+			{Name: "Host", Value: host},
 			{Name: "content-type", Value: "application/json"},
 			{Name: "accept", Value: "*/*"},
 			{Name: "accept-encoding", Value: "gzip, deflate, br"},
