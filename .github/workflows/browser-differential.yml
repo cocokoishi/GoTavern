@@ -55,6 +55,11 @@ on:
       - 'tests/browser/compare-asset-legs.mjs'
       - 'tools/browser-evidence/other-surfaces.mjs'
       - 'tools/verify-browser-comparisons.mjs'
+      # THE WORKFLOW ITSELF. Measured: commit 555cbdc fixed the asset step's missing directory and started
+      # NO browser run, because only the four files above were listed -- so the fix to this gate went
+      # unverified by this gate, which is the same defect as a fix travelling with its gate. The
+      # pull_request list already had this entry; the push list did not.
+      - '.github/workflows/browser-differential.yml'
   # A PULL REQUEST THAT TOUCHES THE HARNESS MUST RE-PROVE THE EVIDENCE. Changing the drive, the
   # comparators, the catalogue or the verifier changes what the committed artefacts MEAN, so the sweep
   # this job performs is exactly the review question -- and it is the only way to run this workflow before
