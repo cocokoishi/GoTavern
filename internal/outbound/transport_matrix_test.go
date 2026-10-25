@@ -28,6 +28,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -51,11 +52,18 @@ func startProductionAuditServer(t *testing.T, handler http.Handler) (*httptest.S
 // because the wire-exact client writes the head verbatim. The production transport must tolerate both and
 // own the framing itself.
 func providerRequest(serverURL string, body []byte, clientTLS *tls.Config) Request {
+	// The authority ALONE. Trimming the scheme off the whole URL yields
+	// "127.0.0.1:PORT/v1/chat/completions", which the server rejects as a malformed Host before the
+	// handler runs, so every assertion below would fail for a reason unrelated to what it measures.
+	parsed, parseErr := url.Parse(serverURL)
+	if parseErr != nil {
+		panic("providerRequest: " + parseErr.Error())
+	}
 	return Request{
 		URL:    serverURL,
 		Method: http.MethodPost,
 		Headers: []Header{
-			{Name: "Host", Value: strings.TrimPrefix(serverURL, "https://")},
+			{Name: "Host", Value: parsed.Host},
 			{Name: "Content-Type", Value: "application/json"},
 			{Name: "Content-Length", Value: fmt.Sprintf("%d", len(body))},
 		},

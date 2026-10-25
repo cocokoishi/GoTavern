@@ -22,6 +22,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -121,19 +122,35 @@ func startProvider(t *testing.T) (*httptest.Server, *x509.CertPool) {
 	return server, pool
 }
 
+// proxyRequest supplies the authority as well as the headers. The wire-exact client writes ONLY the
+// headers it is given, so a request without Host is refused by the server before any handler runs and
+// the assertion below would fail for a reason that has nothing to do with proxying.
+func proxyRequest(t *testing.T, target string, clientTLS *tls.Config) outbound.Request {
+	t.Helper()
+	parsed, err := url.Parse(target)
+	if err != nil {
+		t.Fatalf("parse %q: %v", target, err)
+	}
+	return outbound.Request{
+		URL:    target,
+		Method: http.MethodPost,
+		Headers: []outbound.Header{
+			{Name: "Host", Value: parsed.Host},
+			{Name: "Content-Type", Value: "application/json"},
+		},
+		Body:      []byte("{}"),
+		TLSConfig: clientTLS,
+	}
+}
+
 // TestHTTPSProviderUsesTheConnectProxy is P0-A behind a corporate network: the user can reach the proxy and
 // nothing else. The assertion is that the CONNECT tunnel carried the request.
 func TestHTTPSProviderUsesTheConnectProxy(t *testing.T) {
 	server, pool := startProvider(t)
 	before := atomic.LoadInt64(&connectTunnels)
 
-	response, err := outbound.Send(context.Background(), outbound.Request{
-		URL:       server.URL + "/v1/chat/completions",
-		Method:    http.MethodPost,
-		Headers:   []outbound.Header{{Name: "Content-Type", Value: "application/json"}},
-		Body:      []byte("{}"),
-		TLSConfig: &tls.Config{RootCAs: pool},
-	}, 5*time.Second)
+	response, err := outbound.Send(context.Background(), proxyRequest(t, server.URL+"/v1/chat/completions", &tls.Config{RootCAs: pool}), 5*time.Second)
+
 	if err != nil {
 		t.Fatalf("send through HTTPS_PROXY: %v", err)
 	}
@@ -155,12 +172,8 @@ func TestHTTPProviderUsesTheForwardProxy(t *testing.T) {
 	t.Cleanup(server.Close)
 	before := atomic.LoadInt64(&forwardedRequests)
 
-	response, err := outbound.Send(context.Background(), outbound.Request{
-		URL:     server.URL + "/v1/chat/completions",
-		Method:  http.MethodPost,
-		Headers: []outbound.Header{{Name: "Content-Type", Value: "application/json"}},
-		Body:    []byte("{}"),
-	}, 5*time.Second)
+	response, err := outbound.Send(context.Background(), proxyRequest(t, server.URL+"/v1/chat/completions", nil), 5*time.Second)
+
 	if err != nil {
 		t.Fatalf("send through HTTP_PROXY: %v", err)
 	}
@@ -182,13 +195,8 @@ func TestNoProxyBypassesTheConfiguredProxy(t *testing.T) {
 	bypassed := strings.Replace(server.URL, "127.0.0.1", "localhost", 1)
 	before := atomic.LoadInt64(&connectTunnels)
 
-	response, err := outbound.Send(context.Background(), outbound.Request{
-		URL:       bypassed + "/v1/chat/completions",
-		Method:    http.MethodPost,
-		Headers:   []outbound.Header{{Name: "Content-Type", Value: "application/json"}},
-		Body:      []byte("{}"),
-		TLSConfig: &tls.Config{RootCAs: pool, ServerName: "127.0.0.1"},
-	}, 5*time.Second)
+	response, err := outbound.Send(context.Background(), proxyRequest(t, bypassed+"/v1/chat/completions", &tls.Config{RootCAs: pool, ServerName: "127.0.0.1"}), 5*time.Second)
+
 	if err != nil {
 		t.Fatalf("send to a NO_PROXY host: %v", err)
 	}
