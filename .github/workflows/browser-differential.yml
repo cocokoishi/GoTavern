@@ -401,7 +401,11 @@ jobs:
         run: |
           set -uo pipefail
           work="$RUNNER_TEMP/browser-differential"
-          mkdir -p "$work/legs"
+          # BOTH DIRECTORIES, because this step runs when `Record the selected drives` did NOT: on an
+          # `assets` run that step is skipped, so its `mkdir -p "$work/committed"` never happened and the
+          # first version of this block died on `asset-comparison.json.absent: No such file or directory`
+          # (run 40201801282) -- a harness bug in the step, not a finding about the product.
+          mkdir -p "$work/legs" "$work/committed"
           failures=0
           # The committed artefact is staged so the freshness report can compare it with the fresh one.
           if git cat-file -e "HEAD:tests/browser/asset-comparison.json" 2>/dev/null; then
