@@ -359,7 +359,15 @@ func TestP0BTwoConcurrentBootsDoNotHang(t *testing.T) {
 		}
 		t.Logf("boot outcome: err=%v", outcome.err)
 	}
-	succeeded, busy := 0, 0
+	// THE INVARIANT IS "ONE WINS AND THE LOSER FAILS BY NAME, QUICKLY", NOT "THE LOSER FAILS AT THE LOCK".
+	//
+	// The config lock is one guard among several, and which one fires first is a race this case cannot
+	// control: on a fast run the winner releases the config lock before it binds, so the second boot takes
+	// the lock, reaches the listener and is refused there with "listen tcp4 127.0.0.1:PORT: bind: address
+	// already in use". That is a NAMED, causal, immediate failure that also proves only one server came up --
+	// demanding specifically the lock error would make the case flaky against a correct product, and
+	// "flaky until it is disabled" is how a real hang gets to ship (run 40162587255 was exactly this).
+	succeeded, busy, portTaken := 0, 0, 0
 	var other []error
 	for _, outcome := range outcomes {
 		switch {
@@ -367,14 +375,23 @@ func TestP0BTwoConcurrentBootsDoNotHang(t *testing.T) {
 			succeeded++
 		case strings.Contains(outcome.err.Error(), "another GoTavern process"):
 			busy++
+		case strings.Contains(outcome.err.Error(), "address already in use"):
+			portTaken++
 		default:
 			other = append(other, outcome.err)
 		}
 	}
 	if succeeded == 0 {
-		t.Fatalf("neither concurrent boot succeeded (busy=%d, other=%v); one must win", busy, other)
+		t.Fatalf("neither concurrent boot succeeded (busy=%d, portTaken=%d, other=%v); one must win", busy, portTaken, other)
+	}
+	if succeeded != 1 {
+		t.Fatalf("%d concurrent boots succeeded; exactly one may serve, or two processes would write the same tree", succeeded)
+	}
+	if busy+portTaken != 1 {
+		t.Fatalf("the losing boot must fail once and by name: busy=%d portTaken=%d other=%v", busy, portTaken, other)
 	}
 	if len(other) > 0 {
-		t.Fatalf("a concurrent boot failed for a reason that does not name lock contention: %v", other)
+		t.Fatalf("a concurrent boot failed for a reason that names neither the lock nor the listener: %v", other)
 	}
+	t.Logf("loser failed by name: %d at the config lock, %d at the listener (both are bounded, causal refusals)", busy, portTaken)
 }
