@@ -247,7 +247,7 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		AllowFullDataBackup:        getConfigValue(config, "backups.allowFullDataBackup", true, cliBoolean),
 		AllowKeysExposure:          getConfigValue(config, "allowKeysExposure", false, cliBoolean),
 		ExtensionsEnabled:          getConfigValue(config, "extensions.enabled", true, cliBoolean),
-		ExtensionsAutoUpdate:       getConfigValue(config, "extensions.autoUpdate", true, cliBoolean),
+		ExtensionsAutoUpdate:       getConfigValue(config, "extensions.autoUpdate", false, cliBoolean),
 		RequestCompressionEnabled:  getConfigValue(config, "performance.requestCompression.enabled", false, cliBoolean),
 		RequestCompressionMin:      getConfigValue(config, "performance.requestCompression.minPayloadSize", "256kb", cliString),
 		RequestCompressionMax:      getConfigValue(config, "performance.requestCompression.maxPayloadSize", "8mb", cliString),

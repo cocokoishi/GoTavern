@@ -67,7 +67,7 @@ func (runtime *accountRuntime) serveSettingsGet(w http.ResponseWriter, request *
 		Themes:     []json.RawMessage{}, MovingUIPresets: []json.RawMessage{}, QuickReplyPresets: []json.RawMessage{},
 		Instruct: []json.RawMessage{}, Context: []json.RawMessage{}, SysPrompt: []json.RawMessage{}, Reasoning: []json.RawMessage{},
 		EnableExtensions:           optionBooleanDefault(runtime.options.ExtensionsEnabled, true),
-		EnableExtensionsAutoUpdate: optionBooleanDefault(runtime.options.ExtensionsAutoUpdate, true),
+		EnableExtensionsAutoUpdate: optionBooleanDefault(runtime.options.ExtensionsAutoUpdate, false),
 		EnableAccounts:             runtime.options.AccountsEnabled,
 		RequestCompression:         runtime.settingsRequestCompression(),
 	}
