@@ -75,6 +75,22 @@ type commandlinePathWarnings struct {
 	FailedDataRootCreation bool `json:"failedDataRootCreation"`
 }
 
+// pinnedDivergences lists the fields where GoTavern deliberately resolves differently from the pinned Node
+// command-line parser, with BOTH values recorded so neither side can drift silently. Keyed by the exact
+// option field name -- never a pattern or a wildcard, which would turn a product decision into the widened
+// normalisation that provider-wire discipline forbids.
+var pinnedDivergences = map[string]struct {
+	gotavern any
+	pinned   any
+	reason   string
+}{
+	"extensionsAutoUpdate": {
+		gotavern: false,
+		pinned:   true,
+		reason:   "ARCHITECTURE 34.3 / rule 26: GoTavern never enables extension auto-update from an inherited key; the pinned default is true (upstream/default/config.yaml:301) and is deliberately not honoured",
+	},
+}
+
 func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 	fixtureBytes, err := os.ReadFile(filepath.Join("..", "..", "tests", "oracle", "sillytavern-1.19.0-commandline-paths.json"))
 	if err != nil {
@@ -188,8 +204,51 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 			if err := json.Unmarshal(actualOptions, &normalizedOptions); err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(normalizedOptions, scenario.Result.Options) {
-				t.Errorf("server options = %#v, Node has %#v", normalizedOptions, scenario.Result.Options)
+			// PINNED DIVERGENCES, DECLARED EXACTLY AND BY FIELD.
+			//
+			// This test compares GoTavern's resolved command-line options against the pinned Node parser,
+			// recorded at tests/oracle/sillytavern-1.19.0-commandline-paths.json. One field cannot agree: the
+			// fixture says extensionsAutoUpdate: true because that IS pinned's default
+			// (upstream/default/config.yaml:301), while GoTavern deliberately never enables extension
+			// auto-update from an inherited key (ARCHITECTURE.md 34.3, AGENTS.md rule 26). The fixture is
+			// NOT re-recorded (doctrine 9), and the divergence is not generalised into "ignore these keys":
+			// each entry names one field, its GoTavern value and its pinned value, so it can only hold while
+			// BOTH sides still say what it claims, and an entry that matches no field in the fixture is
+			// deleted rather than left as dead permission.
+			for field, divergence := range pinnedDivergences {
+				gotValue, present := normalizedOptions[field]
+				if !present {
+					t.Errorf("declared divergence %q is not in GoTavern's resolved options; delete the declaration", field)
+					continue
+				}
+				pinnedValue, pinnedPresent := scenario.Result.Options[field]
+				if !pinnedPresent {
+					t.Errorf("declared divergence %q is not in the pinned fixture; the divergence no longer exists, delete the declaration", field)
+					continue
+				}
+				if !reflect.DeepEqual(gotValue, divergence.gotavern) {
+					t.Errorf("%s = %#v, declared GoTavern value is %#v (%s)", field, gotValue, divergence.gotavern, divergence.reason)
+				}
+				if !reflect.DeepEqual(pinnedValue, divergence.pinned) {
+					t.Errorf("%s is %#v in the pinned fixture, the declaration says %#v; if pinned changed, re-read the declaration before changing it (%s)", field, pinnedValue, divergence.pinned, divergence.reason)
+				}
+			}
+			remainingActual := make(map[string]any, len(normalizedOptions))
+			for field, value := range normalizedOptions {
+				if _, declared := pinnedDivergences[field]; declared {
+					continue
+				}
+				remainingActual[field] = value
+			}
+			remainingPinned := make(map[string]any, len(scenario.Result.Options))
+			for field, value := range scenario.Result.Options {
+				if _, declared := pinnedDivergences[field]; declared {
+					continue
+				}
+				remainingPinned[field] = value
+			}
+			if !reflect.DeepEqual(remainingActual, remainingPinned) {
+				t.Errorf("server options = %#v, Node has %#v", remainingActual, remainingPinned)
 			}
 			actualStartupSettings, err := json.Marshal(jsonSafe(got.StartupSettings))
 			if err != nil {
