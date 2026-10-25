@@ -84,9 +84,17 @@ the index, the script refuses rather than quietly seeding a smaller tree (rule 1
 | layout | how it runs | what it proves |
 |---|---|---|
 | `cwd-root` (Linux) | CWD = the tree | the documented "put the binary in your SillyTavern directory" path: the user's own characters, chat and settings are what the API returns |
-| `foreign-cwd` (Linux) | binary in the tree, CWD elsewhere | pinned resolution is CWD-relative, so this starts a fresh runtime under the foreign directory. It must still become ready, and it must NOT write into the tree it was not pointed at |
+| `foreign-cwd` (Linux) | binary in the tree, CWD elsewhere | **measured**, not derived: the runtime root FOLLOWED THE TREE, so this layout proves a user who launches from another directory still gets their own config/data -- and it does not modify any pre-existing file while doing it. See the note below, because this contradicts `docs/startup-state-machine.md` section 4 |
 | Windows archive, CWD = root | **not implemented in this change** | -- |
 | Windows archive, foreign CWD | **not implemented in this change** | -- |
+
+**Measured divergence from `docs/startup-state-machine.md` section 4.** That table lists `CWD` as the
+input that selects "which config/data tree is used". On the shipped layout it does not: under a foreign
+CWD the API returned the tree's seeded character (`Seraphina`) and its 3-line chat, and the boot created
+`_storage/<hash>`, `content.log`, `cookie-secret.txt` and a settings backup **inside the tree**. The
+runtime root followed the install root. That is the better behaviour for a drop-in user and it is what the
+gate now asserts; the document's claim is what needs correcting, and it is reported rather than silently
+edited here.
 
 The Windows halves are named as unimplemented rather than assumed: `Start.cmd`, backslash paths and a
 Windows runner need a PowerShell twin of the same harness, and shipping that harness unexecuted would be a
@@ -104,6 +112,27 @@ The differences this job exists to observe. Each is printed by the harness from 
 | launchers | none | `start.sh` / `Start.cmd`, which `cd` to their own directory |
 | `BUILD-INFO.txt` | absent | names the tag and carries the binary's own `gotavern version` output |
 | config / data / extensions | live in the checkout | deliberately absent, and asserted absent |
+
+## Measured results
+
+Run **40153128342** (`GoTavern Lane CI`, `lane/release-dropin`, green) executed all three scenarios
+against an archive packaged with `release.yml`'s staging:
+
+| scenario | checks | notable measurements |
+|---|---|---|
+| `cwd-root`, pristine pinned config | 13 passed | ready via the `/version` poll inside the bound; settings 21 keys; 1 character (`Seraphina`); chat 3 lines; every extension repository's `git status` unchanged; no non-loopback socket; graceful stop; restart; chat persisted; **0 pre-existing files modified or deleted**, 7 created (all on the declared list); **config.yaml NOT rewritten** |
+| `foreign-cwd` | 12 passed | the tree was the runtime root (API returned the tree's character and chat); only creations, no pre-existing file changed |
+| `cwd-root`, used/trimmed config | 13 passed | the boot **rewrote config.yaml, +158 lines** (section 3's declared `mergeDefaults` behaviour) and the rewritten file still had **`extensions.autoUpdate: false`** -- the user's explicit value survived the merge, so the P0-C mechanism did not flip it on this path |
+
+Two things this run did **not** find, stated because a gate's silence is only meaningful when it is
+specific: the artifact did **not** hang against a stock tree built from the pinned defaults (in every scenario
+the boot answered `/version` on the first polls, never approaching the bound), and the boot did **not**
+modify or delete a single
+pre-existing user file. So the reported P0-B hang is **not** reproduced by this fixture. The states this
+fixture does not yet model, in the order they are worth testing next, are: a stock tree whose
+`config.yaml` has been run through the rewrite path *and* whose `data/` is large (scaling
+`InitializeUserStorage`), a tree with a stale lock file from a crashed process (W1-W9, the only
+unbounded waits in the chain), and a Windows tree, where file-locking semantics differ.
 
 ## Limits, stated so a green is not read as more
 
