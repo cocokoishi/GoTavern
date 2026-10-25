@@ -473,3 +473,58 @@ Never special-case these extensions in production code. They are canaries for th
 ## Definition of success
 
 A non-developer can install a prebuilt GoTavern release, start fresh or migrate an existing SillyTavern deployment, use the unmodified frontend and complex supported extension/preset workflows, and obtain the same effective provider requests and persistent/browser state as pinned Node SillyTavern—without Go/Node on the target server and without a data conversion layer.
+
+## Product contract (2026-10-25, after three user-visible P0 failures)
+
+The rules below exist because three defects shipped through a green CI: a provider that could not be reached in
+production (`P0-A`), a boot that hangs inside a real SillyTavern directory (`P0-B`) and extension/plugin updates
+that happen without being asked for (`P0-C`). Each rule is an invariant with an evidence requirement, because the
+failure mode they replace is "the suite was green, therefore it works". The measurements behind them are in
+`docs/network-egress.md` and `docs/startup-state-machine.md`.
+
+21. **The target is a usable SillyTavern replacement, not a parity demonstration.** A green differential is a
+    means. The acceptance question is always: can a real user, with their real data and their real provider, do
+    their real work?
+22. **The user's runtime path outranks any mock.** A behaviour verified only against our own peer, mock or
+    fixture is `unverified` for production purposes, whatever the fixture says.
+23. **Every release claim must be demonstrated with the shipped artifact.** Source-tree tests are necessary and
+    insufficient: the packed archive, unpacked into a clean environment, must start against a stock tree.
+24. **Startup may not wait indefinitely** — no `flock.Lock()` without a bounded acquisition, no unbounded
+    resolver call, no unbounded sleep loop, no join without a producer. Every wait has a named error and a bound.
+25. **Startup performs no non-essential network access.** Boot is local; the only allowed lookup is the
+    documented docker-hostname resolution, and it is bounded.
+26. **Auto-update defaults to OFF, and every ambiguous input resolves to OFF**: missing key, unknown legacy key,
+    `null`, unparsed value, unreadable config, migrated config. `true` is only ever read from an explicit,
+    parseable, present value — never from a default, a fallback or a merge. This overrides pinned's own default
+    (`upstream/default/config.yaml:301`, `:396`); diverging from upstream here is the product decision, and it is
+    recorded as such.
+27. **Startup does not modify user files as a side effect.** A config that parses is not rewritten because our
+    defaults exist. Missing values are supplied in memory and reported; any write is an explicit, logged,
+    backed-up migration with an idempotence test.
+28. **Existing user data wins.** Never truncate an unknown file, delete an unknown key, overwrite an extension,
+    reset a plugin repository, or chmod a user tree implicitly. A dirty git worktree is refused, not forced.
+29. **The provider transport must work on the real internet**: TLS with system roots, proxy awareness, bounded
+    connect/handshake/header/idle timeouts, response decompression, redirect policy, keep-alive, cancellation.
+    A transport that only reproduces wire bytes for a mock writes the mock's contract, not the internet's.
+30. **Byte-exact and production transports are different roles.** The wire-exact client exists to observe pinned's
+    request bytes; it must not be the client that carries user traffic merely because it was there first.
+31. **Every bug is reproduced before it is fixed.** The reproducer must fail for the right reason, and the fix
+    must be shown to make that specific reproducer pass.
+32. **Never delete or weaken a failing test to get green.** A test that cannot fail is worse than no test.
+33. **Never mask a deadlock with a longer timeout, and never mask a readiness race with `sleep`.** Those are the
+    two shapes of "fixed" that reappear as a user-visible hang.
+34. **CI tests the unpacked release artifact**, in a stock SillyTavern directory, with the same steps a user
+    follows in the installation docs.
+35. **Errors are causal and safe**: they name DNS, connect, TLS, proxy, timeout, HTTP status or mid-stream close,
+    and they never print secrets. "Cannot connect to server" is not an error message.
+36. **Documentation may not claim ahead of evidence.** A capability is documented as working only after the gate
+    that proves it has run; until then it says `partial` or `not implemented` with the reason.
+37. **A subagent's report is evidence, not a summary.** Files inspected, reproducer, root cause, invariant,
+    changed files, tests, CI run id, residual risk. "Implemented" alone is rejected.
+38. **Release qualification covers the real migration path**: stock tree, existing config, existing data, restart,
+    persistence, and the ability to hand the data back to pinned Node.
+39. **Lanes own areas, not files-in-flight.** One lane per area, one push, integrator merges; shared architecture
+    changes land first and lanes rebase onto them.
+40. **A hang, a crash or a silent mutation discovered in production is a defect in the process too.** Record what
+    the process was missing — a gate, a fixture, a timeout, a document — in the same change that fixes the bug.
+

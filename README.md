@@ -106,6 +106,21 @@ the hard way, including the ones about mutations that cannot fail, fixtures that
 
 ## Compatibility target
 
+### Current status (2026-10-25): not yet a daily driver
+
+Three defects found in real use are **open**, and they are exactly the kind a route-by-route ledger cannot show:
+
+| # | What a user hits | State |
+|---|---|---|
+| P0-A | a real OpenAI-compatible provider (DeepSeek) cannot be reached: the shared transport has no response timeout, no decompression for the `accept-encoding` it advertises, no proxy support and no redirect handling | **open** — HTTPS/proxy reproducer in progress |
+| P0-B | the release binary placed in a working SillyTavern directory hangs in initialisation; every boot lock is unbounded and boot prints no stage | **open** — bounded locks and staged diagnostics in progress |
+| P0-C | extensions/plugins can be updated without being asked, because `extensions.autoUpdate` defaults to true and a stock config can be rewritten with that default on first boot | **open** — default must resolve to OFF and boot must not rewrite a parseable config |
+
+Until all three are closed by a gate that runs on the packaged artifact, this README does not claim that GoTavern
+replaces SillyTavern for daily use. The contract and the measurements are in
+[`docs/network-egress.md`](docs/network-egress.md), [`docs/startup-state-machine.md`](docs/startup-state-machine.md),
+[`AGENTS.md`](AGENTS.md) rules 21-40 and [`ARCHITECTURE.md`](ARCHITECTURE.md) §34.
+
 GoTavern keeps SillyTavern's frontend and data model rather than designing substitutes:
 
 - pinned upstream `public/**` frontend, unchanged; pinned `default/**` content for fresh installs;

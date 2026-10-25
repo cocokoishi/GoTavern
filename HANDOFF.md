@@ -7,6 +7,70 @@ most to learn.
 Baseline: SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127`. Oracle checkout lives beside
 this repository at `../SillyTavern` and is READ-ONLY.
 
+## P0 — the user's three reports, and what this checkpoint does about them (2026-10-25)
+
+Recorded at `main` `10314c8`. These outrank every other line in this file: a release that cannot talk to a
+provider, cannot boot in a stock directory, and updates extensions unasked is not a replacement product, whatever
+the differential suite says. The engineering contract is `AGENTS.md` rules 21-40 and `ARCHITECTURE.md` §34; the
+measurements are `docs/network-egress.md` and `docs/startup-state-machine.md`.
+
+### P0-A — a real provider cannot be reached
+
+**Reported:** repeated "cannot connect to the DeepSeek server" with a real DeepSeek key.
+**Confirmed in source, not guessed:**
+
+- `internal/outbound/raw.go` is a hand-written HTTP/1.1 client. Chat completions calls it with `timeout 0`
+  (`internal/server/chat_completions.go:263`), so `SetDeadline` is never reached (`raw.go:166`) and a stalled
+  provider holds the request forever.
+- Every planner sends `accept-encoding: gzip, deflate, br` (`chat_completions.go:670` and about ten siblings) and
+  `raw.go` decompresses nothing — a responding CDN hands it compressed bytes and the JSON parse fails.
+- No `HTTP_PROXY`/`HTTPS_PROXY`/`NO_PROXY` support anywhere in `internal/**`; no redirect handling; no
+  keep-alive; one goroutine per request waits on `ctx.Done()` indefinitely.
+**Not yet proven:** which of these fires first for this user. All four are reproducible against a local HTTPS
+mock; that reproducer is the first deliverable, not the fix.
+**Unproven assumption to state plainly:** the oracle only ever recorded plain-HTTP, complete, uncompressed,
+non-redirecting, non-proxied replies. Every one of those properties is now a required test.
+
+### P0-B — stock-directory startup hangs
+
+**Reported:** copying the release binary into a working `node server.js` tree and running it hangs in
+initialisation.
+**Confirmed in source:** the boot path takes **eight** `flock.Lock()` call sites with no bound
+(`configinit/config.go:169`, `startup/secret.go:85`, `startup/storage.go:440`, `startup/content.go:383`,
+`startup/user_data_lock.go:12`, `startup/settings_backup.go:131`, `startup/secrets_state.go`,
+`startup/user_presets.go:96`, `startup/statistics.go:87`) and one unbounded `net.LookupIP`
+(`app/server.go:161`). `cmd/gotavern/main.go` prints **nothing** until `app.Start` returns, so a hang anywhere
+looks identical to the user.
+**Not yet proven:** which lock the user hit. The reproducer is two processes on one tree plus a stale lock file,
+each with a 30 s bound that dumps goroutines and the stage trace.
+
+### P0-C — extensions/plugins updated without being asked
+
+**Reported:** automatic extension/plugin updates the user never requested.
+**Confirmed in source:** boot runs no git — but it does the equivalent damage through defaults.
+`internal/commandline/options.go:250` resolves `extensions.autoUpdate` with a default of **true**, and
+`internal/server/settings_get.go:70` reports it to the frontend with `optionBooleanDefault(..., true)`; the pinned
+defaults it merges in carry `autoUpdate: true` (`upstream/default/config.yaml:301`) and
+`enableServerPluginsAutoUpdate: true` (`:396`). Worse, `configinit.Initialize` rewrites any config missing a
+defaulted key (`internal/configinit/config.go:123,136`), so a stock tree can have `autoUpdate: true` **written
+into it on first boot**.
+**Not yet proven:** whether this user's tree was rewritten or merely reported as `true` to the frontend. Both
+paths are closed by the same contract: ambiguity resolves to OFF, and boot does not rewrite a parseable config.
+
+### Lane ownership from here
+
+| Lane | Area | First deliverable |
+|---|---|---|
+| A | `internal/outbound`, providers, streaming | HTTPS/proxy/compression/timeout reproducer, then the production transport |
+| B | `internal/app`, `internal/startup`, `internal/configinit`, `internal/commandline` | bounded locks + staged diagnostics + read-only boot reproducer |
+| C | extensions/plugins update lifecycle | zero-egress/zero-mutation boot test; OFF-by-default resolution |
+| D | pinned upstream inventory, differential, browser E2E | stock-tree + whole-session differential harness |
+| E | packaging/release | stock-directory drop-in test of the **unpacked artifact** |
+| F | adversarial QA (no production code) | break A-E: stale lock, dirty repo, bad YAML, proxy, TLS, port conflict |
+
+Nothing in this section may be closed by a green unit test. Each closes with the reproducer failing before and
+passing after, in GitHub Actions, on the packaged artifact where the gate is a release gate.
+
 ## 0. Working mode, and what changed in this checkpoint (2026-10-24)
 
 **The host does not build, test, probe or drive a browser.** Every one of those runs in GitHub Actions;

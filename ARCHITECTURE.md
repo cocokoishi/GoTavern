@@ -16,7 +16,16 @@ An ordinary user must be able to:
 6. keep characters, chats, worlds, presets, settings, secrets, accounts and frontend extensions intact;
 7. use complex prompt/preset/world-info/script workflows with the same semantics, not merely obtain some generated text;
 8. update GoTavern without overwriting mutable user data;
-9. stop GoTavern and return to an equivalent SillyTavern baseline without a schema conversion.
+9. stop GoTavern and return to an equivalent SillyTavern baseline without a schema conversion;
+10. reach a real provider (including an OpenAI-compatible one over HTTPS, and through a proxy) and see a causal
+    error when it cannot;
+11. start the release binary inside a stock SillyTavern directory without the process hanging, whatever the
+    working directory;
+12. never have an extension or plugin modified unless they asked for that update.
+
+Items 10-12 were added on 2026-10-25 because all three failed in real use while the suite was green. Their
+binding contracts are §34, with the measurements in `docs/network-egress.md` and
+`docs/startup-state-machine.md`.
 
 The project is successful only when these user journeys work from released artifacts. `go run`, a locally compiled binary, or a green handler unit test is not a substitute for a release artifact and end-to-end validation.
 
@@ -1215,3 +1224,46 @@ For complex roleplay workflows, Node and Go must produce equivalent final provid
 The user must be able to update GoTavern without losing mutable data and return to an equivalent SillyTavern baseline without data conversion.
 
 The single ecosystem exception remains arbitrary Node.js server plugins, whose dependent functionality must be identified and reported rather than faked.
+
+---
+
+## 34. Product gates added 2026-10-25 (P0-A, P0-B, P0-C)
+
+Three user-visible failures reached a release. They are recorded here as contracts because each one was
+invisible to the existing gates, and a contract that only lives in a bug report is a contract that will be
+broken again. Measurements: `docs/network-egress.md`, `docs/startup-state-machine.md`.
+
+### 34.1 Two transports, and only one of them carries user traffic
+
+- `internal/outbound` keeps the wire-exact client. Its job is to reproduce pinned's request bytes so the
+  provider-wire fixture can observe them; it is a measuring instrument.
+- A production transport, built on `net/http` with `Proxy: http.ProxyFromEnvironment`, explicit
+  `DialContext`/`TLSHandshakeTimeout`/`ResponseHeaderTimeout`/idle limits, keep-alive, a redirect policy and
+  transparent decompression, carries every provider request a user makes.
+- Acceptance is a matrix that fails today: HTTPS non-stream, HTTPS stream, 401, 403, 429, 5xx, a delayed reply,
+  a chunk boundary that splits a UTF-8 character, an abrupt mid-stream close, an HTTP proxy, a CONNECT proxy,
+  `NO_PROXY`, a TLS failure, and a redirect — each with a causal error message.
+- The wire-exact fixture must keep passing through the wire-exact client unchanged. Neither transport may be
+  deleted to make the other's tests pass.
+
+### 34.2 Startup is bounded, staged and read-only
+
+- Every lock acquisition carries a bound and reports `config is locked by another GoTavern process (waited Ns)`.
+- Startup emits named stages (`startup.begin` … `startup.ready`) with duration; a hang therefore names itself
+  instead of looking like a silent initialisation.
+- A `config.yaml` that parses is not rewritten on boot. Missing values are resolved in memory and reported; a
+  write is an explicit migration, logged, backed up and idempotent.
+- Readiness is observable (stdout marker plus health endpoint); no test may `sleep` and assume.
+- The release artifact must boot from a stock SillyTavern tree in four layouts: CWD = root, foreign CWD,
+  Windows archive, Linux archive. Each with a hard timeout that dumps goroutines and the stage trace.
+
+### 34.3 No automatic updates, by default and by ambiguity
+
+- `extensions.autoUpdate`, `extensions.autoUpdatePlugins`, `enableExtensionsAutoUpdate` and
+  `enableServerPluginsAutoUpdate` all resolve to **false** unless an explicit, parseable, present value says
+  otherwise. Missing, `null`, unparsed, migrated-from-legacy and unreadable all mean false.
+- "Check for updates" and "apply updates" are separate decisions with separate flags.
+- Boot performs zero updater egress and zero mutation of `extensions/**` or plugins/**`: a recursive hash and a
+  `git status` per repository, taken before and after boot, must match, and an egress recorder must show no
+  updater-originated request.
+- A dirty repository is refused by any manual update path; no forced reset exists by default.
