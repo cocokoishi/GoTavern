@@ -152,7 +152,15 @@ func ResolvePaths(options ResolveOptions) (ResolvedPaths, error) {
 		}
 	}
 
-	result.DataRootCreationPath, err = absolutePathFrom(workingDirectory, result.DataRoot)
+	// THE CREATION PATH IS RESOLVED AGAINST THE SERVER DIRECTORY, NOT THE CALLER'S CWD. Pinned changes its own
+	// working directory to the server directory at startup (server.js:11 `process.chdir(serverDirectory)`), so
+	// every relative path in its command-line/config parsing -- including the `fs.mkdirSync(dataRoot, {recursive:
+	// true})` at src/command-line.js:293 -- is relative to the server directory. GoTavern supports being started
+	// from somewhere else, so resolving creation against the caller's CWD created `<CWD>/data` while the runtime
+	// went on to use `<serverDirectory>/data`: the cookie-secret writer then failed with ENOENT on a fresh tree
+	// (measured in internal/app/startup_p0b_test.go scenario (b)), and a stray `data/` was left in whatever
+	// directory the user happened to run the binary from.
+	result.DataRootCreationPath, err = absolutePathFrom(serverDirectory, result.DataRoot)
 	if err != nil {
 		return result, fmt.Errorf("resolve data root for initialization: %w", err)
 	}

@@ -118,11 +118,20 @@ func Initialize(configPath string) (Result, error) {
 	if err := migrateEnvironment(); err != nil {
 		return Result{}, err
 	}
+	// ONLY A LEGACY MIGRATION MAY REWRITE THE FILE. Defaults are merged INSIDE that branch, because the resulting
+	// bytes are pinned's migrated output and the migration fixtures compare them exactly. A config that needs no
+	// migration is left BYTE-IDENTICAL: its missing keys are supplied in memory at option-read time (every option
+	// resolution in internal/commandline carries its own fallback -- 48 call sites, none without one), so the
+	// rewrite only ever changed the user's file, never the behaviour.
+	//
+	// This is rule 27 and ARCHITECTURE 34.2. Before it, every boot of a stock tree rewrote config.yaml, which is
+	// also how upstream's `extensions.autoUpdate: true` was materialised into configs whose user never chose it
+	// (measured in internal/app/startup_p0b_test.go scenario (h)).
 	changed := migrateConfig(config)
-	changed = mergeDefaults(config, defaults) || changed
 	if !changed {
 		return Result{}, nil
 	}
+	mergeDefaults(config, defaults)
 
 	output, err := stringifyConfig(config)
 	if err != nil {
