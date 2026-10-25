@@ -82,6 +82,7 @@ func init() {
 // segment are the same segment.
 var userDataMounts = []struct{ pattern, directoryKey string }{
 	{"/backgrounds/{rest...}", "backgrounds"},
+	{"/characters/{rest...}", "characters"},
 	{"/User%20Avatars/{rest...}", "avatars"},
 	{"/assets/{rest...}", "assets"},
 	{"/user/images/{rest...}", "userImages"},
