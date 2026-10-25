@@ -133,14 +133,15 @@ What is still NOT claimed, and why this README still does not call it a daily dr
   [`docs/dropin-qualification.md`](docs/dropin-qualification.md). Not covered there: the arm64 asset, graceful
   shutdown on Windows (the restart is deliberately the harder, crash-recovery direction), and goroutine dumps,
   which the platform does not have;
-- **starting the binary from a directory other than the install root leaves a fresh `config.yaml` and a `data/`
-  entry in that launch directory**, while the server serves the install tree. Measured on Linux and Windows,
-  pre-existing and user-facing: start it from the wrong folder and you get config files there. The fix is a
-  product decision, not a tidy-up;
-- one adversarial violation is open and named: the pinned ten-second legacy migration stage is now announced but
-  not shortened;
 - the tokenizer fallback reproduces an **inherited weakness** (an inexact count is indistinguishable from an exact
-  one, as it is upstream) and says so in the compatibility matrix rather than pretending otherwise.
+  one, as it is upstream) and says so in the compatibility matrix rather than pretending otherwise;
+- the adversarial ratchet in `internal/adversarial/` is **empty**: all 32 measured invariants hold. It landed with
+  thirteen violations, eight of which were fixed by a change, three corrected against a recorded oracle, and two
+  repaired as harness defects — each fate is recorded in that file;
+- **nothing is written into the directory the binary is launched from.** Reproducing pinned's
+  `process.chdir(serverDirectory)` at the app boundary means a launch from anywhere resolves against the install
+  root, so the stray `config.yaml`/`data/` that used to appear beside the caller no longer does; an explicit
+  `--configPath`/`--dataRoot` still wins.
 
 The release pipeline was last qualified end to end at tag **`v0.1.0-alpha.3`** (2026-10-25): six archives plus
 `checksums.txt` published, `qualify-linux-amd64`, `qualify-upgrade-rollback`, `qualify-windows-amd64` and
