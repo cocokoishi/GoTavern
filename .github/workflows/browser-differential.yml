@@ -43,6 +43,18 @@
 name: Browser differential
 
 on:
+  # A PUSH THAT CHANGES THE ASSET GATE MUST PROVE THE ASSET GATE. The picture surface has its own files and
+  # its own cheap drive (two browser boots and one comparison, ~5 minutes), and it is the ONE surface whose
+  # evidence could not be produced any other way: this workflow has no `push` trigger, `workflow_dispatch`
+  # cannot be fired from a branch that does not have it on the default branch, and a lane that adds a gate it
+  # cannot run is a gate nobody has seen execute (AGENTS.md 7). A push run therefore narrows itself to the
+  # asset surface -- see the `MODE` env in the job -- so this costs minutes, not the hour a full sweep costs.
+  push:
+    paths:
+      - 'tests/browser/asset-probe.mjs'
+      - 'tests/browser/compare-asset-legs.mjs'
+      - 'tools/browser-evidence/other-surfaces.mjs'
+      - 'tools/verify-browser-comparisons.mjs'
   # A PULL REQUEST THAT TOUCHES THE HARNESS MUST RE-PROVE THE EVIDENCE. Changing the drive, the
   # comparators, the catalogue or the verifier changes what the committed artefacts MEAN, so the sweep
   # this job performs is exactly the review question -- and it is the only way to run this workflow before
@@ -65,11 +77,11 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Which surface to re-record: generation | stream | cancel | preset | all'
+        description: 'Which surface to re-record: generation | stream | cancel | preset | assets | all'
         required: true
         default: 'all'
         type: choice
-        options: [generation, stream, cancel, preset, all]
+        options: [generation, stream, cancel, preset, assets, all]
       sources:
         description: 'Comma-separated source ids (custom, groq, mistralai, ...), or empty for every source with a committed artefact'
         required: false
@@ -246,13 +258,14 @@ jobs:
         id: record
         # A `preset`-only run must NOT fall into this step's "everything that is not generation is
         # streaming" branch and pay for fifteen sources' streaming drives. The preset lane has its own
-        # steps below, and `all` still runs both.
-        if: ${{ (inputs.mode || 'all') != 'preset' }}
+        # steps below, and `all` still runs both. An `assets`-only run has its own step for the same reason.
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) != 'preset' && (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) != 'assets' }}
         env:
           # A SCHEDULED RUN HAS NO INPUTS, so an empty mode means "everything": the nightly job is the
           # one that must compare every surface, and a `|| 'all'` here is what makes that true without a
-          # second code path.
-          MODE: ${{ inputs.mode || 'all' }}
+          # second code path. A PUSH RUN is the asset gate proving itself (see `on.push`), so it narrows to
+          # `assets` rather than paying an hour for fifteen sources it did not touch.
+          MODE: ${{ inputs.mode || (github.event_name == 'push' && 'assets' || 'all') }}
           SOURCES_CSV: ${{ inputs.sources }}
           # The committed artefacts were paced at 14 frames; keep the pace identical so a freshness
           # difference is about behaviour rather than about how many chunks the peer wrote.
@@ -365,6 +378,73 @@ jobs:
           echo "failures=$failures" >> "$GITHUB_OUTPUT"
 
       # -------------------------------------------------------------------------------------------------
+      # THE BROWSER ASSET DIFFERENTIAL (GOAL.md §8.4 Q3-Q7, AGENTS.md 42-46, ARCHITECTURE.md §35.2).
+      #
+      # WHAT IT ANSWERS: does a browser loading the unmodified pinned frontend DISPLAY the character-list
+      # avatars, the chat-message avatars, the persona thumbnail and the background, on both legs?
+      #
+      # WHY IT IS SEPARATE FROM EVERY OTHER DRIVE HERE. The other drives compare requests and responses.
+      # This one compares what a browser DECODED: `complete`, `naturalWidth`, the computed
+      # `background-image`, and the browser's own "Failed to load resource" complaints. The defect that
+      # prompted it -- `/thumbnail` 404 on GoTavern, 200 on pinned -- was already RECORDED in
+      # extension-tavern-helper-comparison.json beside `differenceCount: 0`, because a `knownReason`
+      # excused it and nothing asserted that an `<img>` decoded. A status allowlist therefore does not
+      # exist in compare-asset-legs.mjs, and a thumbnail that is not 200/`image/*`/non-empty is a failure
+      # on both legs (AGENTS.md 46).
+      #
+      # CHEAP: two browser boots and one comparison. It runs on a push that touches the asset gate itself
+      # (see `on.push`), on `assets` dispatch, and on the nightly `all` sweep.
+      # -------------------------------------------------------------------------------------------------
+      - name: Record the asset legs (both legs)
+        id: asset
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'assets' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          mkdir -p "$work/legs"
+          failures=0
+          # The committed artefact is staged so the freshness report can compare it with the fresh one.
+          if git cat-file -e "HEAD:tests/browser/asset-comparison.json" 2>/dev/null; then
+            git show "HEAD:tests/browser/asset-comparison.json" > "$work/committed/asset-comparison.json"
+          else
+            : > "$work/committed/asset-comparison.json.absent"
+          fi
+          # BOTH LEGS STAGE THEIR OWN COPY OF THE SAME FIXTURE (a card PNG, a background PNG, a persona
+          # PNG) from the same builder inside the probe, and the report records the digests. The comparator
+          # refuses a pair whose fixtures differ, so "same fixture" is measured rather than asserted.
+          if node tests/browser/asset-probe.mjs --report "$work/legs/asset-gotavern-leg.json"; then
+            echo "recorded the GoTavern asset leg"
+          else
+            echo "::error::the GoTavern asset leg failed to drive"
+            failures=$((failures + 1))
+          fi
+          if node tests/browser/run-against-pinned.mjs asset-probe.mjs -- --report "$work/legs/asset-pinned-leg.json"; then
+            echo "recorded the pinned asset leg"
+          else
+            echo "::error::the pinned asset leg failed to drive"
+            failures=$((failures + 1))
+          fi
+          echo "failures=$failures" >> "$GITHUB_OUTPUT"
+          # A drive failure is reported above and judged below; this step does not mask it.
+          exit 0
+
+      - name: Compare the asset legs
+        id: asset-compare
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'assets' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          if [ "${{ steps.asset.outputs.failures }}" != "0" ]; then
+            echo "::error::an asset leg failed to drive, so there is no comparison to judge"
+            exit 1
+          fi
+          # The comparator prints the artefact on stdout and exits non-zero when a guard fails: the file is
+          # still written, because a red artefact is the evidence for the finding.
+          node tests/browser/compare-asset-legs.mjs \
+            "$work/legs/asset-gotavern-leg.json" "$work/legs/asset-pinned-leg.json" \
+            > tests/browser/asset-comparison.json
+
+      # -------------------------------------------------------------------------------------------------
       # THE COMPLEX-PRESET DIFFERENTIAL (AGENTS.md rule 8 and rule 9).
       #
       # TWO SCENARIOS, ONE ARTEFACT. `keep` drives the scenario at the smallest `openai_max_context` at
@@ -379,7 +459,7 @@ jobs:
       # own comparator, and mixing them in here would make one failure unattributable.
       # -------------------------------------------------------------------------------------------------
       - name: Capture the complex preset from the pinned frontend
-        if: ${{ (inputs.mode || 'all') == 'preset' || (inputs.mode || 'all') == 'all' }}
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
         # THE CAPTURE NOW BISECTS BY SENDING. A dry assembly does not bind (run 40082539457: a pair one
         # token apart produced the drop shape on both legs), so the boundary is measured by driving the
         # real send against a recording peer -- ~30 sends instead of ~15 dry assemblies. 20 minutes is
@@ -408,7 +488,7 @@ jobs:
       # -- same program, same arguments, same clean state -- and records the provider request each one
       # produced, then writes the pair to preset-boundary.json.
       - name: Search the preset boundary with the pinned leg
-        if: ${{ (inputs.mode || 'all') == 'preset' || (inputs.mode || 'all') == 'all' }}
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
         timeout-minutes: 25
         run: |
           set -euo pipefail
@@ -419,7 +499,7 @@ jobs:
 
       - name: Record the preset boundary pair (both legs)
         id: preset
-        if: ${{ (inputs.mode || 'all') == 'preset' || (inputs.mode || 'all') == 'all' }}
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
         run: |
           set -uo pipefail
           work="$RUNNER_TEMP/browser-differential"
@@ -465,7 +545,7 @@ jobs:
         # (mode=stream) therefore executed this step with no preset legs recorded, failed on the missing
         # files, and took the streaming batch down with it. The condition now says exactly what it means:
         # the preset path runs only in a preset/all dispatch, and only when its recording reported success.
-        if: ${{ ((inputs.mode || 'all') == 'preset' || (inputs.mode || 'all') == 'all') && steps.preset.outputs.failures == '0' }}
+        if: ${{ ((github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all') && steps.preset.outputs.failures == '0' }}
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/browser-differential"
@@ -490,7 +570,7 @@ jobs:
       - name: Prove the preset gate has teeth
         # Same two-part condition as the comparator above: this step proves the gate has teeth by
         # mutating the recorded legs, so it cannot run when there are no preset legs.
-        if: ${{ ((inputs.mode || 'all') == 'preset' || (inputs.mode || 'all') == 'all') && steps.preset.outputs.failures == '0' }}
+        if: ${{ ((github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all') && steps.preset.outputs.failures == '0' }}
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/browser-differential"
@@ -519,7 +599,7 @@ jobs:
       # job: a freshly recorded artefact that does not support its own claim is a defect in the product
       # or in the harness, not a stale document.
       - name: Verify the FRESH artefacts support their claims
-        if: ${{ !cancelled() && (steps.record.outputs.failures == '0' || steps.record.outputs.failures == '') && (steps.preset.outputs.failures == '0' || steps.preset.outputs.failures == '') }}
+        if: ${{ !cancelled() && (steps.record.outputs.failures == '0' || steps.record.outputs.failures == '') && (steps.preset.outputs.failures == '0' || steps.preset.outputs.failures == '') && (steps.asset.outputs.failures == '0' || steps.asset.outputs.failures == '') }}
         run: node tools/verify-browser-comparisons.mjs
 
       # FRESHNESS: does the fresh artefact still say what the committed one says? Report-only, with the
@@ -533,7 +613,7 @@ jobs:
           {
             echo '### Browser differential freshness'
             echo
-            echo "Run mode: \`${{ inputs.mode || 'all' }}\`, sources: \`${{ steps.record.outputs.sources || '(none recorded)' }}\`"
+            echo "Run mode: \`${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) }}\`, sources: \`${{ steps.record.outputs.sources || '(none recorded)' }}\`"
             echo
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
@@ -583,7 +663,7 @@ jobs:
       # BOTH RECORDING STEPS, AND ONLY WHEN ONE OF THEM ACTUALLY FAILED. A skipped step reports an empty
       # output, so `!= '0'` alone would fail a `preset`-only run at the record step it never entered.
       - name: Fail if a drive could not be recorded or judged
-        if: ${{ (steps.record.outputs.failures != '0' && steps.record.outputs.failures != '') || (steps.preset.outputs.failures != '0' && steps.preset.outputs.failures != '') }}
+        if: ${{ (steps.record.outputs.failures != '0' && steps.record.outputs.failures != '') || (steps.preset.outputs.failures != '0' && steps.preset.outputs.failures != '') || (steps.asset.outputs.failures != '0' && steps.asset.outputs.failures != '') }}
         run: |
           echo "::error::a drive could not be recorded or was judged unfaithful; see the group output above."
           echo "generation/stream failures: ${{ steps.record.outputs.failures }}"

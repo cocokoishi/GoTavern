@@ -12,6 +12,97 @@ const requireReason = (ctx, where, entry) => {
     }
 };
 
+/**
+ * asset-comparison.json: the browser-displayed asset surface (GOAL.md §8.4, AGENTS.md 42-46).
+ *
+ * WHY THIS CHECK IS STRICTER THAN ITS NEIGHBOURS. The artefact this one replaces recorded the exact defect
+ * that a user reported -- `/thumbnail` 404 on GoTavern -- and reported `differenceCount: 0` because a
+ * `knownReason` excused it. So: a divergence may describe BYTES and nothing else, it must name a mechanism,
+ * and the guards that prove the page rendered must all be true. There is no acceptable status divergence
+ * here, and no allowlist, because a browser-required asset that does not arrive IS the defect.
+ */
+export function assetSurface(ctx, assetComparison) {
+    if (!assetComparison) return;
+    const guards = assetComparison.guards ?? {};
+    const required = [
+        // faithfulness first: a leg that requested nothing or rendered nothing cannot support a claim
+        'bothLegsRecordedImageRequests', 'bothLegsRequestedAThumbnail', 'bothLegsRenderedTheCharacterList',
+        'bothLegsOpenedAChat', 'sameFixture',
+        // the user's own questions
+        'noImageRequestFailedOnEitherLeg', 'everyCharacterListAvatarDecoded', 'everyMessageAvatarDecoded',
+        'backgroundAppliedOnBothLegs', 'backgroundServedWithBytesOnBothLegs',
+        // cross-leg
+        'sameImageUrlSet', 'perUrlStatusEqual', 'perUrlContentTypeEqual', 'nonThumbnailBytesEqual',
+        'thumbnailResponsesAreImages', 'thumbnailDivergenceIsBytesOnly',
+        // the browser's own complaints
+        'noExtraConsoleLoadFailuresOnGotavern', 'noPageErrors', 'bothLegsCompleted',
+    ];
+    for (const guard of required) {
+        if (guards[guard] !== true) {
+            ctx.fail(`guards.${guard} is ${JSON.stringify(guards[guard])}, so the artefact does not support the claim that the page displays its images`);
+        }
+    }
+    if (Array.isArray(assetComparison.failedGuards) && assetComparison.failedGuards.length > 0) {
+        ctx.fail(`failedGuards names ${assetComparison.failedGuards.join(', ')}, so a committed artefact records a red run`);
+    }
+    for (const leg of ['gotavern', 'pinned']) {
+        const entry = assetComparison.legs?.[leg];
+        if (!entry) {
+            ctx.fail(`legs.${leg} is missing`);
+            continue;
+        }
+        if (!Array.isArray(entry.imageRequests) || entry.imageRequests.length === 0) {
+            ctx.fail(`legs.${leg}.imageRequests is empty: the drive recorded no image at all, which is a harness-faithfulness alarm rather than a pass`);
+            continue;
+        }
+        const failed = entry.imageRequests.filter(request => Number(request.status) >= 400);
+        if (failed.length > 0) {
+            ctx.fail(`legs.${leg} requested ${failed.length} image(s) that failed: ${failed.map(request => `${request.status} ${request.url}`).join(', ')}`);
+        }
+        const undecoded = (entry.characterList ?? []).filter(image => image.complete !== true || !(image.naturalWidth > 0));
+        if (undecoded.length > 0) {
+            ctx.fail(`legs.${leg} has ${undecoded.length} character-list avatar(s) that did not decode, e.g. ${JSON.stringify(undecoded[0]?.src)}`);
+        }
+        if ((entry.characterList ?? []).length === 0) {
+            ctx.fail(`legs.${leg}.characterList is empty: the character list rendered no avatar, so nothing about avatars was measured`);
+        }
+        if (!entry.background?.url) {
+            ctx.fail(`legs.${leg}.background applied no URL, so the background was never exercised`);
+        }
+    }
+    // A DIVERGENCE MAY DESCRIBE BYTES ONLY, AND MUST NAME ITS MECHANISM.
+    for (const divergence of assetComparison.divergences ?? []) {
+        const reason = String(divergence.reason ?? '');
+        if (divergence.kind !== 'codec') {
+            ctx.fail(`divergence ${divergence.url} has kind ${JSON.stringify(divergence.kind)}: the only declared divergence on this surface is the thumbnail codec`);
+        }
+        if (reason.trim() === '') {
+            ctx.fail(`divergence ${divergence.url} has no reason`);
+        } else if (!/jimp/i.test(reason) || !/codec/i.test(reason)) {
+            ctx.fail(`divergence ${divergence.url} has a reason that names no mechanism: ${JSON.stringify(reason)}`);
+        }
+        for (const field of ['status', 'contentType']) {
+            if (divergence.gotavern?.[field] !== undefined || divergence.pinned?.[field] !== undefined) {
+                ctx.fail(`divergence ${divergence.url} carries ${field}, which may never be excused by a declared divergence`);
+            }
+        }
+    }
+    // AND THE THING THAT SHIPPED MUST NOT BE EXCUSED: if a thumbnail answered non-200 on either leg, the
+    // committed artefact is a bug report, not evidence (AGENTS.md 46).
+    for (const leg of ['gotavern', 'pinned']) {
+        for (const request of (assetComparison.legs?.[leg]?.imageRequests ?? []).filter(entry => entry.kind === 'thumbnail')) {
+            if (Number(request.status) !== 200) {
+                ctx.fail(`legs.${leg} thumbnail ${request.url} answered ${request.status}; a thumbnail the frontend requests must be 200 on both legs`);
+            }
+            if (!/^image\//i.test(String(request.contentType ?? ''))) {
+                ctx.fail(`legs.${leg} thumbnail ${request.url} answered content-type ${JSON.stringify(request.contentType)}, which is not an image`);
+            }
+        }
+    }
+    ctx.observe(`${assetComparison.legs?.gotavern?.imageRequests?.length ?? 0} gotavern / ${assetComparison.legs?.pinned?.imageRequests?.length ?? 0} pinned image request(s), ${(assetComparison.divergences ?? []).length} declared divergence(s), all display guards true`);
+}
+
+
 /** startup-comparison.json: every row classified, every divergence explained, the guards faithful. */
 export function startupSurface(ctx, startup) {
     if (!startup) return;
