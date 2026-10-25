@@ -517,34 +517,62 @@ try {
     }
 
     if (variant === 'on') {
-        // THE SAVE, AFTER the script's createChatMessages + variable write, through the frontend's own path.
+        // WHY THE FIRST ATTEMPT COULD RESOLVE AND WRITE NOTHING (measured, pinned source):
+        //   saveMetadata() -> saveChatConditional() -> saveChat()          (public/script.js:9408, :9412)
+        //   saveChat(): const fileName = chatName ?? characters[this_chid]?.chat;   (:7407)
+        //   if (!fileName) { console.warn('saveChat called without chat_name and no chat file found'); return; } (:7414)
+        // A character that has just been clicked has `chat` undefined, so saveChat RETURNS BEFORE ANY REQUEST
+        // while saveMetadata still resolves. That is run 40236617770: reachable=[saveMetadata, ...], attempt
+        // ok:true, no file. A user's first save names the chat, so the drive names it too and lets the
+        // frontend write the bytes from its own state.
+        report.saveDiagnostics = await page.evaluate(() => {
+            const context = window.SillyTavern.getContext();
+            const index = context.characterId;
+            return {
+                chatLength: context.chat?.length ?? null,
+                chatId: context.chatId ?? null,
+                characterChatName: index === undefined ? null : (context.characters?.[index]?.chat ?? null),
+                chatMetadataIntegrity: context.chatMetadata?.integrity ?? null,
+            };
+        });
         const reachable = report.saveFunctionsReachable ?? [];
-        const preferred = ['saveMetadata', 'saveChatConditional', 'saveChat'].find(name => reachable.includes(name));
+        const waitForFile = async (budgetMs) => {
+            const started = Date.now();
+            while (Date.now() - started < budgetMs) {
+                const found = await readChatVariables();
+                if (found.chatFile) return found.chatFile;
+                await new Promise(resolve => setTimeout(resolve, 250));
+            }
+            return null;
+        };
+        const attempts = [];
+        const preferred = ['saveMetadata', 'saveChatConditional'].find(name => reachable.includes(name));
         if (preferred) {
-            report.saveAttempt = await page.evaluate(async name => {
-                try {
-                    await window.SillyTavern.getContext()[name]();
-                    return { via: name, ok: true };
-                } catch (error) {
-                    return { via: name, ok: false, error: String(error?.message ?? error) };
-                }
-            }, preferred);
-        } else {
-            // No save function is reachable, so drive the path a user has: type and press send. The pinned
-            // frontend saves the chat BEFORE it contacts the provider, so the offline provider failing is not
-            // a reason to skip the save; whether a request reached a provider is recorded separately.
-            report.saveAttempt = await page.evaluate(async () => {
-                const textarea = document.querySelector('#send_textarea');
-                const button = document.querySelector('#send_but');
-                if (!textarea || !button) return { via: 'send', ok: false, error: 'send controls missing' };
-                textarea.value = 'HELPER_PROBE_SEND';
-                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                button.click();
-                return { via: 'send', ok: true, typedAndClicked: true };
-            });
+            attempts.push(await page.evaluate(async name => {
+                try { await window.SillyTavern.getContext()[name](); return { via: name, ok: true }; }
+                catch (error) { return { via: name, ok: false, error: String(error?.message ?? error) }; }
+            }, preferred));
         }
-        observation('save-attempted', report.saveAttempt?.ok === true, JSON.stringify(report.saveAttempt));
+        let file = await waitForFile(8000);
+        if (!file && reachable.includes('saveChat')) {
+            attempts.push(await page.evaluate(async name => {
+                try { await window.SillyTavern.getContext().saveChat({ chatName: name }); return { via: 'saveChat{named}', ok: true }; }
+                catch (error) { return { via: 'saveChat{named}', ok: false, error: String(error?.message ?? error) }; }
+            }, 'gotavern-helper-probe'));
+            file = await waitForFile(15000);
+        }
+        report.saveAttempt = { attempts, fileAfter: file };
+        observation('save-attempted', Boolean(file) || attempts.some(item => item.ok), JSON.stringify(report.saveAttempt));
+        // THE REQUEST LIST, so a save that resolves without writing anything can be attributed: either the
+        // frontend issued POST /api/chats/save and the server answered, or it never asked. That is the
+        // difference between a product finding and a driver that never reached the state.
+        await recorder.settled();
+        report.saveRequests = recorder.requests
+            .filter(entry => /\/api\/chats/.test(entry.pathAndQuery ?? ''))
+            .map(entry => ({ method: entry.method, path: entry.pathAndQuery, status: entry.status, contentType: entry.contentType, byteLength: entry.byteLength }));
+        observation('save-requests-recorded', report.saveRequests.length > 0, JSON.stringify(report.saveRequests));
     }
+
 
     // THE RENDER PATH: the extension wraps an HTML code block in div.TH-render and mounts an iframe.
     if (variant === 'on') {
