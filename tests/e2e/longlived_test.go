@@ -23,6 +23,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"hash/crc32"
 	"image"
 	"image/color"
 	"image/png"
@@ -82,7 +83,8 @@ func longLivedPNG(t *testing.T, card map[string]any) []byte {
 	chunk = append(chunk, length...)
 	chunk = append(chunk, []byte("tEXt")...)
 	chunk = append(chunk, text...)
-	chunk = append(chunk, 0, 0, 0, 0) // CRC is not verified by the pinned reader for text chunks
+	crc := crc32.ChecksumIEEE(chunk[4:])
+	chunk = append(chunk, byte(crc>>24), byte(crc>>16), byte(crc>>8), byte(crc))
 
 	// Insert before IEND, which is where a card writer puts its metadata.
 	iend := bytes.LastIndex(raw, []byte("IEND"))
@@ -420,7 +422,7 @@ func TestLongLivedTreeBootsAndServesItsAssets(t *testing.T) {
 		t.Fatalf("POST /api/characters/all = %d: %.200q", status, body)
 	}
 	if !strings.Contains(body, longLivedAvatar) {
-		t.Errorf("POST /api/characters/all did not list %s, so the user's card is invisible", longLivedAvatar)
+		t.Errorf("POST /api/characters/all did not list %s, so the user's card is invisible. The list answered %d bytes: %.400q", longLivedAvatar, len(body), body)
 	}
 
 	// (5) the world book, including the entries the card's own book declared.
