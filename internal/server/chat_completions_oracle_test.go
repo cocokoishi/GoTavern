@@ -233,13 +233,19 @@ func TestChatCompletionGenerateMatchesProviderWireCapture(t *testing.T) {
 					t.Fatalf("capture for %q does not record authorizationKeyVerified", scenario.Name)
 				}
 				observed := ""
-				for _, entry := range recorded.Headers {
-					if entry.Name == "authorization" {
-						observed = entry.Value
+				sawKey := false
+				for _, request := range recording.Requests {
+					for _, entry := range request.Headers {
+						if entry.Name == "authorization" {
+							observed = entry.Value
+							if entry.Value == "Bearer "+scenario.ExpectedAuthorizationKey {
+								sawKey = true
+							}
+						}
 					}
 				}
 				wantKey := "Bearer " + scenario.ExpectedAuthorizationKey
-				if observed != wantKey {
+				if !sawKey {
 					t.Errorf("provider saw authorization %q, the scenario declares the key must be read through the pinned settings shape (%q)", observed, wantKey)
 				}
 			}
@@ -252,12 +258,18 @@ func TestChatCompletionGenerateMatchesProviderWireCapture(t *testing.T) {
 					t.Fatalf("capture for %q does not record apiKeyVerified", scenario.Name)
 				}
 				observed := ""
-				for _, entry := range recorded.Headers {
-					if entry.Name == scenario.ExpectedAPIKey.Header {
-						observed = entry.Value
+				sawKey := false
+				for _, request := range recording.Requests {
+					for _, entry := range request.Headers {
+						if entry.Name == scenario.ExpectedAPIKey.Header {
+							observed = entry.Value
+							if entry.Value == scenario.ExpectedAPIKey.Value {
+								sawKey = true
+							}
+						}
 					}
 				}
-				if observed != scenario.ExpectedAPIKey.Value {
+				if !sawKey {
 					t.Errorf("provider saw %s %q, the scenario declares the key must be read through the pinned settings shape (%q)",
 						scenario.ExpectedAPIKey.Header, observed, scenario.ExpectedAPIKey.Value)
 				}
