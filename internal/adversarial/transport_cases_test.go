@@ -314,25 +314,27 @@ func transportCases(t *testing.T) []caseSpec {
 		{
 			id:        "transport.proxy-connect-ignored",
 			checklist: "proxy.connect",
-			invariant: "rule 29: HTTPS_PROXY is honoured (the proxy receives a CONNECT) or the failure names the proxy; a silent direct dial is not proxy awareness",
+			// THE FIRST VERSION OF THIS CASE COULD NEVER PASS, IN TWO SEPARATE WAYS, and both are worth keeping
+			// recorded because this project keeps rediscovering them:
+			//
+			//   1. It targeted https://127.0.0.1:1. Go resolves proxies and returns nil for every loopback
+			//      address BEFORE it consults NO_PROXY, so a loopback provider is never proxied however the
+			//      environment is set. The provider is now 192.0.2.1 (TEST-NET-1, guaranteed unroutable), so a
+			//      proxy is the only way the request can go anywhere.
+			//   2. It set HTTPS_PROXY at run time. net/http caches the environment on the FIRST proxy lookup in
+			//      the process, so by the time this case runs, an environment change is invisible. Environment
+			//      proxy support is therefore asserted where it CAN be measured -- internal/outbound/proxytest,
+			//      which is its own process for exactly this reason -- and this case measures the path the user
+			//      actually configures: pinned's requestProxy setting.
+			invariant: "rule 29 + ARCHITECTURE 34.3: the proxy a user configured (requestProxy.enabled/url) is used for provider traffic -- the proxy receives a CONNECT -- and the request is not dialled directly",
 			run: func() caseResult {
-				previous, had := os.LookupEnv("HTTPS_PROXY")
-				previousLower, hadLower := os.LookupEnv("https_proxy")
-				previousNoProxy, hadNoProxy := os.LookupEnv("NO_PROXY")
-				previousNoProxyLower, hadNoProxyLower := os.LookupEnv("no_proxy")
 				proxyURL := "http://" + proxyPeer.listener.Addr().String()
-				_ = os.Setenv("HTTPS_PROXY", proxyURL)
-				_ = os.Setenv("https_proxy", proxyURL)
-				_ = os.Unsetenv("NO_PROXY")
-				_ = os.Unsetenv("no_proxy")
-				defer func() {
-					restoreEnv("HTTPS_PROXY", previous, had)
-					restoreEnv("https_proxy", previousLower, hadLower)
-					restoreEnv("NO_PROXY", previousNoProxy, hadNoProxy)
-					restoreEnv("no_proxy", previousNoProxyLower, hadNoProxyLower)
-				}()
+				if err := outbound.ConfigureRequestProxy(true, proxyURL, nil); err != nil {
+					return violation("the product refused a usable proxy configuration (%s): %v", proxyURL, err)
+				}
+				defer func() { _ = outbound.ConfigureRequestProxy(false, "", nil) }()
 				before := len(proxyPeer.recorded())
-				_, sendErr := outbound.Send(context.Background(), jsonProbeRequest("https://127.0.0.1:1/v1/chat/completions"), 3*time.Second)
+				_, sendErr := outbound.Send(context.Background(), jsonProbeRequest("https://192.0.2.1/v1/chat/completions"), 5*time.Second)
 				after := proxyPeer.recorded()
 				for _, head := range after[before:] {
 					if strings.HasPrefix(head, "CONNECT ") {
@@ -340,9 +342,9 @@ func transportCases(t *testing.T) []caseSpec {
 					}
 				}
 				if sendErr != nil && strings.Contains(strings.ToLower(sendErr.Error()), "proxy") {
-					return okResult("refused with %v", sendErr)
+					return okResult("refused with a failure that names the proxy: %v", sendErr)
 				}
-				return violation("HTTPS_PROXY=%s was ignored: the proxy received no CONNECT and the failure (%v) does not name the proxy, so the request was dialled directly", proxyURL, sendErr)
+				return violation("requestProxy=%s was ignored: the proxy received no CONNECT and the failure (%v) does not name the proxy, so the request was dialled directly", proxyURL, sendErr)
 			},
 		},
 		{
