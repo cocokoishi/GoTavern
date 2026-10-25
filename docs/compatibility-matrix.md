@@ -54,7 +54,7 @@ A row is `PASS` only when every one of these holds:
 | 11 | Per-source provider-wire request bytes (15 catalogued sources) | **PARTIAL** | 1 oracle fixture(s), Go implementation, 3 named test(s), 3 browser artefact(s), CI job(s) | 3 item(s) |
 | 12 | Streaming SSE framing, incremental render and cancellation | **PARTIAL** | 2 oracle fixture(s), Go implementation, 3 named test(s), 3 browser artefact(s), CI job(s) | 2 item(s) |
 | 13 | Exact tokenization and context boundaries | **PARTIAL** | 1 oracle fixture(s), upstream assets, Go implementation, 3 named test(s), 1 browser artefact(s), CI job(s), release-artifact step | 3 item(s) |
-| 14 | Files, avatars, backgrounds, images, sprites, image metadata | **PARTIAL** | 8 oracle fixture(s), Go implementation, 5 named test(s), CI job(s) | 2 item(s) |
+| 14 | Files, avatars, backgrounds, images, sprites, image metadata | **PARTIAL** | 8 oracle fixture(s), Go implementation, 9 named test(s), CI job(s) | 2 item(s) |
 | 15 | Extensions: discovery, static serving, install, update, switch, delete, and the Tavern Helper / LittleWhiteBox canaries | **FAIL** | 3 oracle fixture(s), Go implementation, 4 named test(s), 2 browser artefact(s), CI job(s) | 3 item(s) |
 | 16 | Arbitrary Node server plugins | **NOT_APPLICABLE** | 1 named test(s), CI job(s) | _none_ |
 | 17 | Embeddings and vector storage | **PARTIAL** | 1 oracle fixture(s), Go implementation, 1 named test(s), CI job(s) | 2 item(s) |
@@ -341,14 +341,14 @@ Row id: `files-and-media`
 - Oracle fixtures: `tests/oracle/sillytavern-1.19.0-files-upload.json`, `tests/oracle/sillytavern-1.19.0-files-delete.json`, `tests/oracle/sillytavern-1.19.0-files-verify.json`, `tests/oracle/sillytavern-1.19.0-files-sanitize-filename.json`, `tests/oracle/sillytavern-1.19.0-avatars-get.json`, `tests/oracle/sillytavern-1.19.0-backgrounds-upload.json`, `tests/oracle/sillytavern-1.19.0-sprites.json`, `tests/oracle/sillytavern-1.19.0-image-metadata-get.json`
 - Upstream assets: _none_
 - Go implementation: `internal/server`
-- Named tests: `TestPinnedNodeFilesUpload`, `TestPinnedNodeSpritesUpload`, `TestImagesRoutesMatchPinnedOracle`, `TestPinnedFrontendAssetContractMountsServeMarkedBytes`, `TestPinnedThumbnailServesTheObservableContract`
+- Named tests: `TestPinnedNodeFilesUpload`, `TestPinnedNodeSpritesUpload`, `TestImagesRoutesMatchPinnedOracle`, `TestPinnedFrontendAssetContractMountsServeMarkedBytes`, `TestPinnedThumbnailServesTheObservableContract`, `TestPersonaAvatarUploadCreatesTheFile`, `TestPersonaAvatarUploadAppliesCrop`, `TestPersonaAvatarUploadRejectsAForbiddenName`, `TestPersonaAvatarUploadInvalidatesThePersonaThumbnail`
 - Browser artefacts: _none_
 - CI jobs: `ci.yml#oracle`
 - Release artifact: _none_
 
 **Evidence gap**
 
-- thumbnail bytes are a codec divergence, not a claim: /thumbnail serves a real pure-Go thumbnail at pinned's paths, dimensions and MIME, and its gate asserts the OBSERVABLE (status, MIME from the original filename, decodability, exact dimensions, cache behaviour) instead of equality with Jimp's bytes (ARCHITECTURE.md 35.2). Avatar crop/resize on /api/avatars/upload keeps the boundary until a user requirement reaches it
+- thumbnail bytes are a codec divergence, not a claim: /thumbnail serves a real pure-Go thumbnail at pinned's paths, dimensions and MIME, and its gate asserts the OBSERVABLE (status, MIME from the original filename, decodability, exact dimensions, cache behaviour) instead of equality with Jimp's bytes (ARCHITECTURE.md 35.2). POST /api/avatars/upload also serves a real re-encoded avatar from the same pure-Go codec (same divergence, observable asserted: status, the pinned `{path}` body, the stored dimensions that prove a crop ran, and the persona-thumbnail invalidation); pinned imposes NO file-size cap and leaves multer's staging file behind on a refusal, both recorded here rather than silently hardened
 - no multi-part upload test through a real browser; every upload fixture posts a hand-built body
 
 Upload paths are the highest-consequence writes in the product (a user's assets). The sanitize-filename differential is unusually thorough.
@@ -564,7 +564,7 @@ numbers cannot drift away from the tree the way four documents once disagreed ab
 |---|---|---|
 | Oracle fixtures | 118 | 66 |
 | Browser artefacts | 35 | 11 |
-| Go test functions | 553 | 60 |
+| Go test functions | 559 | 64 |
 | Workflow jobs | 30 in 9 workflow(s) | _n/a_ |
 | Rows | 22 | PASS 0, PARTIAL 17, FAIL 4, NOT_APPLICABLE 1 |
 | Session steps | 8 | 7 with a probe, 1 without, 0 sharing a runtime |
