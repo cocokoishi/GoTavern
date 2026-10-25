@@ -137,6 +137,7 @@ const PROBE_SCRIPT = [
     "};",
     "window.__helperProbeBridge = bridge;",
     "try {",
+    "  await TavernHelper.createChatMessages([{ role: 'assistant', message: 'HELPER_PROBE_SEED' }]);",
     "  const before = TavernHelper.getVariables({ type: 'chat' });",
     "  const counter = (Number(before.helper_probe_counter) || 0) + 1;",
     writesVariable
@@ -328,6 +329,8 @@ try {
     await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 120000 });
     step('page-loaded', true);
+    report.provenance.startingState.characterFilesAfterBoot =
+        await fs.readdir(path.join(dataRoot, 'default-user', 'characters')).then(entries => entries.length, () => 0);
     report.reachedUserState = await page.evaluate(async () => {
         const script = await import('./script.js');
         const started = performance.now();
@@ -381,28 +384,9 @@ try {
     step('character-opened', clicked || messageArrived, `click=${clicked} chatAlreadyOpen=${messageArrived}`);
     step('chat-has-message', messageArrived);
 
-    // A CHAT THAT EXISTS ON DISK IS THE PRECONDITION FOR THE PERSISTENCE GUARD. The first executed run
-    // (Browser differential 40212834808) recorded `no chat file` on BOTH subjects: the frontend had a chat
-    // open in memory that had never been written, so the variable guard could not fail. The save is driven
-    // through the frontend's own path (`saveChat`, upstream/public/script.js:7395), not by writing a file.
-    const chatSave = await page.evaluate(async () => {
-        const script = await import('./script.js');
-        try {
-            await script.saveChat();
-            const context = script.getContext();
-            return { ok: true, chatId: context?.chatId ?? null };
-        } catch (error) {
-            return { ok: false, error: String(error?.message ?? error) };
-        }
-    });
-    report.chatSave = chatSave;
-    const saveStarted = Date.now();
-    while (Date.now() - saveStarted < 30000) {
-        if ((await readChatVariables()).chatFile) break;
-        await new Promise(resolve => setTimeout(resolve, 250));
-    }
-    const chatFileAfterSave = await readChatVariables();
-    step('chat-saved', Boolean(chatFileAfterSave.chatFile), `${chatSave.ok ? '' : `saveChat: ${chatSave.error}; `}chatFile=${chatFileAfterSave.chatFile ?? '(none)'}`);
+    // THE PRECONDITION FOR THE PERSISTENCE GUARD is a chat that exists on disk. It is created by the probe
+    // script through the helper's own createChatMessages, so this drive never writes user data itself and
+    // the file it judges is one the product produced.
     const beforeVariables = await readChatVariables();
     report.variableState = { before: beforeVariables.variables, after: null, changed: false };
 
@@ -553,6 +537,8 @@ try {
             await new Promise(resolve => setTimeout(resolve, 250));
             after = await readChatVariables();
         }
+        report.chatFileObserved = after.chatFile ?? null;
+        step('chat-file', Boolean(after.chatFile), `chatFile=${after.chatFile ?? '(none)'} counter=${Number(after.variables?.helper_probe_counter ?? NaN)}`);
         report.variableState.after = after.variables;
         report.variableState.chatFile = after.chatFile;
         report.variableState.changed = JSON.stringify(after.variables) !== JSON.stringify(report.variableState.before);

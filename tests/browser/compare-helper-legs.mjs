@@ -100,8 +100,10 @@ for (const subject of ['gotavern', 'pinned']) {
     if (!leg.provenance?.configFile?.matchesSource) {
         fixtureProblems.push(`${subject}: config bytes differ from upstream/default/config.yaml`);
     }
-    if (!(leg.provenance?.startingState?.characterFiles > 0)) {
-        fixtureProblems.push(`${subject}: no character cards were seeded before the drive`);
+    // AFTER BOOT, because the server seeds `default/content/characters` at startup: a pre-boot count is
+    // zero on a fresh root by construction (run 40215174430 failed same-fixture for that reason).
+    if (!(leg.provenance?.startingState?.characterFilesAfterBoot > 0)) {
+        fixtureProblems.push(`${subject}: no character cards were present after boot (${leg.provenance?.startingState?.characterFilesAfterBoot ?? 'unrecorded'})`);
     }
 }
 const configs = ['gotavern', 'pinned'].map(subject => on[subject]?.provenance?.configFile?.sha256 ?? null);

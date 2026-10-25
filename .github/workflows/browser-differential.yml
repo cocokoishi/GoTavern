@@ -591,7 +591,9 @@ jobs:
       # what the peer received. The peer captures and answers; the pinned leg is the oracle for the bytes.
       - name: Record the helper generation legs (both subjects, helper on and off)
         id: helper-generation
-        if: ${{ env.MODE_HELPER == 'helper' || env.MODE_HELPER == 'all' }}
+        # !cancelled() so a red RENDER comparison still yields the generation verdict in the same run: two
+        # independent claims, one expensive setup, and a run that answers both questions.
+        if: ${{ !cancelled() && (env.MODE_HELPER == 'helper' || env.MODE_HELPER == 'all') }}
         run: |
           set -uo pipefail
           work="$RUNNER_TEMP/browser-differential"
@@ -630,7 +632,7 @@ jobs:
 
       - name: Compare the helper generation legs
         id: helper-generation-compare
-        if: ${{ env.MODE_HELPER == 'helper' || env.MODE_HELPER == 'all' }}
+        if: ${{ !cancelled() && (env.MODE_HELPER == 'helper' || env.MODE_HELPER == 'all') }}
         run: |
           set -uo pipefail
           work="$RUNNER_TEMP/browser-differential"
