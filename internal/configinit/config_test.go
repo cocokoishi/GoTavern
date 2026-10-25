@@ -60,11 +60,10 @@ func verifyScenarioBytes(t *testing.T, path string, expected oracleScenario) []b
 	return actual
 }
 
-// verifyScenarioBytesExcludingOperatorOwnedDefaults compares our migrated output against pinned's, minus the keys
-// GoTavern deliberately never materialises (operatorOwnedDefaults). This is the named-exemption shape doctrine 9
-// requires: the exemption is by EXACT dotted path, it is computed from the pinned expectation itself, everything
-// else is still compared byte for byte, and the three keys are then asserted ABSENT from our file so the exemption
-// cannot hide them reappearing.
+// verifyScenarioBytesExcludingOperatorOwnedDefaults compares our migrated output against pin''s recorded bytes,
+// minus the keys GoTavern deliberately never materialises (operatorOwnedDefaults). The exemption is by EXACT
+// dotted path, it is computed from the pinned expectation itself, everything else is still compared byte for byte,
+// and the three keys are then asserted ABSENT from our file so the exemption cannot hide them reappearing.
 func verifyScenarioBytesExcludingOperatorOwnedDefaults(t *testing.T, path string, expected oracleScenario) []byte {
 	t.Helper()
 	actual, err := os.ReadFile(path)
@@ -88,9 +87,8 @@ func verifyScenarioBytesExcludingOperatorOwnedDefaults(t *testing.T, path string
 			index++
 		}
 		start := max(index-40, 0)
-		t.Fatalf("config bytes differ from the pinned expectation (minus %v) at byte %d:\n got: %q\nwant: %q",
-			operatorOwnedDefaults, index,
-			actual[start:min(index+80, len(actual))], trimmed[start:min(index+80, len(trimmed))])
+		t.Fatalf("config bytes differ from the pinned expectation minus %v at byte %d: got %q want %q",
+			operatorOwnedDefaults, index, actual[start:min(index+80, len(actual))], trimmed[start:min(index+80, len(trimmed))])
 	}
 	written, parseErr := parseMapping(actual)
 	if parseErr != nil {
@@ -98,7 +96,7 @@ func verifyScenarioBytesExcludingOperatorOwnedDefaults(t *testing.T, path string
 	}
 	for _, key := range operatorOwnedDefaults {
 		if _, exists := getPath(written, key); exists {
-			t.Fatalf("GoTavern materialised %q into the user's config; it must never write an auto-update key (AGENTS rule 26, ARCHITECTURE 34.3)", key)
+			t.Fatalf("GoTavern materialised %q into the user config; it must never write an auto-update key (AGENTS rule 26, ARCHITECTURE 34.3)", key)
 		}
 	}
 	return actual
