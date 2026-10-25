@@ -135,6 +135,17 @@ env:
 jobs:
   differential:
     runs-on: ubuntu-latest
+    # THE HELPER SURFACE NARROWS ITSELF THE SAME WAY THE ASSET SURFACE DOES, and it must be declared at JOB
+    # level: the first version put MODE_HELPER in the record step's own env, so the helper steps' `if:`
+    # (env.MODE_HELPER) read an undefined value, both helper steps ran as SKIPPED, and the run was GREEN
+    # without executing one helper leg (run 40212069342, Browser differential). A gate that does not run is
+    # not a gate, and a green that skipped it is exactly the shape AGENTS.md 55 records.
+    # On a push it runs only when the pushed commits touch the helper harness (or this workflow, whose path
+    # the commit payload also contains); the test is a substring over the commit JSON, so a commit MESSAGE
+    # that says helper runs it too -- that costs minutes and can never make a wrong verdict right. A dispatch
+    # passes its own mode through, and the nightly 'all' sweep runs every surface.
+    env:
+      MODE_HELPER: ${{ inputs.mode || (github.event_name == 'push' && ((contains(toJSON(github.event.commits), 'tests/browser/helper-') || contains(toJSON(github.event.commits), 'browser-differential.yml')) && 'helper' || 'none') || 'all') }}
     # SIZED FROM THE MEASUREMENT, not from a round number. Run 40068803201 (the first full sweep, before
     # any cache) recorded its setup in 1.2 minutes total and was still inside the drive step at 25.5
     # minutes, with 15 sources x 8 browser drives to pay for; the whole job is projected at ~45 minutes.
@@ -285,11 +296,6 @@ jobs:
           # second code path. A PUSH RUN is the asset gate proving itself (see `on.push`), so it narrows to
           # `assets` rather than paying an hour for fifteen sources it did not touch.
           MODE: ${{ inputs.mode || (github.event_name == 'push' && 'assets' || 'all') }}
-          # THE HELPER SURFACE NARROWS ITSELF THE SAME WAY. On a push it runs only when the pushed commits
-          # touch the helper harness (or this workflow, which the commit payload also contains); the
-          # comparison is a substring over the commit JSON, so a commit MESSAGE that says helper runs it too
-          # -- that costs minutes and can never make a wrong verdict right.
-          MODE_HELPER: ${{ inputs.mode || (github.event_name == 'push' && (contains(toJSON(github.event.commits), 'tests/browser/helper-') && 'helper' || 'none') || 'all') }}
           SOURCES_CSV: ${{ inputs.sources }}
           # The committed artefacts were paced at 14 frames; keep the pace identical so a freshness
           # difference is about behaviour rather than about how many chunks the peer wrote.
