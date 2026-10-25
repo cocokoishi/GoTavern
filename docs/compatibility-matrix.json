@@ -544,7 +544,8 @@
       },
       "evidenceGap": [
         "the context-boundary differential (AGENTS.md 9) has not produced a binding keep/drop pair on both legs in any run so far",
-        "tokenizer tree resolution is proven for a fresh root and a migrated tree, not for a stock tree whose src/tokenizers sits beside a user's data root"
+        "tokenizer tree resolution is proven for a fresh root and a migrated tree, not for a stock tree whose src/tokenizers sits beside a user's data root",
+        "INHERITED WEAKNESS, reproduced deliberately (architecture boundary 5): with no tokenizer tree pinned answers HTTP 200 with a guesstimate count and no ids (docs/tokenizer-parity-plan.md:141), so an inexact count is indistinguishable from an exact one -- GoTavern reproduces it for parity rather than refusing"
       ],
       "blockedBy": [
         "whole-session-e2e"
