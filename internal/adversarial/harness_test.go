@@ -179,33 +179,36 @@ func TestAdversarialInvariants(t *testing.T) {
 	known := make(map[string]bool, len(specs))
 	observed := map[string]string{}
 	notApplicableCount := 0
+	// ONLY the verdicts that need a human are logged, and each on one line: the
+	// lane workflow prints `head -20` of the assertion lines, so a per-case
+	// "holds" line for every case pushed the ratchet message out of view and a
+	// red run could not name its cause. Run with GOTAVERN_ADVERSARIAL_VERBOSE=1
+	// to see every verdict.
+	verbose := os.Getenv("GOTAVERN_ADVERSARIAL_VERBOSE") != ""
 	for _, spec := range specs {
 		known[spec.id] = true
-		// The start/end markers are what makes a truncated CI log diagnosable: the
-		// runner's own `tail -60` plus `head -20` once hid every verdict after the
-		// twentieth case, so a red run could not name the case that failed.
-		t.Logf("start    %-42s", spec.id)
 		result := runBounded(spec)
 		switch result.verdict {
 		case verdictHolds:
-			t.Logf("holds     %-42s %s", spec.id, firstLine(result.detail))
+			if verbose {
+				t.Logf("holds     %-42s %s", spec.id, firstLine(result.detail))
+			}
 		case verdictViolated:
 			observed[spec.id] = result.detail
-			t.Logf("VIOLATED  %-42s\n           invariant: %s\n           observed:  %s",
-				spec.id, spec.invariant, firstLine(result.detail))
+			t.Logf("VIOLATED  %-42s invariant: %s; observed: %s", spec.id, spec.invariant, firstLine(result.detail))
 		case verdictNotApplicable:
 			notApplicableCount++
 			t.Logf("n/a        %-42s %s", spec.id, result.detail)
 		}
 	}
 	golden := readGolden(t)
-	// One Errorf per problem, so each problem is its own log line and cannot be
-	// swallowed by a bounded `head` in the workflow.
-	for _, problem := range compareGolden(golden, observed, known) {
-		t.Errorf("%s", problem)
-	}
+	problems := compareGolden(golden, observed, known)
 	t.Logf("ratchet: %d cases, %d held, %d violated, %d not applicable, %d golden entries",
 		len(specs), len(specs)-len(observed)-notApplicableCount, len(observed), notApplicableCount, len(golden))
+	if len(problems) > 0 {
+		// ONE line, so a bounded head cannot swallow the cause.
+		t.Fatalf("%s", strings.Join(problems, " | "))
+	}
 }
 
 func firstLine(text string) string {
