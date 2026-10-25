@@ -115,6 +115,16 @@ func newPersonaAvatarUploadHarness(t *testing.T) *personaAvatarUploadHarness {
 	if err := os.WriteFile(filepath.Join(dataRoot, "cookie-secret.txt"), []byte(cookieSecret), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	// A real install creates <dataRoot>/_uploads during startup's data-startup step, and the global
+	// multer staging directory is where an upload is written before the route copies it. Every other
+	// upload harness in this package seeds it for the same reason (backgrounds_upload_test.go:118,
+	// characters_oracle_test.go:129, chats_import_test.go:95, worldinfo_test.go:195). Its absence here
+	// made CreateUploadStagingFile fail, which the handler reported as the bare 400 pinned sends for
+	// "no file" -- so every SUCCESS case read as a refusal while the forbidden-name case passed for
+	// the wrong reason. Found by comparing this harness with the working route's.
+	if err := os.MkdirAll(filepath.Join(dataRoot, "_uploads"), 0o777); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := startup.EnsureDirectories(installRoot, dataRoot, []string{"default-user"}); err != nil {
 		t.Fatal(err)
 	}

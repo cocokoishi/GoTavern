@@ -22,6 +22,7 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -142,13 +143,13 @@ func parseAvatarMultipartUpload(request *http.Request, dataRoot string) (string,
 			if part.FormName() != "avatar" || stagedPath != "" {
 				_ = part.Close()
 				discard()
-				return "", nil, errors.New("unexpected multipart file field")
+				return "", nil, errors.New("avatar upload: unexpected multipart field name (pinned multer expects the single field `avatar`)")
 			}
 			staged, createErr := startup.CreateUploadStagingFile(dataRoot)
 			if createErr != nil {
 				_ = part.Close()
 				discard()
-				return "", nil, createErr
+				return "", nil, fmt.Errorf("avatar upload: staging file in <dataRoot>/_uploads (created at startup): %w", createErr)
 			}
 			stagedPath = staged.Name()
 			_, copyErr := io.Copy(staged, part)
@@ -156,7 +157,7 @@ func parseAvatarMultipartUpload(request *http.Request, dataRoot string) (string,
 			stagedCloseErr := staged.Close()
 			if copyErr != nil || partCloseErr != nil || stagedCloseErr != nil {
 				discard()
-				return "", nil, errors.New("copy multipart file")
+				return "", nil, errors.New("avatar upload: copy the staged file")
 			}
 			continue
 		}
@@ -169,7 +170,7 @@ func parseAvatarMultipartUpload(request *http.Request, dataRoot string) (string,
 		partCloseErr := part.Close()
 		if readErr != nil || partCloseErr != nil || int64(len(value)) > int64(pinnedUploadFieldSizeLimit) {
 			discard()
-			return "", nil, errors.New("read multipart field")
+			return "", nil, errors.New("avatar upload: read a form field (pinned fieldSize limit is 500MB)")
 		}
 		fields[name] = string(value)
 	}
