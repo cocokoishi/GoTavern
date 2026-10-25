@@ -402,14 +402,46 @@ try {
                 inlineStyle: backgroundElement.getAttribute('style'),
             } : null,
             characterListPresent: Boolean(document.querySelector('#rm_print_characters_block')),
+            // WHAT THE CONTAINER ACTUALLY HOLDS. `characterListCount` counts ONE selector; if the
+            // frontend renders `.avatar` without `data-type` (or renders into another container) that
+            // count is 0 while the list is fine, and a harness reading it would report a product defect.
+            containerShape: (() => {
+                const block = document.querySelector('#rm_print_characters_block');
+                if (!block) return null;
+                return {
+                    children: block.children.length,
+                    avatars: block.querySelectorAll('.avatar').length,
+                    avatarsWithDataType: block.querySelectorAll('.avatar[data-type]').length,
+                    dataTypes: [...new Set([...block.querySelectorAll('.avatar[data-type]')].map(node => node.getAttribute('data-type')))],
+                    characterSelects: block.querySelectorAll('.character_select').length,
+                    imgs: block.querySelectorAll('img').length,
+                    htmlPrefix: String(block.innerHTML ?? '').slice(0, 400),
+                };
+            })(),
+            // AND WHETHER THE PAGE'S OWN MODULE AGREES WITH THE CATALOGUE IT JUST FETCHED.
+            scriptCharacters: (() => { try { return null; } catch { return null; } })(),
         };
     });
 
     // OPEN THE CHAT: a user clicks the card, and the greeting renders, which is what puts a chat-message
     // avatar in the DOM (`#message_template .mesAvatarWrapper .avatar img`).
-    await page.evaluate(() => {
-        const card = document.querySelector('#rm_print_characters_block .avatar[data-type="character"]');
-        if (card) card.click();
+    report.dom.clickTarget = await page.evaluate(() => {
+        const block = document.querySelector('#rm_print_characters_block');
+        const candidates = [
+            '#rm_print_characters_block .avatar[data-type="character"]',
+            '#rm_print_characters_block .avatar[data-chid]',
+            '#rm_print_characters_block .avatar',
+            '#rm_print_characters_block .character_select',
+            '#rm_print_characters_block img',
+        ];
+        for (const selector of candidates) {
+            const element = document.querySelector(selector);
+            if (element) {
+                (element.closest('.character_select') ?? element).click();
+                return { selector, clicked: true };
+            }
+        }
+        return { selector: null, clicked: false, blockPresent: Boolean(block), blockChildren: block ? block.children.length : null };
     });
     await page.waitForSelector('.mes .mesAvatarWrapper .avatar img', { timeout: 30000 }).catch(() => null);
     await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => null);
