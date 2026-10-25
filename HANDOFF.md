@@ -128,6 +128,58 @@ and variables — so "preset works" and "helper works" are provably not enough o
 | F | long-lived tree, startup, extension immutability | copy-boot qualification on the packaged artifact |
 | G | performance | only after B-F hold |
 
+### Where this pass stopped, and exactly how to continue (2026-10-25, `main` `4ec767b`, CI green)
+
+**Landed and validated on `main`:**
+
+- the goal and the process contract: `GOAL.md`, `AGENTS.md` rules 42-55, `ARCHITECTURE.md` §35,
+  `docs/gate-blindspots.md` (why the gates could not see this), `docs/real-user-input-audit.md` (the real
+  artifacts and the helper dependency map, measured);
+- three of the seven pinned user-data mounts, which were absent: `/characters/*`, `/User%20Avatars/*`,
+  `/assets/*`. Registered as `/User%20Avatars/{rest...}`; **the escaped spelling is mandatory** — `net/http`
+  reads a space in a pattern as a method separator (`src/net/http/pattern.go:96`) and panics at registration,
+  which is how a merged commit stopped `main` from opening a port for one cycle (`AGENTS.md` 54);
+- two gates with demonstrated teeth: `TestPinnedUserDataMountsAreAllServed` (the set) and
+  `TestPinnedFrontendAssetContractMountsServeMarkedBytes` (execution: plants a uniquely-marked file per mount
+  and requires exactly those bytes back). Mutation evidence in Lane CI `40197036003` — one deleted row failed
+  both, on `…ServeMarkedBytes/characters`. Restored green: `40197317477`.
+
+**The lane that continues the work is `lane/assets`, at `0cc29f2`, and it is RED on purpose.** It carries
+`internal/server/thumbnails_contract_test.go`, a source-derived observable contract for `/thumbnail`
+(`AGENTS.md` rule 4) which fails on eight named subtests because the route does not exist. Lane CI
+`40197908880` is that red. The handler is NOT written, and the reason is recorded rather than hidden: its whole
+difficulty is the branch order of a 312-line pinned handler, and it must be ported from
+`SillyTavern/src/endpoints/thumbnails.js` read in full — not from a summary.
+
+**Next actions, in order:**
+
+1. Read `src/endpoints/thumbnails.js` end to end, then implement `internal/server/thumbnails.go` against the red
+   test. The contract is in `ARCHITECTURE.md` §35.2 and the branch order is: 400 non-string → 400 bad type →
+   403 sanitize mismatch → original when `thumbnails.enabled` is false → original when `animated=true` and the
+   extension is skipped → original for `.gif` → generate if the cache is missing → serve the cache
+   (`dotfiles: 'allow'`, MIME from the ORIGINAL filename) → 404, unexpected error 500. Plus the config plumbing
+   (`thumbnails.enabled`/`format`/`quality` with pinned's clamp and lowercased-trimmed `'png'` predicate), the
+   cache pair `originalStat.mtimeMs > cachedStat.ctimeMs`, the 200-byte `acTL`/`ANIM` animated scan, and the
+   Firefox `Cache-Control: must-understand, no-store` gate. Then the mutation for that gate.
+2. Then the three follow-ups the audit named: the returned-URL assertion (`/api/sprites/get` and
+   `/api/assets/*` hand out URLs this server must answer — the general form of the bug this pass fixes),
+   `POST /api/avatars/upload` (a persona avatar cannot be *created* at all; bring the pinned handler's contract
+   and a codec recommendation before writing), and the nine documentation corrections that currently call the
+   404 "cosmetic" or a "closed boundary".
+3. Then Lane C (酒馆助手) per `docs/real-user-input-audit.md` §6-§7: the first browser scenario is a render
+   script whose pass condition includes every URL the iframe puts into the DOM answering 200.
+4. Then Lane D (real preset fixture), which is started but has committed nothing: `wt-preset` on
+   `lane/preset-real`, with the fixture design and the packed-blob measurement for the 19 MB card decided next.
+5. Scheduled, not started: `POST /api/extensions/version` issues **two** `git fetch` calls per request
+   (`extensions_git.go:362` and `:204`) on a route the pinned frontend calls at page load whenever the user's
+   persisted `extension_settings.notifyUpdates` is true — a network mutation of the user's extension repository
+   with no GoTavern opt-in, where pinned fetches once.
+
+**Standing rule for whoever picks this up:** quote `workflow name + run id + conclusion` together
+(`AGENTS.md` 55 — this pass lost a turn to reading the drop-in workflow's green as a test verdict), and never
+merge a lane whose own Lane CI is red.
+
+
 
 
 Recorded at `main` `10314c8`. These outrank every other line in this file: a release that cannot talk to a
