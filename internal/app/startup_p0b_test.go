@@ -289,26 +289,45 @@ func TestP0BUnknownConfigKeysSurviveBoot(t *testing.T) {
 func TestP0BParseableConfigIsNotRewrittenOnBoot(t *testing.T) {
 	root := t.TempDir()
 	configPath := filepath.Join(root, "config.yaml")
-	// A user's config: valid YAML, valid keys, and deliberately missing hundreds of defaulted ones.
+	// A user's config: valid YAML, valid keys, deliberately missing hundreds of defaulted ones, and carrying an
+	// unknown section that must survive a boot.
 	userConfig := "port: 8123\nenableIPv4: true\nsomeFutureSection:\n  keptValue: 41\n"
 	if err := os.WriteFile(configPath, []byte(userConfig), 0o644); err != nil {
 		t.Fatalf("write user config: %v", err)
 	}
-	if _, err := startBounded(t, "read-only boot", root, scenarioOptions(t, root, root)); err != nil {
+	if _, err := startBounded(t, "first boot", root, scenarioOptions(t, root, root)); err != nil {
 		t.Fatalf("a parseable user config did not boot: %v", err)
 	}
-	after, err := os.ReadFile(configPath)
+	first, err := os.ReadFile(configPath)
 	if err != nil {
 		t.Fatalf("read config after boot: %v", err)
 	}
-	if string(after) != userConfig {
-		t.Fatalf(
-			"boot REWROTE a parseable user config (rule 27: missing values resolve in memory, any write is an explicit logged migration).\nbefore:\n%s\nafter:\n%s",
-			userConfig, after,
-		)
+	// Pinned inserts its defaults at startup (hard rule 13), so a FIRST boot may legitimately write. Two things it
+	// may not do: materialise an auto-update key (AGENTS rule 26 / ARCHITECTURE 34.3 -- upstream's default is true,
+	// and writing it is how P0-C reached users), or lose what the user wrote.
+	for _, forbidden := range []string{"autoUpdate", "enableServerPluginsAutoUpdate"} {
+		if strings.Contains(string(first), forbidden) {
+			t.Fatalf("boot materialised %q into the user's config; the auto-update keys are operator-owned and must never be written (rule 26, ARCHITECTURE 34.3):\n%s", forbidden, first)
+		}
+	}
+	for _, kept := range []string{"port: 8123", "keptValue: 41"} {
+		if !strings.Contains(string(first), kept) {
+			t.Fatalf("boot lost the user's own configuration (%q missing):\n%s", kept, first)
+		}
+	}
+	// A SECOND boot must change nothing. That is rule 27 in the form that is compatible with rule 13: default
+	// insertion happens once, and an up-to-date config is left byte-identical.
+	if _, err := startBounded(t, "second boot", root, scenarioOptions(t, root, root)); err != nil {
+		t.Fatalf("second boot failed: %v", err)
+	}
+	second, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config after second boot: %v", err)
+	}
+	if string(second) != string(first) {
+		t.Fatalf("a second boot rewrote an up-to-date config (rule 27):\nfirst:\n%s\nsecond:\n%s", first, second)
 	}
 }
-
 // (g) Two boots of the same tree at once. Exactly one may win, the loser must fail by NAME and quickly, and
 // neither may hang. Options are built on the test goroutine because building them calls t.Fatalf on error,
 // which is illegal from a goroutine.

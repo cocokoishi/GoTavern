@@ -354,8 +354,24 @@ func migrateConfig(document *yaml.Node) bool {
 	return changed
 }
 
+// operatorOwnedDefaults are keys GoTavern must never MATERIALISE into a user's config.yaml. Boot still inserts
+// pinned's defaults (hard rule 13: default insertion is startup compatibility), but these three are the inputs of
+// the extension/plugin auto-update decision, and writing them would turn "the user never said" into "the file
+// says true" -- which is precisely how P0-C reached users, because upstream's own defaults say true
+// (upstream/default/config.yaml:301, :396). They are reported and never acted on; the only input that can enable
+// automatic updating is GoTavern's own key (ARCHITECTURE.md 34.3, AGENTS.md rule 26).
+var operatorOwnedDefaults = []string{
+	"extensions.autoUpdate",
+	"extensions.autoUpdatePlugins",
+	"enableServerPluginsAutoUpdate",
+}
+
 func mergeDefaults(destinationDocument, defaultsDocument *yaml.Node) bool {
-	return mergeNode(destinationDocument.Content[0], defaultsDocument.Content[0])
+	defaults := cleanClone(defaultsDocument, make(map[*yaml.Node]*yaml.Node))
+	for _, key := range operatorOwnedDefaults {
+		unsetPath(defaults, key)
+	}
+	return mergeNode(destinationDocument.Content[0], defaults.Content[0])
 }
 
 func mergeNode(destination, defaults *yaml.Node) bool {

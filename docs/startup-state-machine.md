@@ -112,11 +112,28 @@ half of the user's `P0-C` report.
 
 | Input | Used by | Consequence |
 |---|---|---|
-| CWD | `runServer` → `commandline` (config path, data root, `public/` lookup) | running the binary from another directory changes which config/data tree is used |
-| executable dir | `installRoot` | `public/`, `tokenizers/`, `whitelist.txt`, TLS certs, `default/**` |
+| CWD | `runServer` → `commandline` (`./config.yaml` discovery only, plus `--configPath`/`--dataRoot` defaults) | a foreign CWD changes WHICH `./config.yaml` is found when no explicit path is given; it does **not** move the runtime tree, and it does not decide where boot writes |
+| executable dir (`installRoot`) | the runtime tree: relative `dataRoot` values, `public/`, `tokenizers/`, `whitelist.txt`, TLS certs, `default/**` | **the install root wins for relative paths** — measured: started from a foreign CWD, the runtime served the install tree's characters and chats and wrote `_storage/`, `content.log`, `cookie-secret.txt` and a settings backup INTO that tree (lane E's `qualify-dropin-linux`, run `40153128342`) |
 | `$HOME` | global-mode data root, `migrate` | a different `$HOME` (service account, sudo, Docker) silently selects a different data root |
 | `SILLYTAVERN_*` / `GOTAVERN_*` env | `commandline/options.go` | an env var wins over the config file, and an **empty** value still counts as "present" |
 | `/.dockerenv`, `/proc/self/cgroup` | `runningInDocker()` | changes whitelist behaviour |
+
+### 4.1 Why the two path bases must agree (fixed 2026-10-25)
+
+Pinned calls `process.chdir(serverDirectory)` at `server.js:11`, so every relative path it resolves — including
+`fs.mkdirSync(dataRoot, {recursive: true})` at `src/command-line.js:293` — is relative to the **server
+directory**. GoTavern accepts being started from anywhere, so it had two bases: it CREATED the data root against
+the caller's CWD (`paths.go`, `absolutePathFrom(workingDirectory, …)`) and USED it against the install root
+(`absolutePathFrom(serverDirectory, …)`).
+
+The measured consequences were both real: on a fresh tree the cookie-secret writer failed with ENOENT
+(`internal/app/startup_p0b_test.go` scenario (b), run `40152447850`), and a stray `data/` directory appeared in
+whatever directory the user ran the binary from. Creation now uses the same base as the runtime, which is also
+what the drop-in qualification measures.
+
+**Consequence for a reader:** "run it from anywhere" does not create a second tree, and moving the CWD cannot
+redirect where state is written. The only thing a foreign CWD changes is which `./config.yaml` is discovered when
+no explicit path is given.
 
 ## 5. The contract this file is asking for
 

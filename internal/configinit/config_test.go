@@ -60,8 +60,51 @@ func verifyScenarioBytes(t *testing.T, path string, expected oracleScenario) []b
 	return actual
 }
 
-func TestInitializeCreatesPinnedFreshConfig(t *testing.T) {
-	fixture := readOracleFixture(t)
+// verifyScenarioBytesExcludingOperatorOwnedDefaults compares our migrated output against pinned's, minus the keys
+// GoTavern deliberately never materialises (operatorOwnedDefaults). This is the named-exemption shape doctrine 9
+// requires: the exemption is by EXACT dotted path, it is computed from the pinned expectation itself, everything
+// else is still compared byte for byte, and the three keys are then asserted ABSENT from our file so the exemption
+// cannot hide them reappearing.
+func verifyScenarioBytesExcludingOperatorOwnedDefaults(t *testing.T, path string, expected oracleScenario) []byte {
+	t.Helper()
+	actual, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectation, parseErr := parseMapping([]byte(expected.OutputYAML))
+	if parseErr != nil {
+		t.Fatalf("parse the pinned expectation: %v", parseErr)
+	}
+	for _, key := range operatorOwnedDefaults {
+		unsetPath(expectation, key)
+	}
+	trimmed, stringifyErr := stringifyConfig(expectation)
+	if stringifyErr != nil {
+		t.Fatalf("re-serialize the pinned expectation: %v", stringifyErr)
+	}
+	if string(trimmed) != string(actual) {
+		index := 0
+		for index < len(actual) && index < len(trimmed) && actual[index] == trimmed[index] {
+			index++
+		}
+		start := max(index-40, 0)
+		t.Fatalf("config bytes differ from the pinned expectation (minus %v) at byte %d:\n got: %q\nwant: %q",
+			operatorOwnedDefaults, index,
+			actual[start:min(index+80, len(actual))], trimmed[start:min(index+80, len(trimmed))])
+	}
+	written, parseErr := parseMapping(actual)
+	if parseErr != nil {
+		t.Fatalf("parse our own output: %v", parseErr)
+	}
+	for _, key := range operatorOwnedDefaults {
+		if _, exists := getPath(written, key); exists {
+			t.Fatalf("GoTavern materialised %q into the user's config; it must never write an auto-update key (AGENTS rule 26, ARCHITECTURE 34.3)", key)
+		}
+	}
+	return actual
+}
+
+func TestInitializeCreatesPinnedFreshConfig(t *testing.T) {	fixture := readOracleFixture(t)
 	expected := fixture.Scenarios["fresh"]
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 
@@ -104,7 +147,7 @@ func TestInitializeMigratesLegacyConfigAndPreservesUnknownFields(t *testing.T) {
 	if before.Mode().Perm() != after.Mode().Perm() {
 		t.Fatalf("config permissions changed from %04o to %04o", before.Mode().Perm(), after.Mode().Perm())
 	}
-	actual := verifyScenarioBytes(t, configPath, expected)
+	actual := verifyScenarioBytesExcludingOperatorOwnedDefaults(t, configPath, expected)
 
 	second, err := Initialize(configPath)
 	if err != nil {
