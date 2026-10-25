@@ -234,3 +234,99 @@ export function extensionSurface(ctx, label, extensionComparison) {
         ctx.observe(`${extensionComparison.rows.length} rows, ${(extensionComparison.pathDifferences ?? []).length} non-row path difference(s), guards faithful`);
     }
 }
+
+
+/**
+ * helper-comparison.json: the 酒馆助手 RENDER/VARIABLE surface (AGENTS.md 47, GOAL.md Q8 + Q10).
+ *
+ * THE CLAIM THIS ARTEFACT MAKES IS BOUNDED ON PURPOSE, so the check is too. Two kinds of guard:
+ *   - guards true on both subjects, which must be true here: the iframe architecture, the 25 host imports,
+ *     the module completion marker, the fixture, the negative control, and the on/off discrimination.
+ *   - guards FALSE on both subjects, which are a DRIVER LIMITATION (rule 10) and may only be excused when
+ *     the artefact names them in unproven[] with a mechanism. An excusal is not a pass: the guard stays out
+ *     of the required set, unproven[] carries it, and a guard that is true on one subject and false on the
+ *     other can never be excused (it lands in asymmetries[], which this check refuses).
+ * A DECLARATION THAT HAS GONE STALE IS ALSO REFUSED: if a name in declaredUnproven is now true, the
+ * excusal is hiding a green guard from the required set, so the artefact no longer says what it claims.
+ */
+export function helperSurface(ctx, helperComparison) {
+    if (!helperComparison) return;
+    const guards = helperComparison.guards ?? {};
+    const required = [
+        // the driver reached the state a user reaches, before any claim is read
+        'legsPresent', 'driveCompleted', 'sameFixture', 'fixturesMatchEachOther',
+        // Q8: the architecture the extension depends on, measured on both subjects
+        'hostModulesServed', 'scriptIframeUnsandboxed', 'moduleCompleted',
+        // rule 50: the pair can see the helper at all
+        'helperSeenOnlyWhenOn',
+        // the persistence guard's teeth, without which a green variablePersisted means nothing
+        'negativeControlBites',
+    ];
+    for (const guard of required) {
+        if (guards[guard] !== true) {
+            ctx.fail(`guards.${guard} is ${JSON.stringify(guards[guard])}, so the artefact does not support the claim that the pinned 酒馆助手 iframe ran identically on both subjects`);
+        }
+    }
+    for (const asymmetry of helperComparison.asymmetries ?? []) {
+        ctx.fail(`asymmetries names ${asymmetry.guard} (gotavern=${JSON.stringify(asymmetry.gotavern)}, pinned=${JSON.stringify(asymmetry.pinned)}): a guard true on one subject and false on the other is the difference this comparison exists to find`);
+    }
+    if (Array.isArray(helperComparison.failedGuards) && helperComparison.failedGuards.length > 0) {
+        ctx.fail(`failedGuards names ${helperComparison.failedGuards.join(', ')}, so a committed artefact records a red run`);
+    }
+    const declared = new Set(helperComparison.declaredUnproven ?? []);
+    const unproven = helperComparison.unproven ?? [];
+    for (const [name, value] of Object.entries(guards)) {
+        if (value === true) {
+            if (declared.has(name)) {
+                ctx.fail(`${name} is declared unproven but is TRUE: the declaration is stale and is hiding a green guard from the required set`);
+            }
+            continue;
+        }
+        if (!declared.has(name)) {
+            ctx.fail(`guards.${name} is ${JSON.stringify(value)} on both subjects and is NOT declared in unproven[], so this is an undeclared gap rather than a named driver limitation`);
+            continue;
+        }
+        const entry = unproven.find(item => String(item).startsWith(`${name}:`));
+        if (!entry || String(entry).length < 40) {
+            ctx.fail(`${name} is declared unproven with no mechanism: unproven[] must carry "${name}: <why this cannot be judged on either subject>"`);
+        }
+    }
+    ctx.observations.push(`declared unproven: ${[...declared].sort().join(', ') || '(none)'}`);
+}
+
+/**
+ * helper-generation-comparison.json: the 酒馆助手 GENERATION surface (AGENTS.md 47/48/49/50, GOAL.md Q9/Q11).
+ *
+ * Every guard here must be true: this artefact's claim is that a helper script's generateRaw/generate
+ * reached a model backend and produced the SAME request bytes on both subjects. There is nothing to
+ * excuse -- a missing request, a different body or a non-discriminating pair is the finding.
+ */
+export function helperGenerationSurface(ctx, generationComparison) {
+    if (!generationComparison) return;
+    const guards = generationComparison.guards ?? {};
+    const required = [
+        'legsPresent', 'driveCompleted',
+        'peerReached', 'connectionFromPeer', 'orderedPrompts', 'injectionVisible',
+        // the byte claim and the rule-50 claim
+        'nodeEqualsGo', 'helperSeenOnlyWhenOn',
+    ];
+    for (const guard of required) {
+        if (guards[guard] !== true) {
+            ctx.fail(`guards.${guard} is ${JSON.stringify(guards[guard])}, so the artefact does not support the claim that 酒馆助手's generation request equals pinned Node's`);
+        }
+    }
+    for (const asymmetry of generationComparison.asymmetries ?? []) {
+        ctx.fail(`asymmetries names ${asymmetry.guard}: the two subjects disagree on a generation guard`);
+    }
+    if ((generationComparison.mismatches ?? []).length > 0) {
+        ctx.fail(`mismatches names ${generationComparison.mismatches.map(item => item.field).join(', ')}, so the provider request differs between the subjects`);
+    }
+    if (Array.isArray(generationComparison.failedGuards) && generationComparison.failedGuards.length > 0) {
+        ctx.fail(`failedGuards names ${generationComparison.failedGuards.join(', ')}`);
+    }
+    // A simulated peer must never be sold as a production claim (rule 22), so the artefact has to say so.
+    const unproven = (generationComparison.unproven ?? []).join(' ');
+    if (!/real provider/i.test(unproven)) {
+        ctx.fail('unproven[] does not name the real-provider limitation: rule 22 makes a simulated peer unverified for production, and the artefact must say it');
+    }
+}

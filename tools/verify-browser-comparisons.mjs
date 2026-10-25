@@ -24,7 +24,7 @@
 // Exit code 1 with a named finding, never a bare failure: "which claim is unsupported" is the only
 // useful output of a gate like this.
 
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SOURCES, sourceForArtifact } from '../tests/browser/sources.mjs';
@@ -33,7 +33,7 @@ import {
     bothLegsReached, cancellationReachedProvider, completionRouteUsed, finalTextNonEmpty,
     noDryInvocationInSendWindow, providerRequestsEqual, sendWindowFaithful, streamingSurfacesProven,
 } from './browser-evidence/invariants.mjs';
-import { assetSurface, dataDomainSurface, extensionSurface, startupSurface } from './browser-evidence/other-surfaces.mjs';
+import { assetSurface, dataDomainSurface, extensionSurface, helperGenerationSurface, helperSurface, startupSurface } from './browser-evidence/other-surfaces.mjs';
 import { SOURCE_HOOKS } from './browser-evidence/source-hooks.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -199,6 +199,36 @@ const main = () => {
         } else {
             run({ ctx, artifact: payload });
         }
+        findings.push(...ctx.findings);
+        lines.push(`${ctx.findings.length === 0 ? 'ok  ' : 'FAIL'} ${file}`);
+        for (const observation of ctx.observations) lines.push(`       ${observation}`);
+    }
+
+    // ---- 2b. THE 酒馆助手 SURFACES: PRESENT IS VERIFIED, ABSENT IS SAID OUT LOUD ------------------
+    // They are produced only when MODE_HELPER runs the helper legs, so an absent file must NOT fail a
+    // run that never asked for it -- but it must never read as a pass either. Absent-and-committed is a
+    // failure (the committed bytes cannot be read), and absent-and-not-committed is reported as
+    // NOT-RECORDED with the reason, which is the same shape the freshness summary uses.
+    for (const [file, run] of [
+        ['helper-comparison.json', helper => helperSurface(helper.ctx, helper.artifact)],
+        ['helper-generation-comparison.json', helper => helperGenerationSurface(helper.ctx, helper.artifact)],
+    ]) {
+        const ctx = createContext(file);
+        const payload = readArtifact(file);
+        if (payload.__readError) {
+            const committed = existsSync(path.join(browserDir, file));
+            if (committed) {
+                ctx.fail(`is committed but cannot be read as JSON (${payload.__readError})`);
+                findings.push(...ctx.findings);
+                lines.push(`FAIL ${file}`);
+                for (const finding of ctx.findings) lines.push(`       ${finding}`);
+            } else {
+                lines.push(`NOT-RECORDED ${file}`);
+                lines.push('       this run produced no such artefact (the helper surface did not run); this is not a pass');
+            }
+            continue;
+        }
+        run({ ctx, artifact: payload });
         findings.push(...ctx.findings);
         lines.push(`${ctx.findings.length === 0 ? 'ok  ' : 'FAIL'} ${file}`);
         for (const observation of ctx.observations) lines.push(`       ${observation}`);
