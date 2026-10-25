@@ -15,8 +15,8 @@ what is claimed, what evidences the claim, and — where the claim is short — 
 | Status | Count | Meaning |
 |---|---|---|
 | PASS | 0 | Every evidence slot the derivation rule requires is present and exists in this tree, and the row carries no evidenceGap. Says nothing about production fitness beyond what the cited evidence covers. |
-| PARTIAL | 17 | The mechanism exists and something in this tree gates it, but at least one required evidence slot is missing or a named gap remains. The gap is always named in evidenceGap. |
-| FAIL | 4 | A user-visible capability is known to be broken, or the evidence needed to claim it is absent while the defect it would have caught has already shipped. A FAIL row is a finding, not a placeholder. |
+| PARTIAL | 18 | The mechanism exists and something in this tree gates it, but at least one required evidence slot is missing or a named gap remains. The gap is always named in evidenceGap. |
+| FAIL | 3 | A user-visible capability is known to be broken, or the evidence needed to claim it is absent while the defect it would have caught has already shipped. A FAIL row is a finding, not a placeholder. |
 | NOT_APPLICABLE | 1 | A decided, recorded exclusion with its reason. Never used for work that is merely unwritten. |
 
 ## How a status is derived
@@ -55,8 +55,8 @@ A row is `PASS` only when every one of these holds:
 | 12 | Streaming SSE framing, incremental render and cancellation | **PARTIAL** | 2 oracle fixture(s), Go implementation, 3 named test(s), 3 browser artefact(s), CI job(s) | 2 item(s) |
 | 13 | Exact tokenization and context boundaries | **PARTIAL** | 1 oracle fixture(s), upstream assets, Go implementation, 3 named test(s), 1 browser artefact(s), CI job(s), release-artifact step | 3 item(s) |
 | 14 | Files, avatars, backgrounds, images, sprites, image metadata | **PARTIAL** | 8 oracle fixture(s), Go implementation, 9 named test(s), CI job(s) | 2 item(s) |
-| 15 | Extensions: discovery, static serving, install, update, switch, delete, and the Tavern Helper / LittleWhiteBox canaries | **FAIL** | 3 oracle fixture(s), Go implementation, 4 named test(s), 2 browser artefact(s), CI job(s) | 3 item(s) |
-| 16 | Arbitrary Node server plugins | **NOT_APPLICABLE** | 1 named test(s), CI job(s) | _none_ |
+| 15 | Extensions: discovery, static serving, install, update, switch, delete, and the Tavern Helper / LittleWhiteBox canaries | **PARTIAL** | 3 oracle fixture(s), Go implementation, 6 named test(s), 2 browser artefact(s), CI job(s) | 3 item(s) |
+| 16 | Arbitrary Node server plugins | **NOT_APPLICABLE** | 3 named test(s), CI job(s) | _none_ |
 | 17 | Embeddings and vector storage | **PARTIAL** | 1 oracle fixture(s), Go implementation, 1 named test(s), CI job(s) | 2 item(s) |
 | 18 | Multi-user: create, admin, recovery, reset, private data, per-user data roots | **PARTIAL** | 6 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
 | 19 | Content import, character export, chat/account backups and restore | **PARTIAL** | 5 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
@@ -353,14 +353,14 @@ Row id: `files-and-media`
 
 Upload paths are the highest-consequence writes in the product (a user's assets). The sanitize-filename differential is unusually thorough.
 
-### Extensions: discovery, static serving, install, update, switch, delete, and the Tavern Helper / LittleWhiteBox canaries — `FAIL`
+### Extensions: discovery, static serving, install, update, switch, delete, and the Tavern Helper / LittleWhiteBox canaries — `PARTIAL`
 
 Row id: `extensions`
 
 - Oracle fixtures: `tests/oracle/sillytavern-1.19.0-extensions-discovery.json`, `tests/oracle/sillytavern-1.19.0-extensions-static.json`, `tests/oracle/sillytavern-1.19.0-extensions-routes.json`
 - Upstream assets: _none_
 - Go implementation: `internal/server`
-- Named tests: `TestPinnedExtensionDiscoverReleaseInstall`, `TestPinnedExtensionStaticEmbeddedReleaseInstall`, `TestPinnedNodeExtensionStaticServing`, `TestPluginsAreReportedAndNeverCopied`
+- Named tests: `TestPinnedExtensionDiscoverReleaseInstall`, `TestPinnedExtensionStaticEmbeddedReleaseInstall`, `TestPinnedNodeExtensionStaticServing`, `TestPluginsAreReportedAndNeverCopied`, `TestResolveAutoUpdateIsStrictAndDefaultsOff`, `TestStockConfigSayingAutoUpdateTrueResolvesOff`
 - Browser artefacts: `tests/browser/extension-tavern-helper-comparison.json`, `tests/browser/extension-littlewhitebox-comparison.json`
 - CI jobs: `ci.yml#oracle`, `browser-differential.yml#differential`
 - Release artifact: _none_
@@ -369,11 +369,11 @@ Row id: `extensions`
 
 - P0-C: extension/plugin updates happened without being asked for; no gate asserts that every ambiguous auto-update input resolves to OFF (AGENTS.md 26), which is the property that shipped broken
 - no test asserts that a dirty extension worktree is refused rather than forced (AGENTS.md 28)
-- the two canaries are compared for load and static serving, not for a deep semantic workflow in a stock tree (AGENTS.md 15)
+- the 酒馆助手 canary now proves the iframe/bridge/generation path rather than the files loading: an unsandboxed script iframe with parent.TavernHelper (157 members) reachable inside it, all 25 static host imports served, a generateRaw({ordered_prompts}) request that is byte-identical on both subjects, and a depth-0 injection visible in the generate() request (Q8/Q9/Q11). Still unproven and declared in that artefact: variable persistence (Q10 -- the drive never produced a saved chat, so variable-persisted/render-path/dom-urls are red on BOTH subjects and are evidence for neither), a preset MUTATION changing the next request (Q12), streaming (Q19) and reload/swipe (Q20)
 
 Blocked by: `startup`, `whole-session-e2e`
 
-The canary artefacts exist and are strong; what is missing is the gate on the DECISION to update, which is not a UI behaviour and no fixture watches it. That is why P0-C shipped.
+The DECISION to update now has a gate (TestResolveAutoUpdateIsStrictAndDefaultsOff plus TestStockConfigSayingAutoUpdateTrueResolvesOff), which is why this row is PARTIAL rather than FAIL. The canary artefact that carries the Q8/Q9/Q11 evidence is produced by the Browser differential workflow and is not committed to the repository yet, so the freshness check reports it NOT-COMMITTED rather than passing it.
 
 ### Arbitrary Node server plugins — `NOT_APPLICABLE`
 
@@ -382,7 +382,7 @@ Row id: `server-plugins`
 - Oracle fixtures: _none_
 - Upstream assets: _none_
 - Go implementation: _none_
-- Named tests: `TestPluginsAreReportedAndNeverCopied`
+- Named tests: `TestPluginsAreReportedAndNeverCopied`, `TestResolveAutoUpdateIsStrictAndDefaultsOff`, `TestStockConfigSayingAutoUpdateTrueResolvesOff`
 - Browser artefacts: _none_
 - CI jobs: `ci.yml#oracle`
 - Release artifact: _none_
@@ -564,7 +564,7 @@ numbers cannot drift away from the tree the way four documents once disagreed ab
 |---|---|---|
 | Oracle fixtures | 118 | 66 |
 | Browser artefacts | 36 | 11 |
-| Go test functions | 559 | 64 |
+| Go test functions | 559 | 66 |
 | Workflow jobs | 31 in 9 workflow(s) | _n/a_ |
-| Rows | 22 | PASS 0, PARTIAL 17, FAIL 4, NOT_APPLICABLE 1 |
+| Rows | 22 | PASS 0, PARTIAL 18, FAIL 3, NOT_APPLICABLE 1 |
 | Session steps | 8 | 7 with a probe, 1 without, 0 sharing a runtime |
