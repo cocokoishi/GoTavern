@@ -216,9 +216,8 @@ start_server() {
 
 # The tracer's line format, read from internal/app/startup_trace.go:96:
 #   gotavern: startup stage <name> took <duration> (total <duration>)
-# The older pattern (`startup.begin` ... `startup.ready`) is kept because docs/startup-state-machine.md 5.2
-# proposed it and a future tracer may adopt it; BOTH are counted, so neither format can leave the tally at
-# zero while a trace is present.
+# The tracer now emits the documented `startup.<stage>` token (startup.command-line ... startup.ready), and an
+# older spelling is still counted, so neither format can leave the tally at zero while a trace is present.
 stage_line_count() {
     grep -cE 'startup\.(begin|ready|[a-z_]+)|gotavern: startup stage ' "$1" 2>/dev/null || true
 }
@@ -266,11 +265,16 @@ wait_ready() {
     steps=$((READINESS_BOUND * 4))
     i=0
     while [ "$i" -lt "$steps" ]; do
-        # A stage marker is the signal the contract asks for; it is used when it exists.
-        if grep -q 'startup\.ready' "$LOG" 2>/dev/null; then
-            READY_SIGNAL="stdout stage marker startup.ready"
-            return 0
-        fi
+        # READINESS IS AN HTTP ANSWER, NOT A LOG LINE. This used to accept the tracer's startup.ready marker as
+        # an alternative signal, and that was wrong twice over: the marker is emitted just before Start returns
+        # (the heartbeat is armed after it), so it can precede the listener accepting, and it left version.json
+        # unwritten while the very next step assumed it had been fetched. Measured: run 40176412849 reported
+        # "became ready within 30s via stdout stage marker startup.ready" and then died on
+        # "cat: .../version.json: No such file or directory".
+        #
+        # A boot is ready when the port answers. The stage lines are kept for DIAGNOSIS -- stage_line_count and
+        # diagnose_hang read them -- because a boot that never answers is exactly when a reader needs to know how
+        # far it got.
         if curl -fsS -m 2 "$BASE/version" -o "$WORK/version.json" 2>/dev/null; then
             READY_SIGNAL="/version answered"
             return 0

@@ -93,7 +93,11 @@ func (t *startupTracer) finishLocked() {
 		t.open = ""
 		return
 	}
-	_, _ = fmt.Fprintf(t.writer, "gotavern: startup stage %s took %s (total %s)\n",
+	// THE TOKEN IS THE CONTRACT: ARCHITECTURE 34.2 names the stages as startup.begin .. startup.ready, and a
+	// harness that greps for that spelling must find it. Prose alone made the drop-in qualification's diagnosis
+	// report "no stage trace" while the trace was working -- a false absence, which is the failure mode this
+	// project treats as a defect in the instrument rather than in the product.
+	_, _ = fmt.Fprintf(t.writer, "gotavern: startup.%s took %s (total %s)\n",
 		t.open, elapsed.Round(time.Millisecond), now.Sub(t.began).Round(time.Millisecond))
 	t.printed = true
 	t.open = ""
@@ -108,7 +112,7 @@ func (t *startupTracer) waitBeforeLegacyDataMove(duration time.Duration) {
 	}
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
-	_, _ = fmt.Fprintf(t.writer, "gotavern: startup waiting %s before moving legacy data (pinned behaviour)\n",
+	_, _ = fmt.Fprintf(t.writer, "gotavern: startup.legacy-wait %s before moving legacy data (pinned behaviour)\n",
 		duration.Round(time.Millisecond))
 	t.printed = true
 }
