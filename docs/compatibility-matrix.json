@@ -574,7 +574,9 @@
         "tests": [
           "TestPinnedNodeFilesUpload",
           "TestPinnedNodeSpritesUpload",
-          "TestImagesRoutesMatchPinnedOracle"
+          "TestImagesRoutesMatchPinnedOracle",
+          "TestPinnedFrontendAssetContractMountsServeMarkedBytes",
+          "TestPinnedThumbnailServesTheObservableContract"
         ],
         "browserArtifacts": [],
         "ci": [
@@ -583,11 +585,11 @@
         "releaseArtifact": null
       },
       "wouldGoRedIfWrong": {
-        "test": "TestPinnedNodeFilesUpload",
+        "test": "TestPinnedFrontendAssetContractMountsServeMarkedBytes",
         "explanation": "the row's claims about files, avatars, backgrounds, images, sprites, image metadata rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
       },
       "evidenceGap": [
-        "avatar crop/resize and /thumbnail are a decided codec boundary (ARCHITECTURE.md boundary 3): byte equality is not claimed and cannot be",
+        "thumbnail bytes are a codec divergence, not a claim: /thumbnail serves a real pure-Go thumbnail at pinned's paths, dimensions and MIME, and its gate asserts the OBSERVABLE (status, MIME from the original filename, decodability, exact dimensions, cache behaviour) instead of equality with Jimp's bytes (ARCHITECTURE.md 35.2). Avatar crop/resize on /api/avatars/upload keeps the boundary until a user requirement reaches it",
         "no multi-part upload test through a real browser; every upload fixture posts a hand-built body"
       ],
       "blockedBy": [],
@@ -1085,8 +1087,8 @@
       "citedByMatrix": 11
     },
     "goTestFunctions": {
-      "inTree": 552,
-      "citedByMatrix": 58
+      "inTree": 553,
+      "citedByMatrix": 60
     },
     "workflows": {
       "inTree": 9,
