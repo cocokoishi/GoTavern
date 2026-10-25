@@ -42,8 +42,8 @@ func TestStartupTraceIsQuietUnlessSomethingWasSlowOrAsked(t *testing.T) {
 					continue
 				}
 				lines++
-				if !strings.HasPrefix(line, "gotavern: startup stage ") {
-					t.Fatalf("a trace line does not name itself: %q", line)
+				if !strings.HasPrefix(line, "gotavern: startup.") {
+					t.Fatalf("a trace line does not carry the documented startup.<stage> token: %q", line)
 				}
 			}
 			if lines != testCase.wantLines {
@@ -63,10 +63,10 @@ func TestStartupTraceClosesAnOpenStageWhenTheNextBegins(t *testing.T) {
 	tracer.begin("routes")
 	tracer.end()
 	output := buffer.String()
-	if !strings.Contains(output, "stage data-startup took") {
+	if !strings.Contains(output, "startup.data-startup took") {
 		t.Fatalf("the implicitly closed stage was not reported:\n%s", output)
 	}
-	if !strings.Contains(output, "stage routes took") {
+	if !strings.Contains(output, "startup.routes took") {
 		t.Fatalf("the later stage was not reported:\n%s", output)
 	}
 	if strings.Index(output, "data-startup") > strings.Index(output, "routes") {
@@ -84,7 +84,7 @@ func TestStartupTraceAnnouncesTheLegacyWaitBeforeSpendingIt(t *testing.T) {
 	announcedBeforeWait := false
 	tracer.waitBeforeLegacyDataMove(0)
 	mutex.Lock()
-	announcedBeforeWait = strings.Contains(buffer.String(), "waiting 0s before moving legacy data")
+	announcedBeforeWait = strings.Contains(buffer.String(), "startup.legacy-wait 0s before moving legacy data")
 	mutex.Unlock()
 	if !announcedBeforeWait {
 		t.Fatalf("the legacy wait was not announced, which is the silence this instrumentation exists to remove:\n%s", buffer.String())
