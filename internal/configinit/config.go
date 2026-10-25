@@ -5,7 +5,6 @@ package configinit
 import (
 	"bytes"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -13,7 +12,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -155,20 +153,14 @@ func canonicalConfigPath(configPath string) (string, error) {
 }
 
 func acquireLock(configPath string) (*flock.Flock, error) {
-	lockRoot := filepath.Join(os.TempDir(), "gotavern-config-locks")
-	if err := os.MkdirAll(lockRoot, 0o700); err != nil {
+	lockPath := lockPathFor(configPath)
+	if err := os.MkdirAll(filepath.Dir(lockPath), 0o700); err != nil {
 		return nil, fmt.Errorf("create config lock directory: %w", err)
 	}
-	key := configPath
-	if runtime.GOOS == "windows" {
-		key = strings.ToLower(key)
-	}
-	digest := sha256.Sum256([]byte(key))
-	lockPath := filepath.Join(lockRoot, hex.EncodeToString(digest[:])+".lock")
 	lock := flock.New(lockPath, flock.SetPermissions(0o600))
 	if err := lock.Lock(); err != nil {
 		_ = lock.Close()
-		return nil, fmt.Errorf("lock config %s: %w", configPath, err)
+		return nil, fmt.Errorf("lock config %s (%s): %w", configPath, lockPath, err)
 	}
 	return lock, nil
 }
