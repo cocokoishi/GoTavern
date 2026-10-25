@@ -21,18 +21,20 @@
     "bareNotImplemented": 0,
     "compatible": 0,
     "partial": 328,
-    "reachableCeiling": 328,
-    "reasonedExclusions": 11,
+    "reachableCeiling": 329,
+    "reasonedExclusions": 10,
     "total": 339,
     "unsupported": 0
   },
   "schemaVersion": 1,
   "scm": {
-    "commitsSinceCrossBaseline": 345,
+    "commitsSinceCrossBaseline": 436,
     "crossBaselineCommit": "d00d99b87fc2fbd1ffd218c5ce160d07f27c47ef",
     "versionTags": [
       "v0.1.0-alpha.1",
-      "v0.1.0-alpha.2"
+      "v0.1.0-alpha.2",
+      "v0.1.0-alpha.3",
+      "v0.1.0-alpha.4"
     ]
   },
   "sdGenerate": {

@@ -302,7 +302,7 @@ Earlier in this checkpoint: `v0.1.0-alpha.1` was released (run `40066449948`), t
 
 ## 1. Where the project stands
 
-**Route accounting is CLOSED.** <!-- BEGIN GENERATED: routes.accounting -->`339` inventoried routes; `0` bare `not implemented`; `11` reasoned exclusions; `328` reachable.<!-- END GENERATED: routes.accounting --> That is a statement about ROUTES. It is not a release-ready claim: almost every area is still `partial` because the
+**Route accounting is CLOSED.** <!-- BEGIN GENERATED: routes.accounting -->`339` inventoried routes; `0` bare `not implemented`; `10` reasoned exclusions; `329` reachable.<!-- END GENERATED: routes.accounting --> That is a statement about ROUTES. It is not a release-ready claim: almost every area is still `partial` because the
 E (browser events/final state) and C (cancel/streaming) surfaces are measured for few of them, and
 because the release path itself has only just begun to be EXECUTED.
 
@@ -563,6 +563,6 @@ the evidence, and what is still open; none is softened into "in progress".
    proxy handling, TLS and GitHub's redirect behaviour UNMEASURED. Run 39907640873 proves the installer logic,
    not the path.
 6. **Package tags: the tag exists; registry state is unverified here.** `git tag -l 'v*'` returns
-   <!-- BEGIN GENERATED: release.versionTags -->`v0.1.0-alpha.1`, `v0.1.0-alpha.2`<!-- END GENERATED: release.versionTags --> at `2dde1fa`, and the release is published (run 40066449948). `:latest` is deliberately
+   <!-- BEGIN GENERATED: release.versionTags -->`v0.1.0-alpha.1`, `v0.1.0-alpha.2`, `v0.1.0-alpha.3`, `v0.1.0-alpha.4`<!-- END GENERATED: release.versionTags --> at `2dde1fa`, and the release is published (run 40066449948). `:latest` is deliberately
    not moved by a prerelease (`scripts/classify-version-tag.sh`), and this host has no network, so whether the
    registry still carries stale dispatch-only tags cannot be checked offline.
