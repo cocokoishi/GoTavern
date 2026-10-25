@@ -247,7 +247,7 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		AllowFullDataBackup:        getConfigValue(config, "backups.allowFullDataBackup", true, cliBoolean),
 		AllowKeysExposure:          getConfigValue(config, "allowKeysExposure", false, cliBoolean),
 		ExtensionsEnabled:          getConfigValue(config, "extensions.enabled", true, cliBoolean),
-		ExtensionsAutoUpdate:       getConfigValue(config, "extensions.autoUpdate", true, cliBoolean),
+		ExtensionsAutoUpdate:       resolveAutoUpdateOption(config),
 		RequestCompressionEnabled:  getConfigValue(config, "performance.requestCompression.enabled", false, cliBoolean),
 		RequestCompressionMin:      getConfigValue(config, "performance.requestCompression.minPayloadSize", "256kb", cliString),
 		RequestCompressionMax:      getConfigValue(config, "performance.requestCompression.maxPayloadSize", "8mb", cliString),
@@ -455,6 +455,15 @@ func getConfigValue(config map[string]any, key string, fallback any, conversion 
 	}
 }
 
+// resolveAutoUpdateOption reads AutoUpdateKey and resolves it without jsBoolean.
+//
+// The inherited keys (extensions.autoUpdate, enableServerPluginsAutoUpdate) are deliberately NOT read here:
+// they arrive `true` from the pinned fresh config and would enable updates nobody asked for. They stay
+// available for reporting, and the settings route reports THIS value.
+func resolveAutoUpdateOption(config map[string]any) bool {
+	raw, present := dottedValue(config, AutoUpdateKey)
+	return ResolveAutoUpdate(raw, present)
+}
 func configValue(config map[string]any, key string, fallback any, conversion cliOptionKind) any {
 	return getConfigValue(config, key, fallback, conversion)
 }

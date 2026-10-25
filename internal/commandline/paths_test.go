@@ -75,6 +75,27 @@ type commandlinePathWarnings struct {
 	FailedDataRootCreation bool `json:"failedDataRootCreation"`
 }
 
+// pinnedDivergences lists the fields where GoTavern deliberately resolves differently from the pinned Node
+// command-line parser, with BOTH values recorded so neither side can drift silently. Keyed by the exact
+// option field name -- never a pattern or a wildcard, which would turn a product decision into the widened
+// normalisation that provider-wire discipline forbids.
+var pinnedDivergences = map[string]struct {
+	gotavern any
+	// pinned is the SET of values the pinned fixture is allowed to hold for this field. A set rather than a single
+	// value because pinned's parser genuinely yields both: it follows whatever the config says, so a scenario whose
+	// config asks for false records false. Ours is the constant in gotavern, in every scenario. Every value observed
+	// must be declared, and every declared value must be observed at least once -- otherwise the entry has stopped
+	// describing a real divergence and is reported instead of kept as permission.
+	pinned map[string]any
+	reason string
+}{
+	"extensionsAutoUpdate": {
+		gotavern: false,
+		pinned:   map[string]any{"true": true, "false": false},
+		reason:   "ARCHITECTURE 34.3 / rule 26: GoTavern never enables extension auto-update from an inherited key; pinned follows the config and its own default is true (upstream/default/config.yaml:301), and that default is deliberately not honoured",
+	},
+}
+
 func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 	fixtureBytes, err := os.ReadFile(filepath.Join("..", "..", "tests", "oracle", "sillytavern-1.19.0-commandline-paths.json"))
 	if err != nil {
@@ -188,8 +209,18 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 			if err := json.Unmarshal(actualOptions, &normalizedOptions); err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(normalizedOptions, scenario.Result.Options) {
-				t.Errorf("server options = %#v, Node has %#v", normalizedOptions, scenario.Result.Options)
+			// PINNED DIVERGENCES, DECLARED EXACTLY, BY FIELD, AND CHECKED ON BOTH SURFACES.
+			//
+			// The field this project deliberately resolves differently (extensionsAutoUpdate, ARCHITECTURE 34.3 /
+			// rule 26) is reported in the STARTUP SETTINGS, not in the resolved options -- the first version of
+			// this declaration named the right field for the wrong surface and the phantom-entry guard said so
+			// ("not in GoTavern's resolved options"), which is the guard working. So the declaration is applied to
+			// both comparable surfaces, each entry must hold on BOTH sides wherever it appears, and it must be met
+			// at least once or it is dead permission.
+			usedDivergences := make(map[string]bool, len(pinnedDivergences))
+			remainingActual, remainingPinned := dropPinnedDivergences(t, "resolved options", normalizedOptions, scenario.Result.Options, usedDivergences)
+			if !reflect.DeepEqual(remainingActual, remainingPinned) {
+				t.Errorf("server options = %#v, Node has %#v", remainingActual, remainingPinned)
 			}
 			actualStartupSettings, err := json.Marshal(jsonSafe(got.StartupSettings))
 			if err != nil {
@@ -199,8 +230,14 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 			if err := json.Unmarshal(actualStartupSettings, &normalizedStartupSettings); err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(normalizedStartupSettings, scenario.Result.StartupSettings) {
-				t.Errorf("startup settings = %#v, Node has %#v", normalizedStartupSettings, scenario.Result.StartupSettings)
+			remainingSettings, remainingPinnedSettings := dropPinnedDivergences(t, "startup settings", normalizedStartupSettings, scenario.Result.StartupSettings, usedDivergences)
+			if !reflect.DeepEqual(remainingSettings, remainingPinnedSettings) {
+				t.Errorf("startup settings = %#v, Node has %#v", remainingSettings, remainingPinnedSettings)
+			}
+			for field := range pinnedDivergences {
+				if !usedDivergences[field] {
+					t.Errorf("declared divergence %q matched neither the resolved options nor the startup settings; delete the declaration", field)
+				}
 			}
 			if !reflect.DeepEqual(got.Warnings, scenario.Result.OptionWarnings) {
 				t.Errorf("server option warnings = %+v, Node has %+v", got.Warnings, scenario.Result.OptionWarnings)
@@ -217,6 +254,54 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 			}
 		})
 	}
+}
+
+// dropPinnedDivergences applies the declared per-field divergences to one pair of comparable surfaces and
+// returns copies with the declared fields removed. Each entry asserts BOTH values where it appears, so a
+// declaration can only survive while it is still true about both sides, and it records which fields it actually
+// met so a declaration that matches nothing is reported instead of silently granting permission.
+func dropPinnedDivergences(t *testing.T, surface string, actual, pinned map[string]any, used map[string]bool) (map[string]any, map[string]any) {
+	t.Helper()
+	remainingActual := make(map[string]any, len(actual))
+	for field, value := range actual {
+		remainingActual[field] = value
+	}
+	remainingPinned := make(map[string]any, len(pinned))
+	for field, value := range pinned {
+		remainingPinned[field] = value
+	}
+	for field, divergence := range pinnedDivergences {
+		gotValue, gotPresent := remainingActual[field]
+		pinnedValue, pinnedPresent := remainingPinned[field]
+		if !gotPresent && !pinnedPresent {
+			continue
+		}
+		if !gotPresent {
+			t.Errorf("%s: declared divergence %q is absent from GoTavern's value but present in the pinned fixture", surface, field)
+			continue
+		}
+		if !pinnedPresent {
+			t.Errorf("%s: declared divergence %q is absent from the pinned fixture but present in GoTavern's value", surface, field)
+			continue
+		}
+		if !reflect.DeepEqual(gotValue, divergence.gotavern) {
+			t.Errorf("%s: %s = %#v, declared GoTavern value is %#v (%s)", surface, field, gotValue, divergence.gotavern, divergence.reason)
+		}
+		declared := false
+		for _, allowed := range divergence.pinned {
+			if reflect.DeepEqual(pinnedValue, allowed) {
+				declared = true
+				break
+			}
+		}
+		if !declared {
+			t.Errorf("%s: %s is %#v in the pinned fixture, which is not one of the declared pinned values %#v; re-read the declaration before changing it (%s)", surface, field, pinnedValue, divergence.pinned, divergence.reason)
+		}
+		used[field] = true
+		delete(remainingActual, field)
+		delete(remainingPinned, field)
+	}
+	return remainingActual, remainingPinned
 }
 
 func TestResolveCommandLineMarksExplicitNullThumbnailDimensionsAsConfigured(t *testing.T) {
