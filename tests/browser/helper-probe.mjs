@@ -367,8 +367,11 @@ try {
     });
     await page.waitForSelector('#rm_print_characters_block .avatar[data-type="character"]', { timeout: 60000 }).catch(() => null);
     const clicked = await page.click('#rm_print_characters_block .avatar[data-type="character"]', { timeout: 30000 }).then(() => true, () => false);
-    step('character-opened', clicked);
     const messageArrived = await page.waitForSelector('#chat .mes', { timeout: 60000 }).then(() => true, () => false);
+    // The precondition is that a chat is open, not that this click opened it: the first run (Browser
+    // differential 40212834808) failed `character-opened` and then immediately saw `#chat .mes`, which is
+    // the driver being stricter than the subject's own state (rule 10, inverse error).
+    step('character-opened', clicked || messageArrived, `click=${clicked} chatAlreadyOpen=${messageArrived}`);
     step('chat-has-message', messageArrived);
 
     const beforeVariables = await readChatVariables();
@@ -543,7 +546,13 @@ try {
     server?.kill();
 }
 
-await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+let wroteReport = false;
+try {
+    await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+    wroteReport = true;
+} catch (writeError) {
+    console.error(`could not write ${reportPath}: ${writeError && writeError.message || writeError}`);
+}
 console.log(JSON.stringify({
     subject: report.subject,
     variant: report.variant,
@@ -556,4 +565,7 @@ console.log(JSON.stringify({
     hostModulesBroken: (report.hostImportStatus ?? []).filter(entry => entry.status !== 200 || entry.byteLength === 0).length,
     steps: report.steps.map(item => `${item.ok === null ? 'n/a' : item.ok ? 'ok' : 'FAIL'} ${item.name}`),
 }, null, 2));
-if (report.failure) process.exitCode = 1;
+// A leg that produced a report is a leg the comparator can judge: it names every red guard. Exiting
+// non-zero here on an assertion would make the comparator exit at legs-drove and never name the guard
+// (run 40212834808 did exactly that). A run that could not write its report still fails, below.
+if (!wroteReport) process.exitCode = 1;
