@@ -9,12 +9,12 @@ import "testing"
 // divergence is evidence in the file rather than a claim in a report.
 func TestResolveAutoUpdateIsStrictAndDefaultsOff(t *testing.T) {
 	cases := []struct {
-		name          string
-		raw           any
-		present       bool
-		want          bool
+		name           string
+		raw            any
+		present        bool
+		want           bool
 		jsBooleanToday bool
-		why           string
+		why            string
 	}{
 		{"absent", nil, false, false, false, "no key: off, whatever the pinned default says"},
 		{"null", nil, true, false, false, "an explicit null is not a value"},
