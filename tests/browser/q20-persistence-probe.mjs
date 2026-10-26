@@ -40,11 +40,12 @@
 // page's own call, and recorded in the artefact. Without a per-subject content difference the second turn's
 // comparison would be satisfied by any two equal requests.
 //
-// WHY THE FIRST TURN IS SILENTED. A send needs a main API. This leg sets `powerUserSettings.savingAfterComplete =
-// false` so `finishGenerating` does not re-save mid-generation, and the send itself creates the chat identity, so
-// no provider call is needed to get a file on disk. The Q20 pair then starts from THE SAME ON-DISK CHAT on both
-// subjects -- which is what makes the second turn's request comparable in content. The provider path of a send is
-// NOT the subject of this leg; it is proven elsewhere.
+// WHY THE FIRST TURN IS SILENTED. A send needs a main API. This leg sets `power_user.savingAfterComplete = false`
+// (`scripts/power-user.js`, the object `getContext().powerUserSettings` also resolves to) so `finishGenerating` does
+// not re-save mid-generation, and the send itself creates the chat identity, so no provider call is needed to get a
+// file on disk. The Q20 pair then starts from THE SAME ON-DISK CHAT on both subjects -- which is what makes the
+// second turn's request comparable in content. The provider path of a send is NOT the subject of this leg; it is
+// proven elsewhere.
 //
 // WHAT THIS DOES NOT PROVE, stated here so the artefact's `notCompared` can repeat it: a real provider (rule 22),
 // streaming (Q19), regenerate/continue (Q20's other two verbs), group chats, and branch/checkpoint features.
@@ -343,14 +344,18 @@ try {
         set('#custom_model_id', model);
         set('#api_key_custom', 'probe-key');
         const openai = await import('./scripts/openai.js');
-        const st = await import('./script.js');
+        // THE SAME OBJECT `getContext().powerUserSettings` RESOLVES TO, imported directly. Run 40298378524 measured
+        // what the context route costs: the first turn's `page.evaluate` threw
+        // "TypeError: Cannot set properties of undefined (setting 'savingAfterComplete')" on BOTH subjects, because
+        // `script.js` has no named `powerUserSettings` export -- openai.js gets it from `./power-user.js` (:46).
+        const power = await import('./scripts/power-user.js');
         // THE FIRST TURN IS SILENTED (decided, above): the post-generation save would otherwise land mid-generation,
         // and this leg needs a chat IDENTITY, not a provider reply, from the send.
-        st.powerUserSettings.savingAfterComplete = false;
+        power.power_user.savingAfterComplete = false;
         return {
             source: openai.oai_settings.chat_completion_source ?? null,
             url: openai.oai_settings.custom_url ?? null,
-            savingAfterComplete: st.powerUserSettings.savingAfterComplete ?? null,
+            savingAfterComplete: power.power_user.savingAfterComplete ?? null,
         };
     }, { url: peerBase, model: 'probe-model' });
     step('connection-configured', connected.source === 'custom' && String(connected.url ?? '').includes(String(peer.port)), JSON.stringify(connected));
@@ -430,8 +435,8 @@ try {
         set('#custom_model_id', model);
         set('#api_key_custom', 'probe-key');
         const openai = await import('./scripts/openai.js');
-        const st = await import('./script.js');
-        st.powerUserSettings.savingAfterComplete = false;
+        const power = await import('./scripts/power-user.js');
+        power.power_user.savingAfterComplete = false;
         return { source: openai.oai_settings.chat_completion_source ?? null, url: openai.oai_settings.custom_url ?? null };
     }, { url: peerBase, model: 'probe-model' });
     report.afterReload = { ...afterReload, reopened, reconnected, settingsReadyAfterReload: readyReload };
