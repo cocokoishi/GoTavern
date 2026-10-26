@@ -116,6 +116,19 @@ Two defects in the generator's first version were caught by its own assertions, 
 document exists to prevent: a filler that preserved the RAW string length lost 445 bytes because the
 document is measured after JSON escaping, and six profile comparisons read nested fields off the top level
 and so compared `undefined === undefined`, which cannot fail.
+### 5.2 How the real preset must reach the capture leg (decided 2026-10-25)
+
+A real preset is a FILE the frontend's own preset manager reads, so the leg has to LOAD it, not rebuild it.
+Measured from `tests/browser/preset-kit.mjs`: `applyPresetKit` installs only three prompts by assigning
+`getPromptById(identifier).content` (`:409-427`) and then READS the live order with
+`getPromptOrderForCharacter()` to assert ten identifiers are not disabled (`:431-436`). It never sets a row
+and never replaces the prompt list, so a spec that carried 109/115 order rows would have no consumer -- the
+"artefact field with no producer" shape this project keeps finding, caught before it was written.
+
+Therefore: copy the fixture to `<dataRoot>/default-user/OpenAI Settings/<name>.json` on both legs, select it
+through `#settings_preset_openai`, and assert the frontend reports **105 prompts / 109 rows / 66 enabled** for
+A and **119 / 115 / 39** for B. Those three numbers are the proof that the real preset is in play; without
+them a cross-leg green is a statement about the default preset.
 ### 5.1 Measured by `tools/real-fixture-profile.mjs`, not copied from §2
 
 The profiler recomputes every number in §2 from the bytes of the originals and is the single definition
