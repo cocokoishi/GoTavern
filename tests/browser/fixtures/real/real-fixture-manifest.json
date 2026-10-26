@@ -363,7 +363,7 @@
           },
           {
             "path": "extensions.regex_scripts.*.id",
-            "why": "measured: card B's script id is `[REDACTED_HANDLE]`, a handle",
+            "why": "measured: card B's regex script id is a 31-byte author handle; replaced with a same-length marker",
             "replaced": 22
           }
         ],
