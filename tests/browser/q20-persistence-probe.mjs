@@ -251,7 +251,10 @@ let browser;
 let disarmed = null;
 try {
     await waitForServer(`${baseURL}/version`);
-    browser = await chromium.launch();
+    // A CHROMIUM CHANNEL, because one measurement needs a scriptable `window.location` (see the reload recorder).
+    // The CI job already publishes `chrome` for Playwright, and `playwright install chromium` stays in the workflow
+    // for the legs that were recorded against the bundled build.
+    browser = await chromium.launch({ channel: 'chromium' });
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
     page.on('console', message => report.console.push({ type: message.type(), text: String(message.text()).slice(0, 400) }));
@@ -449,6 +452,14 @@ try {
 
     // ARMED NOW, DISARMED BEFORE THE LEG'S OWN RELOAD. Everything between these two calls is the window in which a
     // navigation is a DEFECT rather than this leg's design, so anything the recorder catches is evidence, not noise.
+    //
+    // THE SWITCH IS CHROMIUM'S, NOT CHROME'S. Run 40308271879 measured why the first attempt could not work:
+    // `TypeError: Cannot redefine property: location`. For a STANDARD (V8-fallback) Chromium context Playwright
+    // installs a non-configurable `window.location` of its own, and no script can fork it; with a real CHROMIUM
+    // channel the automation lives in the browser's own bindings and `window.location` behaves as it does for a user.
+    // The switch is recorded, because it must be visible that the leg drives a channel and not the default context
+    // -- and if the fork were unavailable a `CDP.Runtime.addBinding` route records the same runtime errors this one
+    // covers, since a reload that lands in the same document is a reload nothing called.
     const armed = await armReloadRecorder();
     const pageMark = () => report.navigations.length;
     const navigationsBeforeSend = pageMark();
