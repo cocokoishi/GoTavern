@@ -2,60 +2,58 @@
 //
 // WHY THIS IS ITS OWN SURFACE AND ITS OWN FILE. Every other streaming artefact records the page talking
 // DIRECTLY to an in-process peer on loopback -- one unbroken connection, no middle, plain HTTP -- so the
-// matrix row's gap ("a real network's chunk boundaries, a proxy that buffers, a mid-stream TLS close")
-// is not a gap in the recorder but in the hop underneath it. `compare-streaming-framing.mjs` puts a real
-// TCP hop between subject and peer and records three surfaces through it; this module is the gate on
-// that artefact.
+// matrix row's gap was never a gap in the recorder but in the hop underneath it.
+// `compare-streaming-framing.mjs` puts a real TCP hop between subject and peer and records three surfaces
+// through it (direct, relayed, cut); this module is the gate on that artefact.
 //
 // WHAT IT DOES DIFFERENTLY FROM `streamingSurfacesProven`. That gate reads a surface's `checks` and
-// RECOMPUTES each derivable one from the per-leg numbers, so a hand-edited flag contradicts the data.
-// This artefact stores the per-leg OBSERVATIONS in `observations`, so the same treatment is possible and
-// is done: every guard is rebuilt from `observations` and from the hop's own record, and a recorded flag
-// that disagrees with its own data is a finding.
+// RECOMPUTES each derivable one from the per-leg numbers, so a hand-edited flag contradicts the data. This
+// artefact stores the per-leg OBSERVATIONS in `observations`, so the same treatment is possible and is
+// done: every derivable guard is rebuilt from `observations` and from the hop's own record. The key is the
+// SURFACE NAME (`observations.stream` / `.relayed` / `.abort`), which the first draft got wrong by reading
+// `observations.streaming` -- it recomputed every streaming guard from an empty object, which made the
+// healthy artefact RED and a wrong artefact GREEN. tests/browser/streaming-framing-verifier-selftest.mjs is
+// what catches that shape.
 //
 // A GUARD THIS GATE DOES NOT KNOW IS A FINDING, exactly as in `streamingSurfacesProven`: an artefact that
 // grows a check nobody reads is a claim nobody checks.
 
 const show = value => JSON.stringify(value)?.slice(0, 240) ?? String(value);
 
-/** The guard names this gate can recompute from the artefact's own observations. */
+/** The guards this gate can recompute from the artefact's own observations and hop record. */
 export const FRAMING_GUARD_NAMES = {
-    streaming: [
+    stream: [
         'incrementalRenderObservedOnBoth', 'renderAdvancedMonotonicallyOnBoth',
         'renderedStatesNeverExceedContentFrames', 'everySubjectAppliedAtLeastOneContentFrame',
-        'finalTextEqualAndNonEmpty', 'noPageErrorsOnEitherSubject',
+        'finalTextEqualAndNonEmpty', 'noHopOnTheDirectSurface', 'noPageErrorsOnEitherSubject',
     ],
-    buffered: [
-        'bufferingProxyHeldTheWholeBody', 'bufferingProxyReleasedEveryFrameInThatWrite', 'noCutInTheBufferingSurface',
-        'forwardedRequestBytesEqual', 'hopForwardedWhatThePeerReceived',
-        'incrementalRenderAdvancedThroughTheBufferingProxy', 'noPageErrorsThroughTheHop',
+    relayed: [
+        'hopPresentOnBothSubjects', 'hopRelayedInMoreThanOneWrite', 'hopRelayedEveryFrame',
+        'noCutInTheRelayedSurface', 'relayedDeliveredContentToThePage', 'noPageErrorsThroughTheHop',
     ],
     abort: [
-        'networkCutBothSubjectsMidStream', 'peerDidNotDisconnect', 'noCallerCancelOnEitherSubject',
-        'contentRenderedBeforeTheCutOnBoth', 'partialTextIdenticalOnBothSubjects',
-        'sameTruncationOnBothSubjects', 'releasedByteCountEqualOnBothSubjects', 'noPageErrorsOnEitherSubject',
+        'hopCutBothSubjectsMidStream', 'hopRelayedTheReachabilityCheckWhole', 'hopFramedTheStreamSoTheCutIsDetectable',
+        'noCallerCancelOnEitherSubject', 'peerWroteMoreThanTheHopReleased', 'contentRenderedBeforeTheCutOnBoth',
+        'partialTextIdenticalOnBothSubjects', 'sameTruncationOnBothSubjects', 'sameReleasedByteCountOnBothSubjects',
+        'noPageErrorsOnEitherSubject',
     ],
 };
 
-// Guards that CANNOT be recomputed from this artefact because they need data the flight recorder did not
-// keep (the per-request prototype state, the frontend's own idle flag). They are checked for PRESENCE and
-// truth, and named here so the omission is a stated hole rather than an implied success.
+// Guards that CANNOT be recomputed from this artefact because they need per-request data it does not keep
+// (the request bodies, the peer's disconnect flags, the page's own post-cut timing). They are checked for
+// PRESENCE and truth, and named here so the omission is a stated hole rather than an implied success.
 export const FRAMING_NOT_RECOMPUTABLE = [
     'bothSubjectsReachedThePeer', 'providerRequestBytesEqual', 'requestStreamFlagSetOnBoth',
     'bothSubjectsSawTheWholeScript', 'bothSubjectsSawTheWholeScriptThroughTheHop',
-    'peerWroteMoreThanItDelivered', 'partialTextIsAProperPrefixOfTheWholeReply',
-    'noFurtherChunksAppliedAfterTheCut', 'generationEndedOnBothSubjects', 'bufferedFinalTextEqualsTheDirectStream',
+    'hopForwardedIdenticalRequestBytes', 'hopForwardedWhatThePeerReceived', 'relayedFinalTextEqualsTheDirectStream',
+    'peerDidNotDisconnect', 'partialTextIsAProperPrefixOfTheWholeReply', 'noFurtherChunksAppliedAfterTheCut',
+    'pageReturnedToIdleOnBothSubjects',
 ];
 
 const isPrefixSequence = texts => texts.every((text, index) => index === 0 || text.startsWith(texts[index - 1]));
 
-/** Recomputes every derivable streaming-surface guard from `observations.streaming` and the artefact. */
+/** Recomputes every derivable guard for one surface from `observations[surface]` and the hop record. */
 export function recomputeFramingSurface(artifact, surface) {
-    // THE OBSERVATION BLOCK IS KEYED BY SURFACE NAME, the same name this function recomputes for: the
-    // comparator writes observations.streaming / .buffered / .abort, and the first draft read
-    // observations.stream and silently recomputed from an empty object -- which made the healthy artefact
-    // red and would have made a wrong artefact green for stream. MEASURED, not assumed: the exact-key
-    // lookup is what the harness in this repository exists to catch.
     const observed = artifact.observations?.[surface] ?? {};
     const gotavern = observed.gotavern ?? {};
     const pinned = observed.pinned ?? {};
@@ -64,32 +62,47 @@ export function recomputeFramingSurface(artifact, surface) {
     const hop = artifact.hop ?? {};
     const common = {
         noPageErrorsOnEitherSubject: (gotavern.pageErrors ?? 0) === 0 && (pinned.pageErrors ?? 0) === 0,
+        noPageErrorsThroughTheHop: (gotavern.pageErrors ?? 0) === 0 && (pinned.pageErrors ?? 0) === 0,
     };
-    if (surface === 'streaming') {
-        const contentFrames = Math.max(0, Math.max(...(hop.framesWritten?.gotavern ?? [0]), 0) - 1);
+    if (surface === 'stream') {
+        // `streamFramesWritten` is the peer's count for the DIRECT run, which is the run this surface's
+        // render states belong to (the cut run's count is `framesWritten`).
+        const contentFrames = Math.max(0, Math.max(...(hop.streamFramesWritten?.gotavern ?? [0]), 0) - 1);
         return {
             ...common,
             incrementalRenderObservedOnBoth: gvTexts.length >= 3 && pnTexts.length >= 3,
             renderAdvancedMonotonicallyOnBoth: isPrefixSequence(gvTexts) && isPrefixSequence(pnTexts),
             renderedStatesNeverExceedContentFrames: gvTexts.length <= contentFrames && pnTexts.length <= contentFrames,
             everySubjectAppliedAtLeastOneContentFrame: gvTexts.length >= 1 && pnTexts.length >= 1,
+            finalTextEqualAndNonEmpty: (gotavern.finalText ?? null) === (pinned.finalText ?? null) && String(gotavern.finalText ?? '').length > 0,
+            noHopOnTheDirectSurface: hop.mode?.direct === undefined || hop.mode?.direct === null,
         };
     }
-    if (surface === 'buffered') {
+    if (surface === 'relayed') {
         return {
             ...common,
-            bufferingProxyHeldTheWholeBody: (hop.bufferedWrites?.gotavern ?? 0) === 1 && (hop.bufferedWrites?.pinned ?? 0) === 1,
-            incrementalRenderAdvancedThroughTheBufferingProxy: gvTexts.length >= 3 && pnTexts.length >= 3,
+            hopPresentOnBothSubjects: hop.mode?.relayed === 'pass-through',
+            hopRelayedInMoreThanOneWrite: (hop.relayedWrites?.gotavern ?? 0) > 1 && (hop.relayedWrites?.pinned ?? 0) > 1,
+            hopRelayedEveryFrame: (hop.relayedFrames?.gotavern ?? 0) >= (hop.relayedFrames?.expected ?? Infinity)
+                && (hop.relayedFrames?.pinned ?? 0) >= (hop.relayedFrames?.expected ?? Infinity),
+            noCutInTheRelayedSurface: hop.relayedCut?.gotavern === null && hop.relayedCut?.pinned === null,
+            relayedDeliveredContentToThePage: gvTexts.length >= 1 && pnTexts.length >= 1,
         };
     }
     return {
         ...common,
-        networkCutBothSubjectsMidStream: hop.cut?.gotavern === 'cut-after-bytes' && hop.cut?.pinned === 'cut-after-bytes',
+        hopCutBothSubjectsMidStream: hop.mode?.abort === 'cut' && hop.cut?.gotavern === 'cut-after-bytes' && hop.cut?.pinned === 'cut-after-bytes',
+        hopRelayedTheReachabilityCheckWhole: (hop.cutArmedResponses?.gotavern ?? 0) >= 1 && (hop.cutArmedResponses?.pinned ?? 0) >= 1
+            && (hop.relayedWholeResponses?.gotavern ?? 0) >= 1 && (hop.relayedWholeResponses?.pinned ?? 0) >= 1,
+        hopFramedTheStreamSoTheCutIsDetectable: (hop.gzipFramedResponses?.gotavern ?? 0) >= 1 && (hop.gzipFramedResponses?.pinned ?? 0) >= 1,
+        noCallerCancelOnEitherSubject: gotavern.stopClickedAt === null && pinned.stopClickedAt === null,
+        peerWroteMoreThanTheHopReleased: (hop.releasedBytesUnderCut?.gotavern ?? 0) > 0 && (hop.releasedBytesUnderCut?.pinned ?? 0) > 0,
         contentRenderedBeforeTheCutOnBoth: gvTexts.length >= 1 && pnTexts.length >= 1,
         partialTextIdenticalOnBothSubjects: (gotavern.finalText ?? null) === (pinned.finalText ?? null) && String(gotavern.finalText ?? '').length > 0,
-        sameTruncationOnBothSubjects: JSON.stringify(gvTexts) === JSON.stringify(pnTexts),
-        releasedByteCountEqualOnBothSubjects: hop.releasedBytesUnderCut?.gotavern !== null
-            && hop.releasedBytesUnderCut?.gotavern === hop.releasedBytesUnderCut?.pinned,
+        sameTruncationOnBothSubjects: JSON.stringify(gvTexts) === JSON.stringify(pnTexts) && gvTexts.length >= 1,
+        sameReleasedByteCountOnBothSubjects: (hop.releasedBytesUnderCut?.gotavern ?? null) !== null
+            && hop.releasedBytesUnderCut?.gotavern === hop.releasedBytesUnderCut?.pinned
+            && (hop.releasedBytesUnderCut?.gotavern ?? 0) > 0,
     };
 }
 
@@ -97,14 +110,14 @@ export function recomputeFramingSurface(artifact, surface) {
  * Gates `streaming-framing-comparison.json`.
  *
  * A missing file is NOT a pass and NOT a failure: the surface is produced only by a `stream`-mode run of
- * the browser differential, so a run that did not ask for it must report NOT-RECORDED. A COMMITTED file
- * that cannot be read, or that contradicts its own observations, is a failure.
+ * the browser differential, so a run that did not ask for it reports NOT-RECORDED (the driver does that). A
+ * COMMITTED file that cannot be read, or that contradicts its own observations, is a failure.
  */
 export function streamingFramingSurface(ctx, artifact) {
     if (!artifact) {
         return;
     }
-    for (const surface of ['streaming', 'buffered', 'abort']) {
+    for (const surface of ['stream', 'relayed', 'abort']) {
         const block = artifact[surface];
         if (!block) {
             ctx.fail(`the ${surface} block is missing, so that network surface was never compared`);
@@ -118,7 +131,8 @@ export function streamingFramingSurface(ctx, artifact) {
                 ctx.fail(`${surface}.guards.${name} is ${show(guards[name])}`);
             }
         }
-        const unexpected = Object.keys(guards).filter(name => !FRAMING_GUARD_NAMES[surface].includes(name) && !FRAMING_NOT_RECOMPUTABLE.includes(name));
+        const known = FRAMING_GUARD_NAMES[surface].concat(FRAMING_NOT_RECOMPUTABLE);
+        const unexpected = Object.keys(guards).filter(name => !known.includes(name));
         if (unexpected.length > 0) {
             ctx.fail(`${surface}.guards carries ${show(unexpected)}, which this gate does not know; a check nobody reads is a claim nobody checks`);
         }
@@ -143,28 +157,33 @@ export function streamingFramingSurface(ctx, artifact) {
             ctx.fail(`${surface}.proven is not true; failing guards: ${failed.join(', ') || '(none isolated)'}`);
         }
     }
-    // THE HEADLINE CLAIM, recomputed rather than read.
-    const surfacesProven = ['streaming', 'buffered', 'abort'].every(surface => artifact[surface]?.proven === true);
+    const surfacesProven = ['stream', 'relayed', 'abort'].every(surface => artifact[surface]?.proven === true);
     if (artifact.proven !== surfacesProven) {
         ctx.fail(`proven is ${show(artifact.proven)} but the three network surfaces recompute to ${surfacesProven}`);
     }
     if (artifact.proven !== true) {
         ctx.fail('proven is not true, so no claim about streaming through a real hop may rest on this artefact');
     }
-    // THE HOP MUST HAVE DONE SOMETHING. A buffering surface whose hop issued more than one write measured
-    // the pass-through case, and the single most important thing this artefact claims would be false.
+    // THE HOP MUST HAVE DONE WHAT THE SURFACES CLAIM IT DID, read from the hop's own record rather than
+    // from the guards derived from it: a relay that wrote once was not a relay, and a cut that released
+    // nothing truncated nothing.
     for (const leg of ['gotavern', 'pinned']) {
-        if ((artifact.hop?.bufferedWrites?.[leg] ?? 0) !== 1) {
-            ctx.fail(`hop.bufferedWrites.${leg} is ${show(artifact.hop?.bufferedWrites?.[leg])}, so the hop did not hold the body in the buffering surface and that surface measures something else`);
+        if ((artifact.hop?.relayedWrites?.[leg] ?? 0) <= 1) {
+            ctx.fail(`hop.relayedWrites.${leg} is ${show(artifact.hop?.relayedWrites?.[leg])}, so the hop did not relay the body on that subject and the relayed surface measures the direct connection`);
         }
         if ((artifact.hop?.releasedBytesUnderCut?.[leg] ?? 0) <= 0) {
             ctx.fail(`hop.releasedBytesUnderCut.${leg} is ${show(artifact.hop?.releasedBytesUnderCut?.[leg])}, so no body was released before the cut and nothing was truncated`);
         }
+        if (artifact.hop?.cut?.[leg] !== 'cut-after-bytes') {
+            ctx.fail(`hop.cut.${leg} is ${show(artifact.hop?.cut?.[leg])}, so the cut the abort surface is about did not happen to that subject`);
+        }
     }
-    // THE UNPROVEN LIST IS PART OF THE CLAIM. An artefact that declines to say what it does not cover would
-    // read as complete (GOAL.md 13, AGENTS.md 36).
-    if (!Array.isArray(artifact.notCompared) || artifact.notCompared.length < 3) {
+    // THE UNPROVEN LIST IS PART OF THE CLAIM. An artefact that declines to say what it does not cover reads
+    // as complete (GOAL.md 13, AGENTS.md 36) -- and this one must name the buffering mode it DELETED.
+    if (!Array.isArray(artifact.notCompared) || artifact.notCompared.length < 4) {
         ctx.fail('notCompared does not name what this artefact leaves unproven; a surface with a hidden gap is the defect this gate exists for');
+    } else if (!artifact.notCompared.some(line => /buffer/i.test(String(line)))) {
+        ctx.fail('notCompared does not name the buffering-proxy mode that was measured and removed, so a reader would assume it was proven');
     }
-    ctx.observe(`network hop: buffering released the whole body in one write on both subjects (${artifact.hop?.bufferedWrites?.gotavern}/${artifact.hop?.bufferedWrites?.pinned} write(s)); the cut released ${artifact.hop?.releasedBytesUnderCut?.gotavern} B of ${show(artifact.hop?.framesWritten?.gotavern)} frame(s) on both subjects`);
+    ctx.observe(`network hop: relayed in ${artifact.hop?.relayedWrites?.gotavern}/${artifact.hop?.relayedWrites?.pinned} write(s) with ${artifact.hop?.relayedFrames?.gotavern}/${artifact.hop?.relayedFrames?.pinned} frame(s); the cut released ${show(artifact.hop?.releasedBytesUnderCut?.gotavern)} B to both subjects from ${show(artifact.hop?.framesWritten?.gotavern)} frame(s)`);
 }

@@ -43,7 +43,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { PEER_CIRCUIT, sourceFor } from './sources.mjs';
 import { PRESET_FIXTURE, applyPresetKit, applyAuthorsNoteOverlay, authorsNoteOverlaySpec, presetSpec, resolveAuthorsNoteCase } from './preset-kit.mjs';
-import { PROXY_MODES, loopbackUpstream, startStreamingProxy } from './streaming-framing.mjs';
+import { HOP_MODES, loopbackUpstream, startStreamingHop } from './streaming-framing.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -230,23 +230,31 @@ const streamingMode = probeMode === 'stream' || probeMode === 'cancel';
 // "the network died" and "the page gave up" can never be confused for one another.
 const abortMode = probeMode === 'abort';
 const streamingModeOrAbort = streamingMode || abortMode;
-// A BUFFERING (or CUTTING) HOP BETWEEN THE SUBJECT AND THE PEER. `PROBE_BUFFERING_PROXY=buffer` puts the
-// proxy in front of the peer in its buffering mode, `cut` in its cutting mode; anything else leaves the
-// page talking to the peer directly, which is what every earlier artefact recorded. The mode is applied
-// to whichever address the leg would otherwise use, so the drive code is untouched: only the network
-// underneath it changes, which is the whole point of the gate.
-const proxyModeSetting = process.env.PROBE_BUFFERING_PROXY ?? '';
-const proxyMode = proxyModeSetting === PROXY_MODES.BUFFER || proxyModeSetting === PROXY_MODES.CUT
-    ? proxyModeSetting
+// A HOP BETWEEN THE SUBJECT AND THE PEER. `PROBE_NETWORK_HOP=cut` puts the framing hop in front of the
+// peer in its cutting mode, `pass-through` in its control mode; anything else leaves the page talking to
+// the peer directly, which is what every earlier artefact recorded. The mode is applied to whichever
+// address the leg would otherwise use, so the drive code is untouched: only the network underneath it
+// changes, which is the whole point of the gate.
+//
+// THE `buffer` MODE IS DELETED, and the deletion is a measurement rather than a simplification. A hop that
+// releases the whole body in one write does not slow a streaming server down: in ONE release the page
+// reads everything, the pinned SSE reader yields every frame in that same tick, and incremental render is
+// lost on BOTH subjects for reasons that have nothing to do with either server's flushing (measured, run
+// 40299346339: 2 content states on GoTavern, 1 on pinned). A mode whose difference is the browser's commit
+// schedule cannot support a claim about a subject, so it is gone rather than dressed up. See
+// tests/browser/streaming-framing.mjs for the full reasoning.
+const hopModeSetting = process.env.PROBE_NETWORK_HOP ?? '';
+const hopMode = hopModeSetting === HOP_MODES.CUT || hopModeSetting === HOP_MODES.PASS_THROUGH
+    ? hopModeSetting
     : null;
-if (proxyModeSetting && !proxyMode) {
-    throw new Error(`PROBE_BUFFERING_PROXY must be "${PROXY_MODES.BUFFER}" or "${PROXY_MODES.CUT}" (or unset), got ${JSON.stringify(proxyModeSetting)}: an unrecognised value would silently measure the direct connection while the artefact claimed a proxy`);
+if (hopModeSetting && !hopMode) {
+    throw new Error(`PROBE_NETWORK_HOP must be "${HOP_MODES.CUT}" or "${HOP_MODES.PASS_THROUGH}" (or unset), got ${JSON.stringify(hopModeSetting)}: an unrecognised value would silently measure the direct connection while the artefact claimed a hop`);
 }
 // THE CUT POINT IS THE PEER'S OWN FRAMING, NOT A BYTE COUNT PICKED HERE. The peer writes
 // `data: {...}\n\n`; cutting "after N bytes" would land mid-payload on one protocol and mid-frame on
-// another. So the probe learns the boundary from the peer's OWN frame sizes and cuts at the END of a
+// another. So the probe learns the frame length from the peer's OWN encoder and cuts at the END of a
 // frame, which makes the required observation exact: the subject receives at least one complete content
-// frame (so a render must start) and fewer frames than were written (so the stream cannot finish).
+// frame (so a render must start) and strictly fewer than were written (so the stream cannot finish).
 const cutAfterFrames = Number(process.env.PROBE_CUT_AFTER_FRAMES ?? 2);
 
 // PRESET MODE: the complex-preset differential (AGENTS.md rules 8 and 9).
@@ -546,19 +554,26 @@ function framesToBytes(frames, protocol) {
         })}\n\n`;
     return Buffer.byteLength(sample, 'utf8') * frames;
 }
-const cutAfterBytes = abortMode ? framesToBytes(cutAfterFrames, peerProtocol) : 0;
+const cutAfterBytes = abortMode && hopMode === HOP_MODES.CUT ? framesToBytes(cutAfterFrames, peerProtocol) : 0;
 // THE HOP GOES IN FRONT OF THE PEER, BEFORE ANYTHING IS AIMED AT IT. Every aim step below reads
 // `mockAddress` -- the seams, the redirect file and the page's own custom_url/reverse_proxy -- so one
-// reassignment moves the whole leg behind the proxy and there is no second place the peer's address is
+// reassignment moves the whole leg behind the hop and there is no second place the peer's address is
 // spelled. Nothing about the drive changes; only the network underneath it does.
-const proxy = proxyMode ? await startStreamingProxy({
+//
+// THE CUT IS ARMED ONLY ON THE COMPLETION ROUTE, and it is named HERE (by the same `protocol` fact that
+// builds the peer) rather than guessed by the hop: a hop that cut the frontend's own GET /models would
+// truncate the reachability check and the drive would never reach a connected state (measured in the first
+// draft: both subjects ended with `in flight: 1` and no stream at all).
+const cutArmOnPath = peerProtocol === 'anthropic' ? '/messages' : '/chat/completions';
+const proxy = hopMode ? await startStreamingHop({
     upstream: loopbackUpstream(mockAddress),
-    mode: proxyMode,
-    cutAfterBytes: proxyMode === PROXY_MODES.CUT ? cutAfterBytes : 0,
+    mode: hopMode,
+    cutAfterBytes,
+    cutArmOnPath,
 }) : null;
 if (proxy) {
     mockAddress = proxy.address;
-    console.log(`[proxy] ${proxyMode} ${proxy.address} -> ${streamingPeer ? streamingPeer.address : 'the scripted peer'}${proxyMode === PROXY_MODES.CUT ? ` (cut after ${cutAfterBytes} B = ${cutAfterFrames} frames)` : ''}`);
+    console.log(`[hop] ${hopMode} ${proxy.address} -> ${streamingPeer ? streamingPeer.address : 'the scripted peer'}${hopMode === HOP_MODES.CUT ? ` (cut on ${cutArmOnPath} after ${cutAfterBytes} B = ${cutAfterFrames} frames)` : ''}`);
 }
 
 // AIM THE LEGS AT THE PEER IN BOTH MODES, FROM THE CATALOG.
@@ -1654,13 +1669,15 @@ try {
                 }
                 streamState.returnedToIdle = returnedToIdle;
                 streamState.idleWaitedMs = Math.round(idleDeadline - performance.now());
-                streamState.textAfterAbort = renderSnapshots().at(-1)?.text ?? null;
-                streamState.snapshotsAtAbort = renderSnapshots().length;
+                // THE OBSERVABLE NAME MATCHES WHAT THE COMPARATOR READS (`textAfterCut`), because the two
+                // files are one contract: `textAfterAbort` and `textAfterCut` were two names for one field
+                // in the first draft and the comparator read `undefined` on both legs.
+                streamState.textAfterCut = renderSnapshots().at(-1)?.text ?? null;
+                streamState.snapshotsAtCut = renderSnapshots().length;
                 // The frontend's own report of the failure, which is the only thing a user sees: a
                 // toastr for a caught stream error, or whatever the console said. Recorded rather than
                 // judged here -- the comparator decides whether the two subjects agree.
-                streamState.toastrAfterAbort = (document.querySelector('#toast-container')?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 300);
-                streamState.pageErrorsAfterAbort = [];
+                streamState.toastrAfterCut = (document.querySelector('#toast-container')?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 300);
                 await new Promise(resolve => setTimeout(resolve, 700));
                 streamState.textLater = renderSnapshots().at(-1)?.text ?? null;
                 streamState.snapshotsLater = renderSnapshots().length;
@@ -1684,12 +1701,44 @@ try {
         // the frontend's own dry generation, which is what the dry counters count -- starts and
         // finishes INSIDE the window instead of falling off its end on one leg only.
         const settleStarted = performance.now();
+        // A SURFACE WHOSE END IS AN ERROR SETTLES WHEN THE PAGE IS QUIET, NOT WHEN A COMPLETION LANDED.
+        // On a mid-stream cut the pinned frontend ends the send through its own error path
+        // (`StreamingProcessor.generate`'s catch -> `onErrorStreaming` -> `markUIGenStopped` ->
+        // `unblockGeneration`, sse-stream.js + script.js:3814-3827/3617-3619), NOT through a normal
+        // completion -- so `__probeCompletions` stays 0 by design and requiring one made the drive report
+        // a 60 s timeout while the page had already stopped (measured, run 40299346339). The window
+        // therefore ends on the state a user sees: `isGenerating` false AND no stop button, held for the
+        // same 1500 ms the completion path uses, so the two surfaces close identically.
+        const expectsErrorEnd = probeMode === 'abort';
         const settleDeadline = settleStarted + 60000;
         let idleSince = null;
         let settleInFlight = null;
+        let quietState = null;
         while (performance.now() < settleDeadline) {
             settleInFlight = globalThis.__probeInFlight ?? 0;
             const completed = (globalThis.__probeCompletions ?? 0) >= 1;
+            if (expectsErrorEnd) {
+                const scriptNow = await import('./script.js');
+                quietState = {
+                    isGenerating: Boolean(scriptNow.isGenerating()),
+                    generatingAttribute: document.body.dataset.generating ?? null,
+                    stopButton: Boolean(document.querySelector('#mes_stop')),
+                    sendButtonDisabled: Boolean(document.querySelector('#send_but')?.disabled),
+                };
+                const quiet = !quietState.isGenerating && quietState.generatingAttribute === null && !quietState.stopButton;
+                if (quiet) {
+                    if (idleSince === null) {
+                        idleSince = performance.now();
+                    }
+                    if (performance.now() - idleSince >= 1500) {
+                        break;
+                    }
+                } else {
+                    idleSince = null;
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+                continue;
+            }
             if (completed && settleInFlight === 0) {
                 if (idleSince === null) {
                     idleSince = performance.now();
@@ -1708,11 +1757,13 @@ try {
             waitedMs: Math.round(performance.now() - settleStarted),
             completions: globalThis.__probeCompletions ?? 0,
             inFlightAtRead: settleInFlight,
+            endReason: expectsErrorEnd ? 'error-path-quiet' : 'completion',
+            quietState,
         };
         if (!settledIdle) {
             return {
                 preconditions: { charactersLoaded: true, ...before, settle: globalThis.__probeSettle },
-                error: `the send did not complete and settle within 60s (completions: ${globalThis.__probeCompletions ?? 0}, in flight: ${settleInFlight}); the recorded window would end before the send did`,
+                error: `the page did not settle within 60s (completions: ${globalThis.__probeCompletions ?? 0}, in flight: ${settleInFlight}, quiet state: ${JSON.stringify(quietState)}); the recorded window would end before the send did`,
             };
         }
         // Post-send measurement: whether the user message was appended (sendMessageAsUser got past
@@ -1833,23 +1884,29 @@ try {
         report.domDumpError = String(error.message ?? error);
     }
     report.streamState = outcome.postSend?.streamState ?? null;
-    // THE HOP, RECORDED FROM ITS OWN SIDE. What the proxy forwarded (byte digests, never bodies), how
-    // many downstream body writes it made and how many frames each carried, how many bytes it released,
+    // THE HOP, RECORDED FROM ITS OWN SIDE. What the hop forwarded (byte digests, never bodies), how many
+    // downstream body writes it made and how many frames each carried, how many bytes it released, whether
+    // it re-framed the stream as a single gzip member, which responses it cut and which it relayed whole,
     // and -- in cut mode -- whether the cut actually happened. A truncation the network did NOT perform
     // must be visible as `cut: null`, or a subject that truncated by itself would be credited to the
-    // network. `absent` is recorded explicitly when no proxy was configured, so "no hop" is a value
-    // rather than a missing field.
+    // network. `absent` is recorded explicitly when no hop was configured, so "no hop" is a value rather
+    // than a missing field.
     report.networkHop = proxy ? {
         mode: proxy.state.mode,
+        cutArmOnPath: proxy.state.cutArmOnPath,
         cutAfterBytes: proxy.state.cutAfterBytes,
         cutAfterFrames,
         requestsSeen: proxy.state.requestsSeen,
+        cutArmedResponses: proxy.state.cutArmedResponses ?? 0,
+        relayedWholeResponses: proxy.state.relayedWholeResponses ?? 0,
+        gzipFramedResponses: proxy.state.gzipFramedResponses ?? 0,
         forwarded: proxy.state.forwarded,
         bodyWrites: proxy.state.writes,
         bodyWriteCount: proxy.state.writes.length,
         releasedBytes: proxy.state.releasedBytes,
         cut: proxy.state.cut,
-        completedBeforeCut: proxy.state.completedBeforeCut === true,
+        completed: proxy.state.completed === true,
+        callerClosed: proxy.state.callerClosed === true,
         upstreamErrors: proxy.state.upstreamErrors,
     } : { mode: null, absent: true };
     // WHICH BODY-DERIVED VALUE THIS DRIVE DROVE. A source whose host depends on a body field cannot be

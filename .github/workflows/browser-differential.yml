@@ -445,6 +445,120 @@ jobs:
 
       # -------------------------------------------------------------------------------------------------
       # THE BROWSER ASSET DIFFERENTIAL (GOAL.md §8.4 Q3-Q7, AGENTS.md 42-46, ARCHITECTURE.md §35.2).
+      # THE NETWORK HALF OF Q19: A REAL HOP BETWEEN SUBJECT AND PEER (the matrix row's own evidenceGap).
+      #
+      # WHAT IT ANSWERS, in the row's words: "a real network's chunk boundaries ... a mid-stream TLS close".
+      # Every other streaming artefact here records the page talking DIRECTLY to an in-process peer on
+      # loopback -- one unbroken connection, no middle -- so no recorder could observe what a hop does. This
+      # step puts one in: tests/browser/streaming-framing.mjs is a real TCP middle driven in two modes.
+      #
+      #   relayed : pass-through. The CONTROL: the hop must relay in more than one write, forward identical
+      #             request bytes, and leave the page's final text identical to the direct run. A hop that
+      #             assembled the body would show ONE write, and every claim about "a real middle" would be
+      #             a claim about the direct connection wearing a hop's name.
+      #   abort   : the hop relays PROBE_CUT_AFTER_FRAMES frames of the completion and closes BOTH sockets
+      #             mid-stream. The peer finishes its script (so `clientDisconnected` must be FALSE -- that is
+      #             what separates this from `cancel`), the page is NEVER asked to stop, and both subjects
+      #             must report the SAME truncation and the SAME partial text. The hop re-frames the SSE body
+      #             as ONE gzip member whose trailer appears only on a clean finish, because a chunked body
+      #             that stops is otherwise indistinguishable from a chunked body that ended; a cut body then
+      #             ends in a decoder error, which is what a real cut looks like to the browser.
+      #
+      # THE BUFFERING MODE WAS MEASURED AND DELETED (run 40299346339). A hop that releases the whole body in
+      # one write does not slow a streaming server: the page reads everything in that release, the pinned
+      # SSE reader yields every frame in the same tick, and the number of rendered states becomes a property
+      # of the browser commit schedule rather than of the server (measured: 2 states on GoTavern, 1 on
+      # pinned). The claim it would have carried is named in the artefact's notCompared list instead.
+      #
+      # IT IS PART OF THE EXISTING `stream` MODE, not a second workflow: a `stream` dispatch re-records the
+      # streaming artefact for every source and now also the framing artefact. The pinned boot is the one the
+      # step above already paid for. ONE SOURCE, AND IT IS NAMED: the hop is a property of the HOP, not of a
+      # provider, so FRAMING_SOURCE records which source was used.
+      - name: Record the streaming framing legs (relayed control and mid-stream cut, both subjects)
+        id: framing
+        if: ${{ (github.event_name == 'push' && 'stream' || (inputs.mode || 'all')) == 'stream' || (github.event_name == 'push' && 'stream' || (inputs.mode || 'all')) == 'all' }}
+        env:
+          # 14 frames at the pace the committed streaming artefacts were recorded at, so the framing
+          # surfaces are comparable with the direct-connection artefact beside them.
+          PROBE_FRAME_COUNT: '14'
+          PROBE_FRAME_MS: '250'
+          # THREE CONTENT FRAMES AND A CUT. One frame would leave the "rendered before the cut" guard
+          # vacuous; three is more than one and far fewer than fourteen, so "the stream could not have
+          # finished" is arithmetic rather than a guess.
+          PROBE_CUT_AFTER_FRAMES: '3'
+          FRAMING_SOURCE: ${{ inputs.sources || 'custom' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          mkdir -p "$work/legs" "$work/committed"
+          if git cat-file -e "HEAD:tests/browser/streaming-framing-comparison.json" 2>/dev/null; then
+            git show "HEAD:tests/browser/streaming-framing-comparison.json" > "$work/committed/streaming-framing-comparison.json"
+          else
+            : > "$work/committed/streaming-framing-comparison.json.absent"
+          fi
+          # A SOURCES LIST IS A LIST, AND THE HOP DOES NOT MULTIPLY WITH IT: the framing surface is driven
+          # for the FIRST id only, and the artefact records which one.
+          src="${FRAMING_SOURCE%%,*}"
+          echo "framing source: $src"
+          failures=0
+          # PROBE_NETWORK_HOP is read by the PROBE, so it reaches the GoTavern leg directly and the pinned
+          # leg through run-against-pinned's passthrough environment: both subjects cross the SAME hop,
+          # which is the only way the comparison is about the subjects.
+          framing_pair() {
+            local tag="$1" mode="$2" hop="$3"
+            local gv="$work/legs/framing-$tag-gotavern.json" pn="$work/legs/framing-$tag-pinned.json"
+            if ! PROBE_MODE="$mode" PROBE_SOURCE="$src" PROBE_NETWORK_HOP="$hop" \
+              node tests/browser/generation-probe.mjs --report "$gv"; then
+              echo "::error::framing $tag: the GoTavern leg failed to drive"
+              return 1
+            fi
+            if ! PROBE_MODE="$mode" PROBE_SOURCE="$src" PROBE_NETWORK_HOP="$hop" \
+              PROBE_PINNED_REDIRECT_FILE="$work/legs/redirect-framing-$tag.json" \
+              node tests/browser/run-against-pinned.mjs generation-probe.mjs -- --report "$pn"; then
+              echo "::error::framing $tag: the pinned leg failed to drive"
+              return 1
+            fi
+            return 0
+          }
+          echo "::group::framing stream (direct, the baseline)"
+          framing_pair stream stream "" || failures=$((failures + 1))
+          echo "::endgroup::"
+          echo "::group::framing relayed (pass-through hop, the control)"
+          framing_pair relayed stream pass-through || failures=$((failures + 1))
+          echo "::endgroup::"
+          echo "::group::framing abort (hop cuts mid-stream, nobody stops)"
+          framing_pair abort abort cut || failures=$((failures + 1))
+          echo "::endgroup::"
+          echo "framing_failures=$failures" >> "$GITHUB_OUTPUT"
+          # A drive failure is reported above and judged below; this step does not mask it.
+          exit 0
+
+      - name: Compare the streaming framing legs
+        id: framing-compare
+        if: ${{ ((github.event_name == 'push' && 'stream' || (inputs.mode || 'all')) == 'stream' || (github.event_name == 'push' && 'stream' || (inputs.mode || 'all')) == 'all') && steps.framing.outputs.framing_failures == '0' }}
+        env:
+          PROBE_FRAME_COUNT: '14'
+          PROBE_FRAME_MS: '250'
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          # THE COMPARATOR PRINTS ITS FINDING AND EXITS NON-ZERO. The artefact is written either way (a red
+          # artefact is the evidence for the finding) and the step fails on the comparator's status.
+          node tests/browser/compare-streaming-framing.mjs \
+            --stream  "$work/legs/framing-stream-gotavern.json"  "$work/legs/framing-stream-pinned.json" \
+            --relayed "$work/legs/framing-relayed-gotavern.json" "$work/legs/framing-relayed-pinned.json" \
+            --abort   "$work/legs/framing-abort-gotavern.json"   "$work/legs/framing-abort-pinned.json" \
+            --out tests/browser/streaming-framing-comparison.json
+
+      - name: Prove the framing gate has teeth (comparator and committed-artefact gate)
+        id: framing-selftest
+        if: ${{ (github.event_name == 'push' && 'stream' || (inputs.mode || 'all')) == 'stream' || (github.event_name == 'push' && 'stream' || (inputs.mode || 'all')) == 'all' }}
+        run: |
+          set -euo pipefail
+          node tests/browser/streaming-framing-selftest.mjs
+          node tests/browser/streaming-framing-verifier-selftest.mjs
+
+
       #
       # WHAT IT ANSWERS: does a browser loading the unmodified pinned frontend DISPLAY the character-list
       # avatars, the chat-message avatars, the persona thumbnail and the background, on both legs?
