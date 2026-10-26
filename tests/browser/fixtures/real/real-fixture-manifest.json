@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "tools/build-real-fixtures.mjs",
+  "presets": [
+    {
+      "name": "preset-a",
+      "file": "preset-a.json",
+      "bytes": 72499,
+      "sha256": "596765e43fddc7671c3e2ed2a20efa927ad674c3f5366e3fdb77822b7ba6968f",
+      "origin": {
+        "bytes": 99740,
+        "sha256": "83aad8e26be778e538d7720e9d883413125956575fde44b3a71b617f29d6a388"
+      },
+      "replaced": {
+        "stringsReplaced": 54,
+        "bytesReplaced": 34244,
+        "scriptsReplaced": 0,
+        "scriptBytesReplaced": 0
+      },
+      "profile": {
+        "prompts": 105,
+        "promptOrderRows": 109,
+        "enabledRows": 66,
+        "enabledRowsPointingAtDisabledPrompt": 46,
+        "helperBytes": 0,
+        "helperScriptContentBytes": [],
+        "helperContentBytesDelta": [],
+        "helperContentBytesDeltaReason": "the stub keeps the SERIALISED byte length, so its RAW length grows by the JSON escape overhead the original carried",
+        "regexScripts": 0,
+        "promptOrderProjectionSha256": "6e13a869e73a6612733d11372ae26f5f4c0c28d16d39b4a208c2bc79d5e18cef",
+        "enabledBitmapSha256": "c90b15283d02b720120fe542c0d0df2aa6f4daee5d36c23de473bd80ade5f86b"
+      }
+    },
+    {
+      "name": "preset-b",
+      "file": "preset-b.json",
+      "bytes": 1363947,
+      "sha256": "8165b792f3b2a93890b101ab5b937177e3a8d48c09a9c0cb130a2a3113744fd3",
+      "origin": {
+        "bytes": 1428750,
+        "sha256": "77e620d002e2be7b12c2785333702178ea95112e7c8e60f521e818974d284f0b"
+      },
+      "replaced": {
+        "stringsReplaced": 90,
+        "bytesReplaced": 170401,
+        "scriptsReplaced": 6,
+        "scriptBytesReplaced": 1133218
+      },
+      "profile": {
+        "prompts": 119,
+        "promptOrderRows": 115,
+        "enabledRows": 39,
+        "enabledRowsPointingAtDisabledPrompt": 0,
+        "helperBytes": 1148973,
+        "helperScriptContentBytes": [
+          152163,
+          22201,
+          13865,
+          923654,
+          11589,
+          9746
+        ],
+        "helperContentBytesDelta": [
+          1326,
+          229,
+          156,
+          24199,
+          78,
+          38
+        ],
+        "helperContentBytesDeltaReason": "the stub keeps the SERIALISED byte length, so its RAW length grows by the JSON escape overhead the original carried",
+        "regexScripts": 27,
+        "promptOrderProjectionSha256": "9ee1999468ff9f0060a0ea1228597909979562357db2e06b0cd14fa4211461fa",
+        "enabledBitmapSha256": "62d33eb106b09ff00fc289b79ca548a69739f047ae80a13e2e4c9b055dbc870f"
+      }
+    }
+  ],
+  "cards": []
+}
