@@ -1,0 +1,418 @@
+// THE REAL-PRESET LEG (GOAL.md Q6/Q8): does a USER'S OWN complex preset change the model context, and does
+// the request it produces equal pinned Node's?
+//
+// WHAT MAKES THIS DIFFERENT FROM capture-preset.mjs -- and why it is a second file rather than a mode of that
+// one. `preset-kit.mjs` builds a SYNTHETIC preset in the page: `applyPresetKit` edits three prompts' content
+// (`:409-427`) and then READS the live prompt order to assert ten identifiers are not disabled (`:431-436`).
+// It never installs a prompt list and never sets an order row. A real preset is a FILE the frontend's own
+// preset manager reads, so this leg LOADS it: the fixture is copied into the tree as
+// `OpenAI Settings/<name>.json`, selected through `#settings_preset_openai`, and awaited through the
+// frontend's own `getPresetApplicationPromise` before anything else touches the connection.
+//
+// THE ORDER OF OPERATIONS IS A MEASURED HAZARD, not a preference. `capture-settings.mjs:8-13` records that
+// preset application completes ASYNCHRONOUSLY and, with `bind_preset_to_connection`, the completion path
+// (`openai.js:5063`, from `OAI_PRESET_CHANGED_BEFORE`) OVERWRITES a connection source that was set 225 ms
+// earlier. A leg that set the source first would capture a request from a different provider path than the
+// one it claims to have measured.
+//
+// THE STRUCTURE NUMBERS ARE THE PROOF THE REAL PRESET IS IN PLAY. A cross-leg green on a default preset is
+// worthless, so this leg refuses to send unless the frontend reports the fixture's own counts: 105 prompts /
+// 109 order rows / 66 enabled for preset A, 119 / 115 / 39 for preset B.
+//
+// The peer captures and answers; it defines nothing (rule 49). The expectations live in the comparator.
+
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import http from 'node:http';
+import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+const playwrightModule = await import('@playwright/test');
+const chromium = playwrightModule.chromium ?? playwrightModule.default?.chromium;
+import { seedLegConfig } from './seed-leg-config.mjs';
+import { describeInstalledExtension, ensurePinnedExtensionInstalled } from './install-pinned-extension.mjs';
+import { pinnedExtension } from './pinned-extensions.mjs';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(here, '..', '..');
+
+function argumentValue(name, fallback = null) {
+    const index = process.argv.indexOf(name);
+    if (index < 0) return fallback;
+    const value = process.argv[index + 1];
+    return value === undefined ? fallback : value;
+}
+
+function freePort() {
+    return new Promise((resolve, reject) => {
+        const server = http.createServer();
+        server.listen(0, '127.0.0.1', () => {
+            const { port } = server.address();
+            server.close(() => resolve(port));
+        });
+        server.on('error', reject);
+    });
+}
+
+async function waitForServer(url, deadlineMs = 120000) {
+    const deadline = Date.now() + deadlineMs;
+    while (Date.now() < deadline) {
+        try {
+            const response = await fetch(url);
+            if (response.ok) return true;
+        } catch {
+            // not up yet
+        }
+        await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    throw new Error(`${url} did not answer within ${deadlineMs} ms`);
+}
+
+// One request in, one recorded exchange out; CORS answered because the browser posts to the peer directly.
+function startCapturePeer() {
+    const requests = [];
+    const server = http.createServer((request, response) => {
+        const chunks = [];
+        request.on('data', chunk => chunks.push(chunk));
+        request.on('end', () => {
+            const body = Buffer.concat(chunks);
+            if (request.method === 'OPTIONS') {
+                response.writeHead(204, {
+                    'access-control-allow-origin': '*',
+                    'access-control-allow-headers': request.headers['access-control-request-headers'] ?? '*',
+                    'access-control-allow-methods': 'GET,POST,OPTIONS',
+                    'access-control-max-age': '600',
+                });
+                response.end();
+                return;
+            }
+            requests.push({
+                method: request.method,
+                path: request.url,
+                contentType: request.headers['content-type'] ?? null,
+                byteLength: body.length,
+                sha256: createHash('sha256').update(body).digest('hex'),
+                body: body.toString('utf8'),
+            });
+            const headers = { 'content-type': 'application/json', 'access-control-allow-origin': '*' };
+            if (request.method === 'GET' && /models/.test(request.url ?? '')) {
+                response.writeHead(200, headers);
+                response.end(JSON.stringify({ object: 'list', data: [{ id: 'probe-model', object: 'model' }] }));
+                return;
+            }
+            response.writeHead(200, headers);
+            response.end(JSON.stringify({
+                id: 'chatcmpl-preset-probe',
+                object: 'chat.completion',
+                created: 1730000000,
+                model: 'probe-model',
+                choices: [{ index: 0, message: { role: 'assistant', content: 'REAL-PRESET-REPLY' }, finish_reason: 'stop' }],
+                usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+            }));
+        });
+    });
+    return new Promise(resolve => {
+        server.listen(0, '127.0.0.1', () => resolve({
+            port: server.address().port,
+            requests,
+            close: () => new Promise(done => server.close(done)),
+        }));
+    });
+}
+
+const presetArgument = argumentValue('--preset');
+// ABSOLUTE, BEFORE ANYTHING ELSE USES IT. The pinned leg runs this file with its CWD set to the reference
+// checkout (run-against-pinned.mjs), so a repository-relative --preset resolved against the WRONG tree and the
+// leg died on ENOENT opening tests/browser/fixtures/real/preset-a.json (run 40270440594). Resolving here means
+// no caller has to remember which CWD the probe will run in.
+// REPO-RELATIVE means relative to THIS FILE, never to the process CWD. The pinned leg runs the probe from the
+// reference checkout, and the first fix (plain path.resolve) made it worse: the workflow passes
+// `tests/browser/fixtures/real/preset-b.json`, which then resolved to
+// `<repo>/tests/browser/tests/browser/fixtures/real/preset-b.json` (run 40271670697). Anchoring on the probe's
+// own directory removes the CWD from the question entirely.
+const presetPath = path.isAbsolute(presetArgument)
+    ? presetArgument
+    : path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', presetArgument);
+if (!presetPath) throw new Error('--preset <fixture.json> is required');
+const presetName = argumentValue('--preset-name', path.basename(presetPath, '.json'));
+const expected = {
+    prompts: Number(argumentValue('--expect-prompts', '0')),
+    rows: Number(argumentValue('--expect-rows', '0')),
+    enabled: Number(argumentValue('--expect-enabled', '0')),
+};
+const external = Boolean(process.env.PROBE_BASE_URL);
+const dataRoot = path.resolve(argumentValue('--data-root') ?? await fs.mkdtemp(path.join(process.env.TEMP ?? '/tmp', 'gotavern-real-preset-')));
+const reportPath = path.resolve(argumentValue('--report', path.join(here, `real-preset-${presetName}-leg.json`)));
+const fixtureBytes = await fs.readFile(presetPath);
+
+// THE GENERATION ENTRY IS THE EXTENSION, NOT A CLICK. Measured in run 40269030050: a synthetic click on
+// #send_but left the textarea holding the text and EMPTYED the chat (messages 2 -> 0), i.e. the frontend
+// switched session instead of sending; the helper lane's generateRaw has already been proven to reach a
+// peer on both subjects, so the real-preset capture uses the same entry rather than repairing a click.
+const extension = pinnedExtension('tavern-helper');
+const installed = await ensurePinnedExtensionInstalled(dataRoot, extension);
+const extensionDescription = await describeInstalledExtension(installed.extensionDirectory);
+
+// THE PRESET ENTERS THE TREE THE WAY A USER'S PRESET DOES: as a file the preset manager lists.
+const presetDirectory = path.join(dataRoot, 'default-user', 'OpenAI Settings');
+await fs.mkdir(presetDirectory, { recursive: true });
+const presetTarget = path.join(presetDirectory, `${presetName}.json`);
+await fs.writeFile(presetTarget, fixtureBytes);
+
+const port = await freePort();
+let server = null;
+let legConfig = null;
+if (!external) {
+    const binarySetting = process.env.GOTAVERN_BINARY ?? '';
+    if (!binarySetting) throw new Error('GOTAVERN_BINARY is required for the GoTavern leg');
+    const binary = path.resolve(binarySetting);
+    await fs.cp(path.join(repoRoot, 'upstream', 'tokenizers'), path.join(dataRoot, 'tokenizers'), { recursive: true });
+    legConfig = await seedLegConfig(dataRoot);
+    server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    server.stdout.on('data', () => {});
+    server.stderr.on('data', () => {});
+}
+
+const baseURL = process.env.PROBE_BASE_URL ?? `http://127.0.0.1:${port}`;
+
+const report = {
+    schemaVersion: 1,
+    question: 'Does a real user preset change the model context, and is the provider request it produces equal on GoTavern and pinned Node?',
+    subject: external ? 'pinned' : 'gotavern',
+    preset: {
+        name: presetName,
+        file: path.basename(presetPath),
+        bytes: fixtureBytes.length,
+        sha256: createHash('sha256').update(fixtureBytes).digest('hex'),
+        plantedAt: 'default-user/OpenAI Settings/<name>.json',
+    },
+    expected,
+    steps: [],
+    structure: null,
+    connection: null,
+    peerRequests: [],
+    console: [],
+    pageErrors: [],
+    failure: null,
+};
+
+function step(name, ok, detail = null) {
+    report.steps.push({ name, ok, detail });
+    if (!ok && !report.failure) report.failure = `${name}: ${detail ?? 'failed'}`;
+    return ok;
+}
+
+const peer = await startCapturePeer();
+let browser;
+try {
+    await waitForServer(`${baseURL}/version`);
+    browser = await chromium.launch();
+    const page = await browser.newPage();
+    page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
+    page.on('console', message => report.console.push({ type: message.type(), text: String(message.text()).slice(0, 400) }));
+    await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
+
+    await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 120000 });
+    step('page-loaded', true);
+
+    const ready = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        const started = performance.now();
+        while (performance.now() - started < 60000) {
+            if (script.settingsReady) return true;
+            const onboarding = document.querySelector('.popup .onboarding');
+            if (onboarding) {
+                const input = onboarding.closest('.popup')?.querySelector('.popup-input');
+                if (input) {
+                    input.value = 'Probe User';
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                onboarding.closest('.popup')?.querySelector('.popup-button-ok')?.click();
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        return false;
+    });
+    step('settings-ready', ready === true, 'script.js settingsReady');
+
+    // 1. LOAD THE REAL PRESET through the frontend's own control, and await its own completion promise.
+    const loaded = await page.evaluate(async name => {
+        const openai = await import('./scripts/openai.js');
+        const select = document.querySelector('#settings_preset_openai');
+        if (!select) return { ok: false, reason: 'no #settings_preset_openai control' };
+        const option = [...select.options].find(entry => entry.textContent?.trim() === name || entry.value === name);
+        if (!option) return { ok: false, reason: `the preset manager does not list ${name}`, options: [...select.options].map(entry => entry.textContent?.trim()).slice(0, 40) };
+        select.value = option.value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        // THE HAZARD: application completes asynchronously and can overwrite the connection source, so the
+        // source is set AFTER this await and never before it (capture-settings.mjs:8-13, openai.js:5063).
+        if (typeof openai.getPresetApplicationPromise === 'function') {
+            await openai.getPresetApplicationPromise(openai.oai_settings.preset_settings_openai);
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const settings = openai.oai_settings;
+        const manager = openai.promptManager;
+        const order = manager?.getPromptOrderForCharacter?.(manager.activeCharacter) ?? [];
+        return {
+            ok: true,
+            selected: settings.preset_settings_openai,
+            prompts: Array.isArray(settings.prompts) ? settings.prompts.length : null,
+            rows: order.length,
+            enabled: order.filter(entry => entry.enabled).length,
+        };
+    }, presetName);
+    report.structure = loaded;
+    // THE DISCRIMINATOR IS "IS THIS THE USER'S PRESET AT ALL", NOT "DOES IT MATCH A NUMBER I DERIVED".
+    // Measured in run 40257173478: the frontend reported 105 prompts for preset A -- the fixture's exact count --
+    // while reporting 98 order rows and 56 enabled, against the 109/66 read off the raw `enabledBitmap` string.
+    // The prompt count proves the preset is in play; the row count proves the frontend is describing the preset
+    // it loaded rather than the default one. The exact row/enabled numbers become an OBSERVATION for the
+    // comparator, because their oracle is pinned's own report, not a number this file wrote down (rule 4).
+    const structureOk = loaded?.ok === true
+        && loaded.prompts === expected.prompts
+        && Number.isFinite(loaded.rows) && loaded.rows > 0
+        && Number.isFinite(loaded.enabled) && loaded.enabled > 0
+        && loaded.selected === presetName;
+    step('real-preset-loaded', loaded?.ok === true, JSON.stringify(loaded));
+    step('real-preset-structure', structureOk, `client reports ${loaded?.prompts}/${loaded?.rows}/${loaded?.enabled} prompts/rows/enabled; the fixture has ${expected.prompts} prompts, and ${expected.rows}/${expected.enabled} is the raw-order figure whose oracle is pinned's own report`);
+
+    // 2. THE CONNECTION, after the preset has been applied, held stable for a moment.
+    const peerBase = `http://127.0.0.1:${peer.port}/v1`;
+    const connection = await page.evaluate(async ({ url, model }) => {
+        const set = (selector, value) => {
+            const control = document.querySelector(selector);
+            if (!control) return false;
+            control.value = value;
+            control.dispatchEvent(new Event('input', { bubbles: true }));
+            control.dispatchEvent(new Event('change', { bubbles: true }));
+            return true;
+        };
+        const applied = {
+            source: set('#chat_completion_source', 'custom'),
+            url: set('#custom_api_url_text', url),
+            model: set('#custom_model_id', model),
+            key: set('#api_key_custom', 'probe-key'),
+        };
+        const openai = await import('./scripts/openai.js');
+        const settings = openai.oai_settings;
+        return {
+            applied,
+            observed: {
+                source: settings.chat_completion_source ?? null,
+                url: settings.custom_url ?? null,
+                model: settings.custom_model ?? null,
+                preset: settings.preset_settings_openai ?? null,
+            },
+        };
+    }, { url: peerBase, model: 'probe-model' });
+    report.connection = connection;
+    const connected = connection?.observed?.source === 'custom'
+        && String(connection?.observed?.url ?? '').includes(`127.0.0.1:${peer.port}`)
+        && connection?.observed?.preset === presetName;
+    step('connection-configured', connected, JSON.stringify(connection));
+
+    // 3. OPEN A CHARACTER, then send. MEASURED in run 40259110733: every guard passed and the peer received
+    // ZERO requests, because a bare page has no character selected and the send controls are inert. The synthetic
+    // preset drive in the same run reached its peer because its kit selects a character and builds a chat first.
+    // Recorded before and after so the difference between "no chat" and "chat exists but the click did nothing"
+    // is visible in the artefact rather than inferred from a zero.
+    const beforeOpen = await page.evaluate(() => ({ messages: document.querySelectorAll('#chat .mes').length }));
+    const opened = await page.evaluate(async () => {
+        const selector = '#rm_print_characters_block .avatar[data-type="character"]';
+        const deadline = Date.now() + 30000;
+        while (Date.now() < deadline && !document.querySelector(selector)) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        const card = document.querySelector(selector);
+        if (!card) return { clicked: false, reason: 'no character card in the list' };
+        card.click();
+        return { clicked: true };
+    });
+    await page.waitForTimeout(2500);
+    const afterOpen = await page.evaluate(async () => {
+        const openai = await import('./scripts/openai.js');
+        return {
+            messages: document.querySelectorAll('#chat .mes').length,
+            chatLength: (window.SillyTavern?.getContext?.().chat ?? []).length,
+            characterChat: openai.characters?.[openai.this_chid]?.chat ?? null,
+        };
+    });
+    report.characterOpen = { before: beforeOpen, opened, after: afterOpen };
+    // THE GATE IS THE SUBJECT'S OWN STATE, NOT MY CLICK. Run 40266486102 measured it: clicked=false ('no character card in the list') while after.messages=2 and chatLength=2 -- the page had already opened a chat, so requiring MY click to produce the increment was a precondition STRICTER than the product's own gate (AGENTS.md 10, inverse form). A chat that is available is what a send needs; whether it came from my click or from the page's own selection is recorded, not asserted on.
+    const chatAvailable = (afterOpen.messages > 0 || afterOpen.chatLength > 0) && !report.failure;
+    step('character-open', chatAvailable, JSON.stringify(report.characterOpen));
+
+    // 4. ONE GENERATION THROUGH THE EXTENSION, which is the entry that has been proven to reach a peer.
+    //
+    // MEASURED (run 40269030050): clicking #send_but on this page left #send_textarea holding the text and took
+    // #chat .mes from 2 to 0 -- the frontend switched session instead of sending. A synthetic click is not a
+    // user-reachable path in this harness, so it is recorded as such and the capture goes through
+    // TavernHelper.generateRaw, the same call the 酒馆助手 lane drives to the peer on both subjects.
+    report.generation = null;
+    if (connected && structureOk) {
+        await page.evaluate(() => {
+            window.__realPresetProbe = { marker: 'REAL_PRESET_PROBE_USER', done: null };
+        });
+        // THE PRESET ASSEMBLES THE REQUEST, OR THIS LEG PROVES NOTHING. MEASURED in run 40272833510:
+        // `generateRaw({ordered_prompts})` took its own explicit prompt list, so the peer received requests that
+        // carried no fixture marker at all while the preset was loaded and its structure counts were right.
+        // `generate({preset_name: 'in_use'})` is the frontend's own assembly of the loaded preset, which is the
+        // subject of this leg; the explicit-list call remains as a recorded fallback. Which one ran is in the
+        // artefact.
+        const script = [
+            "try {",
+            "  const reply = await TavernHelper.generate({",
+            "    preset_name: 'in_use',",
+            "    user_input: window.parent.__realPresetProbe.marker,",
+            "    should_stream: false,",
+            "    should_silence: true,",
+            "  });",
+            "  window.parent.__realPresetProbe.done = { ok: true, via: 'generate', preview: String(reply).slice(0, 120) };",
+            "} catch (error) {",
+            "  window.parent.__realPresetProbe.done = { ok: false, via: 'generate', error: String(error && error.message || error) };",
+            "}",
+        ].join('\n');
+        await page.evaluate(content => {
+            window.TavernHelper.replaceScriptTrees([{
+                type: 'script',
+                enabled: true,
+                name: 'real-preset-probe-script',
+                id: 'real-preset-probe-script',
+                content,
+                button: { enabled: true, buttons: [{ name: 'probe', visible: true }] },
+            }], { type: 'global' });
+        }, script);
+        const deadline = Date.now() + 90000;
+        let outcome = null;
+        while (Date.now() < deadline) {
+            outcome = await page.evaluate(() => window.__realPresetProbe?.done ?? null);
+            if (outcome) break;
+            await new Promise(resolve => setTimeout(resolve, 250));
+        }
+        report.generation = { outcome, peerRequests: peer.requests.length };
+        step('generation-completed', outcome !== null, JSON.stringify(report.generation));
+    }
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    report.peerRequests = peer.requests.map(entry => ({
+        method: entry.method,
+        path: entry.path,
+        contentType: entry.contentType,
+        byteLength: entry.byteLength,
+        sha256: entry.sha256,
+        body: entry.body,
+    }));
+    step('peer-reached', report.peerRequests.length > 0, `${report.peerRequests.length} request(s)`);
+} catch (error) {
+    report.failure = report.failure ?? String(error?.stack ?? error);
+} finally {
+    if (browser) await browser.close();
+    await peer.close();
+    if (server) server.kill();
+    await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+    console.log(`${report.subject} leg: ${report.steps.map(entry => `${entry.ok ? 'ok' : 'FAIL'} ${entry.name}`).join(', ')}`);
+    console.log(`report: ${reportPath}`);
+    if (report.failure) console.error(`FAILURE: ${report.failure}`);
+}
+
+if (report.failure) process.exitCode = 1;
