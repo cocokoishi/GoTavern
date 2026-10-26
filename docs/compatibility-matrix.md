@@ -52,7 +52,7 @@ A row is `PASS` only when every one of these holds:
 | 9 | Presets, quick replies, themes, moving UI, system prompts | **PARTIAL** | 5 oracle fixture(s), Go implementation, 3 named test(s), 1 browser artefact(s), CI job(s) | 2 item(s) |
 | 10 | Provider transport on the real internet (TLS, proxy, timeouts, decompression, redirects) | **FAIL** | Go implementation, 4 named test(s), CI job(s) | 6 item(s) |
 | 11 | Per-source provider-wire request bytes (15 catalogued sources) | **PARTIAL** | 1 oracle fixture(s), Go implementation, 3 named test(s), 3 browser artefact(s), CI job(s) | 3 item(s) |
-| 12 | Streaming SSE framing, incremental render and cancellation | **PARTIAL** | 2 oracle fixture(s), Go implementation, 3 named test(s), 3 browser artefact(s), CI job(s) | 2 item(s) |
+| 12 | Streaming SSE framing, incremental render and cancellation | **PARTIAL** | 2 oracle fixture(s), Go implementation, 7 named test(s), 3 browser artefact(s), CI job(s) | 4 item(s) |
 | 13 | Exact tokenization and context boundaries | **PARTIAL** | 1 oracle fixture(s), upstream assets, Go implementation, 3 named test(s), 1 browser artefact(s), CI job(s), release-artifact step | 3 item(s) |
 | 14 | Files, avatars, backgrounds, images, sprites, image metadata | **PARTIAL** | 8 oracle fixture(s), Go implementation, 9 named test(s), CI job(s) | 2 item(s) |
 | 15 | Extensions: discovery, static serving, install, update, switch, delete, and the Tavern Helper / LittleWhiteBox canaries | **PARTIAL** | 3 oracle fixture(s), Go implementation, 6 named test(s), 2 browser artefact(s), CI job(s) | 3 item(s) |
@@ -298,19 +298,21 @@ Row id: `streaming-and-cancel`
 - Oracle fixtures: `tests/oracle/sillytavern-1.19.0-backends.json`, `tests/oracle/sillytavern-1.19.0-textgen.json`
 - Upstream assets: _none_
 - Go implementation: `internal/server`
-- Named tests: `TestSendStreamsChunkedResponses`, `TestSendReportsTruncatedStreams`, `TestBackendsTextgenGenerateStreamsWithoutBuffering`
+- Named tests: `TestSendStreamsChunkedResponses`, `TestSendReportsTruncatedStreams`, `TestBackendsTextgenGenerateStreamsWithoutBuffering`, `tests/browser/streaming-framing-hop-selftest.mjs`, `tests/browser/streaming-framing-selftest.mjs`, `tests/browser/streaming-framing-verifier-selftest.mjs`, `tests/browser/streaming-framing-probe-smoke.mjs`
 - Browser artefacts: `tests/browser/streaming-comparison.json`, `tests/browser/streaming-groq-comparison.json`, `tests/browser/streaming-mistral-comparison.json`
 - CI jobs: `ci.yml#oracle`, `browser-differential.yml#differential`
 - Release artifact: _none_
 
 **Evidence gap**
 
-- SSE ordering and cancellation are compared against a local peer: a real network's chunk boundaries, a proxy that buffers, and a mid-stream TLS close are unobserved
+- PROVEN with a real TCP hop between subject and peer (browser-differential.yml run 40331271988): a pass-through hop relays the SSE body in 17 writes with the identical request digest and the identical final text on both subjects, and a head-of-body cut gives each subject a 200 with zero body bytes, no user cancel, and the same zero rendered content states -- so the fault reaches both subjects through a real middle and they report the same thing. NOT a proxy that buffers: a hop that releases the whole body in ONE write makes the number of rendered states a function of the browser commit schedule rather than of the server (measured 2 on GoTavern and 1 on pinned, run 40299346339), so that mode was deleted and its claim is NOT made
+- STILL UNPROVEN, and a static hop cannot close it: the row's own wording -- both subjects report the same PARTIAL TEXT -- needs a cut that fires after at least one content frame has been delivered AND rendered. A cut inside a record leaves both frontends before their error path with zero content states (measured, runs 40316734219, 40322630841, 40324760750), and a head cut delivers no body at all, so neither produces partial text to compare. Closing it needs a hop that can time its cut against the page, which this harness does not have
+- a mid-stream TLS close is unobserved: the fault is a socket close on plain HTTP, so a TLS fatal alert or a middlebox reset is not reproduced (the gzip decoder error stands in for the artifact of a truncation and IS measured, in tests/browser/streaming-framing-hop-selftest.mjs)
 - several cancellation artefacts record the partial text at the moment of abort, which is a per-run observation; no gate asserts the ordering property itself
 
 Blocked by: `providers-transport`
 
-Streaming has the deepest browser instrumentation in the tree (frame-by-frame render alignment on both legs). The gap is the network, not the instrumentation.
+Streaming has the deepest browser instrumentation in the tree (frame-by-frame render alignment on both legs). The network half now has its own artefact (tests/browser/streaming-framing-comparison.json) and a real hop behind it; the artefact is RED and the row does not cite it as evidence until the partial-text surface above can be produced. Status stays PARTIAL: a gate was added and has run, but it has not passed.
 
 ### Exact tokenization and context boundaries — `PARTIAL`
 
