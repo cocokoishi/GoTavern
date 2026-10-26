@@ -311,9 +311,45 @@ async function readChatVariables() {
     return { chatFile, variables, scope: chatFile.includes('/') ? 'per-character subdirectory' : 'flat' };
 }
 
+// A REAL USER'S TREE HAS CHATS. A fresh root has none, so clicking a card can only preview the greeting and
+// there is no chat identity to save under -- measured symmetrically in Browser differential 40239156336
+// (chatId, characterChatName and chat_metadata.integrity all null on BOTH subjects, and no /api/chats/save
+// ever issued). GOAL.md is about a long-lived directory, so the leg plants ONE chat per seeded card in the
+// shape pinned reads (chats/<avatar without .png>/<name>.jsonl, src/endpoints/chats.js:592-614).
+// This is a FIXTURE INPUT (rule 51), not a fake of the product's output: nothing about the assertions is
+// relaxed because of it -- the variable still has to reach THIS file, and a missing identity after the click
+// is still a finding. `chat_metadata` is left empty on purpose: script.js:7665 assigns an integrity uuid
+// when absent, so an empty object is a legitimate user file rather than a hand-computed checksum.
+async function seedExistingChats(root) {
+    const charactersDirectory = path.join(root, 'default-user', 'characters');
+    const cards = (await fs.readdir(charactersDirectory).catch(() => [])).filter(name => name.endsWith('.png')).sort();
+    if (cards.length === 0) return { planted: false, reason: 'no character card in the seeded tree', files: [] };
+    const files = [];
+    for (const card of cards) {
+        const avatar = card.replace(/\.png$/, '');
+        const directory = path.join(root, 'default-user', 'chats', avatar);
+        await fs.mkdir(directory, { recursive: true });
+        const fileName = `${avatar} - 2026-10-24.jsonl`;
+        const message = (name, is_user, mes) => JSON.stringify({ name, is_user, mes, send_date: 'October 24, 2026 10:00am', extra: {} });
+        const lines = [
+            JSON.stringify({ user_name: 'unused', character_name: avatar, chat_metadata: {} }),
+            message('Probe User', true, 'HELPER_PROBE_SEED_USER_1'),
+            message(avatar, false, 'HELPER_PROBE_SEED_ASSISTANT_1'),
+            message('Probe User', true, 'HELPER_PROBE_SEED_USER_2'),
+        ];
+        await fs.writeFile(path.join(directory, fileName), `${lines.join('\n')}\n`);
+        files.push(`default-user/chats/${avatar}/${fileName}`);
+    }
+    return { planted: true, cards: cards.length, files, shape: 'header + 3 messages ({name,is_user,mes,send_date,extra})' };
+}
+
 let browser;
 try {
     await waitForServer(`${baseURL}/version`);
+    // After boot, because the SERVER seeds default/content/characters at startup; before the page loads, so
+    // the frontend never sees a chatless tree.
+    report.seededChat = await seedExistingChats(dataRoot);
+    step('chat-fixture-planted', report.seededChat.planted === true, JSON.stringify(report.seededChat));
     browser = await chromium.launch();
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
@@ -379,7 +415,7 @@ try {
     // reader inherits the fact rather than the guess.
     report.saveFunctionsReachable = await page.evaluate(() => {
         const context = window.SillyTavern?.getContext?.();
-        return ['saveMetadata', 'saveMetadataDebounced', 'saveChatConditional', 'saveChat', 'saveSettingsDebounced', 'saveItemizedPrompts']
+        return ['saveMetadata', 'saveMetadataDebounced', 'saveChatConditional', 'saveChat', 'saveSettingsDebounced', 'saveItemizedPrompts', 'openCharacterChat', 'getCurrentChatId', 'getChat', 'renameChat', 'setCharacterId', 'selectCharacterById']
             .filter(name => typeof context?.[name] === 'function');
     });
     step('save-functions-probed', true, JSON.stringify(report.saveFunctionsReachable));
@@ -417,6 +453,20 @@ try {
     step('character-opened', clicked || messageArrived, `click=${clicked} chatAlreadyOpen=${messageArrived}`);
     step('chat-has-message', messageArrived);
 
+    // DID THE CLICK OPEN THE PLANTED CHAT? A user clicking their own character must get their chat; if this
+    // is null with a chat file present, that is a product finding and it outranks the rest of the lane.
+    report.chatIdentity = await page.evaluate(() => {
+        const context = window.SillyTavern.getContext();
+        const index = context.characterId;
+        return {
+            chatLength: context.chat?.length ?? null,
+            chatId: context.chatId ?? null,
+            characterChatName: index === undefined ? null : (context.characters?.[index]?.chat ?? null),
+            chatMetadataIntegrity: context.chatMetadata?.integrity ?? null,
+        };
+    });
+    observation('chat-identity', (report.chatIdentity?.chatLength ?? 0) > 0 && report.chatIdentity?.characterChatName !== null, JSON.stringify(report.chatIdentity));
+
     // THE PRECONDITION FOR THE PERSISTENCE GUARD is a chat that exists on disk. It is created by the probe
     // script through the helper's own createChatMessages, so this drive never writes user data itself and
     // the file it judges is one the product produced.
@@ -438,14 +488,16 @@ try {
     if (variant === 'on') {
         await page.evaluate(script => {
             window.__helperProbeRenderedUrls = script.urls;
-            window.TavernHelper.replaceScriptTrees([{
+            window.__gtProbeTrees = [{
+            
                 type: 'script',
                 enabled: true,
                 name: 'gotavern-probe-script',
                 id: 'gotavern-probe-script',
                 content: script.content,
                 button: { enabled: true, buttons: [{ name: 'probe', visible: true }] },
-            }], { type: 'global' });
+            }];
+            window.TavernHelper.replaceScriptTrees(window.__gtProbeTrees, { type: 'global' });
         }, { content: PROBE_SCRIPT, urls: renderedUrls });
         step('script-enabled', true);
     } else {
@@ -561,6 +613,61 @@ try {
             }, 'gotavern-helper-probe'));
             file = await waitForFile(15000);
         }
+        // THE GATE IS THE CHAT'S IDENTITY, NOT FILE EXISTENCE (measured: run 40246350186 -- the seeded
+        // chat made waitForFile() true before any save, so the send route below never ran, no chat identity
+        // was created, and the variable had nothing to attach to). saveChat reads exactly these three fields.
+        const identity = report.chatIdentity ?? {};
+        if (identity.characterChatName == null || identity.chatId == null) {
+            // THE ONLY REMAINING PATH A USER HAS. Run 40239156336 measured why the function calls cannot
+            // work on a fresh tree: saveDiagnostics={chatLength:3, chatId:null, characterChatName:null}
+            // and saveRequests=[POST /api/chats/recent 200] -- no /api/chats/save was issued at all, while
+            // the console repeated "saveChat called without chat_name and no chat file found". A chat's NAME
+            // is what saveChat needs, and only the frontend's own send flow creates one. The pinned frontend
+            // saves before it contacts the provider, so an offline provider does not prevent the save; whether
+            // a provider request was attempted is recorded separately from whether a chat file appeared.
+            attempts.push(await page.evaluate(async () => {
+                const textarea = document.querySelector('#send_textarea');
+                const button = document.querySelector('#send_but');
+                if (!textarea || !button) return { via: 'send', ok: false, error: 'send controls missing' };
+                textarea.value = 'HELPER_PROBE_SEND';
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                button.click();
+                return { via: 'send', ok: true };
+            }));
+            file = await waitForFile(20000);
+        }
+        // ORDERING, measured in run 40242762392 and fixed here. The script writes its variable into the
+        // in-memory chat BEFORE any chat identity exists, so the write has no chat_metadata to attach to
+        // and the file that finally appears carries counter=0 (the send path created the chat AFTER the
+        // write). Running the same script again once the chat exists is not a new capability: it is the
+        // order a user has (open a chat, then let the script work), and the frontend's own save persists it.
+        if (file && variant === 'on') {
+            await page.evaluate(async () => {
+                try {
+                    // A RE-RUN MUST BE A CHANGE. Handing the extension the SAME tree list is a no-op it
+                    // detects, so the script is not re-instantiated and the variable is never written
+                    // after the chat exists (run 40248362034: chat-get/save now issued, variable still
+                    // absent). Clearing first forces the iframe to be rebuilt, then the trees go back.
+                    await window.TavernHelper.replaceScriptTrees([], { type: 'global' });
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    await window.TavernHelper.replaceScriptTrees(window.__gtProbeTrees, { type: 'global' });
+                    return true;
+                }
+                catch { return false; }
+            });
+            await page.waitForTimeout(6000);
+            attempts.push(await page.evaluate(async () => {
+                try {
+                    const context = window.SillyTavern.getContext();
+                    const save = context.saveMetadata ?? context.saveChatConditional;
+                    if (typeof save !== 'function') return { via: 'rerun-after-chat', ok: false, error: 'no save function' };
+                    await save();
+                    return { via: 'rerun-after-chat', ok: true };
+                } catch (error) { return { via: 'rerun-after-chat', ok: false, error: String(error?.message ?? error) }; }
+            }));
+            const rewrote = await waitForFile(15000);
+            if (rewrote) file = rewrote;
+        }
         report.saveAttempt = { attempts, fileAfter: file };
         observation('save-attempted', Boolean(file) || attempts.some(item => item.ok), JSON.stringify(report.saveAttempt));
         // THE REQUEST LIST, so a save that resolves without writing anything can be attributed: either the
@@ -570,7 +677,9 @@ try {
         report.saveRequests = recorder.requests
             .filter(entry => /\/api\/chats/.test(entry.pathAndQuery ?? ''))
             .map(entry => ({ method: entry.method, path: entry.pathAndQuery, status: entry.status, contentType: entry.contentType, byteLength: entry.byteLength }));
-        observation('save-requests-recorded', report.saveRequests.length > 0, JSON.stringify(report.saveRequests));
+        const chatPaths = report.saveRequests.map(entry => `${entry.method} ${entry.path} ${entry.status}`);
+        observation('chat-get-issued', report.saveRequests.some(entry => /\/api\/chats\/get$/.test(entry.path ?? '')), JSON.stringify(chatPaths));
+        observation('chat-save-issued', report.saveRequests.some(entry => /\/api\/chats\/save$/.test(entry.path ?? '')), JSON.stringify(chatPaths));
     }
 
 
