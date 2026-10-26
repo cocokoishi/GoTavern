@@ -642,3 +642,19 @@ lane: a report that cannot answer "does this move us toward `GOAL.md`?" is rejec
     together; when the verdict is a survivor, re-read the log for the assertion name before acting on it,
     because "the mutation survived" and "I read the wrong job" look identical in a summary line. This is rule
     7 one layer up: the green did not merely fail to prove the claim, it belonged to a different subject.
+56. **A real user's card and preset never enter this repository or any artifact -- only a desensitised derivation does.**
+    Stated by the user on 2026-10-25 after seeing the fixtures committed, and it overrides any convenience: the
+    character card and the preset本体 are the user's property and may contain watermarks, private handles, or prose
+    that violates a platform's content rules. THE FILE ITSELF IS NEVER COMMITTED, NEVER UPLOADED AS A WORKFLOW
+    ARTIFACT, AND NEVER PRINTED INTO A LOG. What may be committed is a DERIVATION, and only when a generator proves
+    it: byte-length-preserving replacement of prose, script bodies and every name-bearing field, plus a scanner
+    (`tools/check-fixture-watermarks.mjs`, run in CI) that refuses a URL, a Discord/e-mail/QQ/platform handle, a
+    creator credit, an unmarked long string, or a name field that is not a marker. The manifest records the
+    originals' sha256 and byte counts, never their content. Cards additionally require a content check for material
+    that violates a platform's rules; the generator refuses a card by name until that pass exists, which is why no
+    card has ever been in this repository (verified 2026-10-26 across all refs: no commit, no object at the card's
+    size, and no object at either raw preset's size).
+    Consequence for tests: a leg that needs "a real complex preset" uses the committed DERIVATION, and a leg that
+    needs "a user's directory" BUILDS one (`tests/e2e/longlived_test.go` synthesises a card, a chat, a world book, a
+    preset and the visual assets in Go). Neither path needs the user's machine, which is the whole point: CI must be
+    able to run without ever holding the originals.
