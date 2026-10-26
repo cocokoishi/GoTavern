@@ -272,20 +272,49 @@ try {
     }));
     step('chat-open', opened.messages > 0 || opened.chatLength > 0, JSON.stringify(opened));
 
-    // 1. ONE USER TURN THROUGH THE PRODUCT, then the product's own save.
+    // 1. ONE USER TURN THROUGH THE PRODUCT, then a save THAT ACTUALLY WRITES.
+    //
+    // MEASURED (run 40280522171): `saveMetadata()` resolved ok and wrote NOTHING -- `files=` was empty -- because
+    // saveChat() returns before any request when `chatName ?? characters[chid].chat` is undefined
+    // (public/script.js:7407-7417). A chat that has just been clicked has no identity, so the Q10 lane had to
+    // create one; the same applies here. The named form is the frontend's own saveChat with the one argument a
+    // user supplies on their first save.
     const first = await page.evaluate(async marker => {
-        const openai = await import('./scripts/openai.js');
-        const inserted = [];
-        inserted.push(await window.TavernHelper.createChatMessages([{ role: 'user', message: marker }]));
-        const save = (await import('./script.js')).saveMetadata;
-        if (typeof save !== 'function') return { ok: false, reason: 'saveMetadata is not a module export' };
-        await save();
-        return { ok: true, inserted: inserted.length, chatLength: openai.characters?.[openai.this_chid]?.chat?.length ?? null };
+        const context = window.SillyTavern.getContext();
+        const before = {
+            chatLength: (context.chat ?? []).length,
+            characterChat: context.characters?.[context.characterId]?.chat ?? null,
+            saveFunctions: ['saveMetadata', 'saveChat', 'saveChatConditional'].filter(name => typeof context[name] === 'function'),
+        };
+        const inserted = await window.TavernHelper.createChatMessages([{ role: 'user', message: marker }]);
+        const attempts = [];
+        const callSave = async (name, argument) => {
+            try {
+                await context[name](argument);
+                attempts.push({ via: name, argument: argument ?? null, ok: true });
+            } catch (error) {
+                attempts.push({ via: name, argument: argument ?? null, ok: false, error: String(error && error.message || error) });
+            }
+        };
+        if (before.saveFunctions.includes('saveMetadata')) await callSave('saveMetadata');
+        if (before.saveFunctions.includes('saveChat')) await callSave('saveChat', { chatName: 'q20-probe-chat' });
+        const after = window.SillyTavern.getContext();
+        return {
+            ok: attempts.some(attempt => attempt.ok === true),
+            inserted,
+            before,
+            attempts,
+            chatLength: (after.chat ?? []).length,
+            characterChat: after.characters?.[after.characterId]?.chat ?? null,
+        };
     }, MARKERS.first);
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
     const afterFirst = await readChatFiles();
     report.afterFirstSave = afterFirst;
-    step('first-turn-saved', first.ok === true && afterFirst.some(file => file.messages.some(message => String(message.mes ?? '').includes(MARKERS.first))),
+    report.firstTurn = first;
+    // THE SAVE IS JUDGED BY THE FILE, NOT BY THE RETURN VALUE: a resolved promise is exactly what the failing run
+    // produced.
+    step('first-turn-saved', afterFirst.some(file => file.messages.some(message => String(message.mes ?? '').includes(MARKERS.first))),
         `${JSON.stringify(first)}; files=${afterFirst.map(file => `${file.file}:${file.lines}`).join(',')}`);
 
     // 2. A FRESH PAGE LOAD MUST READ THAT CHAT BACK. This is the step no other leg performs.
