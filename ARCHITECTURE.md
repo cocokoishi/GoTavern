@@ -1426,3 +1426,30 @@ structure, model, stream flag, messages and roles, system instructions, samplers
 `tool_choice`, response format, reasoning, provider-specific members) and replies by rule (`MARKER_A` present
 → `ACK_A`), including controlled SSE framing, errors, mid-stream closes and delays. It captures and answers;
 it never defines correctness — expected context comes from pinned captures (`AGENTS.md` rule 49).
+
+## 36. User artifacts never enter the repository: only derivations do
+
+The rule is `AGENTS.md` 56. This section records the MECHANISM, so a future change does not have to rediscover it.
+
+**The originals are read-only inputs.** `tools/real-fixture-profile.mjs <file>...` reads a card or a preset by path
+and prints what must be preserved: prompt counts, `prompt_order` rows and enabled rows, the enabled bitmap hash,
+`extensions.tavern_helper` byte sizes, regex counts, and the card's chunk lengths. It writes nothing.
+
+**A derivation is built, not copied.** `tools/build-real-fixtures.mjs --out <dir> --preset name=<path>` replaces
+prose, helper script bodies and every name-bearing field with same-BYTE-length markers, refuses when a replacement
+changes the document's serialised length, and refuses to write a manifest whose output fails the scanner. Cards are
+refused by name until the same pass covers `chara`/`ccv3` (`name`, `creator`, `creator_notes`, `tags`, alternate
+greetings, `character_book.name`) AND a content check for prose that violates a platform's rules. That refusal is
+why no card has ever been committed.
+
+**The scanner is the gate, and it runs in CI.** `tools/check-fixture-watermarks.mjs --allow-declared <manifest>
+<files>` refuses a URL, a Discord handle/invite, an e-mail, a QQ group, a bilibili/patreon/afdian/WeChat handle, a
+作者/署名/转载 credit, a 64+ character string with no marker, and any name field (prompt, regex script, helper script
+name/info, and the button/data label subtrees) that is not a marker. The only exemptions are entries the manifest
+lists by EXACT path and EXACT value, and a manifest entry no fixture carries is itself a refusal.
+
+**CI needs none of the originals.** A leg that wants "a user's own preset" loads the committed derivation
+(`tests/browser/fixtures/real/preset-a.json`, `preset-b.json`, via `real-preset-probe.mjs`); a leg that wants "a
+user's directory" builds one in Go (`tests/e2e/longlived_test.go` writes a card PNG with a real `chara` chunk, a
+12-turn chat, a 30-entry world book, a 40-prompt preset, backgrounds, a persona and extension state into its own
+temp dir). Nothing in `.github/workflows/` references a path outside the repository.
