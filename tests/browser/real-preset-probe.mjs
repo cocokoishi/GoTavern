@@ -195,6 +195,7 @@ try {
     step('page-loaded', true);
 
     const ready = await page.evaluate(async () => {
+        const script = await import('./script.js');
         const started = performance.now();
         while (performance.now() - started < 60000) {
             if (script.settingsReady) return true;
