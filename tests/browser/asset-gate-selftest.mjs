@@ -68,6 +68,7 @@ function faithfulLeg(subject) {
                 gallery: {
                     tiles: 2,
                     bgFiles: ['__transparent.png', 'probe-asset-background.png'],
+                    stagedTilePresent: true,
                     drawerOpen: true,
                     fetchError: null,
                     fetched: { returned: 'null' },
@@ -78,8 +79,15 @@ function faithfulLeg(subject) {
                 status: 'observed',
                 listed: 2,
                 rowCount: 2,
-                steps: ['getUserAvatars(true)', 'opened the drawer', 'clicked the row'],
-                rowImage: { src: '/thumbnail?type=persona&file=probe-asset-persona.png', resolvedSrc: 'http://127.0.0.1:1/thumbnail?type=persona&file=probe-asset-persona.png', complete: true, naturalWidth: 96, naturalHeight: 96, settled: 'loaded' },
+                rowIds: ['user-default.png', 'probe-asset-persona.png'],
+                steps: ['getUserAvatars(true)', 'opened the drawer', 'clicked a NON-CURRENT row'],
+                rowImage: { src: '/thumbnail?type=persona&file=probe-asset-persona.png', resolvedSrc: 'http://127.0.0.1:1/thumbnail?type=persona&file=probe-asset-persona.png', complete: true, naturalWidth: 96, naturalHeight: 144, settled: 'loaded' },
+                currentPersonaBefore: 'user-default.png',
+                clickedAvatarId: 'probe-asset-persona.png',
+                clickedWasCurrentBefore: false,
+                clickedIsDefaultPersona: false,
+                userAvatarAfter: 'probe-asset-persona.png',
+                personaChanged: true,
                 selectedAfterClick: true,
                 currentPersonaHeading: 'Probe Persona',
             },
@@ -116,12 +124,30 @@ function expects(name, guardName, mutate) {
 
 // ---- the gallery paint ---------------------------------------------------------------------------
 expects('gallery rendered no tile -> galleryRenderedTheStagedTileOnBothLegs fails', 'galleryRenderedTheStagedTileOnBothLegs', leg => {
-    leg.dom.backgroundDriven = { status: 'not-driven', reason: 'no .bg_example appeared', gallery: { tiles: 0, bgFiles: [], drawerOpen: true, fetchError: null, fetched: { returned: 'null' } } };
+    leg.dom.backgroundDriven = { status: 'not-driven', reason: 'no .bg_example appeared', gallery: { tiles: 0, bgFiles: [], stagedTilePresent: false, drawerOpen: true, fetchError: null, fetched: { returned: 'null' } } };
     leg.dom.stagedBackgroundDriven = false;
 });
-expects('gallery rendered OTHER tiles but not the staged one -> galleryRenderedTheStagedTileOnBothLegs fails', 'galleryRenderedTheStagedTileOnBothLegs', leg => {
-    leg.dom.backgroundDriven.gallery.tiles = 3;
-    leg.dom.backgroundDriven.gallery.bgFiles = ['__transparent.png', 'a.png', 'b.png'];
+// THE RUN-40307800425 CASE ITSELF: 24 tiles rendered, the staged one WAS among them, but the probe's list was
+// sliced and the guard read the slice. The assertion here is the OPPOSITE of the old one: a gallery that rendered
+// the staged tile passes even though a truncated `bgFiles` would not contain it -- so the guard cannot repeat that
+// false finding, and `stagedTilePresent` is the field that carries the answer.
+{
+    const leg = faithfulLeg('gotavern');
+    leg.dom.backgroundDriven.gallery.tiles = 24;
+    leg.dom.backgroundDriven.gallery.bgFiles = ['__transparent.png', '_black.jpg', '_white.jpg', 'bedroom clean.jpg'];
+    leg.dom.backgroundDriven.gallery.stagedTilePresent = true;
+    const paired = faithfulLeg('pinned');
+    paired.dom.backgroundDriven.gallery.tiles = 24;
+    paired.dom.backgroundDriven.gallery.bgFiles = [...leg.dom.backgroundDriven.gallery.bgFiles];
+    paired.dom.backgroundDriven.gallery.stagedTilePresent = true;
+    const artifact = compare({ gotavern: leg, pinned: paired });
+    record('a 24-tile gallery whose truncated list omits the staged file still PASSES (run 40307800425\'s false finding)', artifact.guards.galleryRenderedTheStagedTileOnBothLegs === true, `bgFiles=${JSON.stringify(leg.dom.backgroundDriven.gallery.bgFiles)}`);
+}
+expects('gallery rendered 24 tiles but NOT the staged one -> galleryRenderedTheStagedTileOnBothLegs fails', 'galleryRenderedTheStagedTileOnBothLegs', leg => {
+    leg.dom.backgroundDriven.gallery.tiles = 24;
+    leg.dom.backgroundDriven.gallery.bgFiles = ['__transparent.png', 'a.png'];
+    leg.dom.backgroundDriven.gallery.stagedTilePresent = false;
+    leg.dom.stagedBackgroundDriven = false;
 });
 expects('tile thumbnail stayed on the placeholder -> galleryTileThumbnailPaintedOnBothLegs fails', 'galleryTileThumbnailPaintedOnBothLegs', leg => {
     leg.dom.backgroundDriven.tileThumbnailAfterLoad = 'none';
@@ -130,6 +156,46 @@ expects('clicking the tile did not change #bg1 -> stagedBackgroundDrivenOnBothLe
     leg.dom.backgroundDriven.appliedBackgroundImage = 'url("/backgrounds/__transparent.png")';
     leg.dom.stagedBackgroundDriven = false;
 });
+// THE THREE PAINT FAILURES MUST BE DISTINGUISHABLE IN THE FINDINGS, because they are three different defects and
+// run 40307800425 produced the FIRST one while reading like a product failure.
+{
+    const clickMissed = faithfulLeg('gotavern');
+    const clickMissedPinned = faithfulLeg('pinned');
+    for (const leg of [clickMissed, clickMissedPinned]) {
+        leg.dom.stagedBackgroundDriven = false;
+        leg.dom.backgroundDriven.appliedBackgroundImage = 'url("http://127.0.0.1:1/backgrounds/__transparent.png")';
+        leg.dom.backgroundDriven.selectedTileAfterClick = '__transparent.png';
+        leg.dom.backgroundDriven.selectedTileBeforeClick = ['__transparent.png'];
+        leg.dom.backgroundDriven.clickPath = 'element.click() then a bubbling MouseEvent';
+    }
+    const artifact = compare({ gotavern: clickMissed, pinned: clickMissedPinned });
+    const text = artifact.findings.join(' | ');
+    record('a click that never reached the handler is reported as a PROBE finding', /the click never reached onSelectBackgroundClick/.test(text), text.slice(0, 260));
+}
+{
+    const locked = faithfulLeg('gotavern');
+    const lockedPinned = faithfulLeg('pinned');
+    for (const leg of [locked, lockedPinned]) {
+        leg.dom.stagedBackgroundDriven = false;
+        leg.dom.backgroundDriven.appliedBackgroundImage = 'url("http://127.0.0.1:1/backgrounds/__transparent.png")';
+        leg.dom.backgroundDriven.selectedTileAfterClick = 'probe-asset-background.png';
+        leg.dom.backgroundDriven.chatBackgroundLocked = true;
+    }
+    const artifact = compare({ gotavern: locked, pinned: lockedPinned });
+    record('a locked chat background is reported as the LOCKED branch, not a product failure', /took the LOCKED branch/.test(artifact.findings.join(' | ')), artifact.findings.join(' | ').slice(0, 260));
+}
+{
+    const notPainted = faithfulLeg('gotavern');
+    const notPaintedPinned = faithfulLeg('pinned');
+    for (const leg of [notPainted, notPaintedPinned]) {
+        leg.dom.stagedBackgroundDriven = false;
+        leg.dom.backgroundDriven.appliedBackgroundImage = 'url("http://127.0.0.1:1/backgrounds/__transparent.png")';
+        leg.dom.backgroundDriven.selectedTileAfterClick = 'probe-asset-background.png';
+        leg.dom.backgroundDriven.chatBackgroundLocked = false;
+    }
+    const artifact = compare({ gotavern: notPainted, pinned: notPaintedPinned });
+    record('a selected tile that did not paint #bg1 is reported against #bg1', /#bg1 is "url\(/.test(artifact.findings.join(' | ')), artifact.findings.join(' | ').slice(0, 260));
+}
 
 // ---- the persona picker --------------------------------------------------------------------------
 expects('picker rendered no row -> personaPickerRenderedOnBothLegs fails', 'personaPickerRenderedOnBothLegs', leg => {
@@ -140,6 +206,20 @@ expects('picker row image was broken -> personaPickerRowImageDecodedOnBothLegs f
 });
 expects('clicking the row did not select it -> personaPickerSelectedOnBothLegs fails', 'personaPickerSelectedOnBothLegs', leg => {
     leg.dom.personaPicker.selectedAfterClick = false;
+});
+// THE RUN-40307800425 CASE: the drive clicked the persona that was ALREADY `user_avatar`, which setUserAvatar
+// short-circuits BY DESIGN (personas.js:154-159). That is a probe-faithfulness defect, and it must be a finding
+// rather than a red against the product -- so the precondition guard fires on it.
+expects('the picker clicked the already-selected row -> personaPickerClickedANonCurrentRow fails', 'personaPickerClickedANonCurrentRow', leg => {
+    leg.dom.personaPicker.clickedAvatarId = 'user-default.png';
+    leg.dom.personaPicker.clickedWasCurrentBefore = true;
+    leg.dom.personaPicker.userAvatarAfter = 'user-default.png';
+    leg.dom.personaPicker.personaChanged = false;
+    leg.dom.personaPicker.selectedAfterClick = false;
+});
+expects('the picker click left user_avatar unchanged -> personaPickerChangedThePersonaOnBothLegs fails', 'personaPickerChangedThePersonaOnBothLegs', leg => {
+    leg.dom.personaPicker.userAvatarAfter = leg.dom.personaPicker.currentPersonaBefore;
+    leg.dom.personaPicker.personaChanged = false;
 });
 
 // ---- the swiped message avatar -------------------------------------------------------------------

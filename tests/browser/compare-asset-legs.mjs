@@ -122,9 +122,15 @@ export function compare({ gotavern, pinned }) {
     // is a catalogue or harness finding; a gallery whose tile thumbnail did not paint is a thumbnail finding; a
     // `#bg1` that kept `__transparent.png` is the paint finding.
     const galleryOf = report => dom(report)?.backgroundDriven?.gallery ?? null;
+    // THE TEST IS THE WHOLE-DOMUMENT QUESTION, NOT A SLICE OF IT. Run 40307800425 rendered 24 tiles on BOTH legs
+    // and the staged file WAS one of them (`tileBgFile` in the same object said so), but the guard looked for it in
+    // a 12-entry `bgFiles` sample and reported "the gallery did not render the staged tile" on both legs. That is
+    // AGENTS.md 11 (a bounded listing cannot support a claim of absence) applied to a DOM query, and the probe now
+    // records `stagedTilePresent` from the untruncated DOM. The guard reads that field, and keeps `tiles > 0` so an
+    // empty gallery is still its own finding.
     guards.galleryRenderedTheStagedTileOnBothLegs = ['gotavern', 'pinned'].every(leg => {
         const gallery = galleryOf(leg === 'gotavern' ? gotavern : pinned);
-        return Boolean(gallery) && (gallery.tiles ?? 0) > 0 && (gallery.bgFiles ?? []).includes('probe-asset-background.png');
+        return Boolean(gallery) && (gallery.tiles ?? 0) > 0 && gallery.stagedTilePresent === true;
     });
     for (const leg of ['gotavern', 'pinned']) {
         if (!guards.galleryRenderedTheStagedTileOnBothLegs) {
@@ -152,10 +158,26 @@ export function compare({ gotavern, pinned }) {
         return picker?.rowImage?.settled === 'loaded' && (picker?.rowImage?.naturalWidth ?? 0) > 0;
     });
     guards.personaPickerSelectedOnBothLegs = ['gotavern', 'pinned'].every(leg => pickerOf(leg === 'gotavern' ? gotavern : pinned)?.selectedAfterClick === true);
+    // THE CLICK MUST HAVE TARGETED A ROW THE SUBJECT WOULD ACT ON. `setUserAvatar` returns early when the clicked
+    // persona is already `user_avatar` (personas.js:154-159), so a click on the current row is a no-op BY DESIGN:
+    // run 40307800425 clicked the default persona and reported `selectedAfterClick:false` identically on both legs,
+    // which is a harness-faithfulness alarm (rule 10), not a product finding. The precondition comes from the
+    // subject's own model field (`personas.user_avatar`), read before the click, so it is asserted, not assumed.
+    guards.personaPickerClickedANonCurrentRow = ['gotavern', 'pinned'].every(leg => pickerOf(leg === 'gotavern' ? gotavern : pinned)?.clickedWasCurrentBefore === false);
+    // AND THE PICKER CHANGED THE PERSONA. `personaChanged` is `user_avatar` after the click differing from before
+    // (the subject's own model); `.selected` is the DOM half. Both are required, so "the model moved but the UI did
+    // not repaint" stays a finding of its own.
+    guards.personaPickerChangedThePersonaOnBothLegs = ['gotavern', 'pinned'].every(leg => pickerOf(leg === 'gotavern' ? gotavern : pinned)?.personaChanged === true);
     for (const leg of ['gotavern', 'pinned']) {
         const picker = pickerOf(leg === 'gotavern' ? gotavern : pinned);
         if (picker?.status !== 'observed') {
             findings.push(`${leg}: the persona picker was not driven: ${JSON.stringify(picker?.reason ?? null)}`);
+        } else if (picker.clickedWasCurrentBefore !== false) {
+            findings.push(`${leg}: the persona picker clicked the ALREADY-SELECTED row (${JSON.stringify(picker.clickedAvatarId)}), which setUserAvatar short-circuits by design; pick another row`);
+        } else if (picker.personaChanged !== true) {
+            findings.push(`${leg}: clicking persona ${JSON.stringify(picker.clickedAvatarId)} did not change user_avatar`);
+        } else if (picker.selectedAfterClick !== true) {
+            findings.push(`${leg}: user_avatar became ${JSON.stringify(picker.userAvatarAfter)} but its row was not marked .selected, so the model moved and the UI did not`);
         }
     }
 
@@ -194,6 +216,26 @@ export function compare({ gotavern, pinned }) {
         && Boolean(backgrounds.pinned.served && backgrounds.pinned.served.status === 200 && (backgrounds.pinned.served.byteLength ?? 0) > 0);
     if (!guards.backgroundAppliedOnBothLegs) {
         findings.push(`background not applied: gotavern=${JSON.stringify(backgrounds.gotavern.driven)} pinned=${JSON.stringify(backgrounds.pinned.driven)}`);
+    }
+    // THE PAINT FAILURE MUST SAY WHICH BRANCH IT SAW, because the three are different findings:
+    //   * `selectedTileAfterClick` still naming another file means the CLICK never reached the handler (a probe
+    //     defect -- what run 40307800425 measured, where the tile rendered and loaded but `#bg1` kept
+    //     `__transparent.png`);
+    //   * the right tile selected but `#bg1` unchanged and `chatBackgroundLocked` true is the LOCKED branch, which
+    //     paints the locked background and is correct behaviour the drive must not call a failure;
+    //   * everything moved but `#bg1` did not is a product finding.
+    for (const leg of ['gotavern', 'pinned']) {
+        const driven = backgrounds[leg].driven ?? {};
+        if (driven.status !== 'observed') continue;
+        if (guards.stagedBackgroundPaintedOnBothLegs) continue;
+        const selected = driven.selectedTileAfterClick ?? null;
+        if (selected !== 'probe-asset-background.png') {
+            findings.push(`${leg}: the gallery tile click did not select the staged tile (selected tile after click: ${JSON.stringify(selected)}, path: ${JSON.stringify(driven.clickPath ?? null)}) -- the click never reached onSelectBackgroundClick`);
+        } else if (driven.chatBackgroundLocked === true) {
+            findings.push(`${leg}: the staged tile was selected but chat_metadata.bg is set, so onSelectBackgroundClick took the LOCKED branch`);
+        } else {
+            findings.push(`${leg}: the staged tile was selected but #bg1 is ${JSON.stringify(driven.appliedBackgroundImage)}`);
+        }
     }
 
     // ---- cross-leg equality --------------------------------------------------------------------
@@ -338,7 +380,10 @@ export function compare({ gotavern, pinned }) {
             tileThumbnailAfterLoad: stripOrigin(driven.tileThumbnailAfterLoad),
             gallery: driven.gallery ? {
                 tiles: driven.gallery.tiles ?? 0,
+                // NOT TRUNCATED: the artefact records every bgfile, because a slice of the list is what produced
+                // the false "the gallery did not render the staged tile" finding in run 40307800425.
                 bgFiles: driven.gallery.bgFiles ?? [],
+                stagedTilePresent: driven.gallery.stagedTilePresent === true,
                 drawerOpen: driven.gallery.drawerOpen === true,
                 fetchError: driven.gallery.fetchError ?? null,
             } : null,

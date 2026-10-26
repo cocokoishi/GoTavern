@@ -669,9 +669,16 @@ try {
         }
         // WHAT THE GALLERY CONTAINS, WHETHER OR NOT THE STAGED TILE IS AMONG IT. An empty gallery and a gallery
         // missing one tile are different findings, and only this distinguishes them.
+        //
+        // THE LIST IS NOT TRUNCATED, and that is AGENTS.md 11's lesson applied to a DOM query: the first version
+        // sliced the first 12 bgfiles "for the artefact's size", the staged tile sorted after them, and the
+        // comparator reported "the gallery did not render the staged tile" on BOTH legs while `tileBgFile` in the
+        // same object said it had (run 40307800425: 24 tiles, staged file present, guard red). A bounded listing
+        // can never support a claim of absence.
         const gallery = {
             tiles: document.querySelectorAll('#bg_menu_content .bg_example').length,
-            bgFiles: [...document.querySelectorAll('#bg_menu_content .bg_example')].slice(0, 12).map(node => node.getAttribute('bgfile')),
+            bgFiles: [...document.querySelectorAll('#bg_menu_content .bg_example')].map(node => node.getAttribute('bgfile')),
+            stagedTilePresent: Boolean(document.querySelector(`#bg_menu_content .bg_example[bgfile="${backgroundFile}"]`)),
             drawerOpen: Boolean(document.querySelector('#Backgrounds')) && !document.querySelector('#Backgrounds').classList.contains('closedDrawer'),
             panelContent: document.querySelector('#bg_menu_content')?.innerHTML?.slice(0, 200) ?? null,
             fetchError,
@@ -686,22 +693,59 @@ try {
         // The lazy loader fires on intersection; give it a moment, then click, which is what a user does.
         await new Promise(resolve => setTimeout(resolve, 1500));
         const after = clipper ? getComputedStyle(clipper).backgroundImage : null;
+        // THE TILE'S `data-url` IS SET WITH jQuery `.data()`, NOT AS AN ATTRIBUTE (backgrounds.js:186
+        // `thumbnail.data('url', url)`), so `getAttribute('data-url')` is null on a perfectly good tile -- measured
+        // in run 40307800425 on both legs. Reading it the way the subject does is what makes this field mean
+        // something.
+        const dataUrl = globalThis.jQuery ? globalThis.jQuery(tile).data('url') ?? null : null;
+        // WHAT THE CLICK DID, FROM THE PAGE'S OWN STATE. The gallery marks the applied tile `selected-background`,
+        // and `onSelectBackgroundClick` either calls `setBackground` (writes `#bg1` and `background_settings`) or the
+        // locked-background branch. Recording all three separates "the click never reached the handler" from "the
+        // handler ran and refused" from "the handler ran and painted".
+        const beforeSelection = [...document.querySelectorAll('#bg_menu_content .bg_example.selected-background')].map(node => node.getAttribute('bgfile'));
         tile.click();
+        // A REAL MOUSE EVENT IF THE SYNTHETIC ONE CHANGED NOTHING. `onSelectBackgroundClick` is bound through
+        // jQuery's delegated `.on('click', '.bg_example', …)` (backgrounds.js:1732-1733), which listens for a
+        // bubbling click from a TRUSTED-ish target inside the gallery. `element.click()` is the ordinary way to do
+        // that and is tried first; if the page's own selection state did not move, a bubbling MouseEvent is
+        // dispatched once, and WHICH PATH WORKED is recorded. A no-op click is exactly what run 40307800425
+        // measured, so the drive must not simply wait longer for a handler that never ran.
+        let clickPath = 'element.click()';
+        const quickDeadline = performance.now() + 3000;
+        let selectionMoved = false;
+        while (performance.now() < quickDeadline) {
+            selectionMoved = document.querySelector('#bg_menu_content .bg_example.selected-background')?.getAttribute('bgfile') === backgroundFile;
+            if (selectionMoved) break;
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        if (!selectionMoved) {
+            tile.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+            clickPath = 'element.click() then a bubbling MouseEvent';
+        }
         const bgDeadline = performance.now() + 15000;
         let applied = null;
+        let selectedTile = null;
         while (performance.now() < bgDeadline) {
             const element = document.querySelector('#bg1');
             applied = element ? getComputedStyle(element).backgroundImage : null;
+            selectedTile = document.querySelector('#bg_menu_content .bg_example.selected-background')?.getAttribute('bgfile') ?? null;
             if (applied && applied !== 'none' && applied.includes(backgroundFile)) break;
             await new Promise(resolve => setTimeout(resolve, 200));
         }
         return {
             status: 'observed',
             tileBgFile: tile.getAttribute('bgfile'),
-            tileDataUrl: tile.getAttribute('data-url'),
+            tileDataUrl: dataUrl,
             tileThumbnailBeforeLoad: before,
             tileThumbnailAfterLoad: after,
             appliedBackgroundImage: applied,
+            selectedTileBeforeClick: beforeSelection,
+            selectedTileAfterClick: selectedTile,
+            clickPath,
+            // WHICH BRANCH THE HANDLER TOOK. `isChatBackgroundLocked()` reads `chat_metadata.bg`; a locked chat
+            // paints `#bg1` directly and never touches `background_settings`, so the two are recorded apart.
+            chatBackgroundLocked: Boolean(globalThis.chat_metadata?.bg),
+            backgroundSettingsName: globalThis.oai_settings?.background?.name ?? globalThis.background_settings?.name ?? null,
             gallery,
         };
     }, BACKGROUND_FILE).catch(error => ({ status: 'not-driven', reason: `the background drive threw: ${String(error?.message ?? error).slice(0, 160)}` }));
@@ -791,18 +835,35 @@ try {
             naturalHeight: image ? image.naturalHeight : null,
             settled,
         };
-        row.click();
-        states.steps.push('clicked the row');
-        // THE PICKER'S EFFECT, OBSERVED THE WAY A USER SEES IT: the panel's own "Current Persona" heading takes the
-        // persona's name, and the row is marked selected. Both are `updatePersonaUIStates`, which runs from
-        // `setUserAvatar`. A click that throws or does nothing leaves both unchanged, and that is the finding.
+        // THE SUBJECT'S OWN PRE-STATE, read from its source rather than assumed (AGENTS.md 10). `setUserAvatar`
+        // does `if (currentUserAvatar === user_avatar) return;` (personas.js:154-159), so clicking the persona that
+        // is ALREADY selected is a no-op BY DESIGN and cannot prove selection works. Run 40307800425 clicked
+        // `user-default.png` -- the default persona -- and recorded `selectedAfterClick:false` on BOTH legs with the
+        // heading still "User", which is a probe-faithfulness alarm (rule 10), not a product finding: the drive
+        // picked a row where the subject is designed to do nothing. The pre-state is recorded so that can never be
+        // read as a product failure again, and the drive prefers a row that is NOT the current persona.
+        const currentBefore = typeof personas.user_avatar === 'string' ? personas.user_avatar : null;
+        const isPrimary = row.classList.contains('default_persona');
+        // PREFER A NON-CURRENT ROW, which is the only click whose effect the subject's own guard permits.
+        const alternative = rows.find(candidate => candidate.getAttribute('data-avatar-id') !== currentBefore) ?? null;
+        const clickTarget = alternative ?? row;
+        const clickedId = clickTarget.getAttribute('data-avatar-id');
+        clickTarget.click();
+        states.steps.push(alternative ? 'clicked a NON-CURRENT row' : 'clicked the only row (the current persona)');
+        // THE PICKER'S EFFECT, OBSERVED THE WAY A USER SEES IT. `setUserAvatar` sets `user_avatar`, then
+        // `updatePersonaUIStates` marks the row `.selected` and the panel's `#your_name` takes the persona's name
+        // and `#user_avatar_block`'s title. A click that the subject's own guard short-circuits leaves all three
+        // unchanged, and each is recorded SEPARATELY so "the click did nothing" and "the click changed the model
+        // but not the DOM" are different findings.
         const appliedDeadline = performance.now() + 15000;
         let selected = false;
         let heading = null;
+        let userAvatarAfter = null;
         while (performance.now() < appliedDeadline) {
-            const target = document.querySelector(`#user_avatar_block .avatar-container[data-avatar-id="${personaFile}"]`);
+            const target = document.querySelector(`#user_avatar_block .avatar-container[data-avatar-id="${clickedId}"]`);
             selected = Boolean(target && target.classList.contains('selected'));
             heading = document.querySelector('#your_name')?.textContent?.trim() ?? null;
+            userAvatarAfter = typeof personas.user_avatar === 'string' ? personas.user_avatar : null;
             if (selected) break;
             await new Promise(resolve => setTimeout(resolve, 200));
         }
@@ -810,8 +871,16 @@ try {
             status: 'observed',
             listed: states.listed,
             rowCount: rows.length,
+            rowIds: rows.map(candidate => candidate.getAttribute('data-avatar-id')),
             steps: states.steps,
             rowImage: beforeClick,
+            // The pre-state the subject's own guard reads, and which row the drive chose BECAUSE of it.
+            currentPersonaBefore: currentBefore,
+            clickedAvatarId: clickedId,
+            clickedWasCurrentBefore: clickedId === currentBefore,
+            clickedIsDefaultPersona: isPrimary,
+            userAvatarAfter,
+            personaChanged: typeof userAvatarAfter === 'string' && userAvatarAfter !== currentBefore,
             selectedAfterClick: selected,
             currentPersonaHeading: heading,
         };

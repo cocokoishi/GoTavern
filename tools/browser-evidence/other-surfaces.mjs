@@ -36,6 +36,7 @@ export function assetSurface(ctx, assetComparison) {
         // entry is what turns "driven" into "cannot silently regress to unproven".
         'galleryRenderedTheStagedTileOnBothLegs', 'galleryTileThumbnailPaintedOnBothLegs', 'stagedBackgroundPaintedOnBothLegs',
         'personaPickerRenderedOnBothLegs', 'personaPickerRowImageDecodedOnBothLegs', 'personaPickerSelectedOnBothLegs',
+        'personaPickerClickedANonCurrentRow', 'personaPickerChangedThePersonaOnBothLegs',
         'swipeChangedTheMessageOnBothLegs', 'swipedMessageAvatarDecodedOnBothLegs',
         // AND THE REAL CARD IS IN PLAY (AGENTS.md 56: a leg that needs a real artifact uses the committed
         // derivation). A leg that silently ran on the synthetic card alone would report the same green.
