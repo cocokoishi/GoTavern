@@ -457,7 +457,6 @@ function assertHeaderCoverage(definition, provider, responseHeaderNames) {
 // declarations in its scenarios name the pinned line that puts the value on the wire.
 const REDACTED_PROVIDER_HEADERS = new Map([
     ['x-api-key', '<redacted>'],
-    // A CREDENTIAL THAT IS ALSO A CONTRACT, AND ONE WE CANNOT REDACT AWAY. FIREWORKS sends
     // `x-session-affinity: <HMAC-SHA256(cookieSecret, chat_id) first 16 hex>` when a chat_id is
     // present; `getAffinityKey()` is the INSTALL'S COOKIE SECRET (chat-completions.js:119), so
     // recording the header would commit a digest of a secret into a compared field. Redacting it
@@ -470,7 +469,7 @@ const REDACTED_PROVIDER_HEADERS = new Map([
     // ['x-session-affinity', '<redacted>'],
 ]);
 
-function normalizeProvider(recording, mockAddress) {
+function normalizeProvider(recording, mockAddress, declaredCredentialNames = []) {
     const provider = JSON.parse(JSON.stringify(recording));
     for (const request of provider.requests) {
         request.headers = request.headers.map(header => {
@@ -490,8 +489,15 @@ function normalizeProvider(recording, mockAddress) {
     // nothing failed. Any credential-shaped value that survives normalisation now refuses the capture outright.
     for (const request of provider.requests) {
         for (const header of request.headers) {
-            const credentialHeader = headerNameEquals(header.name, 'authorization')
-                || headerNameEquals(header.name, 'x-api-key') || headerNameEquals(header.name, 'api-key');
+            // NAME-SHAPED, NOT REGISTRY-ONLY: a header nobody registered still gets refused if its name looks
+            // like a credential, so the third unregistered spelling cannot slip through the way api-key did.
+            // A DECLARED CREDENTIAL IS COMPARED, NOT REFUSED. `azure-openai-deployment-escaping` declares
+            // `expectedApiKey: {header: 'api-key'}` precisely so the artefact proves the key REACHED the provider;
+            // redacting it, or refusing it, would turn that scenario into one that can no longer fail -- which is
+            // the failure rule 4 exists to forbid. Only an UNdeclared credential-shaped header is refused.
+            const isDeclared = declaredCredentialNames.some(name => headerNameEquals(header.name, name));
+            const looksLikeCredential = !isDeclared && /(^|[-_])(api[-_]?key|apikey|authorization|token|secret|password|session)/i.test(String(header.name ?? '')) ;
+            const credentialHeader = looksLikeCredential;
             if (!credentialHeader) continue;
             if (/<redacted>|^Bearer\s+<redacted>$|^\*+$/.test(header.value)) continue;
             if (header.value === '' || header.value === undefined) continue;
@@ -598,7 +604,8 @@ async function captureScenario({ file, definition, mockBinary, startBackend, bac
         }
         const recordedBody = normalizeProviderBody(body, mock.address);
         const recordedBodyJSON = JSON.stringify(recordedBody);
-        const normalizedProvider = normalizeProvider(recorded.body, mock.address);
+        const declaredCredentialNames = [definition.expectedApiKey?.header, definition.expectedAuthorizationKey ? 'authorization' : null].filter(Boolean);
+        const normalizedProvider = normalizeProvider(recorded.body, mock.address, declaredCredentialNames);
         const headerCoverage = assertHeaderCoverage(definition, normalizedProvider, [...generated.response.headers.keys()]);
 
         // A scenario that declares an expected key must actually have exercised
