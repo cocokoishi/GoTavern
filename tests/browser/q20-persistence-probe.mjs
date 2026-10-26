@@ -217,16 +217,16 @@ try {
     // requests the page makes to /api/chats are recorded and carried into the artefact: a non-2xx is a product
     // finding, an absent request is a drive limitation.
     const chatRequests = [];
-    page.on('response', async response => {
-    // ALSO RECORDED: EVERY response, and every request the PAGE issues, because the first attempt listened only
-    // to responses and the log showed zero /api/chats lines at all -- i.e. the frontend never asked. Both sides are
-    // recorded so the artefact cannot confuse "no response" with "no request".
     const pageRequests = [];
+    // BOTH SIDES ARE RECORDED. The first attempt listened only to RESPONSES, so an absent response and an absent
+    // request looked identical -- and the log had neither. Recording the page's own requests as well makes
+    // "the frontend never asked" and "the server refused" distinguishable in the artefact.
     page.on('request', request => {
         const url = request.url();
         if (!/\/api\//.test(url)) return;
         pageRequests.push({ method: request.method(), path: new URL(url).pathname });
     });
+    page.on('response', async response => {
         const url = response.url();
         if (!/\/api\/chats/.test(url)) return;
         let byteLength = null;
