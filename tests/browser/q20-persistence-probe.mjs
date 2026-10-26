@@ -589,19 +589,35 @@ try {
         // the click preceded readiness.
         const clickStartedAt = Date.now();
         const frontend = await import('./script.js');
+        const kai = await import('./scripts/kai-settings.js');
         const readyDeadline = Date.now() + 60000;
         while (Date.now() < readyDeadline && frontend.settingsReady !== true) {
             await new Promise(resolve => setTimeout(resolve, 100));
         }
         const readyWaitMs = Date.now() - clickStartedAt;
         const settingsReadyAtClick = frontend.settingsReady === true;
+        // TWO SILENT EARLY RETURNS sit between GENERATION_AFTER_COMMANDS and any provider request, and BOTH produce
+        // exactly this leg's symptom -- events fire, /api/ping happens, then nothing, with no throw and no page
+        // error. Record their inputs at the click so the next run can say whether this is one of them:
+        //   script.js:4323  main_api == 'kobold' && kai_settings.streaming_kobold && !kai_flags.can_use_streaming
+        //   script.js:4329  isHordeGenerationNotAllowed()
+        const silentExitInputs = {
+            mainApi: context && context.mainApi,
+            kaiStreamingKobold: Boolean(kai.kai_settings && kai.kai_settings.streaming_kobold),
+            kaiCanUseStreaming: Boolean(kai.kai_flags && kai.kai_flags.can_use_streaming),
+            selectedGroup: Boolean(context && context.groupId),
+            hordeBlocked: (() => {
+                try { return typeof frontend.isHordeGenerationNotAllowed === 'function' ? Boolean(frontend.isHordeGenerationNotAllowed()) : null; }
+                catch (error) { return `threw: ${String(error && error.message || error)}`; }
+            })(),
+        };
         const textarea = document.querySelector('#send_textarea');
         const button = document.querySelector('#send_but');
         if (!textarea || !button) return { clicked: false, reason: 'send controls missing' };
         textarea.value = marker;
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
         button.click();
-        return { clicked: true, textareaValue: textarea.value, settingsReadyAtClick, readyWaitMs };
+        return { clicked: true, textareaValue: textarea.value, settingsReadyAtClick, readyWaitMs, silentExitInputs };
     }, MARKERS.first);
     // A SEND IS ASYNCHRONOUS: the click returns immediately and the save lands after the frontend has produced the
     // message and named the chat. The file is polled for the marker with a bounded budget rather than read on the
