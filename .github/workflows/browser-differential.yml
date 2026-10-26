@@ -783,6 +783,61 @@ jobs:
             --boundary "$work/preset-boundary.json" \
             > "tests/browser/$artifact"
 
+      - name: Record the REAL-preset legs (preset A and preset B, on both subjects)
+        id: real-preset
+        # Q6/Q8. The synthetic preset this workflow already captures proves the MECHANISM; this proves the
+        # user's OWN preset file changes the model context and that the request is equal on both subjects.
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          mkdir -p "$work/legs"
+          failures=0
+          for preset in a b; do
+            case "$preset" in
+              a) fixture=tests/browser/fixtures/real/preset-a.json; prompts=105; rows=109; enabled=66 ;;
+              b) fixture=tests/browser/fixtures/real/preset-b.json; prompts=119; rows=115; enabled=39 ;;
+            esac
+            for subject in gotavern pinned; do
+              tree="$work/real-preset-tree-$subject-$preset"
+              rm -rf "$tree"; mkdir -p "$tree"
+              report="$work/legs/real-preset-$subject-$preset.json"
+              if [ "$subject" = "gotavern" ]; then
+                if node tests/browser/real-preset-probe.mjs --data-root "$tree" --preset "$fixture" \
+                    --preset-name "real-preset-$preset" --expect-prompts "$prompts" --expect-rows "$rows" \
+                    --expect-enabled "$enabled" --report "$report"; then
+                  echo "recorded the $subject/$preset real-preset leg"
+                else
+                  echo "::error::the $subject/$preset real-preset leg failed to drive"
+                  failures=$((failures + 1))
+                fi
+              else
+                if node tests/browser/run-against-pinned.mjs real-preset-probe.mjs -- --data-root "$tree" \
+                    --preset "$fixture" --preset-name "real-preset-$preset" --expect-prompts "$prompts" \
+                    --expect-rows "$rows" --expect-enabled "$enabled" --report "$report"; then
+                  echo "recorded the $subject/$preset real-preset leg"
+                else
+                  echo "::error::the $subject/$preset real-preset leg failed to drive"
+                  failures=$((failures + 1))
+                fi
+              fi
+            done
+          done
+          echo "real_preset_failures=$failures" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Compare the REAL-preset legs
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          node tests/browser/compare-real-preset-legs.mjs \
+            "$work/legs/real-preset-gotavern-a.json" "$work/legs/real-preset-pinned-a.json" \
+            "$work/legs/real-preset-gotavern-b.json" "$work/legs/real-preset-pinned-b.json" \
+            > tests/browser/real-preset-comparison.json && status=0 || status=$?
+          cat tests/browser/real-preset-comparison.json
+          exit "$status"
+
       - name: Prove the preset gate has teeth
         # Same two-part condition as the comparator above: this step proves the gate has teeth by
         # mutating the recorded legs, so it cannot run when there are no preset legs.
