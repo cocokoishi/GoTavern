@@ -185,6 +185,31 @@ Two driver defects cost this lane two rounds and are worth remembering: `getCont
 `TavernHelper` member (the child iframe's accessor is `window.SillyTavern.getContext()`, installed by
 `iframe/predefine.js`), and a just-clicked character has a greeting PREVIEW and no chat, so
 `createChatMessages` had nothing to write into.
+**Q22 (a paired, soaked benchmark of both backends) — MEASURED 2026-10-26, and here is exactly what it may be cited for.**
+`GoTavern smoke metrics` 40394799325 (boot/RSS/latency) and 40396669521 (the same plus a ten-minute soak on each
+subject), job `paired-linux-amd64`, runner image `ubuntu26`. Three alternating rounds plus a bounded soak, both
+subjects booted by the same function over their own mkdtemp data root.
+
+| | pinned Node | GoTavern |
+|---|---|---|
+| boot -> GET /version 200 (median) | 14,355 ms | 61 ms |
+| steady RSS (median) | 912 MB | 37 MB |
+| GET /version median | 62.7 ms | 0.43 ms |
+| soak RSS first -> last | 1,183 MB -> 330 MB | 36.6 MB -> 34.9 MB |
+| soak p95 first -> last | 71.8 -> 47.7 ms | 0.81 -> 1.29 ms |
+| soak RSS range | 322-1,183 MB | 34.9-36.6 MB |
+
+WHAT THIS MAY BE CITED FOR: on that runner, in that run, with those inputs. NOTHING ELSE. The two runs disagree about
+pinned's own boot time by ~60% (8,777 ms in 40394799325 against 14,355 ms in 40396669521), which is the measured
+justification for asserting no threshold and comparing only within one run. No multiplier is claimed, no other runner
+is implied, and the soak's p95 on GoTavern rose by 0.48 ms across twenty samples, which is reported and NOT
+characterised as drift.
+
+The pinned RSS series is the reason the artefact carries a SERIES rather than a delta: its first-to-last difference is
+-853 MB, which a delta alone would have rendered as "pinned uses 853 MB less", when the truth is a start-up
+high-water mark that V8 then reclaims.
+
+Asserted (structural only): everyRoundAnswered, sampleCountsMatch, soakCompleted, soakSeriesMatch.
 **Q20 (save -> a FRESH page load reading it back -> a second turn -> a swipe, all equal to pinned) — PROVEN 2026-10-26.**
 `Browser differential` 40387864205 (`lane/q20-persistence`), steps `Record the Q20 legs (save -> reload -> swipe, on
 both subjects)` success and `Compare the Q20 legs` success, verdict `match`, SEVEN of seven guards true:
