@@ -805,6 +805,21 @@ function assertGoTavernMatchesPinned(pinnedCaptures, goTavernCaptures) {
         if (appliedTransportDifferences.length > 0) {
             candidate.transportDifferencesApplied = appliedTransportDifferences;
         }
+        // HEADER ORDER IS NOT PART OF THE CONTRACT, AND THE COMPARATOR WALKS ARRAYS BY INDEX. Pinned emits the
+        // wire-exact client's order (accept first, Host/Connection last); GoTavern emits them in its own order because
+        // net/http owns the framing. The NAME/VALUE pairs are what a provider can observe and what the pinned source
+        // defines, so both captures are sorted by name before comparison -- on BOTH sides, so a header that is present
+        // on one side and absent on the other still fails, and a value still fails.
+        const sortHeaders = capture => {
+            for (const request of capture.provider?.requests ?? []) {
+                if (Array.isArray(request.headers)) {
+                    request.headers = [...request.headers].sort((left, right) =>
+                        String(left?.name ?? '').toLowerCase().localeCompare(String(right?.name ?? '').toLowerCase()));
+                }
+            }
+        };
+        sortHeaders(reference);
+        sortHeaders(candidate);
         const result = compareObservations(reference, candidate);
         if (!result.matches) {
             const detail = result.differences.slice(0, 20).map(difference =>
