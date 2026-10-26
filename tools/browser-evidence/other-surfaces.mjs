@@ -31,6 +31,16 @@ export function assetSurface(ctx, assetComparison) {
         // the user's own questions
         'noImageRequestFailedOnEitherLeg', 'everyCharacterListAvatarDecoded', 'everyMessageAvatarDecoded',
         'backgroundAppliedOnBothLegs', 'backgroundServedWithBytesOnBothLegs', 'stagedBackgroundServedWithBytesOnBothLegs',
+        // THE THREE SURFACES THAT WERE UNPROVEN UNTIL THEY WERE DRIVEN (Q5/Q6/Q7's missing halves). They are
+        // REQUIRED here, not merely recorded: the artefact used to list them in `unproven[]`, and a required-list
+        // entry is what turns "driven" into "cannot silently regress to unproven".
+        'galleryRenderedTheStagedTileOnBothLegs', 'galleryTileThumbnailPaintedOnBothLegs',
+        'personaPickerRenderedOnBothLegs', 'personaPickerRowIsClickable', 'personaPickerRowImageDecodedOnBothLegs', 'personaPickerSelectedOnBothLegs',
+        'personaPickerClickedANonCurrentRow', 'personaPickerChangedThePersonaOnBothLegs',
+        'swipeChangedTheMessageOnBothLegs', 'swipedMessageAvatarDecodedOnBothLegs',
+        // AND THE REAL CARD IS IN PLAY (AGENTS.md 56: a leg that needs a real artifact uses the committed
+        // derivation). A leg that silently ran on the synthetic card alone would report the same green.
+        'bothLegsStagedTheRealCard', 'realCardStructureEqualOnBothLegs',
         // cross-leg
         'sameImageUrlSet', 'perUrlStatusEqual', 'perUrlContentTypeEqual', 'nonThumbnailBytesEqual',
         'thumbnailResponsesAreImages', 'thumbnailDivergenceIsBytesOnly',

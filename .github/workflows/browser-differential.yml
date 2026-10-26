@@ -53,6 +53,12 @@ on:
     paths:
       - 'tests/browser/asset-probe.mjs'
       - 'tests/browser/compare-asset-legs.mjs'
+      - 'tests/browser/asset-gate-selftest.mjs'
+      # THE COMMITTED CARD DERIVATION IS AN INPUT TO THE ASSET LEG, so a change to it must re-prove the leg that
+      # stages it. Without this entry a re-generated card could land with no browser run at all -- the same shape
+      # as the workflow-edit omission measured at commit 555cbdc.
+      - 'tests/browser/fixtures/real/card-*.png'
+      - 'tests/browser/fixtures/real/real-fixture-manifest.json'
       # THE HELPER HARNESS PROVES ITSELF ON A PUSH THAT TOUCHES IT (AGENTS.md 7/47): the same reasoning as
       # the asset entries above, one surface over -- a lane that adds a gate it cannot run is a gate nobody
       # has seen execute.
