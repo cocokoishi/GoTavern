@@ -643,7 +643,16 @@ try {
         // order a user has (open a chat, then let the script work), and the frontend's own save persists it.
         if (file && variant === 'on') {
             await page.evaluate(async () => {
-                try { await window.TavernHelper.replaceScriptTrees(window.__gtProbeTrees, { type: 'global' }); return true; }
+                try {
+                    // A RE-RUN MUST BE A CHANGE. Handing the extension the SAME tree list is a no-op it
+                    // detects, so the script is not re-instantiated and the variable is never written
+                    // after the chat exists (run 40248362034: chat-get/save now issued, variable still
+                    // absent). Clearing first forces the iframe to be rebuilt, then the trees go back.
+                    await window.TavernHelper.replaceScriptTrees([], { type: 'global' });
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    await window.TavernHelper.replaceScriptTrees(window.__gtProbeTrees, { type: 'global' });
+                    return true;
+                }
                 catch { return false; }
             });
             await page.waitForTimeout(6000);
