@@ -125,7 +125,14 @@ const presetArgument = argumentValue('--preset');
 // checkout (run-against-pinned.mjs), so a repository-relative --preset resolved against the WRONG tree and the
 // leg died on ENOENT opening tests/browser/fixtures/real/preset-a.json (run 40270440594). Resolving here means
 // no caller has to remember which CWD the probe will run in.
-const presetPath = path.resolve(presetArgument);
+// REPO-RELATIVE means relative to THIS FILE, never to the process CWD. The pinned leg runs the probe from the
+// reference checkout, and the first fix (plain path.resolve) made it worse: the workflow passes
+// `tests/browser/fixtures/real/preset-b.json`, which then resolved to
+// `<repo>/tests/browser/tests/browser/fixtures/real/preset-b.json` (run 40271670697). Anchoring on the probe's
+// own directory removes the CWD from the question entirely.
+const presetPath = path.isAbsolute(presetArgument)
+    ? presetArgument
+    : path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', presetArgument);
 if (!presetPath) throw new Error('--preset <fixture.json> is required');
 const presetName = argumentValue('--preset-name', path.basename(presetPath, '.json'));
 const expected = {
