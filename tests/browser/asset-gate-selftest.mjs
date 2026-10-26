@@ -187,7 +187,7 @@ expects('clicking the tile did not change #bg1 -> stagedBackgroundDrivenOnBothLe
         leg.dom.backgroundDriven.delegatedBgClickBound = false;
     }
     const artifact = compare({ gotavern: unbound, pinned: unboundPinned });
-    record('an UNBOUND gallery click handler is reported as the binding, not as the paint', /the delegated \.bg_example click handler is NOT BOUND/.test(artifact.findings.join(' | ')), artifact.findings.join(' | ').slice(0, 260));
+    record('an UNBOUND gallery click handler is reported as the binding, with the startup evidence', /the delegated \.bg_example click handler is NOT BOUND/.test(artifact.findings.join(' | ')) && /startup evidence/.test(artifact.findings.join(' | ')), artifact.findings.join(' | ').slice(0, 300));
 }
 {
     const locked = faithfulLeg('gotavern');

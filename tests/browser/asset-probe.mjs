@@ -729,6 +729,18 @@ try {
         const documentClickHandlers = globalThis.jQuery?._data?.(document, 'events')?.click ?? [];
         const handlerSelectors = documentClickHandlers.map(handler => String(handler.selector ?? null));
         const delegatedBgClickBound = handlerSelectors.some(selector => selector.includes('bg_example'));
+        // WHY THE HANDLER MIGHT BE MISSING: `initBackgrounds()` runs AFTER `await initTokenizers()` in the page's
+        // startup sequence (script.js:757-762), so a tokenizers rejection skips it and the whole gallery becomes
+        // unclickable with NO page error -- the rejection is inside a `jQuery(async () => …)` callback. Recording
+        // the tokenizer state and the panel's other bindings separates "the gallery handler is missing" from "the
+        // startup sequence stopped one step earlier".
+        const startupEvidence = {
+            tokenizerReady: Boolean(globalThis.tokenizers?.length),
+            tokenizerCount: Array.isArray(globalThis.tokenizers) ? globalThis.tokenizers.length : null,
+            addBgButtonBound: Boolean(globalThis.jQuery?._data?.(document.querySelector('#add_bg_button'), 'events')?.change?.length),
+            bgTabHandlers: Boolean(globalThis.jQuery?._data?.(document.querySelector('#bg_tabs'), 'events')?.tabsactivate?.length),
+            documentClickHandlers: documentClickHandlers.length,
+        };
         const tileBox = tile.getBoundingClientRect();
         tile.click();
         // A REAL MOUSE EVENT IF THE SYNTHETIC ONE CHANGED NOTHING. `onSelectBackgroundClick` is bound through
@@ -771,6 +783,7 @@ try {
             clickPath,
             delegatedBgClickBound,
             handlerSelectors: handlerSelectors.slice(0, 20),
+            startupEvidence,
             tileBox: { width: Math.round(tileBox.width), height: Math.round(tileBox.height) },
             // WHICH BRANCH THE HANDLER TOOK. `isChatBackgroundLocked()` reads `chat_metadata.bg`; a locked chat
             // paints `#bg1` directly and never touches `background_settings`, so the two are recorded apart.

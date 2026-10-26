@@ -247,7 +247,7 @@ export function compare({ gotavern, pinned }) {
             // THE CAUSE, NAMED. A binding that is absent cannot be painted by any click, so that is a different
             // report from "the binding is there and the click did not reach it".
             const cause = driven.delegatedBgClickBound !== true
-                ? 'the delegated .bg_example click handler is NOT BOUND (initBackgrounds did not run, or ran before the tile existed)'
+                ? `the delegated .bg_example click handler is NOT BOUND -- initBackgrounds() runs AFTER \`await initTokenizers()\` in the page's startup sequence (script.js:757-762), so a rejection there skips it with no page error; startup evidence: ${JSON.stringify(driven.startupEvidence ?? null)}, document click handlers: ${JSON.stringify(driven.handlerSelectors ?? null)}`
                 : `the handler is bound (tile box ${JSON.stringify(driven.tileBox ?? null)}) and the click still did not select it`;
             findings.push(`${leg}: the gallery tile click did not select the staged tile (selected tile after click: ${JSON.stringify(selected)}, path: ${JSON.stringify(driven.clickPath ?? null)}) -- ${cause}`);
         } else if (driven.chatBackgroundLocked === true) {
@@ -397,6 +397,19 @@ export function compare({ gotavern, pinned }) {
             tileBgFile: driven.tileBgFile ?? null,
             tileThumbnailBeforeLoad: stripOrigin(driven.tileThumbnailBeforeLoad),
             tileThumbnailAfterLoad: stripOrigin(driven.tileThumbnailAfterLoad),
+            appliedBackgroundImage: stripOrigin(driven.appliedBackgroundImage),
+            // THE CLICK-PATH EVIDENCE, so a reader (and the next run) can see WHY the click did or did not work
+            // instead of reading a conclusion: the jQuery handlers actually bound on `document`, the boolean the
+            // comparator reads, the tile's box, and the branch the handler took.
+            handlerSelectors: driven.handlerSelectors ?? null,
+            startupEvidence: driven.startupEvidence ?? null,
+            delegatedBgClickBound: driven.delegatedBgClickBound ?? null,
+            tileBox: driven.tileBox ?? null,
+            clickPath: driven.clickPath ?? null,
+            selectedTileBeforeClick: driven.selectedTileBeforeClick ?? null,
+            selectedTileAfterClick: driven.selectedTileAfterClick ?? null,
+            chatBackgroundLocked: driven.chatBackgroundLocked ?? null,
+            backgroundSettingsName: driven.backgroundSettingsName ?? null,
             gallery: driven.gallery ? {
                 tiles: driven.gallery.tiles ?? 0,
                 // NOT TRUNCATED: the artefact records every bgfile, because a slice of the list is what produced
@@ -404,6 +417,8 @@ export function compare({ gotavern, pinned }) {
                 bgFiles: driven.gallery.bgFiles ?? [],
                 stagedTilePresent: driven.gallery.stagedTilePresent === true,
                 drawerOpen: driven.gallery.drawerOpen === true,
+                drawerOpenedByDrive: driven.gallery.drawerOpenedByDrive ?? null,
+                drawerWasAlreadyOpen: driven.gallery.drawerWasAlreadyOpen ?? null,
                 fetchError: driven.gallery.fetchError ?? null,
             } : null,
         };
