@@ -178,4 +178,23 @@ jobs:
           node scripts/live-canary.mjs
           node scripts/live-canary.mjs --stream
 
+      - name: Prove the fixture gates can refuse, and the asset guards can fail
+        # WHY THIS RUNS HERE AND NOT ONLY IN ci.yml. `ci.yml` triggers on `push: branches: [main]` only, so its
+        # `browser-evidence` job never runs on a lane branch -- and a gate that first executes after merge is a
+        # gate nobody has seen run (AGENTS.md 7). Both self-tests are pure Node with no browser, no server and no
+        # originals: they build their inputs in memory, so they cost seconds and they work on this runner.
+        run: |
+          node tools/fixture-gate-selftest.mjs
+          node tests/browser/asset-gate-selftest.mjs
+          # AND THE COMMITTED FIXTURES MUST STILL BE THE ONES THE MANIFEST DESCRIBES, which needs neither the
+          # originals nor a rebuild: `--check` re-derives every digest from the tree.
+          node tools/build-real-fixtures.mjs --check --out tests/browser/fixtures/real
+          fixtures="$(git ls-files 'tests/browser/fixtures/real/preset-*.json' 'tests/browser/fixtures/real/card-*.png')"
+          if [ -n "$fixtures" ]; then
+            node tools/check-fixture-watermarks.mjs --allow-declared tests/browser/fixtures/real/real-fixture-manifest.json $fixtures
+          else
+            echo "no real fixtures are committed, so there is nothing to scan"
+          fi
+
+
 
