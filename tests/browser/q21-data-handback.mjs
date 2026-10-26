@@ -148,6 +148,29 @@ async function hashTree(root) {
     return files;
 }
 
+// BOTH HALVES MUST OPEN THE SAME CHARACTER, BY NAME. Run 40412270626 measured the cost of not doing that: the
+// GoTavern half clicked the fresh install's DEFAULT ASSISTANT card and saved `default-user/chats/default_Assistant/...`,
+// while the pinned half clicked the list's first avatar (Seraphina) and opened her greeting -- so the pinned read
+// looked for a chat under the wrong character and reported chatLength 0. One shared helper, name-anchored, and both
+// halves record WHO they opened so a future mismatch is a field rather than a hunt.
+const CHARACTER_NAME = process.env.Q21_CHARACTER_NAME ?? 'Seraphina';
+async function openCharacterByName(page) {
+    const clicked = await page.evaluate(async name => {
+        const script = await import('./script.js');
+        const characters = script.characters ?? [];
+        const index = characters.findIndex(entry => String(entry?.name ?? '') === name);
+        if (index < 0) return { opened: false, reason: `no character named ${name}`, names: characters.map(entry => entry?.name) };
+        await script.selectCharacterById(index);
+        return { opened: true, index, name, avatar: characters[index]?.avatar ?? null };
+    }, CHARACTER_NAME);
+    await page.waitForTimeout(2000);
+    const context = await page.evaluate(() => {
+        const bus = window.SillyTavern?.getContext?.();
+        return { chatId: bus?.chatId ?? null, chatLength: (bus?.chat ?? []).length, characterName: bus?.name2 ?? null };
+    });
+    return { ...clicked, ...context };
+}
+
 const report = {
     schemaVersion: 1,
     question: 'Does the original Node SillyTavern open the tree GoTavern wrote, read the same conversation, and continue it?',
@@ -203,9 +226,8 @@ async function gotavernWrites() {
             set('#custom_model_id', model);
             set('#api_key_custom', 'probe-key');
         }, { url: `http://127.0.0.1:${peer.port}/v1`, model: 'probe-model' });
-        await page.waitForSelector('#rm_print_characters_block .avatar[data-type="character"], #rm_print_characters_block .character_select', { timeout: 60000 }).catch(() => null);
-        await page.click('#rm_print_characters_block .avatar[data-type="character"], #rm_print_characters_block .character_select', { timeout: 30000 }).catch(() => null);
-        await page.waitForTimeout(2500);
+        // SAME CHARACTER ON BOTH SIDES, BY NAME (see openCharacterByName above).
+        report.opened = await openCharacterByName(page);
         const sent = await page.evaluate(async marker => {
             const script = await import('./script.js');
             const textarea = document.querySelector('#send_textarea');
@@ -248,9 +270,8 @@ async function pinnedReads() {
         await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
         await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
         await page.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 120000 });
-        await page.waitForSelector('#rm_print_characters_block .avatar[data-type="character"], #rm_print_characters_block .character_select', { timeout: 60000 }).catch(() => null);
-        await page.click('#rm_print_characters_block .avatar[data-type="character"], #rm_print_characters_block .character_select', { timeout: 30000 }).catch(() => null);
-        await page.waitForTimeout(2500);
+        // THE SAME CHARACTER, OPENED THE SAME WAY, on the tree the product wrote.
+        report.opened = await openCharacterByName(page);
         const read = await page.evaluate(marker => {
             const context = window.SillyTavern?.getContext?.();
             const chat = context?.chat ?? [];
@@ -267,10 +288,13 @@ async function pinnedReads() {
         step('pinnedChatIdMatches', typeof read.chatId === 'string' && read.chatId.length > 0, `chatId=${read.chatId}`);
         const before = await hashTree(dataRoot);
         report.treeBeforePinnedWrote = before;
-        step('noDataLossOnHandBack', report.expectedTree === undefined
-            ? true
-            : Object.entries(report.expectedTree).every(([file, digest]) => before[file] === digest),
-            'compared against the tree the GoTavern half recorded');
+        // IT ONLY MEANS SOMETHING IF PINNED ACTUALLY READ THE CHAT. Run 40412270626 had this guard pass while pinned
+        // had opened nothing: "no file changed" is trivially true for a session that never started.
+        const treeIntact = report.expectedTree !== undefined
+            && Object.entries(report.expectedTree).every(([file, digest]) => before[file] === digest);
+        step('noDataLossOnHandBack', read.carriesMarker === true && report.expectedTree !== undefined && treeIntact,
+            report.expectedTree === undefined ? 'no expected tree was supplied, so nothing can be said about loss'
+                : 'compared the tree the GoTavern half recorded');
     } finally {
         if (browser) await browser.close();
     }
