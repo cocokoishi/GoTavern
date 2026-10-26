@@ -680,7 +680,9 @@ try {
     await page.waitForTimeout(1500);
     const afterReload = await page.evaluate(async () => {
         const script = await import('./script.js');
-        const context = script.getContext();
+        // `getContext` is exposed on window.SillyTavern, NOT exported by script.js -- the same defect as line 601,
+        // which was fixed there and missed here. Run 40378609525 died on it AFTER first-turn-saved went green.
+        const context = window.SillyTavern.getContext();
         return {
             settingsReady: script.settingsReady === true,
             messages: document.querySelectorAll('#chat .mes').length,
