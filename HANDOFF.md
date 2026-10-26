@@ -128,6 +128,107 @@ and variables — so "preset works" and "helper works" are provably not enough o
 | F | long-lived tree, startup, extension immutability | copy-boot qualification on the packaged artifact |
 | G | performance | only after B-F hold |
 
+### Where this pass stopped, and exactly how to continue (2026-10-25, `main` `4ec767b`, CI green)
+
+**Landed and validated on `main`:**
+
+- the goal and the process contract: `GOAL.md`, `AGENTS.md` rules 42-55, `ARCHITECTURE.md` §35,
+  `docs/gate-blindspots.md` (why the gates could not see this), `docs/real-user-input-audit.md` (the real
+  artifacts and the helper dependency map, measured);
+- three of the seven pinned user-data mounts, which were absent: `/characters/*`, `/User%20Avatars/*`,
+  `/assets/*`. Registered as `/User%20Avatars/{rest...}`; **the escaped spelling is mandatory** — `net/http`
+  reads a space in a pattern as a method separator (`src/net/http/pattern.go:96`) and panics at registration,
+  which is how a merged commit stopped `main` from opening a port for one cycle (`AGENTS.md` 54);
+- two gates with demonstrated teeth: `TestPinnedUserDataMountsAreAllServed` (the set) and
+  `TestPinnedFrontendAssetContractMountsServeMarkedBytes` (execution: plants a uniquely-marked file per mount
+  and requires exactly those bytes back). Mutation evidence in Lane CI `40197036003` — one deleted row failed
+  both, on `…ServeMarkedBytes/characters`. Restored green: `40197317477`.
+
+- **`/thumbnail` is served** (`internal/server/thumbnails.go`, ported from the full 312-line pinned file) with a
+  source-derived observable contract as its gate. Red before green: Lane CI `40197908880`. Green: Lane CI
+  `40199620820`, with the drop-in qualification for the same commit beside it. This route renders the character
+  list, every chat avatar, the persona list, the background gallery tiles and the zoomed persona; the served
+  MIME is the ORIGINAL filename's extension even when the bytes are jpeg, because pinned serves
+  `sendFile(file, {root: thumbnailFolder})`. The bytes are a declared divergence (`ARCHITECTURE.md` 35.2).
+- route accounting moved with the work, generated rather than edited: `10` reasoned exclusions, `329`
+  reachable (`tools/generate-doc-facts.mjs`). `main` is green at `c82a9a8` on `GoTavern CI` and
+  `GoTavern drop-in qualification` alike.
+
+**Two lanes are open right now.**
+
+- `lane/avatar-upload` (`wt-avatar`) — `POST /api/avatars/upload`, i.e. persona-avatar CREATION, which was not
+  registered at all. The gate is landed and RED for the right reason: Lane CI `40201211821` fails six
+  assertions, every one a 404, while the drop-in qualification for the same commit is green and meaningless
+  there (`AGENTS.md` 55 — second time this session the wrong workflow was the one that looked conclusive).
+  Pinned branches already read on that lane: `validateFileName` rejects only `/`, NUL and `\`, and does NOT
+  reject `..` (only the sanitizer stops that); multer is app-global with field name `avatar`,
+  `fieldSize: 500MB` and NO file-size cap; `applyAvatarCropResize` crops only when x/y/w/h are all numbers,
+  `want_resize` yields 512x768 and otherwise the crop's own dimensions, then `cover`; `cacheBuster` is off by
+  default, so `Clear-Site-Data` is unasserted while the disk-observable thumbnail invalidation is asserted.
+- `lane/asset-browser` (`wt-assets-browser`) — the browser asset differential: the same pinned frontend and the
+  same fixture on both legs, recording every image request and every `<img>`'s `complete`/`naturalWidth`, the
+  computed `background-image`, and failing on any console 404 GoTavern has that pinned does not. This is the
+  gate that answers "open the page and look at the pictures", which nothing in this repository could do.
+
+**酒馆助手 (P0-D) measured state, 2026-10-25, lane `lane/helper` @ `b1a1afa` (NOT merged; main reverted
+its first slice as `9e60f48` because it carried a red gate).** The architecture half of Q8 is PROVEN and
+EQUAL on both subjects: an unsandboxed script iframe, `window.parent.TavernHelper` with 157 members
+reachable inside it, the module's own completion marker, and all 25 static `../../../../../` host imports
+served with bytes — so "the files load" is no longer the claim. Q11 (a depth-0 injection reaches the
+model context) and Q9 (a `generateRaw({ordered_prompts})` request) are MEASURED: the peer received two
+requests per subject, the markers arrived in the asked order and roles, and the request bodies were
+byte-identical `Node == Go` (`bodySha256`, length, model, stream, messages). Q10 (variable persistence)
+is UNPROVEN with its mechanism named: the drive never produced a saved chat, so `variable-persisted`,
+`render-path` and `dom-urls` are red on BOTH subjects and are not evidence for either. Q12 is partial:
+`generate({preset_name:'in_use'})` produced an equal request, but no preset mutation was exercised.
+Two driver defects cost this lane two rounds and are worth remembering: `getContext` is NOT a
+`TavernHelper` member (the child iframe's accessor is `window.SillyTavern.getContext()`, installed by
+`iframe/predefine.js`), and a just-clicked character has a greeting PREVIEW and no chat, so
+`createChatMessages` had nothing to write into.
+**Q10 (酒馆助手 variable persistence) — PROVEN on both subjects, 2026-10-25.** The helper script's chat
+variable reaches the chat file on disk on GoTavern AND on pinned Node, with the negative control still
+biting (a helper-off leg must NOT persist it). Evidence: `Browser differential` 40250495167 on
+`lane/helper-q10` @ a3c1d43 -- every helper step success, and `variablePersisted` has DISAPPEARED from the
+artefact's `declared unproven` list, which is the verifier's own rule for a guard that is true on both
+subjects (a guard that is false on both must be declared; it is not). The remaining declared gaps in that
+artefact are `renderPathProduced` and `domUrlsServed`, and the Q19/Q20 surface.
+
+Getting there took three measured steps, and the three are the durable lesson:
+1. `saveChat()` returns before any request when `chatName ?? characters[this_chid]?.chat` is undefined
+   (`public/script.js:7407-7417`), so a clicked card on a tree with no chat cannot save at all.
+2. A guard of the form "does the chat file exist" is VACUOUS in a long-lived fixture that already contains
+   one: `waitForFile()` answered true before any save, which silently disabled the only route that makes
+   the frontend create a chat identity. The gate had to become the subject's own state
+   (`chatId`/`characterChatName`), not the filesystem.
+3. Handing `replaceScriptTrees` the SAME tree list is a no-op the extension detects, so the script is not
+   re-instantiated and a variable written before the chat existed stays lost. A re-run must CLEAR first,
+   then reinstall, so the write lands in the phase where `chat_metadata` exists.
+`lane/preset-real` (`wt-preset`) has committed nothing yet: the real preset/card fixture, where the
+packed-blob measurement for the 19 MB card is still the first thing to decide.
+
+**Next actions, in order:**
+
+1. Finish `lane/avatar-upload` (implementation, mutation, matrix row) and `lane/asset-browser` (probe, CI
+   wiring, mutation). Merge each only when its OWN Lane CI is green, and quote the workflow name with the run id.
+2. Then the smaller follow-ups the audit named: the returned-URL assertion (`/api/sprites/get` and
+   `/api/assets/*` hand out URLs this server must answer — the general form of the bug this pass fixes), and the
+   documentation that still calls the thumbnail 404 "cosmetic" (`docs/frontend-startup-calls.md`;
+   `docs/surface-coverage.md` is GENERATED from the startup-comparison artefact, so its number moves when that
+   artefact is re-recorded against a server that now answers 200, not by editing the markdown).
+3. Then Lane C (酒馆助手) per `docs/real-user-input-audit.md` §6-§7: the first browser scenario is a render
+   script whose pass condition includes every URL the iframe puts into the DOM answering 200.
+4. Then Lane D (real preset fixture), which is started but has committed nothing: `wt-preset` on
+   `lane/preset-real`, with the fixture design and the packed-blob measurement for the 19 MB card decided next.
+5. Scheduled, not started: `POST /api/extensions/version` issues **two** `git fetch` calls per request
+   (`extensions_git.go:362` and `:204`) on a route the pinned frontend calls at page load whenever the user's
+   persisted `extension_settings.notifyUpdates` is true — a network mutation of the user's extension repository
+   with no GoTavern opt-in, where pinned fetches once.
+
+**Standing rule for whoever picks this up:** quote `workflow name + run id + conclusion` together
+(`AGENTS.md` 55 — this pass lost a turn to reading the drop-in workflow's green as a test verdict), and never
+merge a lane whose own Lane CI is red.
+
+
 
 
 Recorded at `main` `10314c8`. These outrank every other line in this file: a release that cannot talk to a
@@ -250,7 +351,7 @@ Earlier in this checkpoint: `v0.1.0-alpha.1` was released (run `40066449948`), t
 
 ## 1. Where the project stands
 
-**Route accounting is CLOSED.** <!-- BEGIN GENERATED: routes.accounting -->`339` inventoried routes; `0` bare `not implemented`; `11` reasoned exclusions; `328` reachable.<!-- END GENERATED: routes.accounting --> That is a statement about ROUTES. It is not a release-ready claim: almost every area is still `partial` because the
+**Route accounting is CLOSED.** <!-- BEGIN GENERATED: routes.accounting -->`339` inventoried routes; `0` bare `not implemented`; `10` reasoned exclusions; `329` reachable.<!-- END GENERATED: routes.accounting --> That is a statement about ROUTES. It is not a release-ready claim: almost every area is still `partial` because the
 E (browser events/final state) and C (cancel/streaming) surfaces are measured for few of them, and
 because the release path itself has only just begun to be EXECUTED.
 
@@ -511,6 +612,6 @@ the evidence, and what is still open; none is softened into "in progress".
    proxy handling, TLS and GitHub's redirect behaviour UNMEASURED. Run 39907640873 proves the installer logic,
    not the path.
 6. **Package tags: the tag exists; registry state is unverified here.** `git tag -l 'v*'` returns
-   <!-- BEGIN GENERATED: release.versionTags -->`v0.1.0-alpha.1`, `v0.1.0-alpha.2`<!-- END GENERATED: release.versionTags --> at `2dde1fa`, and the release is published (run 40066449948). `:latest` is deliberately
+   <!-- BEGIN GENERATED: release.versionTags -->`v0.1.0-alpha.1`, `v0.1.0-alpha.2`, `v0.1.0-alpha.3`, `v0.1.0-alpha.4`<!-- END GENERATED: release.versionTags --> at `2dde1fa`, and the release is published (run 40066449948). `:latest` is deliberately
    not moved by a prerelease (`scripts/classify-version-tag.sh`), and this host has no network, so whether the
    registry still carries stale dispatch-only tags cannot be checked offline.

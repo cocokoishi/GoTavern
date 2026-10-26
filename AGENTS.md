@@ -632,3 +632,13 @@ lane: a report that cannot answer "does this move us toward `GOAL.md`?" is rejec
     may stay, but only as a second opinion beside one that builds the real object. And when a merged commit
     cannot start, the report's FIRST line says so: "some tests are red" describes a symptom and hides a
     regression that a revert fixes in a minute.
+55. **A run id without its workflow name is not evidence.** Measured 2026-10-25 in the same lane: a mutation
+    was reported as SURVIVING from run `40197036022`, which is the **GoTavern drop-in qualification** workflow
+    — it boots a packaged archive against a stock tree and never runs the unit suite, so its green could not
+    fail. The run that actually judged the mutation was `40197036003` (GoTavern **Lane CI**, failure on
+    `TestPinnedFrontendAssetContractMountsServeMarkedBytes/characters`), created in the same second as the
+    wrong one. Two commits in this repository produce several workflows each, so `gh run list` shows pairs and
+    a one-line summary does not say which is which. Always quote `workflow name + run id + conclusion`
+    together; when the verdict is a survivor, re-read the log for the assertion name before acting on it,
+    because "the mutation survived" and "I read the wrong job" look identical in a summary line. This is rule
+    7 one layer up: the green did not merely fail to prove the claim, it belonged to a different subject.

@@ -83,6 +83,9 @@ type StartupSettings struct {
 	ThumbnailDimensionsAvatar  any  `json:"thumbnailDimensionsAvatar"`
 	ThumbnailDimensionsPersona any  `json:"thumbnailDimensionsPersona"`
 	ThumbnailDimensionsSet     bool `json:"-"`
+	ThumbnailsEnabled          any  `json:"-"`
+	ThumbnailsFormat           any  `json:"-"`
+	ThumbnailsQuality          any  `json:"-"`
 	ForwardedXRealIP           any  `json:"forwardedXRealIP"`
 	ForwardedCFConnectingIP    any  `json:"forwardedCFConnectingIP"`
 	ForwardedXForwardedFor     any  `json:"forwardedXForwardedFor"`
@@ -262,6 +265,9 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		ThumbnailDimensionsBG:      getConfigValue(config, "thumbnails.dimensions.bg", []any{160, 90}, cliArray),
 		ThumbnailDimensionsAvatar:  getConfigValue(config, "thumbnails.dimensions.avatar", []any{96, 144}, cliArray),
 		ThumbnailDimensionsPersona: getConfigValue(config, "thumbnails.dimensions.persona", []any{96, 144}, cliArray),
+		ThumbnailsEnabled:          getConfigValue(config, "thumbnails.enabled", true, cliBoolean),
+		ThumbnailsFormat:           getConfigValue(config, "thumbnails.format", "jpg", cliString),
+		ThumbnailsQuality:          getConfigValue(config, "thumbnails.quality", 95, cliNumber),
 		ThumbnailDimensionsSet:     true,
 		ForwardedXRealIP:           getConfigValue(config, "forwardedHeaders.xRealIp", true, cliBoolean),
 		ForwardedCFConnectingIP:    getConfigValue(config, "forwardedHeaders.cfConnectingIp", false, cliBoolean),

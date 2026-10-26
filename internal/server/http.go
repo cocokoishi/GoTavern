@@ -96,6 +96,10 @@ type HTTPHandlerOptions struct {
 	CorsCredentials                  *bool
 	CorsMaxAge                       any
 	ImageMetadataThumbnailDimensions map[string]any
+
+	// Thumbnails is the /thumbnail codec decision (ARCHITECTURE.md 35.2): enabled, encoded format and
+	// jpeg quality, parsed from thumbnails.* with pinned's predicates and defaults. SEE thumbnails.go.
+	Thumbnails ThumbnailSettings
 }
 
 // HTTPHandlerOptionsFromCommandLine translates config-derived values used by
@@ -152,6 +156,7 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 			options.CorsCredentials = &credentials
 		}
 	}
+	options.Thumbnails = thumbnailSettingsFromStartup(settings.ThumbnailsEnabled, settings.ThumbnailsFormat, settings.ThumbnailsQuality)
 	if settings.ThumbnailDimensionsSet || settings.ThumbnailDimensionsBG != nil || settings.ThumbnailDimensionsAvatar != nil || settings.ThumbnailDimensionsPersona != nil {
 		options.ImageMetadataThumbnailDimensions = map[string]any{
 			"bg":      settings.ThumbnailDimensionsBG,
@@ -337,6 +342,7 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("POST /api/moving-ui/save", accounts.serveMovingUISave)
 	mux.HandleFunc("POST /api/avatars/get", accounts.serveAvatarsGet)
 	mux.HandleFunc("POST /api/avatars/delete", accounts.serveAvatarsDelete)
+	mux.HandleFunc("POST /api/avatars/upload", accounts.serveAvatarsUpload)
 	mux.HandleFunc("POST /api/files/sanitize-filename", accounts.serveFileSanitizeFilename)
 	mux.HandleFunc("POST /api/files/upload", accounts.serveFilesUpload)
 	mux.HandleFunc("POST /api/files/delete", accounts.serveFilesDelete)

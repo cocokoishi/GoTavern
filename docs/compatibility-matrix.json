@@ -574,7 +574,13 @@
         "tests": [
           "TestPinnedNodeFilesUpload",
           "TestPinnedNodeSpritesUpload",
-          "TestImagesRoutesMatchPinnedOracle"
+          "TestImagesRoutesMatchPinnedOracle",
+          "TestPinnedFrontendAssetContractMountsServeMarkedBytes",
+          "TestPinnedThumbnailServesTheObservableContract",
+          "TestPersonaAvatarUploadCreatesTheFile",
+          "TestPersonaAvatarUploadAppliesCrop",
+          "TestPersonaAvatarUploadRejectsAForbiddenName",
+          "TestPersonaAvatarUploadInvalidatesThePersonaThumbnail"
         ],
         "browserArtifacts": [],
         "ci": [
@@ -583,11 +589,11 @@
         "releaseArtifact": null
       },
       "wouldGoRedIfWrong": {
-        "test": "TestPinnedNodeFilesUpload",
+        "test": "TestPinnedFrontendAssetContractMountsServeMarkedBytes",
         "explanation": "the row's claims about files, avatars, backgrounds, images, sprites, image metadata rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
       },
       "evidenceGap": [
-        "avatar crop/resize and /thumbnail are a decided codec boundary (ARCHITECTURE.md boundary 3): byte equality is not claimed and cannot be",
+        "thumbnail bytes are a codec divergence, not a claim: /thumbnail serves a real pure-Go thumbnail at pinned's paths, dimensions and MIME, and its gate asserts the OBSERVABLE (status, MIME from the original filename, decodability, exact dimensions, cache behaviour) instead of equality with Jimp's bytes (ARCHITECTURE.md 35.2). POST /api/avatars/upload also serves a real re-encoded avatar from the same pure-Go codec (same divergence, observable asserted: status, the pinned `{path}` body, the stored dimensions that prove a crop ran, and the persona-thumbnail invalidation); pinned imposes NO file-size cap and leaves multer's staging file behind on a refusal, both recorded here rather than silently hardened",
         "no multi-part upload test through a real browser; every upload fixture posts a hand-built body"
       ],
       "blockedBy": [],
@@ -596,7 +602,7 @@
     {
       "id": "extensions",
       "area": "Extensions: discovery, static serving, install, update, switch, delete, and the Tavern Helper / LittleWhiteBox canaries",
-      "status": "FAIL",
+      "status": "PARTIAL",
       "evidence": {
         "oracleFixtures": [
           "tests/oracle/sillytavern-1.19.0-extensions-discovery.json",
@@ -611,7 +617,9 @@
           "TestPinnedExtensionDiscoverReleaseInstall",
           "TestPinnedExtensionStaticEmbeddedReleaseInstall",
           "TestPinnedNodeExtensionStaticServing",
-          "TestPluginsAreReportedAndNeverCopied"
+          "TestPluginsAreReportedAndNeverCopied",
+          "TestResolveAutoUpdateIsStrictAndDefaultsOff",
+          "TestStockConfigSayingAutoUpdateTrueResolvesOff"
         ],
         "browserArtifacts": [
           "tests/browser/extension-tavern-helper-comparison.json",
@@ -624,23 +632,19 @@
         "releaseArtifact": null
       },
       "wouldGoRedIfWrong": {
-        "test": null,
-        "explanation": "no gate exists: no test asserts the DECISION to update (AGENTS.md 26, every ambiguous input resolves to OFF), so an unwanted update would go red nowhere. The gate that must land is a table test over missing key, unknown legacy key, null, unparsed value, unreadable config and migrated config."
-      },
-      "absentGate": {
-        "owner": "lane C (extensions)",
-        "mustAssert": "every ambiguous auto-update input (missing key, unknown legacy key, null, unparsed value, unreadable config, migrated config) resolves to OFF, asserted as a table test, plus a dirty worktree being refused rather than forced"
+        "test": "TestResolveAutoUpdateIsStrictAndDefaultsOff",
+        "explanation": "the DECISION to update is what shipped broken (P0-C), and this gate is that decision: every ambiguous input -- missing key, unknown legacy key, null, unparsed value, unreadable config, migrated config -- resolves to OFF, and TestStockConfigSayingAutoUpdateTrueResolvesOff pins the case where pinned's own default would have turned it on"
       },
       "evidenceGap": [
         "P0-C: extension/plugin updates happened without being asked for; no gate asserts that every ambiguous auto-update input resolves to OFF (AGENTS.md 26), which is the property that shipped broken",
         "no test asserts that a dirty extension worktree is refused rather than forced (AGENTS.md 28)",
-        "the two canaries are compared for load and static serving, not for a deep semantic workflow in a stock tree (AGENTS.md 15)"
+        "the 酒馆助手 canary now proves the iframe/bridge/generation path rather than the files loading: an unsandboxed script iframe with parent.TavernHelper (157 members) reachable inside it, all 25 static host imports served, a generateRaw({ordered_prompts}) request that is byte-identical on both subjects, and a depth-0 injection visible in the generate() request (Q8/Q9/Q11). Variable persistence (Q10) is now PROVEN on both subjects -- the helper script's chat variable reaches the chat file on disk on GoTavern and on pinned Node while a helper-off leg still persists nothing (Browser differential 40250495167: variablePersisted is absent from the artefact's declared-unproven list, which the verifier permits only for a guard true on both). Still declared unproven in that artefact: the render path and the URLs a rendered message puts in the DOM, a preset MUTATION changing the next request (Q12), streaming (Q19) and reload/swipe (Q20)"
       ],
       "blockedBy": [
         "startup",
         "whole-session-e2e"
       ],
-      "notes": "The canary artefacts exist and are strong; what is missing is the gate on the DECISION to update, which is not a UI behaviour and no fixture watches it. That is why P0-C shipped."
+      "notes": "The DECISION to update now has a gate (TestResolveAutoUpdateIsStrictAndDefaultsOff plus TestStockConfigSayingAutoUpdateTrueResolvesOff), which is why this row is PARTIAL rather than FAIL. The canary artefact that carries the Q8/Q9/Q11 evidence is produced by the Browser differential workflow and is not committed to the repository yet, so the freshness check reports it NOT-COMMITTED rather than passing it."
     },
     {
       "id": "server-plugins",
@@ -651,7 +655,9 @@
         "upstreamAssets": [],
         "implementation": [],
         "tests": [
-          "TestPluginsAreReportedAndNeverCopied"
+          "TestPluginsAreReportedAndNeverCopied",
+          "TestResolveAutoUpdateIsStrictAndDefaultsOff",
+          "TestStockConfigSayingAutoUpdateTrueResolvesOff"
         ],
         "browserArtifacts": [],
         "ci": [
@@ -1081,22 +1087,22 @@
       "citedByMatrix": 66
     },
     "browserArtefacts": {
-      "inTree": 35,
+      "inTree": 36,
       "citedByMatrix": 11
     },
     "goTestFunctions": {
-      "inTree": 550,
-      "citedByMatrix": 58
+      "inTree": 560,
+      "citedByMatrix": 66
     },
     "workflows": {
       "inTree": 9,
-      "jobsInTree": 30
+      "jobsInTree": 31
     },
     "rows": {
       "total": 22,
       "PASS": 0,
-      "PARTIAL": 17,
-      "FAIL": 4,
+      "PARTIAL": 18,
+      "FAIL": 3,
       "NOT_APPLICABLE": 1
     },
     "sessionSteps": {
