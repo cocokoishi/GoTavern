@@ -155,9 +155,12 @@ async function hashTree(root) {
 // used verbatim here: wait for the CARD in the DOM (`.character_select#CharID<n>`, script.js:945), click it, then
 // wait on the PRODUCT's own chat state. The card's `data-chid` is recorded so a future mismatch is a field.
 async function openCharacterByName(page) {
-    return page.evaluate(async () => {
+    // THE BOUND IS COMPUTED HERE, IN NODE, AND PASSED IN. `page.evaluate` runs in the BROWSER: run 40420195059
+    // failed both halves with `process is not defined` because this line used to live inside the evaluate body.
+    const rosterMs = Number(process.env.Q21_ROSTER_MS ?? 90000);
+    return page.evaluate(async limitMs => {
         const script = await import('./script.js');
-        const deadline = Date.now() + Number(process.env.Q21_ROSTER_MS ?? 90000);
+        const deadline = Date.now() + limitMs;
         let card = null;
         while (Date.now() < deadline) {
             card = document.querySelector('#rm_print_characters_block .character_select')
@@ -184,7 +187,7 @@ async function openCharacterByName(page) {
             chatLength: (script.chat ?? []).length,
             messages: document.querySelectorAll('#chat .mes').length,
         };
-    });
+    }, rosterMs);
 }
 const report = {
     schemaVersion: 1,
