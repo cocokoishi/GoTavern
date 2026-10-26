@@ -838,6 +838,51 @@ jobs:
           cat tests/browser/real-preset-comparison.json
           exit "$status"
 
+      - name: Record the Q20 legs (save -> reload -> swipe, on both subjects)
+        id: q20
+        # Q20. The chat this leg asserts on disk is written BY THE PRODUCT, and the reload it asserts is a FRESH
+        # page load -- the two steps no other leg performs, and the two a user performs by closing and opening
+        # SillyTavern.
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          mkdir -p "$work/legs"
+          failures=0
+          for subject in gotavern pinned; do
+            tree="$work/q20-tree-$subject"
+            rm -rf "$tree"; mkdir -p "$tree"
+            report="$work/legs/q20-$subject.json"
+            if [ "$subject" = "gotavern" ]; then
+              if node tests/browser/q20-persistence-probe.mjs --data-root "$tree" --report "$report"; then
+                echo "recorded the $subject Q20 leg"
+              else
+                echo "::error::the $subject Q20 leg failed to drive"
+                failures=$((failures + 1))
+              fi
+            else
+              if node tests/browser/run-against-pinned.mjs q20-persistence-probe.mjs -- --data-root "$tree" --report "$report"; then
+                echo "recorded the $subject Q20 leg"
+              else
+                echo "::error::the $subject Q20 leg failed to drive"
+                failures=$((failures + 1))
+              fi
+            fi
+          done
+          echo "q20_failures=$failures" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Compare the Q20 legs
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          node tests/browser/compare-q20-legs.mjs \
+            "$work/legs/q20-gotavern.json" "$work/legs/q20-pinned.json" \
+            > tests/browser/q20-comparison.json && status=0 || status=$?
+          cat tests/browser/q20-comparison.json
+          exit "$status"
+
       - name: Prove the preset gate has teeth
         # Same two-part condition as the comparator above: this step proves the gate has teeth by
         # mutating the recorded legs, so it cannot run when there are no preset legs.
