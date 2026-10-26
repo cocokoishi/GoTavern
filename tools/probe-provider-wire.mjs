@@ -455,6 +455,19 @@ function assertHeaderCoverage(definition, provider, responseHeaderNames) {
 // `x-api-key` is here because the CLAUDE source authenticates with it instead of an Authorization header
 // (chat-completions.js:417); a source that needs a new credential header adds it here, and the tier-2
 // declarations in its scenarios name the pinned line that puts the value on the wire.
+// THE PRODUCTION TRANSPORT DELIBERATELY DIFFERS FROM THE WIRE-EXACT CLIENT, AND THIS PROBE RECORDS BOTH.
+// tests/e2e/deepseek_generate_test.go:465-469 asserts the opposite of "GoTavern should send Connection: close":
+//   "The production client sends no Connection header (it keeps the connection alive and reuses it);
+//    `Connection: close` is the plans' node-fetch value that only the wire-exact client reproduces."
+// The same helper pins accept-encoding to exactly `gzip` and Content-Type to its canonical spelling, for the same
+// reason (AGENTS 30: byte-exact and production transports are different roles). So a GoTavern capture that lacks
+// `Connection` is CORRECT, and this probe must compare it as a declared transport difference rather than as a
+// mismatch -- a change that made the product send it was rejected by that test, and should stay rejected.
+const PRODUCTION_TRANSPORT_DIFFERENCES = new Map([
+    ['connection', 'absent on GoTavern by design; see deepseek_generate_test.go:465-469'],
+    ['accept-encoding', '`gzip` on GoTavern (net/http chooses); `gzip, deflate, br` is the wire-exact value'],
+]);
+
 const REDACTED_PROVIDER_HEADERS = new Map([
     ['x-api-key', '<redacted>'],
     // `x-session-affinity: <HMAC-SHA256(cookieSecret, chat_id) first 16 hex>` when a chat_id is
@@ -773,6 +786,25 @@ function assertGoTavernMatchesPinned(pinnedCaptures, goTavernCaptures) {
             throw new Error(`${name}: the pinned capture verified the declared credential header but the GoTavern capture did not`);
         }
 
+        // THE DECLARED TRANSPORT DIFFERENCES ARE APPLIED TO THE GOTAVERN SIDE ONLY, and named in the artefact so a
+        // reader can see that the comparison was adjusted rather than that the wire agreed. AGENTS 30: the
+        // production transport intentionally differs from the wire-exact client that produced the pinned capture,
+        // and refusing a keep-alive client for not sending `Connection: close` would invert that decision.
+        const appliedTransportDifferences = [];
+        for (const request of candidate.provider.requests ?? []) {
+            request.headers = (request.headers ?? []).filter(header => {
+                const declared = PRODUCTION_TRANSPORT_DIFFERENCES.get(String(header.name ?? '').toLowerCase());
+                if (declared === undefined) return true;
+                appliedTransportDifferences.push({ header: header.name, value: header.value, reason: declared });
+                return false;
+            });
+        }
+        for (const request of reference.provider.requests ?? []) {
+            request.headers = (request.headers ?? []).filter(header => !PRODUCTION_TRANSPORT_DIFFERENCES.has(String(header.name ?? '').toLowerCase()));
+        }
+        if (appliedTransportDifferences.length > 0) {
+            candidate.transportDifferencesApplied = appliedTransportDifferences;
+        }
         const result = compareObservations(reference, candidate);
         if (!result.matches) {
             const detail = result.differences.slice(0, 20).map(difference =>
