@@ -86,6 +86,9 @@ function faithfulLeg(subject) {
                 clickedAvatarId: 'probe-asset-persona.png',
                 clickedWasCurrentBefore: false,
                 clickedIsDefaultPersona: false,
+                preconditions: { delegatedClickBound: true, rowVisible: true, rowInDrawer: true, drawerIsOpen: true, rowBox: { width: 120, height: 160 } },
+                directCall: null,
+                clickAloneChangedPersona: true,
                 userAvatarAfter: 'probe-asset-persona.png',
                 personaChanged: true,
                 selectedAfterClick: true,
@@ -218,6 +221,24 @@ expects('picker rendered no row -> personaPickerRenderedOnBothLegs fails', 'pers
 expects('picker row image was broken -> personaPickerRowImageDecodedOnBothLegs fails', 'personaPickerRowImageDecodedOnBothLegs', leg => {
     leg.dom.personaPicker.rowImage = { src: '/thumbnail?type=persona&file=probe-asset-persona.png', complete: true, naturalWidth: 0, naturalHeight: 0, settled: 'broken' };
 });
+// THE RUN-40314670847 CASE ITSELF: the drawer was CLOSED, so the row had a 0x0 box and the click could reach
+// nothing. The clickable guard must fire, and the cause must be named as the drive's own state.
+expects('the persona drawer was closed -> personaPickerRowIsClickable fails', 'personaPickerRowIsClickable', leg => {
+    leg.dom.personaPicker.preconditions = { delegatedClickBound: true, rowVisible: false, rowInDrawer: true, drawerIsOpen: false, rowBox: { width: 0, height: 0 } };
+    leg.dom.personaPicker.personaChanged = false;
+    leg.dom.personaPicker.selectedAfterClick = false;
+});
+{
+    const closed = faithfulLeg('gotavern');
+    const closedPinned = faithfulLeg('pinned');
+    for (const leg of [closed, closedPinned]) {
+        leg.dom.personaPicker.preconditions = { delegatedClickBound: true, rowVisible: false, rowInDrawer: true, drawerIsOpen: false, rowBox: { width: 0, height: 0 } };
+        leg.dom.personaPicker.personaChanged = false;
+        leg.dom.personaPicker.selectedAfterClick = false;
+    }
+    const artifact = compare({ gotavern: closed, pinned: closedPinned });
+    record('a 0x0 row is reported as NOT CLICKABLE BY A USER, not as a product selection failure', /the persona ROW is not clickable by a user/.test(artifact.findings.join(' | ')), artifact.findings.join(' | ').slice(0, 260));
+}
 expects('clicking the row did not select it -> personaPickerSelectedOnBothLegs fails', 'personaPickerSelectedOnBothLegs', leg => {
     leg.dom.personaPicker.selectedAfterClick = false;
 });

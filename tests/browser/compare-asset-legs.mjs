@@ -153,6 +153,16 @@ export function compare({ gotavern, pinned }) {
         const picker = pickerOf(leg === 'gotavern' ? gotavern : pinned);
         return picker?.status === 'observed' && (picker?.rowCount ?? 0) > 0;
     });
+    // AND THE ROW MUST BE CLICKABLE. Run 40314670847 measured `rowBox: {width:0,height:0}` with
+    // `drawerIsOpen:false` on BOTH legs -- the drive had toggled the panel closed -- so the click could not reach
+    // anything and the failure read like a product one. A row with no box is a DRIVE state, not a product claim,
+    // and it is a guard of its own so it can never be folded into "the picker did not select".
+    guards.personaPickerRowIsClickable = ['gotavern', 'pinned'].every(leg => {
+        const picker = pickerOf(leg === 'gotavern' ? gotavern : pinned);
+        return picker?.preconditions?.rowVisible === true
+            && (picker?.preconditions?.rowBox?.width ?? 0) > 0
+            && (picker?.preconditions?.rowBox?.height ?? 0) > 0;
+    });
     guards.personaPickerRowImageDecodedOnBothLegs = ['gotavern', 'pinned'].every(leg => {
         const picker = pickerOf(leg === 'gotavern' ? gotavern : pinned);
         return picker?.rowImage?.settled === 'loaded' && (picker?.rowImage?.naturalWidth ?? 0) > 0;

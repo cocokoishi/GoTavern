@@ -645,7 +645,22 @@ try {
         const backgrounds = await import('./scripts/backgrounds.js');
         const toggle = document.querySelector('#backgrounds-drawer-toggle');
         if (!toggle) return { status: 'not-driven', reason: 'no #backgrounds-drawer-toggle in the served frontend' };
-        toggle.click();
+        // OPEN IT ONLY IF IT IS CLOSED, and wait for the panel's own class. Calling `toggle` on an already-open
+        // drawer CLOSES it -- which is what happened to the persona drawer in run 40314670847, where the row had a
+        // 0x0 box and no click could reach it. A background tile inside a closed drawer has the same problem.
+        const panel = document.querySelector('#Backgrounds');
+        const waitForOpen = async (deadlineMs) => {
+            const until = performance.now() + deadlineMs;
+            while (performance.now() < until) {
+                const current = document.querySelector('#Backgrounds');
+                if (current && !current.classList.contains('closedDrawer')) return true;
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            return false;
+        };
+        let drawerWasAlreadyOpen = Boolean(panel) && !panel.classList.contains('closedDrawer');
+        if (!drawerWasAlreadyOpen) toggle.click();
+        const drawerOpened = drawerWasAlreadyOpen || await waitForOpen(15000);
         // THE FRONTEND'S OWN RENDERER, CALLED THE WAY THE PAGE CALLS IT ON LOAD (script.js `await getBackgrounds()`
         // in the startup sequence). The earlier drive only opened the drawer and waited, and measured NO tile on
         // either leg -- which is a harness-faithfulness alarm, not a product finding (AGENTS.md 7 / rule 10):
@@ -680,6 +695,8 @@ try {
             bgFiles: [...document.querySelectorAll('#bg_menu_content .bg_example')].map(node => node.getAttribute('bgfile')),
             stagedTilePresent: Boolean(document.querySelector(`#bg_menu_content .bg_example[bgfile="${backgroundFile}"]`)),
             drawerOpen: Boolean(document.querySelector('#Backgrounds')) && !document.querySelector('#Backgrounds').classList.contains('closedDrawer'),
+            drawerOpenedByDrive: drawerOpened,
+            drawerWasAlreadyOpen,
             panelContent: document.querySelector('#bg_menu_content')?.innerHTML?.slice(0, 200) ?? null,
             fetchError,
             fetched,
@@ -704,9 +721,14 @@ try {
         // handler ran and refused" from "the handler ran and painted".
         const beforeSelection = [...document.querySelectorAll('#bg_menu_content .bg_example.selected-background')].map(node => node.getAttribute('bgfile'));
         // THE HANDLER'S OWN REGISTRATION, as the subject records it. `initBackgrounds` binds
-        // `.on('click', '.bg_example', onSelectBackgroundClick)` on `document` (backgrounds.js:1732-1733); if that
-        // list is empty the click CANNOT work and the finding is a probe/UI defect, not a paint failure.
-        const delegatedBgClickBound = Boolean(globalThis.jQuery?._data?.(document, 'events')?.click?.some(handler => String(handler.selector ?? '').includes('bg_example')));
+        // `.on('click', '.bg_example', onSelectBackgroundClick)` on `document` (backgrounds.js:1732-1733), and it
+        // is called at startup (script.js:762). The first version of this predicate reported "NOT BOUND" on both
+        // legs (run 40314670847) while the click handler demonstrably existed, so the recorded value now includes
+        // the handler SELECTORS, which is what makes the next report falsifiable instead of a claim about jQuery's
+        // internals. `delegatedBgClickBound` stays the single boolean the comparator reads.
+        const documentClickHandlers = globalThis.jQuery?._data?.(document, 'events')?.click ?? [];
+        const handlerSelectors = documentClickHandlers.map(handler => String(handler.selector ?? null));
+        const delegatedBgClickBound = handlerSelectors.some(selector => selector.includes('bg_example'));
         const tileBox = tile.getBoundingClientRect();
         tile.click();
         // A REAL MOUSE EVENT IF THE SYNTHETIC ONE CHANGED NOTHING. `onSelectBackgroundClick` is bound through
@@ -748,6 +770,7 @@ try {
             selectedTileAfterClick: selectedTile,
             clickPath,
             delegatedBgClickBound,
+            handlerSelectors: handlerSelectors.slice(0, 20),
             tileBox: { width: Math.round(tileBox.width), height: Math.round(tileBox.height) },
             // WHICH BRANCH THE HANDLER TOOK. `isChatBackgroundLocked()` reads `chat_metadata.bg`; a locked chat
             // paints `#bg1` directly and never touches `background_settings`, so the two are recorded apart.
@@ -801,9 +824,21 @@ try {
         } catch (error) {
             return { status: 'not-driven', reason: `getUserAvatars threw: ${String(error?.message ?? error).slice(0, 160)}` };
         }
+        // WHETHER THE DRAWER IS ACTUALLY OPEN BEFORE THE DRIVE CLICKS. The row is inside `#PersonaManagement`,
+        // and `rowBox` measured 0x0 with `drawerIsOpen:false` in run 40314670847 -- the drive's own open click had
+        // closed the drawer it believed it was opening (calling `toggle` twice). The panel's own predicate,
+        // `isPersonaPanelOpen()`, is the gate a user has to satisfy before a row is clickable at all.
         if (!personas.isPersonaPanelOpen()) {
             toggle.click();
             states.steps.push('opened the drawer');
+            // WAIT FOR THE PANEL'S OWN PREDICATE, not for a delay: a closed drawer means every row has a 0x0 box
+            // and no click can reach it, which is exactly what the last run measured.
+            const openDeadline = performance.now() + 15000;
+            while (performance.now() < openDeadline && !personas.isPersonaPanelOpen()) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        } else {
+            states.steps.push('the drawer was already open');
         }
         const deadline = performance.now() + 15000;
         let rows = [];
