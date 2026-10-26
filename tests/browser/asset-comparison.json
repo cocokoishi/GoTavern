@@ -3,21 +3,26 @@
   "question": "Does a browser loading the unmodified pinned frontend display the character-list avatars, the chat-message avatars, the persona thumbnail and the background, on BOTH legs, and does every image the page asks for answer with bytes?",
   "answers": {
     "Q3 character-list avatars": "guards.everyCharacterListAvatarDecoded + guards.noImageRequestFailedOnEitherLeg",
-    "Q5 chat avatar": "guards.everyMessageAvatarDecoded",
-    "Q6 personas": "partially: guards.thumbnailResponsesAreImages covers the persona thumbnail request; the persona PICKER is not driven (see unproven)",
-    "Q7 backgrounds": "guards.backgroundAppliedOnBothLegs + guards.backgroundServedWithBytesOnBothLegs"
+    "Q5 chat avatar": "guards.everyMessageAvatarDecoded + guards.swipedMessageAvatarDecodedOnBothLegs + guards.swipeChangedTheMessageOnBothLegs (the avatar of a message RE-RENDERED by a swipe)",
+    "Q6 personas": "guards.personaPickerRenderedOnBothLegs + guards.personaPickerRowImageDecodedOnBothLegs + guards.personaPickerSelectedOnBothLegs + guards.thumbnailResponsesAreImages",
+    "Q7 backgrounds": "guards.galleryRenderedTheStagedTileOnBothLegs + guards.galleryTileThumbnailPaintedOnBothLegs + guards.backgroundServedWithBytesOnBothLegs (the RENDER and the ROUTE); the PAINT is declared unproven in `unproven[]` with its measured cause, which is identical on both subjects",
+    "the real card": "guards.bothLegsStagedTheRealCard + guards.realCardStructureEqualOnBothLegs (tests/browser/fixtures/real/card-a.png, the committed derivation)"
   },
   "legs": {
     "gotavern": {
       "subject": "gotavern",
       "countLoaded": {
-        "imagesRequested": 119,
+        "imagesRequested": 146,
         "imagesFailed": 0,
-        "characterListAvatars": 2,
-        "characterListDecoded": 2,
+        "characterListAvatars": 3,
+        "characterListDecoded": 3,
         "messageAvatars": 1,
         "messageAvatarsDecoded": 1,
-        "consoleFailedToLoad": 0
+        "consoleFailedToLoad": 0,
+        "personaPickerRows": 2,
+        "personaPickerSelected": 1,
+        "backgroundTiles": 24,
+        "swipedMessageAvatar": 1
       },
       "imageRequests": [
         {
@@ -475,6 +480,14 @@
           "contentType": "text/html; charset=UTF-8",
           "byteLength": 8745,
           "sha256": "55054f6df119aea2d66f934e0d19311b7e0c6810f9d41d11055346c6b7359465"
+        },
+        {
+          "url": "/scripts/extensions/regex/embeddedScripts.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 404,
+          "sha256": "f6a5e65c7570f9102784a5a225cd666555e0963c4430c782e51ffa4d97aa7905"
         },
         {
           "url": "/scripts/extensions/regex/engine.js",
@@ -965,12 +978,220 @@
           "sha256": "9a157ef688847bb9095b408e6dd8ea5e0130f71c3721769d0cc89b6c65aac952"
         },
         {
+          "url": "/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 807,
+          "sha256": "b93849a948b2aa7f4861f7cdb28578f562ebe97af0ed18f3bf4ead266733a2b2"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=__transparent.png",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 849,
+          "sha256": "5b7016caff64290a43a1cb82509a6dec3ef81a1aa85b9a3e25e7f1a171eee59f"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=_black.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 833,
+          "sha256": "d51c043ca3910d7bd2b955cc4fb721ddf552a131b3a98a1d08b6981f5dc1c137"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=_white.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 833,
+          "sha256": "833e1838fca74ce328a5e88c37c43adb76c2d125d5e0c1fb499ba474e4760908"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=bedroom%20clean.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 7297,
+          "sha256": "77b852d2f756779f66ce59d97f985b8e452161c9607abd123b16647fc189d1b8"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=bedroom%20cyberpunk.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 7581,
+          "sha256": "c34e6532ed727338c7321384888e6a9c0bf51fe7b4154268de5d749c0c49c429"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=bedroom%20red.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 5523,
+          "sha256": "9b1fbcee639d61639ef01bb9ab395896417ebb9bbf662fa7109c71f6950d05f8"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=bedroom%20tatami.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 6093,
+          "sha256": "4646245fead559d4ed5a1baaf8397442ec0695859c47fae18424a16b5a7f3f44"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=cityscape%20medieval%20market.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 9651,
+          "sha256": "5da2fb08979d011b4de2b4a0d5db8481fdf868ec811f0434f7934f7bed6d4087"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=cityscape%20medieval%20night.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 6942,
+          "sha256": "23f8ea8bd0c88c345473f8aafd514def04b275f54d5234a9c1783d4680d34e24"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=cityscape%20postapoc.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 7909,
+          "sha256": "9e368026bad0d71b4ac034a5c75007ff0bb3b44f00af2257d9ff71bc1a2b669d"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=forest%20treehouse%20fireworks%20air%20baloons%20(by%20kallmeflocc).jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 9906,
+          "sha256": "f8e69aaa5777cc04bec0941d11e664bf6b0e1f7d30406780b282f3f06cd43b41"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=japan%20classroom.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 9651,
+          "sha256": "fefbe9f0bbbd8c269682a7794bf4d6efd271bf94a48142d4a99e2c014a3724e2"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=japan%20classroom%20side.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 9855,
+          "sha256": "1756b8fd24807dba2c48e8de65f3e6a83f8e3f52b0af3a57091dda8d08ce9549"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=japan%20path%20cherry%20blossom.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 10165,
+          "sha256": "37330ea0c74d94d6a6f44136bd4ed48ee6272b489c3c9de10c7dc9380567fcef"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=japan%20university.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 8472,
+          "sha256": "38411a4e87f4f8a0fca3d7f0e3ce2a4cda3f0d8fc422d4569d426fcbaa575f16"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=landscape%20autumn%20great%20tree.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 9042,
+          "sha256": "5f2040ab8d3543b8e38e91a4286ec868e5cbce23e96d404f72787a8ed95bebee"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=landscape%20beach%20day.png",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 6548,
+          "sha256": "2bca02394daaba6f9fcdce8c49b3ccff8fabf36e8b87e97d656aed589201f4d1"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=landscape%20beach%20night.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 4813,
+          "sha256": "86f28a174a0eec0b0fc36c9d63a6468c64475a8bf0d32b394077261f20e7df51"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=landscape%20mountain%20lake.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 7686,
+          "sha256": "8ee8e3e66e94505cb2b90221568f9acb792a197ec8077ef4d8e1fb9a32b82d30"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=landscape%20postapoc.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 6427,
+          "sha256": "b0484d77ec5c37d837bad3e9c3683224d8391fe1ab008969e30e28a1b60730e9"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=landscape%20winter%20lake%20house.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 9249,
+          "sha256": "0b133ab81cff38cf2c9ac4c1cbb5b3c3c850062e39893f709f283e6e64d01a4f"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=probe-asset-background.png",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 1162,
+          "sha256": "bdb729863b6122cf47aa320f17efa3643977b9ff0e14ebb4772094c2612b1e79"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=royal.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 8769,
+          "sha256": "57ad506ecc5ca0c4bbef82bb3d8c95d94c52d8ef1bcc31b7a2593091a181e2ae"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=tavern%20day.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 8953,
+          "sha256": "ae66f410b501e54e7f10c461f47a57418c894cc71e167638afb01a264bc8db8f"
+        },
+        {
           "url": "/thumbnail?type=persona&file=probe-asset-persona.png",
           "kind": "thumbnail",
           "status": 200,
           "contentType": "image/png",
           "byteLength": 911,
           "sha256": "9a157ef688847bb9095b408e6dd8ea5e0130f71c3721769d0cc89b6c65aac952"
+        },
+        {
+          "url": "/thumbnail?type=persona&file=user-default.png",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 3185,
+          "sha256": "25424475a4d36dcbb46b71f4bec865318ac06c2f0511221fbbd29f34097decd6"
         }
       ],
       "consoleFailedToLoad": [],
@@ -988,11 +1209,164 @@
           "sha256": "63ef318d96b5d0d0ceba6e04a4e622b1158335cdc67c49e27839132c6f655058"
         },
         "driven": {
-          "status": "not-driven",
-          "reason": "no .bg_example[bgfile=\"probe-asset-background.png\"] appeared within 15s of opening the panel"
+          "status": "observed",
+          "tileBgFile": "probe-asset-background.png",
+          "tileDataUrl": "url(\"backgrounds/probe-asset-background.png\")",
+          "tileThumbnailBeforeLoad": "url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=\")",
+          "tileThumbnailAfterLoad": "url(\"<loopback>/thumbnail?type=bg&file=probe-asset-background.png\")",
+          "appliedBackgroundImage": "url(\"<loopback>/backgrounds/__transparent.png\")",
+          "selectedTileBeforeClick": [
+            "__transparent.png"
+          ],
+          "selectedTileAfterClick": "__transparent.png",
+          "clickPath": "element.click() then a bubbling MouseEvent",
+          "delegatedBgClickBound": false,
+          "handlerSelectors": [
+            "[data-displayHelp]",
+            ".group_select",
+            ".group_member .right_menu_button",
+            ".api_loading",
+            ".last_mes .swipe_right",
+            ".last_mes .swipe_left",
+            ".character_select",
+            ".bogus_folder_select",
+            ".mes",
+            ".PastChat_cross",
+            ".renameChatButton",
+            ".exportChatButton, .exportRawChatButton",
+            ".mes_edit",
+            ".extraMesButtonsHint",
+            ".mes_edit_cancel",
+            ".mes_edit_up",
+            ".mes_edit_down",
+            ".mes_edit_copy",
+            ".mes_edit_delete",
+            ".mes_edit_done",
+            ".export_format",
+            ".mes_stop",
+            "#form_sheld .stscript_continue",
+            "#form_sheld .stscript_pause",
+            "#form_sheld .stscript_stop",
+            ".drawer-opener",
+            ".inline-drawer-toggle",
+            ".inline-drawer-maximize",
+            ".mes .avatar",
+            ".open_alternate_greetings",
+            ".external_import_button, #external_import_button",
+            "#show_more_messages",
+            ".open_characters_library",
+            "#debug_table [data-debug-function]",
+            ".manage-api-keys",
+            ".openrouter_view_credits",
+            ".nanogpt_view_credits",
+            ".nanogpt_info_btn",
+            ".mes_hide",
+            ".mes_unhide",
+            ".mes_file_delete",
+            ".mes_file_open",
+            ".assistant_note_export",
+            ".assistant_note_import",
+            "#attachFile",
+            "#manageAttachments",
+            ".mes_embed",
+            ".editor_maximize",
+            "body .mes .mes_text, body .mes .mes_reasoning",
+            ".open_media_overrides",
+            ".extensions_info .extension_block .toggle_disable",
+            ".extensions_info .extension_block .toggle_enable",
+            ".extensions_info .extension_block .btn_update",
+            ".extensions_info .extension_block .btn_delete",
+            ".extensions_info .extension_block .btn_clean",
+            ".extensions_info .extension_block .btn_move",
+            ".extensions_info .extension_block .btn_branch",
+            "[data-preset-manager-update]",
+            "[data-preset-manager-new]",
+            "[data-preset-manager-rename]",
+            "[data-preset-manager-export]",
+            "[data-preset-manager-import]",
+            "[data-preset-manager-delete]",
+            "[data-preset-manager-restore]",
+            ".mes_translate",
+            ".mes_img_caption",
+            ".expression_list_item",
+            ".expression_list_upload",
+            ".expression_list_delete",
+            ".sd_message_gen",
+            ".mes_narrate",
+            "null",
+            "null",
+            "null",
+            "null"
+          ],
+          "startupEvidence": {
+            "backgroundSettingsName": null,
+            "addBgButtonPresent": true,
+            "addBgButtonBound": false,
+            "bgTabsPresent": true,
+            "bgTabHandlers": false,
+            "bgFoldersRequested": true,
+            "tokenizerModule": {
+              "exportsInitTokenizers": true,
+              "exportsCountsFor": true
+            },
+            "documentClickHandlers": 75
+          },
+          "tileBox": {
+            "width": 118,
+            "height": 66
+          },
+          "chatBackgroundLocked": false,
+          "backgroundSettingsName": null,
+          "gallery": {
+            "tiles": 24,
+            "bgFiles": [
+              "__transparent.png",
+              "_black.jpg",
+              "_white.jpg",
+              "bedroom clean.jpg",
+              "bedroom cyberpunk.jpg",
+              "bedroom red.jpg",
+              "bedroom tatami.jpg",
+              "cityscape medieval market.jpg",
+              "cityscape medieval night.jpg",
+              "cityscape postapoc.jpg",
+              "forest treehouse fireworks air baloons (by kallmeflocc).jpg",
+              "japan classroom side.jpg",
+              "japan classroom.jpg",
+              "japan path cherry blossom.jpg",
+              "japan university.jpg",
+              "landscape autumn great tree.jpg",
+              "landscape beach day.png",
+              "landscape beach night.jpg",
+              "landscape mountain lake.jpg",
+              "landscape postapoc.jpg",
+              "landscape winter lake house.jpg",
+              "probe-asset-background.png",
+              "royal.jpg",
+              "tavern day.jpg"
+            ],
+            "stagedTilePresent": true,
+            "drawerOpen": true,
+            "drawerOpenedByDrive": true,
+            "drawerWasAlreadyOpen": false,
+            "panelContent": "<div class=\"bg_example flex-container selected-background\" bgfile=\"__transparent.png\" title=\"__transparent.png\" custom=\"false\" animated=\"false\">\n                <div class=\"bg_example_img\"></div>\n    ",
+            "fetchError": null,
+            "fetched": {
+              "returned": null
+            }
+          }
         }
       },
       "characterList": [
+        {
+          "src": "/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
+          "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
+          "complete": true,
+          "naturalWidth": 96,
+          "naturalHeight": 144,
+          "alt": "MARK_002794测测测测测测测测",
+          "dataType": null
+        },
         {
           "src": "/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
           "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
@@ -1014,8 +1388,8 @@
       ],
       "messages": [
         {
-          "src": "/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
-          "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
+          "src": "/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
+          "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
           "complete": true,
           "naturalWidth": 96,
           "naturalHeight": 144,
@@ -1028,18 +1402,248 @@
         "httpStatus": 200,
         "contentType": "image/png",
         "byteLength": 911
+      },
+      "personaPicker": {
+        "status": "observed",
+        "listed": 2,
+        "rowCount": 2,
+        "rowIds": [
+          "probe-asset-persona.png",
+          "user-default.png"
+        ],
+        "steps": [
+          "getUserAvatars(true)",
+          "opened the drawer",
+          "clicked a NON-CURRENT row",
+          "the click changed nothing, so setUserAvatar was called directly"
+        ],
+        "rowImage": {
+          "src": "/thumbnail?type=persona&file=probe-asset-persona.png",
+          "complete": true,
+          "naturalWidth": 96,
+          "naturalHeight": 144,
+          "settled": "loaded"
+        },
+        "currentPersonaBefore": "user-default.png",
+        "clickedAvatarId": "probe-asset-persona.png",
+        "clickedWasCurrentBefore": false,
+        "clickedIsDefaultPersona": false,
+        "preconditions": {
+          "delegatedClickBound": true,
+          "rowVisible": true,
+          "rowInDrawer": true,
+          "drawerIsOpen": true,
+          "rowBox": {
+            "width": 305,
+            "height": 64
+          }
+        },
+        "directCall": {
+          "invoked": true,
+          "userAvatarAfter": "probe-asset-persona.png"
+        },
+        "clickAloneChangedPersona": false,
+        "userAvatarAfter": "probe-asset-persona.png",
+        "personaChanged": true,
+        "selectedAfterClick": true,
+        "currentPersonaHeading": "[Unnamed Persona]"
+      },
+      "backgroundGallery": {
+        "status": "observed",
+        "reason": null,
+        "tileBgFile": "probe-asset-background.png",
+        "tileThumbnailBeforeLoad": "url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=\")",
+        "tileThumbnailAfterLoad": "url(\"<loopback>/thumbnail?type=bg&file=probe-asset-background.png\")",
+        "appliedBackgroundImage": "url(\"<loopback>/backgrounds/__transparent.png\")",
+        "handlerSelectors": [
+          "[data-displayHelp]",
+          ".group_select",
+          ".group_member .right_menu_button",
+          ".api_loading",
+          ".last_mes .swipe_right",
+          ".last_mes .swipe_left",
+          ".character_select",
+          ".bogus_folder_select",
+          ".mes",
+          ".PastChat_cross",
+          ".renameChatButton",
+          ".exportChatButton, .exportRawChatButton",
+          ".mes_edit",
+          ".extraMesButtonsHint",
+          ".mes_edit_cancel",
+          ".mes_edit_up",
+          ".mes_edit_down",
+          ".mes_edit_copy",
+          ".mes_edit_delete",
+          ".mes_edit_done",
+          ".export_format",
+          ".mes_stop",
+          "#form_sheld .stscript_continue",
+          "#form_sheld .stscript_pause",
+          "#form_sheld .stscript_stop",
+          ".drawer-opener",
+          ".inline-drawer-toggle",
+          ".inline-drawer-maximize",
+          ".mes .avatar",
+          ".open_alternate_greetings",
+          ".external_import_button, #external_import_button",
+          "#show_more_messages",
+          ".open_characters_library",
+          "#debug_table [data-debug-function]",
+          ".manage-api-keys",
+          ".openrouter_view_credits",
+          ".nanogpt_view_credits",
+          ".nanogpt_info_btn",
+          ".mes_hide",
+          ".mes_unhide",
+          ".mes_file_delete",
+          ".mes_file_open",
+          ".assistant_note_export",
+          ".assistant_note_import",
+          "#attachFile",
+          "#manageAttachments",
+          ".mes_embed",
+          ".editor_maximize",
+          "body .mes .mes_text, body .mes .mes_reasoning",
+          ".open_media_overrides",
+          ".extensions_info .extension_block .toggle_disable",
+          ".extensions_info .extension_block .toggle_enable",
+          ".extensions_info .extension_block .btn_update",
+          ".extensions_info .extension_block .btn_delete",
+          ".extensions_info .extension_block .btn_clean",
+          ".extensions_info .extension_block .btn_move",
+          ".extensions_info .extension_block .btn_branch",
+          "[data-preset-manager-update]",
+          "[data-preset-manager-new]",
+          "[data-preset-manager-rename]",
+          "[data-preset-manager-export]",
+          "[data-preset-manager-import]",
+          "[data-preset-manager-delete]",
+          "[data-preset-manager-restore]",
+          ".mes_translate",
+          ".mes_img_caption",
+          ".expression_list_item",
+          ".expression_list_upload",
+          ".expression_list_delete",
+          ".sd_message_gen",
+          ".mes_narrate",
+          "null",
+          "null",
+          "null",
+          "null"
+        ],
+        "startupEvidence": {
+          "backgroundSettingsName": null,
+          "addBgButtonPresent": true,
+          "addBgButtonBound": false,
+          "bgTabsPresent": true,
+          "bgTabHandlers": false,
+          "bgFoldersRequested": true,
+          "tokenizerModule": {
+            "exportsInitTokenizers": true,
+            "exportsCountsFor": true
+          },
+          "documentClickHandlers": 75
+        },
+        "delegatedBgClickBound": false,
+        "tileBox": {
+          "width": 118,
+          "height": 66
+        },
+        "clickPath": "element.click() then a bubbling MouseEvent",
+        "selectedTileBeforeClick": [
+          "__transparent.png"
+        ],
+        "selectedTileAfterClick": "__transparent.png",
+        "chatBackgroundLocked": false,
+        "backgroundSettingsName": null,
+        "gallery": {
+          "tiles": 24,
+          "bgFiles": [
+            "__transparent.png",
+            "_black.jpg",
+            "_white.jpg",
+            "bedroom clean.jpg",
+            "bedroom cyberpunk.jpg",
+            "bedroom red.jpg",
+            "bedroom tatami.jpg",
+            "cityscape medieval market.jpg",
+            "cityscape medieval night.jpg",
+            "cityscape postapoc.jpg",
+            "forest treehouse fireworks air baloons (by kallmeflocc).jpg",
+            "japan classroom side.jpg",
+            "japan classroom.jpg",
+            "japan path cherry blossom.jpg",
+            "japan university.jpg",
+            "landscape autumn great tree.jpg",
+            "landscape beach day.png",
+            "landscape beach night.jpg",
+            "landscape mountain lake.jpg",
+            "landscape postapoc.jpg",
+            "landscape winter lake house.jpg",
+            "probe-asset-background.png",
+            "royal.jpg",
+            "tavern day.jpg"
+          ],
+          "stagedTilePresent": true,
+          "drawerOpen": true,
+          "drawerOpenedByDrive": true,
+          "drawerWasAlreadyOpen": false,
+          "fetchError": null
+        }
+      },
+      "swipedMessageAvatar": {
+        "status": "observed",
+        "character": "Real Structure Card",
+        "before": {
+          "text": "MARK_002795测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测",
+          "avatar": {
+            "src": "/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
+            "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
+            "complete": true,
+            "naturalWidth": 96,
+            "naturalHeight": 144
+          },
+          "settled": "loaded"
+        },
+        "after": {
+          "text": "MARK_002797测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测",
+          "avatar": {
+            "src": "/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
+            "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
+            "complete": true,
+            "naturalWidth": 96,
+            "naturalHeight": 144
+          },
+          "settled": "loaded"
+        },
+        "textChanged": true
+      },
+      "realCard": {
+        "name": "Real Structure Card",
+        "source": "tests/browser/fixtures/real/card-a.png (the committed derivation)",
+        "keyword": "ccv3",
+        "alternateGreetings": 5,
+        "bookEntries": 490,
+        "regexScripts": 11,
+        "helperScripts": 1,
+        "nameIsMarker": true
       }
     },
     "pinned": {
       "subject": "pinned",
       "countLoaded": {
-        "imagesRequested": 119,
+        "imagesRequested": 146,
         "imagesFailed": 0,
-        "characterListAvatars": 2,
-        "characterListDecoded": 2,
+        "characterListAvatars": 3,
+        "characterListDecoded": 3,
         "messageAvatars": 1,
         "messageAvatarsDecoded": 1,
-        "consoleFailedToLoad": 0
+        "consoleFailedToLoad": 0,
+        "personaPickerRows": 2,
+        "personaPickerSelected": 1,
+        "backgroundTiles": 24,
+        "swipedMessageAvatar": 1
       },
       "imageRequests": [
         {
@@ -1497,6 +2101,14 @@
           "contentType": "text/html; charset=UTF-8",
           "byteLength": 8745,
           "sha256": "55054f6df119aea2d66f934e0d19311b7e0c6810f9d41d11055346c6b7359465"
+        },
+        {
+          "url": "/scripts/extensions/regex/embeddedScripts.html",
+          "kind": "extension",
+          "status": 200,
+          "contentType": "text/html; charset=UTF-8",
+          "byteLength": 404,
+          "sha256": "f6a5e65c7570f9102784a5a225cd666555e0963c4430c782e51ffa4d97aa7905"
         },
         {
           "url": "/scripts/extensions/regex/engine.js",
@@ -1987,12 +2599,220 @@
           "sha256": "0672604e45149d2208950dd66128dde104cff4ac0281359f853cedafdf36e614"
         },
         {
+          "url": "/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 409,
+          "sha256": "c425bafa55dd5ad916ac05e514c5e440508a2be7e644ba038ac7839a1d931399"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=__transparent.png",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 415,
+          "sha256": "0598b3ef6eb9e59002ef6392a2dceb1c7449d78010f9e966ba135f2c4f05e6f7"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=_black.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 421,
+          "sha256": "15c0a591973299fe4178a6cba42819afb70adb42fd9689c7dcc93fa37bbb8f53"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=_white.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 421,
+          "sha256": "9a403484a0afd2fbd1584062d081ce451d10645f5b8f16e97511550d9d83774e"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=bedroom%20clean.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 10243,
+          "sha256": "dd8af3af4fcf978a48fe0e7a88712968a922602d8c093641336f581b86ac0eea"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=bedroom%20cyberpunk.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 12785,
+          "sha256": "7c81b7c487987777bff7ad2abce9de8aa43a38ee9e918b461d026fe380a98055"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=bedroom%20red.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 8277,
+          "sha256": "e65f9f105ec1ebb1d448f3ae1f04a0aaf1f46f4d8b40281e4aeae695b0c90b3d"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=bedroom%20tatami.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 8350,
+          "sha256": "5ae8ef9ef63fbf12f705b8dcc2af2df2e740cabf55191f98a2d2c88996fc1de6"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=cityscape%20medieval%20market.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 14148,
+          "sha256": "c1f590bece9557933a4bb0a9093522ac6dd1e6afcd14001b262d66217de3969b"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=cityscape%20medieval%20night.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 10504,
+          "sha256": "21764740de273bd98bdccf674639d8e1b8b53142bbb7d905a3b8290efc12c7e5"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=cityscape%20postapoc.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 11530,
+          "sha256": "a3dd0fb14ab0298a1288454fba9cebc4cad1abd3ae52a21aba117a1add0bd8e4"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=forest%20treehouse%20fireworks%20air%20baloons%20(by%20kallmeflocc).jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 16699,
+          "sha256": "e29abade9155e3e51f73f26580b170d421e9e9a70b365691253b4255253e5514"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=japan%20classroom.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 15702,
+          "sha256": "344837fa09de447bbd6d0f11b480d95b550edf8c1b3e43bfdc77d7d3edae6e1a"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=japan%20classroom%20side.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 14979,
+          "sha256": "5e966cb7902ed902999891b9b5bd051879607aa936e4062df25f8fa18a3ea2b5"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=japan%20path%20cherry%20blossom.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 16976,
+          "sha256": "27e75511613ca6a2b39be944d145841a47987809707e4e95e49caf27da6178ec"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=japan%20university.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 13323,
+          "sha256": "be6f2539ee17cd139a8946669f9a1ff916c8eab96ddd5ccb3a0c58c93fb82386"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=landscape%20autumn%20great%20tree.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 14925,
+          "sha256": "ead1ada2fe7df5cd1f1fb0b4275821293386f97d3dd076ffaf928717f8aacb58"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=landscape%20beach%20day.png",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 10348,
+          "sha256": "5e5dab79d6ff11a5087497e0883e71475acd9edee040ad262178217f4e0ca114"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=landscape%20beach%20night.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 6814,
+          "sha256": "c1a12c67bb2f12b9aab92a3f6ed099760ee473041ab02263d44eeb5b0adb7e4f"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=landscape%20mountain%20lake.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 11236,
+          "sha256": "679fdb3e85971487ffea9b528d71bbf9c628798d8942ce24045fab4be2a1604d"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=landscape%20postapoc.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 9945,
+          "sha256": "0f1abfeb4de43f05290b172f26fecd9c78903b0348a1a3b3b4176cbf3d76ec83"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=landscape%20winter%20lake%20house.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 14321,
+          "sha256": "805111a9532b9cd5ab0cbc90ee5278e974e7f0eab1466b1f7eb7b86dffdbe526"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=probe-asset-background.png",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 643,
+          "sha256": "ac5657727f78c0578162e6579a152e277af934f1cd3d4685152188cfff908bd6"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=royal.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 15566,
+          "sha256": "04c0542d5497ccb41252b2eb7d0ec378babb130a3ad811a245323c1413018d8d"
+        },
+        {
+          "url": "/thumbnail?type=bg&file=tavern%20day.jpg",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/jpeg",
+          "byteLength": 12991,
+          "sha256": "b5f4d127bd04be9254d85aea1bb7351a6eb0604195f0c249741cc50b44217fda"
+        },
+        {
           "url": "/thumbnail?type=persona&file=probe-asset-persona.png",
           "kind": "thumbnail",
           "status": 200,
           "contentType": "image/png",
           "byteLength": 564,
           "sha256": "0672604e45149d2208950dd66128dde104cff4ac0281359f853cedafdf36e614"
+        },
+        {
+          "url": "/thumbnail?type=persona&file=user-default.png",
+          "kind": "thumbnail",
+          "status": 200,
+          "contentType": "image/png",
+          "byteLength": 2413,
+          "sha256": "b58868d65d5004fc8957431b9ecfcb3f4558e33e8a793f00a649c2e0bf25cb6c"
         }
       ],
       "consoleFailedToLoad": [],
@@ -2010,11 +2830,164 @@
           "sha256": "63ef318d96b5d0d0ceba6e04a4e622b1158335cdc67c49e27839132c6f655058"
         },
         "driven": {
-          "status": "not-driven",
-          "reason": "no .bg_example[bgfile=\"probe-asset-background.png\"] appeared within 15s of opening the panel"
+          "status": "observed",
+          "tileBgFile": "probe-asset-background.png",
+          "tileDataUrl": "url(\"backgrounds/probe-asset-background.png\")",
+          "tileThumbnailBeforeLoad": "url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=\")",
+          "tileThumbnailAfterLoad": "url(\"<loopback>/thumbnail?type=bg&file=probe-asset-background.png\")",
+          "appliedBackgroundImage": "url(\"<loopback>/backgrounds/__transparent.png\")",
+          "selectedTileBeforeClick": [
+            "__transparent.png"
+          ],
+          "selectedTileAfterClick": "__transparent.png",
+          "clickPath": "element.click() then a bubbling MouseEvent",
+          "delegatedBgClickBound": false,
+          "handlerSelectors": [
+            "[data-displayHelp]",
+            ".group_select",
+            ".group_member .right_menu_button",
+            ".api_loading",
+            ".last_mes .swipe_right",
+            ".last_mes .swipe_left",
+            ".character_select",
+            ".bogus_folder_select",
+            ".mes",
+            ".PastChat_cross",
+            ".renameChatButton",
+            ".exportChatButton, .exportRawChatButton",
+            ".mes_edit",
+            ".extraMesButtonsHint",
+            ".mes_edit_cancel",
+            ".mes_edit_up",
+            ".mes_edit_down",
+            ".mes_edit_copy",
+            ".mes_edit_delete",
+            ".mes_edit_done",
+            ".export_format",
+            ".mes_stop",
+            "#form_sheld .stscript_continue",
+            "#form_sheld .stscript_pause",
+            "#form_sheld .stscript_stop",
+            ".drawer-opener",
+            ".inline-drawer-toggle",
+            ".inline-drawer-maximize",
+            ".mes .avatar",
+            ".open_alternate_greetings",
+            ".external_import_button, #external_import_button",
+            "#show_more_messages",
+            ".open_characters_library",
+            "#debug_table [data-debug-function]",
+            ".manage-api-keys",
+            ".openrouter_view_credits",
+            ".nanogpt_view_credits",
+            ".nanogpt_info_btn",
+            ".mes_hide",
+            ".mes_unhide",
+            ".mes_file_delete",
+            ".mes_file_open",
+            ".assistant_note_export",
+            ".assistant_note_import",
+            "#attachFile",
+            "#manageAttachments",
+            ".mes_embed",
+            ".editor_maximize",
+            "body .mes .mes_text, body .mes .mes_reasoning",
+            ".open_media_overrides",
+            ".extensions_info .extension_block .toggle_disable",
+            ".extensions_info .extension_block .toggle_enable",
+            ".extensions_info .extension_block .btn_update",
+            ".extensions_info .extension_block .btn_delete",
+            ".extensions_info .extension_block .btn_clean",
+            ".extensions_info .extension_block .btn_move",
+            ".extensions_info .extension_block .btn_branch",
+            "[data-preset-manager-update]",
+            "[data-preset-manager-new]",
+            "[data-preset-manager-rename]",
+            "[data-preset-manager-export]",
+            "[data-preset-manager-import]",
+            "[data-preset-manager-delete]",
+            "[data-preset-manager-restore]",
+            ".mes_translate",
+            ".mes_img_caption",
+            ".expression_list_item",
+            ".expression_list_upload",
+            ".expression_list_delete",
+            ".sd_message_gen",
+            ".mes_narrate",
+            "null",
+            "null",
+            "null",
+            "null"
+          ],
+          "startupEvidence": {
+            "backgroundSettingsName": null,
+            "addBgButtonPresent": true,
+            "addBgButtonBound": false,
+            "bgTabsPresent": true,
+            "bgTabHandlers": false,
+            "bgFoldersRequested": true,
+            "tokenizerModule": {
+              "exportsInitTokenizers": true,
+              "exportsCountsFor": true
+            },
+            "documentClickHandlers": 75
+          },
+          "tileBox": {
+            "width": 118,
+            "height": 66
+          },
+          "chatBackgroundLocked": false,
+          "backgroundSettingsName": null,
+          "gallery": {
+            "tiles": 24,
+            "bgFiles": [
+              "__transparent.png",
+              "_black.jpg",
+              "_white.jpg",
+              "bedroom clean.jpg",
+              "bedroom cyberpunk.jpg",
+              "bedroom red.jpg",
+              "bedroom tatami.jpg",
+              "cityscape medieval market.jpg",
+              "cityscape medieval night.jpg",
+              "cityscape postapoc.jpg",
+              "forest treehouse fireworks air baloons (by kallmeflocc).jpg",
+              "japan classroom side.jpg",
+              "japan classroom.jpg",
+              "japan path cherry blossom.jpg",
+              "japan university.jpg",
+              "landscape autumn great tree.jpg",
+              "landscape beach day.png",
+              "landscape beach night.jpg",
+              "landscape mountain lake.jpg",
+              "landscape postapoc.jpg",
+              "landscape winter lake house.jpg",
+              "probe-asset-background.png",
+              "royal.jpg",
+              "tavern day.jpg"
+            ],
+            "stagedTilePresent": true,
+            "drawerOpen": true,
+            "drawerOpenedByDrive": true,
+            "drawerWasAlreadyOpen": false,
+            "panelContent": "<div class=\"bg_example flex-container selected-background\" bgfile=\"__transparent.png\" title=\"__transparent.png\" custom=\"false\" animated=\"false\">\n                <div class=\"bg_example_img\"></div>\n    ",
+            "fetchError": null,
+            "fetched": {
+              "returned": null
+            }
+          }
         }
       },
       "characterList": [
+        {
+          "src": "/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
+          "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
+          "complete": true,
+          "naturalWidth": 96,
+          "naturalHeight": 144,
+          "alt": "MARK_002794测测测测测测测测",
+          "dataType": null
+        },
         {
           "src": "/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
           "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
@@ -2036,8 +3009,8 @@
       ],
       "messages": [
         {
-          "src": "/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
-          "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=Probe%20Asset%20Card.png",
+          "src": "/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
+          "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
           "complete": true,
           "naturalWidth": 96,
           "naturalHeight": 144,
@@ -2050,6 +3023,232 @@
         "httpStatus": 200,
         "contentType": "image/png",
         "byteLength": 564
+      },
+      "personaPicker": {
+        "status": "observed",
+        "listed": 2,
+        "rowCount": 2,
+        "rowIds": [
+          "probe-asset-persona.png",
+          "user-default.png"
+        ],
+        "steps": [
+          "getUserAvatars(true)",
+          "opened the drawer",
+          "clicked a NON-CURRENT row",
+          "the click changed nothing, so setUserAvatar was called directly"
+        ],
+        "rowImage": {
+          "src": "/thumbnail?type=persona&file=probe-asset-persona.png",
+          "complete": true,
+          "naturalWidth": 96,
+          "naturalHeight": 144,
+          "settled": "loaded"
+        },
+        "currentPersonaBefore": "user-default.png",
+        "clickedAvatarId": "probe-asset-persona.png",
+        "clickedWasCurrentBefore": false,
+        "clickedIsDefaultPersona": false,
+        "preconditions": {
+          "delegatedClickBound": true,
+          "rowVisible": true,
+          "rowInDrawer": true,
+          "drawerIsOpen": true,
+          "rowBox": {
+            "width": 305,
+            "height": 64
+          }
+        },
+        "directCall": {
+          "invoked": true,
+          "userAvatarAfter": "probe-asset-persona.png"
+        },
+        "clickAloneChangedPersona": false,
+        "userAvatarAfter": "probe-asset-persona.png",
+        "personaChanged": true,
+        "selectedAfterClick": true,
+        "currentPersonaHeading": "[Unnamed Persona]"
+      },
+      "backgroundGallery": {
+        "status": "observed",
+        "reason": null,
+        "tileBgFile": "probe-asset-background.png",
+        "tileThumbnailBeforeLoad": "url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=\")",
+        "tileThumbnailAfterLoad": "url(\"<loopback>/thumbnail?type=bg&file=probe-asset-background.png\")",
+        "appliedBackgroundImage": "url(\"<loopback>/backgrounds/__transparent.png\")",
+        "handlerSelectors": [
+          "[data-displayHelp]",
+          ".group_select",
+          ".group_member .right_menu_button",
+          ".api_loading",
+          ".last_mes .swipe_right",
+          ".last_mes .swipe_left",
+          ".character_select",
+          ".bogus_folder_select",
+          ".mes",
+          ".PastChat_cross",
+          ".renameChatButton",
+          ".exportChatButton, .exportRawChatButton",
+          ".mes_edit",
+          ".extraMesButtonsHint",
+          ".mes_edit_cancel",
+          ".mes_edit_up",
+          ".mes_edit_down",
+          ".mes_edit_copy",
+          ".mes_edit_delete",
+          ".mes_edit_done",
+          ".export_format",
+          ".mes_stop",
+          "#form_sheld .stscript_continue",
+          "#form_sheld .stscript_pause",
+          "#form_sheld .stscript_stop",
+          ".drawer-opener",
+          ".inline-drawer-toggle",
+          ".inline-drawer-maximize",
+          ".mes .avatar",
+          ".open_alternate_greetings",
+          ".external_import_button, #external_import_button",
+          "#show_more_messages",
+          ".open_characters_library",
+          "#debug_table [data-debug-function]",
+          ".manage-api-keys",
+          ".openrouter_view_credits",
+          ".nanogpt_view_credits",
+          ".nanogpt_info_btn",
+          ".mes_hide",
+          ".mes_unhide",
+          ".mes_file_delete",
+          ".mes_file_open",
+          ".assistant_note_export",
+          ".assistant_note_import",
+          "#attachFile",
+          "#manageAttachments",
+          ".mes_embed",
+          ".editor_maximize",
+          "body .mes .mes_text, body .mes .mes_reasoning",
+          ".open_media_overrides",
+          ".extensions_info .extension_block .toggle_disable",
+          ".extensions_info .extension_block .toggle_enable",
+          ".extensions_info .extension_block .btn_update",
+          ".extensions_info .extension_block .btn_delete",
+          ".extensions_info .extension_block .btn_clean",
+          ".extensions_info .extension_block .btn_move",
+          ".extensions_info .extension_block .btn_branch",
+          "[data-preset-manager-update]",
+          "[data-preset-manager-new]",
+          "[data-preset-manager-rename]",
+          "[data-preset-manager-export]",
+          "[data-preset-manager-import]",
+          "[data-preset-manager-delete]",
+          "[data-preset-manager-restore]",
+          ".mes_translate",
+          ".mes_img_caption",
+          ".expression_list_item",
+          ".expression_list_upload",
+          ".expression_list_delete",
+          ".sd_message_gen",
+          ".mes_narrate",
+          "null",
+          "null",
+          "null",
+          "null"
+        ],
+        "startupEvidence": {
+          "backgroundSettingsName": null,
+          "addBgButtonPresent": true,
+          "addBgButtonBound": false,
+          "bgTabsPresent": true,
+          "bgTabHandlers": false,
+          "bgFoldersRequested": true,
+          "tokenizerModule": {
+            "exportsInitTokenizers": true,
+            "exportsCountsFor": true
+          },
+          "documentClickHandlers": 75
+        },
+        "delegatedBgClickBound": false,
+        "tileBox": {
+          "width": 118,
+          "height": 66
+        },
+        "clickPath": "element.click() then a bubbling MouseEvent",
+        "selectedTileBeforeClick": [
+          "__transparent.png"
+        ],
+        "selectedTileAfterClick": "__transparent.png",
+        "chatBackgroundLocked": false,
+        "backgroundSettingsName": null,
+        "gallery": {
+          "tiles": 24,
+          "bgFiles": [
+            "__transparent.png",
+            "_black.jpg",
+            "_white.jpg",
+            "bedroom clean.jpg",
+            "bedroom cyberpunk.jpg",
+            "bedroom red.jpg",
+            "bedroom tatami.jpg",
+            "cityscape medieval market.jpg",
+            "cityscape medieval night.jpg",
+            "cityscape postapoc.jpg",
+            "forest treehouse fireworks air baloons (by kallmeflocc).jpg",
+            "japan classroom side.jpg",
+            "japan classroom.jpg",
+            "japan path cherry blossom.jpg",
+            "japan university.jpg",
+            "landscape autumn great tree.jpg",
+            "landscape beach day.png",
+            "landscape beach night.jpg",
+            "landscape mountain lake.jpg",
+            "landscape postapoc.jpg",
+            "landscape winter lake house.jpg",
+            "probe-asset-background.png",
+            "royal.jpg",
+            "tavern day.jpg"
+          ],
+          "stagedTilePresent": true,
+          "drawerOpen": true,
+          "drawerOpenedByDrive": true,
+          "drawerWasAlreadyOpen": false,
+          "fetchError": null
+        }
+      },
+      "swipedMessageAvatar": {
+        "status": "observed",
+        "character": "Real Structure Card",
+        "before": {
+          "text": "MARK_002795测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测",
+          "avatar": {
+            "src": "/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
+            "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
+            "complete": true,
+            "naturalWidth": 96,
+            "naturalHeight": 144
+          },
+          "settled": "loaded"
+        },
+        "after": {
+          "text": "MARK_002797测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测测",
+          "avatar": {
+            "src": "/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
+            "resolvedSrc": "<loopback>/thumbnail?type=avatar&file=Real%20Structure%20Card.png",
+            "complete": true,
+            "naturalWidth": 96,
+            "naturalHeight": 144
+          },
+          "settled": "loaded"
+        },
+        "textChanged": true
+      },
+      "realCard": {
+        "name": "Real Structure Card",
+        "source": "tests/browser/fixtures/real/card-a.png (the committed derivation)",
+        "keyword": "ccv3",
+        "alternateGreetings": 5,
+        "bookEntries": 490,
+        "regexScripts": 11,
+        "helperScripts": 1,
+        "nameIsMarker": true
       }
     }
   },
@@ -2065,6 +3264,19 @@
     "backgroundAppliedOnBothLegs": true,
     "stagedBackgroundServedWithBytesOnBothLegs": true,
     "stagedBackgroundDrivenOnBothLegs": false,
+    "galleryRenderedTheStagedTileOnBothLegs": true,
+    "galleryTileThumbnailPaintedOnBothLegs": true,
+    "stagedBackgroundPaintedOnBothLegs": false,
+    "personaPickerRenderedOnBothLegs": true,
+    "personaPickerRowIsClickable": true,
+    "personaPickerRowImageDecodedOnBothLegs": true,
+    "personaPickerSelectedOnBothLegs": true,
+    "personaPickerClickedANonCurrentRow": true,
+    "personaPickerChangedThePersonaOnBothLegs": true,
+    "swipeChangedTheMessageOnBothLegs": true,
+    "swipedMessageAvatarDecodedOnBothLegs": true,
+    "bothLegsStagedTheRealCard": true,
+    "realCardStructureEqualOnBothLegs": true,
     "backgroundServedWithBytesOnBothLegs": true,
     "sameImageUrlSet": true,
     "perUrlStatusEqual": true,
@@ -2094,6 +3306,19 @@
     },
     {
       "kind": "codec",
+      "url": "/thumbnail?type=avatar&file=Real+Structure+Card.png",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 807,
+        "sha256": "b93849a948b2aa7f4861f7cdb28578f562ebe97af0ed18f3bf4ead266733a2b2"
+      },
+      "pinned": {
+        "byteLength": 409,
+        "sha256": "c425bafa55dd5ad916ac05e514c5e440508a2be7e644ba038ac7839a1d931399"
+      }
+    },
+    {
+      "kind": "codec",
       "url": "/thumbnail?type=avatar&file=default_Seraphina.png",
       "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
       "gotavern": {
@@ -2107,6 +3332,318 @@
     },
     {
       "kind": "codec",
+      "url": "/thumbnail?type=bg&file=__transparent.png",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 849,
+        "sha256": "5b7016caff64290a43a1cb82509a6dec3ef81a1aa85b9a3e25e7f1a171eee59f"
+      },
+      "pinned": {
+        "byteLength": 415,
+        "sha256": "0598b3ef6eb9e59002ef6392a2dceb1c7449d78010f9e966ba135f2c4f05e6f7"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=_black.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 833,
+        "sha256": "d51c043ca3910d7bd2b955cc4fb721ddf552a131b3a98a1d08b6981f5dc1c137"
+      },
+      "pinned": {
+        "byteLength": 421,
+        "sha256": "15c0a591973299fe4178a6cba42819afb70adb42fd9689c7dcc93fa37bbb8f53"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=_white.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 833,
+        "sha256": "833e1838fca74ce328a5e88c37c43adb76c2d125d5e0c1fb499ba474e4760908"
+      },
+      "pinned": {
+        "byteLength": 421,
+        "sha256": "9a403484a0afd2fbd1584062d081ce451d10645f5b8f16e97511550d9d83774e"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=bedroom+clean.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 7297,
+        "sha256": "77b852d2f756779f66ce59d97f985b8e452161c9607abd123b16647fc189d1b8"
+      },
+      "pinned": {
+        "byteLength": 10243,
+        "sha256": "dd8af3af4fcf978a48fe0e7a88712968a922602d8c093641336f581b86ac0eea"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=bedroom+cyberpunk.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 7581,
+        "sha256": "c34e6532ed727338c7321384888e6a9c0bf51fe7b4154268de5d749c0c49c429"
+      },
+      "pinned": {
+        "byteLength": 12785,
+        "sha256": "7c81b7c487987777bff7ad2abce9de8aa43a38ee9e918b461d026fe380a98055"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=bedroom+red.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 5523,
+        "sha256": "9b1fbcee639d61639ef01bb9ab395896417ebb9bbf662fa7109c71f6950d05f8"
+      },
+      "pinned": {
+        "byteLength": 8277,
+        "sha256": "e65f9f105ec1ebb1d448f3ae1f04a0aaf1f46f4d8b40281e4aeae695b0c90b3d"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=bedroom+tatami.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 6093,
+        "sha256": "4646245fead559d4ed5a1baaf8397442ec0695859c47fae18424a16b5a7f3f44"
+      },
+      "pinned": {
+        "byteLength": 8350,
+        "sha256": "5ae8ef9ef63fbf12f705b8dcc2af2df2e740cabf55191f98a2d2c88996fc1de6"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=cityscape+medieval+market.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 9651,
+        "sha256": "5da2fb08979d011b4de2b4a0d5db8481fdf868ec811f0434f7934f7bed6d4087"
+      },
+      "pinned": {
+        "byteLength": 14148,
+        "sha256": "c1f590bece9557933a4bb0a9093522ac6dd1e6afcd14001b262d66217de3969b"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=cityscape+medieval+night.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 6942,
+        "sha256": "23f8ea8bd0c88c345473f8aafd514def04b275f54d5234a9c1783d4680d34e24"
+      },
+      "pinned": {
+        "byteLength": 10504,
+        "sha256": "21764740de273bd98bdccf674639d8e1b8b53142bbb7d905a3b8290efc12c7e5"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=cityscape+postapoc.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 7909,
+        "sha256": "9e368026bad0d71b4ac034a5c75007ff0bb3b44f00af2257d9ff71bc1a2b669d"
+      },
+      "pinned": {
+        "byteLength": 11530,
+        "sha256": "a3dd0fb14ab0298a1288454fba9cebc4cad1abd3ae52a21aba117a1add0bd8e4"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=forest+treehouse+fireworks+air+baloons+%28by+kallmeflocc%29.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 9906,
+        "sha256": "f8e69aaa5777cc04bec0941d11e664bf6b0e1f7d30406780b282f3f06cd43b41"
+      },
+      "pinned": {
+        "byteLength": 16699,
+        "sha256": "e29abade9155e3e51f73f26580b170d421e9e9a70b365691253b4255253e5514"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=japan+classroom+side.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 9855,
+        "sha256": "1756b8fd24807dba2c48e8de65f3e6a83f8e3f52b0af3a57091dda8d08ce9549"
+      },
+      "pinned": {
+        "byteLength": 14979,
+        "sha256": "5e966cb7902ed902999891b9b5bd051879607aa936e4062df25f8fa18a3ea2b5"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=japan+classroom.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 9651,
+        "sha256": "fefbe9f0bbbd8c269682a7794bf4d6efd271bf94a48142d4a99e2c014a3724e2"
+      },
+      "pinned": {
+        "byteLength": 15702,
+        "sha256": "344837fa09de447bbd6d0f11b480d95b550edf8c1b3e43bfdc77d7d3edae6e1a"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=japan+path+cherry+blossom.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 10165,
+        "sha256": "37330ea0c74d94d6a6f44136bd4ed48ee6272b489c3c9de10c7dc9380567fcef"
+      },
+      "pinned": {
+        "byteLength": 16976,
+        "sha256": "27e75511613ca6a2b39be944d145841a47987809707e4e95e49caf27da6178ec"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=japan+university.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 8472,
+        "sha256": "38411a4e87f4f8a0fca3d7f0e3ce2a4cda3f0d8fc422d4569d426fcbaa575f16"
+      },
+      "pinned": {
+        "byteLength": 13323,
+        "sha256": "be6f2539ee17cd139a8946669f9a1ff916c8eab96ddd5ccb3a0c58c93fb82386"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=landscape+autumn+great+tree.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 9042,
+        "sha256": "5f2040ab8d3543b8e38e91a4286ec868e5cbce23e96d404f72787a8ed95bebee"
+      },
+      "pinned": {
+        "byteLength": 14925,
+        "sha256": "ead1ada2fe7df5cd1f1fb0b4275821293386f97d3dd076ffaf928717f8aacb58"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=landscape+beach+day.png",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 6548,
+        "sha256": "2bca02394daaba6f9fcdce8c49b3ccff8fabf36e8b87e97d656aed589201f4d1"
+      },
+      "pinned": {
+        "byteLength": 10348,
+        "sha256": "5e5dab79d6ff11a5087497e0883e71475acd9edee040ad262178217f4e0ca114"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=landscape+beach+night.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 4813,
+        "sha256": "86f28a174a0eec0b0fc36c9d63a6468c64475a8bf0d32b394077261f20e7df51"
+      },
+      "pinned": {
+        "byteLength": 6814,
+        "sha256": "c1a12c67bb2f12b9aab92a3f6ed099760ee473041ab02263d44eeb5b0adb7e4f"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=landscape+mountain+lake.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 7686,
+        "sha256": "8ee8e3e66e94505cb2b90221568f9acb792a197ec8077ef4d8e1fb9a32b82d30"
+      },
+      "pinned": {
+        "byteLength": 11236,
+        "sha256": "679fdb3e85971487ffea9b528d71bbf9c628798d8942ce24045fab4be2a1604d"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=landscape+postapoc.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 6427,
+        "sha256": "b0484d77ec5c37d837bad3e9c3683224d8391fe1ab008969e30e28a1b60730e9"
+      },
+      "pinned": {
+        "byteLength": 9945,
+        "sha256": "0f1abfeb4de43f05290b172f26fecd9c78903b0348a1a3b3b4176cbf3d76ec83"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=landscape+winter+lake+house.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 9249,
+        "sha256": "0b133ab81cff38cf2c9ac4c1cbb5b3c3c850062e39893f709f283e6e64d01a4f"
+      },
+      "pinned": {
+        "byteLength": 14321,
+        "sha256": "805111a9532b9cd5ab0cbc90ee5278e974e7f0eab1466b1f7eb7b86dffdbe526"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=probe-asset-background.png",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 1162,
+        "sha256": "bdb729863b6122cf47aa320f17efa3643977b9ff0e14ebb4772094c2612b1e79"
+      },
+      "pinned": {
+        "byteLength": 643,
+        "sha256": "ac5657727f78c0578162e6579a152e277af934f1cd3d4685152188cfff908bd6"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=royal.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 8769,
+        "sha256": "57ad506ecc5ca0c4bbef82bb3d8c95d94c52d8ef1bcc31b7a2593091a181e2ae"
+      },
+      "pinned": {
+        "byteLength": 15566,
+        "sha256": "04c0542d5497ccb41252b2eb7d0ec378babb130a3ad811a245323c1413018d8d"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=bg&file=tavern+day.jpg",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 8953,
+        "sha256": "ae66f410b501e54e7f10c461f47a57418c894cc71e167638afb01a264bc8db8f"
+      },
+      "pinned": {
+        "byteLength": 12991,
+        "sha256": "b5f4d127bd04be9254d85aea1bb7351a6eb0604195f0c249741cc50b44217fda"
+      }
+    },
+    {
+      "kind": "codec",
       "url": "/thumbnail?type=persona&file=probe-asset-persona.png",
       "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
       "gotavern": {
@@ -2116,6 +3653,19 @@
       "pinned": {
         "byteLength": 564,
         "sha256": "0672604e45149d2208950dd66128dde104cff4ac0281359f853cedafdf36e614"
+      }
+    },
+    {
+      "kind": "codec",
+      "url": "/thumbnail?type=persona&file=user-default.png",
+      "reason": "ARCHITECTURE.md §35.2: pinned renders thumbnails with Jimp; GoTavern uses a pure-Go codec. The product claims the OBSERVABLE (status, MIME, decodable image, configured dimensions), not the bytes.",
+      "gotavern": {
+        "byteLength": 3185,
+        "sha256": "25424475a4d36dcbb46b71f4bec865318ac06c2f0511221fbbd29f34097decd6"
+      },
+      "pinned": {
+        "byteLength": 2413,
+        "sha256": "b58868d65d5004fc8957431b9ecfcb3f4558e33e8a793f00a649c2e0bf25cb6c"
       }
     }
   ],
@@ -2133,19 +3683,22 @@
       "source": "public/script.js:getThumbnailUrl (pinned)"
     }
   ],
-  "findings": [],
+  "findings": [
+    "gotavern: the gallery tile click did not select the staged tile (selected tile after click: \"__transparent.png\", path: \"element.click() then a bubbling MouseEvent\") -- the delegated .bg_example click handler is NOT BOUND, and neither is #add_bg_button's change handler -- both are bound INSIDE initBackgrounds() (backgrounds.js:1733 and the upload block), which script.js calls at :762 between `await getBackgrounds()` (:760) and `await initPersonas()` (:764). The page is otherwise healthy: the persona picker and the swipe drive both work and there are no page errors, so the startup sequence reached initPersonas and skipped this call. Evidence: {\"backgroundSettingsName\":null,\"addBgButtonPresent\":true,\"addBgButtonBound\":false,\"bgTabsPresent\":true,\"bgTabHandlers\":false,\"bgFoldersRequested\":true,\"tokenizerModule\":{\"exportsInitTokenizers\":true,\"exportsCountsFor\":true},\"documentClickHandlers\":75}",
+    "pinned: the gallery tile click did not select the staged tile (selected tile after click: \"__transparent.png\", path: \"element.click() then a bubbling MouseEvent\") -- the delegated .bg_example click handler is NOT BOUND, and neither is #add_bg_button's change handler -- both are bound INSIDE initBackgrounds() (backgrounds.js:1733 and the upload block), which script.js calls at :762 between `await getBackgrounds()` (:760) and `await initPersonas()` (:764). The page is otherwise healthy: the persona picker and the swipe drive both work and there are no page errors, so the startup sequence reached initPersonas and skipped this call. Evidence: {\"backgroundSettingsName\":null,\"addBgButtonPresent\":true,\"addBgButtonBound\":false,\"bgTabsPresent\":true,\"bgTabHandlers\":false,\"bgFoldersRequested\":true,\"tokenizerModule\":{\"exportsInitTokenizers\":true,\"exportsCountsFor\":true},\"documentClickHandlers\":75}"
+  ],
   "unproven": [
-    "stagedBackgroundDrivenOnBothLegs: the backgrounds gallery drive is not established. Measured on both legs (runs 40205486030, 40206135746, 40206773315): #backgrounds-drawer-toggle exists and is clicked, no .bg_example[bgfile=\"probe-asset-background.png\"] appears within 15 s, and #bg1 keeps the fresh tree's /backgrounds/__transparent.png. The staged background ROUTE is asserted (stagedBackgroundServedWithBytesOnBothLegs); the paint is not claimed.",
-    "the persona PICKER (a persona does not exist in a fresh tree, so the DOM half of Q6 is unproven; only the persona thumbnail REQUEST is asserted)",
-    "a swiped or regenerated message avatar (the chat is opened once and one greeting renders)",
-    "image dimensions equal to the configured thumbnail size (the pure-Go codec is asserted to decode, and both legs report naturalWidth 96 for the same thumbnail, but the configured size is not asserted)",
-    "a real user tree with a hundred cards, where the character list paginates"
+    "stagedBackgroundDrivenOnBothLegs: the gallery PAINT is not driven, on EITHER leg, because the pinned frontend's `initBackgrounds()` bindings are absent in this tree (`.bg_example` click and `#add_bg_button` change both unbound; both are registered inside that one function). The page is otherwise healthy -- the persona picker, the swipe drive and the gallery RENDER all work, and there are no page errors. The paint cannot be claimed until a tree exists in which that startup call runs; the ROUTE (`stagedBackgroundServedWithBytesOnBothLegs`) and the RENDER (`galleryRenderedTheStagedTileOnBothLegs`) are proven.",
+    "stagedBackgroundPaintedOnBothLegs: the same cause as the entry above, recorded separately because it is the guard whose name states the paint; a `#bg1` that still carries the fresh tree's __transparent.png is the user-visible consequence of that missing binding, on both subjects.",
+    "image dimensions equal to the configured thumbnail size: both legs report a decoded thumbnail and the configured size is not asserted here, because the configured size comes from the user's own config.yaml and the probe seeds the pinned default; asserting it would test the seed, not the codec",
+    "a real user tree with a hundred cards, where the character list paginates: the probe stages three cards and pagination needs a page size the user sets; the committed derivation proves the STRUCTURE of one real card, not the list's paging behaviour",
+    "the per-chat and locked background branches of onSelectBackgroundClick: they take a different path from the system-background click and are unreachable while the click binding itself is missing"
   ],
   "declaredUnproven": [
     "a real user tree with a hundred cards, where the character list paginates",
-    "a swiped or regenerated message avatar (the chat is opened once and one greeting renders)",
-    "image dimensions equal to the configured thumbnail size (the pure-Go codec is asserted to decode, and both legs report naturalWidth 96 for the same thumbnail, but the configured size is not asserted)",
+    "image dimensions equal to the configured thumbnail size",
     "stagedBackgroundDrivenOnBothLegs",
-    "the persona PICKER (a persona does not exist in a fresh tree, so the DOM half of Q6 is unproven; only the persona thumbnail REQUEST is asserted)"
+    "stagedBackgroundPaintedOnBothLegs",
+    "the per-chat and locked background branches of onSelectBackgroundClick"
   ]
 }

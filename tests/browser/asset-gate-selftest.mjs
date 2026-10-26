@@ -345,6 +345,29 @@ process.stdout.write(String(fs.existsSync(path.join(here, 'fixtures', 'real', 'c
     record('the card resolves from tests/browser AND from the repository root', fromBrowserDir === 'true' && fromRepoRoot === 'true', `cwd=tests/browser -> ${fromBrowserDir}, cwd=repo root -> ${fromRepoRoot}`);
 }
 
+// ---- the artefact must carry NO run's port, in a VALUE or inside a CSS url() ---------------------
+// The first version of `stripOrigin` was `^`-anchored, so a CSS value `url("http://127.0.0.1:41135/…")` kept the
+// port while a bare `resolvedSrc` was normalised, and `tools/verify-browser-comparisons.mjs` refused the committed
+// artefact. This case reads the comparator's OUTPUT (not its regex) and requires every host-derived address in a
+// value position to be a marker.
+{
+    const artifact = compare({ gotavern: faithfulLeg('gotavern'), pinned: faithfulLeg('pinned') });
+    const offenders = [];
+    (function walk(value, pathParts) {
+        if (typeof value === 'string') {
+            // `normalisations[].change` DESCRIBES the loopback block in prose on purpose; that is documentation,
+            // not a value, and it names the block in words rather than as an address.
+            if (pathParts[0] === 'normalisations') return;
+            if (/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+/.test(value) || /localhost:\d+/.test(value)) offenders.push([pathParts.join('.'), value.slice(0, 120)]);
+            return;
+        }
+        if (Array.isArray(value)) { value.forEach((entry, index) => walk(entry, [...pathParts, String(index)])); return; }
+        if (value && typeof value === 'object') { for (const key of Object.keys(value)) walk(value[key], [...pathParts, key]); }
+    })(artifact, []);
+    record('no value in the artefact carries a run port, including inside a CSS url()', offenders.length === 0, JSON.stringify(offenders.slice(0, 3)));
+    record('the CSS url() values were normalised to <loopback>', String(artifact.legs.gotavern.backgroundGallery?.tileThumbnailAfterLoad ?? '').includes('<loopback>') && String(artifact.legs.gotavern.backgroundGallery?.appliedBackgroundImage ?? '').includes('<loopback>'), JSON.stringify(artifact.legs.gotavern.backgroundGallery?.appliedBackgroundImage ?? null));
+}
+
 const failed = results.filter(entry => !entry.ok);
 console.log(`\n${results.length - failed.length}/${results.length} case(s) behaved as required`);
 if (failed.length > 0) {

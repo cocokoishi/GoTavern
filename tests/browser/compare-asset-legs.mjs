@@ -348,8 +348,13 @@ export function compare({ gotavern, pinned }) {
     // refused). A committed artefact may not carry a port, so the origin is replaced with a marker and the
     // replacement is recorded in `normalisations` -- the same treatment the generation comparator gives a mock
     // origin. Nothing else about the URL is touched: the path and query are the observation.
+    // NOT ANCHORED TO THE START OF THE STRING, AND THAT IS THE FIX. A CSS value is `url("http://127.0.0.1:41135/…")`,
+    // so a `^`-anchored pattern matched NOTHING and the committed artefact carried a run's port in
+    // `tileThumbnailAfterLoad` and `appliedBackgroundImage` (`tools/verify-browser-comparisons.mjs` refused it).
+    // `resolvedSrc` is a bare URL and still matches, so one pattern serves both; the `g` flag makes it portable to a
+    // value with more than one occurrence.
     const stripOrigin = value => (typeof value === 'string'
-        ? value.replace(/^https?:\/\/(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?/i, '<loopback>')
+        ? value.replace(/https?:\/\/(?:127\.0\.0\.1|localhost|\[::1\])(?::\d+)?/gi, '<loopback>')
         : value);
     const projectImages = report => (dom(report)?.characterList ?? []).map(image => ({ ...image, resolvedSrc: stripOrigin(image.resolvedSrc) }));
     const projectMessages = report => (dom(report)?.messages ?? []).map(image => ({ ...image, resolvedSrc: stripOrigin(image.resolvedSrc) }));
@@ -397,6 +402,11 @@ export function compare({ gotavern, pinned }) {
             tileBgFile: driven.tileBgFile ?? null,
             tileThumbnailBeforeLoad: stripOrigin(driven.tileThumbnailBeforeLoad),
             tileThumbnailAfterLoad: stripOrigin(driven.tileThumbnailAfterLoad),
+            // THE SAME NORMALISATION THE `driven` PROJECTION APPLIES, and the FIRST VERSION OF THIS FUNCTION
+            // MISSED IT: it copied `appliedBackgroundImage` raw, so the committed artefact carried a live
+            // `http://127.0.0.1:<run port>/...` and `tools/verify-browser-comparisons.mjs` refused it as a
+            // host-derived value (run 40321605394's artefact, caught before the commit). A field rewritten in one
+            // projection and not the other is how a port reaches a committed file.
             appliedBackgroundImage: stripOrigin(driven.appliedBackgroundImage),
             // THE CLICK-PATH EVIDENCE, so a reader (and the next run) can see WHY the click did or did not work
             // instead of reading a conclusion: the jQuery handlers actually bound on `document`, the boolean the
