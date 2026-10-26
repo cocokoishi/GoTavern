@@ -185,6 +185,26 @@ Two driver defects cost this lane two rounds and are worth remembering: `getCont
 `TavernHelper` member (the child iframe's accessor is `window.SillyTavern.getContext()`, installed by
 `iframe/predefine.js`), and a just-clicked character has a greeting PREVIEW and no chat, so
 `createChatMessages` had nothing to write into.
+**Q20 (save -> a FRESH page load reading it back -> a second turn -> a swipe, all equal to pinned) — PROVEN 2026-10-26.**
+`Browser differential` 40387864205 (`lane/q20-persistence`), steps `Record the Q20 legs (save -> reload -> swipe, on
+both subjects)` success and `Compare the Q20 legs` success, verdict `match`, SEVEN of seven guards true:
+`legsPresent, legsDrove, saveWroteTheChat, reloadReadsTheChat, nodeEqualsGoAfterReload, goSwipeDiffersFromGoTurn,
+nodeEqualsGoAfterSwipe`.
+
+The comparison is byte-exact on both requests, and the pairs differ from each other, so the swipe is not a repeat:
+second turn `794bfa4552f8` (4191 B) on BOTH subjects; swipe `9ab9e8c13421` (4192 B) on BOTH subjects.
+
+What made this hard, recorded because each one was a wrong hypothesis measured and discarded before the real one:
+a swallowed listener throw, a listener held open, an unreached `processCommands` (`processCommands=[]` means "no slash
+command", NOT "never reached"), `pingServer` blocking, `settingsReady` (it was true, 2 ms), and the two silent early
+returns at script.js:4323/:4329. The actual cause was an INPUT: `main_api` was `koboldhorde` (the fresh-install
+default) because setting `chat_completion_source` does not move the API switch, so `Generate` took the Horde branch and
+appended nothing -- on both subjects. `changeMainAPI('openai')` (script.js:7756) fixed it, and `message_sent` /
+`message_received` / `user_message_rendered` fired for the first time.
+
+Two follow-on lessons, both now in the code's comments: the switch is PER PAGE (a reload resets it, which is why the
+second turn needed it again), and a guard must assert the fact rather than a convenient proxy -- "the last message is
+the user's" is false the moment the reply lands, so the second-turn guard now finds the user turn by index.
 **Q12 (a helper MUTATING the in-use preset changes the next model context, identically) — PROVEN 2026-10-25.**
 `Browser differential` 40277640647, preset mode, four legs, TEN guards all true: legsPresent, legsDrove,
 structureMatchesTheOracle, presetAEqualsAcrossLegs, presetBEqualsAcrossLegs, goATavernDiffersFromGoB,
