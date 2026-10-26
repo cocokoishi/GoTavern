@@ -244,8 +244,15 @@ function abortSurface(gotavern, pinned, baseline) {
     guard('hopFramedTheStreamSoTheCutIsDetectable',
         `the hop did not re-frame the SSE body as a single gzip member on both subjects (gotavern ${JSON.stringify(gvHop.gzipFramedResponses)}, pinned ${JSON.stringify(pnHop.gzipFramedResponses)}), so a cut body would end like a clean end to the reader and the truncation could not be attributed to the network`,
         (gvHop.gzipFramedResponses ?? 0) >= 1 && (pnHop.gzipFramedResponses ?? 0) >= 1);
+    // THE DISCONNECT HERE IS THE SUBJECT, AND IT IS CAUSED BY THE CUT -- not by a user. What this guard
+    // distinguishes is the surface from `cancel`: in cancel mode a stop button was pressed, and here none was
+    // (asserted by `noCallerCancelOnEitherSubject`). When the cut lands INSIDE a record, the frontend's own
+    // reader rejects before a streamingProcessor exists, so the page closes the response and the peer records a
+    // disconnect -- on BOTH subjects, identically (measured: Browser differential 40314154794, where every
+    // abort observable matched and the disconnect was true on both). The message says that rather than
+    // claiming the network was the only party involved.
     guard('peerDidNotDisconnect',
-        `the peer recorded a client disconnect (gotavern ${JSON.stringify((gotavern.recording ?? []).map(request => request.clientDisconnected))}, pinned ${JSON.stringify((pinned.recording ?? []).map(request => request.clientDisconnected))}), so what ended the stream was the subject (cancellation) rather than the network`,
+        `the peer recorded a client disconnect with no user cancel (gotavern ${JSON.stringify((gotavern.recording ?? []).map(request => request.clientDisconnected))}, pinned ${JSON.stringify((pinned.recording ?? []).map(request => request.clientDisconnected))}): the page closed the dead response itself, which means the cut landed INSIDE a record rather than at the head of the body, so the surviving state is an aborted send and not a truncated reply`,
         (gotavern.recording ?? []).length > 0 && (pinned.recording ?? []).length > 0
             && (gotavern.recording ?? []).every(request => request.clientDisconnected === false)
             && (pinned.recording ?? []).every(request => request.clientDisconnected === false));
@@ -360,6 +367,11 @@ const main = async () => {
         relayed: blockOf(relayed),
         abort: blockOf(abort),
         proven: stream.proven && relayed.proven && abort.proven,
+        // THE DIAGNOSTIC THE FOURTH RUN READS. A cut inside a record leaves nothing rendered and a disconnect
+        // on both subjects; a cut at the head of the body leaves a 200 with nothing after it. These two
+        // numbers decide which one this artefact measured, so they are recorded beside the guards rather than
+        // left in the legs.
+        cutKind: (hop(abortGotavern).releasedBytes ?? 0) > 0 ? 'inside-a-record' : 'at-the-head-of-the-body',
         notCompared: [
             'a real provider (AGENTS.md 22): the peer is a simulated backend that captures and answers; the hop is real TCP but loopback',
             'a real TLS connection: the mid-stream close is a socket close on plain HTTP carrying a gzip member, so a TLS fatal alert or a middlebox reset is unobserved (the decoder error stands in for it, and is measured)',

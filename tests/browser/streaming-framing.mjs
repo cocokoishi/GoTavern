@@ -252,8 +252,14 @@ export function startStreamingHop({ upstream, mode, cutAfterBytes = 0, cutArmOnP
                         return;
                     }
                     const slice = chunk.subarray(0, Math.min(room, chunk.length));
-                    released += slice.length;
+                    // THE RELEASED BYTES AND THE PASSED BYTES MUST BE THE SAME TENSOR.
+                    // `released` is advanced by what `emitPlain` actually handed downstream, not by the
+                    // slice it was asked to relay: measured on this lane, the two disagreed and the cut
+                    // was reported one frame later than the body the page had received, so the artefact
+                    // said "inside a record" while every subscription body was a complete frame.
+                    const releasedBefore = state.releasedBytes;
                     emitPlain(slice, countFrames(slice.toString('utf8')), 'relay-before-cut');
+                    released += state.releasedBytes - releasedBefore;
                     if (cutAfterBytes > 0 && released >= cutAfterBytes) {
                         cutNow('cut-after-bytes');
                     }

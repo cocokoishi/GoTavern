@@ -545,6 +545,11 @@ jobs:
           echo "::group::framing abort (hop cuts mid-stream, nobody stops)"
           framing_pair abort abort cut || failures=$((failures + 1))
           echo "::endgroup::"
+
+          # THE HOP LOG: what a cut actually measured, ON THIS LOG, while the run is still failing. The
+          # uploaded artefact is not downloadable until the run ends, and three runs of this lane were
+          # diagnosed by downloading a 40 MB bundle after the fact. The tool never fails this step.
+          node tools/browser-evidence/hop-log.mjs "$work"/legs/framing-*-gotavern.json "$work"/legs/framing-*-pinned.json || true
           echo "framing_failures=$failures" >> "$GITHUB_OUTPUT"
           # A drive failure is reported above and judged below; this step does not mask it.
           exit 0
