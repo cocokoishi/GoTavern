@@ -43,6 +43,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { PEER_CIRCUIT, sourceFor } from './sources.mjs';
 import { PRESET_FIXTURE, applyPresetKit, applyAuthorsNoteOverlay, authorsNoteOverlaySpec, presetSpec, resolveAuthorsNoteCase } from './preset-kit.mjs';
+import { PROXY_MODES, loopbackUpstream, startStreamingProxy } from './streaming-framing.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -217,6 +218,36 @@ const probeMode = process.env.PROBE_MODE ?? 'nonstream';
 // (source and protocol are derived above, before the mock script, so one place decides both)
 
 const streamingMode = probeMode === 'stream' || probeMode === 'cancel';
+// ABORT MODE (Q19, the mid-stream network close). Same peer, same paced frames, same drive as `stream`
+// -- the difference is in the NETWORK and in the CALLER, and both are named here rather than inferred:
+//   * the network: the page reaches the peer through the framing proxy in `cut` mode, which releases
+//     only the first N bytes of the upstream body and then closes both sockets. The peer stays healthy
+//     and writes its whole script, so the reply the subject RECEIVED is a strict prefix of the reply it
+//     receives in `stream` mode;
+//   * the caller: the page is NEVER asked to stop. The frontend has to notice a dead stream by itself,
+//     which is the half `cancel` mode cannot measure because there the user pressed the stop button.
+// The two halves are recorded separately (`networkClose` from the proxy, `streamState` from the page) so
+// "the network died" and "the page gave up" can never be confused for one another.
+const abortMode = probeMode === 'abort';
+const streamingModeOrAbort = streamingMode || abortMode;
+// A BUFFERING (or CUTTING) HOP BETWEEN THE SUBJECT AND THE PEER. `PROBE_BUFFERING_PROXY=buffer` puts the
+// proxy in front of the peer in its buffering mode, `cut` in its cutting mode; anything else leaves the
+// page talking to the peer directly, which is what every earlier artefact recorded. The mode is applied
+// to whichever address the leg would otherwise use, so the drive code is untouched: only the network
+// underneath it changes, which is the whole point of the gate.
+const proxyModeSetting = process.env.PROBE_BUFFERING_PROXY ?? '';
+const proxyMode = proxyModeSetting === PROXY_MODES.BUFFER || proxyModeSetting === PROXY_MODES.CUT
+    ? proxyModeSetting
+    : null;
+if (proxyModeSetting && !proxyMode) {
+    throw new Error(`PROBE_BUFFERING_PROXY must be "${PROXY_MODES.BUFFER}" or "${PROXY_MODES.CUT}" (or unset), got ${JSON.stringify(proxyModeSetting)}: an unrecognised value would silently measure the direct connection while the artefact claimed a proxy`);
+}
+// THE CUT POINT IS THE PEER'S OWN FRAMING, NOT A BYTE COUNT PICKED HERE. The peer writes
+// `data: {...}\n\n`; cutting "after N bytes" would land mid-payload on one protocol and mid-frame on
+// another. So the probe learns the boundary from the peer's OWN frame sizes and cuts at the END of a
+// frame, which makes the required observation exact: the subject receives at least one complete content
+// frame (so a render must start) and fewer frames than were written (so the stream cannot finish).
+const cutAfterFrames = Number(process.env.PROBE_CUT_AFTER_FRAMES ?? 2);
 
 // PRESET MODE: the complex-preset differential (AGENTS.md rules 8 and 9).
 //
@@ -395,6 +426,13 @@ function startStreamingPeer(mode, protocol) {
             for (let wordIndex = 0; wordIndex < wordCount; wordIndex += 1) {
                 frames.push(words[wordIndex % words.length] + (wordIndex >= words.length ? '#' + wordIndex : ''));
             }
+            // `abort` IS NOT `cancel` ON THE PEER'S SIDE. In cancel mode the peer holds the stream open
+            // and waits for the caller to go away, because the subject under test is the page's stop
+            // button. In abort mode the CALLER never stops: the network dies in the middle (the framing
+            // proxy cuts) while the peer goes on writing its whole script. So the peer must NOT hold the
+            // stream open, or it would be the peer that truncated the reply and the subject's behaviour
+            // would be unobservable. It finishes normally, and the proxy decides what reaches the page.
+            const holdOpen = mode === 'cancel';
             const frameDelay = Number(process.env.PROBE_FRAME_MS ?? (mode === 'cancel' ? 120 : 40));
             let finished = false;
             response.on('close', () => {
@@ -436,7 +474,7 @@ function startStreamingPeer(mode, protocol) {
                     return;
                 }
                 clearInterval(timer);
-                if (mode === 'cancel') {
+                if (holdOpen) {
                     // Hold the stream open: the browser must abort while text is partially rendered.
                     // The peer only ends when the caller closes (the close handler above records it).
                     return;
@@ -474,7 +512,7 @@ let mockAddress = '';
 // streamed/cancelled drive, is served by the in-process peer that answers by REQUEST: it needs no
 // per-source count at all, which is why the whole class moved to it rather than each source keeping
 // its own entries in a positional script.
-const useInProcessPeer = streamingMode || source.probe.peer.circuit === PEER_CIRCUIT.REQUEST_KEYED;
+const useInProcessPeer = streamingModeOrAbort || source.probe.peer.circuit === PEER_CIRCUIT.REQUEST_KEYED;
 if (useInProcessPeer) {
     streamingPeer = await startStreamingPeer(probeMode, peerProtocol);
     mockAddress = streamingPeer.address;
@@ -493,6 +531,34 @@ if (useInProcessPeer) {
     if (!mockAddress) {
         throw new Error('mock provider did not report its address');
     }
+}
+
+// THE BYTE COUNT THAT ENDS A FRAME. `cutAfterBytes` is resolved per protocol from the peer's own frame
+// encoding, so the cut lands on a FRAME boundary rather than inside a JSON payload: the required
+// observation then becomes a COUNT of complete frames the subject received, and neither chunk coalescing
+// nor a proxy padding decision can move it.
+function framesToBytes(frames, protocol) {
+    const sample = protocol === 'anthropic'
+        ? `event: content_block_delta\ndata: ${JSON.stringify({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Hello' } })}\n\n`
+        : `data: ${JSON.stringify({
+            id: 'chatcmpl-probe', object: 'chat.completion.chunk', created: 1, model: 'probe-model',
+            choices: [{ index: 0, delta: { content: 'Hello' }, finish_reason: null }],
+        })}\n\n`;
+    return Buffer.byteLength(sample, 'utf8') * frames;
+}
+const cutAfterBytes = abortMode ? framesToBytes(cutAfterFrames, peerProtocol) : 0;
+// THE HOP GOES IN FRONT OF THE PEER, BEFORE ANYTHING IS AIMED AT IT. Every aim step below reads
+// `mockAddress` -- the seams, the redirect file and the page's own custom_url/reverse_proxy -- so one
+// reassignment moves the whole leg behind the proxy and there is no second place the peer's address is
+// spelled. Nothing about the drive changes; only the network underneath it does.
+const proxy = proxyMode ? await startStreamingProxy({
+    upstream: loopbackUpstream(mockAddress),
+    mode: proxyMode,
+    cutAfterBytes: proxyMode === PROXY_MODES.CUT ? cutAfterBytes : 0,
+}) : null;
+if (proxy) {
+    mockAddress = proxy.address;
+    console.log(`[proxy] ${proxyMode} ${proxy.address} -> ${streamingPeer ? streamingPeer.address : 'the scripted peer'}${proxyMode === PROXY_MODES.CUT ? ` (cut after ${cutAfterBytes} B = ${cutAfterFrames} frames)` : ''}`);
 }
 
 // AIM THE LEGS AT THE PEER IN BOTH MODES, FROM THE CATALOG.
@@ -883,7 +949,7 @@ try {
         }
     }
     const outcome = await page.evaluate(async ({ mockUrl, probeMode, probeSource, plan, presetSpec, presetVariant, presetBoundary, presetAnchor, presetContextOverride }) => {
-    const streaming = probeMode === 'stream' || probeMode === 'cancel';
+    const streaming = probeMode === 'stream' || probeMode === 'cancel' || probeMode === 'abort';
         // Faithful drive: load and select a character through the frontend's OWN functions, then send
         // through the UI button. The earlier version pushed into a temporary chat and called
         // Generate() with the frontend already mid-operation and no character bound, which a user
@@ -1567,6 +1633,37 @@ try {
                 await new Promise(resolve => setTimeout(resolve, 1500));
                 streamState.snapshotsLater = renderSnapshots().length;
                 streamState.textLater = renderSnapshots().at(-1)?.text ?? null;
+            } else if (probeMode === 'abort') {
+                // THE CALLER NEVER STOPS. Nothing is clicked here: the network already died (the proxy
+                // cut the body), and the observation is whether the PAGE notices and at what cost. The
+                // two numbers that matter are bounded waits, not sleeps, so a subject that hangs is
+                // reported as `returnedToIdle: false` instead of being given the benefit of a timeout.
+                streamState.stopClickedAt = null;
+                streamState.stopPresent = Boolean(document.querySelector('#mes_stop'));
+                const idleDeadline = performance.now() + 30000;
+                let returnedToIdle = false;
+                while (performance.now() < idleDeadline) {
+                    const scriptModule = await import('./script.js');
+                    const generating = Boolean(scriptModule.isGenerating) || document.body.dataset.generating !== undefined;
+                    const stopVisible = Boolean(document.querySelector('#mes_stop'));
+                    if (!generating && !stopVisible) {
+                        returnedToIdle = true;
+                        break;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                streamState.returnedToIdle = returnedToIdle;
+                streamState.idleWaitedMs = Math.round(idleDeadline - performance.now());
+                streamState.textAfterAbort = renderSnapshots().at(-1)?.text ?? null;
+                streamState.snapshotsAtAbort = renderSnapshots().length;
+                // The frontend's own report of the failure, which is the only thing a user sees: a
+                // toastr for a caught stream error, or whatever the console said. Recorded rather than
+                // judged here -- the comparator decides whether the two subjects agree.
+                streamState.toastrAfterAbort = (document.querySelector('#toast-container')?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 300);
+                streamState.pageErrorsAfterAbort = [];
+                await new Promise(resolve => setTimeout(resolve, 700));
+                streamState.textLater = renderSnapshots().at(-1)?.text ?? null;
+                streamState.snapshotsLater = renderSnapshots().length;
             } else {
                 await waitUntil(() => !script.isGenerating, 30000);
                 await new Promise(resolve => setTimeout(resolve, 500));
@@ -1736,12 +1833,31 @@ try {
         report.domDumpError = String(error.message ?? error);
     }
     report.streamState = outcome.postSend?.streamState ?? null;
+    // THE HOP, RECORDED FROM ITS OWN SIDE. What the proxy forwarded (byte digests, never bodies), how
+    // many downstream body writes it made and how many frames each carried, how many bytes it released,
+    // and -- in cut mode -- whether the cut actually happened. A truncation the network did NOT perform
+    // must be visible as `cut: null`, or a subject that truncated by itself would be credited to the
+    // network. `absent` is recorded explicitly when no proxy was configured, so "no hop" is a value
+    // rather than a missing field.
+    report.networkHop = proxy ? {
+        mode: proxy.state.mode,
+        cutAfterBytes: proxy.state.cutAfterBytes,
+        cutAfterFrames,
+        requestsSeen: proxy.state.requestsSeen,
+        forwarded: proxy.state.forwarded,
+        bodyWrites: proxy.state.writes,
+        bodyWriteCount: proxy.state.writes.length,
+        releasedBytes: proxy.state.releasedBytes,
+        cut: proxy.state.cut,
+        completedBeforeCut: proxy.state.completedBeforeCut === true,
+        upstreamErrors: proxy.state.upstreamErrors,
+    } : { mode: null, absent: true };
     // WHICH BODY-DERIVED VALUE THIS DRIVE DROVE. A source whose host depends on a body field cannot be
     // read back unless the record says which value the drive selected, so every model-control record
     // the plan declared is copied out here by name.
     report.controls = await page.evaluate(names => Object.fromEntries(names.map(name => [name, globalThis[name] ?? null])), modelControlRecords);
     report.endpoint = report.controls[modelControlRecords[0]] ?? null;
-    if (streamingMode) {
+    if (streamingModeOrAbort) {
         // The in-process peer recorded the request, its body digest, whether the caller closed the
         // stream before it finished (cancellation), and how many frames it wrote.
         report.recording = streamingPeer.state.requests.map(request => ({
@@ -1844,6 +1960,10 @@ try {
     server?.kill();
     mock?.kill();
     await streamingPeer?.close();
+    // THE HOP GOES DOWN AFTER THE PEER: closing the proxy first would make the peer record a
+    // disconnect the subject never performed, which is the cancellation observation wearing another
+    // mode's name.
+    await proxy?.close();
     // The scratch directory holds a built binary and a mock binary -- about 78 MB per run, and
     // twenty-nine abandoned copies of it filled the disk to 0.09 GB free, which then failed an
     // unrelated `go build` inside a differential with "not enough space on the disk". Clean up by

@@ -144,6 +144,12 @@ test('the ignore patterns cover every leg name the committed artefacts record', 
             assert.ok(isIgnored(name), `a per-source leg named ${name} would escape the ignore list`);
         }
     }
+    // THE FRAMING SURFACE'S OWN LEG NAMES, from the workflow step that writes them: without these, a
+    // stream run would leave six 150 KB legs beside the gated artefact -- exactly the failure this
+    // check exists for, one surface over.
+    for (const name of ['framing-stream-gotavern.json', 'framing-buffered-pinned.json', 'framing-abort-gotavern.json', 'framing-abort-pinned.json', 'redirect-framing-abort.json']) {
+        assert.ok(isIgnored(name), ` would escape the ignore list`);
+    }
     for (const name of ['startup-gotavern-3.json', 'data-domain-gotavern-3.json', 'dd3-g1.json', 'ext-lwb-B1-leg.json']) {
         assert.ok(isIgnored(name), `${name} would escape the ignore list`);
     }
