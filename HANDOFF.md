@@ -251,6 +251,39 @@ Getting there took three measured steps, and the three are the durable lesson:
 `lane/preset-real` (`wt-preset`) has committed nothing yet: the real preset/card fixture, where the
 packed-blob measurement for the 19 MB card is still the first thing to decide.
 
+**Q20 (save / reload / swipe preserve equality) — PARTIAL, and the blocker is not persistence.** Measured on
+`lane/q20-persistence`, `Browser differential` 40317952033 and its four predecessors, on BOTH subjects with identical
+verdicts every time (rule 10), so none of what follows is a backend difference:
+
+- The product SAVES: `POST /api/chats/save` 200 and a real file under the right character
+  (`chats/default_Seraphina/Seraphina - <date>.jsonl`). The save is judged by the file and the recorded request,
+  never by a resolved promise.
+- The file contains `[header, greeting]` and NO user turn, so the marker the leg typed never reached the chat.
+  That is not a save defect: `Generate('normal')` started and stopped before it could append the turn.
+- The stopping point is now a measurement rather than a reading. The leg subscribes to the product's own event bus
+  for the send window and records `app_initialized, app_ready, generation_started, GENERATION_AFTER_COMMANDS,
+  settings_updated` and nothing else — no `chat_created`, no `message_sent`, no `message_received`. And
+  `processCommands=[]`, which is the decisive one: `Generate`'s ONLY exit that appends nothing and requests nothing
+  runs at `script.js:4310-4318`, AFTER `await eventSource.emit(GENERATION_STARTED, ...)` at `:4299`. An empty record
+  there means `Generate` never reached `:4310`, i.e. it is stopped inside that awaited emission.
+- Four earlier drives were driver defects, each fixed and each re-measured: `saveMetadata()`/`saveChatConditional()` issue
+  no request without a chat identity (`script.js:7407-7417`); a fresh install renders `.character_select#CharID0`,
+  not `.avatar[data-type="character"]`, so the send went to the permanent ASSISTANT chat (`:1760`); script.js has no
+  `powerUserSettings` export (`power_user` lives in `scripts/power-user.js`); and the page RELOADED mid-turn, 34 s
+  after the send, which `navigations` now records and `drive-stayed-on-one-page` refuses to read through — it is
+  gone (`navigationsTotal: 1`), and `Network.loadingFailed` names its likely producer as this harness's own blocked
+  CDN script plus its dependent fetch.
+- What is NOT yet proven and must not be claimed: `saveWroteTheChat`, `reloadReadsTheChat`,
+  `nodeEqualsGoAfterReload`, `goSwipeDiffersFromGoTurn`, `nodeEqualsGoAfterSwipe` are all red, because the second
+  turn needs a first turn. Swipe and reload machinery (the frontend's own `swipe()` with
+  `SWIPE_SOURCE.SWIPE_PICKER`, `saveChatConditional()` for its save) is written and has never executed.
+
+The next step is the one the record points at: find which `GENERATION_STARTED` listener holds or throws on this
+page. `EventEmitter.emit` awaits listeners in order and CATCHES a throw (`public/lib/eventemitter.js:145-151`), so a
+throwing first listener both hides its cause and lets `Generate` resolve as though it had run. The instrument that
+fits is the one that produced `processCommands`: wrap `eventSource.emit` for the send window and record which
+listener index never returned. No product code under `internal/**` is implicated by any of this.
+
 **Next actions, in order:**
 
 1. Finish `lane/avatar-upload` (implementation, mutation, matrix row) and `lane/asset-browser` (probe, CI
