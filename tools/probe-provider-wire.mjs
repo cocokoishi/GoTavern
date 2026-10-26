@@ -49,6 +49,15 @@ const scenarios = readdirSync(scenarioDirectory)
     .map(name => ({ file: name, definition: JSON.parse(readFileSync(path.join(scenarioDirectory, name), 'utf8')) }));
 if (scenarios.length === 0) throw new Error('no provider-wire scenarios found');
 
+// HTTP header names are case-insensitive by spec, and the recorder keeps the WIRE spelling (`Authorization`, not
+// `authorization`). Comparing a declared lowercase name against the wire spelling failed twice in this file -- once
+// in the redaction below, where it silently left the credential UNREDACTED in a committed artefact, and once in the
+// expected-key assertion, where it reported "saw undefined" for a header that was present and correct. Every
+// comparison now goes through this fold, and a redaction that fails is a harness error rather than a quiet miss.
+function headerNameEquals(observed, declared) {
+    return String(observed ?? '').toLowerCase() === String(declared ?? '').toLowerCase();
+}
+
 function sha256(value) {
     return createHash('sha256').update(value).digest('hex');
 }
@@ -446,9 +455,21 @@ function assertHeaderCoverage(definition, provider, responseHeaderNames) {
 // `x-api-key` is here because the CLAUDE source authenticates with it instead of an Authorization header
 // (chat-completions.js:417); a source that needs a new credential header adds it here, and the tier-2
 // declarations in its scenarios name the pinned line that puts the value on the wire.
+// THE PRODUCTION TRANSPORT DELIBERATELY DIFFERS FROM THE WIRE-EXACT CLIENT, AND THIS PROBE RECORDS BOTH.
+// tests/e2e/deepseek_generate_test.go:465-469 asserts the opposite of "GoTavern should send Connection: close":
+//   "The production client sends no Connection header (it keeps the connection alive and reuses it);
+//    `Connection: close` is the plans' node-fetch value that only the wire-exact client reproduces."
+// The same helper pins accept-encoding to exactly `gzip` and Content-Type to its canonical spelling, for the same
+// reason (AGENTS 30: byte-exact and production transports are different roles). So a GoTavern capture that lacks
+// `Connection` is CORRECT, and this probe must compare it as a declared transport difference rather than as a
+// mismatch -- a change that made the product send it was rejected by that test, and should stay rejected.
+const PRODUCTION_TRANSPORT_DIFFERENCES = new Map([
+    ['connection', 'absent on GoTavern by design; see deepseek_generate_test.go:465-469'],
+    ['accept-encoding', '`gzip` on GoTavern (net/http chooses); `gzip, deflate, br` is the wire-exact value'],
+]);
+
 const REDACTED_PROVIDER_HEADERS = new Map([
     ['x-api-key', '<redacted>'],
-    // A CREDENTIAL THAT IS ALSO A CONTRACT, AND ONE WE CANNOT REDACT AWAY. FIREWORKS sends
     // `x-session-affinity: <HMAC-SHA256(cookieSecret, chat_id) first 16 hex>` when a chat_id is
     // present; `getAffinityKey()` is the INSTALL'S COOKIE SECRET (chat-completions.js:119), so
     // recording the header would commit a digest of a secret into a compared field. Redacting it
@@ -461,19 +482,40 @@ const REDACTED_PROVIDER_HEADERS = new Map([
     // ['x-session-affinity', '<redacted>'],
 ]);
 
-function normalizeProvider(recording, mockAddress) {
+function normalizeProvider(recording, mockAddress, declaredCredentialNames = []) {
     const provider = JSON.parse(JSON.stringify(recording));
     for (const request of provider.requests) {
         request.headers = request.headers.map(header => {
-            if (header.name === 'Host') return { name: header.name, value: '<mock-authority>' };
-            if (header.name === 'authorization' && /^Bearer\s/i.test(header.value)) {
+            if (headerNameEquals(header.name, 'Host')) return { name: header.name, value: '<mock-authority>' };
+            if (headerNameEquals(header.name, 'authorization') && /^Bearer\s/i.test(header.value)) {
                 return { name: header.name, value: 'Bearer <redacted>' };
             }
-            if (REDACTED_PROVIDER_HEADERS.has(header.name)) {
-                return { name: header.name, value: REDACTED_PROVIDER_HEADERS.get(header.name) };
+            const redaction = [...REDACTED_PROVIDER_HEADERS.keys()].find(key => headerNameEquals(header.name, key));
+            if (redaction !== undefined) {
+                return { name: header.name, value: REDACTED_PROVIDER_HEADERS.get(redaction) };
             }
             return header;
         });
+    }
+    // A MISSED REDACTION MUST BE A HARNESS ERROR. Before the case fold above, `header.name === 'authorization'` never
+    // matched the wire spelling `Authorization`, so the credential was written into the artefact in the clear -- and
+    // nothing failed. Any credential-shaped value that survives normalisation now refuses the capture outright.
+    for (const request of provider.requests) {
+        for (const header of request.headers) {
+            // NAME-SHAPED, NOT REGISTRY-ONLY: a header nobody registered still gets refused if its name looks
+            // like a credential, so the third unregistered spelling cannot slip through the way api-key did.
+            // A DECLARED CREDENTIAL IS COMPARED, NOT REFUSED. `azure-openai-deployment-escaping` declares
+            // `expectedApiKey: {header: 'api-key'}` precisely so the artefact proves the key REACHED the provider;
+            // redacting it, or refusing it, would turn that scenario into one that can no longer fail -- which is
+            // the failure rule 4 exists to forbid. Only an UNdeclared credential-shaped header is refused.
+            const isDeclared = declaredCredentialNames.some(name => headerNameEquals(header.name, name));
+            const looksLikeCredential = !isDeclared && /(^|[-_])(api[-_]?key|apikey|authorization|token|secret|password|session)/i.test(String(header.name ?? '')) ;
+            const credentialHeader = looksLikeCredential;
+            if (!credentialHeader) continue;
+            if (/<redacted>|^Bearer\s+<redacted>$|^\*+$/.test(header.value)) continue;
+            if (header.value === '' || header.value === undefined) continue;
+            throw new Error(`normalisation left a credential in the clear on header ${header.name}; refusing the capture`);
+        }
     }
     void mockAddress;
     return provider;
@@ -561,9 +603,22 @@ async function captureScenario({ file, definition, mockBinary, startBackend, bac
                 throw new Error(`scenario ${definition.name}: ${backendLabel} never tore the upstream connection down, so the peer recorded no client disconnect for request ${undisconnected.map(entry => entry.index).join(', ')}; a cancellation scenario that observes no cancellation proves nothing`);
             }
         }
+        // A CAPTURE THAT ONLY EXISTS WHEN THE VERDICT IS GREEN IS NOT EVIDENCE OF WHY IT WAS RED. The write below
+        // used to happen after every assertion, so a failing scenario left nothing on disk and the only thing a
+        // reader could see was the thrown message -- which cannot distinguish "no request" from "request without
+        // the header". Both messages now carry `requests=` and `headerNames=` for that reason, and this block keeps
+        // the failing capture too.
+        if (goCaptureDirectory && backendLabel.toLowerCase().includes('gotavern')) {
+            try {
+                mkdirSync(goCaptureDirectory, { recursive: true });
+                writeFileSync(path.join(goCaptureDirectory, `${definition.name}.failed.json`),
+                    JSON.stringify({ definition: definition.name, recorded: recorded.body, response: body }, null, 2) + '\n');
+            } catch { /* the diagnostic must never mask the verdict */ }
+        }
         const recordedBody = normalizeProviderBody(body, mock.address);
         const recordedBodyJSON = JSON.stringify(recordedBody);
-        const normalizedProvider = normalizeProvider(recorded.body, mock.address);
+        const declaredCredentialNames = [definition.expectedApiKey?.header, definition.expectedAuthorizationKey ? 'authorization' : null].filter(Boolean);
+        const normalizedProvider = normalizeProvider(recorded.body, mock.address, declaredCredentialNames);
         const headerCoverage = assertHeaderCoverage(definition, normalizedProvider, [...generated.response.headers.keys()]);
 
         // A scenario that declares an expected key must actually have exercised
@@ -577,9 +632,9 @@ async function captureScenario({ file, definition, mockBinary, startBackend, bac
             const { header, value } = definition.expectedApiKey;
             const observed = (recorded.body.requests ?? [])
                 .flatMap(entry => entry.headers)
-                .find(candidate => candidate.name === header);
+                .find(candidate => headerNameEquals(candidate.name, header));
             if (!observed || observed.value !== value) {
-                throw new Error(`scenario ${definition.name}: ${backendLabel} provider saw ${header} ${JSON.stringify(observed?.value)}, expected the declared key to be read through the pinned settings shape`);
+                throw new Error(`scenario ${definition.name}: ${backendLabel} provider saw ${header} ${JSON.stringify(observed?.value)}, expected the declared ${header} to be read through the pinned settings shape; requests=${(recorded.body.requests ?? []).length} headerNames=${JSON.stringify((recorded.body.requests ?? []).map(entry => entry.headers.map(header => header.name)))}`);
             }
             apiKeyVerified = true;
         }
@@ -587,10 +642,10 @@ async function captureScenario({ file, definition, mockBinary, startBackend, bac
         if (definition.expectedAuthorizationKey) {
             const observed = (recorded.body.requests ?? [])
                 .flatMap(entry => entry.headers)
-                .find(header => header.name === 'authorization');
+                .find(header => headerNameEquals(header.name, 'authorization'));
             const expected = `Bearer ${definition.expectedAuthorizationKey}`;
             if (!observed || observed.value !== expected) {
-                throw new Error(`scenario ${definition.name}: ${backendLabel} provider saw authorization ${JSON.stringify(observed?.value)}, expected the declared key to be read through the pinned settings shape`);
+                throw new Error(`scenario ${definition.name}: ${backendLabel} provider saw authorization ${JSON.stringify(observed?.value)}, expected ${JSON.stringify(expected)}; requests=${(recorded.body.requests ?? []).length} headerNames=${JSON.stringify((recorded.body.requests ?? []).map(entry => entry.headers.map(header => header.name)))} urls=${JSON.stringify((recorded.body.requests ?? []).map(entry => entry.url))}`);
             }
             authorizationKeyVerified = true;
         }
@@ -731,6 +786,54 @@ function assertGoTavernMatchesPinned(pinnedCaptures, goTavernCaptures) {
             throw new Error(`${name}: the pinned capture verified the declared credential header but the GoTavern capture did not`);
         }
 
+        // THE DECLARED TRANSPORT DIFFERENCES ARE APPLIED TO THE GOTAVERN SIDE ONLY, and named in the artefact so a
+        // reader can see that the comparison was adjusted rather than that the wire agreed. AGENTS 30: the
+        // production transport intentionally differs from the wire-exact client that produced the pinned capture,
+        // and refusing a keep-alive client for not sending `Connection: close` would invert that decision.
+        const appliedTransportDifferences = [];
+        for (const request of candidate.provider.requests ?? []) {
+            request.headers = (request.headers ?? []).filter(header => {
+                const declared = PRODUCTION_TRANSPORT_DIFFERENCES.get(String(header.name ?? '').toLowerCase());
+                if (declared === undefined) return true;
+                appliedTransportDifferences.push({ header: header.name, value: header.value, reason: declared });
+                return false;
+            });
+        }
+        for (const request of reference.provider.requests ?? []) {
+            request.headers = (request.headers ?? []).filter(header => !PRODUCTION_TRANSPORT_DIFFERENCES.has(String(header.name ?? '').toLowerCase()));
+        }
+        if (appliedTransportDifferences.length > 0) {
+            candidate.transportDifferencesApplied = appliedTransportDifferences;
+        }
+        // HEADER ORDER IS NOT PART OF THE CONTRACT, AND THE COMPARATOR WALKS ARRAYS BY INDEX. Pinned emits the
+        // wire-exact client's order (accept first, Host/Connection last); GoTavern emits them in its own order because
+        // net/http owns the framing. The NAME/VALUE pairs are what a provider can observe and what the pinned source
+        // defines, so both captures are sorted by name before comparison -- on BOTH sides, so a header that is present
+        // on one side and absent on the other still fails, and a value still fails.
+        const sortHeaders = capture => {
+            for (const request of capture.provider?.requests ?? []) {
+                if (Array.isArray(request.headers)) {
+                    request.headers = [...request.headers].sort((left, right) =>
+                        String(left?.name ?? '').toLowerCase().localeCompare(String(right?.name ?? '').toLowerCase()));
+                }
+            }
+        };
+        sortHeaders(reference);
+        sortHeaders(candidate);
+        // HEADER-NAME CASING IS THE THIRD PRODUCTION-TRANSPORT FINGERPRINT, AND IT IS ASSERTED AS SUCH. Pinned's
+        // node-fetch writes lower-case names; net/http CANONICALISES them (`Accept`, `Authorization`), and
+        // tests/e2e/deepseek_generate_test.go:471-481 REQUIRES that canonical spelling as proof the request did not
+        // travel the wire-exact client -- alongside `accept-encoding: gzip` and the ABSENCE of `Connection`. Comparing
+        // the casing would therefore demand that GoTavern stop looking like the production transport it is meant to be.
+        // Both sides are lower-cased for comparison; values and membership are still compared exactly.
+        const lowerHeaderNames = capture => {
+            for (const request of capture.provider?.requests ?? []) {
+                if (!Array.isArray(request.headers)) continue;
+                request.headers = request.headers.map(header => ({ ...header, name: String(header?.name ?? '').toLowerCase() }));
+            }
+        };
+        lowerHeaderNames(reference);
+        lowerHeaderNames(candidate);
         const result = compareObservations(reference, candidate);
         if (!result.matches) {
             const detail = result.differences.slice(0, 20).map(difference =>
@@ -781,7 +884,15 @@ const goTavernBinary = resolveBinary('GOTAVERN_BINARY', './cmd/gotavern', 'gotav
 // binary in `goTavernRoot`, which the binary-resolution change removed: the reference survived and made
 // EVERY run that reached the GoTavern leg die with `goTavernRoot is not defined`, which is a probe defect
 // that presents as a red differential. They get their own directory now.
-const goTavernCaptureRoot = mkdtempSync(path.join(os.tmpdir(), 'gotavern-provider-wire-captures-'));
+// THE FAILING CAPTURE MUST OUTLIVE THE RUNNER. This root used to be an unconditional mkdtemp under os.tmpdir(),
+// which the runner deletes, and ci.yml's only upload carries a git diff -- so a red scenario left NOTHING behind
+// and the question "did GoTavern send no request, or a request without the header?" was unanswerable from any run
+// (it cost three wrong guesses at ai21-empty-placeholder). When the workflow names a directory, it is used and the
+// oracle job uploads it with `if: always()`.
+const goTavernCaptureRoot = process.env.GOTAVERN_PROVIDER_WIRE_GO_CAPTURES
+    ? mkdirSync(process.env.GOTAVERN_PROVIDER_WIRE_GO_CAPTURES, { recursive: true }) || process.env.GOTAVERN_PROVIDER_WIRE_GO_CAPTURES
+    : mkdtempSync(path.join(os.tmpdir(), 'gotavern-provider-wire-captures-'));
+
 
 const captures = {};
 for (const { file, definition } of scenarios) {

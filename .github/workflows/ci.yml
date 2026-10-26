@@ -234,6 +234,10 @@ jobs:
           # dependency graph, and the decision is printed in this step's log as
           # `build root: reuse ...` or `build root: rebuild ... (why)`.
           GOTAVERN_ORACLE_BUILD_ROOT: ${{ runner.temp }}/oracle-build
+          # WHERE A FAILING PROVIDER-WIRE CAPTURE SURVIVES. Without this the probe writes to an mkdtemp
+          # the runner deletes, and a red scenario leaves nothing to read -- which is how three wrong guesses
+          # were made about ai21-empty-placeholder.
+          GOTAVERN_PROVIDER_WIRE_GO_CAPTURES: ${{ runner.temp }}/provider-wire-captures
         run: node tools/build-generated-lib.mjs .reference/SillyTavern
       - name: Report the build-root persistence
         # A cache HIT must be visible in the log, or a reviewer can only ASSUME the persistence worked.
@@ -301,6 +305,15 @@ jobs:
         with:
           name: oracle-linux-rerecord
           path: oracle-rerecord.patch
+          retention-days: 14
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        # A RED SCENARIO MUST LEAVE ITS CAPTURE BEHIND. `always()` because the runs worth reading are the ones
+        # that failed; the directory is the one named by GOTAVERN_PROVIDER_WIRE_GO_CAPTURES above.
+        if: always()
+        with:
+          name: provider-wire-captures
+          path: ${{ runner.temp }}/provider-wire-captures
           retention-days: 14
           if-no-files-found: warn
       - name: Verify generated results are committed
