@@ -314,16 +314,30 @@ try {
     cdp.on('Network.loadingFailed', event => {
         if (networkFailures.length < 40) networkFailures.push({ errorText: event.errorText, type: event.type, canceled: event.canceled ?? null, requestId: event.requestId });
     });
-    const armPageSide = async () => page.evaluate(() => {
+    const armPageSide = async () => page.evaluate(async () => {
         window.__q20Events = [];
-        const record = name => window.__q20Events.push({ name, at: Date.now(), readyState: document.readyState, href: String(window.location.href) });
+        const record = (name, extra = null) => window.__q20Events.push({ name, at: Date.now(), readyState: document.readyState, href: String(window.location.href), extra });
         for (const name of ['readystatechange', 'DOMContentLoaded', 'load', 'beforeunload', 'pagehide', 'unload']) {
             window.addEventListener(name, () => record(name), { capture: true });
         }
-        // A COUNTER, not a stack: `location.reload` cannot be forked here, but code that reloads a page leaves no
-        // trace either way, so the count of pending same-document work is what distinguishes "the page asked" from
-        // "the browser gave up" -- the former happens with every async task settled, the latter mid-flight.
-        return { armed: true, href: String(window.location.href), readyState: document.readyState };
+        // THE PRODUCT'S OWN EVENT BUS, subscribed through the page's own module. Generate()'s first await is
+        // EVENT_SOURCE / `settings_loaded` (measured, see the header), so the ORDER of that event against the send is
+        // what decides whether a turn can exist at all; a console line is not enough, because the page's `console`
+        // listener is bounded and a long startup pushes entries out. This records the event names in order with the
+        // chat length at each one, which makes "was there a chat when generation ran" a measurement.
+        const events = await import('./scripts/events.js');
+        const script = await import('./script.js');
+        if (!window.__q20Subscribed) {
+            window.__q20Subscribed = true;
+            for (const name of Object.values(events.event_types)) {
+                try {
+                    events.eventSource.on(name, () => record(`event:${name}`, { chatLength: (script.chat ?? []).length, lastIsUser: (script.chat ?? [])[script.chat.length - 1]?.is_user === true }));
+                } catch {
+                    // an event name the bus refuses is not a finding about the product
+                }
+            }
+        }
+        return { armed: true, href: String(window.location.href), readyState: document.readyState, subscribed: window.__q20Subscribed === true };
     });
     const readPageSide = async () => page.evaluate(() => window.__q20Events ?? []);
     const disarmReloadRecorder = async () => ({ disarmed: true });
