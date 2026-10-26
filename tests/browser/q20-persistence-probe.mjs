@@ -156,6 +156,7 @@ const report = {
     markers: MARKERS,
     steps: [],
     peerRequests: [],
+    chatRequests: [],
     pageErrors: [],
     console: [],
     failure: null,
