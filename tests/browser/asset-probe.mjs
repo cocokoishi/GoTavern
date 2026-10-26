@@ -703,6 +703,11 @@ try {
         // locked-background branch. Recording all three separates "the click never reached the handler" from "the
         // handler ran and refused" from "the handler ran and painted".
         const beforeSelection = [...document.querySelectorAll('#bg_menu_content .bg_example.selected-background')].map(node => node.getAttribute('bgfile'));
+        // THE HANDLER'S OWN REGISTRATION, as the subject records it. `initBackgrounds` binds
+        // `.on('click', '.bg_example', onSelectBackgroundClick)` on `document` (backgrounds.js:1732-1733); if that
+        // list is empty the click CANNOT work and the finding is a probe/UI defect, not a paint failure.
+        const delegatedBgClickBound = Boolean(globalThis.jQuery?._data?.(document, 'events')?.click?.some(handler => String(handler.selector ?? '').includes('bg_example')));
+        const tileBox = tile.getBoundingClientRect();
         tile.click();
         // A REAL MOUSE EVENT IF THE SYNTHETIC ONE CHANGED NOTHING. `onSelectBackgroundClick` is bound through
         // jQuery's delegated `.on('click', '.bg_example', …)` (backgrounds.js:1732-1733), which listens for a
@@ -742,6 +747,8 @@ try {
             selectedTileBeforeClick: beforeSelection,
             selectedTileAfterClick: selectedTile,
             clickPath,
+            delegatedBgClickBound,
+            tileBox: { width: Math.round(tileBox.width), height: Math.round(tileBox.height) },
             // WHICH BRANCH THE HANDLER TOOK. `isChatBackgroundLocked()` reads `chat_metadata.bg`; a locked chat
             // paints `#bg1` directly and never touches `background_settings`, so the two are recorded apart.
             chatBackgroundLocked: Boolean(globalThis.chat_metadata?.bg),
@@ -848,8 +855,40 @@ try {
         const alternative = rows.find(candidate => candidate.getAttribute('data-avatar-id') !== currentBefore) ?? null;
         const clickTarget = alternative ?? row;
         const clickedId = clickTarget.getAttribute('data-avatar-id');
+        // THREE PRECONDITIONS THE DELEGATED HANDLER NEEDS, recorded because "the click did nothing" has four
+        // possible causes and only one of them is the product (AGENTS.md 10):
+        //   * the delegated handler bound? `jQuery._data(document, 'events').click` is the same predicate the
+        //     backgrounds drive uses, and it is the subject's own registration;
+        //   * the row visible and hit-testable? A click on a display:none element never reaches a delegated
+        //     listener that filters on visibility;
+        //   * the row inside the panel's own content? `#user_avatar_block` must be a descendant of the open
+        //     drawer for a user to click it at all.
+        const rowBox = clickTarget.getBoundingClientRect();
+        const rowStyle = getComputedStyle(clickTarget);
+        const preconditions = {
+            delegatedClickBound: Boolean(globalThis.jQuery?._data?.(document, 'events')?.click?.length),
+            rowVisible: rowStyle.display !== 'none' && rowStyle.visibility !== 'hidden' && rowBox.width > 0 && rowBox.height > 0,
+            rowInDrawer: Boolean(clickTarget.closest('#persona-management-button #PersonaManagement')),
+            drawerIsOpen: Boolean(document.querySelector('#PersonaManagement')) && !document.querySelector('#PersonaManagement').classList.contains('closedDrawer'),
+            rowBox: { width: Math.round(rowBox.width), height: Math.round(rowBox.height) },
+        };
+        clickTarget.scrollIntoView({ block: 'center' });
         clickTarget.click();
         states.steps.push(alternative ? 'clicked a NON-CURRENT row' : 'clicked the only row (the current persona)');
+        // IF THE CLICK CHANGED NOTHING, ASK THE MODULE DIRECTLY. `setUserAvatar(id)` is the function the handler
+        // calls, so invoking it separates "the delegated handler is not reaching this row" (a probe/UI defect)
+        // from "the handler ran and setUserAvatar refused" (a product defect). Which path worked is recorded.
+        const quickAfterClick = typeof personas.user_avatar === 'string' ? personas.user_avatar : null;
+        let directCall = null;
+        if (quickAfterClick === currentBefore) {
+            try {
+                await personas.setUserAvatar(clickedId, { toastPersonaNameChange: false });
+                directCall = { invoked: true, userAvatarAfter: typeof personas.user_avatar === 'string' ? personas.user_avatar : null };
+            } catch (error) {
+                directCall = { invoked: false, reason: String(error?.message ?? error).slice(0, 200) };
+            }
+            states.steps.push('the click changed nothing, so setUserAvatar was called directly');
+        }
         // THE PICKER'S EFFECT, OBSERVED THE WAY A USER SEES IT. `setUserAvatar` sets `user_avatar`, then
         // `updatePersonaUIStates` marks the row `.selected` and the panel's `#your_name` takes the persona's name
         // and `#user_avatar_block`'s title. A click that the subject's own guard short-circuits leaves all three
@@ -879,6 +918,12 @@ try {
             clickedAvatarId: clickedId,
             clickedWasCurrentBefore: clickedId === currentBefore,
             clickedIsDefaultPersona: isPrimary,
+            preconditions,
+            directCall,
+            // WHETHER THE CLICK ALONE WAS ENOUGH. A `true` here means the delegated path worked; a `false` with a
+            // `directCall.userAvatarAfter` that DID change means the module works and the CLICK PATH does not,
+            // which is a different report from either a product or a probe defect.
+            clickAloneChangedPersona: directCall === null,
             userAvatarAfter,
             personaChanged: typeof userAvatarAfter === 'string' && userAvatarAfter !== currentBefore,
             selectedAfterClick: selected,

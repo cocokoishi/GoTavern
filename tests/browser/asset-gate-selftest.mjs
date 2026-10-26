@@ -167,10 +167,24 @@ expects('clicking the tile did not change #bg1 -> stagedBackgroundDrivenOnBothLe
         leg.dom.backgroundDriven.selectedTileAfterClick = '__transparent.png';
         leg.dom.backgroundDriven.selectedTileBeforeClick = ['__transparent.png'];
         leg.dom.backgroundDriven.clickPath = 'element.click() then a bubbling MouseEvent';
+        leg.dom.backgroundDriven.delegatedBgClickBound = true;
+        leg.dom.backgroundDriven.tileBox = { width: 120, height: 70 };
     }
     const artifact = compare({ gotavern: clickMissed, pinned: clickMissedPinned });
     const text = artifact.findings.join(' | ');
-    record('a click that never reached the handler is reported as a PROBE finding', /the click never reached onSelectBackgroundClick/.test(text), text.slice(0, 260));
+    record('a click that reached a BOUND handler but selected nothing is named as such', /the handler is bound .* and the click still did not select it/.test(text), text.slice(0, 260));
+}
+{
+    const unbound = faithfulLeg('gotavern');
+    const unboundPinned = faithfulLeg('pinned');
+    for (const leg of [unbound, unboundPinned]) {
+        leg.dom.stagedBackgroundDriven = false;
+        leg.dom.backgroundDriven.appliedBackgroundImage = 'url("http://127.0.0.1:1/backgrounds/__transparent.png")';
+        leg.dom.backgroundDriven.selectedTileAfterClick = '__transparent.png';
+        leg.dom.backgroundDriven.delegatedBgClickBound = false;
+    }
+    const artifact = compare({ gotavern: unbound, pinned: unboundPinned });
+    record('an UNBOUND gallery click handler is reported as the binding, not as the paint', /the delegated \.bg_example click handler is NOT BOUND/.test(artifact.findings.join(' | ')), artifact.findings.join(' | ').slice(0, 260));
 }
 {
     const locked = faithfulLeg('gotavern');

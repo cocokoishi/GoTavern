@@ -174,8 +174,12 @@ export function compare({ gotavern, pinned }) {
             findings.push(`${leg}: the persona picker was not driven: ${JSON.stringify(picker?.reason ?? null)}`);
         } else if (picker.clickedWasCurrentBefore !== false) {
             findings.push(`${leg}: the persona picker clicked the ALREADY-SELECTED row (${JSON.stringify(picker.clickedAvatarId)}), which setUserAvatar short-circuits by design; pick another row`);
+        } else if (picker.preconditions && (picker.preconditions.delegatedClickBound !== true || picker.preconditions.rowVisible !== true)) {
+            // THE CLICK PATH ITSELF, before blaming the product: an unbound delegated handler or a row with no box
+            // cannot be clicked by a user either, so the drive must say so instead of reporting the model unchanged.
+            findings.push(`${leg}: the persona ROW is not clickable by a user -- ${JSON.stringify(picker.preconditions)}`);
         } else if (picker.personaChanged !== true) {
-            findings.push(`${leg}: clicking persona ${JSON.stringify(picker.clickedAvatarId)} did not change user_avatar`);
+            findings.push(`${leg}: clicking persona ${JSON.stringify(picker.clickedAvatarId)} did not change user_avatar (direct setUserAvatar call: ${JSON.stringify(picker.directCall ?? null)})`);
         } else if (picker.selectedAfterClick !== true) {
             findings.push(`${leg}: user_avatar became ${JSON.stringify(picker.userAvatarAfter)} but its row was not marked .selected, so the model moved and the UI did not`);
         }
@@ -230,7 +234,12 @@ export function compare({ gotavern, pinned }) {
         if (guards.stagedBackgroundPaintedOnBothLegs) continue;
         const selected = driven.selectedTileAfterClick ?? null;
         if (selected !== 'probe-asset-background.png') {
-            findings.push(`${leg}: the gallery tile click did not select the staged tile (selected tile after click: ${JSON.stringify(selected)}, path: ${JSON.stringify(driven.clickPath ?? null)}) -- the click never reached onSelectBackgroundClick`);
+            // THE CAUSE, NAMED. A binding that is absent cannot be painted by any click, so that is a different
+            // report from "the binding is there and the click did not reach it".
+            const cause = driven.delegatedBgClickBound !== true
+                ? 'the delegated .bg_example click handler is NOT BOUND (initBackgrounds did not run, or ran before the tile existed)'
+                : `the handler is bound (tile box ${JSON.stringify(driven.tileBox ?? null)}) and the click still did not select it`;
+            findings.push(`${leg}: the gallery tile click did not select the staged tile (selected tile after click: ${JSON.stringify(selected)}, path: ${JSON.stringify(driven.clickPath ?? null)}) -- ${cause}`);
         } else if (driven.chatBackgroundLocked === true) {
             findings.push(`${leg}: the staged tile was selected but chat_metadata.bg is set, so onSelectBackgroundClick took the LOCKED branch`);
         } else {
