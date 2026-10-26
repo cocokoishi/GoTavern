@@ -561,6 +561,18 @@ async function captureScenario({ file, definition, mockBinary, startBackend, bac
                 throw new Error(`scenario ${definition.name}: ${backendLabel} never tore the upstream connection down, so the peer recorded no client disconnect for request ${undisconnected.map(entry => entry.index).join(', ')}; a cancellation scenario that observes no cancellation proves nothing`);
             }
         }
+        // A CAPTURE THAT ONLY EXISTS WHEN THE VERDICT IS GREEN IS NOT EVIDENCE OF WHY IT WAS RED. The write below
+        // used to happen after every assertion, so a failing scenario left nothing on disk and the only thing a
+        // reader could see was the thrown message -- which cannot distinguish "no request" from "request without
+        // the header". Both messages now carry `requests=` and `headerNames=` for that reason, and this block keeps
+        // the failing capture too.
+        if (goCaptureDirectory && backendLabel.toLowerCase().includes('gotavern')) {
+            try {
+                mkdirSync(goCaptureDirectory, { recursive: true });
+                writeFileSync(path.join(goCaptureDirectory, `${definition.name}.failed.json`),
+                    JSON.stringify({ definition: definition.name, recorded: recorded.body, response: body }, null, 2) + '\n');
+            } catch { /* the diagnostic must never mask the verdict */ }
+        }
         const recordedBody = normalizeProviderBody(body, mock.address);
         const recordedBodyJSON = JSON.stringify(recordedBody);
         const normalizedProvider = normalizeProvider(recorded.body, mock.address);
@@ -579,7 +591,7 @@ async function captureScenario({ file, definition, mockBinary, startBackend, bac
                 .flatMap(entry => entry.headers)
                 .find(candidate => candidate.name === header);
             if (!observed || observed.value !== value) {
-                throw new Error(`scenario ${definition.name}: ${backendLabel} provider saw ${header} ${JSON.stringify(observed?.value)}, expected the declared key to be read through the pinned settings shape`);
+                throw new Error(`scenario ${definition.name}: ${backendLabel} provider saw ${header} ${JSON.stringify(observed?.value)}, expected the declared ${header} to be read through the pinned settings shape; requests=${(recorded.body.requests ?? []).length} headerNames=${JSON.stringify((recorded.body.requests ?? []).map(entry => entry.headers.map(header => header.name)))}`);
             }
             apiKeyVerified = true;
         }
@@ -590,7 +602,7 @@ async function captureScenario({ file, definition, mockBinary, startBackend, bac
                 .find(header => header.name === 'authorization');
             const expected = `Bearer ${definition.expectedAuthorizationKey}`;
             if (!observed || observed.value !== expected) {
-                throw new Error(`scenario ${definition.name}: ${backendLabel} provider saw authorization ${JSON.stringify(observed?.value)}, expected the declared key to be read through the pinned settings shape`);
+                throw new Error(`scenario ${definition.name}: ${backendLabel} provider saw authorization ${JSON.stringify(observed?.value)}, expected ${JSON.stringify(expected)}; requests=${(recorded.body.requests ?? []).length} headerNames=${JSON.stringify((recorded.body.requests ?? []).map(entry => entry.headers.map(header => header.name)))} urls=${JSON.stringify((recorded.body.requests ?? []).map(entry => entry.url))}`);
             }
             authorizationKeyVerified = true;
         }
@@ -781,7 +793,15 @@ const goTavernBinary = resolveBinary('GOTAVERN_BINARY', './cmd/gotavern', 'gotav
 // binary in `goTavernRoot`, which the binary-resolution change removed: the reference survived and made
 // EVERY run that reached the GoTavern leg die with `goTavernRoot is not defined`, which is a probe defect
 // that presents as a red differential. They get their own directory now.
-const goTavernCaptureRoot = mkdtempSync(path.join(os.tmpdir(), 'gotavern-provider-wire-captures-'));
+// THE FAILING CAPTURE MUST OUTLIVE THE RUNNER. This root used to be an unconditional mkdtemp under os.tmpdir(),
+// which the runner deletes, and ci.yml's only upload carries a git diff -- so a red scenario left NOTHING behind
+// and the question "did GoTavern send no request, or a request without the header?" was unanswerable from any run
+// (it cost three wrong guesses at ai21-empty-placeholder). When the workflow names a directory, it is used and the
+// oracle job uploads it with `if: always()`.
+const goTavernCaptureRoot = process.env.GOTAVERN_PROVIDER_WIRE_GO_CAPTURES
+    ? mkdirSync(process.env.GOTAVERN_PROVIDER_WIRE_GO_CAPTURES, { recursive: true }) || process.env.GOTAVERN_PROVIDER_WIRE_GO_CAPTURES
+    : mkdtempSync(path.join(os.tmpdir(), 'gotavern-provider-wire-captures-'));
+
 
 const captures = {};
 for (const { file, definition } of scenarios) {
