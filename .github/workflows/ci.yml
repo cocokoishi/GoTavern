@@ -348,6 +348,11 @@ jobs:
         run: node tools/verify-browser-comparisons.mjs
       - name: Verify the source catalogue, its coverage and the leg-name ignore patterns
         run: node --test tests/browser/catalog.test.mjs
+      - name: Prove the asset comparator's guards can fail (synthesised legs, no browser)
+        # The three surfaces this run added to asset-comparison.json were listed as unproven for months. A guard
+        # for a surface nobody could prove is worth nothing unless it is shown going RED, so every case builds two
+        # synthetic legs and requires the NAMED guard to fire (AGENTS.md 7, differential doctrine 4).
+        run: node tests/browser/asset-gate-selftest.mjs
       - name: Prove the fixture gates can refuse (synthesised inputs, no originals needed)
         # AGENTS.md verification rule 7 and differential doctrine 4: every gate has teeth, and the teeth are
         # DEMONSTRATED. The two gates this runs stand between a user's real card and a public repository, so

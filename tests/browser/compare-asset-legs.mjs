@@ -113,6 +113,83 @@ export function compare({ gotavern, pinned }) {
         return Boolean(request) && request.httpStatus === 200 && /^image\//i.test(String(request.contentType ?? '')) && (request.byteLength ?? 0) > 0;
     });
     guards.stagedBackgroundDrivenOnBothLegs = dom(gotavern)?.stagedBackgroundDriven === true && dom(pinned)?.stagedBackgroundDriven === true;
+
+    // ---- THE GALLERY PAINT (Q7's missing half) --------------------------------------------------
+    //
+    // The claim that used to be unproven is not "a background is applied" (the fresh tree applies
+    // `/backgrounds/__transparent.png`) but "the STAGED background is painted after a user selects it in the
+    // gallery". The guards are separate because they fail for different reasons: a gallery that rendered nothing
+    // is a catalogue or harness finding; a gallery whose tile thumbnail did not paint is a thumbnail finding; a
+    // `#bg1` that kept `__transparent.png` is the paint finding.
+    const galleryOf = report => dom(report)?.backgroundDriven?.gallery ?? null;
+    guards.galleryRenderedTheStagedTileOnBothLegs = ['gotavern', 'pinned'].every(leg => {
+        const gallery = galleryOf(leg === 'gotavern' ? gotavern : pinned);
+        return Boolean(gallery) && (gallery.tiles ?? 0) > 0 && (gallery.bgFiles ?? []).includes('probe-asset-background.png');
+    });
+    for (const leg of ['gotavern', 'pinned']) {
+        if (!guards.galleryRenderedTheStagedTileOnBothLegs) {
+            findings.push(`${leg}: the backgrounds gallery did not render the staged tile: ${JSON.stringify(galleryOf(leg === 'gotavern' ? gotavern : pinned))}`);
+        }
+    }
+    // A `url(…)` in the tile's computed style is the thumbnail painting; `none` is not.
+    const tilePainted = leg => /url\(/.test(String((backgrounds[leg].driven ?? {}).tileThumbnailAfterLoad ?? ''));
+    guards.galleryTileThumbnailPaintedOnBothLegs = tilePainted('gotavern') && tilePainted('pinned');
+    guards.stagedBackgroundPaintedOnBothLegs = guards.stagedBackgroundDrivenOnBothLegs;
+
+    // ---- THE PERSONA PICKER (Q6's missing half) --------------------------------------------------
+    //
+    // Not "the persona thumbnail request answers" (already asserted) but "the picker lists the persona, its row's
+    // image decodes, and clicking the row selects it". A persona that does not exist in `power_user` never renders
+    // a row, so the drive calls the frontend's own loader first; the row count and the selection state are what
+    // make a no-op click a finding rather than a silence.
+    const pickerOf = report => dom(report)?.personaPicker ?? null;
+    guards.personaPickerRenderedOnBothLegs = ['gotavern', 'pinned'].every(leg => {
+        const picker = pickerOf(leg === 'gotavern' ? gotavern : pinned);
+        return picker?.status === 'observed' && (picker?.rowCount ?? 0) > 0;
+    });
+    guards.personaPickerRowImageDecodedOnBothLegs = ['gotavern', 'pinned'].every(leg => {
+        const picker = pickerOf(leg === 'gotavern' ? gotavern : pinned);
+        return picker?.rowImage?.settled === 'loaded' && (picker?.rowImage?.naturalWidth ?? 0) > 0;
+    });
+    guards.personaPickerSelectedOnBothLegs = ['gotavern', 'pinned'].every(leg => pickerOf(leg === 'gotavern' ? gotavern : pinned)?.selectedAfterClick === true);
+    for (const leg of ['gotavern', 'pinned']) {
+        const picker = pickerOf(leg === 'gotavern' ? gotavern : pinned);
+        if (picker?.status !== 'observed') {
+            findings.push(`${leg}: the persona picker was not driven: ${JSON.stringify(picker?.reason ?? null)}`);
+        }
+    }
+
+    // ---- A SWIPED MESSAGE'S AVATAR (Q5's missing half) -------------------------------------------
+    //
+    // About the avatar of a message RE-RENDERED by a swipe, not the first render. The drive records the text
+    // before and after, so a swipe that did nothing cannot pass by leaving the same already-decoded avatar.
+    const swipeOf = report => dom(report)?.swipedMessageAvatar ?? null;
+    guards.swipeChangedTheMessageOnBothLegs = ['gotavern', 'pinned'].every(leg => swipeOf(leg === 'gotavern' ? gotavern : pinned)?.textChanged === true);
+    guards.swipedMessageAvatarDecodedOnBothLegs = ['gotavern', 'pinned'].every(leg => {
+        const swipe = swipeOf(leg === 'gotavern' ? gotavern : pinned);
+        return swipe?.after?.settled === 'loaded' && (swipe?.after?.avatar?.naturalWidth ?? 0) > 0;
+    });
+    for (const leg of ['gotavern', 'pinned']) {
+        const swipe = swipeOf(leg === 'gotavern' ? gotavern : pinned);
+        if (swipe?.status !== 'observed') findings.push(`${leg}: the swipe drive was not driven: ${JSON.stringify(swipe?.reason ?? null)}`);
+        else if (swipe.textChanged !== true) findings.push(`${leg}: the message text did not change on a swipe, so the avatar measured is the first render's`);
+    }
+
+    // ---- THE REAL CARD'S STRUCTURE IS IN PLAY ----------------------------------------------------
+    //
+    // A leg whose real card failed to stage, or whose staged card the reader did not reach, would report the
+    // synthetic-only numbers and look exactly like a pass. The structure is measured BY THE PROBE from the bytes
+    // it wrote, so this compares the two legs' staged fixture and requires the book and the greetings to exist.
+    const realCardOf = report => report?.provenance?.fixture?.realCard ?? null;
+    guards.bothLegsStagedTheRealCard = ['gotavern', 'pinned'].every(leg => {
+        const card = realCardOf(leg === 'gotavern' ? gotavern : pinned);
+        return Boolean(card) && (card.bookEntries ?? 0) > 0 && (card.alternateGreetings ?? 0) > 0 && card.nameIsMarker === true;
+    });
+    guards.realCardStructureEqualOnBothLegs = Boolean(realCardOf(gotavern)) && JSON.stringify(realCardOf(gotavern)) === JSON.stringify(realCardOf(pinned));
+    if (!guards.realCardStructureEqualOnBothLegs) {
+        findings.push(`the two legs staged different real-card structures: gotavern=${JSON.stringify(realCardOf(gotavern))} pinned=${JSON.stringify(realCardOf(pinned))}`);
+    }
+
     guards.backgroundServedWithBytesOnBothLegs = Boolean(backgrounds.gotavern.served && backgrounds.gotavern.served.status === 200 && (backgrounds.gotavern.served.byteLength ?? 0) > 0)
         && Boolean(backgrounds.pinned.served && backgrounds.pinned.served.status === 200 && (backgrounds.pinned.served.byteLength ?? 0) > 0);
     if (!guards.backgroundAppliedOnBothLegs) {
@@ -226,12 +303,52 @@ export function compare({ gotavern, pinned }) {
         } : backgrounds[leg].driven,
     });
 
+    // WHAT THIS ARTEFACT STILL DOES NOT PROVE. The three entries that stood here -- the backgrounds gallery
+    // paint, the persona picker and a swiped message avatar -- are GONE because they are now driven and guarded
+    // above; leaving them would be a claim of unproven-ness the artefact contradicts. What remains is stated with
+    // the reason it cannot be asserted here rather than omitted.
+    const projectPicker = report => {
+        const picker = pickerOf(report);
+        if (!picker) return null;
+        // THE ROW IMAGE'S RESOLVED ORIGIN IS THE RUN'S, NOT THE PRODUCT'S, so it is normalised exactly as the
+        // character-list images are -- and the normalisation is recorded in `normalisations`, because a field
+        // rewritten without a reason is how a host value gets committed.
+        return {
+            ...picker,
+            rowImage: picker.rowImage ? { ...picker.rowImage, resolvedSrc: stripOrigin(picker.rowImage.resolvedSrc) } : null,
+        };
+    };
+    const projectSwipe = report => {
+        const swipe = swipeOf(report);
+        if (!swipe) return null;
+        return {
+            ...swipe,
+            before: swipe.before?.avatar ? { ...swipe.before, avatar: { ...swipe.before.avatar, resolvedSrc: stripOrigin(swipe.before.avatar.resolvedSrc) } } : swipe.before,
+            after: swipe.after?.avatar ? { ...swipe.after, avatar: { ...swipe.after.avatar, resolvedSrc: stripOrigin(swipe.after.avatar.resolvedSrc) } } : swipe.after,
+        };
+    };
+    const projectGallery = report => {
+        const driven = dom(report)?.backgroundDriven ?? null;
+        if (!driven) return null;
+        return {
+            status: driven.status ?? null,
+            reason: driven.reason ?? null,
+            tileBgFile: driven.tileBgFile ?? null,
+            tileThumbnailBeforeLoad: stripOrigin(driven.tileThumbnailBeforeLoad),
+            tileThumbnailAfterLoad: stripOrigin(driven.tileThumbnailAfterLoad),
+            gallery: driven.gallery ? {
+                tiles: driven.gallery.tiles ?? 0,
+                bgFiles: driven.gallery.bgFiles ?? [],
+                drawerOpen: driven.gallery.drawerOpen === true,
+                fetchError: driven.gallery.fetchError ?? null,
+            } : null,
+        };
+    };
+
     const unprovenEntries = [
-        'stagedBackgroundDrivenOnBothLegs: the backgrounds gallery drive is not established. Measured on both legs (runs 40205486030, 40206135746, 40206773315): #backgrounds-drawer-toggle exists and is clicked, no .bg_example[bgfile="probe-asset-background.png"] appears within 15 s, and #bg1 keeps the fresh tree\'s /backgrounds/__transparent.png. The staged background ROUTE is asserted (stagedBackgroundServedWithBytesOnBothLegs); the paint is not claimed.',
-        'the persona PICKER (a persona does not exist in a fresh tree, so the DOM half of Q6 is unproven; only the persona thumbnail REQUEST is asserted)',
-        'a swiped or regenerated message avatar (the chat is opened once and one greeting renders)',
-        'image dimensions equal to the configured thumbnail size (the pure-Go codec is asserted to decode, and both legs report naturalWidth 96 for the same thumbnail, but the configured size is not asserted)',
-        'a real user tree with a hundred cards, where the character list paginates',
+        'image dimensions equal to the configured thumbnail size: both legs report a decoded thumbnail and the configured size is not asserted here, because the configured size comes from the user\'s own config.yaml and the probe seeds the pinned default; asserting it would test the seed, not the codec',
+        'a real user tree with a hundred cards, where the character list paginates: the probe stages two cards and pagination needs a page size the user sets; the committed derivation proves the STRUCTURE of one real card, not the list\'s paging behaviour',
+        'the gallery PAINT is asserted for a SYSTEM background chosen from the gallery; a per-chat background (chat_metadata) and a locked background take the other branch of `onSelectBackgroundClick` and are not driven here',
     ];
     // A GUARD THAT FAILS AND IS DECLARED UNPROVEN DOES NOT FAIL THE RUN, BUT IT IS NAMED BOTH IN `unproven`
     // AND IN `declaredUnproven`, so a reader and the verifier both see it. Everything else fails.
@@ -246,9 +363,10 @@ export function compare({ gotavern, pinned }) {
         // The mapping to the user's own words, so a reader can see which complaint this answers.
         answers: {
             'Q3 character-list avatars': 'guards.everyCharacterListAvatarDecoded + guards.noImageRequestFailedOnEitherLeg',
-            'Q5 chat avatar': 'guards.everyMessageAvatarDecoded',
-            'Q6 personas': 'partially: guards.thumbnailResponsesAreImages covers the persona thumbnail request; the persona PICKER is not driven (see unproven)',
-            'Q7 backgrounds': 'guards.backgroundAppliedOnBothLegs + guards.backgroundServedWithBytesOnBothLegs',
+            'Q5 chat avatar': 'guards.everyMessageAvatarDecoded + guards.swipedMessageAvatarDecodedOnBothLegs + guards.swipeChangedTheMessageOnBothLegs (the avatar of a message RE-RENDERED by a swipe)',
+            'Q6 personas': 'guards.personaPickerRenderedOnBothLegs + guards.personaPickerRowImageDecodedOnBothLegs + guards.personaPickerSelectedOnBothLegs + guards.thumbnailResponsesAreImages',
+            'Q7 backgrounds': 'guards.galleryRenderedTheStagedTileOnBothLegs + guards.galleryTileThumbnailPaintedOnBothLegs + guards.stagedBackgroundPaintedOnBothLegs + guards.backgroundServedWithBytesOnBothLegs',
+            'the real card': 'guards.bothLegsStagedTheRealCard + guards.realCardStructureEqualOnBothLegs (tests/browser/fixtures/real/card-a.png, the committed derivation)',
         },
         legs: {
             gotavern: {
@@ -261,6 +379,10 @@ export function compare({ gotavern, pinned }) {
                 characterList: projectImages(gotavern),
                 messages: projectMessages(gotavern),
                 personaRequest: dom(gotavern)?.personaRequest ?? null,
+                personaPicker: projectPicker(gotavern),
+                backgroundGallery: projectGallery(gotavern),
+                swipedMessageAvatar: projectSwipe(gotavern),
+                realCard: realCardOf(gotavern),
             },
             pinned: {
                 subject: pinned?.subject ?? null,
@@ -272,6 +394,10 @@ export function compare({ gotavern, pinned }) {
                 characterList: projectImages(pinned),
                 messages: projectMessages(pinned),
                 personaRequest: dom(pinned)?.personaRequest ?? null,
+                personaPicker: projectPicker(pinned),
+                backgroundGallery: projectGallery(pinned),
+                swipedMessageAvatar: projectSwipe(pinned),
+                realCard: realCardOf(pinned),
             },
         },
         guards,
