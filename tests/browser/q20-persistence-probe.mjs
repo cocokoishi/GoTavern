@@ -196,6 +196,7 @@ const report = {
     pageRequests: [],
     chatRequests: [],
     peerRequests: [],
+    navigations: [],
     pageErrors: [],
     console: [],
     failure: null,
@@ -253,6 +254,16 @@ try {
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
     page.on('console', message => report.console.push({ type: message.type(), text: String(message.text()).slice(0, 400) }));
+    // A NAVIGATION IS THE ONE DRIVE HAZARD THAT LOOKS LIKE A PRODUCT RESULT. Run 40300889852 recorded the send's
+    // `POST /api/chats/save` 200 followed by a page that was NO LONGER THE PAGE THE SEND STARTED IN: startup
+    // re-ran (initial user input not reported, app_ready rendered before startup), so the textarea the test then
+    // read belonged to a NEW page whose in-memory chat was the saved greeting alone. Both subjects did it, so it is
+    // the harness/startup interaction, not a backend difference -- and an unrecorded one turns "the marker is not
+    // in the file" into an unexplained zero. Every main-frame navigation is therefore recorded.
+    page.on('framenavigated', frame => {
+        if (frame !== page.mainFrame()) return;
+        report.navigations.push({ url: frame.url(), at: new Date().toISOString() });
+    });
     await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
     // THE ONE INSTRUMENT USED FOR "DID THE FRONTEND ASK". Two runs measured a save that resolved `ok` and wrote
     // nothing; a resolved promise cannot tell "the page never asked" from "the server refused", and a request-only
@@ -362,8 +373,16 @@ try {
 
     const opened = await openCharacter();
     await page.waitForTimeout(1500);
-    report.characterOpen = opened;
-    step('chat-open', opened?.clicked === true && (opened.chatLength > 0 || opened.messages > 0), JSON.stringify(opened));
+    // SILENCED BEFORE THE FIRST SEND, and before any read that would be mistaken for state: the flag lives on the
+    // page's live `power_user`, the same object a saved settings round-trip replaces, so it is re-asserted here
+    // (after the click's `getChat()` -> `saveChatConditional()` sequence) and read back into the artefact.
+    const silenced = await page.evaluate(async () => {
+        const power = await import('./scripts/power-user.js');
+        power.power_user.savingAfterComplete = false;
+        return { savingAfterComplete: power.power_user.savingAfterComplete ?? null };
+    });
+    report.characterOpen = { ...opened, silenced };
+    step('chat-open', opened?.clicked === true && (opened.chatLength > 0 || opened.messages > 0), JSON.stringify(report.characterOpen));
 
     // 1. THE FIRST TURN, THROUGH THE FRONTEND'S OWN SEND. The save that follows is the frontend's, with the chat
     // identity the send itself creates; the leg supplies only the text and the click.
