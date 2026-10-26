@@ -181,7 +181,12 @@ const PERSONA_FILE = 'probe-asset-persona.png';
 // the leg exercises the shapes a user's card actually has -- and the swiped-message drive below uses its five
 // alternate greetings, which no synthetic card in this repository has.
 const REAL_CARD_NAME = 'Real Structure Card';
-const REAL_CARD_RELATIVE = path.join('..', 'fixtures', 'real', 'card-a.png');
+// RESOLVED FROM `here`, NOT FROM THE PROCESS CWD, and the first version got this wrong in a way only the PINNED
+// leg exposed: `run-against-pinned.mjs` spawns the child with `cwd: tests/browser`, so a `../fixtures/...` path
+// resolved to `tests/fixtures/real/card-a.png` and BOTH legs died with ENOENT (run 40304309528, step "Record the
+// asset legs": `Error: ENOENT: no such file or directory, open '.../tests/fixtures/real/card-a.png'`). `here` is
+// the directory of THIS module, which is the same on both legs whatever the child's cwd is.
+const REAL_CARD_RELATIVE = path.join(here, 'fixtures', 'real', 'card-a.png');
 
 // THE USER DIRECTORY, READ FROM THE PINNED SOURCE RATHER THAN ASSUMED. Pinned resolves every user-data
 // directory as `path.join(DATA_ROOT, handle, template)` (src/users.js `getUserDirectories`) with
@@ -241,7 +246,16 @@ async function stageFixture(dataRoot) {
     // file's own `data.name` is a marker (`MARK_…`), so the filename is the staged name and the character's row is
     // found by it. A missing or unreadable fixture is a REFUSAL, not a silent skip: a leg that quietly ran without
     // the real card would report the synthetic-only numbers and look exactly like a pass.
-    const realCardBytes = await fs.readFile(path.join(here, REAL_CARD_RELATIVE));
+    // THE FIXTURE PATH IS CHECKED BEFORE IT IS READ, AND THE MESSAGE NAMES THE PATH. A bare ENOENT cost a whole
+    // run (40304309528): the failure said `open '.../tests/fixtures/real/card-a.png'`, which is a PATH BUG, and a
+    // reader had to reconstruct where the path came from. The preflight says which file, whether it exists, and
+    // what the probe expected, so the next occurrence is one line instead of one investigation.
+    let realCardBytes;
+    try {
+        realCardBytes = await fs.readFile(REAL_CARD_RELATIVE);
+    } catch (error) {
+        throw new Error(`the committed real card is not readable at ${REAL_CARD_RELATIVE} (resolved from the probe module's own directory, so this is cwd-independent): ${String(error?.message ?? error)}. Run \`node tools/build-real-fixtures.mjs --out tests/browser/fixtures/real --card card-a=<original>\` to regenerate it.`);
+    }
     const realCardStructure = describeCardStructure(realCardBytes);
     if (!realCardStructure) throw new Error(`${REAL_CARD_RELATIVE} has no ccv3 chunk, so the real card cannot be staged`);
     files.push({ relative: path.join(USER_HANDLE, 'characters', `${REAL_CARD_NAME}.png`), bytes: realCardBytes });

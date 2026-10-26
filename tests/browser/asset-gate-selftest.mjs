@@ -12,6 +12,11 @@
 //
 // Usage: node tests/browser/asset-gate-selftest.mjs     (exit 0 = every guard has teeth)
 
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { compare } from './compare-asset-legs.mjs';
 
 const results = [];
@@ -176,6 +181,30 @@ expects('an undecoded character-list avatar -> everyCharacterListAvatarDecoded f
     record('no unproven[] entry names a guard that passes', stale.length === 0, stale.join(', '));
     const undeclared = Object.entries(baseline.guards).filter(([name, value]) => value !== true && !declared.has(name)).map(([name]) => name);
     record('every false guard is declared in unproven[]', undeclared.length === 0, undeclared.join(', '));
+}
+
+// ---- the probe's fixture path must not depend on the process's cwd --------------------------------
+//
+// Measured, run 40304309528: `run-against-pinned.mjs` spawns the probe with `cwd: tests/browser`, so a
+// `../fixtures/real/card-a.png` relative path resolved one level short and BOTH asset legs died with
+// `ENOENT: .../tests/fixtures/real/card-a.png`. The probe now resolves it from its own module directory. This
+// case asserts the FILE EXISTS and that the probe's own resolution lands on it, without a browser: it checks the
+// path from two different cwds, because a path that only works from one directory is the defect itself.
+const hereDir = path.dirname(fileURLToPath(import.meta.url));
+{
+    const expected = path.join(hereDir, 'fixtures', 'real', 'card-a.png');
+    record('the committed real card exists where the probe resolves it', existsSync(expected), expected);
+    const source = readFileSync(path.join(hereDir, 'asset-probe.mjs'), 'utf8');
+    const resolvesFromHere = /const REAL_CARD_RELATIVE = path\.join\(here, 'fixtures', 'real', 'card-a\.png'\);/.test(source);
+    record('the probe resolves the card from its own module directory, not the cwd', resolvesFromHere, resolvesFromHere ? undefined : 'REAL_CARD_RELATIVE is not built from `here`');
+    // The probe's own `here` is `tests/browser`; this reproduces its resolution without importing the probe (which
+    // would launch a browser) and runs it under two cwds.
+    const probe = `import path from 'node:path'; import fs from 'node:fs';
+const here = ${JSON.stringify(hereDir)};
+process.stdout.write(String(fs.existsSync(path.join(here, 'fixtures', 'real', 'card-a.png'))));`;
+    const fromBrowserDir = execFileSync(process.execPath, ['-e', probe], { cwd: hereDir, encoding: 'utf8' });
+    const fromRepoRoot = execFileSync(process.execPath, ['-e', probe], { cwd: path.resolve(hereDir, '..', '..'), encoding: 'utf8' });
+    record('the card resolves from tests/browser AND from the repository root', fromBrowserDir === 'true' && fromRepoRoot === 'true', `cwd=tests/browser -> ${fromBrowserDir}, cwd=repo root -> ${fromRepoRoot}`);
 }
 
 const failed = results.filter(entry => !entry.ok);
