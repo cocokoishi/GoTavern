@@ -263,20 +263,18 @@ export function startStreamingHop({ upstream, mode, cutAfterBytes = 0, cutArmOnP
                         emitPlain(chunk, countFrames(chunk.toString('utf8')), 'relayed-chunk');
                         return;
                     }
+                    // THE LIMIT IS A PLAINTEXT OFFSET AND MUST BE COUNTED IN PLAINTEXT BYTES. `released` is
+                    // advanced by the plaintext slice handed to `emitPlain`, never by the compressed bytes that
+                    // crossed the wire: measured, run 40320603310, where `releasedBytes` reached 533 against a
+                    // 513-byte limit and the cut never fired because the two counters measure different things.
                     const room = cutAfterBytes > 0 ? cutAfterBytes - released : chunk.length;
                     if (room <= 0) {
                         cutNow('cut-after-bytes');
                         return;
                     }
                     const slice = chunk.subarray(0, Math.min(room, chunk.length));
-                    // THE RELEASED BYTES AND THE PASSED BYTES MUST BE THE SAME TENSOR.
-                    // `released` is advanced by what `emitPlain` actually handed downstream, not by the
-                    // slice it was asked to relay: measured on this lane, the two disagreed and the cut
-                    // was reported one frame later than the body the page had received, so the artefact
-                    // said "inside a record" while every subscription body was a complete frame.
-                    const releasedBefore = state.releasedBytes;
                     emitPlain(slice, countFrames(slice.toString('utf8')), 'relay-before-cut');
-                    released += state.releasedBytes - releasedBefore;
+                    released += slice.length;
                     if (cutAfterBytes > 0 && released >= cutAfterBytes) {
                         cutNow('cut-after-bytes');
                     }

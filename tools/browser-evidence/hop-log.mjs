@@ -28,7 +28,15 @@ const summarize = file => {
         armed: hop.cutArmedResponses ?? null,
         whole: hop.relayedWholeResponses ?? null,
         gzip: hop.gzipFramedResponses ?? null,
+        // WIRE BYTES, WHICH ARE NOT THE COUNT LIMIT'S UNIT when the SSE body is re-framed as gzip: the
+        // limit is a PLAINTEXT offset, and compressed wire bytes include headers and per-frame overhead.
+        // A record with `completed: true` and `cutsPerformed: 0` beside a large releasedBytes count is
+        // therefore consistent -- and claiming a cut from those two numbers is exactly what cost this
+        // therefore consistent, and claiming a cut from those two numbers is what cost this lane two
+        // runs of chasing a fault that had not happened.
         releasedBytes: hop.releasedBytes ?? null,
+        completed: hop.completed === true,
+        plaintextOffsetAtCut: hop.cutAfterBytes ?? null,
         writes: hop.bodyWriteCount ?? null,
         contentStates: report.streamState?.contentStatesAtCut ?? null,
         textAfterCut: report.streamState?.textAfterCut ?? null,
