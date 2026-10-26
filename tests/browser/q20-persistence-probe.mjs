@@ -449,7 +449,29 @@ try {
     const silenced = await page.evaluate(async () => {
         const power = await import('./scripts/power-user.js');
         power.power_user.savingAfterComplete = false;
-        return { savingAfterComplete: power.power_user.savingAfterComplete ?? null };
+        // `processCommands` is the ONLY return path in `Generate('normal')` that produces no message and no request
+        // (script.js:4310-4318: `if (interruptedByCommand) { unblockGeneration(type); return Promise.resolve(); }`),
+        // and it consumes `#send_textarea` -- the same value the leg sets. It cannot be observed from outside, so it is
+        // wrapped for the send window and its verdict is recorded. A slash command in the textarea would make every
+        // later conclusion about "did the turn reach the model" a guess.
+        const script = await import('./script.js');
+        if (!window.__q20ProcessCommandsWrapped) {
+            window.__q20ProcessCommandsWrapped = true;
+            window.__q20ProcessCommands = [];
+            const original = script.processCommands;
+            if (typeof original === 'function') {
+                script.processCommands = async function (text) {
+                    const result = await original.apply(this, arguments);
+                    window.__q20ProcessCommands.push({ text: String(text ?? '').slice(0, 120), interrupted: result === true });
+                    return result;
+                };
+            }
+        }
+        return {
+            savingAfterComplete: power.power_user.savingAfterComplete ?? null,
+            processCommandsWrapped: window.__q20ProcessCommandsWrapped === true,
+            processCommandsWasFunction: typeof (await import('./script.js')).processCommands === 'function',
+        };
     });
     report.characterOpen = { ...opened, silenced };
     step('chat-open', opened?.clicked === true && (opened.chatLength > 0 || opened.messages > 0), JSON.stringify(report.characterOpen));
@@ -492,6 +514,7 @@ try {
     report.firstTurn = sent;
     report.afterFirstSave = afterFirst;
     report.reloadRecorder = { armed, disarmed, reloads, networkFailures, navigationsDuringSend: report.navigations.slice(navigationsBeforeSend), navigationsTotal: report.navigations.length, pageErrorTail: report.pageErrorTail.slice(), consoleTail: report.consoleTail.slice() };
+    report.processCommands = await page.evaluate(() => window.__q20ProcessCommands ?? []);
     // THE SAVE IS JUDGED BY THE FILE AND BY THE REQUEST, NOT BY THE RETURN VALUE: a resolved promise is exactly what
     // the failing runs produced.
     step('first-turn-save-issued', report.chatRequests.some(entry => /\/api\/chats\/save$/.test(entry.path ?? '') && entry.status === 200),
@@ -502,7 +525,7 @@ try {
     step('drive-stayed-on-one-page', report.navigations.length === navigationsBeforeSend,
         `${report.navigations.length - navigationsBeforeSend} navigation(s) during the first turn: ${JSON.stringify(report.reloadRecorder)}`);
     step('first-turn-saved', carries(afterFirst, MARKERS.first),
-        `files=${afterFirst.map(file => `${file.file}:${file.lines}`).join(',') || 'none'}`);
+        `files=${afterFirst.map(file => `${file.file}:${file.lines}`).join(',') || 'none'}; processCommands=${JSON.stringify(report.processCommands)}`);
 
     // 2. A FRESH PAGE LOAD MUST READ THAT CHAT BACK. This is the step no other leg performs.
     const readyReload = await openPage();
