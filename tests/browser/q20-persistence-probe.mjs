@@ -583,13 +583,25 @@ try {
     // 1. THE FIRST TURN, THROUGH THE FRONTEND'S OWN SEND. The save that follows is the frontend's, with the chat
     // identity the send itself creates; the leg supplies only the text and the click.
     const sent = await page.evaluate(async marker => {
+        // SETTINGS MUST BE READY BEFORE THE SEND. The console carried `Settings not ready, scheduling another save`
+        // (script.js:8052) on BOTH subjects, so this drive used to click while the frontend was still initialising.
+        // Wait on the frontend's own flag rather than a sleep, and carry the timing out so a red can say whether
+        // the click preceded readiness.
+        const clickStartedAt = Date.now();
+        const frontend = await import('./script.js');
+        const readyDeadline = Date.now() + 60000;
+        while (Date.now() < readyDeadline && frontend.settingsReady !== true) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        const readyWaitMs = Date.now() - clickStartedAt;
+        const settingsReadyAtClick = frontend.settingsReady === true;
         const textarea = document.querySelector('#send_textarea');
         const button = document.querySelector('#send_but');
         if (!textarea || !button) return { clicked: false, reason: 'send controls missing' };
         textarea.value = marker;
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
         button.click();
-        return { clicked: true, textareaValue: textarea.value };
+        return { clicked: true, textareaValue: textarea.value, settingsReadyAtClick, readyWaitMs };
     }, MARKERS.first);
     // A SEND IS ASYNCHRONOUS: the click returns immediately and the save lands after the frontend has produced the
     // message and named the chat. The file is polled for the marker with a bounded budget rather than read on the
