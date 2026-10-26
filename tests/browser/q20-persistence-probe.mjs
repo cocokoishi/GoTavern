@@ -587,6 +587,15 @@ try {
         // (script.js:8052) on BOTH subjects, so this drive used to click while the frontend was still initialising.
         // Wait on the frontend's own flag rather than a sleep, and carry the timing out so a red can say whether
         // the click preceded readiness.
+        // DECLARED IN THIS SCOPE, because the browser callback cannot see anything outside it. Run 40372411027 died on
+        // `ReferenceError: context is not defined` AFTER an earlier revert removed the binding -- `node --check` cannot
+        // see that, so every field read below is also made self-reporting: a missing input appears as a value in the
+        // artefact instead of throwing the whole leg away.
+        const pageContext = (window.SillyTavern && window.SillyTavern.getContext) ? window.SillyTavern.getContext() : null;
+        const missingInputs = [];
+        const readInput = (label, read) => {
+            try { return read(); } catch (error) { missingInputs.push(`${label}: ${String(error && error.message || error)}`); return null; }
+        };
         const clickStartedAt = Date.now();
         const frontend = await import('./script.js');
         const kai = await import('./scripts/kai-settings.js');
@@ -602,10 +611,10 @@ try {
         //   script.js:4323  main_api == 'kobold' && kai_settings.streaming_kobold && !kai_flags.can_use_streaming
         //   script.js:4329  isHordeGenerationNotAllowed()
         const silentExitInputs = {
-            mainApi: context && context.mainApi,
-            kaiStreamingKobold: Boolean(kai.kai_settings && kai.kai_settings.streaming_kobold),
-            kaiCanUseStreaming: Boolean(kai.kai_flags && kai.kai_flags.can_use_streaming),
-            selectedGroup: Boolean(context && context.groupId),
+            mainApi: readInput('mainApi', () => pageContext.mainApi),
+            kaiStreamingKobold: readInput('kaiStreamingKobold', () => Boolean(kai.kai_settings && kai.kai_settings.streaming_kobold)),
+            kaiCanUseStreaming: readInput('kaiCanUseStreaming', () => Boolean(kai.kai_flags && kai.kai_flags.can_use_streaming)),
+            selectedGroup: readInput('selectedGroup', () => Boolean(pageContext.groupId)),
             hordeBlocked: (() => {
                 try { return typeof frontend.isHordeGenerationNotAllowed === 'function' ? Boolean(frontend.isHordeGenerationNotAllowed()) : null; }
                 catch (error) { return `threw: ${String(error && error.message || error)}`; }
@@ -617,7 +626,7 @@ try {
         textarea.value = marker;
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
         button.click();
-        return { clicked: true, textareaValue: textarea.value, settingsReadyAtClick, readyWaitMs, silentExitInputs };
+        return { clicked: true, textareaValue: textarea.value, settingsReadyAtClick, readyWaitMs, silentExitInputs, missingInputs };
     }, MARKERS.first);
     // A SEND IS ASYNCHRONOUS: the click returns immediately and the save lands after the frontend has produced the
     // message and named the chat. The file is polled for the marker with a bounded budget rather than read on the
