@@ -613,7 +613,11 @@ try {
             }, 'gotavern-helper-probe'));
             file = await waitForFile(15000);
         }
-        if (!file) {
+        // THE GATE IS THE CHAT'S IDENTITY, NOT FILE EXISTENCE (measured: run 40246350186 -- the seeded
+        // chat made waitForFile() true before any save, so the send route below never ran, no chat identity
+        // was created, and the variable had nothing to attach to). saveChat reads exactly these three fields.
+        const identity = report.chatIdentity ?? {};
+        if (identity.characterChatName == null || identity.chatId == null) {
             // THE ONLY REMAINING PATH A USER HAS. Run 40239156336 measured why the function calls cannot
             // work on a fresh tree: saveDiagnostics={chatLength:3, chatId:null, characterChatName:null}
             // and saveRequests=[POST /api/chats/recent 200] -- no /api/chats/save was issued at all, while
