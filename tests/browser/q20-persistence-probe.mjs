@@ -199,6 +199,7 @@ const report = {
     navigations: [],
     pageErrorTail: [],
     consoleTail: [],
+    consoleDiagnostics: [],
     pageErrors: [],
     console: [],
     failure: null,
@@ -265,14 +266,26 @@ try {
     // THE PAGE'S OWN ERROR TAIL. `report.console` is bounded to a few hundred entries and a long startup can push an
     // error out of it; this keeps the last few page-side errors regardless of how much was logged around them.
     page.on('pageerror', error => {
-        report.pageErrorTail.push(String(error?.stack ?? error?.message ?? error).slice(0, 800));
-        if (report.pageErrorTail.length > 8) report.pageErrorTail.shift();
+        report.pageErrorTail.push(String(error?.stack ?? error?.message ?? error));
+        if (report.pageErrorTail.length > 64) report.pageErrorTail.shift();
     });
     // The console tail, which is where a reload's agent usually announces itself (a toastr error, a thrown message).
+    // THE DIAGNOSTIC CHANNEL. The previous listener kept only error/warning in a 12-entry ring with the text cut
+    // at 300 characters, and `console.trace` reports type `trace`, so the two lines the pinned EventEmitter emits
+    // when it swallows a listener throw (console.error(err) + console.trace('Error in event listener'),
+    // public/lib/eventemitter.js:145-151) were DROPPED -- which is why the "who threw inside Generate" question
+    // could not be answered from any run so far. Full text, no ring eviction below 200, trace included.
     page.on('console', message => {
-        if (!['error', 'warning'].includes(message.type())) return;
-        report.consoleTail.push({ type: message.type(), text: String(message.text()).slice(0, 300) });
-        if (report.consoleTail.length > 12) report.consoleTail.shift();
+        const type = message.type();
+        if (!['error', 'warning', 'trace'].includes(type)) return;
+        const location = message.location();
+        report.consoleDiagnostics.push({
+            type,
+            text: String(message.text()),
+            location: location && location.url ? `${location.url}:${location.lineNumber}` : null,
+            at: new Date().toISOString(),
+        });
+        if (report.consoleDiagnostics.length > 200) report.consoleDiagnostics.shift();
     });
     // A NAVIGATION IS THE ONE DRIVE HAZARD THAT LOOKS LIKE A PRODUCT RESULT. Run 40300889852 recorded the send's
     // `POST /api/chats/save` 200 followed by a page that was NO LONGER THE PAGE THE SEND STARTED IN: startup
@@ -331,6 +344,29 @@ try {
             window.__q20Subscribed = true;
             for (const name of Object.values(events.event_types)) {
                 try {
+    // WHO THROWS INSIDE Generate. `EventEmitter.emit` awaits each listener and CATCHES a throw
+    // (public/lib/eventemitter.js:145-151), so Generate resolves as if it ran while no message is appended and no
+    // provider request is made. The wrapper records, per emission, which listener index threw and with what stack --
+    // the one measurement that separates "a drive/extension listener threw" from "the product threw".
+    events.emitDiagnostics = [];
+    window.__q20EmitDiagnostics = events.emitDiagnostics;
+    const originalEmit = events.eventSource.emit.bind(events.eventSource);
+    events.eventSource.emit = async function (event, ...rest) {
+        const listeners = this.events?.[event];
+        if (!Array.isArray(listeners) || listeners.length === 0) return originalEmit(event, ...rest);
+        const record = { event, listeners: listeners.length, threw: [] };
+        events.emitDiagnostics.push(record);
+        if (events.emitDiagnostics.length > 40) events.emitDiagnostics.shift();
+        for (let index = 0; index < listeners.length; index++) {
+            try {
+                await listeners[index].apply(this, rest);
+            } catch (error) {
+                record.threw.push({ index, message: String(error && error.message || error), stack: String(error && error.stack || '') });
+            }
+        }
+        if (this.autoFireAfterEmit?.has(event)) this.autoFireLastArgs.set(event, rest);
+        return true;
+    };
                     events.eventSource.on(name, () => record(`event:${name}`, { chatLength: (script.chat ?? []).length, lastIsUser: (script.chat ?? [])[script.chat.length - 1]?.is_user === true }));
                 } catch {
                     // an event name the bus refuses is not a finding about the product
@@ -340,6 +376,7 @@ try {
         return { armed: true, href: String(window.location.href), readyState: document.readyState, subscribed: window.__q20Subscribed === true };
     });
     const readPageSide = async () => page.evaluate(() => window.__q20Events ?? []);
+const readEmitDiagnostics = async () => page.evaluate(() => window.__q20EmitDiagnostics ?? []);
     const disarmReloadRecorder = async () => ({ disarmed: true });
 
     const openPage = async () => {
@@ -512,6 +549,9 @@ try {
     report.pageRequests = recorder.requests.map(entry => ({ method: entry.method, path: entry.pathAndQuery, status: entry.status }));
     report.chatRequests = chatRequestLog();
     report.firstTurn = sent;
+    // ATTACHED AT THE MOMENT THE TURN FAILED, not later: the question is "who threw inside Generate", and the
+    // answer must be in the artefact beside the fact that the turn did not land.
+    report.emitDiagnostics = await readEmitDiagnostics();
     report.afterFirstSave = afterFirst;
     report.reloadRecorder = { armed, disarmed, reloads, networkFailures, navigationsDuringSend: report.navigations.slice(navigationsBeforeSend), navigationsTotal: report.navigations.length, pageErrorTail: report.pageErrorTail.slice(), consoleTail: report.consoleTail.slice() };
     report.processCommands = await page.evaluate(() => window.__q20ProcessCommands ?? []);
