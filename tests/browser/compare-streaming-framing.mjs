@@ -231,7 +231,10 @@ function abortSurface(gotavern, pinned, baseline) {
 
     guard('hopCutBothSubjectsMidStream',
         `the hop did not cut both subjects (gotavern mode ${JSON.stringify(gvHop.mode)} cut ${JSON.stringify(gvHop.cut)}, pinned mode ${JSON.stringify(pnHop.mode)} cut ${JSON.stringify(pnHop.cut)}), so no truncation was observed and nothing below is about one`,
-        gvHop.mode === 'cut' && pnHop.mode === 'cut' && gvHop.cut === 'cut-after-bytes' && pnHop.cut === 'cut-after-bytes');
+        // nyCut IS THE DURABLE FACT: cut belongs to the request being served and a later request on the
+        // same connection clears it. Measured twice (runs 40314154794, 40316734219) where cut was null
+        // beside 533 released bytes, so the guard reads the fact that cannot be overwritten.
+        gvHop.mode === 'cut' && pnHop.mode === 'cut' && gvHop.anyCut === 'cut-after-bytes' && pnHop.anyCut === 'cut-after-bytes');
     // THE CUT LANDED ON THE COMPLETION, not on the frontend's reachability check: the hop relays every
     // other response whole, and both legs must show that it did.
     guard('hopRelayedTheReachabilityCheckWhole',
@@ -337,7 +340,9 @@ const main = async () => {
             mode: { direct: hop(gotavern).mode ?? null, relayed: hop(relayedGotavern).mode ?? null, abort: hop(abortGotavern).mode ?? null },
             relayedCut: { gotavern: hop(relayedGotavern).cut ?? null, pinned: hop(relayedPinned).cut ?? null },
             cutArmOnPath: hop(abortGotavern).cutArmOnPath ?? null,
-            cut: { gotavern: hop(abortGotavern).cut ?? null, pinned: hop(abortPinned).cut ?? null },
+            cut: { gotavern: hop(abortGotavern).anyCut ?? hop(abortGotavern).cut ?? null, pinned: hop(abortPinned).anyCut ?? hop(abortPinned).cut ?? null },
+            cutPerRequest: { gotavern: hop(abortGotavern).cut ?? null, pinned: hop(abortPinned).cut ?? null },
+            cutsPerformed: { gotavern: hop(abortGotavern).cutsPerformed ?? 0, pinned: hop(abortPinned).cutsPerformed ?? 0 },
             cutAfterFrames: hop(abortGotavern).cutAfterFrames ?? null,
             cutAfterBytes: hop(abortGotavern).cutAfterBytes ?? null,
             releasedBytesUnderCut: { gotavern: hop(abortGotavern).releasedBytes ?? null, pinned: hop(abortPinned).releasedBytes ?? null },

@@ -1927,7 +1927,13 @@ try {
         bodyWrites: proxy.state.writes,
         bodyWriteCount: proxy.state.writes.length,
         releasedBytes: proxy.state.releasedBytes,
+        // A CUT BELONGS TO A REQUEST, and a later request on the same connection can clear `cut`.
+        // `anyCut` is the durable fact and is what a reader should trust when the two disagree;
+        // measured twice (runs 40314154794, 40316734219) where `cut` was null beside 533 released
+        // bytes. Both are recorded so the disagreement itself is visible rather than smoothed over.
         cut: proxy.state.cut,
+        anyCut: proxy.state.anyCut ?? null,
+        cutsPerformed: proxy.state.cutsPerformed ?? 0,
         completed: proxy.state.completed === true,
         callerClosed: proxy.state.callerClosed === true,
         upstreamErrors: proxy.state.upstreamErrors,

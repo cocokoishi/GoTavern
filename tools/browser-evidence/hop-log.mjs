@@ -23,6 +23,8 @@ const summarize = file => {
         leg: path.basename(file),
         mode: hop.mode ?? null,
         cut: hop.cut ?? null,
+        anyCut: hop.anyCut ?? null,
+        cutsPerformed: hop.cutsPerformed ?? 0,
         armed: hop.cutArmedResponses ?? null,
         whole: hop.relayedWholeResponses ?? null,
         gzip: hop.gzipFramedResponses ?? null,

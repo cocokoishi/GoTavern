@@ -98,6 +98,8 @@ export function startStreamingHop({ upstream, mode, cutAfterBytes = 0, cutArmOnP
         // Set when the hop cut: the reason, by name, so a cut that did not happen is distinguishable from
         // one that did (and a peer that finished before the cut point is recorded as `completed`).
         cut: null,
+        anyCut: null,
+        cutsPerformed: 0,
         completed: false,
         forwarded: [],
         requestsSeen: 0,
@@ -178,6 +180,14 @@ export function startStreamingHop({ upstream, mode, cutAfterBytes = 0, cutArmOnP
                     // that makes the member complete, so a cut is detectable as a decode error.
                     gzip = zlib.createGzip({ flush: zlib.constants.Z_SYNC_FLUSH, finishFlush: zlib.constants.Z_FINISH });
                     gzip.on('data', piece => {
+                        // A PIECE THAT ARRIVES AFTER THE CUT IS NOT RELAYED, and it must not be counted
+                        // either: measured twice (runs 40314154794, 40316734219), the gzip flush that
+                        // `gzip.destroy()` triggers fired AFTER `cutNow` and wrote to a closed response,
+                        // so `releasedBytes` kept growing past the cut and the artefact reported a
+                        // different cut point than the one the page had seen.
+                        if (state.cut) {
+                            return;
+                        }
                         clientResponse.write(piece);
                         state.releasedBytes += piece.length;
                         // The compressed piece's own length is what crossed the wire; the FRAME count is
@@ -218,6 +228,13 @@ export function startStreamingHop({ upstream, mode, cutAfterBytes = 0, cutArmOnP
                         return;
                     }
                     state.cut = reason;
+                    // THE RECORD IS DUPLICATED WHERE NOTHING LATER CAN CLEAR IT. `cut` belongs to the
+                    // REQUEST being served, but the probe reports one flat record, and a later request on
+                    // the same connection (`/api/ping`) reset it: two runs in a row reported `cut: null`
+                    // beside `releasedBytes: 533`, a recording contradicting itself. `anyCut` is the durable
+                    // fact -- a cut happened to THIS hop -- and the probe reports both.
+                    state.anyCut = reason;
+                    state.cutsPerformed = (state.cutsPerformed ?? 0) + 1;
                     // BOTH DIRECTIONS DIE. The subject sees a body that ended mid-frame with the
                     // connection closed; the peer is released rather than left holding a script. In gzip
                     // mode the trailer is never produced, so the subject's decompressor rejects -- which

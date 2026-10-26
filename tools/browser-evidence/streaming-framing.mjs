@@ -91,7 +91,7 @@ export function recomputeFramingSurface(artifact, surface) {
     }
     return {
         ...common,
-        hopCutBothSubjectsMidStream: hop.mode?.abort === 'cut' && hop.cut?.gotavern === 'cut-after-bytes' && hop.cut?.pinned === 'cut-after-bytes',
+        hopCutBothSubjectsMidStream: hop.mode?.abort === 'cut' && hop.anyCut?.gotavern === 'cut-after-bytes' && hop.anyCut?.pinned === 'cut-after-bytes',
         hopRelayedTheReachabilityCheckWhole: (hop.cutArmedResponses?.gotavern ?? 0) >= 1 && (hop.cutArmedResponses?.pinned ?? 0) >= 1
             && (hop.relayedWholeResponses?.gotavern ?? 0) >= 1 && (hop.relayedWholeResponses?.pinned ?? 0) >= 1,
         hopFramedTheStreamSoTheCutIsDetectable: (hop.gzipFramedResponses?.gotavern ?? 0) >= 1 && (hop.gzipFramedResponses?.pinned ?? 0) >= 1,

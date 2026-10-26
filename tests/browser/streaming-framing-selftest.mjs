@@ -68,6 +68,7 @@ const relayedHop = () => ({
 });
 const cutHop = () => ({
     mode: 'cut', cutArmOnPath: '/chat/completions', cutAfterBytes: 300, cut: 'cut-after-bytes',
+    anyCut: 'cut-after-bytes', cutsPerformed: 1,
     bodyWriteCount: 4,
     bodyWrites: [{ bytes: 100, frames: 0 }, { bytes: 100, frames: 0 }, { bytes: 100, frames: 0 }],
     forwarded: [{ method: 'POST', path: '/chat/completions', bodyBytes: 7400, bodySha256: 'a'.repeat(64) }],
@@ -181,6 +182,7 @@ addCase('a cut during the relayed surface is caught',
 // ---- 3. THE FAULT MUST BE THE NETWORK'S. -------------------------------------------------------------
 addCase('a cut that did not happen fails the network-cut guard',
     legs => {
+        legs.abort.pinned.networkHop.anyCut = null;
         legs.abort.pinned.networkHop.cut = null;
     },
     { surface: 'abort', name: 'hopCutBothSubjectsMidStream' });

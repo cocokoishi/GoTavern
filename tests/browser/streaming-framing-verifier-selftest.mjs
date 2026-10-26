@@ -33,6 +33,8 @@ function healthy() {
             mode: { direct: null, relayed: 'pass-through', abort: 'cut' },
             cutArmOnPath: '/chat/completions',
             cut: { gotavern: 'cut-after-bytes', pinned: 'cut-after-bytes' },
+            anyCut: { gotavern: 'cut-after-bytes', pinned: 'cut-after-bytes' },
+            cutsPerformed: { gotavern: 1, pinned: 1 },
             relayedCut: { gotavern: null, pinned: null },
             cutAfterFrames: 3,
             cutAfterBytes: 300,
@@ -69,7 +71,10 @@ add('a guard that contradicts the stored observations is a finding', artifact =>
 add('a guard nobody reads is a finding', artifact => { artifact.stream.guards.inventedGuard = true; }, 'stream.guards carries ["inventedGuard"]');
 add('a hop that assembled the body is a finding, read from the hop record itself', artifact => { artifact.hop.relayedWrites.gotavern = 1; }, 'hop.relayedWrites.gotavern is 1');
 add('a cut that released nothing is a finding', artifact => { artifact.hop.releasedBytesUnderCut.pinned = 0; }, 'hop.releasedBytesUnderCut.pinned is 0');
-add('a subject the cut never reached is a finding', artifact => { artifact.hop.cut.pinned = null; }, 'hop.cut.pinned is null');
+// THE RECOMPUTE FIRES FIRST and is the stronger statement: the guard claims a cut on both subjects while
+// the hop's own record says the pinned cut never happened. Either finding is correct; this asserts the
+// recompute, which is the one that also catches a hand-edited flag.
+add('a subject the cut never reached is a finding', artifact => { artifact.hop.anyCut.pinned = null; }, 'hopCutBothSubjectsMidStream is recorded as true but the stored observations recompute to false');
 add('an artefact with no notCompared list is a finding', artifact => { artifact.notCompared = []; }, 'notCompared does not name what this artefact leaves unproven');
 add('an artefact that hides the deleted buffering mode is a finding', artifact => { artifact.notCompared = ['a real provider', 'a real TLS connection', 'network jitter', 'frames other than the cut point']; }, 'does not name the buffering-proxy mode that was measured and removed');
 add('a proven flag that disagrees with its surfaces is a finding', artifact => { artifact.relayed.guards.hopPresentOnBothSubjects = false; artifact.relayed.proven = false; }, 'proven is true but the three network surfaces recompute to false');
