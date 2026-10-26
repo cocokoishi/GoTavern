@@ -131,10 +131,12 @@ jobs:
   # Q22: THE SAME MEASUREMENT FOR BOTH BACKENDS, IN ONE RUN. The job above records GoTavern alone and explains why
   # nothing but the cold-start ceiling is asserted. That reasoning is why a single-sided number cannot answer
   # GOAL 11: a paired median from the same runner, minutes apart, is what a "faster"/"smaller" claim may cite --
-  # and this job asserts only that both subjects answered in every round and produced the same sample counts.
+  # and this job asserts only that both subjects answered in every round, produced the same sample counts, and
+  # completed the long-run window with the same number of samples. The drift VALUES are reported, never asserted:
+  # a ceiling here would encode the runner and the garbage collector into the product contract.
   paired-linux-amd64:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -182,6 +184,8 @@ jobs:
         run: |
           set -eu
           node tests/perf/q22-paired-benchmark.mjs --rounds 3 --requests 30
+          # THE SOAK IS THE LONG HALF: ten minutes per subject on top of three alternating rounds.
+          node -e "const r=require('./tests/perf/q22-paired-benchmark.json'); for (const s of r.soak ?? []) console.log(`${s.subject}: ${s.series.length} samples, rss drift ${s.rssDriftBytes} B, p95 drift ${s.p95DriftMs} ms`)";
           cat tests/perf/q22-paired-benchmark.json
 
       - uses: actions/upload-artifact@v4

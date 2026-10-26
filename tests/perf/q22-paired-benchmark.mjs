@@ -153,6 +153,63 @@ async function measureRound(subject, reference) {
     return round;
 }
 
+// LONG-RUN DRIFT, WHICH GOAL 11 ASKS FOR AND A SINGLE BOOT CANNOT SHOW. Same boot path as a round, then sustained
+// requests for a bounded window with a sample every `sampleEveryMs`: the artefact carries the SERIES, not just a
+// difference, because "stable creep" and "one GC and back" mean different things to a user and a delta cannot tell
+// them apart. Nothing here asserts a drift ceiling -- that would encode the runner and the GC into the product.
+async function soak(subject, reference, { windowMs, sampleEveryMs, requestsPerSample }) {
+    const dataRoot = await fs.mkdtemp(path.join(os.tmpdir(), `gotavern-q22-soak-${subject}-`));
+    const port = await freePort();
+    const startedAt = Date.now();
+    const child = subject === 'gotavern'
+        ? spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] })
+        : spawn(process.execPath, ['server.js', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], { cwd: reference, stdio: ['ignore', 'pipe', 'pipe'], env: process.env });
+    child.stdout.on('data', () => {});
+    child.stderr.on('data', () => {});
+    const series = [];
+    let failures = [];
+    try {
+        await waitForVersion(port, Number(process.env.Q22_READY_MS ?? 120000));
+        const deadline = Date.now() + windowMs;
+        while (Date.now() < deadline) {
+            const tickStart = Date.now();
+            let latencies = [];
+            try {
+                latencies = await timeRequests(port, '/version', requestsPerSample);
+            } catch (error) {
+                failures.push(String(error?.message ?? error));
+            }
+            series.push({
+                atMs: Date.now() - startedAt,
+                rssBytes: await residentBytes(child.pid),
+                p95Ms: percentile(latencies, 0.95),
+                medianMs: median(latencies),
+                requests: latencies.length,
+            });
+            const spent = Date.now() - tickStart;
+            if (spent < sampleEveryMs) await new Promise(resolve => setTimeout(resolve, sampleEveryMs - spent));
+        }
+    } finally {
+        child.kill('SIGTERM');
+        await new Promise(resolve => {
+            const timer = setTimeout(() => { child.kill('SIGKILL'); resolve(); }, 15000);
+            child.on('exit', () => { clearTimeout(timer); resolve(); });
+        });
+        await fs.rm(dataRoot, { recursive: true, force: true });
+    }
+    const first = series[0] ?? null;
+    const last = series[series.length - 1] ?? null;
+    return {
+        subject,
+        windowMs,
+        sampleEveryMs,
+        series,
+        failures,
+        rssDriftBytes: first && last && typeof first.rssBytes === 'number' && typeof last.rssBytes === 'number' ? last.rssBytes - first.rssBytes : null,
+        p95DriftMs: first && last && typeof first.p95Ms === 'number' && typeof last.p95Ms === 'number' ? last.p95Ms - first.p95Ms : null,
+    };
+}
+
 const reference = await resolveReference();
 const runnerImage = process.env.ImageOS ?? process.env.RUNNER_IMAGE ?? `${process.platform} ${os.release()}`;
 const report = {
@@ -171,6 +228,7 @@ const report = {
         'A paired median on a shared runner is evidence for a report, not a release gate; asserting a threshold here would encode the runner into the product contract.',
         'RSS comes from /proc/<pid>/status VmRSS and is null off Linux, with that reason rather than a zero.',
         'Both subjects boot over a mkdtemp data root that each round deletes, so a warm page cache is the only carry-over.',
+        'The soak window is bounded and its samples are a SERIES: a stable creep and a single collection-then-recovery are different facts and a delta alone cannot distinguish them.',
     ],
 };
 
@@ -178,6 +236,16 @@ try {
     for (let round = 0; round < rounds; round++) {
         for (const subject of ['pinned', 'gotavern']) {
             report.samples.push({ round, ...(await measureRound(subject, reference)) });
+        }
+    }
+    // THE LONG-RUN PHASE, BEFORE THE SUMMARY IS BUILT. Bounded window; a failure to drive is recorded in failures[]
+    // rather than thrown, so one broken subject cannot destroy the whole record.
+    const soakWindowMs = Number(process.env.Q22_SOAK_MS ?? 600000);
+    const soakSampleEveryMs = Number(process.env.Q22_SOAK_SAMPLE_MS ?? 30000);
+    if (soakWindowMs > 0) {
+        report.soak = [];
+        for (const subject of ['pinned', 'gotavern']) {
+            report.soak.push(await soak(subject, reference, { windowMs: soakWindowMs, sampleEveryMs: soakSampleEveryMs, requestsPerSample: 20 }));
         }
     }
 } finally {
@@ -201,6 +269,12 @@ try {
     };
     report.summary = { pinned: summarise('pinned'), gotavern: summarise('gotavern') };
     report.asserted.everyRoundAnswered = bySubject('pinned').every(sample => !sample.failure) && bySubject('gotavern').every(sample => !sample.failure);
+    if (Array.isArray(report.soak) && report.soak.length === 2) {
+        // ONLY STRUCTURAL: both subjects completed the window without a drive failure, and produced series of the
+        // same length. The DRIFT VALUES are reported, never asserted.
+        report.asserted.soakCompleted = report.soak.every(entry => entry.failures.length === 0);
+        report.asserted.soakSeriesMatch = new Set(report.soak.map(entry => entry.series.length)).size === 1;
+    }
     report.asserted.sampleCountsMatch = report.summary.pinned.samples.boot === report.summary.gotavern.samples.boot
         && report.summary.pinned.samples.version === report.summary.gotavern.samples.version;
     await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
