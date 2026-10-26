@@ -547,16 +547,34 @@ try {
     const armed = await armPageSide();
     // INSTALLED BEFORE ANY GENERATION RUNS, and asserted to have installed something: an observer that silently
     // observes nothing is the defect this file has produced three times already.
-    const OBSERVED_EVENTS = [
+    // THE EVENT NAMES ARE READ FROM THE FRONTEND AT RUNTIME, never hardcoded. Measured in pinned
+    // public/scripts/events.js: the values are NOT the constant names -- GENERATION_STARTED is
+    // 'generation_started', MESSAGE_SENT is 'message_sent', CHAT_CHANGED is 'chat_id_changed' -- so the first
+    // version of this observer indexed ``events['GENERATION_STARTED']`` and bound NOTHING (installed: -1) on five
+    // of six events while reporting no error. The install count is therefore ASSERTED below: a target that binds
+    // zero listeners fails the leg as a harness error rather than producing an artefact that measures nothing.
+    const OBSERVED_CONSTANTS = [
         'GENERATION_STARTED', 'GENERATION_AFTER_COMMANDS', 'MESSAGE_SENT',
         'MESSAGE_RECEIVED', 'CHAT_CHANGED', 'USER_MESSAGE_RENDERED',
     ];
     const observerInstalls = [];
-    for (const eventName of OBSERVED_EVENTS) {
-        observerInstalls.push(await page.evaluate(
-            name => (window.__q20ObserveEvent ? window.__q20ObserveEvent(name) : { event: name, installed: -1 }),
-            eventName,
-        ));
+    for (const constantName of OBSERVED_CONSTANTS) {
+        observerInstalls.push(await page.evaluate(name => {
+            const context = window.SillyTavern && window.SillyTavern.getContext ? window.SillyTavern.getContext() : null;
+            const table = (context && context.eventTypes) || window.event_types || null;
+            const runtimeName = table && table[name];
+            if (!runtimeName) return { constant: name, event: null, installed: -1, reason: 'event_types not reachable from the page' };
+            if (!window.__q20ObserveEvent) return { constant: name, event: runtimeName, installed: -1, reason: 'observer not installed' };
+            return { constant: name, ...window.__q20ObserveEvent(runtimeName) };
+        }, constantName));
+    }
+    const unboundEvents = observerInstalls.filter(entry => entry.installed <= 0);
+    report.observerInstalls = observerInstalls;
+    report.observerUnbound = unboundEvents;
+    // A TARGET THAT BOUND NOTHING IS A HARNESS ERROR, not a zero. Without this the observer silently measures
+    // nothing and the artefact still looks like evidence -- the failure this file has produced four times.
+    if (unboundEvents.length > 0) {
+        report.failure = report.failure ?? `the observer bound no listener on: ${unboundEvents.map(entry => `${entry.constant} -> ${entry.event} (${entry.reason ?? 'installed: ' + entry.installed})`).join(', ')}`;
     }
     const readListenerTimings = async () => page.evaluate(() => window.__q20ListenerTimings ?? []);
     const pageMark = () => report.navigations.length;
