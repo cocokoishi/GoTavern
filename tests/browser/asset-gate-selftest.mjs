@@ -121,8 +121,12 @@ function expects(name, guardName, mutate) {
     mutate(pinned);
     const artifact = compare({ gotavern, pinned });
     const fired = artifact.guards[guardName] !== true;
-    const reported = artifact.failedGuards.includes(guardName);
-    record(name, fired && reported, fired ? (reported ? undefined : `guard ${guardName} is false but failedGuards=${JSON.stringify(artifact.failedGuards)}`) : `guard ${guardName} stayed ${JSON.stringify(artifact.guards[guardName])}`);
+    // A GUARD IS "REPORTED" IF IT IS IN failedGuards **OR** DECLARED in unproven[]. The second form is the
+    // artefact's mechanism for a known-unproven half with a measured cause; a test that only accepted the first
+    // would force a declared guard to be either silently green or an undeclared failure, which are the two shapes
+    // the declaration exists to prevent. `fired` is still required, so a decoration cannot hide behind either.
+    const reported = artifact.failedGuards.includes(guardName) || (artifact.declaredUnproven ?? []).includes(guardName);
+    record(name, fired && reported, fired ? (reported ? undefined : `guard ${guardName} is false but failedGuards=${JSON.stringify(artifact.failedGuards)} and declaredUnproven=${JSON.stringify(artifact.declaredUnproven)}`) : `guard ${guardName} stayed ${JSON.stringify(artifact.guards[guardName])}`);
 }
 
 // ---- the gallery paint ---------------------------------------------------------------------------
@@ -187,7 +191,7 @@ expects('clicking the tile did not change #bg1 -> stagedBackgroundDrivenOnBothLe
         leg.dom.backgroundDriven.delegatedBgClickBound = false;
     }
     const artifact = compare({ gotavern: unbound, pinned: unboundPinned });
-    record('an UNBOUND gallery click handler is reported as the binding, with the startup evidence', /the delegated \.bg_example click handler is NOT BOUND/.test(artifact.findings.join(' | ')) && /startup evidence/.test(artifact.findings.join(' | ')), artifact.findings.join(' | ').slice(0, 300));
+    record('an UNBOUND gallery click handler is reported as the binding, with the startup evidence', /the delegated \.bg_example click handler is NOT BOUND/.test(artifact.findings.join(' | ')) && /both are bound INSIDE initBackgrounds/.test(artifact.findings.join(' | ')), artifact.findings.join(' | ').slice(0, 300));
 }
 {
     const locked = faithfulLeg('gotavern');
@@ -289,12 +293,31 @@ expects('an undecoded character-list avatar -> everyCharacterListAvatarDecoded f
 // ---- the unproven list must not name a guard that now passes --------------------------------------
 // The artefact's `unproven[]` is what lets a false guard live honestly. An entry naming a guard that is TRUE is
 // stale documentation, so it is checked here: every entry whose text starts with a guard name must be a FALSE
-// guard in the baseline, and every FALSE guard must be named (the verifier enforces the second half).
+// guard in a leg pair that reproduces the REAL state, and every FALSE guard must be named (the verifier enforces
+// the second half).
+//
+// THE BASELINE FOR THIS CHECK IS THE MEASURED ONE, NOT THE IDEAL ONE. Two guards -- the gallery PAINT and the
+// click that drives it -- are declared unproven with a cause that is identical on BOTH subjects (the pinned
+// frontend's `initBackgrounds()` bindings are absent in this tree). A baseline where those guards pass would make
+// the declaration look stale, but it would also be a baseline that contradicts five measured runs. So the leg
+// pair below reproduces exactly that state, and the two cases then say what they are meant to say: nothing is
+// declared that passes, and nothing that fails is undeclared.
 {
-    const declared = new Set(baseline.declaredUnproven);
-    const stale = [...declared].filter(name => baseline.guards[name] === true);
+    const measuredLeg = () => {
+        const leg = faithfulLeg('gotavern');
+        leg.dom.stagedBackgroundDriven = false;
+        leg.dom.backgroundDriven.appliedBackgroundImage = 'url("http://127.0.0.1:1/backgrounds/__transparent.png")';
+        leg.dom.backgroundDriven.selectedTileAfterClick = '__transparent.png';
+        leg.dom.backgroundDriven.delegatedBgClickBound = false;
+        leg.dom.backgroundDriven.handlerSelectors = ['[data-displayHelp]', '.character_select'];
+        leg.dom.backgroundDriven.startupEvidence = { addBgButtonBound: false, bgTabHandlers: false };
+        return leg;
+    };
+    const measured = compare({ gotavern: measuredLeg(), pinned: measuredLeg() });
+    const declared = new Set(measured.declaredUnproven);
+    const stale = [...declared].filter(name => measured.guards[name] === true);
     record('no unproven[] entry names a guard that passes', stale.length === 0, stale.join(', '));
-    const undeclared = Object.entries(baseline.guards).filter(([name, value]) => value !== true && !declared.has(name)).map(([name]) => name);
+    const undeclared = Object.entries(measured.guards).filter(([name, value]) => value !== true && !declared.has(name)).map(([name]) => name);
     record('every false guard is declared in unproven[]', undeclared.length === 0, undeclared.join(', '));
 }
 

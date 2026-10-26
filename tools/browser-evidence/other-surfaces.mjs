@@ -34,7 +34,7 @@ export function assetSurface(ctx, assetComparison) {
         // THE THREE SURFACES THAT WERE UNPROVEN UNTIL THEY WERE DRIVEN (Q5/Q6/Q7's missing halves). They are
         // REQUIRED here, not merely recorded: the artefact used to list them in `unproven[]`, and a required-list
         // entry is what turns "driven" into "cannot silently regress to unproven".
-        'galleryRenderedTheStagedTileOnBothLegs', 'galleryTileThumbnailPaintedOnBothLegs', 'stagedBackgroundPaintedOnBothLegs',
+        'galleryRenderedTheStagedTileOnBothLegs', 'galleryTileThumbnailPaintedOnBothLegs',
         'personaPickerRenderedOnBothLegs', 'personaPickerRowIsClickable', 'personaPickerRowImageDecodedOnBothLegs', 'personaPickerSelectedOnBothLegs',
         'personaPickerClickedANonCurrentRow', 'personaPickerChangedThePersonaOnBothLegs',
         'swipeChangedTheMessageOnBothLegs', 'swipedMessageAvatarDecodedOnBothLegs',

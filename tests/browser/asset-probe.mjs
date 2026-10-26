@@ -729,16 +729,33 @@ try {
         const documentClickHandlers = globalThis.jQuery?._data?.(document, 'events')?.click ?? [];
         const handlerSelectors = documentClickHandlers.map(handler => String(handler.selector ?? null));
         const delegatedBgClickBound = handlerSelectors.some(selector => selector.includes('bg_example'));
-        // WHY THE HANDLER MIGHT BE MISSING: `initBackgrounds()` runs AFTER `await initTokenizers()` in the page's
-        // startup sequence (script.js:757-762), so a tokenizers rejection skips it and the whole gallery becomes
-        // unclickable with NO page error -- the rejection is inside a `jQuery(async () => …)` callback. Recording
-        // the tokenizer state and the panel's other bindings separates "the gallery handler is missing" from "the
-        // startup sequence stopped one step earlier".
+        // WHY THE HANDLER MIGHT BE MISSING. `initBackgrounds()` is called at script.js:762, between
+        // `await getBackgrounds()` (:760) and `await initPersonas()` (:764), so the startup sequence is the first
+        // suspect. TWO CORRECTIONS ARE RECORDED HERE RATHER THAN LOST:
+        //   * the first version read `globalThis.tokenizers`, which is NOT a global in pinned 1.19.0 -- the
+        //     module keeps its own array -- so `tokenizerReady:false` was MY probe error and not a finding. A
+        //     measurement of a name that does not exist is a measurement of nothing;
+        //   * `addBgButtonBound` and `bgTabHandlers` ARE real: both are bound INSIDE `initBackgrounds`, so their
+        //     absence is evidence that the function did not finish, and the module's own exports are read through
+        //     the SAME dynamic import the rest of this drive uses.
+        let tokenizerModuleState = null;
+        try {
+            const tokenizers = await import('./scripts/tokenizers.js');
+            tokenizerModuleState = {
+                exportsInitTokenizers: typeof tokenizers.initTokenizers === 'function',
+                exportsCountsFor: typeof tokenizers.countTokensOpenAI === 'function' || typeof tokenizers.countTokens === 'function',
+            };
+        } catch (error) {
+            tokenizerModuleState = { error: String(error?.message ?? error).slice(0, 200) };
+        }
         const startupEvidence = {
-            tokenizerReady: Boolean(globalThis.tokenizers?.length),
-            tokenizerCount: Array.isArray(globalThis.tokenizers) ? globalThis.tokenizers.length : null,
+            backgroundSettingsName: globalThis.background_settings?.name ?? null,
+            addBgButtonPresent: Boolean(document.querySelector('#add_bg_button')),
             addBgButtonBound: Boolean(globalThis.jQuery?._data?.(document.querySelector('#add_bg_button'), 'events')?.change?.length),
+            bgTabsPresent: Boolean(document.querySelector('#bg_tabs')),
             bgTabHandlers: Boolean(globalThis.jQuery?._data?.(document.querySelector('#bg_tabs'), 'events')?.tabsactivate?.length),
+            bgFoldersRequested: Boolean(document.querySelector('#bg_folder_grid')),
+            tokenizerModule: tokenizerModuleState,
             documentClickHandlers: documentClickHandlers.length,
         };
         const tileBox = tile.getBoundingClientRect();
@@ -782,7 +799,7 @@ try {
             selectedTileAfterClick: selectedTile,
             clickPath,
             delegatedBgClickBound,
-            handlerSelectors: handlerSelectors.slice(0, 20),
+            handlerSelectors: handlerSelectors,
             startupEvidence,
             tileBox: { width: Math.round(tileBox.width), height: Math.round(tileBox.height) },
             // WHICH BRANCH THE HANDLER TOOK. `isChatBackgroundLocked()` reads `chat_metadata.bg`; a locked chat

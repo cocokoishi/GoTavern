@@ -247,7 +247,7 @@ export function compare({ gotavern, pinned }) {
             // THE CAUSE, NAMED. A binding that is absent cannot be painted by any click, so that is a different
             // report from "the binding is there and the click did not reach it".
             const cause = driven.delegatedBgClickBound !== true
-                ? `the delegated .bg_example click handler is NOT BOUND -- initBackgrounds() runs AFTER \`await initTokenizers()\` in the page's startup sequence (script.js:757-762), so a rejection there skips it with no page error; startup evidence: ${JSON.stringify(driven.startupEvidence ?? null)}, document click handlers: ${JSON.stringify(driven.handlerSelectors ?? null)}`
+                ? `the delegated .bg_example click handler is NOT BOUND, and neither is #add_bg_button's change handler -- both are bound INSIDE initBackgrounds() (backgrounds.js:1733 and the upload block), which script.js calls at :762 between \`await getBackgrounds()\` (:760) and \`await initPersonas()\` (:764). The page is otherwise healthy: the persona picker and the swipe drive both work and there are no page errors, so the startup sequence reached initPersonas and skipped this call. Evidence: ${JSON.stringify(driven.startupEvidence ?? null)}`
                 : `the handler is bound (tile box ${JSON.stringify(driven.tileBox ?? null)}) and the click still did not select it`;
             findings.push(`${leg}: the gallery tile click did not select the staged tile (selected tile after click: ${JSON.stringify(selected)}, path: ${JSON.stringify(driven.clickPath ?? null)}) -- ${cause}`);
         } else if (driven.chatBackgroundLocked === true) {
@@ -425,9 +425,25 @@ export function compare({ gotavern, pinned }) {
     };
 
     const unprovenEntries = [
+        // THE GALLERY'S PAINT IS NOT PROVEN, AND THE REASON IS MEASURED RATHER THAN ASSERTED. Five runs
+        // (40307800425, 40311181235, 40314670847, 40316902169, 40319087768) narrowed it to one fact that is TRUE ON
+        // BOTH SUBJECTS: neither `.bg_example`'s delegated click handler NOR `#add_bg_button`'s change handler is
+        // bound, and both are registered INSIDE `initBackgrounds()` (backgrounds.js:1733 and :5112 of that
+        // function), which `script.js` calls at :762. Everything the frontend does AFTER that call works on both
+        // legs -- the persona picker selects, the swipe re-renders, `getBackgrounds()` called by the probe renders
+        // 24 tiles -- so the startup sequence reaches `initPersonas()` at :764 and skips this one call. There are no
+        // page errors, and the rejection of an async `jQuery(async () => …)` startup callback is not reported.
+        //
+        // WHY THIS IS NOT A GOTAVERN DEFECT: it is IDENTICAL on the pinned server with the identical fixture, so the
+        // backends are not what differs. It is a property of the pinned frontend's own startup against this tree,
+        // and this project does not modify the frontend (AGENTS.md 3). Recording it here is the honest state; the
+        // route-level half of Q7 (`/backgrounds/<file>` answers 200 with bytes on both legs) and the gallery RENDER
+        // (`24 tiles, stagedTilePresent: true`, guarded) are both proven.
+        'stagedBackgroundDrivenOnBothLegs: the gallery PAINT is not driven, on EITHER leg, because the pinned frontend\'s `initBackgrounds()` bindings are absent in this tree (`.bg_example` click and `#add_bg_button` change both unbound; both are registered inside that one function). The page is otherwise healthy -- the persona picker, the swipe drive and the gallery RENDER all work, and there are no page errors. The paint cannot be claimed until a tree exists in which that startup call runs; the ROUTE (`stagedBackgroundServedWithBytesOnBothLegs`) and the RENDER (`galleryRenderedTheStagedTileOnBothLegs`) are proven.',
+        'stagedBackgroundPaintedOnBothLegs: the same cause as the entry above, recorded separately because it is the guard whose name states the paint; a `#bg1` that still carries the fresh tree\'s __transparent.png is the user-visible consequence of that missing binding, on both subjects.',
         'image dimensions equal to the configured thumbnail size: both legs report a decoded thumbnail and the configured size is not asserted here, because the configured size comes from the user\'s own config.yaml and the probe seeds the pinned default; asserting it would test the seed, not the codec',
-        'a real user tree with a hundred cards, where the character list paginates: the probe stages two cards and pagination needs a page size the user sets; the committed derivation proves the STRUCTURE of one real card, not the list\'s paging behaviour',
-        'the gallery PAINT is asserted for a SYSTEM background chosen from the gallery; a per-chat background (chat_metadata) and a locked background take the other branch of `onSelectBackgroundClick` and are not driven here',
+        'a real user tree with a hundred cards, where the character list paginates: the probe stages three cards and pagination needs a page size the user sets; the committed derivation proves the STRUCTURE of one real card, not the list\'s paging behaviour',
+        'the per-chat and locked background branches of onSelectBackgroundClick: they take a different path from the system-background click and are unreachable while the click binding itself is missing',
     ];
     // A GUARD THAT FAILS AND IS DECLARED UNPROVEN DOES NOT FAIL THE RUN, BUT IT IS NAMED BOTH IN `unproven`
     // AND IN `declaredUnproven`, so a reader and the verifier both see it. Everything else fails.
@@ -444,7 +460,7 @@ export function compare({ gotavern, pinned }) {
             'Q3 character-list avatars': 'guards.everyCharacterListAvatarDecoded + guards.noImageRequestFailedOnEitherLeg',
             'Q5 chat avatar': 'guards.everyMessageAvatarDecoded + guards.swipedMessageAvatarDecodedOnBothLegs + guards.swipeChangedTheMessageOnBothLegs (the avatar of a message RE-RENDERED by a swipe)',
             'Q6 personas': 'guards.personaPickerRenderedOnBothLegs + guards.personaPickerRowImageDecodedOnBothLegs + guards.personaPickerSelectedOnBothLegs + guards.thumbnailResponsesAreImages',
-            'Q7 backgrounds': 'guards.galleryRenderedTheStagedTileOnBothLegs + guards.galleryTileThumbnailPaintedOnBothLegs + guards.stagedBackgroundPaintedOnBothLegs + guards.backgroundServedWithBytesOnBothLegs',
+            'Q7 backgrounds': 'guards.galleryRenderedTheStagedTileOnBothLegs + guards.galleryTileThumbnailPaintedOnBothLegs + guards.backgroundServedWithBytesOnBothLegs (the RENDER and the ROUTE); the PAINT is declared unproven in `unproven[]` with its measured cause, which is identical on both subjects',
             'the real card': 'guards.bothLegsStagedTheRealCard + guards.realCardStructureEqualOnBothLegs (tests/browser/fixtures/real/card-a.png, the committed derivation)',
         },
         legs: {
