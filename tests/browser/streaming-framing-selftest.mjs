@@ -67,8 +67,8 @@ const relayedHop = () => ({
     releasedBytes: 2600, cutArmedResponses: 0, relayedWholeResponses: 2, gzipFramedResponses: 0,
 });
 const cutHop = () => ({
-    mode: 'cut', cutArmOnPath: '/chat/completions', cutAfterBytes: 300, cut: 'cut-after-bytes',
-    anyCut: 'cut-after-bytes', cutsPerformed: 1,
+    mode: 'cut-at-head', cutArmOnPath: '/chat/completions', cutAfterBytes: 0, cut: 'cut-at-head',
+    anyCut: 'cut-at-head', cutsPerformed: 1,
     bodyWriteCount: 4,
     bodyWrites: [{ bytes: 100, frames: 0 }, { bytes: 100, frames: 0 }, { bytes: 100, frames: 0 }],
     forwarded: [{ method: 'POST', path: '/chat/completions', bodyBytes: 7400, bodySha256: 'a'.repeat(64) }],

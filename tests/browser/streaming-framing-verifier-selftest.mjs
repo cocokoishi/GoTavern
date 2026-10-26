@@ -30,10 +30,10 @@ function healthy() {
     return {
         schemaVersion: 1,
         hop: {
-            mode: { direct: null, relayed: 'pass-through', abort: 'cut' },
+            mode: { direct: null, relayed: 'pass-through', abort: 'cut-at-head' },
             cutArmOnPath: '/chat/completions',
-            cut: { gotavern: 'cut-after-bytes', pinned: 'cut-after-bytes' },
-            anyCut: { gotavern: 'cut-after-bytes', pinned: 'cut-after-bytes' },
+            cut: { gotavern: 'cut-at-head', pinned: 'cut-at-head' },
+            anyCut: { gotavern: 'cut-at-head', pinned: 'cut-at-head' },
             cutsPerformed: { gotavern: 1, pinned: 1 },
             relayedCut: { gotavern: null, pinned: null },
             cutAfterFrames: 3,

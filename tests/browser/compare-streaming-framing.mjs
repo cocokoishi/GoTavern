@@ -234,7 +234,8 @@ function abortSurface(gotavern, pinned, baseline) {
         // nyCut IS THE DURABLE FACT: cut belongs to the request being served and a later request on the
         // same connection clears it. Measured twice (runs 40314154794, 40316734219) where cut was null
         // beside 533 released bytes, so the guard reads the fact that cannot be overwritten.
-        gvHop.mode === 'cut' && pnHop.mode === 'cut' && gvHop.anyCut === 'cut-after-bytes' && pnHop.anyCut === 'cut-after-bytes');
+        gvHop.mode === 'cut-at-head' && pnHop.mode === 'cut-at-head'
+            && gvHop.anyCut === 'cut-at-head' && pnHop.anyCut === 'cut-at-head');
     // THE CUT LANDED ON THE COMPLETION, not on the frontend's reachability check: the hop relays every
     // other response whole, and both legs must show that it did.
     guard('hopRelayedTheReachabilityCheckWhole',

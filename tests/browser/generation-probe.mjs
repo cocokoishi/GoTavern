@@ -244,7 +244,7 @@ const streamingModeOrAbort = streamingMode || abortMode;
 // schedule cannot support a claim about a subject, so it is gone rather than dressed up. See
 // tests/browser/streaming-framing.mjs for the full reasoning.
 const hopModeSetting = process.env.PROBE_NETWORK_HOP ?? '';
-const hopMode = hopModeSetting === HOP_MODES.CUT || hopModeSetting === HOP_MODES.PASS_THROUGH
+const hopMode = hopModeSetting === HOP_MODES.CUT || hopModeSetting === HOP_MODES.CUT_AT_HEAD || hopModeSetting === HOP_MODES.PASS_THROUGH
     ? hopModeSetting
     : null;
 if (hopModeSetting && !hopMode) {
@@ -554,7 +554,7 @@ function framesToBytes(frames, protocol) {
         })}\n\n`;
     return Buffer.byteLength(sample, 'utf8') * frames;
 }
-const cutAfterBytes = abortMode && hopMode === HOP_MODES.CUT ? framesToBytes(cutAfterFrames, peerProtocol) : 0;
+const cutAfterBytes = abortMode && (hopMode === HOP_MODES.CUT || hopMode === HOP_MODES.CUT_AT_HEAD) ? framesToBytes(cutAfterFrames, peerProtocol) : 0;
 // THE HOP GOES IN FRONT OF THE PEER, BEFORE ANYTHING IS AIMED AT IT. Every aim step below reads
 // `mockAddress` -- the seams, the redirect file and the page's own custom_url/reverse_proxy -- so one
 // reassignment moves the whole leg behind the hop and there is no second place the peer's address is

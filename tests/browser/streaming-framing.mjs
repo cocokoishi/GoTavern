@@ -56,6 +56,18 @@ export const HOP_MODES = {
     PASS_THROUGH: 'pass-through',
     /** Relay `cutAfterBytes` of the upstream body, then close both sockets mid-stream. */
     CUT: 'cut',
+    /**
+     * Write the status line and the headers, then close BOTH sockets before any body byte: the fault a middle
+     * produces when the connection dies after the response has begun. The subject sees a 200 with no body and a
+     * closed stream, which is the case the frontend's own error path is written for.
+     *
+     * WHY THIS MODE EXISTS. A cut INSIDE a record -- what `CUT` does -- lands before either frontend has a
+     * streamingProcessor, so NEITHER subject reaches its error path and both are left with the stop button up:
+     * measured, run 40322630841, identical on both subjects, with zero content states. That is parity of a
+     * hairpin, not "the same truncation and the same partial text", and there is no partial text to compare.
+     * A cut at the head of the body is the earliest point at which a reader has a RESPONSE to fail on.
+     */
+    CUT_AT_HEAD: 'cut-at-head',
 };
 
 /** Only a loopback upstream is allowed: a hop that can be aimed at a host is an egress path. */
@@ -152,6 +164,11 @@ export function startStreamingHop({ upstream, mode, cutAfterBytes = 0, cutArmOnP
                 const isEventStream = String(upstreamResponse.headers['content-type'] ?? '').toLowerCase().includes('text/event-stream');
                 const pathMatches = cutAfterPathMatches(clientRequest.url, cutArmOnPath);
                 state.reframedAsGzip = mode === HOP_MODES.CUT && pathMatches && isEventStream;
+                // THE HEAD-ONLY CUT: the status line and the headers go out, then BOTH sockets die before a body
+                // byte. `cutNow` is defined below, so this branch re-uses it through a local holder that is
+                // assigned in the same order the original code did -- the effect is that the subject sees a 200
+                // with a closed body, which is the earliest point a reader has a response to fail on.
+                const headOnlyCut = mode === HOP_MODES.CUT_AT_HEAD && pathMatches && isEventStream;
                 // THE HEADERS TRAVEL UNCHANGED, except the framing THIS hop owns: it re-chunks the body, and
                 // in cut mode it re-frames it as gzip, so the upstream content-length, content-encoding and
                 // transfer-encoding would all describe bytes the downstream reader will not see.
@@ -251,8 +268,17 @@ export function startStreamingHop({ upstream, mode, cutAfterBytes = 0, cutArmOnP
                 // frontend's own reachability check (GET /models) and the subject would never reach a
                 // connected state -- measured: the first draft armed every response, both subjects ended
                 // with `in flight: 1` and no stream at all, and the surface proved nothing about truncation.
-                const armed = mode === HOP_MODES.CUT && pathMatches && isEventStream;
+                const armed = (mode === HOP_MODES.CUT || mode === HOP_MODES.CUT_AT_HEAD) && pathMatches && isEventStream;
                 state.cutArmedResponses = (state.cutArmedResponses ?? 0) + (armed ? 1 : 0);
+
+                // THE HEAD-ONLY CUT ACTS BEFORE ANY BODY BYTE IS RELAYED. One write of nothing, then both ends
+                // die: the subject has a 200 and a closed body, and the peer is released. `releasedBytes` stays
+                // 0, which is the FACT this mode records -- a reader that sees 0 released bytes must conclude
+                // "the body never started" and not "the hop failed".
+                if (headOnlyCut) {
+                    cutNow('cut-at-head');
+                    return;
+                }
                 state.relayedWholeResponses = (state.relayedWholeResponses ?? 0) + (armed ? 0 : 1);
                 let released = 0;
                 upstreamResponse.on('data', chunk => {

@@ -91,7 +91,7 @@ export function recomputeFramingSurface(artifact, surface) {
     }
     return {
         ...common,
-        hopCutBothSubjectsMidStream: hop.mode?.abort === 'cut' && hop.anyCut?.gotavern === 'cut-after-bytes' && hop.anyCut?.pinned === 'cut-after-bytes',
+        hopCutBothSubjectsMidStream: hop.mode?.abort === 'cut-at-head' && hop.anyCut?.gotavern === 'cut-at-head' && hop.anyCut?.pinned === 'cut-at-head',
         hopRelayedTheReachabilityCheckWhole: (hop.cutArmedResponses?.gotavern ?? 0) >= 1 && (hop.cutArmedResponses?.pinned ?? 0) >= 1
             && (hop.relayedWholeResponses?.gotavern ?? 0) >= 1 && (hop.relayedWholeResponses?.pinned ?? 0) >= 1,
         hopFramedTheStreamSoTheCutIsDetectable: (hop.gzipFramedResponses?.gotavern ?? 0) >= 1 && (hop.gzipFramedResponses?.pinned ?? 0) >= 1,
@@ -174,8 +174,8 @@ export function streamingFramingSurface(ctx, artifact) {
         if ((artifact.hop?.releasedBytesUnderCut?.[leg] ?? 0) <= 0) {
             ctx.fail(`hop.releasedBytesUnderCut.${leg} is ${show(artifact.hop?.releasedBytesUnderCut?.[leg])}, so no body was released before the cut and nothing was truncated`);
         }
-        if (artifact.hop?.cut?.[leg] !== 'cut-after-bytes') {
-            ctx.fail(`hop.cut.${leg} is ${show(artifact.hop?.cut?.[leg])}, so the cut the abort surface is about did not happen to that subject`);
+        if (artifact.hop?.anyCut?.[leg] !== 'cut-at-head') {
+            ctx.fail(`hop.anyCut.${leg} is ${show(artifact.hop?.anyCut?.[leg])}, so the cut the abort surface is about did not happen to that subject`);
         }
     }
     // THE UNPROVEN LIST IS PART OF THE CLAIM. An artefact that declines to say what it does not cover reads
