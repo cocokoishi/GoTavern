@@ -28,6 +28,161 @@ export const PROSE_THRESHOLD_CHARS = 64;
 
 const sha256 = buffer => createHash('sha256').update(buffer).digest('hex');
 
+// --- the CARD's identity fields, in one place --------------------------------------------------
+//
+// The brief names them: "`name`, `creator`, `creator_notes`, `tags`, alternate greetings,
+// `character_book.name`, entry `comment`/`content`/`keys`, and the `extensions` label subtrees that the preset
+// work already found". The preset work's own lesson is that a predicate written from FIELD NAMES misses fields
+// a SCAN finds (`detect_regexes`, `groups[].{enable,disable}_group` were found by scanning the generated
+// fixture for the original names), so this list is the named set and the generator ADDITIONALLY sweeps the whole
+// document for the original strings afterwards: a field this list does not name is still refused by the sweep
+// rather than shipped.
+//
+// PATHS ARE RELATIVE TO THE v3 `data` OBJECT, with `_root` for the top level (a V3 card carries a same-value
+// copy of name/description/first_mes there, and a reader may take either). `*` is an array index or an object
+// key. `..*` is "any key at this depth" and is used where the pinned shape nests an object the list cannot name
+// ahead of time (`data.groups[].options[].{enable,disable}` is a map of option lists).
+//
+// `why` is written into the generator's manifest, because "why is THIS field replaced" is the question a
+// reviewer asks about a list like this, and a field replaced with no reason is how a fixture grows a hole.
+export const CARD_IDENTITY_FIELDS = [
+    { path: '_root.name', why: 'the character name, duplicated at the v3 root' },
+    { path: '_root.description', why: 'prose, duplicated at the v3 root' },
+    { path: '_root.personality', why: 'prose, duplicated at the v3 root' },
+    { path: '_root.scenario', why: 'prose, duplicated at the v3 root' },
+    { path: '_root.first_mes', why: 'prose, duplicated at the v3 root' },
+    { path: '_root.mes_example', why: 'prose, duplicated at the v3 root' },
+    { path: '_root.creatorcomment', why: 'the V1 author note at the root' },
+    { path: '_root.create_date', why: 'a build stamp that dates the card to its author' },
+    { path: 'name', why: 'the character name' },
+    { path: 'creator', why: 'the author handle' },
+    { path: 'creator_notes', why: 'the author note, which carries platforms, links and handles' },
+    { path: 'tags.*', why: 'tags name the source, the fandom and often the author' },
+    { path: 'character_version', why: 'versions are the author\'s own build label' },
+    { path: 'description', why: 'prose' },
+    { path: 'personality', why: 'prose' },
+    { path: 'scenario', why: 'prose' },
+    { path: 'first_mes', why: 'prose' },
+    { path: 'mes_example', why: 'prose' },
+    { path: 'post_history_instructions', why: 'prose' },
+    { path: 'system_prompt', why: 'prose' },
+    { path: 'alternate_greetings.*', why: 'prose, one entire greeting per entry' },
+    { path: 'group_only_greetings.*', why: 'prose' },
+    { path: 'character_book.name', why: 'the lorebook title, usually the character or the author\'s project' },
+    { path: 'character_book.description', why: 'prose' },
+    { path: 'character_book.entries.*.comment', why: 'an entry title, written by the author' },
+    { path: 'character_book.entries.*.content', why: 'prose, the largest prose population in a real card' },
+    { path: 'character_book.entries.*.keys.*', why: 'trigger keys quote the character and the author\'s world' },
+    { path: 'character_book.entries.*.secondary_keys.*', why: 'the same, secondary' },
+    { path: 'character_book.entries.*.name', why: 'a V2 entry may carry a name' },
+    // The label subtrees the PRESET work found, transplanted: both real cards carry
+    // `data.extensions.tavern_helper`, and a helper script's own settings repeat the author's labels.
+    { path: 'extensions.tavern_helper.scripts.*.name', why: 'a helper script name: the preset work\'s name layer' },
+    { path: 'extensions.tavern_helper.scripts.*.info', why: 'the helper script\'s description field' },
+    // THE SCRIPT ID. A UUID is structure the helper keys on (`getScriptTrees` matches by id), so it is
+    // replaced byte-length-preserving rather than dropped; it is also an identity field the sweep found, because
+    // a UUID is unique to the author's build and a reader can search it.
+    { path: 'extensions.tavern_helper.scripts.*.id', why: 'a UUID unique to the author\'s build, found by the survivor sweep' },
+    { path: 'extensions.tavern_helper.scripts.*.button.buttons.*.name', why: 'button.buttons[].name, the label layer the preset work found' },
+    { path: 'extensions.tavern_helper.scripts.*.data.title', why: 'data.title, the label layer the preset work found' },
+    { path: 'extensions.tavern_helper.scripts.*.data.script_button_name', why: 'data.script_button_name, same layer' },
+    { path: 'extensions.tavern_helper.scripts.*.data.summary.generation.detect_regexes.*', why: 'the deep label layer the preset work found by SCANNING, not by naming' },
+    { path: 'extensions.tavern_helper.scripts.*.data.groups.*.options.*..*.*', why: 'the deep label layer: data.groups[].options[].{enable,disable}[] option labels' },
+    { path: 'extensions.tavern_helper.scripts.*.data.groups.*.enable_group.*', why: 'the deep label layer: data.groups[].enable_group[]' },
+    { path: 'extensions.tavern_helper.scripts.*.data.groups.*.disable_group.*', why: 'the deep label layer: data.groups[].disable_group[]' },
+    { path: 'extensions.tavern_helper.scripts.*.content', why: 'a helper script body: kept valid JavaScript at the same byte length' },
+    { path: 'extensions.regex_scripts.*.scriptName', why: 'a regex script name' },
+    { path: 'extensions.regex_scripts.*.replaceString', why: 'the regex replacement text, written by the author' },
+    { path: 'extensions.regex_scripts.*.findRegex', why: 'a find pattern that quotes the author\'s names and prose' },
+    // THE FIELDS THE SWEEP FOUND, which the named list did not. This is exactly the preset work's lesson: a
+    // predicate written from the brief's field names misses the fields that carry identity in practice, and only
+    // scanning the derived bytes for the original strings finds them. Measured on the two audited cards:
+    //   * `extensions.world` is the LINKED WORLD BOOK's name -- card A's is `[REDACTED_WORLD_BOOK]`,
+    //     the card's own title, and it survived into the derived bytes;
+    //   * `extensions.odysseia_trace` is an encrypted trace blob (both cards carry one, `{v,kid,nonce,
+    //     ciphertext}`) whose ciphertext is opaque but whose presence names the tool the author used. It is
+    //     replaced whole, byte-length-preserving, because a ciphertext that decrypts to the author's data is
+    //     the worst possible thing to ship;
+    //   * a regex script's `id` EMBEDS THE AUTHOR'S HANDLE: card B's first script id is
+    //     `[REDACTED_HANDLE]`. An id is structure the frontend keys on, so it is replaced with a
+    //     marker of the same length rather than dropped.
+    { path: 'extensions.world', why: 'the linked world book\'s name, which is the card\'s own title' },
+    { path: 'extensions.depth_prompt.prompt', why: 'prose, the author-notebook depth prompt' },
+    { path: 'extensions.odysseia_trace.*', why: 'an encrypted trace blob: a ciphertext of the author\'s data' },
+    { path: 'extensions.regex_scripts.*.id', why: 'measured: card B\'s script id is `[REDACTED_HANDLE]`, a handle' },
+];
+
+/** Does `path` (a `data`-relative dotted path, `_root` for the top level) match an identity pattern? */
+export function cardIdentityFieldFor(path) {
+    // BOTH SPELLINGS ARE ACCEPTED, and that is deliberate rather than convenient: the list is `data`-relative
+    // (`name`), the walker naturally carries `data` as its first segment (`data.name`), and the CARD's chunk
+    // JSON is `{spec, spec_version, name, ..., data: {name, ...}}` -- so `name` at the ROOT is a real field, and
+    // a function that silently accepted `data.name` as `name` would replace the root copy while believing it
+    // had replaced the `data` copy (or not at all). The rule: an `_root.` prefix addresses the root, ANY OTHER
+    // path addresses `data`, and a bare `name` therefore means `data.name` (the first version of this function
+    // returned null for every `data.`-prefixed path, so a 19 MB card would have shipped with the user's name in
+    // it -- the self-test caught it before the build, which is the only reason it is a comment and not a leak).
+    //
+    // THE `_root.` FORM IS TRIED TWICE, AND THE SECOND TRY IS A MEASURED FIX. A non-card chunk's JSON (measured:
+    // `trAc`, `{ciphertext,kid,nonce,v}`) is walked rooted at `_root.extensions.odysseia_trace`, so its paths are
+    // `_root.extensions.odysseia_trace.ciphertext`; the list names `extensions.odysseia_trace.*`, which is a
+    // `data`-relative pattern. The first version therefore matched NOTHING for that chunk, the chunk was written
+    // back with its original bytes, and the survivor sweep named the author's ciphertext -- which is exactly the
+    // leak the sweep exists to catch. So `_root.extensions.…` is ALSO matched against the `extensions.…` patterns,
+    // and `_root.name` stays matched only by the explicit `_root.name` entry so the root copy cannot silently
+    // fall through to the `data` rule.
+    const candidates = [];
+    if (path.startsWith('_root.extensions.')) {
+        candidates.push(path, path.slice('_root.'.length));
+    } else if (path.startsWith('_root.')) {
+        candidates.push(path);
+    } else {
+        candidates.push(path.replace(/^data\./, ''));
+    }
+    for (const candidate of candidates) {
+        for (const field of CARD_IDENTITY_FIELDS) {
+            if (cardPathMatches(field.path, candidate)) return field;
+        }
+    }
+    return null;
+}
+
+function cardPathMatches(pattern, path) {
+    const patternParts = pattern.split('.');
+    const pathParts = path.split('.');
+    // A NON-FIELD PATH IS NEVER A FIELD. `keys.length`, `tags.length` and every `.constructor`-style path are
+    // traversals a document walker does not take, but a hand-written path passed in from outside could name
+    // one, and replacing the number stored at `keys.length` would not be replacing the keys. Named ONCE here
+    // rather than in every caller.
+    if (INHERITED_ACCESSORS.has(pathParts[pathParts.length - 1])) return false;
+    // THE GREEDY SEGMENT IS `..*`, WHICH `split('.')` PRODUCES AS AN EMPTY PART FOLLOWED BY `*`. Written
+    // `groups.*.options.*..*.*` the pattern splits to `[...,'options','*','','*','*']`, so the greedy point is
+    // at index `i` where `parts[i] === ''` and `parts[i+1] === '*'`; `indexOf('..*')` never matches (the first
+    // version used it, so the greedy rule matched nothing and the self-test reported "the rule is dead" -- which
+    // is exactly the report a dead rule should produce). `..*` means ONE OR MORE path segments.
+    const emptyAt = patternParts.findIndex((part, index) => part === '' && patternParts[index + 1] === '*');
+    if (emptyAt >= 0) {
+        const head = patternParts.slice(0, emptyAt);
+        const tail = patternParts.slice(emptyAt + 2);
+        if (pathParts.length < head.length + tail.length + 1) return false;
+        for (let index = 0; index < head.length; index += 1) {
+            if (head[index] !== '*' && head[index] !== pathParts[index]) return false;
+        }
+        for (let index = 0; index < tail.length; index += 1) {
+            const patternPart = tail[tail.length - 1 - index];
+            const pathPart = pathParts[pathParts.length - 1 - index];
+            if (patternPart !== '*' && patternPart !== pathPart) return false;
+        }
+        return true;
+    }
+    if (patternParts.length !== pathParts.length) return false;
+    return patternParts.every((part, index) => part === '*' || part === pathParts[index]);
+}
+
+// Path segments that are OBJECT INTRINSICS, never a field a card carries. `keys.length` is the number of keys,
+// and replacing it would either throw or produce a document whose array length disagrees with its contents.
+const INHERITED_ACCESSORS = new Set(['length', 'constructor', '__proto__', 'prototype', 'toString', 'valueOf']);
+
 // A deterministic projection of prompt_order: group ids in order, and for each group the ordered list of
 // (identifier, enabled) rows. Identifiers only -- no prose -- so the digest is stable across desensitising
 // and can be compared between the original and the fixture.

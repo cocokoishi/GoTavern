@@ -92,5 +92,380 @@
       }
     }
   ],
-  "cards": []
+  "cards": [
+    {
+      "name": "card-a",
+      "file": "card-a.png",
+      "bytes": 18506908,
+      "sha256": "9f4f08341676538a6af8197b7b54a62a727cb969c59fcdba98a32c5b94f77106",
+      "origin": {
+        "bytes": 19093535,
+        "sha256": "b1fb70b3b1681cc2012c5d351544a62ee8f7e769ac03fefae737b05acdf198bd"
+      },
+      "replaced": {
+        "namesReplaced": 4659,
+        "scriptsReplaced": 0,
+        "scriptBytesReplaced": 0,
+        "replacedPaths": {
+          "_root.name": 2,
+          "_root.first_mes": 2,
+          "name": 2,
+          "first_mes": 2,
+          "creator": 2,
+          "alternate_greetings.*": 10,
+          "extensions.world": 2,
+          "extensions.regex_scripts.*.id": 22,
+          "extensions.regex_scripts.*.scriptName": 22,
+          "extensions.regex_scripts.*.findRegex": 22,
+          "extensions.regex_scripts.*.replaceString": 22,
+          "extensions.tavern_helper.scripts.*.name": 2,
+          "extensions.tavern_helper.scripts.*.id": 2,
+          "extensions.tavern_helper.scripts.*.content": 2,
+          "extensions.tavern_helper.scripts.*.button.buttons.*.name": 14,
+          "extensions.odysseia_trace.*": 9,
+          "character_book.entries.*.comment": 980,
+          "character_book.entries.*.content": 954,
+          "character_book.entries.*.keys.*": 2542,
+          "character_book.entries.*.secondary_keys.*": 40,
+          "character_book.name": 2,
+          "_root.create_date": 2
+        },
+        "identityFields": [
+          {
+            "path": "_root.name",
+            "why": "the character name, duplicated at the v3 root",
+            "replaced": 2
+          },
+          {
+            "path": "_root.description",
+            "why": "prose, duplicated at the v3 root",
+            "replaced": 0
+          },
+          {
+            "path": "_root.personality",
+            "why": "prose, duplicated at the v3 root",
+            "replaced": 0
+          },
+          {
+            "path": "_root.scenario",
+            "why": "prose, duplicated at the v3 root",
+            "replaced": 0
+          },
+          {
+            "path": "_root.first_mes",
+            "why": "prose, duplicated at the v3 root",
+            "replaced": 2
+          },
+          {
+            "path": "_root.mes_example",
+            "why": "prose, duplicated at the v3 root",
+            "replaced": 0
+          },
+          {
+            "path": "_root.creatorcomment",
+            "why": "the V1 author note at the root",
+            "replaced": 0
+          },
+          {
+            "path": "_root.create_date",
+            "why": "a build stamp that dates the card to its author",
+            "replaced": 2
+          },
+          {
+            "path": "name",
+            "why": "the character name",
+            "replaced": 2
+          },
+          {
+            "path": "creator",
+            "why": "the author handle",
+            "replaced": 2
+          },
+          {
+            "path": "creator_notes",
+            "why": "the author note, which carries platforms, links and handles",
+            "replaced": 0
+          },
+          {
+            "path": "tags.*",
+            "why": "tags name the source, the fandom and often the author",
+            "replaced": 0
+          },
+          {
+            "path": "character_version",
+            "why": "versions are the author's own build label",
+            "replaced": 0
+          },
+          {
+            "path": "description",
+            "why": "prose",
+            "replaced": 0
+          },
+          {
+            "path": "personality",
+            "why": "prose",
+            "replaced": 0
+          },
+          {
+            "path": "scenario",
+            "why": "prose",
+            "replaced": 0
+          },
+          {
+            "path": "first_mes",
+            "why": "prose",
+            "replaced": 2
+          },
+          {
+            "path": "mes_example",
+            "why": "prose",
+            "replaced": 0
+          },
+          {
+            "path": "post_history_instructions",
+            "why": "prose",
+            "replaced": 0
+          },
+          {
+            "path": "system_prompt",
+            "why": "prose",
+            "replaced": 0
+          },
+          {
+            "path": "alternate_greetings.*",
+            "why": "prose, one entire greeting per entry",
+            "replaced": 10
+          },
+          {
+            "path": "group_only_greetings.*",
+            "why": "prose",
+            "replaced": 0
+          },
+          {
+            "path": "character_book.name",
+            "why": "the lorebook title, usually the character or the author's project",
+            "replaced": 2
+          },
+          {
+            "path": "character_book.description",
+            "why": "prose",
+            "replaced": 0
+          },
+          {
+            "path": "character_book.entries.*.comment",
+            "why": "an entry title, written by the author",
+            "replaced": 980
+          },
+          {
+            "path": "character_book.entries.*.content",
+            "why": "prose, the largest prose population in a real card",
+            "replaced": 954
+          },
+          {
+            "path": "character_book.entries.*.keys.*",
+            "why": "trigger keys quote the character and the author's world",
+            "replaced": 2542
+          },
+          {
+            "path": "character_book.entries.*.secondary_keys.*",
+            "why": "the same, secondary",
+            "replaced": 40
+          },
+          {
+            "path": "character_book.entries.*.name",
+            "why": "a V2 entry may carry a name",
+            "replaced": 0
+          },
+          {
+            "path": "extensions.tavern_helper.scripts.*.name",
+            "why": "a helper script name: the preset work's name layer",
+            "replaced": 2
+          },
+          {
+            "path": "extensions.tavern_helper.scripts.*.info",
+            "why": "the helper script's description field",
+            "replaced": 0
+          },
+          {
+            "path": "extensions.tavern_helper.scripts.*.id",
+            "why": "a UUID unique to the author's build, found by the survivor sweep",
+            "replaced": 2
+          },
+          {
+            "path": "extensions.tavern_helper.scripts.*.button.buttons.*.name",
+            "why": "button.buttons[].name, the label layer the preset work found",
+            "replaced": 14
+          },
+          {
+            "path": "extensions.tavern_helper.scripts.*.data.title",
+            "why": "data.title, the label layer the preset work found",
+            "replaced": 0
+          },
+          {
+            "path": "extensions.tavern_helper.scripts.*.data.script_button_name",
+            "why": "data.script_button_name, same layer",
+            "replaced": 0
+          },
+          {
+            "path": "extensions.tavern_helper.scripts.*.data.summary.generation.detect_regexes.*",
+            "why": "the deep label layer the preset work found by SCANNING, not by naming",
+            "replaced": 0
+          },
+          {
+            "path": "extensions.tavern_helper.scripts.*.data.groups.*.options.*..*.*",
+            "why": "the deep label layer: data.groups[].options[].{enable,disable}[] option labels",
+            "replaced": 0
+          },
+          {
+            "path": "extensions.tavern_helper.scripts.*.data.groups.*.enable_group.*",
+            "why": "the deep label layer: data.groups[].enable_group[]",
+            "replaced": 0
+          },
+          {
+            "path": "extensions.tavern_helper.scripts.*.data.groups.*.disable_group.*",
+            "why": "the deep label layer: data.groups[].disable_group[]",
+            "replaced": 0
+          },
+          {
+            "path": "extensions.tavern_helper.scripts.*.content",
+            "why": "a helper script body: kept valid JavaScript at the same byte length",
+            "replaced": 2
+          },
+          {
+            "path": "extensions.regex_scripts.*.scriptName",
+            "why": "a regex script name",
+            "replaced": 22
+          },
+          {
+            "path": "extensions.regex_scripts.*.replaceString",
+            "why": "the regex replacement text, written by the author",
+            "replaced": 22
+          },
+          {
+            "path": "extensions.regex_scripts.*.findRegex",
+            "why": "a find pattern that quotes the author's names and prose",
+            "replaced": 22
+          },
+          {
+            "path": "extensions.world",
+            "why": "the linked world book's name, which is the card's own title",
+            "replaced": 2
+          },
+          {
+            "path": "extensions.depth_prompt.prompt",
+            "why": "prose, the author-notebook depth prompt",
+            "replaced": 0
+          },
+          {
+            "path": "extensions.odysseia_trace.*",
+            "why": "an encrypted trace blob: a ciphertext of the author's data",
+            "replaced": 9
+          },
+          {
+            "path": "extensions.regex_scripts.*.id",
+            "why": "measured: card B's script id is `[REDACTED_HANDLE]`, a handle",
+            "replaced": 22
+          }
+        ],
+        "idat": {
+          "originalBytes": 589824,
+          "originalChunks": 1,
+          "derivedBytes": 3197,
+          "derivedChunks": 1,
+          "replacedWith": "a solid 512x768 8-bit image, colour type 6, 1573632 raw bytes deflated",
+          "reason": "the original picture is the author's art and is not part of the structure the leg needs; the manifest records its length so this cannot be mistaken for a picture fixture"
+        },
+        "preserved": {
+          "chunkSequence": [
+            {
+              "type": "IHDR",
+              "bytes": 13
+            },
+            {
+              "type": "IDAT",
+              "bytes": null
+            },
+            {
+              "type": "tEXt",
+              "bytes": 9251658
+            },
+            {
+              "type": "tEXt",
+              "bytes": 9251657
+            },
+            {
+              "type": "trAc",
+              "bytes": 303
+            },
+            {
+              "type": "IEND",
+              "bytes": 0
+            }
+          ],
+          "cardTextChunks": [
+            {
+              "type": "tEXt",
+              "keyword": "chara",
+              "originalBytes": 9251658,
+              "derivedBytes": 9251658,
+              "jsonBytes": 6938739,
+              "base64Chars": 9251652,
+              "preserved": true
+            },
+            {
+              "type": "tEXt",
+              "keyword": "ccv3",
+              "originalBytes": 9251657,
+              "derivedBytes": 9251657,
+              "jsonBytes": 6938739,
+              "base64Chars": 9251652,
+              "preserved": true
+            }
+          ],
+          "dimensions": {
+            "width": 512,
+            "height": 768
+          },
+          "atDepthEntriesNote": "per-entry position/depth fields are preserved untouched; only the prose inside them moved"
+        }
+      },
+      "profile": {
+        "alternateGreetings": 5,
+        "characterBookEntries": 490,
+        "atDepthEntries": 490,
+        "helperScripts": 1,
+        "regexScripts": 11,
+        "dataKeys": [
+          "alternate_greetings",
+          "character_book",
+          "character_version",
+          "creator",
+          "creator_notes",
+          "description",
+          "extensions",
+          "first_mes",
+          "group_only_greetings",
+          "mes_example",
+          "name",
+          "personality",
+          "post_history_instructions",
+          "scenario",
+          "system_prompt",
+          "tags"
+        ],
+        "strings": 4323,
+        "stringBytesDelta": null,
+        "chunkTypes": [
+          "IHDR",
+          "IDAT",
+          "tEXt",
+          "tEXt",
+          "trAc",
+          "IEND"
+        ],
+        "charaEqualsCcv3": true,
+        "truncatedForPublicRepository": true
+      }
+    }
+  ]
 }

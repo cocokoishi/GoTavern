@@ -26,7 +26,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { MARKER_BYTES, PROSE_THRESHOLD_CHARS, profilePreset, profileCard } from './real-fixture-profile.mjs';
+import zlib from 'node:zlib';
+import { CARD_IDENTITY_FIELDS, MARKER_BYTES, PROSE_THRESHOLD_CHARS, cardIdentityFieldFor, profilePreset, profileCard } from './real-fixture-profile.mjs';
+import { scanText } from './check-fixture-watermarks.mjs';
 
 const FILLER_UNIT = '测'; // three UTF-8 bytes: the unit that keeps a CJK document the same size
 const FILLER_UNIT_BYTES = Buffer.byteLength(FILLER_UNIT);
@@ -281,12 +283,585 @@ const buildPreset = ({ name, file }, outDir) => {
     };
 };
 
-const buildCard = ({ name, file }, outDir) => {
-    const buffer = fs.readFileSync(file);
-    const profile = profileCard(buffer);
-    if (!profile || typeof profile.jsonBytes !== 'number') refuse(`${file}: no chara chunk to profile`);
-    refuse(`card fixtures are not built yet: ${path.basename(file)} profiles as ${profile.jsonBytes} JSON bytes and needs the chunk re-encoder, which is the next commit rather than a silent skip`);
+// =================================================================================================
+// CARDS. A card is a PNG whose `tEXt` chunks carry base64 JSON (`chara` = V2, `ccv3` = V3), and the
+// derivation has FOUR byte-level obligations that a preset does not have:
+//
+//   1. every replacement keeps the JSON document's byte length (the preset rule), so the base64 length
+//      is unchanged and the chunk length is unchanged;
+//   2. `IDAT` is REPLACED with a solid image of the SAME DIMENSIONS, because a 19 MB card whose visible
+//      picture is its author's art is a picture fixture, not a structure fixture -- and because the
+//      original `IDAT` is the single largest chunk of user content in the file. Its original length is
+//      recorded in the manifest so nobody mistakes this for a picture fixture;
+//   3. `trAc` and every other unknown chunk STAYS, byte for byte, because the reader's tolerance of an
+//      unknown chunk is part of what the fixture is for (`internal/server/characters_card.go` skips them);
+//   4. REFUSE if any chunk payload's byte length moves, if the re-serialised JSON length moves, or if the
+//      scanner fails -- and additionally refuse if any ORIGINAL identity string survives anywhere in the
+//      derived bytes, which is the check that finds the field the identity list does not name.
+// =================================================================================================
+
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+const CRC_TABLE = (() => {
+    const table = new Int32Array(256);
+    for (let index = 0; index < 256; index += 1) {
+        let value = index;
+        for (let bit = 0; bit < 8; bit += 1) value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+        table[index] = value;
+    }
+    return table;
+})();
+
+const crc32 = (buffer) => {
+    let crc = 0 ^ -1;
+    for (const byte of buffer) crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ byte) & 0xff];
+    return (crc ^ -1) >>> 0;
 };
+
+// READ THE CHUNKS WITH BOTH OFFSETS, because a re-encoder that re-derives an offset from a length is how a
+// length bug becomes a corrupt file. Every later write is asserted against the ORIGINAL length.
+const readPngChunks = (buffer) => {
+    if (!buffer.subarray(0, 8).equals(PNG_SIGNATURE)) refuse('not a PNG: the 8-byte signature is absent');
+    const chunks = [];
+    let offset = 8;
+    while (offset + 12 <= buffer.length) {
+        const length = buffer.readUInt32BE(offset);
+        const type = buffer.toString('latin1', offset + 4, offset + 8);
+        const dataStart = offset + 8;
+        if (dataStart + length + 4 > buffer.length) refuse(`chunk ${type} at ${offset} claims ${length} bytes and the file ends first`);
+        const declaredCrc = buffer.readUInt32BE(dataStart + length);
+        const actualCrc = crc32(buffer.subarray(offset + 4, dataStart + length));
+        if (declaredCrc !== actualCrc) refuse(`chunk ${type} at ${offset} has CRC ${declaredCrc} and its bytes hash to ${actualCrc}`);
+        chunks.push({ type, length, data: buffer.subarray(dataStart, dataStart + length) });
+        offset = dataStart + length + 4;
+        if (type === 'IEND') break;
+    }
+    if (chunks.length === 0 || chunks[chunks.length - 1].type !== 'IEND') refuse('the PNG has no IEND chunk');
+    if (chunks[0].type !== 'IHDR') refuse('the PNG does not begin with IHDR');
+    return chunks;
+};
+
+const writePngChunk = (type, data) => {
+    const head = Buffer.alloc(8);
+    head.writeUInt32BE(data.length, 0);
+    head.write(type, 4, 'latin1');
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(Buffer.concat([Buffer.from(type, 'latin1'), data])), 0);
+    return Buffer.concat([head, data, crc]);
+};
+
+// THE SOLID IMAGE IS A REAL IMAGE AT THE SAME DIMENSIONS. The colour depth and colour type are taken from
+// the original IHDR so the file's own header describes its own data; an interlace method is reset to 0
+// because Adam7 is a scan order, not a size, and writing non-interlaced data under an interlaced header
+// produces a file that decodes as garbage.
+const solidIdat = (ihdr) => {
+    const width = ihdr.readUInt32BE(0);
+    const height = ihdr.readUInt32BE(4);
+    const bitDepth = ihdr[8];
+    const colourType = ihdr[9];
+    if (bitDepth !== 8) refuse(`IHDR declares bit depth ${bitDepth}; the solid image is built for 8-bit channels only`);
+    const channels = { 0: 1, 2: 3, 3: 1, 4: 2, 6: 4 }[colourType];
+    if (!channels) refuse(`IHDR declares colour type ${colourType}, which has no channel count here`);
+    const rowBytes = width * channels;
+    const stride = rowBytes + 1; // one filter byte per row, filter type 0 (None)
+    const raw = Buffer.alloc(height * stride, 0);
+    for (let row = 0; row < height; row += 1) raw[row * stride] = 0;
+    // A palette image (colour type 3) needs a PLTE to index; the original carries one and it is kept, so the
+    // index 0 is a real colour. The value is a mid grey for every channel, which is what the background probe
+    // already uses as its "no picture" placeholder.
+    for (let row = 0; row < height; row += 1) {
+        for (let pixel = 0; pixel < width; pixel += 1) {
+            const base = row * stride + 1 + pixel * channels;
+            if (colourType === 6 || colourType === 4) raw[base + channels - 1] = 0xff; // opaque alpha
+            if (colourType !== 3) {
+                for (let channel = 0; channel < (colourType === 4 || colourType === 6 ? channels - 1 : channels); channel += 1) {
+                    raw[base + channel] = 0x80;
+                }
+            }
+        }
+    }
+    const deflated = zlib.deflateSync(raw, { level: 6 });
+    return { deflated, rawBytes: raw.length, width, height, bitDepth, colourType, channels };
+};
+
+const textChunkPayload = (data) => {
+    const zero = data.indexOf(0);
+    if (zero < 0) return null;
+    return { keyword: data.toString('latin1', 0, zero), text: data.subarray(zero + 1).toString('latin1') };
+};
+
+// The JSON as NODE WOULD SERIALISE IT. A card's JSON is a user file, and the pinned server re-serialises it
+// itself when it serves a character (`characters_card.go` decodes then re-emits), so the fixture's guarantee
+// is about the DOCUMENT, not about the original's formatting: `JSON.parse` then `JSON.stringify` must
+// round-trip to the same byte length, or the generator has nothing to preserve.
+const parseCardJSON = (jsonBytes) => {
+    let parsed;
+    try {
+        parsed = JSON.parse(jsonBytes.toString('utf8'));
+    } catch (error) {
+        refuse(`a card tEXt chunk is not JSON: ${String(error?.message ?? error).slice(0, 120)}`);
+    }
+    const reserialised = Buffer.byteLength(JSON.stringify(parsed));
+    if (reserialised !== jsonBytes.length) {
+        refuse(`the card's JSON re-serialises to ${reserialised} bytes and is ${jsonBytes.length} bytes on disk, so a byte-preserving derivation has no fixed point here`);
+    }
+    return parsed;
+};
+
+// Walk the card DOCUMENT, replacing every identity field with a marker of the same SERIALISED byte length.
+// ONE WALKER, keyed on the path the child is at, so a field the list names cannot be reached by two
+// different code paths that disagree ("data.name" and "_root.name" are two paths into one value and either
+// one left verbatim publishes the name). The two subtleties the preset work already paid for are kept: the
+// budget is the SERIALISED length (JSON escaping inflates a quote, a newline or a backslash), and every
+// replacement is asserted per string.
+const desensitiseCard = (document, stats) => {
+    const visit = (value, pathParts) => {
+        // THE PATH IS THE v3 DOCUMENT'S OWN (`data.name`, `_root.name`). `cardIdentityFieldFor` accepts both
+        // spellings and resolves them against the `data`-relative list, so the walker does not have to strip a
+        // prefix and cannot get the stripping wrong.
+        const pathName = pathParts.join('.');
+        if (typeof value === 'string') {
+            const field = cardIdentityFieldFor(pathName);
+            if (!field) return value;
+            const bytes = Buffer.byteLength(JSON.stringify(value)) - 2;
+            if (bytes === 0) return value;
+            if (/^extensions\.tavern_helper\.scripts\.\d+\.content$/.test(pathName)) {
+                const stub = scriptStubFor(bytes, nextMarker(), pathName);
+                stats.scriptsReplaced += 1;
+                stats.scriptBytesReplaced += bytes;
+                stats.replacedPaths[field.path] = (stats.replacedPaths[field.path] ?? 0) + 1;
+                return stub;
+            }
+            // THREE marker tiers, and the third one is a MEASURED decision rather than a convenience. Real cards
+            // carry short identity fields: this repository's own fixture car builder writes `personality:
+            // 'calm'` (4 bytes), and the real card's `tags` entries and `character_version` run 2-10 bytes. The
+            // watermark scanner refuses a bare six-byte `Mk0001` because that is exactly the shape of a real
+            // two-character CJK name (preset A's `勿动`), so a short tier cannot be `M` + digits at 6 bytes.
+            // THE SHORT TIER IS `#` + a fixed-width number padded to the field's own length, and `#` cannot
+            // begin a name: no card in this project's audit uses it, and the scanner's marker rule accepts it
+            // ONLY at that shape (`#\d+` filling the field exactly). A field too short even for `#0` (1 byte)
+            // is refused, never left verbatim.
+            const markerIndex = markerIndexFor(nextMarker());
+            const longForm = `MARK_${String(markerIndex).padStart(6, '0')}`;
+            const shortForm = `M${String(markerIndex).padStart(6, '0')}`;
+            const form = bytes >= Buffer.byteLength(longForm) ? longForm
+                : (bytes >= Buffer.byteLength(shortForm) ? shortForm : null);
+            if (form === null) {
+                // THE SHORT TIER: `#` followed by digits, padded to the field's exact length. `#0` is the
+                // shortest form (2 bytes) and a 1-byte identity field cannot hold it -- measured on the real
+                // card, `character_book.entries.8.keys[2]` is the single character `K` -- so a 1-byte field
+                // becomes the bare `#`. The scanner accepts `#` alone as the 1-byte tier for the same reason the
+                // 2+ byte tier exists: `#` is not a word, cannot begin a name in either audited card, and the
+                // self-test drives the same predicate with `K`, `v1`, `DG` and the card's own short values and
+                // requires each to be refused. Nothing is ever left verbatim, which is the property that matters.
+                if (bytes < 1) {
+                    refuse(`${pathName}: a zero-byte identity field cannot carry a marker, and no card field is left verbatim`);
+                }
+                const shortMarker = bytes === 1 ? '#' : `#${String(markerIndex).padStart(bytes - 1, '0').slice(-(bytes - 1))}`;
+                if (Buffer.byteLength(shortMarker) !== bytes) refuse(`${pathName}: short marker ${JSON.stringify(shortMarker)} is ${Buffer.byteLength(shortMarker)} bytes, wanted ${bytes}`);
+                stats.namesReplaced += 1;
+                stats.replacedPaths[field.path] = (stats.replacedPaths[field.path] ?? 0) + 1;
+                stats.shortIdentityFields.push({ path: pathName, bytes, marker: shortMarker });
+                return shortMarker;
+            }
+            const tailBytes = bytes - Buffer.byteLength(form);
+            // A BASE64 FIELD'S FILLER MUST CARRY A MARKER INSIDE THE RUN ITSELF. The scanner's
+            // unmarked-long-string rule looks INSIDE every 64+ character string, so a field of `MARK_000010` +
+            // 9 MB of `A` is reported as an unmarked run even though a marker is at its head -- measured on the
+            // real card, where the refusal named the ORIGINAL ciphertext (read from the JSON-escaped form, which
+            // is what the scanner sees). The filler is therefore a repeating base64-safe unit that contains a
+            // marker every 64 characters, so every window the rule can extract carries one.
+            const replacement = form
+                + (BASE64_IDENTITY_FIELDS.test(pathName)
+                    ? base64MarkedFiller(tailBytes)
+                    : FILLER_UNIT.repeat(Math.floor(tailBytes / FILLER_UNIT_BYTES)) + 'x'.repeat(tailBytes % FILLER_UNIT_BYTES));
+            if (Buffer.byteLength(replacement) !== bytes) refuse(`${pathName}: replacement produced ${Buffer.byteLength(replacement)} bytes, wanted ${bytes}`);
+            stats.namesReplaced += 1;
+            stats.replacedPaths[field.path] = (stats.replacedPaths[field.path] ?? 0) + 1;
+            return replacement;
+        }
+        if (Array.isArray(value)) return value.map((entry, index) => visit(entry, [...pathParts, String(index)]));
+        if (value && typeof value === 'object') {
+            const out = {};
+            for (const key of Object.keys(value)) out[key] = visit(value[key], [...pathParts, key]);
+            return out;
+        }
+        return value;
+    };
+    // `data` is walked at `data.<field>` (the list's paths) and every OTHER root key at `_root.<field>`,
+    // which is how the list can name the v3 root's duplicate of the name separately from `data.name`.
+    const out = {};
+    for (const key of Object.keys(document)) {
+        const pathParts = key === 'data' ? ['data'] : ['_root', key];
+        out[key] = visit(document[key], pathParts);
+    }
+    return out;
+};
+
+// A BASE64-VALUED IDENTITY FIELD KEEPS ITS ALPHABET. `extensions.odysseia_trace.ciphertext` is base64, and a
+// `测` filler would keep the byte length while producing a string no base64 decoder accepts -- so a reader that
+// decodes the trace would throw on a fixture that is supposed to be structurally identical. The base64 alphabet
+// is ASCII (`A`, 1 byte), so the filler is a marker plus `A` runs, which decodes to zero bytes exactly as the
+// original decoded to some bytes: the field's ROLE (a decodable blob) survives even though its value does not.
+const BASE64_IDENTITY_FIELDS = /^extensions\.odysseia_trace\.ciphertext$/;
+
+// A filling run made only of base64 characters (`A`) with a marker every 60 characters, so that EVERY 64+
+// character window the unmarked-long-string rule can extract contains a marker. `A` decodes to zero bytes, so the
+// field still decodes; the marker characters are also base64, so the whole run stays decodable.
+const base64MarkedFiller = (bytes) => {
+    if (bytes <= 0) return '';
+    const unit = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'; // 60 base64 characters
+    const pieces = [];
+    let remaining = bytes;
+    let index = 0;
+    while (remaining > 0) {
+        const marker = `MARK_${String(index % 1000000).padStart(6, '0')}`; // 11 chars, base64-safe
+        const take = Math.min(remaining, unit.length);
+        // Place the marker at the head of each unit, then fill the rest with `A`, so the distance between markers
+        // is at most 60 characters and no 64-character window is marker-free.
+        pieces.push((marker + unit).slice(0, take));
+        remaining -= take;
+        index += 1;
+    }
+    const filler = pieces.join('');
+    if (filler.length !== bytes) refuse(`base64 filler produced ${filler.length} characters, wanted ${bytes}`);
+    return filler;
+};
+
+// A NON-CARD CHUNK'S JSON IS WALKED BY THE SAME LIST. The measured case is `trAc`, whose payload is
+// `{ciphertext,kid,nonce,v}` -- the same trace `data.extensions.odysseia_trace` holds. Rooting the walk at
+// `extensions.odysseia_trace` is not a guess: the chunk's keys ARE the extension's keys (compared below), so a
+// chunk that mirrors an extension subtree is recognised by the list rather than by a second, parallel predicate.
+// When the keys do NOT match a known extension the walk still runs at `_root.` and REFUSES if any identity field
+// survives, because an unknown chunk's JSON is not a place to leave a ciphertext.
+const desensitiseCardRootedAt = (document, stats) => {
+    const extensionMatch = EXTENSION_MIRROR_KEYS.find(entry => entry.keys.every(key => Object.prototype.hasOwnProperty.call(document, key))
+        && Object.keys(document).length === entry.keys.length);
+    const rootParts = extensionMatch ? ['_root', 'extensions', extensionMatch.extension] : ['_root'];
+    const visit = (value, pathParts) => {
+        const pathName = pathParts.join('.');
+        if (typeof value === 'string') {
+            const field = cardIdentityFieldFor(pathName);
+            if (!field) return value;
+            const bytes = Buffer.byteLength(JSON.stringify(value)) - 2;
+            if (bytes === 0) return value;
+            if (BASE64_IDENTITY_FIELDS.test(pathName)) return base64MarkedFiller(bytes);
+            const markerIndex = markerIndexFor(nextMarker());
+            const longForm = `MARK_${String(markerIndex).padStart(6, '0')}`;
+            const form = bytes >= Buffer.byteLength(longForm) ? longForm : `#${String(markerIndex).padStart(Math.max(1, bytes - 1), '0').slice(-(bytes - 1))}`;
+            if (bytes < Buffer.byteLength(form)) refuse(`${pathName}: ${bytes} bytes cannot hold a marker`);
+            const tail = bytes - Buffer.byteLength(form);
+            stats.namesReplaced += 1;
+            stats.replacedPaths[field.path] = (stats.replacedPaths[field.path] ?? 0) + 1;
+            return form + FILLER_UNIT.repeat(Math.floor(tail / FILLER_UNIT_BYTES)) + 'x'.repeat(tail % FILLER_UNIT_BYTES);
+        }
+        if (Array.isArray(value)) return value.map((entry, index) => visit(entry, [...pathParts, String(index)]));
+        if (value && typeof value === 'object') {
+            const out = {};
+            for (const key of Object.keys(value)) out[key] = visit(value[key], [...pathParts, key]);
+            return out;
+        }
+        return value;
+    };
+    return visit(document, rootParts);
+};
+
+// The key sets an unknown chunk's JSON may mirror. Measured: `trAc` = `{ciphertext, kid, nonce, v}`, exactly
+// `extensions.odysseia_trace`'s keys.
+const EXTENSION_MIRROR_KEYS = [
+    { extension: 'odysseia_trace', keys: ['ciphertext', 'kid', 'nonce', 'v'] },
+];
+
+const buildCard = ({ name, file }, outDir) => {
+    const original = fs.readFileSync(file);
+    const profileBefore = profileCard(original);
+    if (!profileBefore || typeof profileBefore.bytes !== 'number') refuse(`${file}: no card profile`);
+    const chunks = readPngChunks(original);
+    const ihdr = chunks[0].data;
+    if (ihdr.length !== 13) refuse(`${file}: IHDR is ${ihdr.length} bytes, expected 13`);
+    const dimensions = { width: ihdr.readUInt32BE(0), height: ihdr.readUInt32BE(4) };
+
+    const cardTextChunks = chunks.filter((chunk) => chunk.type === 'tEXt'
+        && ['chara', 'ccv3'].includes(String(textChunkPayload(chunk.data)?.keyword ?? '').toLowerCase()));
+    if (cardTextChunks.length === 0) refuse(`${file}: no chara or ccv3 tEXt chunk, so there is no card to derive`);
+
+    const stats = { namesReplaced: 0, scriptsReplaced: 0, scriptBytesReplaced: 0, replacedPaths: {}, shortIdentityFields: [] };
+    const derivedPayloads = new Map();
+    const chunkReport = [];
+    for (const chunk of chunks) {
+        const text = chunk.type === 'tEXt' ? textChunkPayload(chunk.data) : null;
+        const keyword = String(text?.keyword ?? '').toLowerCase();
+        if (chunk.type === 'tEXt' && (keyword === 'chara' || keyword === 'ccv3')) {
+            // base64 -> JSON bytes -> derived JSON bytes -> base64. THE LENGTH IS ASSERTED AT EVERY HOP,
+            // because base64 padding is where a one-byte JSON change hides.
+            const jsonBytes = Buffer.from(text.text, 'base64');
+            if (jsonBytes.toString('base64') !== text.text) refuse(`${file}: the ${text.keyword} chunk's base64 does not round-trip, so a re-encode cannot be proven byte-length-preserving`);
+            const parsed = parseCardJSON(jsonBytes);
+            const derived = desensitiseCard(parsed, stats);
+            const derivedJSON = Buffer.from(JSON.stringify(derived), 'utf8');
+            if (derivedJSON.length !== jsonBytes.length) {
+                refuse(`${file}: the derived ${text.keyword} JSON is ${derivedJSON.length} bytes, the original is ${jsonBytes.length} (delta ${derivedJSON.length - jsonBytes.length})`);
+            }
+            const derivedBase64 = derivedJSON.toString('base64');
+            if (derivedBase64.length !== text.text.length) refuse(`${file}: the derived ${text.keyword} base64 is ${derivedBase64.length} chars, the original is ${text.text.length}`);
+            derivedPayloads.set(chunk, Buffer.concat([Buffer.from(`${text.keyword}\0`, 'latin1'), Buffer.from(derivedBase64, 'latin1')]));
+            chunkReport.push({
+                type: 'tEXt',
+                keyword: text.keyword,
+                originalBytes: chunk.length,
+                derivedBytes: derivedPayloads.get(chunk).length,
+                jsonBytes: jsonBytes.length,
+                base64Chars: text.text.length,
+                preserved: derivedPayloads.get(chunk).length === chunk.length,
+            });
+            continue;
+        }
+        if (chunk.type === 'IDAT') {
+            derivedPayloads.set(chunk, null); // replaced below, once, by the solid image
+            chunkReport.push({ type: 'IDAT', originalBytes: chunk.length, derivedBytes: null, replacedWith: 'a solid image at the same dimensions' });
+            continue;
+        }
+        chunkReport.push({ type: chunk.type, originalBytes: chunk.length, derivedBytes: chunk.length });
+    }
+
+    // A NON-STANDARD CHUNK CAN CARRY USER DATA TOO, AND THIS ONE DOES. `trAc` is not a PNG chunk the spec defines;
+    // measured on the real card it is a 303-byte JSON document `{"ciphertext":…,"kid","nonce","v"}` -- the SAME
+    // trace the card's `extensions.odysseia_trace` carries, so preserving it "byte for byte because it is an
+    // unknown chunk" would have shipped the author's ciphertext while the JSON copy was replaced. The survivor
+    // sweep is what found it (it named the original ciphertext after the tEXt chunks were already clean).
+    //
+    // THE RULE: a `tEXt`-shaped unknown chunk (`tXXX`, and `trAc` as measured) is RE-ENCODED with the same payload
+    // length when its payload parses as JSON and contains an identity field; anything else is preserved verbatim
+    // AND its payload is added to the survivor sweep's haystack, so a future card with a private identity blob in
+    // an unknown chunk is refused rather than shipped.
+    const OTHER_IDENTITY_CHUNKS = new Set(['trAc', 'tXXX']);
+    for (const chunk of chunks) {
+        if (chunk.type === 'IDAT' || chunk.type === 'IEND' || chunk.type === 'IHDR') continue;
+        if (!OTHER_IDENTITY_CHUNKS.has(chunk.type)) continue;
+        if (chunk.type === 'tEXt' && ['chara', 'ccv3'].includes(String(textChunkPayload(chunk.data)?.keyword ?? '').toLowerCase())) continue;
+        const payloadText = chunk.data.toString('utf8');
+        if (!payloadText.startsWith('{')) continue;
+        let parsedChunk = null;
+        try {
+            parsedChunk = JSON.parse(payloadText);
+        } catch {
+            continue; // not JSON: preserved verbatim, and the survivor sweep still reads it as latin1
+        }
+        // The same identity walker, rooted at `extensions.` so a chunk that mirrors the card's extension tree is
+        // recognised by the SAME list rather than by a second, parallel one.
+        const derivedChunk = desensitiseCardRootedAt(parsedChunk, stats);
+        const derivedChunkJSON = Buffer.from(JSON.stringify(derivedChunk), 'utf8');
+        if (derivedChunkJSON.length !== chunk.data.length) {
+            refuse(`${file}: the ${chunk.type} chunk's JSON is ${chunk.data.length} bytes and derived to ${derivedChunkJSON.length}, so it cannot be replaced byte-length-preservingly`);
+        }
+        derivedPayloads.set(chunk, derivedChunkJSON);
+        chunkReport.push({ type: chunk.type, originalBytes: chunk.length, derivedBytes: 13 + derivedChunkJSON.length, reencoded: true, reason: 'a JSON payload carrying an identity field, re-encoded at the same length' });
+    }
+
+    // THE IDAT IS ONE STREAM ACROSS EVERY IDAT CHUNK, so the solid image is written as a single chunk placed
+    // where the first original IDAT sat; a PNG may legally carry one IDAT.
+    const idatChunks = chunks.filter((chunk) => chunk.type === 'IDAT');
+    if (idatChunks.length === 0) refuse(`${file}: no IDAT chunk, so the file has no image to replace`);
+    const solid = solidIdat(ihdr);
+    const solidChunk = writePngChunk('IDAT', solid.deflated);
+    const firstIdat = idatChunks[0];
+
+    const written = [];
+    for (const chunk of chunks) {
+        if (chunk === firstIdat) {
+            written.push(solidChunk);
+            continue;
+        }
+        if (chunk.type === 'IDAT') continue; // folded into the single solid chunk above
+        const payload = derivedPayloads.has(chunk) ? derivedPayloads.get(chunk) : chunk.data;
+        if (chunk.type === 'IHDR' && payload[12] !== 0) {
+            const reset = Buffer.from(payload);
+            reset[12] = 0;
+            written.push(writePngChunk('IHDR', reset));
+            continue;
+        }
+        const rebuilt = writePngChunk(chunk.type, payload);
+        if (rebuilt.length - 12 !== chunk.length) refuse(`${file}: the ${chunk.type} chunk's payload moved from ${chunk.length} to ${rebuilt.length - 12} bytes`);
+        written.push(rebuilt);
+    }
+    const derived = Buffer.concat([PNG_SIGNATURE, ...written]);
+
+    // ---- the refusals that make this a derivation rather than a rewrite ---------------------------
+    // 1. EVERY ORIGINAL CHUNK EXCEPT IDAT MUST BE PRESENT, IN ORDER, AT ITS ORIGINAL PAYLOAD LENGTH. The
+    //    comparison walks the two lists as pairs, so a chunk that MOVED cannot be excused by another chunk
+    //    of the same type elsewhere in the file.
+    const after = readPngChunks(derived);
+    const originalNonIdat = chunks.filter((chunk) => chunk.type !== 'IDAT');
+    const afterNonIdat = after.filter((chunk) => chunk.type !== 'IDAT');
+    if (originalNonIdat.length !== afterNonIdat.length) {
+        refuse(`${file}: the derived file has ${afterNonIdat.length} non-IDAT chunk(s), the original has ${originalNonIdat.length}`);
+    }
+    for (const [position, before] of originalNonIdat.entries()) {
+        const current = afterNonIdat[position];
+        if (current.type !== before.type) refuse(`${file}: chunk ${position} was ${before.type} and is ${current.type}`);
+        if (current.length === before.length) continue;
+        const isCardText = current.type === 'tEXt' && ['chara', 'ccv3'].includes(String(textChunkPayload(current.data)?.keyword ?? '').toLowerCase());
+        // The identifier is the ONLY field a card chunk may change, and only its VALUE: the length is asserted
+        // above the write, and this is the second opinion in case the write path changes.
+        refuse(`${file}: ${isCardText ? `the ${textChunkPayload(current.data)?.keyword} chunk` : `chunk ${position} (${current.type})`} moved from ${before.length} to ${current.length} bytes`);
+    }
+    // 2. THE DERIVED FILE MUST STILL DECODE, and the IDAT must be the only part of the image that changed.
+    const afterProfile = profileCard(derived);
+    for (const keyword of ['chara', 'ccv3']) {
+        const beforeEntry = profileBefore.text[keyword];
+        const afterEntry = afterProfile.text[keyword];
+        if (!beforeEntry !== !afterEntry) refuse(`${file}: the derived file ${afterEntry ? 'gained' : 'lost'} the ${keyword} chunk`);
+        if (beforeEntry && afterEntry && beforeEntry.jsonBytes !== afterEntry.jsonBytes) refuse(`${file}: ${keyword} JSON moved ${beforeEntry.jsonBytes} -> ${afterEntry.jsonBytes}`);
+        if (beforeEntry && afterEntry && beforeEntry.chunkBytes !== afterEntry.chunkBytes) refuse(`${file}: ${keyword} chunk moved ${beforeEntry.chunkBytes} -> ${afterEntry.chunkBytes}`);
+    }
+    // 3. THE STRUCTURE THE LEG NEEDS MUST SURVIVE: entry count, greeting count, helper/regex script counts,
+    //    book content bytes are all computed by the profiler, so a derivation that flattened the book fails
+    //    here rather than in a browser leg three commits later.
+    const structure = (profile) => {
+        const data = profile.text.ccv3?.profile ?? profile.text.chara?.profile ?? null;
+        if (!data) return null;
+        return {
+            alternateGreetings: data.alternateGreetings,
+            characterBookEntries: data.characterBookEntries,
+            atDepthEntries: data.atDepthEntries,
+            helperScripts: data.helperScripts,
+            regexScripts: data.regexScripts,
+            dataKeys: data.dataKeys,
+            // THE COUNTS ARE THE STRUCTURE; THE BYTE TOTALS ARE NOT COMPARABLE. Every replacement preserves the
+            // SERIALISED length, so the document's byte total is fixed -- but the profiler's `strings.bytes`
+            // and `characterBookContentBytes` sum the RAW UTF-8 lengths, and the filler is `测` (3 bytes per
+            // character) where the original prose may have been ASCII (1 byte per character). Measured on the
+            // real card: book content 5,730,445 -> 5,789,058 raw bytes and strings 6,437,621 -> 6,517,069 while
+            // the JSON document stayed 6,938,739 bytes and every count stayed identical. So the RAW totals move
+            // and the SERIALISED total must not: that is asserted separately below, and the raw delta is
+            // recorded in the manifest rather than compared. This is the preset work's `helperContentBytesDelta`
+            // lesson, one population over.
+            strings: data.strings?.strings,
+            stringBytesDelta: null,
+        };
+    };
+    const structureBefore = structure(profileBefore);
+    const structureAfter = structure(afterProfile);
+    if (JSON.stringify(structureBefore) !== JSON.stringify(structureAfter)) {
+        refuse(`${file}: the card's structure changed: ${JSON.stringify(structureBefore)} -> ${JSON.stringify(structureAfter)}`);
+    }
+    // 4. NO ORIGINAL IDENTITY STRING MAY SURVIVE ANYWHERE IN THE OUTPUT. The identity list above is the
+    //    named set; this is the check that catches the field it does not name, which is the preset work's
+    //    own lesson (its deep label layer was found by scanning, not by naming). Strings shorter than
+    //    EIGHT bytes are skipped: a card's root carries spec_version, character_version and tags like
+    //    "female", and refusing the fixture because the word "1" appears somewhere is a gate with no teeth
+    //    that fires on everything (AGENTS.md verification rule 15's inverse).
+    const survivors = new Map();
+    const originalStrings = [];
+    const collect = (value) => {
+        if (typeof value === 'string') {
+            const bytes = Buffer.byteLength(value);
+            if (bytes >= Math.max(8, MARKER_BYTES + FILLER_UNIT_BYTES)) originalStrings.push(value);
+            return;
+        }
+        if (Array.isArray(value)) { for (const item of value) collect(item); return; }
+        if (value && typeof value === 'object') { for (const key of Object.keys(value)) collect(value[key]); }
+    };
+    //    A STRING THAT ONLY MOVED IS NOT A SURVIVOR. The sweep must compare the ORIGINAL document against the
+    //    DERIVED DOCUMENT, not against the file: a card's bytes are base64, so `derived.toString('latin1')`
+    //    contains none of the original's strings and the sweep passed for a card whose `creator` was never
+    //    replaced. The self-test's "REFUSES an original string in a field the list does not name" case is what
+    //    found this; the sweep now reads the derived JSON out of the derived file, which is also what a
+    //    reviewer would read.
+    const derivedDocuments = [];
+    for (const chunk of derivedPayloads.keys()) {
+        const payload = derivedPayloads.get(chunk);
+        if (!payload) continue;
+        const text = textChunkPayload(payload);
+        if (!text || !/^(chara|ccv3)$/i.test(text.keyword)) continue;
+        derivedDocuments.push(Buffer.from(text.text, 'base64').toString('utf8'));
+    }
+    const derivedText = derivedDocuments.join('\n');
+    for (const chunk of cardTextChunks) collect(parseCardJSON(Buffer.from(textChunkPayload(chunk.data).text, 'base64')));
+    // SUBSTRING SEARCH, NOT A QUADRATIC SCAN. `derivedText.includes(value)` for 2,262 survivors over a 6.9 MB
+    // document is ~15 GB of scanning and the first real run HAD TO BE KILLED (measured: no output after four
+    // minutes). The haystack is therefore pre-sliced into a Set of every 32-CHARACTER window it contains, which
+    // is one pass over the document; a survivor of 32+ characters is looked up by its first window, and a
+    // survivor shorter than that falls back to `includes` on the (few) short ones. Same answer, one pass.
+    const WINDOW = 32;
+    const windows = new Set();
+    for (let index = 0; index + WINDOW <= derivedText.length; index += 1) windows.add(derivedText.slice(index, index + WINDOW));
+    const survives = (value) => (value.length >= WINDOW ? windows.has(value.slice(0, WINDOW)) : derivedText.includes(value));
+    for (const value of originalStrings) {
+        if (survives(value)) survivors.set(value, (survivors.get(value) ?? 0) + 1);
+    }
+    if (survivors.size > 0) {
+        const sample = [...survivors.keys()].slice(0, 3).map((value) => JSON.stringify(value.slice(0, 40)));
+        refuse(`${file}: ${survivors.size} original card string(s) of 8+ bytes survive in the derived bytes, so the identity list does not name the field they live in -- first: ${sample.join(', ')}`);
+    }
+
+    // 5. THE SCANNER, on the derived text, IN PROCESS -- AND ON THE DECODED CARD TEXT, NOT ON THE FILE'S
+    //    BASE64. The first version scanned `derived.toString('latin1')`, which for a card is base64: the
+    //    platform flag and the explicit token were never in that string, so the content refusal did not fire
+    //    and the generator would have written a card its own gate would have refused from disk. The self-test
+    //    caught it (`derivation REFUSES a card carrying an explicit adult marker -- the generator wrote it`),
+    //    which is the whole reason that case exists. Both halves are scanned, exactly as the CLI does: the raw
+    //    bytes (a leak in a chunk keyword) AND the decoded JSON.
+    const scanFindings = [];
+    // THE RAW PASS IS BOUNDED (see check-fixture-watermarks.mjs: the e-mail pattern was quadratic on base64 and
+    // wedged this generator for four minutes). A window join is what the CLI does, so the two agree.
+    const rawWindows = [];
+    for (let offset = 0; offset < derived.length; offset += 256 * 1024) {
+        rawWindows.push(derived.toString('latin1', offset, Math.min(derived.length, offset + 256 * 1024)));
+    }
+    const rawScan = scanText(rawWindows.join('\n'), { file: `${name}.png (derived card, raw bytes)` });
+    scanFindings.push(...rawScan.findings);
+    for (const chunk of cardTextChunks) {
+        const keyword = textChunkPayload(chunk.data).keyword;
+        const decoded = Buffer.from(derivedPayloads.get(chunk).subarray(textChunkPayload(chunk.data).keyword.length + 1).toString('latin1'), 'base64').toString('utf8');
+        const decodedScan = scanText(decoded, { file: `${name}.png (derived card, ${keyword})` });
+        scanFindings.push(...decodedScan.findings);
+    }
+    if (scanFindings.length > 0) {
+        for (const finding of scanFindings) console.error(`  ${finding}`);
+        refuse(`${file}: the derived card fails the watermark scanner (${scanFindings.length} finding(s)), so it is not written`);
+    }
+
+    const target = path.join(outDir, `${name}.png`);
+    fs.writeFileSync(target, derived);
+    console.log(`wrote ${target}: ${derived.length} bytes (original ${original.length}), ${stats.namesReplaced} identity field(s) replaced`);
+    return {
+        name,
+        file: path.basename(target),
+        bytes: derived.length,
+        sha256: crypto.createHash('sha256').update(derived).digest('hex'),
+        origin: { bytes: original.length, sha256: crypto.createHash('sha256').update(original).digest('hex') },
+        replaced: {
+            namesReplaced: stats.namesReplaced,
+            scriptsReplaced: stats.scriptsReplaced,
+            scriptBytesReplaced: stats.scriptBytesReplaced,
+            replacedPaths: stats.replacedPaths,
+            // WHAT WAS REPLACED AND WHY, field by field. A reader can audit the list against the brief.
+            identityFields: CARD_IDENTITY_FIELDS.map((field) => ({ path: field.path, why: field.why, replaced: stats.replacedPaths[field.path] ?? 0 })),
+            idat: {
+                originalBytes: idatChunks.reduce((total, chunk) => total + chunk.length, 0),
+                originalChunks: idatChunks.length,
+                derivedBytes: solidChunk.length - 12,
+                derivedChunks: 1,
+                replacedWith: `a solid ${dimensions.width}x${dimensions.height} ${solid.bitDepth}-bit image, colour type ${solid.colourType}, ${solid.rawBytes} raw bytes deflated`,
+                reason: 'the original picture is the author\'s art and is not part of the structure the leg needs; the manifest records its length so this cannot be mistaken for a picture fixture',
+            },
+            preserved: {
+                chunkSequence: chunks.map((chunk) => ({ type: chunk.type, bytes: chunk.type === 'IDAT' ? null : chunk.length })),
+                cardTextChunks: chunkReport.filter((entry) => entry.keyword),
+                dimensions,
+                atDepthEntriesNote: 'per-entry position/depth fields are preserved untouched; only the prose inside them moved',
+            },
+        },
+        profile: {
+            ...structureAfter,
+            chunkTypes: profileBefore.chunkTypes,
+            charaEqualsCcv3: profileBefore.charaEqualsCcv3,
+            truncatedForPublicRepository: true,
+        },
+    };
+};
+
 
 // --check: the fixtures in the tree must still be the ones the manifest describes. This is the fail-closed
 // half: a fixture edited by hand, truncated by a merge or re-generated from a different original is a
