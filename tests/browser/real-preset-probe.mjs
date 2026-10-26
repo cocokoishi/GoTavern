@@ -195,7 +195,6 @@ try {
     step('page-loaded', true);
 
     const ready = await page.evaluate(async () => {
-        const script = await import('./script.js');
         const started = performance.now();
         while (performance.now() - started < 60000) {
             if (script.settingsReady) return true;
@@ -290,8 +289,37 @@ try {
         && connection?.observed?.preset === presetName;
     step('connection-configured', connected, JSON.stringify(connection));
 
-    // 3. ONE SEND, and the peer records what actually reached the model backend.
-    if (connected && structureOk) {
+    // 3. OPEN A CHARACTER, then send. MEASURED in run 40259110733: every guard passed and the peer received
+    // ZERO requests, because a bare page has no character selected and the send controls are inert. The synthetic
+    // preset drive in the same run reached its peer because its kit selects a character and builds a chat first.
+    // Recorded before and after so the difference between "no chat" and "chat exists but the click did nothing"
+    // is visible in the artefact rather than inferred from a zero.
+    const beforeOpen = await page.evaluate(() => ({ messages: document.querySelectorAll('#chat .mes').length }));
+    const opened = await page.evaluate(async () => {
+        const selector = '#rm_print_characters_block .avatar[data-type="character"]';
+        const deadline = Date.now() + 30000;
+        while (Date.now() < deadline && !document.querySelector(selector)) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        const card = document.querySelector(selector);
+        if (!card) return { clicked: false, reason: 'no character card in the list' };
+        card.click();
+        return { clicked: true };
+    });
+    await page.waitForTimeout(2500);
+    const afterOpen = await page.evaluate(async () => {
+        const openai = await import('./scripts/openai.js');
+        return {
+            messages: document.querySelectorAll('#chat .mes').length,
+            chatLength: (window.SillyTavern?.getContext?.().chat ?? []).length,
+            characterChat: openai.characters?.[openai.this_chid]?.chat ?? null,
+        };
+    });
+    report.characterOpen = { before: beforeOpen, opened, after: afterOpen };
+    step('character-open', opened.clicked === true && afterOpen.messages > beforeOpen.messages, JSON.stringify(report.characterOpen));
+
+    // 4. ONE SEND, and the peer records what actually reached the model backend.
+    if (connected && structureOk && opened.clicked && afterOpen.messages > beforeOpen.messages) {
         await page.evaluate(async () => {
             const textarea = document.querySelector('#send_textarea');
             const button = document.querySelector('#send_but');
