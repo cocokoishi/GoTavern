@@ -705,6 +705,15 @@ try {
             control.dispatchEvent(new Event('change', { bubbles: true }));
             return control.value;
         };
+        // THE RELOAD RESETS THE SWITCH, NOT JUST THE URL. Run 40381923526 measured `second-turn-message-created`
+        // failing with `wroteMarker:false` and `chatLength` unchanged at 3: the first turn went through because
+        // `changeMainAPI('openai')` had been applied on THAT page, and the fresh page came back with the
+        // fresh-install default (`koboldhorde`) again -- so the second send took the Horde branch and appended
+        // nothing, exactly as the first turn did before d6e80f6. Re-applying it here is the same repair, not a
+        // new one.
+        const scriptForSwitch = await import('./script.js');
+        scriptForSwitch.changeMainAPI('openai');
+        set('#main_api', 'openai');
         set('#chat_completion_source', 'custom');
         set('#custom_api_url_text', url);
         set('#custom_model_id', model);
