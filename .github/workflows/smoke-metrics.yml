@@ -127,3 +127,67 @@ jobs:
         if: always()
         run: |
           if [ -s smoke-metrics.json ]; then cat smoke-metrics.json; else echo "no record was written"; fi
+
+  # Q22: THE SAME MEASUREMENT FOR BOTH BACKENDS, IN ONE RUN. The job above records GoTavern alone and explains why
+  # nothing but the cold-start ceiling is asserted. That reasoning is why a single-sided number cannot answer
+  # GOAL 11: a paired median from the same runner, minutes apart, is what a "faster"/"smaller" claim may cite --
+  # and this job asserts only that both subjects answered in every round and produced the same sample counts.
+  paired-linux-amd64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # The pinned checkout both sides need: GoTavern serves the frontend from it in this harness, and the
+      # benchmark boots pinned Node from the same tree so the frontend is not a variable.
+      - uses: actions/checkout@v4
+        with:
+          repository: SillyTavern/SillyTavern
+          ref: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
+          path: .reference/SillyTavern
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install the pinned dependencies
+        run: |
+          set -eu
+          cd .reference/SillyTavern
+          npm ci --no-audit --no-fund
+
+      - name: Build the release binary
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -eu
+          mkdir -p paired-work/install/src
+          go build -trimpath -ldflags="-s -w -X main.version=paired-${GITHUB_RUN_ID}" -o paired-work/install/gotavern ./cmd/gotavern
+          # THE TOKENIZER TREE IS PART OF THE PRODUCT, NOT OPTIONAL. With it absent the tokenizer routes take
+          # the pinned FALLBACK path -- a different behaviour and a different memory footprint -- so the paired
+          # benchmark would compare pinned Node against a product that is not the one we ship.
+          cp LICENSE THIRD_PARTY_NOTICES.txt paired-work/install/
+          cp -R upstream/tokenizers paired-work/install/src/tokenizers
+          test -x paired-work/install/gotavern
+          test -d paired-work/install/src/tokenizers
+
+      - name: Measure both backends in alternating rounds
+        env:
+          GOTAVERN_BINARY: paired-work/install/gotavern
+        run: |
+          set -eu
+          node tests/perf/q22-paired-benchmark.mjs --rounds 3 --requests 30
+          cat tests/perf/q22-paired-benchmark.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: q22-paired-benchmark
+          path: tests/perf/q22-paired-benchmark.json
+          retention-days: 30
+          if-no-files-found: warn
