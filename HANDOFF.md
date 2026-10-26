@@ -185,6 +185,21 @@ Two driver defects cost this lane two rounds and are worth remembering: `getCont
 `TavernHelper` member (the child iframe's accessor is `window.SillyTavern.getContext()`, installed by
 `iframe/predefine.js`), and a just-clicked character has a greeting PREVIEW and no chat, so
 `createChatMessages` had nothing to write into.
+**The provider-wire differential closes on all 220 scenarios — 2026-10-26.** `GoTavern CI` 40398345829 (`lane/ai21-auth`,
+oracle run to completion in 52 minutes, `oracle` step success) logged `differential closed for` 220 times, once per
+scenario, including `ai21-empty-placeholder` which had failed every previous full sweep.
+
+It took FOUR declared transport differences to get there, and every one of them is required by
+`tests/e2e/deepseek_generate_test.go:449-482`, which asserts the production transport's fingerprint: `accept-encoding`
+exactly `gzip`, NO `Connection`, canonical `Content-Type` casing, and — the fourth — names canonicalised by net/http
+where node-fetch writes them lowercase. A previous lane tried to "fix" the first of these by making the PRODUCT send
+`Connection: close`; that test rejected the change and the lane was deleted.
+
+THREE findings on the way were real defects in the HARNESS, not the product, and each is now committed:
+a credential written to the artefact in the clear because the redaction compared `'authorization'` to `Authorization`
+(case); a failing capture that never survived the run (written after the assertion, in a mkdtemp the runner deletes,
+and never uploaded); and an assertion that reported `saw authorization undefined` for a request that carried the
+correct `Bearer` value. The GoTavern header `Authorization: Bearer synthetic-ai21-key` was right from the first run.
 **Q22 (a paired, soaked benchmark of both backends) — MEASURED 2026-10-26, and here is exactly what it may be cited for.**
 `GoTavern smoke metrics` 40394799325 (boot/RSS/latency) and 40396669521 (the same plus a ten-minute soak on each
 subject), job `paired-linux-amd64`, runner image `ubuntu26`. Three alternating rounds plus a bounded soak, both
