@@ -344,29 +344,14 @@ try {
             window.__q20Subscribed = true;
             for (const name of Object.values(events.event_types)) {
                 try {
-    // WHO THROWS INSIDE Generate. `EventEmitter.emit` awaits each listener and CATCHES a throw
-    // (public/lib/eventemitter.js:145-151), so Generate resolves as if it ran while no message is appended and no
-    // provider request is made. The wrapper records, per emission, which listener index threw and with what stack --
-    // the one measurement that separates "a drive/extension listener threw" from "the product threw".
-    events.emitDiagnostics = [];
-    window.__q20EmitDiagnostics = events.emitDiagnostics;
-    const originalEmit = events.eventSource.emit.bind(events.eventSource);
-    events.eventSource.emit = async function (event, ...rest) {
-        const listeners = this.events?.[event];
-        if (!Array.isArray(listeners) || listeners.length === 0) return originalEmit(event, ...rest);
-        const record = { event, listeners: listeners.length, threw: [] };
-        events.emitDiagnostics.push(record);
-        if (events.emitDiagnostics.length > 40) events.emitDiagnostics.shift();
-        for (let index = 0; index < listeners.length; index++) {
-            try {
-                await listeners[index].apply(this, rest);
-            } catch (error) {
-                record.threw.push({ index, message: String(error && error.message || error), stack: String(error && error.stack || '') });
-            }
-        }
-        if (this.autoFireAfterEmit?.has(event)) this.autoFireLastArgs.set(event, rest);
-        return true;
-    };
+    // I WITHDREW THE `emit` WRAPPER THAT USED TO LIVE HERE. It recorded which listener threw, and it also BROKE
+    // THE PRODUCT: run 40349251805 measured `Error saving settings: TypeError: Cannot read properties of undefined
+    // (reading 'push') at events.eventSource.emit (…), script.js:8111` on every settings save, because the wrapper
+    // reimplemented `emit` against a `this` that is not always the emitter. That is the worst class of harness defect:
+    // the instrument changed the subject. The lesson is written down rather than merely fixed -- a probe may OBSERVE
+    // the event bus, never reimplement it (AGENTS 58). The attribution this wrapper was built for now comes from
+    // `consoleDiagnostics` below, which carries the pinned emitter's own `console.error(err)` +
+    // `console.trace('Error in event listener')` in full, with the url:line they were logged from.
                     events.eventSource.on(name, () => record(`event:${name}`, { chatLength: (script.chat ?? []).length, lastIsUser: (script.chat ?? [])[script.chat.length - 1]?.is_user === true }));
                 } catch {
                     // an event name the bus refuses is not a finding about the product
@@ -376,7 +361,6 @@ try {
         return { armed: true, href: String(window.location.href), readyState: document.readyState, subscribed: window.__q20Subscribed === true };
     });
     const readPageSide = async () => page.evaluate(() => window.__q20Events ?? []);
-const readEmitDiagnostics = async () => page.evaluate(() => window.__q20EmitDiagnostics ?? []);
     const disarmReloadRecorder = async () => ({ disarmed: true });
 
     const openPage = async () => {
@@ -549,9 +533,9 @@ const readEmitDiagnostics = async () => page.evaluate(() => window.__q20EmitDiag
     report.pageRequests = recorder.requests.map(entry => ({ method: entry.method, path: entry.pathAndQuery, status: entry.status }));
     report.chatRequests = chatRequestLog();
     report.firstTurn = sent;
-    // ATTACHED AT THE MOMENT THE TURN FAILED, not later: the question is "who threw inside Generate", and the
-    // answer must be in the artefact beside the fact that the turn did not land.
-    report.emitDiagnostics = await readEmitDiagnostics();
+    // THE CONSOLE IS CARRIED WITH THE FAILURE, because the pinned emitter logs a swallowed listener throw as
+    // `console.error(err)` + `console.trace('Error in event listener')` (public/lib/eventemitter.js:145-151) and
+    // nothing else survives to say who threw. `consoleDiagnostics` keeps both lines in full with url:line.
     report.afterFirstSave = afterFirst;
     report.reloadRecorder = { armed, disarmed, reloads, networkFailures, navigationsDuringSend: report.navigations.slice(navigationsBeforeSend), navigationsTotal: report.navigations.length, pageErrorTail: report.pageErrorTail.slice(), consoleTail: report.consoleTail.slice() };
     report.processCommands = await page.evaluate(() => window.__q20ProcessCommands ?? []);
