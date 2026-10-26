@@ -185,6 +185,24 @@ Two driver defects cost this lane two rounds and are worth remembering: `getCont
 `TavernHelper` member (the child iframe's accessor is `window.SillyTavern.getContext()`, installed by
 `iframe/predefine.js`), and a just-clicked character has a greeting PREVIEW and no chat, so
 `createChatMessages` had nothing to write into.
+**Q12 (a helper MUTATING the in-use preset changes the next model context, identically) — PROVEN 2026-10-25.**
+`Browser differential` 40277640647, preset mode, four legs, TEN guards all true: legsPresent, legsDrove,
+structureMatchesTheOracle, presetAEqualsAcrossLegs, presetBEqualsAcrossLegs, goATavernDiffersFromGoB,
+bUnreferencedPromptsAbsentOnBothLegs, aEnabledRowPointingAtDisabledPromptContributes (aSharedMarkers: 25) and
+presetMutationChangeRequest, with harnessDiscriminates true.
+
+The mechanism, read from the pinned extension rather than guessed: `setPreset(preset_name, PartialDeep<Preset>,
+{render})` (src/function/preset.ts:731-748) deep-merges into the LIVE preset via updatePresetWith -> replacePreset
+-> updateOriginalPresetData. The leg generates, calls setPreset('in_use', {prompts:[...]}, {render:'immediate'}),
+generates again, and the comparator requires: both subjects produce TWO context requests; GoTavern's two DIFFER
+(a backend that ignored the mutation fails); pinned's two differ too (or the leg cannot discriminate); and the
+AFTER requests are equal across subjects. Measured pairs, identical on both backends:
+preset A 0716543c (201 B) -> 5bf90078 (201 B), preset B 61276bf1 (199 B) -> 4ee6b389 (199 B).
+
+Two of the reds on the way were mine and are worth remembering: the guard that A's provisional text contributes
+was scoped PER REQUEST while a leg now sends two, and the first is a minimal single-turn assembly with no marker
+(run 40276309696); and `contextRequest` silently took `.at(-1)`, which would have compared only the second request
+and lost the half that proves the mutation did anything.
 **Q6/Q8 (a real user preset changes the model context, identically on both backends) — PROVEN 2026-10-25.**
 `Browser differential` 40274214952, preset mode: four legs (preset A and preset B, GoTavern and pinned Node) each
 ran page-loaded -> settings-ready -> real-preset-loaded -> real-preset-structure -> connection-configured ->
