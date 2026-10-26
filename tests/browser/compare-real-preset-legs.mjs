@@ -165,13 +165,23 @@ guard('bUnreferencedPromptsAbsentOnBothLegs', () => {
     return problems;
 });
 
+// A's enabled-rows-that-point-at-a-disabled-prompt must CONTRIBUTE. The check is over the leg's requests as a
+// SET, not per request: since the Q12 change each leg sends two, and the first is a minimal single-turn assembly
+// that carries no marker (measured in run 40276309696, which failed this guard for that reason while
+// presetMutationChangeRequest passed). What the guard is about is whether the preset's own text reaches the
+// context at all, on both subjects.
 guard('aEnabledRowPointingAtDisabledPromptContributes', () => {
-    const left = markersIn(contextRequest(reports.A?.go)?.body);
-    const right = markersIn(contextRequest(reports.A?.node)?.body);
-    if (left.size === 0 || right.size === 0) return ['one of the preset-A requests carried no fixture marker at all'];
+    const markersOf = report => new Set(
+        Array.from({ length: contextRequestCount(report) }, (unused, index) => markersIn(contextRequest(report, index)?.body))
+            .flatMap(set => [...set]),
+    );
+    const left = markersOf(reports.A?.go);
+    const right = markersOf(reports.A?.node);
+    if (left.size === 0 || right.size === 0) return ['no preset-A request on one of the legs carried a fixture marker at all'];
     const shared = [...left].filter(marker => right.has(marker));
     if (shared.length === 0) return ['the two legs share no fixture marker, so nothing can be said about what contributed'];
     details.aSharedMarkers = shared.length;
+    details.aMarkerRequests = { gotavern: contextRequestCount(reports.A?.go), pinned: contextRequestCount(reports.A?.node) };
     return [];
 });
 
