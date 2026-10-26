@@ -1673,7 +1673,8 @@ try {
                 await new Promise(resolve => setTimeout(resolve, 700));
                 const later = await page.evaluate(() => globalThis.__probeAbortRecorder ?? null);
                 streamState.textLater = (later?.renderStates ?? []).map(entry => entry.text).filter(Boolean).at(-1) ?? null;
-                streamState.snapshotsLater = later?.renderStates?.length ?? 0;            } else {
+                streamState.snapshotsLater = later?.renderStates?.length ?? 0;
+            } else {
                 await waitUntil(() => !script.isGenerating, 30000);
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
@@ -1693,44 +1694,18 @@ try {
         // the frontend's own dry generation, which is what the dry counters count -- starts and
         // finishes INSIDE the window instead of falling off its end on one leg only.
         const settleStarted = performance.now();
-        // THE PAGE-SIDE PREDICATES AND THE ABORT RECORDER, INSTALLED BEFORE THE SETTLE LOOP READS THEM.
-        // __probeIsGenerating is the frontend's own idle flag (script.js:604: isGenerating() ->
-        // is_send_press || is_group_generating), read through the module so a poll costs no import.
-        // isGenerating is a FUNCTION over module state (script.js:604), so the predicate is a call, not a
-        // value: reading it once would sample a boolean that has already moved on. Kept as a tiny async
-        // predicate so the import happens once per sample instead of once per poll iteration.
-        globalThis.__probeIsGeneratingAsync = async () => Boolean((await import('./script.js')).isGenerating());
-        await page.evaluate(async () => {
-            const script = await import('./script.js');
-            const { eventSource, event_types } = await import('./scripts/events.js');
-            const recorder = { renderStates: [], ended: [], nameAtInstall: String(script.name2 ?? '') };
-            globalThis.__probeAbortRecorder = recorder;
-            const chatRoot = document.querySelector('#chat');
-            const sample = () => {
-                const messages = chatRoot ? chatRoot.querySelectorAll('.mes') : [];
-                const last = messages[messages.length - 1];
-                const text = last ? (last.querySelector('.mes_text')?.innerText ?? '') : '';
-                const previous = recorder.renderStates[recorder.renderStates.length - 1];
-                if (!previous || previous.text !== text) {
-                    recorder.renderStates.push({ t: Math.round(performance.now()), text });
-                }
-            };
-            if (chatRoot) {
-                new MutationObserver(sample).observe(chatRoot, { subtree: true, childList: true, characterData: true });
-            }
-            for (const name of ['MESSAGE_RECEIVED', 'CHARACTER_MESSAGE_RENDERED', 'GENERATION_ENDED', 'GENERATION_STOPPED']) {
-                eventSource.on(event_types[name], () => recorder.ended.push({ name, t: Math.round(performance.now()) }));
-            }
-        });
+        // THE PAGE-SIDE PREDICATE, INSTALLED BEFORE THE SETTLE LOOP READS IT. `isGenerating` is a FUNCTION
+        // over module state (`script.js:604`: is_send_press || is_group_generating), so it is CALLED, and it
+        // is called from inside the page's own context -- a `page.evaluate` body cannot reach the outer
+        // `page` object, which is how the first version of this failed on both legs at once.
         // A SURFACE WHOSE END IS AN ERROR SETTLES WHEN THE PAGE IS QUIET, NOT WHEN A COMPLETION LANDED.
         // On a mid-stream cut the pinned frontend ends the send through its own error path
         // (`StreamingProcessor.generate`'s catch -> `onErrorStreaming` -> `markUIGenStopped` ->
-        // `unblockGeneration`, sse-stream.js + script.js:3814-3827/3617-3619), NOT through a normal
-        // completion -- so `__probeCompletions` stays 0 by design and requiring one made the drive report
-        // a 60 s timeout while the page had already stopped (measured, run 40299346339). The window
-        // therefore ends on the state a user sees: `isGenerating` false AND no stop button, held for the
-        // same 1500 ms the completion path uses, so the two surfaces close identically.
-        const expectsErrorEnd = probeMode === 'abort';
+        // `unblockGeneration`, script.js:3812-3832/3617-3619), NOT through a normal completion -- so
+        // `__probeCompletions` stays 0 by design and requiring one made the drive report a 60 s timeout
+        // while the page had already stopped (measured, run 40299346339). The window therefore ends on the
+        // state a user sees: `isGenerating()` false AND no stop button, held for the same 1500 ms the
+        // completion path uses.
         const settleDeadline = settleStarted + 60000;
         let idleSince = null;
         let settleInFlight = null;
@@ -1738,21 +1713,22 @@ try {
         let quietSinceRenderChange = 0;
         while (performance.now() < settleDeadline) {
             settleInFlight = globalThis.__probeInFlight ?? 0;
-            const completed = globalThis.__probeCompletions ?? 0;
-            if (expectsErrorEnd) {
-                // THE QUIET STATE, WITH NO IMPORT INSIDE THE LOOP. The first version awaited a dynamic
-                // import on every iteration, which put ~100 ms between samples; __probeIsGenerating is
-                // installed once by the page-side drive.
+            if (probeMode === 'abort') {
+                // THE QUIET STATE, WITH NO IMPORT INSIDE THE LOOP, and the render count from the
+                // page-side recorder so "nothing arrived after the cut" is a comparison of two states of
+                // ONE recording rather than of two polls.
+                const scriptModule = await import('./script.js');
                 quietState = {
-                    isGenerating: await globalThis.__probeIsGeneratingAsync(),
+                    isGenerating: Boolean(scriptModule.isGenerating()),
                     generatingAttribute: document.body.dataset.generating ?? null,
                     stopButton: Boolean(document.querySelector('#mes_stop')),
                     sendButtonDisabled: Boolean(document.querySelector('#send_but')?.disabled),
                     renderStates: (globalThis.__probeAbortRecorder?.renderStates ?? []).length,
                 };
                 const quiet = !quietState.isGenerating && quietState.generatingAttribute === null && !quietState.stopButton;
-                // THE WINDOW NEEDS THE QUIET STATE **AND** NO RENDER MOVEMENT FOR 1500 ms, the same hold the
-                // completion path uses: a quiet moment between two frames is not an end.
+                // THE WINDOW NEEDS THE QUIET STATE **AND** NO RENDER MOVEMENT FOR 1500 ms: a quiet moment
+                // between two frames is not an end. Measured, run 40304606443, where a poll sampled the
+                // in-operation state and the reply had already been saved and rendered before the next one.
                 if (quiet) {
                     if (idleSince === null || quietState.renderStates !== quietSinceRenderChange) {
                         idleSince = performance.now();
@@ -1766,6 +1742,7 @@ try {
                 await new Promise(resolve => setTimeout(resolve, 50));
                 continue;
             }
+            const completed = (globalThis.__probeCompletions ?? 0) >= 1;
             if (completed && settleInFlight === 0) {
                 if (idleSince === null) {
                     idleSince = performance.now();
@@ -1784,7 +1761,7 @@ try {
             waitedMs: Math.round(performance.now() - settleStarted),
             completions: globalThis.__probeCompletions ?? 0,
             inFlightAtRead: settleInFlight,
-            endReason: expectsErrorEnd ? 'error-path-quiet' : 'completion',
+            endReason: probeMode === 'abort' ? 'error-path-quiet' : 'completion',
             quietState,
         };
         if (!settledIdle) {

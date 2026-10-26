@@ -86,6 +86,17 @@ on:
       - 'tests/browser/compare-helper-vars-generate-legs.mjs'
       - 'tools/browser-evidence/other-surfaces.mjs'
       - 'tools/verify-browser-comparisons.mjs'
+      # THE STREAMING FRAMING GATE PROVES ITSELF ON A PUSH THAT TOUCHES IT (AGENTS.md 7). The same reason
+      # as the asset and helper entries above, one surface over: a lane that adds a gate it cannot run is a
+      # gate nobody has seen execute. The framing surface is the network half of Q19 (a buffering hop and a
+      # mid-stream cut between subject and peer), and the two commits that add it are this workflow's push
+      # entry plus the three harness files, so the push run that proves it is the one this list triggers.
+      - 'tests/browser/streaming-framing.mjs'
+      - 'tests/browser/compare-streaming-framing.mjs'
+      - 'tests/browser/streaming-framing-probe-smoke.mjs'
+      - 'tests/browser/streaming-framing-selftest.mjs'
+      - 'tests/browser/streaming-framing-verifier-selftest.mjs'
+      - 'tools/browser-evidence/streaming-framing.mjs'
       # THE FILE THAT SERVES THE BROWSER'S IMAGES MUST RE-PROVE THE BROWSER'S IMAGES. Without this entry, a
       # change to the thumbnail handler -- the handler that answered 404 for every avatar while every gate
       # stayed green -- would not run the one gate that can see it. It is also what makes the mutation in the
@@ -107,6 +118,11 @@ on:
       - 'tests/browser/generation-probe.mjs'
       - 'tests/browser/sources.mjs'
       - 'tests/browser/compare-*-legs.mjs'
+      - 'tests/browser/streaming-framing.mjs'
+      - 'tests/browser/compare-streaming-framing.mjs'
+      - 'tests/browser/streaming-framing-probe-smoke.mjs'
+      - 'tests/browser/streaming-framing-selftest.mjs'
+      - 'tests/browser/streaming-framing-verifier-selftest.mjs'
       - 'tests/browser/preset-kit.mjs'
       - 'tests/browser/capture-preset.mjs'
       - 'tests/browser/helper-probe.mjs'
@@ -557,6 +573,10 @@ jobs:
           set -euo pipefail
           node tests/browser/streaming-framing-selftest.mjs
           node tests/browser/streaming-framing-verifier-selftest.mjs
+          # THE PROBE'S OWN SOURCE, because the defect this check exists for (page reached from inside a
+          # page callback) is a ReferenceError at run time that node --check cannot see, and it has
+          # already cost one full run (40307148708, both legs).
+          node tests/browser/streaming-framing-probe-smoke.mjs
 
 
       #
