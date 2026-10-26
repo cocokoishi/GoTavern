@@ -104,6 +104,8 @@ export function startStreamingHop({ upstream, mode, cutAfterBytes = 0, cutArmOnP
         upstreamErrors: [],
         // The gzip framing is part of the claim, so it is recorded rather than implied.
         reframedAsGzip: false,
+        // Set per RESPONSE on the data path, never at request time: see the note beside isEventStream.
+        gzipFramedResponses: 0,
     };
 
     const server = http.createServer((clientRequest, clientResponse) => {
@@ -138,7 +140,16 @@ export function startStreamingHop({ upstream, mode, cutAfterBytes = 0, cutArmOnP
                 path: clientRequest.url,
                 headers: forwardedHeaders,
             }, upstreamResponse => {
-                const isEventStream = String(upstreamResponse.headers['content-type'] ?? '').includes('text/event-stream');
+                // THE RE-FRAMING DECISION IS PER RESPONSE, TAKEN HERE AND ONLY HERE. A body is re-framed as
+                // ONE gzip member when it is an SSE stream AND this response is the one the cut is armed
+                // on: the gzip exists so a decoder can see that the body was cut, and re-encoding a JSON
+                // body would only make the hop's own work harder. Measured on this lane twice before it was
+                // right: the first cut landed on the reachability check (GET /models, JSON), and the second
+                // re-framed a JSON body the cut itself had left alone -- `gzipFramedResponses` was zero on
+                // both subjects and the guard said so.
+                const isEventStream = String(upstreamResponse.headers['content-type'] ?? '').toLowerCase().includes('text/event-stream');
+                const pathMatches = cutAfterPathMatches(clientRequest.url, cutArmOnPath);
+                state.reframedAsGzip = mode === HOP_MODES.CUT && pathMatches && isEventStream;
                 // THE HEADERS TRAVEL UNCHANGED, except the framing THIS hop owns: it re-chunks the body, and
                 // in cut mode it re-frames it as gzip, so the upstream content-length, content-encoding and
                 // transfer-encoding would all describe bytes the downstream reader will not see.
@@ -151,6 +162,7 @@ export function startStreamingHop({ upstream, mode, cutAfterBytes = 0, cutArmOnP
                 }
                 if (state.reframedAsGzip) {
                     responseHeaders['content-encoding'] = 'gzip';
+                    state.gzipFramedResponses += 1;
                 }
                 clientResponse.writeHead(upstreamResponse.statusCode ?? 502, responseHeaders);
                 // Headers go out immediately so the subject sees a 200 and starts reading. Only body
@@ -217,15 +229,12 @@ export function startStreamingHop({ upstream, mode, cutAfterBytes = 0, cutArmOnP
                     upstreamResponse.destroy();
                 };
 
-                // THE CUT IS ARMED ONLY ON THE ROUTE IT NAMES. A hop that cut the FIRST response would
-                // truncate the frontend's own reachability check (GET /models) and the subject would
-                // never reach a connected state -- measured: the first draft armed every response, both
-                // subjects ended with `in flight: 1` and no stream at all, and the surface proved nothing
-                // about truncation. `cutArmOnPath` names the completion route; anything else is relayed
-                // whole, and the count of unarmed responses is recorded so an artefact can show that the
-                // hop was reached and only the completion was cut.
-                const pathMatches = cutArmOnPath === null || String(clientRequest.url ?? '').includes(cutArmOnPath);
-                const armed = mode === HOP_MODES.CUT && pathMatches;
+                // THE CUT IS ARMED ON THE NAMED ROUTE, and `pathMatches` was resolved with the gzip decision
+                // above so ONE expression decides both. A hop that cut the FIRST response would truncate the
+                // frontend's own reachability check (GET /models) and the subject would never reach a
+                // connected state -- measured: the first draft armed every response, both subjects ended
+                // with `in flight: 1` and no stream at all, and the surface proved nothing about truncation.
+                const armed = mode === HOP_MODES.CUT && pathMatches && isEventStream;
                 state.cutArmedResponses = (state.cutArmedResponses ?? 0) + (armed ? 1 : 0);
                 state.relayedWholeResponses = (state.relayedWholeResponses ?? 0) + (armed ? 0 : 1);
                 let released = 0;
@@ -316,6 +325,10 @@ export function loopbackUpstream(address) {
     const host = match[1].replace(/^\[|\]$/g, '');
     assertLoopbackHost(host, 'the peer address');
     return { host, port: Number(match[2]) };
+}
+
+function cutAfterPathMatches(requestUrl, cutArmOnPath) {
+    return cutArmOnPath === null || String(requestUrl ?? '').includes(cutArmOnPath);
 }
 
 /** True when the primary content type of an upstream response is an SSE stream: the only body the cut

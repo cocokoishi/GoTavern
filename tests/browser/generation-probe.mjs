@@ -1649,39 +1649,31 @@ try {
                 streamState.snapshotsLater = renderSnapshots().length;
                 streamState.textLater = renderSnapshots().at(-1)?.text ?? null;
             } else if (probeMode === 'abort') {
-                // THE CALLER NEVER STOPS. Nothing is clicked here: the network already died (the proxy
-                // cut the body), and the observation is whether the PAGE notices and at what cost. The
-                // two numbers that matter are bounded waits, not sleeps, so a subject that hangs is
-                // reported as `returnedToIdle: false` instead of being given the benefit of a timeout.
+                // THE CALLER NEVER STOPS. Nothing is clicked here: the network already died (the hop cut the
+                // body), and the observation is whether the PAGE notices and what it keeps. Everything below
+                // is read from the page-side recorder installed before the settle loop, so a state that
+                // lasted 100 ms is still observed -- measured, run 40304606443, where a poll sampled the
+                // in-operation state and then the reply had already been saved and rendered.
                 streamState.stopClickedAt = null;
-                streamState.stopPresent = Boolean(document.querySelector('#mes_stop'));
-                const idleDeadline = performance.now() + 30000;
-                let returnedToIdle = false;
-                while (performance.now() < idleDeadline) {
-                    const scriptModule = await import('./script.js');
-                    const generating = Boolean(scriptModule.isGenerating) || document.body.dataset.generating !== undefined;
-                    const stopVisible = Boolean(document.querySelector('#mes_stop'));
-                    if (!generating && !stopVisible) {
-                        returnedToIdle = true;
-                        break;
-                    }
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
-                streamState.returnedToIdle = returnedToIdle;
-                streamState.idleWaitedMs = Math.round(idleDeadline - performance.now());
-                // THE OBSERVABLE NAME MATCHES WHAT THE COMPARATOR READS (`textAfterCut`), because the two
-                // files are one contract: `textAfterAbort` and `textAfterCut` were two names for one field
-                // in the first draft and the comparator read `undefined` on both legs.
-                streamState.textAfterCut = renderSnapshots().at(-1)?.text ?? null;
-                streamState.snapshotsAtCut = renderSnapshots().length;
-                // The frontend's own report of the failure, which is the only thing a user sees: a
-                // toastr for a caught stream error, or whatever the console said. Recorded rather than
-                // judged here -- the comparator decides whether the two subjects agree.
+                const recorder = await page.evaluate(() => globalThis.__probeAbortRecorder ?? null);
+                const scriptAfter = await import('./script.js');
+                // THE OBSERVABLES THE COMPARATOR READS, from the recorded window rather than from a poll.
+                const recordedStates = (recorder?.renderStates ?? []).map(entry => entry.text)
+                    .filter(text => text && text !== '\u2026' && text !== 'probe user marker');
+                streamState.textAfterCut = recordedStates.at(-1) ?? null;
+                streamState.snapshotsAtCut = recorder?.renderStates?.length ?? 0;
+                streamState.contentStatesAtCut = recordedStates.length;
+                streamState.returnedToIdle = !Boolean(scriptAfter.isGenerating()) && document.body.dataset.generating === undefined;
+                streamState.endedEvents = recorder?.ended ?? [];
+                // THE FRONTEND'S OWN REPORT OF THE FAILURE, the only thing a user sees: the toastr for a
+                // caught stream error. Recorded rather than judged -- the comparator decides agreement.
                 streamState.toastrAfterCut = (document.querySelector('#toast-container')?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 300);
+                // A SECOND RECORDING WINDOW, 700 ms later: "nothing arrived after the cut" needs a later
+                // sample, and it must be a sample of the RECORDER rather than of the live DOM.
                 await new Promise(resolve => setTimeout(resolve, 700));
-                streamState.textLater = renderSnapshots().at(-1)?.text ?? null;
-                streamState.snapshotsLater = renderSnapshots().length;
-            } else {
+                const later = await page.evaluate(() => globalThis.__probeAbortRecorder ?? null);
+                streamState.textLater = (later?.renderStates ?? []).map(entry => entry.text).filter(Boolean).at(-1) ?? null;
+                streamState.snapshotsLater = later?.renderStates?.length ?? 0;            } else {
                 await waitUntil(() => !script.isGenerating, 30000);
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
@@ -1701,6 +1693,35 @@ try {
         // the frontend's own dry generation, which is what the dry counters count -- starts and
         // finishes INSIDE the window instead of falling off its end on one leg only.
         const settleStarted = performance.now();
+        // THE PAGE-SIDE PREDICATES AND THE ABORT RECORDER, INSTALLED BEFORE THE SETTLE LOOP READS THEM.
+        // __probeIsGenerating is the frontend's own idle flag (script.js:604: isGenerating() ->
+        // is_send_press || is_group_generating), read through the module so a poll costs no import.
+        // isGenerating is a FUNCTION over module state (script.js:604), so the predicate is a call, not a
+        // value: reading it once would sample a boolean that has already moved on. Kept as a tiny async
+        // predicate so the import happens once per sample instead of once per poll iteration.
+        globalThis.__probeIsGeneratingAsync = async () => Boolean((await import('./script.js')).isGenerating());
+        await page.evaluate(async () => {
+            const script = await import('./script.js');
+            const { eventSource, event_types } = await import('./scripts/events.js');
+            const recorder = { renderStates: [], ended: [], nameAtInstall: String(script.name2 ?? '') };
+            globalThis.__probeAbortRecorder = recorder;
+            const chatRoot = document.querySelector('#chat');
+            const sample = () => {
+                const messages = chatRoot ? chatRoot.querySelectorAll('.mes') : [];
+                const last = messages[messages.length - 1];
+                const text = last ? (last.querySelector('.mes_text')?.innerText ?? '') : '';
+                const previous = recorder.renderStates[recorder.renderStates.length - 1];
+                if (!previous || previous.text !== text) {
+                    recorder.renderStates.push({ t: Math.round(performance.now()), text });
+                }
+            };
+            if (chatRoot) {
+                new MutationObserver(sample).observe(chatRoot, { subtree: true, childList: true, characterData: true });
+            }
+            for (const name of ['MESSAGE_RECEIVED', 'CHARACTER_MESSAGE_RENDERED', 'GENERATION_ENDED', 'GENERATION_STOPPED']) {
+                eventSource.on(event_types[name], () => recorder.ended.push({ name, t: Math.round(performance.now()) }));
+            }
+        });
         // A SURFACE WHOSE END IS AN ERROR SETTLES WHEN THE PAGE IS QUIET, NOT WHEN A COMPLETION LANDED.
         // On a mid-stream cut the pinned frontend ends the send through its own error path
         // (`StreamingProcessor.generate`'s catch -> `onErrorStreaming` -> `markUIGenStopped` ->
@@ -1714,29 +1735,35 @@ try {
         let idleSince = null;
         let settleInFlight = null;
         let quietState = null;
+        let quietSinceRenderChange = 0;
         while (performance.now() < settleDeadline) {
             settleInFlight = globalThis.__probeInFlight ?? 0;
-            const completed = (globalThis.__probeCompletions ?? 0) >= 1;
+            const completed = globalThis.__probeCompletions ?? 0;
             if (expectsErrorEnd) {
-                const scriptNow = await import('./script.js');
+                // THE QUIET STATE, WITH NO IMPORT INSIDE THE LOOP. The first version awaited a dynamic
+                // import on every iteration, which put ~100 ms between samples; __probeIsGenerating is
+                // installed once by the page-side drive.
                 quietState = {
-                    isGenerating: Boolean(scriptNow.isGenerating()),
+                    isGenerating: await globalThis.__probeIsGeneratingAsync(),
                     generatingAttribute: document.body.dataset.generating ?? null,
                     stopButton: Boolean(document.querySelector('#mes_stop')),
                     sendButtonDisabled: Boolean(document.querySelector('#send_but')?.disabled),
+                    renderStates: (globalThis.__probeAbortRecorder?.renderStates ?? []).length,
                 };
                 const quiet = !quietState.isGenerating && quietState.generatingAttribute === null && !quietState.stopButton;
+                // THE WINDOW NEEDS THE QUIET STATE **AND** NO RENDER MOVEMENT FOR 1500 ms, the same hold the
+                // completion path uses: a quiet moment between two frames is not an end.
                 if (quiet) {
-                    if (idleSince === null) {
+                    if (idleSince === null || quietState.renderStates !== quietSinceRenderChange) {
                         idleSince = performance.now();
-                    }
-                    if (performance.now() - idleSince >= 1500) {
+                        quietSinceRenderChange = quietState.renderStates;
+                    } else if (performance.now() - idleSince >= 1500) {
                         break;
                     }
                 } else {
                     idleSince = null;
                 }
-                await new Promise(resolve => setTimeout(resolve, 100));
+                await new Promise(resolve => setTimeout(resolve, 50));
                 continue;
             }
             if (completed && settleInFlight === 0) {
