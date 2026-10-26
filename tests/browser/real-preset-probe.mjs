@@ -321,20 +321,52 @@ try {
     const chatAvailable = (afterOpen.messages > 0 || afterOpen.chatLength > 0) && !report.failure;
     step('character-open', chatAvailable, JSON.stringify(report.characterOpen));
 
-    // 4. ONE SEND, and the peer records what actually reached the model backend.
+    // 4. ONE SEND, and what actually happened to it recorded in every observable the page offers.
+    //
+    // MEASURED (runs 40259110733, 40267671464): every prerequisite green, then `peer-reached: 0 request(s)` and
+    // an EMPTY pageErrors array, because pinned refuses a send with a toast and a console line rather than a throw.
+    // So the drive now records, after the click: the message count delta, the textarea's own value, whether a
+    // generation is running, and the console lines the frontend produced -- the four places a refusal shows up.
+    report.sendAttempt = null;
     if (connected && structureOk && chatAvailable) {
-        await page.evaluate(async () => {
+        const beforeSend = await page.evaluate(() => ({
+            messages: document.querySelectorAll('#chat .mes').length,
+            textarea: document.querySelector('#send_textarea')?.value ?? null,
+            consoleLength: 0,
+        }));
+        const consoleBefore = report.console.length;
+        const clicked = await page.evaluate(async () => {
             const textarea = document.querySelector('#send_textarea');
             const button = document.querySelector('#send_but');
-            if (!textarea || !button) throw new Error('send controls missing');
+            if (!textarea || !button) return { ok: false, reason: 'send controls missing' };
             textarea.value = 'REAL_PRESET_PROBE_INPUT';
             textarea.dispatchEvent(new Event('input', { bubbles: true }));
             button.click();
+            return { ok: true };
         });
         const deadline = Date.now() + 60000;
         while (Date.now() < deadline && peer.requests.length === 0) {
             await new Promise(resolve => setTimeout(resolve, 250));
         }
+        const afterSend = await page.evaluate(async () => {
+            const openai = await import('./scripts/openai.js');
+            return {
+                messages: document.querySelectorAll('#chat .mes').length,
+                textarea: document.querySelector('#send_textarea')?.value ?? null,
+                isGenerating: Boolean(openai.is_send_press),
+                lastIsUser: (window.SillyTavern?.getContext?.().chat ?? []).slice(-1)[0]?.is_user ?? null,
+            };
+        });
+        report.sendAttempt = {
+            clicked,
+            before: beforeSend,
+            after: afterSend,
+            userMessageAppended: afterSend.messages > beforeSend.messages,
+            textareaCleared: beforeSend.textarea !== afterSend.textarea,
+            console: report.console.slice(consoleBefore),
+        };
+        step('send-clicked', clicked.ok === true, JSON.stringify({ clicked, after: afterSend }));
+        step('user-message-appended', afterSend.messages > beforeSend.messages, `messages ${beforeSend.messages} -> ${afterSend.messages}, textarea ${JSON.stringify(beforeSend.textarea)} -> ${JSON.stringify(afterSend.textarea)}, isGenerating=${afterSend.isGenerating}`);
     }
     await new Promise(resolve => setTimeout(resolve, 1500));
     report.peerRequests = peer.requests.map(entry => ({
