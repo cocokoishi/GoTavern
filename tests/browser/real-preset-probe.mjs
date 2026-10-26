@@ -352,7 +352,7 @@ try {
     report.generation = null;
     if (connected && structureOk) {
         await page.evaluate(() => {
-            window.__realPresetProbe = { marker: 'REAL_PRESET_PROBE_USER', done: null };
+            window.__realPresetProbe = { marker: 'REAL_PRESET_PROBE_USER', mutation: 'Q12_PRESET_MUTATION_MARKER', done: null };
         });
         // THE PRESET ASSEMBLES THE REQUEST, OR THIS LEG PROVES NOTHING. MEASURED in run 40272833510:
         // `generateRaw({ordered_prompts})` took its own explicit prompt list, so the peer received requests that
@@ -360,18 +360,27 @@ try {
         // `generate({preset_name: 'in_use'})` is the frontend's own assembly of the loaded preset, which is the
         // subject of this leg; the explicit-list call remains as a recorded fallback. Which one ran is in the
         // artefact.
+        // THE SCRIPT DOES THREE THINGS, AND THE THIRD IS Q12: it generates (so the preset assembles a request),
+        // then MUTATES the in-use preset through the extension's own write API, then generates again. The two
+        // requests must DIFFER, and each must equal its counterpart on the other subject -- a helper that changes
+        // the preset and a backend that ignores the change are both caught by the same pair of comparisons.
+        //
+        // `setPreset('in_use', ...)` is src/function/preset.ts:731-748: a deep merge into the LIVE preset, then
+        // replacePreset -> updateOriginalPresetData, which is what the next assembly reads.
         const script = [
+            "const cfg = window.parent.__realPresetProbe;",
+            "const out = { first: null, mutation: null, second: null, errors: {} };",
             "try {",
-            "  const reply = await TavernHelper.generate({",
-            "    preset_name: 'in_use',",
-            "    user_input: window.parent.__realPresetProbe.marker,",
-            "    should_stream: false,",
-            "    should_silence: true,",
-            "  });",
-            "  window.parent.__realPresetProbe.done = { ok: true, via: 'generate', preview: String(reply).slice(0, 120) };",
-            "} catch (error) {",
-            "  window.parent.__realPresetProbe.done = { ok: false, via: 'generate', error: String(error && error.message || error) };",
-            "}",
+            "  out.first = String(await TavernHelper.generate({ preset_name: 'in_use', user_input: cfg.marker, should_stream: false, should_silence: true })).slice(0, 80);",
+            "} catch (error) { out.errors.first = String(error && error.message || error); }",
+            "try {",
+            "  await TavernHelper.setPreset('in_use', { prompts: [{ identifier: 'gotavern-q12-marker', name: 'Q12', role: 'system', content: cfg.mutation, system_prompt: false, marker: false }] }, { render: 'immediate' });",
+            "  out.mutation = 'setPreset ok';",
+            "} catch (error) { out.errors.mutation = String(error && error.message || error); }",
+            "try {",
+            "  out.second = String(await TavernHelper.generate({ preset_name: 'in_use', user_input: cfg.marker, should_stream: false, should_silence: true })).slice(0, 80);",
+            "} catch (error) { out.errors.second = String(error && error.message || error); }",
+            "window.parent.__realPresetProbe.done = out;",
         ].join('\n');
         await page.evaluate(content => {
             window.TavernHelper.replaceScriptTrees([{

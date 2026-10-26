@@ -48,9 +48,15 @@ const load = file => {
 
 // The completion request, not the models poll: the pinned frontend lists models before a send when the
 // source is custom, and that request carries no context at all.
-const contextRequest = report => (report?.peerRequests ?? [])
-    .filter(entry => /chat\/completions/.test(entry.path ?? ''))
-    .at(-1) ?? null;
+// WHICH REQUEST. Since the Q12 change a leg produces TWO context requests per subject: one before the helper
+// mutates the in-use preset and one after. Selecting ".at(-1)" would silently compare only the second and lose
+// the "the mutation changed something" half, so the caller names the index and the comparator checks both.
+const contextRequest = (report, which = -1) => {
+    const all = (report?.peerRequests ?? []).filter(entry => /chat\/completions/.test(entry.path ?? ''));
+    if (which < 0) return all.at(which) ?? null;
+    return all[which] ?? null;
+};
+const contextRequestCount = report => (report?.peerRequests ?? []).filter(entry => /chat\/completions/.test(entry.path ?? '')).length;
 
 const messagesOf = body => {
     try {
@@ -169,6 +175,31 @@ guard('aEnabledRowPointingAtDisabledPromptContributes', () => {
     return [];
 });
 
+// Q12: after the helper mutates the in-use preset, the NEXT request must differ from the one before it, and each
+// must still equal its counterpart on the other subject. The first half is what a backend that ignored the
+// mutation would fail; the second is what a helper that mutated only its own copy would fail.
+guard('presetMutationChangeRequest', () => {
+    const problems = [];
+    for (const [name, pair] of Object.entries(reports)) {
+        if (!pair.go || !pair.node) continue;
+        const goBefore = contextRequest(pair.go, 0);
+        const goAfter = contextRequest(pair.go, 1);
+        const nodeBefore = contextRequest(pair.node, 0);
+        const nodeAfter = contextRequest(pair.node, 1);
+        if (contextRequestCount(pair.go) < 2) problems.push(`preset ${name}: the GoTavern leg produced ${contextRequestCount(pair.go)} context request(s), so a before/after pair cannot be compared`);
+        if (contextRequestCount(pair.node) < 2) problems.push(`preset ${name}: the pinned leg produced ${contextRequestCount(pair.node)} context request(s)`);
+        if (goBefore && goAfter && goBefore.sha256 === goAfter.sha256) {
+            problems.push(`preset ${name}: GoTavern sent the SAME request before and after the helper mutated the preset, so the mutation did not reach the model context`);
+        }
+        if (nodeBefore && nodeAfter && nodeBefore.sha256 === nodeAfter.sha256) {
+            problems.push(`preset ${name}: pinned sent the same request before and after the mutation, so this leg cannot discriminate`);
+        }
+        if (goAfter && nodeAfter && goAfter.sha256 !== nodeAfter.sha256) {
+            problems.push(`preset ${name}: after the mutation the requests differ between GoTavern and pinned`);
+        }
+    }
+    return problems;
+});
 guard('harnessDiscriminates', () => {
     const a = contextRequest(reports.A?.go)?.sha256;
     const b = contextRequest(reports.B?.go)?.sha256;
@@ -182,7 +213,8 @@ guard('harnessDiscriminates', () => {
 function equalityProblems(name) {
     const pair = reports[name] ?? {};
     if (!pair.go || !pair.node) return [`preset ${name}: a leg report is missing, so there is nothing to compare (legsPresent names which)`];
-    const verdict = sameRequest(contextRequest(pair.go), contextRequest(pair.node));
+    // The AFTER request is the one the mutation produced; both are compared only where a guard asks for it.
+    const verdict = sameRequest(contextRequest(pair.go, 1) ?? contextRequest(pair.go), contextRequest(pair.node, 1) ?? contextRequest(pair.node));
     return verdict.equal ? [] : [verdict.reason];
 }
 
