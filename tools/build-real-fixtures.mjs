@@ -108,6 +108,44 @@ const isHelperScriptContent = (pathParts) => {
     return /extensions\.tavern_helper\.scripts\.\d+\.content$/.test(joined);
 };
 
+// THE NAME LAYER. Prose and script bodies were replaced from the start; the fields that identify the AUTHOR of
+// a preset were not, and they are the ones a user asked about: "there are hidden watermarks in them, for example
+// my Discord account". These are the fields that carry a name even when no handle is written down.
+const NAME_FIELDS = [
+    /^prompts\.\d+\.name$/,
+    /^extensions\.regex_scripts\.\d+\.scriptName$/,
+    /^extensions\.tavern_helper\.scripts\.\d+\.name$/,
+    /^extensions\.tavern_helper\.scripts\.\d+\.info$/,
+    // THE LABEL LAYER. These are names in everything but field name, and they survived the first name pass:
+    // measured on preset B, `extensions.tavern_helper.scripts[3]` still held [REDACTED_PRESET]设置 in button.buttons[0].name,
+    // data.title and data.script_button_name, and scripts[1] held 格式补全. A user's preset name lives here.
+    /^extensions\.tavern_helper\.scripts\.\d+\.button\.buttons\.\d+\.name$/,
+    /^extensions\.tavern_helper\.scripts\.\d+\.data\.title$/,
+    /^extensions\.tavern_helper\.scripts\.\d+\.data\.script_button_name$/,
+    // THE DEEP LABEL LAYER, found by scanning the generated fixture for the ORIGINAL names rather than by
+    // reasoning about field names: a helper script's own settings object still referenced the preset by name in
+    // `data.summary.generation.detect_regexes[...]` (a display label beginning "# [REDACTED_PRESET]大总结") and in
+    // `data.groups[...].{enable,disable_group}[...]` (option labels like "[REDACTED_PROMPT]"). The scan is the
+    // reason these are covered: a field-name predicate written from memory missed all three.
+    /^extensions\.tavern_helper\.scripts\.\d+\.data\.summary\.generation\.detect_regexes\.\d+$/,
+    /^extensions\.tavern_helper\.scripts\.\d+\.data\.groups\.\d+\.options\.\d+\.enable\.\d+$/,
+    /^extensions\.tavern_helper\.scripts\.\d+\.data\.groups\.\d+\.options\.\d+\.disable\.\d+$/,
+    /^extensions\.tavern_helper\.scripts\.\d+\.data\.groups\.\d+\.disable_group\.\d+$/,
+    /^extensions\.tavern_helper\.scripts\.\d+\.data\.groups\.\d+\.enable_group\.\d+$/,
+];
+const markerIndexFor = (marker) => Number(String(marker).replace(/[^0-9]/g, '') || 0);
+const isNameField = (pathParts) => NAME_FIELDS.some(pattern => pattern.test(pathParts.join('.')));
+
+// VERBATIM EXEMPTIONS, by field path AND exact value -- never by pattern, never by length. Measured: preset A's
+// prompts[1].name and prompts[7].name are `勿动`, six bytes, and neither marker tier fits. `勿动` is a generic
+// directive ("do not modify") and carries no name, handle, platform or credit, so it may stay -- at THOSE TWO
+// PATHS ONLY. A new prompt named 勿动 anywhere else is refused, which is what keeps this an exemption rather
+// than a value ban; that case is in the tool's own proof set.
+const DECLARED_VERBATIM = [
+    { path: 'prompts.1.name', value: '勿动' },
+    { path: 'prompts.7.name', value: '勿动' },
+];
+
 // Walk the document, replacing only prose and asserting byte equality for every replacement.
 const desensitise = (value, pathParts, stats) => {
     if (typeof value === 'string') {
@@ -122,6 +160,35 @@ const desensitise = (value, pathParts, stats) => {
             stats.scriptsReplaced += 1;
             stats.scriptBytesReplaced += bytes;
             return stub;
+        }
+        if (isNameField(pathParts)) {
+            const joined = pathParts.join('.');
+            const declared = DECLARED_VERBATIM.find(entry => entry.path === joined && entry.value === value);
+            if (declared) {
+                stats.declaredVerbatim.push({ path: joined, value, bytes, reason: 'a generic directive ("do not modify") carrying no name, handle, platform or credit, and too short for any marker tier' });
+                return value;
+            }
+            // SHORT NAMES ARE REPLACED IN PLACE, prefix marker + same-length filler. Requiring the marker to be
+            // the whole field was wrong: it refused a 13-byte name and, worse, it would have left `勿动` as the
+            // only pattern for short fields. The VALUE is what identifies the author; the form is ours.
+            const marker = nextMarker();
+            // THE NAME TIERS: `MARK_NNNNNN` (11 bytes) where there is room, `MNNNNNN` (7 bytes) below that -- the
+            // same two forms tools/check-fixture-watermarks.mjs accepts. A 13-byte name cannot hold the long form
+            // plus a filler unit, and refusing it would have been wrong: a marker that FILLS the field exactly is
+            // a better fixture than a refusal, and every byte of the original identity is still gone.
+            const longForm = `MARK_${String(markerIndexFor(marker)).padStart(6, '0')}`;
+            const shortForm = `M${String(markerIndexFor(marker)).padStart(6, '0')}`;
+            const form = bytes >= Buffer.byteLength(longForm) ? longForm : shortForm;
+            if (bytes < Buffer.byteLength(form)) refuse(`${joined}: ${bytes} bytes cannot hold ${form} and the field is not in DECLARED_VERBATIM`);
+            const fillerTail = bytes - Buffer.byteLength(form);
+            if (fillerTail === 0) {
+                stats.namesReplaced += 1;
+                return form;
+            }
+            const replacement = form + FILLER_UNIT.repeat(Math.floor(fillerTail / FILLER_UNIT_BYTES)) + 'x'.repeat(fillerTail % FILLER_UNIT_BYTES);
+            if (Buffer.byteLength(replacement) !== bytes) refuse(`${joined}: name replacement produced ${Buffer.byteLength(replacement)} bytes, wanted ${bytes}`);
+            stats.namesReplaced += 1;
+            return replacement;
         }
         if (value.length > PROSE_THRESHOLD_CHARS && bytes >= MARKER_BYTES + FILLER_UNIT_BYTES) {
             const filler = fillerFor(bytes, nextMarker(), pathParts.join('.'));
@@ -150,7 +217,7 @@ const buildPreset = ({ name, file }, outDir) => {
     } catch (error) {
         refuse(`${file}: not JSON (${error.message})`);
     }
-    const stats = { stringsReplaced: 0, bytesReplaced: 0, scriptsReplaced: 0, scriptBytesReplaced: 0 };
+    const stats = { stringsReplaced: 0, bytesReplaced: 0, scriptsReplaced: 0, scriptBytesReplaced: 0, namesReplaced: 0, declaredVerbatim: [] };
     const scrubbed = desensitise(parsed, [], stats);
     const serialised = JSON.stringify(scrubbed);
     // THE ASSERTION THAT MAKES THIS A FIXTURE AND NOT A REWRITE: the document must come back the same size.

@@ -6,7 +6,7 @@
       "name": "preset-a",
       "file": "preset-a.json",
       "bytes": 72499,
-      "sha256": "596765e43fddc7671c3e2ed2a20efa927ad674c3f5366e3fdb77822b7ba6968f",
+      "sha256": "5bf9007891bd441f642ea2cfc9008bf8662cfef6541f04f1b21c0dcd68ee0b28",
       "origin": {
         "bytes": 99740,
         "sha256": "83aad8e26be778e538d7720e9d883413125956575fde44b3a71b617f29d6a388"
@@ -15,7 +15,22 @@
         "stringsReplaced": 54,
         "bytesReplaced": 34244,
         "scriptsReplaced": 0,
-        "scriptBytesReplaced": 0
+        "scriptBytesReplaced": 0,
+        "namesReplaced": 103,
+        "declaredVerbatim": [
+          {
+            "path": "prompts.1.name",
+            "value": "勿动",
+            "bytes": 6,
+            "reason": "a generic directive (\"do not modify\") carrying no name, handle, platform or credit, and too short for any marker tier"
+          },
+          {
+            "path": "prompts.7.name",
+            "value": "勿动",
+            "bytes": 6,
+            "reason": "a generic directive (\"do not modify\") carrying no name, handle, platform or credit, and too short for any marker tier"
+          }
+        ]
       },
       "profile": {
         "prompts": 105,
@@ -35,16 +50,18 @@
       "name": "preset-b",
       "file": "preset-b.json",
       "bytes": 1363947,
-      "sha256": "8165b792f3b2a93890b101ab5b937177e3a8d48c09a9c0cb130a2a3113744fd3",
+      "sha256": "4ee6b389b50e315e68e0ce1cdd2b8ee93d5fa3864a6ffc85246358248bcab84a",
       "origin": {
         "bytes": 1428750,
         "sha256": "77e620d002e2be7b12c2785333702178ea95112e7c8e60f521e818974d284f0b"
       },
       "replaced": {
-        "stringsReplaced": 90,
-        "bytesReplaced": 170401,
+        "stringsReplaced": 89,
+        "bytesReplaced": 167714,
         "scriptsReplaced": 6,
-        "scriptBytesReplaced": 1133218
+        "scriptBytesReplaced": 1133218,
+        "namesReplaced": 212,
+        "declaredVerbatim": []
       },
       "profile": {
         "prompts": 119,

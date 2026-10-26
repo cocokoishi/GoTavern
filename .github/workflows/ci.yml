@@ -348,6 +348,28 @@ jobs:
         run: node tools/verify-browser-comparisons.mjs
       - name: Verify the source catalogue, its coverage and the leg-name ignore patterns
         run: node --test tests/browser/catalog.test.mjs
+      - name: Refuse a committed fixture that carries a watermark or an unmarked name
+        # A LEAK PREVENTION STEP, not a linter. The real-preset fixtures come from a user's own files, and the
+        # rule is that no name, handle, platform, credit or URL survives desensitisation -- the user's words,
+        # after seeing the first version committed: "there are hidden watermarks in them, for example my
+        # Discord account". The fixtures were withdrawn at b1e9df4 for exactly that reason. While none is
+        # committed this step proves the scanner runs and says so; once they return it is the gate that keeps
+        # them clean, and it fails the run rather than a reviewer.
+        run: |
+          set -eu
+          fixtures="$(git ls-files 'tests/browser/fixtures/real/preset-*.json' || true)"
+          manifest=tests/browser/fixtures/real/real-fixture-manifest.json
+          if [ -z "$fixtures" ]; then
+            echo "no real-preset fixtures are committed, so there is nothing to scan yet"
+            node tools/check-fixture-watermarks.mjs
+          elif [ -f "$manifest" ]; then
+            # THE DECLARED EXEMPTIONS ARE PART OF THE SCAN, not a bypass: the scanner still refuses any name
+            # that is not a marker and is not listed by exact path AND value in the manifest.
+            node tools/check-fixture-watermarks.mjs --allow-declared "$manifest" $fixtures
+          else
+            echo "::error::a fixture is committed with no manifest, so its exemptions cannot be checked"
+            exit 1
+          fi
 
   verify:
     runs-on: ubuntu-latest
