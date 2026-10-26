@@ -1649,31 +1649,10 @@ try {
                 streamState.snapshotsLater = renderSnapshots().length;
                 streamState.textLater = renderSnapshots().at(-1)?.text ?? null;
             } else if (probeMode === 'abort') {
-                // THE CALLER NEVER STOPS. Nothing is clicked here: the network already died (the hop cut the
-                // body), and the observation is whether the PAGE notices and what it keeps. Everything below
-                // is read from the page-side recorder installed before the settle loop, so a state that
-                // lasted 100 ms is still observed -- measured, run 40304606443, where a poll sampled the
-                // in-operation state and then the reply had already been saved and rendered.
-                streamState.stopClickedAt = null;
-                const recorder = await page.evaluate(() => globalThis.__probeAbortRecorder ?? null);
-                const scriptAfter = await import('./script.js');
-                // THE OBSERVABLES THE COMPARATOR READS, from the recorded window rather than from a poll.
-                const recordedStates = (recorder?.renderStates ?? []).map(entry => entry.text)
-                    .filter(text => text && text !== '\u2026' && text !== 'probe user marker');
-                streamState.textAfterCut = recordedStates.at(-1) ?? null;
-                streamState.snapshotsAtCut = recorder?.renderStates?.length ?? 0;
-                streamState.contentStatesAtCut = recordedStates.length;
-                streamState.returnedToIdle = !Boolean(scriptAfter.isGenerating()) && document.body.dataset.generating === undefined;
-                streamState.endedEvents = recorder?.ended ?? [];
-                // THE FRONTEND'S OWN REPORT OF THE FAILURE, the only thing a user sees: the toastr for a
-                // caught stream error. Recorded rather than judged -- the comparator decides agreement.
-                streamState.toastrAfterCut = (document.querySelector('#toast-container')?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 300);
-                // A SECOND RECORDING WINDOW, 700 ms later: "nothing arrived after the cut" needs a later
-                // sample, and it must be a sample of the RECORDER rather than of the live DOM.
-                await new Promise(resolve => setTimeout(resolve, 700));
-                const later = await page.evaluate(() => globalThis.__probeAbortRecorder ?? null);
-                streamState.textLater = (later?.renderStates ?? []).map(entry => entry.text).filter(Boolean).at(-1) ?? null;
-                streamState.snapshotsLater = later?.renderStates?.length ?? 0;
+                // THE OBSERVATION IS TAKEN AFTER THE DRIVE RETURNS, OUTSIDE THE PAGE CONTEXT. See the
+                // probeMode === 'abort' block below the settle: a page handle is not reachable from
+                // inside this callback, and an earlier draft put it here, which is what made both
+                // abort legs fail with 'page is not defined' (runs 40307148708 and 40310223649).
             } else {
                 await waitUntil(() => !script.isGenerating, 30000);
                 await new Promise(resolve => setTimeout(resolve, 500));
@@ -1888,6 +1867,46 @@ try {
         report.domDumpError = String(error.message ?? error);
     }
     report.streamState = outcome.postSend?.streamState ?? null;
+    // THE ABORT SURFACE'S OBSERVATIONS ARE TAKEN HERE, IN NODE, AFTER THE DRIVE HAS RETURNED. They were
+    // briefly inside the drive's `page.evaluate` callback, where the outer `page` handle does not exist and
+    // both legs failed with "page is not defined" (runs 40307148708, 40310223649) -- a defect that built
+    // cleanly and was only visible in a browser. The recorder they read is page-side and survives the
+    // callback, so nothing else had to move.
+    if (probeMode === 'abort') {
+        const recorder = await page.evaluate(() => globalThis.__probeAbortRecorder ?? null);
+        const recordedStates = (recorder?.renderStates ?? []).map(entry => entry.text)
+            .filter(text => text && text !== '\u2026' && text !== 'probe user marker');
+        report.streamState = {
+            ...(report.streamState ?? {}),
+            stopClickedAt: null,
+            // WHAT SURVIVED THE CUT, from the recording rather than from a poll: a state that lasted 100 ms
+            // is still observed.
+            textAfterCut: recordedStates.at(-1) ?? null,
+            contentStatesAtCut: recordedStates.length,
+            snapshotsAtCut: recorder?.renderStates?.length ?? 0,
+            // THE FRONTEND'S OWN IDLE FLAG, read through the module AFTER the drive returned. The frontend
+            // ends a dead stream through its own error path (StreamingProcessor.generate's catch ->
+            // onErrorStreaming -> markUIGenStopped -> unblockGeneration, script.js:3812-3832/3617-3619),
+            // which clears this flag; a subject that hangs leaves it set and a user sees a spinner forever.
+            // THE FLAG IS READ FROM THE PAGE, because document also does not exist here.
+            returnedToIdle: await page.evaluate(async () => {
+                const script = await import('./script.js');
+                return !Boolean(script.isGenerating()) && document.body.dataset.generating === undefined;
+            }),
+            endedEvents: recorder?.ended ?? [],
+            toastrAfterCut: await page.evaluate(() => (document.querySelector('#toast-container')?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 300)),
+        };
+        // A SECOND WINDOW, 700 ms later: "nothing arrived after the cut" needs a later sample of the same
+        // recording.
+        await new Promise(resolve => setTimeout(resolve, 700));
+        const later = await page.evaluate(() => globalThis.__probeAbortRecorder ?? null);
+        const laterStates = (later?.renderStates ?? []).map(entry => entry.text).filter(Boolean);
+        report.streamState = {
+            ...(report.streamState ?? {}),
+            textLater: laterStates.at(-1) ?? null,
+            snapshotsLater: later?.renderStates?.length ?? 0,
+        };
+    }
     // THE HOP, RECORDED FROM ITS OWN SIDE. What the hop forwarded (byte digests, never bodies), how many
     // downstream body writes it made and how many frames each carried, how many bytes it released, whether
     // it re-framed the stream as a single gzip member, which responses it cut and which it relayed whole,

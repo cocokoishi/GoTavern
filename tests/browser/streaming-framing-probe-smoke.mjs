@@ -1,18 +1,26 @@
 // A LOCAL SMOKE TEST OF THE PROBE'S ABORT PATH, WITHOUT A BROWSER.
 //
-// WHY: the probe's drive runs inside `page.evaluate`, where the outer `page` object does not exist. That
-// mistake cost a full CI run (40307148708 failed on BOTH legs with "page.evaluate: ReferenceError: page is
-// not defined") and `node --check` cannot see it. This test makes the same claims about the source in about
-// a second, so the next edit of that block fails here instead of eighteen minutes into a dispatch.
+// WHY: the probe's drive runs inside `page.evaluate`, where the outer `page`, `document` and `window` do not
+// exist. That mistake cost two full CI runs -- 40307148708 and 40310223649 both failed on BOTH legs with
+// "page.evaluate: ReferenceError: page is not defined" -- and `node --check` cannot see it. This test makes
+// the same claims about the source in about a second, so the next edit of that block fails here instead of
+// eighteen minutes into a dispatch.
 //
-// THE CLAIMS, each of which the source can fail:
-//   1. no `page.` FOR A CALL inside a `page.evaluate` callback -- the exact defect above;
-//   2. the abort observation records the keys the comparator reads (a comparator/recorder contract that has
-//      already drifted once: `textAfterAbort` in the probe, `textAfterCut` in the comparator);
-//   3. the abort surface never clicks a stop control (it must not measure cancellation);
-//   4. the settle loop requires BOTH the frontend idle flag AND no render movement, at the tight interval;
-//   5. the settle deadline is the 60 s bound this harness relies on;
-//   6. the probe, the hop and the comparator all parse.
+// WHAT IT CHECKS, each of which the source can fail:
+//   1. no node-only global (`page`, `document`, `window`) is used inside the drive callback. The callback's
+//      extent is the drive call's own argument list, computed on source with strings and comments removed,
+//      because a brace count over the raw text is defeated by template literals -- which is how the same
+//      defect survived its first fix.
+//   2. the abort observations live OUTSIDE that callback and record the keys the comparator reads. That
+//      contract has already drifted once (`textAfterAbort` in the probe against `textAfterCut` in the
+//      comparator), so it is asserted by name.
+//   3. the abort observation never clicks a stop control: this surface must not measure cancellation.
+//   4. the settle loop requires BOTH the frontend idle flag AND a still render count, at the tight interval,
+//      under the 60 s bound.
+//   5. the probe, the hop and the comparator all parse.
+//
+// The scan is paired with a mutation performed BY THE TEST ITSELF, so a checker that cannot fail is caught
+// here rather than trusted.
 //
 // Run: node tests/browser/streaming-framing-probe-smoke.mjs
 import assert from 'node:assert/strict';
@@ -25,123 +33,115 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(path.join(here, 'generation-probe.mjs'), 'utf8');
 
-const driveStart = source.indexOf('const outcome = await page.evaluate(async ({ mockUrl');
-assert.ok(driveStart > 0, 'the probe no longer has the drive page.evaluate call this test knows about');
-const bodyStart = source.indexOf('\n', driveStart) + 1;
-const driveEnd = source.indexOf('}, { mockUrl:', driveStart);
-assert.ok(driveEnd > bodyStart, 'the drive body has no end marker');
-// THE SLICE ENDS AT THE `page.evaluate(` CALL THAT OPENS IT, NOT AT THE ARGUMENTS AFTER ITS BODY. The first
-// version read to the arguments object, which is AFTER the end of the callback, so the node-side abort
-// observation block fell inside the "page body" and every legitimate `page.evaluate` there read as a defect.
-// The closing is the line that both closes the object literal and ends the call (`});`).
-// THE CALL CLOSES AT THE END OF THE ARGUMENTS: the line that ends the object literal and the call, i.e. the
-// first ' });' after the arguments HEAD. A ' });' is also matched inside string literals of the body, so
-// the search starts at the arguments head rather than inside the callback.
-const callClose = source.indexOf(' });', driveEnd) + ' });'.length;
-const driveBody = source.slice(bodyStart, callClose);
-assert.ok(driveBody.length > 5000, `the drive body looks truncated (${driveBody.length} chars)`);
-
 const cases = [];
 const addCase = (description, check) => cases.push({ description, check });
 
-/**
- * THE DEFECT'S OWN SHAPE: a `page.` reference INSIDE a `page.evaluate` callback. Braces are counted from the
- * callback's opening so the check follows the real nesting. The probe legitimately calls `page.evaluate(...)`
- * from node code outside any page context, which this does not flag -- only a reference reached from inside
- * a callback is unreachable at run time.
- */
-// THE CALL TEXT IS ONE CONSTANT, so the slice that follows it cannot disagree with the search that found it
-// (a literal length was one character too long here, and the detector silently found nothing).
-const CALL = "page.evaluate(";
-const pageReferencesInsideCallbacks = text => {
-    const offenders = [];
-    const lines = text.split(String.fromCharCode(10));
-    // THE WINDOW OPENS AT `page.evaluate(` AND STAYS OPEN UNTIL `depth` returns to zero, where `depth` counts
-    // braces from the FIRST `{` AFTER THE CALL. Counting from anywhere else is the bug this function had twice:
-    // first it closed on the call line itself (a one-line defect passed), then it opened on the FIRST
-    // `page.evaluate(` in the file and never looked at a later one. Both are fixed here and both are mutation-
-    // tested below.
-    let depth = 0;
-    let openedAt = null;
-    for (const [index, rawLine] of lines.entries()) {
-        const code = rawLine.replace(/\/\/.*$/, "");
-        if (openedAt === null) {
-            const open = code.indexOf(CALL);
-            if (open < 0) continue;
-            const afterCall = code.slice(open + CALL.length);
-            const firstBrace = afterCall.indexOf("{");
-            if (firstBrace < 0) {
-                // AN EXPRESSION-BODIED CALLBACK (`page.evaluate(() => page.keyboard)`): there is no brace, so the
-                // rest of the line IS the callback and an outer use on it is reachable. The first version
-                // skipped the line, which is why that shape survived its own mutation.
-                if (/\bpage\s*\./.test(afterCall)) offenders.push(`inside the single-line callback at line ${index + 1}: ${rawLine.trim()}`);
-                continue;
-            }
-            if (firstBrace < 0) continue;
-            openedAt = index + 1;
-            depth = balance(afterCall.slice(firstBrace));
-        } else {
-            if (/\bpage\s*\./.test(code)) offenders.push(`inside the callback opened at line ${openedAt}: ${index + 1}: ${rawLine.trim()}`);
-            depth += balance(code);
+/** Removes comments and string/template contents, so punctuation can be counted on code alone. */
+const stripLiterals = text => {
+    let out = '';
+    let mode = null;
+    for (let index = 0; index < text.length; index += 1) {
+        const character = text[index];
+        const next = text[index + 1];
+        if (mode === null) {
+            if (character === '/' && next === '/') { mode = 'line'; index += 1; continue; }
+            if (character === "'" || character === '"' || character === '`') { mode = character; out += ' '; continue; }
+            out += character;
+            continue;
         }
-        if (openedAt !== null && depth <= 0) openedAt = null;
+        if (mode === 'line') {
+            if (character === '\n') { mode = null; out += '\n'; }
+            continue;
+        }
+        if (character === '\\') { index += 1; continue; }
+        if (character === mode) { mode = null; out += ' '; }
     }
-    return [...new Set(offenders)];
+    return out;
 };
 
-/** Open braces minus close braces on one line, ignoring a trailing comment. */
-const balance = code => {
-    const stripped = code.replace(/\/\/.*$/, "");
-    return (stripped.match(/\{/g) ?? []).length - (stripped.match(/\}/g) ?? []).length;
+// ONLY THE OUTER HANDLES: `page` is the Playwright object, and `process` / `require` are node-only.
+// `document`, `window` and `performance` exist INSIDE the page and the drive uses them legitimately.
+const outerHandleUses = lines => lines.flatMap(({ number, code }) => ['page', 'process', 'require']
+    .filter(name => new RegExp('\\b' + name + '\\s*\\.').test(code))
+    .map(name => `line ${number}: ${code.trim()}`));
+
+/**
+ * The CODE lines of the drive callback, with comments and string contents removed. Working line by line keeps a
+ * line NUMBER in the report, and it means a word inside a comment -- an earlier version flagged the noun
+ * "process" in a remark about the generating variable -- cannot be mistaken for a call.
+ */
+const driveCallbackCode = () => {
+    const lines = source.split('\n');
+    const start = lines.findIndex(line => line.includes('const outcome = await page.evaluate('));
+    assert.ok(start >= 0, 'the probe no longer has the drive page.evaluate call this test knows about');
+    const collected = [];
+    let depth = 0;
+    let opened = false;
+    for (let index = start; index < lines.length; index += 1) {
+        const stripped = stripLiterals(lines[index]);
+        collected.push({ number: index + 1, code: stripped });
+        for (const character of stripped) {
+            if (character === '{' || character === '(') { depth += 1; opened = true; }
+            else if (character === '}' || character === ')') depth -= 1;
+        }
+        // THE CALLBACK ENDS WHERE ITS ARGUMENT LIST CLOSES, after it has opened at least once.
+        if (opened && depth <= 0) break;
+    }
+    assert.ok(collected.length > 10, `the drive callback slice looks wrong (${collected.length} line(s))`);
+    return collected;
 };
 
-addCase('no `page.` reference inside a page callback (the ReferenceError of run 40307148708)', () => {
-    const offenders = pageReferencesInsideCallbacks(driveBody);
-    assert.deepEqual(offenders, [], `the outer page object is unreachable inside a page callback, got:\n${offenders.join('\n')}`);
-    // THE COMPLEMENTARY SHAPE, and it is the one the first mutation test found surviving: a `page.` call
-    // ANYWHERE between the opening of the drive and its return is equally unreachable, because the whole body
-    // runs in the browser. This is broader and needs no brace counting; the nested-callback detector above is
-    // kept because it names the LINE of a nested evaluate, which is what a reader needs when this rule fires.
-    // fires on a legitimate `page.evaluate` that belongs to a scope this slice cannot see.
-    // `page.evaluate(...)` IS EXCLUDED BY DESIGN: the abort observation block that reads the recorder runs in
-    // NODE, after the settle loop, so its calls to `page.evaluate` are the legitimate ones. What is never
-    // legitimate from inside the browser body is any OTHER use of the outer object -- `page.mainFrame()`,
-    // `page.on(...)`, `page.keyboard` -- so the rule matches `page.` unless the member is `evaluate` itself.
-    const outerUses = driveBody.split('\n')
-        .map((line, index) => [index + 1, line.replace(/\/\/.*$/, '')])
-        .filter(([, code]) => /\bpage\s*\.(?!evaluate\b)/.test(code))
-        .map(([number, code]) => `${number}: ${code.trim()}`);
-    assert.deepEqual(outerUses, [], `the drive body runs inside the browser, where the outer page object does not exist, got:\n${outerUses.join(String.fromCharCode(10))}`);
+addCase('no outer handle (page, process, require) is used inside the drive callback', () => {
+    // THE CALL LINE AND THE ARGUMENT OBJECT ARE NODE-SIDE BY CONSTRUCTION: the first opens the call with
+    // `page.evaluate(` and passes `process.env` in the object AFTER the callback. Only lines strictly between
+    // them run in the browser.
+    const lines = driveCallbackCode();
+    const first = lines[0];
+    const last = lines[lines.length - 1];
+    const inner = lines.slice(1, Math.max(1, lines.length - 1));
+    assert.ok(/page\.evaluate\(/.test(first.code), 'the drive slice does not start at the drive call');
+    assert.ok(/process\.env/.test(last.code) || /\}\);/.test(last.code), 'the drive slice does not end at its argument object');
+    const offenders = outerHandleUses(inner);
+    assert.deepEqual(offenders, [], `the Playwright page handle and the node globals are unreachable inside a page callback, got: ${offenders.join(', ')}`);
 });
 
-// AND THE CHECK CAN FAIL: run over a body that HAS the defect, it must name it. Without this the assertion
-// above could be decoration.
-addCase('the page-callback check itself detects a planted reference', () => {
-    const planted = 'await page.evaluate(() => {\n    const x = page.mainFrame();\n});\n';
-    assert.equal(pageReferencesInsideCallbacks(planted).length, 1, 'the detector did not find a page reference inside a page callback');
+// THE CHECKER MUST BE ABLE TO FAIL, and it must not flag what is legitimate.
+addCase('the scan detects a planted outer-handle use and ignores a frontend call', () => {
+    assert.equal(outerHandleUses([{ number: 1, code: '(async () => { const x = await page.evaluate(() => 1); })' }]).length, 1,
+        'the scan did not see a planted page.evaluate');
+    assert.equal(outerHandleUses([{ number: 1, code: '(async () => { const d = document.querySelector("#x"); })' }]).length, 0,
+        'the scan flagged document, which exists inside the page');
 });
 
-const observationStart = source.indexOf("} else if (probeMode === 'abort') {");
-assert.ok(observationStart > 0, 'the probe no longer has the abort observation block this test knows about');
-const observationEnd = source.indexOf('            } else {', observationStart);
+const abortBlocks = [...source.matchAll(/^ {4}if \(probeMode === .abort.\) \{/gm)].map(match => match.index);
+assert.ok(abortBlocks.length > 0, 'the probe no longer has a node-side abort observation block');
+const observationStart = abortBlocks[abortBlocks.length - 1];
+const observationEnd = source.indexOf('\n    }', observationStart);
 assert.ok(observationEnd > observationStart, 'the abort observation block has no end marker');
 const observationBody = source.slice(observationStart, observationEnd);
+// IT MUST BE OUTSIDE THE DRIVE. A block that lives inside the callback compiles and fails in a browser, which
+// is the defect this file exists for; the drive's argument object ends before the node-side block.
+assert.ok(observationStart > source.indexOf('presetContextOverride: Number.isInteger'),
+    'the abort observation block is still inside the drive callback');
 
 for (const key of ['textAfterCut', 'returnedToIdle', 'contentStatesAtCut', 'snapshotsLater', 'endedEvents']) {
-    addCase(`the comparator's observable \`${key}\` is recorded by the abort branch`, () => {
-        assert.ok(observationBody.includes(`streamState.${key}`), `${key} is not set in the abort branch, so the comparator would read undefined on both legs`);
+    addCase(`the comparator's observable \`${key}\` is recorded by the abort observation`, () => {
+        // A MEMBER OF THE OBJECT ASSIGNED TO report.streamState, not a `streamState.x = ...` statement: this
+        // block builds the object in node, so a test looking for the statement shape checks the wrong thing.
+        assert.ok(new RegExp('\n {12}' + key + ':').test(observationBody),
+            `${key} is not recorded by the abort observation, so the comparator would read undefined on both legs`);
     });
 }
-addCase('the abort branch never clicks a stop control', () => {
-    assert.equal(/stopButton\.click\(|#mes_stop[^;]*\.click\(/.test(observationBody), false, 'the abort branch clicked a stop control, so cancellation and a dead network would be indistinguishable');
+addCase('the abort observation never clicks a stop control', () => {
+    assert.equal(/stopButton\.click\(|#mes_stop[^;]*\.click\(/.test(observationBody), false,
+        'the observation clicked a stop control, so cancellation and a dead network would be indistinguishable');
 });
 
 const settleStart = source.indexOf('while (performance.now() < settleDeadline) {');
 const settleEnd = source.indexOf('const settledIdle', settleStart);
 assert.ok(settleStart > 0 && settleEnd > settleStart, 'the probe no longer has the settle loop this test knows about');
 const settleBody = source.slice(settleStart, settleEnd);
-
-addCase('the abort settle requires the idle flag AND no render movement', () => {
+addCase('the abort settle requires the idle flag AND a still render count', () => {
     assert.ok(/quietState\.renderStates !== quietSinceRenderChange/.test(settleBody), 'the settle loop does not compare the render count, so a gap between frames would end the window');
     assert.ok(/quietState\.isGenerating/.test(settleBody), 'the settle loop does not read the frontend idle flag');
     assert.ok(/setTimeout\(resolve, 50\)/.test(settleBody), 'the settle loop does not poll at the tight interval the abort surface needs');
