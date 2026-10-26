@@ -185,6 +185,33 @@ Two driver defects cost this lane two rounds and are worth remembering: `getCont
 `TavernHelper` member (the child iframe's accessor is `window.SillyTavern.getContext()`, installed by
 `iframe/predefine.js`), and a just-clicked character has a greeting PREVIEW and no chat, so
 `createChatMessages` had nothing to write into.
+**Q6/Q8 (a real user preset changes the model context, identically on both backends) — PROVEN 2026-10-25.**
+`Browser differential` 40274214952, preset mode: four legs (preset A and preset B, GoTavern and pinned Node) each
+ran page-loaded -> settings-ready -> real-preset-loaded -> real-preset-structure -> connection-configured ->
+character-open -> generation-completed -> peer-reached, and the comparator's nine guards were ALL true:
+legsPresent, legsDrove, structureMatchesTheOracle, presetAEqualsAcrossLegs, presetBEqualsAcrossLegs,
+goATavernDiffersFromGoB, bUnreferencedPromptsAbsentOnBothLegs, aEnabledRowPointingAtDisabledPromptContributes,
+harnessDiscriminates, with `aSharedMarkers: 25`.
+
+What that means precisely: for the user's own 105-prompt and 119-prompt presets, the request that reached the
+model backend is byte-identical (bodySha256, length, message array) between GoTavern and pinned, AND the two
+presets produce DIFFERENT requests from the same implementation -- rule 48's two halves at once.
+
+Two things had to be right before this green meant anything, and both were my own defects:
+- the request must be assembled BY THE PRESET. `generateRaw({ordered_prompts})` takes its own explicit list, so
+  run 40272833510 produced equal requests that carried no fixture marker at all. The leg now calls
+  `generate({preset_name: 'in_use'})`, the frontend's own assembly.
+- a synthetic click on `#send_but` is not a user path in this harness: run 40269030050 recorded
+  `messages 2 -> 0`, `textarea "" -> "REAL_PRESET_PROBE_INPUT"`, i.e. the frontend switched session instead of
+  sending. The capture goes through the extension's own generation entry.
+
+Declared in the artefact and NOT covered: preset B's helper scripts are stubs and are not executed; a helper
+MUTATION changing the next request (Q12); streaming (Q19); reload/swipe/regenerate/continue (Q20); a real provider
+(rule 22).
+
+The fixtures themselves are `tests/browser/fixtures/real/{preset-a,preset-b}.json`, desensitised to byte-exact
+length with every NAME field replaced by a marker and two six-byte names declared verbatim in the manifest, gated
+in CI by tools/check-fixture-watermarks.mjs. The character card is still NOT committed.
 **Q10 (酒馆助手 variable persistence) — PROVEN on both subjects, 2026-10-25.** The helper script's chat
 variable reaches the chat file on disk on GoTavern AND on pinned Node, with the negative control still
 biting (a helper-off leg must NOT persist it). Evidence: `Browser differential` 40250495167 on
