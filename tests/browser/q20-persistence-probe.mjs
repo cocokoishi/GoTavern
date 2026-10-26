@@ -211,6 +211,27 @@ try {
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
     page.on('console', message => report.console.push({ type: message.type(), text: String(message.text()).slice(0, 400) }));
+    // WHY THIS EXISTS. Two runs measured a save that resolved ok and wrote nothing, with `files=` empty on BOTH
+    // subjects. A resolved promise cannot tell "the frontend never asked" from "the server refused", so the
+    // requests the page makes to /api/chats are recorded and carried into the artefact: a non-2xx is a product
+    // finding, an absent request is a drive limitation.
+    const chatRequests = [];
+    page.on('response', async response => {
+        const url = response.url();
+        if (!/\/api\/chats/.test(url)) return;
+        let byteLength = null;
+        try {
+            byteLength = (await response.body()).length;
+        } catch {
+            byteLength = null;
+        }
+        chatRequests.push({
+            method: response.request().method(),
+            path: new URL(url).pathname,
+            status: response.status(),
+            byteLength,
+        });
+    });
     await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
 
     const openPage = async () => {
@@ -310,6 +331,7 @@ try {
     }, MARKERS.first);
     await page.waitForTimeout(2000);
     const afterFirst = await readChatFiles();
+    report.chatRequests = chatRequests.slice();
     report.afterFirstSave = afterFirst;
     report.firstTurn = first;
     // THE SAVE IS JUDGED BY THE FILE, NOT BY THE RETURN VALUE: a resolved promise is exactly what the failing run
