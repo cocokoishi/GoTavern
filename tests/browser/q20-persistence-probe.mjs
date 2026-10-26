@@ -486,6 +486,13 @@ try {
             control.dispatchEvent(new Event('change', { bubbles: true }));
             return true;
         };
+        // `chat_completion_source` IS NOT `main_api`. Run 40375075025 recorded `mainApi: "koboldhorde"` at the click:
+        // the leg had configured the custom endpoint but the API SWITCH still pointed at the fresh-install default, so
+        // Generate took the Horde path and quietly did nothing on both subjects. `changeMainAPI` is script.js:7756, the
+        // frontend's own switch, and it also sets `#main_api` so the rest of the page agrees.
+        const scriptModule = await import('./script.js');
+        scriptModule.changeMainAPI('openai');
+        set('#main_api', 'openai');
         set('#chat_completion_source', 'custom');
         set('#custom_api_url_text', url);
         set('#custom_model_id', model);
