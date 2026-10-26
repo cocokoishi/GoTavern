@@ -197,6 +197,8 @@ const report = {
     chatRequests: [],
     peerRequests: [],
     navigations: [],
+    pageErrorTail: [],
+    consoleTail: [],
     pageErrors: [],
     console: [],
     failure: null,
@@ -251,13 +253,27 @@ let browser;
 let disarmed = null;
 try {
     await waitForServer(`${baseURL}/version`);
-    // A CHROMIUM CHANNEL, because one measurement needs a scriptable `window.location` (see the reload recorder).
-    // The CI job already publishes `chrome` for Playwright, and `playwright install chromium` stays in the workflow
-    // for the legs that were recorded against the bundled build.
-    browser = await chromium.launch({ channel: 'chromium' });
+    // THE BUNDLED BUILD, deliberately. Run 40310580694 measured that `channel: 'chromium'` does NOT make
+    // `window.location` forkable -- Playwright installs its own non-configurable one per browsing context in either
+    // mode -- so the channel bought nothing and would have quietly made this leg drive a different browser from
+    // every other leg in the workflow. Back to the default, with the recorder replaced by one that does not need a
+    // scriptable Location.
+    browser = await chromium.launch();
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
     page.on('console', message => report.console.push({ type: message.type(), text: String(message.text()).slice(0, 400) }));
+    // THE PAGE'S OWN ERROR TAIL. `report.console` is bounded to a few hundred entries and a long startup can push an
+    // error out of it; this keeps the last few page-side errors regardless of how much was logged around them.
+    page.on('pageerror', error => {
+        report.pageErrorTail.push(String(error?.stack ?? error?.message ?? error).slice(0, 800));
+        if (report.pageErrorTail.length > 8) report.pageErrorTail.shift();
+    });
+    // The console tail, which is where a reload's agent usually announces itself (a toastr error, a thrown message).
+    page.on('console', message => {
+        if (!['error', 'warning'].includes(message.type())) return;
+        report.consoleTail.push({ type: message.type(), text: String(message.text()).slice(0, 300) });
+        if (report.consoleTail.length > 12) report.consoleTail.shift();
+    });
     // A NAVIGATION IS THE ONE DRIVE HAZARD THAT LOOKS LIKE A PRODUCT RESULT. Run 40300889852 recorded the send's
     // `POST /api/chats/save` 200 followed by a page that was NO LONGER THE PAGE THE SEND STARTED IN: startup
     // re-ran (initial user input not reported, app_ready rendered before startup), so the textarea the test then
@@ -276,67 +292,41 @@ try {
     // helper and asset legs already use, so this probe is not a second, divergent instrument.
     const recorder = attachUrlRecorder(page);
 
-    // WHO NAVIGATED, AND FROM WHERE. `framenavigated` proves a reload happened but not what asked for it; the pinned
-    // frontend has eleven `location.reload()` sites and a dozen indirect reload paths, so reading them and guessing
-    // would be exactly the "derive the oracle" failure (rule 4). This recorder wraps `location.reload` on every
-    // document for the ONE window in which a navigation would destroy the leg -- the open-character-to-second-turn
-    // span -- and captures the calling stack. It is removed before the ONE navigation the leg performs on purpose
-    // (`openPage()` for the reload step), so the record cannot contain the harness's own call.
-    const armReloadRecorder = async () => page.evaluate(() => {
-        // A `location.reload` property is an own property of Location, so a plain assignment fails on it; the ONE
-        // property that actually reaches the code that calls it is `window.location`, via a fork that forwards every
-        // other member to the real Location.
-        const real = window.location;
-        window.__q20Reloads = window.__q20Reloads ?? [];
-        // MEMOISED PER LOCATION INSTANCE. A fresh fork on every `window.location` read would make
-        // `window.location === window.location` false, and a frontend that compares them (or passes the object to a
-        // helper) would behave differently only because the leg was watching -- a measurement that changes what it
-        // measures. One fork per instance keeps every other observable identical.
-        const forks = new WeakMap();
-        Object.defineProperty(window, 'location', {
-            configurable: true,
-            get() {
-                if (forks.has(real)) return forks.get(real);
-                const forwards = {};
-                for (const key of Reflect.ownKeys(real)) {
-                    const value = real[key];
-                    forwards[key] = typeof value === 'function' ? value.bind(real) : value;
-                }
-                forwards.reload = function () {
-                    window.__q20Reloads.push({ via: 'location.reload', stack: String(new Error('reload').stack ?? '').slice(0, 1200) });
-                    return real.reload.apply(real, arguments);
-                };
-                forwards.assign = function (url) {
-                    window.__q20Reloads.push({ via: 'location.assign', url: String(url), stack: String(new Error('assign').stack ?? '').slice(0, 1200) });
-                    return real.assign.apply(real, arguments);
-                };
-                forwards.replace = function (url) {
-                    window.__q20Reloads.push({ via: 'location.replace', url: String(url), stack: String(new Error('replace').stack ?? '').slice(0, 1200) });
-                    return real.replace.apply(real, arguments);
-                };
-                forks.set(real, forwards);
-                return forwards;
-            },
-            set(value) {
-                real.href = value;
-            },
-        });
-        // The fork is removed here, so the leg's OWN reload (the next `openPage()`) is a plain navigation and the
-        // recorder's list cannot contain the harness's deliberate call.
-        window.__q20Disarm = () => {
-            delete window.location;
-        };
-        return { armed: true, href: String(real.href) };
+    // WHO NAVIGATED, AND FROM WHERE. `framenavigated` proves a reload happened but not what asked for it, and the
+    // pinned frontend has eleven `location.reload()` sites plus a dozen indirect reload paths, so reading them and
+    // picking one would be the "derive the oracle" failure (rule 4). Two runtime routes were measured and BOTH are
+    // closed in this driver: `Object.defineProperty(window, 'location', ...)` throws `Cannot redefine property:
+    // location` in a standard Playwright context (run 40308271879), and it STILL throws with `channel: 'chromium'`
+    // (run 40310580694), because Playwright installs its own non-configurable `window.location` per browsing
+    // context in both modes.
+    //
+    // THE ORACLE IS THE SUSPECT'S OWN HYPOTHESIS, stated as a mechanism and tested by making it expensive. A reload
+    // that lands in a READY document is a reload something called on purpose (the `location.reload` family); a
+    // reload that lands while the document is still LOADING is the browser giving up (a stalled dependency, a
+    // `Content-Disposition` attachment, a dropped connection). `Network.emulateNetworkConditions` widens that gap
+    // to seconds, so the landing state at the navigation's own moment is recorded rather than inferred: every
+    // lifecycle event, every navigation's `document.readyState` at `domcontentloaded`/`load`, and Chromium's own
+    // network failure journal. Nothing in the page is patched, so nothing the page does is changed.
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Page.enable');
+    await cdp.send('Network.enable');
+    const networkFailures = [];
+    cdp.on('Network.loadingFailed', event => {
+        if (networkFailures.length < 40) networkFailures.push({ errorText: event.errorText, type: event.type, canceled: event.canceled ?? null, requestId: event.requestId });
     });
-    const readReloads = async () => page.evaluate(() => window.__q20Reloads ?? []);
-    const disarmReloadRecorder = async () => page.evaluate(() => {
-        try {
-            window.__q20Disarm?.();
-        } catch (error) {
-            return { disarmed: false, error: String(error && error.message || error) };
+    const armPageSide = async () => page.evaluate(() => {
+        window.__q20Events = [];
+        const record = name => window.__q20Events.push({ name, at: Date.now(), readyState: document.readyState, href: String(window.location.href) });
+        for (const name of ['readystatechange', 'DOMContentLoaded', 'load', 'beforeunload', 'pagehide', 'unload']) {
+            window.addEventListener(name, () => record(name), { capture: true });
         }
-        return { disarmed: true };
+        // A COUNTER, not a stack: `location.reload` cannot be forked here, but code that reloads a page leaves no
+        // trace either way, so the count of pending same-document work is what distinguishes "the page asked" from
+        // "the browser gave up" -- the former happens with every async task settled, the latter mid-flight.
+        return { armed: true, href: String(window.location.href), readyState: document.readyState };
     });
+    const readPageSide = async () => page.evaluate(() => window.__q20Events ?? []);
+    const disarmReloadRecorder = async () => ({ disarmed: true });
 
     const openPage = async () => {
         await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
@@ -452,15 +442,7 @@ try {
 
     // ARMED NOW, DISARMED BEFORE THE LEG'S OWN RELOAD. Everything between these two calls is the window in which a
     // navigation is a DEFECT rather than this leg's design, so anything the recorder catches is evidence, not noise.
-    //
-    // THE SWITCH IS CHROMIUM'S, NOT CHROME'S. Run 40308271879 measured why the first attempt could not work:
-    // `TypeError: Cannot redefine property: location`. For a STANDARD (V8-fallback) Chromium context Playwright
-    // installs a non-configurable `window.location` of its own, and no script can fork it; with a real CHROMIUM
-    // channel the automation lives in the browser's own bindings and `window.location` behaves as it does for a user.
-    // The switch is recorded, because it must be visible that the leg drives a channel and not the default context
-    // -- and if the fork were unavailable a `CDP.Runtime.addBinding` route records the same runtime errors this one
-    // covers, since a reload that lands in the same document is a reload nothing called.
-    const armed = await armReloadRecorder();
+    const armed = await armPageSide();
     const pageMark = () => report.navigations.length;
     const navigationsBeforeSend = pageMark();
 
@@ -486,7 +468,7 @@ try {
         await page.waitForTimeout(500);
     }
     await recorder.settled();
-    const reloads = await readReloads();
+    const reloads = await readPageSide();
     disarmed = await disarmReloadRecorder();
     const chatRequestLog = () => recorder.requests
         .filter(entry => /\/api\/chats/.test(entry.pathAndQuery ?? ''))
@@ -495,7 +477,7 @@ try {
     report.chatRequests = chatRequestLog();
     report.firstTurn = sent;
     report.afterFirstSave = afterFirst;
-    report.reloadRecorder = { armed, disarmed, reloads, navigationsDuringSend: report.navigations.slice(navigationsBeforeSend), navigationsTotal: report.navigations.length };
+    report.reloadRecorder = { armed, disarmed, reloads, networkFailures, navigationsDuringSend: report.navigations.slice(navigationsBeforeSend), navigationsTotal: report.navigations.length, pageErrorTail: report.pageErrorTail.slice(), consoleTail: report.consoleTail.slice() };
     // THE SAVE IS JUDGED BY THE FILE AND BY THE REQUEST, NOT BY THE RETURN VALUE: a resolved promise is exactly what
     // the failing runs produced.
     step('first-turn-save-issued', report.chatRequests.some(entry => /\/api\/chats\/save$/.test(entry.path ?? '') && entry.status === 200),
