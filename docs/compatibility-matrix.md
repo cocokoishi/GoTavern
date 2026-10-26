@@ -507,13 +507,13 @@ Row id: `whole-session-e2e`
 
 **Evidence gap**
 
-- no differential carries state across steps: each probe boots its own runtime root, so a session that saves a chat and reloads the page is not gated anywhere
+- CROSS-STEP STATE IS NOW GATED, BUT ONLY PARTLY: `Browser differential` 40387864205 does save -> a FRESH page load -> second turn -> swipe inside ONE runtime root, with seven of seven guards true and the two provider requests byte-identical across subjects (794bfa4552f8 and 9ab9e8c13421). What that leg does NOT carry: `regenerate` and `continue` (declared in its notCompared), and it is four actions rather than a user session
 - the two existing browser artefacts that touch startup compare a startup RECORD, not a user session
-- send and stream are compared per-source against a mock peer, never as one user's sequence in one tree
+- send and stream are still compared per-source against a mock peer, never as one user's sequence in one tree, and NO leg boots pinned Node over a tree GoTavern WROTE -- the data-handback question (GOAL 10, scorecard Q21) has no driver at all
 
 Blocked by: `startup`, `providers-transport`
 
-This is the row this lane exists to create, and it is honestly FAIL today: the harness covers eight steps as eight independent experiments and zero sessions. Section `session` records the per-step inventory that supports that claim.
+This is the row this lane exists to create, and it is honestly FAIL today: most of the harness still covers its steps as independent experiments. One leg now carries state (see the first evidence gap), which is one of four things this row needs; the row stays FAIL until the other three exist. Section `session` records the per-step inventory that supports that claim.
 
 ## The whole-session differential (what exists today)
 
