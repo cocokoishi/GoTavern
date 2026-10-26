@@ -889,6 +889,54 @@ jobs:
           cat tests/browser/q20-comparison.json
           exit "$status"
 
+      - name: Hand GoTavern's own tree back to pinned Node (Q21)
+        id: q21
+        # THE QUESTION NOTHING ELSE ASKED: does the ORIGINAL server open the tree the PRODUCT wrote and continue the
+        # same conversation? The GoTavern half writes; the pinned half reads the SAME directory through
+        # run-against-pinned.mjs --data-root, which is the only supported way to point pinned at a caller's tree.
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          mkdir -p "$work/legs"
+          tree="$work/q21-tree"
+          rm -rf "$tree"; mkdir -p "$tree"
+          failures=0
+          if node tests/browser/q21-data-handback.mjs --data-root "$tree" --report "$work/legs/q21-gotavern.json"; then
+            echo "the GoTavern half wrote its tree"
+          else
+            echo "::error::the GoTavern half of the hand-back failed"
+            failures=$((failures + 1))
+          fi
+          # The tree the product wrote, so the pinned half can assert NOTHING WAS LOST by handing it over.
+          node --input-type=commonjs -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); fs.writeFileSync(process.argv[2], JSON.stringify(r.writtenTree ?? {}))" "$work/legs/q21-gotavern.json" "$work/legs/q21-tree.json"
+          if Q21_EXPECTED_TREE="$work/legs/q21-tree.json" node tests/browser/run-against-pinned.mjs q21-data-handback.mjs -- --data-root "$tree" --report "$work/legs/q21-pinned.json"; then
+            echo "the pinned half read the tree the product wrote"
+          else
+            echo "::error::pinned Node could not continue the tree GoTavern wrote"
+            failures=$((failures + 1))
+          fi
+          echo "q21_failures=$failures" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Judge the hand-back
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          status=0
+          for leg in gotavern pinned; do
+            report="$work/legs/q21-$leg.json"
+            if [ ! -f "$report" ]; then
+              echo "::error::the $leg half produced no report, so nothing is claimed about the hand-back"
+              status=1
+              continue
+            fi
+            node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); const leg=process.argv[2]; if (r.failure) { console.error(leg+': '+r.failure); process.exit(1) } console.log(leg+': '+r.steps.map(s=>(s.ok?'ok ':'FAIL ')+s.name).join(', '))" "$report" "$leg" || status=1
+          done
+          cat "$work/legs/q21-pinned.json" 2>/dev/null || true
+          exit "$status"
+
       - name: Prove the preset gate has teeth
         # Same two-part condition as the comparator above: this step proves the gate has teeth by
         # mutating the recorded legs, so it cannot run when there are no preset legs.
