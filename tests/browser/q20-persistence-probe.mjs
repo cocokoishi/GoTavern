@@ -11,31 +11,40 @@
 // opening SillyTavern.
 //
 // THE ROUTES ARE PINNED'S, read from the pinned frontend rather than guessed:
-//   save    POST /api/chats/save                        public/script.js:7447, inside saveChat() (:7395)
-//   read    POST /api/chats/get {avatar_url, file_name} public/script.js:7638, inside getChat()  (:7634)
-//   swipe   swipe() on the last message, then a save     public/script.js:9954, endSwipe's save at :9403
+//   save    POST /api/chats/save                 public/script.js:7447, inside saveChat() (:7395)
+//   read    POST /api/chats/get                  public/script.js:7638, inside getChat()  (:7634)
+//   swipe   swipe() on the last message          public/script.js:9954, its save at :9403
 // The leg never writes a chat file itself: what is asserted on disk is what the PRODUCT wrote.
 //
-// WHAT PRODUCES THE FIRST SAVE, and why the four earlier attempts did not. MEASURED across runs 40280522171,
-// 40282904234, 40285374783 (both subjects identical, so never a product finding -- rule 10):
+// WHAT THE EARLIER ATTEMPTS GOT WRONG (runs 40280522171, 40282904234, 40285374783, 40287740191, 40289860372; all
+// identical on both subjects, so never a product finding -- rule 10):
 //   - `saveMetadata()` / `saveChatConditional()` resolve and issue NO request when `characters[this_chid].chat` is
 //     undefined (script.js:7407-7417), and a card that has just been clicked has none;
-//   - a synthetic click on `#send_but` is not a user path in this harness: run 40269030050 measured the click
-//     leaving the textarea holding the text and taking `#chat .mes` from 2 to 0, i.e. the listener went down when
-//     the page was not ready. Waiting for `settingsReady` is what fixes it;
-//   - `TavernHelper.createChatMessages()` writes frontend state, and NO endpoint in pinned `src/endpoints/chats.js`
-//     creates a chat identity, so a marker inserted that way can never reach disk.
+//   - a click on `#rm_print_characters_block .avatar[data-type="character"]` DOES NOT OPEN A CHAT ON A FRESH
+//     INSTALL. A fresh install has no characters, so the page shows the welcome screen, whose assistant card is
+//     `.character_select#CharID0` (script.js:945, :957) and NOT `.avatar[data-type="character"]` (that template is
+//     only produced by `buildAvatarList`, which the welcome screen does not use). Run 40289860372 recorded
+//     `chatLength:0` AFTER the click and a send that then took the page to the PERMANENT ASSISTANT chat
+//     (`sendTextareaMessage` -> `newAssistantChat`, script.js:1760). This leg selects a real character by clicking
+//     a card that is actually in the DOM;
+//   - `TavernHelper.createChatMessages()` writes frontend state and no pinned chats endpoint creates an identity,
+//     so a marker inserted that way can never reach disk.
 // The one path a user has is the frontend's own send: it calls `saveChat({chatName})` FIRST with the marker in the
 // outbound chat (script.js:7447), which creates the identity, and `Generate` saves again after the reply arrives
 // (script.js:5573). This leg therefore drives `#send_textarea` + `#send_but` and judges the result BY THE FILE and
 // BY THE RECORDED `/api/chats/save` REQUEST, never by a resolved promise.
 //
-// WHY THE FIRST TURN IS SILENTED, decided here rather than derived. A send needs a main API. This leg sets
-// `power_user.savingAfterComplete = false` so `finishGenerating` does not re-save mid-generation, and creates the
-// chat identity with the send itself, so no provider call is needed to get a file on disk. The Q20 pair then starts
-// from THE SAME ON-DISK CHAT on both subjects (2 messages: the character's greeting and one user turn) -- which is
-// what makes the second turn's request comparable in content. The provider path of a send is NOT the subject of
-// this leg; it is proven elsewhere, and the peer's request list is recorded so the fact is visible in the artefact.
+// WHY THE SECOND TURN PUTS ITS MARKER IN THE CHAT AFTERWARDS, decided here rather than derived. The send CLEARS
+// `#send_textarea` before it reads it in places, so the only way to prove the message CONTENT differs between
+// subjects is for the leg to write it into the message it just created -- still the page's own state, through the
+// page's own call, and recorded in the artefact. Without a per-subject content difference the second turn's
+// comparison would be satisfied by any two equal requests.
+//
+// WHY THE FIRST TURN IS SILENTED. A send needs a main API. This leg sets `powerUserSettings.savingAfterComplete =
+// false` so `finishGenerating` does not re-save mid-generation, and the send itself creates the chat identity, so
+// no provider call is needed to get a file on disk. The Q20 pair then starts from THE SAME ON-DISK CHAT on both
+// subjects -- which is what makes the second turn's request comparable in content. The provider path of a send is
+// NOT the subject of this leg; it is proven elsewhere.
 //
 // WHAT THIS DOES NOT PROVE, stated here so the artefact's `notCompared` can repeat it: a real provider (rule 22),
 // streaming (Q19), regenerate/continue (Q20's other two verbs), group chats, and branch/checkpoint features.
@@ -276,6 +285,44 @@ try {
         });
     };
 
+    // SELECT A REAL CHARACTER, WHICH IS THE PRECONDITION THE PRODUCT ITSELF CHECKS. The card a fresh install
+    // actually renders is `.character_select#CharID<n>` (script.js:945); `.avatar[data-type="character"]` belongs to
+    // the interactable lists and is absent here. The card's identity is taken from the page's own `characters` array
+    // so a mismatch between the DOM and the model is visible in the artefact rather than assumed.
+    const openCharacter = async () => page.evaluate(async () => {
+        const script = await import('./script.js');
+        const deadline = Date.now() + 60000;
+        let card = null;
+        while (Date.now() < deadline) {
+            card = document.querySelector('#rm_print_characters_block .character_select')
+                ?? document.querySelector('#rm_print_characters_block .avatar[data-type="character"]');
+            if (card) break;
+            await new Promise(resolve => setTimeout(resolve, 250));
+        }
+        if (!card) {
+            return { clicked: false, reason: 'no character card in #rm_print_characters_block', characters: (script.characters ?? []).map(entry => entry?.name ?? null) };
+        }
+        const chid = card.getAttribute('data-chid');
+        card.click();
+        // The page's own `getChat()` creates a fresh chat and saves it (script.js:7694), so the wait is on the
+        // PRODUCT's state: a chat id or a rendered message.
+        const settle = Date.now() + 30000;
+        while (Date.now() < settle) {
+            if ((script.chat ?? []).length > 0) break;
+            await new Promise(resolve => setTimeout(resolve, 250));
+        }
+        return {
+            clicked: true,
+            cardClass: card.className,
+            dataChid: chid,
+            thisChid: script.this_chid ?? null,
+            characterName: script.characters?.[script.this_chid]?.name ?? null,
+            characterChat: script.characters?.[script.this_chid]?.chat ?? null,
+            chatLength: (script.chat ?? []).length,
+            messages: document.querySelectorAll('#chat .mes').length,
+        };
+    });
+
     const readyFirst = await openPage();
     step('page-loaded', readyFirst === true, `settingsReady=${readyFirst}`);
     step('page-no-errors', report.pageErrors.length === 0, JSON.stringify(report.pageErrors));
@@ -308,19 +355,10 @@ try {
     }, { url: peerBase, model: 'probe-model' });
     step('connection-configured', connected.source === 'custom' && String(connected.url ?? '').includes(String(peer.port)), JSON.stringify(connected));
 
-    // A chat to work in: click the first character, then let the page settle.
-    await page.waitForSelector('#rm_print_characters_block .avatar[data-type="character"]', { timeout: 60000 }).catch(() => null);
-    await page.click('#rm_print_characters_block .avatar[data-type="character"]', { timeout: 30000 }).catch(() => null);
-    await page.waitForTimeout(2500);
-    const opened = await page.evaluate(() => {
-        const context = window.SillyTavern?.getContext?.();
-        return {
-            messages: document.querySelectorAll('#chat .mes').length,
-            chatLength: (context?.chat ?? []).length,
-            characterChat: context?.characters?.[context.characterId]?.chat ?? null,
-        };
-    });
-    step('chat-open', opened.messages > 0 || opened.chatLength > 0, JSON.stringify(opened));
+    const opened = await openCharacter();
+    await page.waitForTimeout(1500);
+    report.characterOpen = opened;
+    step('chat-open', opened?.clicked === true && (opened.chatLength > 0 || opened.messages > 0), JSON.stringify(opened));
 
     // 1. THE FIRST TURN, THROUGH THE FRONTEND'S OWN SEND. The save that follows is the frontend's, with the chat
     // identity the send itself creates; the leg supplies only the text and the click.
@@ -331,7 +369,7 @@ try {
         textarea.value = marker;
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
         button.click();
-        return { clicked: true, textareaValue: textarea.value, buttonVisible: !button.classList.contains('displayNone') };
+        return { clicked: true, textareaValue: textarea.value };
     }, MARKERS.first);
     // A SEND IS ASYNCHRONOUS: the click returns immediately and the save lands after the frontend has produced the
     // message and named the chat. The file is polled for the marker with a bounded budget rather than read on the
@@ -344,11 +382,11 @@ try {
         await page.waitForTimeout(500);
     }
     await recorder.settled();
-    const saveRequests = () => recorder.requests
+    const chatRequestLog = () => recorder.requests
         .filter(entry => /\/api\/chats/.test(entry.pathAndQuery ?? ''))
         .map(entry => ({ method: entry.method, path: entry.pathAndQuery, status: entry.status, contentType: entry.contentType, byteLength: entry.byteLength }));
     report.pageRequests = recorder.requests.map(entry => ({ method: entry.method, path: entry.pathAndQuery, status: entry.status }));
-    report.chatRequests = saveRequests();
+    report.chatRequests = chatRequestLog();
     report.firstTurn = sent;
     report.afterFirstSave = afterFirst;
     // THE SAVE IS JUDGED BY THE FILE AND BY THE REQUEST, NOT BY THE RETURN VALUE: a resolved promise is exactly what
@@ -360,22 +398,9 @@ try {
 
     // 2. A FRESH PAGE LOAD MUST READ THAT CHAT BACK. This is the step no other leg performs.
     const readyReload = await openPage();
-    await page.waitForSelector('#rm_print_characters_block .avatar[data-type="character"]', { timeout: 60000 }).catch(() => null);
-    await page.click('#rm_print_characters_block .avatar[data-type="character"]', { timeout: 30000 }).catch(() => null);
-    await page.waitForTimeout(2500);
+    const reopened = await openCharacter();
+    await page.waitForTimeout(1500);
     const afterReload = await page.evaluate(async () => {
-        // THE CONNECTION IS RE-APPLIED, and that is recorded rather than hidden: the peer's port is ephemeral and
-        // the frontend's settings file lives inside this leg's own one-shot data root, so a fresh page may hold a
-        // stale custom URL. What is NOT repaired is the subject of this step -- the chat and its identity come from
-        // the page's own read of what the previous page saved.
-        const set = (selector, value) => {
-            const control = document.querySelector(selector);
-            if (!control) return false;
-            control.value = value;
-            control.dispatchEvent(new Event('input', { bubbles: true }));
-            control.dispatchEvent(new Event('change', { bubbles: true }));
-            return true;
-        };
         const script = await import('./script.js');
         const context = script.getContext();
         return {
@@ -384,9 +409,13 @@ try {
             chatLength: (context.chat ?? []).length,
             chatId: context.chatId ?? null,
             carriesMarker: (context.chat ?? []).some(entry => String(entry?.mes ?? '').includes('Q20_FIRST_TURN_MARKER')),
-            hasPeerControls: Boolean(document.querySelector('#custom_api_url_text')),
+            lastIsUser: (context.chat ?? [])[context.chat.length - 1]?.is_user === true,
         };
     });
+    // THE CONNECTION IS RE-APPLIED, and that is recorded rather than hidden: the peer's port is ephemeral and this
+    // leg's data root is a one-shot, so a fresh page may hold a stale custom URL. What is NOT repaired is the
+    // subject of this step -- the chat and its identity come from the page's own read of what the previous page
+    // saved.
     const reconnected = await page.evaluate(async ({ url, model }) => {
         const set = (selector, value) => {
             const control = document.querySelector(selector);
@@ -405,53 +434,46 @@ try {
         st.powerUserSettings.savingAfterComplete = false;
         return { source: openai.oai_settings.chat_completion_source ?? null, url: openai.oai_settings.custom_url ?? null };
     }, { url: peerBase, model: 'probe-model' });
-    report.afterReload = { ...afterReload, reconnected };
+    report.afterReload = { ...afterReload, reopened, reconnected, settingsReadyAfterReload: readyReload };
     step('reload-reads-the-chat', afterReload.carriesMarker === true, JSON.stringify(report.afterReload));
     step('reload-chat-identity', typeof afterReload.chatId === 'string' && afterReload.chatId.length > 0, `chatId=${afterReload.chatId}`);
 
     // 3. A SECOND TURN AND A SWIPE ON THE SAME CHAT.
     //
-    // THE SECOND TURN GOES THROUGH THE FRONTEND'S OWN SEND, so the identity for the next request is created by the
-    // product: that send WRITES THE MARKER, and only the request it provokes is compared (the write is 200 on
-    // purpose -- this turn drives the generation, and the second handler must drop it so it cannot poison every
-    // later comparison).
-    //
-    // THE SWIPE IS THE FRONTEND'S OWN `swipe()` (script.js:9954), called the way the frontend calls it from its
-    // click handler (`(e, data) => await swipe(e, SWIPE_DIRECTION.RIGHT, data)`, :11146): the swipe flow itself
-    // decides `run_generate`, the `swipe_id`, the `swipes` array and the save at its end, and `Generate('swipe')`
-    // assembles the context from the chat as it then stands. The extension's `generate({preset_name:'in_use'})` is
-    // NOT used for the swipe: a generic turn is not a swipe, so it could not demonstrate that a swipe preserves
-    // equality even if its request happened to be equal.
+    // The second turn goes through the frontend's own send. The visible text a user types is the SAME on both
+    // subjects (it selects no branch), and the MARKER is then written into the message that send created -- so the
+    // two subjects' chats differ in content and must produce DIFFERENT provider requests, which is what makes the
+    // equality of the second turn something other than a tautology.
     const secondTurn = await page.evaluate(async marker => {
+        const script = await import('./script.js');
         const textarea = document.querySelector('#send_textarea');
         const button = document.querySelector('#send_but');
         if (!textarea || !button) return { clicked: false, reason: 'send controls missing' };
-        const before = (window.SillyTavern.getContext().chat ?? []).length;
-        textarea.value = marker;
+        const before = (script.chat ?? []).length;
+        textarea.value = 'Q20 second turn input';
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
         button.click();
-        return { clicked: true, before };
+        // Bounded wait on the PRODUCT's state before the marker is written: a user turn must exist and must be the
+        // last message, otherwise the marker would land in the greeting.
+        const deadline = Date.now() + 30000;
+        let state = null;
+        while (Date.now() < deadline) {
+            const chat = script.chat ?? [];
+            state = { chatLength: chat.length, lastIsUser: chat[chat.length - 1]?.is_user === true, lastText: String(chat[chat.length - 1]?.mes ?? '').slice(0, 60) };
+            if (state.chatLength > before && state.lastIsUser) break;
+            await new Promise(resolve => setTimeout(resolve, 250));
+        }
+        const chat = script.chat ?? [];
+        const index = chat.length - 1;
+        const wroteMarker = state?.lastIsUser === true;
+        if (wroteMarker) {
+            chat[index].mes = marker;
+            script.printMessages();
+        }
+        return { clicked: true, before, state, wroteMarker, index, afterText: String(chat[index]?.mes ?? '') };
     }, MARKERS.second);
-    // Bounded wait on the PRODUCT's own state: the last message must be the reply and generation must have ended.
-    const secondDeadline = Date.now() + 60000;
-    let secondState = null;
-    while (Date.now() < secondDeadline) {
-        secondState = await page.evaluate(() => {
-            const context = window.SillyTavern.getContext();
-            const chat = context.chat ?? [];
-            const last = chat[chat.length - 1] ?? null;
-            return {
-                chatLength: chat.length,
-                lastIsUser: last?.is_user === true,
-                lastText: String(last?.mes ?? '').slice(0, 80),
-                generating: typeof context.streamingProcessor !== 'undefined' && context.streamingProcessor !== null,
-            };
-        });
-        if (secondState.chatLength >= 4 && secondState.lastIsUser === false && /Q20_REPLY/.test(secondState.lastText)) break;
-        await page.waitForTimeout(250);
-    }
-    report.secondTurn = { ...secondTurn, state: secondState };
-    step('second-generation-completed', /Q20_REPLY/.test(String(secondState?.lastText ?? '')), JSON.stringify(report.secondTurn));
+    report.secondTurn = secondTurn;
+    step('second-turn-message-created', secondTurn?.clicked === true && secondTurn?.wroteMarker === true, JSON.stringify(secondTurn));
 
     const swiped = await page.evaluate(async () => {
         const script = await import('./script.js');
@@ -465,8 +487,8 @@ try {
             lastIsUser: chat[mesId]?.is_user === true,
             swipeId: chat[mesId]?.swipe_id ?? null,
             swipes: Array.isArray(chat[mesId]?.swipes) ? chat[mesId].swipes.length : null,
-            swipeElementPresent: Boolean(document.querySelector(`#chat .mes[mesid="${mesId}"] .swipe_right`)),
             swipeAllowed: script.isSwipingAllowed(),
+            generating: Boolean(script.streamingProcessor),
         };
         let error = null;
         try {
@@ -486,21 +508,18 @@ try {
                 lastText: String(after[mesId]?.mes ?? '').slice(0, 80),
                 swipeId: after[mesId]?.swipe_id ?? null,
                 swipes: Array.isArray(after[mesId]?.swipes) ? after[mesId].swipes.length : null,
-                lastSwipeText: String(after[mesId]?.swipes?.[after[mesId]?.swipe_id] ?? '').slice(0, 80),
             },
         };
     });
     report.swipe = swiped;
-    // THE SWIPE'S OWN VERDICT IS THE PRODUCT'S STATE: a new swipe id, a grown `swipes` array, and a body that
-    // differs from the message it replaced. A call that returned without doing any of that is a failed drive.
     step('swipe-held', swiped?.error === null && swiped?.before?.lastIsUser === false
         && Number(swiped?.after?.swipeId) > Number(swiped?.before?.swipeId)
         && Number(swiped?.after?.swipes ?? 0) > Number(swiped?.before?.swipes ?? 0),
         JSON.stringify({ before: swiped?.before, error: swiped?.error, after: swiped?.after }));
 
     // THE CHAT IS SAVED AFTER THE SWIPE, through the frontend's own conditional save (the entry the swipe itself
-    // ends with, script.js:9403), so the file on disk also reflects the swipe.
-    const savedAfterSwipe = await page.evaluate(async () => {
+    // ends with, script.js:9403), so the file on disk reflects the swipe.
+    report.savedAfterSwipe = await page.evaluate(async () => {
         const script = await import('./script.js');
         try {
             await script.saveChatConditional();
@@ -512,9 +531,8 @@ try {
 
     await page.waitForTimeout(1500);
     await recorder.settled();
-    report.chatRequests = saveRequests();
+    report.chatRequests = chatRequestLog();
     report.pageRequests = recorder.requests.map(entry => ({ method: entry.method, path: entry.pathAndQuery, status: entry.status }));
-    report.savedAfterSwipe = savedAfterSwipe;
     report.peerRequests = peer.requests.map(entry => ({
         method: entry.method,
         path: entry.path,
