@@ -820,6 +820,20 @@ function assertGoTavernMatchesPinned(pinnedCaptures, goTavernCaptures) {
         };
         sortHeaders(reference);
         sortHeaders(candidate);
+        // HEADER-NAME CASING IS THE THIRD PRODUCTION-TRANSPORT FINGERPRINT, AND IT IS ASSERTED AS SUCH. Pinned's
+        // node-fetch writes lower-case names; net/http CANONICALISES them (`Accept`, `Authorization`), and
+        // tests/e2e/deepseek_generate_test.go:471-481 REQUIRES that canonical spelling as proof the request did not
+        // travel the wire-exact client -- alongside `accept-encoding: gzip` and the ABSENCE of `Connection`. Comparing
+        // the casing would therefore demand that GoTavern stop looking like the production transport it is meant to be.
+        // Both sides are lower-cased for comparison; values and membership are still compared exactly.
+        const lowerHeaderNames = capture => {
+            for (const request of capture.provider?.requests ?? []) {
+                if (!Array.isArray(request.headers)) continue;
+                request.headers = request.headers.map(header => ({ ...header, name: String(header?.name ?? '').toLowerCase() }));
+            }
+        };
+        lowerHeaderNames(reference);
+        lowerHeaderNames(candidate);
         const result = compareObservations(reference, candidate);
         if (!result.matches) {
             const detail = result.differences.slice(0, 20).map(difference =>
