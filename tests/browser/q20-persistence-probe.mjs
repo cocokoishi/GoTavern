@@ -248,6 +248,7 @@ const carries = (files, marker) => files.some(file => (file.messages ?? []).some
 
 const peer = await startCapturePeer();
 let browser;
+let disarmed = null;
 try {
     await waitForServer(`${baseURL}/version`);
     browser = await chromium.launch();
@@ -271,6 +272,68 @@ try {
     // method, path+query, status and the response byte length for every URL, and url-recorder.mjs is the module the
     // helper and asset legs already use, so this probe is not a second, divergent instrument.
     const recorder = attachUrlRecorder(page);
+
+    // WHO NAVIGATED, AND FROM WHERE. `framenavigated` proves a reload happened but not what asked for it; the pinned
+    // frontend has eleven `location.reload()` sites and a dozen indirect reload paths, so reading them and guessing
+    // would be exactly the "derive the oracle" failure (rule 4). This recorder wraps `location.reload` on every
+    // document for the ONE window in which a navigation would destroy the leg -- the open-character-to-second-turn
+    // span -- and captures the calling stack. It is removed before the ONE navigation the leg performs on purpose
+    // (`openPage()` for the reload step), so the record cannot contain the harness's own call.
+    const armReloadRecorder = async () => page.evaluate(() => {
+        // A `location.reload` property is an own property of Location, so a plain assignment fails on it; the ONE
+        // property that actually reaches the code that calls it is `window.location`, via a fork that forwards every
+        // other member to the real Location.
+        const real = window.location;
+        window.__q20Reloads = window.__q20Reloads ?? [];
+        // MEMOISED PER LOCATION INSTANCE. A fresh fork on every `window.location` read would make
+        // `window.location === window.location` false, and a frontend that compares them (or passes the object to a
+        // helper) would behave differently only because the leg was watching -- a measurement that changes what it
+        // measures. One fork per instance keeps every other observable identical.
+        const forks = new WeakMap();
+        Object.defineProperty(window, 'location', {
+            configurable: true,
+            get() {
+                if (forks.has(real)) return forks.get(real);
+                const forwards = {};
+                for (const key of Reflect.ownKeys(real)) {
+                    const value = real[key];
+                    forwards[key] = typeof value === 'function' ? value.bind(real) : value;
+                }
+                forwards.reload = function () {
+                    window.__q20Reloads.push({ via: 'location.reload', stack: String(new Error('reload').stack ?? '').slice(0, 1200) });
+                    return real.reload.apply(real, arguments);
+                };
+                forwards.assign = function (url) {
+                    window.__q20Reloads.push({ via: 'location.assign', url: String(url), stack: String(new Error('assign').stack ?? '').slice(0, 1200) });
+                    return real.assign.apply(real, arguments);
+                };
+                forwards.replace = function (url) {
+                    window.__q20Reloads.push({ via: 'location.replace', url: String(url), stack: String(new Error('replace').stack ?? '').slice(0, 1200) });
+                    return real.replace.apply(real, arguments);
+                };
+                forks.set(real, forwards);
+                return forwards;
+            },
+            set(value) {
+                real.href = value;
+            },
+        });
+        // The fork is removed here, so the leg's OWN reload (the next `openPage()`) is a plain navigation and the
+        // recorder's list cannot contain the harness's deliberate call.
+        window.__q20Disarm = () => {
+            delete window.location;
+        };
+        return { armed: true, href: String(real.href) };
+    });
+    const readReloads = async () => page.evaluate(() => window.__q20Reloads ?? []);
+    const disarmReloadRecorder = async () => page.evaluate(() => {
+        try {
+            window.__q20Disarm?.();
+        } catch (error) {
+            return { disarmed: false, error: String(error && error.message || error) };
+        }
+        return { disarmed: true };
+    });
 
     const openPage = async () => {
         await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
@@ -384,6 +447,12 @@ try {
     report.characterOpen = { ...opened, silenced };
     step('chat-open', opened?.clicked === true && (opened.chatLength > 0 || opened.messages > 0), JSON.stringify(report.characterOpen));
 
+    // ARMED NOW, DISARMED BEFORE THE LEG'S OWN RELOAD. Everything between these two calls is the window in which a
+    // navigation is a DEFECT rather than this leg's design, so anything the recorder catches is evidence, not noise.
+    const armed = await armReloadRecorder();
+    const pageMark = () => report.navigations.length;
+    const navigationsBeforeSend = pageMark();
+
     // 1. THE FIRST TURN, THROUGH THE FRONTEND'S OWN SEND. The save that follows is the frontend's, with the chat
     // identity the send itself creates; the leg supplies only the text and the click.
     const sent = await page.evaluate(async marker => {
@@ -406,6 +475,8 @@ try {
         await page.waitForTimeout(500);
     }
     await recorder.settled();
+    const reloads = await readReloads();
+    disarmed = await disarmReloadRecorder();
     const chatRequestLog = () => recorder.requests
         .filter(entry => /\/api\/chats/.test(entry.pathAndQuery ?? ''))
         .map(entry => ({ method: entry.method, path: entry.pathAndQuery, status: entry.status, contentType: entry.contentType, byteLength: entry.byteLength }));
@@ -413,10 +484,16 @@ try {
     report.chatRequests = chatRequestLog();
     report.firstTurn = sent;
     report.afterFirstSave = afterFirst;
+    report.reloadRecorder = { armed, disarmed, reloads, navigationsDuringSend: report.navigations.slice(navigationsBeforeSend), navigationsTotal: report.navigations.length };
     // THE SAVE IS JUDGED BY THE FILE AND BY THE REQUEST, NOT BY THE RETURN VALUE: a resolved promise is exactly what
     // the failing runs produced.
     step('first-turn-save-issued', report.chatRequests.some(entry => /\/api\/chats\/save$/.test(entry.path ?? '') && entry.status === 200),
         JSON.stringify(report.chatRequests));
+    // A NAVIGATION HERE IS A FAILED DRIVE, NOT A SAVE FINDING. The page the marker was written into is gone, so the
+    // marker's absence from the file says nothing about the product; the recorded navigation and reload stacks are
+    // what the next change is built on. Kept as its own step so the two can never be confused in a summary.
+    step('drive-stayed-on-one-page', report.navigations.length === navigationsBeforeSend,
+        `${report.navigations.length - navigationsBeforeSend} navigation(s) during the first turn: ${JSON.stringify(report.reloadRecorder)}`);
     step('first-turn-saved', carries(afterFirst, MARKERS.first),
         `files=${afterFirst.map(file => `${file.file}:${file.lines}`).join(',') || 'none'}`);
 
