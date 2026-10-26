@@ -30,6 +30,8 @@ import { fileURLToPath } from 'node:url';
 const playwrightModule = await import('@playwright/test');
 const chromium = playwrightModule.chromium ?? playwrightModule.default?.chromium;
 import { seedLegConfig } from './seed-leg-config.mjs';
+import { describeInstalledExtension, ensurePinnedExtensionInstalled } from './install-pinned-extension.mjs';
+import { pinnedExtension } from './pinned-extensions.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -130,6 +132,14 @@ const external = Boolean(process.env.PROBE_BASE_URL);
 const dataRoot = path.resolve(argumentValue('--data-root') ?? await fs.mkdtemp(path.join(process.env.TEMP ?? '/tmp', 'gotavern-real-preset-')));
 const reportPath = path.resolve(argumentValue('--report', path.join(here, `real-preset-${presetName}-leg.json`)));
 const fixtureBytes = await fs.readFile(presetPath);
+
+// THE GENERATION ENTRY IS THE EXTENSION, NOT A CLICK. Measured in run 40269030050: a synthetic click on
+// #send_but left the textarea holding the text and EMPTYED the chat (messages 2 -> 0), i.e. the frontend
+// switched session instead of sending; the helper lane's generateRaw has already been proven to reach a
+// peer on both subjects, so the real-preset capture uses the same entry rather than repairing a click.
+const extension = pinnedExtension('tavern-helper');
+const installed = await ensurePinnedExtensionInstalled(dataRoot, extension);
+const extensionDescription = await describeInstalledExtension(installed.extensionDirectory);
 
 // THE PRESET ENTERS THE TREE THE WAY A USER'S PRESET DOES: as a file the preset manager lists.
 const presetDirectory = path.join(dataRoot, 'default-user', 'OpenAI Settings');
@@ -321,52 +331,50 @@ try {
     const chatAvailable = (afterOpen.messages > 0 || afterOpen.chatLength > 0) && !report.failure;
     step('character-open', chatAvailable, JSON.stringify(report.characterOpen));
 
-    // 4. ONE SEND, and what actually happened to it recorded in every observable the page offers.
+    // 4. ONE GENERATION THROUGH THE EXTENSION, which is the entry that has been proven to reach a peer.
     //
-    // MEASURED (runs 40259110733, 40267671464): every prerequisite green, then `peer-reached: 0 request(s)` and
-    // an EMPTY pageErrors array, because pinned refuses a send with a toast and a console line rather than a throw.
-    // So the drive now records, after the click: the message count delta, the textarea's own value, whether a
-    // generation is running, and the console lines the frontend produced -- the four places a refusal shows up.
-    report.sendAttempt = null;
-    if (connected && structureOk && chatAvailable) {
-        const beforeSend = await page.evaluate(() => ({
-            messages: document.querySelectorAll('#chat .mes').length,
-            textarea: document.querySelector('#send_textarea')?.value ?? null,
-            consoleLength: 0,
-        }));
-        const consoleBefore = report.console.length;
-        const clicked = await page.evaluate(async () => {
-            const textarea = document.querySelector('#send_textarea');
-            const button = document.querySelector('#send_but');
-            if (!textarea || !button) return { ok: false, reason: 'send controls missing' };
-            textarea.value = 'REAL_PRESET_PROBE_INPUT';
-            textarea.dispatchEvent(new Event('input', { bubbles: true }));
-            button.click();
-            return { ok: true };
+    // MEASURED (run 40269030050): clicking #send_but on this page left #send_textarea holding the text and took
+    // #chat .mes from 2 to 0 -- the frontend switched session instead of sending. A synthetic click is not a
+    // user-reachable path in this harness, so it is recorded as such and the capture goes through
+    // TavernHelper.generateRaw, the same call the 酒馆助手 lane drives to the peer on both subjects.
+    report.generation = null;
+    if (connected && structureOk) {
+        await page.evaluate(() => {
+            window.__realPresetProbe = { marker: 'REAL_PRESET_PROBE_USER', done: null };
         });
-        const deadline = Date.now() + 60000;
-        while (Date.now() < deadline && peer.requests.length === 0) {
+        const script = [
+            "try {",
+            "  const reply = await TavernHelper.generateRaw({",
+            "    ordered_prompts: [{ role: 'user', content: window.parent.__realPresetProbe.marker }],",
+            "    user_input: window.parent.__realPresetProbe.marker,",
+            "    max_chat_history: 0,",
+            "    should_stream: false,",
+            "    should_silence: true,",
+            "  });",
+            "  window.parent.__realPresetProbe.done = { ok: true, preview: String(reply).slice(0, 120) };",
+            "} catch (error) {",
+            "  window.parent.__realPresetProbe.done = { ok: false, error: String(error && error.message || error) };",
+            "}",
+        ].join('\n');
+        await page.evaluate(content => {
+            window.TavernHelper.replaceScriptTrees([{
+                type: 'script',
+                enabled: true,
+                name: 'real-preset-probe-script',
+                id: 'real-preset-probe-script',
+                content,
+                button: { enabled: true, buttons: [{ name: 'probe', visible: true }] },
+            }], { type: 'global' });
+        }, script);
+        const deadline = Date.now() + 90000;
+        let outcome = null;
+        while (Date.now() < deadline) {
+            outcome = await page.evaluate(() => window.__realPresetProbe?.done ?? null);
+            if (outcome) break;
             await new Promise(resolve => setTimeout(resolve, 250));
         }
-        const afterSend = await page.evaluate(async () => {
-            const openai = await import('./scripts/openai.js');
-            return {
-                messages: document.querySelectorAll('#chat .mes').length,
-                textarea: document.querySelector('#send_textarea')?.value ?? null,
-                isGenerating: Boolean(openai.is_send_press),
-                lastIsUser: (window.SillyTavern?.getContext?.().chat ?? []).slice(-1)[0]?.is_user ?? null,
-            };
-        });
-        report.sendAttempt = {
-            clicked,
-            before: beforeSend,
-            after: afterSend,
-            userMessageAppended: afterSend.messages > beforeSend.messages,
-            textareaCleared: beforeSend.textarea !== afterSend.textarea,
-            console: report.console.slice(consoleBefore),
-        };
-        step('send-clicked', clicked.ok === true, JSON.stringify({ clicked, after: afterSend }));
-        step('user-message-appended', afterSend.messages > beforeSend.messages, `messages ${beforeSend.messages} -> ${afterSend.messages}, textarea ${JSON.stringify(beforeSend.textarea)} -> ${JSON.stringify(afterSend.textarea)}, isGenerating=${afterSend.isGenerating}`);
+        report.generation = { outcome, peerRequests: peer.requests.length };
+        step('generation-completed', outcome !== null, JSON.stringify(report.generation));
     }
     await new Promise(resolve => setTimeout(resolve, 1500));
     report.peerRequests = peer.requests.map(entry => ({
