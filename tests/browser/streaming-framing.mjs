@@ -232,6 +232,7 @@ export function startStreamingHop({ upstream, mode, cutAfterBytes = 0, cutArmOnP
                     }
                     clientResponse.write(buffer);
                     state.releasedBytes += buffer.length;
+                    state.responseReleasedBytes = (state.responseReleasedBytes ?? 0) + buffer.length;
                     state.writes.push({ bytes: buffer.length, frames, source: label });
                 };
                 const finishCleanly = () => {
@@ -253,6 +254,12 @@ export function startStreamingHop({ upstream, mode, cutAfterBytes = 0, cutArmOnP
                     // the same connection (`/api/ping`) reset it: two runs in a row reported `cut: null`
                     // beside `releasedBytes: 533`, a recording contradicting itself. `anyCut` is the durable
                     // fact -- a cut happened to THIS hop -- and the probe reports both.
+                    // PER-RESPONSE RELEASED BYTES, recorded when the cut happens: `state.releasedBytes` is a
+                    // HOP-WIDE cumulative count and includes responses that were relayed WHOLE before this
+                    // one (measured: the reachability check's 21-byte JSON body made a head cut report
+                    // 21 released bytes, and the guard read that as "the body had started"). What the
+                    // cut is about is THIS response, so that is what is recorded.
+                    state.releasedAtCut = state.responseReleasedBytes ?? 0;
                     state.anyCut = reason;
                     state.cutsPerformed = (state.cutsPerformed ?? 0) + 1;
                     // BOTH DIRECTIONS DIE. The subject sees a body that ended mid-frame with the
@@ -271,6 +278,9 @@ export function startStreamingHop({ upstream, mode, cutAfterBytes = 0, cutArmOnP
                 // frontend's own reachability check (GET /models) and the subject would never reach a
                 // connected state -- measured: the first draft armed every response, both subjects ended
                 // with `in flight: 1` and no stream at all, and the surface proved nothing about truncation.
+                // PER-RESPONSE, distinct from the hop-wide `state.releasedBytes` a reader also wants, and
+                // RESET HERE so the head-cut branch below sees this response's own count (zero).
+                state.responseReleasedBytes = 0;
                 const armed = (mode === HOP_MODES.CUT || mode === HOP_MODES.CUT_AT_HEAD) && pathMatches && isEventStream;
                 state.cutArmedResponses = (state.cutArmedResponses ?? 0) + (armed ? 1 : 0);
 

@@ -34,7 +34,10 @@ const summarize = file => {
         // therefore consistent -- and claiming a cut from those two numbers is exactly what cost this
         // therefore consistent, and claiming a cut from those two numbers is what cost this lane two
         // runs of chasing a fault that had not happened.
+        // THE HOP-WIDE TOTAL, which includes responses relayed whole before this one. `releasedAtCut` is the
+        // number the abort surface is about: this response's own body.
         releasedBytes: hop.releasedBytes ?? null,
+        releasedAtCut: hop.releasedAtCut ?? null,
         completed: hop.completed === true,
         plaintextOffsetAtCut: hop.cutAfterBytes ?? null,
         writes: hop.bodyWriteCount ?? null,

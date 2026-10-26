@@ -250,7 +250,7 @@ function abortSurface(gotavern, pinned, baseline) {
     // hopReleasedNoBodyAtTheHead states.
     guard('hopReleasedNoBodyAtTheHead',
         `the head cut relayed / body byte(s), so the body had started and this is not a head-of-body cut`,
-        gvHop.releasedBytes === 0 && pnHop.releasedBytes === 0);
+        gvHop.releasedAtCut === 0 && pnHop.releasedAtCut === 0);
     // THE DISCONNECT HERE IS THE SUBJECT, AND IT IS CAUSED BY THE CUT -- not by a user. What this guard
     // distinguishes is the surface from `cancel`: in cancel mode a stop button was pressed, and here none was
     // (asserted by `noCallerCancelOnEitherSubject`). When the cut lands INSIDE a record, the frontend's own
@@ -267,8 +267,8 @@ function abortSurface(gotavern, pinned, baseline) {
         `a subject recorded a stop click in the abort surface (gotavern ${JSON.stringify(gvState.stopClickedAt)}, pinned ${JSON.stringify(pnState.stopClickedAt)}), so this measured cancellation rather than a dead network`,
         gvState.stopClickedAt === null && pnState.stopClickedAt === null);
     guard('peerWroteMoreThanTheHopReleased',
-        `the hop released ${JSON.stringify(gvHop.releasedBytes)}/${JSON.stringify(pnHop.releasedBytes)} bytes from a script of ${JSON.stringify(framesWritten(gotavern))}/${JSON.stringify(framesWritten(pinned))} frame(s); a head cut must release NO body bytes and the peer must have had a script to lose`,
-        gvHop.releasedBytes === 0 && pnHop.releasedBytes === 0
+        `the hop released ${JSON.stringify(gvHop.releasedAtCut)}/${JSON.stringify(pnHop.releasedAtCut)} bytes of THIS response from a script of ${JSON.stringify(framesWritten(gotavern))}/${JSON.stringify(framesWritten(pinned))} frame(s); a head cut must release NO body bytes and the peer must have had a script to lose`,
+        gvHop.releasedAtCut === 0 && pnHop.releasedAtCut === 0
             && framesWritten(gotavern).every(frames => frames > 0) && framesWritten(pinned).every(frames => frames > 0));
     // ---- THE ROW'S TWO CLAIMS.
     guard('contentRenderedBeforeTheCutOnBoth',
@@ -288,8 +288,8 @@ function abortSurface(gotavern, pinned, baseline) {
         `the subjects truncated at different points (gotavern ${gvTexts.length} content state(s) ${JSON.stringify(gvTexts)}, pinned ${pnTexts.length} ${JSON.stringify(pnTexts)})`,
         JSON.stringify(gvTexts) === JSON.stringify(pnTexts) && gvTexts.length >= 1);
     guard('sameReleasedByteCountOnBothSubjects',
-        `the hop released a different number of bytes to the two subjects (gotavern ${JSON.stringify(gvHop.releasedBytes)}, pinned ${JSON.stringify(pnHop.releasedBytes)}), so the cut did not land at the same place`,
-        gvHop.releasedBytes === pnHop.releasedBytes && gvHop.releasedBytes === 0);
+        `the hop released a different number of bytes of THIS response to the two subjects (gotavern ${JSON.stringify(gvHop.releasedAtCut)}, pinned ${JSON.stringify(pnHop.releasedAtCut)}), so the cut did not land at the same place`,
+        gvHop.releasedAtCut === pnHop.releasedAtCut && gvHop.releasedAtCut === 0);
 
     // ---- THE PAGE AFTER THE CUT.
     guard('noFurtherChunksAppliedAfterTheCut',
@@ -348,7 +348,8 @@ const main = async () => {
             cutsPerformed: { gotavern: hop(abortGotavern).cutsPerformed ?? 0, pinned: hop(abortPinned).cutsPerformed ?? 0 },
             cutAfterFrames: hop(abortGotavern).cutAfterFrames ?? null,
             cutAfterBytes: hop(abortGotavern).cutAfterBytes ?? null,
-            releasedBytesUnderCut: { gotavern: hop(abortGotavern).releasedBytes ?? null, pinned: hop(abortPinned).releasedBytes ?? null },
+            releasedBytesUnderCut: { gotavern: hop(abortGotavern).releasedAtCut ?? null, pinned: hop(abortPinned).releasedAtCut ?? null },
+            hopReleasedBytesTotal: { gotavern: hop(abortGotavern).releasedBytes ?? null, pinned: hop(abortPinned).releasedBytes ?? null },
             relayedWrites: { gotavern: hop(relayedGotavern).bodyWriteCount ?? null, pinned: hop(relayedPinned).bodyWriteCount ?? null },
             relayedFrames: {
                 gotavern: (hop(relayedGotavern).bodyWrites ?? []).reduce((total, write) => total + (write.frames ?? 0), 0),

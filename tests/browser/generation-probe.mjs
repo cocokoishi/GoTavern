@@ -1927,6 +1927,9 @@ try {
         bodyWrites: proxy.state.writes,
         bodyWriteCount: proxy.state.writes.length,
         releasedBytes: proxy.state.releasedBytes,
+        // THE COUNT THE ABORT SURFACE IS ABOUT: this RESPONSE's body, not the hop-wide cumulative total
+        // (which includes the reachability check relayed whole before it).
+        releasedAtCut: proxy.state.releasedAtCut ?? null,
         // A CUT BELONGS TO A REQUEST, and a later request on the same connection can clear `cut`.
         // `anyCut` is the durable fact and is what a reader should trust when the two disagree;
         // measured twice (runs 40314154794, 40316734219) where `cut` was null beside 533 released

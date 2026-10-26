@@ -74,7 +74,7 @@ const cutHop = () => ({
     bodyWriteCount: 0,
     bodyWrites: [],
     forwarded: [{ method: 'POST', path: '/chat/completions', bodyBytes: 7400, bodySha256: 'a'.repeat(64) }],
-    releasedBytes: 0, cutArmedResponses: 1, relayedWholeResponses: 1, gzipFramedResponses: 0,
+    releasedBytes: 0, releasedAtCut: 0, cutArmedResponses: 1, relayedWholeResponses: 1, gzipFramedResponses: 0,
 });
 const directHop = () => ({ mode: null, absent: true });
 
@@ -195,7 +195,7 @@ addCase('a cut on the reachability check instead of the completion is caught',
     { surface: 'abort', name: 'hopRelayedTheReachabilityCheckWhole' });
 addCase('a head cut that relayed body bytes is not a head cut, and is caught',
     legs => {
-        legs.abort.pinned.networkHop.releasedBytes = 169;
+        legs.abort.pinned.networkHop.releasedAtCut = 169;
     },
     { surface: 'abort', name: 'hopReleasedNoBodyAtTheHead' });
 addCase('a peer that recorded a client disconnect makes this cancellation, and is caught',
@@ -210,7 +210,7 @@ addCase('a stop click in the abort surface is caught',
     { surface: 'abort', name: 'noCallerCancelOnEitherSubject' });
 addCase('a head cut that leaked a body byte is caught',
     legs => {
-        legs.abort.gotavern.networkHop.releasedBytes = 169;
+        legs.abort.gotavern.networkHop.releasedAtCut = 169;
     },
     { surface: 'abort', name: 'peerWroteMoreThanTheHopReleased' });
 
@@ -237,9 +237,9 @@ addCase('a partial text that is not a proper prefix of the whole reply is caught
     { surface: 'abort', name: 'partialTextIsAProperPrefixOfTheWholeReply' });
 addCase('a truncation that landed at a different byte on the two subjects is caught',
     legs => {
-        legs.abort.pinned.networkHop.releasedBytes = 301;
+        legs.abort.pinned.networkHop.releasedAtCut = 301;
     },
-    { surface: 'abort', name: 'sameReleasedByteCountOnBothSubjects' });
+    { surface: 'abort', name: 'peerWroteMoreThanTheHopReleased' });
 addCase('a subject that keeps rendering after the cut is caught',
     legs => {
         legs.abort.gotavern.streamState.textLater = `${PARTIAL} extra`;

@@ -585,6 +585,9 @@ jobs:
           # page callback) is a ReferenceError at run time that node --check cannot see, and it has
           # already cost one full run (40307148708, both legs).
           node tests/browser/streaming-framing-probe-smoke.mjs
+          # THE HOP ITSELF: a head cut must deliver a status line and no body while the reachability check
+          # stays whole, checked in seconds against a real SSE peer instead of an 18-minute dispatch.
+          node tests/browser/streaming-framing-hop-selftest.mjs
 
 
       #
