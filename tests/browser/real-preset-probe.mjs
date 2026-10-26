@@ -354,18 +354,23 @@ try {
         await page.evaluate(() => {
             window.__realPresetProbe = { marker: 'REAL_PRESET_PROBE_USER', done: null };
         });
+        // THE PRESET ASSEMBLES THE REQUEST, OR THIS LEG PROVES NOTHING. MEASURED in run 40272833510:
+        // `generateRaw({ordered_prompts})` took its own explicit prompt list, so the peer received requests that
+        // carried no fixture marker at all while the preset was loaded and its structure counts were right.
+        // `generate({preset_name: 'in_use'})` is the frontend's own assembly of the loaded preset, which is the
+        // subject of this leg; the explicit-list call remains as a recorded fallback. Which one ran is in the
+        // artefact.
         const script = [
             "try {",
-            "  const reply = await TavernHelper.generateRaw({",
-            "    ordered_prompts: [{ role: 'user', content: window.parent.__realPresetProbe.marker }],",
+            "  const reply = await TavernHelper.generate({",
+            "    preset_name: 'in_use',",
             "    user_input: window.parent.__realPresetProbe.marker,",
-            "    max_chat_history: 0,",
             "    should_stream: false,",
             "    should_silence: true,",
             "  });",
-            "  window.parent.__realPresetProbe.done = { ok: true, preview: String(reply).slice(0, 120) };",
+            "  window.parent.__realPresetProbe.done = { ok: true, via: 'generate', preview: String(reply).slice(0, 120) };",
             "} catch (error) {",
-            "  window.parent.__realPresetProbe.done = { ok: false, error: String(error && error.message || error) };",
+            "  window.parent.__realPresetProbe.done = { ok: false, via: 'generate', error: String(error && error.message || error) };",
             "}",
         ].join('\n');
         await page.evaluate(content => {
