@@ -185,18 +185,24 @@ Two driver defects cost this lane two rounds and are worth remembering: `getCont
 `TavernHelper` member (the child iframe's accessor is `window.SillyTavern.getContext()`, installed by
 `iframe/predefine.js`), and a just-clicked character has a greeting PREVIEW and no chat, so
 `createChatMessages` had nothing to write into.
-**Q10 (酒馆助手 variable persistence) — measured, still unproven, mechanism known (2026-10-25).** The
-helper leg calls the frontend's own save and the page performs it, but no chat is ever written, and the
-three fields recorded in the leg reports say why: with helper ON, on BOTH subjects, `chatLength: 3`,
-`chatId: null`, `characterChatName: null`, `chatMetadataIntegrity: null`, and the only request the page
-makes is `POST /api/chats/recent` -- there is no `POST /api/chats/save` at all. Pinned returns from
-`saveChat()` before any request when `chatName ?? characters[this_chid]?.chat` is undefined
-(`public/script.js:7407-7417`, console "saveChat called without chat_name and no chat file found"), and
-a FRESH tree has no chats, so a clicked card can only open a preview. Symmetric on both subjects, so by
-rule 10 it is a fixture/state limitation and evidence for neither. The next attempt seeds a pre-existing
-chat into the leg's own data root (`<dataRoot>/default-user/chats/<avatar>/<name>.jsonl`, the shape
-`tests/e2e/longlived_test.go` proves the product serves) and asserts the click OPENS it -- because a real
-user's tree always has chats, and the fresh tree was the flaw in the question, not in the product.
+**Q10 (酒馆助手 variable persistence) — PROVEN on both subjects, 2026-10-25.** The helper script's chat
+variable reaches the chat file on disk on GoTavern AND on pinned Node, with the negative control still
+biting (a helper-off leg must NOT persist it). Evidence: `Browser differential` 40250495167 on
+`lane/helper-q10` @ a3c1d43 -- every helper step success, and `variablePersisted` has DISAPPEARED from the
+artefact's `declared unproven` list, which is the verifier's own rule for a guard that is true on both
+subjects (a guard that is false on both must be declared; it is not). The remaining declared gaps in that
+artefact are `renderPathProduced` and `domUrlsServed`, and the Q19/Q20 surface.
+
+Getting there took three measured steps, and the three are the durable lesson:
+1. `saveChat()` returns before any request when `chatName ?? characters[this_chid]?.chat` is undefined
+   (`public/script.js:7407-7417`), so a clicked card on a tree with no chat cannot save at all.
+2. A guard of the form "does the chat file exist" is VACUOUS in a long-lived fixture that already contains
+   one: `waitForFile()` answered true before any save, which silently disabled the only route that makes
+   the frontend create a chat identity. The gate had to become the subject's own state
+   (`chatId`/`characterChatName`), not the filesystem.
+3. Handing `replaceScriptTrees` the SAME tree list is a no-op the extension detects, so the script is not
+   re-instantiated and a variable written before the chat existed stays lost. A re-run must CLEAR first,
+   then reinstall, so the write lands in the phase where `chat_metadata` exists.
 `lane/preset-real` (`wt-preset`) has committed nothing yet: the real preset/card fixture, where the
 packed-blob measurement for the 19 MB card is still the first thing to decide.
 
