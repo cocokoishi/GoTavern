@@ -245,9 +245,12 @@ function abortSurface(gotavern, pinned, baseline) {
     // THE TRUNCATION MUST BE ATTRIBUTABLE TO THE NETWORK. A chunked body that stops is indistinguishable
     // from a chunked body that ended, so the hop re-frames the SSE body as a single gzip member whose
     // trailer appears only on a clean finish; a cut body then ends in a decoder error.
-    guard('hopFramedTheStreamSoTheCutIsDetectable',
-        `the hop did not re-frame the SSE body as a single gzip member on both subjects (gotavern ${JSON.stringify(gvHop.gzipFramedResponses)}, pinned ${JSON.stringify(pnHop.gzipFramedResponses)}), so a cut body would end like a clean end to the reader and the truncation could not be attributed to the network`,
-        (gvHop.gzipFramedResponses ?? 0) >= 1 && (pnHop.gzipFramedResponses ?? 0) >= 1);
+    // A HEAD CUT HAS NO BODY TO RE-FRAME, so the gzip requirement belongs to the inside-a-record cut only.
+    // What the head cut needs instead is that the page received a RESPONSE and no body, which
+    // hopReleasedNoBodyAtTheHead states.
+    guard('hopReleasedNoBodyAtTheHead',
+        `the head cut relayed / body byte(s), so the body had started and this is not a head-of-body cut`,
+        gvHop.releasedBytes === 0 && pnHop.releasedBytes === 0);
     // THE DISCONNECT HERE IS THE SUBJECT, AND IT IS CAUSED BY THE CUT -- not by a user. What this guard
     // distinguishes is the surface from `cancel`: in cancel mode a stop button was pressed, and here none was
     // (asserted by `noCallerCancelOnEitherSubject`). When the cut lands INSIDE a record, the frontend's own
@@ -264,10 +267,9 @@ function abortSurface(gotavern, pinned, baseline) {
         `a subject recorded a stop click in the abort surface (gotavern ${JSON.stringify(gvState.stopClickedAt)}, pinned ${JSON.stringify(pnState.stopClickedAt)}), so this measured cancellation rather than a dead network`,
         gvState.stopClickedAt === null && pnState.stopClickedAt === null);
     guard('peerWroteMoreThanTheHopReleased',
-        `the hop released ${JSON.stringify(gvHop.releasedBytes)}/${JSON.stringify(pnHop.releasedBytes)} bytes from a script of ${JSON.stringify(framesWritten(gotavern))}/${JSON.stringify(framesWritten(pinned))} frame(s), so the reply may have been complete and nothing truncated`,
-        (gvHop.releasedBytes ?? 0) > 0 && (pnHop.releasedBytes ?? 0) > 0
+        `the hop released ${JSON.stringify(gvHop.releasedBytes)}/${JSON.stringify(pnHop.releasedBytes)} bytes from a script of ${JSON.stringify(framesWritten(gotavern))}/${JSON.stringify(framesWritten(pinned))} frame(s); a head cut must release NO body bytes and the peer must have had a script to lose`,
+        gvHop.releasedBytes === 0 && pnHop.releasedBytes === 0
             && framesWritten(gotavern).every(frames => frames > 0) && framesWritten(pinned).every(frames => frames > 0));
-
     // ---- THE ROW'S TWO CLAIMS.
     guard('contentRenderedBeforeTheCutOnBoth',
         `no content was rendered before the network died (gotavern applied ${gvTexts.length} content state(s), pinned applied ${pnTexts.length}), so the surface proves nothing about partial rendering`,
@@ -287,7 +289,7 @@ function abortSurface(gotavern, pinned, baseline) {
         JSON.stringify(gvTexts) === JSON.stringify(pnTexts) && gvTexts.length >= 1);
     guard('sameReleasedByteCountOnBothSubjects',
         `the hop released a different number of bytes to the two subjects (gotavern ${JSON.stringify(gvHop.releasedBytes)}, pinned ${JSON.stringify(pnHop.releasedBytes)}), so the cut did not land at the same place`,
-        gvHop.releasedBytes === pnHop.releasedBytes && gvHop.cutAfterBytes === pnHop.cutAfterBytes && (gvHop.releasedBytes ?? 0) > 0);
+        gvHop.releasedBytes === pnHop.releasedBytes && gvHop.releasedBytes === 0);
 
     // ---- THE PAGE AFTER THE CUT.
     guard('noFurtherChunksAppliedAfterTheCut',

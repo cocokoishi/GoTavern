@@ -163,7 +163,10 @@ export function startStreamingHop({ upstream, mode, cutAfterBytes = 0, cutArmOnP
                 // both subjects and the guard said so.
                 const isEventStream = String(upstreamResponse.headers['content-type'] ?? '').toLowerCase().includes('text/event-stream');
                 const pathMatches = cutAfterPathMatches(clientRequest.url, cutArmOnPath);
+                // A HEAD CUT HAS NO BODY TO RE-FRAME: the gzip member exists so a decoder can SEE a truncated body,
+                // and at the head there is no body at all. Recorded as 0 re-framed responses, which is the fact.
                 state.reframedAsGzip = mode === HOP_MODES.CUT && pathMatches && isEventStream;
+                state.headCutResponses = (state.headCutResponses ?? 0) + (mode === HOP_MODES.CUT_AT_HEAD && pathMatches && isEventStream ? 1 : 0);
                 // THE HEAD-ONLY CUT: the status line and the headers go out, then BOTH sockets die before a body
                 // byte. `cutNow` is defined below, so this branch re-uses it through a local holder that is
                 // assigned in the same order the original code did -- the effect is that the subject sees a 200
@@ -271,10 +274,14 @@ export function startStreamingHop({ upstream, mode, cutAfterBytes = 0, cutArmOnP
                 const armed = (mode === HOP_MODES.CUT || mode === HOP_MODES.CUT_AT_HEAD) && pathMatches && isEventStream;
                 state.cutArmedResponses = (state.cutArmedResponses ?? 0) + (armed ? 1 : 0);
 
-                // THE HEAD-ONLY CUT ACTS BEFORE ANY BODY BYTE IS RELAYED. One write of nothing, then both ends
-                // die: the subject has a 200 and a closed body, and the peer is released. `releasedBytes` stays
-                // 0, which is the FACT this mode records -- a reader that sees 0 released bytes must conclude
-                // "the body never started" and not "the hop failed".
+                // THE HEAD-ONLY CUT ACTS BEFORE ANY BODY BYTE. The status line and headers were written
+                // above; nothing of the body is relayed, `releasedBytes` stays 0, and both ends die. A reader
+                // that sees 0 released bytes must conclude "the body never started", not "the hop failed".
+                //
+                // MEASURED, run 40324760750: the first version of this branch cut AFTER subscribing to
+                // `data`, so the gzip header write (169 B) had already reached the page and `releasedBytes`
+                // was 169 -- a body that started. The subscription is now installed only on the path that
+                // relays, so "head" means the page got a response and no body at all.
                 if (headOnlyCut) {
                     cutNow('cut-at-head');
                     return;

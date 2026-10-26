@@ -69,10 +69,12 @@ const relayedHop = () => ({
 const cutHop = () => ({
     mode: 'cut-at-head', cutArmOnPath: '/chat/completions', cutAfterBytes: 0, cut: 'cut-at-head',
     anyCut: 'cut-at-head', cutsPerformed: 1,
-    bodyWriteCount: 4,
-    bodyWrites: [{ bytes: 100, frames: 0 }, { bytes: 100, frames: 0 }, { bytes: 100, frames: 0 }],
+    // A HEAD CUT RELAYS NO BODY: one write of nothing, then both ends die. The fixture must say that or the
+    // healthy baseline would be describing a different surface from the one the hop produces.
+    bodyWriteCount: 0,
+    bodyWrites: [],
     forwarded: [{ method: 'POST', path: '/chat/completions', bodyBytes: 7400, bodySha256: 'a'.repeat(64) }],
-    releasedBytes: 300, cutArmedResponses: 1, relayedWholeResponses: 1, gzipFramedResponses: 1,
+    releasedBytes: 0, cutArmedResponses: 1, relayedWholeResponses: 1, gzipFramedResponses: 0,
 });
 const directHop = () => ({ mode: null, absent: true });
 
@@ -191,11 +193,11 @@ addCase('a cut on the reachability check instead of the completion is caught',
         legs.abort.pinned.networkHop.relayedWholeResponses = 0;
     },
     { surface: 'abort', name: 'hopRelayedTheReachabilityCheckWhole' });
-addCase('a stream the hop did not gzip-frame cannot be truncated detectably, and is caught',
+addCase('a head cut that relayed body bytes is not a head cut, and is caught',
     legs => {
-        legs.abort.pinned.networkHop.gzipFramedResponses = 0;
+        legs.abort.pinned.networkHop.releasedBytes = 169;
     },
-    { surface: 'abort', name: 'hopFramedTheStreamSoTheCutIsDetectable' });
+    { surface: 'abort', name: 'hopReleasedNoBodyAtTheHead' });
 addCase('a peer that recorded a client disconnect makes this cancellation, and is caught',
     legs => {
         legs.abort.gotavern.recording[0].clientDisconnected = true;
@@ -206,9 +208,9 @@ addCase('a stop click in the abort surface is caught',
         legs.abort.gotavern.streamState.stopClickedAt = 1234;
     },
     { surface: 'abort', name: 'noCallerCancelOnEitherSubject' });
-addCase('a hop that released nothing cannot have truncated anything, and is caught',
+addCase('a head cut that leaked a body byte is caught',
     legs => {
-        legs.abort.gotavern.networkHop.releasedBytes = 0;
+        legs.abort.gotavern.networkHop.releasedBytes = 169;
     },
     { surface: 'abort', name: 'peerWroteMoreThanTheHopReleased' });
 

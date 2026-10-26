@@ -32,7 +32,7 @@ export const FRAMING_GUARD_NAMES = {
         'noCutInTheRelayedSurface', 'relayedDeliveredContentToThePage', 'noPageErrorsThroughTheHop',
     ],
     abort: [
-        'hopCutBothSubjectsMidStream', 'hopRelayedTheReachabilityCheckWhole', 'hopFramedTheStreamSoTheCutIsDetectable',
+        'hopCutBothSubjectsMidStream', 'hopRelayedTheReachabilityCheckWhole', 'hopReleasedNoBodyAtTheHead',
         'noCallerCancelOnEitherSubject', 'peerWroteMoreThanTheHopReleased', 'contentRenderedBeforeTheCutOnBoth',
         'partialTextIdenticalOnBothSubjects', 'sameTruncationOnBothSubjects', 'sameReleasedByteCountOnBothSubjects',
         'noPageErrorsOnEitherSubject',
@@ -94,15 +94,18 @@ export function recomputeFramingSurface(artifact, surface) {
         hopCutBothSubjectsMidStream: hop.mode?.abort === 'cut-at-head' && hop.anyCut?.gotavern === 'cut-at-head' && hop.anyCut?.pinned === 'cut-at-head',
         hopRelayedTheReachabilityCheckWhole: (hop.cutArmedResponses?.gotavern ?? 0) >= 1 && (hop.cutArmedResponses?.pinned ?? 0) >= 1
             && (hop.relayedWholeResponses?.gotavern ?? 0) >= 1 && (hop.relayedWholeResponses?.pinned ?? 0) >= 1,
-        hopFramedTheStreamSoTheCutIsDetectable: (hop.gzipFramedResponses?.gotavern ?? 0) >= 1 && (hop.gzipFramedResponses?.pinned ?? 0) >= 1,
+        hopReleasedNoBodyAtTheHead: hop.releasedBytesUnderCut?.gotavern === 0 && hop.releasedBytesUnderCut?.pinned === 0,
         noCallerCancelOnEitherSubject: gotavern.stopClickedAt === null && pinned.stopClickedAt === null,
-        peerWroteMoreThanTheHopReleased: (hop.releasedBytesUnderCut?.gotavern ?? 0) > 0 && (hop.releasedBytesUnderCut?.pinned ?? 0) > 0,
+        peerWroteMoreThanTheHopReleased: (hop.framesWritten?.gotavern ?? []).every(frames => frames > 0)
+            && (hop.framesWritten?.pinned ?? []).every(frames => frames > 0)
+            && hop.releasedBytesUnderCut?.gotavern === 0 && hop.releasedBytesUnderCut?.pinned === 0,
         contentRenderedBeforeTheCutOnBoth: gvTexts.length >= 1 && pnTexts.length >= 1,
         partialTextIdenticalOnBothSubjects: (gotavern.finalText ?? null) === (pinned.finalText ?? null) && String(gotavern.finalText ?? '').length > 0,
         sameTruncationOnBothSubjects: JSON.stringify(gvTexts) === JSON.stringify(pnTexts) && gvTexts.length >= 1,
-        sameReleasedByteCountOnBothSubjects: (hop.releasedBytesUnderCut?.gotavern ?? null) !== null
-            && hop.releasedBytesUnderCut?.gotavern === hop.releasedBytesUnderCut?.pinned
-            && (hop.releasedBytesUnderCut?.gotavern ?? 0) > 0,
+        // A HEAD CUT RELEASES NOTHING ON EITHER SUBJECT, so equality here means "both zero": requiring a
+        // positive count would contradict the surface this guard belongs to.
+        sameReleasedByteCountOnBothSubjects: hop.releasedBytesUnderCut?.gotavern === hop.releasedBytesUnderCut?.pinned
+            && hop.releasedBytesUnderCut?.gotavern === 0,
     };
 }
 
@@ -171,8 +174,10 @@ export function streamingFramingSurface(ctx, artifact) {
         if ((artifact.hop?.relayedWrites?.[leg] ?? 0) <= 1) {
             ctx.fail(`hop.relayedWrites.${leg} is ${show(artifact.hop?.relayedWrites?.[leg])}, so the hop did not relay the body on that subject and the relayed surface measures the direct connection`);
         }
-        if ((artifact.hop?.releasedBytesUnderCut?.[leg] ?? 0) <= 0) {
-            ctx.fail(`hop.releasedBytesUnderCut.${leg} is ${show(artifact.hop?.releasedBytesUnderCut?.[leg])}, so no body was released before the cut and nothing was truncated`);
+        // A HEAD-OF-BODY CUT RELEASES ZERO BODY BYTES, and that is the point of the surface: the page got a
+        // response and no body. A positive count here would mean the body had started, i.e. a DIFFERENT fault.
+        if (artifact.hop?.releasedBytesUnderCut?.[leg] !== 0) {
+            ctx.fail(`hop.releasedBytesUnderCut.${leg} is ${show(artifact.hop?.releasedBytesUnderCut?.[leg])}, but a head-of-body cut releases no body byte -- so the body had started and this is not the surface the guards describe`);
         }
         if (artifact.hop?.anyCut?.[leg] !== 'cut-at-head') {
             ctx.fail(`hop.anyCut.${leg} is ${show(artifact.hop?.anyCut?.[leg])}, so the cut the abort surface is about did not happen to that subject`);
