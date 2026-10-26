@@ -96,6 +96,26 @@ refusal applies to the long population, which is where the prose lives.
   `prompt_order` projection and of the enabled bitmap, per-script content-length vectors, per-chunk
   lengths, and the `provenance.originals` hashes. The originals never enter the repository.
 
+### 5.0 LANDED: the presets are fixtures in this repository (2026-10-25)
+
+`tests/browser/fixtures/real/{preset-a.json,preset-b.json,real-fixture-manifest.json}` are committed, built by
+`tools/build-real-fixtures.mjs` from the originals (which never enter the repository). Measured at build
+time: preset-a is **72,499 bytes, the original's exact length**, and preset-b is **1,363,947 bytes, also
+exact**; the 1.4 MB working tree costs 17,451 bytes of git blob (8,461 for preset-a). Everything the oracle
+depends on is compared before and after and must be equal: prompts, `prompt_order` rows, enabled rows,
+`enabledRowsPointingAtDisabledPrompt` (46 for A, 0 for B), the regex count, the `prompt_order` projection
+sha256 and the enabled-bitmap sha256. Each helper script body becomes a stub of the same **serialised**
+length that parses as JavaScript, and the manifest records the raw-length delta with its reason.
+
+`node tools/build-real-fixtures.mjs --check --out tests/browser/fixtures/real` re-derives sha256 and byte
+length from the files in the tree and refuses a mismatch; it was shown refusing a one-token edit and then
+passing after the file was restored. Cards are refused by this tool with their profiled byte counts until
+the chunk re-encoder lands — refused rather than silently skipped.
+
+Two defects in the generator's first version were caught by its own assertions, and both are the shape this
+document exists to prevent: a filler that preserved the RAW string length lost 445 bytes because the
+document is measured after JSON escaping, and six profile comparisons read nested fields off the top level
+and so compared `undefined === undefined`, which cannot fail.
 ### 5.1 Measured by `tools/real-fixture-profile.mjs`, not copied from §2
 
 The profiler recomputes every number in §2 from the bytes of the originals and is the single definition
