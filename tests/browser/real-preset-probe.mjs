@@ -120,7 +120,12 @@ function startCapturePeer() {
     });
 }
 
-const presetPath = argumentValue('--preset');
+const presetArgument = argumentValue('--preset');
+// ABSOLUTE, BEFORE ANYTHING ELSE USES IT. The pinned leg runs this file with its CWD set to the reference
+// checkout (run-against-pinned.mjs), so a repository-relative --preset resolved against the WRONG tree and the
+// leg died on ENOENT opening tests/browser/fixtures/real/preset-a.json (run 40270440594). Resolving here means
+// no caller has to remember which CWD the probe will run in.
+const presetPath = path.resolve(presetArgument);
 if (!presetPath) throw new Error('--preset <fixture.json> is required');
 const presetName = argumentValue('--preset-name', path.basename(presetPath, '.json'));
 const expected = {
