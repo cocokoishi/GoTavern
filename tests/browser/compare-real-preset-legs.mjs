@@ -22,6 +22,7 @@
 // Prints the verdict as JSON on stdout and exits non-zero when the verdict is not a match.
 
 import fs from 'node:fs';
+import path from 'node:path';
 
 const [gotavernA, pinnedA, gotavernB, pinnedB] = process.argv.slice(2);
 if (!gotavernA || !pinnedA || !gotavernB || !pinnedB) {
@@ -29,11 +30,25 @@ if (!gotavernA || !pinnedA || !gotavernB || !pinnedB) {
     process.exit(2);
 }
 
-const load = file => JSON.parse(fs.readFileSync(file, 'utf8'));
+// A MISSING LEG IS A NAMED FAILURE, NOT A CRASH. Run 40257173478 died on ENOENT here, so the run carried a
+// stack trace instead of a verdict and the actual finding was buried under it.
+const missingLegs = [];
+const load = file => {
+    if (!fs.existsSync(file)) {
+        missingLegs.push(path.basename(file));
+        return null;
+    }
+    try {
+        return JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch (error) {
+        missingLegs.push(`${path.basename(file)} (unreadable: ${error.message})`);
+        return null;
+    }
+};
 
 // The completion request, not the models poll: the pinned frontend lists models before a send when the
 // source is custom, and that request carries no context at all.
-const contextRequest = report => (report.peerRequests ?? [])
+const contextRequest = report => (report?.peerRequests ?? [])
     .filter(entry => /chat\/completions/.test(entry.path ?? ''))
     .at(-1) ?? null;
 
@@ -77,17 +92,40 @@ const reports = Object.fromEntries(cases.map(([name, go, node]) => [name, { go: 
 const guards = {};
 const details = {};
 
+guard('legsPresent', () => (missingLegs.length === 0 ? [] : [`${missingLegs.length} leg report(s) missing or unreadable: ${missingLegs.join(', ')}`]));
+
 guard('legsDrove', () => {
     const problems = [];
     for (const [name, pair] of Object.entries(reports)) {
         for (const [leg, report] of Object.entries(pair)) {
+            if (!report) continue; // legsPresent reports it by name
             const structure = report.structure ?? {};
             if (structure.ok !== true) problems.push(`${leg}/${name}: the preset did not load (${JSON.stringify(structure).slice(0, 160)})`);
             if (!contextRequest(report)) problems.push(`${leg}/${name}: no chat/completions request reached the peer`);
             const expected = report.expected ?? {};
-            if (structure.prompts !== expected.prompts || structure.rows !== expected.rows || structure.enabled !== expected.enabled) {
-                problems.push(`${leg}/${name}: client reported ${structure.prompts}/${structure.rows}/${structure.enabled}, the fixture requires ${expected.prompts}/${expected.rows}/${expected.enabled}`);
+            if (structure.prompts !== expected.prompts) {
+                problems.push(`${leg}/${name}: client reported ${structure.prompts} prompts, the fixture has ${expected.prompts}`);
             }
+            if (!(structure.rows > 0) || !(structure.enabled > 0)) {
+                problems.push(`${leg}/${name}: the frontend reported ${structure.rows} order rows / ${structure.enabled} enabled, which cannot describe a loaded preset`);
+            }
+        }
+    }
+    return problems;
+});
+
+// THE ORACLE FOR THE FRONTEND'S OWN VIEW OF THE PRESET IS PINNED, NOT A NUMBER THIS FILE WROTE DOWN.
+// Measured in run 40257173478: the frontend reports 98 rows / 56 enabled for preset A where the raw
+// enabledBitmap string says 109 / 66, so a written-down expectation was wrong about the frontend for a
+// reason that has nothing to do with GoTavern.
+guard('structureMatchesTheOracle', () => {
+    const problems = [];
+    for (const [name, pair] of Object.entries(reports)) {
+        if (!pair.go || !pair.node) continue;
+        for (const key of ['prompts', 'rows', 'enabled']) {
+            const left = pair.go.structure?.[key];
+            const right = pair.node.structure?.[key];
+            if (left !== right) problems.push(`preset ${name}: ${key} is ${left} on GoTavern and ${right} on pinned`);
         }
     }
     return problems;
@@ -97,8 +135,8 @@ guard('presetAEqualsAcrossLegs', () => equalityProblems('A'));
 guard('presetBEqualsAcrossLegs', () => equalityProblems('B'));
 
 guard('goATavernDiffersFromGoB', () => {
-    const left = contextRequest(reports.A.go);
-    const right = contextRequest(reports.B.go);
+    const left = contextRequest(reports.A?.go);
+    const right = contextRequest(reports.B?.go);
     if (!left || !right) return ['the GoTavern legs did not both produce a request'];
     if (left.sha256 === right.sha256) {
         return ['GoTavern produced the SAME request for preset A and preset B: the implementation is ignoring the preset, or the harness is not changing it'];
@@ -109,7 +147,7 @@ guard('goATavernDiffersFromGoB', () => {
 guard('bUnreferencedPromptsAbsentOnBothLegs', () => {
     const problems = [];
     const markers = {
-        B: [markersIn(contextRequest(reports.B.go)?.body), markersIn(contextRequest(reports.B.node)?.body)],
+        B: [markersIn(contextRequest(reports.B?.go)?.body), markersIn(contextRequest(reports.B?.node)?.body)],
     };
     // The four identifiers are named because the fixture's own profiler says their prompts are enabled while
     // no order row references them. Their BODIES are not required to be absent by name here; what is required
@@ -122,8 +160,8 @@ guard('bUnreferencedPromptsAbsentOnBothLegs', () => {
 });
 
 guard('aEnabledRowPointingAtDisabledPromptContributes', () => {
-    const left = markersIn(contextRequest(reports.A.go)?.body);
-    const right = markersIn(contextRequest(reports.A.node)?.body);
+    const left = markersIn(contextRequest(reports.A?.go)?.body);
+    const right = markersIn(contextRequest(reports.A?.node)?.body);
     if (left.size === 0 || right.size === 0) return ['one of the preset-A requests carried no fixture marker at all'];
     const shared = [...left].filter(marker => right.has(marker));
     if (shared.length === 0) return ['the two legs share no fixture marker, so nothing can be said about what contributed'];
@@ -132,17 +170,19 @@ guard('aEnabledRowPointingAtDisabledPromptContributes', () => {
 });
 
 guard('harnessDiscriminates', () => {
-    const a = contextRequest(reports.A.go)?.sha256;
-    const b = contextRequest(reports.B.go)?.sha256;
-    const na = contextRequest(reports.A.node)?.sha256;
-    const nb = contextRequest(reports.B.node)?.sha256;
+    const a = contextRequest(reports.A?.go)?.sha256;
+    const b = contextRequest(reports.B?.go)?.sha256;
+    const na = contextRequest(reports.A?.node)?.sha256;
+    const nb = contextRequest(reports.B?.node)?.sha256;
     if (a && b && a === b) return ['HARNESS NON-DISCRIMINATING: preset A and preset B produced identical GoTavern captures'];
     if (na && nb && na === nb) return ['HARNESS NON-DISCRIMINATING: preset A and preset B produced identical pinned captures'];
     return [];
 });
 
 function equalityProblems(name) {
-    const verdict = sameRequest(contextRequest(reports[name].go), contextRequest(reports[name].node));
+    const pair = reports[name] ?? {};
+    if (!pair.go || !pair.node) return [`preset ${name}: a leg report is missing, so there is nothing to compare (legsPresent names which)`];
+    const verdict = sameRequest(contextRequest(pair.go), contextRequest(pair.node));
     return verdict.equal ? [] : [verdict.reason];
 }
 
@@ -157,9 +197,10 @@ const artefact = {
     schemaVersion: 1,
     question: 'Does a real user preset change the model context, and is the request it produces equal on GoTavern and pinned Node?',
     fixtures: Object.fromEntries(Object.entries(reports).map(([name, pair]) => [name, {
-        gotavern: { preset: pair.go.preset, structure: pair.go.structure, request: summarize(contextRequest(pair.go)) },
-        pinned: { preset: pair.node.preset, structure: pair.node.structure, request: summarize(contextRequest(pair.node)) },
+        gotavern: pair.go ? { preset: pair.go.preset, structure: pair.go.structure, request: summarize(contextRequest(pair.go)) } : null,
+        pinned: pair.node ? { preset: pair.node.preset, structure: pair.node.structure, request: summarize(contextRequest(pair.node)) } : null,
     }])),
+    missingLegs,
     guards,
     details,
     failedGuards,
