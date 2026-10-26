@@ -218,6 +218,15 @@ try {
     // finding, an absent request is a drive limitation.
     const chatRequests = [];
     page.on('response', async response => {
+    // ALSO RECORDED: EVERY response, and every request the PAGE issues, because the first attempt listened only
+    // to responses and the log showed zero /api/chats lines at all -- i.e. the frontend never asked. Both sides are
+    // recorded so the artefact cannot confuse "no response" with "no request".
+    const pageRequests = [];
+    page.on('request', request => {
+        const url = request.url();
+        if (!/\/api\//.test(url)) return;
+        pageRequests.push({ method: request.method(), path: new URL(url).pathname });
+    });
         const url = response.url();
         if (!/\/api\/chats/.test(url)) return;
         let byteLength = null;
@@ -318,10 +327,28 @@ try {
                 attempts.push({ via: name, argument: argument ?? null, ok: false, error: String(error && error.message || error) });
             }
         };
+        // A CHAT WITH NO IDENTITY CANNOT BE SAVED, and the frontend only creates that identity when a message is
+        // actually sent through its own send path (measured twice: runs 40282904234 and 40285374783, where both
+        // saves resolved and the page issued NO /api/chats request at all). So the first turn is sent the way a
+        // user sends it, and the save that follows is the one the send itself triggers.
+        const sendControls = {
+            textarea: Boolean(document.querySelector('#send_textarea')),
+            button: Boolean(document.querySelector('#send_but')),
+        };
+        let sendClicked = false;
+        if (sendControls.textarea && sendControls.button) {
+            const textarea = document.querySelector('#send_textarea');
+            textarea.value = marker;
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            document.querySelector('#send_but').click();
+            sendClicked = true;
+        }
         if (before.saveFunctions.includes('saveMetadata')) await callSave('saveMetadata');
         if (before.saveFunctions.includes('saveChat')) await callSave('saveChat', { chatName: 'q20-probe-chat' });
         const after = window.SillyTavern.getContext();
         return {
+            sendControls,
+            sendClicked,
             ok: attempts.some(attempt => attempt.ok === true),
             inserted,
             before,
@@ -330,9 +357,12 @@ try {
             characterChat: after.characters?.[after.characterId]?.chat ?? null,
         };
     }, MARKERS.first);
-    await page.waitForTimeout(2000);
+    // A SEND IS ASYNCHRONOUS: the frontend saves before it contacts the provider, but the click returns
+    // immediately, so the record is read after a bounded wait rather than on the next tick.
+    await page.waitForTimeout(6000);
     const afterFirst = await readChatFiles();
     report.chatRequests = chatRequests.slice();
+    report.pageRequests = pageRequests.slice();
     report.afterFirstSave = afterFirst;
     report.firstTurn = first;
     // THE SAVE IS JUDGED BY THE FILE, NOT BY THE RETURN VALUE: a resolved promise is exactly what the failing run
