@@ -49,6 +49,15 @@ const scenarios = readdirSync(scenarioDirectory)
     .map(name => ({ file: name, definition: JSON.parse(readFileSync(path.join(scenarioDirectory, name), 'utf8')) }));
 if (scenarios.length === 0) throw new Error('no provider-wire scenarios found');
 
+// HTTP header names are case-insensitive by spec, and the recorder keeps the WIRE spelling (`Authorization`, not
+// `authorization`). Comparing a declared lowercase name against the wire spelling failed twice in this file -- once
+// in the redaction below, where it silently left the credential UNREDACTED in a committed artefact, and once in the
+// expected-key assertion, where it reported "saw undefined" for a header that was present and correct. Every
+// comparison now goes through this fold, and a redaction that fails is a harness error rather than a quiet miss.
+function headerNameEquals(observed, declared) {
+    return String(observed ?? '').toLowerCase() === String(declared ?? '').toLowerCase();
+}
+
 function sha256(value) {
     return createHash('sha256').update(value).digest('hex');
 }
@@ -465,15 +474,29 @@ function normalizeProvider(recording, mockAddress) {
     const provider = JSON.parse(JSON.stringify(recording));
     for (const request of provider.requests) {
         request.headers = request.headers.map(header => {
-            if (header.name === 'Host') return { name: header.name, value: '<mock-authority>' };
-            if (header.name === 'authorization' && /^Bearer\s/i.test(header.value)) {
+            if (headerNameEquals(header.name, 'Host')) return { name: header.name, value: '<mock-authority>' };
+            if (headerNameEquals(header.name, 'authorization') && /^Bearer\s/i.test(header.value)) {
                 return { name: header.name, value: 'Bearer <redacted>' };
             }
-            if (REDACTED_PROVIDER_HEADERS.has(header.name)) {
-                return { name: header.name, value: REDACTED_PROVIDER_HEADERS.get(header.name) };
+            const redaction = [...REDACTED_PROVIDER_HEADERS.keys()].find(key => headerNameEquals(header.name, key));
+            if (redaction !== undefined) {
+                return { name: header.name, value: REDACTED_PROVIDER_HEADERS.get(redaction) };
             }
             return header;
         });
+    }
+    // A MISSED REDACTION MUST BE A HARNESS ERROR. Before the case fold above, `header.name === 'authorization'` never
+    // matched the wire spelling `Authorization`, so the credential was written into the artefact in the clear -- and
+    // nothing failed. Any credential-shaped value that survives normalisation now refuses the capture outright.
+    for (const request of provider.requests) {
+        for (const header of request.headers) {
+            const credentialHeader = headerNameEquals(header.name, 'authorization')
+                || headerNameEquals(header.name, 'x-api-key') || headerNameEquals(header.name, 'api-key');
+            if (!credentialHeader) continue;
+            if (/<redacted>|^Bearer\s+<redacted>$|^\*+$/.test(header.value)) continue;
+            if (header.value === '' || header.value === undefined) continue;
+            throw new Error(`normalisation left a credential in the clear on header ${header.name}; refusing the capture`);
+        }
     }
     void mockAddress;
     return provider;
@@ -589,7 +612,7 @@ async function captureScenario({ file, definition, mockBinary, startBackend, bac
             const { header, value } = definition.expectedApiKey;
             const observed = (recorded.body.requests ?? [])
                 .flatMap(entry => entry.headers)
-                .find(candidate => candidate.name === header);
+                .find(candidate => headerNameEquals(candidate.name, header));
             if (!observed || observed.value !== value) {
                 throw new Error(`scenario ${definition.name}: ${backendLabel} provider saw ${header} ${JSON.stringify(observed?.value)}, expected the declared ${header} to be read through the pinned settings shape; requests=${(recorded.body.requests ?? []).length} headerNames=${JSON.stringify((recorded.body.requests ?? []).map(entry => entry.headers.map(header => header.name)))}`);
             }
@@ -599,7 +622,7 @@ async function captureScenario({ file, definition, mockBinary, startBackend, bac
         if (definition.expectedAuthorizationKey) {
             const observed = (recorded.body.requests ?? [])
                 .flatMap(entry => entry.headers)
-                .find(header => header.name === 'authorization');
+                .find(header => headerNameEquals(header.name, 'authorization'));
             const expected = `Bearer ${definition.expectedAuthorizationKey}`;
             if (!observed || observed.value !== expected) {
                 throw new Error(`scenario ${definition.name}: ${backendLabel} provider saw authorization ${JSON.stringify(observed?.value)}, expected ${JSON.stringify(expected)}; requests=${(recorded.body.requests ?? []).length} headerNames=${JSON.stringify((recorded.body.requests ?? []).map(entry => entry.headers.map(header => header.name)))} urls=${JSON.stringify((recorded.body.requests ?? []).map(entry => entry.url))}`);
