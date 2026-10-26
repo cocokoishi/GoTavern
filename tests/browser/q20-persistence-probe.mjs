@@ -749,12 +749,16 @@ try {
         while (Date.now() < deadline) {
             const chat = script.chat ?? [];
             state = { chatLength: chat.length, lastIsUser: chat[chat.length - 1]?.is_user === true, lastText: String(chat[chat.length - 1]?.mes ?? '').slice(0, 60) };
-            if (state.chatLength > before && state.lastIsUser) break;
+            // A USER TURN AFTER `before` IS THE FACT; the assistant's reply lands right after it, so "the last
+            // message is the user's" stops being true the moment generation completes -- run 40385281864 measured
+            // chatLength 3 -> 5 with lastIsUser false and waited out its whole bound for a turn that existed.
+            if (state.chatLength > before && chat.some((entry, position) => position >= before && entry?.is_user === true)) break;
             await new Promise(resolve => setTimeout(resolve, 250));
         }
         const chat = script.chat ?? [];
-        const index = chat.length - 1;
-        const wroteMarker = state?.lastIsUser === true;
+        const userTurnIndex = chat.findIndex((entry, position) => position >= before && entry?.is_user === true);
+        const wroteMarker = userTurnIndex >= 0;
+        const index = wroteMarker ? userTurnIndex : chat.length - 1;
         if (wroteMarker) {
             chat[index].mes = marker;
             script.printMessages();
