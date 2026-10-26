@@ -200,6 +200,8 @@ const report = {
     pageErrorTail: [],
     consoleTail: [],
     consoleDiagnostics: [],
+    listenerTimings: [],
+    observerInstalls: [],
     pageErrors: [],
     console: [],
     failure: null,
@@ -328,6 +330,49 @@ try {
         if (networkFailures.length < 40) networkFailures.push({ errorText: event.errorText, type: event.type, canceled: event.canceled ?? null, requestId: event.requestId });
     });
     const armPageSide = async () => page.evaluate(async () => {
+        // "WHO THREW" WAS THE WRONG QUESTION, measured: `Error in event listener` appears ZERO times in a failing
+        // run (40352368231), so no listener throw is swallowed -- Generate is HELD, not tripped. This observes each
+        // listener by TIMING ONLY: it calls through, records enter/leave, and changes neither the return value nor
+        // `this` nor the order. It never reimplements emit (AGENTS 58).
+        window.__q20ListenerTimings = [];
+        const observeListener = (eventName, original) => {
+            if (typeof original !== 'function') return original;
+            const wrapped = function (...args) {
+                const entry = { event: eventName, enteredAt: Date.now(), leftAt: null, ms: null, threw: null };
+                window.__q20ListenerTimings.push(entry);
+                const started = performance.now();
+                const finish = () => { entry.leftAt = Date.now(); entry.ms = Math.round(performance.now() - started); };
+                try {
+                    const result = original.apply(this, args);
+                    if (result && typeof result.then === 'function') {
+                        return result.then(
+                            value => { finish(); return value; },
+                            error => { entry.threw = String(error && error.message || error); finish(); throw error; },
+                        );
+                    }
+                    finish();
+                    return result;
+                } catch (error) {
+                    entry.threw = String(error && error.message || error);
+                    finish();
+                    throw error;
+                }
+            };
+            wrapped.__q20Original = original;
+            return wrapped;
+        };
+        window.__q20ObserveEvent = eventName => {
+            const bus = window.SillyTavern && window.SillyTavern.getContext && window.SillyTavern.getContext().eventSource;
+            const listeners = bus && bus.events && bus.events[eventName];
+            if (!Array.isArray(listeners)) return { event: eventName, installed: -1 };
+            let installed = 0;
+            for (let index = 0; index < listeners.length; index++) {
+                if (!listeners[index] || listeners[index].__q20Original !== undefined) continue;
+                listeners[index] = observeListener(eventName, listeners[index]);
+                installed += 1;
+            }
+            return { event: eventName, installed, total: listeners.length };
+        };
         window.__q20Events = [];
         const record = (name, extra = null) => window.__q20Events.push({ name, at: Date.now(), readyState: document.readyState, href: String(window.location.href), extra });
         for (const name of ['readystatechange', 'DOMContentLoaded', 'load', 'beforeunload', 'pagehide', 'unload']) {
@@ -500,6 +545,20 @@ try {
     // ARMED NOW, DISARMED BEFORE THE LEG'S OWN RELOAD. Everything between these two calls is the window in which a
     // navigation is a DEFECT rather than this leg's design, so anything the recorder catches is evidence, not noise.
     const armed = await armPageSide();
+    // INSTALLED BEFORE ANY GENERATION RUNS, and asserted to have installed something: an observer that silently
+    // observes nothing is the defect this file has produced three times already.
+    const OBSERVED_EVENTS = [
+        'GENERATION_STARTED', 'GENERATION_AFTER_COMMANDS', 'MESSAGE_SENT',
+        'MESSAGE_RECEIVED', 'CHAT_CHANGED', 'USER_MESSAGE_RENDERED',
+    ];
+    const observerInstalls = [];
+    for (const eventName of OBSERVED_EVENTS) {
+        observerInstalls.push(await page.evaluate(
+            name => (window.__q20ObserveEvent ? window.__q20ObserveEvent(name) : { event: name, installed: -1 }),
+            eventName,
+        ));
+    }
+    const readListenerTimings = async () => page.evaluate(() => window.__q20ListenerTimings ?? []);
     const pageMark = () => report.navigations.length;
     const navigationsBeforeSend = pageMark();
 
@@ -536,6 +595,8 @@ try {
     // THE CONSOLE IS CARRIED WITH THE FAILURE, because the pinned emitter logs a swallowed listener throw as
     // `console.error(err)` + `console.trace('Error in event listener')` (public/lib/eventemitter.js:145-151) and
     // nothing else survives to say who threw. `consoleDiagnostics` keeps both lines in full with url:line.
+    report.listenerTimings = await readListenerTimings();
+    report.observerInstalls = observerInstalls;
     report.afterFirstSave = afterFirst;
     report.reloadRecorder = { armed, disarmed, reloads, networkFailures, navigationsDuringSend: report.navigations.slice(navigationsBeforeSend), navigationsTotal: report.navigations.length, pageErrorTail: report.pageErrorTail.slice(), consoleTail: report.consoleTail.slice() };
     report.processCommands = await page.evaluate(() => window.__q20ProcessCommands ?? []);
