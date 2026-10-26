@@ -155,6 +155,19 @@ async function hashTree(root) {
 // halves record WHO they opened so a future mismatch is a field rather than a hunt.
 const CHARACTER_NAME = process.env.Q21_CHARACTER_NAME ?? 'Seraphina';
 async function openCharacterByName(page) {
+    // WAIT FOR THE QUANTITY THE ASSERTION DEPENDS ON, NOT FOR A SIGNAL THAT PRECEDES IT. Run 40415343371 had both
+    // halves report `no character named Seraphina` with `names: []`: the character list arrives from
+    // /api/characters/all asynchronously, and `preloader` disappears before it lands. The previous selector-based
+    // click happened to work because a CSS selector implicitly waits for the row; looking the name up in an array
+    // does not. So wait on characters.length itself, bounded, and RECORD the count so a future empty list is a field
+    // in the artefact rather than a hunt.
+    const rosterDeadline = Date.now() + Number(process.env.Q21_ROSTER_MS ?? 90000);
+    let rosterCount = 0;
+    while (Date.now() < rosterDeadline) {
+        rosterCount = await page.evaluate(() => (window.SillyTavern?.getContext?.()?.characters ?? []).length);
+        if (rosterCount > 0) break;
+        await page.waitForTimeout(250);
+    }
     const clicked = await page.evaluate(async name => {
         const script = await import('./script.js');
         const characters = script.characters ?? [];
@@ -168,7 +181,7 @@ async function openCharacterByName(page) {
         const bus = window.SillyTavern?.getContext?.();
         return { chatId: bus?.chatId ?? null, chatLength: (bus?.chat ?? []).length, characterName: bus?.name2 ?? null };
     });
-    return { ...clicked, ...context };
+    return { ...clicked, ...context, rosterCount };
 }
 
 const report = {
