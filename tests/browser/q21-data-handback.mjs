@@ -148,42 +148,44 @@ async function hashTree(root) {
     return files;
 }
 
-// BOTH HALVES MUST OPEN THE SAME CHARACTER, BY NAME. Run 40412270626 measured the cost of not doing that: the
-// GoTavern half clicked the fresh install's DEFAULT ASSISTANT card and saved `default-user/chats/default_Assistant/...`,
-// while the pinned half clicked the list's first avatar (Seraphina) and opened her greeting -- so the pinned read
-// looked for a chat under the wrong character and reported chatLength 0. One shared helper, name-anchored, and both
-// halves record WHO they opened so a future mismatch is a field rather than a hunt.
-const CHARACTER_NAME = process.env.Q21_CHARACTER_NAME ?? 'Seraphina';
+// BOTH HALVES MUST OPEN THE SAME CHARACTER, THE WAY A USER DOES -- AND THE WAY Q20 ALREADY PROVES WORKS.
+// Three attempts failed by looking the character up in a MODULE INSTANCE (`import('./script.js')` inside
+// `page.evaluate` gives the probe its own module graph, so `characters` was always [] and `rosterCount` 0 while the
+// page's own list was full). `tests/browser/q20-persistence-probe.mjs:440-472` has the shape that works and is now
+// used verbatim here: wait for the CARD in the DOM (`.character_select#CharID<n>`, script.js:945), click it, then
+// wait on the PRODUCT's own chat state. The card's `data-chid` is recorded so a future mismatch is a field.
 async function openCharacterByName(page) {
-    // WAIT FOR THE QUANTITY THE ASSERTION DEPENDS ON, NOT FOR A SIGNAL THAT PRECEDES IT. Run 40415343371 had both
-    // halves report `no character named Seraphina` with `names: []`: the character list arrives from
-    // /api/characters/all asynchronously, and `preloader` disappears before it lands. The previous selector-based
-    // click happened to work because a CSS selector implicitly waits for the row; looking the name up in an array
-    // does not. So wait on characters.length itself, bounded, and RECORD the count so a future empty list is a field
-    // in the artefact rather than a hunt.
-    const rosterDeadline = Date.now() + Number(process.env.Q21_ROSTER_MS ?? 90000);
-    let rosterCount = 0;
-    while (Date.now() < rosterDeadline) {
-        rosterCount = await page.evaluate(() => (window.SillyTavern?.getContext?.()?.characters ?? []).length);
-        if (rosterCount > 0) break;
-        await page.waitForTimeout(250);
-    }
-    const clicked = await page.evaluate(async name => {
+    return page.evaluate(async () => {
         const script = await import('./script.js');
-        const characters = script.characters ?? [];
-        const index = characters.findIndex(entry => String(entry?.name ?? '') === name);
-        if (index < 0) return { opened: false, reason: `no character named ${name}`, names: characters.map(entry => entry?.name) };
-        await script.selectCharacterById(index);
-        return { opened: true, index, name, avatar: characters[index]?.avatar ?? null };
-    }, CHARACTER_NAME);
-    await page.waitForTimeout(2000);
-    const context = await page.evaluate(() => {
-        const bus = window.SillyTavern?.getContext?.();
-        return { chatId: bus?.chatId ?? null, chatLength: (bus?.chat ?? []).length, characterName: bus?.name2 ?? null };
+        const deadline = Date.now() + Number(process.env.Q21_ROSTER_MS ?? 90000);
+        let card = null;
+        while (Date.now() < deadline) {
+            card = document.querySelector('#rm_print_characters_block .character_select')
+                ?? document.querySelector('#rm_print_characters_block .avatar[data-type="character"]');
+            if (card) break;
+            await new Promise(resolve => setTimeout(resolve, 250));
+        }
+        if (!card) {
+            return { opened: false, reason: 'no character card rendered in #rm_print_characters_block' };
+        }
+        const dataChid = card.getAttribute('data-chid');
+        card.click();
+        const settle = Date.now() + 30000;
+        while (Date.now() < settle) {
+            if ((script.chat ?? []).length > 0) break;
+            await new Promise(resolve => setTimeout(resolve, 250));
+        }
+        return {
+            opened: true,
+            dataChid,
+            thisChid: script.this_chid ?? null,
+            characterName: script.characters?.[script.this_chid]?.name ?? null,
+            chatId: script.characters?.[script.this_chid]?.chat ?? null,
+            chatLength: (script.chat ?? []).length,
+            messages: document.querySelectorAll('#chat .mes').length,
+        };
     });
-    return { ...clicked, ...context, rosterCount };
 }
-
 const report = {
     schemaVersion: 1,
     question: 'Does the original Node SillyTavern open the tree GoTavern wrote, read the same conversation, and continue it?',
@@ -239,7 +241,7 @@ async function gotavernWrites() {
             set('#custom_model_id', model);
             set('#api_key_custom', 'probe-key');
         }, { url: `http://127.0.0.1:${peer.port}/v1`, model: 'probe-model' });
-        // SAME CHARACTER ON BOTH SIDES, BY NAME (see openCharacterByName above).
+        // THE SAME CARD, OPENED THE SAME WAY, on each side's own tree.
         report.opened = await openCharacterByName(page);
         const sent = await page.evaluate(async marker => {
             const script = await import('./script.js');
@@ -283,7 +285,7 @@ async function pinnedReads() {
         await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
         await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
         await page.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 120000 });
-        // THE SAME CHARACTER, OPENED THE SAME WAY, on the tree the product wrote.
+        // THE SAME CARD, OPENED THE SAME WAY, on the tree the product wrote.
         report.opened = await openCharacterByName(page);
         const read = await page.evaluate(marker => {
             const context = window.SillyTavern?.getContext?.();
@@ -296,9 +298,9 @@ async function pinnedReads() {
             };
         }, MARKERS.first);
         report.pinnedRead = read;
-        step('pinnedOpened', read.messages > 0 || read.chatLength > 0, JSON.stringify(read));
+        step('pinnedOpened', report.opened.opened === true && (read.messages > 0 || read.chatLength > 0), JSON.stringify({ opened: report.opened, read }));
         step('pinnedReadTheChat', read.carriesMarker === true, JSON.stringify(read));
-        step('pinnedChatIdMatches', typeof read.chatId === 'string' && read.chatId.length > 0, `chatId=${read.chatId}`);
+        step('pinnedChatIdMatches', typeof read.chatId === 'string' && read.chatId.length > 0 && read.chatId === report.opened.chatId, `pinned chatId=${read.chatId} opened chatId=${report.opened.chatId}`);
         const before = await hashTree(dataRoot);
         report.treeBeforePinnedWrote = before;
         // IT ONLY MEANS SOMETHING IF PINNED ACTUALLY READ THE CHAT. Run 40412270626 had this guard pass while pinned
