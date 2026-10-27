@@ -179,7 +179,35 @@ func readStrictDocument(root, rel string) (documentFile, error) {
 	if idx := strings.Index(text, replacementCharacter); idx >= 0 {
 		return documentFile{}, fmt.Errorf("%s carries U+FFFD REPLACEMENT CHARACTER at byte %d: the file was decoded and re-encoded through a lossy path, so the surrounding text is not what was written (AGENTS.md rule 9)", rel, idx)
 	}
+	// MOJIBAKE IS VALID UTF-8, so it cannot be caught by the decoder above and it is not a separate
+	// whole-tree sweep's business alone: a document whose every word is wrong must be refused by the gate
+	// that reads that document. The check lives here, at the single read path, so the pin gate and the
+	// ledger gate both inherit it rather than each remembering it.
+	if seq, at := findMojibake(text); seq != "" {
+		return documentFile{}, fmt.Errorf("%s carries CP1252 mojibake (%s near byte %d): the bytes decode as UTF-8 and every word is wrong, because a writer on a CP1252 host produced valid UTF-8 for text that was already damaged (AGENTS.md rule 9; the `C3 83` / `E2 80 9E` sweep is the check that finds it)", rel, seq, at)
+	}
 	return documentFile{rel: rel, bytes: body, text: text}, nil
+}
+
+// findMojibake reports the first CP1252 round-trip signature in text, with a readable name and its byte
+// offset. Two signatures cover this project's measured cases:
+//
+//   - U+00E2 U+20AC ("â€") is the CP1252 decode of the three-byte UTF-8 prefix E2 80, which is what a
+//     dash or a curly quote becomes;
+//   - U+00C3 ("Ã") is the CP1252 decode of the two-byte prefix C3, which is what every CJK and accented
+//     character becomes.
+//
+// U+00C2 ("Â") is deliberately NOT treated as a signature on its own: it is the correct rendering of a
+// NBSP's prefix and also appears inside legitimate Vietnamese/Latin text, so flagging it would produce a
+// phantom defect on a correct document — the same trap as the case-insensitive `/Users/` sweep.
+func findMojibake(text string) (string, int) {
+	if i := strings.Index(text, cp1252MojibakeUnderscore); i >= 0 {
+		return `"\u00E2\u20AC" (a CP1252 round trip of a three-byte UTF-8 sequence, typically a dash or a curly quote)`, i
+	}
+	if i := strings.Index(text, cp1252MojibakeA); i >= 0 {
+		return `"\u00C3" (a CP1252 round trip of a two-byte UTF-8 sequence, typically a CJK or accented character)`, i
+	}
+	return "", 0
 }
 
 func firstInvalidUTF8Offset(body []byte) int {
@@ -243,12 +271,8 @@ var backtickedObjectIDPattern = regexp.MustCompile("`([0-9a-f]{38,44})`")
 // backticked id (handled by the caller clearing matched spans first).
 var bareObjectIDPattern = regexp.MustCompile(`[0-9a-f]{38,44}`)
 
-// pinnedCommitMatches returns, for one document, every object-id-shaped string whose length is close to
-// the pin's and whose value is not the pin. A 40-character id that IS the pin is fine wherever it
-// appears. A 38-44 character id that is not the pin is reported with the reason, because there is no
-// legitimate reason for a contract document to carry a DIFFERENT SillyTavern commit: a document that
-// needs one (a baseline-bump record, a rollback note) must say so in prose and live in a dated history
-// document, and this list is where that decision is made explicit rather than assumed.
+// pinMismatch is one object-id-shaped string in one document that is neither the pin nor a declared
+// other pin. It carries the LINE and the reason so a reader is sent to the defect rather than hunting.
 type pinMismatch struct {
 	rel    string
 	value  string
@@ -256,6 +280,11 @@ type pinMismatch struct {
 	reason string
 }
 
+// pinnedCommitMatches returns, for one document, every object-id-shaped string whose value is not the pin
+// and not an EXPLICITLY DECLARED other pin. The declaration below is the whole point: this project pins
+// more than one commit, and a gate that flagged every 40-hex string would be red on a correct tree, which
+// is the phantom-defect shape `AGENTS.md` rule 18's case-insensitive sweep records. Each declared pin
+// names WHAT it pins, because an allowlist of bare hashes becomes a place to hide a typo.
 func pinnedCommitMatches(doc documentFile, pin string) []pinMismatch {
 	var out []pinMismatch
 	lines := strings.Split(doc.text, "\n")
@@ -277,7 +306,10 @@ func pinnedCommitMatches(doc documentFile, pin string) []pinMismatch {
 			if value == pin {
 				continue
 			}
-			reason := "not the pinned commit"
+			if _, declared := declaredOtherPins[value]; declared {
+				continue
+			}
+			reason := "not the pinned commit and not a declared other pin"
 			if len(value) != len(pin) {
 				reason = fmt.Sprintf("%d characters, but the pin is %d: this is the typo shape -- a digit repeated or dropped in a copy of the pin", len(value), len(pin))
 			}
@@ -285,6 +317,23 @@ func pinnedCommitMatches(doc documentFile, pin string) []pinMismatch {
 		}
 	}
 	return out
+}
+
+// declaredOtherPins are the OTHER commits this repository legitimately pins. They are compared by a gate
+// that would otherwise demand the SillyTavern baseline everywhere, so each entry states what it is:
+//
+//   - the two extension commitments `AGENTS.md` "Semantic compatibility probes" requires (they are the
+//     canaries for the ecosystem, and their SHAs are their identity);
+//   - the pinned tokenizer-data repository commit (`docs/tokenizer-parity-plan.md`);
+//   - the release workflow's BASELINE_REF fallback, which names the commit where the release workflow and
+//     third-party notices were added — an INPUT to `release-qualification.yml`, not the SillyTavern pin.
+//
+// A value added here without a reason is refused by TestDeclaredPinsAreJustified below.
+var declaredOtherPins = map[string]string{
+	"837a6288135cde61522a9279173b98020f08807e": "pinned JS-Slash-Runner (N0VI028/JS-Slash-Runner) — AGENTS.md semantic-compat probes",
+	"9e71caef9ba7b3ca324ce9f1cb06a69ff54d734b": "pinned LittleWhiteBox (RT15548/LittleWhiteBox) — AGENTS.md semantic-compat probes",
+	"798bcd823dfd04227a79b487e1cf29e6de9aaece": "pinned SillyTavern-Tokenizers data commit — docs/tokenizer-parity-plan.md",
+	"d00d99b87fc2fbd1ffd218c5ce160d07f27c47ef": "release-qualification.yml BASELINE_REF default — the commit that added the release workflow, not the SillyTavern pin",
 }
 
 // checkPinnedCommitStrings is the gate body, extracted so the red-path test can drive it against a
@@ -707,7 +756,7 @@ var citedWorkflowPattern = regexp.MustCompile("\x60([^\x60]+)\x60\\s+(\\d{8,12})
 //	      different code than the document is about;
 //	(iii) the run's conclusion is failure or cancelled and the row does not say so IN PLACE;
 //	(iv)  the row describes itself as resting on a red run's green step while citing no red run at all.
-func checkCitationIntegrity(root string, entries map[string]manifestEntry, rows []scorecardRow) []string {
+func checkCitationIntegrity(root string, ancestry ancestryResolver, entries map[string]manifestEntry, rows []scorecardRow) []string {
 	var problems []string
 
 	// (ii) needs the commit the ledger describes. A ledger with no commit cannot be checked for ancestry
@@ -743,7 +792,11 @@ func checkCitationIntegrity(root string, entries map[string]manifestEntry, rows 
 			if !known || describes == "" {
 				continue
 			}
-			ancestor, checkErr := isAncestor(root, entry.headSHA, describes)
+			if ancestry == nil {
+				problems = append(problems, fmt.Sprintf("Q%d line %d cites run %s but no ancestry resolver was supplied, so whether the run judged a commit this ledger describes is unchecked; a check that cannot run must not read as a pass (rule 7)", r.number, r.line, runID))
+				continue
+			}
+			ancestor, checkErr := ancestry(entry.headSHA, describes)
 			if checkErr != nil {
 				// Not a citation defect: the repository history needed to answer is not here. Say so
 				// once, naming the run, rather than passing silently (rule 7).
@@ -778,13 +831,24 @@ func isAncestor(root, ancestor, descendant string) (bool, error) {
 	if len(descendant) < 7 {
 		return false, fmt.Errorf("%q is too short to resolve", descendant)
 	}
-	cmd := exec.Command("git", "-C", root, "merge-base", "--is-ancestor", ancestor, descendant)
+	// `-C root` is not enough on its own: a relative root (this file passes "../..") would be resolved
+	// against whatever the process working directory happens to be, and `git -C <relative>` from a temp
+	// directory fails with 128 — measured in CI as "ancestry could not be verified" for every citation at
+	// once. Resolve to an absolute path and ALSO set cmd.Dir, so both addressings agree.
+	absRoot, absErr := filepath.Abs(root)
+	if absErr != nil {
+		return false, fmt.Errorf("resolve %q: %w", root, absErr)
+	}
+	cmd := exec.Command("git", "-C", absRoot, "merge-base", "--is-ancestor", ancestor, descendant)
+	cmd.Dir = absRoot
 	// A missing git binary or a shallow clone must be reported, not converted into "not an ancestor".
 	if err := cmd.Run(); err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			if exitErr.ExitCode() == 1 {
 				return false, nil // git's own "no": a complete answer
 			}
+			// 128 is git's "I could not answer" (unknown revision, not a repository, shallow history).
+			// Report it rather than absorbing it into a verdict.
 			return false, fmt.Errorf("git merge-base --is-ancestor %s %s exited %d: %s", ancestor, descendant, exitErr.ExitCode(), strings.TrimSpace(string(exitErr.Stderr)))
 		}
 		return false, fmt.Errorf("could not run git: %w", err)
@@ -807,7 +871,29 @@ type scorecardRow struct {
 // must carry their own ledger note), a `proven` row cites a run id or a document, every cited run id is
 // in the manifest, and the CITATION itself is integrous — right workflow, ancestor commit, red runs
 // marked in place (checkCitationIntegrity).
+// ancestryResolver answers "is ancestor reachable from descendant?", and is a SEAM rather than a direct
+// call so the ledger's structural rules can be tested in a scratch tree that is not a git repository.
+//
+// The seam is narrow on purpose. The production value is gitAncestry (a real `git merge-base
+// --is-ancestor`); the test value is a map. What the seam does NOT let a test do is skip the check
+// entirely: `nil` means "cannot verify", which the gate reports as its own finding, so a test that forgets
+// to provide a resolver does not get a silent pass (rule 7).
+type ancestryResolver func(ancestor, descendant string) (bool, error)
+
+// gitAncestry is the production resolver. It runs git against the tree the ledger lives in.
+func gitAncestry(root string) ancestryResolver {
+	return func(ancestor, descendant string) (bool, error) {
+		return isAncestor(root, ancestor, descendant)
+	}
+}
+
+// checkScorecardStructure keeps its signature for the callers that want the real answer.
 func checkScorecardStructure(root string) error {
+	return checkScorecardStructureWith(root, gitAncestry(root))
+}
+
+// checkScorecardStructureWith is the gate body with the ancestry question injected.
+func checkScorecardStructureWith(root string, ancestry ancestryResolver) error {
 	doc, err := readStrictDocument(root, filepath.Join("docs", "goal-scorecard.md"))
 	if err != nil {
 		return err
@@ -880,7 +966,7 @@ func checkScorecardStructure(root string) error {
 			}
 		}
 	}
-	problems = append(problems, checkCitationIntegrity(root, entries, rows)...)
+	problems = append(problems, checkCitationIntegrity(root, ancestry, entries, rows)...)
 	if len(problems) > 0 {
 		sort.Strings(problems)
 		return fmt.Errorf("evidence ledger %s is inconsistent:\n  %s", filepath.ToSlash(filepath.Join("docs", "goal-scorecard.md")), strings.Join(problems, "\n  "))
@@ -898,6 +984,11 @@ func normalizeState(raw string) string {
 func validState(s string) bool {
 	return scorecardStates[s] || strings.HasPrefix(s, "inherited-pinned-behavior") || strings.HasPrefix(s, "declared:") || strings.HasPrefix(s, "deferred:")
 }
+
+// alwaysAncestor is the resolver the structural tests use: it answers "yes" for every pair, because the
+// question under test in those cases is the ledger's shape, not its history. The ancestry question has
+// its own test against a real repository (TestCitationAncestryGateCanGoRed), where "yes" would be wrong.
+func alwaysAncestor(_, _ string) (bool, error) { return true, nil }
 
 // TestEvidenceLedgerIsConsistent runs the ledger gate against the tree.
 func TestEvidenceLedgerIsConsistent(t *testing.T) {
@@ -978,7 +1069,9 @@ func TestEvidenceLedgerGateCanGoRed(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			tree := t.TempDir()
 			writeLedgerScratch(t, tree, tc.mutate(base.text), manifest.text)
-			err := checkScorecardStructure(tree)
+			// The structural rules under test are not about git, so ancestry answers "yes" here; the
+			// ancestry check has its own test against a real repository.
+			err := checkScorecardStructureWith(tree, alwaysAncestor)
 			if err == nil {
 				t.Fatalf("the ledger gate ACCEPTED a scorecard with %s; a ledger that cannot express a defect is prose", tc.name)
 			}
@@ -990,7 +1083,7 @@ func TestEvidenceLedgerGateCanGoRed(t *testing.T) {
 	// And the unmutated copy must pass, so the reds above are about the planted defect.
 	tree := t.TempDir()
 	writeLedgerScratch(t, tree, base.text, manifest.text)
-	if err := checkScorecardStructure(tree); err != nil {
+	if err := checkScorecardStructureWith(tree, alwaysAncestor); err != nil {
 		t.Fatalf("the gate refused the UNMUTATED ledger, so its reds prove nothing: %v", err)
 	}
 }
@@ -1063,22 +1156,27 @@ func TestCitationAncestryGateCanGoRed(t *testing.T) {
 	}
 
 	// And through the ledger gate, with a synthetic manifest whose single entry's head_sha is runCommit.
+	//
+	// THE LEDGER IS WRITTEN INTO THE GIT REPO ABOVE, on purpose: ancestry is answered by `git -C <root>`,
+	// so a scratch tree that is not a repository cannot answer it at all and every citation would read as
+	// "could not verify". The gate reports that as its own finding rather than as a verdict, and a test
+	// that mixed the two would prove nothing about ancestry.
 	synthetic := fmt.Sprintf("{\n  \"entries\": [\n    {\"runId\": \"40000000001\", \"workflow\": \"Browser differential\", \"headSha\": \"%s\", \"conclusion\": \"success\"}\n  ]\n}\n", runCommit)
 	ledger := func(describes string) string {
 		return "Ledger for commit `" + describes + "`.\n\n" +
 			ledgerRow(4, "proven", "`Browser differential` 40000000001 (success)") + "\n"
 	}
-	tree := t.TempDir()
-	writeLedgerScratch(t, tree, ledger(laterCommit), synthetic)
-	if err := checkScorecardStructure(tree); err != nil {
+	repoAncestry := gitAncestry(repo)
+	writeLedgerScratch(t, repo, ledger(laterCommit), synthetic)
+	if err := checkScorecardStructureWith(repo, repoAncestry); err != nil {
 		if strings.Contains(err.Error(), "not an ancestor") {
 			t.Fatalf("the gate refused a citation whose run commit IS an ancestor of the described commit: %v", err)
 		}
 		// Other findings (the missing Q rows) are expected in this minimal ledger; only the ancestry
 		// verdict is under test, and it must not appear here.
 	}
-	writeLedgerScratch(t, tree, ledger(siblingCommit), synthetic)
-	refusal := checkScorecardStructure(tree)
+	writeLedgerScratch(t, repo, ledger(siblingCommit), synthetic)
+	refusal := checkScorecardStructureWith(repo, repoAncestry)
 	if refusal == nil {
 		t.Fatalf("the gate ACCEPTED a citation whose run judged %s while the ledger describes %s, a commit that does not contain it", runCommit[:12], siblingCommit[:12])
 	}
@@ -1133,8 +1231,18 @@ func writeLedgerScratch(t *testing.T, tree, scorecard, manifest string) {
 	}
 }
 
-// TestDocumentGateCoversTheContract requires every markdown file that repeats the pin to be in the
-// closed list. Coverage enumerated from the tree, not from whatever a reader remembers adding (rule 43).
+// TestDocumentGateCoversTheContract requires every markdown file that repeats the pin to be either in the
+// closed list or covered by the invariable inventory scan below. Coverage is enumerated from the tree,
+// never from whatever a reader remembers adding (rule 43).
+//
+// WHY TWO TIERS. The closed list is the documents whose PROSE states the baseline as a claim. The
+// generated inventories (`docs/api-inventory.md`, `docs/config-inventory.md`, `docs/startup-inventory.md`,
+// `docs/data-layout.md`, `docs/tokenizer-parity-plan.md`, `docs/compat-matrix.md`, the generated
+// compatibility matrix, the extension route coverage and `README.md`/`docs/INSTALLATION.md`) repeat the pin
+// in every source link — hundreds of times — so they are covered more strongly than by a list: the whole
+// tree is scanned for pin-shaped strings by TestPinnedCommitStringsMatchThePin, and this test only asks
+// that each of them is EITHER listed EITHER scanned. A file that is neither is red, which is the case this
+// exists to catch.
 func TestDocumentGateCoversTheContract(t *testing.T) {
 	pin, err := pinnedCommitFromTree(documentsRoot)
 	if err != nil {
@@ -1157,14 +1265,43 @@ func TestDocumentGateCoversTheContract(t *testing.T) {
 		if readErr != nil {
 			t.Fatalf("read %s: %v", rel, readErr)
 		}
-		if strings.Contains(string(body), pin) {
-			missing = append(missing, rel)
+		text := string(body)
+		if !strings.Contains(text, pin) {
+			continue
+		}
+		// It names the pin. Is it scanned by the whole-tree pass? That pass walks EVERY markdown file
+		// under the root, so the only files it cannot see are ones it deliberately skips.
+		if isSkippedMarkdownPath(rel) {
+			missing = append(missing, rel+" (skipped by the tree walk, so no gate reads it)")
+			continue
+		}
+		// Scanned, but is its pin spelling CORRECT? Ask the same matcher the gate uses, so a wrong
+		// spelling in an unlisted file is a finding here rather than a silent gap.
+		doc, readErr := readStrictDocument(documentsRoot, rel)
+		if readErr != nil {
+			missing = append(missing, rel+" ("+readErr.Error()+")")
+			continue
+		}
+		if mismatches := pinnedCommitMatches(doc, pin); len(mismatches) > 0 {
+			missing = append(missing, fmt.Sprintf("%s (line %d carries %q)", rel, mismatches[0].line, mismatches[0].value))
 		}
 	}
 	if len(missing) > 0 {
 		sort.Strings(missing)
-		t.Fatalf("%d document(s) name the pinned commit but are not in contractDocumentFiles(), so no gate reads them consistently:\n  %s", len(missing), strings.Join(missing, "\n  "))
+		t.Fatalf("%d document(s) name the pinned commit and are neither listed in contractDocumentFiles() nor readable as strict UTF-8 with the correct spelling:\n  %s\nEither add the file to contractDocumentFiles() or fix its bytes; a document outside both tiers is one nothing checks.", len(missing), strings.Join(missing, "\n  "))
 	}
+}
+
+// isSkippedMarkdownPath reports whether the tree walk deliberately skips a path. It mirrors
+// allMarkdownFiles' skip rules; kept beside this test so the two cannot drift silently.
+func isSkippedMarkdownPath(rel string) bool {
+	for _, segment := range strings.Split(rel, "/") {
+		switch segment {
+		case ".git", "node_modules", ".reference", "upstream":
+			return true
+		}
+	}
+	return false
 }
 
 // agentsCitationSections are the AGENTS.md sections whose numbered items are the citation surface. The
@@ -1182,14 +1319,25 @@ var agentsCitationSections = []string{
 // agentsCitationNumbering is the expected numbering of the citation surface, in document order and split
 // by section so a rule that MOVES between sections is caught as well as one that is renumbered.
 //
-// Rules 1-19 live in "Hard rules"; 21-41 and 42-56 live in the two product-contract sections. There is no
-// rule 20: "Verification methods" numbers 1-20 as its own series, and the product-contract series begins
-// at 21 precisely so that a citation of "rule 20" cannot be ambiguous between the two. That gap is
-// DELIBERATE and is asserted here, because a future editor "tidying up" the sequence would silently
-// renumber every product-contract citation in the repository.
+// TWO SERIES, DELIBERATELY DISJOINT. "Hard rules" numbers 1-19. The verification and differential sections
+// number their own lists 1-N because they are cited by SECTION AND NUMBER ("verification rule 9"), never by
+// a bare number. The product-contract series begins at 21 so that a bare "rule 20" cannot be ambiguous
+// between "verification rule 20" (which does not exist — the verification list ends at 20) and a
+// product rule; that gap is asserted. A future editor "tidying up" the sequence would silently renumber
+// every product-contract citation in the repository.
 func agentsCitationNumbering() map[string][]string {
+	verification := make([]string, 0, 20)
+	for i := 1; i <= 20; i++ {
+		verification = append(verification, strconv.Itoa(i))
+	}
+	differential := make([]string, 0, 12)
+	for i := 1; i <= 12; i++ {
+		differential = append(differential, strconv.Itoa(i))
+	}
 	return map[string][]string{
 		"## Hard rules": {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"},
+		"## Verification methods": verification,
+		"## Differential-testing doctrine (what the oracle is allowed to claim)": differential,
 		"## Product contract (2026-10-25, after three user-visible P0 failures)": {
 			"21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41",
 		},
