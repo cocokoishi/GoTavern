@@ -150,6 +150,32 @@ test('the ignore patterns cover every leg name the committed artefacts record', 
     assert.ok(isIgnored('generation-probe-report.json'));
 });
 
+// THE 酒馆助手 VARIABLE LEGS, ASSERTED IN BOTH DIRECTIONS AND FOR THE NAMES THE WORKFLOW WILL ACTUALLY USE.
+//
+// Why this is its own test rather than two more names in the list above: the variable leg writes SIX legs from the
+// helper mode (both subjects x on/off, plus both subjects restarted), and the committed artefacts are deliberately
+// named OUTSIDE the ignored prefix (`helper-variables-comparison.json`, long form, versus `helper-vars-*.json`). A
+// rename that put the artefact back under the prefix would leave it silently untracked -- a committed artefact that
+// no longer exists in git is the exact failure the pattern design is meant to prevent -- so the negative direction is
+// asserted here by name, not left to the generic `never swallow a committed artefact` loop above (which only sees
+// files that are still on disk and still tracked).
+test('the 酒馆助手 variable legs are ignored, and the artefact they produce is not', () => {
+    for (const subject of ['gotavern', 'pinned']) {
+        for (const suffix of ['on', 'off', 'on-restart', 'off-restart']) {
+            const leg = `helper-vars-${subject}-${suffix}.json`;
+            assert.ok(isIgnored(leg), `${leg} is a leg this lane writes and tests/browser/.gitignore does not ignore it`);
+        }
+    }
+    // The one name that MUST stay tracked. It is not on disk yet in a checkout that has never recorded it, so this
+    // asserts the PATTERN rather than the file: a future rename into the ignored prefix fails here.
+    assert.equal(isIgnored('helper-variables-comparison.json'), false,
+        'helper-variables-comparison.json is the committed artefact and must never be ignored');
+    // And the prefix really is narrow: it must not swallow the other helper surfaces' artefacts.
+    for (const other of ['helper-comparison.json', 'helper-generation-comparison.json']) {
+        assert.equal(isIgnored(other), false, `${other} belongs to another surface and must not be ignored by this lane's pattern`);
+    }
+});
+
 test('the ignore patterns never swallow a committed artefact', () => {
     const committed = readdirSync(here).filter(name => name.endsWith('-comparison.json'));
     assert.ok(committed.length >= 25, `expected the committed artefacts on disk; found ${committed.length}`);
