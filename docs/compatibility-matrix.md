@@ -60,7 +60,7 @@ A row is `PASS` only when every one of these holds:
 | 17 | Embeddings and vector storage | **PARTIAL** | 1 oracle fixture(s), Go implementation, 1 named test(s), CI job(s) | 2 item(s) |
 | 18 | Multi-user: create, admin, recovery, reset, private data, per-user data roots | **PARTIAL** | 6 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
 | 19 | Content import, character export, chat/account backups and restore | **PARTIAL** | 5 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
-| 20 | Startup: config creation and migration, data seeding, locking, no-hang, no egress | **FAIL** | 5 oracle fixture(s), upstream assets, Go implementation, 4 named test(s), CI job(s) | 4 item(s) |
+| 20 | Startup: config creation and migration, data seeding, locking, no-hang, no egress | **FAIL** | 6 oracle fixture(s), upstream assets, Go implementation, 4 named test(s), CI job(s) | 5 item(s) |
 | 21 | Release artifact: archive, install, upgrade, rollback, docker, smoke | **PARTIAL** | upstream assets, Go implementation, 2 named test(s), CI job(s), release-artifact step | 3 item(s) |
 | 22 | Whole-session differential in a stock tree (load, settings, characters, chat, send, stream, save, reload) | **FAIL** | 1 oracle fixture(s), 2 browser artefact(s), CI job(s) | 3 item(s) |
 
@@ -454,7 +454,7 @@ A backup nobody has restored is a file, not a backup.
 
 Row id: `startup`
 
-- Oracle fixtures: `tests/oracle/sillytavern-1.19.0-fresh-start.json`, `tests/oracle/sillytavern-1.19.0-config-init.json`, `tests/oracle/sillytavern-1.19.0-commandline-paths.json`, `tests/oracle/sillytavern-1.19.0-public-overrides-migration.json`, `tests/oracle/sillytavern-1.19.0-access-log-migration.json`
+- Oracle fixtures: `tests/oracle/sillytavern-1.19.0-fresh-start.json`, `tests/oracle/sillytavern-1.19.0-config-init.json`, `tests/oracle/sillytavern-1.19.0-config-duplicate-key.json`, `tests/oracle/sillytavern-1.19.0-commandline-paths.json`, `tests/oracle/sillytavern-1.19.0-public-overrides-migration.json`, `tests/oracle/sillytavern-1.19.0-access-log-migration.json`
 - Upstream assets: `upstream/default`, `upstream/manifests`
 - Go implementation: `internal/startup`, `internal/configinit`, `internal/migrate`, `internal/app`
 - Named tests: `TestInitializeDataStartupMatchesPinnedNodeFreshStartInventory`, `TestInitializeCreatesPinnedFreshConfig`, `TestInitializeMigratesLegacyConfigAndPreservesUnknownFields`, `TestResolveProtocolSelectionMatchesPinnedServerStartup`
@@ -468,6 +468,7 @@ Row id: `startup`
 - no gate asserts that startup makes no non-essential network access (AGENTS.md 25)
 - no gate asserts that a parseable config is never rewritten as a side effect (AGENTS.md 27)
 - every startup fixture starts from a fresh or migrated runtime root, never from a stock SillyTavern tree that a user already runs
+- DUPLICATE-KEY CONFIG: pinned refuses it by name and does NOT rewrite the file (measured, tests/oracle/sillytavern-1.19.0-config-duplicate-key.json): exit 1, 'Could not add missing config values ... YAMLParseError: Map keys must be unique at line N, column M' with code DUPLICATE_KEY, then 'FATAL: Failed to read config.yaml. Please check the file for syntax errors.', and the file's bytes and mtime are IDENTICAL before and after (sha256 0f0ee0ee/57cdc75f both sides). The control -- the same document minus the duplicate -- boots AND is migrated (25 -> 3310 bytes), which is what makes 'untouched' readable rather than vacuous. THE USER-VISIBLE STORY IS THE GOOD ONE: they can fix the duplicate and restart with nothing lost, rather than having their config rewritten on the way to a crash. GoTavern currently ACCEPTS a duplicate key where pinned exits 1, so the divergence runs in the direction of being more permissive; that is recorded here rather than asserted as parity, and TestDuplicateKeyIsAcceptedWherePinnedRejectsIt is the test that names it
 
 The state machine is documented in detail and the invariants are written into AGENTS.md 24-28; what does not exist is a test that fails when a wait is unbounded or a stock tree hangs. That absence is the defect the process is missing (AGENTS.md 40).
 
@@ -562,7 +563,7 @@ numbers cannot drift away from the tree the way four documents once disagreed ab
 
 | Measure | In the tree | Cited by this matrix |
 |---|---|---|
-| Oracle fixtures | 118 | 66 |
+| Oracle fixtures | 119 | 67 |
 | Browser artefacts | 37 | 11 |
 | Go test functions | 589 | 66 |
 | Workflow jobs | 32 in 9 workflow(s) | _n/a_ |

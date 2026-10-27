@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned boot behaviour on a duplicate-key config.yaml: exit, stderr, exit code, and whether the config was migrated before the exit",
+  "source": "src/config-init.js:164-243 (warn-and-continue migration, runs first); src/util.js:70-78 (FATAL + process.exit(1) at first getConfigValue); yaml ^2.8.3 uniqueKeys:true (node_modules/yaml/.../doc/Document.js:39)",
+  "normalization": {
+    "tier2": [
+      {
+        "path": "results[*].stderrLines",
+        "rule": "kept verbatim except that two host paths are replaced: the probe temp root with <runtime> and the oracle build root with <build-root>",
+        "reason": "Both are ephemeral paths, not properties of pinned. The first has a random mkdtemp suffix; the second appears 18 times in the recorded yaml stack trace and differs per runner. The message TEXT around them is the contract, because the FATAL line is what a user sees. This is a narrow two-prefix rule, not a general \"ignore paths\" exemption: any other absolute path in stderr is still recorded and still compared.",
+        "pinnedSource": "src/util.js:75 console.error(color.red('FATAL: Failed to read config.yaml. Please check the file for syntax errors.'))"
+      },
+      {
+        "path": "results[*].configBefore.mtimeMs / configAfter.mtimeMs",
+        "rule": "null",
+        "reason": "A modification time is a wall-clock measurement of this run, host-dependent by definition. The BYTES are the compared contract (sha256); the mtime is recorded only in the run log and nulled here so a two-run re-record can be byte-identical."
+      }
+    ]
+  },
+  "results": {
+    "duplicate-key-control": {
+      "scenario": "port: 8000\nlisten: false\n",
+      "exit": "served",
+      "exitCode": 0,
+      "exitSignal": null,
+      "stderrLines": [
+        "Cookie secret is missing from data root. Generating a new one..."
+      ],
+      "configBefore": {
+        "bytes": 25,
+        "sha256": "c106d06389183eb7c2aa09b7b3bf7ab1d799a1fb2209d178702cfef2ae28aa7a",
+        "mtimeMs": 1767225600000
+      },
+      "configAfter": {
+        "bytes": 3310,
+        "sha256": "a166c5b85c947dd6b229fe9a165d02be046575222e7ba35dc0531272371517f9",
+        "mtimeMs": 1793096024313
+      },
+      "configMigration": "rewritten",
+      "userStory": "booted and migrated: the duplicate key did NOT stop the server"
+    },
+    "duplicate-key": {
+      "scenario": "port: 8000\nport: 9000\nlisten: false\n",
+      "exit": "exited",
+      "exitCode": 1,
+      "exitSignal": null,
+      "stderrLines": [
+        "Could not add missing config values to config.yaml YAMLParseError: Map keys must be unique at line 2, column 1:",
+        "port: 8000",
+        "port: 9000",
+        "^",
+        "at Composer.onError (<build-root>/node_modules/yaml/dist/compose/composer.js:70:34)",
+        "at Object.resolveBlockMap (<build-root>/node_modules/yaml/dist/compose/resolve-block-map.js:64:13)",
+        "at resolveCollection (<build-root>/node_modules/yaml/dist/compose/compose-collection.js:13:27)",
+        "at Object.composeCollection (<build-root>/node_modules/yaml/dist/compose/compose-collection.js:59:16)",
+        "at Object.composeNode (<build-root>/node_modules/yaml/dist/compose/compose-node.js:34:42)",
+        "at Object.composeDoc (<build-root>/node_modules/yaml/dist/compose/compose-doc.js:35:23)",
+        "at Composer.next (<build-root>/node_modules/yaml/dist/compose/composer.js:150:40)",
+        "at next (<anonymous>)",
+        "at Composer.compose (<build-root>/node_modules/yaml/dist/compose/composer.js:132:25)",
+        "at compose.next (<anonymous>) {",
+        "code: 'DUPLICATE_KEY',",
+        "pos: [ 11, 12 ],",
+        "linePos: [ { line: 2, col: 1 }, { line: 2, col: 2 } ]",
+        "}",
+        "FATAL: Failed to read config.yaml. Please check the file for syntax errors.",
+        "Map keys must be unique at line 2, column 1:",
+        "port: 8000",
+        "port: 9000",
+        "^"
+      ],
+      "configBefore": {
+        "bytes": 36,
+        "sha256": "0f0ee0eede70e1c347d8c1c6ca2c417f738dd6e74bf03979e66829ebd790fdd3",
+        "mtimeMs": 1767225600000
+      },
+      "configAfter": {
+        "bytes": 36,
+        "sha256": "0f0ee0eede70e1c347d8c1c6ca2c417f738dd6e74bf03979e66829ebd790fdd3",
+        "mtimeMs": 1767225600000
+      },
+      "configMigration": "untouched",
+      "userStory": "untouched file and a refusal: they can fix the duplicate and restart with nothing lost"
+    },
+    "duplicate-key-deep": {
+      "scenario": "listen: false\nssl:\n  enabled: false\n  enabled: true\n",
+      "exit": "exited",
+      "exitCode": 1,
+      "exitSignal": null,
+      "stderrLines": [
+        "Could not add missing config values to config.yaml YAMLParseError: Map keys must be unique at line 4, column 3:",
+        "enabled: false",
+        "enabled: true",
+        "^",
+        "at Composer.onError (<build-root>/node_modules/yaml/dist/compose/composer.js:70:34)",
+        "at Object.resolveBlockMap (<build-root>/node_modules/yaml/dist/compose/resolve-block-map.js:64:13)",
+        "at resolveCollection (<build-root>/node_modules/yaml/dist/compose/compose-collection.js:13:27)",
+        "at Object.composeCollection (<build-root>/node_modules/yaml/dist/compose/compose-collection.js:59:16)",
+        "at composeNode (<build-root>/node_modules/yaml/dist/compose/compose-node.js:34:42)",
+        "at Object.resolveBlockMap (<build-root>/node_modules/yaml/dist/compose/resolve-block-map.js:85:19)",
+        "at resolveCollection (<build-root>/node_modules/yaml/dist/compose/compose-collection.js:13:27)",
+        "at Object.composeCollection (<build-root>/node_modules/yaml/dist/compose/compose-collection.js:59:16)",
+        "at Object.composeNode (<build-root>/node_modules/yaml/dist/compose/compose-node.js:34:42)",
+        "at Object.composeDoc (<build-root>/node_modules/yaml/dist/compose/compose-doc.js:35:23) {",
+        "code: 'DUPLICATE_KEY',",
+        "pos: [ 38, 39 ],",
+        "linePos: [ { line: 4, col: 3 }, { line: 4, col: 4 } ]",
+        "}",
+        "FATAL: Failed to read config.yaml. Please check the file for syntax errors.",
+        "Map keys must be unique at line 4, column 3:",
+        "enabled: false",
+        "enabled: true",
+        "^"
+      ],
+      "configBefore": {
+        "bytes": 52,
+        "sha256": "57cdc75f23788c511ff5a622526d66baaad42facd8c27106352feec7728fbf94",
+        "mtimeMs": 1767225600000
+      },
+      "configAfter": {
+        "bytes": 52,
+        "sha256": "57cdc75f23788c511ff5a622526d66baaad42facd8c27106352feec7728fbf94",
+        "mtimeMs": 1767225600000
+      },
+      "configMigration": "untouched",
+      "userStory": "untouched file and a refusal: they can fix the duplicate and restart with nothing lost"
+    }
+  }
+}
