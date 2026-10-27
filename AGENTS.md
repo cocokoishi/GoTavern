@@ -1026,6 +1026,25 @@ rather than by review.
     pattern `^[A-Z]*_?Q20_REPLY_\d+$` REJECTED `Q20G_Q20_REPLY_2`. Testing it against the three real strings first
     found that, and the fix accepts all three shapes while still rejecting `nope` and `Q20_REPLY_x`.
 
+83. **An unequal precondition and a different assembly produce the SAME symptom — a different digest — so assert
+    the precondition BEFORE the bytes.** Measured twice in one project, and the second time cost two runs.
+    A lane chased a 21-byte difference between two legs' provider requests and concluded it was an ASYMMETRIC
+    PRECONDITION, naming `settings.username`: the pinned leg merged into a `settings.json` the pinned server had
+    seeded while the other leg created the file. That reading was right about the KIND and WRONG about the FIELD.
+    Pinning the name did not close the gap, and the legs' own console stream named the real mechanism --
+    `selectCurrentPersona` (`personas.js`) sets `name1` from `power_user.personas[user_avatar]` when that entry
+    exists, which OVERRIDES `settings.username`, and the pinned tree carries a persona row for `user-default.png`
+    while a fresh tree does not.
+    The generalisable part: **a speaker-name difference and a request-assembly difference are indistinguishable
+    from a sha256.** Both produce "the bytes differ", and a guard that reports only that sends its reader to the
+    wrong subsystem -- two runs, in this case. So a byte-equality guard must assert its PRECONDITIONS first and fail
+    by name when one is unequal, reaching the comparison only when the inputs are known equal. This is rule 64
+    applied to a byte gate: the guard must print the CAUSE, and "the digests differ" is not a cause.
+    The same ambiguity was raised earlier for a 45-byte difference in another lane, and I ruled then that the
+    evidence could not distinguish "the product excludes it" from "the harness reloaded too early". It could not,
+    because neither guard named its precondition. Both lanes have since added the precondition assertion, and both
+    differences turned out to be harness defects.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
