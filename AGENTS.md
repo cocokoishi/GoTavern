@@ -1200,6 +1200,31 @@ rather than by review.
     the value and the object it is read from, the flag and the event it stands for, the signal and the state it
     implies -- and verify the join rather than either side.
 
+90. **A value read from a live binding is a SNAPSHOT, and the product may rebind it before you read it — read through
+    the product's own accessor at the moment you need it, and record both views.** This is rule 89's family, and the
+    same lane hit it twice in two days.
+    `openCharacter` read the character identity immediately after `card.click()`. `this_chid` is an ES-module
+    `export let` (`script.js:432`) that the product REBINDS during openCharacter (`:7126`), and the evaluate block
+    had taken its value from the `script` namespace BEFORE the click -- so `characterOpen.characterName` was `null`
+    while `openedContext.characterName` was `"Seraphina"`. **`chatId` and `characterName` were read from the SAME
+    block, ten lines apart, and only `chatId` was correct, because only `chatId` was read through `getContext()`.**
+    The consequence was a run where the subject's leg drove clean 21/21 and the ORACLE leg never started: the
+    workflow reported "the gotavern Q20 regenerate leg recorded no character name, so the pinned leg has no chat to
+    open", and a comparator that never ran judged nothing. A null in one field silently removed the other subject.
+    THE RULE: an export is not a member (89), and a member read at the wrong MOMENT is a snapshot of a value the
+    product owns and may replace. Read it through the accessor the product itself computes with -- `getContext()`
+    (`scripts/st-context.js:123` for `characterId`, `:138` for `eventSource`) -- at the point of use, not from a
+    namespace captured earlier.
+    AND RECORD BOTH VIEWS, which is rule 58's prescription applied to this family: the fix records
+    `thisChid`/`characterName` from the context AND `moduleThisChid`/`moduleCharacterName` from the module binding,
+    so a disagreement shows in the ARTEFACT instead of surfacing as an unexplained null. Both failure messages now
+    NAME the two fields. A harness that reads one view can only report the symptom.
+    AN OPERATIONAL HAZARD FROM THE SAME LANE, worth knowing before it costs a run: its salvage directory reached
+    0.2 GB free and `gh run download` failed MID-EXTRACT on a tokenizer file. It collapsed seventeen run directories
+    to their result files only (25 MB, every `q20-*.json` and `*-comparison.json` retained) and recovered 6.5 GB.
+    Nothing evidential was lost -- but a partial extract left in place is indistinguishable from a complete one to
+    everything downstream, so a download that fails part-way must be treated as ABSENT rather than as data.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
