@@ -304,6 +304,46 @@ guard('nudgeAssemblesLast', () => {
     return problems;
 });
 
+guard('sameSetup', () => {
+    // BOTH SUBJECTS MUST HAVE TAKEN THE SAME SETUP PATH, or nothing below compares the same experiment.
+    //
+    // Run 40597042866 measured this: a `chatLength < 3` gate gave GoTavern 0 (fresh chat) and pinned 5 (the handoff
+    // chat), so GoTavern drove two setup turns and pinned drove none. The pinned leg then sent a continuation with no
+    // preceding turn, and the comparator reported
+    //     nudgeAssemblesLast:   "pinned: the continued request has no messages array"
+    //     nodeEqualsGoContinue: "one of the subjects produced no continued request"
+    // -- every remaining red traceable to the setup divergence, and to nothing about the verb.
+    const problems = [];
+    const decisions = {};
+    for (const [subject, report] of Object.entries(reports)) {
+        if (!report) continue;
+        const decision = report.setupDecision ?? null;
+        decisions[subject] = decision;
+        if (!decision) {
+            problems.push(`${subject}: the leg recorded no setupDecision, so nothing says whether it drove the two setup turns`);
+            continue;
+        }
+        if (typeof decision.carriesPredecessor !== 'boolean') {
+            problems.push(`${subject}: setupDecision.carriesPredecessor is ${JSON.stringify(decision.carriesPredecessor)}; it must be a boolean so the decision is checkable`);
+        }
+    }
+    details.setup = decisions;
+    const go = decisions.gotavern ?? {};
+    const node = decisions.pinned ?? {};
+    if (go.carriesPredecessor !== node.carriesPredecessor) {
+        problems.push(`the two subjects took DIFFERENT setup paths (gotavern carriesPredecessor=${go.carriesPredecessor} on ${JSON.stringify(go.openChat)}, pinned=${node.carriesPredecessor} on ${JSON.stringify(node.openChat)}); their continuations are not the same experiment`);
+    }
+    // The completions each leg sent are the observable consequence of that decision, so they are reported alongside it.
+    details.setup.completions = {
+        gotavern: completionsOf(reports.gotavern).length,
+        pinned: completionsOf(reports.pinned).length,
+    };
+    if (details.setup.completions.gotavern !== details.setup.completions.pinned) {
+        problems.push(`the two subjects sent a different number of chat completions (gotavern ${details.setup.completions.gotavern}, pinned ${details.setup.completions.pinned}); a leg that skipped its setup turns cannot be compared to one that drove them`);
+    }
+    return problems;
+});
+
 guard('nodeEqualsGoContinue', () => {
     const go = completions(reports.gotavern);
     const node = completions(reports.pinned);

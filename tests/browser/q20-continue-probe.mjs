@@ -353,11 +353,37 @@ try {
     const silenced = await silenceAndObserve(page);
     report.silenced = silenced;
     step('frontend-observers-installed', silenced.processCommandsWrapped === true, JSON.stringify(silenced));
-    // THE GATE READS THE SELECTED CHAT'S LENGTH, not the pre-selection snapshot. `openedContext.chatLength` was read
-    // before `chat-selected`, so on a leg that switches chats it describes the conversation the card RESUMED -- the
-    // 11-message chat this probe exists to avoid. Left as-is, the setup below would decide "already has enough turns"
-    // from a chat that is no longer open.
-    if (report.openedContext.chatLength < 3) {
+    // THE SETUP DECISION IS MADE FROM THE CHAT THAT IS ACTUALLY OPEN, AND FROM THE SAME RULE ON BOTH SUBJECTS.
+    //
+    // Run 40597042866 measured what a LENGTH threshold does when the two subjects reach this point with different
+    // histories:
+    //     gotavern openedContext.chatLength 0  -> the gate ran the two setup turns (4 completions)
+    //     pinned   chatSelection.chatLength 5  -> the gate SKIPPED them (2 completions)
+    // so the pinned leg sent its continuation first, with no preceding turn, and the comparator reported
+    //     nudgeAssemblesLast: "pinned: the continued request has no messages array"
+    //     nodeEqualsGoContinue: "one of the subjects produced no continued request"
+    // -- a difference produced entirely by which subject had already been set up.
+    //
+    // `chatLength` was never the right input: it is a proxy for "have the two turns been driven", and it reads 0 on a
+    // fresh chat, 5 after the setup, and anything at all on a tree that arrived with history. The question the leg
+    // actually needs answered is "does THIS chat already carry the leg's own predecessor marker", which is the same
+    // question on both subjects and is answered from the file on disk rather than from a page counter.
+    //
+    // The chat is identified by the id the page reports NOW (after `chat-selected`, when one was requested), so the
+    // lookup does not depend on `preContinue`, which is recorded later.
+    const openChatId = String(report.openedContext?.chatIdAfterSelection ?? report.openedContext?.chatId ?? '');
+    const openChat = (await readChatFiles(dataRoot))
+        .find(entry => openChatId !== '' && String(entry.file ?? '').includes(openChatId)) ?? null;
+    const carriesPredecessor = (openChat?.messages ?? []).some(entry => String(entry?.mes ?? '').includes(MARKERS.second));
+    report.setupDecision = {
+        openChat: openChat?.file ?? null,
+        lines: openChat?.lines ?? null,
+        messages: (openChat?.messages ?? []).length,
+        carriesPredecessor,
+        openedContextChatLength: report.openedContext.chatLength ?? null,
+        rule: 'the two setup turns are driven only when the open chat does NOT already carry the second-turn marker',
+    };
+    if (carriesPredecessor !== true) {
         // THE TURN WAITS ON THE PRODUCT'S SETUP STATE AND FAILS BY NAME -- `waitForReply` in the shared drive. See the
         // regenerate probe's note: polling for "the user turn exists" let a leg proceed while the assistant reply had
         // not landed (run 40448869208), and `requireText` is false because the stored reply has empty text on BOTH
