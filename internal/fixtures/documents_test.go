@@ -707,7 +707,7 @@ var citedWorkflowPattern = regexp.MustCompile("\x60([^\x60]+)\x60\\s+(\\d{8,12})
 //	      different code than the document is about;
 //	(iii) the run's conclusion is failure or cancelled and the row does not say so IN PLACE;
 //	(iv)  the row describes itself as resting on a red run's green step while citing no red run at all.
-func checkCitationIntegrity(root string, entries map[string]manifestEntry, rows []ledgerRow) []string {
+func checkCitationIntegrity(root string, entries map[string]manifestEntry, rows []scorecardRow) []string {
 	var problems []string
 
 	// (ii) needs the commit the ledger describes. A ledger with no commit cannot be checked for ancestry
@@ -792,10 +792,10 @@ func isAncestor(root, ancestor, descendant string) (bool, error) {
 	return true, nil
 }
 
-// ledgerRow is one parsed scorecard row. It is a package type rather than a local one because the
+// scorecardRow is one parsed ledger row. It is a package type rather than a local one because the
 // citation-integrity checks take the rows by value and a second, differently-shaped row type would be a
 // second definition of "the row" (the same failure as two scorecards).
-type ledgerRow struct {
+type scorecardRow struct {
 	number   int
 	state    string
 	citation string
@@ -817,7 +817,7 @@ func checkScorecardStructure(root string) error {
 		return err
 	}
 
-	rowsByNumber := make(map[int]ledgerRow)
+	rowsByNumber := make(map[int]scorecardRow)
 	var problems []string
 	for i, line := range strings.Split(doc.text, "\n") {
 		m := scorecardRowPattern.FindStringSubmatch(line)
@@ -836,14 +836,14 @@ func checkScorecardStructure(root string) error {
 		if _, dup := rowsByNumber[n]; dup {
 			problems = append(problems, fmt.Sprintf("Q%d appears more than once (second at line %d); one row per question, so a reader cannot tell which state is current", n, i+1))
 		}
-		rowsByNumber[n] = ledgerRow{number: n, state: state, citation: m[4], line: i + 1}
+		rowsByNumber[n] = scorecardRow{number: n, state: state, citation: m[4], line: i + 1}
 	}
 	for q := 1; q <= 22; q++ {
 		if _, ok := rowsByNumber[q]; !ok {
 			problems = append(problems, fmt.Sprintf("Q%d has no row; an absent question reads as covered", q))
 		}
 	}
-	rows := make([]ledgerRow, 0, len(rowsByNumber))
+	rows := make([]scorecardRow, 0, len(rowsByNumber))
 	for _, r := range rowsByNumber {
 		rows = append(rows, r)
 	}
@@ -1023,16 +1023,30 @@ func TestCitationAncestryGateCanGoRed(t *testing.T) {
 
 	repo := t.TempDir()
 	gitRun(repo, "init", "-b", "main", "--quiet")
+	// A BASE commit first, so the sibling below has something to branch from. Without it `HEAD~2` does
+	// not resolve on a two-commit history and the fixture fails for a reason unrelated to ancestry —
+	// measured here, and the reason this fixture has three commits rather than two.
+	gitRun(repo, "commit", "--allow-empty", "-m", "the base", "--quiet")
+	baseCommit := gitRun(repo, "rev-parse", "HEAD")
 	gitRun(repo, "commit", "--allow-empty", "-m", "the run's commit", "--quiet")
 	runCommit := gitRun(repo, "rev-parse", "HEAD")
 	gitRun(repo, "commit", "--allow-empty", "-m", "a later commit", "--quiet")
 	laterCommit := gitRun(repo, "rev-parse", "HEAD")
 
-	// A sibling that does NOT contain runCommit: branched from before it.
-	gitRun(repo, "checkout", "--quiet", "-b", "sibling", "HEAD~2")
+	// A sibling that does NOT contain runCommit: branched from the base, i.e. before the run's commit.
+	gitRun(repo, "checkout", "--quiet", "-b", "sibling", baseCommit)
 	gitRun(repo, "commit", "--allow-empty", "-m", "a sibling commit", "--quiet")
 	siblingCommit := gitRun(repo, "rev-parse", "HEAD")
 	gitRun(repo, "checkout", "--quiet", "main")
+
+	// The fixture must be able to distinguish, or every assertion below passes for the wrong reason: the
+	// sibling has to genuinely NOT contain the run's commit, and genuinely descend from the base.
+	if ok, err := isAncestor(repo, runCommit, siblingCommit); err != nil || ok {
+		t.Fatalf("the fixture is broken: the run's commit is not supposed to be reachable from the sibling, but isAncestor said %v (err %v)", ok, err)
+	}
+	if ok, err := isAncestor(repo, baseCommit, siblingCommit); err != nil || !ok {
+		t.Fatalf("the fixture is broken: the base must be an ancestor of the sibling, but isAncestor said %v (err %v)", ok, err)
+	}
 
 	// Directly: the ancestor question is answered by git, in both directions.
 	if ok, err := isAncestor(repo, runCommit, laterCommit); err != nil || !ok {
@@ -1041,10 +1055,11 @@ func TestCitationAncestryGateCanGoRed(t *testing.T) {
 	if ok, err := isAncestor(repo, runCommit, siblingCommit); err != nil || ok {
 		t.Fatalf("run's commit is NOT an ancestor of the sibling commit, but the check said %v (err %v): a lane's run cited from a document about a commit the lane never reached is exactly the wrong-workflow failure one layer down", ok, err)
 	}
-	if _, err := isAncestor(repo, runCommit, "0000000"); err != nil {
+	if _, err := isAncestor(repo, runCommit, "0000000"); err == nil {
 		// A commit that does not exist must be an ERROR, not a silent "not an ancestor": a gate that
-		// cannot answer must not answer "no" (rule 7).
-		t.Fatalf("a commit git cannot resolve produced an error (%v), which is correct, but it must not be absorbed: %v", err, err)
+		// cannot answer must not answer "no" (rule 7). The failing branch is therefore the ABSENCE of an
+		// error, which is what this asserts.
+		t.Fatalf("git could not resolve the descendant commit, yet isAncestor returned a verdict instead of an error; a gate that cannot answer must not answer")
 	}
 
 	// And through the ledger gate, with a synthetic manifest whose single entry's head_sha is runCommit.
