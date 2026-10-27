@@ -1,32 +1,32 @@
 package server
 
-// WHERE DOES A CHARACTER'S CHAT LIVE, AND UNDER WHICH NAME?
-//
-// WHY THIS FILE EXISTS. `Browser differential` run 40438262854 (mode preset, step "Hand GoTavern's own tree back
-// to pinned Node (Q21)") asked the product to list its characters and got back a roster naming a card differently
-// from the bytes the probe had just staged. Six commits -- 48dadff, 6208083, 176c787, b501279, 3499f03, 12c78b7,
-// a5660b6 -- changed THE DRIVER to reconcile the two. The premise b501279 introduced ("the server shows the
-// card's own `data.name`") is what those rewrites were built on, and ONE reading of the projection refutes it:
-// pinned's V3 path prefers `data.name` and FALLS BACK to the V1 root `name`, and the committed fixture generator
-// writes those two fields from DIFFERENT marker tiers, so on card-a.png they are different strings by
-// construction.
-//
-// The tests here are the consequence chain that premise hid. They are written against the PRODUCT's observable
-// behaviour, and every comment names the pinned line being reproduced so a reader can check the claim where it is
-// decided.
-//
-// TestPinnedCharacterChatsAreKeyedByTheCardName
-//   chunkOrder        `chara` precedes `ccv3`, which is what makes the precedence rule observable at all
-//   savedUnderPinned  the product's own /api/chats/save files a chat under `chats/<avatar_url minus .png>/`, so the
-//                     location asserted next is the product's, not one this test invented
-//   chatsFollowName   /api/characters/all says the character HAS a chat, i.e. it read `chats/<CARD NAME>/` and not
-//                     `chats/<FILE NAME>/` (pinned getChats: `const characterName = characters[avatar].name`)
-//   chatIdentity      the published `chat` is the file that exists, and `file_id` is that file's stem
-//                     (pinned getChatInfo: `path.basename(filePath, path.extname(filePath))`)
-//
-// THE FILE NAME AND THE CARD NAME ARE DELIBERATELY DIFFERENT -- a card staged as "Q21 Handback Card.png" whose
-// `data.name` is "Replay Card Name" is exactly the shape of the reported run, and is why the two names must not
-// be assumed equal anywhere a chat identity is derived.
+/*
+WHERE DOES A CHARACTER'S CHAT LIVE, AND UNDER WHICH NAME?
+
+WHY THIS FILE EXISTS. `Browser differential` run 40438262854 (mode preset, step "Hand GoTavern's own tree back
+to pinned Node (Q21)") asked the product to list its characters and got back a roster naming a card differently
+from the bytes the probe had just staged. Six commits -- 48dadff, 6208083, 176c787, b501279, 3499f03, 12c78b7,
+a5660b6 -- changed THE DRIVER to reconcile the two. The premise b501279 introduced ("the server shows the card's
+own `data.name`") is what those rewrites were built on, and ONE reading of the projection refutes it: pinned's V3
+path prefers `data.name` and FALLS BACK to the V1 root `name`, and the committed fixture generator writes those two
+fields from DIFFERENT marker tiers, so on card-a.png they are different strings by construction.
+
+The tests here are the consequence chain that premise hid. They are written against the PRODUCT's observable
+behaviour, and every comment names the pinned line being reproduced so a reader can check the claim where it is
+decided.
+
+TestPinnedCharacterChatsAreKeyedByTheCardName
+
+	chunkOrder       `chara` precedes `ccv3`, which is what makes the precedence rule observable at all
+	savedUnderPinned the product's own /api/chats/save files a chat under `chats/<avatar_url minus .png>/`, so the
+	                 location asserted next is the product's, not one this test invented
+	chatIdentity     the published `chat` is the file that exists, and `file_id` is that file's stem
+	                 (pinned getChatInfo: `path.basename(filePath, path.extname(filePath))`)
+
+THE FILE NAME AND THE CARD NAME ARE DELIBERATELY DIFFERENT -- a card staged as "Q21 Handback Card.png" whose
+`data.name` is "Replay Card Name" is exactly the shape of the reported run, and is why the two names must not be
+assumed equal anywhere a chat identity is derived.
+*/
 
 import (
 	"encoding/json"
@@ -43,7 +43,7 @@ import (
 // (`characters_card.go:307`). That premise was WRONG. Pinned keys the chats directory by the FILE name in both places
 // that matter -- `src/endpoints/characters.js:419`:
 //
-//     const chatsDirectory = path.join(directories.chats, item.replace('.png', ''));   // `item` is a readdir entry
+//	const chatsDirectory = path.join(directories.chats, item.replace('.png', ''))   // `item` is a readdir entry
 //
 // and `:1503-1504` for `/chats` (`(request.body.avatar_url).replace('.png','')`). `item.replace('.png','')` is exactly
 // what this port does, so the KEY is correct, and the original failure message ("pinned getChats lists
