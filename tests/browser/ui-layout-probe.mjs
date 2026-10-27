@@ -32,6 +32,8 @@
 // distinction is the whole reason GOAL.md §15 says "both bad is not a backend difference".
 
 import fs from 'node:fs/promises';
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -175,9 +177,75 @@ async function waitForServer(baseURL, deadlineMs = 120000) {
     throw new Error(`${baseURL} never answered: ${String(lastError?.message ?? lastError)}`);
 }
 
+// The product's own boot, mirroring tests/browser/asset-probe.mjs so there is one way to start it and not
+// two. `GOTAVERN_BINARY` is what CI sets; the `go build` fallback exists only for a developer running this by
+// hand, and it is not reachable in CI because the variable is always set there.
+let startedServer = null;
+async function bootProduct() {
+    const port = await freePort();
+    const binarySetting = process.env.GOTAVERN_BINARY ?? '';
+    let binary = binarySetting;
+    if (!binary) {
+        binary = path.join(repoRoot, '.browser-bin', process.platform === 'win32' ? 'gotavern.exe' : 'gotavern');
+        await new Promise((resolve, reject) => {
+            const build = spawn('go', ['build', '-trimpath', '-o', binary, './cmd/gotavern'], { cwd: repoRoot, stdio: 'inherit' });
+            build.on('exit', code => (code === 0 ? resolve() : reject(new Error(`go build exited ${code}`))));
+            build.on('error', reject);
+        });
+    }
+    const child = spawn(path.resolve(binary), [
+        'start',
+        '--port', String(port),
+        '--dataRoot', dataRoot,
+        '--configPath', path.join(dataRoot, 'config.yaml'),
+    ], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    // THE OUTPUT IS DRAINED AND KEPT, NOT DISCARDED: a product that fails to start must be diagnosable from
+    // the run, and a silent pipe is how a startup defect becomes "the leg failed to drive".
+    const output = [];
+    child.stdout.on('data', chunk => output.push(String(chunk)));
+    child.stderr.on('data', chunk => output.push(String(chunk)));
+    child.on('exit', code => {
+        if (code !== 0 && code !== null) output.push(`[product exited ${code}]`);
+    });
+    startedServer = { child, output };
+    const url = `http://127.0.0.1:${port}`;
+    try {
+        await waitForServer(url);
+    } catch (error) {
+        throw new Error(`${String(error?.message ?? error)}; product output: ${output.join('').slice(-1500)}`);
+    }
+    return url;
+}
+
+function freePort() {
+    return new Promise((resolve, reject) => {
+        const server = createServer();
+        server.unref();
+        server.on('error', reject);
+        server.listen(0, '127.0.0.1', () => {
+            const { port } = server.address();
+            server.close(() => resolve(port));
+        });
+    });
+}
+
 async function main() {
-    const baseURL = process.env.PROBE_BASE_URL ?? argumentValue('--base-url') ?? process.env.CAPTURE_BASE_URL;
-    if (!baseURL) throw new Error('PROBE_BASE_URL or --base-url is required');
+    // BOTH SUBJECTS BOOT THEIR OWN SERVER, THE WAY THE ASSET LEG DOES. The first version expected
+    // PROBE_BASE_URL (which `run-against-pinned.mjs` supplies for the pinned half) or an explicit
+    // `--base-url`, and on the GoTavern leg neither exists: the step runs the probe directly, so the probe
+    // threw `PROBE_BASE_URL or --base-url is required`, the record step counted a drive failure, and the
+    // comparator refused to judge. Run 40448807460. The pinned leg passed the whole time, which is what a
+    // leg-specific harness defect looks like from the outside: one subject recorded, one refused.
+    //
+    // The boot below mirrors tests/browser/asset-probe.mjs:273-301 rather than inventing a second way to
+    // start the product, and it honours GOTAVERN_BINARY so CI uses the binary the workflow built.
+    let server = null;
+    let baseURL = process.env.PROBE_BASE_URL ?? argumentValue('--base-url') ?? process.env.CAPTURE_BASE_URL;
+    if (!baseURL) {
+        if (subject !== 'gotavern') throw new Error('the pinned leg must be given PROBE_BASE_URL by run-against-pinned.mjs');
+        baseURL = await bootProduct();
+        server = startedServer;
+    }
     if (!dataRoot) throw new Error('--data-root is required');
 
     const report = {
@@ -253,6 +321,9 @@ async function main() {
         report.failure = String(error?.message ?? error).slice(0, 500);
     } finally {
         if (browser) await browser.close();
+        // THE SERVER THIS PROBE STARTED IS STOPPED BY THIS PROBE. A leaked product process holds the port and
+        // keeps the job's teardown waiting, and it also makes a later leg's failure ambiguous.
+        if (server?.child) server.child.kill('SIGTERM');
         await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
         process.stdout.write(`${reportPath}\n`);
     }
