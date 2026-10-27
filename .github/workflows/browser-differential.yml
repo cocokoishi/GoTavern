@@ -1125,6 +1125,18 @@ jobs:
         if: ${{ !cancelled() && (steps.record.outputs.failures == '0' || steps.record.outputs.failures == '') && (steps.preset.outputs.failures == '0' || steps.preset.outputs.failures == '') && (steps.asset.outputs.failures == '0' || steps.asset.outputs.failures == '') && (steps.helper.outputs.failures == '0' || steps.helper.outputs.failures == '') }}
         run: node tools/verify-browser-comparisons.mjs
 
+      # DOES THE Q17 VERIFIER HAVE TEETH? The verifier is the gate that re-reads the COMMITTED artefact, so a
+      # verifier that accepts any well-formed JSON would let a stale PASS stand. This mutates the artefact one
+      # way at a time and requires a finding that NAMES the thing broken (`verdict`, `measuredBy`, a case, a
+      # required axis, `notMeasured`, `pastHistoryInsideBudget`, `theCapturesDiffer`).
+      #
+      # `!cancelled()` and NOT gated on the preset steps: it reads a committed file, so it is meaningful on
+      # every run including one that failed earlier, and a red run should still tell you whether its artefact
+      # describes what it claims.
+      - name: Prove the Q17 artefact verifier has teeth
+        if: ${{ !cancelled() }}
+        run: node tools/authors-note-surface-selftest.mjs
+
       # FRESHNESS: does the fresh artefact still say what the committed one says? Report-only, with the
       # verdict written to the job summary and the files uploaded.
       - name: Freshness report (committed vs freshly recorded)

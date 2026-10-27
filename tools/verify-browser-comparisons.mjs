@@ -33,7 +33,7 @@ import {
     bothLegsReached, cancellationReachedProvider, completionRouteUsed, finalTextNonEmpty,
     noDryInvocationInSendWindow, providerRequestsEqual, sendWindowFaithful, streamingSurfacesProven,
 } from './browser-evidence/invariants.mjs';
-import { assetSurface, dataDomainSurface, extensionSurface, helperGenerationSurface, helperSurface, startupSurface } from './browser-evidence/other-surfaces.mjs';
+import { assetSurface, authorsNoteSurface, dataDomainSurface, extensionSurface, helperGenerationSurface, helperSurface, startupSurface } from './browser-evidence/other-surfaces.mjs';
 import { SOURCE_HOOKS } from './browser-evidence/source-hooks.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -191,6 +191,10 @@ const main = () => {
         ['asset-comparison.json', asset => assetSurface(asset.ctx, asset.artifact)],
         ['extension-tavern-helper-comparison.json', extension => extensionSurface(extension.ctx, 'extension-tavern-helper-comparison.json', extension.artifact)],
         ['extension-littlewhitebox-comparison.json', extension => extensionSurface(extension.ctx, 'extension-littlewhitebox-comparison.json', extension.artifact)],
+        // Q17 (GOAL.md Q17, docs/goal-scorecard.md): the Author's-Note depth sweep. Checked here because a
+        // committed PASS must be verified against its own claims like every other artefact -- a committed
+        // `verdict: "PASS"` that nobody re-reads is the stale-evidence failure this file exists to prevent.
+        ['authors-note-comparison.json', note => authorsNoteSurface(note.ctx, note.artifact)],
     ]) {
         const ctx = createContext(file);
         const payload = readArtifact(file);

@@ -340,3 +340,75 @@ export function helperGenerationSurface(ctx, generationComparison) {
         ctx.fail('unproven[] does not name the real-provider limitation: rule 22 makes a simulated peer unverified for production, and the artefact must say it');
     }
 }
+
+/**
+ * Q17 -- THE AUTHOR'S NOTE DEPTH SWEEP (GOAL.md Q17, docs/goal-scorecard.md).
+ *
+ * The claim this artefact makes is positional and byte-exact at once: for every case it drove, the note
+ * landed where the PINNED leg put it -- same message index, same number of history turns above and below it,
+ * same role -- AND the provider request was byte-identical between the subjects. The expected positions came
+ * from a pinned-leg run of the same program (prepare-authors-note.mjs), never from a reading of the source.
+ *
+ * A check that is `null` was DELIBERATELY NOT MEASURED (the retired deeper-than-history class). It is not a
+ * failure and not a pass: it must appear in `notMeasured`, and the artefact must carry `depthCoverage` saying
+ * which depth classes are covered and which are out of scope, so a reader cannot mistake a gap for coverage.
+ */
+export function authorsNoteSurface(ctx, noteComparison) {
+    if (!noteComparison) return;
+    if (noteComparison.verdict !== 'PASS') {
+        ctx.fail(`verdict is ${JSON.stringify(noteComparison.verdict)} (${noteComparison.failureReason ?? 'no reason recorded'}), so the committed artefact records a red run`);
+    }
+    if (noteComparison.measuredBy !== 'pinned-leg') {
+        ctx.fail(`measuredBy is ${JSON.stringify(noteComparison.measuredBy)}: the expectation must come from a pinned-leg run, never from a derivation`);
+    }
+    const cases = Array.isArray(noteComparison.cases) ? noteComparison.cases : [];
+    if (cases.length === 0) {
+        ctx.fail('cases is empty: an artefact with no judged case supports no claim');
+        return;
+    }
+    for (const entry of cases) {
+        if (entry.verdict !== 'PASS') {
+            ctx.fail(`case ${entry.caseId} is ${JSON.stringify(entry.verdict)}: ${entry.reason ?? 'no reason recorded'}`);
+            continue;
+        }
+        // THE CLAIM, RE-READ FROM THE ARTEFACT RATHER THAN TRUSTED: a PASS must actually carry the equality
+        // and the note's presence/absence story for its own case.
+        const checks = entry.checks ?? {};
+        for (const name of ['gotavernProducedARequest', 'pinnedProducedARequest', 'gotavernOverlayApplied', 'pinnedOverlayApplied', 'bodySha256Equal', 'bodyLengthEqual', 'layout.noteIndex', 'layout.historyBelow', 'allLayoutAndByteChecksPassed']) {
+            if (checks[name] !== true) {
+                ctx.fail(`case ${entry.caseId} is PASS but checks.${name} is ${JSON.stringify(checks[name])}`);
+            }
+        }
+        // AN EMPTY CAPTURE MUST NEVER READ AS A COMPARISON (the phase guard, restated at the artefact level).
+        const details = entry.details ?? {};
+        if (!details.pinnedLeg && !details.pinnedExpectation) {
+            ctx.fail(`case ${entry.caseId} is PASS but records no pinned observation, so nothing was compared`);
+        }
+    }
+    // THE REQUIRED AXES ARE PRESENT, named rather than assumed: depth 0, a non-zero depth, and the disabled
+    // switch. A sweep that silently lost one of them would still report PASS over the rest.
+    const byId = Object.fromEntries(cases.map(entry => [entry.caseId, entry]));
+    for (const required of ['parity', 'depth0', 'disabled-interval0']) {
+        if (!byId[required]) ctx.fail(`case ${required} is absent, so a required Q17 axis was not driven`);
+    }
+    if (!cases.some(entry => entry.case?.enabled === false)) ctx.fail('no case records enabled: false, so the disabled switch was not driven');
+    if (!cases.some(entry => entry.case?.depth === 0)) ctx.fail('no case records depth 0, so the newest position was not driven');
+    if (!cases.some(entry => Number(entry.case?.depth) > 0 && entry.case?.position === 'IN_CHAT')) ctx.fail('no IN_CHAT case with a non-zero depth was driven');
+    // THE STATED GAP MUST BE STATED. `notMeasured` and `depthCoverage` are what keep a retired class visible.
+    if (!Array.isArray(noteComparison.notMeasured)) {
+        ctx.fail('notMeasured is absent: a deliberately unmeasured check must be recorded, not omitted');
+    }
+    const coverage = noteComparison.depthCoverage ?? {};
+    if (!('pastHistoryInsideBudget' in coverage)) {
+        ctx.fail('depthCoverage.pastHistoryInsideBudget is absent: the artefact must say whether a depth past the history but inside the budget was measured, and `null` means it was not');
+    }
+    if (!coverage.pastBudgetOutOfScope?.rule) {
+        ctx.fail('depthCoverage.pastBudgetOutOfScope.rule is absent: the artefact must state that depth past the budget is a truncation fact rather than a depth fact');
+    }
+    // THE SWEEP MUST HAVE BEEN DISCRIMINATING: distinct cases, distinct requests.
+    if (noteComparison.sweep?.theCapturesDiffer !== true) {
+        ctx.fail(`sweep.theCapturesDiffer is ${JSON.stringify(noteComparison.sweep?.theCapturesDiffer)}: cases that produce one identical request are one case wearing several names (AGENTS.md 50)`);
+    }
+    // A simulated provider must never be sold as a production claim (rule 22).
+    ctx.observe(`Q17 covers ${cases.length} case(s); pastHistoryInsideBudget=${JSON.stringify(coverage.pastHistoryInsideBudget)} (null = not measured, declared in notMeasured)`);
+}
