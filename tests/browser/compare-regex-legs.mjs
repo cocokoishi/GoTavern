@@ -289,12 +289,26 @@ guard('case3_promptOnlyChangedTheProviderRequestAndNotTheDisplay', () => {
         const requests = requestsOf(report);
         if (requests.length === 0) problems.push(`${subject}: no request to read for case 3`);
         else if (!allText(requests[0]).includes(SIDES.prompt.marker)) problems.push(`${subject}: the sent request does not contain ${SIDES.prompt.marker}, so R3 did not reach the provider`);
-        // AND IN THE RENDERED DOM of the final round: the user's typed turn must still show the raw token.
-        const rendered = (report.rendered?.final ?? []).map(entry => String(entry.text ?? '')).join('\n');
-        if (rendered.length === 0) problems.push(`${subject}: no rendered text was recorded, so "the display is unchanged" cannot be read`);
-        else {
-            if (!rendered.includes(MARKERS.inPrompt)) problems.push(`${subject}: the rendered chat no longer shows ${MARKERS.inPrompt}; the page is not displaying the input in its original form`);
-            if (rendered.includes(SIDES.prompt.marker)) problems.push(`${subject}: the rendered chat shows ${SIDES.prompt.marker}, so a prompt-only rule reached the display`);
+        // AND IN THE RENDERED DOM of the final round -- SCOPED TO THE USER'S OWN TURN.
+        //
+        // MEASURED IN RUN 40476961120, and the first version of this check was wrong: it concatenated EVERY
+        // rendered message, so it found the marker in the ASSISTANT reply. That reply is produced by this
+        // harness's own recording peer, which answers with `saw <the tokens the request carried>` -- so the
+        // mock echoed the rule's output back into the chat and the check then read its own echo as a leak of
+        // a prompt-only rule into the display. On BOTH subjects, which is the tell (rule 59). The typed turn
+        // itself renders `RXQ_IN_P7` correctly on both.
+        //
+        // The honest observable is therefore per-turn and role-scoped: the USER's rendered turn must show the
+        // input and not the output. The assistant turn is out of scope -- its text is the peer's answer, and
+        // what it contains is a fact about this harness, not about the product.
+        const renderedUserTurns = (report.rendered?.final ?? []).filter(entry => String(entry.isUser) === 'true').map(entry => String(entry.text ?? ''));
+        const renderedTyped = renderedUserTurns.filter(text => text.includes(MARKERS.turn));
+        if (renderedTyped.length === 0) {
+            problems.push(`${subject}: no rendered USER turn carries the typed turn marker ${MARKERS.turn}, so "the display is unchanged" cannot be read`);
+        } else {
+            const typedDisplay = renderedTyped.join('\n');
+            if (!typedDisplay.includes(MARKERS.inPrompt)) problems.push(`${subject}: the rendered TYPED turn no longer shows ${MARKERS.inPrompt}; the page is not displaying the input in its original form`);
+            if (typedDisplay.includes(SIDES.prompt.marker)) problems.push(`${subject}: the rendered TYPED turn shows ${SIDES.prompt.marker}, so a prompt-only rule reached the display for that turn`);
         }
     }
     return problems;

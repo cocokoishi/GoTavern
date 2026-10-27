@@ -254,7 +254,7 @@ export function regexRules() {
             ...base,
             id: 'rx-probe-js-semantics',
             scriptName: 'RXQ R6 JS substitution semantics',
-            findRegex: '/(?<pre>RXQ_JS_A7)(?=\\s)([a-z]+)/g',
+            findRegex: '/(?<pre>RXQ_JS_A7)\\s([a-z]+)/g',
             replaceString: '[$&|$$|$1|$<pre>]',
             placement: [1],
             runOnEdit: true,
@@ -571,6 +571,15 @@ export async function applyRegexKit(spec) {
         if (isDepth.entryChanged) {
             problems.push('R5 is promptOnly but fired on the ENTRY-POINT shape, which passes no isPrompt: engine.js:352 should have excluded it before the depth guard was reached');
         }
+        // R6 MUST FIRE ON THE ENTRY-POINT SHAPE, like every other plain rule. It was SILENTLY INERT from the
+        // three-shape refactor until run 40476961120, because its findRegex used a lookahead where it needed a
+        // CONSUMED space: the pattern asserted a space and then required a letter where the space was, so it
+        // matched nothing. The comparator noticed (case6 reported that the pinned page produced no browser
+        // oracle) -- the case guard doing its job -- but the KIT should have refused first, so an inert R6 is
+        // now a named problem here rather than a quiet absence downstream.
+        if (!isJs.entryChanged) {
+            problems.push('R6 (JS substitution semantics) did not fire on the entry-point shape: its findRegex matched nothing in the scenario JS input. An inert rule has no browser oracle, so case 6 would compare two unchanged strings');
+        }
         // The no-match input must be untouched on EVERY shape: nothing in the scenario may mention it.
         if (isNoMatch.entryChanged || isNoMatch.promptChanged || isNoMatch.displayChanged) {
             problems.push(`the no-match token ${MARKERS.noMatch} was rewritten, so "no match" is not a no-match`);
@@ -754,7 +763,7 @@ export async function applyRegexKit(spec) {
     // A rule whose output also matches its own findRegex is the only way a second application is
     // observable in the TEXT, so it is asked directly rather than argued.
     const replacementRefeedsRule = String(isActive.prompt).includes(MARKERS.inActive);
-    step('case7', {
+    const case7 = {
         // (b)
         mesUnchangedByRendering: rawBeforeRender.every((value, index) => value === rawAfterRender[index]),
         firstTurnChangedByRendering: firstTurnBefore !== firstTurnAfter,
@@ -780,7 +789,8 @@ export async function applyRegexKit(spec) {
                 ? 'this scenario\'s replacement re-feeds its own pattern, so a re-processed turn changes again'
                 : 'this scenario\'s replacement does not re-feed its own pattern, so a re-processed turn is byte-identical even though the rule really ran twice',
         },
-    });
+    };
+    step('case7', case7);
 
     return {
         problems,
@@ -788,6 +798,11 @@ export async function applyRegexKit(spec) {
         sides,
         perTurn,
         displayOnlyUserTurn,
+        // CASE 7 IS RETURNED BY NAME. It was built with step() (which only appends to steps) and never
+        // added to this object, so the probe read kit.case7 as undefined and the comparator correctly
+        // reported 'case 7 was not observed' on both subjects (run 40476961120). A field the comparator
+        // reads must be a field this function RETURNS -- the reachability rule applied to DATA.
+        case7,
         order,
         // The raw chat, as stored, so the comparator can assert the rule did NOT write its output there.
         rawChat: script.chat.map(message => ({ is_user: message.is_user, mes: message.mes })),
