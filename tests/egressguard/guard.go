@@ -185,6 +185,13 @@ func (g *Guard) refuse(v Violation) {
 	g.violations = append(g.violations, v)
 }
 
+// ResetViolations clears the recorded refusals, so a process-wide guard can serve one case at a time.
+func (g *Guard) ResetViolations() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.violations = nil
+}
+
 // Control is the `net.Dialer.Control` hook. Attaching it to the SAME dialer the production transport uses is what
 // makes this an assertion about the product rather than about a test double. It runs before any byte is written.
 func (g *Guard) Control() func(network, address string, _ syscall.RawConn) error {
@@ -280,9 +287,20 @@ type ProxyRequest struct {
 	Path string `json:"path"`
 }
 
-// NewProxy starts the recording proxy and registers its own address with the guard.
+// NewProxy starts the recording proxy and registers its own address with the guard. It is the PER-TEST form and is
+// suitable only for a case that does NOT depend on `http.ProxyFromEnvironment` -- that function resolves the
+// environment ONCE PER PROCESS, so a second proxy's URL is never read. A package that needs the proxy to carry real
+// traffic must create ONE proxy in TestMain (see guard_test.go, and the measured CI failure that forced it:
+// `Lane CI 40445346390`, where three cases failed against the FIRST test's already-closed listener).
 func NewProxy(t *testing.T, guard *Guard) *Proxy {
 	t.Helper()
+	proxy := startProxy(guard)
+	t.Cleanup(proxy.closeServer)
+	return proxy
+}
+
+// startProxy is the constructor without a testing.T, so a TestMain can own the lifetime.
+func startProxy(guard *Guard) *Proxy {
 	proxy := &Proxy{}
 	proxy.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		entry := ProxyRequest{Method: r.Method, Host: r.Host}
@@ -329,15 +347,18 @@ func NewProxy(t *testing.T, guard *Guard) *Proxy {
 	}))
 	parsed, err := url.Parse(proxy.server.URL)
 	if err != nil {
-		t.Fatalf("egressguard: could not parse the proxy URL %q: %v", proxy.server.URL, err)
+		// A panic rather than a t.Fatalf: this constructor is also called from TestMain, where there is no *testing.T.
+		panic("egressguard: the httptest server URL does not parse: " + proxy.server.URL)
 	}
 	proxy.URL = proxy.server.URL
 	guard.allowProxy(parsed.Host)
-	t.Cleanup(func() {
-		proxy.server.CloseClientConnections()
-		proxy.server.Close()
-	})
 	return proxy
+}
+
+// closeServer releases the listener. It is split out so a TestMain can close a process-lifetime proxy.
+func (p *Proxy) closeServer() {
+	p.server.CloseClientConnections()
+	p.server.Close()
 }
 
 // Install prepares the environment so the shipped transport uses this proxy, and REFUSES when the transport's

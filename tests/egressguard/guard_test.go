@@ -36,6 +36,40 @@ import (
 // test is fictional rather than that the guard failed.
 const nowhere = "192.0.2.7"
 
+// THE PROCESS HAS EXACTLY ONE PROXY AND ONE ENVIRONMENT, AND THAT IS THE POINT.
+//
+// MEASURED IN CI (Lane CI 40445346390): three of this file's cases failed with
+//
+//	`proxyconnect tcp: dial tcp 127.0.0.1:33619: connect: connection refused`
+//
+// where 33619 was the FIRST test's proxy, already closed. `http.ProxyFromEnvironment` resolves the environment ONCE
+// PER PROCESS and caches it, so every later `Install` wrote a new URL that net/http never read. That is the exact
+// hazard this package documents for `internal/outbound` (see ErrClientAlreadyBuilt) -- and the tests walked into it
+// themselves, which is why they now share one process-wide proxy created in TestMain.
+//
+// AND IT FIXES A SECOND DEFECT the same run exposed: a per-test proxy made the harness depend on the ORDER of
+// tests, because only the first `Install` could ever take effect. A shared proxy means every case talks to the same
+// listener and the observation is a property of the process, not of which test ran first.
+var (
+	sharedGuard *Guard
+	sharedProxy *Proxy
+)
+
+func TestMain(m *testing.M) {
+	sharedGuard = NewGuard()
+	sharedGuard.AllowLoopback()
+	// The proxy is created BEFORE any test, so its address is what the environment caches. `NewProxy` takes a
+	// *testing.T for its cleanup; here the guard is a process-lifetime object and the listener is closed below.
+	sharedProxy = startProxy(sharedGuard)
+	if _, err := sharedProxy.Install(); err != nil {
+		fmt.Fprintf(os.Stderr, "egressguard: could not install the shared proxy: %v\n", err)
+		os.Exit(1)
+	}
+	code := m.Run()
+	sharedProxy.closeServer()
+	os.Exit(code)
+}
+
 func TestGuardRefusesAnUndeclaredDirectDial(t *testing.T) {
 	guard := NewGuard()
 	dialer := guard.DialContext(&net.Dialer{Timeout: 500 * time.Millisecond})
@@ -64,11 +98,12 @@ func TestGuardRefusesAnUndeclaredDirectDial(t *testing.T) {
 }
 
 func TestGuardPermitsADeclaredPeerAndTheProxy(t *testing.T) {
-	guard := NewGuard()
-	guard.AllowLoopback()
-	proxy := NewProxy(t, guard)
-	restore := proxy.MustInstall(t)
-	defer restore()
+	// THE SHARED PROXY AND GUARD, reset so each case observes only its own traffic. See TestMain: the
+	// environment is resolved once per process, so a second proxy URL would never be read.
+	guard := sharedGuard
+	proxy := sharedProxy
+	proxy.Reset()
+	guard.ResetViolations()
 
 	// A request to a NON-loopback provider host must reach the proxy. Loopback is used for the PEER but the
 	// provider is addressed as 192.0.2.7 so that proxy resolution applies at all.
@@ -93,11 +128,12 @@ func TestGuardPermitsADeclaredPeerAndTheProxy(t *testing.T) {
 }
 
 func TestAssertPassesOnTheClaimedSetAndFailsOnAnExtra(t *testing.T) {
-	guard := NewGuard()
-	guard.AllowLoopback()
-	proxy := NewProxy(t, guard)
-	restore := proxy.MustInstall(t)
-	defer restore()
+	// THE SHARED PROXY AND GUARD, reset so each case observes only its own traffic. See TestMain: the
+	// environment is resolved once per process, so a second proxy URL would never be read.
+	guard := sharedGuard
+	proxy := sharedProxy
+	proxy.Reset()
+	guard.ResetViolations()
 
 	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyFromEnvironment}, Timeout: 5 * time.Second}
 	provider := "http://" + net.JoinHostPort(nowhere, "8080")
@@ -151,11 +187,12 @@ func TestAssertPassesOnTheClaimedSetAndFailsOnAnExtra(t *testing.T) {
 }
 
 func TestProxyRefusesAndRecordsAConnectTunnel(t *testing.T) {
-	guard := NewGuard()
-	guard.AllowLoopback()
-	proxy := NewProxy(t, guard)
-	restore := proxy.MustInstall(t)
-	defer restore()
+	// THE SHARED PROXY AND GUARD, reset so each case observes only its own traffic. See TestMain: the
+	// environment is resolved once per process, so a second proxy URL would never be read.
+	guard := sharedGuard
+	proxy := sharedProxy
+	proxy.Reset()
+	guard.ResetViolations()
 
 	// HTTPS is the shape a REAL provider request takes: the transport opens a CONNECT tunnel. A differential peer
 	// is plain HTTP, so a CONNECT can only mean a real host is being reached.
@@ -175,12 +212,10 @@ func TestProxyRefusesAndRecordsAConnectTunnel(t *testing.T) {
 // the provider directly. Under the harness this guards (an assertion on "the peer received the expected requests"
 // alone), this request would have produced NO record and NO error -- it would have looked like a pass.
 func TestTheEscapeThatRule14WasWrittenFor(t *testing.T) {
-	guard := NewGuard()
-	guard.AllowLoopback()
-	proxy := NewProxy(t, guard)
-	// The proxy is installed, so a client that honours it is recorded. The escape is a client that does NOT.
-	restoreProxy := proxy.MustInstall(t)
-	defer restoreProxy()
+	guard := sharedGuard
+	proxy := sharedProxy
+	proxy.Reset()
+	guard.ResetViolations()
 
 	escaping := guard.DialContext(&net.Dialer{Timeout: 500 * time.Millisecond})
 	conn, err := escaping.Dial("tcp", net.JoinHostPort(nowhere, "443"))
@@ -208,11 +243,12 @@ func TestTheEscapeThatRule14WasWrittenFor(t *testing.T) {
 // requires the request to ARRIVE AT THE PROXY. If the transport stopped honouring the environment, this fails,
 // which is the property the whole assertion rests on.
 func TestTheShippedTransportReachesTheInstalledProxy(t *testing.T) {
-	guard := NewGuard()
-	guard.AllowLoopback()
-	proxy := NewProxy(t, guard)
-	restore := proxy.MustInstall(t)
-	defer restore()
+	// THE SHARED PROXY AND GUARD, reset so each case observes only its own traffic. See TestMain: the
+	// environment is resolved once per process, so a second proxy URL would never be read.
+	guard := sharedGuard
+	proxy := sharedProxy
+	proxy.Reset()
+	guard.ResetViolations()
 
 	u := "http://" + net.JoinHostPort(nowhere, "8080") + "/v1/chat/completions"
 	_, sendErr := outbound.Send(context.Background(), outbound.Request{
@@ -243,6 +279,13 @@ func TestTheShippedTransportReachesTheInstalledProxy(t *testing.T) {
 }
 
 func TestScrubRemovesEveryProxyVariable(t *testing.T) {
+	// THE SHARED PROXY'S ENVIRONMENT IS RESTORED FIRST, because this case deliberately mutates the very variables
+	// TestMain installed. `t.Setenv` restores its own value at the end of the test, so the proxy's URL comes back
+	// before the next case runs -- and this case asserts that, rather than trusting it.
+	installed := lookup("HTTPS_PROXY")
+	if installed != sharedProxy.URL {
+		t.Fatalf("the shared proxy is not installed (HTTPS_PROXY=%q, proxy=%q); TestMain's install did not take effect", installed, sharedProxy.URL)
+	}
 	t.Setenv("HTTPS_PROXY", "http://127.0.0.1:9")
 	t.Setenv("no_proxy", "example.invalid")
 	restore := ScrubProviderEnvironment(t)
