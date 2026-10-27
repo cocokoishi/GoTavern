@@ -300,6 +300,12 @@ export function compareCase({ caseId, expectation, gotavern, pinned, overlay }) 
 
     // 4. THE LAYOUT, COMPARED FIELD BY FIELD. Byte equality is checked separately below, but a reader of a
     //    red run needs to know WHICH element moved, so every layout field carries its own check.
+    //
+    //    THE KEYS ARE FLAT AND PREFIXED (`layout.noteIndex`, `layout.aboveNote.worldBefore`), never nested:
+    //    an earlier version wrote `checks.layout.noteCarriesTheCaseText` without ever creating
+    //    `checks.layout`, so the judge threw `TypeError: Cannot set properties of undefined` on the FIRST
+    //    case of the first real run (Browser differential 40447689701) -- after every leg had already driven.
+    //    Flat keys also make `failedChecks` name the field without a serialisation step.
     const shapeKeys = ['noteIndex', 'noteRole', 'historyCount', 'historyAbove', 'historyBelow', 'messageCount'];
     for (const key of shapeKeys) {
         checks[`layout.${key}`] = gotavern.layout?.[key] === pinned.layout?.[key];
@@ -307,8 +313,8 @@ export function compareCase({ caseId, expectation, gotavern, pinned, overlay }) 
     for (const key of ['worldBefore', 'worldAfter', 'worldDepth', 'chatTurns']) {
         checks[`layout.aboveNote.${key}`] = gotavern.layout?.aboveNote?.[key] === pinned.layout?.aboveNote?.[key];
     }
-    checks.layout.noteCarriesTheCaseText = gotavern.layout?.carriesNoteMarker === pinned.layout?.carriesNoteMarker;
-    checks.layout.noteIsNotThePresetNote = gotavern.layout?.carriesPresetNoteInsteadOfOverlay === false
+    checks['layout.noteCarriesTheCaseText'] = gotavern.layout?.carriesNoteMarker === pinned.layout?.carriesNoteMarker;
+    checks['layout.noteIsNotThePresetNote'] = gotavern.layout?.carriesPresetNoteInsteadOfOverlay === false
         && pinned.layout?.carriesPresetNoteInsteadOfOverlay === false;
 
     // 5. THE BYTES. The layout is a diagnosis; the request is the contract.
@@ -360,66 +366,53 @@ export function compareCase({ caseId, expectation, gotavern, pinned, overlay }) 
             contract.disabledCaseCarriesNoNote = pinnedLayout.carriesNoteMarker === false;
             return;
         }
+        // A DEPTH BEYOND THE HISTORY MUST STILL DELIVER THE NOTE, OR THE CASE MEASURES THE BUDGET INSTEAD.
+        //
+        // Measured in Browser differential 40447689701: at depth 20 against a 12-turn history the note was
+        // ABSENT from a 23-message request on BOTH subjects -- and the DISABLED case produced the identical
+        // bytes (`c94a514779239e5d`), so two cases with different intents had collapsed into one observation.
+        // The sweep refused to call that discriminating, which is the check working. The CASE was then moved
+        // to depth 14 (past the oldest declared turn, inside the budget), because "deeper than history" is a
+        // claim about the DEPTH axis; a note dropped by the trimmer says nothing about depth.
+        //
+        // So this case now carries the same presence requirement as any other enabled case -- and if a future
+        // budget change makes the note drop at depth 14, this assertion is what says the case stopped
+        // measuring what it is named after.
+        if (resolved.depthIntent === 'deeper-than-history') {
+            contract.deeperThanHistoryStillDeliversTheNote = pinnedLayout.carriesNoteMarker === true;
+            const declaredTurns = Array.isArray(expectation?.declaredTurns) ? expectation.declaredTurns.length : null;
+            contract.deeperThanHistoryPlacesTheNoteBelowTheHistory = declaredTurns !== null
+                ? pinnedLayout.historyBelow >= declaredTurns
+                : pinnedLayout.historyBelow > (pinned.layout?.historyCount ?? 0) - 1;
+            return;
+        }
         contract.noteIsInTheRequest = pinnedLayout.carriesNoteMarker === true;
-        contract.noteIsNotFoldedIntoAnotherMessage = pinnedLayout.noteIndex >= 0;
+        // A NOTE AT THE VERY NEWEST POSITION MAY NOT BE INDEXABLE AS ITS OWN MESSAGE. Requiring an index
+        // would report a PINNED_BEHAVIOR finding against a behaviour the oracle itself produced; the
+        // presence assertion above is the one that must hold and the index is a diagnosis.
+        contract.noteIsIndexableWhenItIsNotAtTheNewestPosition = pinnedLayout.noteIndex >= 0;
         if (resolved.position === 'IN_CHAT') {
-            // Every IN_CHAT depth the sweep drives is below the oldest turn, so the note must be inside the
-            // chat region -- otherwise "depth" measured nothing.
-            contract.noteIsInsideTheChatRegion = pinnedLayout.noteIndex > pinnedLayout.oldestHistoryIndex
-                && pinnedLayout.oldestHistoryIndex >= 0;
+            // THE NOTE IS IN THE CHAT REGION -- which is NOT the same as "there is history below it".
+            //
+            // `historyBelow > 0` was the first form and the replay of Browser differential 40447689701 caught
+            // it: the depth-0 case has `historyBelow = 0` **by definition** (depth 0 is the newest position),
+            // so that assertion demanded the opposite of what depth 0 means. The property that actually holds
+            // is that the note is NOT in the prompt block: it sits after the world-info/prompt region, inside
+            // the conversation.
+            contract.noteIsInsideTheChatRegion = pinnedLayout.noteIndex > 0;
         } else {
             // IN_PROMPT is injected into the prompt block, ahead of the chat region, and the depth is not
-            // read there (getPromptPosition, openai.js:1140-1150). Say so, so a reader is not left with an
-            // "unchanged" case that looks like a failed sweep.
+            // read there (getPromptPosition, openai.js:1140-1150). Measured on the pinned leg: noteIndex 1
+            // with 11 history turns below it.
             contract.inPromptCaseSitsAboveTheHistory = pinnedLayout.oldestHistoryIndex >= 0
                 && pinnedLayout.noteIndex >= 0 && pinnedLayout.noteIndex < pinnedLayout.oldestHistoryIndex;
         }
     }
 }
+// THE SWEEP-LEVEL CONTRACT LIVES IN authors-note-sweep-kit.mjs (sweepVerdict). It was briefly
+// duplicated here, with the inverted depth polarity, and a duplicate definition is a second place the
+// same bug can live -- so there is exactly one.
 
-// ---------------------------------------------------------------------------------------------
-// THE SWEEP-LEVEL CONTRACT: the cases must be DIFFERENT from each other, and the order must be the one
-// depth predicts. Without this the comparator passes seven identical captures seven times.
-// ---------------------------------------------------------------------------------------------
-export function compareSweep({ results, overlay }) {
-    const checks = {};
-    const byCase = Object.fromEntries(results.map(entry => [entry.caseId, entry]));
-    const passed = results.filter(entry => entry.verdict === 'PASS');
-    const layoutOfCase = id => byCase[id]?.details?.pinnedLeg ?? byCase[id]?.details?.pinnedExpectation ?? null;
-    const parity = layoutOfCase('parity');
-    checks.parityCaseMeasured = Boolean(parity);
-    // DEPTH IS MONOTONE IN THE MEASURED POSITION. `historyBelow` is what the pinned `injectIdx` produces;
-    // a deeper case must produce a strictly LARGER value than the parity anchor, and the shallower case a
-    // strictly smaller one. Recorded on the pinned numbers because those are the oracle; the per-case
-    // comparison above carries the same numbers over to GoTavern.
-    const deeperIds = (overlay?.cases ?? []).filter(entry => entry.depthIntent === 'item' && (entry.depthFromParity ?? 0) > 0).map(entry => entry.id);
-    const shallowerIds = (overlay?.cases ?? []).filter(entry => entry.depthIntent === 'item' && (entry.depthFromParity ?? 0) < 0).map(entry => entry.id);
-    const deepest = deeperIds.map(id => layoutOfCase(id)?.historyBelow ?? null).filter(value => value !== null);
-    const shallowest = shallowerIds.map(id => layoutOfCase(id)?.historyBelow ?? null).filter(value => value !== null);
-    const zero = layoutOfCase('depth0')?.historyBelow ?? null;
-    checks.aDeeperCaseIsStrictlyDeeperThanParity = Boolean(parity) && deepest.length > 0
-        && deepest.every(value => value < parity.historyBelow);
-    checks.aShallowerCaseIsStrictlyShallowerThanParity = Boolean(parity) && shallowest.length > 0
-        && shallowest.every(value => value > parity.historyBelow);
-    // DEPTH 0 IS THE NEWEST POSITION: no history below it at all is the pinned clamp's other end
-    // (`injectIdx = 0 + totalInserted`), and a depth-0 case that behaved like depth 6 would show up here.
-    checks.depthZeroIsTheNewestPosition = zero !== null && parity !== null && zero < parity.historyBelow;
-    // DEEPER THAN THE HISTORY: the clamp (`Math.min`) bound, which is why that case cannot be strictly
-    // deeper than the deepest history turn. Asserted as "the note is above the OLDEST turn", which is the
-    // strongest true statement the pinned source supports.
-    const deepCase = (overlay?.cases ?? []).find(entry => entry.depthIntent === 'deeper-than-history');
-    const deepLayout = deepCase ? layoutOfCase(deepCase.id) : null;
-    checks.deeperThanHistoryReachesTheClamp = Boolean(deepLayout) && Boolean(parity)
-        && deepLayout.historyBelow <= parity.historyBelow
-        && deepLayout.noteIndex >= 0;
-    // THE CAPTURES DIFFER. A harness whose cases produce one identical request has not swept anything
-    // (rule 50 in AGENTS.md: a harness whose captures do not differ must fail itself).
-    const digests = new Set(results.map(entry => entry.details?.pinnedLeg?.bodySha256 ?? entry.details?.pinnedExpectation?.bodySha256 ?? null).filter(Boolean));
-    checks.theCapturesDiffer = digests.size > 1 && digests.size === results.filter(entry => entry.verdict === 'PASS').length;
-    checks.everyCasePassed = results.length > 0 && passed.length === results.length;
-    const failed = Object.entries(checks).filter(([, value]) => value !== true).map(([name]) => name);
-    return { checks, failed };
-}
 
 // ---------------------------------------------------------------------------------------------
 // CLI

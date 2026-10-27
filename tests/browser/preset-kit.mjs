@@ -561,9 +561,11 @@ export function authorsNoteOverlaySpec() {
         // plus the greeting; depths 0, 4, 6, 8 and 20 all fall at different places inside it, and 20 is
         // beyond the oldest turn so the clamp (`Math.min`, openai.js:867) is reachable.
         parityDepth: 6,
-        // BEYOND THE HISTORY, DELIBERATELY: this is the value at which the clamp binds, so the case can say
-        // "at least as deep as the oldest turn" instead of pretending a depth of 20 is reachable.
-        deeperThanHistoryDepth: 20,
+        // BEYOND THE HISTORY BUT INSIDE THE BUDGET: 14 turns below the note against a 12-turn history, so the
+        // note passes the OLDEST declared turn AND still arrives. Depth 20 was measured to DROP the note
+        // entirely at this budget on both subjects, which made the case indistinguishable from the disabled
+        // one (see `depth-deeper-than-history` below for the measurement and the reasoning).
+        deeperThanHistoryDepth: 14,
         depth: 6,
         cases: [
             // THE VERIFICATION CASE. Same text, same history, same budget on both subjects: the
@@ -571,10 +573,25 @@ export function authorsNoteOverlaySpec() {
             // the case that would catch a product change unrelated to the note.
             { id: 'parity', role: 'system', enabled: true, depthIntent: 'item', depthFromParity: 0 },
             // THE REQUIRED DEPTH CASES (Q17 in docs/goal-scorecard.md) -- depth 0 (the NEWEST position,
-            // openai.js:578+867), a non-zero depth, and a depth deeper than the history (the clamp).
+            // openai.js:578+867), a non-zero depth, and a depth deeper than the history.
             { id: 'depth0', role: 'system', enabled: true, depthIntent: 'zero' },
             { id: 'depth4', role: 'system', enabled: true, depthIntent: 'item', depthFromParity: -2 },
             { id: 'depth8', role: 'system', enabled: true, depthIntent: 'item', depthFromParity: 2 },
+            // DEEPER THAN THE HISTORY: 14 turns below the note against a 12-turn history, i.e. past the
+            // OLDEST declared turn but still inside the assembled list, so the note still ARRIVES.
+            //
+            // This value is a discovered boundary and not a guess. The first version used depth 20 and the
+            // pinned leg measured a 23-message request at bodyLength 14501 in which the note was ABSENT
+            // (`carriesNoteMarker: false`) -- and, crucially, the DISABLED case measured the SAME bytes
+            // (`c94a514779239e5d` on both subjects, both cases). Two cases with different intents had
+            // collapsed into one observation, so the sweep could not discriminate them and said so instead of
+            // passing. At depth 20 the insertion point falls among the messages `populateChatHistory` sheds at
+            // this budget (`injectIdx = Math.min(depth + totalInserted, messages.length)`, openai.js:866-868,
+            // interacting with the trimmer at :949-1075), so "the note is dropped" is not a property of the
+            // DEPTH axis at all -- it is the budget, and it belongs to the disabled comparison it was
+            // accidentally identical to. Depth 14 keeps the case about DEPTH: the note goes past the oldest
+            // turn AND survives, which is the only form in which "deeper than history" says anything the other
+            // cases do not.
             { id: 'depth-deeper-than-history', role: 'assistant', enabled: true, depthIntent: 'deeper-than-history' },
             // DISABLED BY THE PRODUCT'S OWN GATE: `setFloatingPrompt` writes position NONE when the
             // interval is <= 0 (authors-note.js:351-356), which is what the UI's "(0 = Disable)" label
@@ -779,14 +796,27 @@ export function layoutOf(body, options) {
         },
         chatTurnsAbove: chatMarkers.filter(marker => countAbove(marker)).length,
         chatTurnsBelow: chatMarkers.filter(marker => !countAbove(marker) && at(marker) >= 0).length,
-        // The note's own text must be the note's text: a scenario that applied the preset's note instead
-        // of the overlay must be visible here, not folded into a position that happens to agree.
-        carriesNoteMarker: noteIndex >= 0,
-        carriesPresetNoteInsteadOfOverlay: findMessage(body, String(options?.presetNoteMarker ?? MARKERS.authorsNote)) >= 0
-            && noteIndex < 0,
-        // WHERE THE NOTE'S TEXT SITS INSIDE THE OLDEST HISTORY TURN, if anywhere: the IN_PROMPT position
-        // folds the note into the prompt block, so a presence-only check would find it there and call it
-        // "deeper". Recorded so the comparator can refuse that reading.
+        // THE NOTE'S TEXT IS PRESENT OR IT IS NOT -- and this is deliberately NOT `noteIndex >= 0`.
+        //
+        // The measured data from Browser differential 40447689701 forced this distinction: the depth-20
+        // ("deeper than history") case carried the note (`historyBelow = 12`, every declared turn below it)
+        // but `noteIndex = -1`, because `injectIdx = Math.min(depth + totalInserted, messages.length)`
+        // (openai.js:866-868) can place the note where `findMessage` cannot point at a SEPARATE message.
+        // Meanwhile the DISABLED case must carry no note at all. With `carriesNoteMarker` defined as
+        // "indexable", those two collapsed to the SAME observation -- an enabled case and a disabled case
+        // reported identically, which is the one thing the disable switch must never do.
+        //
+        // So presence is measured over the WHOLE body, and "is it its own message" is kept separately.
+        carriesNoteMarker: messages.some(message => messageText(message).includes(noteMarker)),
+        hasItsOwnMessage: noteIndex >= 0,
+        // A scenario that applied the preset's note instead of the overlay must be visible here rather than
+        // folded into a position that happens to agree: the preset's marker present while the overlay's is
+        // absent is exactly that state.
+        carriesPresetNoteInsteadOfOverlay: !messages.some(message => messageText(message).includes(noteMarker))
+            && findMessage(body, String(options?.presetNoteMarker ?? MARKERS.authorsNote)) >= 0,
+        // WHERE THE NOTE'S TEXT SITS INSIDE ANOTHER MESSAGE, if it has no message of its own: the IN_PROMPT
+        // position folds the note into the prompt block, so a presence-only check would find it there and
+        // call it "deeper". Recorded so the comparator can refuse that reading.
         insideSomeOtherMessage: noteIndex < 0
             ? messages.findIndex(message => messageText(message).includes(noteMarker))
             : -1,

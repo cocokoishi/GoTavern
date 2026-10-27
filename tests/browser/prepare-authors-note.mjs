@@ -141,6 +141,11 @@ async function drivePinned(caseId, resolved) {
         bodySha256: parsed.bodySha256 ?? null,
         bodyLength: parsed.bodyLength ?? null,
         layout,
+        // THE DECLARED TURN COUNT TRAVELS ON EACH CASE, not only at the top level, so a comparator reading a
+        // single case record can state "the note is below every declared turn" without needing the whole
+        // file. (A top-level field alone was the first shape and the sweep's check silently degraded to the
+        // weaker form when it read an older golden that predates the field.)
+        declaredTurns: declaredTurns.map(turn => turn.id),
         // WHAT THE PAGE HELD IMMEDIATELY BEFORE THE CLICK, including the note's `extension_prompts` entry.
         // This is not the expectation of where the note LANDS (the layout above is); it is the record that
         // the case reached the frontend's state at all.
@@ -152,6 +157,22 @@ async function drivePinned(caseId, resolved) {
 
 const measured = {};
 const failures = [];
+// THE SCENARIO'S DECLARED HISTORY TURNS, recorded so the sweep can state "deeper than EVERY declared turn"
+// instead of the weaker "deeper than the parity anchor". Read from the committed preset fixture, which is
+// the same fixture the drives apply.
+let declaredTurns = null;
+try {
+    const presetFixture = await readJSON(path.join(here, 'fixtures', 'preset-complex-settings.json'));
+    const turns = presetFixture?.capture?.spec?.history;
+    declaredTurns = Array.isArray(turns) ? turns.map((turn, index) => ({ id: `TURN_${String(index).padStart(2, '0')}`, textHead: String(turn?.text ?? '').slice(0, 40) })) : null;
+} catch (error) {
+    console.error(`prepare-authors-note cannot read the preset fixture, so the declared turn count cannot be recorded: ${error?.message ?? error}`);
+    process.exit(2);
+}
+if (!Array.isArray(declaredTurns) || declaredTurns.length === 0) {
+    console.error('prepare-authors-note: the preset fixture declares no history turns; a depth sweep needs them');
+    process.exit(2);
+}
 for (const caseId of cases) {
     const resolved = resolveAuthorsNoteCase(overlay, caseId);
     console.log(`[q17] pinned drive: case ${caseId} depth=${resolved.depth} position=${resolved.position} interval=${resolved.interval} role=${resolved.role}`);
@@ -176,6 +197,11 @@ const artifact = {
         note: 'the context preset-boundary-search.mjs measured; the legs and this sweep must run at the SAME budget or the note and the trimmer compete for it',
     },
     parityDepth: overlay.parityDepth,
+    // THE DECLARED TURN COUNT TRAVELS WITH THE EXPECTATION, because the sweep's "deeper than the history"
+    // check is stated against it: a note deeper than every declared turn must have at least this many
+    // history turns below it. Without it the check can only say "deeper than the parity anchor", which is
+    // weaker and must be visible as weaker (the sweep records which form it used).
+    turns: declaredTurns,
     cases: measured,
     failures,
 };

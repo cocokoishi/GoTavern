@@ -119,8 +119,18 @@ export function sweepVerdict({ results, overlay, expectations }) {
     const deeper = deeperIds.map(id => layoutFor(id)?.historyBelow ?? null).filter(value => value !== null);
     const shallower = shallowerIds.map(id => layoutFor(id)?.historyBelow ?? null).filter(value => value !== null);
     const zero = layoutFor('depth0')?.historyBelow ?? null;
-    checks.aDeeperCaseIsStrictlyDeeperThanParity = Boolean(parity) && deeper.length > 0 && deeper.every(value => value < parity.historyBelow);
-    checks.aShallowerCaseIsStrictlyShallowerThanParity = Boolean(parity) && shallower.length > 0 && shallower.every(value => value > parity.historyBelow);
+    // THE POLARITY, FIXED BY A MEASUREMENT RATHER THAN BY REASONING, AND THE FIX IS RECORDED HERE.
+    //
+    // `historyBelow` counts the history turns that sit BELOW the note, i.e. nearer the NEWEST end of the
+    // list. The pinned mechanism puts a deeper note nearer the newest end (`injectIdx = depth +
+    // totalInsertedMessages`, openai.js:867, over the newest-first array from :578), so **a deeper note has
+    // MORE history turns below it**. The first version of these two assertions had that backwards
+    // (`deeper < parity`), which would have reported a PERFECTLY GOOD pinned measurement as a
+    // non-discriminating harness -- and the pinned data from Browser differential 40447689701 is what
+    // exposed it: depth0=0, depth4=3, parity(depth 6)=5, depth8=7, which is monotone in exactly the
+    // opposite direction from what the assertion demanded.
+    checks.aDeeperCaseIsStrictlyDeeperThanParity = Boolean(parity) && deeper.length > 0 && deeper.every(value => value > parity.historyBelow);
+    checks.aShallowerCaseIsStrictlyShallowerThanParity = Boolean(parity) && shallower.length > 0 && shallower.every(value => value < parity.historyBelow);
     // DEPTH 0 IS THE **NEWEST** POSITION, NOT THE FIRST MESSAGE -- and this assertion is the one that would
     // catch a harness (or a product) that had the direction backwards.
     //
@@ -140,8 +150,31 @@ export function sweepVerdict({ results, overlay, expectations }) {
     checks.depthZeroIsTheNewestPosition = zero === 0 && Boolean(parity) && parity.historyBelow > 0;
     const deepCase = (overlay.cases ?? []).find(entry => entry.depthIntent === 'deeper-than-history');
     const deepLayout = deepCase ? layoutFor(deepCase.id) : null;
-    checks.deeperThanHistoryReachesTheClamp = Boolean(deepLayout) && Boolean(parity)
-        && deepLayout.historyBelow <= parity.historyBelow && deepLayout.noteIndex >= 0;
+    // DEEPER THAN EVERY DECLARED HISTORY TURN -- which is what the case NAME promises, and what the pinned
+    // measurement shows. It is NOT the clamp, and saying so is a correction the oracle forced.
+    //
+    // The first version asserted "the clamp bound" (`historyBelow <= parity`), i.e. that the note landed at
+    // the very top of the list. The pinned measurement from Browser differential 40447689701 contradicts it:
+    // depth 20 against a 12-turn history produced `historyBelow = 12`, i.e. the note sits below ALL TWELVE
+    // history turns and still inside the 23-message list, so depth 20 does NOT reach
+    // `Math.min(depth + totalInserted, messages.length)` -- the list is long enough (the prompt block is
+    // above the history) that a depth of 20 is reachable WITHOUT clamping. Asserting the clamp would have
+    // demanded a behaviour the pinned frontend does not have, i.e. it would have been an oracle gap dressed
+    // as an oracle.
+    //
+    // What the case is genuinely about is therefore: the note went PAST the oldest history turn, which is
+    // only observable as "at least as many turns below it as the scenario declares". The declared turn count
+    // travels BOTH at the top level (`expectations.turns`) and on each case record (`declaredTurns`, written
+    // by prepare-authors-note.mjs), so a comparator reading either has it; `deeperThanHistoryUsedTheDeclared-
+    // TurnCount` records which form was actually available, so a weaker basis is visible rather than implied.
+    const caseTurns = expectations?.cases?.[deepCase?.id]?.declaredTurns;
+    const declaredTurns = Array.isArray(caseTurns) ? caseTurns.length
+        : (Array.isArray(expectations?.turns) ? expectations.turns.length : null);
+    checks.deeperThanHistoryGoesPastEveryDeclaredTurn = Boolean(deepLayout) && Boolean(parity)
+        && (declaredTurns !== null
+            ? deepLayout.historyBelow >= declaredTurns
+            : deepLayout.historyBelow > parity.historyBelow);
+    checks.deeperThanHistoryUsedTheDeclaredTurnCount = declaredTurns !== null;
     // A DISCRIMINATING SWEEP: every PASSING case produced a DIFFERENT pinned request. Two cases that agree
     // byte-for-byte are one case wearing two names, and a harness that cannot tell them apart must fail
     // itself (AGENTS.md 50) rather than report a wider claim than it measured.
