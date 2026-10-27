@@ -202,6 +202,15 @@ export function regexRules() {
             findRegex: MARKERS.inDepth,
             replaceString: MARKERS.outDepth,
             placement: [1],
+            // promptOnly, AND THAT IS NOT COSMETIC. The depth check at engine.js:362-372 sits INSIDE the
+            // flag clause at :348-355, so a rule the clause rejects never reaches it. A PLAIN (flagless)
+            // rule is rejected on the prompt shape by :354 and therefore never consults minDepth there at
+            // all -- measured in run 40464027198, where the depth rule showed `prompt: RXQ_IN_E7` unchanged
+            // at BOTH depth 0 and depth 1 while the same rule fired on the entry-point shape. Marking it
+            // promptOnly makes the prompts:352 clause admit it, which is the only way the depth guard can be
+            // exercised at all. The consequence is recorded rather than hidden: this rule is now expected to
+            // fire on the prompt shape ONLY, and the kit asserts that too.
+            promptOnly: true,
             minDepth: 1,
         },
         // THE CHAIN. Rule A produces the text rule B's findRegex matches; nothing else in the scenario
@@ -484,13 +493,18 @@ export async function applyRegexKit(spec) {
     } else {
         // EACH RULE IS CHECKED AGAINST THE CALL SHAPE THAT CAN REACH IT, which is the pinned clause structure
         // at engine.js:348-355 rather than a wish:
-        //   R1 (no flags)          -> entryPoint only. It must NOT be reached from the flagged shapes.
-        //   R3 (promptOnly)        -> prompt only.
-        //   R4 (markdownOnly)      -> display only.
-        //   R5 (no flags,minDepth) -> entryPoint, and depth is only consulted when a numeric depth is passed,
-        //                             so its depth behaviour is observed on the PROMPT shape.
+        //   R1 (no flags)             -> entryPoint only. It must NOT be reached from the flagged shapes.
+        //   R3 (promptOnly)           -> prompt only.
+        //   R4 (markdownOnly)         -> display only.
+        //   R5 (promptOnly + minDepth)-> prompt only, at depth 1 and NOT at depth 0.
+        //     R5 CARRIES promptOnly FOR A MEASURED REASON (run 40464027198): the depth check at :362-372 lives
+        //     INSIDE the flag clause, so a rule the clause rejects never reaches it. A flagless rule is
+        //     rejected on the prompt shape by :354 and never consults minDepth there, which made "depth not
+        //     satisfied" indistinguishable from "rule never admitted". With promptOnly it is admitted at :352
+        //     and the depth guard at :363 is actually exercised -- the only shape in which the guard can be
+        //     proven either way.
         // A rule that fires where the engine says it cannot is as much a defect as one that does not fire, so
-        // both directions are asserted for the plain rule below.
+        // both directions are asserted for every rule below.
         if (!isActive.entryChanged) {
             problems.push(`R1 (no flags) did not fire on the ENTRY-POINT shape (no isMarkdown, no isPrompt) that script.js:5875 and :6481 use: entryChanged=${isActive.entryChanged}. The clause at engine.js:354 admits a plain rule ONLY when both flags are absent, so this is the shape that must reach it`);
         }
@@ -511,12 +525,17 @@ export async function applyRegexKit(spec) {
         if (!isDisabled.entry.includes(MARKERS.inDisabled)) {
             problems.push('R2\'s input token vanished although the rule is disabled: something else consumed it');
         }
-        // The depth rule must be inert at 0 and live at 1. Both halves, or the guard is untested.
+        // THE DEPTH RULE MUST BE INERT AT 0 AND LIVE AT 1, on the prompt shape, and INERT ON THE ENTRY SHAPE.
+        // Three halves, not two: without the third, a rule that simply fired everywhere would satisfy the
+        // first two and the depth guard would still be untested.
         if (isDepth.promptChanged) {
-            problems.push('R5 (minDepth 1) changed the text at depth 0, so the depth guard is not being applied');
+            problems.push('R5 (promptOnly, minDepth 1) changed the text at depth 0, so the depth guard at engine.js:363 is not being applied');
         }
         if (!isDepthAtOne.promptChanged) {
-            problems.push('R5 (minDepth 1) did NOT change the text at depth 1, so the minDepth guard is inverted or ignored');
+            problems.push('R5 (promptOnly, minDepth 1) did NOT change the text at depth 1, so the minDepth guard is inverted or ignored');
+        }
+        if (isDepth.entryChanged) {
+            problems.push('R5 is promptOnly but fired on the ENTRY-POINT shape, which passes no isPrompt: engine.js:352 should have excluded it before the depth guard was reached');
         }
         // The no-match input must be untouched on EVERY shape: nothing in the scenario may mention it.
         if (isNoMatch.entryChanged || isNoMatch.promptChanged || isNoMatch.displayChanged) {
