@@ -234,8 +234,26 @@ async function stageCharacterCard(root) {
 
 // The character list the SERVER returns, asked over HTTP so the answer cannot depend on the probe's module graph.
 async function listCharacters(baseURL) {
-    const response = await fetch(`${baseURL}/api/characters/all`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    // THE REQUEST MUST LOOK LIKE THE FRONTEND'S, OR THE ANSWER IS ABOUT THE REQUEST. Run 40424832678 got
+    // `<pre>ForbiddenError:` back from POST /api/characters/all because a POST without a CSRF token is exactly what
+    // the route refuses. Pinned's own flow is `GET /csrf-token` then `X-CSRF-Token: <token>` (script.js:696-698
+    // and :650), so this copies it rather than working around it.
+    let token = null;
+    try {
+        const tokenResponse = await fetch(`${baseURL}/csrf-token`);
+        const tokenData = await tokenResponse.json();
+        token = tokenData?.token ?? null;
+    } catch (error) {
+        return { ok: false, reason: `no CSRF token: ${error?.message ?? error}`, names: [] };
+    }
+    if (!token) return { ok: false, reason: '/csrf-token answered without a token', names: [] };
+    const response = await fetch(`${baseURL}/api/characters/all`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-csrf-token': token },
+        body: '{}',
+    });
     const text = await response.text();
+    if (!response.ok) return { ok: false, reason: `POST /api/characters/all answered ${response.status}: ${text.slice(0, 160)}`, names: [] };
     let parsed = null;
     try {
         parsed = JSON.parse(text);
