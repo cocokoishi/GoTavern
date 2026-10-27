@@ -1361,6 +1361,35 @@ rather than by review.
     argument and one impossible field -- and **both were invisible until both legs drove clean, because a comparator
     that never ran could not have reported either.**
 
+96. **Fixing the side that CONSUMES an input is not fixing the input -- grep the ARGUMENT NAME in the PRODUCER. And a
+    gate that reads state captured BEFORE the operation it gates produces a plausible run on the WRONG SUBJECT, which
+    is worse than a red.** Two defects from the run where an effect-based judgement worked and five reds remained.
+    THE ARGUMENT WAS ACCEPTED AND SILENTLY IGNORED. The workflow resolved and passed `--chat-id` -- its own log read
+    "the pinned leg will open the card the product opened: Seraphina (chat: Seraphina - 2023-5-12 @21h 32m 29s 224ms)"
+    -- and the pinned leg produced NO `chat-selected` step, while the regenerate leg on the SAME run did.
+    `q20-continue-probe.mjs` had no `argumentValue(process.argv, '--chat-id')` and no `openCharacterChat` call at all.
+    **A command-line argument that nothing reads is accepted, ignored, and leaves the run looking normal** -- there is
+    no error, because a process is free to ignore its argv.
+    AND THIS WAS THE SECOND TIME IN THREE RUNS, WHICH IS WHY IT IS A RULE. One run earlier the lane fixed the workflow
+    CONSUMER (`openedContext.characterName`) while the probe PRODUCER wrote nothing; this run it fixed the workflow
+    CONSUMER (`--chat-id`) while the probe PRODUCER read nothing. **Fixing the side that consumes an input is not
+    fixing the input**, and the check is a grep for the ARGUMENT NAME in the PRODUCER -- not for its handling in the
+    consumer, which is exactly the side that was already correct both times. The lane's own words: it stated this
+    lesson two runs earlier and then did not apply it. This is rule 94 at the CLI boundary; the fix was to LIFT the
+    regenerate probe's already-proven block (read `--chat-id`, `openCharacterChat` (`script.js:7744`), read the
+    selection back through `getContext()`, `chat-selected` failing by name) rather than write a new one.
+    AND THE QUIETER DEFECT, FOUND WHILE FIXING IT, IS THE MORE DANGEROUS ONE. The probe's "this chat already has
+    enough turns" gate read `openedContext.chatLength` -- a value captured BEFORE the chat was selected. On a leg that
+    switches chats, that is the conversation the card RESUMED, i.e. precisely the 11-message chat the change existed to
+    escape. **A gate reading a pre-operation value as if it were post-operation produces a run that looks plausible on
+    the wrong subject**, and the lane's assessment is exact: that is worse than a red, because a red names a problem
+    while this names nothing. The gate now reads the SELECTED chat's length. Whenever a guard's input is captured at a
+    different moment than the state it is guarding, assert WHICH state it read.
+    THE RESULT THE RUN CARRIES: `legsDrove` is GREEN under the effect-based judgement, six reds became five, and all
+    five share the one cause above. Regenerate now has FIVE CI runs at 13/13 (`b354b8c`, `f514aa0`, `9df0f25`,
+    `f3474f1`, `59dabb9`). Continue's comparator has run TWICE, neither time against two identical conversations, so
+    it still has no equality and Q20 stays `partial`.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
