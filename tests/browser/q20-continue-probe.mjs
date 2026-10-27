@@ -87,7 +87,7 @@ import { ensurePinnedExtensionInstalled } from './install-pinned-extension.mjs';
 import { pinnedExtension } from './pinned-extensions.mjs';
 import {
     chatCarrying, configureConnection, openCharacter, openPage, pressContinue,
-    readChatFiles, readProcessCommands, saveConditional, sendTurn, settleQuiet, silenceAndObserve, waitForReply,
+    readChatFiles, readProcessCommands, resolveRoster, saveConditional, sendTurn, settleQuiet, silenceAndObserve, waitForReply,
 } from './q20-persistence-drive.mjs';
 import { argumentValue, bootSubject, freePort, repoRoot, startCapturePeer, waitForServer } from './q20-leg-runtime.mjs';
 
@@ -245,7 +245,20 @@ try {
     step('mechanism-setting-read', configured.continuePrefill === false && String(configured.continueNudgePrompt ?? '').length > 0,
         JSON.stringify({ continuePrefill: configured.continuePrefill, continueNudgePrompt: configured.continueNudgePrompt, continuePostfix: configured.continuePostfix }));
 
-    const expectedCharacter = argumentValue(process.argv, '--character', process.env.Q20_CHARACTER_NAME ?? null);
+    // THE CARD NAME -- same resolution as the regenerate probe, same measured reasons (runs 40452820868 and
+    // 40454879293): `--character <name>` from a caller who has one, `--character auto` to ask the PAGE's own roster,
+    // and a REFUSAL when the roster is empty or ambiguous. `auto` reads `script.characters`, never a DOM node.
+    const characterArgument = argumentValue(process.argv, '--character', process.env.Q20_CHARACTER_NAME ?? null);
+    if (characterArgument === 'auto') {
+        const roster = await resolveRoster(page);
+        report.rosterResolution = roster;
+        step('roster-resolved', roster.count === 1, JSON.stringify(roster));
+        if (roster.count !== 1) {
+            report.failure = report.failure ?? `roster-resolved: the page shows ${roster.count} card(s) (${JSON.stringify(roster.names)}); an auto-resolved card needs exactly one`;
+            throw new Error(`roster-resolved: ${roster.count} card(s)`);
+        }
+    }
+    const expectedCharacter = characterArgument === 'auto' ? report.rosterResolution?.names?.[0] ?? null : characterArgument;
     const opened = await openCharacter(page, expectedCharacter);
     report.characterOpen = opened;
     step('character-opened', opened?.opened === true, JSON.stringify(opened));

@@ -309,6 +309,28 @@ export const silenceAndObserve = page => page.evaluate(async () => {
 export const readProcessCommands = page => page.evaluate(() => window.__q20ProcessCommands ?? []);
 
 /**
+ * THE CARD NAMES THE PRODUCT ITSELF LISTS, read from the loaded page's own model (`script.characters`).
+ *
+ * Only ever used to give a leg the ONE name a fresh install stages, and it refuses rather than chooses: `count` is
+ * returned so a caller can require exactly 1 and fail by name otherwise. It reads the frontend's roster, never a DOM
+ * node, so it can never degrade into "whichever card rendered" -- a page whose roster is empty returns
+ * `count: 0, names: []` and the caller stops.
+ */
+export async function resolveRoster(page) {
+    return page.evaluate(async () => {
+        const script = await import('./script.js');
+        const deadline = Date.now() + 60000;
+        let names = [];
+        while (Date.now() < deadline) {
+            names = (script.characters ?? []).map(entry => String(entry?.name ?? '')).filter(Boolean);
+            if (names.length > 0) break;
+            await new Promise(resolve => setTimeout(resolve, 250));
+        }
+        return { count: names.length, names, thisChid: script.this_chid ?? null };
+    });
+}
+
+/**
  * WAIT FOR THE PRODUCT'S OWN STATE AFTER A SEND, AND FAIL BY NAME WHEN IT NEVER ARRIVES.
  *
  * WHY A NAMED FAILURE AND NOT A SLEEP, NOT A RETRY. Measured across runs 40444282138 / 40445671791 / 40448869208: the

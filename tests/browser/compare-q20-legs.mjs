@@ -158,10 +158,19 @@ const equallyObserved = {
     // peer answers `choices[0].message.content`, which is precisely what the openai branch reads -- so the cause is
     // OPEN. `final-file-reflects-swipe` therefore no longer claims the persisted text is a reply.
     emptyReplyOnBothSubjects: {
-        observedIn: ['40445671791', '40448869208'],
+        observedIn: ['40445671791', '40450959982', '40452820868'],
         gotavern: reports.gotavern?.emptyReplyOnBothSubjects ?? null,
         pinned: reports.pinned?.emptyReplyOnBothSubjects ?? null,
-        status: 'open',
+        // CLOSED BY MEASUREMENT AS UNOBSERVABLE-IN-THIS-HARNESS, not left `open`. The two candidate explanations are
+        // "the peer sent empty content" and "the product discarded non-empty content", and the committed evidence
+        // cannot separate them: the harness records peer REQUESTS only (`startCapturePeer` pushes method/path/
+        // body-sha256/body; `url-recorder` records browser-facing URLs), and a sweep of every leg artefact from
+        // 40445671791 / 40450959982 / 40452820868 finds NO field carrying a peer RESPONSE body or status. So a
+        // hypothesis about the peer's answer cannot be tested from these artefacts at all -- which is a limit of the
+        // instrument, recorded rather than dressed as an open question. Answering it needs the peer to record what it
+        // ANSWERED (a `peerResponses` array), which is a harness change of its own.
+        status: 'unobservable-in-this-harness',
+        why: 'no artefact field carries the peer response; peer requests are recorded, peer answers are not',
         notParity: true,
     },
     // THE ARTEFACT/REPLAY DISAGREEMENT from run 40448869208 is resolved by FIXING WHAT A LEG MAY READ, not by choosing
@@ -186,7 +195,7 @@ const artefact = {
         'the SWIPE BUTTON DOM click: the swipe is the frontend\'s own swipe(), called the way its click handler calls it. Regenerate and continue are NO LONGER in this list -- they have their own legs and comparators (compare-q20-regen-legs.mjs, compare-q20-continue-legs.mjs)',
         'group chats, branch/checkpoint, message editing and deletion',
         'streaming (Q19)',
-        'THE CAUSE of the empty reply text recorded in `equallyObserved.emptyReplyOnBothSubjects`: no leg isolates whether the frontend, the peer answer or the save path drops the content',
+        'THE CAUSE of the empty reply text: UNOBSERVABLE IN THIS HARNESS, which records peer REQUESTS and never peer ANSWERS, so "the peer sent empty content" and "the product discarded non-empty content" cannot be separated from any leg artefact. Answering it needs the peer to record its own response body -- a harness change, not a probe rerun',
         'the `savingAfterComplete` flag the leg still sets: it does not exist under pinned `public/**`, so it is inert, and removing it is a change nobody has measured',
     ],
 };

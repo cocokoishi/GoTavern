@@ -70,7 +70,7 @@ import { ensurePinnedExtensionInstalled } from './install-pinned-extension.mjs';
 import { pinnedExtension } from './pinned-extensions.mjs';
 import {
     chatCarrying, configureConnection, openCharacter, openPage, pressRegenerateThroughMenu,
-    readChatFiles, readProcessCommands, saveConditional, sendTurn, settleQuiet, silenceAndObserve, waitForReply,
+    readChatFiles, readProcessCommands, resolveRoster, saveConditional, sendTurn, settleQuiet, silenceAndObserve, waitForReply,
 } from './q20-persistence-drive.mjs';
 import { argumentValue, bootSubject, freePort, repoRoot, startCapturePeer, waitForServer } from './q20-leg-runtime.mjs';
 
@@ -219,7 +219,31 @@ try {
 
     // THE CHAT IS NAMED, NOT ASSUMED. `--character` is passed by the workflow from the GoTavern leg's own artefact;
     // without it this leg refuses rather than opening whichever card renders (the brief's "never the first card").
-    const expectedCharacter = argumentValue(process.argv, '--character', process.env.Q20_CHARACTER_NAME ?? null);
+    // THE CARD NAME: `--character <name>` when a caller has one (the pinned leg, given the GoTavern leg's own
+    // artefact), `--character auto` when the leg must discover it, and NO default -- an unnamed card is refused.
+    //
+    // WHY `auto` EXISTS, measured twice. Run 40452820868: `--character` was passed to the pinned leg only, so this leg
+    // refused and every later step ran with no chat open. Run 40454879293: the workflow then read
+    // `<dataRoot>/default-user/characters` BEFORE this leg ran, and on a FRESH install that directory does not exist
+    // yet -- the card is seeded by the SERVER at boot -- so the name was empty again. `auto` asks THE PAGE, whose
+    // roster is the product's own answer, and it is deliberately narrow:
+    //   * it reads `script.characters[0].name` from the LOADED page, never a DOM node, so it cannot pick "whichever
+    //     card rendered" -- the roster is the page's model, and a page with no card yields no name and a REFUSAL;
+    //   * it records the name it used in `characterOpen.characterName` (via `openCharacter`), so the artefact says
+    //     which card was acted on and the pinned leg can be pointed at the same one;
+    //   * it refuses when the roster has ZERO entries, and when it has MORE THAN ONE it refuses too -- a fresh-install
+    //     leg has exactly one card, and an ambiguous roster is a reason to stop, not to choose.
+    const characterArgument = argumentValue(process.argv, '--character', process.env.Q20_CHARACTER_NAME ?? null);
+    if (characterArgument === 'auto') {
+        const roster = await resolveRoster(page);
+        report.rosterResolution = roster;
+        step('roster-resolved', roster.count === 1, JSON.stringify(roster));
+        if (roster.count !== 1) {
+            report.failure = report.failure ?? `roster-resolved: the page shows ${roster.count} card(s) (${JSON.stringify(roster.names)}); an auto-resolved card needs exactly one`;
+            throw new Error(`roster-resolved: ${roster.count} card(s)`);
+        }
+    }
+    const expectedCharacter = characterArgument === 'auto' ? report.rosterResolution?.names?.[0] ?? null : characterArgument;
     const opened = await openCharacter(page, expectedCharacter);
     report.characterOpen = opened;
     step('character-opened', opened?.opened === true, JSON.stringify(opened));
