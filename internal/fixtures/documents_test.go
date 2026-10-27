@@ -333,6 +333,8 @@ func workflowPinMismatches(doc documentFile, pin string) []pinMismatch {
 
 // workflowPinValuePattern matches `ref: <hex>` and `PINNED_BASELINE_COMMIT: <hex>`, quoted or bare.
 var workflowPinValuePattern = regexp.MustCompile(`(?:PINNED_BASELINE_COMMIT|ref)\s*:\s*['"]?([0-9a-f]{38,44})`)
+
+// pinMismatch is one object-id-shaped string in one document that is neither the pin nor a declared
 // other pin. It carries the LINE and the reason so a reader is sent to the defect rather than hunting.
 type pinMismatch struct {
 	rel    string
