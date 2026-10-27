@@ -43,9 +43,14 @@ const PINNED_VERSION = '1.19.0';
 // which auto-discovers probes so that adding one needs no edit there.
 // @gotavern-oracle: fixture=sillytavern-1.19.0-config-duplicate-key.json label="config duplicate key"
 const sourceRoot = path.resolve(process.argv[2] ?? '');
-const repositoryRoot = path.resolve(process.argv[3] ?? '');
+// argv[3] is the OUTPUT ROOT the harness hands the probe, exactly as probe-config-init.mjs:19 uses it. Named
+// outputRoot rather than repositoryRoot because that is what it is: the fixture is WRITTEN there, and the
+// harness diffs it against the committed copy. An earlier revision of this probe printed its fixture to stdout
+// instead, and the oracle run recorded nothing at all -- a 0-byte re-record patch that looked like success. A
+// probe that emits its evidence to the wrong sink produces a green that proves nothing (AGENTS rule 7).
+const outputRoot = path.resolve(process.argv[3] ?? '');
 if (!process.argv[2] || !process.argv[3]) {
-    console.error('usage: node tools/probe-config-duplicate-key.mjs <pinned-source-clone> <gotavern-root>');
+    console.error('usage: node tools/probe-config-duplicate-key.mjs <pinned-source-clone> <output-root>');
     process.exit(2);
 }
 const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: sourceRoot, encoding: 'utf8' }).trim();
@@ -54,6 +59,21 @@ if (sourceCommit !== PINNED_COMMIT) {
 }
 
 const BOOT_TIMEOUT_MS = 60000;
+
+// The build root the harness supplies. Pinned's own module paths land inside it in a stack trace, so it has to
+// be stripped from recorded stderr for a re-record to be byte-identical across runs (rule 18). It is read from
+// the environment rather than guessed.
+//
+// AN EMPTY VALUE MUST NOT BE USED FOR SUBSTITUTION. `line.split('').join('<build-root>')` does not fail -- it
+// returns the line with the marker between EVERY character, silently corrupting every recorded stderr line. So
+// the substitution is a function that returns its input unchanged when the needle is empty, and only a real
+// path is ever stripped.
+const buildRoot = process.env.GOTAVERN_ORACLE_BUILD_ROOT ?? '';
+
+function stripPath(line, needle, marker) {
+    if (!needle || needle === '') return line;
+    return line.split(needle).join(marker);
+}
 
 function sha256(value) {
     return createHash('sha256').update(value).digest('hex');
@@ -206,9 +226,20 @@ async function bootScenario(scenario, runtimeRoot) {
         exit: exit.kind,
         exitCode: exit.code,
         exitSignal: exit.signal,
-        // The stderr is truncated for the fixture but keeps the FATAL line and any warning, which are the whole
-        // point: a reader must be able to see WHY it stopped without the log.
-        stderrLines: stderr.split('\n').map(line => line.trim()).filter(line => line !== ''),
+        // The stderr keeps the FATAL line and any warning, which are the whole point: a reader must be able to
+        // see WHY it stopped without the log.
+        //
+        // TWO HOST-SPECIFIC PATHS ARE NORMALISED, and both were measured leaking in the first recording:
+        //   * the probe's own temp root, whose random suffix differs every run;
+        //   * the ephemeral ORACLE BUILD ROOT, which appears 18 times in the recorded stack trace
+        //     (`/home/runner/work/_temp/oracle-build/node_modules/yaml/...`). Left in, a two-run re-record would
+        //     differ on a path that is not a property of pinned -- the unstable-value-in-a-compared-field defect
+        //     AGENTS rule 18 describes. The normalisation is narrow: it rewrites only those two prefixes, and the
+        //     pinning rule below says why that is not a general "ignore paths" exemption.
+        stderrLines: stderr.split('\n')
+            .map(line => line.trim())
+            .filter(line => line !== '')
+            .map(line => stripPath(stripPath(line, runtimeRoot, '<runtime>'), buildRoot, '<build-root>')),
         configBefore: before,
         configAfter: after,
         configMigration: migrationOutcome,
@@ -260,8 +291,8 @@ const fixture = {
         tier2: [
             {
                 path: 'results[*].stderrLines',
-                rule: 'kept verbatim except that absolute runtime paths under the probe temp root are replaced with <runtime>',
-                reason: 'The temp root is an ephemeral path and is not a property of pinned; the message text around it is the contract, because the FATAL line is what a user sees.',
+                rule: 'kept verbatim except that two host paths are replaced: the probe temp root with <runtime> and the oracle build root with <build-root>',
+                reason: 'Both are ephemeral paths, not properties of pinned. The first has a random mkdtemp suffix; the second appears 18 times in the recorded yaml stack trace and differs per runner. The message TEXT around them is the contract, because the FATAL line is what a user sees. This is a narrow two-prefix rule, not a general "ignore paths" exemption: any other absolute path in stderr is still recorded and still compared.',
                 pinnedSource: 'src/util.js:75 console.error(color.red(\'FATAL: Failed to read config.yaml. Please check the file for syntax errors.\'))',
             },
             {
@@ -274,4 +305,12 @@ const fixture = {
     results,
 };
 
-process.stdout.write(JSON.stringify(fixture, null, 2) + '\n');
+// THE FIXTURE IS WRITTEN TO outputRoot, NOT PRINTED. The harness reads the file at
+// <outputRoot>/tests/oracle/<fixture> and diffs it against the committed copy; a probe that only logs its JSON
+// records nothing, and its re-record patch comes back EMPTY -- which reads exactly like "already recorded and
+// unchanged" rather than "never recorded at all". Same sink as probe-config-init.mjs:140-144.
+const outputDirectory = path.join(outputRoot, 'tests', 'oracle');
+mkdirSync(outputDirectory, { recursive: true });
+const outputFile = path.join(outputDirectory, 'sillytavern-1.19.0-config-duplicate-key.json');
+writeFileSync(outputFile, `${JSON.stringify(fixture, null, 2)}\n`);
+console.log(`Wrote ${path.relative(outputRoot, outputFile)} from pinned duplicate-key boot`);
