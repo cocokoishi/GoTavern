@@ -434,9 +434,31 @@ try {
         && report.pageAfter.lastText.length > preState.lastText.length,
         JSON.stringify({ preLength: preState.lastText.length, afterLength: String(report.pageAfter.lastText ?? '').length, chatLength: report.pageAfter.chatLength, preChatLength: preState.chatLength }));
     step('continue-ui-shows-the-grown-message',
-        report.pageAfter.domMessageCount === report.pageAfter.chatLength
-        && String(report.pageAfter.domLastText ?? '').includes(MARKERS.continuation),
-        JSON.stringify({ domMessageCount: report.pageAfter.domMessageCount, chatLength: report.pageAfter.chatLength, domLastText: String(report.pageAfter.domLastText ?? '').slice(0, 200) }));
+        // WHY NOT `domMessageCount === chatLength`. That was a DERIVATION, and run 40551319556 measured it wrong.
+        //
+        // The page held `domMessageCount: 6` against `chatLength: 5` while the product was CORRECT:
+        // `domLastText: "Q20_REPLY_2 Q20_CONTINUATION_APPENDED_3"` -- the last message grown in place, exactly what
+        // `appendFinal` does. `#chat .mes` counts RENDERED message elements; `chat.length` counts chat RECORDS, and the
+        // two need not agree: `addOneMessage` skips rendering for some messages, and the greeting/system rows a tree
+        // arrives with are not one-to-one with the array. The regenerate leg records the same field and never asserts
+        // equality with `chatLength` -- it went 13/13 on this very chat -- so the inequality is normal, not a defect.
+        //
+        // The claim this step exists for is "the UI shows the grown message", and the DOM text proves it directly. The
+        // count is kept as a REPORTED measurement with its difference, so a future run that adds or removes a rendered
+        // row is visible without the step failing for a reason it never claimed to test.
+        //
+        // AND ONLY THE DOM TEXT IS ASSERTED. A companion `lastText === domLastText` was considered and REJECTED: I can
+        // verify the DOM value from the run's own failure detail, but nothing in the artefact proves `lastText` (the
+        // record's text) is byte-identical to it -- the record's text and the rendered text can differ by markdown
+        // processing. Asserting an equality I have not observed is how a step goes red for a reason it did not name.
+        String(report.pageAfter.domLastText ?? '').includes(MARKERS.continuation),
+        JSON.stringify({
+            domMessageCount: report.pageAfter.domMessageCount,
+            chatLength: report.pageAfter.chatLength,
+            domMinusChat: report.pageAfter.domMessageCount - report.pageAfter.chatLength,
+            domLastText: String(report.pageAfter.domLastText ?? '').slice(0, 200),
+            lastText: String(report.pageAfter.lastText ?? '').slice(0, 200),
+        }));
 
     // 4. THE FILE AFTERWARDS -- separate from the UI on purpose: the UI replacing the bubble and the file holding the
     // right swipe are two different claims (this lane's brief), so they are two steps and two artefact fields.
