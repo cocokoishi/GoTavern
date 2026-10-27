@@ -1314,6 +1314,48 @@ The boundary that both rules can hold, and that the code implements:
 The adversarial case `config.parseable-config-rewritten` asserts 1-3 and names 4's real home, so the invariant is
 measured rather than asserted in prose.
 
+### 34.5 A relative dataRoot creates ONE directory, not two (adjudicated 2026-10-26)
+
+**The pinned behaviour, re-read from the source and corrected once.** An earlier note in this tree said the
+two-roots split was "unreachable for pinned because its `chdir` sits between creation and first use". That is
+wrong as a statement about ORDER, and the wrong version was quoted before it was checked:
+
+| Line | What it does |
+|---|---|
+| `server.js:8` | `new CommandLineParser().parse(process.argv)` — and the creation is INSIDE it |
+| `src/command-line.js:292-293` | `if (!fs.existsSync(dataRoot)) { fs.mkdirSync(dataRoot, {recursive: true}) }` |
+| `server.js:11` | `process.chdir(serverDirectory)` — AFTER the creation has already happened |
+| `src/server-main.js:400,456`, `src/users.js:693,200` | every later use is `path.join(globalThis.DATA_ROOT, ...)` |
+
+So for a RELATIVE `dataRoot`, pinned renders the `mkdir` against the **launch directory** and then reads and writes
+against the **server directory**. One value, two directories — and silently, because the `mkdir` succeeds and the
+`Warning: Failed to create data root directory` arm (`command-line.js:295-297`) therefore never fires. The split
+surfaces later as ENOENT on the first write into a directory nobody created.
+
+**The GoTavern behaviour, and why it diverges.** GoTavern creates ONLY the directory the server will use, and
+reports the discarded rendering as a `PathWarning` that names the configured value, both resolved paths, which one
+was created, and that nothing was written to the other.
+
+- The reason is AGENTS rule 27: startup does not create state in a directory the user did not name, and a relative
+  `dataRoot` names one directory. The precedent is §34.3 above, where auto-update diverges from pinned's own
+  default and is RECORDED rather than silently copied.
+- What is NOT done, deliberately: a relative `dataRoot` is still honoured (removing that would break a working
+  config), and the runtime root is still created (removing that is the P0-B ENOENT, `internal/app/startup_p0b_test.go`
+  scenario (b)).
+- The two path FIELDS keep their pinned values, because `tests/oracle/sillytavern-1.19.0-commandline-paths.json`
+  records both (`dataRootCreationRelativeToCwd`, `runtimeDataRootRelativeToServerDirectory`). Only the side effect
+  moves, so the path-parity test is untouched: every recorded scenario boots with CWD == server directory, where the
+  two bases coincide and this branch cannot run.
+- Pinned: creates `<launch>/data`, uses `<serverDir>/data`, no warning.
+  GoTavern: creates `<serverDir>/data`, does not create `<launch>/data`, warns naming both.
+
+**Evidence.** Gated by `internal/commandline/paths_divergence_test.go` (the created path is the used path; the
+warning is asserted by content; an absolute `dataRoot` still creates one unambiguous directory) and by
+`tests/e2e/startup_data_root_test.go` and the adversarial case `boot.foreign-cwd-relative-data-root`, which measured
+the pre-fix behaviour as "the boot created BOTH … one `dataRoot` value produced two trees" on GoTavern Lane CI run
+`40445318383` (commit 84d3997, which recorded that violation in `internal/adversarial/violations.golden`). The
+red-then-green for this change is the run quoted beside it in the lane report.
+
 ---
 
 ## 35. Real-user parity contract (2026-10-25, second pass: P0-D, P0-E, P0-F)

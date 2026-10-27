@@ -156,25 +156,71 @@ func ResolvePaths(options ResolveOptions) (ResolvedPaths, error) {
 	if err != nil {
 		return result, fmt.Errorf("resolve data root for initialization: %w", err)
 	}
-	if result.DataRoot == "" {
+	result.RuntimeDataRoot, err = absolutePathFrom(serverDirectory, result.DataRoot)
+	if err != nil {
+		return result, fmt.Errorf("resolve runtime data root: %w", err)
+	}
+	// CREATE THE DIRECTORY THAT WILL BE USED, AND ONLY THAT ONE (ARCHITECTURE 34.5, 2026-10-26).
+	//
+	// PINNED CREATES THE OTHER ONE. `server.js:8` runs the parser -- and the creation lives inside it, at
+	// `src/command-line.js:292-293` -- BEFORE `server.js:11 process.chdir(serverDirectory)`. So for a
+	// RELATIVE dataRoot pinned renders the mkdir against the LAUNCH directory and then uses
+	// `path.join(globalThis.DATA_ROOT, ...)` after the chdir, i.e. against the SERVER directory. Pinned
+	// therefore creates one directory and serves another, silently: its own `mkdirSync` succeeds, so the
+	// warning at `command-line.js:295-297` never fires, and the ENOENT arrives later on the first write.
+	//
+	// GoTavern diverges on purpose, for AGENTS 27: startup must not create state in a directory the user
+	// did not name, and a relative `dataRoot` names ONE directory, not two. The directory created here is
+	// the one the runtime will use; the launch-directory rendering is NOT created, and it is REPORTED when
+	// it is a different path, so nothing is skipped invisibly.
+	//
+	// Both fields stay populated exactly as the pinned fixture records them
+	// (tests/oracle/sillytavern-1.19.0-commandline-paths.json: dataRootCreationRelativeToCwd and
+	// runtimeDataRootRelativeToServerDirectory), so the path PARITY is untouched and only the side effect
+	// changes. See internal/commandline/paths_test.go for the divergence row that asserts both paths.
+	switch {
+	case result.DataRoot == "":
+		// The empty value is pinned's own odd branch: it attempts `mkdirSync("")`, which fails, and keeps
+		// going with a warning. The error is carried through unchanged so the recorded
+		// `failedDataRootCreation: true` for scenario `empty-data-root` stays exactly what it is.
 		createErr := os.MkdirAll(result.DataRoot, 0o777)
 		result.Warnings = append(result.Warnings, PathWarning{
 			Message: "Warning: Failed to create data root directory at . Please make sure the path is correct and writable.",
 			Err:     createErr,
 		})
-	} else if _, err := os.Stat(result.DataRootCreationPath); err != nil {
-		if createErr := os.MkdirAll(result.DataRootCreationPath, 0o777); createErr != nil {
-			result.Warnings = append(result.Warnings, PathWarning{
-				Message: fmt.Sprintf("Warning: Failed to create data root directory at %s. Please make sure the path is correct and writable.", result.DataRoot),
-				Err:     createErr,
-			})
-		} else {
-			result.DataRootCreated = true
+	case result.DataRootCreationPath != result.RuntimeDataRoot:
+		if _, statErr := os.Stat(result.RuntimeDataRoot); errors.Is(statErr, fs.ErrNotExist) {
+			if createErr := os.MkdirAll(result.RuntimeDataRoot, 0o777); createErr != nil {
+				result.Warnings = append(result.Warnings, PathWarning{
+					Message: fmt.Sprintf("Warning: Failed to create data root directory at %s. Please make sure the path is correct and writable.", result.DataRoot),
+					Err:     createErr,
+				})
+			} else {
+				result.DataRootCreated = true
+			}
 		}
-	}
-	result.RuntimeDataRoot, err = absolutePathFrom(serverDirectory, result.DataRoot)
-	if err != nil {
-		return result, fmt.Errorf("resolve runtime data root: %w", err)
+		// The discarded creation, said out loud and from the user's point of view: which directory was
+		// asked for, which one is actually used, and that nothing was written to the other.
+		result.Warnings = append(result.Warnings, PathWarning{
+			Message: fmt.Sprintf(
+				"Warning: dataRoot %q is relative, so it resolves against two different directories: %s "+
+					"(where this process was started) and %s (the install directory, which is what the "+
+					"running server uses). Only %s was created; nothing was written to %s. Use an absolute "+
+					"path, or run the server from its install directory, to remove the ambiguity.",
+				result.DataRoot, result.DataRootCreationPath, result.RuntimeDataRoot,
+				result.RuntimeDataRoot, result.DataRootCreationPath),
+		})
+	default:
+		if _, statErr := os.Stat(result.DataRootCreationPath); errors.Is(statErr, fs.ErrNotExist) {
+			if createErr := os.MkdirAll(result.DataRootCreationPath, 0o777); createErr != nil {
+				result.Warnings = append(result.Warnings, PathWarning{
+					Message: fmt.Sprintf("Warning: Failed to create data root directory at %s. Please make sure the path is correct and writable.", result.DataRoot),
+					Err:     createErr,
+				})
+			} else {
+				result.DataRootCreated = true
+			}
+		}
 	}
 	return result, nil
 }

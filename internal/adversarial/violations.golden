@@ -30,40 +30,41 @@
 # internal/adversarial currently holds, which is the only thing this file ever claimed.
 #
 # ---------------------------------------------------------------------------------------------------
-# 2026-10-26, one entry, REOPENED BY A CASE THAT CAN NOW SEE ITS OWN INPUT.
+# 2026-10-26, one entry added and then REMOVED THE SAME DAY by the change it asked for. The history is
+# kept because the REASON it was added is the reason it was possible to fix.
 #
-# boot.foreign-cwd-relative-data-root
+# boot.foreign-cwd-relative-data-root   -- ADDED 2026-10-26, REMOVED 2026-10-26 (fixed)
 #   The invariant: "the data directory a boot CREATES must be the data directory it USES".
 #
-#   WHY IT IS BACK AFTER BEING RECORDED AS FIXED. The entry above says the relative dataRoot was fixed
-#   because "the boot now creates the directory the runtime actually uses". That was true and INCOMPLETE:
-#   the case that measured it planted `dataRoot: "./data"` in a config the boot never parsed (no
-#   --configPath, and internal/app/server.go:129-131 reproduces pinned's chdir so the install-root config
-#   was read instead), and its success branch returned okResult without asserting anything. Both defects
-#   were found on 2026-10-26 and are fixed in internal/adversarial/startup_cases_test.go; the case now
-#   plants a DISCRIMINATING value (./relative-marker-data, a name appearing nowhere else) and requires the
-#   input to have arrived.
+#   WHY IT WAS ADDED, AND WHY THAT MATTERED. The line above this section said the relative dataRoot had
+#   been fixed because "the boot now creates the directory the runtime actually uses". That was true and
+#   INCOMPLETE: the case measuring it planted `dataRoot: "./data"` in a config the boot never parsed (no
+#   --configPath, and internal/app/server.go:129-131 reproduces pinned's chdir, so the install-root config
+#   was read instead), and its success branch returned okResult without asserting anything. The case was
+#   made able to fail FIRST -- explicit --configPath, the assertion-free branch deleted, and a
+#   DISCRIMINATING value (./relative-marker-data, a name appearing nowhere else; with `./data` the
+#   install-root directory exists either way because `./data` IS the default) -- and only THEN did it
+#   report. Measured, run 40444937492 (GoTavern Lane CI, a690270):
 #
-#   MEASURED, run 40444937492 (GoTavern Lane CI, a690270):
 #     VIOLATED boot.foreign-cwd-relative-data-root
 #     observed: the boot created BOTH <work>/relative-marker-data (the launch-directory rendering) and
-#     <install>/relative-marker-data (the install-root rendering) of one relative dataRoot: a single
-#     `dataRoot` value produced two trees
+#     <install>/relative-marker-data (the install-root rendering) of one relative dataRoot
 #
-#   THE MECHANISM, from the source: naming --configPath disables the chdir reproduction
-#   (internal/app/server.go:129-131), so the parser renders the creation path against the CALLER's working
-#   directory (internal/commandline/paths.go:155) while the runtime root is rendered against the install
-#   root (:175); app.Start then creates the runtime root as well (server.go:172-182). One relative value,
-#   two directories, and no PathWarning naming either.
+#   WHY IT WAS A DEFECT AND NOT A PARITY QUESTION -- CORRECTED. The first entry here said "pinned cannot
+#   reach the state: its chdir (server.js:11) happens before the creation (command-line.js:288-297)". That
+#   was WRONG about the order and was withdrawn: the creation is INSIDE `parse` (`server.js:8`), which runs
+#   BEFORE the chdir at `server.js:11`, so pinned creates the launch-directory rendering and uses the
+#   server-directory one too, silently. The defect is therefore not a divergence from pinned -- it is
+#   AGENTS 27, which outranks parity: a directory created in whatever folder the user launched from is an
+#   unrequested write. The fix and its recorded divergence are ARCHITECTURE 34.5.
 #
-#   WHY THIS IS A DEFECT AND NOT A PARITY QUESTION. Pinned cannot reach the state: its chdir
-#   (server.js:11) happens before the creation (command-line.js:288-297), so for pinned the two bases
-#   coincide and there is no oracle to match. The standard is therefore the product's own contract,
-#   AGENTS 27 -- startup does not modify user state as an unannounced side effect -- and a data directory
-#   appearing in whatever directory the user launched from is exactly that. Two acceptable fixes are named
-#   in the case: create only the runtime root, or report the second creation through a PathWarning.
+#   REMOVED WHEN THE CASE HELD. `internal/commandline/paths.go` now creates only the runtime root and
+#   reports the discarded rendering as a PathWarning naming both paths; the case's own success branch
+#   asserts that exactly one directory exists. Leaving this line would have been a STALE ENTRY red, which
+#   is the ratchet working in the other direction.
 #
-#   DELETE THIS LINE when the case holds. Deleting it without the behaviour changing flips this file into
-#   a stale-entry red, which is the point of a ratchet.
-boot.foreign-cwd-relative-data-root
+# KEPT AS A WARNING FOR THE NEXT READER: a case that takes a success branch without asserting is invisible
+# to this file. The ratchet can only record violations a case can OBSERVE, and both defects above were
+# "the case could not see its input" and "the case asserted nothing" -- neither of which is a violation,
+# so neither of which this file could have flagged.
 
