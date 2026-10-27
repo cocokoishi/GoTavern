@@ -54,7 +54,10 @@ import process from 'node:process';
 import { ensurePinnedExtensionInstalled } from './install-pinned-extension.mjs';
 import { pinnedExtension } from './pinned-extensions.mjs';
 import { seedLegConfig } from './seed-leg-config.mjs';
-import { readChatRecords, readHelperApiSurface, readSettingsFile, here, repoRoot } from './extensions/helper-vars-kit.mjs';
+import {
+    buildTrio, readChatRecords, readCommittedPreset, readHelperApiSurface, readPresetStance, readSettingsFile,
+    writeProbePresets, here, repoRoot, RESOLVE_IDENTIFIER, TARGET_PRESET_NAME,
+} from './extensions/helper-vars-kit.mjs';
 
 const playwrightModule = await import('@playwright/test');
 const chromium = playwrightModule.chromium ?? playwrightModule.default?.chromium;
@@ -80,13 +83,17 @@ const MARKERS = {
     global: 'HV-GLOBAL-e05f',
     message: 'HV-MESSAGE-1a88',
 };
-// THE CLAUSE the prompt carries, so the assertion is "the value arrived WHERE THE PROMPT ASKED FOR IT", not "the
-// token appears somewhere in the body" -- a body that merely echoes a stashed variable would satisfy the weaker form.
+// THE CLAUSE the preset prompt carries, so the assertion is "the value arrived WHERE THE PRESET ASKED FOR IT", not
+// "the token appears somewhere in the body" -- a body that merely echoes a stashed variable would satisfy the weaker
+// form. The preset prompt itself is staged on disk as `HV-PRESET-CHAT={{getvar::hv_preset}}`, and `hv_preset` is the
+// variable every case writes, because a preset prompt is a single fixed splice point: one variable name, several
+// values, and the wire must show which value was live at generation time.
 const PROMPTS = {
-    chat: 'HV-READ-CHAT=',
-    global: 'HV-READ-GLOBAL=',
-    message: 'HV-READ-MESSAGE=',
+    chat: 'HV-PRESET-CHAT=',
+    global: 'HV-PRESET-GLOBAL=',
+    message: 'HV-PRESET-MESSAGE=',
 };
+const PRESET_VARIABLE = 'hv_preset';
 
 function freePort() {
     return new Promise((resolve, reject) => {
@@ -287,16 +294,22 @@ const SCRIPT = [
     '        renderedWithMacroEngine = taThelperSubstitute(prompt);',
     '      } catch (e) { renderedError = String(e && e.message || e); }',
     '      let reply = null; let error = null;',
+    '      let readBack = null;',
     '      try {',
-    '        reply = await TavernHelper.generateRaw({',
-    '          ordered_prompts: [{ role: "system", content: prompt }],',
+    '        reply = await TavernHelper.generate({',
+    '          preset_name: cfg.presetName,',
     '          user_input: name,',
     '          max_chat_history: 0,',
     '          should_stream: false,',
     '          should_silence: true,',
     '        });',
+    '        try {',
+    '          const preset = TavernHelper.getPreset(cfg.presetName);',
+    '          const staged = (preset?.prompts ?? []).find(entry => entry.identifier === cfg.resolveIdentifier) ?? null;',
+    '          readBack = staged ? { identifier: staged.identifier, content: staged.content, enabled: staged.enabled, role: staged.role } : null;',
+    '        } catch (e) { readBack = { error: String(e && e.message || e) }; }',
     '      } catch (e) { error = String(e && e.message || e); }',
-    '      record(name, { applied, opError, promptRaw: prompt, renderedWithMacroEngine, renderedError, reply: reply === null ? null : String(reply).slice(0, 120), error });',
+    '      record(name, { applied, opError, promptRaw: prompt, renderedWithMacroEngine, renderedError, readBack, reply: reply === null ? null : String(reply).slice(0, 120), error });',
     '    };',
     '    for (const item of cfg.cases) await run(item.name, item.ops, item.prompt);',
     '  }',
@@ -416,6 +429,64 @@ try {
         };
     }, peerUrl);
 
+    /**
+     * THE MARKER MOVES TO A PRESET PROMPT, AND THIS IS WHY -- the finding that forced it.
+     *
+     * THREE substitution surfaces exist on the request path, and the narrow vehicle's first version used the ONE
+     * that substitutes nothing:
+     *
+     *   1. chat history          -> generateRaw.ts:235  `prompt.content = substituteParams(prompt.content)`
+     *   2. preset prompts via
+     *      `generate()`         -> generate/index.ts:178-189, `toOrderedPrompt`/`toInChatPrompt` both do
+     *                              `content: substitudeMacros(prompt.content!)` BEFORE generateRaw sees them
+     *   3. caller-supplied
+     *      `ordered_prompts`    -> generateRaw.ts:492-497, `Message.createAsync(source.role, source.content)` with
+     *                              NO substituteParams anywhere
+     *
+     * Measured in 40466428732 and 40471775285: with the marker in surface 3, `applied.after` carried the value,
+     * `renderedWithMacroEngine` resolved it, and the provider body still carried the literal `{{getvar::hv_chat}}`
+     * on BOTH subjects with `mismatches=[]`. That is pinned behaviour, not a GoTavern defect -- but it also means
+     * surface 3 cannot answer the claim. Surface 2 is where a real user's preset prompt lives, so the marker goes
+     * there, and the vehicle stays at three moving parts: one variable, one preset prompt, one generation.
+     *
+     * THE PRESET IS A FILE ON DISK WRITTEN BEFORE BOOT. Not a `<select>`, not `getPresetManager()`, not a card:
+     * four consecutive reds in this repo came from driving a preset selection through the UI (AGENTS rules 58 and
+     * 63), and none of them was a product defect. The file is the input; `TavernHelper.getPreset(name)` is the
+     * reader (`preset.ts:588`, `klona(toPreset(...))`, no selection side effects).
+     */
+    if (!afterRestart) {
+        const committed = await readCommittedPreset();
+        const presetDirectory = path.join(dataRoot, 'default-user', 'OpenAI Settings');
+        const names = (await fs.readdir(presetDirectory).catch(() => [])).filter(name => name.endsWith('.json'));
+        if (names.length === 0) throw new Error(`the leg tree has no chat-completion preset to derive from: ${presetDirectory}`);
+        const stance = JSON.parse(await fs.readFile(path.join(presetDirectory, names[0]), 'utf8'));
+        const identity = `HV-PRESET-CHAT={{getvar::${PRESET_VARIABLE}}}`;
+        const trio = buildTrio({ stance, readyMarker: 'hv-preset-ready', identity });
+        report.fixture = {
+            committedPreset: { file: committed.file, sha256: committed.sha256, byteLength: committed.byteLength },
+            stance: { file: names[0], promptCount: (stance.prompts ?? []).length },
+            identity,
+            resolveIdentifier: RESOLVE_IDENTIFIER,
+            trio: { group: trio.group, missingIdentifiers: trio.missingIdentifiers, replaced: trio.replaced },
+        };
+        report.fixture.files = await writeProbePresets(dataRoot, { trio: { name: TARGET_PRESET_NAME, document: trio.document } });
+        const stanceAfter = await readPresetStance(dataRoot, [TARGET_PRESET_NAME]);
+        const promptContents = stanceAfter[TARGET_PRESET_NAME]?.promptContents ?? {};
+        report.fixture.afterWrite = { present: stanceAfter[TARGET_PRESET_NAME]?.present === true, identifiers: Object.keys(promptContents) };
+        // ASSERT THE SPLICE LANDED IN THE FILE. A preset written but not carrying the marker is a leg that would
+        // report "the macro did not substitute" for a file that never contained the macro at all.
+        step('preset-prompt-staged', stanceAfter[TARGET_PRESET_NAME]?.present === true
+            && String(promptContents[RESOLVE_IDENTIFIER] ?? '') === identity,
+            JSON.stringify({ present: stanceAfter[TARGET_PRESET_NAME]?.present === true, identity, staged: promptContents[RESOLVE_IDENTIFIER] ?? null }));
+    } else {
+        const stanceAfter = await readPresetStance(dataRoot, [TARGET_PRESET_NAME]);
+        const promptContents = stanceAfter[TARGET_PRESET_NAME]?.promptContents ?? {};
+        report.fixture = { afterWrite: { present: stanceAfter[TARGET_PRESET_NAME]?.present === true, identifiers: Object.keys(promptContents) } };
+        step('restart-tree-carries-the-preset', stanceAfter[TARGET_PRESET_NAME]?.present === true
+            && String(promptContents[RESOLVE_IDENTIFIER] ?? '').includes(`{{getvar::${PRESET_VARIABLE}}}`),
+            JSON.stringify({ present: stanceAfter[TARGET_PRESET_NAME]?.present === true, staged: promptContents[RESOLVE_IDENTIFIER] ?? null }));
+    }
+
     const boot = await openPage();
     step('page-loaded', boot?.settingsReady === true, 'script.js settingsReady');
     phase('page-loaded');
@@ -451,13 +522,13 @@ try {
     const messageId = 0;
 
     // THE CASES. Each is ONE variable operation followed by ONE generateRaw whose prompt reads that variable.
-    const chatPrompt = `${PROMPTS.chat}{{getvar::hv_chat}}`;
+    const chatPrompt = `${PROMPTS.chat}{{getvar::${PRESET_VARIABLE}}}`;
     const globalPrompt = `${PROMPTS.global}{{getglobalvar::hv_global}}`;
     const messagePrompt = `${PROMPTS.message}{{getvar::hv_message}}`;
     const cases = writesVariables ? [
-        { name: 'chat-alpha', ops: [{ kind: 'insert', scope: 'chat', values: { hv_chat: MARKERS.first } }], prompt: chatPrompt },
-        { name: 'chat-beta', ops: [{ kind: 'insert', scope: 'chat', values: { hv_chat: MARKERS.second } }], prompt: chatPrompt },
-        { name: 'chat-deleted', ops: [{ kind: 'delete', scope: 'chat', path: 'hv_chat' }], prompt: chatPrompt },
+        { name: 'chat-alpha', ops: [{ kind: 'insert', scope: 'chat', values: { [PRESET_VARIABLE]: MARKERS.first } }], prompt: chatPrompt },
+        { name: 'chat-beta', ops: [{ kind: 'insert', scope: 'chat', values: { [PRESET_VARIABLE]: MARKERS.second } }], prompt: chatPrompt },
+        { name: 'chat-deleted', ops: [{ kind: 'delete', scope: 'chat', path: PRESET_VARIABLE }], prompt: chatPrompt },
         { name: 'global-set', ops: [{ kind: 'insert', scope: 'global', values: { hv_global: MARKERS.global } }], prompt: globalPrompt },
         // THE `message` SCOPE AS ITS OWN ROW: it stores and reads back inside the page, and the wire must NOT carry
         // it, because no host macro consults a message scope (recorded by the refusal check above).
@@ -485,7 +556,7 @@ try {
                 content: payload.content,
                 button: { enabled: false, buttons: [] },
             }], { type: 'global' });
-        }, { content: SCRIPT, cases: list });
+        }, { content: SCRIPT, cases: list, presetName: TARGET_PRESET_NAME, resolveIdentifier: RESOLVE_IDENTIFIER });
         const deadline = Date.now() + 120000;
         let done = null;
         while (Date.now() < deadline) {
@@ -669,7 +740,20 @@ console.log(JSON.stringify({
     afterRestart: report.afterRestart,
     failure: report.failure,
     steps: report.steps.map(item => `${item.ok === null ? 'n/a' : item.ok ? 'ok' : 'FAIL'} ${item.name}`),
+    // THE SUMMARY MUST PRINT THE FIELDS ITS OWN GUARDS READ (AGENTS rule 64, second clause -- and this lane is the
+    // measurement behind it). Measured in 40471775285: I searched the log for `serverPid`, got 0, and reported a
+    // missing field that was in fact assigned at this probe's line 349 and never printed. The absence of a field in
+    // a console stream is not the absence of the field, and a reader must not have to download the artefact to
+    // learn whether the restart leg really was a NEW process.
+    provenance: {
+        serverPid: report.provenance?.serverPid ?? null,
+        serverVersion: report.provenance?.serverVersion ?? null,
+        extension: report.provenance?.extension ?? null,
+        configFile: report.provenance?.configFile ?? null,
+        blockedExternal: (report.provenance?.blockedExternal ?? []).slice(0, 4),
+    },
     attribution: report.attribution ?? null,
+    fixture: report.fixture ?? null,
     chatSeed: report.chatSeed ?? null,
     cases: report.cases.map(entry => ({
         case: entry.case,
@@ -686,6 +770,9 @@ console.log(JSON.stringify({
         renderedError: bounded(entry.renderedError, 200),
         bodySlice: bounded(entry.request?.body, 600),
         bodyHasRawMacroSyntax: typeof entry.request?.body === 'string' ? /\{\{get(?:global)?var::/.test(entry.request.body) : null,
+        // WHAT THE EXTENSION ITSELF BELIEVED THE PRESET PROMPT CONTAINED at generation time, read through
+        // `getPreset(name)` inside the page (AGENTS rule 58: read state back through the reader the product uses).
+        readBack: entry.readBack ? { content: bounded(entry.readBack.content, 300), enabled: entry.readBack.enabled ?? null, error: entry.readBack.error ?? null } : null,
         applied: entry.applied ?? null,
     })),
     reload: report.reload ? { steps: report.reload.boot ?? null, bodySlice: bounded(report.reload.request?.body, 600), sha256: report.reload.request?.sha256 ?? null } : null,

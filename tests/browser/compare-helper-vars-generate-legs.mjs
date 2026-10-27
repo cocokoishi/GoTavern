@@ -70,7 +70,11 @@ const chat = MARKS?.first ?? 'HV-ALPHA-7c31';
 const chatBeta = MARKS?.second ?? 'HV-BETA-9d42';
 const globalMark = MARKS?.global ?? 'HV-GLOBAL-e05f';
 const messageMark = MARKS?.message ?? 'HV-MESSAGE-1a88';
-const C = CLAUSES ?? { chat: 'HV-READ-CHAT=', global: 'HV-READ-GLOBAL=', message: 'HV-READ-MESSAGE=' };
+// THE CLAUSE MOVED WITH THE MARKER. These are the preset-prompt clauses (`HV-PRESET-CHAT=` etc.); the earlier
+// `HV-READ-*` clauses belonged to a marker placed in generateRaw's caller-supplied `ordered_prompts`, which pinned
+// does not substitute (generateRaw.ts:492-497). Keeping the old strings here would make every wire assertion red for
+// a reason that has nothing to do with the product, so the default tracks the vehicle.
+const C = CLAUSES ?? { chat: 'HV-PRESET-CHAT=', global: 'HV-PRESET-GLOBAL=', message: 'HV-PRESET-MESSAGE=' };
 
 const observed = {};
 for (const subject of subjects) {
@@ -102,12 +106,20 @@ for (const subject of subjects) {
     const mechanismOf = entry => {
         const raw = typeof entry?.promptRaw === 'string' ? entry.promptRaw : null;
         const rendered = typeof entry?.renderedWithMacroEngine === 'string' ? entry.renderedWithMacroEngine : null;
+        // ON THE PRESET VEHICLE THE PROMPT THAT MATTERS IS THE STAGED PRESET PROMPT, read back through the helper's
+        // own reader at generation time (`getPreset(name).prompts[...]`). `promptRaw`/`renderedWithMacroEngine` are
+        // the probe's substitution of a string the probe chose, which is NOT what the provider received on this
+        // vehicle -- they are kept as a second opinion, and the preset read-back is authoritative when present.
+        const staged = typeof entry?.readBack?.content === 'string' ? entry.readBack.content : null;
         const wire = body(entry);
         return {
-            rawHasMacroSyntax: raw !== null && /\{\{get(?:global)?var::/.test(raw),
-            renderedHasNoMacroSyntax: rendered !== null && !/\{\{get(?:global)?var::/.test(rendered),
-            renderedCarriesValue: rendered !== null && (rendered.includes(chat) || rendered.includes(chatBeta) || rendered.includes(globalMark)),
-            wireHasRenderedForm: rendered !== null && rendered.includes(C.chat ?? 'HV-READ-CHAT=') && wire.includes(String(rendered).split('\u0000')[0].slice(0, 60)),
+            staged,
+            rawHasMacroSyntax: (staged ?? raw) !== null && /\{\{(?:get|getglobal)var::/.test(String(staged ?? raw)),
+            renderedHasNoMacroSyntax: staged === null ? (rendered !== null && !/\{\{(?:get|getglobal)var::/.test(rendered)) : !/\{\{(?:get|getglobal)var::/.test(staged),
+            renderedCarriesValue: staged === null
+                ? (rendered !== null && (rendered.includes(chat) || rendered.includes(chatBeta) || rendered.includes(globalMark)))
+                : (staged.includes(chat) || staged.includes(chatBeta) || staged.includes(globalMark) || staged.includes(messageMark)),
+            wireHasRenderedForm: wire.includes(String(staged ?? rendered ?? '').split('\u0000')[0].slice(0, 60)),
             wireStillHasRawForm: raw !== null && wire.includes(raw),
             raw,
             rendered,
@@ -134,7 +146,7 @@ for (const subject of subjects) {
     const deleteMechanismShown = deleteMechanism.rawHasMacroSyntax === true
         && deleteMechanism.renderedHasNoMacroSyntax === true
         && typeof deleteMechanism.rendered === 'string'
-        && deleteMechanism.rendered.trim().endsWith(String(C.chat ?? 'HV-READ-CHAT='));
+        && deleteMechanism.rendered.trim().endsWith(String(C.chat ?? 'HV-PRESET-CHAT='));
 
     // SCOPES
     const globalOnWire = hasClause(globalSet, C.global, globalMark);
@@ -165,6 +177,10 @@ for (const subject of subjects) {
     const restartCase = caseOf(restartLeg, 'reload-chat') ?? caseOf(restartLeg, 'chat-alpha');
     const restartWireValue = hasClause(restartCase, C.chat, chat) || hasClause(restartCase, C.chat, chatBeta) || hasEmptyClause(restartCase, C.chat);
     const restartIsNewProcess = Boolean(restartLeg?.provenance?.serverPid) && restartLeg?.provenance?.serverPid !== leg?.provenance?.serverPid;
+    // THE STAGED PRESET MUST EXIST ON BOTH SUBJECTS BEFORE EITHER IS JUDGED, and the probe now reports it. Without
+    // this, a leg would generate from whatever preset the tree happened to carry and every wire assertion would be
+    // about the wrong prompt -- red, or worse green, for a reason that has nothing to do with the product.
+    const presetStaged = subjects.map(subject => on[subject]?.fixture?.afterWrite?.present === true);
     const survivesRestart = Boolean(restartCase?.request) && restartWireValue && restartIsNewProcess;
 
     // THE OFF CONTROL
@@ -201,6 +217,10 @@ for (const subject of subjects) {
 const guards = {};
 const subjectGuards = {
     legsPresent: subjects.map(subject => observed[subject].legPresent),
+    // THE PRESET THE MARKER RIDES MUST BE ON DISK ON BOTH SUBJECTS. Registered as its own guard rather than folded
+    // into the wire assertions, because "the preset was staged" and "the value reached the wire" are different
+    // claims and a single red must not leave a reader guessing which one failed.
+    presetStaged: subjects.map((subject, index) => presetStaged[index]),
     sameApiSurface: subjects.map(subject => {
         const surface = observed[subject].apiSurface;
         return Boolean(surface) && surface.pinnedCommit === (on.pinned?.apiSurface?.pinnedCommit ?? null) && surface.scopes.length === 7 && surface.exportCount >= 14;
