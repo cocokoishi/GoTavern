@@ -714,13 +714,24 @@ try {
         // `getContext` is exposed on window.SillyTavern, NOT exported by script.js -- the same defect as line 601,
         // which was fixed there and missed here. Run 40378609525 died on it AFTER first-turn-saved went green.
         const context = window.SillyTavern.getContext();
+        const chat = context.chat ?? [];
+        // THE ROLE+TEXT SEQUENCE, not only the length. `carriesMarker` alone proved the USER turn came back; it never
+        // said whether the ASSISTANT REPLY did, and that is precisely the difference run 40477360391 measured at the
+        // provider (GoTavern 7 messages, pinned 6). Two explanations fit that observation identically -- "pinned
+        // drops the reply from context" and "pinned reloaded before its own write landed" -- and this record is what
+        // separates them, because it says what each backend's `chat` HELD at the moment the second turn was sent.
+        const sequence = chat.map(entry => ({ role: entry?.is_user === true ? 'user' : 'assistant', text: String(entry?.mes ?? '').slice(0, 40) }));
         return {
             settingsReady: script.settingsReady === true,
             messages: document.querySelectorAll('#chat .mes').length,
-            chatLength: (context.chat ?? []).length,
+            chatLength: chat.length,
             chatId: context.chatId ?? null,
-            carriesMarker: (context.chat ?? []).some(entry => String(entry?.mes ?? '').includes('Q20_FIRST_TURN_MARKER')),
-            lastIsUser: (context.chat ?? [])[context.chat.length - 1]?.is_user === true,
+            carriesMarker: chat.some(entry => String(entry?.mes ?? '').includes('Q20_FIRST_TURN_MARKER')),
+            // DID THE REPLY SURVIVE THE RELOAD? The peer's reply carries a `Q20_REPLY_n` marker, so its presence is a
+            // measurement rather than an assumption.
+            carriesReply: chat.some(entry => /Q20_REPLY_\d+/.test(String(entry?.mes ?? ''))),
+            sequence,
+            lastIsUser: chat[chat.length - 1]?.is_user === true,
         };
     });
     // THE CONNECTION IS RE-APPLIED, and that is recorded rather than hidden: the peer's port is ephemeral and this
@@ -757,6 +768,14 @@ try {
     report.afterReload = { ...afterReload, reopened, reconnected, settingsReadyAfterReload: readyReload };
     step('reload-reads-the-chat', afterReload.carriesMarker === true, JSON.stringify(report.afterReload));
     step('reload-chat-identity', typeof afterReload.chatId === 'string' && afterReload.chatId.length > 0, `chatId=${afterReload.chatId}`);
+    // MOMENT 1 OF 3: WHAT THE FRESH PAGE HELD. This is the step run 40477360391 could not answer, and it decides
+    // between two explanations of the 45-byte request difference that fit the provider record identically --
+    // "pinned excludes the reply from context" (a PRODUCT finding) and "pinned reloaded before its own write
+    // landed" (a HARNESS ordering defect). `reload-reads-the-chat` above only ever asserted the USER marker, so a
+    // reloaded chat missing the assistant reply passed it. This step fails BY NAME when the reply is absent, and the
+    // whole role+text sequence is carried in the artefact either way.
+    step('reload-carried-the-reply', afterReload.carriesReply === true,
+        JSON.stringify({ carriesReply: afterReload.carriesReply, chatLength: afterReload.chatLength, sequence: afterReload.sequence }));
 
     // 3. A SECOND TURN AND A SWIPE ON THE SAME CHAT.
     //
@@ -780,6 +799,9 @@ try {
     // stored assistant message has EMPTY text on BOTH subjects, so requiring text would turn a known, equally-observed
     // condition into a red attributed to this leg. The condition is carried in the artefact as
     // `emptyReplyOnBothSubjects` and its cause is an OPEN finding, not a chosen value.
+    // MOMENT 2 OF 3: THE CHAT IMMEDIATELY BEFORE THE SECOND SEND, in the SAME evaluation as the click so nothing can
+    // change between the reading and the action. This is the state the second-turn request is assembled from, and it
+    // is the measurement that separates the two hypotheses about the 45-byte difference.
     const secondTurn = await page.evaluate(async marker => {
         const script = await import('./script.js');
         const textarea = document.querySelector('#send_textarea');
@@ -792,10 +814,12 @@ try {
         // followed ran while the page was still generating.
         const before = chat.length;
         const baseline = { chatLength: chat.length, lastTextLength: String(tail?.mes ?? '').length };
+        const sequenceBefore = chat.map(entry => ({ role: entry?.is_user === true ? 'user' : 'assistant', text: String(entry?.mes ?? '').slice(0, 40) }));
+        const carriesReplyBefore = chat.some(entry => /Q20_REPLY_\d+/.test(String(entry?.mes ?? '')));
         textarea.value = 'Q20 second turn input';
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
         button.click();
-        return { clicked: true, before, baseline };
+        return { clicked: true, before, baseline, sequenceBefore, carriesReplyBefore };
     }, MARKERS.second);
     const peerCompletionsBeforeSecondTurn = peer.requests.filter(entry => /chat\/completions/.test(entry.path ?? '')).length;
     // `requireText` is TRUE again, and it was FALSE only for as long as the peer answered JSON to a streaming request.
@@ -830,6 +854,19 @@ try {
     }, { marker: MARKERS.second, before: secondTurn?.before ?? 0 }) : { wroteMarker: false, reason: 'the reply never settled' };
     report.secondTurnMarker = marked;
     step('second-turn-marker-written', marked?.wroteMarker === true, JSON.stringify(marked));
+    // MOMENT 3 OF 3: THE CHAT AFTER THE SECOND REPLY IS PERSISTED, with its role+text sequence. Together with
+    // `afterReload.sequence` (moment 1) and `secondTurn.sequenceBefore` (moment 2) this makes the whole history of each
+    // backend's `chat` visible, which is what decides whether the 45-byte request difference came from CONTEXT
+    // ASSEMBLY (a product finding) or from WRITE TIMING AROUND THE RELOAD (a harness ordering defect).
+    report.afterSecondReply = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        const chat = script.chat ?? [];
+        return {
+            chatLength: chat.length,
+            sequence: chat.map(entry => ({ role: entry?.is_user === true ? 'user' : 'assistant', text: String(entry?.mes ?? '').slice(0, 40) })),
+            carriesReply: chat.filter(entry => /Q20_REPLY_\d+/.test(String(entry?.mes ?? ''))).length,
+        };
+    });
     // THE PRECONDITION THE SWIPE ITSELF CHECKS. Asserted here so a swipe that refuses is never read as a finding.
     const swipePrecondition = await page.evaluate(async () => {
         const script = await import('./script.js');

@@ -63,6 +63,57 @@ const contextRequests = report => (report?.peerRequests ?? []).filter(entry => /
 const marker = report => report?.markers?.first ?? null;
 const short = entry => (entry ? { sha256: entry.sha256.slice(0, 12), byteLength: entry.byteLength } : null);
 
+/**
+ * HOW MANY `messages` a recorded request carried. Read from the body for a MEASUREMENT only -- equality is still
+ * judged by `sha256` (doctrine rule 2). Used to say "7 vs 6" in a diagnosis, never to decide equality.
+ */
+const messageCount = entry => {
+    try {
+        const parsed = JSON.parse(entry?.body ?? '{}');
+        return Array.isArray(parsed.messages) ? parsed.messages.length : null;
+    } catch {
+        return null;
+    }
+};
+
+/**
+ * WHICH EXPLANATION FITS A SECOND-TURN REQUEST DIFFERENCE -- the question the lead's ruling says the earlier evidence
+ * could not answer, answered from the three recorded moments rather than from reasoning.
+ *
+ * The two candidates produce IDENTICAL provider observations:
+ *   harness-ordering  the reply was not yet in the backend's `chat` when the request was assembled, because the
+ *                     reload happened before that backend's own write landed. The fresh page then holds
+ *                     [greeting, marker] and the request carries no reply -- one message fewer.
+ *   product-context   the reply WAS in `chat` (the page shows it, the request follows) and the backend still omitted
+ *                     it from the array it sent. Same byte delta, different owner.
+ * They are separated by whether the reply was present AT THE MOMENT OF THE SEND, which is `carriesReplyBefore`.
+ */
+const diagnose = (reports, go, node) => {
+    const state = subject => {
+        const report = reports[subject];
+        return {
+            afterReload: report?.afterReload?.carriesReply ?? null,
+            beforeSecondSend: report?.secondTurn?.carriesReplyBefore ?? null,
+            requestMessages: messageCount(subject === 'gotavern' ? go : node),
+        };
+    };
+    const g = state('gotavern');
+    const p = state('pinned');
+    const differs = g.requestMessages !== p.requestMessages;
+    const subjectMissing = !p.beforeSecondSend && g.beforeSecondSend;
+    let verdict;
+    if (!differs) {
+        verdict = 'no message-count difference: the request difference is not about reply presence';
+    } else if (subjectMissing) {
+        verdict = 'HARNESS ORDERING: the reply was ABSENT from the pinned chat at the moment of the second send, so the shorter request reflects a reload that preceded the write, not a context-assembly difference';
+    } else if (p.beforeSecondSend === true) {
+        verdict = 'PRODUCT FINDING: the reply WAS present in the pinned chat at the moment of the second send and the request still omits it, so the difference is in CONTEXT ASSEMBLY';
+    } else {
+        verdict = `UNRESOLVED: pinned reply presence before the send is ${JSON.stringify(p.beforeSecondSend)} -- the leg did not record it`;
+    }
+    return { verdict, differs, gotavern: g, pinned: p };
+};
+
 function guard(name, run) {
     const problems = run();
     guards[name] = problems.length === 0;
@@ -164,7 +215,32 @@ guard('nodeEqualsGoAfterReload', () => {
     const node = contextRequests(reports.pinned)[1] ?? null;
     if (!go || !node) return ['one of the subjects produced no context request for the second turn'];
     details.secondTurn = { gotavern: short(go), pinned: short(node) };
-    if (go.sha256 !== node.sha256) return [`the second turn's request differs: gotavern ${go.sha256.slice(0, 12)} (${go.byteLength} B) vs pinned ${node.sha256.slice(0, 12)} (${node.byteLength} B)`];
+    // THE DIAGNOSIS IS PART OF THE GUARD, not a note beside it. When this guard fails, two explanations fit the
+    // provider record identically -- "the backend excludes the reply from the context it assembles" (a PRODUCT
+    // finding) and "the reply was not in the backend's `chat` when the request was assembled, because the reload
+    // came before the write landed" (a HARNESS ordering defect). The three recorded moments separate them:
+    //   moment 1  afterReload.sequence / carriesReply     what the FRESH PAGE held
+    //   moment 2  secondTurn.sequenceBefore               what the chat held IMMEDIATELY BEFORE the send
+    //   moment 3  afterSecondReply.sequence               what it held once the reply was persisted
+    // The verdict is emitted as `diagnosis` so a red says WHICH one it is instead of leaving the reader to re-derive it.
+    details.replyPresence = {
+        gotavern: {
+            afterReload: { carriesReply: reports.gotavern?.afterReload?.carriesReply ?? null, sequence: reports.gotavern?.afterReload?.sequence ?? null },
+            beforeSecondSend: reports.gotavern?.secondTurn?.carriesReplyBefore ?? null,
+            afterSecondReply: reports.gotavern?.afterSecondReply ?? null,
+            requestMessageCount: messageCount(go),
+        },
+        pinned: {
+            afterReload: { carriesReply: reports.pinned?.afterReload?.carriesReply ?? null, sequence: reports.pinned?.afterReload?.sequence ?? null },
+            beforeSecondSend: reports.pinned?.secondTurn?.carriesReplyBefore ?? null,
+            afterSecondReply: reports.pinned?.afterSecondReply ?? null,
+            requestMessageCount: messageCount(node),
+        },
+    };
+    details.secondTurnDiagnosis = diagnose(reports, go, node);
+    if (go.sha256 !== node.sha256) {
+        return [`the second turn's request differs: gotavern ${go.sha256.slice(0, 12)} (${go.byteLength} B) vs pinned ${node.sha256.slice(0, 12)} (${node.byteLength} B); ${details.secondTurnDiagnosis.verdict}`];
+    }
     return [];
 });
 
