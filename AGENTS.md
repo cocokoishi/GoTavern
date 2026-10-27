@@ -905,6 +905,22 @@ rather than by review.
     (`git merge-base --is-ancestor <tip> origin/main`), because deleting a branch is the one operation that could
     break a citation made by branch name.
 
+78. **A result that arrives too easily is a claim you have not tested yet.** This is the heuristic behind most of
+    the rules above, stated by the lane that produced the most instances of it. Three of its own, in one night:
+    a `serverPid` claim that "felt obviously right" and was a blind spot measured off the console stream; a
+    redaction it could have widened so the failing guard would pass, which would have turned a measured difference
+    into a permitted one; and nine backup branches it could have deleted on the assumption that merging implies
+    supersession, which would have been free right up until the one time it was not.
+    **What makes this a rule rather than a habit is the asymmetry: the check costs a few minutes and the cheap
+    version costs NOTHING VISIBLE.** Nothing fails when the assumption is right, so nothing enforces the check, and
+    the one time the assumption is wrong the loss is silent — a withdrawn citation, a difference that stops being
+    compared, a branch holding the only copy of something. So the trigger is the FEELING of an easy result, not a
+    failing test, and the response is one cheap query: does a capture already answer this, does the consumer of
+    this list still compare what I am about to suppress, does `main` contain every file this branch has.
+    Corollary for whoever reads a green run: the same question applies to it. A gate that passed on the first try,
+    a comparison with no differing field, a patch that applied cleanly — each is a candidate for "arrived too
+    easily", and the way to test it is to try to make it fail.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
