@@ -470,11 +470,14 @@ const PRODUCTION_TRANSPORT_DIFFERENCES = new Map([
     //
     //   pinned   node-fetch puts the exact string on the wire. `'Bearer ' + apiKey`
     //            (chat-completions.js:933) with an EMPTY key is `Bearer ` -- one trailing space -- and the recorded
-    //            capture shows it, because the harness rewrites the value to `Bearer <redacted>` only on
-    //            /^Bearer\s/, which a space satisfies.
+    //            capture shows it, because the harness rewrites a bearer value to `Bearer <redacted>` on
+    //            /^Bearer(\s|$)/, which `Bearer ` satisfies.
     //   GoTavern `net/http`'s Header.writeSubset runs textproto.TrimString on every value, so Go CANNOT emit
     //            trailing whitespace through its standard request path at all. Measured on run 40474370192's
-    //            provider-wire-captures artifact: 66,101,97,114,101,114 -- six bytes, no whitespace.
+    //            provider-wire-captures artifact: 66,101,97,114,101,114 -- six bytes, no whitespace. That same
+    //            predicate must therefore ALSO accept a scheme with an EMPTY remainder, or the two sides are
+    //            normalised differently and compared as different data -- which is what run 40539118984's
+    //            `custom-empty-api-key` red was, reported as pinned `Bearer <redacted>` vs GoTavern `Bearer`.
     //   scope    the trailing space is INTERNAL when the key is non-empty (`Bearer sk-...`), so ONLY an empty key
     //            differs. Fixing it means writing the request over a raw connection, bypassing Header entirely, and
     //            maintaining that against every redirect, retry, TLS and proxy path -- a production-transport change
@@ -513,7 +516,20 @@ function normalizeProvider(recording, mockAddress, declaredCredentialNames = [])
     for (const request of provider.requests) {
         request.headers = request.headers.map(header => {
             if (headerNameEquals(header.name, 'Host')) return { name: header.name, value: '<mock-authority>' };
-            if (headerNameEquals(header.name, 'authorization') && /^Bearer\s/i.test(header.value)) {
+            // THE REDACTION PREDICATE MUST BE SATISFIED BY BOTH SIDES OR BY NEITHER, because it is applied to
+            // each capture INDEPENDENTLY and the two captures are then compared as normalised data. It used to
+            // be /^Bearer\s/, which pinned's `Bearer ` satisfies -- the trailing space `'Bearer ' + apiKey`
+            // (chat-completions.js:933) leaves behind when the key is empty -- and GoTavern's `Bearer` does not,
+            // because net/http's Header.writeSubset trims the optional whitespace RFC 7230 3.2.4 says a
+            // recipient MUST strip. So the pinned capture was rewritten to the marker while the GoTavern capture
+            // was left raw, and the comparator was handed `Bearer <redacted>` vs `Bearer`: a scenario that could
+            // never pass, failing at a header whose entire difference was the harness's own asymmetry. Accepting
+            // a bearer scheme whose remainder is EMPTY (`Bearer` at end of value) as well as one followed by
+            // whitespace makes both transports normalise to the SAME marker. Nothing is weakened: the marker
+            // still records only presence and scheme, and the declared-key assertion (:690-713) still compares
+            // the RAW value modulo optional whitespace, so a missing header, a different scheme and a non-empty
+            // key all still fail.
+            if (headerNameEquals(header.name, 'authorization') && /^Bearer(\s|$)/i.test(header.value)) {
                 return { name: header.name, value: 'Bearer <redacted>' };
             }
             const redaction = [...REDACTED_PROVIDER_HEADERS.keys()].find(key => headerNameEquals(header.name, key));
@@ -798,6 +814,25 @@ function assertProviderBodyDigests(name, label, capture) {
     }
 }
 
+// A DIFFERENCE AT provider.requests[N].headers[M] MUST NAME THE HEADER IT IS ABOUT.
+//
+// The comparator walks the sorted header array BY INDEX, so `headers[1].value` does not say which header moved
+// -- and when the two sides carry different header sets, index M is not even the same header on both sides,
+// which is exactly the case where a reader most needs the name. Resolving the name from the captures that were
+// just compared means the message cannot disagree with the comparison, and when the two sides disagree at that
+// index the message says so rather than implying they are the same header. DIAGNOSTIC ONLY: nothing here
+// changes what is compared.
+function describeComparedHeader(reference, candidate, differencePath) {
+    const match = /^\$\.provider\.requests\[(\d+)\]\.headers\[(\d+)\]/.exec(String(differencePath ?? ''));
+    if (!match) return '';
+    const headerAt = capture => capture?.provider?.requests?.[Number(match[1])]?.headers?.[Number(match[2])]?.name;
+    const pinnedName = headerAt(reference);
+    const goTavernName = headerAt(candidate);
+    if (pinnedName === undefined && goTavernName === undefined) return '';
+    if (pinnedName === goTavernName) return ` (header ${JSON.stringify(pinnedName)})`;
+    return ` (header pinned ${JSON.stringify(pinnedName)} vs GoTavern ${JSON.stringify(goTavernName)})`;
+}
+
 function assertGoTavernMatchesPinned(pinnedCaptures, goTavernCaptures) {
     const names = Object.keys(pinnedCaptures);
     if (names.length === 0) {
@@ -883,7 +918,7 @@ function assertGoTavernMatchesPinned(pinnedCaptures, goTavernCaptures) {
         const result = compareObservations(reference, candidate);
         if (!result.matches) {
             const detail = result.differences.slice(0, 20).map(difference =>
-                `  ${difference.path}: ${difference.reason}\n    pinned Node: ${JSON.stringify(difference.reference)}\n    GoTavern:    ${JSON.stringify(difference.candidate)}`).join('\n');
+                `  ${difference.path}${describeComparedHeader(reference, candidate, difference.path)}: ${difference.reason}\n    pinned Node: ${JSON.stringify(difference.reference)}\n    GoTavern:    ${JSON.stringify(difference.candidate)}`).join('\n');
             throw new Error(`${name}: the GoTavern capture differs from the pinned capture\n${detail}`);
         }
         console.log(`provider-wire differential closed for ${name}: ${result.compared.join(', ')} compared, ${result.skipped.join(', ')} unobserved in both`);
