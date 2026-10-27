@@ -119,48 +119,74 @@ export function chatCarrying(files, marker) {
  * click before `settingsReady` emptied the chat). Returns true only if the flag was observed true.
  */
 export async function openPage(page, baseURL) {
-    await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
-    // THE `APP_READY` HOOK IS INSTALLED BEFORE ANY WAIT, not inside the readiness loop.
+    // THE `APP_READY` HOOK MUST EXIST BEFORE THE PAGE'S OWN SCRIPT RUNS, and `addInitScript` is the only Playwright
+    // mechanism that runs earlier than every other page script.
     //
-    // `APP_READY` is the LAST statement of pinned's `firstLoadInit` (script.js:790), emitted after
-    // `initLoaderHandle.hide()`. `settingsReady` flips far EARLIER (script.js:8046, inside `getSettings`, which
-    // `firstLoadInit` calls at :752). An event that has ALREADY fired cannot be observed by a listener added
-    // afterwards, so a hook installed only once the loop notices `settingsReady` would be a race -- and a race that
-    // fails towards "ready", which is the dangerous direction.
+    // THE MEASUREMENTS THAT GOT HERE, in order:
+    //  * `settingsReady` alone (the original): too early. In pinned it is set INSIDE `getSettings` (script.js:8046),
+    //    which `firstLoadInit` calls at :752. Run 40513507504 pressed send inside the window and the page finished
+    //    initialising MID-GENERATION: two `generation_started` events, `chatLength` stuck at 1, the user turn
+    //    discarded.
+    //  * `#preloader` removal (still waited on below, harmlessly): ALSO too early. `yoinkPreloader()` in
+    //    action-loader.js:609 removes it "once after the first loader hide" -- i.e. at `initLoaderHandle.hide()`
+    //    (script.js:788), which is BEFORE `fixViewport()` (:789) and before `APP_READY` (:790).
+    //  * A listener installed after `domcontentloaded`: TOO LATE. `firstLoadInit()` is called at the END of the
+    //    ready handler (script.js:12591), so a slow module can have finished init before `domcontentloaded` fires.
+    //    Run 40518720310 measured exactly this: BOTH legs reported `page-loaded: settingsReady=false` with no page
+    //    error and no console output, because the event had already fired and my listener never saw it.
     //
-    // Installing it here, immediately after `domcontentloaded` and before `waitForFunction`, means the listener exists
-    // while init is still running. `eventSource` is created during module evaluation, so it is available at this
-    // point; the `catch` keeps a shape change from turning a readiness wait into a crash, because the timeout below
-    // already reports "not ready" by name.
-    await page.evaluate(async () => {
-        try {
-            const constants = await import('./scripts/constants.js');
+    // An event that has already fired cannot be observed by a listener added afterwards, and the failure presents as
+    // "never ready" -- so the hook is registered with `addInitScript`, which Playwright evaluates in every frame
+    // BEFORE any page script, and the flag it sets is read by the readiness loop below.
+    await page.addInitScript(() => {
+        window.__q20AppReady = false;
+        // `eventSource` is created during module evaluation of script.js and is assigned onto `window.SillyTavern`.
+        // Poll for it from a timer loop that starts before init, then subscribe ONCE. `'app_ready'` is the LITERAL
+        // pinned emits (public/scripts/events.js:5 `APP_READY: 'app_ready'`), not a name derived from the constant.
+        let attempts = 0;
+        let subscribed = false;
+        const attach = () => {
+            attempts += 1;
             const source = window.SillyTavern?.eventSource;
-            window.__q20SawAppReady = false;
-            if (constants?.event_types?.APP_READY && source?.on) {
-                source.on(constants.event_types.APP_READY, () => { window.__q20SawAppReady = true; });
+            if (source && typeof source.on === 'function') {
+                source.on('app_ready', () => { window.__q20AppReady = true; });
+                subscribed = true;
+                return;
             }
-        } catch { /* see above: a missing hook must not crash the wait; the timeout reports it */ }
+            if (attempts < 6000) setTimeout(attach, 5);
+        };
+        attach();
+        // THE FALLBACK, because a subscription that loses the race is exactly the failure this hook exists to remove:
+        // if `app_ready` already fired before the subscription existed, the callback above never runs and the leg
+        // would wait out its budget. `fixViewport()` (script.js:793) is the statement immediately BEFORE the
+        // `APP_READY` emit (:790) and it leaves a durable, observable side effect on `document.body`:
+        //     document.body.style.position = 'absolute'; ... ; document.body.style.position = '';
+        // The empty-string assignment is itself the marker: `style.position` is set by the product (so the attribute is
+        // non-empty) and its value is `''` only after init has torn it down. A body that never had it set reports
+        // `''` too, so the check requires the ATTRIBUTE to be present, which the product's own write guarantees.
+        const watchInitTail = () => {
+            if (window.__q20AppReady === true) return;
+            const style = document.body && document.body.getAttribute('style');
+            if (subscribed !== true && typeof style === 'string' && style.includes('position') && document.body.style.position === '') {
+                // init has been through `fixViewport`; the `APP_READY` emit is the very next statement, so a leg that
+                // sees this state has, for practical purposes, waited it out. Record that the FALLBACK was used, so an
+                // artefact says which path established readiness instead of implying the subscription worked.
+                window.__q20AppReadyViaFallback = true;
+                window.__q20AppReady = true;
+                return;
+            }
+            setTimeout(watchInitTail, 25);
+        };
+        watchInitTail();
     });
+    await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 120000 });
     return page.evaluate(async () => {
         const script = await import('./script.js');
         const started = performance.now();
         while (performance.now() - started < 90000) {
-            // `settingsReady` IS NOT THE WHOLE READINESS CONTRACT, and run 40513507504 measured the difference.
-            //
-            // The pinned edition emits `app_initialized` and `app_ready` AFTER `settingsReady` is already true. That
-            // leg returned as soon as the flag flipped, the drive pressed send, and the page finished initialising
-            // MID-GENERATION. Measured, in event order:
-            //     generation_started (…564366) -> app_initialized (…564954) -> app_ready (…564975)
-            //     -> generation_started (…565366)
-            // TWO `generation_started` events against the GoTavern leg's ONE. With the chat re-initialised under the
-            // in-flight send, the user turn was never committed: every event reported `chatLength: 1`, the file stayed
-            // at two lines (header + greeting), and `first-turn-saved` failed on the MARKER -- not on the reply. The
-            // comparator then correctly refused and diagnosed `HARNESS ORDERING`.
-            //
-            // So readiness requires BOTH: the settings are loaded AND the application has finished initialising.
-            if (script.settingsReady && window.__q20SawAppReady === true) return true;
+            // BOTH facts: settings loaded AND the application has emitted APP_READY.
+            if (script.settingsReady && window.__q20AppReady === true) return true;
             const onboarding = document.querySelector('.popup .onboarding');
             if (onboarding) {
                 const input = onboarding.closest('.popup')?.querySelector('.popup-input');
