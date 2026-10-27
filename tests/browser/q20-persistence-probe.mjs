@@ -60,6 +60,16 @@ import { seedLegConfig } from './seed-leg-config.mjs';
 import { attachUrlRecorder } from './url-recorder.mjs';
 import { ensurePinnedExtensionInstalled } from './install-pinned-extension.mjs';
 import { pinnedExtension } from './pinned-extensions.mjs';
+// THE DRIVE, SHARED WITH THE regenerate AND continue LEGS. What is imported here is exactly what this file now calls:
+// the page/send/save primitives that used to be inline copies. `configureConnection`, `silenceAndObserve` and
+// `sendTurn` are NOT imported yet -- this file still carries its own connection step, its own observer install
+// (which counts listener timings, a field the other legs do not record) and its own second turn (which writes the
+// per-subject marker into the chat); swapping those is a separate, separately-verifiable change and is NOT done here,
+// because doing it in the same commit would make "the artefact did not move" unprovable.
+import {
+    readChatFiles as driveReadChatFiles, openPage as driveOpenPage,
+    openCharacter as driveOpenCharacter, chatCarrying,
+} from './q20-persistence-drive.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -214,40 +224,10 @@ function step(name, ok, detail = null) {
 }
 
 // THE CHAT FILES THE PRODUCT WROTE. Read from disk, never written by this leg.
-async function readChatFiles() {
-    const chatsRoot = path.join(dataRoot, 'default-user', 'chats');
-    const found = [];
-    const walk = async directory => {
-        let entries = [];
-        try {
-            entries = await fs.readdir(directory, { withFileTypes: true });
-        } catch {
-            return;
-        }
-        for (const entry of entries) {
-            const full = path.join(directory, entry.name);
-            if (entry.isDirectory()) await walk(full);
-            else if (entry.name.endsWith('.jsonl')) {
-                const body = await fs.readFile(full, 'utf8');
-                found.push({
-                    file: path.relative(path.join(dataRoot, 'default-user'), full),
-                    bytes: Buffer.byteLength(body),
-                    sha256: createHash('sha256').update(body).digest('hex'),
-                    lines: body.split('\n').filter(line => line.trim().length > 0).length,
-                    messages: body.split('\n').filter(line => line.trim().length > 0).map(line => {
-                        try {
-                            return JSON.parse(line);
-                        } catch {
-                            return null;
-                        }
-                    }).filter(Boolean),
-                });
-            }
-        }
-    };
-    await walk(chatsRoot);
-    return found;
-}
+//
+// LIFTED (q20-persistence-drive.mjs) so the regenerate and continue legs read the SAME way this one does; the body is
+// unchanged, and `readChatFiles()` is kept as a zero-argument local because every call site below passes nothing.
+const readChatFiles = () => driveReadChatFiles(dataRoot);
 
 const carries = (files, marker) => files.some(file => (file.messages ?? []).some(message => String(message?.mes ?? '').includes(marker)));
 
@@ -408,68 +388,34 @@ try {
     const readPageSide = async () => page.evaluate(() => window.__q20Events ?? []);
     const disarmReloadRecorder = async () => ({ disarmed: true });
 
-    const openPage = async () => {
-        await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
-        await page.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 120000 });
-        // THE PAGE MUST BE READY BEFORE A CLICK IS A USER ACTION. Run 40269030050 measured a #send_but click that
-        // emptied the chat because the listener was not installed yet; `settingsReady` is script.js's own flag.
-        return page.evaluate(async () => {
-            const script = await import('./script.js');
-            const started = performance.now();
-            while (performance.now() - started < 90000) {
-                if (script.settingsReady) return true;
-                const onboarding = document.querySelector('.popup .onboarding');
-                if (onboarding) {
-                    const input = onboarding.closest('.popup')?.querySelector('.popup-input');
-                    if (input) {
-                        input.value = 'Probe User';
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                    onboarding.closest('.popup')?.querySelector('.popup-button-ok')?.click();
-                }
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-            return false;
-        });
-    };
+    // THE PAGE, LIFTED: `driveOpenPage` is byte-for-byte the body this file used to carry (domcontentloaded, the
+    // preloader wait, then `settingsReady` with the 90 s bound and the onboarding dismissal). Kept as a thunk so every
+    // call site below -- the first load and the fresh reload -- is unchanged.
+    const openPage = () => driveOpenPage(page, baseURL);
 
     // SELECT A REAL CHARACTER, WHICH IS THE PRECONDITION THE PRODUCT ITSELF CHECKS. The card a fresh install
     // actually renders is `.character_select#CharID<n>` (script.js:945); `.avatar[data-type="character"]` belongs to
     // the interactable lists and is absent here. The card's identity is taken from the page's own `characters` array
     // so a mismatch between the DOM and the model is visible in the artefact rather than assumed.
-    const openCharacter = async () => page.evaluate(async () => {
+    //
+    // LIFTED, WITH ONE DELIBERATE CHANGE STATED HERE: `driveOpenCharacter` takes the card's NAME and REFUSES when the
+    // page does not list it, instead of clicking the first `.character_select` it finds. On THIS leg that is
+    // behaviour-preserving in the only sense that matters -- a fresh-install tree holds exactly one card, so the
+    // first card IS the named card -- and the name it opens is read back out of the page's own `characters` array
+    // below, so the refusal path can only fire on a tree with no card at all. The change exists because the
+    // regenerate/continue legs must open the card the FIRST leg opened, and "the first card that renders" is not a
+    // precondition a real user has.
+    const expectedCardName = await page.evaluate(async () => {
         const script = await import('./script.js');
         const deadline = Date.now() + 60000;
-        let card = null;
         while (Date.now() < deadline) {
-            card = document.querySelector('#rm_print_characters_block .character_select')
-                ?? document.querySelector('#rm_print_characters_block .avatar[data-type="character"]');
-            if (card) break;
+            const first = (script.characters ?? [])[0];
+            if (first?.name) return String(first.name);
             await new Promise(resolve => setTimeout(resolve, 250));
         }
-        if (!card) {
-            return { clicked: false, reason: 'no character card in #rm_print_characters_block', characters: (script.characters ?? []).map(entry => entry?.name ?? null) };
-        }
-        const chid = card.getAttribute('data-chid');
-        card.click();
-        // The page's own `getChat()` creates a fresh chat and saves it (script.js:7694), so the wait is on the
-        // PRODUCT's state: a chat id or a rendered message.
-        const settle = Date.now() + 30000;
-        while (Date.now() < settle) {
-            if ((script.chat ?? []).length > 0) break;
-            await new Promise(resolve => setTimeout(resolve, 250));
-        }
-        return {
-            clicked: true,
-            cardClass: card.className,
-            dataChid: chid,
-            thisChid: script.this_chid ?? null,
-            characterName: script.characters?.[script.this_chid]?.name ?? null,
-            characterChat: script.characters?.[script.this_chid]?.chat ?? null,
-            chatLength: (script.chat ?? []).length,
-            messages: document.querySelectorAll('#chat .mes').length,
-        };
+        return null;
     });
+    const openCharacter = () => driveOpenCharacter(page, expectedCardName);
 
     const readyFirst = await openPage();
     step('page-loaded', readyFirst === true, `settingsReady=${readyFirst}`);
@@ -837,8 +783,35 @@ try {
     report.completions = completions.length;
     step('peer-reached', completions.length >= 2, `${completions.length} chat/completions request(s); all peer requests: ${report.peerRequests.length}`);
     report.finalFiles = await readChatFiles();
-    step('final-file-reflects-swipe', (report.finalFiles ?? []).some(file => (file.messages ?? []).some(message => Array.isArray(message?.swipes) && message.swipes.length > 1)),
-        JSON.stringify((report.finalFiles ?? []).map(file => `${file.file}:${file.lines}`)));
+    // TIGHTENED, AND THIS IS A CHANGE IN THE ARTEFACT'S MEANING (stated in the commit message, not only here).
+    // THE OLD FORM: `some file has some message with swipes.length > 1`. That is satisfied by ANY chat file in the
+    // tree, by ANY message in it, including one this leg never touched and including a file a previous step left
+    // behind -- so a swipe written into the wrong chat, or a swipe that never reached disk while an unrelated
+    // collection did, both passed. It is the weakest form of this assertion and it was the only one guarding the
+    // swipe's persistence.
+    // THE NEW FORM names the chat and the message: the file that carries this leg's SECOND marker, and the LAST
+    // message in it, must have MORE swipes than the page had before the swipe AND must select the new one. The
+    // before/after counts come from `report.swipe` (the page's own `swipe_id`/`swipes`), so the file is judged
+    // against the state the UI showed rather than against a constant.
+    const swipeFile = chatCarrying(report.finalFiles, MARKERS.second);
+    const swipeBefore = report.swipe?.before ?? {};
+    const swipeAfter = report.swipe?.after ?? {};
+    const lastPersisted = swipeFile?.messages?.[swipeFile.messages.length - 1] ?? null;
+    report.swipePersisted = swipeFile ? {
+        file: swipeFile.file,
+        messageIndex: lastPersisted?.index ?? null,
+        swipesCount: lastPersisted?.swipesCount ?? null,
+        swipeId: lastPersisted?.swipeId ?? null,
+        // The message the swipe produced, judged by content: the peer's reply marker.
+        holdsReply: String(lastPersisted?.mes ?? '').startsWith('Q20_REPLY_'),
+    } : null;
+    step('final-file-reflects-swipe',
+        Boolean(swipeFile)
+        && swipeFile.messages.length === Number(swipeAfter.chatLength ?? -1)
+        && Number(lastPersisted?.swipesCount ?? 0) > Number(swipeBefore.swipes ?? 0)
+        && Number(lastPersisted?.swipeId ?? -1) === Number(swipeAfter.swipeId ?? -2)
+        && lastPersisted?.is_user === false,
+        JSON.stringify({ swipePersisted: report.swipePersisted, before: { swipes: swipeBefore.swipes, swipeId: swipeBefore.swipeId, mesId: swipeBefore.mesId }, after: { swipes: swipeAfter.swipes, swipeId: swipeAfter.swipeId }, files: (report.finalFiles ?? []).map(file => `${file.file}:${file.lines}`) }));
 } catch (error) {
     report.failure = report.failure ?? String(error?.stack ?? error);
 } finally {
