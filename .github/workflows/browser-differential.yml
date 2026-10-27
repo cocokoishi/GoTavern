@@ -1188,15 +1188,38 @@ jobs:
             echo "::error::the gotavern Q20 continue leg recorded no character name in characterOpen.characterName OR openedContext.characterName, so the pinned leg has no chat to open and nothing is claimed for this verb"
             failures=$((failures + 1))
           else
-            echo "the pinned leg will open the card the product opened: $name"
-            ptree="$work/q20-continue-tree-pinned"
-            rm -rf "$ptree"; mkdir -p "$ptree"
-            if node tests/browser/run-against-pinned.mjs q20-continue-probe.mjs -- --data-root "$ptree" \
-                --data-chat "$tree" --character "$name" --report "$work/legs/q20-continue-pinned.json"; then
-              echo "recorded the pinned Q20 continue leg"
-            else
-              echo "::error::the pinned Q20 continue leg failed to drive"
+            # THE CHAT, NOT JUST THE CARD -- the same correction the REGENERATE leg already carries, and it was
+            # MISSING here until run 40566841294 measured the cost.
+            #
+            # MEASURED THERE: both legs drove every step green (GoTavern 24/24, pinned 23/23) and the comparator then
+            # reported six guards red, ALL sharing one root cause --
+            #     sameChat:          "the two subjects continued different message indices: 4 vs 10"
+            #     sameMessageGrown:  "the two subjects ended with different message counts: 5 vs 11"
+            # Clicking a character card opens the card's LAST-USED chat. In the COPIED tree that was an 11-message chat
+            # left by an EARLIER RUN, while the GoTavern leg sat on its own 5-message chat. Each subject continued a
+            # DIFFERENT message, so `nudgeAssemblesLast`, `nodeEqualsGoContinue` and `nextRequestClean` compared two
+            # different conversations. The difference was produced entirely by which chat the card resumed.
+            #
+            # `--chat-id` is the product's own name for the conversation the GoTavern leg wrote (taken from its
+            # artefact); the probe opens it through `openCharacterChat` (pinned script.js:7744) and verifies the
+            # selection through `getContext()` before driving. Passing it makes both subjects continue THE SAME
+            # message, which is the precondition every guard below actually depends on.
+            chatid=$(node -e "const fs=require('fs'); const p=process.argv[1]; if(!fs.existsSync(p)) process.exit(0); const r=JSON.parse(fs.readFileSync(p,'utf8')); process.stdout.write(String(r.preContinue?.page?.chatId || r.openedContext?.chatId || ''))" "$work/legs/q20-continue-gotavern.json")
+            if [ -z "$chatid" ]; then
+              echo "::error::the gotavern Q20 continue leg recorded no chat id in preContinue.page.chatId OR openedContext.chatId, so the pinned leg cannot be put on the same conversation"
               failures=$((failures + 1))
+            else
+              echo "the pinned leg will open the card the product opened: $name (chat: $chatid)"
+              ptree="$work/q20-continue-tree-pinned"
+              rm -rf "$ptree"; mkdir -p "$ptree"
+              if node tests/browser/run-against-pinned.mjs q20-continue-probe.mjs -- --data-root "$ptree" \
+                  --data-chat "$tree" --character "$name" --chat-id "$chatid" \
+                  --report "$work/legs/q20-continue-pinned.json"; then
+                echo "recorded the pinned Q20 continue leg"
+              else
+                echo "::error::the pinned Q20 continue leg failed to drive"
+                failures=$((failures + 1))
+              fi
             fi
           fi
           echo "q20_continue_failures=$failures" >> "$GITHUB_OUTPUT"
