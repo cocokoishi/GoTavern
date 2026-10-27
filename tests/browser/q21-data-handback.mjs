@@ -315,7 +315,6 @@ async function listCharacters(baseURL) {
 async function gotavernWrites() {
     const binarySetting = process.env.GOTAVERN_BINARY;
     if (!binarySetting) throw new Error('GOTAVERN_BINARY is required for the GoTavern half');
-    await fs.cp(path.join(repoRoot, 'upstream', 'tokenizers'), path.join(dataRoot, 'tokenizers'), { recursive: true });
     // THE TREE MUST BE EMPTY BEFORE ANYTHING IS STAGED, OR EVERY LATER ROW COULD BE SOMEONE ELSE'S. The workflow
     // recreates the directory (rm -rf then mkdir), so this is a cheap assertion that the driver is running where it
     // thinks it is -- and it names the entries when it is not.
@@ -325,6 +324,7 @@ async function gotavernWrites() {
     if (!report.dataRootWasEmpty) {
         throw new Error(`the data root ${dataRoot} was not empty: ${JSON.stringify(existingEntries).slice(0, 300)}`);
     }
+    await fs.cp(path.join(repoRoot, 'upstream', 'tokenizers'), path.join(dataRoot, 'tokenizers'), { recursive: true });
     report.stagedCard = await stageCharacterCard(dataRoot);
     await seedLegConfig(dataRoot);
     const port = await freePort();
