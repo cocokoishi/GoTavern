@@ -1074,6 +1074,33 @@ rather than by review.
     artefacts, so it must be reproduced by a CI run whose own legs are clean (rule 75's corollary), and the continue
     comparator's guards have still never executed.
 
+85. **The fixture underneath every assertion is the cheapest place for a defect to hide, and a producer/consumer
+    SIGNATURE mismatch is invisible to the language's own checker.** This is rule 80's cheapest form: the lane
+    swept its assertions, found and fixed the twins, and the next run still produced FIVE reds -- from ONE missing
+    argument in the fixture all five rested on.
+    `startCapturePeer` called `replyText(replyIndex)` -- one argument -- while the continue probe declares
+    `replyText: (ordinal, counterpart) => ...`. So `counterpart` was `undefined` and every reply the peer served was
+    the literal string `Q20_REPLY_undefined`. **NOTHING THREW.** The page stored the text, the message count was
+    right, and SIX steps passed (`turn-1-saved`, `turn-2-saved`, `continue-issued-exactly-one-request`,
+    `continue-grew-the-same-message`, `continue-file-same-line-count`, `continue-file-metadata-appended`). Only the
+    five assertions that READ the reply failed -- and every one of those five was shaped like a finding about the
+    continue verb. Reading only the failed steps, a reviewer would have concluded that the continue path drops the
+    reply, or that the continuation is not appended to the same message. Both would have been wrong, on the run where
+    the continue comparator would otherwise have made its first-ever verdict.
+    Two consequences. A mismatch between a producer and its only consumer is invisible to `node --check`, because
+    each side compiles and each side "works" -- only the PAIR is broken; so the check belongs at the call site and
+    must cover every LIVE branch. And a step whose comparison cannot fail is not a check even when it reports FAIL:
+    `continue-control-reached` compared `beforeText` with `afterText`, both `"Q20_REPLY_undefined"`, so its text
+    comparison could not discriminate -- it went red only because a separate reply-marker requirement rejected the
+    string. The lane's own words: "the instrument was accidentally working."
+    THE FIX WAS VERIFIED BY A REPRODUCER THAT MUST KEEP REPRODUCING: before the fix the call yields
+    `Q20_REPLY_undefined`; after it, three live branches yield `Q20_REPLY_1`, `Q20_REPLY_2` and
+    `Q20_CONTINUATION_APPENDED_3 tail`. The check asserts every live branch is well formed AND that the pre-fix call
+    STILL reproduces the defect, so it cannot pass by the reproducer quietly ceasing to reproduce. That second
+    assertion is the part worth copying: a reproducer that stops reproducing is indistinguishable from a fix.
+    A second, smaller defect in the same file: `peerState` was declared AFTER `startCapturePeer`, which closes over
+    it, so the code was safe only by ordering coincidence -- the same TDZ class that file already records.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
