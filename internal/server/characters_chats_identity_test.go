@@ -45,7 +45,7 @@ import (
 //
 //	const chatsDirectory = path.join(directories.chats, item.replace('.png', ''))   // `item` is a readdir entry
 //
-// and `:1503-1504` for `/chats` (`(request.body.avatar_url).replace('.png','')`). `item.replace('.png','')` is exactly
+// and `:1503-1504` for `/chats` (`(request.body.avatar_url).replace(''.png'','')`). `item.replace` is
 // what this port does, so the KEY is correct, and the original failure message ("pinned getChats lists
 // chats/<characters[avatar].name>") described a line that does not exist at 06bde939. The red it produced (Lane CI
 // 40444357552 and 40448026086) was a red for a claim this lane no longer holds.
