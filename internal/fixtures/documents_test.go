@@ -261,15 +261,43 @@ func pinnedCommitFromTree(root string) (string, error) {
 
 var gitObjectIDPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
+// bareObjectIDPattern finds a pin written WITHOUT backticks. It is a GIT OBJECT ID, which is exactly 40
+// lowercase hex characters, and the boundaries matter in both directions:
+//
+//   - a longer run of hex is not a git id, and an earlier version of this pattern matched 38-44 and so
+//     reported a 44-character SHA-256 prefix as a "wrong pin" — a phantom defect on a correct document;
+//   - a followed-or-preceded hex character means this is a slice of a longer value, not an id. The
+//     boundary is spelled out as a negated class rather than `\b` because the id is CAPTURED as group 1:
+//     the boundary characters belong to the match but not to the value, and without the group a 40-hex id
+//     inside prose would be recorded with the character before it.
+// describesCommitPhrase recognises a document stating which commit IT is about, as opposed to naming the
+// upstream baseline. Two spellings are allowed and both name the commit explicitly:
+//
+//	Describes: commit `a5660b6...`      (the evidence ledger's own anchor)
+//	| **HEAD (main)** | `a5660b6...` |   (the HANDOFF checkpoint table)
+//
+// The phrase is what earns the exemption, so a mistyped BASELINE cannot hide here: it would have to be
+// introduced by "Describes:" or by the HEAD row, and both are checked by the ancestry rule that reads the
+// same phrase back.
+var bareObjectIDPattern = regexp.MustCompile(`(?:^|[^0-9a-f])([0-9a-f]{40})(?:$|[^0-9a-f])`)
+
+// describesCommitPhrase recognises a document stating which commit IT is about, as opposed to naming the
+// upstream baseline. Two spellings are allowed and both name the commit explicitly:
+//
+//	Describes: commit `a5660b6...`      (the evidence ledger's own anchor)
+//	| **HEAD (main)** | `a5660b6...` |   (the HANDOFF checkpoint table)
+//
+// The PHRASE is what earns the exemption, so a mistyped baseline cannot hide here: it would have to be
+// introduced by "Describes:" or by the HEAD row, and the value the ledger declares is then held to a fact
+// by the citation-ancestry check, which reads the same phrase back.
+var describesCommitPhrase = regexp.MustCompile(`(?i)(describes:\s*commit\s+\x60|head \(main\)`)
+
 // backtickedObjectIDPattern finds every object id a reader could mistake for the pin, whether it is 40
 // characters or not. The `\b`-anchored 40-character search alone cannot see the defect this gate was
-// built for: `06bde939fb1e9c4c8d8641d810f0a9165bce127` is 41 characters, so a 40-character regex simply
-// does not match it and the bad spelling passes as "no pin here".
-var backtickedObjectIDPattern = regexp.MustCompile("`([0-9a-f]{38,44})`")
-
-// bareObjectIDPattern finds a pin written WITHOUT backticks. It must not match the inside of a
-// backticked id (handled by the caller clearing matched spans first).
-var bareObjectIDPattern = regexp.MustCompile(`[0-9a-f]{38,44}`)
+// built for: a pin copied with one digit repeated is 41 characters, so a 40-character regex simply does
+// not match it and the bad spelling passes as "no pin here". The window is 38-44 so that both a dropped
+// and a duplicated character are visible.
+var backtickedObjectIDPattern = regexp.MustCompile("\x60([0-9a-f]{38,44})\x60")
 
 // pinMismatch is one object-id-shaped string in one document that is neither the pin nor a declared
 // other pin. It carries the LINE and the reason so a reader is sent to the defect rather than hunting.
@@ -294,8 +322,8 @@ func pinnedCommitMatches(doc documentFile, pin string) []pinMismatch {
 		for _, m := range backtickedObjectIDPattern.FindAllStringSubmatch(line, -1) {
 			seen[m[1]] = true
 		}
-		for _, m := range bareObjectIDPattern.FindAllString(line, -1) {
-			seen[m] = true
+		for _, m := range bareObjectIDPattern.FindAllStringSubmatch(line, -1) {
+			seen[m[1]] = true
 		}
 		values := make([]string, 0, len(seen))
 		for v := range seen {
@@ -307,6 +335,14 @@ func pinnedCommitMatches(doc documentFile, pin string) []pinMismatch {
 				continue
 			}
 			if _, declared := declaredOtherPins[value]; declared {
+				continue
+			}
+			// A document may state WHICH COMMIT IT DESCRIBES ("Describes: commit `<sha>`"). That is not a
+			// competing baseline pin — it is the anchor the citation-ancestry check needs — so it is
+			// recognised by the PHRASE that introduces it rather than by its value, which is what keeps
+			// this from becoming a place to hide a mistyped pin: the phrase is narrow and the ancestry
+			// check then holds the value to a fact.
+			if describesCommitPhrase.MatchString(line) {
 				continue
 			}
 			reason := "not the pinned commit and not a declared other pin"
@@ -1335,7 +1371,7 @@ func agentsCitationNumbering() map[string][]string {
 		differential = append(differential, strconv.Itoa(i))
 	}
 	return map[string][]string{
-		"## Hard rules": {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"},
+		"## Hard rules":           {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19"},
 		"## Verification methods": verification,
 		"## Differential-testing doctrine (what the oracle is allowed to claim)": differential,
 		"## Product contract (2026-10-25, after three user-visible P0 failures)": {
