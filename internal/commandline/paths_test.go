@@ -114,9 +114,15 @@ func twoDataRootBases(paths ResolvedPaths) bool {
 // PathWarning naming both paths.
 var relativeDataRootDivergence = struct {
 	createsLaunchRendering bool
-	reason                 string
+	// launchCreationFailureReported is whether a FAILED creation of the launch-directory rendering is
+	// reported. Pinned reports it because that is the mkdir it performs; GoTavern does not perform it at
+	// all, so it reports a failure of the RUNTIME mkdir instead. Under two bases the two are therefore not
+	// comparable, and this field states the GoTavern value exactly.
+	launchCreationFailureReported bool
+	reason                        string
 }{
-	createsLaunchRendering: false,
+	createsLaunchRendering:        false,
+	launchCreationFailureReported: false,
 	reason: "AGENTS 27 outranks parity here: startup must not create state in a directory the user did not " +
 		"name, and a relative dataRoot names one directory. Precedent ARCHITECTURE 34.3 (auto-update). The " +
 		"pinned values of both data-root FIELDS are unchanged; only the side effect moves.",
@@ -258,11 +264,9 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 			}
 			// `DataRootCreated` MEANS "THIS PROCESS CREATED A DIRECTORY THAT WAS NOT THERE", so under two bases
 			// it is derived from what the product itself did, not from Node's derived isDir -- which describes
-			// the LAUNCH path and would answer a different question. Three cases, each from a recorded fact:
-			//   empty value            pinned's branch runs mkdir("") and fails: created is false;
-			//   preCreated             the harness made the launch path, but the product still creates the
-			//                          RUNTIME one, so created is true unless mkdir failed;
-			//   two bases, not created the product creates the runtime root: created is "mkdir did not fail".
+			// the LAUNCH path and would answer a different question. Two cases, each from a recorded fact:
+			//   empty value             pinned's branch runs mkdir("") and fails: created is false;
+			//   two bases, not empty    the product creates the RUNTIME root: created is "mkdir did not fail".
 			// With one base the pinned derivation is exact and is used unchanged.
 			expectedCreated := !scenario.Result.DataRootWasDirectoryBeforeParse && scenario.Result.DataRootIsDirectory && !scenario.Result.Warnings.FailedDataRootCreation
 			if twoDataRootBases(got.Paths) && !emptyValue {
@@ -272,6 +276,22 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 				t.Errorf("data root created = %t, Node setup implies %t", got.Paths.DataRootCreated, expectedCreated)
 			}
 			warnings := summarizePathWarnings(got.Paths.Warnings)
+			// PINNED'S `failedDataRootCreation` DESCRIBES THE LAUNCH PATH, AND THIS PROJECT NO LONGER MKDS IT.
+			//
+			// The pinned probe's `failed-data-root-create` scenario puts `--dataRoot ./file-blocker/child` with
+			// `./file-blocker` a FILE -- created in the launch directory (paths_test.go:164-166) -- so pinned's
+			// `mkdirSync` against the launch directory fails and it warns. Under ARCHITECTURE 34.5 GoTavern
+			// mkdirs the INSTALL-side rendering, where there is no blocker, so the creation SUCCEEDS and the
+			// failure warning is correctly absent. The two sides are then describing different mkds.
+			//
+			// This was measured, not reasoned: run 40448068426 still reported
+			// `FailedDataRootCreation:false, Node has true` after the failure arm had been added, and that is the
+			// correct product answer for a directory that did get created. So the field is a DECLARED divergence
+			// under two bases -- recorded with its reason, the way the auto-update key is (ARCHITECTURE 34.3) --
+			// and it is still compared exactly wherever the bases coincide.
+			if twoDataRootBases(got.Paths) && !emptyValue {
+				warnings.FailedDataRootCreation = relativeDataRootDivergence.launchCreationFailureReported
+			}
 			if !reflect.DeepEqual(warnings, scenario.Result.Warnings) {
 				t.Errorf("path warnings = %+v, Node has %+v", warnings, scenario.Result.Warnings)
 			}
