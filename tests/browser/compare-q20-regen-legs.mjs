@@ -121,8 +121,34 @@ guard('legsDrove', () => {
             if (entry.ok !== true) problems.push(`${subject}: step ${entry.name} failed (${String(entry.detail ?? 'no detail').slice(0, 400)})`);
         }
         // THE DRIVE'S OWN FAITHFULNESS, named separately: a leg that never reached the control has no finding to make.
-        if (report.regenerate?.sawRegenerateCall !== true) {
-            problems.push(`${subject}: the press never reached Generate('regenerate') (calls: ${JSON.stringify(report.regenerate?.generateCalls ?? null)}); a false here is a DRIVE defect, not a product finding`);
+        //
+        // JUDGED BY THE SAME EVIDENCE THE PROBE USES, and this is AGENTS rule 67 arriving a second time in the same
+        // verb. The first version required `report.regenerate.sawRegenerateCall`, which was measured FALSE while the
+        // regenerate WORKED: a browser ES module export is a LIVE BINDING, so a wrapper assigned onto the namespace
+        // never binds, and the probe therefore STOPPED WRITING that field at all -- leaving this guard reading
+        // `undefined` forever. Run 40499172903 is the measurement: BOTH legs had every step green and
+        // `regenerateRequests: 1`, and this guard still reported
+        //     "the press never reached Generate('regenerate') (calls: [])"   for BOTH subjects.
+        // A guard that fails when its instrument fails is a guard on the harness, not on the product. The probe's own
+        // `regenerate-control-reached` already asserts the effect (control clicked, product entered a generation, the
+        // last message carries a DIFFERENT peer reply), so this guard now reads exactly that observable rather than
+        // an instrumentation field that cannot exist.
+        const reached = report.regenerate;
+        const actedByEffect = reached?.pressed === true
+            && reached?.sawBusy === true
+            && reached?.after?.lastIsUser === false
+            && String(reached?.after?.lastText ?? '') !== String(reached?.before?.lastMessage?.mes ?? '');
+        details[`${subject}ReachedControl`] = {
+            pressed: reached?.pressed ?? null,
+            sawBusy: reached?.sawBusy ?? null,
+            lastText: reached?.after?.lastText ?? null,
+            beforeText: reached?.before?.lastMessage?.mes ?? null,
+            generateWrapStatus: reached?.generateWrapStatus ?? null,
+            sawRegenerateCall: reached?.sawRegenerateCall ?? 'not-recorded (live binding; see rule 67)',
+            judgedBy: 'effect',
+        };
+        if (!actedByEffect) {
+            problems.push(`${subject}: the press produced no product effect (pressed=${JSON.stringify(reached?.pressed ?? null)}, sawBusy=${JSON.stringify(reached?.sawBusy ?? null)}); a false here is a DRIVE defect, not a product finding`);
         }
         if (report.characterOpen?.opened !== true) {
             problems.push(`${subject}: did not open the named card (wanted ${JSON.stringify(report.characterOpen?.wanted ?? null)})`);

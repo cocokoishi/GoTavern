@@ -333,7 +333,25 @@ try {
     step('frontend-observers-installed', silenced.processCommandsWrapped === true, JSON.stringify(silenced));
 
     const beforeFirst = await readChatFiles(dataRoot);
-    if (openedContext.chatLength < 3) {
+    // THE CHAT THE LEG ACTUALLY ENDED UP ON, not the one it saw when the page first loaded.
+    //
+    // `openedContext.chatLength` is captured BEFORE `chat-selected` runs, and on the pinned leg it reads 0 even though
+    // the leg then opens a 5-message chat. Gating the setup on that stale value made the pinned leg believe it was on
+    // an EMPTY chat and run BOTH setup turns again ON TOP OF the copied one -- measured in run 40499172903, where its
+    // chat held NINE messages and contained GoTavern's own replies:
+    //     [0..4] greeting, first turn, Q20G_REPLY_1, second turn, Q20G_REPLY_4      <- copied from the GoTavern tree
+    //     [5..8] first turn, Q20P_REPLY_1, second turn, Q20P_REPLY_2               <- this leg's setup, appended
+    // The per-subject reply prefix is what made that legible instead of an unexplained 9-vs-5.
+    //
+    // So the CURRENT length is read through the product's own context after any chat selection, and that is what
+    // decides whether the chat still needs a setup. A leg handed a finished tree does no setup at all, which is the
+    // only way the two subjects can be on the same conversation.
+    const settledLength = await page.evaluate(() => {
+        const context = window.SillyTavern.getContext();
+        return { chatLength: (context.chat ?? []).length, chatId: context.chatId ?? null };
+    });
+    report.settledChat = settledLength;
+    if (settledLength.chatLength < 3) {
         // A fresh chat has ONE greeting. Two turns make it (greeting, user, assistant, user, assistant).
         //
         // THE TURN WAITS ON THE PRODUCT'S SETUP STATE AND FAILS BY NAME -- `waitForReply` in the shared drive -- rather
