@@ -1422,6 +1422,36 @@ rather than by review.
     wrapper field that cannot be written (rule 95), now a tree copy taken at the wrong moment. The product has driven
     24/24 green on every attempt. Regenerate is at 13/13 across SIX CI runs; Q20 stays `partial`.
 
+98. **An equality between two subjects must first assert that both STARTED FROM THE SAME STATE -- the state COPIED
+    must be the state READ -- and that assertion must be a HASH, not an incidental symptom.** Rule 83's family, with
+    the member that shows why a symptom is not enough.
+    THE HASHES NAMED THE CAUSE, AND THEY WERE ALREADY IN THE ARTEFACT:
+        gotavern handoff sha            229e3f4d   == gotavern fileAfterContinue.sha256
+        gotavern preContinue.file sha   252c497c
+        pinned   preContinue.file sha   229e3f4d   <- the POST-continuation bytes
+    The handoff had copied the tree AFTER the continuation, so the pinned subject started from a chat the GoTavern
+    subject had **already continued**. Both subjects ran the same verb from different starting states -- and the
+    diagnosis needed no new measurement, only a comparison of three hashes the run had already written. When a run
+    records digests, read them against each other BEFORE reasoning about behaviour.
+    AND THE SYMPTOM ONLY CAUGHT IT BY LUCK. `sameChat` failed on one line -- "the message being continued has
+    different lengths across subjects: 11 vs 39" -- because the two strings happened to differ in LENGTH. **A
+    continuation of the same length would have slipped through**, and `nudgeAssemblesLast` / `nodeEqualsGoContinue`
+    would have compared two different experiments silently and possibly reported `match`. So the fix is not a better
+    symptom but an explicit precondition: a clause requiring
+    `handoffTree.preContinueSha256 === pinned.preContinue.file.sha256`, **the state copied must be the state read**,
+    naming both hashes otherwise, and ordered PRIOR TO every equality below it. A guard that catches a class only
+    when the class happens to be visible is not a guard for that class.
+    AND THE FIX MAKES THE CLAIM CHECKABLE: the handoff is taken immediately after `report.preContinue` and BEFORE the
+    press, and `handoffTree.preContinueSha256` records what was copied -- so the next run SAYS both subjects started
+    identically rather than leaving it to inference.
+    THE LANE'S HONEST LEDGER, WORTH KEEPING AS A RESULT: five runs, and **every single red was a defect in the lane's
+    own harness, never the product** -- a wrapper field the browser cannot write (rule 95), `--chat-id` passed by the
+    workflow and never read by the probe (rule 96), a tree copied from a live root containing the probe's own residual
+    turn (rule 97), and a handoff taken one step too late. **0 product defects found in this lane.** The product has
+    driven 24/24 green on every attempt, and the mechanism -- one request, the message grown in place, the file
+    holding the continuation, metadata appended, no residual nudge -- has been green on BOTH subjects since
+    `40559516968`. Regenerate is at 13/13 across SEVEN CI runs; Q20 stays `partial`.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
