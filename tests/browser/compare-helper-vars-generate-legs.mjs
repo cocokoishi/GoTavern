@@ -77,6 +77,13 @@ const messageMark = MARKS?.message ?? 'HV-MESSAGE-1a88';
 const C = CLAUSES ?? { chat: 'HV-PRESET-CHAT=', global: 'HV-PRESET-GLOBAL=', message: 'HV-PRESET-MESSAGE=' };
 
 const observed = {};
+// THE STAGED PRESET MUST EXIST ON BOTH SUBJECTS BEFORE EITHER IS JUDGED, and the probe reports it (`fixture.afterWrite`).
+// Without this guard a leg could generate from whatever preset the tree happened to carry, and every wire assertion
+// would then be about the wrong prompt -- red, or worse green, for a reason that has nothing to do with the product.
+// DECLARED AT MODULE SCOPE, not inside the per-subject loop below: registering it in `subjectGuards` from a
+// loop-local binding threw `ReferenceError: presetStaged is not defined` on run 40479754257, which crashed the
+// comparator and read as a judgment until the log was opened.
+const presetStagedPerSubject = subjects.map(subject => on[subject]?.fixture?.afterWrite?.present === true);
 for (const subject of subjects) {
     const leg = on[subject];
     const offLeg = off[subject];
@@ -180,7 +187,6 @@ for (const subject of subjects) {
     // THE STAGED PRESET MUST EXIST ON BOTH SUBJECTS BEFORE EITHER IS JUDGED, and the probe now reports it. Without
     // this, a leg would generate from whatever preset the tree happened to carry and every wire assertion would be
     // about the wrong prompt -- red, or worse green, for a reason that has nothing to do with the product.
-    const presetStaged = subjects.map(subject => on[subject]?.fixture?.afterWrite?.present === true);
     const survivesRestart = Boolean(restartCase?.request) && restartWireValue && restartIsNewProcess;
 
     // THE OFF CONTROL
@@ -220,7 +226,7 @@ const subjectGuards = {
     // THE PRESET THE MARKER RIDES MUST BE ON DISK ON BOTH SUBJECTS. Registered as its own guard rather than folded
     // into the wire assertions, because "the preset was staged" and "the value reached the wire" are different
     // claims and a single red must not leave a reader guessing which one failed.
-    presetStaged: subjects.map((subject, index) => presetStaged[index]),
+    presetStaged: subjects.map((subject, index) => presetStagedPerSubject[index]),
     sameApiSurface: subjects.map(subject => {
         const surface = observed[subject].apiSurface;
         return Boolean(surface) && surface.pinnedCommit === (on.pinned?.apiSurface?.pinnedCommit ?? null) && surface.scopes.length === 7 && surface.exportCount >= 14;
