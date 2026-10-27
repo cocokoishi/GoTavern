@@ -1383,33 +1383,56 @@ jobs:
           set -uo pipefail
           work="$RUNNER_TEMP/browser-differential"
           mkdir -p "$work/legs"
-          failures=0
+          # THE COUNTER IS WRITTEN TO THE OUTPUT FILE ON EVERY FAILURE, not once at the end. Measured in
+          # run 40445569175: all six legs failed, every `::error::` annotation fired, and the step still
+          # reported SUCCESS with `failures=` never echoed and the two judge steps SKIPPED -- so a job whose
+          # every regex leg died was green and claimed nothing (the recording side of the same defect this
+          # lane exists for). Writing the output as each failure happens removes the dependency on the
+          # shell reaching the tail of the script at all.
+          record_failure() {
+            echo "::error::the $1/$2 regex leg failed to drive"
+            echo "failures=1" >> "$GITHUB_OUTPUT"
+          }
+          echo "failures=0" >> "$GITHUB_OUTPUT"
           for variant in baseline disabled-rewrite swap-chain; do
             for subject in gotavern pinned; do
               tree="$work/regex-tree-$subject-$variant"
               rm -rf "$tree"; mkdir -p "$tree"
               report="$work/legs/regex-$variant-$subject-leg.json"
+              # THE PROBE'S EXIT CODE IS CAPTURED, NOT TESTED IN A COMPOUND. A `if cmd; then` guard hides the
+              # status from `set -o pipefail`, and a bare `cmd` with `set -e` would abort the whole step on
+              # the first failure, losing the other five legs' evidence. Capturing into a variable keeps both
+              # properties: every leg is attempted, and every failure is recorded.
               if [ "$subject" = "gotavern" ]; then
-                if node tests/browser/regex-probe.mjs --data-root "$tree" --variant "$variant" --report "$report"; then
-                  echo "recorded the $subject/$variant regex leg"
-                else
-                  echo "::error::the $subject/$variant regex leg failed to drive"
-                  failures=$((failures + 1))
-                fi
+                node tests/browser/regex-probe.mjs --data-root "$tree" --variant "$variant" --report "$report"
+                status=$?
               else
                 # run-against-pinned.mjs boots pinned Node and supplies --base-url; --data-root is the
                 # only supported way to point it at a caller's tree.
-                if node tests/browser/run-against-pinned.mjs regex-probe.mjs -- --data-root "$tree" \
-                    --variant "$variant" --report "$report"; then
-                  echo "recorded the $subject/$variant regex leg"
-                else
-                  echo "::error::the $subject/$variant regex leg failed to drive"
-                  failures=$((failures + 1))
-                fi
+                node tests/browser/run-against-pinned.mjs regex-probe.mjs -- --data-root "$tree" \
+                  --variant "$variant" --report "$report"
+                status=$?
+              fi
+              if [ "$status" -eq 0 ]; then
+                echo "recorded the $subject/$variant regex leg"
+              else
+                record_failure "$subject" "$variant"
               fi
             done
           done
-          echo "failures=$failures" >> "$GITHUB_OUTPUT"
+          # THE STEP DOES NOT FAIL HERE. The comparator is what fails the job, so the red names an assertion
+          # rather than "a leg failed to drive".
+          #
+          # THE LAST LINE RE-CHECKS THE FILES rather than trusting the counter, because the counter can only
+          # be as good as the shell reaching it. If any of the six reports is absent the output says so, so a
+          # run in which the shell died mid-loop cannot leave `failures=0` standing as a claim that six legs
+          # were recorded.
+          for name in baseline-gotavern baseline-pinned disabled-rewrite-gotavern disabled-rewrite-pinned swap-chain-gotavern swap-chain-pinned; do
+            if [ ! -s "$work/legs/regex-$name-leg.json" ]; then
+              echo "::error::the regex/$name leg wrote no report file"
+              echo "failures=1" >> "$GITHUB_OUTPUT"
+            fi
+          done
           exit 0
 
       - name: Compare the regex legs

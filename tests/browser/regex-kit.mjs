@@ -110,21 +110,28 @@ export const MARKERS = {
     jsOutputFragment: 'RXQ_JS_OUT_A7 alpha beta',
     // The turn the drive sends, and the turn the chain modifies.
     turn: 'TURN2',
-    // The character's opening message. It carries NO rule input at all except the DISPLAY-only rule's
-    // token, and that placement is deliberate rather than tidy:
-    //
-    //   - the display path is `messageFormatting` (public/script.js:1860-1864), the ONLY caller that passes
-    //     `isMarkdown: true`, and its `messageId === 0` branch (:1805-1812) treats the greeting specially;
-    //   - prompt assembly never passes `isMarkdown`, so a markdown-only rule cannot reach the provider
-    //     request through the chat path at all -- which is exactly what case 2 asserts;
-    //   - every OTHER rule's token is kept out of the greeting, so no case can be explained by a rule
-    //     firing on the wrong turn.
-    greeting: `Greeting with no active probe token, and one display token: ${MARKERS.inDisplay}`,
     // THE PREVIOUS USER TURN. Its prompt depth is 1 (`coreChat.length - index - (isContinue ? 2 : 1)`,
     // public/script.js:4504), which is what makes the minDepth-1 rule fire for it and NOT for the turn being
     // sent: the depth rule is proven in both directions on one page, one source line apart.
     previousTurn: 'RXQ_PREV_T1 previous turn carrying the depth token RXQ_IN_E7',
 };
+
+// THE GREETING IS ASSIGNED AFTER THE OBJECT LITERAL, not inside it. Inside, `${MARKERS.inDisplay}` reads
+// `MARKERS` while the const is still in its temporal dead zone, so module evaluation threw
+// `ReferenceError: Cannot access 'MARKERS' before initialization` -- at import time, on the pinned leg, in
+// CI. `node --check` validates SYNTAX ONLY and cannot see it (this workflow's own header says so), so the
+// rule applied here is the project's: resolve the module's top-level constants by IMPORTING it, not by
+// syntax-checking it.
+//
+// The greeting carries NO active rule input and exactly ONE display-rule token, and that placement is
+// deliberate rather than tidy:
+//   - the display path is `messageFormatting` (public/script.js:1860-1864), the ONLY caller passing
+//     `isMarkdown: true`, and its `messageId === 0` branch (:1805-1812) treats the greeting specially;
+//   - prompt assembly never passes `isMarkdown`, so a markdown-only rule cannot reach the provider request
+//     through the chat path at all -- which is exactly what case 2 asserts;
+//   - every OTHER rule's token is kept out of the greeting, so no case can be explained by a rule firing on
+//     the wrong turn. The comparator asserts this as an ALLOWED SET on the stored greeting.
+MARKERS.greeting = `Greeting with no active probe token, and one display token: ${MARKERS.inDisplay}`;
 
 // ===================================================================================================
 // THE RULES. Serialised into the settings file on BOTH legs and into the capture's expectation builder,
