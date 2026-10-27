@@ -69,6 +69,16 @@
 //   L  THE RESTART LEG is a separate invocation (`--after-restart`) over the tree K left behind, on a NEW server
 //      process: same assertions, and the artefact records that the process is not the one that wrote.
 //
+// WHY THE EXISTING RENDER LEGS NEVER HIT THE CARD BUG THIS ONE DID (recorded because the difference is invisible in
+// the log, and the next probe that finds a character card will otherwise inherit it): `helper-probe.mjs` opens a
+// character by clicking `#rm_print_characters_block .avatar[data-type="character"]` -- BY CSS CLASS, taking whichever
+// card renders first -- and it needs nothing from the card but a greeting to make a chat exist. It therefore never
+// reads an attribute off the card. THIS leg needs the card's OWN `data.name` (to prove it opened the card it staged,
+// not a neighbour) and its `extensions.chat` trigger (to prove the chat's preset is the trio), so it must MATCH a
+// card, and matching by a field the template does not set is a failure that a class-based click cannot produce.
+// Measured in Browser differential 40445034876: `rendered:[null,null]` -- two cards, both with a null `title`, because
+// public/script.js:951-952 puts the title on the INNER `.avatar` and the name in `.ch_name`.
+//
 // THE PEER CAPTURES AND ANSWERS; IT NEVER DEFINES CORRECTNESS (AGENTS 49). Every expectation is a property of an
 // input this leg supplied (a token it set, a marker it injected) or the pinned leg's bytes.
 //
@@ -286,6 +296,9 @@ function identifyUnits(capture) {
 const peer = await startCapturePeer();
 let server = null;
 let browser = null;
+// Hoisted OUT of the drive so the finally block can record teardown cost even when the drive throws early --
+// otherwise a wedged close after a failure would be the one thing the artefact could not explain.
+const timings = { phases: [], notes: [] };
 
 /** The GoTavern binary. Defined before the drive: it is spawned FROM the drive. */
 function binaryPath() {
@@ -323,10 +336,12 @@ try {
     // MEASURED, run 40445034876: the first version staged the card and the chats AFTER `waitForServer`, and every
     // leg recorded `card-opened: {"opened":false,"rendered":[null,null]}` -- two cards rendered with a null `title`,
     // because the frontend's character list had been read before the card was on disk. Staging after boot is only
-    // safe when the driver clicks the card by CSS class and the greeting is enough (`helper-probe.mjs`), which is
-    // not this leg: it needs the card's OWN data.name and its `extensions.chat` trigger before the page loads.
-    // `tests/browser/q21-data-handback.mjs` already stages the card BEFORE `seedLegConfig` and boot for the same
-    // reason, and that ordering is copied here rather than re-derived.
+    // safe when the driver clicks the card by CSS CLASS and takes whatever renders first (`helper-probe.mjs` does
+    // exactly that, and so never depends on any attribute of the card); this leg matches a card by its own name, so
+    // it depends on BOTH the ordering and the attribute. `tests/browser/q21-data-handback.mjs` stages the card
+    // BEFORE `seedLegConfig` and boot for the same reason, and that ordering is copied here rather than re-derived.
+    // `startup.SeedDefaultContent` retains existing targets (internal/startup/content.go, "Existing targets are
+    // retained"), so pre-staging survives the GoTavern leg's own seeding.
     report.fixture = { card: await stageProbeCard(dataRoot) };
     if (!afterRestart) {
         report.fixture.chats = await seedChats(dataRoot, {
@@ -360,7 +375,19 @@ try {
     }
     report.provenance.configFile = { path: 'config.yaml', sha256: legConfig?.sha256 ?? null, matchesSource: legConfig?.matchesSource ?? null };
     const baseURL = process.env.PROBE_BASE_URL ?? `http://127.0.0.1:${port}`;
+    // THE TIMING BREAKDOWN, measured rather than described. Six legs at ~10 minutes each is ~1 hour of CI per run of
+    // this workflow, so WHERE the time goes has to be a number in the artefact -- otherwise a cost that is paid six
+    // times can only be argued about. Each phase records milliseconds since the phase before it.
+    report.timings = timings;
+    let phaseStart = Date.now();
+    const phase = label => {
+        const now = Date.now();
+        timings.phases.push({ phase: label, ms: now - phaseStart });
+        phaseStart = now;
+    };
+    phase('fixture-staged');
     await waitForServer(`${baseURL}/version`);
+    phase('server-ready');
     report.provenance.serverVersion = await fetch(`${baseURL}/version`).then(response => response.json(), () => null);
 
     if (!afterRestart) {
@@ -646,26 +673,41 @@ try {
     }, operations);
 
     const runCase = async (name, { writes = null, input }) => {
+        const startedAt = Date.now();
         const applied = writes && writesVariables ? await applyWrites(writes) : null;
+        const afterWrites = Date.now();
         const before = peer.requests.length;
         const sent = await send(input);
+        const afterSend = Date.now();
         // BOUNDED WAIT ON THE PEER, not a sleep: the request either arrives or the case is a named failure.
         const deadline = Date.now() + 30000;
         while (Date.now() < deadline && peer.requests.length === before) await page.waitForTimeout(250);
+        const afterArrival = Date.now();
         await page.waitForTimeout(600);
         await recorder.settled();
         const request = peer.requests[before] ?? null;
-        const entry = { case: name, applied, sent, request: summarise(request) };
+        const entry = {
+            case: name,
+            applied,
+            sent,
+            request: summarise(request),
+            // PER-CASE COST, split so a leg that idles names the phase it idled in: the write, the send (which
+            // includes the page's own generation round-trip), the wait for the peer, and the recorder settle.
+            ms: { writes: afterWrites - startedAt, send: afterSend - afterWrites, peerWait: afterArrival - afterSend, settle: Date.now() - afterArrival, total: Date.now() - startedAt },
+        };
         report.cases.push(entry);
         return entry;
     };
 
     // ---- boot, card, chat one ------------------------------------------------------------------------------
     const boot = await openPage();
+    phase('page-loaded');
     step('page-loaded', boot?.settingsReady === true, 'script.js settingsReady');
     const opened = await openCard();
+    phase('card-opened');
     step('card-opened', opened?.opened === true && (opened.messages ?? 0) > 0, JSON.stringify(opened));
     report.provenance.chatOne = opened;
+    timings.notes.push('card-opened is the FIRST place a pinned-install delay can show: the frontend reads the character list at startup, so a card staged after boot is invisible and this phase then burns its full 60 s bound.');
 
     if (afterRestart) {
         // THE RESTART LEG: the tree is the one the previous process wrote. Only the two halves of the CLAIM are
@@ -685,16 +727,39 @@ try {
         };
     } else {
         // ---- B: the READY probe, whose capture teaches the leg the body's shape ----------------------------
+        //
+        // ASSERT THE EFFECT, NOT THE ACTION. `selectPreset` dispatches `change` and then reads the MANAGER's live
+        // identity back (`getSelectedPresetName()`), so a future refactor of `onSettingsPresetChange` cannot leave
+        // this leg dispatching into silence while an option merely LOOKS selected -- which would make every later
+        // capture a measurement of the wrong preset, with no failure. The step name is the failure a reader needs.
         const readySelection = await selectPreset(READY_PROBE_NAME);
-        step('ready-preset-selected', readySelection?.selected === true, JSON.stringify(readySelection));
+        step('ready-preset-selected', readySelection?.selected === true
+            && readySelection?.selectedName === READY_PROBE_NAME, JSON.stringify(readySelection));
+        if (readySelection?.selected !== true || readySelection?.selectedName !== READY_PROBE_NAME) {
+            throw new Error(`preset-selection-did-not-take: asked for ${READY_PROBE_NAME}, the manager reports ${JSON.stringify(readySelection?.selectedName)}; attempted via ${readySelection?.matchedBy ?? 'no match'} over ${JSON.stringify(readySelection?.rows ?? readySelection?.reason ?? null)}`);
+        }
+        phase('ready-preset-selected');
         const ready = await runCase('ready', { input: 'HV_INPUT_READY' });
+        phase('ready-sent');
         report.units = identifyUnits(ready.request);
         step('ready-provider-reached', Boolean(ready.request), `${peer.requests.length} request(s) at the peer`);
         step('capture-shape-identified', report.units !== null, JSON.stringify(report.units));
         if (report.units === null) throw new Error('the READY probe produced a body whose prompt shape this leg does not recognise, so no variable assertion could be written against it');
 
         const trioSelection = await selectPreset(TARGET_PRESET_NAME);
-        step('trio-selected', trioSelection?.selected === true && trioSelection.hasResolveRow === true, JSON.stringify(trioSelection));
+        step('trio-selected', trioSelection?.selected === true
+            && trioSelection?.selectedName === TARGET_PRESET_NAME
+            && trioSelection.hasResolveRow === true, JSON.stringify(trioSelection));
+        if (trioSelection?.selected !== true || trioSelection?.selectedName !== TARGET_PRESET_NAME) {
+            throw new Error(`preset-selection-did-not-take: asked for ${TARGET_PRESET_NAME}, the manager reports ${JSON.stringify(trioSelection?.selectedName)}`);
+        }
+        // THE TRIO MUST BE THE PRESET THE REQUESTS CARRY, and that is a different fact from "the manager says so": the
+        // one ROW this leg added has to be in the group the frontend reads, or the identity prompt never reaches the
+        // wire and every variable case would compare bodies that differ for some other reason. This is the
+        // precondition that makes the rest of the drive attributable, so it is a step, not a comment.
+        phase('trio-preset-selected');
+        step('trio-row-is-live', trioSelection.hasResolveRow === true && typeof trioSelection.identityContent === 'string' && trioSelection.identityContent.includes('{{getvar::market_value}}'),
+            JSON.stringify({ hasResolveRow: trioSelection?.hasResolveRow, identityContent: trioSelection?.identityContent ?? null, promptCount: trioSelection?.promptCount ?? null }));
         report.provenance.trio = trioSelection;
 
         // ---- C..H: the variable cases ------------------------------------------------------------------
@@ -771,8 +836,17 @@ try {
 } catch (error) {
     report.failure = report.failure ?? String(error?.stack ?? error);
 } finally {
-    if (browser) await browser.close();
+    // TEARDOWN IS A MEASURED PHASE, because it runs OUTSIDE every other timing and a browser that takes minutes to
+    // close would otherwise look like a slow drive. This is also why the timings are pushed BEFORE the close: a
+    // `process.exit` after a wedged close would lose the breakdown that explains the wedge.
+    const teardownStart = Date.now();
+    if (browser) {
+        const closeStart = Date.now();
+        await browser.close();
+        timings.phases.push({ phase: 'browser-close', ms: Date.now() - closeStart });
+    }
     await peer.close();
+    timings.phases.push({ phase: 'peer-close', ms: Date.now() - teardownStart });
     server?.kill();
 }
 

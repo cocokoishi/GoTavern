@@ -80,6 +80,9 @@ const wire = (leg, name) => caseOf(leg, name)?.request ?? null;
 const unitsOf = wire => (wire?.units ?? []).map(unit => String(unit.content ?? ''));
 const anyUnitHas = (wireEntry, needle) => unitsOf(wireEntry).some(content => content.includes(needle));
 const unitIndex = (wireEntry, needle) => unitsOf(wireEntry).findIndex(content => content.includes(needle));
+/** `value` is a marker this leg chose, but escaping it keeps a future marker with regex metacharacters from silently
+ *  turning `RESOLVED.*` into a pattern that matches anything. */
+const escapeRegExp = value => String(value ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const MARKERS = on.gotavern?.markers ?? on.pinned?.markers ?? null;
 
@@ -102,15 +105,38 @@ for (const subject of subjects) {
     const chatTwo = wire(leg, 'chat-two');
     const chatTwoSet = wire(leg, 'chat-two-set');
 
-    const alphaHasValue = anyUnitHas(alpha, MARKERS?.first ?? 'HV-MARKET-ALPHA');
-    const betaHasValue = anyUnitHas(beta, MARKERS?.second ?? 'HV-MARKET-BETA');
+    // A POSITIVE ASSERTION ON THE WIRE CONTENT, NOT ONLY ON DIGEST EQUALITY.
+    //
+    // This is the guard that can fail when the two subjects AGREE AND ARE BOTH WRONG -- a pair of identical requests
+    // that both lack the resolved value would otherwise pass `nodeEqualsGo` and every digest comparison. So the
+    // assertion is on the REQUEST BODY BYTES: the raw body must contain the exact `marker=value` clause the trio's
+    // identity prompt contains, at the position the prompt puts it (`HV-IDENTITY-CHAT=<value>`).
+    //
+    // It is deliberately NOT `anyUnitHas(token)`: a body that merely echoes the token somewhere -- a settings dump, a
+    // second-generation prompt, a stashed variable in a provider-extension member -- would satisfy a substring test
+    // while the macro never resolved. Matching `HV-IDENTITY-CHAT=` + value + a boundary means the value arrived WHERE
+    // THE PROMPT ASKED FOR IT.
+    const RESOLVED = {
+        chat: value => new RegExp(`HV-IDENTITY-CHAT=${escapeRegExp(value)}(?![\\w-])`),
+        global: value => new RegExp(`HV-IDENTITY-GLOBAL=${escapeRegExp(value)}(?![\\w-])`),
+        char: value => new RegExp(`HV-IDENTITY-CHAR=${escapeRegExp(value)}(?![\\w-])`),
+        nested: value => new RegExp(`HV-IDENTITY-NESTED=${escapeRegExp(value)}(?![\\w-])`),
+        chatEmpty: () => /HV-IDENTITY-CHAT=\|/,
+    };
+    const rawBody = entry => String(entry?.body ?? '');
+    const bodyMatches = (entry, pattern) => Boolean(entry) && pattern.test(rawBody(entry));
+
+    const alphaHasValue = bodyMatches(alpha, RESOLVED.chat(MARKERS?.first ?? 'HV-MARKET-ALPHA'));
+    const betaHasValue = bodyMatches(beta, RESOLVED.chat(MARKERS?.second ?? 'HV-MARKET-BETA'));
     // THE CHANGE, AND ITS ATTRIBUTION. Two requests that differ prove nothing on their own -- two timestamps differ.
-    // So: the two captures must differ, AND each must carry ITS OWN value (ALPHA then BETA), AND neither may carry
-    // the other's. Without the last part a subject whose macro resolved to a constant would pass: both bodies would
-    // "have a value" while the variable did nothing.
+    // So: the two captures must differ, AND each must carry ITS OWN value AT ITS OWN CLAUSE, AND the later one must
+    // not carry the earlier one's. Without the last part a subject whose macro resolved to a constant would pass:
+    // both bodies would "have a value" while the variable did nothing.
     const alphaBetaDiffer = Boolean(alpha && beta) && alpha.sha256 !== beta.sha256;
-    const betaLostOld = !anyUnitHas(beta, MARKERS?.first ?? 'HV-MARKET-ALPHA');
-    const deleteRemoved = Boolean(deleted) && !anyUnitHas(deleted, MARKERS?.first ?? 'HV-MARKET-ALPHA') && !anyUnitHas(deleted, MARKERS?.second ?? 'HV-MARKET-BETA');
+    const betaLostOld = !bodyMatches(beta, RESOLVED.chat(MARKERS?.first ?? 'HV-MARKET-ALPHA'));
+    const deleteRemoved = Boolean(deleted)
+        && !bodyMatches(deleted, RESOLVED.chat(MARKERS?.first ?? 'HV-MARKET-ALPHA'))
+        && !bodyMatches(deleted, RESOLVED.chat(MARKERS?.second ?? 'HV-MARKET-BETA'));
     // THE PARENT FORM: with the variable deleted the macro resolves to '', so the trio's identity unit must be the
     // one the SAME preset produces when the variable was never set -- never the READY preset's, which carries no
     // identity prompt at all (the probe passes `identity: ''` for it) and would have made this guard impossible to
@@ -142,26 +168,29 @@ for (const subject of subjects) {
     const characterSurvivesReload = Object.values(leg?.diskAfterReload?.card ?? {})
         .some(card => JSON.stringify(card?.tavernHelper?.variables ?? null).includes(MARKERS?.charScope ?? 'HV-CHAR-SCOPE'));
     // THE FRESH PAGE'S OWN WIRE, not only the files: the reload case's capture must carry a value that the FRESH page
-    // resolved, which is only possible if it read the chat file.
+    // resolved, which is only possible if it read the chat file. Asserted at the CLAUSE, like every other wire claim.
     const reloadWire = wire(leg, 'reload-chat-value');
-    const reloadWireHasValue = Boolean(reloadWire) && (anyUnitHas(reloadWire, MARKERS?.first ?? 'HV-MARKET-ALPHA') || anyUnitHas(reloadWire, MARKERS?.chatTwo ?? 'HV-MARKET-CHAT-TWO'));
+    const reloadWireHasValue = bodyMatches(reloadWire, RESOLVED.chat(MARKERS?.first ?? 'HV-MARKET-ALPHA'))
+        || bodyMatches(reloadWire, RESOLVED.chat(MARKERS?.chatTwo ?? 'HV-MARKET-CHAT-TWO'));
 
     // THE RESTART LEG's own evidence: a different process, the same tree, the same resolved value on the wire.
     const restartWire = wire(restartLeg, 'restart-chat-value');
-    const restartHasValue = Boolean(restartWire) && (anyUnitHas(restartWire, MARKERS?.first ?? 'HV-MARKET-ALPHA') || anyUnitHas(restartWire, MARKERS?.chatTwo ?? 'HV-MARKET-CHAT-TWO'));
+    const restartHasValue = bodyMatches(restartWire, RESOLVED.chat(MARKERS?.first ?? 'HV-MARKET-ALPHA'))
+        || bodyMatches(restartWire, RESOLVED.chat(MARKERS?.chatTwo ?? 'HV-MARKET-CHAT-TWO'));
     const restartIsNewProcess = Boolean(restartLeg?.provenance?.serverPid) && restartLeg?.provenance?.serverPid !== leg?.provenance?.serverPid;
 
     // ---- SCOPES AND ISOLATION ---------------------------------------------------------------------------
-    const globalHasValue = anyUnitHas(globalSet, MARKERS?.global ?? 'HV-ROLE-SIGNAL');
-    const characterHasValue = anyUnitHas(characterSet, MARKERS?.charScope ?? 'HV-CHAR-SCOPE');
+    const globalHasValue = bodyMatches(globalSet, RESOLVED.global(MARKERS?.global ?? 'HV-ROLE-SIGNAL'));
+    const characterHasValue = bodyMatches(characterSet, RESOLVED.char(MARKERS?.charScope ?? 'HV-CHAR-SCOPE'));
     // THE NESTED VALUE, through {{getvarkey::market_object::tier}}. The pinned reader JSON.stringifies an object and
-    // indexes it, so the resolved text is the bare value; the guard asserts the VALUE, not the JSON around it.
-    const nestedHasValue = Boolean(nestedSet) && unitsOf(nestedSet).some(content => /HV-IDENTITY-NESTED=gold\b/.test(content));
-    // THE CHAT-SCOPE LEAK, both directions. Chat two must NOT carry chat one's token, and chat two's OWN token must
-    // come back on its own request -- otherwise "no leak" would be satisfied by a chat scope that never works.
-    const chatTwoLeaks = Boolean(chatTwo) && anyUnitHas(chatTwo, MARKERS?.first ?? 'HV-MARKET-ALPHA');
-    const chatTwoOwn = Boolean(chatTwoSet) && anyUnitHas(chatTwoSet, MARKERS?.chatTwo ?? 'HV-MARKET-CHAT-TWO');
-    const globalNotChatScoped = globalHasValue && Boolean(chatTwo) && anyUnitHas(chatTwo, MARKERS?.global ?? 'HV-ROLE-SIGNAL');
+    // indexes it, so the resolved text is the bare value; the guard asserts the VALUE AT THE CLAUSE, not the JSON.
+    const nestedHasValue = bodyMatches(nestedSet, RESOLVED.nested('gold'));
+    // THE CHAT-SCOPE LEAK, both directions. Chat two must NOT carry chat one's value at its own clause, and chat two's
+    // OWN value must come back on its own request -- otherwise "no leak" would be satisfied by a chat scope that
+    // never works at all.
+    const chatTwoLeaks = bodyMatches(chatTwo, RESOLVED.chat(MARKERS?.first ?? 'HV-MARKET-ALPHA'));
+    const chatTwoOwn = bodyMatches(chatTwoSet, RESOLVED.chat(MARKERS?.chatTwo ?? 'HV-MARKET-CHAT-TWO'));
+    const globalNotChatScoped = globalHasValue && bodyMatches(chatTwo, RESOLVED.global(MARKERS?.global ?? 'HV-ROLE-SIGNAL'));
 
     // ---- THE `message` SCOPE: stored, NOT surfaced -------------------------------------------------------
     // Pinned stores and retrieves it inside the page (:58-71) and no host macro reads it, so the honest assertions
