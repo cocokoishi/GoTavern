@@ -393,10 +393,12 @@ jobs:
                   cp "tests/browser/$artifact" "$work/failed/$artifact" || true
                   rm -f "tests/browser/$artifact"
                   failures=$((failures + 1))
+                  echo "failures=$failures" >> "$GITHUB_OUTPUT"
                 fi
               else
                 echo "::error::$src: a generation leg failed to drive"
                 failures=$((failures + 1))
+                echo "failures=$failures" >> "$GITHUB_OUTPUT"
               fi
             fi
             if [ "$MODE" != "generation" ]; then
@@ -417,6 +419,7 @@ jobs:
               else
                 echo "::error::$src: a streaming/cancel/non-stream leg failed to drive"
                 failures=$((failures + 1))
+                echo "failures=$failures" >> "$GITHUB_OUTPUT"
               fi
             fi
             echo "::endgroup::"
@@ -476,12 +479,14 @@ jobs:
           else
             echo "::error::the GoTavern asset leg failed to drive"
             failures=$((failures + 1))
+            echo "failures=$failures" >> "$GITHUB_OUTPUT"
           fi
           if node tests/browser/run-against-pinned.mjs asset-probe.mjs -- --data-root "$tree_pinned" --report "$work/legs/asset-pinned-leg.json"; then
             echo "recorded the pinned asset leg"
           else
             echo "::error::the pinned asset leg failed to drive"
             failures=$((failures + 1))
+            echo "failures=$failures" >> "$GITHUB_OUTPUT"
           fi
           echo "failures=$failures" >> "$GITHUB_OUTPUT"
           # A drive failure is reported above and judged below; this step does not mask it.
@@ -540,12 +545,14 @@ jobs:
           else
             echo "::error::the GoTavern layout leg failed to drive"
             failures=$((failures + 1))
+            echo "failures=$failures" >> "$GITHUB_OUTPUT"
           fi
           if node tests/browser/run-against-pinned.mjs ui-layout-probe.mjs -- --data-root "$tree_pinned" --report "$work/legs/ui-layout-pinned-leg.json"; then
             echo "recorded the pinned layout leg"
           else
             echo "::error::the pinned layout leg failed to drive"
             failures=$((failures + 1))
+            echo "failures=$failures" >> "$GITHUB_OUTPUT"
           fi
           echo "failures=$failures" >> "$GITHUB_OUTPUT"
           # A drive failure is named above and judged below; this step does not mask it.
@@ -637,6 +644,7 @@ jobs:
                 else
                   echo "::error::the $subject/$variant helper leg failed to drive"
                   failures=$((failures + 1))
+                  echo "failures=$failures" >> "$GITHUB_OUTPUT"
                 fi
               else
                 if node tests/browser/run-against-pinned.mjs helper-probe.mjs -- --data-root "$tree" --variant "$variant" --report "$report"; then
@@ -644,6 +652,7 @@ jobs:
                 else
                   echo "::error::the $subject/$variant helper leg failed to drive"
                   failures=$((failures + 1))
+                  echo "failures=$failures" >> "$GITHUB_OUTPUT"
                 fi
               fi
             done
@@ -659,6 +668,7 @@ jobs:
           else
             echo "::error::the gotavern/no-variable-write control leg failed to drive"
             failures=$((failures + 1))
+            echo "failures=$failures" >> "$GITHUB_OUTPUT"
           fi
           echo "failures=$failures" >> "$GITHUB_OUTPUT"
           # A drive failure is reported above and judged below; this step does not mask it.
@@ -716,6 +726,7 @@ jobs:
                 else
                   echo "::error::the $subject/$variant helper generation leg failed to drive"
                   failures=$((failures + 1))
+                  echo "failures=$failures" >> "$GITHUB_OUTPUT"
                 fi
               else
                 if node tests/browser/run-against-pinned.mjs helper-generation-probe.mjs -- --data-root "$tree" --variant "$variant" --report "$report"; then
@@ -723,6 +734,7 @@ jobs:
                 else
                   echo "::error::the $subject/$variant helper generation leg failed to drive"
                   failures=$((failures + 1))
+                  echo "failures=$failures" >> "$GITHUB_OUTPUT"
                 fi
               fi
             done
@@ -829,12 +841,14 @@ jobs:
               node tests/browser/generation-probe.mjs --report "$work/legs/preset-$variant-gotavern.json"; then
               echo "::error::preset $variant: the GoTavern leg failed to drive"
               failures=$((failures + 1))
+              echo "failures=$failures" >> "$GITHUB_OUTPUT"
             fi
             if ! PROBE_MODE=preset PROBE_SOURCE=custom PROBE_PRESET_VARIANT="$variant" PROBE_PRESET_CONTEXT="$context" \
               PROBE_PINNED_REDIRECT_FILE="$work/legs/redirect-preset-$variant.json" \
               node tests/browser/run-against-pinned.mjs generation-probe.mjs -- --report "$work/legs/preset-$variant-pinned.json"; then
               echo "::error::preset $variant: the pinned leg failed to drive"
               failures=$((failures + 1))
+              echo "failures=$failures" >> "$GITHUB_OUTPUT"
             fi
             echo "::endgroup::"
           }
@@ -899,6 +913,7 @@ jobs:
                 else
                   echo "::error::the $subject/$preset real-preset leg failed to drive"
                   failures=$((failures + 1))
+                  echo "failures=$failures" >> "$GITHUB_OUTPUT"
                 fi
               else
                 if node tests/browser/run-against-pinned.mjs real-preset-probe.mjs -- --data-root "$tree" \
@@ -908,6 +923,7 @@ jobs:
                 else
                   echo "::error::the $subject/$preset real-preset leg failed to drive"
                   failures=$((failures + 1))
+                  echo "failures=$failures" >> "$GITHUB_OUTPUT"
                 fi
               fi
             done
@@ -948,6 +964,7 @@ jobs:
               else
                 echo "::error::the $subject Q20 leg failed to drive"
                 failures=$((failures + 1))
+                echo "failures=$failures" >> "$GITHUB_OUTPUT"
               fi
             else
               if node tests/browser/run-against-pinned.mjs q20-persistence-probe.mjs -- --data-root "$tree" --report "$report"; then
@@ -955,6 +972,7 @@ jobs:
               else
                 echo "::error::the $subject Q20 leg failed to drive"
                 failures=$((failures + 1))
+                echo "failures=$failures" >> "$GITHUB_OUTPUT"
               fi
             fi
           done
@@ -990,6 +1008,7 @@ jobs:
           else
             echo "::error::the GoTavern half of the hand-back failed"
             failures=$((failures + 1))
+            echo "failures=$failures" >> "$GITHUB_OUTPUT"
           fi
           # The tree the product wrote, so the pinned half can assert NOTHING WAS LOST by handing it over.
           node --input-type=commonjs -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); fs.writeFileSync(process.argv[2], JSON.stringify(r.writtenTree ?? {}))" "$work/legs/q21-gotavern.json" "$work/legs/q21-tree.json"
@@ -1000,6 +1019,7 @@ jobs:
           else
             echo "::error::pinned Node could not continue the tree GoTavern wrote"
             failures=$((failures + 1))
+            echo "failures=$failures" >> "$GITHUB_OUTPUT"
           fi
           echo "q21_failures=$failures" >> "$GITHUB_OUTPUT"
           exit 0
