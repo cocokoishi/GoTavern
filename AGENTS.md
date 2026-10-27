@@ -959,6 +959,28 @@ rather than by review.
     a condition already true, so a longer timeout would have changed nothing. That is rule 33's shape — a race
     masked rather than named — arriving as an early exit instead of a timeout.
 
+81. **Fixing a defect class is not complete until something stops it coming back AT THAT SITE — a fix that is
+    merely remembered will be reintroduced.** Measured in one lane, twice, one commit apart. `page.addScriptTag({
+    content: fn.toString() })` installs a function BY SOURCE, so it has no closure; the lane hit that as
+    `MARKERS is not defined`, fixed it by passing `markers` through the spec, and then reintroduced the identical
+    defect for an unrelated constant (`PROBE_USER_NAME`) one commit later, when it pinned the persona. The
+    Node-side write to `settings.json` was a different scope and was never the problem, which is exactly why the
+    earlier settings work was correct and the new commit still died with
+    `ReferenceError: PROBE_USER_NAME is not defined` before any rule ran.
+    Two duties follow. First, the durable fix is a CHECK AT THE SITE, not a note in a commit message: the lane's
+    self-test now scans `applyRegexKit.toString()` for any module-level export whose name appears in the shipped
+    source and fails if one does. Second, **`node --check` cannot see this class at all** — it is a run-time scope
+    error, not a syntax error — so a fourth `node --check` would have proved nothing, and the static scan is the
+    gate rather than a supplement to it.
+    And the scan's first version fired on the lane's OWN EXPLANATORY COMMENT naming the constant: **a gate that
+    reads prose is a noisy checker** (rule 74, inside the gate itself). It strips comments now, and the lane
+    verified the check can report a known instance before trusting its negative (rule 12): a real
+    `applyRegexKit` yields `[]`, a control that reads the constant yields `["PROBE_USER_NAME"]`.
+    Related and worth stating with it: when a value must travel into a `toString()`-installed function, a MISSING
+    value must produce a NAMED PROBLEM, never a silent default. A default here would have reintroduced a
+    21-byte speaker difference the lane had already chased — and a mysterious byte difference is worse than a
+    crash, because the crash names itself and the byte difference does not.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
