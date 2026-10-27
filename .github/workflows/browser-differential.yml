@@ -910,7 +910,9 @@ jobs:
           fi
           # The tree the product wrote, so the pinned half can assert NOTHING WAS LOST by handing it over.
           node --input-type=commonjs -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); fs.writeFileSync(process.argv[2], JSON.stringify(r.writtenTree ?? {}))" "$work/legs/q21-gotavern.json" "$work/legs/q21-tree.json"
-          if Q21_EXPECTED_TREE="$work/legs/q21-tree.json" node tests/browser/run-against-pinned.mjs q21-data-handback.mjs -- --data-root "$tree" --report "$work/legs/q21-pinned.json"; then
+          Q21_NAME=$(node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); process.stdout.write(r.stagedCard?.ownName ?? '')" "$work/legs/q21-gotavern.json")
+          if Q21_CHARACTER_NAME="$Q21_NAME" Q21_EXPECTED_TREE="$work/legs/q21-tree.json" node tests/browser/run-against-pinned.mjs q21-data-handback.mjs -- --data-root "$tree" --report "$work/legs/q21-pinned.json"; then
+            echo "pinned half asked to open: $Q21_NAME"
             echo "the pinned half read the tree the product wrote"
           else
             echo "::error::pinned Node could not continue the tree GoTavern wrote"

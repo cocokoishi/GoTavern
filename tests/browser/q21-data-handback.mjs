@@ -154,40 +154,37 @@ async function hashTree(root) {
 // page's own list was full). `tests/browser/q20-persistence-probe.mjs:440-472` has the shape that works and is now
 // used verbatim here: wait for the CARD in the DOM (`.character_select#CharID<n>`, script.js:945), click it, then
 // wait on the PRODUCT's own chat state. The card's `data-chid` is recorded so a future mismatch is a field.
+// BOTH HALVES MUST OPEN THE SAME CARD, BY THE NAME THE SERVER SHOWS. Run 40435820387 and its predecessors opened
+// whatever card the DOM rendered first, which is only the same card by luck; the GoTavern half now publishes the
+// staged card's own `data.name` through Q21_CHARACTER_NAME and this opener matches on it, so a mismatch is a
+// named failure instead of two different characters being compared. The DOM remains the source of the click
+// (script.js:945 renders `.character_select#CharID<n>`), because reading page state through a probe-side module
+// instance has already failed twice in this lane.
 async function openCharacterByName(page) {
-    // THE BOUND IS COMPUTED HERE, IN NODE, AND PASSED IN. `page.evaluate` runs in the BROWSER: run 40420195059
-    // failed both halves with `process is not defined` because this line used to live inside the evaluate body.
+    const wanted = process.env.Q21_CHARACTER_NAME ?? null;
     const rosterMs = Number(process.env.Q21_ROSTER_MS ?? 90000);
-    return page.evaluate(async limitMs => {
-        const script = await import('./script.js');
+    return page.evaluate(async ({ name, limitMs }) => {
         const deadline = Date.now() + limitMs;
-        let card = null;
+        let cards = [];
         while (Date.now() < deadline) {
-            card = document.querySelector('#rm_print_characters_block .character_select')
-                ?? document.querySelector('#rm_print_characters_block .avatar[data-type="character"]');
-            if (card) break;
+            cards = [...document.querySelectorAll('#rm_print_characters_block .character_select, #rm_print_characters_block .avatar[data-type="character"]')];
+            if (cards.length > 0) break;
             await new Promise(resolve => setTimeout(resolve, 250));
         }
+        const label = card => String(card.getAttribute('title') ?? card.getAttribute('data-chid') ?? '').trim();
+        const card = name ? cards.find(entry => label(entry) === name) ?? null : (cards[0] ?? null);
         if (!card) {
-            return { opened: false, reason: 'no character card rendered in #rm_print_characters_block' };
+            return { opened: false, reason: `no card matching "${name}"; rendered ${cards.length}`, rendered: cards.map(label) };
         }
         const dataChid = card.getAttribute('data-chid');
         card.click();
         const settle = Date.now() + 30000;
         while (Date.now() < settle) {
-            if ((script.chat ?? []).length > 0) break;
+            if (document.querySelectorAll('#chat .mes').length > 0) break;
             await new Promise(resolve => setTimeout(resolve, 250));
         }
-        return {
-            opened: true,
-            dataChid,
-            thisChid: script.this_chid ?? null,
-            characterName: script.characters?.[script.this_chid]?.name ?? null,
-            chatId: script.characters?.[script.this_chid]?.chat ?? null,
-            chatLength: (script.chat ?? []).length,
-            messages: document.querySelectorAll('#chat .mes').length,
-        };
-    }, rosterMs);
+        return { opened: true, dataChid, label: label(card), messages: document.querySelectorAll('#chat .mes').length };
+    }, { name: wanted, limitMs: rosterMs });
 }
 const report = {
     schemaVersion: 1,
@@ -382,7 +379,9 @@ async function gotavernWrites() {
             set('#custom_model_id', model);
             set('#api_key_custom', 'probe-key');
         }, { url: `http://127.0.0.1:${peer.port}/v1`, model: 'probe-model' });
-        // THE SAME CARD, OPENED THE SAME WAY, on each side's own tree.
+        // THE SAME CARD, OPENED THE SAME WAY, on each side's own tree. The name comes from the card the probe staged,
+        // so this half cannot drift to a different character than the half that reads it back.
+        process.env.Q21_CHARACTER_NAME = report.stagedCard.ownName;
         report.opened = await openCharacterByName(page);
         const sent = await page.evaluate(async marker => {
             const script = await import('./script.js');
