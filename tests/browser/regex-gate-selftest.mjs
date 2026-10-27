@@ -190,7 +190,9 @@ const MUTATIONS = [
     {
         name: 'show-prompt-output-in-display',
         // A prompt-only rule's output reaching the DISPLAY must fail case 3.
-        expectedGuards: ['case3_promptOnlyChangedTheProviderRequestAndNotTheDisplay'],
+        // ...and a STRICTER, EARLIER guard may catch it first: renderedTextIsTheSameOnBothSubjects compares
+        // the two subjects' whole rendered text before case 3 runs. Either firing proves the leak is visible.
+        anyOfGuards: ['case3_promptOnlyChangedTheProviderRequestAndNotTheDisplay', 'renderedTextIsTheSameOnBothSubjects'],
         apply: legs => {
             const report = legs.baseline.gotavern;
             report.rendered = report.rendered ?? {};
@@ -223,13 +225,15 @@ const MUTATIONS = [
     },
     {
         name: 'change-the-js-answer',
-        // One subject's substitution string changed: the two pages disagree, which is the whole of case 6.
+        // One subject's substitution on the ENTRY-POINT shape changed: the two pages disagree, which is the
+        // whole of case 6. It MUST be entry -- R6 is a plain rule, so per engine.js:354 it runs only on the
+        // shape that passes neither flag, and a mutation aimed at prompt changes a field case 6 never reads.
         expectedGuards: ['case6_jsSubstitutionMatchesTheBrowsersOwnAnswer'],
         apply: legs => {
             const report = legs.baseline.gotavern;
             report.sides = report.sides ?? {};
             const js = report.sides.js ?? {};
-            report.sides.js = { ...js, prompt: `${String(js.prompt ?? '')} MUTATED` };
+            report.sides.js = { ...js, entry: `${String(js.entry ?? '')} MUTATED` };
             return legs;
         },
     },
@@ -348,7 +352,13 @@ if (control.verdict?.verdict === 'match') {
         }
         // THE GUARD THAT MATTERS. Going red at some other guard means the targeted one did not notice, which
         // is the "survived in the assertion that matters" case this file exists to catch.
-        const missing = mutation.expectedGuards.filter(name => !failed.includes(name));
+          // `anyOfGuards` is for a mutation that a STRICTER, EARLIER guard legitimately catches first: the
+          // requirement is then that ONE of the named guards fires. `expectedGuards` keeps its all-of meaning, so
+          // nothing already relying on it loosens. Measured in run 40507798604, where
+          // `show-prompt-output-in-display` died at `renderedTextIsTheSameOnBothSubjects` because that guard
+          // compares the two subjects' whole rendered text before case 3 runs.
+          const required = mutation.anyOfGuards ?? mutation.expectedGuards;
+          const missing = mutation.anyOfGuards && required.some(name => failed.includes(name)) ? [] : required.filter(name => !failed.includes(name));
         if (missing.length > 0) {
             problems.push(`${mutation.name}: the comparator went red, but NOT at ${missing.join(', ')} (it failed: ${failed.join(', ') || 'none'}); the targeted guard cannot fail`);
         }
