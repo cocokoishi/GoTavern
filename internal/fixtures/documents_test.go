@@ -300,7 +300,39 @@ var describesCommitPhrase = regexp.MustCompile(`(?i)(describes:\s*commit\s+\x60)
 // and a duplicated character are visible.
 var backtickedObjectIDPattern = regexp.MustCompile("\x60([0-9a-f]{38,44})\x60")
 
-// pinMismatch is one object-id-shaped string in one document that is neither the pin nor a declared
+// workflowPinMismatches finds a wrong pin in a workflow's VALUE position: the right-hand side of a `ref:`
+// key or of a `PINNED_BASELINE_COMMIT` key. The window is 38-44 characters because in this position any
+// commit-length hex run IS a pin claim, so a padded or truncated spelling must be caught rather than
+// skipped by a 40-character rule.
+func workflowPinMismatches(doc documentFile, pin string) []pinMismatch {
+	var out []pinMismatch
+	for i, line := range strings.Split(doc.text, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			continue // a comment is prose; the bare/backticked rules already cover it
+		}
+		m := workflowPinValuePattern.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		value := m[1]
+		if value == pin {
+			continue
+		}
+		if _, declared := declaredOtherPins[value]; declared {
+			continue
+		}
+		reason := "not the pinned commit and not a declared other pin"
+		if len(value) != len(pin) {
+			reason = fmt.Sprintf("%d characters, but the pin is %d: this is the typo shape -- a digit repeated or dropped in a copy of the pin", len(value), len(pin))
+		}
+		out = append(out, pinMismatch{rel: doc.rel, value: value, line: i + 1, reason: reason})
+	}
+	return out
+}
+
+// workflowPinValuePattern matches `ref: <hex>` and `PINNED_BASELINE_COMMIT: <hex>`, quoted or bare.
+var workflowPinValuePattern = regexp.MustCompile(`(?:PINNED_BASELINE_COMMIT|ref)\s*:\s*['"]?([0-9a-f]{38,44})`)
 // other pin. It carries the LINE and the reason so a reader is sent to the defect rather than hunting.
 type pinMismatch struct {
 	rel    string
@@ -417,24 +449,36 @@ func checkPinnedCommitStrings(root, mode string) (int, error) {
 		if readErr != nil {
 			return 0, readErr
 		}
-		// A workflow is scanned for MISMATCHES only. Unlike a document it need not mention the pin at
-		// all: a workflow that pins nothing is not a defect, while one that pins the WRONG commit is.
-		for _, mismatch := range pinnedCommitMatches(wf, pin) {
+		// A workflow is scanned for MISMATCHES only. Unlike a document it need not mention the pin at all:
+		// a workflow that pins nothing is not a defect, while one that pins the WRONG commit is.
+		//
+		// IT USES ITS OWN PATTERN, and the reason is a measured asymmetry. In a DOCUMENT a bare 38-44 hex
+		// run cannot be assumed to be a pin (a 44-character content hash appears in the generated
+		// inventories, and treating it as a pin produced a phantom defect on a correct file). In a WORKFLOW
+		// a pin-shaped literal appears in one place only — a `ref:` value or a `PINNED_BASELINE_COMMIT:`
+		// env value — where a 41-character spelling is unquestionably a mistyped pin and must not be
+		// skipped by the 40-character rule.
+		for _, mismatch := range workflowPinMismatches(wf, pin) {
 			findings = append(findings, fmt.Sprintf("%s line %d: %q is %s; the pinned commit is %q (a workflow literal is EXECUTED -- this one feeds a checkout ref and/or a cache key, so a drift here pins work to the wrong tree)", mismatch.rel, mismatch.line, mismatch.value, mismatch.reason, pin))
 		}
 	}
+	// EVERY markdown file is scanned for a mismatched pin, listed or not. The closed list decides where
+	// the SHAPE of the baseline is asserted and where a corrupt-bytes refusal is fatal on its own; it does
+	// NOT decide where a wrong spelling can hide. The generated inventories (`docs/api-inventory.md` and
+	// friends) repeat the pin hundreds of times in source links, so listing each for form's sake would be
+	// noise while scanning them is what actually protects them.
 	for _, rel := range mdFiles {
-		if checked[rel] {
-			continue
-		}
 		doc, readErr := readStrictDocument(root, rel)
 		if readErr != nil {
-			return 0, readErr
+			// A document this gate cannot read is one it cannot clear.
+			findings = append(findings, fmt.Sprintf("%s could not be read as a document: %v", rel, readErr))
+			continue
 		}
-		if len(pinnedCommitMatches(doc, pin)) > 0 || strings.Contains(doc.text, pin) {
-			findings = append(findings, fmt.Sprintf("%s names the pinned commit but is not in contractDocumentFiles(), so nothing checks it", rel))
+		for _, mismatch := range pinnedCommitMatches(doc, pin) {
+			findings = append(findings, fmt.Sprintf("%s line %d: %q is %s; the pinned commit is %q", mismatch.rel, mismatch.line, mismatch.value, mismatch.reason, pin))
 		}
 	}
+	_ = checked
 	if mode == treePinnedCommitMode && len(findings) > 0 {
 		sort.Strings(findings)
 		return 0, fmt.Errorf("pinned-commit consistency failed against %s:\n  %s", pin, strings.Join(findings, "\n  "))
