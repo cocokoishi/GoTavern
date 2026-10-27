@@ -222,42 +222,15 @@ domain.
    policy refusal and unimplemented paths, and assert the number of outbound requests (zero for a
    refusal) rather than only the status.
 
-18. **A field classified `shape` must not record the observed value.** The oracle gate compares the
-   fixture's BYTES, so a host-derived value sitting in a `shape` field differs across hosts however
-   the field is classified. `sd-routes` had exactly that: a finalhandler development error page was
-   classified `shape` for the right reason and its body was STILL recorded, which no Windows-side
-   check could see -- recomputing all 83 observations' content-length and ETag from their own bodies
-   gave zero mismatches locally, and only the gate found it. Therefore: classify from a
-   host-INDEPENDENT property of the scenario ("this body is a rendered error page"), never by
-   comparing two values that happen to differ on one host; record `null` for a shape field and keep
-   the reason; null its DERIVED fields too, because content-length measures those bytes and the ETag
-   hashes them; and REFUSE outright if a scenario tries to classify `status` as shape, since every
-   scenario must compare its status. THE SAME RULE APPLIES WHEN THE INSTABILITY COMES FROM A RACE RATHER THAN FROM THE HOST, and the
-   sd-routes probe produced the first case: `upscalers.notArray` and `vaes.autoFirst` each start TWO
-   outbound requests to different endpoints before awaiting either, so the peer records ARRIVAL order,
-   and the probe reads the outbound log immediately after the response -- so when the route answers as
-   soon as the first request settles, the losing request has not landed yet and the recorded COUNT is 1
-   or 2 depending on timing. Measured: deterministic 5/5 on this host and non-deterministic on Linux,
-   which is why only the CI double-run could see it. When a pinned route starts more than one outbound
-   request before awaiting them, the fixture must record a sorted SET or NOTHING AT ALL -- never an
-   arrival-ordered array and never an observed count -- with the race named in the shape reason, and
-   the assertion must live in a labelled source-derived test (rule 4) instead.
-   Do NOT widen the drain window to catch the loser: that makes the count stable by luck rather than
-   by contract, and the same race reappears under different timing. NULLING THE FIELD IS NOT ENOUGH WHEN THE UNSTABLE VALUE ALSO APPEARS INSIDE A FIELD THAT IS
-   COMPARED. The caption-image probe classified the pollinations `seed` as shape with a null value
-   and was still unstable, because the seed also appears inside the recorded REQUEST BODY: the run was
-   green and `stable=False` at the same time. The body now carries a `<seed>` marker, the same
-   treatment the SD and video seeds receive, and the normalisation is recorded. So: after classifying
-   an unstable value shape, SEARCH THE FIXTURE FOR THE VALUE ITSELF -- if it also sits inside a
-   compared body, header or target, the marker has to be applied there too, and the double-run check
-   is what catches the omission. The one argued exception is a value that is CLIENT-derived and
-   byte-stable (`requestHeaders.connection`), which stays recorded with its reason -- nulling it
-   would discard information with no host-dependence justification. After any such change, sweep
-   every fixture for host-specific strings (`C:\`, `AppData`, `/home/`, `/tmp/`, `/root/`,`/Users/`): the
-   sweep is cheap, it is the only check that finds this class, and it found exactly one location
-   across 100 fixtures. RUN THE SWEEP CASE-SENSITIVELY: a case-insensitive `/Users/` matches the
-   legitimate `GET /api/users/me` path and reports a host path that is not there, which is how a
-   sweep turns into a phantom defect and someone sets out to fix a fixture that is already correct.
+18. **A field classified `shape` must not record the observed value, and an unstable value must not
+    survive in any field that is compared.** Classify from a host-INDEPENDENT property of the scenario,
+    never by comparing two values that happen to differ on one host; record `null` for a shape field,
+    null its DERIVED fields too, and search the whole fixture for an unstable value that also sits
+    inside a compared body, header or target. Never widen a drain window to make a race look stable.
+    Sweep every fixture for host-specific strings, case-sensitively. The four measurements behind this
+    -- a `shape` error page that still recorded its body, two routes that race on arrival order, a seed
+    that also lived inside the request body, and the case-insensitive `/Users/` phantom -- are in
+    [`docs/fixture-shape-and-instability.md`](docs/fixture-shape-and-instability.md).
 
 19. **A `go test -run` filter that matches nothing reports `ok`, which reads as success.** The real
    name of the sd-routes guard is `TestPinnedNodeSDRoutes`; `-run TestSD` does not match it, and Go
@@ -658,3 +631,63 @@ lane: a report that cannot answer "does this move us toward `GOAL.md`?" is rejec
     needs "a user's directory" BUILDS one (`tests/e2e/longlived_test.go` synthesises a card, a chat, a world book, a
     preset and the visual assets in Go). Neither path needs the user's machine, which is the whole point: CI must be
     able to run without ever holding the originals.
+57. **A mutation must be produced in an isolated worktree, and recovering a file must go through its bytes.**
+    A mutation run exists to OBSERVE A RED; it is not a commit that may carry anything else. Measured twice on
+    2026-10-26: a mutation commit produced in a shared checkout by `git add -A` captured four other lanes'
+    in-flight files, and the branch had to be rewritten to remove it; recovering a file afterwards through a
+    shell redirection then produced a blob no compiler could build, and `git diff` called it binary. Therefore:
+    - a mutation runs in its own worktree, its `git show --stat` lists EXACTLY the intended files, and it never
+      survives in a lane's history — it is removed by rewriting the lane, not by a revert that leaves the
+      mutation in the record;
+    - a file is recovered or written as BYTES: `git cat-file blob <id>` → bytes → an explicit no-BOM write,
+      VERIFIED by `git hash-object` equalling the original blob id. A shell redirect is not a copy: `>` yields
+      UTF-16LE with a BOM and `Set-Content -Encoding utf8` yields UTF-8 WITH a BOM, and both look correct in an
+      editor.
+
+## The collaboration and privacy contract (current, 2026-10-26)
+
+This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
+elsewhere in this file or in `HANDOFF.md`, this section wins and the older sentence is to be corrected rather
+than cited.
+
+1. **Read order.** `GOAL.md` (the locked goal), then this file's rules, then `ARCHITECTURE.md`, then
+   `docs/SEMANTIC-COMPATIBILITY.md`, then `docs/goal-scorecard.md` (the evidence ledger), then
+   `docs/development-loop.md` (what runs where). A report that cannot answer "does this move us toward
+   `GOAL.md`?" is rejected (rule 53).
+2. **The native long-term goal is `GOAL.md`.** Nobody re-derives it in a branch, and its milestone ladder
+   (M0..M5) is the only statement of order. A lane that finds the goal wrong says so and changes `GOAL.md` in
+   its own commit with the evidence that moved it.
+3. **The 8-slot lane model: one lead and seven lanes, one owner per area.** A lane owns an AREA (rule 39), not
+   a set of files in flight, and two lanes never own the same area. The lead integrates; a lane does not
+   merge another lane's work.
+4. **What is allowed locally, and what is not.** Editing files, `git`, reading code and fixtures, and
+   `node --check` on one file just written. Everything that compiles, boots a server, drives a browser,
+   records a fixture or runs a suite happens in GitHub Actions. The ONE revision to that rule is §5 below.
+5. **The narrow revision: LOCAL EXECUTION of the user's originals, never transmission.** The older wording
+   ("no local probe at all") is SUPERSEDED for one purpose only — qualification against the user's real
+   originals — because the originals are the oracle and they may not leave the machine, so a public CI run
+   can never be the gate for them. The revision authorises: copying the originals into an ISOLATED work
+   directory, executing them there against a locally built GoTavern and a locally booted pinned Node, and
+   recording the OBSERVATION (counts, hashes, pass/fail, differences) in a text report.
+   It FORBIDS, without exception: transmitting the originals, or any capture derived from them — request
+   bodies, screenshots, traces, DOM dumps, provider requests, logs containing their content, or any
+   REVERSIBLE derivative — to any remote (a branch, a workflow, an artifact, an issue, a paste, a model
+   endpoint). It also forbids inferring the authorisation: it covers the originals and nothing else.
+   It does NOT authorise unrelated local full builds, a local substitute for any public gate, or a local
+   result quoted as a gate. The egress side is provable from the PUBLIC side instead: the packaged gate in
+   Actions asserts that the release artifact and the repository contain no original and no unmarked
+   derivative (rule 56, `tools/check-fixture-watermarks.mjs`).
+   **Status: NOT YET DEMONSTRATED.** The channel is written as constraints because the user requires it to
+   exist; no run in this repository has yet exercised it, and no claim in any report may cite it as though
+   one had. Its first demonstration is a dated entry in `docs/goal-scorecard.md`'s ledger.
+6. **The evidence standard.** A capability is claimed only with an artefact a reader can open: a run quoted
+   as `workflow name + run id + conclusion` (rule 55), the step inside it, and the assertion the claim rests
+   on — or a committed file. A red run may support a claim ONLY for a step that was green inside it, and the
+   row must say the run was red IN PLACE. A row that cites a run whose commit is not an ancestor of the
+   commit it describes is not evidence. `docs/goal-scorecard.md` is the single ledger and
+   `internal/fixtures/documents_test.go` enforces all of this mechanically.
+7. **Recovery.** When a checkout, a commit or a file is damaged: STOP writing; capture the evidence read-only
+   (`git show`, `git cat-file`, `git diff`) into a location outside the repository; restore BY BYTES and verify
+   with `git hash-object` (rule 57); and never "fix" a tree with `git reset`, `git clean`, `git checkout -- .`
+   or `git add -A` while other work may be in flight. A damaged file is repaired from its bytes, never
+   re-saved by an editor.
