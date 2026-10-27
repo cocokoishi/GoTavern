@@ -891,6 +891,20 @@ rather than by review.
     — it inserts the marker between every character. `stripPath` now returns its input unchanged for an empty
     needle, checked on both branches.
 
+77. **Before deleting a branch, check that main contains every file the branch has — the mirror of rule 62.** A
+    lane that had created nine local backup branches across several rewrites deleted them only after running, for
+    each one, `git diff --diff-filter=D --name-only origin/main <branch>`: every branch showed files present in
+    `main` and ABSENT from the backup (0 to 29), and **none showed the reverse**, so each was a strict content
+    subset of main and nothing unique was destroyed. The risky one differed in only 3 files — all of them its own
+    probe, fixture and compat edits — and it too had zero files main lacked.
+    Rule 62 asks "does my branch delete files I did not intend?", and its answer is about the branch. This asks the
+    other direction: "does `main` contain every file this branch had?" — and it catches a failure no clean-resolve
+    check can, because **a merged branch that is NOT a content subset means the merge DROPPED something**. A clean
+    `git status` says the resolve was tidy; it does not say both sides survived.
+    Related, and the same reasoning: a merged remote branch may be deleted, but re-check ancestry AFTER the delete
+    (`git merge-base --is-ancestor <tip> origin/main`), because deleting a branch is the one operation that could
+    break a citation made by branch name.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
