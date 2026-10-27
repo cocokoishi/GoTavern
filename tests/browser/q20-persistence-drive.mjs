@@ -305,6 +305,24 @@ export async function openCharacter(page, expected) {
                     await new Promise(resolve => setTimeout(resolve, 250));
                 }
                 const context = window.SillyTavern && window.SillyTavern.getContext ? window.SillyTavern.getContext() : null;
+                // THE IDENTITY IS READ FROM THE CONTEXT THAT IS BUILT FROM THE LIVE BINDINGS, and this is the fix for
+                // run 40531242227 -- where the GoTavern leg drove all 21 regenerate steps successfully and was then
+                // declared "recorded no character name, so the pinned leg has no chat to open and nothing is claimed
+                // for this verb". The leg HAD a name; it was in `openedContext`, not here.
+                //
+                // WHY `script.this_chid` WAS NULL. `this_chid` is an ES-module `export let` (script.js:432) that
+                // `openCharacter` REBINDS (:7126). A dynamic `import('./script.js')` namespace object exposes live
+                // bindings, so that read is sound in principle -- but this evaluate block captured `script` BEFORE the
+                // click, and the page's own getChat/openCharacter path ran in between. Reading the CONTEXT
+                // (`characterId`, st-context.js:123) is the product's own reader and cannot go stale, which is rule
+                // 58's requirement: read the state back through the reader the product uses.
+                //
+                // BOTH VIEWS ARE RECORDED, so a disagreement between the module binding and the context is visible in
+                // the artefact instead of silently becoming a "no name" red.
+                const contextChid = context?.characterId ?? null;
+                const contextName = contextChid !== null && contextChid !== undefined
+                    ? (script.characters?.[contextChid]?.name ?? null)
+                    : null;
                 return {
                     opened: true,
                     clicked: true,
@@ -312,9 +330,14 @@ export async function openCharacter(page, expected) {
                     rosterWaitMs: waitedForRoster,
                     cardClass: card.className,
                     dataChid,
-                    thisChid: script.this_chid ?? null,
-                    characterName: script.characters?.[script.this_chid]?.name ?? null,
-                    characterChat: script.characters?.[script.this_chid]?.chat ?? null,
+                    thisChid: contextChid ?? script.this_chid ?? null,
+                    characterName: contextName ?? script.characters?.[script.this_chid]?.name ?? null,
+                    characterChat: contextChid !== null && contextChid !== undefined
+                        ? (script.characters?.[contextChid]?.chat ?? null)
+                        : (script.characters?.[script.this_chid]?.chat ?? null),
+                    // The module-binding view, recorded beside the context view so the two can be compared.
+                    moduleThisChid: script.this_chid ?? null,
+                    moduleCharacterName: script.characters?.[script.this_chid]?.name ?? null,
                     // THE IDENTITY A COMPARATOR NEEDS, named: the page's chat id and the file it resolves to.
                     chatId: context?.chatId ?? null,
                     chatLength: (script.chat ?? []).length,

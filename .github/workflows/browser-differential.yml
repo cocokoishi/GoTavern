@@ -1092,7 +1092,7 @@ jobs:
             echo "::error::the gotavern Q20 regenerate leg failed to drive"
             failures=$((failures + 1))
           fi
-          name=$(node -e "const fs=require('fs'); const p=process.argv[1]; if(!fs.existsSync(p)) process.exit(0); const r=JSON.parse(fs.readFileSync(p,'utf8')); process.stdout.write(String(r.characterOpen?.characterName ?? ''))" "$work/legs/q20-regen-gotavern.json")
+          name=$(node -e "const fs=require('fs'); const p=process.argv[1]; if(!fs.existsSync(p)) process.exit(0); const r=JSON.parse(fs.readFileSync(p,'utf8')); process.stdout.write(String(r.characterOpen?.characterName || r.openedContext?.characterName || ''))" "$work/legs/q20-regen-gotavern.json")
           # THE CHAT, NOT JUST THE CARD. Run 40482430975 proved the card name is not enough: the pinned leg booted the
           # COPIED tree but resumed the card's LAST-USED chat, which in that tree was a 9-message chat still holding an
           # EARLIER RUN's messages, while the GoTavern leg sat on its own 5-message chat. The comparator refused with
@@ -1103,7 +1103,7 @@ jobs:
             echo "::error::the gotavern Q20 regenerate leg recorded no chat id, so the pinned leg cannot be put on the same conversation"
             failures=$((failures + 1))
           elif [ -z "$name" ]; then
-            echo "::error::the gotavern Q20 regenerate leg recorded no character name, so the pinned leg has no chat to open and nothing is claimed for this verb"
+            echo "::error::the gotavern Q20 regenerate leg recorded no character name in characterOpen.characterName OR openedContext.characterName, so the pinned leg has no chat to open and nothing is claimed for this verb"
             failures=$((failures + 1))
           else
             echo "the pinned leg will open the card the product opened: $name (chat: $chatid)"
@@ -1183,9 +1183,9 @@ jobs:
             echo "::error::the gotavern Q20 continue leg failed to drive"
             failures=$((failures + 1))
           fi
-          name=$(node -e "const fs=require('fs'); const p=process.argv[1]; if(!fs.existsSync(p)) process.exit(0); const r=JSON.parse(fs.readFileSync(p,'utf8')); process.stdout.write(String(r.characterOpen?.characterName ?? ''))" "$work/legs/q20-continue-gotavern.json")
+          name=$(node -e "const fs=require('fs'); const p=process.argv[1]; if(!fs.existsSync(p)) process.exit(0); const r=JSON.parse(fs.readFileSync(p,'utf8')); process.stdout.write(String(r.characterOpen?.characterName || r.openedContext?.characterName || ''))" "$work/legs/q20-continue-gotavern.json")
           if [ -z "$name" ]; then
-            echo "::error::the gotavern Q20 continue leg recorded no character name, so the pinned leg has no chat to open and nothing is claimed for this verb"
+            echo "::error::the gotavern Q20 continue leg recorded no character name in characterOpen.characterName OR openedContext.characterName, so the pinned leg has no chat to open and nothing is claimed for this verb"
             failures=$((failures + 1))
           else
             echo "the pinned leg will open the card the product opened: $name"
