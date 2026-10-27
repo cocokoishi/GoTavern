@@ -864,6 +864,33 @@ rather than by review.
     one-byte rule change means the recorded bytes are diagnostic history, and the current claim needs a fresh run.
     Use the download to fix the reader; use the dispatch to judge the product.
 
+76. **A pipeline step that requires its own output has no bootstrap, and its "nothing to do" message must not be
+    the same message as "never did anything".** Two measured instances of one class, both from the same lane.
+    1. THE ORACLE GRAPH WAS CIRCULAR. `manifest.mjs:280-283` refuses a probe whose declared fixture is not
+       committed (`dangling-fixture`), the `changes` job exits 1 on any graph error, and the `oracle` job is gated
+       on that output — **so the run that would create the fixture is the run the missing fixture prevents.** All
+       114 existing probes declare a fixture and there is no documented bootstrap; the historical precedent
+       (`17ecfb0`) put probe and recording in one commit, which is unrepeatable when the recording happens on a
+       remote runner. The fix is an explicit NOT-YET-RECORDED state: a committed seed with `recorded: false`, NO
+       `results` member, and a `placeholderGuard` stating that `recorded: false` means NOT-AN-ORACLE. **It is
+       deliberately not an empty `results`, which would read as "ran and observed nothing"** — the difference
+       between "no evidence yet" and "evidence of nothing" is the whole point of the state. Recording then
+       replaced the seed entirely.
+    2. AN EMPTY PATCH READS AS SUCCESS. A probe printed its fixture to stdout instead of writing it under
+       `outputRoot`, so the oracle ran it for 16.3 seconds and produced a ZERO-BYTE re-record patch — which the
+       apply script reports as `the patch is EMPTY: this commit is already recorded`. An empty patch is also
+       exactly what "never wrote anything" looks like, so the benign message covered the malignant cause. Every
+       other probe writes `<outputRoot>/tests/oracle/<name>`; this one had named `argv[3]` `repositoryRoot` and
+       assumed it was a checkout.
+    The general rule: when a step's failure mode is "produced nothing", the step must be able to DISTINGUISH
+    "nothing was needed" from "nothing was produced", and a bootstrap that depends on its own product needs a
+    state that says so out loud. Two smaller defects in the same probe belong to this family and were both caught
+    by gates rather than review: the ephemeral build root leaked 18 times into compared stderr (now
+    `<build-root>`, with the fixture verified to contain zero occurrences of `oracle-build`, `/home/runner` or
+    `_temp/`), and the stripping helper used `line.split('').join(marker)`, which does not fail on an EMPTY needle
+    — it inserts the marker between every character. `stripPath` now returns its input unchanged for an empty
+    needle, checked on both branches.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
