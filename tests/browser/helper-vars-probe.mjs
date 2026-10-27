@@ -79,6 +79,54 @@
 // Measured in Browser differential 40445034876: `rendered:[null,null]` -- two cards, both with a null `title`, because
 // public/script.js:951-952 puts the title on the INNER `.avatar` and the name in `.ch_name`.
 //
+// =====================================================================================================================
+// HAZARD FOR EVERY OTHER LANE: A SELECTION CAN BE TRUE IN THE DOM AND FALSE IN THE FRAMEWORK THAT READS IT.
+//
+// MEASURED in Browser differential 40451801982 and recorded here because it is a RULE, not a bug in this file. The
+// probe found the `<option>` whose text was `ready-probe`, assigned `option.selected = true`, and the preset panel
+// still reported the PREVIOUS preset. Why:
+//
+//   READ    public/scripts/preset-manager.js:399-401
+//             getSelectedPresetName() { return $(this.select).find('option:selected').text(); }
+//           `:selected` is jQuery's CACHED selection state, not the DOM property. Assigning `option.selected`
+//           updates the DOM and does NOT refresh what jQuery sees, so the two views disagree.
+//   WRITE   public/scripts/preset-manager.js:415-424 (`PresetManager.selectPreset`)
+//             option.prop('selected', true); $(this.select).val(value).trigger('change');
+//           and public/scripts/openai.js:4369 does the same with `.prop('selected', true)`. jQuery's `.prop()`/`.val()`
+//           are the operations that keep the two views in step.
+//
+// The failure this produces is the worst shape available: `selected:false` on the row I asked for while `Default` was
+// still `selected:true`, i.e. the request looked answered and the state had not moved. A driver that trusted its own
+// dispatch would have measured the WRONG PRESET FOREVER and reported a green. The permanent answer, implemented in
+// `selectPreset` below, is to RECORD BOTH VIEWS SIDE BY SIDE (`domSelected` and `jquerySelected`) so a future reader
+// can see them disagree without reproducing the defect, and to assert the EFFECT read back from the framework
+// (`getSelectedPresetName()`) rather than the action performed.
+//
+// THE SAME CLASS OF ERROR appears wherever a browser state has two readers -- `elementFromPoint` returning a coverer
+// the CSS says is not there; `document.activeElement` after a programmatic focus; a checkbox `checked` property
+// versus a framework's model. If a leg asserts a selection, focus, checked or scroll state, it must read that state
+// back THROUGH THE READER THE PRODUCT USES, not through the setter it used to create it.
+//
+// ---------------------------------------------------------------------------------------------------------------------
+// SECOND HAZARD, AND IT AFFECTS LEGS THAT HAVE ALREADY RUN: OPENING A CHARACTER SILENTLY CHANGES THE PRESET.
+//
+// `autoSelectPreset` (public/scripts/preset-manager.js:49-73) is bound to CHAT_CHANGED and does:
+//     const name = selected_group ? groups.find(...)?.name : characters[this_chid]?.name;
+//     const preset = presetManager.findPreset(name);
+//     if (preset !== undefined && preset !== null) presetManager.selectPreset(preset);
+// So opening a character selects a preset NAMED AFTER THAT CHARACTER, if one exists. That is why this leg saw the
+// panel report a character-derived preset ("RecoveredRuins" in 40451801982) after it opened its staged card.
+//
+// The consequence is wider than this leg: ANY leg that opens a character and then assumes the preset it selected
+// is still the preset in effect has been measuring the CHARACTER-DERIVED preset, not the one it chose. The exposed
+// shape is precise and checkable -- a leg that (a) selects a preset, (b) opens a character or switches chat, and
+// (c) never reads the selection back -- and any lane in that shape should check itself against the two readers
+// above. This lane does not name other lanes' files as affected: a lane's own artifact is the only place that can
+// decide whether its ordering puts it in the shape. The defence is the same one used here: select, then READ THE
+// EFFECT BACK, and fail by name when it did not take; and prefer a fixture tree where no preset is NAMED AFTER the
+// character being opened, so `autoSelectPreset` has nothing to switch to.
+// =====================================================================================================================
+//
 // THE PEER CAPTURES AND ANSWERS; IT NEVER DEFINES CORRECTNESS (AGENTS 49). Every expectation is a property of an
 // input this leg supplied (a token it set, a marker it injected) or the pinned leg's bytes.
 //
