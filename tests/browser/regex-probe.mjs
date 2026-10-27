@@ -51,7 +51,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 import { seedLegConfig } from './seed-leg-config.mjs';
-import { MARKERS, REGEX_SCENARIO, REGEX_VARIANTS, applyNegation, applyRegexKit, negationFor, regexRules, turnText } from './regex-kit.mjs';
+import { MARKERS, PROBE_USER_NAME, REGEX_SCENARIO, REGEX_VARIANTS, applyNegation, applyRegexKit, negationFor, regexRules, turnText } from './regex-kit.mjs';
 
 const playwrightModule = await import('@playwright/test');
 const chromium = playwrightModule.chromium ?? playwrightModule.default?.chromium;
@@ -183,8 +183,16 @@ async function writeSettingsFragment(dataRoot, rules) {
     if (existed) {
         settings = JSON.parse(await fs.readFile(settingsPath, 'utf8'));
     }
-    settings.extension_settings = settings.extension_settings ?? {};
-    const extensionSettings = settings.extension_settings;
+    // THE SPEAKER NAME MUST COME FROM THE SCENARIO, NOT FROM WHICHEVER TREE SEEDED A SETTINGS FILE.
+    // Measured in run 40476961120: this leg CREATED settings.json (`existed:false`) and the pinned leg
+    // MERGED into one the pinned server had already seeded (`existed:true`), which carried a `username`.
+    // So pinned sent `Probe User` and GoTavern sent `[Unnamed Persona]` (personas.js:237, the placeholder
+    // for a nameless persona) -- a 21-byte difference in EVERY request, on EVERY variant, that looks
+    // exactly like a product defect and is an ASYMMETRIC PRECONDITION. `name1` is `settings.username`
+    // (script.js:7931), so pinning it here makes both legs send the same speaker and turns the 21 bytes
+    // into a real comparison.
+    settings.username = PROBE_USER_NAME;
+    settings.extension_settings = settings.extension_settings ?? {};    const extensionSettings = settings.extension_settings;
     extensionSettings.regex = rules;
     // Consent, for the click the frontend's own prompt would make (regex/index.js:1327-1337). Written
     // because a fresh accountStorage shows that dialog ONCE and the leg would then be racing a modal; the

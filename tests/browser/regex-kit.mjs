@@ -78,6 +78,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // The scenario name, used for the marker charset checks and the artefact's labels only.
 export const REGEX_SCENARIO = 'GoTavern Regex Probe';
 
+// THE PROBE USER'S NAME, exported so the SETTINGS the probe writes and the CHAT TURNS the kit builds cannot
+// disagree. Pinned takes `name1` from `settings.username` (public/script.js:7931), so a leg whose settings
+// file lacks it sends the persona placeholder `[Unnamed Persona]` (personas.js:237) while a leg whose file
+// has it sends the real name -- a 21-byte request difference that looks like a product defect and is an
+// asymmetric precondition (measured in run 40476961120: one leg CREATED settings.json, the other MERGED
+// into a seeded one).
+export const PROBE_USER_NAME = 'Probe User';
+
 // MARKERS. ASCII only (AGENTS.md rule 9: a non-ASCII input is what exercises an encoding defect, and this
 // gate is about rule execution). Each rule has an INPUT token and an OUTPUT token, both unique, so a body
 // can be asked "did THIS rule's output arrive" without guessing at wording.
@@ -408,7 +416,7 @@ export async function applyRegexKit(spec) {
     //    `chat[0]` written by hand is not what a real chat holds -- and `messageFormatting` has a
     //    messageId===0 branch (script.js:1805-1812) that substitutes macros into `chat[0]`.
     const turns = spec.turns.map(turn => ({
-        name: turn.isUser ? 'Probe User' : String(character?.name ?? 'Character'),
+        name: turn.isUser ? PROBE_USER_NAME : String(character?.name ?? 'Character'),
         is_user: Boolean(turn.isUser),
         is_system: false,
         send_date: '2026-01-01T00:00:00.000Z',
@@ -650,7 +658,7 @@ export async function applyRegexKit(spec) {
     // chat the send will use. This append/observe/remove keeps the sent chat exactly what the spec says.
     const displayProbe = { index: script.chat.length };
     script.chat.push({
-        name: 'Probe User',
+        name: PROBE_USER_NAME,
         is_user: true,
         is_system: false,
         send_date: '2026-01-01T00:00:00.000Z',

@@ -64,9 +64,9 @@ const load = (file, label) => {
     }
 };
 const legs = {
-    baseline: { gotavern: load(baselineGoPath, 'baseline/gotavern'), pinned: load(baselinePinnedPath, 'baseline/pinned') },
-    swapped: { gotavern: load(named['swapped-go'], 'swap-chain/gotavern'), pinned: load(named['swapped-pinned'], 'swap-chain/pinned') },
-    disabled: { gotavern: load(named['disabled-go'], 'disabled-rewrite/gotavern'), pinned: load(named['disabled-pinned'], 'disabled-rewrite/pinned') },
+    baseline: { variant: 'baseline', gotavern: load(baselineGoPath, 'baseline/gotavern'), pinned: load(baselinePinnedPath, 'baseline/pinned') },
+    swapped: { variant: 'swap-chain', gotavern: load(named['swapped-go'], 'swap-chain/gotavern'), pinned: load(named['swapped-pinned'], 'swap-chain/pinned') },
+    disabled: { variant: 'disabled-rewrite', gotavern: load(named['disabled-go'], 'disabled-rewrite/gotavern'), pinned: load(named['disabled-pinned'], 'disabled-rewrite/pinned') },
 };
 
 // ===================================================================================================
@@ -122,7 +122,11 @@ guard('legsPresent', () => (missingLegs.length === 0 ? [] : [`${missingLegs.leng
 guard('legsDrove', () => {
     const problems = [];
     for (const [variant, pair] of Object.entries(legs)) {
-        for (const [subject, report] of Object.entries(pair)) {
+        // pair.variant is the name the LEG declares; the map key is only this file's bucket. Iterating
+        // Object.entries(pair) would now treat that string as a leg report, so the subjects are listed
+        // explicitly and the declared name is what gets compared.
+        for (const subject of ['gotavern', 'pinned']) {
+            const report = pair[subject];
             if (!report) continue; // legsPresent names it
             if (report.failure) problems.push(`${subject}/${variant}: the leg reports failure: ${String(report.failure).slice(0, 300)}`);
             const inPlay = report.rulesInPlay ?? {};
@@ -135,7 +139,7 @@ guard('legsDrove', () => {
             }
             const completions = requestsOf(report).length;
             if (completions < 1) problems.push(`${subject}/${variant}: no chat/completions request reached the peer`);
-            if (report.variant !== variant) problems.push(`${subject}/${variant}: the report says variant ${JSON.stringify(report.variant)}`);
+            if (report.variant !== pair.variant) problems.push(`${subject}/${pair.variant}: this leg is labelled ${JSON.stringify(pair.variant)} here and declares variant ${JSON.stringify(report.variant)} in its own report; the two must agree`);
             if (report.subject !== subject) problems.push(`${subject}/${variant}: the report says subject ${JSON.stringify(report.subject)}`);
         }
     }
@@ -149,12 +153,15 @@ guard('variantsAreDistinctDeclarations', () => {
     const seen = new Map();
     const problems = [];
     for (const [variant, pair] of Object.entries(legs)) {
-        for (const [subject, report] of Object.entries(pair)) {
+        for (const subject of ['gotavern', 'pinned']) {
+            const report = pair[subject];
             if (!report) continue;
-            const signature = JSON.stringify((report.rules ?? []).map(rule => [rule.id, Boolean(rule.disabled)]).sort());
+            // ORDER IS PART OF A DECLARATION: `swap-chain` differs from the baseline ONLY by exchanging two rules, so a signature that sorts would call a real negation "identical" and the guard would then demand an impossible difference. Measured on the real legs in run 40476961120: sorting made swap-chain collide with baseline on both subjects.
+            const signature = JSON.stringify((report.rules ?? []).map(rule => [rule.id, Boolean(rule.disabled)]));
             const key = `${subject}:${signature}`;
-            if (seen.has(key)) problems.push(`${subject}/${variant} declares the identical rule set to ${seen.get(key)}; a variant that is not a negation cannot be a counterpart`);
-            else seen.set(key, variant);
+            // The LABEL in this message is the DECLARED variant, so a reader sees the name the leg itself uses.
+            if (seen.has(key)) problems.push(`${subject}/${pair.variant} declares the identical rule set to ${seen.get(key)}; a variant that is not a negation cannot be a counterpart`);
+            else seen.set(key, pair.variant);
         }
     }
     return problems;
