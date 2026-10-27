@@ -1225,6 +1225,33 @@ rather than by review.
     Nothing evidential was lost -- but a partial extract left in place is indistinguishable from a complete one to
     everything downstream, so a download that fails part-way must be treated as ABSENT rather than as data.
 
+91. **Search for the ASSIGNMENT, not the identifier: a declaration with no writer is a slot nothing fills, and it
+    fails three steps away from its cause.** The same lane hit this three times, and it named the instrument itself:
+    a grep for the identifier finds the declaration and the test; a grep for the ASSIGNMENT finds nothing.
+    1. `peerState.continuationOrdinal` was declared at `:216` and tested in the `replyText` branch at `:219`, and
+       NOTHING IN THE FILE EVER WRITES IT. So the peer answered a plain `Q20_REPLY_N` to the continue as well, and
+       three assertions looking for `Q20_CONTINUATION_APPENDED` could not pass. The lane had written the
+       declaration, the branch and the assertions in one change and never checked that anything connected them --
+       and it claimed the mechanism in the commit message at the time. A single grep for the assignment would have
+       found zero results in one query.
+    2. `legsDrove` required `sawRegenerateCall`, a field the probe had stopped writing.
+    3. `legsDrove` required `sawBusy`, a field that was never captured at all.
+    ALL THREE ARE DECLARATIONS WITH NO CONNECTION, and each was discovered by a red that named a SYMPTOM three steps
+    from its cause. The check is one query per field: search for where it is WRITTEN, and if there is no writer, the
+    consumer is reading a constant.
+    AND THE LANE'S OWN FIX CARRIES A SECOND LESSON: it armed the ordinal from the harness's OWN measurement
+    (`peerState.continuationOrdinal = requestsBefore + 1`, where `requestsBefore` counts completions the PEER has
+    served) immediately before the press, and it made `continuationTail` EMPTY -- because setting it to the marker
+    produced `Q20_CONTINUATION_APPENDED_3Q20_CONTINUATION_APPENDED`. **A doubled token that an `.includes()`
+    assertion matches happily is the exact shape of a green that proves nothing**: the assertion was satisfied by a
+    string the product would never produce. Rule 15's question -- what input would make this fail? -- asked of the
+    FIXTURE's own text.
+    A THIRD, SMALLER ITEM FROM THE SAME RUN: the lane misread a ternary
+    (`wrapStatus = cond ? 'bound' : (wrapStatus === 'not-installed' ? ... : wrapStatus)`) as clearing an exception
+    message when it preserves it, and it TESTED the expression in node rather than asserting its reading -- which is
+    why it did not "fix" working code. The artefact already said
+    `defineProperty-threw: Cannot redefine property: Generate`, correctly, and that was never the failure.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
