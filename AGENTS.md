@@ -1390,6 +1390,38 @@ rather than by review.
     `f3474f1`, `59dabb9`). Continue's comparator has run TWICE, neither time against two identical conversations, so
     it still has no equality and Q20 stays `partial`.
 
+97. **A subject captured from a LIVE, MUTATING source is not a snapshot: the oracle leg must be handed a FROZEN copy
+    taken at the moment the observation was made -- and a fallback to the live source IS the defect, so refuse by name
+    instead.** Measured, with both artefacts printed side by side.
+    SAME CHAT, SAME FILE, DIFFERENT CONTENTS. Both legs opened the same `chatId` and the same file path, and the
+    snapshots differed:
+        PINNED                          GOTAVERN
+        [4] A: Q20_REPLY_2 Q20_CONTINUATION   [4] A: Q20_REPLY_2
+        [5] U: "Q20 continue residual probe turn"   <-- absent in GoTavern's snapshot
+        [6] A: Q20_REPLY_4                          <-- absent
+    Seven messages against five, because the pinned leg was given `--data-chat "$tree"` -- the GoTavern leg's LIVE data
+    root, read at the moment the pinned leg STARTED -- by which time the GoTavern probe had already run its
+    residual-state check (`sendTurn 'Q20 continue residual probe turn'`, `:549`) and written a real user message and a
+    real reply into that tree. **The pinned subject continued a different message than the GoTavern one**, so the
+    comparison was between two different conversations while every identity check passed.
+    THE FIX IS A HANDOFF SNAPSHOT: the probe copies its root to `--handoff-tree` AFTER the continuation and BEFORE the
+    residual turn, and the pinned leg is given that. And a leg that produces NO handoff **refuses by name rather than
+    falling back to the live root, because the fallback IS this defect** -- the same principle as rule 17's refusal
+    being distinguishable from an unimplemented branch.
+    THE NEAR-MISS THAT IDENTIFIED THE MECHANISM: the regenerate leg is immune FOR A MEASURABLE REASON -- it sends no
+    turn after its snapshot, and its pinned leg reads 5 messages / 6 lines, exactly what the GoTavern leg recorded. So
+    when one leg of a pair is green and its twin is not, compare what each does AFTER its observation; that difference
+    is usually the mechanism.
+    AND A REFUTED HYPOTHESIS IS RECORDED AS SUCH. The lane predicted the two legs "ran on different chats". They did
+    not: `sameChat`'s chatId check AND the file-path check both passed, and only the INDEX and COUNT differed -- which
+    is what pointed at tree CONTENTS rather than selection. Had the prediction been asserted, it would have "fixed"
+    the selection code that was already correct. Rule 60 in a new costume: a reading must be confirmed against an
+    observation before it becomes a fix.
+    THE LANE'S PATTERN, STATED PLAINLY AND WORTH KEEPING: continue's comparator has now executed TWICE and produced no
+    equality, and **both times the cause was a defect in the lane's own harness, never the product** -- first a
+    wrapper field that cannot be written (rule 95), now a tree copy taken at the wrong moment. The product has driven
+    24/24 green on every attempt. Regenerate is at 13/13 across SIX CI runs; Q20 stays `partial`.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
