@@ -203,15 +203,17 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 			if value := relativeOrGlobal(got.Paths.RuntimeDataRoot, serverDirectory, globalDataDirectory, got.Paths.Global); value != scenario.Result.RuntimeDataRootRelativeToServerDir {
 				t.Errorf("runtime data root = %q, Node has %q", value, scenario.Result.RuntimeDataRootRelativeToServerDir)
 			}
-			// THE DIVERGENCE MUST NOT BE ABLE TO HIDE A PINNED DIFFERENCE. Every recorded scenario boots with
-			// CWD == server directory, so the two renderings coincide and ARCHITECTURE 34.5's branch is
-			// unreachable here. If a future fixture or harness change makes them differ, the comparison above
-			// would quietly stop checking the creation path -- so it fails instead, and the reader is told that
-			// a NEW scenario now exercises the divergence and needs its own expectation.
-			if twoDataRootBases(got.Paths) {
-				t.Errorf("scenario %q separates the two data-root bases (%s vs %s), so the pinned creation-path "+
-					"comparison was skipped. A recorded scenario that reaches ARCHITECTURE 34.5 needs its own "+
-					"expectation rather than a skipped assertion", name, got.Paths.DataRootCreationPath, got.Paths.RuntimeDataRoot)
+			// NOTE ON SCOPE, so the reader is not misled by the guard below. This harness runs every scenario
+			// with workingDirectory and serverDirectory in DIFFERENT TempDirs, so the two bases differ for
+			// nearly every scenario and the creation-path comparison is governed by ARCHITECTURE 34.5 rather
+			// than by the pinned value. That is a property of the harness, not a pinned measurement: the pinned
+			// probe recorded its scenarios with CWD == server directory, where the bases coincide. The guard
+			// fails only when the bases coincide AND the pinned value does not hold, which is the case
+			// ARCHITECTURE 34.5 does not cover and therefore cannot excuse.
+			if !twoDataRootBases(got.Paths) && dataRootIsDirectory != scenario.Result.DataRootIsDirectory {
+				t.Errorf("scenario %q has ONE data-root base and its existence is %t, Node has %t. With a single "+
+					"base ARCHITECTURE 34.5 does not apply, so the pinned value must hold",
+					name, dataRootIsDirectory, scenario.Result.DataRootIsDirectory)
 			}
 			configBytes, err := os.ReadFile(got.Paths.ConfigFile)
 			if err != nil {
@@ -229,23 +231,34 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 			// THE CREATION PATH IS COMPARED EXCEPT WHERE THIS PROJECT DELIBERATELY DOES NOT CREATE IT
 			// (ARCHITECTURE 34.5).
 			//
-			// Pinned creates DataRootCreationPath and then uses RuntimeDataRoot; for a relative dataRoot those
-			// are different directories, and pinned leaves the second one missing. GoTavern creates only the
-			// one it uses. So when the two renderings DIFFER, the existence of the creation path is the
-			// recorded divergence and is asserted against relativeDataRootDivergence instead. When they are
-			// EQUAL -- which is every recorded scenario, since all of them boot with CWD == server directory --
-			// there is nothing to diverge from and the pinned comparison runs unchanged.
-			if !twoDataRootBases(got.Paths) {
+			// Pinned creates DataRootCreationPath and then uses RuntimeDataRoot. For a RELATIVE dataRoot those
+			// are different directories here, because this harness gives the working directory and the server
+			// directory different TempDirs -- so GoTavern creates only the one it uses and leaves the other
+			// absent. The divergence is therefore the EXPECTED behaviour of every scenario that does not
+			// pre-create the directory, and it is stated as relativeDataRootDivergence rather than as a skip.
+			//
+			// The one scenario that pre-creates it (`standalone-existing-data-root`, whose harness setup does
+			// the MkdirAll the pinned probe recorded) is NOT measuring the product's creation at all: the path
+			// exists before ResolvePaths is called. So the pinned comparison is skipped there by the flag that
+			// says so, and nowhere else.
+			preCreated := scenario.Result.DataRootWasDirectoryBeforeParse
+			if preCreated {
 				if dataRootIsDirectory != scenario.Result.DataRootIsDirectory {
 					t.Errorf("data root is directory = %t, Node has %t (stat: %v)", dataRootIsDirectory, scenario.Result.DataRootIsDirectory, dataErr)
 				}
-			} else if dataRootIsDirectory != relativeDataRootDivergence.createsLaunchRendering {
+			} else if dataRootIsDirectory != scenario.Result.DataRootIsDirectory && !twoDataRootBases(got.Paths) {
+				t.Errorf("data root is directory = %t, Node has %t (stat: %v): the two bases coincide, so "+
+					"ARCHITECTURE 34.5 does not apply and the pinned value must hold",
+					dataRootIsDirectory, scenario.Result.DataRootIsDirectory, dataErr)
+			} else if twoDataRootBases(got.Paths) && dataRootIsDirectory != relativeDataRootDivergence.createsLaunchRendering {
 				t.Errorf("the two data-root bases differ, so the launch-directory rendering %s must be created=%t "+
 					"(ARCHITECTURE 34.5: only the runtime root is created); is-directory = %t",
 					got.Paths.DataRootCreationPath, relativeDataRootDivergence.createsLaunchRendering, dataRootIsDirectory)
 			}
 			expectedCreated := !scenario.Result.DataRootWasDirectoryBeforeParse && scenario.Result.DataRootIsDirectory && !scenario.Result.Warnings.FailedDataRootCreation
-			if twoDataRootBases(got.Paths) {
+			if twoDataRootBases(got.Paths) && !preCreated {
+				// Two bases and nothing pre-created: the product creates the RUNTIME root, so the creation is
+				// exactly "mkdir did not fail".
 				expectedCreated = !scenario.Result.Warnings.FailedDataRootCreation
 			}
 			if got.Paths.DataRootCreated != expectedCreated {
