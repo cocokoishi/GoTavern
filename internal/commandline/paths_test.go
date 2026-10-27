@@ -96,6 +96,32 @@ var pinnedDivergences = map[string]struct {
 	},
 }
 
+// twoDataRootBases reports whether the creation path and the runtime path disagree, which is the ONLY
+// situation ARCHITECTURE 34.5 changes. All recorded scenarios boot with CWD == server directory, so this is
+// false for every one of them; the guard in the parity test fails if that ever stops being true, because a
+// fixture change that silently makes this true would otherwise switch the pinned comparison off.
+func twoDataRootBases(paths ResolvedPaths) bool {
+	return filepath.Clean(paths.DataRootCreationPath) != filepath.Clean(paths.RuntimeDataRoot)
+}
+
+// relativeDataRootDivergence is the RECORDED divergence for a relative dataRoot (ARCHITECTURE 34.5), stated as
+// the one value that differs so it cannot drift into a permission. Pinned creates the launch-directory
+// rendering and uses the server-directory one; GoTavern creates only the one it uses and warns naming both.
+//
+// Pinned creates the launch-directory rendering and uses the server-directory one: server.js:8 runs the
+// parser (creation at command-line.js:292-293), then server.js:11 chdirs, then server-main.js:400,456 reads
+// through the post-chdir directory. GoTavern creates <serverDir>/data only, and reports the difference as a
+// PathWarning naming both paths.
+var relativeDataRootDivergence = struct {
+	createsLaunchRendering bool
+	reason                 string
+}{
+	createsLaunchRendering: false,
+	reason: "AGENTS 27 outranks parity here: startup must not create state in a directory the user did not " +
+		"name, and a relative dataRoot names one directory. Precedent ARCHITECTURE 34.3 (auto-update). The " +
+		"pinned values of both data-root FIELDS are unchanged; only the side effect moves.",
+}
+
 func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 	fixtureBytes, err := os.ReadFile(filepath.Join("..", "..", "tests", "oracle", "sillytavern-1.19.0-commandline-paths.json"))
 	if err != nil {
@@ -177,6 +203,16 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 			if value := relativeOrGlobal(got.Paths.RuntimeDataRoot, serverDirectory, globalDataDirectory, got.Paths.Global); value != scenario.Result.RuntimeDataRootRelativeToServerDir {
 				t.Errorf("runtime data root = %q, Node has %q", value, scenario.Result.RuntimeDataRootRelativeToServerDir)
 			}
+			// THE DIVERGENCE MUST NOT BE ABLE TO HIDE A PINNED DIFFERENCE. Every recorded scenario boots with
+			// CWD == server directory, so the two renderings coincide and ARCHITECTURE 34.5's branch is
+			// unreachable here. If a future fixture or harness change makes them differ, the comparison above
+			// would quietly stop checking the creation path -- so it fails instead, and the reader is told that
+			// a NEW scenario now exercises the divergence and needs its own expectation.
+			if twoDataRootBases(got.Paths) {
+				t.Errorf("scenario %q separates the two data-root bases (%s vs %s), so the pinned creation-path "+
+					"comparison was skipped. A recorded scenario that reaches ARCHITECTURE 34.5 needs its own "+
+					"expectation rather than a skipped assertion", name, got.Paths.DataRootCreationPath, got.Paths.RuntimeDataRoot)
+			}
 			configBytes, err := os.ReadFile(got.Paths.ConfigFile)
 			if err != nil {
 				t.Fatal(err)
@@ -190,10 +226,28 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 			}
 			dataInfo, dataErr := os.Stat(got.Paths.DataRootCreationPath)
 			dataRootIsDirectory := dataErr == nil && dataInfo.IsDir()
-			if dataRootIsDirectory != scenario.Result.DataRootIsDirectory {
-				t.Errorf("data root is directory = %t, Node has %t (stat: %v)", dataRootIsDirectory, scenario.Result.DataRootIsDirectory, dataErr)
+			// THE CREATION PATH IS COMPARED EXCEPT WHERE THIS PROJECT DELIBERATELY DOES NOT CREATE IT
+			// (ARCHITECTURE 34.5).
+			//
+			// Pinned creates DataRootCreationPath and then uses RuntimeDataRoot; for a relative dataRoot those
+			// are different directories, and pinned leaves the second one missing. GoTavern creates only the
+			// one it uses. So when the two renderings DIFFER, the existence of the creation path is the
+			// recorded divergence and is asserted against relativeDataRootDivergence instead. When they are
+			// EQUAL -- which is every recorded scenario, since all of them boot with CWD == server directory --
+			// there is nothing to diverge from and the pinned comparison runs unchanged.
+			if !twoDataRootBases(got.Paths) {
+				if dataRootIsDirectory != scenario.Result.DataRootIsDirectory {
+					t.Errorf("data root is directory = %t, Node has %t (stat: %v)", dataRootIsDirectory, scenario.Result.DataRootIsDirectory, dataErr)
+				}
+			} else if dataRootIsDirectory != relativeDataRootDivergence.createsLaunchRendering {
+				t.Errorf("the two data-root bases differ, so the launch-directory rendering %s must be created=%t "+
+					"(ARCHITECTURE 34.5: only the runtime root is created); is-directory = %t",
+					got.Paths.DataRootCreationPath, relativeDataRootDivergence.createsLaunchRendering, dataRootIsDirectory)
 			}
 			expectedCreated := !scenario.Result.DataRootWasDirectoryBeforeParse && scenario.Result.DataRootIsDirectory && !scenario.Result.Warnings.FailedDataRootCreation
+			if twoDataRootBases(got.Paths) {
+				expectedCreated = !scenario.Result.Warnings.FailedDataRootCreation
+			}
 			if got.Paths.DataRootCreated != expectedCreated {
 				t.Errorf("data root created = %t, Node setup implies %t", got.Paths.DataRootCreated, expectedCreated)
 			}
