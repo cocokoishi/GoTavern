@@ -218,6 +218,35 @@ function step(name, ok, detail = null) {
 const CARD_FILE_NAME = 'Q21 Handback Card';
 const CARD_RELATIVE = path.join(here, 'fixtures', 'real', 'card-a.png');
 
+// THE CHARACTER LIST SHOWS THE CARD`S OWN `data.name`, NOT THE FILE NAME. Run 40431277400 listed the staged card as
+// `MARK_002794…` while the probe asserted `Q21 Handback Card`, so a card that was present all along read as absent --
+// the fifth harness defect in this lane and the third caused by asserting a convenient label instead of the fact.
+// `asset-probe.mjs:208-226` reads the `ccv3`/`chara` tEXt chunk, which is the same place the server reads.
+function cardOwnName(bytes) {
+    let offset = 8;
+    while (offset + 8 <= bytes.length) {
+        const length = bytes.readUInt32BE(offset);
+        const type = bytes.toString('latin1', offset + 4, offset + 8);
+        const dataStart = offset + 8;
+        if (type === 'tEXt') {
+            const chunk = bytes.subarray(dataStart, dataStart + length);
+            const zero = chunk.indexOf(0);
+            if (zero > 0 && /^(ccv3|chara)$/i.test(chunk.toString('latin1', 0, zero))) {
+                const raw = chunk.subarray(zero + 1).toString('latin1');
+                const text = chunk.toString('latin1', 0, zero).toLowerCase() === 'ccv3' ? Buffer.from(raw, 'base64').toString('utf8') : decodeURIComponent(Buffer.from(raw, 'base64').toString('utf8'));
+                try {
+                    return String(JSON.parse(text)?.data?.name ?? '') || null;
+                } catch {
+                    return null;
+                }
+            }
+        }
+        offset = dataStart + length + 4;
+        if (type === 'IEND') break;
+    }
+    return null;
+}
+
 async function stageCharacterCard(root) {
     const charactersDir = path.join(root, 'default-user', 'characters');
     await fs.mkdir(charactersDir, { recursive: true });
@@ -229,7 +258,9 @@ async function stageCharacterCard(root) {
     }
     const staged = path.join(charactersDir, `${CARD_FILE_NAME}.png`);
     await fs.writeFile(staged, bytes);
-    return { staged, byteLength: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
+    const ownName = cardOwnName(bytes);
+    if (!ownName) throw new Error(`the committed card at ${CARD_RELATIVE} carries no readable data.name`);
+    return { staged, ownName, byteLength: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
 }
 
 // The character list the SERVER returns, asked over HTTP so the answer cannot depend on the probe's module graph.
@@ -296,9 +327,15 @@ async function gotavernWrites() {
         // Asking over HTTP rather than through the page keeps this independent of the probe's module graph.
         const starter = await listCharacters(`http://127.0.0.1:${port}`);
         report.serverRoster = starter;
-        step('characterStaged', starter.ok === true && starter.names.includes(CARD_FILE_NAME), JSON.stringify(starter).slice(0, 400));
-        if (!starter.ok || !starter.names.includes(CARD_FILE_NAME)) {
-            throw new Error(`the staged card ${CARD_FILE_NAME} is not listed by the server: ${JSON.stringify(starter).slice(0, 300)}`);
+        // ASSERT THE NAME THE SERVER SHOWS, WHICH IS THE CARD`S OWN `data.name`, AND NAME ANYTHING ELSE IN THE TREE.
+        // A roster that contains rows this probe did not stage means the data root was not clean, which would make
+        // every later verdict depend on someone else's leftovers -- the same shape as the adversarial case fixed in
+        // 03f1988. `unexpectedCharacters` records it instead of letting it pass silently.
+        const stagedName = report.stagedCard.ownName;
+        report.unexpectedCharacters = starter.names.filter(name => name !== stagedName);
+        step('characterStaged', starter.ok === true && starter.names.includes(stagedName), `wanting "${stagedName}"; roster ${JSON.stringify(starter.names).slice(0, 300)}`);
+        if (!starter.ok || !starter.names.includes(stagedName)) {
+            throw new Error(`the staged card "${stagedName}" is not listed by the server: ${JSON.stringify(starter).slice(0, 300)}`);
         }
         browser = await chromium.launch();
         const page = await browser.newPage();
