@@ -173,7 +173,7 @@ func TestPinnedShallowRowMembersAreTheRecordedOnes(t *testing.T) {
 			t.Fatalf("the captured shallow row for %s carries `chats`; this test's premise (pinned never assigns it) "+
 				"would be wrong and the frontend-derived reading in public/script.js:567-574 would need revisiting", avatar)
 		}
-		if kind := memberKind(row, "chat_size"); kind != "number" {
+		if _, kind := memberKind(row, "chat_size"); kind != "number" {
 			t.Fatalf("the captured shallow row for %s has chat_size=%s, wanted a number", avatar, kind)
 		}
 		if _, kind := memberKind(row, "chat"); kind != "string" {
