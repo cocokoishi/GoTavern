@@ -505,17 +505,43 @@ export async function applyRegexKit(spec) {
         //     proven either way.
         // A rule that fires where the engine says it cannot is as much a defect as one that does not fire, so
         // both directions are asserted for every rule below.
-        if (!isActive.entryChanged) {
+        // THE POSITIVE CONTROL IS VARIANT-DEPENDENT, AND THAT IS A FACT ABOUT THE SCENARIO, NOT A RELAXATION.
+        // `disabled-rewrite` exists precisely to switch R1 OFF, so demanding that R1 fire there would be the
+        // harness contradicting its own variant -- measured in run 40468846644, where BOTH baseline legs passed
+        // the entire self-check on both subjects and the disabled leg failed only on this. What that variant
+        // must show instead is the NEGATIVE: R1's input survives and its output is absent.
+        const r1IsDisabled = String(spec?.variant ?? 'baseline') === 'disabled-rewrite';
+        if (r1IsDisabled) {
+            if (isActive.entryChanged) {
+                problems.push('R1 is DISABLED in this variant (disabled-rewrite) yet the entry-point shape shows it firing; the negation did not take effect, so every "the rule changes the request" comparison against this leg would be meaningless');
+            }
+            if (!isActive.entry.includes(MARKERS.inActive)) {
+                problems.push(`R1 is disabled in this variant but its input ${MARKERS.inActive} is gone from the entry-point result: something other than R1 consumed it`);
+            }
+        } else if (!isActive.entryChanged) {
             problems.push(`R1 (no flags) did not fire on the ENTRY-POINT shape (no isMarkdown, no isPrompt) that script.js:5875 and :6481 use: entryChanged=${isActive.entryChanged}. The clause at engine.js:354 admits a plain rule ONLY when both flags are absent, so this is the shape that must reach it`);
         }
         if (isActive.promptChanged || isActive.displayChanged) {
             problems.push(`R1 (no flags) fired on a FLAGGED shape (promptChanged=${isActive.promptChanged}, displayChanged=${isActive.displayChanged}); engine.js:354 excludes a plain rule from both, so the engine's clause is not being applied`);
         }
         // The chain's second link must not be reachable from the raw input, or the chain proves nothing.
-        if (!isChain.entryChanged) {
+        // THE CHAIN'S EXPECTATION ALSO FLIPS WITH ITS VARIANT, for the same reason R1's does. In
+        // `swap-chain` the two rules run in the opposite order, so C-B looks for a middle token nobody has
+        // created yet, finds nothing, and C-A's output SURVIVES -- that is the whole observable case 4
+        // asserts. Requiring the chain to "form" there would be the harness demanding the baseline's answer
+        // from the variant built to disprove it.
+        const chainIsReversed = String(spec?.variant ?? 'baseline') === 'swap-chain';
+        if (chainIsReversed) {
+            if (!isChain.entry.includes(MARKERS.chainMiddle)) {
+                problems.push(`with the two chain rules exchanged, the middle token ${MARKERS.chainMiddle} is ABSENT (${JSON.stringify(isChain.entry)}): the swap did not take effect, so case 4 has no counter-observable`);
+            }
+            if (isChain.entry.includes(MARKERS.chainOutput)) {
+                problems.push('with the two chain rules exchanged the chain STILL completed, so the order does not matter and case 4 proves nothing');
+            }
+        } else if (!isChain.entryChanged) {
             problems.push('the chain did not form on the entry-point shape: C-A then C-B produced no change');
         }
-        if (isChain.entry.includes(MARKERS.chainMiddle)) {
+        if (!chainIsReversed && isChain.entry.includes(MARKERS.chainMiddle)) {
             problems.push(`the chain left its middle token in the result (${JSON.stringify(isChain.entry)}): C-B did not consume C-A's output`);
         }
         // The disabled rule must be inert everywhere, and its input must remain.

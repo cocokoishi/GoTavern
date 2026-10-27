@@ -299,6 +299,12 @@ try {
     await page.addScriptTag({ content: `globalThis.__applyRegexKit = (${applyRegexKit.toString()});` });
     const spec = {
         markers: MARKERS,
+        // THE VARIANT TRAVELS WITH THE SPEC, because the self-check's positive control depends on it: R1 is
+        // DELIBERATELY disabled in `disabled-rewrite`, so "R1 must fire" is the correct expectation in the
+        // baseline and the WRONG one there. Measured in run 40468846644, where the baseline legs passed the
+        // whole self-check on BOTH subjects and the disabled-rewrite leg failed it for firing the baseline's
+        // expectation -- the harness demanding a control its own variant had switched off.
+        variant,
         // The three turns, and WHY each exists, are documented at the top of this file. `send` is the text
         // typed into the composer; the previous turn is what makes depth 1 reachable.
         turns: [
