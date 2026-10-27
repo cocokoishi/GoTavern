@@ -1334,6 +1334,33 @@ rather than by review.
     CONTEXT's `characterId` plus `context.characters` (`st-context.js:119/123`), so the field is read through the
     product's own accessor at the point of use instead of from a binding captured earlier.
 
+95. **A field the product CANNOT write is false by construction, so an assertion on it is not a gate -- and a
+    replacement assertion must be tested in BOTH directions before it is committed.** Two defects behind six reds in
+    the run where a comparator finally executed, and the second is the reason the first did not matter.
+    FALSE BY CONSTRUCTION. `legsDrove` required `sawContinueCall`, which needs `__q20GenerateWrap`, which needs
+    reassigning `script.Generate` -- a live ES-module binding. BOTH legs recorded
+    `defineProperty-threw: Cannot redefine property: Generate`, so the field was `false` on every run that will ever
+    exist, while all 24 and 23 steps passed. **An assertion on an impossible field cannot fail for the right reason
+    and cannot pass for one either; it is a gate that only reports the harness's own impossibility.** This is rule
+    91's purest form and the FOURTH member of that family in one lane, after `sawRegenerateCall`, `sawBusy` and
+    `continuationOrdinal` -- and the sharpest, because here the PROBE had already stopped reading the field and the
+    COMPARATOR still did. A field is not evidence of an effect because it is named after one; judge by the effect
+    (press delivered, generation entered, last message grown in place) and keep the unusable mechanism reported in
+    `details` rather than asserted on.
+    AND THE REPLACEMENT WAS TESTED IN BOTH DIRECTIONS, which is the part to copy. The lane checked the substitute
+    against a RECORDED artefact before committing: the real subject gives `grewInPlace = true` (`"Q20_REPLY_2"` ->
+    `"Q20_REPLY_2 Q20_REPLY_3"`, `lastIsUser:false`), and a negative control in which the subject APPENDS instead
+    gives `false` and the guard rejects it. **A substitute assertion that can only ever pass is the same defect
+    class as the one it replaced**, and the negative control is the only thing that distinguishes them.
+    AND THE FIRST DEFECT IS RULE 94'S SHAPE AT A CALL SITE. `sameChat` reported "the two subjects continued different
+    message indices: 4 vs 10" because clicking a card opens its LAST-USED chat, and the regenerate step passed
+    `--chat-id` while the continue step did not -- forty lines apart in the same workflow, added in the same lane. The
+    correction had been lifted into ONE of two parallel call sites. When a fix is applied to a call site, grep for
+    its TWINS in the same file before committing it.
+    THE LANE'S OWN ASSESSMENT IS THE RULE'S JUSTIFICATION: six reds in one run looked bad and were not -- one missing
+    argument and one impossible field -- and **both were invisible until both legs drove clean, because a comparator
+    that never ran could not have reported either.**
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
