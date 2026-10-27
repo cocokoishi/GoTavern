@@ -808,22 +808,51 @@ try {
     const swipeFile = chatCarrying(report.finalFiles, MARKERS.second);
     const swipeBefore = report.swipe?.before ?? {};
     const swipeAfter = report.swipe?.after ?? {};
-    const lastPersisted = swipeFile?.messages?.[swipeFile.messages.length - 1] ?? null;
+    // WHICH MESSAGE, AND WHY NOT BY NUMBER. `swipe.before.mesId` is a RENDERED DOM ordinal (`mesid`, script.js:8144
+    // `chat[mesElement.attr('mesid')]`), and `chat[0]` is the chat header, so the file index and that number are not
+    // the same namespace -- measured in run 40445671791, where treating them as one pointed the guard at the wrong
+    // message. The file is therefore matched by the ONE thing the page and the file agree on: the message the swipe
+    // was performed on is the assistant reply the page had on screen. It is located by "the last persisted message
+    // that is not a user message and is not the greeting", i.e. the tail of the conversation, and its INDEX is then
+    // recorded so a red names it.
+    const persistedMessages = swipeFile?.messages ?? [];
+    // THE MESSAGE IS FOUND BY THE SWIPE'S OWN SIGNATURE, which is the only thing that identifies it without sharing
+    // an expectation with the product: it is the message whose persisted `swipes` array is LONGER than the array the
+    // page had before the swipe. Measured against run 40445671791's recorded legs: both subjects hold exactly one
+    // such message, at index 4, with `swipes: 2, swipe_id: 1` -- while the greeting also has a `swipes` array (of 1)
+    // and an empty reply also has one, so "an assistant message near the tail" and "a message with text" both pick
+    // the WRONG one. `mesId` from the page is a rendered DOM ordinal over `#chat .mes` and is not the chat index.
+    const grewBeyond = Number(swipeBefore.swipes ?? 0);
+    const candidates = persistedMessages.filter(message => Number(message?.swipesCount ?? 0) > grewBeyond);
+    const persisted = candidates.length === 1 ? candidates[0] : null;
     report.swipePersisted = swipeFile ? {
         file: swipeFile.file,
-        messageIndex: lastPersisted?.index ?? null,
-        swipesCount: lastPersisted?.swipesCount ?? null,
-        swipeId: lastPersisted?.swipeId ?? null,
-        // The message the swipe produced, judged by content: the peer's reply marker.
-        holdsReply: String(lastPersisted?.mes ?? '').startsWith('Q20_REPLY_'),
+        headerStripped: swipeFile.hasHeader === true,
+        messageIndex: persisted?.index ?? null,
+        candidateIndexes: candidates.map(message => message.index),
+        pageMesId: swipeBefore.mesId ?? null,
+        swipesCount: persisted?.swipesCount ?? null,
+        swipeId: persisted?.swipeId ?? null,
+        isUser: persisted?.is_user ?? null,
     } : null;
-    step('final-file-reflects-swipe',
-        Boolean(swipeFile)
-        && swipeFile.messages.length === Number(swipeAfter.chatLength ?? -1)
-        && Number(lastPersisted?.swipesCount ?? 0) > Number(swipeBefore.swipes ?? 0)
-        && Number(lastPersisted?.swipeId ?? -1) === Number(swipeAfter.swipeId ?? -2)
-        && lastPersisted?.is_user === false,
-        JSON.stringify({ swipePersisted: report.swipePersisted, before: { swipes: swipeBefore.swipes, swipeId: swipeBefore.swipeId, mesId: swipeBefore.mesId }, after: { swipes: swipeAfter.swipes, swipeId: swipeAfter.swipeId }, files: (report.finalFiles ?? []).map(file => `${file.file}:${file.lines}`) }));
+    // EACH SUB-CONDITION IS NAMED, so a red says WHICH field disagreed instead of handing back one boolean.
+    const swipeChecks = {
+        'the file carrying the second marker exists': Boolean(swipeFile),
+        'exactly ONE persisted message grew its swipes array (the swiped one)': candidates.length === 1,
+        'the file holds the same message count the page showed': Boolean(swipeFile) && persistedMessages.length === Number(swipeAfter.chatLength ?? -1),
+        'the swiped message is not a user message': persisted?.is_user === false,
+        'the persisted swipes array GREW past what the page had before the swipe': Number(persisted?.swipesCount ?? 0) > grewBeyond,
+        'the persisted swipe_id is the one the page selected': Number(persisted?.swipeId ?? -1) === Number(swipeAfter.swipeId ?? -2),
+    };
+    const failedSwipeChecks = Object.entries(swipeChecks).filter(([, ok]) => !ok).map(([name]) => name);
+    step('final-file-reflects-swipe', failedSwipeChecks.length === 0,
+        JSON.stringify({
+            failed: failedSwipeChecks,
+            swipePersisted: report.swipePersisted,
+            before: { swipes: swipeBefore.swipes, swipeId: swipeBefore.swipeId, mesId: swipeBefore.mesId },
+            after: { swipes: swipeAfter.swipes, swipeId: swipeAfter.swipeId, chatLength: swipeAfter.chatLength },
+            files: (report.finalFiles ?? []).map(file => `${file.file}:${file.lines}`),
+        }));
 } catch (error) {
     report.failure = report.failure ?? String(error?.stack ?? error);
 } finally {

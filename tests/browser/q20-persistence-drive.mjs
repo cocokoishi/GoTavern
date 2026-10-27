@@ -74,18 +74,28 @@ export const carries = (files, marker) => files.some(file => (file.messages ?? [
 /**
  * The chat this leg is about: the one file that carries `marker`, with the fields a guard compares.
  *
- * `relative to the handle` is what the comparator compares, and `messages` is what it reads swipe counts,
- * metadata and message order from. `swipes` is the SHORT form -- a swipe array is a whole alternate reply -- so
- * the artefact stays readable and the comparison stays exact about what it claims (count and selected index).
+ * THE HEADER LINE IS NOT A MESSAGE. Measured in run 40445671791: a pinned/GoTavern `.jsonl` begins with a
+ * HEADER record (`{chat_metadata, user_name: 'unused', character_name: 'unused'}`, written by
+ * `saveChat`'s `chat: [chatHeader, ...trimmedChat]`, public/script.js:7446-7452) and every later line is a
+ * message. `messages[length - 1]` on the RAW lines therefore pointed at the GREETING, not at the message the leg
+ * had just swiped -- and the guard built on it failed on both subjects while the file was in fact correct (the
+ * real message 5 held `swipes: 2, swipe_id: 1`, exactly what the page reported). `messages` here is header-stripped
+ * and `index` is the message index the PAGE uses (0 = greeting), so `report.swipe.before.mesId` and this index are
+ * the same namespace. `lines` stays the raw line count, because that is what the file holds.
  */
 export function chatCarrying(files, marker) {
     const file = (files ?? []).find(candidate => carries([candidate], marker));
     if (!file) return null;
+    // A header record is the first line and is recognisable by its own keys, not by position alone.
+    const isHeader = record => Boolean(record) && (Object.prototype.hasOwnProperty.call(record, 'chat_metadata')
+        || Object.prototype.hasOwnProperty.call(record, 'user_name'));
+    const body = (file.messages ?? []).filter(record => !isHeader(record));
     return {
         file: file.file,
         sha256: file.sha256,
         lines: file.lines,
-        messages: (file.messages ?? []).map((message, index) => ({
+        hasHeader: (file.messages ?? []).length > 0 && isHeader((file.messages ?? [])[0]),
+        messages: body.map((message, index) => ({
             index,
             is_user: message?.is_user === true,
             mes: String(message?.mes ?? ''),
