@@ -1066,7 +1066,27 @@ jobs:
           failures=0
           tree="$work/q20-regen-tree-gotavern"
           rm -rf "$tree"; mkdir -p "$tree"
-          if node tests/browser/q20-regenerate-probe.mjs --data-root "$tree" --report "$work/legs/q20-regen-gotavern.json"; then
+          # THE GOTAVERN LEG IS ALSO GIVEN A NAME, and this is the one measured in run 40452820868: the first version
+          # passed `--character` to the PINNED leg only, so the GoTavern leg's `openCharacter` REFUSED (by design --
+          # it does not fall back to "whichever card renders") and every later step ran with no chat open. A fresh
+          # install has exactly one card, and this leg may name it BY READING THE TREE IT WAS GIVEN rather than by
+          # guessing: the card's directory under `<dataRoot>/default-user/characters` IS the product's own spelling of
+          # the name. If more than one exists the leg fails by name instead of picking one.
+          name=$(node -e "
+            const fs=require('fs'), path=require('path');
+            const dir=path.join(process.argv[1],'default-user','characters');
+            let names=[];
+            try { names=fs.readdirSync(dir).filter(f=>f.endsWith('.png')).map(f=>f.replace(/\.png$/,'')); } catch { names=[]; }
+            if (names.length===0) process.stderr.write('no card staged under '+dir+'\n');
+            if (names.length>1) process.stderr.write('more than one card staged: '+names.join(', ')+'\n');
+            process.stdout.write(names.length===1 ? names[0] : '');
+          " "$tree" 2> "$work/q20-regen-card-name.err" || true)
+          if [ -n "$(cat "$work/q20-regen-card-name.err" 2>/dev/null)" ]; then
+            echo "::warning::Q20 regenerate card resolution: $(cat "$work/q20-regen-card-name.err")"
+          fi
+          echo "Q20 regenerate: the GoTavern tree stages card name=$(printf '%q' "$name")"
+          if node tests/browser/q20-regenerate-probe.mjs --data-root "$tree" --report "$work/legs/q20-regen-gotavern.json" \
+              ${name:+--character "$name"}; then
             echo "recorded the gotavern Q20 regenerate leg"
           else
             echo "::error::the gotavern Q20 regenerate leg failed to drive"
@@ -1141,7 +1161,24 @@ jobs:
           failures=0
           tree="$work/q20-continue-tree-gotavern"
           rm -rf "$tree"; mkdir -p "$tree"
-          if node tests/browser/q20-continue-probe.mjs --data-root "$tree" --report "$work/legs/q20-continue-gotavern.json"; then
+          # THE SAME FIX AS THE REGENERATE STEP, same measured cause (run 40452820868): the GoTavern leg must be told
+          # which card to open, and it is told by reading the tree it was given -- `<dataRoot>/default-user/characters`
+          # is the product's own spelling of the name. More than one card fails the step by name rather than picking.
+          name=$(node -e "
+            const fs=require('fs'), path=require('path');
+            const dir=path.join(process.argv[1],'default-user','characters');
+            let names=[];
+            try { names=fs.readdirSync(dir).filter(f=>f.endsWith('.png')).map(f=>f.replace(/\.png$/,'')); } catch { names=[]; }
+            if (names.length===0) process.stderr.write('no card staged under '+dir+'\n');
+            if (names.length>1) process.stderr.write('more than one card staged: '+names.join(', ')+'\n');
+            process.stdout.write(names.length===1 ? names[0] : '');
+          " "$tree" 2> "$work/q20-continue-card-name.err" || true)
+          if [ -n "$(cat "$work/q20-continue-card-name.err" 2>/dev/null)" ]; then
+            echo "::warning::Q20 continue card resolution: $(cat "$work/q20-continue-card-name.err")"
+          fi
+          echo "Q20 continue: the GoTavern tree stages card name=$(printf '%q' "$name")"
+          if node tests/browser/q20-continue-probe.mjs --data-root "$tree" --report "$work/legs/q20-continue-gotavern.json" \
+              ${name:+--character "$name"}; then
             echo "recorded the gotavern Q20 continue leg"
           else
             echo "::error::the gotavern Q20 continue leg failed to drive"
