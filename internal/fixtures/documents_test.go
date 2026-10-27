@@ -270,6 +270,7 @@ var gitObjectIDPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
 //     boundary is spelled out as a negated class rather than `\b` because the id is CAPTURED as group 1:
 //     the boundary characters belong to the match but not to the value, and without the group a 40-hex id
 //     inside prose would be recorded with the character before it.
+
 // describesCommitPhrase recognises a document stating which commit IT is about, as opposed to naming the
 // upstream baseline. Two spellings are allowed and both name the commit explicitly:
 //
@@ -290,7 +291,7 @@ var bareObjectIDPattern = regexp.MustCompile(`(?:^|[^0-9a-f])([0-9a-f]{40})(?:$|
 // The PHRASE is what earns the exemption, so a mistyped baseline cannot hide here: it would have to be
 // introduced by "Describes:" or by the HEAD row, and the value the ledger declares is then held to a fact
 // by the citation-ancestry check, which reads the same phrase back.
-var describesCommitPhrase = regexp.MustCompile(`(?i)(describes:\s*commit\s+\x60|head \(main\)`)
+var describesCommitPhrase = regexp.MustCompile(`(?i)(describes:\s*commit\s+\x60)|(head \(main\))`)
 
 // backtickedObjectIDPattern finds every object id a reader could mistake for the pin, whether it is 40
 // characters or not. The `\b`-anchored 40-character search alone cannot see the defect this gate was
