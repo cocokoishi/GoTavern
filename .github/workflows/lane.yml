@@ -144,6 +144,16 @@ jobs:
           # and any subtest detail sit. It is bounded, so a pathological log cannot flood the runner.
           echo "--- failing blocks (each FAIL plus its next 40 lines) ---"
           grep -A 40 -E '^--- FAIL' /tmp/all-tests.log || echo "(no --- FAIL line; see the tail above)"
+          # FAILING SUBTEST BLOCKS, WHICH `-A 40` CANNOT REACH.
+          #
+          # MEASURED on run 40474358782: `TestChatCompletionGenerateMatchesProviderWireCapture` has ~200
+          # subtests, its three failures were the LAST ones, and `grep -A 40 '^--- FAIL'` printed the first forty
+          # PASS lines of its sibling subtests instead -- so the diagnostic I added one commit earlier showed the
+          # test name and not the reason, which is the exact defect it was written to fix, one layer down.
+          #
+          # Subtests are indented, so they need their own pattern, and six lines is enough for a t.Errorf message.
+          echo "--- failing subtest blocks (each subtest FAIL plus its next 6 lines) ---"
+          grep -A 6 -E '^[[:space:]]+--- FAIL' /tmp/all-tests.log | head -100 || true
           echo "--- failing tests ---"
           grep -E '^(--- FAIL|FAIL)' /tmp/all-tests.log || echo "(none named)"
           echo "--- failing test detail ---"
