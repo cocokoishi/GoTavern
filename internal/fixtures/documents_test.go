@@ -801,7 +801,7 @@ func readManifest(root string) (map[string]manifestEntry, error) {
 	}
 	if len(problems) > 0 {
 		sort.Strings(problems)
-		return nil, fmt.Errorf("%s is inconsistent:\n  %s", ledgerManifestPath, strings.Join(problems, "\n  "))
+		return nil, fmt.Errorf("%s is inconsistent:%s", ledgerManifestPath, joinedProblems(problems))
 	}
 	if len(out) == 0 {
 		return nil, fmt.Errorf("%s carries no parsable runId entries, so every run citation would be unchecked (rule 19)", ledgerManifestPath)
@@ -1052,7 +1052,7 @@ func checkScorecardStructureWith(root string, ancestry ancestryResolver) error {
 	problems = append(problems, checkCitationIntegrity(root, ancestry, entries, rows)...)
 	if len(problems) > 0 {
 		sort.Strings(problems)
-		return fmt.Errorf("evidence ledger %s is inconsistent:\n  %s", filepath.ToSlash(filepath.Join("docs", "goal-scorecard.md")), strings.Join(problems, "\n  "))
+		return fmt.Errorf("evidence ledger %s is inconsistent:%s", filepath.ToSlash(filepath.Join("docs", "goal-scorecard.md")), joinedProblems(problems))
 	}
 	return nil
 }
@@ -1617,4 +1617,24 @@ func countRuleBodyLines(text string) int {
 	}
 	closeSpan(len(lines))
 	return longest
+}
+
+// joinedProblems renders a problem list so that EVERY entry reaches the CI log.
+//
+// MEASURED 2026-10-27: the ledger gate joined its problems with newlines inside a single fmt.Errorf, and Lane CI
+// prints only the TAIL of the go test output. A run therefore reported
+//
+//	evidence ledger docs/goal-scorecard.md is inconsistent:
+//
+// with the entire reason absent, so two lanes could not act on a red they could see. An error whose payload never
+// reaches the log is AGENTS verification rule 7 in the reporting layer: evidence that reads as proof and cannot be
+// read. Each problem is now emitted as its own `| problem: ...` line with the separator explicitly visible, and the
+// header keeps the file name so a reader still knows which document failed.
+func joinedProblems(problems []string) string {
+	var builder strings.Builder
+	for _, problem := range problems {
+		builder.WriteString("\n  | problem: ")
+		builder.WriteString(problem)
+	}
+	return builder.String()
 }
