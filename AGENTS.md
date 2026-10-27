@@ -1101,6 +1101,33 @@ rather than by review.
     A second, smaller defect in the same file: `peerState` was declared AFTER `startCapturePeer`, which closes over
     it, so the code was safe only by ordering coincidence -- the same TDZ class that file already records.
 
+86. **Readiness must be the event the product EMITS, its listener must be installed before the wait, and a harness
+    that passes because one subject is FASTER is an asymmetry that manufactures a product difference.**
+    Measured in one run, and the diagnosis came from the pinned leg's own event log:
+    `generation_started ...564366 chatLength=1`, then `app_initialized ...564954 chatLength=1` and `app_ready
+    ...564975 chatLength=1` MID-GENERATION, then `generation_started ...565366 chatLength=1` -- TWO generations
+    against the other leg's ONE, with `chatLength` never leaving 1. The chat was re-initialised underneath the
+    in-flight send and the user turn was discarded. `first-turn-saved` then failed on the USER MARKER, with the
+    pinned file holding only a header and a greeting: the turn was never committed at all.
+    THE FLAG WAS SET EARLY AND THE EVENT COMES LAST. `openPage` returned as soon as `script.settingsReady` was true;
+    in pinned that flag is set INSIDE `getSettings` (`script.js:8046`), which `firstLoadInit` calls at `:752`, while
+    `APP_READY` is emitted by the LAST statement of `firstLoadInit` (`:790`) after `initLoaderHandle.hide()` and
+    `fixViewport()`. Between them sit `initDataMaid`, `initItemizedPrompts`, `initAccessibility`, `initSwipePicker`,
+    `addDebugFunctions` and a settings update. The drive was pressing send inside that window. **A flag that reads
+    like readiness can be set far earlier than the product is ready, so the gate must be the event, not the flag.**
+    AND THE LISTENER GOES IN BEFORE THE WAIT. Readiness became `settingsReady && window.__q20SawAppReady === true`,
+    with the `APP_READY` listener installed immediately after `domcontentloaded`, BEFORE the preloader wait, while
+    init is still running. A hook installed once the loop notices `settingsReady` would be a race in the dangerous
+    direction: **an event that has already fired cannot be seen by a listener added afterwards, and the failure
+    presents as "ready"** -- the same shape as a satisfied condition standing in for an event (rule 72).
+    WHY NOT A SLEEP OR A LONGER TIMEOUT: neither names the event. A sleep widens the window instead of closing it,
+    and would have looked like a fix on a leg that happened to be slow.
+    AND THE ASYMMETRY IS THE POINT: the other leg satisfied both flags essentially at once, so this cost nothing on
+    the subject under test. **A harness that passes on one subject because that subject initialises FASTER is
+    exactly the asymmetry that manufactures a "product difference" from timing alone** -- which is what this lane
+    spent five runs disproving. A green on the faster subject is not reassurance; it is the reason the difference
+    will appear on the slower one.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
