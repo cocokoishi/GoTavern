@@ -1427,6 +1427,35 @@ try {
             // send from a different chat than the one the boundary was measured on.
             const presendReset = await globalThis.__applyPresetKit(presetSpec);
             const presendProblems = [...(presendReset?.problems ?? [])];
+            // THE PRESET IDENTITY, RE-ASSERTED AFTER THE RESET AND IMMEDIATELY BEFORE THE CLICK.
+            //
+            // The reconcile pass above re-selects the character, and `autoSelectPreset`
+            // (public/scripts/preset-manager.js:49-76) runs on CHAT_CHANGED and selects a preset NAMED AFTER
+            // THE CHARACTER -- so the identity read after the first kit application is not necessarily the
+            // identity that will assemble this send. Another lane measured that hook replacing a driver's
+            // preset today; the read is repeated here, at the one point where a replacement would corrupt
+            // exactly the request about to be produced.
+            let presendPresetIdentity = null;
+            try {
+                const presetIdentityManager = scriptForPresend.getPresetManager?.();
+                if (presetIdentityManager) {
+                    const selectedName = presetIdentityManager.getSelectedPresetName?.() ?? null;
+                    const characterName = String(scriptForPresend.characters?.[scriptForPresend.this_chid]?.name ?? '');
+                    presendPresetIdentity = {
+                        beforeClick: selectedName,
+                        characterName,
+                        matchesCharacter: selectedName !== null && characterName !== ''
+                            && String(selectedName).trim() === characterName.trim(),
+                    };
+                    if (presendPresetIdentity.matchesCharacter) {
+                        presendProblems.push(`autoSelectPreset fired before the click: the page reports preset ${JSON.stringify(selectedName)}, which IS the character's name, so this send would assemble a preset the leg did not choose`);
+                    }
+                } else {
+                    presendPresetIdentity = { managerPresent: false };
+                }
+            } catch (error) {
+                presendPresetIdentity = { error: String(error?.message ?? error).slice(0, 200) };
+            }
             // Q17: THE OVERLAY IS RE-APPLIED AFTER THE RESET, for the same reason the reset exists --
             // `applyPresetKit` writes the PRESET'S author's note (depth 3, IN_CHAT), so a leg driven by
             // an overlay case would otherwise send the preset's note and record an overlay that never
@@ -1481,6 +1510,10 @@ try {
                 outgoingText: String(document.querySelector('#send_textarea')?.value ?? ''),
                 contextApplied: Number(presetOpenAI.oai_settings.openai_max_context ?? NaN),
                 resetProblems: presendProblems,
+                // Q17/Q18: THE PRESET ACTUALLY IN EFFECT WHEN THIS SEND ASSEMBLES, with the character name it
+                // was compared against. `matchesCharacter: true` would mean `autoSelectPreset` replaced the
+                // preset with one named after the card, i.e. the comparison measured an input nobody chose.
+                presetIdentity: presendPresetIdentity,
                 // Q17: WHAT THE OVERLAY LEFT BEHIND IMMEDIATELY BEFORE THE CLICK, read from the same
                 // metadata and `extension_prompts` entry the assembly reads. A leg whose note reverted to
                 // the preset's is visible here instead of being inferred from a body that agrees for the

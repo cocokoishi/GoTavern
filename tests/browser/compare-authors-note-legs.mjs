@@ -289,6 +289,32 @@ export function compareCase({ caseId, expectation, gotavern, pinned, overlay }) 
         }
     }
 
+    // 2b. THE PRESET IN EFFECT MUST NOT BE ONE NAMED AFTER THE CHARACTER.
+    //
+    // `autoSelectPreset` (public/scripts/preset-manager.js:49-76) runs on CHAT_CHANGED and calls
+    // `presetManager.selectPreset(presetManager.findPreset(characters[this_chid].name))` when a preset's name
+    // equals the character's. A leg that opens a character can therefore be switched onto a different preset
+    // without doing anything wrong, and BOTH subjects would then assemble the same wrong context -- Node == Go
+    // on an input nobody selected, which is the one failure a differential cannot detect by comparison.
+    // Another lane measured the hook firing today, so this is refused by name rather than assumed absent.
+    //
+    // A leg that records no identity at all is NOT a pass either: "not checked" must not read as "checked and
+    // fine". The fields are recorded in the artefact so the basis is visible.
+    for (const [subject, leg] of [['gotavern', gotavern], ['pinned', pinned]]) {
+        const atSend = leg?.presetIdentityAtSend ?? null;
+        const after = leg?.presetIdentityAfterOpen ?? null;
+        const fired = atSend?.matchesCharacter === true || after?.matchesCharacter === true;
+        checks[`${subject}PresetIsNotNamedAfterTheCharacter`] = fired === false;
+        details[`${subject}PresetIdentity`] = { atSend, afterOpen: after };
+        if (fired) {
+            const observedName = atSend?.beforeClick ?? after?.afterCharacterOpen ?? null;
+            const characterName = atSend?.characterName ?? after?.characterName ?? null;
+            return fail('HARNESS_ERROR',
+                `the ${subject} leg's active preset IS the character's name (preset ${JSON.stringify(observedName)}, character ${JSON.stringify(characterName)}), so autoSelectPreset (preset-manager.js:49-76) may have replaced the preset under test; both subjects agreeing would then prove nothing`,
+                { [subject]: { presetIdentityAtSend: atSend, presetIdentityAfterOpen: after } });
+        }
+    }
+
     // 3. PINNED == PINNED. The preparation drive and the pinned leg are two runs of the same program; if
     //    their layouts or digests differ, the scenario is not reproducible and nothing else is attributable.
     checks.pinnedPreparationMatchesPinnedLeg = expectation.layout.messageCount === pinned.layout.messageCount

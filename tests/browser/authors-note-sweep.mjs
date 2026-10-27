@@ -184,7 +184,18 @@ const artifact = {
     method: 'the expectation is the pinned leg\'s own provider request (prepare-authors-note.mjs -> run-against-pinned.mjs generation-probe.mjs PROBE_MODE=preset); the compared legs are the same program with the same arguments; the request is compared byte-for-byte and the note\'s layout is compared field by field',
     context: expectations?.context ?? null,
     parityDepth: expectations?.parityDepth ?? overlay.parityDepth,
-    inputs: { expectations: path.basename(expectationsPath), legs: cases.map(caseId => `${caseId}-{gotavern,pinned}.json`) },
+    // `inputs` NAMES PER-RUN LEGS ONLY, and that is a contract, not a preference.
+    //
+    // `catalog.test.mjs` reads every string in a committed artefact's `captures`/`inputs` and requires
+    // tests/browser/.gitignore to ignore it -- because a name there is what the harness WROTE for one run.
+    // Putting the golden expectation in `inputs` therefore failed that test with "the harness wrote
+    // authors-note-pinned.json and tests/browser/.gitignore does not ignore it" (Browser differential
+    // 40456523411, step 12), and the test was RIGHT: the golden is COMMITTED evidence, not a per-run leg, so
+    // it must never be ignored. It is recorded in its own field below.
+    inputs: { legs: cases.map(caseId => `${caseId}-{gotavern,pinned}.json`) },
+    // THE ORACLE IS COMMITTED, and it is named where a reader looks for the expectation, not where the
+    // ignore-coverage test looks for throwaway leg names.
+    expectsPinnedRecording: path.basename(expectationsPath),
     // WHICH DEPTH CLASSES THIS SWEEP COVERS, AND WHICH IT DOES NOT. Stated as named fields because the
     // difference between "we measured it", "we decided it is out of scope" and "we never tested it" is the
     // whole point of a coverage claim, and prose in a commit message does not travel with the artefact.

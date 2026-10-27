@@ -11,7 +11,6 @@
   },
   "parityDepth": 6,
   "inputs": {
-    "expectations": "authors-note-pinned.json",
     "legs": [
       "parity-{gotavern,pinned}.json",
       "depth0-{gotavern,pinned}.json",
@@ -21,6 +20,7 @@
       "in-prompt-depth6-{gotavern,pinned}.json"
     ]
   },
+  "expectsPinnedRecording": "authors-note-pinned.json",
   "depthCoverage": {
     "deepestMeasuredDepth": 8,
     "pastHistoryInsideBudget": null,

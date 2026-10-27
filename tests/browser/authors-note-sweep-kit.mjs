@@ -75,6 +75,15 @@ export function observationOf(report, subject) {
                 chatTurns: report.preset.chatTurns ?? null,
             }
             : null,
+        // THE PRESET IN EFFECT WHEN THE SEND ASSEMBLED, plus the character name it was compared against.
+        // `autoSelectPreset` (public/scripts/preset-manager.js:49-76) selects a preset NAMED AFTER the
+        // character on CHAT_CHANGED, so a leg that opened a character could silently send a preset nobody
+        // chose -- and both subjects would be wrong the SAME way, which a differential cannot see. The
+        // comparator refuses on `matchesCharacter` rather than comparing two equally-wrong requests.
+        presetIdentityAtSend: report.presetPreSend?.presetIdentity ?? null,
+        presetIdentityAfterOpen: Array.isArray(report.preset?.steps)
+            ? (report.preset.steps.find(entry => entry.step === 'preset identity after character open') ?? null)
+            : null,
         failure: report.failure ?? null,
     };
 }

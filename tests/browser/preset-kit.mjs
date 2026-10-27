@@ -264,7 +264,51 @@ export async function applyPresetKit(spec) {
     if (chid === 'undefined' || chid === undefined || chid === null) {
         return { problems: ['selectCharacterById(0) did not bind a character'], steps };
     }
-    step('character', { index: Number(chid), name: script.characters[chid]?.name ?? null });
+    const boundName = String(script.characters[chid]?.name ?? '');
+    step('character', { index: Number(chid), name: boundName || null });
+
+    // 1b. THE PRESET IDENTITY, ASSERTED AFTER THE CHARACTER IS OPEN -- the hazard another lane measured today.
+    //
+    // `autoSelectPreset` (public/scripts/preset-manager.js:49-76) runs on CHAT_CHANGED and does
+    // `const name = characters[this_chid]?.name; const preset = presetManager.findPreset(name);
+    // if (preset !== selected) presetManager.selectPreset(preset);` -- i.e. OPENING A CHARACTER silently
+    // replaces the preset with one whose NAME EQUALS THE CHARACTER'S. If that fires here, the depth settings
+    // this kit applies afterwards would be applied on top of a preset the leg did not choose, and both
+    // subjects would be wrong the same way: Node == Go on the WRONG input, which is the one failure shape a
+    // differential cannot see.
+    //
+    // THIS KIT'S ORDER, stated so the answer does not have to be re-derived: it opens the character (above)
+    // and never selects a preset by name at all -- `applyPresetKit` only edits the LIVE `promptManager`'s
+    // prompt contents (step 8 below) and the note/samplers. So there is no "staged preset" for the hook to
+    // steal: the kit mutates whatever preset is already active. The residual risk is a preset whose name
+    // MATCHES the card, which would make the page select it and change `activeCharacter` mid-kit; that is
+    // exactly what is measured below rather than assumed away.
+    let presetIdentity = null;
+    try {
+        const presetManager = script.getPresetManager?.();
+        if (presetManager) {
+            const selected = presetManager.getSelectedPresetName?.() ?? null;
+            presetIdentity = {
+                afterCharacterOpen: selected,
+                characterName: boundName,
+                // THE HAZARD CONDITION ITSELF: a preset named after the character exists and is what the page
+                // now reports. Either fact alone is benign; together they mean the hook fired.
+                matchesCharacter: selected !== null && boundName !== '' && String(selected).trim() === boundName.trim(),
+                activeCharacter: presetManager.activeCharacter ?? null,
+            };
+            if (presetIdentity.matchesCharacter) {
+                problems.push(`autoSelectPreset fired: the page reports preset ${JSON.stringify(selected)}, which IS the character's name, so the preset under test is not the one the leg chose -- every depth below would be measured on a preset nobody selected`);
+            }
+        } else {
+            // Recorded as a fact, not a failure: the manager exists only for APIs that have one, and the
+            // `custom` source the sweep drives may not expose it. A missing manager means this guard could not
+            // run, which the artefact must say rather than let it read as "checked and fine".
+            presetIdentity = { managerPresent: false };
+        }
+    } catch (error) {
+        presetIdentity = { error: String(error?.message ?? error).slice(0, 200) };
+    }
+    step('preset identity after character open', presetIdentity ?? {});
 
     // 2. Character fields. These are read by prompt assembly from the in-memory card, and the marker
     //    guard in the comparator is what proves they reached the request.

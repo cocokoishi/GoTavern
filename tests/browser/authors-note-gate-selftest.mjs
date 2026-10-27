@@ -449,6 +449,33 @@ if (!realLegsAvailable) {
         }));
 }
 
+// 15. THE PRESET NAMED AFTER THE CHARACTER -- the hazard another lane measured (`autoSelectPreset`,
+//     public/scripts/preset-manager.js:49-76, runs on CHAT_CHANGED and selects `findPreset(character.name)`).
+//     A leg that opens a character can be switched onto a preset it never chose, and BOTH subjects would then
+//     assemble the same wrong context: Node == Go on an input nobody selected, which a differential cannot see.
+//     The mutation makes the leg's recorded identity say the hook fired; the comparator must REFUSE by name.
+{
+    const leg = clone(legFor('parity', 'gotavern'));
+    leg.presetPreSend = {
+        ...(leg.presetPreSend ?? {}),
+        presetIdentity: {
+            beforeClick: 'Some Character Name',
+            characterName: 'Some Character Name',
+            matchesCharacter: true,
+        },
+    };
+    const result = judge('parity', leg, legFor('parity', 'pinned'));
+    const named = result.checks?.gotavernPresetIsNotNamedAfterTheCharacter === false;
+    mutation('a leg whose active preset IS the character\'s name is refused as HARNESS_ERROR',
+        result.verdict === 'HARNESS_ERROR' && named,
+        JSON.stringify({
+            verdict: result.verdict,
+            namedCheck: result.checks?.gotavernPresetIsNotNamedAfterTheCharacter ?? 'ABSENT',
+            reason: result.reason,
+            recordedActually: result.details?.gotavern?.presetIdentityAtSend ?? null,
+        }));
+}
+
 console.log(failures.length === 0
     ? `authors-note gate self-test: ${MUTATION_COUNT} mutations caught, baseline green`
     : `authors-note gate self-test: ${failures.length} mutation(s) NOT caught: ${failures.join(', ')}`);
