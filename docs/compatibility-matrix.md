@@ -563,8 +563,8 @@ numbers cannot drift away from the tree the way four documents once disagreed ab
 | Measure | In the tree | Cited by this matrix |
 |---|---|---|
 | Oracle fixtures | 118 | 66 |
-| Browser artefacts | 36 | 11 |
-| Go test functions | 560 | 66 |
+| Browser artefacts | 37 | 11 |
+| Go test functions | 580 | 66 |
 | Workflow jobs | 32 in 9 workflow(s) | _n/a_ |
 | Rows | 22 | PASS 0, PARTIAL 18, FAIL 3, NOT_APPLICABLE 1 |
 | Session steps | 8 | 7 with a probe, 1 without, 0 sharing a runtime |

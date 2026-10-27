@@ -1087,11 +1087,11 @@
       "citedByMatrix": 66
     },
     "browserArtefacts": {
-      "inTree": 36,
+      "inTree": 37,
       "citedByMatrix": 11
     },
     "goTestFunctions": {
-      "inTree": 560,
+      "inTree": 580,
       "citedByMatrix": 66
     },
     "workflows": {
