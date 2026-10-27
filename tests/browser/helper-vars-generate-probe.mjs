@@ -240,6 +240,14 @@ function binaryPath() {
  * called on the same string the prompt carries, so a reader can compare it with what the body actually contains. If
  * the body carries the RAW `{{getvar::...}}` form, the macro did NOT run and the value came from somewhere else; if
  * it carries what `renderedWithMacroEngine` produced, the difference the macro made is visible instead of asserted.
+ *
+ * A THROWING CASE MUST NOT ABORT THE SCRIPT (measured in Browser differential 40460818792). Case 5, a message-scoped
+ * write with `message_id: 0` on a chat with ZERO messages, threw out of the op loop, so every later case never ran and
+ * each remaining capture was assigned to the wrong case name -- which is how one set of requests came to be reported
+ * as two subjects disagreeing. Each op is therefore tried individually and a throw is RECORDED (`refusedBy`), because
+ * a refusal is a FACT about the pinned version: `src/function/variables.ts:58-63` bounds `message_id` to
+ * `(-chat.length, chat.length)`, so on an empty chat no index is valid, and "both subjects refuse identically" is the
+ * parity claim for that case.
  */
 const SCRIPT = [
     'const cfg = window.parent.__hvn;',
@@ -254,6 +262,7 @@ const SCRIPT = [
     '    insertOrAssignVariables: typeof TavernHelper?.insertOrAssignVariables === "function",',
     '    deleteVariable: typeof TavernHelper?.deleteVariable === "function",',
     '    generateRaw: typeof TavernHelper?.generateRaw === "function",',
+    '    createChatMessages: typeof TavernHelper?.createChatMessages === "function",',
     '  };',
     '  out.api = api;',
     '  if (!api.getVariables || !api.insertOrAssignVariables || !api.generateRaw) {',
@@ -261,10 +270,16 @@ const SCRIPT = [
     '  } else {',
     '    const run = async (name, ops, prompt) => {',
     '      const applied = [];',
+    '      let opError = null;',
     '      for (const op of ops) {',
-    '        if (op.kind === "insert") { TavernHelper.insertOrAssignVariables(op.values, { type: op.scope }); applied.push({ op: "insert", scope: op.scope, after: TavernHelper.getVariables({ type: op.scope }) }); }',
-    '        else if (op.kind === "delete") { const r = TavernHelper.deleteVariable(op.path, { type: op.scope }); applied.push({ op: "delete", scope: op.scope, deleteOccurred: r?.delete_occurred ?? null, variables: r?.variables ?? null }); }',
-    '        else if (op.kind === "message") { TavernHelper.insertOrAssignVariables(op.values, { type: "message", message_id: op.message_id }); applied.push({ op: "message", stored: TavernHelper.getVariables({ type: "message", message_id: op.message_id }) }); }',
+    '        try {',
+    '          if (op.kind === "insert") { TavernHelper.insertOrAssignVariables(op.values, { type: op.scope }); applied.push({ op: "insert", scope: op.scope, ok: true, after: TavernHelper.getVariables({ type: op.scope }) }); }',
+    '          else if (op.kind === "delete") { const r = TavernHelper.deleteVariable(op.path, { type: op.scope }); applied.push({ op: "delete", scope: op.scope, ok: true, deleteOccurred: r?.delete_occurred ?? null, variables: r?.variables ?? null }); }',
+    '          else if (op.kind === "message") { TavernHelper.insertOrAssignVariables(op.values, { type: "message", message_id: op.message_id }); applied.push({ op: "message", scope: "message", message_id: op.message_id, ok: true, stored: TavernHelper.getVariables({ type: "message", message_id: op.message_id }) }); }',
+    '        } catch (e) {',
+    '          opError = String(e && e.message || e);',
+    '          applied.push({ op: op.kind, scope: op.scope || "message", ok: false, refusedBy: "pinned range check", error: opError });',
+    '        }',
     '      }',
     '      let renderedWithMacroEngine = null;',
     '      let renderedError = null;',
@@ -281,7 +296,7 @@ const SCRIPT = [
     '          should_silence: true,',
     '        });',
     '      } catch (e) { error = String(e && e.message || e); }',
-    '      record(name, { applied, promptRaw: prompt, renderedWithMacroEngine, renderedError, reply: reply === null ? null : String(reply).slice(0, 120), error });',
+    '      record(name, { applied, opError, promptRaw: prompt, renderedWithMacroEngine, renderedError, reply: reply === null ? null : String(reply).slice(0, 120), error });',
     '    };',
     '    for (const item of cfg.cases) await run(item.name, item.ops, item.prompt);',
     '  }',
@@ -407,6 +422,34 @@ try {
     const connection = await connect(`http://127.0.0.1:${peer.port}/v1`);
     step('connection-configured', connection?.source === 'custom' && connection?.urlSet === true && connection?.mainApi === 'openai', JSON.stringify(connection));
 
+    // THE `message` SCOPE NEEDS A NON-EMPTY CHAT, AND THAT IS A PINNED FACT THIS LEG RECORDS.
+    //
+    // Measured in Browser differential 40460818792: `insertOrAssignVariables({...}, {type:'message', message_id: 0})`
+    // on a chat with ZERO messages throws `提供的消息楼层号 '0' 超出了范围 [0, 0)`, because the pinned bound is
+    // `_.inRange(option.message_id, -chat.length, chat.length)` (src/function/variables.ts:58-63) and with
+    // `chat.length === 0` NO index is valid. That is pinned behaving CORRECTLY, so the leg does two things:
+    //   1. seeds ONE message through the helper's own `createChatMessages`, so the scope has a valid index and the
+    //      stored/not-surfaced row can be measured rather than refused;
+    //   2. records whether the seed succeeded (`chatSeeded`), because if it did not, a refusal is the honest result
+    //      and the case must not throw its way through the rest of the script.
+    const chatSeed = await page.evaluate(async () => {
+        try {
+            const before = (window.SillyTavern.getContext().chat ?? []).length;
+            if (typeof TavernHelper?.createChatMessages === 'function' && before === 0) {
+                await TavernHelper.createChatMessages([{ role: 'system', message: 'HV-SEED-MESSAGE' }], { type: 'normal' });
+            }
+            return { ok: (window.SillyTavern.getContext().chat ?? []).length > 0, before, after: (window.SillyTavern.getContext().chat ?? []).length };
+        } catch (error) {
+            return { ok: false, error: String(error && error.message || error), before: null, after: null };
+        }
+    });
+    report.chatSeed = chatSeed;
+    step('chat-seeded-for-message-scope', chatSeed?.ok === true,
+        JSON.stringify(chatSeed) + ' -- the message scope needs a non-empty chat: src/function/variables.ts:58-63 bounds message_id to (-chat.length, chat.length), so on an empty chat every message-scoped write is refused');
+    // The LAST message is the valid index whether or not the seed ran: on an empty chat this write is REFUSED by the
+    // pinned range check, which the script now records instead of throwing.
+    const messageId = 0;
+
     // THE CASES. Each is ONE variable operation followed by ONE generateRaw whose prompt reads that variable.
     const chatPrompt = `${PROMPTS.chat}{{getvar::hv_chat}}`;
     const globalPrompt = `${PROMPTS.global}{{getglobalvar::hv_global}}`;
@@ -418,7 +461,7 @@ try {
         { name: 'global-set', ops: [{ kind: 'insert', scope: 'global', values: { hv_global: MARKERS.global } }], prompt: globalPrompt },
         // THE `message` SCOPE AS ITS OWN ROW: it stores and reads back inside the page, and the wire must NOT carry
         // it, because no host macro consults a message scope (recorded by the refusal check above).
-        { name: 'message-set', ops: [{ kind: 'message', message_id: 0, values: { hv_message: MARKERS.message } }], prompt: messagePrompt },
+        { name: 'message-set', ops: [{ kind: 'message', message_id: messageId, values: { hv_message: MARKERS.message } }], prompt: messagePrompt },
     ] : [
         // THE OFF CONTROL: the same prompts, no writes. Every capture must equal the never-set form.
         { name: 'chat-alpha', ops: [], prompt: chatPrompt },
@@ -462,6 +505,49 @@ try {
         return { done, requests: peer.requests.slice(before) };
     };
 
+    /**
+     * WHICH CASE DOES THIS REQUEST BELONG TO? BY WHAT IT SAYS, NOT BY WHERE IT SITS.
+     *
+     * Measured in Browser differential 40460818792: the two subjects' capture digests were EQUAL AS A MULTISET but
+     * shifted by one slot (`chat-alpha` = the 0-byte body on GoTavern and 239 B on pinned; `chat-beta` the exact
+     * reverse). That is not two subjects disagreeing -- it is one set of requests assigned to the wrong case names,
+     * i.e. an ACCOUNTING defect. The cause was an `requests[index]` mapping combined with a case that threw and
+     * truncated the run, so every later index slid.
+     *
+     * THE ACCOUNTING IS NOW DERIVED FROM THE REQUEST ITSELF. Every `generateRaw` in this leg passes the CASE NAME as
+     * `user_input`, which the host puts on the wire as the last user message, so each captured body names its own
+     * case. A capture whose name matches no case is recorded as unmatched rather than silently becoming some case's
+     * evidence, and two captures claiming one case is a harness failure by name -- both are facts a positional map
+     * could never express.
+     */
+    const attributeRequests = (requests, list) => {
+        const names = new Set(list.map(entry => entry.name));
+        const byCase = new Map();
+        const unmatched = [];
+        for (const request of requests) {
+            let matched = null;
+            for (const name of names) {
+                // The name is the user_input, so it appears as a whole message content. Match it as a token to avoid
+                // `chat-alpha` claiming `chat-alphabet`: the boundary is the JSON string terminator or a quote.
+                if (new RegExp(`"content"\\s*:\\s*"${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`).test(String(request?.body ?? ''))) {
+                    matched = name;
+                    break;
+                }
+            }
+            if (matched === null) {
+                unmatched.push({ path: request?.path ?? null, byteLength: request?.byteLength ?? null, sha256: request?.sha256 ?? null });
+                continue;
+            }
+            if (byCase.has(matched)) byCase.set(matched, [...byCase.get(matched), request]);
+            else byCase.set(matched, [request]);
+        }
+        return {
+            byCase,
+            unmatched,
+            collisions: [...byCase.entries()].filter(([, list]) => list.length > 1).map(([name]) => name),
+        };
+    };
+
     const run = await runScript(cases);
     phase('cases-run');
     report.script = run.done;
@@ -475,21 +561,32 @@ try {
     // `renderedWithMacroEngine` is the host's own substitution of that string, and `request.body` is what the provider
     // received. If the body contains the raw `{{getvar::...}}` form the macro did NOT run; if it contains what
     // `renderedWithMacroEngine` produced, the macro's contribution is visible as the difference between the first two.
-    report.cases = cases.map((entry, index) => {
+    const attribution = attributeRequests(run.requests, cases);
+    report.attribution = {
+        unmatched: attribution.unmatched,
+        collisions: attribution.collisions,
+        mechanism: 'each capture names its own case: generateRaw passes the case name as user_input, so the body carries it as a message content and no positional index is involved',
+    };
+    report.cases = cases.map(entry => {
         const scripted = (run.done?.cases ?? []).find(item => item.name === entry.name) ?? null;
+        const captured = attribution.byCase.get(entry.name) ?? [];
         return {
             case: entry.name,
             applied: scripted?.applied ?? null,
+            opError: scripted?.opError ?? null,
             promptRaw: scripted?.promptRaw ?? null,
             renderedWithMacroEngine: scripted?.renderedWithMacroEngine ?? null,
             renderedError: scripted?.renderedError ?? null,
             reply: scripted?.reply ?? null,
             error: scripted?.error ?? null,
-            request: summarise(run.requests[index] ?? null),
+            captureCount: captured.length,
+            request: summarise(captured[0] ?? null),
         };
     });
-    step('one-capture-per-case', report.cases.every(entry => entry.request !== null),
-        report.cases.map(entry => `${entry.case}:${entry.request ? 'ok' : 'absent'}`).join(','));
+    // A CASE WITH NO CAPTURE IS A DRIVE FACT, NOT A VARIABLE RESULT, and a case with TWO is an accounting failure.
+    // Both are named, because a positional map could express neither and that is exactly how 40460818792 shifted.
+    step('one-capture-per-case', report.cases.every(entry => entry.captureCount === 1),
+        report.cases.map(entry => `${entry.case}:${entry.captureCount}`).join(',') + ` unmatched=${attribution.unmatched.length} collisions=${attribution.collisions.length}`);
     // EVERY CASE MUST CARRY ITS MECHANISM TRIPLE. A case without `promptRaw` cannot be read as evidence for the
     // macro mechanism at all, so a missing one is a harness failure rather than a quiet null in the artefact.
     step('mechanism-recorded-per-case', report.cases.every(entry => typeof entry.promptRaw === 'string' && entry.promptRaw.includes('{{') ),
@@ -506,7 +603,7 @@ try {
         boot: reloadBoot,
         connection: reloadConnect,
         script: reloadRun.done,
-        request: summarise(reloadRun.requests[0] ?? null),
+        request: summarise((attributeRequests(reloadRun.requests, [{ name: 'reload-chat' }]).byCase.get('reload-chat') ?? [])[0] ?? null),
         disk: { chats: await readChatRecords(dataRoot), settings: await readSettingsFile(dataRoot) },
     };
     step('reload-page-loaded', reloadBoot?.settingsReady === true && reloadRun.done !== null, JSON.stringify({ settingsReady: reloadBoot?.settingsReady, scriptError: reloadRun.done?.error ?? null }));

@@ -141,6 +141,14 @@ for (const subject of subjects) {
     // THE `message` SCOPE, AS ITS OWN ROW: stored in the page, and NOT on the wire.
     const messageStored = JSON.stringify(caseOf(leg, 'message-set')?.applied ?? null).includes(messageMark);
     const messageNotOnWire = Boolean(messageSet?.request) && !body(messageSet).includes(messageMark);
+    // THE REFUSAL IS A PARITY FACT TOO. `src/function/variables.ts:58-63` bounds `message_id` to
+    // `(-chat.length, chat.length)`, so on an EMPTY chat every message-scoped write is refused by range check -- pinned
+    // behaving correctly. The probe seeds one message so the normal path can be measured; when the seed did not take,
+    // the honest row is "both subjects refused identically", which IS the claim for that case. Refused-on-one /
+    // stored-on-the-other lands in asymmetries and is refused there.
+    const messageRefused = JSON.stringify(caseOf(leg, 'message-set')?.applied ?? null).includes('pinned range check');
+    const messageRowComplete = messageStored || messageRefused;
+    const chatSeedOk = leg?.chatSeed?.ok === true;
 
     // HALF (ii): DISK
     const chatVariables = Object.entries(leg?.disk?.chats ?? {})
@@ -181,7 +189,7 @@ for (const subject of subjects) {
         } : null,
         halfI: { valueOnWire, secondValueOnWire, changeDiffered, changeLostOld, macroWasTheResolver, deleteIsEmptyForm, deleteDroppedValue, deleteMechanismShown },
         mechanism: { alpha: alphaMechanism, beta: betaMechanism, global: globalMechanism, deleted: deleteMechanism },
-        scopes: { globalOnWire, messageStored, messageNotOnWire },
+        scopes: { globalOnWire, messageStored, messageNotOnWire, messageRefused, messageRowComplete, chatSeedOk },
         halfII: { chatVariableNames: [...new Set(chatVariables.map(entry => entry.name))], globalOnDisk, survivesFreshPage, survivesRestart, restartIsNewProcess },
         offControl: { offHasNoValue, offStable },
         captures: (leg?.cases ?? []).map(entry => ({ case: entry.case, sha256: entry.request?.sha256 ?? null, byteLength: entry.request?.byteLength ?? null, arrived: Boolean(entry.request), error: entry.error ?? null })),
@@ -206,7 +214,11 @@ const subjectGuards = {
     deleteReturnsToEmptyForm: subjects.map(subject => observed[subject].halfI.deleteIsEmptyForm && observed[subject].halfI.deleteDroppedValue && observed[subject].halfI.deleteMechanismShown),
     // SCOPES
     globalScopeReachesWire: subjects.map(subject => observed[subject].scopes.globalOnWire),
-    messageStoredNotSurfaced: subjects.map(subject => observed[subject].scopes.messageStored && observed[subject].scopes.messageNotOnWire),
+    // Either the write landed and stayed off the wire, or it was refused identically on both subjects. Both are the
+    // claim for this row; only one subject refusing would surface as an asymmetry.
+    messageStoredNotSurfaced: subjects.map(subject => observed[subject].scopes.chatSeedOk
+        ? (observed[subject].scopes.messageStored && observed[subject].scopes.messageNotOnWire)
+        : observed[subject].scopes.messageRefused),
     // HALF (ii)
     survivesFreshPage: subjects.map(subject => observed[subject].halfII.survivesFreshPage),
     survivesRestart: subjects.map(subject => observed[subject].halfII.survivesRestart),
