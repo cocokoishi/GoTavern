@@ -669,11 +669,23 @@ try {
     // A SEND IS ASYNCHRONOUS: the click returns immediately and the save lands after the frontend has produced the
     // message and named the chat. The file is polled for the marker with a bounded budget rather than read on the
     // next tick, and the recorded requests are carried in the artefact either way.
+    //
+    // THE POLL WAITS FOR THE REPLY, NOT ONLY FOR THE MARKER -- and this is the defect run 40487164548 measured.
+    // The condition used to be `carries(files, MARKERS.first)`, which the USER turn satisfies on its own. The pinned
+    // frontend saves the user turn and the assistant reply in that order, so the poll could break on a file holding
+    // [greeting, marker] with the reply still to come; `first-turn-saved` then PASSED on a chat whose reply had been
+    // lost, the reload read two messages, and the second-turn request was assembled six messages long against
+    // GoTavern's seven. That produced the stable 45-byte "difference" reported as a product signal in run
+    // 40477360391 -- TWO runs of a wasted investigation, because a marker that proves the USER turn was written was
+    // read as proof the whole turn was written.
+    // So the wait requires BOTH: the marker (the user turn landed) AND the peer's reply (the assistant turn landed).
+    const replyPattern = /Q20_REPLY_\d+/;
+    const carriesReply = files => files.some(file => (file.messages ?? []).some(entry => replyPattern.test(String(entry?.mes ?? ''))));
     let afterFirst = [];
     const firstDeadline = Date.now() + 30000;
     while (Date.now() < firstDeadline) {
         afterFirst = await readChatFiles();
-        if (carries(afterFirst, MARKERS.first)) break;
+        if (carries(afterFirst, MARKERS.first) && carriesReply(afterFirst)) break;
         await page.waitForTimeout(500);
     }
     await recorder.settled();
@@ -704,6 +716,12 @@ try {
         `${report.navigations.length - navigationsBeforeSend} navigation(s) during the first turn: ${JSON.stringify(report.reloadRecorder)}`);
     step('first-turn-saved', carries(afterFirst, MARKERS.first),
         `files=${afterFirst.map(file => `${file.file}:${file.lines}`).join(',') || 'none'}; processCommands=${JSON.stringify(report.processCommands)}`);
+    // THE SAME ASSERTION ONE LAYER STRONGER, and it is not redundant: `first-turn-saved` says the USER turn reached
+    // disk, which is what identifies the chat. This says the ASSISTANT REPLY reached disk too -- the half that run
+    // 40487164548 lost on the pinned leg while `first-turn-saved` was green. Without it, "the chat was saved" can be
+    // true of a saved chat that is missing the thing the user actually wanted persisted.
+    step('first-turn-saved-the-reply', carriesReply(afterFirst),
+        JSON.stringify(afterFirst.map(file => ({ file: file.file, lines: file.lines, messages: (file.messages ?? []).map(entry => String(entry?.mes ?? '').slice(0, 40)) }))));
 
     // 2. A FRESH PAGE LOAD MUST READ THAT CHAT BACK. This is the step no other leg performs.
     const readyReload = await openPage();
