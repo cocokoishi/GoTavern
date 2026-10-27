@@ -305,8 +305,12 @@ const SCRIPT = [
     '        });',
     '        try {',
     '          const preset = TavernHelper.getPreset(cfg.presetName);',
-    '          const staged = (preset?.prompts ?? []).find(entry => entry.identifier === cfg.resolveIdentifier) ?? null;',
-    '          readBack = staged ? { identifier: staged.identifier, content: staged.content, enabled: staged.enabled, role: staged.role } : null;',
+    // READ BACK BY `id`, NOT `identifier`. `toPresetPrompt` (src/function/preset.ts:353) renames the file's
+    // `identifier` to `id` on the way out, so a lookup on `identifier` returns null even when the prompt is present
+    // -- measured in 40486762148, where `readBack` was null on all 23 cases for exactly this reason and looked like
+    // "the preset does not carry the prompt" rather than "the reader used the file's field name on a projected object".
+    '          const staged = (preset?.prompts ?? []).find(entry => entry.id === cfg.resolveIdentifier) ?? null;',
+    '          readBack = staged ? { id: staged.id, content: staged.content, enabled: staged.enabled, role: staged.role } : null;',
     '        } catch (e) { readBack = { error: String(e && e.message || e) }; }',
     '      } catch (e) { error = String(e && e.message || e); }',
     '      record(name, { applied, opError, promptRaw: prompt, renderedWithMacroEngine, renderedError, readBack, reply: reply === null ? null : String(reply).slice(0, 120), error });',

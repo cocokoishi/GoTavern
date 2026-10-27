@@ -294,6 +294,27 @@ export function buildTrio({ stance, readyMarker, identity }) {
         prompt.content = content;
     }
     if (!(document.prompts ?? []).some(entry => entry.identifier === RESOLVE_IDENTIFIER)) {
+        /**
+         * `marker` IS DELIBERATELY ABSENT, AND THAT IS THE WHOLE FIX.
+         *
+         * Measured in Browser differential 40486762148: this prompt was written to disk with the marker text intact
+         * (`preset-prompt-staged` green on all four legs) and then VANISHED from the provider request entirely --
+         * absent from the body, neither raw nor resolved, with `readBack: null` on all 23 cases.
+         *
+         * The cause is the extension's own preset projection. `toPresetPrompt` (src/function/preset.ts:346-377):
+         *   :349  const is_placeholder_prompt = prompt.marker === true;
+         *   :370  if (is_normal_prompt || is_system_prompt) { result.set('content', prompt.content ?? '') }
+         * A prompt with `marker: true` is a PLACEHOLDER (`is_placeholder_prompt` is a separate branch), and it is
+         * neither `is_normal_prompt` nor `is_system_prompt`, so `content` is NEVER SET -- the string is dropped
+         * before `generate()` sees it, and `toOrderedPrompt` then faithfully substitutes a `content` that does not
+         * exist. The extension is behaving correctly; the flag was borrowed from the frontend's placeholder
+         * mechanism for a prompt that carries text.
+         *
+         * `marker: false` would also work (`:349` is `=== true`), and omitting is chosen because `is_system_prompt`
+         * (`:348`) accepts `marker === undefined || marker === false`, so an absent field is the form the pinned
+         * source treats as an ordinary prompt without relying on a second conditional. `system_prompt: true` stays:
+         * that is what makes it a normal system prompt whose content survives the projection.
+         */
         document.prompts.push({
             identifier: RESOLVE_IDENTIFIER,
             name: 'Probe identity',
@@ -304,7 +325,6 @@ export function buildTrio({ stance, readyMarker, identity }) {
             injection_depth: 4,
             injection_order: 100,
             enabled: true,
-            marker: true,
         });
     }
     const groups = Array.isArray(document.prompt_order) ? document.prompt_order : [];
