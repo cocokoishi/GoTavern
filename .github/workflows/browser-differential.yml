@@ -1170,13 +1170,22 @@ jobs:
           mkdir -p "$work/legs"
           failures=0
           tree="$work/q20-continue-tree-gotavern"
+          handoff="$work/q20-continue-tree-handoff"
           rm -rf "$tree"; mkdir -p "$tree"
+          rm -rf "$handoff"
           # THE SAME CORRECTION AS THE REGENERATE STEP, and for the same measured reason: the card is seeded by the
           # SERVER at boot, so reading `<dataRoot>/default-user/characters` before the leg runs finds nothing (run
           # 40454879293). The leg asks the PAGE (`--character auto`), records the name it opened, and the pinned leg is
           # given that name from the artefact.
           echo "Q20 continue: the GoTavern leg resolves its card from the product's own roster (--character auto)"
+          # THE HANDOFF TREE: the state the pinned leg must start from, snapshotted by the probe AFTER the continuation
+          # and BEFORE its own residual-state turn. Run 40582180078 measured the cost of not having it: `--data-chat`
+          # pointed at the GoTavern leg's LIVE data root, which by then also held the residual turn's user message and
+          # its reply, so the pinned subject opened a seven-message chat where GoTavern had continued a five-message
+          # one -- `sameChat` "message indices: 4 vs 6", `sameMessageGrown` "counts: 5 vs 7" -- with both subjects
+          # correct on the same chat id and the same file path.
           if node tests/browser/q20-continue-probe.mjs --data-root "$tree" --character auto \
+              --handoff-tree "$handoff" \
               --report "$work/legs/q20-continue-gotavern.json"; then
             echo "recorded the gotavern Q20 continue leg"
           else
@@ -1212,11 +1221,22 @@ jobs:
               echo "the pinned leg will open the card the product opened: $name (chat: $chatid)"
               ptree="$work/q20-continue-tree-pinned"
               rm -rf "$ptree"; mkdir -p "$ptree"
-              if node tests/browser/run-against-pinned.mjs q20-continue-probe.mjs -- --data-root "$ptree" \
-                  --data-chat "$tree" --character "$name" --chat-id "$chatid" \
+              # `--data-chat` IS THE HANDOFF SNAPSHOT, NOT THE LIVE ROOT. The live root also holds the GoTavern probe's
+              # own residual-state turn, which is a HARNESS probe, not the state a user continues from -- copying it made
+              # the two subjects continue different messages. The handoff is taken by the probe after the continuation
+              # and before that turn; a leg that produced none is reported rather than silently falling back to the
+              # live root, because falling back is exactly the bug this replaces.
+              source_tree="$handoff"
+              if [ ! -d "$source_tree" ]; then
+                echo "::error::the gotavern Q20 continue leg produced no handoff tree, so the pinned leg cannot start from the state the continuation ended in"
+                failures=$((failures + 1))
+                source_tree=""
+              fi
+              if [ -n "$source_tree" ] && node tests/browser/run-against-pinned.mjs q20-continue-probe.mjs -- --data-root "$ptree" \
+                  --data-chat "$source_tree" --character "$name" --chat-id "$chatid" \
                   --report "$work/legs/q20-continue-pinned.json"; then
                 echo "recorded the pinned Q20 continue leg"
-              else
+              elif [ -n "$source_tree" ]; then
                 echo "::error::the pinned Q20 continue leg failed to drive"
                 failures=$((failures + 1))
               fi

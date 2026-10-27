@@ -546,6 +546,30 @@ try {
 
     // 5. NO RESIDUAL STATE: the NEXT request is a normal turn, and it must be a normal turn -- a continuation buffer
     // left in `cyclePrompt` or in the streaming processor would show up as a nudge or as duplicated history.
+    //
+    // THE TREE IS SNAPSHOTTED BEFORE THIS TURN, and run 40582180078 measured why. This probe serves TWO roles: it only
+    // ever wanted to answer "did continue leave residual state", but by sending a real turn it MUTATES the tree the
+    // PINNED leg then copies with `--data-chat`. MEASURED: the pinned leg recorded
+    //     [4] A: "Q20_REPLY_2 Q20_CONTINUATION_APPENDED_3"   <- GoTavern's continuation
+    //     [5] U: "Q20 continue residual probe turn"           <- THIS line
+    //     [6] A: "Q20_REPLY_4"
+    // -- seven messages against GoTavern's five -- and the comparator reported `sameChat` ("message indices: 4 vs 6")
+    // and `sameMessageGrown` ("message counts: 5 vs 7") while BOTH subjects had done the verb correctly on the same
+    // chat id, in the same file, at the same path.
+    //
+    // So the artefact the pinned leg needs is COPIED OUT of the data root at the exact moment `preContinue` and
+    // `fileAfterContinue` describe: after the continuation, BEFORE the residual turn. The leg keeps its residual check
+    // -- that assertion is about the PRODUCT, not about the tree -- and the copy is what the next leg builds on. A leg
+    // that skipped this would leave the pinned subject comparing against state no GoTavern user ever had.
+    const handoffDir = argumentValue(process.argv, '--handoff-tree', process.env.Q20_HANDOFF_TREE ?? null);
+    if (handoffDir) {
+        const handoffPath = path.resolve(handoffDir);
+        await fs.rm(handoffPath, { recursive: true, force: true });
+        await fs.cp(dataRoot, handoffPath, { recursive: true, force: true });
+        report.handoffTree = { path: handoffPath, at: 'afterContinue-before-residual-turn' };
+    } else {
+        report.handoffTree = null;
+    }
     const nextTurn = await sendTurn(page, 'Q20 continue residual probe turn');
     report.nextTurn = nextTurn;
     await settleQuiet(page, recorder);
