@@ -301,8 +301,11 @@ async function postForJSON(baseURL, pathName, body) {
     } catch {
         return { ok: false, reason: `not JSON: ${text.slice(0, 120)}`, cookies, names: [] };
     }
+    // THE CALLER DECIDES WHAT THE BODY MEANS. /api/characters/all answers an array (or `{characters}`); other routes
+    // answer a plain object. The parsed body is returned as `body` so a caller can read a field without a second shape
+    // being guessed here.
     const rows = Array.isArray(parsed) ? parsed : (parsed?.characters ?? []);
-    return { ok: true, names: rows.map(row => row?.name ?? null), count: rows.length, cookies };
+    return { ok: true, names: rows.map(row => row?.name ?? null), count: rows.length, cookies, body: parsed };
 }
 
 async function listCharacters(baseURL) {
@@ -313,6 +316,15 @@ async function gotavernWrites() {
     const binarySetting = process.env.GOTAVERN_BINARY;
     if (!binarySetting) throw new Error('GOTAVERN_BINARY is required for the GoTavern half');
     await fs.cp(path.join(repoRoot, 'upstream', 'tokenizers'), path.join(dataRoot, 'tokenizers'), { recursive: true });
+    // THE TREE MUST BE EMPTY BEFORE ANYTHING IS STAGED, OR EVERY LATER ROW COULD BE SOMEONE ELSE'S. The workflow
+    // recreates the directory (rm -rf then mkdir), so this is a cheap assertion that the driver is running where it
+    // thinks it is -- and it names the entries when it is not.
+    const existingEntries = await fs.readdir(dataRoot).catch(() => []);
+    report.dataRootWasEmpty = existingEntries.length === 0;
+    step('dataRootWasEmpty', report.dataRootWasEmpty, `entries: ${JSON.stringify(existingEntries).slice(0, 300)}`);
+    if (!report.dataRootWasEmpty) {
+        throw new Error(`the data root ${dataRoot} was not empty: ${JSON.stringify(existingEntries).slice(0, 300)}`);
+    }
     report.stagedCard = await stageCharacterCard(dataRoot);
     await seedLegConfig(dataRoot);
     const port = await freePort();
@@ -333,6 +345,15 @@ async function gotavernWrites() {
         // 03f1988. `unexpectedCharacters` records it instead of letting it pass silently.
         const stagedName = report.stagedCard.ownName;
         report.unexpectedCharacters = starter.names.filter(name => name !== stagedName);
+        // THE QUERY ALREADY GOES TO MY OWN PORT (``127.0.0.1:${port}``), which is the instance this half booted over
+        // this very directory -- so a roster that ALSO holds rows this probe never staged means the instance is
+        // reading a tree other than the one it was given, which is a finding in its own right, not a driver quirk.
+        report.rosterQueryUrl = `http://127.0.0.1:${port}/api/characters/all`;
+        // WHICH USER TREE IS IT SERVING? `POST /api/users/me` answers the handle the server believes it is on; if it
+        // is not the handle this probe staged into, the roster above is somebody else's list and every later verdict
+        // would be about the wrong tree.
+        const me = await postForJSON(`http://127.0.0.1:${port}`, '/api/users/me', {}).catch(() => null);
+        report.serverUserHandle = me?.ok ? (me.body?.handle ?? me.body?.user ?? me.body?.name ?? null) : null;
         step('characterStaged', starter.ok === true && starter.names.includes(stagedName), `wanting "${stagedName}"; roster ${JSON.stringify(starter.names).slice(0, 300)}`);
         if (!starter.ok || !starter.names.includes(stagedName)) {
             throw new Error(`the staged card "${stagedName}" is not listed by the server: ${JSON.stringify(starter).slice(0, 300)}`);
