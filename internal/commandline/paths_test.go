@@ -203,18 +203,13 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 			if value := relativeOrGlobal(got.Paths.RuntimeDataRoot, serverDirectory, globalDataDirectory, got.Paths.Global); value != scenario.Result.RuntimeDataRootRelativeToServerDir {
 				t.Errorf("runtime data root = %q, Node has %q", value, scenario.Result.RuntimeDataRootRelativeToServerDir)
 			}
-			// NOTE ON SCOPE, so the reader is not misled by the guard below. This harness runs every scenario
-			// with workingDirectory and serverDirectory in DIFFERENT TempDirs, so the two bases differ for
-			// nearly every scenario and the creation-path comparison is governed by ARCHITECTURE 34.5 rather
-			// than by the pinned value. That is a property of the harness, not a pinned measurement: the pinned
-			// probe recorded its scenarios with CWD == server directory, where the bases coincide. The guard
-			// fails only when the bases coincide AND the pinned value does not hold, which is the case
-			// ARCHITECTURE 34.5 does not cover and therefore cannot excuse.
-			if !twoDataRootBases(got.Paths) && dataRootIsDirectory != scenario.Result.DataRootIsDirectory {
-				t.Errorf("scenario %q has ONE data-root base and its existence is %t, Node has %t. With a single "+
-					"base ARCHITECTURE 34.5 does not apply, so the pinned value must hold",
-					name, dataRootIsDirectory, scenario.Result.DataRootIsDirectory)
-			}
+			// NOTE ON SCOPE, so a future reader does not repeat my mistake. This harness runs every scenario
+			// with workingDirectory and serverDirectory in DIFFERENT TempDirs (paths_test.go:139-140), so the
+			// two data-root bases differ for nearly every scenario. That is a property of the HARNESS, not a
+			// pinned measurement -- the pinned probe recorded its scenarios with CWD == server directory, where
+			// the bases coincide -- and it means the creation-path comparison is governed by ARCHITECTURE 34.5
+			// below. The single-base guard is written there, next to the stat it depends on, and fails only
+			// where the bases coincide AND the pinned value does not hold: the case the divergence does not cover.
 			configBytes, err := os.ReadFile(got.Paths.ConfigFile)
 			if err != nil {
 				t.Fatal(err)
