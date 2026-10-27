@@ -228,11 +228,11 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 			//
 			// Pinned creates DataRootCreationPath and then USES RuntimeDataRoot. For a RELATIVE dataRoot this
 			// harness renders those against different TempDirs, so GoTavern now creates only the runtime one and
-			// leaves the launch rendering absent -- which is why the stat must happen in `docker`/`launchState`,
-			// BEFORE any divergence branch can have created anything. That ordering was paid for: the first
-			// version of this test stat'd after the divergence and compared a directory the product had just
-			// made over the pinned value, so `standalone-existing-data-root` (which the harness pre-creates)
-			// read `is-directory = true` and was reported as the product disagreeing with Node.
+			// leaves the launch rendering absent -- which is why the stat must be taken BEFORE any divergence
+			// branch can run, so that what it observes is the state the pinned field describes. That ordering
+			// was paid for: the first version of this test stat'd after the divergence and compared a directory
+			// against the pinned value, so `standalone-existing-data-root` (which the harness pre-creates)
+			// disagreed for a reason that had nothing to do with the product.
 			//
 			// The three pre-existing shapes, each decided by a flag the fixture records rather than by a guess:
 			//   preCreated            the harness made it; the pinned value is the only thing to compare;
