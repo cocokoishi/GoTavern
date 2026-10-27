@@ -256,10 +256,16 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 					"(ARCHITECTURE 34.5: only the runtime root is created); is-directory = %t",
 					got.Paths.DataRootCreationPath, relativeDataRootDivergence.createsLaunchRendering, dataRootIsDirectory)
 			}
+			// `DataRootCreated` MEANS "THIS PROCESS CREATED A DIRECTORY THAT WAS NOT THERE", so under two bases
+			// it is derived from what the product itself did, not from Node's derived isDir -- which describes
+			// the LAUNCH path and would answer a different question. Three cases, each from a recorded fact:
+			//   empty value            pinned's branch runs mkdir("") and fails: created is false;
+			//   preCreated             the harness made the launch path, but the product still creates the
+			//                          RUNTIME one, so created is true unless mkdir failed;
+			//   two bases, not created the product creates the runtime root: created is "mkdir did not fail".
+			// With one base the pinned derivation is exact and is used unchanged.
 			expectedCreated := !scenario.Result.DataRootWasDirectoryBeforeParse && scenario.Result.DataRootIsDirectory && !scenario.Result.Warnings.FailedDataRootCreation
-			if twoDataRootBases(got.Paths) && !preCreated && !emptyValue {
-				// Two bases and nothing pre-created: the product creates the RUNTIME root, so the creation is
-				// exactly "mkdir did not fail".
+			if twoDataRootBases(got.Paths) && !emptyValue {
 				expectedCreated = !scenario.Result.Warnings.FailedDataRootCreation
 			}
 			if got.Paths.DataRootCreated != expectedCreated {
