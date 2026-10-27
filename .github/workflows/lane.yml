@@ -61,6 +61,16 @@ jobs:
           if [ -n "$unformatted" ]; then
             echo "gofmt would rewrite these files:"
             echo "$unformatted"
+            # A BARE FILE LIST IS A FACT WITHOUT A CAUSE, and this runner is the only host that can compute the
+            # cause: `gofmt` is forbidden on the development host (CI-first), so a lane looking at "gofmt would
+            # rewrite X" can only guess at the rewrite. Measured 2026-10-27 in the Q21 lane: two commits each
+            # attempted a fix from the file name alone (call arguments first, the doc comment second) and the gate
+            # went red twice for the same file, while the fix for THIS gate had been written into ci.yml, which does
+            # not run it. The diff is bounded to the offenders and truncated, so the log says WHAT gofmt wants.
+            for file in $unformatted; do
+              echo "--- gofmt -d $file ---"
+              gofmt -d "$file" | head -120
+            done
             exit 1
           fi
           echo "all Go files are gofmt-clean"
