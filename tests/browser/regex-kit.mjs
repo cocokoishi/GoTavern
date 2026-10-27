@@ -369,6 +369,18 @@ export async function applyRegexKit(spec) {
     const problems = [];
     const step = (name, detail) => steps.push({ step: name, ...detail });
 
+    // THE MARKERS COME FROM `spec`, NOT FROM THIS MODULE'S SCOPE. This function is installed in the page
+    // with `page.evaluate(applyRegexKit, spec)`, i.e. it is serialised by its SOURCE and re-created inside
+    // the browser, so it closes over NOTHING from regex-kit.mjs. A bare `MARKERS.inActive` inside it threw
+    // `ReferenceError: MARKERS is not defined` in CI (run 40450567180) -- and note the shape of that
+    // failure: the module-level `MARKERS.greeting` TDZ bug from run 40445569175 was a DIFFERENT error in
+    // the same family, and both are invisible to `node --check`. The `spec` argument is the only channel
+    // this function has, which is why the probe sends the markers in it.
+    const MARKERS = spec?.markers ?? null;
+    if (!MARKERS || typeof MARKERS.inActive !== 'string') {
+        return { problems: ['applyRegexKit received no markers in its spec; it is installed in the page by source and cannot see the module that defines them'], steps };
+    }
+
     // 1. The character. Same path a user takes: getCharacters + selectCharacterById.
     await script.getCharacters();
     if (!Array.isArray(script.characters) || script.characters.length === 0) {
