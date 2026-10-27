@@ -54,6 +54,11 @@ on:
       - 'tests/browser/asset-probe.mjs'
       - 'tests/browser/compare-asset-legs.mjs'
       - 'tests/browser/asset-gate-selftest.mjs'
+      # THE LAYOUT SURFACE IS PART OF THE ASSET MODE'S PUSH GATE, because a push hard-codes ssets and this
+      # surface lives there. Without these entries a push that changes the probe would schedule a run whose
+      # own step is skipped -- the defect this workflow already records for a fix that travelled without its gate.
+      - 'tests/browser/ui-layout-probe.mjs'
+      - 'tests/browser/compare-ui-layout-legs.mjs'
       # THE COMMITTED CARD DERIVATION IS AN INPUT TO THE ASSET LEG, so a change to it must re-prove the leg that
       # stages it. Without this entry a re-generated card could land with no browser run at all -- the same shape
       # as the workflow-edit omission measured at commit 555cbdc.
@@ -419,7 +424,7 @@ jobs:
           echo "failures=$failures" >> "$GITHUB_OUTPUT"
 
       # -------------------------------------------------------------------------------------------------
-      # THE BROWSER ASSET DIFFERENTIAL (GOAL.md §8.4 Q3-Q7, AGENTS.md 42-46, ARCHITECTURE.md §35.2).
+      # THE BROWSER ASSET DIFFERENTIAL (GOAL.md Ã‚Â§8.4 Q3-Q7, AGENTS.md 42-46, ARCHITECTURE.md Ã‚Â§35.2).
       #
       # WHAT IT ANSWERS: does a browser loading the unmodified pinned frontend DISPLAY the character-list
       # avatars, the chat-message avatars, the persona thumbnail and the background, on both legs?
@@ -498,7 +503,85 @@ jobs:
             "$work/legs/asset-gotavern-leg.json" "$work/legs/asset-pinned-leg.json" \
             > tests/browser/asset-comparison.json
 
-      # THE 酒馆助手 DIFFERENTIAL (AGENTS.md 47 and 50; GOAL.md Q8-Q12).
+      # UI LAYOUT AT FOUR VIEWPORT SIZES (GOAL.md Q7's unproven half; the M3 narrow-viewport line).
+      #
+      # WHY IT IS A SEPARATE STEP RATHER THAN MORE OF THE ASSET LEG: the asset probe records ONE viewport
+      # (asset-probe.mjs:360, 1280x900) and its committed artefact's meaning must not move because a second
+      # surface was added to it. This surface asks a different question -- is the control REACHABLE -- and its
+      # comparator separates a backend disagreement from "unreachable on both subjects", which is a finding
+      # about the pinned frontend and is never counted as a pass (GOAL 15: both bad is not a backend
+      # difference).
+      #
+      # IT RUNS ON A PUSH, in the `assets` mode, deliberately. A push hard-codes `assets`
+      # (`github.event_name == 'push' && 'assets' || ...`), so the surfaces a push can reach are the asset
+      # surface and this one. The layout question belongs there because it is the cheapest possible
+      # expression of the user's complaint "the page is broken" (AGENTS 52), and because a narrow viewport is
+      # the size at which the existing image gate's `naturalWidth > 0` can be true while nothing is visible.
+      - name: Record the UI layout legs (four viewport sizes, both subjects)
+        id: ui-layout
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'assets' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          mkdir -p "$work/legs"
+          failures=0
+          tree_gotavern="$work/ui-layout-tree-gotavern"
+          tree_pinned="$work/ui-layout-tree-pinned"
+          rm -rf "$tree_gotavern" "$tree_pinned"
+          mkdir -p "$tree_gotavern/default-user/characters" "$tree_pinned/default-user/characters"
+          # THE SAME FIXTURE CARD IN BOTH TREES, because comparing a page with characters against a page
+          # without them compares two different documents. The card is the committed DERIVATION (AGENTS 56),
+          # never an original. Copying it by hand here rather than through a probe keeps the STAGING identical
+          # on both legs, which is the property the asset lane learned the expensive way (run 40202885055).
+          cp tests/browser/fixtures/real/card-a.png "$tree_gotavern/default-user/characters/UI Layout Card.png"
+          cp tests/browser/fixtures/real/card-a.png "$tree_pinned/default-user/characters/UI Layout Card.png"
+          if node tests/browser/ui-layout-probe.mjs --data-root "$tree_gotavern" --report "$work/legs/ui-layout-gotavern-leg.json"; then
+            echo "recorded the GoTavern layout leg"
+          else
+            echo "::error::the GoTavern layout leg failed to drive"
+            failures=$((failures + 1))
+          fi
+          if node tests/browser/run-against-pinned.mjs ui-layout-probe.mjs -- --data-root "$tree_pinned" --report "$work/legs/ui-layout-pinned-leg.json"; then
+            echo "recorded the pinned layout leg"
+          else
+            echo "::error::the pinned layout leg failed to drive"
+            failures=$((failures + 1))
+          fi
+          echo "failures=$failures" >> "$GITHUB_OUTPUT"
+          # A drive failure is named above and judged below; this step does not mask it.
+          exit 0
+
+      - name: Compare the UI layout legs
+        id: ui-layout-compare
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'assets' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          # AN EMPTY OUTPUT IS NOT ZERO. `steps.ui-layout.outputs.failures` is the empty string when the
+          # record step did not run, and `"" != "0"` is true, so this refuses rather than judging absent legs.
+          # That is the run-40073821604 defect, which this project has already paid for once.
+          if [ "${{ steps.ui-layout.outputs.failures }}" != "0" ]; then
+            echo "::error::a UI layout leg failed to drive (failures=${{ steps.ui-layout.outputs.failures }}), so there is no comparison to judge"
+            exit 1
+          fi
+          # A LEG THAT PRODUCED NO REPORT IS REFUSED BY NAME, not compared as absent.
+          for leg in gotavern pinned; do
+            file="$work/legs/ui-layout-$leg-leg.json"
+            if [ ! -s "$file" ]; then
+              echo "::error::the $leg UI layout leg produced no report at $file, so nothing about layout is claimed"
+              exit 1
+            fi
+          done
+          # THE ARTEFACT IS NOT COMMITTED YET. The first commit is the gate, and its red is what a reader has
+          # to see before any value is fixed; an artefact committed on the first run would be
+          # indistinguishable from one recorded to match the answer.
+          node tests/browser/compare-ui-layout-legs.mjs \
+            "$work/legs/ui-layout-gotavern-leg.json" "$work/legs/ui-layout-pinned-leg.json" \
+            > "$work/legs/ui-layout-comparison.json" && status=0 || status=$?
+          cat "$work/legs/ui-layout-comparison.json"
+          exit "$status"
+
+      # THE Ã©â€¦â€™Ã©Â¦â€ Ã¥Å Â©Ã¦â€°â€¹ DIFFERENTIAL (AGENTS.md 47 and 50; GOAL.md Q8-Q12).
       #
       # WHAT WAS MISSING UNTIL NOW. extension-tavern-helper-comparison.json installs the pinned extension,
       # reaches user state, counts 32 extension containers and compares the requests the page makes -- and
@@ -1039,7 +1122,7 @@ jobs:
       # BOTH RECORDING STEPS, AND ONLY WHEN ONE OF THEM ACTUALLY FAILED. A skipped step reports an empty
       # output, so `!= '0'` alone would fail a `preset`-only run at the record step it never entered.
       - name: Fail if a drive could not be recorded or judged
-        if: ${{ (steps.record.outputs.failures != '0' && steps.record.outputs.failures != '') || (steps.preset.outputs.failures != '0' && steps.preset.outputs.failures != '') || (steps.asset.outputs.failures != '0' && steps.asset.outputs.failures != '') || (steps.helper.outputs.failures != '0' && steps.helper.outputs.failures != '') || (steps.helper-generation.outputs.generation_failures != '0' && steps.helper-generation.outputs.generation_failures != '') }}
+        if: ${{ (steps.record.outputs.failures != '0' && steps.record.outputs.failures != '') || (steps.preset.outputs.failures != '0' && steps.preset.outputs.failures != '') || (steps.asset.outputs.failures != '0' && steps.asset.outputs.failures != '') || (steps.ui-layout.outputs.failures != '0' && steps.ui-layout.outputs.failures != '') || (steps.helper.outputs.failures != '0' && steps.helper.outputs.failures != '') || (steps.helper-generation.outputs.generation_failures != '0' && steps.helper-generation.outputs.generation_failures != '') }}
         run: |
           echo "::error::a drive could not be recorded or was judged unfaithful; see the group output above."
           echo "generation/stream failures: ${{ steps.record.outputs.failures }}"
