@@ -123,9 +123,29 @@ guard('legsDrove', () => {
         for (const entry of report.steps ?? []) {
             if (entry.ok !== true) problems.push(`${subject}: step ${entry.name} failed (${String(entry.detail ?? 'no detail').slice(0, 400)})`);
         }
-        if (report.continue?.sawContinueCall !== true) {
-            problems.push(`${subject}: the press never reached Generate('continue') (calls: ${JSON.stringify(report.continue?.generateCalls ?? null)}); a false here is a DRIVE defect, not a product finding`);
+        // JUDGED BY EFFECT, NOT BY A WRAPPER CALL THAT CAN NEVER BIND (run 40566841294 measured this).
+        //
+        // `report.continue.sawContinueCall` requires `window.__q20GenerateWrap`, which is only populated if the drive
+        // can reassign `script.Generate`. A browser ES module export is a LIVE BINDING: `script.Generate = wrapper`
+        // throws in strict mode and `Object.defineProperty` throws `Cannot redefine property: Generate` -- recorded in
+        // both legs as `generateWrapStatus: "defineProperty-threw: ..."`. So `generateCalls` is `[]` and
+        // `sawContinueCall` is `false` on EVERY run, and this guard failed both subjects while all 24 and 23 steps
+        // passed. It was demanding a field that cannot be written, which is rule 91 in its purest form.
+        //
+        // The effect is what the subject itself shows, and the probe already asserts it: the press was delivered
+        // (`pressed`), the page entered a generation (`sawBusy`), and the last message GREW in place without the count
+        // changing (`after.lastText` starts with `before.lastMessage.mes` and is longer). Those are the same
+        // observables the regenerate comparator's `legsDrove` uses for the same reason.
+        const pressed = report.continue ?? {};
+        const grewInPlace = String(pressed?.after?.lastText ?? '').startsWith(String(pressed?.before?.lastMessage?.mes ?? '\u0000'))
+            && String(pressed?.after?.lastText ?? '').length > String(pressed?.before?.lastMessage?.mes ?? '').length
+            && pressed?.after?.lastIsUser === false;
+        if (!(pressed.pressed === true && pressed.sawBusy === true && grewInPlace)) {
+            problems.push(`${subject}: the continue control did not reach a generation that grew the last message in place (pressed=${JSON.stringify(pressed.pressed ?? null)}, sawBusy=${JSON.stringify(pressed.sawBusy ?? null)}, grewInPlace=${grewInPlace}); a false here is a DRIVE defect, not a product finding`);
         }
+        // The wrapper status is still REPORTED, so a future drive that does bind it is visible rather than silent.
+        details.wrapper = details.wrapper ?? {};
+        details.wrapper[subject] = { generateWrapStatus: pressed.generateWrapStatus ?? null, generateCalls: pressed.generateCalls ?? null };
         if (report.characterOpen?.opened !== true) {
             problems.push(`${subject}: did not open the named card (wanted ${JSON.stringify(report.characterOpen?.wanted ?? null)})`);
         }
