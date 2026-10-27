@@ -1045,6 +1045,35 @@ rather than by review.
     because neither guard named its precondition. Both lanes have since added the precondition assertion, and both
     differences turned out to be harness defects.
 
+84. **An equality between two subjects is only meaningful when paired with the property that would BREAK it.** A
+    lane produced the first content-level request equality for a verb -- the two subjects' regenerate requests
+    BYTE-IDENTICAL, `nodeEqualsGoRegenerate` green with 12 of 13 guards -- and then found that its thirteenth guard
+    was a DERIVATION the oracle contradicted.
+    The guard asserted the regenerated request must DIFFER from the turn that produced the reply it replaced,
+    reporting "the verb changed nothing" when they matched. Pinned's own source says they SHOULD match:
+    `deleteItemizedPromptForMessage(chat.length - 1); chat.length = chat.length - 1;` (`script.js:4408-4410`), then
+    the non-swipe branch does `chat.push(newMessage)` (`:6744`). A regenerate rebuilds the request from the chat
+    WITHOUT the reply it is about to replace -- exactly the state the previous turn was sent from. Both subjects
+    sent `39047ed94e`, 7 messages. The lane had asked for a difference the verb does not and should not produce.
+    **What the guard asks now is what actually gives the equality teeth: the regenerated request must NOT CARRY the
+    reply it is replacing.** Two requests would also be equal if BOTH subjects kept the old reply in context --
+    equal for the wrong reason -- so omitting it is the property that makes the agreement mean the verb rebuilt the
+    right thing. This is rule 48's second half ("`X != Y` within one implementation") made concrete for a verb: the
+    equality needs a negative beside it, and the negative must be the verb's DEFINING EFFECT rather than a
+    difference the verb happens to produce.
+    VERIFIED THREE WAYS, none of them argued: the corrected comparator re-run on the SAME recorded legs (13/13,
+    exit 0), its own readings (`carriesIt: false` with `sameAsPrecedingTurn: true`), and a MUTATION -- injecting the
+    replaced reply's text into the regenerated body turned it RED with BOTH `requestDropsReplacedReply` and
+    `goRegenerateDiffersFromGoTurn` firing. A guard that cannot fail is decoration, and this one can.
+    THE PATTERN THE LANE NAMED, and it is the sharpest statement of rule 4 in this file: **four of its last five
+    reds were assertions that could not fail for the reason they claimed -- a marker-only wait, a marker-only step,
+    a live-binding instrument, and now an inverted discrimination -- and in every case the ORACLE (pinned's source
+    or pinned's recorded bytes) contradicted the intuitive contract.** The product was correct throughout; what the
+    lane was proving is how easily a harness manufactures a confident wrong answer.
+    AND ITS CAVEAT IS THE RIGHT ONE: the 13/13 was measured by running the comparator LOCALLY against downloaded
+    artefacts, so it must be reproduced by a CI run whose own legs are clean (rule 75's corollary), and the continue
+    comparator's guards have still never executed.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
