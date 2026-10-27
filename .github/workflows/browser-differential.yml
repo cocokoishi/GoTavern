@@ -75,6 +75,8 @@ on:
       - 'tests/browser/helper-vars-probe.mjs'
       - 'tests/browser/extensions/helper-vars-kit.mjs'
       - 'tests/browser/compare-helper-vars-legs.mjs'
+      # THE NARROW VEHICLE, which is the PRIMARY: one variable, one prompt that reads it, one generateRaw. Listed
+      # separately because it is a separate probe and a change to it changes what the narrow artefact MEANS.
       - 'tests/browser/helper-vars-generate-probe.mjs'
       - 'tests/browser/compare-helper-vars-generate-legs.mjs'
       - 'tools/browser-evidence/other-surfaces.mjs'
@@ -107,8 +109,8 @@ on:
       - 'tests/browser/url-recorder.mjs'
       - 'tests/browser/helper-generation-probe.mjs'
       - 'tests/browser/compare-helper-generation.mjs'
-      # The variable/injection surface. Its comparator is already covered by `compare-*-legs.mjs` above; the probe
-      # and the kit that stages its tree are not, and a change to either changes what the artefact MEANS.
+      # The variable/injection surface. Both comparators are already covered by `compare-*-legs.mjs` above; the two
+      # probes and the kit that stages their tree are not, and a change to any of them changes what the artefacts MEAN.
       - 'tests/browser/helper-vars-probe.mjs'
       - 'tests/browser/helper-vars-generate-probe.mjs'
       - 'tests/browser/extensions/helper-vars-kit.mjs'
@@ -702,10 +704,23 @@ jobs:
       #
       # !cancelled() so a red render or generation comparison still yields this verdict in the same run: three
       # independent claims, one expensive setup, and a run that answers all three.
-      - name: Record the helper variable legs (both subjects, on/off, then restarted on the same trees)
+      #
+      # ---------------------------------------------------------------------------------------------------------
+      # THE NARROW VEHICLE FIRST, AND IT IS THE PRIMARY. A variable's value reaching the final provider request
+      # needs ONE variable, ONE prompt that reads it through the host macro engine, and ONE generateRaw. The UI-select
+      # vehicle (`helper-vars-probe.mjs`, below) was attempted FIRST and cost FOUR reds, every one of them in the
+      # vehicle and none in the claim:
+      #   40445034876  card-opened            -- card matched by a field the template does not set
+      #   40451801982  ready-preset-selected  -- card staged after the frontend read the character list
+      #   40457217583  ready-preset-selected  -- DOM `selected` property vs jQuery's cached selection
+      #   (source-diagnosed)                 -- manager resolved by ambient main_api, not the openai select
+      # The claim never named a card, a UI select or a manager lookup. This step is therefore the one that answers
+      # Q10/Q11, and the UI step keeps only the purpose that genuinely needs a preset: the `preset` scope.
+      # ---------------------------------------------------------------------------------------------------------
+      - name: Record the helper variable legs -- narrow vehicle (both subjects, on/off, restarted)
         id: helper-vars
         if: ${{ !cancelled() && (env.MODE_HELPER == 'helper' || env.MODE_HELPER == 'all') }}
-        timeout-minutes: 45
+        timeout-minutes: 30
         run: |
           set -uo pipefail
           work="$RUNNER_TEMP/browser-differential"
@@ -747,12 +762,12 @@ jobs:
             tree="${trees["$subject-on"]}"
             report="$work/legs/helper-vars-$subject-on-restart.json"
             if [ "$subject" = "gotavern" ]; then
-              runner=(node tests/browser/helper-vars-probe.mjs)
+              runner=(node tests/browser/helper-vars-generate-probe.mjs)
             else
-              runner=(node tests/browser/run-against-pinned.mjs helper-vars-probe.mjs --)
+              runner=(node tests/browser/run-against-pinned.mjs helper-vars-generate-probe.mjs --)
             fi
             if "${runner[@]}" --data-root "$tree" --variant on --after-restart --report "$report"; then
-              echo "recorded the $subject restart helper variable leg"
+              echo "recorded the $subject restart helper variable leg (narrow vehicle)"
             else
               echo "::error::the $subject restart helper variable leg failed to drive"
               failures=$((failures + 1))
