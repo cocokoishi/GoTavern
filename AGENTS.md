@@ -1252,6 +1252,40 @@ rather than by review.
     why it did not "fix" working code. The artefact already said
     `defineProperty-threw: Cannot redefine property: Generate`, correctly, and that was never the failure.
 
+92. **A redaction applied to each capture INDEPENDENTLY, with a predicate the two sides' RAW values do not satisfy
+    alike, makes a comparison that can never pass -- and a log's RENDERING of a value is not the value.** One red on
+    main, two defects, and the second one cost the diagnosis its first hypothesis.
+    THE COMPARISON COULD NOT PASS. `probe-provider-wire.mjs:516` redacted an authorization header when
+    `/^Bearer\s/i` matched. Pinned's raw value is `Bearer ` -- pinned builds `'Bearer ' + apiKey`
+    (`chat-completions.js:933`) and node-fetch puts the trailing space on the wire -- so it MATCHED and was rewritten
+    to the marker. GoTavern's raw value is `Bearer`, because `net/http` trims the optional whitespace RFC 7230 3.2.4
+    requires a recipient to strip, so it did NOT match and stayed raw. The comparator then read
+    `Bearer <redacted>` against `Bearer` AT THE SAME HEADER. The fix accepts an empty remainder
+    (`/^Bearer(\s|$)/i`) so both sides normalise identically, and the scenario keeps its teeth because the
+    declared-key assertion still compares the RAW value modulo OWS -- a missing header, a different scheme and a
+    non-empty key all still fail.
+    This is rule 83's family, and the new member is worth naming: **the precondition that differed was not the
+    request, it was the HARNESS'S OWN REWRITE OF IT.** A normalisation step is a precondition, so it must be applied
+    to both sides by a predicate that both sides can satisfy -- otherwise the comparison measures the redactor.
+    AND THE LOG LIED ABOUT THE VALUE. The failure printed `pinned Node: "***"`, and I built a hypothesis on it: a
+    masking pass, a marker, an already-redacted form. **The subagent MEASURED instead of reasoning and found no `***`
+    literal or asterisk generator anywhere in the repository, and `git log -S'***'` over the probe's whole history
+    empty.** The pinned capture that same process wrote is the run's uploaded re-record patch -- `1 file changed,
+    1 insertion(+), 1 deletion(-)`, that line being `authorizationKeyVerified`, EVERY HEADER BYTE UNCHANGED
+    (blob `f11a9ff` -> `5f1667b`, verified by applying the patch and hashing). So `***` was a log-pipeline artefact
+    and the reproducible difference was the one above; the layer that rewrote it was never identified, and the report
+    says so rather than inventing one.
+    THE RULE: **diagnose from the ARTEFACT the process wrote, not from the log's rendering of it.** A log line is a
+    downstream transformation of the evidence and may contain values no component ever produced -- and a hypothesis
+    built on such a value wastes the diagnosis. The authoritative channel is the file, the patch, or the capture,
+    and its bytes can be hashed.
+    AND THE REPAIR'S OWN CHECK IS THE MODEL TO COPY: before concluding, the subagent verified the OTHER consumer of
+    the same redaction (`internal/server/chat_completions_oracle_test.go:525`, `HasPrefix(lower(value), "bearer ")`)
+    and established that its binary pins `GOTAVERN_OUTBOUND_WIRE_EXACT=1` (`transport_mode_test.go:25-31`), so the Go
+    replay drives the wire-exact client, reproduces pinned's `Bearer `, and still matches -- the probe's leg runs the
+    PRODUCTION transport, which is precisely the difference this red was measuring. A fix to a shared predicate must
+    be checked against every other reader of it.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
