@@ -220,14 +220,35 @@ function binaryPath() {
  * THE GENERATION SCRIPT, run INSIDE the extension's own script iframe. It is the only thing this leg installs, and it
  * uses the extension's own API: `replaceScriptTrees` to exist at all, `insertOrAssignVariables` to write,
  * `getVariables` to read back, and `generateRaw` to drive the real assembly.
+ *
+ * TWO THINGS THIS SCRIPT MUST NOT CONTAIN, because it is built from an array of STRING LITERALS:
+ *   1. a `//` or `/*` line of explanation. A line inside this array is literal text in the generated module, so a
+ *      comment here becomes a stray slash inside the user script and the module dies on a syntax error -- a failure
+ *      that would present as "no __hvnDone" and look like a product or driver defect. ALL commentary lives above the
+ *      array. This was a real defect in the first version of this file (two comment blocks sat inside the array) and
+ *      `node --check` cannot see it: it reads the OUTER module only. `check-script.cjs` during development joins the
+ *      literals and parses the result, which is the only local check that can catch it.
+ *   2. a literal `</script>` or an unescaped backtick: the module the extension generates embeds this text.
+ *
+ * A NAMED MECHANISM, used inside the script below. `TavernHelper.substitudeMacros(text)` is the extension's own
+ * passthrough to the host's `substituteParamsExtended` (src/function/util.ts:9-11 -> public/script.js:2815 ->
+ * `substituteParams` :2981 -> `MacroEngine.evaluate`), exposed on TavernHelper at src/function/index.ts:437, and it
+ * takes ONE argument. Calling it on the SAME string the prompt carries gives the pre-/post-substitution pair this leg
+ * reports, which separates "the value is on the wire" (the claim) from "the macro resolved it" (the inference).
+ *
+ * AND THE PAIR IS RECORDED PER CASE, for the same reason: `renderedWithMacroEngine` is the host's own substitution
+ * called on the same string the prompt carries, so a reader can compare it with what the body actually contains. If
+ * the body carries the RAW `{{getvar::...}}` form, the macro did NOT run and the value came from somewhere else; if
+ * it carries what `renderedWithMacroEngine` produced, the difference the macro made is visible instead of asserted.
  */
 const SCRIPT = [
     'const cfg = window.parent.__hvn;',
     'const out = { cases: [], error: null };',
     'const record = (name, extra) => out.cases.push(Object.assign({ name }, extra));',
+    'const taThelperSubstitute = text => (typeof TavernHelper?.substitudeMacros === "function"',
+    '  ? TavernHelper.substitudeMacros(text)',
+    '  : "UNAVAILABLE: TavernHelper.substitudeMacros is not a function at this revision");',
     'try {',
-    // THE VEHICLE'S OWN PRECONDITION: the helper API this leg calls must exist. A missing one is a refusal, not a
-    // failed case, because every later capture would be about something else.
     '  const api = {',
     '    getVariables: typeof TavernHelper?.getVariables === "function",',
     '    insertOrAssignVariables: typeof TavernHelper?.insertOrAssignVariables === "function",',
@@ -245,6 +266,11 @@ const SCRIPT = [
     '        else if (op.kind === "delete") { const r = TavernHelper.deleteVariable(op.path, { type: op.scope }); applied.push({ op: "delete", scope: op.scope, deleteOccurred: r?.delete_occurred ?? null, variables: r?.variables ?? null }); }',
     '        else if (op.kind === "message") { TavernHelper.insertOrAssignVariables(op.values, { type: "message", message_id: op.message_id }); applied.push({ op: "message", stored: TavernHelper.getVariables({ type: "message", message_id: op.message_id }) }); }',
     '      }',
+    '      let renderedWithMacroEngine = null;',
+    '      let renderedError = null;',
+    '      try {',
+    '        renderedWithMacroEngine = taThelperSubstitute(prompt);',
+    '      } catch (e) { renderedError = String(e && e.message || e); }',
     '      let reply = null; let error = null;',
     '      try {',
     '        reply = await TavernHelper.generateRaw({',
@@ -255,7 +281,7 @@ const SCRIPT = [
     '          should_silence: true,',
     '        });',
     '      } catch (e) { error = String(e && e.message || e); }',
-    '      record(name, { applied, reply: reply === null ? null : String(reply).slice(0, 120), error });',
+    '      record(name, { applied, promptRaw: prompt, renderedWithMacroEngine, renderedError, reply: reply === null ? null : String(reply).slice(0, 120), error });',
     '    };',
     '    for (const item of cfg.cases) await run(item.name, item.ops, item.prompt);',
     '  }',
@@ -443,15 +469,31 @@ try {
     if (run.done?.api) step('helper-api-present', Object.values(run.done.api).every(Boolean), JSON.stringify(run.done.api));
 
     // ONE CAPTURE PER CASE, in order, because each generateRaw is awaited inside the script.
-    report.cases = cases.map((entry, index) => ({
-        case: entry.name,
-        applied: (run.done?.cases ?? []).find(item => item.name === entry.name)?.applied ?? null,
-        reply: (run.done?.cases ?? []).find(item => item.name === entry.name)?.reply ?? null,
-        error: (run.done?.cases ?? []).find(item => item.name === entry.name)?.error ?? null,
-        request: summarise(run.requests[index] ?? null),
-    }));
+    //
+    // EACH CASE CARRIES THE MECHANISM TRIPLE, so "the macro resolved it" is a comparison a reader can make rather
+    // than an inference they must trust: `promptRaw` is the string the prompt carried (`HV-READ-CHAT={{getvar::x}}`),
+    // `renderedWithMacroEngine` is the host's own substitution of that string, and `request.body` is what the provider
+    // received. If the body contains the raw `{{getvar::...}}` form the macro did NOT run; if it contains what
+    // `renderedWithMacroEngine` produced, the macro's contribution is visible as the difference between the first two.
+    report.cases = cases.map((entry, index) => {
+        const scripted = (run.done?.cases ?? []).find(item => item.name === entry.name) ?? null;
+        return {
+            case: entry.name,
+            applied: scripted?.applied ?? null,
+            promptRaw: scripted?.promptRaw ?? null,
+            renderedWithMacroEngine: scripted?.renderedWithMacroEngine ?? null,
+            renderedError: scripted?.renderedError ?? null,
+            reply: scripted?.reply ?? null,
+            error: scripted?.error ?? null,
+            request: summarise(run.requests[index] ?? null),
+        };
+    });
     step('one-capture-per-case', report.cases.every(entry => entry.request !== null),
         report.cases.map(entry => `${entry.case}:${entry.request ? 'ok' : 'absent'}`).join(','));
+    // EVERY CASE MUST CARRY ITS MECHANISM TRIPLE. A case without `promptRaw` cannot be read as evidence for the
+    // macro mechanism at all, so a missing one is a harness failure rather than a quiet null in the artefact.
+    step('mechanism-recorded-per-case', report.cases.every(entry => typeof entry.promptRaw === 'string' && entry.promptRaw.includes('{{') ),
+        report.cases.map(entry => `${entry.case}:${typeof entry.promptRaw === 'string' ? 'has-promptRaw' : 'MISSING'}`).join(','));
 
     // ---- HALF (ii): DISK, re-read in this process ---------------------------------------------------------
     report.disk = { chats: await readChatRecords(dataRoot), settings: await readSettingsFile(dataRoot) };

@@ -89,12 +89,52 @@ for (const subject of subjects) {
     const secondValueOnWire = hasClause(beta, C.chat, chatBeta);
     const changeDiffered = Boolean(alpha?.request && beta?.request) && alpha.request.sha256 !== beta.request.sha256;
     const changeLostOld = !hasClause(beta, C.chat, chat);
+
+    // WHICH MECHANISM PRODUCED THE RESOLUTION -- the claim is "the resolved value is on the wire", and "the MACRO
+    // resolved it" is a separate, checkable fact rather than an inference. Three things are compared per probe case:
+    //   promptRaw                    the string the prompt carried, e.g. `HV-READ-CHAT={{getvar::hv_chat}}`
+    //   renderedWithMacroEngine      the host's own substitution of that same string (TavernHelper.substitudeMacros)
+    //   request.body                 what the provider actually received
+    // The mechanism is DEMONSTRATED, not assumed, when: the raw form still contains `{{getvar::`, the rendered form
+    // does NOT, the rendered form carries the value, and the body carries the rendered form rather than the raw one.
+    // A body that still held `{{getvar::...}}` would mean the macro never ran and the value came from somewhere else;
+    // that case fails `macroWasTheResolver` rather than quietly satisfying the clause assertions.
+    const mechanismOf = entry => {
+        const raw = typeof entry?.promptRaw === 'string' ? entry.promptRaw : null;
+        const rendered = typeof entry?.renderedWithMacroEngine === 'string' ? entry.renderedWithMacroEngine : null;
+        const wire = body(entry);
+        return {
+            rawHasMacroSyntax: raw !== null && /\{\{get(?:global)?var::/.test(raw),
+            renderedHasNoMacroSyntax: rendered !== null && !/\{\{get(?:global)?var::/.test(rendered),
+            renderedCarriesValue: rendered !== null && (rendered.includes(chat) || rendered.includes(chatBeta) || rendered.includes(globalMark)),
+            wireHasRenderedForm: rendered !== null && rendered.includes(C.chat ?? 'HV-READ-CHAT=') && wire.includes(String(rendered).split('\u0000')[0].slice(0, 60)),
+            wireStillHasRawForm: raw !== null && wire.includes(raw),
+            raw,
+            rendered,
+        };
+    };
+    const alphaMechanism = mechanismOf(alpha);
+    const betaMechanism = mechanismOf(beta);
+    const globalMechanism = mechanismOf(globalSet);
+    const macroWasTheResolver = [alphaMechanism, betaMechanism].every(entry => entry.rawHasMacroSyntax)
+        && [alphaMechanism, betaMechanism].every(entry => entry.renderedHasNoMacroSyntax)
+        && [alphaMechanism, betaMechanism].every(entry => entry.renderedCarriesValue)
+        && [alphaMechanism, betaMechanism].every(entry => entry.wireHasRenderedForm)
+        && [alphaMechanism, betaMechanism, globalMechanism].every(entry => entry.wireStillHasRawForm === false);
+
     // THE ABSENT FORM. With the variable deleted the macro resolves to '' (public/scripts/variables.js:45,
     // `(localVariable || '')`), so the clause must be present with NOTHING after it -- the prompt still arrived, the
     // lookup produced nothing. A body missing the clause entirely is a different fact (the prompt did not arrive) and
     // is therefore NOT accepted here.
     const deleteIsEmptyForm = hasEmptyClause(deleted, C.chat);
     const deleteDroppedValue = !hasClause(deleted, C.chat, chat) && !hasClause(deleted, C.chat, chatBeta);
+    // The deleted case's HARNESS mechanism: the rendered form must have collapsed to the bare clause, so the empty
+    // wire form is the macro's own doing rather than a prompt that lost its text.
+    const deleteMechanism = mechanismOf(deleted);
+    const deleteMechanismShown = deleteMechanism.rawHasMacroSyntax === true
+        && deleteMechanism.renderedHasNoMacroSyntax === true
+        && typeof deleteMechanism.rendered === 'string'
+        && deleteMechanism.rendered.trim().endsWith(String(C.chat ?? 'HV-READ-CHAT='));
 
     // SCOPES
     const globalOnWire = hasClause(globalSet, C.global, globalMark);
@@ -139,7 +179,8 @@ for (const subject of subjects) {
             exportCount: Object.keys(leg.apiSurface.exports ?? {}).length,
             absentConfirmed: (leg.apiSurface.absentConfirmed ?? []).map(entry => entry.name),
         } : null,
-        halfI: { valueOnWire, secondValueOnWire, changeDiffered, changeLostOld, deleteIsEmptyForm, deleteDroppedValue },
+        halfI: { valueOnWire, secondValueOnWire, changeDiffered, changeLostOld, macroWasTheResolver, deleteIsEmptyForm, deleteDroppedValue, deleteMechanismShown },
+        mechanism: { alpha: alphaMechanism, beta: betaMechanism, global: globalMechanism, deleted: deleteMechanism },
         scopes: { globalOnWire, messageStored, messageNotOnWire },
         halfII: { chatVariableNames: [...new Set(chatVariables.map(entry => entry.name))], globalOnDisk, survivesFreshPage, survivesRestart, restartIsNewProcess },
         offControl: { offHasNoValue, offStable },
@@ -158,8 +199,11 @@ const subjectGuards = {
     }),
     // HALF (i)
     valueOnWire: subjects.map(subject => observed[subject].halfI.valueOnWire),
+    // THE MECHANISM, as its own guard: the resolved value being on the wire and the MACRO resolving it are different
+    // facts, and only the second one makes this a test of 酒馆助手's variables rather than of the harness's own string.
+    macroWasTheResolver: subjects.map(subject => observed[subject].halfI.macroWasTheResolver),
     changeChangesTheWire: subjects.map(subject => observed[subject].halfI.secondValueOnWire && observed[subject].halfI.changeDiffered && observed[subject].halfI.changeLostOld),
-    deleteReturnsToEmptyForm: subjects.map(subject => observed[subject].halfI.deleteIsEmptyForm && observed[subject].halfI.deleteDroppedValue),
+    deleteReturnsToEmptyForm: subjects.map(subject => observed[subject].halfI.deleteIsEmptyForm && observed[subject].halfI.deleteDroppedValue && observed[subject].halfI.deleteMechanismShown),
     // SCOPES
     globalScopeReachesWire: subjects.map(subject => observed[subject].scopes.globalOnWire),
     messageStoredNotSurfaced: subjects.map(subject => observed[subject].scopes.messageStored && observed[subject].scopes.messageNotOnWire),
@@ -235,7 +279,11 @@ const artefact = {
     declaredUnproven: [...declaredUnproven].sort(),
     subjects: observed,
     answers: {
-        'Q10 do variables reach the final request': 'guards.valueOnWire + guards.changeChangesTheWire + guards.deleteReturnsToEmptyForm -- on the RAW BODY BYTES, at the clause the prompt carries',
+        // THE SCOPE OF THIS CLAIM, stated as narrowly as it is true. `generateRaw` with ordered_prompts and
+        // max_chat_history:0 is a DIFFERENT assembly from an ordinary `Generate` turn, so a green here says exactly
+        // this and no more. The UI vehicle is the evidence for the other half; the two together are stronger than
+        // either stretched.
+        'Q10 do variables reach the final request': 'guards.valueOnWire + guards.macroWasTheResolver + guards.changeChangesTheWire + guards.deleteReturnsToEmptyForm -- on the RAW BODY BYTES, at the clause the prompt carries. SCOPE: generateRaw\'s ordered_prompts assembly, NOT an ordinary chat-completion turn; the claim supported is "a chat-scoped helper variable reaches the wire through generateRaw\'s ordered prompts and the host macro engine", not "through an ordinary Generate turn".',
         'Q10 persistence': 'guards.survivesFreshPage + guards.survivesRestart -- a fresh page and a NEW server process',
         'scope isolation / second scope': 'guards.globalScopeReachesWire',
         'message scope': 'guards.messageStoredNotSurfaced -- a FINDING: stored in the page, absent from the wire because no host macro reads a message scope',
