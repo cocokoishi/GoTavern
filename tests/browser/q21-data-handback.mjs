@@ -207,10 +207,49 @@ function step(name, ok, detail = null) {
 }
 
 // ------------------------------------------------------------------------------------------------ the GoTavern half
+// THE TREE NEEDS A CHARACTER BEFORE ANYTHING CAN OPEN ONE. Four runs of this probe changed HOW the character was
+// opened (a CSS card, a module lookup, the DOM card, a bounded wait) while the tree never contained a card at all:
+// run 40422280023 measured `no character card rendered in #rm_print_characters_block` on BOTH legs, and the GoTavern
+// half's `gotavernWrote: true` was a FALSE POSITIVE -- it had saved a conversation with the fresh install's default
+// assistant, not with the character it claimed to open. `tests/browser/asset-probe.mjs:236-261` already stages a tree
+// correctly (a synthesised PNG plus the COMMITTED desensitised card from tests/browser/fixtures/real/card-a.png, which
+// AGENTS 56 permits and the originals do not enter this repository). Same two files, same names, same rule that a
+// missing fixture is a REFUSAL rather than a silent skip.
+const CARD_FILE_NAME = 'Q21 Handback Card';
+const CARD_RELATIVE = path.join(here, 'fixtures', 'real', 'card-a.png');
+
+async function stageCharacterCard(root) {
+    const charactersDir = path.join(root, 'default-user', 'characters');
+    await fs.mkdir(charactersDir, { recursive: true });
+    let bytes;
+    try {
+        bytes = await fs.readFile(CARD_RELATIVE);
+    } catch (error) {
+        throw new Error(`the committed card is not readable at ${CARD_RELATIVE}: ${error?.message ?? error}`);
+    }
+    const staged = path.join(charactersDir, `${CARD_FILE_NAME}.png`);
+    await fs.writeFile(staged, bytes);
+    return { staged, byteLength: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
+}
+
+// The character list the SERVER returns, asked over HTTP so the answer cannot depend on the probe's module graph.
+async function listCharacters(baseURL) {
+    const response = await fetch(`${baseURL}/api/characters/all`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    const text = await response.text();
+    let parsed = null;
+    try {
+        parsed = JSON.parse(text);
+    } catch {
+        return { ok: false, reason: `not JSON: ${text.slice(0, 120)}`, names: [] };
+    }
+    const rows = Array.isArray(parsed) ? parsed : (parsed?.characters ?? []);
+    return { ok: true, names: rows.map(row => row?.name ?? null), count: rows.length };
+}
 async function gotavernWrites() {
     const binarySetting = process.env.GOTAVERN_BINARY;
     if (!binarySetting) throw new Error('GOTAVERN_BINARY is required for the GoTavern half');
     await fs.cp(path.join(repoRoot, 'upstream', 'tokenizers'), path.join(dataRoot, 'tokenizers'), { recursive: true });
+    report.stagedCard = await stageCharacterCard(dataRoot);
     await seedLegConfig(dataRoot);
     const port = await freePort();
     const server = spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -220,6 +259,14 @@ async function gotavernWrites() {
     let browser;
     try {
         await waitForVersion(`http://127.0.0.1:${port}`);
+        // THE PRECONDITION, ASSERTED BEFORE ANY DRIVING: the card is on disk AND the server lists it BY NAME.
+        // Asking over HTTP rather than through the page keeps this independent of the probe's module graph.
+        const starter = await listCharacters(`http://127.0.0.1:${port}`);
+        report.serverRoster = starter;
+        step('characterStaged', starter.ok === true && starter.names.includes(CARD_FILE_NAME), JSON.stringify(starter).slice(0, 400));
+        if (!starter.ok || !starter.names.includes(CARD_FILE_NAME)) {
+            throw new Error(`the staged card ${CARD_FILE_NAME} is not listed by the server: ${JSON.stringify(starter).slice(0, 300)}`);
+        }
         browser = await chromium.launch();
         const page = await browser.newPage();
         page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
@@ -268,7 +315,13 @@ async function gotavernWrites() {
         report.writtenTree = await hashTree(dataRoot);
         const chats = Object.keys(report.writtenTree).filter(file => file.endsWith('.jsonl'));
         report.chatFiles = chats;
-        step('gotavernWrote', chats.length > 0, `chat files: ${chats.join(', ') || 'none'}`);
+        // A SAVED CHAT IS NOT THE CLAIM; A SAVED CHAT WITH THE CHARACTER IT OPENED IS. Run 40422280023 reported
+        // `gotavernWrote: true` for a conversation the product had started with the fresh install's default
+        // assistant, while the opener had failed with `no character card rendered`. Require the chat path to
+        // NAME the staged card.
+        const wantedChatDir = `chats/${CARD_FILE_NAME}/`;
+        const matching = chats.filter(file => file.includes(wantedChatDir));
+        step('gotavernWrote', matching.length > 0, `chat files: ${chats.join(', ') || 'none'}; wanting one under ${wantedChatDir}`);
     } finally {
         if (browser) await browser.close();
         await peer.close();
