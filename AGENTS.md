@@ -958,6 +958,14 @@ rather than by review.
     The lane also declined the tempting wrong fix: the 30-second budget was never exhausted, the poll broke EARLY on
     a condition already true, so a longer timeout would have changed nothing. That is rule 33's shape — a race
     masked rather than named — arriving as an early exit instead of a timeout.
+
+    **AND THE TWIN MAY BE IN A DIFFERENT LAYER, which is where this sweep actually failed once.** The same lane that
+    produced this rule fixed an instrument in its PROBE and left the twin in its COMPARATOR: `legsDrove` still
+    required `report.regenerate.sawRegenerateCall`, a field the probe no longer writes because a run had measured it
+    FALSE WHILE the regenerate worked (a browser ES module export is a LIVE BINDING). So the guard reported "the
+    press never reached Generate('regenerate') (calls: [])" for BOTH subjects on a run where both legs had every step
+    green and `regenerateRequests: 1` -- rule 67's exact failure, one layer up from where it was fixed. Sweep the
+    PREDICATE across the probe, the comparator and the judge, not just within the file you are editing.
     **AND THE SWEEP FOUND THE TWIN, WITH THE REFINEMENT THAT MAKES IT SAFE TO APPLY: do not DELETE the weak
     predicate — it may be correct for its ORIGINAL purpose.** The lane grepped every Q20 probe for the pattern and
     found two more instances, in the regenerate and continue legs, of
