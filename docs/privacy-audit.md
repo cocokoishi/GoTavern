@@ -81,15 +81,22 @@ entirely left them red, and they proved nothing about the carrier. Each case now
 **must pass**, so the refusal can only come from the carrier phase. The markers are deliberately broken ASCII
 (`…/MARK 009999`) so the text pass cannot match them.
 
-Measured locally, then to be re-run in CI (see §5):
+Measured **in CI**, per AGENTS.md verification rule 1 (a local green is not the gate):
 
-| Mutation | Cases killed |
-|---|---|
-| delete the carrier call | 10 of 10 carrier cases |
-| disable the single-colour pixel test | the pixel case |
-| disable the manifest digest comparison | the digest case |
+| Mutation | CI red (workflow + run id + conclusion) | Assertions that went red | Restored green |
+|---|---|---|---|
+| delete the carrier phase (`if (carriersRequired && !carrierGate(...))` → `if (false)`) | **GoTavern Lane CI** `40446250364`, **failure** | `FAIL carrier gate REFUSES an EXIF blob (eXIf) [metadata/eXIf] -- exit ok=true` and the nine other carrier cases | **GoTavern Lane CI** `40446564535`, **success** |
+| short-circuit the egress permit (`if g.permitted(...)` → `if true`) | **GoTavern Lane CI** `40446871482`, **failure** | `--- FAIL: TestGuardRefusesAnUndeclaredDirectDial` (`dial tcp 192.0.2.7:443: i/o timeout`) and `--- FAIL: TestTheEscapeThatRule14WasWrittenFor` | **GoTavern Lane CI** `40447173410`, **success** |
 
-Restored: **158/158 cases green.**
+The egress mutation is the more instructive of the two. With the permit decision removed, the dial **left the
+process** and the only remaining outcome was a network timeout — which is exactly the
+"indistinguishable from a peer that is merely down" failure the `*EgressDenied` type exists to prevent. The gate
+caught it because the assertion checks the error TYPE, not merely that an error occurred.
+
+All eleven carrier cases and all seven egress cases were confirmed to have **executed** in the green run
+(`--- PASS:` lines with `-v` output, `ok github.com/cocokoishi/gotavern/tests/egressguard`), per rule 19: a test
+filtered out answers `ok` and reads as success. The real card's carrier table printed in CI as
+`carriers ok: … card-a.png -- 6 chunk(s), image 512x768 one colour #808080ff, 1 declarable`.
 
 ---
 
@@ -266,11 +273,34 @@ needs its own process, §4.2); that the preset/Q20/Q21 evidence is refreshed by 
 
 | Item | Status |
 |---|---|
-| carrier audit on the committed card | **measured locally**, reproducible with `node tools/png-carriers.mjs` |
-| gate self-tests (158/158) | **measured locally**; CI re-run pending |
-| mutation evidence (three mutations, all restored) | **local only — not evidence until CI run ids exist** (AGENTS.md verification rule 1) |
+| carrier audit on the committed card | **measured in CI** (GoTavern Lane CI `40446564535`, success): the six-chunk table and `one colour #808080ff` |
+| gate self-tests (158/158) | **green in CI**, all 11 carrier cases and 7 egress cases confirmed to have executed |
+| mutation evidence (two mutations, both reverted in CI) | **red and green both observed in CI**, §1.4 |
 | CI-selection table (§3) | from the workflow source plus `gh api` run metadata |
-| egress additions | **syntax-checked and formatted (`gofmt -e`), not compiled** — this host may not run `go build`/`go test`/`go vet` (AGENTS.md "Working mode") |
+| egress additions | compiled and run by GoTavern Lane CI |
 
-The mutation rows in §1.4 are the ones to re-read once CI has run: until a run exists with the red and the green,
-they describe what happened on a development host, which this repository has already established is not the gate.
+### 5.1 A defect CI found that local checking could not
+
+The first push failed — **GoTavern Lane CI `40445346390`, failure** — with three egress cases reporting
+`proxyconnect tcp: dial tcp 127.0.0.1:33619: connect: connection refused`, where `33619` was the **first** test's
+proxy, already closed.
+
+The cause is the same caching hazard this package documents for `internal/outbound`: `http.ProxyFromEnvironment`
+resolves the environment **once per process**. Each test created its own proxy and installed it; only the first
+`Install` could ever take effect, so the suite was silently **order-dependent** — it would have passed had the
+tests happened to share a proxy, and it would have measured nothing for every case after the first.
+
+Fixed in `6bd1ecd` by creating one guard and one proxy in `TestMain` and resetting them per case. This is worth
+recording rather than merely fixing: it is rule 7's "a gate that silently does not apply" in a harness I wrote
+while documenting that exact hazard one file away.
+
+### 5.2 What remains unproven (restated so a green is not over-read)
+
+1. **Go boot egress** — no replay asserts the Go binary's startup makes zero requests.
+2. **`http`/`https`/`WebSocket` used directly by a pinned module** — replacing `node-fetch` and `fetch` covers the
+   two functions pinned's provider routes use, not a module that imports `node:https` itself.
+3. **`git` subprocess egress** — the extension routes reach the network in a child process no stub can see.
+4. **Browser legs** — outside this enumeration.
+5. **A syscall-level socket** — bypasses `net.Dialer`, and therefore the guard; covering it needs seccomp.
+6. **The preset/Q20/Q21 scorecard rows are not refreshed by a push** (§3.2) — they depend on a dispatch or the
+   nightly `all` sweep, so their durability is the cron's, not the push's.
