@@ -654,12 +654,40 @@ try {
     process.exitCode = 1;
 }
 
+// THE CONSOLE SUMMARY MUST CARRY THE EVIDENCE NEEDED TO READ ITS OWN RED.
+//
+// Measured cost: run 40466428732 came back with `guards=[valueOnWire, macroWasTheResolver, changeChangesTheWire,
+// globalScopeReachesWire]` and `mismatches=[]`, and the LOG could not say whether `generateRaw` substituted
+// `{{getvar::...}}` at all -- `promptRaw`, `renderedWithMacroEngine` and the captured body lived only in the
+// artefact, which is uploaded as a zip. The red was undiagnosable from the run that produced it, which is the same
+// rule-40 mistake as a green `card-opened` nobody could attribute. The per-case mechanism triple and a bounded slice
+// of the body are therefore printed here, so the next verdict is readable without downloading anything.
+const bounded = (value, limit = 400) => (typeof value === 'string' && value.length > limit ? `${value.slice(0, limit)}…(${value.length} chars)` : value ?? null);
 console.log(JSON.stringify({
     subject: report.subject,
     variant: report.variant,
     afterRestart: report.afterRestart,
     failure: report.failure,
     steps: report.steps.map(item => `${item.ok === null ? 'n/a' : item.ok ? 'ok' : 'FAIL'} ${item.name}`),
-    cases: report.cases.map(entry => ({ case: entry.case, sha256: entry.request?.sha256 ?? null, bytes: entry.request?.byteLength ?? null, error: entry.error ?? null })),
+    attribution: report.attribution ?? null,
+    chatSeed: report.chatSeed ?? null,
+    cases: report.cases.map(entry => ({
+        case: entry.case,
+        sha256: entry.request?.sha256 ?? null,
+        bytes: entry.request?.byteLength ?? null,
+        captureCount: entry.captureCount ?? null,
+        error: entry.error ?? null,
+        opError: bounded(entry.opError, 200),
+        // THE MECHANISM TRIPLE, per case: what the prompt carried, what the host macro made of it, and what the
+        // provider received. These three together are what distinguishes "the macro resolved the value" from "the
+        // value appeared somewhere".
+        promptRaw: bounded(entry.promptRaw),
+        renderedWithMacroEngine: bounded(entry.renderedWithMacroEngine),
+        renderedError: bounded(entry.renderedError, 200),
+        bodySlice: bounded(entry.request?.body, 600),
+        bodyHasRawMacroSyntax: typeof entry.request?.body === 'string' ? /\{\{get(?:global)?var::/.test(entry.request.body) : null,
+        applied: entry.applied ?? null,
+    })),
+    reload: report.reload ? { steps: report.reload.boot ?? null, bodySlice: bounded(report.reload.request?.body, 600), sha256: report.reload.request?.sha256 ?? null } : null,
     timings: report.timings.phases,
 }, null, 2));
