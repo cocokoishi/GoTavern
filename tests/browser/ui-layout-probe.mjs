@@ -77,14 +77,18 @@ const CONTROLS = [
     { name: 'left-panel-toggle', selector: '#leftNavDrawerIcon' },
     { name: 'character-list', selector: '#rm_print_characters_block' },
     { name: 'chat-container', selector: '#chat' },
-    { name: 'persona-button', selector: '#persona_button' },
+    // MEASURED, NOT INVENTED: `#persona_button` does not exist anywhere in pinned's markup -- it was my
+    // invention, and it recorded `absent` on BOTH subjects at every size, contributing nothing while looking
+    // like coverage. The real always-present control is `#persona-management-button` (`public/index.html:5833`).
+    { name: 'persona-management-button', selector: '#persona-management-button' },
 ];
 
 // IMAGE SURFACES a user is meant to see. `naturalWidth` alone is not enough: an <img> can decode and sit
-// inside a zero-height clipped parent.
+// inside a zero-height clipped parent. Each names the CONTAINER it lives in, so an empty container (the roster
+// has not rendered) is distinguishable from a rendered container that lacks the image.
 const IMAGES = [
-    { name: 'character-avatar', selector: '#rm_print_characters_block .avatar img' },
-    { name: 'user-avatar', selector: '#user_avatar_block .avatar img' },
+    { name: 'character-avatar', selector: '#rm_print_characters_block .avatar img', container: '#rm_print_characters_block' },
+    { name: 'user-avatar', selector: '#user_avatar_block .avatar img', container: '#user_avatar_block' },
 ];
 
 /**
@@ -169,13 +173,38 @@ async function describeDocument(page) {
     }));
 }
 
-async function describeImage(page, selector) {
-    return page.evaluate(inner => {
+// AN ABSENT IMAGE IS THREE DIFFERENT FACTS, AND CONFLATING THEM COST THIS LANE A RUN.
+//
+// Measured in run 40458997843: `character-avatar` (`#rm_print_characters_block .avatar img`) was recorded as
+// `present on gotavern, absent on the other` at three sizes and absent on BOTH at desktop. That is not a layout
+// difference and it is not even a stable state -- it is what a character list that renders at DIFFERENT TIMES on
+// the two subjects looks like, and the artefact could not say which, because `present: false` collapses:
+//
+//   * the container is EMPTY because the roster has not rendered yet (a timing/state fact);
+//   * the container is RENDERED and holds no matching image (a real absence);
+//   * the selector matches nothing anywhere (a probe defect, which is what `#persona_button` turned out to be).
+//
+// The observation therefore carries the CONTAINER's state, and the comparator can refuse a pair whose containers
+// are in different states instead of calling that a reachability difference. `container` is the element the
+// selector is scoped to; when a caller does not name one, the check is skipped rather than guessed.
+async function describeImage(page, selector, containerSelector) {
+    return page.evaluate(({ inner, container }) => {
+        const scope = container ? document.querySelector(container) : null;
+        const containerState = container
+            ? {
+                present: Boolean(scope),
+                children: scope ? scope.children.length : null,
+                // A container with zero children is NOT RENDERED; one with children and no matching image is
+                // rendered and genuinely lacks the image. The distinction is the whole point of this field.
+                rendered: scope ? scope.children.length > 0 : null,
+            }
+            : null;
         const image = document.querySelector(inner);
-        if (!image) return { present: false };
+        if (!image) return { present: false, container: containerState };
         const rect = image.getBoundingClientRect();
         return {
             present: true,
+            container: containerState,
             complete: image.complete === true,
             naturalWidth: image.naturalWidth ?? 0,
             naturalHeight: image.naturalHeight ?? 0,
@@ -183,7 +212,27 @@ async function describeImage(page, selector) {
             box: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) },
             nonZeroArea: rect.width > 0 && rect.height > 0,
         };
-    }, selector);
+    }, { inner: selector, container: containerSelector ?? null });
+}
+
+// THE PRODUCT'S OWN ROSTER, read from the state the frontend exposes rather than inferred from the DOM. This is
+// what lets a timing difference be NAMED: if the two subjects hold different rosters at the moment of
+// measurement, no layout conclusion can be drawn from the difference and the comparator says so.
+async function describeRoster(page) {
+    return page.evaluate(() => {
+        try {
+            const context = window.SillyTavern?.getContext?.();
+            const characters = context?.characters ?? null;
+            return {
+                available: Array.isArray(characters),
+                count: Array.isArray(characters) ? characters.length : null,
+                names: Array.isArray(characters) ? characters.map(entry => String(entry?.name ?? '')).slice(0, 5) : null,
+                listChildren: document.querySelector('#rm_print_characters_block')?.children.length ?? null,
+            };
+        } catch (error) {
+            return { available: false, error: String(error?.message ?? error).slice(0, 200) };
+        }
+    });
 }
 
 async function waitForServer(baseURL, deadlineMs = 120000) {
@@ -361,6 +410,35 @@ async function main() {
             throw new Error(`a dialogue is still open after 4 dismissal attempts (${report.dialogsBeforeDismiss} at load, ${report.dialogsAfterDismiss} now), so any measurement would describe the modal rather than the layout`);
         }
 
+        // WAIT FOR THE ROSTER, ON THE PRODUCT'S OWN STATE, BEFORE MEASURING ANY LAYOUT.
+        //
+        // Run 40458997843 recorded `character-avatar` present on GoTavern and absent on pinned at three sizes and
+        // absent on BOTH at desktop. The most likely cause is not a layout at all: the character list renders when
+        // the roster arrives, GoTavern answers `/api/characters/all` in milliseconds and pinned boots in ~14 s, so
+        // the two subjects were in DIFFERENT RENDER STATES at the moment of measurement and the difference was
+        // attributed to layout. This is AGENTS verification rule 10 -- "no failure reported, but the expected
+        // outcome did not happen" is a probe-faithfulness alarm first.
+        //
+        // So: wait, bounded, for the product's own roster to be non-empty, and record it. A roster that never
+        // arrives is a NAMED refusal, not a layout finding, because no layout conclusion can be drawn from a page
+        // whose list is empty for a reason unrelated to layout.
+        report.rosterAtStart = await describeRoster(page);
+        if (!report.rosterAtStart.available || (report.rosterAtStart.count ?? 0) === 0) {
+            const deadline = Date.now() + 30000;
+            let last = report.rosterAtStart;
+            while (Date.now() < deadline) {
+                await page.waitForTimeout(250);
+                last = await describeRoster(page);
+                if ((last.count ?? 0) > 0) break;
+            }
+            report.rosterAfterWait = last;
+            if ((last.count ?? 0) === 0) {
+                throw new Error(`the product's roster never became non-empty within 30s (available=${last.available}, count=${last.count}, listChildren=${last.listChildren}), so no layout can be measured: an empty character list is a state fact, not a layout fact`);
+            }
+        } else {
+            report.rosterAfterWait = report.rosterAtStart;
+        }
+
         for (const viewport of VIEWPORTS) {
             // FROM THE SAME PAGE, by resizing: a fresh `goto` per size would make a reload-with-layout
             // difference look like a layout difference.
@@ -373,6 +451,9 @@ async function main() {
             const observation = {
                 viewport: viewport.name,
                 document: await describeDocument(page),
+                // The roster is re-read per size because a resize can change which list the frontend renders, and
+                // a difference between sizes is only interpretable next to the state that produced it.
+                roster: await describeRoster(page),
                 controls: {},
                 images: {},
             };
@@ -380,7 +461,7 @@ async function main() {
                 observation.controls[control.name] = await describeElement(page, control.selector);
             }
             for (const image of IMAGES) {
-                observation.images[image.name] = await describeImage(page, image.selector);
+                observation.images[image.name] = await describeImage(page, image.selector, image.container);
             }
             report.observations.push(observation);
         }

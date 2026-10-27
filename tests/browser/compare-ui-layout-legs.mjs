@@ -156,6 +156,10 @@ function main() {
             let equallyUnreachable = 0;
             let unreachableOnGotavernOnly = 0;
             let harnessNotReady = 0;
+            // Containers in different render states: a refusal, not a reachability difference.
+            let unmatchedRenderState = 0;
+            // The product's own roster differing is a DATA/BACKEND finding, a different instrument from layout.
+            let rosterDifferences = 0;
 
             for (let index = 0; index < gotavern.observations.length; index += 1) {
                 const left = gotavern.observations[index];
@@ -178,6 +182,10 @@ function main() {
                     // record stays in `sizes` until the summary removes it, so a reader can see it was excluded
                     // rather than absent.
                     unmeasurable,
+                    // THE PRODUCT'S OWN ROSTER at this size: a DIFFERENT INSTRUMENT from layout. If the two
+                    // backends served different character counts, no layout comparison at this size means
+                    // anything, so it is carried here and judged separately in the summary.
+                    roster: { gotavern: left.roster ?? null, pinned: right.roster ?? null },
                     gotavernOverflow: left.document?.horizontalOverflow ?? null,
                     pinnedOverflow: right.document?.horizontalOverflow ?? null,
                     controls: {},
@@ -231,9 +239,25 @@ function main() {
                         gotavern: { present: aPresent, ok: aPresent && reasonsA.length === 0, reasons: reasonsA },
                         pinned: { present: bPresent, ok: bPresent && reasonsB.length === 0, reasons: reasonsB },
                     };
+                    // A CONTAINER IN A DIFFERENT RENDER STATE IS NOT A LAYOUT DIFFERENCE.
+                    //
+                    // Run 40458997843 recorded `character-avatar` present on GoTavern and absent on pinned at
+                    // three sizes, and absent on both at desktop. The likeliest cause was never a layout: the list
+                    // renders when the roster arrives, GoTavern answers `/api/characters/all` in milliseconds while
+                    // pinned boots in ~14 s, so the two pages were in DIFFERENT STATES when they were measured.
+                    // Comparing an unrendered list against a rendered one compares two different documents, and
+                    // calling that "reachability differs" is exactly the cross-layer inference this project keeps
+                    // paying for. It is a NAMED refusal, and it fails the run rather than passing quietly.
+                    const renderedA = a?.container?.rendered ?? null;
+                    const renderedB = b?.container?.rendered ?? null;
+                    if (renderedA !== null && renderedB !== null && renderedA !== renderedB) {
+                        unmatchedRenderState += 1;
+                        problems.push(`${left.viewport}: HARNESS_STATE_MISMATCH -- image ${name}: the container is ${renderedA ? 'rendered' : 'empty'} on gotavern and ${renderedB ? 'rendered' : 'empty'} on pinned (children ${a?.container?.children} vs ${b?.container?.children}), so the two pages are in different states and no layout conclusion can be drawn`);
+                        continue;
+                    }
                     if (aPresent !== bPresent) {
                         disagreeingReachability += 1;
-                        findings.push(`${left.viewport}: image ${name} present on ${aPresent ? 'gotavern' : 'pinned'} and absent on the other`);
+                        findings.push(`${left.viewport}: image ${name} present on ${aPresent ? 'gotavern' : 'pinned'} and absent on the other (container children ${a?.container?.children} vs ${b?.container?.children}, rendered ${renderedA} vs ${renderedB})`);
                     } else if (aPresent && (reasonsA.length === 0) !== (reasonsB.length === 0)) {
                         disagreeingReachability += 1;
                         findings.push(`${left.viewport}: image ${name} ok=${reasonsA.length === 0} on gotavern, ok=${reasonsB.length === 0} on pinned`);
@@ -259,7 +283,9 @@ function main() {
                 equallyUnreachable,
                 unreachableOnGotavernOnly,
                 harnessNotReady,
-                note: 'disagreeingReachability must be 0 for parity; equallyUnreachable is reported and never counted as a pass (and is meaningless for a full-viewport coverer, which is counted in harnessNotReady instead); unreachableOnGotavernOnly is the subset of disagreement that is a GoTavern-only defect',
+                unmatchedRenderState,
+                rosterDifferences,
+                note: 'disagreeingReachability must be 0 for parity; equallyUnreachable is reported and never counted as a pass (and is meaningless for a full-viewport coverer, which is counted in harnessNotReady instead); unmatchedRenderState is a REFUSAL (the two pages were in different render states, so nothing about layout can be compared); rosterDifferences is a DATA finding about what each backend served, a different instrument from layout; unreachableOnGotavernOnly is the subset of disagreement that is a GoTavern-only defect',
             };
             // RULE 4, the summary form: the guard that decides is not "no findings" but "nothing DISAGREES".
             artefact.guards.subjectsAgreeOnEveryControlAndImage = disagreeingReachability === 0;
@@ -275,6 +301,21 @@ function main() {
                 problems.push(`only ${observed} element(s) were found on either subject across all sizes; the frontend was not rendered the way this probe drives it, so nothing about layout was measured`);
             }
             artefact.guards.measuredSomething = observed >= 8;
+            // THE PRODUCT'S OWN ROSTER, COMPARED AS A SEPARATE INSTRUMENT. If the two backends served different
+            // character counts, that is a DATA finding -- and it would also invalidate any layout comparison at
+            // that size, so it is named and it fails. It is NOT counted as a reachability difference, because
+            // "the list is a different length" and "the control is out of reach" are different questions.
+            for (const size of artefact.sizes) {
+                const rosterA = size.roster?.gotavern;
+                const rosterB = size.roster?.pinned;
+                if (!rosterA || !rosterB) continue;
+                if ((rosterA.count ?? null) !== (rosterB.count ?? null)) {
+                    rosterDifferences += 1;
+                    problems.push(`${size.viewport}: ROSTER_DIFFERS -- the product reports ${rosterA.count} character(s) on gotavern and ${rosterB.count} on pinned (list children ${rosterA.listChildren} vs ${rosterB.listChildren}); a layout comparison at this size would be between two different pages`);
+                }
+            }
+            artefact.summary.rosterDifferences = rosterDifferences;
+            artefact.summary.unmatchedRenderState = unmatchedRenderState;
             // THE LAST GATE, AND THE ONE RUN 40450382265 NEEDED: a size where the page was never ready cannot
             // contribute a comparison, so its rows must not silently count as agreement.
             artefact.guards.everySizeWasMeasurable = harnessNotReady === 0;
