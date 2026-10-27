@@ -958,6 +958,21 @@ rather than by review.
     The lane also declined the tempting wrong fix: the 30-second budget was never exhausted, the poll broke EARLY on
     a condition already true, so a longer timeout would have changed nothing. That is rule 33's shape — a race
     masked rather than named — arriving as an early exit instead of a timeout.
+    **AND THE SWEEP FOUND THE TWIN, WITH THE REFINEMENT THAT MAKES IT SAFE TO APPLY: do not DELETE the weak
+    predicate — it may be correct for its ORIGINAL purpose.** The lane grepped every Q20 probe for the pattern and
+    found two more instances, in the regenerate and continue legs, of
+    `chatCarrying(files, turnMarker) !== null`. That predicate is the right way to IDENTIFY which chat the leg is
+    looking at, because the user turn is what names it; it is simply not sufficient to CONFIRM that the reply
+    landed. So the fix was an assertion ADDED BESIDE it (`turn-1-saved-the-reply`, `turn-2-saved-the-reply`), not a
+    replacement — and because there is no poll to race in those legs (an explicit `saveConditional` then a read),
+    the defect was the assertion's STRENGTH rather than a wait's condition, so narrowing a correct wait would have
+    been the wrong instrument. Distinguish a predicate that IDENTIFIES from one that CONFIRMS before touching it.
+    **A weak assertion is worse in a leg that must AGREE with another leg than in a single-subject probe**, because
+    the disagreement it produces PRESENTS AS A PRODUCT DIVERGENCE. Measured: regenerate operates ON the reply, so
+    if the predecessor was never persisted the two subjects are measuring different conversations; continue appends
+    to the LAST message, so they are continuing DIFFERENT messages and the equality cannot discriminate at all —
+    rule 50's failure wearing a persistence bug's clothes, and exactly the defect that would have made the
+    first-ever continue comparison vacuous.
 
 81. **Fixing a defect class is not complete until something stops it coming back AT THAT SITE — a fix that is
     merely remembered will be reintroduced.** Measured in one lane, twice, one commit apart. `page.addScriptTag({
