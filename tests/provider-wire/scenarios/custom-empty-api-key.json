@@ -1,0 +1,81 @@
+{
+    "schemaVersion": 1,
+    "name": "custom-empty-api-key",
+    "purpose": "CUSTOM with NO api_key_custom secret stored -- the state of a user who configured a local or keyless endpoint (Ollama, llama.cpp, LM Studio), which the custom source exists to serve. Pinned builds the header UNCONDITIONALLY: `'Authorization': 'Bearer ' + apiKey` (src/endpoints/backends/chat-completions.js:933), with apiKey from readSecret (:2396) being undefined when nothing is stored. So the expected wire form is an Authorization header that is PRESENT and equal to 'Bearer ' with a trailing space -- not an absent header, and not 'Bearer undefined'. The three outcomes are distinguishable at the recorded peer and are exactly the reason this scenario exists: an implementation that omitted the header when the key was empty would be 'safer' than pinned and would still work against a keyless endpoint, so nothing but a byte recording can catch it.",
+    "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+    "targetPath": "custom-source",
+    "backendConfig": [
+        "enableUserAccounts: true",
+        "skipContentCheck: true",
+        "requestProxy:",
+        "  enabled: false"
+    ],
+    "secrets": {},
+    "expectedAuthorizationKey": "",
+    "expectedAuthorizationKeyNote": "DECLARED AS THE EMPTY STRING ON PURPOSE, and it is a real declaration: this scenario asserts that the Authorization header is PRESENT with the scheme `Bearer` and an EMPTY key after it. The harness used to treat an empty value as 'not declared' (a truthiness test), which made this difference unexpressible; it now tests for the PRESENCE of the property, so an empty expected key can be asserted. The comparison strips surrounding optional whitespace (RFC 7230 3.2.4) because pinned sends `Bearer ` and GoTavern cannot -- net/http trims header values -- and that divergence is recorded rather than fixed.",
+    "request": {
+        "path": "/api/backends/chat-completions/generate",
+        "body": {
+            "chat_completion_source": "custom",
+            "custom_url": "<mock>/v1",
+            "model": "keyless-local-model",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "probe system marker"
+                },
+                {
+                    "role": "user",
+                    "content": "probe user marker"
+                }
+            ],
+            "max_tokens": 64,
+            "temperature": 0.5,
+            "stream": false
+        }
+    },
+    "mock": {
+        "responses": [
+            {
+                "status": 200,
+                "headers": [
+                    {
+                        "name": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": "{\"id\":\"mock-custom-keyless\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock keyless reply\"},\"finish_reason\":\"stop\"}]}"
+            }
+        ]
+    },
+    "normalization": {
+        "tier2": [
+            {
+                "path": "provider.requests[].headers[Host]",
+                "rule": "value replaced with <mock-authority>",
+                "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+                "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+            },
+            {
+                "path": "provider.requests[].headers[authorization]",
+                "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+                "reason": "There is NO stored key in this scenario, so the value is the literal 'Bearer ' with nothing after it (chat-completions.js:933 concatenates unconditionally). The VALUE carries no secret, but it is a credential-shaped header and the recording harness refuses to commit one that normalisation has not rewritten (probe-provider-wire.mjs:503-518) -- so the rule is declared for the same reason it is declared elsewhere: the CONTRACT here is presence plus scheme, and the empty remainder is the property under test, which the guard's shape-preserving rewrite keeps visible.",
+                "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+            },
+            {
+                "path": "http.requests[].body.custom_url and its bodySha256",
+                "rule": "the mock authority is replaced with <mock> before hashing",
+                "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. The rest of the body is compared byte for byte through the digest.",
+                "pinnedSource": "src/endpoints/backends/chat-completions.js:2395 apiUrl = request.body.custom_url"
+            }
+        ],
+        "tier3": [
+            {
+                "path": "providerResponse.headers[x-response-time]",
+                "rule": "excluded from the compared headers",
+                "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+                "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+            }
+        ]
+    }
+}

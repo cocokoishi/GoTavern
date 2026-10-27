@@ -1,0 +1,89 @@
+{
+    "schemaVersion": 1,
+    "name": "custom-url-trailing-path",
+    "purpose": "CUSTOM with a custom_url that ALREADY carries a path segment. Pinned assembles the provider target as raw string concatenation, `fetch(apiUrl + '/chat/completions', config)` (src/endpoints/backends/chat-completions.js:942), where apiUrl is request.body.custom_url VERBATIM (:2395). So a custom_url of <mock>/v1/openai produces <mock>/v1/openai/chat/completions -- the path is KEPT, not replaced, and not normalised. This is the case a user hits whenever their provider documents a versioned base URL. An implementation that resolved the URL relative to the origin (new URL('/chat/completions', base)) would DROP /v1/openai and still answer 200 from a tolerant mock, so the recording is the only way to tell the two apart: the recorded rawTarget is the contract.",
+    "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+    "targetPath": "custom-source",
+    "backendConfig": [
+        "enableUserAccounts: true",
+        "skipContentCheck: true",
+        "requestProxy:",
+        "  enabled: false"
+    ],
+    "secrets": {
+        "api_key_custom": [
+            {
+                "id": "probe",
+                "value": "synthetic-custom-key",
+                "label": "probe",
+                "active": true
+            }
+        ]
+    },
+    "expectedAuthorizationKey": "synthetic-custom-key",
+    "request": {
+        "path": "/api/backends/chat-completions/generate",
+        "body": {
+            "chat_completion_source": "custom",
+            "custom_url": "<mock>/v1/openai",
+            "model": "probe-model",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "probe system marker"
+                },
+                {
+                    "role": "user",
+                    "content": "probe user marker"
+                }
+            ],
+            "max_tokens": 64,
+            "temperature": 0.5,
+            "stream": false
+        }
+    },
+    "mock": {
+        "responses": [
+            {
+                "status": 200,
+                "headers": [
+                    {
+                        "name": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": "{\"id\":\"mock-custom-trailing\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"mock custom trailing reply\"},\"finish_reason\":\"stop\"}]}"
+            }
+        ]
+    },
+    "normalization": {
+        "tier2": [
+            {
+                "path": "provider.requests[].headers[Host]",
+                "rule": "value replaced with <mock-authority>",
+                "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+                "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+            },
+            {
+                "path": "provider.requests[].headers[authorization]",
+                "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+                "reason": "The scenario supplies a synthetic key; presence and scheme are the contract, the value is not.",
+                "pinnedSource": "src/endpoints/backends/chat-completions.js:2396 apiKey = readSecret(request.user.directories, SECRET_KEYS.CUSTOM, request.body.secret_id)"
+            },
+            {
+                "path": "http.requests[].body.custom_url and its bodySha256",
+                "rule": "the mock authority is replaced with <mock> before hashing",
+                "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. The rest of the body is compared byte for byte through the digest.",
+                "pinnedSource": "src/endpoints/backends/chat-completions.js:2395 apiUrl = request.body.custom_url"
+            }
+        ],
+        "tier3": [
+            {
+                "path": "providerResponse.headers[x-response-time]",
+                "rule": "excluded from the compared headers",
+                "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+                "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+            }
+        ]
+    }
+}
