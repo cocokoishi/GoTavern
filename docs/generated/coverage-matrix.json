@@ -379,13 +379,16 @@
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
         "scenarioNames": [
+          "custom-empty-api-key",
           "custom-exclude-body",
           "custom-include-body",
+          "custom-include-body-overrides-assembled",
           "custom-source-abort",
           "custom-source-nonstream",
-          "custom-source-stream"
+          "custom-source-stream",
+          "custom-url-trailing-path"
         ],
-        "scenarios": 5,
+        "scenarios": 8,
         "status": "yes"
       },
       "cancellation": {
