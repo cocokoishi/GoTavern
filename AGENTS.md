@@ -1452,6 +1452,34 @@ rather than by review.
     holding the continuation, metadata appended, no residual nudge -- has been green on BOTH subjects since
     `40559516968`. Regenerate is at 13/13 across SEVEN CI runs; Q20 stays `partial`.
 
+99. **A threshold is a PROXY for a state, and a proxy can give two subjects opposite answers on the same run: ask the
+    state itself, from the identified artefact, with the same rule and the same input for both subjects.** Measured,
+    and the run's own counters show it.
+    THE PROXY. The setup gate was `chatLength < 3` -- a LENGTH THRESHOLD standing in for "have the two setup turns
+    been driven". It reads 0 on a fresh chat, 5 after setup, and anything at all on a tree that happens to carry
+    history. On one run it gave the two subjects OPPOSITE answers:
+        gotavern openedContext.chatLength 0   -> the gate RAN the setup turns  (4 chat completions)
+        pinned   chatSelection.chatLength 5   -> the gate SKIPPED them         (2 chat completions)
+    so pinned sent its continuation FIRST, with no preceding turn: "pinned: the continued request has no messages
+    array", "one of the subjects produced no continued request". **Three reds, all of them the setup rather than the
+    verb under test.** A proxy that can disagree with itself across subjects is not a shared precondition; it is a
+    second experiment.
+    THE FIX ASKS THE STATE. The gate now asks whether the OPEN CHAT already carries THIS LEG's second-turn marker,
+    read from the chat file identified by the post-`chat-selected` chat id -- same rule, same input, both subjects --
+    and `setupDecision` records the chat, the counts, `carriesPredecessor` and the old length side by side so the
+    proxy and the state can be compared in the artefact rather than in prose.
+    AND THE PRECONDITION GOT ITS OWN GUARD, VERIFIED AGAINST THE RUN THAT MOTIVATED IT. A new `sameSetup` requires
+    that both subjects record a boolean `carriesPredecessor`, that those AGREE, and that the chat-completion counts
+    match -- and it was checked against this run's own artefact (4 against 2), so it fires on exactly this defect
+    rather than being an assertion that can only pass. Rule 98's prescription again, and rule 95's discipline: a new
+    guard is verified against the failure that motivated it.
+    THE LEDGER, ON THE RECORD: continue has now had SIX runs and **every red has been this lane's own harness, never
+    the product** -- a wrapper field the browser cannot write (95), `--chat-id` passed and never read (96), a tree
+    copied from a live root holding the probe's own residual turn (97), a handoff taken one step too late (98), and
+    now a length threshold doing a marker's job. **The product has driven 24/24 green on every single attempt.**
+    Continue has 10 of 13 guards green and the last three are attributable to the setup divergence this change
+    removes. Regenerate is at 13/13 across EIGHT CI runs; Q20 stays `partial`.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
