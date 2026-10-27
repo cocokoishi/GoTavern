@@ -7,22 +7,22 @@ permissions:
 jobs:
   show:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: gofmt + vet + the package tests
+      - name: the docs gate only, findings to a file
         run: |
           set -uo pipefail
-          gofmt -l internal/fixtures/ || true
           mkdir -p /tmp/out
-          gofmt internal/fixtures/documents_test.go > /tmp/out/formatted.go
-          diff -u internal/fixtures/documents_test.go /tmp/out/formatted.go > /tmp/out/gofmt.diff || true
-          go vet ./internal/fixtures/ > /tmp/out/vet.log 2>&1 || true
-          go test ./internal/fixtures/ -run 'TestPinnedCommitStringsMatchThePin|TestDocumentsConsistencyGateCanGoRed|TestDocumentsEncodingGateCanGoRed|TestMojibakeSweepOfEveryDocument|TestEvidenceLedgerIsConsistent|TestEvidenceLedgerGateCanGoRed|TestCitationAncestryGateCanGoRed|TestDocumentGateCoversTheContract|TestAgentsRuleNumbersAreStable|TestAgentsRulesStayShortEnoughToStayNumbered|TestAgentsRuleGateCanGoRed' -count=1 -v > /tmp/out/test.log 2>&1 || true
-          tail -5 /tmp/out/vet.log; grep -E '^(--- )?(FAIL|PASS|ok)' /tmp/out/test.log | head -30
+          go test ./internal/fixtures/ -run 'TestEvidenceLedgerIsConsistent' -count=1 -v > /tmp/out/ledger.log 2>&1 || true
+          awk '/evidence ledger docs.goal-scorecard.md is inconsistent/{f=1;next} f&&/documents_test.go:/{exit} f' /tmp/out/ledger.log > /tmp/out/ledger-findings.txt || true
+          wc -l /tmp/out/ledger-findings.txt
       - uses: actions/upload-artifact@v4
         with:
           name: gate-diag
