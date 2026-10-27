@@ -695,6 +695,12 @@ rather than by review.
     deletions of files they had never touched. A merge that resolves CLEANLY is not the same as a merge that keeps
     both sides: a lane's rebase silently took an older commit's version of two files and dropped its own wiring,
     and nothing in `git status` said so — the check is to assert the resolved file CONTAINS what it must.
+    **The same signature arrives through the BASE, not only through a merge.** A plain `git rebase origin/main`
+    replays every commit from the merge-base forward, so a lane whose base branch is not contained in `main`
+    replays THE OTHER LANE'S COMMITS as its own — measured: a lane's rebase tried to replay two ui-viewport
+    commits it had merely inherited, conflicted on them, and the correct instrument was
+    `git rebase --onto origin/main <that-base>`. Abort on that conflict rather than resolving it: the commits
+    being replayed are not yours to resolve.
 
 63. **Build a vehicle with exactly as many moving parts as the claim needs.** One lane spent four consecutive
     reds on a browser vehicle whose derived preset, staged card and UI select the claim never named; the claim was
@@ -760,6 +766,22 @@ rather than by review.
     list the injection is indexed against. The correct answer is `null` WITH the measurements and the mechanism,
     never a fixture change that manufactures reachability, and never a re-record that converts a `partial` into a
     `proven`.
+
+71. **An assertion about a conditional branch must be preceded by an assertion that the branch was REACHABLE.**
+    Three consecutive defects in one lane had this one shape — a gate that could be satisfied without the thing
+    under test being reached:
+    1. comparator guards that did `if (!report) continue` returned an EMPTY problem list when a leg was missing,
+       so a missing measurement read as agreement;
+    2. a probe exercised only the two flag-carrying call shapes (`isMarkdown`, `isPrompt`), so a rule with
+       NEITHER flag was correctly excluded from both and its silence read as "the rule did not fire";
+    3. the depth check lives INSIDE the flag clause (`engine.js:348-355` gates, `:361-372` compares), so a
+       flagless rule was never depth-checked at all — measured: the same rule fired on the entry-point shape and
+       showed the prompt path unchanged at BOTH depth 0 and depth 1, making "depth not satisfied" and "rule never
+       admitted" indistinguishable.
+    Therefore: assert that the branch is reachable BEFORE asserting what it does, and where a clause excludes
+    shapes, assert the exclusion in the SAME test — inert on the excluded shapes, live on the admitted one — so a
+    rule that fires everywhere cannot satisfy a two-direction assertion. A red that cannot name which of
+    "skipped" and "never ran" happened is not evidence about either.
 
 ## The collaboration and privacy contract (current, 2026-10-26)
 
