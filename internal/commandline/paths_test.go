@@ -114,18 +114,16 @@ func twoDataRootBases(paths ResolvedPaths) bool {
 // PathWarning naming both paths.
 var relativeDataRootDivergence = struct {
 	createsLaunchRendering bool
-	// launchCreationFailureReported is whether a FAILED creation of the launch-directory rendering is
-	// reported. Pinned reports it because that is the mkdir it performs; GoTavern does not perform it at
-	// all, so it reports a failure of the RUNTIME mkdir instead. Under two bases the two are therefore not
-	// comparable, and this field states the GoTavern value exactly.
-	launchCreationFailureReported bool
-	reason                        string
+	reason                 string
 }{
-	createsLaunchRendering:        false,
-	launchCreationFailureReported: false,
+	createsLaunchRendering: false,
 	reason: "AGENTS 27 outranks parity here: startup must not create state in a directory the user did not " +
 		"name, and a relative dataRoot names one directory. Precedent ARCHITECTURE 34.3 (auto-update). The " +
-		"pinned values of both data-root FIELDS are unchanged; only the side effect moves.",
+		"pinned values of both data-root FIELDS are unchanged; only the side effect moves. NOT here, and " +
+		"deliberately: `FailedDataRootCreation` is EXCLUDED rather than given a value, because that field " +
+		"reports pinned's launch-path mkdir, which this project does not perform -- so there is no GoTavern " +
+		"value for it to hold, and restating it as false would be a comparison against a fact that does not " +
+		"exist.",
 }
 
 func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
@@ -301,13 +299,25 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 			//
 			// This was measured, not reasoned: run 40448068426 still reported
 			// `FailedDataRootCreation:false, Node has true` after the failure arm had been added, and that is the
-			// correct product answer for a directory that did get created. So the field is a DECLARED divergence
-			// under two bases -- recorded with its reason, the way the auto-update key is (ARCHITECTURE 34.3) --
-			// and it is still compared exactly wherever the bases coincide.
+			// correct product answer for a directory that did get created.
+			//
+			// THE FIELD IS REMOVED FROM THE COMPARISON, NOT OVERWRITTEN. A mask that SET it to the declared
+			// value left the comparison to run against Node's `true` and fail anyway (run 40448697864), which is
+			// the difference between neutralising a field and restating it: the two sides must be brought to a
+			// common shape, and comparisons in this file drop the member rather than give it a value. So both
+			// sides lose it under two bases, and the field is still compared exactly wherever the bases
+			// coincide. It is recorded with its reason, the way the auto-update key is (ARCHITECTURE 34.3).
 			if twoDataRootBases(got.Paths) && !emptyValue {
-				warnings.FailedDataRootCreation = relativeDataRootDivergence.launchCreationFailureReported
-			}
-			if !reflect.DeepEqual(warnings, scenario.Result.Warnings) {
+				gotWarnings := warnings
+				pinnedWarnings := scenario.Result.Warnings
+				gotWarnings.FailedDataRootCreation = false
+				pinnedWarnings.FailedDataRootCreation = false
+				if !reflect.DeepEqual(gotWarnings, pinnedWarnings) {
+					t.Errorf("path warnings = %+v, Node has %+v (FailedDataRootCreation excluded under two bases: "+
+						"it reports pinned's launch-path mkdir, which this project does not perform)",
+						gotWarnings, pinnedWarnings)
+				}
+			} else if !reflect.DeepEqual(warnings, scenario.Result.Warnings) {
 				t.Errorf("path warnings = %+v, Node has %+v", warnings, scenario.Result.Warnings)
 			}
 			actualOptions, err := json.Marshal(jsonSafe(got.Options))
