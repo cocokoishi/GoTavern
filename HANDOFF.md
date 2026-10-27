@@ -553,7 +553,7 @@ facts or a named fixture):
    of three of them), one BOM removed, four CP1252-round-tripped comments repaired, and eleven documentation
    claims corrected — see item 7 for the one measured limit that is still open.
 
-1. **Provider-wire breadth is now <!-- BEGIN GENERATED: provider-wire.scenarios -->`219`<!-- END GENERATED: provider-wire.scenarios --> recorded scenarios** (was 205 before the final sweep). The fixture is `tests/oracle/sillytavern-1.19.0-provider-wire.json`; `TestChatCompletionGenerateMatchesProviderWireCapture` replays every scenario input.
+1. **Provider-wire breadth is now <!-- BEGIN GENERATED: provider-wire.scenarios -->`222`<!-- END GENERATED: provider-wire.scenarios --> recorded scenarios** (was 205 before the final sweep). The fixture is `tests/oracle/sillytavern-1.19.0-provider-wire.json`; `TestChatCompletionGenerateMatchesProviderWireCapture` replays every scenario input.
 2. **The status fall-through is CLOSED.** AI21, VERTEXAI and PERPLEXITY now answer the pinned closing-else `400 {"error":true}` with ZERO outbound, not 501. The six new observations are `status.{ai21,vertexai,perplexity}.{noBranch,reverseProxy}` in `tests/oracle/sillytavern-1.19.0-backends.json`, which moved from 110 to 116 observations. The route is `internal/server/backends_status.go` (the no-arm set and the shared refusal at `:75-84`).
 3. **The route-wide request gaps are recorded.** `custom_prompt_post_processing` is observed by `openai-custom-prompt-post-processing`; the OPENAI reasoning-effort/verbosity tables by `openai-reasoning-effort-{fixed,map,outside-table}`; OpenRouter audio embedding by `openrouter-media-audio-embed` and `-passthrough`; OpenRouter reasoning signatures by `openrouter-reasoning-signatures*`. The Go side is `chat_completions.go:176-219` (post-processing) and `:423-534` (tables), plus `openrouter_media.go`.
 4. **ZAI has two per-literal seams.** `GOTAVERN_ZAI_CHAT_URL` targets the common literal and `GOTAVERN_ZAI_CODING_CHAT_URL` the coding literal (`internal/server/zai_chat.go:51-90`); `zai-coding-endpoint` records the path split. A single seam had made the two modes byte-identical.
@@ -809,7 +809,7 @@ the evidence, and what is still open; none is softened into "in progress".
    `internal/server/moonshot_chat.go:187` implements the status shape, and the `moonshot-*` captures are in
    the same fixture under the same missing-capture test.
 3. **Preset-level equivalence is MEASURED for one complex scenario.** The
-   <!-- BEGIN GENERATED: provider-wire.scenarios -->`219`<!-- END GENERATED: provider-wire.scenarios -->
+   <!-- BEGIN GENERATED: provider-wire.scenarios -->`222`<!-- END GENERATED: provider-wire.scenarios -->
    provider-wire scenarios are per-source request transforms and are NOT preset-level evidence
    (`tests/provider-wire/DESIGN.md:14-19`). The separate complex-preset differential is
    `tests/browser/preset-complex-comparison.json` with settings
