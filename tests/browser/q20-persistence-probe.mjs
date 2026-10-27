@@ -392,6 +392,9 @@ try {
     // preloader wait, then `settingsReady` with the 90 s bound and the onboarding dismissal). Kept as a thunk so every
     // call site below -- the first load and the fresh reload -- is unchanged.
     const openPage = () => driveOpenPage(page, baseURL);
+    // Declared here, READ AFTER the first `openPage()` (see `openCharacter` below): a page-scoped read cannot run
+    // before the navigation that gives the document a base URL.
+    let expectedCardName;
 
     // SELECT A REAL CHARACTER, WHICH IS THE PRECONDITION THE PRODUCT ITSELF CHECKS. The card a fresh install
     // actually renders is `.character_select#CharID<n>` (script.js:945); `.avatar[data-type="character"]` belongs to
@@ -405,17 +408,26 @@ try {
     // below, so the refusal path can only fire on a tree with no card at all. The change exists because the
     // regenerate/continue legs must open the card the FIRST leg opened, and "the first card that renders" is not a
     // precondition a real user has.
-    const expectedCardName = await page.evaluate(async () => {
-        const script = await import('./script.js');
-        const deadline = Date.now() + 60000;
-        while (Date.now() < deadline) {
-            const first = (script.characters ?? [])[0];
-            if (first?.name) return String(first.name);
-            await new Promise(resolve => setTimeout(resolve, 250));
+    // THE NAME IS READ FROM A LOADED PAGE, NOT BEFORE ONE. Measured in run 40444282138 (mode=preset): the first
+    // version of this read sat above `openPage()`, so it ran while the document was still `about:blank` and
+    // `import('./script.js')` had no base URL to resolve against -- `TypeError: Failed to resolve module
+    // specifier './script.js'`, every guard downstream red. A page-scoped read belongs after the navigation that
+    // makes the page exist; that is an ordering rule about `page.evaluate`, not about the product.
+    const openCharacter = async () => {
+        if (expectedCardName === undefined) {
+            expectedCardName = await page.evaluate(async () => {
+                const script = await import('./script.js');
+                const deadline = Date.now() + 60000;
+                while (Date.now() < deadline) {
+                    const first = (script.characters ?? [])[0];
+                    if (first?.name) return String(first.name);
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                }
+                return null;
+            });
         }
-        return null;
-    });
-    const openCharacter = () => driveOpenCharacter(page, expectedCardName);
+        return driveOpenCharacter(page, expectedCardName);
+    };
 
     const readyFirst = await openPage();
     step('page-loaded', readyFirst === true, `settingsReady=${readyFirst}`);
