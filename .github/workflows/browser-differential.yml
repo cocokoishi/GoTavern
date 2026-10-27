@@ -54,7 +54,7 @@ on:
       - 'tests/browser/asset-probe.mjs'
       - 'tests/browser/compare-asset-legs.mjs'
       - 'tests/browser/asset-gate-selftest.mjs'
-      # THE LAYOUT SURFACE IS PART OF THE ASSET MODE'S PUSH GATE, because a push hard-codes ssets and this
+      # THE LAYOUT SURFACE IS PART OF THE ASSET MODE'S PUSH GATE, because a push hard-codes the assets mode and this
       # surface lives there. Without these entries a push that changes the probe would schedule a run whose
       # own step is skipped -- the defect this workflow already records for a fix that travelled without its gate.
       - 'tests/browser/ui-layout-probe.mjs'
