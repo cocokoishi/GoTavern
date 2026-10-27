@@ -194,6 +194,7 @@ guard('sameChat', () => {
             messageIndex: file ? (file.messages?.length ?? 0) - 1 : null,
             file: file?.file ?? null,
             lines: file?.lines ?? null,
+            sha256: file?.sha256 ?? null,
             lastTextLength: String(pre?.lastText ?? '').length,
         };
         if (!pre) problems.push(`${subject}: no pre-continue page state recorded`);
@@ -206,6 +207,23 @@ guard('sameChat', () => {
     if (go.file !== node.file) problems.push(`the two subjects' chats live at different paths: ${JSON.stringify(go.file)} vs ${JSON.stringify(node.file)}`);
     if (go.messageIndex !== node.messageIndex) problems.push(`the two subjects continued different message indices: ${go.messageIndex} vs ${node.messageIndex}`);
     if (go.lastTextLength !== node.lastTextLength) problems.push(`the message being continued has different lengths across subjects: ${go.lastTextLength} vs ${node.lastTextLength}`);
+    // THE HANDOFF HASH: the state the pinned leg started from must be the state the GoTavern leg recorded as
+    // `preContinue`. Run 40589750993 is why this is a guard and not a comment -- the handoff was taken AFTER the
+    // continuation, so the pinned subject's last message was already grown ("... Q20_CONTINUATION_APPENDED_3", 39
+    // chars) where the GoTavern subject's was not ("Q20_REPLY_2", 11). The length check above caught it only because
+    // the two strings happen to differ in length; a continuation of the same length would have slipped through, and
+    // then `nudgeAssemblesLast` and `nodeEqualsGoContinue` would have compared two different experiments silently.
+    //
+    // `handoffTree.preContinueSha256` is the hash of the file the producer COPIED; `identities.pinned.sha256` is what
+    // the pinned leg actually read. They must be the same bytes.
+    const goHandoffSha = reports.gotavern?.handoffTree?.preContinueSha256 ?? null;
+    const pinnedReadSha = reports.pinned?.preContinue?.file?.sha256 ?? null;
+    details.handoff = { gotavernHandoffSha: goHandoffSha, pinnedReadSha, gotavernPreContinueSha: reports.gotavern?.preContinue?.file?.sha256 ?? null };
+    if (!goHandoffSha) {
+        problems.push('the gotavern leg recorded no handoffTree.preContinueSha256, so nothing says which state the pinned leg was given');
+    } else if (goHandoffSha !== pinnedReadSha) {
+        problems.push(`the pinned leg did not start from the GoTavern leg's pre-continue state: handoff ${String(goHandoffSha).slice(0, 12)} vs pinned read ${String(pinnedReadSha).slice(0, 12)}`);
+    }
     return problems;
 });
 

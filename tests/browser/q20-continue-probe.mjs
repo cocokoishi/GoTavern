@@ -415,6 +415,36 @@ try {
         };
     });
     report.preContinue = { page: preState, file: chatCarrying(beforeContinue, MARKERS.second) ?? chatCarrying(beforeContinue, MARKERS.first) };
+
+    // THE HANDOFF IS TAKEN HERE -- BEFORE THE PRESS -- and the hashes in run 40589750993 are why.
+    //
+    // Taking it AFTER the continuation (the previous commit's approach) handed the pinned leg a chat in which the
+    // GoTavern subject had ALREADY continued:
+    //     gotavern handoff              sha 229e3f4d   == gotavern fileAfterContinue.sha256
+    //     gotavern preContinue.file     sha 252c497c
+    //     pinned  preContinue.file      sha 229e3f4d   <- the post-continuation bytes
+    // so the pinned subject's last message was "Q20_REPLY_2 Q20_CONTINUATION_APPENDED_3" (39 chars) against
+    // GoTavern's "Q20_REPLY_2" (11 chars), and `sameChat` reported exactly that length difference. Both subjects then
+    // continued for real, from different starting points.
+    //
+    // A comparison needs both subjects to start from the SAME state, so the handoff is the pre-continue state -- the
+    // very bytes `preContinue.file` was read from a line above. `handoffTree.preContinueSha256` records the hash the
+    // producer copied, so a future leg can be checked rather than trusted: it must equal `preContinue.file.sha256`.
+    {
+        const handoffDir = argumentValue(process.argv, '--handoff-tree', process.env.Q20_HANDOFF_TREE ?? null);
+        if (handoffDir) {
+            const handoffPath = path.resolve(handoffDir);
+            await fs.rm(handoffPath, { recursive: true, force: true });
+            await fs.cp(dataRoot, handoffPath, { recursive: true, force: true });
+            report.handoffTree = {
+                path: handoffPath,
+                at: 'pre-continue state, before the press',
+                preContinueSha256: report.preContinue.file?.sha256 ?? null,
+            };
+        } else {
+            report.handoffTree = null;
+        }
+    }
     // THE PRECONDITIONS THE SUBJECT ITSELF CHECKS (:11648-11661), asserted so a refusal is never read as a defect.
     step('precondition-continuable',
         preState.lastIsUser === false && preState.chatLength >= 3 && preState.isSendPress !== true && preState.thisEditMesId === null,
@@ -533,6 +563,12 @@ try {
     report.fileAfterContinue = chatCarrying(afterContinue, MARKERS.second) ?? chatCarrying(afterContinue, MARKERS.first);
     const beforeFile = report.preContinue.file;
     const afterFile = report.fileAfterContinue;
+    // The handoff was taken BEFORE the press (see `report.handoffTree` beside `preContinue`); the HASHES are what make
+    // that checkable rather than asserted: `handoffTree.preContinueSha256` must equal `preContinue.file.sha256` on the
+    // producer, and the pinned leg's `preContinue.file.sha256` must equal it too. Run 40589750993 differed on exactly
+    // that field -- GoTavern handoff 229e3f4d (its OWN fileAfterContinue) against preContinue 252c497c -- which is the
+    // fingerprint of a snapshot taken on the wrong side of the continuation.
+    report.handoffTree = report.handoffTree ?? null;
     step('continue-file-same-line-count',
         Boolean(beforeFile) && Boolean(afterFile) && beforeFile.lines === afterFile.lines,
         `before=${beforeFile?.lines} after=${afterFile?.lines} file=${afterFile?.file ?? 'none'}`);
@@ -547,29 +583,15 @@ try {
     // 5. NO RESIDUAL STATE: the NEXT request is a normal turn, and it must be a normal turn -- a continuation buffer
     // left in `cyclePrompt` or in the streaming processor would show up as a nudge or as duplicated history.
     //
-    // THE TREE IS SNAPSHOTTED BEFORE THIS TURN, and run 40582180078 measured why. This probe serves TWO roles: it only
-    // ever wanted to answer "did continue leave residual state", but by sending a real turn it MUTATES the tree the
-    // PINNED leg then copies with `--data-chat`. MEASURED: the pinned leg recorded
-    //     [4] A: "Q20_REPLY_2 Q20_CONTINUATION_APPENDED_3"   <- GoTavern's continuation
-    //     [5] U: "Q20 continue residual probe turn"           <- THIS line
-    //     [6] A: "Q20_REPLY_4"
-    // -- seven messages against GoTavern's five -- and the comparator reported `sameChat` ("message indices: 4 vs 6")
-    // and `sameMessageGrown` ("message counts: 5 vs 7") while BOTH subjects had done the verb correctly on the same
-    // chat id, in the same file, at the same path.
-    //
-    // So the artefact the pinned leg needs is COPIED OUT of the data root at the exact moment `preContinue` and
-    // `fileAfterContinue` describe: after the continuation, BEFORE the residual turn. The leg keeps its residual check
-    // -- that assertion is about the PRODUCT, not about the tree -- and the copy is what the next leg builds on. A leg
-    // that skipped this would leave the pinned subject comparing against state no GoTavern user ever had.
-    const handoffDir = argumentValue(process.argv, '--handoff-tree', process.env.Q20_HANDOFF_TREE ?? null);
-    if (handoffDir) {
-        const handoffPath = path.resolve(handoffDir);
-        await fs.rm(handoffPath, { recursive: true, force: true });
-        await fs.cp(dataRoot, handoffPath, { recursive: true, force: true });
-        report.handoffTree = { path: handoffPath, at: 'afterContinue-before-residual-turn' };
-    } else {
-        report.handoffTree = null;
-    }
+    // THIS TURN DELIBERATELY MUTATES THE TREE, and the pinned leg no longer sees it because the handoff was taken
+    // BEFORE the press (see `report.handoffTree` beside `preContinue`). Run 40582180078 measured the cost of the
+    // original ordering: `--data-chat` pointed at the LIVE root, which by the time the pinned leg started also held
+    // this turn's user message and its reply, so the pinned subject opened a seven-message chat against the five the
+    // GoTavern subject had continued -- `sameChat` "4 vs 6", `sameMessageGrown` "5 vs 7" -- with both subjects correct
+    // on the same chat id and the same path. Run 40589750993 then showed the OTHER wrong side: a handoff taken AFTER
+    // the continuation handed the pinned leg an already-continued last message ("... Q20_CONTINUATION_APPENDED_3", 39
+    // chars, against GoTavern's "Q20_REPLY_2", 11). The handoff must be the PRE-continue state, which is what makes the
+    // two subjects the same experiment.
     const nextTurn = await sendTurn(page, 'Q20 continue residual probe turn');
     report.nextTurn = nextTurn;
     await settleQuiet(page, recorder);
