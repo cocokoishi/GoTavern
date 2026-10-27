@@ -315,6 +315,52 @@ async function main() {
         // READINESS IS THE PRODUCT'S OWN SIGNAL, the same one every other browser leg waits for.
         await page.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 120000 });
 
+        // A MODAL IS NOT A LAYOUT. Run 40453115080 measured every control as `covered-at-centre` and, thanks to
+        // the coverer naming added for exactly this, the record said who: `dialog.popup.wider_dialogue_popup`
+        // at 750x544. A fresh install opens a dialogue over the page and it stays until dismissed, so measuring
+        // with it up describes the modal, not the layout. `HARNESS_NOT_READY` refused that run, which is why the
+        // refusal is worth more than the pass it replaced.
+        //
+        // THE DISMISSAL IS THE USER'S OWN PATH: `closeButton` is the popup's own close control, and Escape is
+        // `allowEscapeClose` (`public/scripts/popup.js:57`). Both are attempted, the number of dialogs is
+        // measured BEFORE and AFTER, and a dialog that survives is reported rather than ignored -- a probe that
+        // silently measured around a modal would be back to the state that produced the withdrawn PASS.
+        report.dialogsBeforeDismiss = await page.evaluate(() => document.querySelectorAll('dialog.popup[open], dialog.popup:not([closed])').length);
+        for (let attempt = 0; attempt < 4; attempt += 1) {
+            const open = await page.evaluate(() => {
+                const dialogs = [...document.querySelectorAll('dialog.popup')];
+                const visible = dialogs.filter(dialog => {
+                    const rect = dialog.getBoundingClientRect();
+                    return rect.width > 0 && rect.height > 0;
+                });
+                return visible.length;
+            });
+            if (open === 0) break;
+            const closed = await page.evaluate(() => {
+                const dialog = [...document.querySelectorAll('dialog.popup')].find(item => {
+                    const rect = item.getBoundingClientRect();
+                    return rect.width > 0 && rect.height > 0;
+                });
+                if (!dialog) return false;
+                const button = dialog.querySelector('.popup-button-ok, .popup-button-cancel, .popup_close, .popup-button');
+                if (button) {
+                    button.click();
+                    return 'clicked a control';
+                }
+                return false;
+            });
+            if (!closed) await page.keyboard.press('Escape');
+            await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+            await page.waitForTimeout(150);
+        }
+        report.dialogsAfterDismiss = await page.evaluate(() => [...document.querySelectorAll('dialog.popup')].filter(dialog => {
+            const rect = dialog.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0;
+        }).length);
+        if (report.dialogsAfterDismiss > 0) {
+            throw new Error(`a dialogue is still open after 4 dismissal attempts (${report.dialogsBeforeDismiss} at load, ${report.dialogsAfterDismiss} now), so any measurement would describe the modal rather than the layout`);
+        }
+
         for (const viewport of VIEWPORTS) {
             // FROM THE SAME PAGE, by resizing: a fresh `goto` per size would make a reload-with-layout
             // difference look like a layout difference.
