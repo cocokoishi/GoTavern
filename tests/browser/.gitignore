@@ -64,3 +64,14 @@ authors-note-pinned-*.json
 redirect-authors-note-*.json
 # Q17/Q18 SCRATCH DIRECTORY: the sweep's default `--out-dir` when a caller points it inside the tree.
 legs/
+# Q20's REGENERATE AND CONTINUE LEGS. Their default report names are `q20-regenerate-leg.json` and
+# `q20-continue-leg.json` -- already covered by `*-leg.json` above, WHICH IS THE MECHANISM RELIED ON for a
+# bare local run, and that is why the patterns below are anchored on the SUBJECT suffix rather than on the
+# verb: a bare `q20-continue-*.json` was tried first and MEASURED TO SWALLOW the committed
+# `q20-continue-comparison.json`, which is the direction tests/browser/catalog.test.mjs forbids (a committed
+# artefact the ignore list would hide). The anchored forms cover what a checkout run writes
+# (`q20-regen-gotavern.json`, `q20-continue-pinned.json`) and cannot match either comparison artefact.
+q20-regen-gotavern.json
+q20-regen-pinned.json
+q20-continue-gotavern.json
+q20-continue-pinned.json
