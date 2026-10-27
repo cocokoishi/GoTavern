@@ -279,7 +279,33 @@ guard('goRegenerateDiffersFromGoTurn', () => {
     const turn = go[go.length - 3] ?? null;
     details.gotavernRegenerateVsTurn = { regenerated: short(regenerated), turn: short(turn) };
     if (!regenerated || !turn) return [`the GoTavern leg produced ${go.length} completion(s); the regenerated and the preceding turn request are needed`];
-    if (regenerated.sha256 === turn.sha256) return ['the regenerated request is IDENTICAL to the turn that produced the reply it replaced, so the verb changed nothing'];
+    // A REGENERATE IS *EXPECTED* TO SEND THE SAME CONTEXT AS THE TURN IT REPLACES, so equality here is the ORACLE
+    // matching rather than the verb doing nothing. Pinned's own path proves it: `Generate` for `type === 'regenerate'`
+    //     deleteItemizedPromptForMessage(chat.length - 1);
+    //     chat.length = chat.length - 1;                    (script.js:4408-4410 -- drops the reply)
+    //     ... and the non-swipe branch then does chat.push(newMessage)     (script.js:6744)
+    // so the request is rebuilt from the chat WITHOUT the reply it is about to replace -- exactly the state the
+    // previous turn was sent from. The two requests SHOULD be byte-identical.
+    //
+    // The first version of this guard asserted the OPPOSITE ("the verb changed nothing" when they matched) and went
+    // red on run 40503694869, where `nodeEqualsGoRegenerate` was TRUE and BOTH subjects sent 39047ed94e. That is rule
+    // 4 with a fresh measurement: "regenerate must change the request" was a DERIVATION, and the oracle contradicts
+    // it.
+    //
+    // WHAT THIS GUARD MUST PROVE INSTEAD -- the property that actually gives `nodeEqualsGoRegenerate` teeth: the
+    // regenerated request must NOT carry the reply it replaced. If both subjects sent the OLD reply's text, the two
+    // requests would still be equal, and equal for the wrong reason. The equality is only evidence that the verb
+    // rebuilt the same context once this shows the context no longer contains the replaced reply.
+    const body = String(regenerated?.body ?? '');
+    const before = reports.gotavern?.preRegenerate?.file?.messages ?? [];
+    const replaced = String(before[before.length - 1]?.mes ?? '');
+    details.goRegenerateCarries = {
+        replacedText: replaced.slice(0, 60),
+        carriesIt: replaced.length > 0 && body.includes(replaced),
+        sameAsPrecedingTurn: regenerated.sha256 === turn.sha256,
+    };
+    if (replaced.length === 0) return ['the GoTavern artefact did not record the reply the verb replaced, so "the request omits it" cannot be judged'];
+    if (body.includes(replaced)) return [`the regenerated request still CARRIES the reply it is replacing (${JSON.stringify(replaced.slice(0, 60))}), so the verb did not drop it from the context`];
     return [];
 });
 
