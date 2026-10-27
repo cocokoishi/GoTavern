@@ -78,14 +78,14 @@ func TestPinnedCharacterChatsAreKeyedByTheCardName(t *testing.T) {
 	// THE ROW CONTRACT, BEFORE ANY CHAT EXISTS, TAKEN FROM PINNED: `chat` is the readFromV2 default string
 	// (:554), `chat_size` a number (:422), and `chats` appears in NO row because pinned never assigns it.
 	empty := characterRow(t, env, fileName+".png")
-	if _, kind := memberKind(empty, "chats"); kind != "absent" {
+	if _, kind := typedMemberKind(t, empty, "chats"); kind != "absent" {
 		t.Fatalf("staged/noChats: the roster row carries `chats` (%s); pinned assigns `chats` nowhere in "+
 			"src/endpoints/characters.js and the frontend derives it from chat_size (public/script.js:567-574)", kind)
 	}
-	if _, kind := memberKind(empty, "chat_size"); kind != "number" {
+	if _, kind := typedMemberKind(t, empty, "chat_size"); kind != "number" {
 		t.Fatalf("staged/noChats: chat_size is %s, wanted a number (assigned unconditionally at :422)", kind)
 	}
-	if text, kind := memberKind(empty, "chat"); kind != "string" || text == "" {
+	if text, kind := typedMemberKind(t, empty, "chat"); kind != "string" || text == "" {
 		t.Fatalf("staged/noChats: chat is %s, wanted the readFromV2 default string", kind)
 	}
 
@@ -116,14 +116,14 @@ func TestPinnedCharacterChatsAreKeyedByTheCardName(t *testing.T) {
 			"commits assumed; if this row moves, the projection and not the chat identity is what changed",
 			fileName, got, cardName)
 	}
-	if _, kind := memberKind(roster, "chats"); kind != "absent" {
+	if _, kind := typedMemberKind(t, roster, "chats"); kind != "absent" {
 		t.Fatalf("roster/chats: the row carries `chats`=%s after a chat exists. RETRACTION ON RECORD: this test used to "+
 			"fail here demanding chats=true on the theory that pinned keys chats by the CARD's name; pinned keys them by "+
 			"the FILE name (:419, :1503-1504) and never assigns `chats` at all, so the correct contract is that the "+
 			"member is ABSENT on both subjects and the frontend derives it from chat_size (public/script.js:567-574). "+
 			"An emitted `chats` is now the divergence.", kind)
 	}
-	if _, kind := memberKind(roster, "chat_size"); kind != "number" {
+	if _, kind := typedMemberKind(t, roster, "chat_size"); kind != "number" {
 		t.Fatalf("roster/chat_size: %s, wanted a number (calculateChatSize, :342-358)", kind)
 	}
 
@@ -155,6 +155,22 @@ func TestPinnedCharacterChatsAreKeyedByTheCardName(t *testing.T) {
 			"(pinned getChatInfo: file_id is the chat FILE's stem)",
 			items, fileName, chatStem+".jsonl", chatStem)
 	}
+}
+
+// typedMemberKind applies memberKind to a decoded row. `characterRow` decodes into map[string]any (so a caller can
+// read `name` without a cast) while `memberKind` works on the RAW JSON members a browser receives -- the two shapes
+// are both needed, and this adapter is the single place they meet once rather than at five call sites.
+func typedMemberKind(t *testing.T, row map[string]any, name string) (string, string) {
+	t.Helper()
+	raw := make(map[string]json.RawMessage, len(row))
+	for key, value := range row {
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			t.Fatalf("encode roster member %q: %v", key, err)
+		}
+		raw[key] = encoded
+	}
+	return memberKind(raw, name)
 }
 
 // characterRow returns the roster row for one avatar, failing with the whole roster when it is absent.
