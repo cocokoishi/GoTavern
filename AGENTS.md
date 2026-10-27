@@ -644,6 +644,123 @@ lane: a report that cannot answer "does this move us toward `GOAL.md`?" is rejec
       UTF-16LE with a BOM and `Set-Content -Encoding utf8` yields UTF-8 WITH a BOM, and both look correct in an
       editor.
 
+## Verification rules added 2026-10-27 (from a day of lanes, each with its measurement)
+
+These are numbered continuing the list above. Each one cost at least one CI run, and each was found by a lane
+rather than by review.
+
+58. **A state set through one path must be read back through the framework that reads it.** One lane's four
+    consecutive reds were all this, and none was a product defect:
+    1. a card's `title` read off the outer element while the pinned template sets it on the inner one
+       (`public/script.js:951-952`) — the probe saw `rendered: [null, null]`;
+    2. a `<select>` option's DOM `selected` property set, while the framework reads
+       `$(select).find('option:selected')` (`preset-manager.js:399-401`) — the row showed `selected: true` and the
+       panel still reported the previous preset;
+    3. a manager obtained by a bare `getContext().getPresetManager()`, which resolves by the module-level
+       `main_api` (`preset-manager.js:76-96`, `st-context.js:288`) — the select that was driven and the manager
+       that was queried were different objects.
+    Therefore: after setting a selection, focus, `checked`, scroll position or any other cached state, READ IT BACK
+    THROUGH THE READER THE PRODUCT USES and fail by name when it did not move. Record BOTH views when two exist
+    (`domSelected` and `jquerySelected`) so the disagreement is visible without reproducing it. Related: a
+    hand-rolled matcher is a SECOND implementation of a rule and can be wrong while the rule is right — a lane's
+    own glob reported a leak that `git check-ignore` refuted, and git was correct.
+
+59. **When a "product defect" and the harness disagree, suspect the harness's own reader first.** Measured across
+    two lanes: of six reported product defects in the characters and helper areas, five resolved to parity once a
+    capture or the pinned source was consulted — a chat-directory key that matched pinned, a `chats` member
+    pinned never assigns, an error shape that WAS the recorded capture, a roster name pinned regenerates at
+    write, and one probe whose own asymmetric chunk decoder invented the discrepancy. THE FIRST QUESTION ABOUT
+    ANY NEW CLAIM IS "DOES A RECORDED CAPTURE OR EXISTING FIXTURE ALREADY ANSWER THIS", before the derivation is
+    written.
+
+60. **A chain of quoted source lines that EXISTS is not evidence that the BEHAVIOUR follows.** A lane's chain
+    (`script.js:472` → `#selected_chat_pole` → `characters.js:1115 char.chat = request.body.chat`) was real line
+    for line, and the behaviour was still the opposite: `unsetPrivateFields` (`:498-502`) and the V3 re-seed
+    (`:585-590`) revert it downstream. A later function can undo an earlier one, so a source reading must be
+    confirmed against an OBSERVATION before it becomes a finding, a test or a fix.
+
+61. **A rebase invalidates every run that judged the old commits.** A rebase rewrites commit identities, so every
+    `head_sha` a run judged becomes unreachable from the branch it was rebased onto — including commits that were
+    on the branch BEFORE the rebase. Measured: a lane inherited a red from exactly this, and another lane's four
+    runs became uncitable, which emptied two scorecard rows of their evidence. A lane that rebases must re-dispatch
+    before citing any run, or state plainly that it has not. **Corollary: a branch name and an ancestry test prove
+    nothing about what a tree CONTAINS** — one lane established that `main` lacked a fix by COUNTING the file's
+    lines, because the commit that first carried it had been rewritten and no query could find it.
+
+62. **A merge request is checked by content, not by a total.** The required line is: (a)
+    `git diff --diff-filter=D --name-only origin/main` is EMPTY — no whole-file deletions, which is the
+    contamination signature; (b) every deleted LINE is in a file the lane owns and is named in a commit message
+    with its reason; (c) the deletion count is quoted WITH that explanation. "Additions only" is too crude and
+    would forbid legitimate editing; two lanes were saved by (a) after their branches showed thousands of
+    deletions of files they had never touched. A merge that resolves CLEANLY is not the same as a merge that keeps
+    both sides: a lane's rebase silently took an older commit's version of two files and dropped its own wiring,
+    and nothing in `git status` said so — the check is to assert the resolved file CONTAINS what it must.
+
+63. **Build a vehicle with exactly as many moving parts as the claim needs.** One lane spent four consecutive
+    reds on a browser vehicle whose derived preset, staged card and UI select the claim never named; the claim was
+    "a helper variable's value reaches the final provider request", which needs one variable, one prompt and one
+    generation. Every red was the vehicle. When a leg has failed several times at the SAME step, that is a signal
+    about the vehicle, not about the product.
+
+64. **A gate must print the CAUSE, not the file.** Two measured instances, both of which cost lanes a run each:
+    `gofmt would rewrite these files: <path>` with no diff, and a ledger gate whose problems were joined with
+    newlines inside one error while CI printed only the tail of the test log — so three runs reported "the ledger
+    is inconsistent:" and nothing else, and a real blocker (a shallow checkout) stayed invisible underneath a
+    genuine but secondary citation problem. Print the diff you want applied; emit each problem on its own line;
+    print each `--- FAIL` with the lines that follow it, because the assertion message is what makes a red
+    actionable.
+
+65. **A function handed to a page as SOURCE has no closure.** `page.addScriptTag({content: fn.toString()})`
+    serialises by source, so the function runs in the page with only its arguments and page globals available.
+    Measured: a probe's `applyRegexKit` read `MARKERS.*` from module scope and threw `ReferenceError: MARKERS is
+    not defined` INSIDE `page.evaluate`. The check is a scan of the SERIALISED text, because no import of the
+    defining module can see the loss. Related measured pair, one syntax check blind to both: `MARKERS.greeting`
+    read inside the object literal defining `MARKERS` is a module-level TDZ (caught by `await import(module)`),
+    while `MARKERS.*` inside a by-source-installed function is a free identifier in the page (caught only by
+    inspecting the serialised source). `node --check` passed both, so the rule is not "import instead of
+    `node --check`" — the two checks catch different defects and both are needed.
+
+66. **When two subjects' request digests are equal as a MULTISET but differ per slot, the defect is in the
+    ACCOUNTING, not the product.** Measured: a probe mapped captures to cases positionally, one case aborted the
+    script, and every later body shifted by one — so `chat-alpha` showed an empty-string digest on one subject and
+    the other subject's body on the other, with the two subjects holding the SAME SET of digests. Key each capture
+    by something the request itself carries (a marker in the payload) rather than by its index, and report
+    `unmatched` and `collisions` explicitly.
+
+67. **An instrument that cannot bind must fail loudly, and an assertion should not rest on an instrument when the
+    product already exposes the observable.** Measured: a probe wrapped a browser ES module export to count
+    `Generate` calls; an ES module export is a LIVE BINDING and cannot be reassigned from outside, so the wrapper
+    never bound, the instrument recorded nothing, and the guard failed while the verb worked. The fix is to try
+    assignment AND `Object.defineProperty`, RECORD which one bound, and judge by the product's own observables (the
+    press was delivered, the page entered a generation, the message text changed).
+
+68. **Absence is at least three different facts, and conflating them attributes a render state to layout.** A
+    probe recorded an avatar image `absent` and a comparator called it a reachability difference; the real causes
+    were (a) the container had not rendered yet because the roster had not arrived — the two subjects answer
+    `/api/characters/all` in milliseconds versus ~14 s, so they were in different states when measured; (b) the
+    selector did not exist anywhere, which was the probe's own invention. An observation must carry the
+    CONTAINER's state (`present`, `children`, `rendered`), and a pair whose containers differ in state is a NAMED
+    REFUSAL, not a difference. Related: wait on the PRODUCT'S OWN state (the roster the frontend exposes) before
+    measuring anything derived from it, and refuse by name when it never arrives.
+
+69. **A file that parses, runs and passes every test can still be refused by a formatter, and a serializer can
+    change bytes nobody is looking at.** Measured in one day, five distinct ways: a commit message written through
+    a double-quoted PowerShell here-string lost characters to backtick escapes (`verify` → `erify`); a YAML
+    comment gained a literal BEL (0x07) and made the whole workflow unparseable; `ConvertTo-Json` reformatted an
+    evidence manifest so its own parser could no longer read it; `WriteAllText` rewrote a whole file's line
+    endings while the logical change was one line; and an appended function lost the file's final newline, which
+    `gofmt` refuses even though every line was correctly indented and every test passed. Therefore: verify the
+    STAGED blob (`git cat-file -p :<path>`) rather than the working tree, assert the first bytes and the last
+    byte, and prefer an explicit writer (or a tool) over a shell construct for anything you generate.
+
+70. **A probe may not be able to reach the state the claim needs, and that is a result.** Measured: a case asked
+    whether a note is delivered at a depth past the declared history but inside the budget, and the pinned
+    frontend cannot produce that state at the fixture's keep context — raising the insertion point makes the
+    trimmer release older turns, which frees tokens, which lets the frontend emit more messages, which moves the
+    list the injection is indexed against. The correct answer is `null` WITH the measurements and the mechanism,
+    never a fixture change that manufactures reachability, and never a re-record that converts a `partial` into a
+    `proven`.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence

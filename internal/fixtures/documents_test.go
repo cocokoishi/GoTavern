@@ -1397,6 +1397,11 @@ var agentsCitationSections = []string{
 	"## Verification methods",
 	"## Product contract (2026-10-25, after three user-visible P0 failures)",
 	"## Product contract (2026-10-25, second pass: a green CI and a page a user cannot look at)",
+	// THE 2026-10-27 SERIES CONTINUES THE PRODUCT-CONTRACT NUMBERING (58 onward) AND IS CITED BY BARE
+	// NUMBER, exactly like the series that begins at 21. It lives under its own heading because it came from
+	// a day of lanes rather than from the two P0 passes, but a new heading is not a reason to leave thirteen
+	// rules unpoliced: the numbering is what citations elsewhere in the repository point at.
+	"## Verification rules added 2026-10-27 (from a day of lanes, each with its measurement)",
 }
 
 // agentsCitationNumbering is the expected numbering of the citation surface, in document order and split
@@ -1426,6 +1431,9 @@ func agentsCitationNumbering() map[string][]string {
 		},
 		"## Product contract (2026-10-25, second pass: a green CI and a page a user cannot look at)": {
 			"42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53", "54", "55", "56", "57",
+		},
+		"## Verification rules added 2026-10-27 (from a day of lanes, each with its measurement)": {
+			"58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70",
 		},
 	}
 }

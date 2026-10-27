@@ -819,6 +819,6 @@ the evidence, and what is still open; none is softened into "in progress".
    proxy handling, TLS and GitHub's redirect behaviour UNMEASURED. Run 39907640873 proves the installer logic,
    not the path.
 6. **Package tags: the tag exists; registry state is unverified here.** `git tag -l 'v*'` returns
-   <!-- BEGIN GENERATED: release.versionTags -->`v0.1.0-alpha.1`, `v0.1.0-alpha.2`, `v0.1.0-alpha.3`, `v0.1.0-alpha.4`<!-- END GENERATED: release.versionTags --> at `2dde1fa`, and the release is published (run 40066449948). `:latest` is deliberately
+   <!-- BEGIN GENERATED: release.versionTags -->`v0.1.0-alpha.1`, `v0.1.0-alpha.2`, `v0.1.0-alpha.3`, `v0.1.0-alpha.4`, `v0.1.0-alpha.5`<!-- END GENERATED: release.versionTags --> at `2dde1fa`, and the release is published (run 40066449948). `:latest` is deliberately
    not moved by a prerelease (`scripts/classify-version-tag.sh`), and this host has no network, so whether the
    registry still carries stale dispatch-only tags cannot be checked offline.
