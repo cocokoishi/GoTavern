@@ -42,7 +42,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { PEER_CIRCUIT, sourceFor } from './sources.mjs';
-import { PRESET_FIXTURE, applyPresetKit, presetSpec } from './preset-kit.mjs';
+import { PRESET_FIXTURE, applyPresetKit, applyAuthorsNoteOverlay, authorsNoteOverlaySpec, presetSpec, resolveAuthorsNoteCase } from './preset-kit.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -237,6 +237,23 @@ const streamingMode = probeMode === 'stream' || probeMode === 'cancel';
 // bind, and a silent fall back to the simple captured configuration would produce an artefact that
 // looks like the complex differential and is not (AGENTS.md rule 7). The probe therefore refuses.
 const presetMode = probeMode === 'preset';
+// Q17 -- THE AUTHOR'S NOTE DEPTH CASE THIS LEG DRIVES.
+//
+// `PROBE_AUTHORS_NOTE_CASE=<id>` selects one case from `authorsNoteOverlaySpec()` (tests/browser/
+// preset-kit.mjs), whose numbers are resolved HERE and passed into the page as data, exactly like the
+// preset spec. The case list is one list; a leg cannot drive a case the preparation drive did not
+// measure, because both call `resolveAuthorsNoteCase` on the same spec.
+//
+// THE OVERLAY NEEDS THE PRESET'S CONTEXT (its world-info entries, its long history, its budget), which is
+// why it is an overlay on preset mode rather than a second mode: a note injected into an empty chat could
+// not tell depth 0 from depth 6, and Q17 is a positional question.
+const authorsNoteCaseId = (process.env.PROBE_AUTHORS_NOTE_CASE ?? '').trim();
+const authorsNoteOverlayCase = authorsNoteCaseId
+    ? resolveAuthorsNoteCase(authorsNoteOverlaySpec(), authorsNoteCaseId)
+    : null;
+if (authorsNoteCaseId && !presetMode) {
+    throw new Error(`PROBE_AUTHORS_NOTE_CASE=${JSON.stringify(authorsNoteCaseId)} needs PROBE_MODE=preset: the note's depth is only observable against the preset's history, world info and budget`);
+}
 const presetVariant = process.env.PROBE_PRESET_VARIANT ?? 'keep';
 let presetFixture = null;
 if (presetMode) {
@@ -854,6 +871,16 @@ try {
     // run: it is injected as a page global and called from inside the drive below.
     if (presetMode) {
         await page.addScriptTag({ content: `globalThis.__applyPresetKit = (${applyPresetKit.toString()});` });
+        // Q17's overlay is installed the same way and for the same reason: ONE definition, shared by the
+        // pinned preparation drive and by both compared legs, so the oracle and the subject cannot be
+        // handed two different scenarios.
+        await page.addScriptTag({ content: `globalThis.__applyAuthorsNoteOverlay = (${applyAuthorsNoteOverlay.toString()});` });
+        // THE RESOLVED CASE IS INSTALLED AS DATA, the same way the preset spec is: the drive reads it, and
+        // the pre-send re-apply inside the page uses the same object, so "the case the drive chose" and
+        // "the case re-applied immediately before the click" cannot be two different readings of the env.
+        if (authorsNoteOverlayCase) {
+            await page.addScriptTag({ content: `globalThis.__authorsNoteOverlayCase = ${JSON.stringify(authorsNoteOverlayCase)};` });
+        }
     }
     const outcome = await page.evaluate(async ({ mockUrl, probeMode, probeSource, plan, presetSpec, presetVariant, presetBoundary, presetAnchor, presetContextOverride }) => {
     const streaming = probeMode === 'stream' || probeMode === 'cancel';
@@ -1265,6 +1292,53 @@ try {
             composer.dispatchEvent(new Event('input', { bubbles: true }));
         }
         const sendButton = document.querySelector('#send_but');
+        // ---------------------------------------------------------------------------------------
+        // Q17 -- THE AUTHOR'S NOTE OVERLAY, APPLIED HERE AND OBSERVED IN THE REQUEST.
+        //
+        // WHY IT IS APPLIED AT THIS POINT AND NOT EARLIER: `Generate` re-derives the prompt injection
+        // from `chat_metadata` + the DOM on EVERY assembly (`script.js:4619 setFloatingPrompt()`), so any
+        // write made before the page settles can be overwritten by `loadSettings()` inside a debounced
+        // panel handler. Applying it after the composer is typed and before the quiescence wait means the
+        // send assembles the state this drive chose, and the state is recorded beside the request.
+        //
+        // THE RESULT IS ASSERTED, NOT ASSUMED: if the case does not reach `extension_prompts` the drive
+        // REFUSES to send (a note that silently stayed the preset's would produce a green comparison of
+        // the wrong scenario, which is rule 7's shape).
+        let authorsNoteApplied = null;
+        if (globalThis.__authorsNoteOverlayCase && typeof globalThis.__applyAuthorsNoteOverlay === 'function') {
+            const overlayResult = await globalThis.__applyAuthorsNoteOverlay(globalThis.__authorsNoteOverlayCase);
+            authorsNoteApplied = overlayResult?.applied ?? null;
+            const overlayProblems = [...(overlayResult?.problems ?? [])];
+            // The interval-0 case is the product's OWN disable switch: `setFloatingPrompt` writes
+            // position NONE rather than a value (authors-note.js:351-356), so "the note is empty in
+            // extension_prompts" is the positive expectation there and a problem everywhere else.
+            const disabledByProduct = globalThis.__authorsNoteOverlayCase.enabled === false;
+            const state = authorsNoteApplied?.extensionPrompt ?? null;
+            const statePosition = Number(state?.position ?? NaN);
+            const notePresent = Boolean(String(state?.value ?? ''));
+            if (disabledByProduct) {
+                if (statePosition !== -1 && notePresent) {
+                    overlayProblems.push(`the disable case left position ${JSON.stringify(state?.position)} carrying a value; the product disables a note by writing position NONE (-1) with the text cleared (authors-note.js:351-356), so the case did not disable anything`);
+                }
+            } else if (!notePresent || !String(state?.value ?? '').includes(globalThis.__authorsNoteOverlayCase.text)) {
+                overlayProblems.push(`the note did not reach extension_prompts["2_floating_prompt"]: got ${JSON.stringify(state?.value ?? null)} at position ${JSON.stringify(state?.position ?? null)}`);
+            }
+            if (globalThis.__authorsNoteOverlayCase.depth !== null && !disabledByProduct) {
+                const wanted = Number(globalThis.__authorsNoteOverlayCase.depth);
+                if (Number(state?.depth ?? NaN) !== wanted) {
+                    overlayProblems.push(`the note's injected depth is ${JSON.stringify(state?.depth ?? null)}, not the ${wanted} this case asked for, so the depth under test is not the depth the request will carry`);
+                }
+            }
+            if (overlayProblems.length > 0) {
+                return {
+                    preconditions: { charactersLoaded: true, settingsReady: true, authorsNoteOverlay: authorsNoteApplied },
+                    authorsNoteOverlay: { requested: globalThis.__authorsNoteOverlayCase, applied: authorsNoteApplied, problems: overlayProblems },
+                    error: `the author's note overlay did not apply: ${overlayProblems.join('; ')}`,
+                };
+            }
+            authorsNoteApplied = { ...authorsNoteApplied, problems: overlayProblems, requested: globalThis.__authorsNoteOverlayCase };
+            globalThis.__probeAuthorsNoteOverlay = authorsNoteApplied;
+        }
         // The generation-event recorder is installed at PAGE LOAD (see the __probeEmitLog /
         // __probeEvents installation above), not here: a recorder attached at this point captures a
         // window that begins mid-operation when a dry generation is still running, which is exactly
@@ -1353,6 +1427,16 @@ try {
             // send from a different chat than the one the boundary was measured on.
             const presendReset = await globalThis.__applyPresetKit(presetSpec);
             const presendProblems = [...(presendReset?.problems ?? [])];
+            // Q17: THE OVERLAY IS RE-APPLIED AFTER THE RESET, for the same reason the reset exists --
+            // `applyPresetKit` writes the PRESET'S author's note (depth 3, IN_CHAT), so a leg driven by
+            // an overlay case would otherwise send the preset's note and record an overlay that never
+            // took effect. The overlay is applied by the SAME function the drive used before the click.
+            let presendOverlay = null;
+            const overlayNow = globalThis.__authorsNoteOverlayCase ?? null;
+            if (overlayNow && typeof globalThis.__applyAuthorsNoteOverlay === 'function') {
+                presendOverlay = await globalThis.__applyAuthorsNoteOverlay(overlayNow);
+                presendProblems.push(...(presendOverlay?.problems ?? []));
+            }
             // RE-SELECTING THE CHARACTER MAY TOUCH THE COMPOSER, and a re-applied preset may start a
             // prompt-manager dry render: re-assert the outgoing text and let the page go idle again, so the
             // send starts from the same three values the capture recorded.
@@ -1397,6 +1481,16 @@ try {
                 outgoingText: String(document.querySelector('#send_textarea')?.value ?? ''),
                 contextApplied: Number(presetOpenAI.oai_settings.openai_max_context ?? NaN),
                 resetProblems: presendProblems,
+                // Q17: WHAT THE OVERLAY LEFT BEHIND IMMEDIATELY BEFORE THE CLICK, read from the same
+                // metadata and `extension_prompts` entry the assembly reads. A leg whose note reverted to
+                // the preset's is visible here instead of being inferred from a body that agrees for the
+                // wrong reason.
+                authorsNoteOverlay: overlayNow ? {
+                    caseId: overlayNow.caseId ?? null,
+                    requested: { depth: overlayNow.depth, position: overlayNow.position, interval: overlayNow.interval, role: overlayNow.role },
+                    applied: presendOverlay?.applied ?? null,
+                    extensionPrompt: scriptForPresend.extension_prompts?.['2_floating_prompt'] ?? null,
+                } : null,
                 dryAssembly,
             };
         }
@@ -1528,7 +1622,7 @@ try {
             })(),
             streamState,
         };
-        return { preconditions: { charactersLoaded: true, ...before }, error: null, after: diagnostics(), postSend, presetApplied };
+        return { preconditions: { charactersLoaded: true, ...before }, error: null, after: diagnostics(), postSend, presetApplied, authorsNoteOverlay: globalThis.__probeAuthorsNoteOverlay ?? null };
     }, { mockUrl: `http://${mockAddress}`, probeMode, probeSource, plan,
         presetSpec: presetMode ? presetFixture.capture.spec : null,
         presetVariant,
@@ -1581,6 +1675,11 @@ try {
     // whether the leg measured the scenario at all.
     if (presetMode) {
         report.preset = outcome.presetApplied ?? null;
+        // Q17: WHAT THE OVERLAY LEFT IN THE PAGE, recorded whatever the drive then did. A leg whose case
+        // did not apply, or applied with a depth other than the one asked for, is a named problem here
+        // rather than a body difference nobody can attribute.
+        report.authorsNoteOverlay = outcome.authorsNoteOverlay
+            ?? { requested: authorsNoteOverlayCase, applied: null, problems: ['the drive never reached the overlay stage, so no note was applied'] };
         // THE STATE THE VARIANT ACTUALLY STARTED FROM, read at the click (chat turns, outgoing text,
         // applied context) plus one dry assembly taken immediately before it. The comparator compares
         // these with the capture's recorded values and refuses when they differ: without that, a leg

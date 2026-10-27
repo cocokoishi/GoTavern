@@ -21,6 +21,36 @@
 // present in the pinned leg's provider body: a preset that failed to apply is a harness defect, not
 // a passing differential (AGENTS.md rule 7 -- an assertion that cannot fail is decoration).
 //
+// Q17 -- THE AUTHOR'S NOTE OVERLAY (GOAL.md Q17, docs/goal-scorecard.md). The same kit is the ONE
+// definition of the scenario for the depth sweep: `applyAuthorsNoteOverlay` writes the note's
+// position/depth/interval/role through the SAME frontend state the preset's step 5 uses, and
+// `prepare-authors-note.mjs` runs it against the PINNED leg to derive the expectation. Nothing in this
+// file decides what the right layout is: the pinned frontend's own request is the oracle, and the
+// predicates below only describe what that request must look like for the comparison to mean anything.
+// The semantics this sweep is built on, read from the PINNED SOURCE (commit 06bde939):
+//   * `setFloatingPrompt` (public/scripts/authors-note.js:324-392) reads the note text from the
+//     DOM field, writes `extension_prompts['2_floating_prompt']` with `chat_metadata`'s position,
+//     depth, interval-derived value and role; interval <= 0 or no chat => position NONE (disabled).
+//   * the note's POSITION decides the mechanism, not the depth
+//     (`extension_prompt_types`, public/script.js:484-489):
+//       1 IN_CHAT      -> `populationInjectionPrompts` (scripts/openai.js:810-875) splices an
+//                         `injected: true` message at index `depth + totalInserted`;
+//       0 IN_PROMPT    -> `preparePromptsForChatCompletion` (scripts/openai.js:1397-1404) pushes it
+//                         with `position: 'end'`, and `populateChatCompletion`'s `injectToMain`
+//                         (scripts/openai.js:1265-1284, 1295-1302) inserts it into the PROMPT BLOCK
+//                         after the main prompt, where the depth is NOT read at all;
+//       2 BEFORE_PROMPT-> the same push with `position: 'start'` (before the main prompt).
+//     So "deeper than the history" is only observable in the IN_CHAT position, and the sweep records
+//     IN_PROMPT separately as "this control does not read depth" rather than pretending otherwise.
+//   * DEPTH BEYOND THE CHAT clamps at the oldest message:
+//     `const injectIdx = Math.min(depth + totalInsertedMessages, messages.length);`
+//     (scripts/openai.js:866-868) -- so an over-deep note lands at index 0 of the assembled list and
+//     is indistinguishable from the deepest useful depth. That is a pinned property, and the sweep's
+//     predicate says so instead of asserting "still deeper".
+//   * the note carries NO `injected` member into the body: `MessageCollection.getChat`
+//     (scripts/openai.js:3832-3847) builds {role, content, name?, tool_calls?, ...}, so the ONLY
+//     observable difference between an injected note and a chat turn is its position and text.
+//
 // THE BUDGET IS MEASURED, NOT DERIVED. The pinned frontend trims history client-side, inside
 // `populateChatHistory` (public/scripts/openai.js:951-1078): it walks the chat newest-first and stops
 // at the first message that does not fit `openai_max_context - openai_max_tokens`
@@ -54,6 +84,10 @@ export const MARKERS = {
     wiAfter: 'PRESET_WI_AFTER_7F',
     wiDepth: 'PRESET_WI_DEPTH_7F',
     authorsNote: 'PRESET_AN_7F',
+    // Q17's overlay uses its OWN marker, so a note that failed to be re-written is distinguishable from
+    // the preset kit's own note: if the sweep sees this marker it knows the overlay applied, and if it
+    // sees the bare `PRESET_AN_7F` note instead it knows the overlay did not.
+    authorsNote_DEPTH: 'PRESET_AN_DEPTH_7F',
     history: 'PRESET_HIST_7F',
     userMarker: 'probe user marker',
     // THE TYPED MESSAGE. The drive types this into the composer and clicks send, so it becomes the
@@ -465,6 +499,150 @@ export async function applyPresetKit(spec) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Q17: THE AUTHOR'S NOTE OVERLAY. One definition, used by the pinned preparation drive and by both
+// compared legs, so the oracle and the subject cannot be given two different scenarios.
+//
+// The overlay is applied ON TOP of the preset kit (`applyPresetKit` step 5), which is what gives the
+// sweep its world-info and history context: the note then has competitors at known positions and a
+// history long enough for a depth of 6 and a depth of 20 to produce different requests.
+// ---------------------------------------------------------------------------------------------
+export function authorsNoteOverlaySpec() {
+    return {
+        // ASCII only, so no encoding trap can hide a difference.
+        text: `${MARKERS.authorsNote_DEPTH} Keep the reply under four sentences.`,
+        // THE HISTORY IS LONG ENOUGH THAT DEPTH DISCRIMINATES. The preset's own history is 12 turns
+        // plus the greeting; depths 0, 1, 6 and 20 all fall at different places inside it, and 20 is
+        // beyond the oldest turn so the clamp (`Math.min`) is reachable.
+        parityDepth: 6,
+        // DELIBERATELY UNREACHABLE IF ANYONE ASSERTS ON IT: depth 99999 exists so a predicate can say
+        // "these two cases became indistinguishable because the clamp bound" WITHOUT the verification
+        // case (parity) suffering the same fate.
+        deeperThanHistoryDepth: 20,
+        depth: 6,
+        cases: [
+            // THE VERIFICATION CASE. Same text, same history, same budget on both subjects: the
+            // provider request must be byte-identical. Everything else is measured against it.
+            { id: 'parity', role: 'system', enabled: true, depthIntent: 'item', depthFromParity: 0 },
+            // THE REQUIRED DEPTH CASES (Q17 in docs/goal-scorecard.md).
+            { id: 'depth0', role: 'system', enabled: true, depthIntent: 'zero' },
+            { id: 'depth4', role: 'system', enabled: true, depthIntent: 'item', depthFromParity: -2 },
+            { id: 'depth8', role: 'system', enabled: true, depthIntent: 'item', depthFromParity: 2 },
+            { id: 'depth-deeper-than-history', role: 'assistant', enabled: true, depthIntent: 'deeper-than-history' },
+            // DISABLED BY THE PRODUCT'S OWN GATE: `setFloatingPrompt` writes position NONE when the
+            // interval is <= 0 (authors-note.js:351-356), which is what the UI's "(0 = Disable)" label
+            // promises. The note must be absent from the request -- and the request must still exist,
+            // which the leg asserts separately so "no note" cannot be confused with "no send".
+            { id: 'disabled-interval0', role: 'system', enabled: false, depthIntent: 'parity', disabledBy: 'interval' },
+            // POSITION IS NOT DEPTH. Recorded as its own case so the sweep can state that the
+            // IN_PROMPT position ignores the depth (the pinned source does not read it there) instead of
+            // quietly omitting the position axis.
+            { id: 'in-prompt-depth6', role: 'system', position: 'IN_PROMPT', enabled: true, depthIntent: 'item', depthFromParity: 0 },
+        ],
+    };
+}
+
+// Per-case resolution: which concrete numbers this case runs at. `parityDepth` is the anchor, so a
+// case described as "two deeper than parity" stays two deeper if the anchor ever has to move, and the
+// recorded intent ("this case must place the note deeper than the parity case did") travels with it.
+export function resolveAuthorsNoteCase(overlay, id) {
+    const entry = (overlay?.cases ?? []).find(candidate => candidate.id === id);
+    if (!entry) throw new Error(`authors-note overlay has no case ${JSON.stringify(id)}`);
+    const parity = Number(overlay.parityDepth);
+    const depth = entry.depthIntent === 'zero' ? 0
+        : entry.depthIntent === 'deeper-than-history' ? Number(overlay.deeperThanHistoryDepth)
+            : entry.depthIntent === 'item' ? parity + Number(entry.depthFromParity ?? 0)
+                : parity;
+    return {
+        ...entry,
+        depth: Number.isInteger(depth) ? depth : null,
+        position: entry.position ?? 'IN_CHAT',
+        // Interval 1 = "insert on every user message", the value the preset's own step 5 writes and the
+        // only value that inserts on the first turn (authors-note.js:347-349).
+        interval: entry.enabled === false && entry.disabledBy === 'interval' ? 0 : 1,
+        text: overlay.text,
+        caseId: entry.id,
+    };
+}
+
+// Applies ONE overlay case through the frontend's own state and its own function. Runs inside the
+// page (`page.evaluate`), so it must be self-contained. It never calls the author's-note module
+// directly: `Generate` does that itself (`script.js:4619 setFloatingPrompt()`), which is the user's
+// path and therefore the one that must be observed.
+export async function applyAuthorsNoteOverlay(resolved) {
+    const script = await import('./script.js');
+    const authorsNote = await import('./scripts/authors-note.js');
+    const problems = [];
+    const keys = authorsNote.metadata_keys;
+    const position = script.extension_prompt_types?.[resolved.position];
+    if (typeof position !== 'number') {
+        return { problems: [`extension_prompt_types exposes no ${JSON.stringify(resolved.position)} (it holds ${JSON.stringify(Object.keys(script.extension_prompt_types ?? {}))})`] };
+    }
+    const roleValue = script.extension_prompt_roles?.[String(resolved.role ?? 'system').toUpperCase()];
+    if (typeof roleValue !== 'number') {
+        return { problems: [`extension_prompt_roles exposes no role ${JSON.stringify(resolved.role)}`] };
+    }
+    // METADATA FIRST (the state `setFloatingPrompt` reads), then the DOM fields (the state it also reads
+    // for the TEXT and the interval), then the product's own re-derivation. Order matters: loadSettings()
+    // would overwrite the metadata from the DOM, so the metadata is written after any earlier apply and
+    // the fields are typed last.
+    script.chat_metadata[keys.prompt] = resolved.text;
+    script.chat_metadata[keys.depth] = resolved.depth;
+    script.chat_metadata[keys.position] = position;
+    script.chat_metadata[keys.interval] = resolved.interval;
+    if (keys.role) {
+        script.chat_metadata[keys.role] = roleValue;
+    }
+    const typeInto = (selector, value) => {
+        const field = document.querySelector(selector);
+        if (!field) return false;
+        field.value = String(value);
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+    };
+    const promptField = typeInto('#extension_floating_prompt', resolved.text);
+    const intervalField = typeInto('#extension_floating_interval', resolved.interval);
+    const depthField = typeInto('#extension_floating_depth', resolved.depth);
+    const roleField = typeInto('#extension_floating_role', roleValue);
+    if (!promptField) problems.push('#extension_floating_prompt is not present, so the note text cannot be typed the way a user types it');
+    if (!intervalField) problems.push('#extension_floating_interval is not present, so the frequency cannot be typed');
+    // THE POSITION RADIOS ARE THE THIRD COPY the frontend keeps: `loadSettings` reads
+    // `input[name="extension_floating_position"][value=N]` (authors-note.js:303) and an `input` handler
+    // writes the metadata back from `e.target.value` (:162-166). Setting the radio and firing the SAME
+    // events the browser fires for a click is the user's path; assigning the metadata directly would be
+    // overwritten the next time `loadSettings()` ran.
+    const radio = document.querySelector(`input[name="extension_floating_position"][value="${position}"]`);
+    if (radio) {
+        radio.checked = true;
+        radio.dispatchEvent(new Event('input', { bubbles: true }));
+        radio.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+        problems.push(`no input[name="extension_floating_position"][value="${position}"] radio is rendered, so the position cannot be set the way a user sets it`);
+    }
+    // The DOM handlers are debounced in places; the product's own function is then called explicitly so
+    // the state is settled before the send rather than racing a timer (the preset kit's step 5 does the
+    // same, and does it for the same reason).
+    if (typeof authorsNote.setFloatingPrompt === 'function') {
+        authorsNote.setFloatingPrompt();
+    } else {
+        problems.push('authors-note.js does not export setFloatingPrompt');
+    }
+    const floating = script.extension_prompts?.['2_floating_prompt'] ?? null;
+    return {
+        problems,
+        applied: {
+            caseId: resolved.caseId ?? null,
+            depth: script.chat_metadata[keys.depth],
+            position: script.chat_metadata[keys.position],
+            interval: script.chat_metadata[keys.interval],
+            role: keys.role ? script.chat_metadata[keys.role] : null,
+            fieldsPresent: { prompt: promptField, interval: intervalField, depth: depthField, role: roleField, positionRadio: Boolean(radio) },
+            extensionPrompt: floating ? { value: String(floating.value ?? ''), position: floating.position, depth: floating.depth, role: floating.role, scan: floating.scan } : null,
+            counter: document.querySelector('#extension_floating_counter')?.textContent ?? null,
+        },
+    };
+}
+
+// ---------------------------------------------------------------------------------------------
 // Reading the provider request. Shared by the comparator and by capture, so "which message is the
 // oldest history turn" has exactly one definition.
 // ---------------------------------------------------------------------------------------------
@@ -491,6 +669,80 @@ export function messageText(message) {
 export function findMessage(body, needle) {
     const messages = Array.isArray(body?.messages) ? body.messages : [];
     return messages.findIndex(message => messageText(message).includes(needle));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Q17: WHERE THINGS SIT IN THE ASSEMBLED REQUEST. The measurement has to be positional, not
+// presence-based: "the note is in the body" is true at every depth, so it cannot answer Q17. What
+// changes with depth is WHERE the note sits, relative to the history turns, the world-info entries and
+// the other injections, and `index` alone is not enough because the frontend's own example/world-info
+// messages shift the whole list as the budget changes.
+//
+// So the NEWEST-FIRST measured position is `historyBelow`: how many of the scenario's own history
+// markers sit AFTER the note in the list. That number is what `injectIdx = depth + totalInserted`
+// (scripts/openai.js:867) produces in the unclamped case, it does not move when unrelated messages are
+// added ahead of the history, and it is directly comparable to what the PINNED leg measured.
+// ---------------------------------------------------------------------------------------------
+export function layoutOf(body, options) {
+    const messages = Array.isArray(body?.messages) ? body.messages : null;
+    if (!messages) return null;
+    const historyMarker = options?.historyMarker ?? MARKERS.history;
+    const noteMarker = options?.noteMarker ?? MARKERS.authorsNote_DEPTH;
+    const worldMarkers = options?.worldMarkers ?? { before: MARKERS.wiBefore, after: MARKERS.wiAfter, depth: MARKERS.wiDepth };
+    const chatMarkers = Array.isArray(options?.chatMarkers) ? options.chatMarkers : [];
+    const at = needle => findMessage(body, needle);
+    const noteIndex = at(noteMarker);
+    const historyIndices = [];
+    for (let index = 0; index < messages.length; index++) {
+        if (messageText(messages[index]).includes(historyMarker)) historyIndices.push(index);
+    }
+    // The OLDEST and NEWEST history turns by POSITION in the assembled list, not by marker text: the
+    // scenario's turns are ordered, so "after the note" counts the ones below it.
+    const historyAbove = historyIndices.filter(index => noteIndex >= 0 && index < noteIndex).length;
+    const historyBelow = historyIndices.filter(index => index > noteIndex).length;
+    const countAbove = (needle) => {
+        const index = at(needle);
+        return index >= 0 && noteIndex >= 0 && index < noteIndex;
+    };
+    return {
+        messageCount: messages.length,
+        noteIndex,
+        noteRole: noteIndex >= 0 ? (messages[noteIndex]?.role ?? null) : null,
+        noteTextHead: noteIndex >= 0 ? messageText(messages[noteIndex]).slice(0, 160) : null,
+        noteMemberNames: noteIndex >= 0 ? Object.keys(messages[noteIndex] ?? {}).sort() : null,
+        historyCount: historyIndices.length,
+        historyAbove,
+        historyBelow,
+        historyIndices,
+        // The neighbours, recorded so a reader can see what the note displaced or followed rather than
+        // inferring it from an index.
+        above: noteIndex > 0 ? { index: noteIndex - 1, role: messages[noteIndex - 1]?.role ?? null, textHead: messageText(messages[noteIndex - 1]).slice(0, 120) } : null,
+        below: noteIndex >= 0 && noteIndex + 1 < messages.length ? { index: noteIndex + 1, role: messages[noteIndex + 1]?.role ?? null, textHead: messageText(messages[noteIndex + 1]).slice(0, 120) } : null,
+        oldestHistoryIndex: historyIndices.length ? historyIndices[0] : -1,
+        newestHistoryIndex: historyIndices.length ? historyIndices[historyIndices.length - 1] : -1,
+        // THE COMPETITORS, each a boolean: is it ABOVE the note (earlier in the list) or below it?
+        aboveNote: {
+            worldBefore: countAbove(worldMarkers.before),
+            worldAfter: countAbove(worldMarkers.after),
+            worldDepth: countAbove(worldMarkers.depth),
+            // The scenario's own chat turns carry markers too (the greeting is the example marker); they
+            // are counted as a set so "the note sits between two chat turns" is a fact rather than a guess.
+            chatTurns: chatMarkers.filter(marker => countAbove(marker)).length,
+        },
+        chatTurnsAbove: chatMarkers.filter(marker => countAbove(marker)).length,
+        chatTurnsBelow: chatMarkers.filter(marker => !countAbove(marker) && at(marker) >= 0).length,
+        // The note's own text must be the note's text: a scenario that applied the preset's note instead
+        // of the overlay must be visible here, not folded into a position that happens to agree.
+        carriesNoteMarker: noteIndex >= 0,
+        carriesPresetNoteInsteadOfOverlay: findMessage(body, String(options?.presetNoteMarker ?? MARKERS.authorsNote)) >= 0
+            && noteIndex < 0,
+        // WHERE THE NOTE'S TEXT SITS INSIDE THE OLDEST HISTORY TURN, if anywhere: the IN_PROMPT position
+        // folds the note into the prompt block, so a presence-only check would find it there and call it
+        // "deeper". Recorded so the comparator can refuse that reading.
+        insideSomeOtherMessage: noteIndex < 0
+            ? messages.findIndex(message => messageText(message).includes(noteMarker))
+            : -1,
+    };
 }
 
 export { here as presetKitDirectory };

@@ -789,6 +789,147 @@ jobs:
             --boundary "$work/preset-boundary.json" \
             > "tests/browser/$artifact"
 
+      # =================================================================================================
+      # Q18 -- EXACT TOKEN TRUNCATION: DO NODE AND GO KEEP AND DROP THE SAME HISTORY TURNS?
+      # (GOAL.md Q18, docs/goal-scorecard.md Q18, AGENTS.md 9.)
+      #
+      # THIS STEP MEASURES NOTHING. It asks the set question of the FOUR LEGS `Record the preset boundary
+      # pair` has just produced at the pair `preset-boundary-search.mjs` measured by driving the pinned leg
+      # itself. That inheritance is the point: seven runs on this surface failed because the boundary was
+      # measured by a procedure merely similar to the one that produced the compared request, so Q18 adopts
+      # the pinned finding rather than re-deriving it, and its contract is the history SET (oldest turn
+      # present at keep, absent at keep-1, count differing by exactly one) with the TOTAL recorded and never
+      # asserted.
+      #
+      # WHAT IT ADDS TO THE PRESET COMPARISON ABOVE: the preset comparator says the requests are equal; this
+      # names the turn that crossed the boundary, asserts GoTavern dropped the SAME turn, and compares the
+      # kept sets member for member -- which survives a future narrow normalisation that a digest would not.
+      # It also carries the phase guard (each of the four legs captured EXACTLY ONE provider POST) so "no
+      # request" can never read as "no difference".
+      #
+      # RUNS ONLY IN `preset` MODE (dispatch, or the nightly `all` sweep). A push cannot reach this mode --
+      # `inputs.mode || 'all'` is `assets` on a push by design -- and that is stated rather than papered over
+      # with a path entry in `on.push.paths`, which would run an unrelated browser boot and prove nothing.
+      # =================================================================================================
+      - name: Q18 token truncation -- Node and Go keep and drop the same turns
+        if: ${{ ((github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all') && steps.preset.outputs.failures == '0' }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          # THE SELF-CHECK IS A REFUSAL, NOT A SKIP: an undefined identifier or a fixture whose oldest
+          # marker is not the first history turn would otherwise be discovered only by a red verdict that
+          # looks like a product finding.
+          node tests/browser/truncation-set-gate.mjs --self-check
+          artifact=truncation-comparison.json
+          if git cat-file -e "HEAD:tests/browser/$artifact" 2>/dev/null; then
+            git show "HEAD:tests/browser/$artifact" > "$work/committed/$artifact"
+          else
+            : > "$work/committed/$artifact.absent"
+          fi
+          # BOTH OUTPUTS, because there are two ways for this surface to have not run and each must fail
+          # loudly: no legs (the recording step failed) or no boundary (the pinned search failed).
+          for required in "$work/legs/preset-keep-gotavern.json" "$work/legs/preset-keep-pinned.json" \
+                          "$work/legs/preset-drop-gotavern.json" "$work/legs/preset-drop-pinned.json" \
+                          "$work/preset-boundary.json"; do
+            if [ ! -f "$required" ]; then
+              echo "::error::Q18 cannot run: $required is absent, so the truncation claim would be unevidenced (not passed)"
+              exit 1
+            fi
+          done
+          node tests/browser/truncation-set-gate.mjs \
+            --boundary "$work/preset-boundary.json" \
+            --gotavern-keep "$work/legs/preset-keep-gotavern.json" \
+            --pinned-keep "$work/legs/preset-keep-pinned.json" \
+            --gotavern-drop "$work/legs/preset-drop-gotavern.json" \
+            --pinned-drop "$work/legs/preset-drop-pinned.json" \
+            --out "tests/browser/$artifact" \
+            > /dev/null
+          echo "q18 verdict written to tests/browser/$artifact"
+
+      # =================================================================================================
+      # Q17 -- AUTHOR'S NOTE DEPTH (GOAL.md Q17, docs/goal-scorecard.md Q17).
+      #
+      # THREE STEPS, because the oracle and the subject must not be the same run's output:
+      #   1. PREPARE: the PINNED leg drives every case and its provider request is written down as the
+      #      expectation (tests/browser/fixtures/authors-note-pinned.json). Nothing hand-derives a position.
+      #   2. LEGS: each case is driven on BOTH subjects with the SAME program, arguments and budget.
+      #   3. JUDGE: per case, one verdict from PRODUCT_MISMATCH | PINNED_BEHAVIOR | HARNESS_ERROR |
+      #      INFRA_ERROR | BLOCKED | PASS, plus a sweep-level verdict that fails a non-discriminating sweep.
+      #
+      # THE CASES COVER depth 0, a non-zero depth, a depth deeper than the history (where the pinned
+      # `Math.min` clamp binds), a frequency-0 DISABLED note, the IN_PROMPT position (where the pinned source
+      # does not read the depth at all), and a `parity` case whose request must be byte-identical -- the case
+      # that would catch a product change that has nothing to do with the note.
+      #
+      # RUNS ONLY IN `preset` MODE, for the same reason as Q18 above, and the budget is the KEEP context the
+      # pinned search just measured, so the note competes with the same history the preset legs send.
+      # =================================================================================================
+      - name: Q17 Author's Note -- measure the layout on the pinned leg
+        if: ${{ ((github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all') && steps.preset.outputs.failures == '0' }}
+        timeout-minutes: 30
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          if [ ! -f "$work/preset-boundary.json" ]; then
+            echo "::error::Q17 cannot run: the pinned boundary search produced no pair, so there is no budget to sweep the note at"
+            exit 1
+          fi
+          keep=$(node -e 'console.log(require(process.argv[1]).keepContext)' "$work/preset-boundary.json")
+          echo "Q17: sweeping the author's note at the pinned keep context $keep"
+          node tests/browser/authors-note-sweep.mjs --self-check
+          # THE GOLDEN IS WRITTEN WHERE THE JUDGE READS IT, and it is COMMITTED, so a moved expectation is a
+          # reviewable diff. It is re-recorded on every preset run; the freshness report compares it with the
+          # committed bytes so a silent drift is visible.
+          node tests/browser/authors-note-sweep.mjs --phase prepare \
+            --context "$keep" --out-dir "$work/legs" \
+            --expectations "$PWD/tests/browser/fixtures/authors-note-pinned.json"
+
+      - name: Q17 Author's Note -- drive every case on both subjects
+        id: authors-note
+        if: ${{ ((github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all') && steps.preset.outputs.failures == '0' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          keep=$(node -e 'console.log(require(process.argv[1]).keepContext)' "$work/preset-boundary.json")
+          # `set -o pipefail` is deliberately OFF and the exit status is captured: the JUDGE below is what
+          # decides, and a failed drive is reported by the marker this step writes.
+          node tests/browser/authors-note-sweep.mjs --phase legs \
+            --context "$keep" --out-dir "$work/legs" \
+            --report "$work/legs"
+          echo "authors_note_legs=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Q17 Author's Note -- judge every case against the pinned layout
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          # A STEP THAT DID NOT RUN MUST NOT REPORT NOTHING. If the preparation or the legs step was skipped
+          # -- a missed `if:`, a changed id, a renamed file -- the judge would otherwise have no input and
+          # could exit green on an empty sweep. Name the missing input and fail.
+          missing=0
+          if [ ! -f "tests/browser/fixtures/authors-note-pinned.json" ]; then
+            echo "::error::Q17 did not run: the pinned expectation tests/browser/fixtures/authors-note-pinned.json is absent, so nothing can be judged (this is a REFUSAL, not a pass)"
+            missing=1
+          fi
+          if [ ! -f "$work/legs/authors-note-comparison.json" ] && [ "${authors_note_legs:-}" = "" ]; then
+            echo "::warning::Q17 legs step produced no marker; the judge below will name every case it cannot observe"
+          fi
+          if [ "$missing" != "0" ]; then
+            exit 1
+          fi
+          node tests/browser/authors-note-sweep.mjs --phase judge \
+            --out-dir "$work/legs" \
+            --report "$work/legs"
+          cp "$work/legs/authors-note-comparison.json" tests/browser/authors-note-comparison.json
+          echo "q17 verdict written to tests/browser/authors-note-comparison.json"
+
+      # DOES THE Q17 GATE HAVE TEETH? Synthetic legs, one thing broken per case, every mutation must be
+      # caught by a NAMED check. This proves the COMPARATOR can fail; it says nothing about the product.
+      - name: Prove the Q17 gate has teeth
+        if: ${{ ((github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all') && steps.preset.outputs.failures == '0' }}
+        run: node tests/browser/authors-note-gate-selftest.mjs
+
       - name: Record the REAL-preset legs (preset A and preset B, on both subjects)
         id: real-preset
         # Q6/Q8. The synthetic preset this workflow already captures proves the MECHANISM; this proves the
@@ -1032,6 +1173,7 @@ jobs:
           path: |
             tests/browser/*-comparison.json
             tests/browser/fixtures/preset-*.json
+            tests/browser/fixtures/authors-note-pinned.json
             ${{ runner.temp }}/browser-differential/**
           retention-days: 14
           if-no-files-found: warn
@@ -1039,11 +1181,12 @@ jobs:
       # BOTH RECORDING STEPS, AND ONLY WHEN ONE OF THEM ACTUALLY FAILED. A skipped step reports an empty
       # output, so `!= '0'` alone would fail a `preset`-only run at the record step it never entered.
       - name: Fail if a drive could not be recorded or judged
-        if: ${{ (steps.record.outputs.failures != '0' && steps.record.outputs.failures != '') || (steps.preset.outputs.failures != '0' && steps.preset.outputs.failures != '') || (steps.asset.outputs.failures != '0' && steps.asset.outputs.failures != '') || (steps.helper.outputs.failures != '0' && steps.helper.outputs.failures != '') || (steps.helper-generation.outputs.generation_failures != '0' && steps.helper-generation.outputs.generation_failures != '') }}
+        if: ${{ (steps.record.outputs.failures != '0' && steps.record.outputs.failures != '') || (steps.preset.outputs.failures != '0' && steps.preset.outputs.failures != '') || (steps.asset.outputs.failures != '0' && steps.asset.outputs.failures != '') || (steps.helper.outputs.failures != '0' && steps.helper.outputs.failures != '') || (steps.helper-generation.outputs.generation_failures != '0' && steps.helper-generation.outputs.generation_failures != '') || (steps.authors-note.outputs.authors_note_legs != '0' && steps.authors-note.outputs.authors_note_legs != '') }}
         run: |
           echo "::error::a drive could not be recorded or was judged unfaithful; see the group output above."
           echo "generation/stream failures: ${{ steps.record.outputs.failures }}"
           echo "preset failures:            ${{ steps.preset.outputs.failures }}"
+          echo "Q17 author's-note legs:     ${{ steps.authors-note.outputs.authors_note_legs }}"
           exit 1
 
   # THE ONLY JOB THAT MAY WRITE, and it does nothing but commit the preset evidence produced by the run

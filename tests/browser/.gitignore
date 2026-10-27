@@ -52,3 +52,15 @@ extension-*-pinned.json
 # never be swallowed by the ignore list (tests/browser/catalog.test.mjs asserts both directions).
 preset-keep-*.json
 preset-drop-*.json
+# Q17 AUTHOR'S-NOTE LEGS. The sweep writes, per case and per subject,
+# `authors-note-<case>-gotavern.json` / `authors-note-<case>-pinned.json` plus the redirect mapping each
+# pinned drive writes; the preparation drive writes `authors-note-pinned-<case>.json`. The COMMITTED files
+# are `authors-note-comparison.json` and `fixtures/authors-note-pinned.json`, and neither matches a pattern
+# below: every pattern is anchored on a `-` plus a leg suffix, which a `-comparison.json` and a
+# `fixtures/`-nested golden can never satisfy (tests/browser/catalog.test.mjs asserts both directions).
+authors-note-*-gotavern.json
+authors-note-*-pinned.json
+authors-note-pinned-*.json
+redirect-authors-note-*.json
+# Q17/Q18 SCRATCH DIRECTORY: the sweep's default `--out-dir` when a caller points it inside the tree.
+legs/
