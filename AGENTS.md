@@ -1286,6 +1286,29 @@ rather than by review.
     PRODUCTION transport, which is precisely the difference this red was measuring. A fix to a shared predicate must
     be checked against every other reader of it.
 
+93. **A field that one probe ASSERTS and its twin only RECORDS is a derivation in one of them -- and the twin's green
+    says which. Compare your twins before writing the assertion.** Measured on the last red standing between a lane
+    and its merge, and the product was correct again.
+    The step `continue-ui-shows-the-grown-message` failed on `domMessageCount === chatLength` (6 against 5). That
+    equality was a DERIVATION the lane wrote: `#chat .mes` counts RENDERED elements, `chat.length` counts chat
+    RECORDS, and `addOneMessage` (`script.js:2551`) has an `isSmallSys` path and a `type:'swipe'` path that update in
+    place. **They are different counters by design**, so the assertion joined two populations and called the
+    difference a defect. Its own `domLastText` was `"Q20_REPLY_2 Q20_CONTINUATION_APPENDED_3"` -- the continuation
+    appended to the reply already there, which is `appendFinal` exactly, and what the step exists to check.
+    THE EVIDENCE WAS ALREADY IN THE REPOSITORY. The REGENERATE probe records `domMessageCount` (`:472`) and NEVER
+    compares it to `chatLength` -- and that leg went 13/13 on the SAME chat, twice. **A field one probe asserts and
+    its twin only records is a derivation in one of them, and the twin's green says which.** Two probes over the same
+    subject are each other's cheapest oracle; the lane's own words: it should have compared its twins before writing
+    the assertion.
+    The fix makes the step assert what it was NAMED for (the DOM text carries the continuation marker) and REPORTS
+    `domMessageCount`, `chatLength` and `domMinusChat`, so a rendered-row change stays visible without failing a step
+    that never claimed to test it. That is rule 64's shape: report the mechanism, assert the claim.
+    AND AN ASSERTION DELETED BEFORE IT WAS COMMITTED, for the right reason: the lane added `lastText === domLastText`
+    and removed it in the same edit, because it could verify `domLastText` from the run's failure detail and could NOT
+    verify that the RECORD's text is byte-identical to the RENDERED text -- markdown processing sits between them.
+    **Asserting an equality you have not observed is how a step goes red for a reason it did not name.** Deleting it
+    was the correct action, and deleting it BEFORE the run rather than after is what saved the run.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
