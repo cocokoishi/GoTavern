@@ -173,8 +173,11 @@ func TestBootCreatesTheDataDirectoryItServes(t *testing.T) {
 	}
 
 	// (3) AND THE SAME VALUE READS BACK THROUGH THE PRODUCT. A file appearing is not the same claim as a
-	// value the server can retrieve; secrets/find answers {value} for a non-secret key
-	// (internal/server/secrets.go:141-194).
+	// value the server can retrieve. The first version used /api/secrets/view, which answered 403 because the
+	// default config has `allowKeysExposure: false` (internal/server/secrets.go:128-131) -- the route was
+	// refusing correctly and the test was asking the wrong question. /api/secrets/find answers {value} for a
+	// non-secret key without that exposure switch (:141-194), so it measures the read path rather than a
+	// configuration flag.
 	findBody, marshalErr := marshalJSON(map[string]string{"key": deepSeekSecretKey, "id": secretID})
 	if marshalErr != nil {
 		t.Fatalf("encode the secrets/find body: %v", marshalErr)
@@ -194,12 +197,24 @@ func TestBootCreatesTheDataDirectoryItServes(t *testing.T) {
 			"the directory it reads", answer.Value)
 	}
 
-	// (4) NOTHING WAS LEFT WHERE THE PROCESS WAS LAUNCHED. pinned reads ./config.yaml from the CWD
-	// (command-line.js:282) but resolves no state against it once it has chdir'd, so a residual file in the
-	// launch directory is a second tree beside the one served (AGENTS 28).
-	if stranded := treeDigests(t, foreignWork); len(stranded) > 0 {
-		t.Fatalf("the boot left %d file(s) in the LAUNCH directory %s: %v",
-			len(stranded), foreignWork, sortedNames(stranded))
+	// (4) THE LAUNCH DIRECTORY. It may contain a config.yaml and nothing else, and that file must be the
+	// pinned fresh-install document rather than anything derived from the user's tree. This assertion used to
+	// say "no file at all", which is NOT what pinned does and NOT what this product does: with no --configPath
+	// the parser defaults to `./config.yaml` against the working directory (internal/commandline/paths.go:111,
+	// :125) and, finding none, writes the pinned fresh config there -- exactly pinned's
+	// `config.js:168-170` "config.yaml not found ... Creating a new one with default values". So the correct
+	// claim is the narrow one: no DATA tree is created beside the launch, and the only file there is the
+	// fresh config. A stray <work>/data is the second tree the invariant forbids.
+	for _, name := range sortedNames(treeDigests(t, foreignWork)) {
+		if name != "config.yaml" {
+			t.Fatalf("the boot left %q in the LAUNCH directory %s. Only the default config.yaml may appear "+
+				"there (paths.go:111,125); anything else is a data tree created where the user launched "+
+				"(AGENTS 28)", name, foreignWork)
+		}
+	}
+	if _, statErr := os.Stat(filepath.Join(foreignWork, "data")); statErr == nil {
+		t.Fatalf("the boot created %s beside the launch: a data directory created where the user launched is "+
+			"the second tree the invariant forbids", filepath.Join(foreignWork, "data"))
 	}
 
 	// (5) AND IT REPORTED NO DATA-ROOT PROBLEM. Checked last, so a missing directory fails at (1) naming
@@ -266,19 +281,36 @@ func TestBootNamesTheDataRootItCreated(t *testing.T) {
 			status, server.dataRoot, body)
 	}
 
-	// (4) THE CREATION WAS REPORTED. The parser's creation path is the launch-directory rendering of the same
-	// relative value (paths.go:155). Pinned never creates it (its chdir happens first, server.js:11), so any
-	// creation here is GoTavern's own act and must be announced through the pinned-worded warning.
+	// (4) THE SECOND TREE, ASSERTED AS A FINDING RATHER THAN AS A PASS.
+	//
+	// MEASURED on run 40444415565 (Lane CI, fd30876): with `--configPath <install>/config.yaml` and
+	// `dataRoot: ./data` in it, started from a foreign working directory, the boot created BOTH
+	// <work>/data AND <install>/data and printed no data-root warning.
+	//
+	// The mechanism, from the source rather than inferred: naming a path option disables the chdir
+	// reproduction (internal/app/server.go:129-131), so the parser renders the creation path against the
+	// LAUNCH directory (paths.go:155) while the runtime root is rendered against the install root (:175),
+	// and app.Start then creates the runtime root too (server.go:172-182). Two directories, one relative
+	// value, no notice.
+	//
+	// Pinned cannot reach this state at all -- its chdir (server.js:11) happens before the creation
+	// (command-line.js:288-297) -- so there is no oracle to match, and what this asserts is the CONTRACT the
+	// project states for itself: AGENTS 27, "startup does not modify user files as a side effect", with any
+	// write being "explicit, logged". A directory created where the user launched is a write they did not ask
+	// for and were not told about.
+	//
+	// This is therefore RED on purpose. It is not weakened to green: the behaviour is a defect against the
+	// product contract, and the note below says what would make it pass.
 	launchCreation := filepath.Join(foreignWork, "data")
-	warnings := dataRootWarnings(server.stderr.String())
-	if _, statErr := os.Stat(launchCreation); statErr == nil && len(warnings) == 0 {
-		t.Fatalf("the boot created %s (the launch-directory rendering of the relative dataRoot) and reported "+
-			"nothing: an unreported directory created where the user launched is the second tree the "+
-			"invariant forbids, and an unannounced write is exactly what AGENTS 27 rules out",
-			launchCreation)
+	if _, statErr := os.Stat(launchCreation); statErr == nil {
+		t.Fatalf("the boot created %s, the launch-directory rendering of the relative dataRoot, while serving "+
+			"%s. One `dataRoot` value produced two trees, and the second is in the directory the user happened "+
+			"to start from. To make this pass, either create only the runtime root, or report the second "+
+			"creation (AGENTS 27: an unannounced write is the thing rule 27 forbids)",
+			launchCreation, server.dataRoot)
 	}
-	t.Logf("relative dataRoot: served %s (exists, answers 200); launch-directory rendering %s created=%v; "+
-		"data-root warnings=%v", server.dataRoot, launchCreation, fileExists(launchCreation), warnings)
+	t.Logf("relative dataRoot: served %s (exists, answers 200); launch-directory rendering %s not created",
+		server.dataRoot, launchCreation)
 }
 
 // TestAbsoluteDataRootOverridesTheConfigAndAForeignCwdChangesNothing is item 2's absolute half plus the
@@ -307,15 +339,20 @@ func TestAbsoluteDataRootOverridesTheConfigAndAForeignCwdChangesNothing(t *testi
 		t.Fatalf("the product wrote nothing under the --dataRoot directory %s, so the named root is not the "+
 			"root it serves", namedRoot)
 	}
-	if stranded := treeDigests(t, foreignWork); len(stranded) > 0 {
-		t.Fatalf("the boot wrote %v into the LAUNCH directory %s; a foreign CWD must change where nothing is "+
-			"written", sortedNames(stranded), foreignWork)
+	// MEASURED on run 40444415565 (Lane CI, fd30876): config.yaml appears in the launch directory because
+	// the harness passes --dataRoot but NOT --configPath, so the parser defaults the config to `./config.yaml`
+	// against the working directory (internal/commandline/paths.go:111,125) and configinit writes the pinned
+	// fresh document there (configinit/config.go:88-96) -- pinned's own "config.yaml not found ... Creating a
+	// new one with default values" (src/config-init.js:168-170). The claim worth making is the narrow one: the
+	// only thing permitted there is that config, and no DATA tree may appear.
+	for _, name := range sortedNames(treeDigests(t, foreignWork)) {
+		if name != "config.yaml" {
+			t.Fatalf("the boot wrote %q into the LAUNCH directory %s. Only the default config.yaml may appear "+
+				"there (paths.go:111,125); anything else is state created where the user launched", name, foreignWork)
+		}
 	}
-}
-
-// fileExists reports whether path exists, without failing: several checks above record existence rather than
-// demanding it, because both answers are legitimate product choices there.
-func fileExists(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info != nil
+	if _, statErr := os.Stat(filepath.Join(foreignWork, "data")); statErr == nil {
+		t.Fatalf("the boot created %s in the LAUNCH directory %s even though --dataRoot named %s: a foreign "+
+			"CWD must not receive a data tree", filepath.Join(foreignWork, "data"), foreignWork, namedRoot)
+	}
 }

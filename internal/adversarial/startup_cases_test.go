@@ -220,21 +220,24 @@ func startupCases(t *testing.T) []caseSpec {
 			run: func() caseResult {
 				work := t.TempDir()
 				configPath := filepath.Join(work, "config.yaml")
-				// A marker the parser has no opinion about, so the document this case planted is identifiable
-				// afterwards and a boot that rewrote it is distinguishable from one that never read it.
-				writeText(t, configPath, "listen: false\nport: 8000\ndataRoot: \"./data\"\ngotavernCaseMarker:\n  readBy: relative-data-root\n")
+				// THE RELATIVE VALUE MUST BE DISCRIMINATING, or `used` proves nothing: with the default
+				// `./data` the install-root directory would exist even if this document had never been parsed
+				// (that is the DEFAULT resolution), so a boot ignoring the input would look identical to one
+				// honouring it. `./relative-marker-data` appears nowhere else, so its presence in either base
+				// is evidence the planted document drove the resolution.
+				const relativeValue = "./relative-marker-data"
+				writeText(t, configPath, "listen: false\nport: 8000\ndataRoot: \""+relativeValue+"\"\ngotavernCaseMarker:\n  readBy: relative-data-root\n")
 				running, startErr := startProductArgs(foreignInstall, work, foreignRelativePort, noLegacyWait, "--configPath", configPath)
-				createdInWork := filepath.Join(work, "data")
-				usedInInstall := filepath.Join(foreignInstall, "data")
+				createdInWork := filepath.Join(work, "relative-marker-data")
+				usedInInstall := filepath.Join(foreignInstall, "relative-marker-data")
 				_, createdErr := os.Stat(createdInWork)
 				_, usedErr := os.Stat(usedInInstall)
 				created := createdErr == nil
 				used := usedErr == nil
 				// (a) DID THE INPUT ARRIVE? Two independent witnesses, because either alone is weak: the
 				// planted document still carries its marker (a boot that read it left an unknown key alone --
-				// the sibling config-idempotence invariant), and a data directory exists in at least ONE of
-				// the two bases the relative value can render into (a boot that never saw `./data` would
-				// have used its own default and, with --dataRoot absent, the install root's ./data).
+				// the sibling config-idempotence invariant), and the marker-named directory exists in at least
+				// ONE of the two bases the relative value can render into.
 				onDisk, readErr := os.ReadFile(configPath)
 				markerSurvived := readErr == nil && strings.Contains(string(onDisk), "gotavernCaseMarker")
 				if startErr == nil {
@@ -244,13 +247,14 @@ func startupCases(t *testing.T) []caseSpec {
 					// neither answer is "pass" without the other half being checked.
 					if !markerSurvived {
 						return violation("the boot succeeded but the config this case planted is gone or was "+
-							"rewritten without its marker, so the case cannot say its `dataRoot: ./data` was ever "+
-							"parsed (readErr=%v)", readErr)
+							"rewritten without its marker, so the case cannot say its `dataRoot: %s` was ever "+
+							"parsed (readErr=%v)", relativeValue, readErr)
 					}
 					if !created && !used {
 						return violation("the boot succeeded and parsed %s, yet neither %s nor %s exists: the "+
-							"relative dataRoot was resolved to a directory this case cannot see, so the invariant "+
-							"cannot be judged", configPath, createdInWork, usedInInstall)
+							"relative dataRoot %q did not reach the resolution at all (the boot used a default "+
+							"directory instead), so the case's central input was never exercised",
+							configPath, createdInWork, usedInInstall, relativeValue)
 					}
 					if created && used {
 						return violation("the boot created BOTH %s (the launch-directory rendering) and %s (the "+
