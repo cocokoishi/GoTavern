@@ -216,6 +216,11 @@ if (boot.bootRefusal) report.failure = `leg-refused: ${boot.bootRefusal}`;
 const peerState = { continuationOrdinal: null, continuationTail: null };
 const peer = await startCapturePeer({
     wire: wireMode,
+    // THE CONTINUATION IS A SUFFIX, and the shape matters: `appendFinal` makes the message `existingText +
+    // continuation`, so the reply MUST NOT repeat the reply it extends and MUST NOT re-state the first turn. The
+    // marker is the whole payload, with the ordinal carried BEFORE it so the string stays a pure suffix:
+    //     before: "Q20_REPLY_2"   after: "Q20_REPLY_2 Q20_CONTINUATION_APPENDED_3"
+    // `continuationTail` is appended after the ordinal so a leg can name which completion continued if it needs to.
     replyText: (ordinal, counterpart) => (peerState.continuationOrdinal !== null && peerState.continuationOrdinal === counterpart
         ? `${MARKERS.continuation}_${counterpart}${typeof peerState.continuationTail === 'string' ? peerState.continuationTail : ''}`
         : `Q20_REPLY_${counterpart}`),
@@ -349,6 +354,27 @@ try {
         JSON.stringify(preState));
     const requestsBefore = peer.requests.filter(entry => /chat\/completions/.test(entry.path ?? '')).length;
     const navigationsBefore = report.navigations.length;
+
+    // ARM THE CONTINUATION NOW, because `peerState.continuationOrdinal` was DECLARED AND NEVER ASSIGNED.
+    //
+    // MEASURED IN RUN 40538908912: three steps went red (`continue-control-reached`,
+    // `continue-ui-shows-the-grown-message`, `continue-file-holds-continuation-in-same-message`) while the product
+    // behaved correctly -- `beforeText: "Q20_REPLY_2"`, `afterText: "Q20_REPLY_2 Q20_REPLY_3"`, i.e. the last message
+    // GROWN IN PLACE, which is exactly pinned's `appendFinal` (`lastMessage.mes = getMessage`, script.js:6719-6737).
+    // The continuation branch in `replyText` never fired because the slot it tests was still `null`, so the peer
+    // answered a plain `Q20_REPLY_N` and the assertions that look for `Q20_CONTINUATION_APPENDED` could not pass.
+    //
+    // THE ORDINAL IS THE COMPLETION THE CONTINUE WILL MAKE, and the leg already knows it: `requestsBefore` counts the
+    // chat completions served so far, so the continue is number `requestsBefore + 1` (1-based, which is what
+    // `startCapturePeer` passes as `replyIndex`). Arming it BEFORE the press is required -- the press triggers the
+    // request -- and reading the count from the PEER is what makes this the harness's own measurement rather than a
+    // guess about how many turns the loop drove.
+    peerState.continuationOrdinal = requestsBefore + 1;
+    // The tail is EMPTY on purpose: `replyText` already emits `MARKERS.continuation_<ordinal>`, and setting the tail
+    // to the marker again produced `Q20_CONTINUATION_APPENDED_3Q20_CONTINUATION_APPENDED` -- a doubled token that the
+    // `.includes()` assertions would still match, which is exactly the shape of "a green that proves nothing". The
+    // field stays because a leg may want to extend the continuation later; it is empty here so the suffix is clean.
+    peerState.continuationTail = '';
 
     // 2. THE REAL CONTROL, PRESSED.
     const pressed = await pressContinue(page);
