@@ -85,7 +85,8 @@ const reports = { gotavern: load(gotavernPath), pinned: load(pinnedPath) };
 const guards = {};
 const details = {};
 
-const completions = report => (report?.peerRequests ?? []).filter(entry => /chat\/completions/.test(entry.path ?? ''));
+const completionsOf = report => (report?.peerRequests ?? []).filter(entry => /chat\/completions/.test(entry.path ?? ''));
+const completions = completionsOf;
 const short = entry => (entry ? { sha256: entry.sha256.slice(0, 12), byteLength: entry.byteLength } : null);
 
 /**
@@ -130,6 +131,34 @@ guard('legsDrove', () => {
     return problems;
 });
 
+// THE PEER SERVED THE WIRE THE PAGE ASKED FOR (same guard as the save/reload/swipe comparator, same reason): the page
+// streams by default (`stream_openai` true when the key is missing, public/scripts/openai.js:376), so a peer answering
+// JSON produces an empty reply and every structural guard would still pass. `served` is recorded per response, so a leg
+// whose peer answered the wrong wire is refused here instead of being cited as evidence.
+guard('peerServedTheRequestedWire', () => {
+    const problems = [];
+    const seen = {};
+    for (const [subject, report] of Object.entries(reports)) {
+        if (!report) continue;
+        const completions = completionsOf(report);
+        seen[subject] = { wireMode: report.wireMode ?? null, served: completions.map(entry => entry.served ?? null) };
+        for (const [index, entry] of completions.entries()) {
+            const served = entry.served ?? null;
+            if (!served || !served.wire) {
+                problems.push(`${subject}: completion #${index} records no \`served\` field, so nothing says what this peer answered`);
+                continue;
+            }
+            if (entry.requestedStream === true && served.wire !== 'sse') {
+                problems.push(`${subject}: completion #${index} asked for streaming but the peer served ${JSON.stringify(served.wire)}`);
+            }
+        }
+    }
+    details.served = seen;
+    if (seen.gotavern?.wireMode !== seen.pinned?.wireMode) {
+        problems.push(`the two subjects ran DIFFERENT peers (wireMode ${seen.gotavern?.wireMode} vs ${seen.pinned?.wireMode})`);
+    }
+    return problems;
+});
 guard('sameChat', () => {
     const problems = [];
     const identities = {};

@@ -129,7 +129,20 @@ async function waitForServer(url, deadlineMs = 120000) {
 
 // The capture peer: records everything, answers a chat completion whose content carries a marker so the leg can
 // prove the reply came from here. It defines nothing (rule 49).
-function startCapturePeer() {
+//
+// THIS PEER NOW HONOURS `stream: true` WITH REAL SSE, and that is a fix to THIS leg's fixture, not a new feature.
+// Measured: the page STREAMS (`stream_openai` defaults TRUE when the key is missing, public/scripts/openai.js:376;
+// `isStreamingEnabled()`, script.js:3517-3526), so this peer answered JSON to an SSE request, the frontend's
+// `EventSourceStream` (public/scripts/sse-stream.js) found no `data:` frames, the stream ended with zero tokens, and
+// the page stored an EMPTY assistant message -- its own console said `Stream stats: 0 tokens, NaN seconds,
+// rate: NaN TPS`. Consequence for the record: every green this leg produced before this change (including the
+// 40387864205 citation the scorecard row rests on) was STRUCTURE-ONLY -- counts, swipes and request equality -- and
+// its reply text was `''` on both subjects. The frame contract is the frontend's: events separated by a blank line,
+// a `data:` line per event, `data: [DONE]` terminating (openai.js:3173-3174).
+//
+// `served` records WHAT THIS PEER SERVED for every response (`{wire, frames, bytes, terminal}`), so a leg's own
+// artefact says whether it drove a streaming page against a JSON peer instead of leaving that to be reasoned about.
+function startCapturePeer({ wire = 'honour' } = {}) {
     const requests = [];
     let replyIndex = 0;
     const server = http.createServer((request, response) => {
@@ -147,29 +160,64 @@ function startCapturePeer() {
                 response.end();
                 return;
             }
-            requests.push({
+            let wantsStream = false;
+            try {
+                wantsStream = JSON.parse(body.toString('utf8'))?.stream === true;
+            } catch {
+                wantsStream = false;
+            }
+            const record = {
                 method: request.method,
                 path: request.url,
                 byteLength: body.length,
                 sha256: createHash('sha256').update(body).digest('hex'),
                 body: body.toString('utf8'),
-            });
+                requestedStream: wantsStream,
+                served: { wire: null, frames: 0, bytes: 0, terminal: false },
+            };
+            requests.push(record);
             const headers = { 'content-type': 'application/json', 'access-control-allow-origin': '*' };
             if (request.method === 'GET' && /models/.test(request.url ?? '')) {
+                const listing = JSON.stringify({ object: 'list', data: [{ id: 'probe-model', object: 'model' }] });
                 response.writeHead(200, headers);
-                response.end(JSON.stringify({ object: 'list', data: [{ id: 'probe-model', object: 'model' }] }));
+                record.served = { wire: 'json', frames: 0, bytes: Buffer.byteLength(listing), terminal: true };
+                response.end(listing);
                 return;
             }
             replyIndex += 1;
-            response.writeHead(200, headers);
-            response.end(JSON.stringify({
+            const text = `Q20_REPLY_${replyIndex}`;
+            if (wire === 'sse' || (wire === 'honour' && wantsStream)) {
+                const delta = JSON.stringify({
+                    id: `chatcmpl-q20-${replyIndex}`,
+                    object: 'chat.completion.chunk',
+                    created: 1730000000,
+                    model: 'probe-model',
+                    choices: [{ index: 0, delta: { role: 'assistant', content: text }, finish_reason: null }],
+                });
+                const stop = JSON.stringify({
+                    id: `chatcmpl-q20-${replyIndex}`,
+                    object: 'chat.completion.chunk',
+                    created: 1730000000,
+                    model: 'probe-model',
+                    choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                });
+                const payload = `data: ${delta}\n\ndata: ${stop}\n\ndata: [DONE]\n\n`;
+                response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'access-control-allow-origin': '*' });
+                record.served = { wire: 'sse', frames: 3, bytes: Buffer.byteLength(payload), terminal: true };
+                response.end(payload);
+                return;
+            }
+            const payload = JSON.stringify({
                 id: `chatcmpl-q20-${replyIndex}`,
                 object: 'chat.completion',
                 created: 1730000000,
                 model: 'probe-model',
-                choices: [{ index: 0, message: { role: 'assistant', content: `Q20_REPLY_${replyIndex}` }, finish_reason: 'stop' }],
+                choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }],
                 usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
-            }));
+            });
+            response.writeHead(200, headers);
+            record.served = { wire: 'json', frames: 0, bytes: Buffer.byteLength(payload), terminal: true };
+            response.end(payload);
         });
     });
     return new Promise((resolve, reject) => {
@@ -207,6 +255,11 @@ if (!external) {
 }
 
 const baseURL = process.env.PROBE_BASE_URL ?? `http://127.0.0.1:${port}`;
+// CONDITION 5, PROVIDE-DO-NOT-USE: `--wire honour|json|sse`, default `honour` -- SSE to a `stream: true` request.
+// Declared before `report` (which records it), because a `const` read above its declaration is a temporal-dead-zone
+// ReferenceError that `node --check` cannot see.
+const wireMode = argumentValue('--wire', process.env.Q20_WIRE ?? 'honour');
+
 const MARKERS = {
     first: 'Q20_FIRST_TURN_MARKER',
     second: 'Q20_SECOND_TURN_MARKER',
@@ -221,6 +274,7 @@ const report = {
     dataRoot,
     extension: { installedRevision: installed.revision, source: installed.source },
     markers: MARKERS,
+    wireMode,
     steps: [],
     pageRequests: [],
     chatRequests: [],
@@ -250,7 +304,7 @@ const readChatFiles = () => driveReadChatFiles(dataRoot);
 
 const carries = (files, marker) => files.some(file => (file.messages ?? []).some(message => String(message?.mes ?? '').includes(marker)));
 
-const peer = await startCapturePeer();
+const peer = await startCapturePeer({ wire: wireMode });
 let browser;
 let disarmed = null;
 try {
@@ -738,7 +792,12 @@ try {
         return { clicked: true, before };
     }, MARKERS.second);
     const peerCompletionsBeforeSecondTurn = peer.requests.filter(entry => /chat\/completions/.test(entry.path ?? '')).length;
-    const secondTurnSettled = await waitForReply(page, { timeoutMs: 60000, requireText: false, peerCompletions: peerCompletionsBeforeSecondTurn + 1 });
+    // `requireText` is TRUE again, and it was FALSE only for as long as the peer answered JSON to a streaming request.
+    // With the SSE peer the page receives `choices[0].delta.content`, so a reply with EMPTY text is now a FINDING
+    // (`setup-reply-did-not-arrive`, reading "an assistant message exists but its text is EMPTY") rather than a known
+    // condition this leg had to tolerate. Restoring it re-arms the wait that made the streak of structure-only greens
+    // possible.
+    const secondTurnSettled = await waitForReply(page, { timeoutMs: 60000, requireText: true, peerCompletions: peerCompletionsBeforeSecondTurn + 1 });
     report.secondTurn = { ...secondTurn, settled: secondTurnSettled };
     step('second-turn-message-created',
         secondTurn?.clicked === true && secondTurnSettled.ok === true,
@@ -878,6 +937,10 @@ try {
         byteLength: entry.byteLength,
         sha256: entry.sha256,
         body: entry.body,
+        // WHAT THIS PEER SERVED (CONDITION 1). `served.wire: "json"` on a request that asked for streaming is the
+        // signature of the fixture defect this change removes, and it is now visible in the artefact itself.
+        requestedStream: entry.requestedStream ?? null,
+        served: entry.served ?? null,
     }));
     const completions = report.peerRequests.filter(entry => /chat\/completions/.test(entry.path ?? ''));
     report.completions = completions.length;
@@ -941,6 +1004,12 @@ try {
         'the swiped message is not a user message': persisted?.is_user === false,
         'the persisted swipes array GREW past what the page had before the swipe': Number(persisted?.swipesCount ?? 0) > grewBeyond,
         'the persisted swipe_id is the one the page selected': Number(persisted?.swipe_id ?? -1) === Number(swipeAfter.swipeId ?? -2),
+        // RESTORED (CONDITION 4), AND THE WEAKENING IS KEPT VISIBLE. This condition was removed when the peer answered
+        // JSON to a streaming request and the reply text was `''` on BOTH subjects -- an equally-observed empty string
+        // made "the persisted text is a reply" fail on both sides, so it was dropped rather than asserted. The SSE peer
+        // gives the page a real `delta.content`, so the assertion is meaningful again and is back. It checks the
+        // persisted text is the PEER'S reply for this message, not merely non-empty.
+        'the persisted message holds the peer\'s reply': /^Q20_REPLY_\d+$/.test(String(persisted?.mes ?? '').trim()),
     };
     const failedSwipeChecks = Object.entries(swipeChecks).filter(([, ok]) => !ok).map(([name]) => name);
     step('final-file-reflects-swipe', failedSwipeChecks.length === 0,

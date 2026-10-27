@@ -64,8 +64,30 @@ export async function waitForServer(url, deadlineMs = 120000) {
  *
  * `replyText` is a FUNCTION of the reply ordinal so a continue leg can make the continuation's text provably a
  * CONTINUATION (a suffix) rather than another full reply -- the persisted file is where that is judged.
+ *
+ * THE PEER HONOURS `stream: true` WITH REAL SSE. Measured in run 40459475175's predecessor 40459475159: the page
+ * STREAMS (`oai_settings.stream_openai` defaults TRUE when missing, openai.js:376; `isStreamingEnabled()`,
+ * script.js:3517-3526), so this peer's JSON body was handed to `EventSourceStream` (public/scripts/sse-stream.js),
+ * which found no `data:` frames, yielded zero tokens, and the page stored an EMPTY assistant message -- its own
+ * console said so: `Stream stats: 0 tokens, NaN seconds, rate: NaN TPS`. A peer that answers the wrong content type
+ * for the request it received is a fixture that lies, and it made every structure-only guard in this repository
+ * unfalsifiable on content.
+ *
+ * THE FRAME CONTRACT IS THE FRONTEND'S, read from `public/scripts/sse-stream.js`:
+ *   - events are separated by a blank line (`streamBuffer.split(/\r\n\r\n|\r\r|\n\n/g)`),
+ *   - a `data:` line's value is ACCUMULATED WITH A TRAILING '\n' per line and the final one is stripped,
+ *   - `data: [DONE]` ends the stream (openai.js:3173-3174 `if (rawData === '[DONE]') return;`),
+ *   - each frame's JSON is read by `getStreamingReply`, so the delta lives at `choices[0].delta.content`.
+ *
+ * `--wire` (CONDITION 5, provide-do-not-use): the default is `honour`, which answers SSE to a `stream: true` request
+ * and JSON otherwise, so the response format is a function of what was ASKED. A leg may pass `--wire json` or
+ * `--wire sse` to pin it; the choice is recorded in the artefact (`wireMode`) so no reader has to infer it.
+ *
+ * EVERY RESPONSE RECORDS WHAT WAS SERVED (`served`, CONDITION 1): `{wire, frames, bytes, terminal}`. That is what
+ * makes a past leg's silence diagnosable -- a leg that drove a streaming page against a JSON peer now says
+ * `served.wire: "json"` in its own record instead of leaving the discrepancy to be reasoned about.
  */
-export function startCapturePeer({ replyText = ordinal => `Q20_REPLY_${ordinal}` } = {}) {
+export function startCapturePeer({ replyText = ordinal => `Q20_REPLY_${ordinal}`, wire = 'honour' } = {}) {
     const requests = [];
     let replyIndex = 0;
     const server = http.createServer((request, response) => {
@@ -83,29 +105,73 @@ export function startCapturePeer({ replyText = ordinal => `Q20_REPLY_${ordinal}`
                 response.end();
                 return;
             }
-            requests.push({
+            // WHAT THE REQUEST ASKED FOR, read rather than assumed.
+            let wantsStream = false;
+            try {
+                wantsStream = JSON.parse(body.toString('utf8'))?.stream === true;
+            } catch {
+                wantsStream = false;
+            }
+            const record = {
                 method: request.method,
                 path: request.url,
                 byteLength: body.length,
                 sha256: createHash('sha256').update(body).digest('hex'),
                 body: body.toString('utf8'),
-            });
-            const headers = { 'content-type': 'application/json', 'access-control-allow-origin': '*' };
+                requestedStream: wantsStream,
+                // FILLED BELOW, before the response ends: what this peer actually served.
+                served: { wire: null, frames: 0, bytes: 0, terminal: false },
+            };
+            requests.push(record);
+            const jsonHeaders = { 'content-type': 'application/json', 'access-control-allow-origin': '*' };
             if (request.method === 'GET' && /models/.test(request.url ?? '')) {
-                response.writeHead(200, headers);
-                response.end(JSON.stringify({ object: 'list', data: [{ id: 'probe-model', object: 'model' }] }));
+                response.writeHead(200, jsonHeaders);
+                const listing = JSON.stringify({ object: 'list', data: [{ id: 'probe-model', object: 'model' }] });
+                record.served = { wire: 'json', frames: 0, bytes: Buffer.byteLength(listing), terminal: true };
+                response.end(listing);
                 return;
             }
             replyIndex += 1;
-            response.writeHead(200, headers);
-            response.end(JSON.stringify({
+            const text = String(replyText(replyIndex) ?? '');
+            const serveSse = wire === 'sse' || (wire === 'honour' && wantsStream);
+            if (serveSse) {
+                // THE FRAMES THE READER EXPECTS: one delta carrying the whole text (a single chunk is enough -- the
+                // reader concatenates deltas), then the terminal sentinel.
+                const delta = JSON.stringify({
+                    id: `chatcmpl-q20-${replyIndex}`,
+                    object: 'chat.completion.chunk',
+                    created: 1730000000,
+                    model: 'probe-model',
+                    choices: [{ index: 0, delta: { role: 'assistant', content: text }, finish_reason: null }],
+                });
+                const stop = JSON.stringify({
+                    id: `chatcmpl-q20-${replyIndex}`,
+                    object: 'chat.completion.chunk',
+                    created: 1730000000,
+                    model: 'probe-model',
+                    choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                });
+                const payload = `data: ${delta}\n\ndata: ${stop}\n\ndata: [DONE]\n\n`;
+                response.writeHead(200, {
+                    'content-type': 'text/event-stream',
+                    'cache-control': 'no-cache',
+                    'access-control-allow-origin': '*',
+                });
+                record.served = { wire: 'sse', frames: 3, bytes: Buffer.byteLength(payload), terminal: true };
+                response.end(payload);
+                return;
+            }
+            const payload = JSON.stringify({
                 id: `chatcmpl-q20-${replyIndex}`,
                 object: 'chat.completion',
                 created: 1730000000,
                 model: 'probe-model',
-                choices: [{ index: 0, message: { role: 'assistant', content: replyText(replyIndex) }, finish_reason: 'stop' }],
+                choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }],
                 usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
-            }));
+            });
+            response.writeHead(200, jsonHeaders);
+            record.served = { wire: 'json', frames: 0, bytes: Buffer.byteLength(payload), terminal: true };
+            response.end(payload);
         });
     });
     server.keepAliveTimeout = 1000;
@@ -114,6 +180,7 @@ export function startCapturePeer({ replyText = ordinal => `Q20_REPLY_${ordinal}`
         server.listen(0, '127.0.0.1', () => resolve({
             port: server.address().port,
             requests,
+            wireMode: wire,
             close: () => new Promise(done => server.close(done)),
         }));
     });

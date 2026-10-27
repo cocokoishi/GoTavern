@@ -153,6 +153,13 @@ const MARKERS = {
     second: process.env.Q20_REGEN_SECOND_MARKER ?? 'Q20_REGEN_SECOND_TURN_MARKER',
 };
 
+// CONDITION 5, PROVIDE-DO-NOT-USE: `--wire honour|json|sse`. The default HONOURS the request (SSE to a `stream: true`
+// request), so the response format is a function of what the page asked for; a leg may pin it instead, and the choice
+// is recorded in `report.wireMode` so no reader has to infer which peer an artefact came from.
+// DECLARED BEFORE `report`, which carries it: a `const` referenced above its declaration is a temporal-dead-zone
+// ReferenceError, and `node --check` cannot see that (it is a runtime error, not a syntax one).
+const wireMode = argumentValue(process.argv, '--wire', process.env.Q20_WIRE ?? 'honour');
+
 const report = {
     schemaVersion: 1,
     verb: 'regenerate',
@@ -163,6 +170,7 @@ const report = {
     sourceChatTree: sourceChatTree ? path.basename(path.resolve(sourceChatTree)) : null,
     extension: { installedRevision: installed.revision, source: installed.source },
     markers: MARKERS,
+    wireMode,
     steps: [],
     pageRequests: [],
     chatRequests: [],
@@ -183,7 +191,11 @@ if (boot.bootRefusal) {
     report.failure = `leg-refused: ${boot.bootRefusal}`;
 }
 
-const peer = await startCapturePeer();
+// CONDITION 5, PROVIDE-DO-NOT-USE: `--wire honour|json|sse`. The default HONOURS the request (SSE to a `stream: true`
+// request), so the response format is a function of what the page asked for; a leg may pin it instead, and the choice
+// is recorded in `report.wireMode` so no reader has to infer which peer an artefact came from.
+const peer = await startCapturePeer({ wire: wireMode });
+
 const peerBase = `http://127.0.0.1:${peer.port}/v1`;
 let browser;
 try {
@@ -338,7 +350,7 @@ try {
 
     const completions = peer.requests.filter(entry => /chat\/completions/.test(entry.path ?? ''));
     const regenerated = completions.slice(requestsBefore);
-    report.peerRequests = peer.requests.map(entry => ({ method: entry.method, path: entry.path, byteLength: entry.byteLength, sha256: entry.sha256, body: entry.body }));
+    report.peerRequests = peer.requests.map(entry => ({ method: entry.method, path: entry.path, byteLength: entry.byteLength, sha256: entry.sha256, body: entry.body, requestedStream: entry.requestedStream ?? null, served: entry.served ?? null }));
     report.regenerateRequests = regenerated.length;
     step('regenerate-issued-exactly-one-request', regenerated.length === 1, `${regenerated.length} new chat/completions request(s); all peer requests: ${peer.requests.length}`);
     step('drive-stayed-on-one-page', report.navigations.length === navigationsBefore, JSON.stringify(report.navigations.slice(navigationsBefore)));
@@ -397,7 +409,7 @@ try {
     await settleQuiet(page, recorder);
     await saveConditional(page);
     await settleQuiet(page, recorder);
-    report.peerRequests = peer.requests.map(entry => ({ method: entry.method, path: entry.path, byteLength: entry.byteLength, sha256: entry.sha256, body: entry.body }));
+    report.peerRequests = peer.requests.map(entry => ({ method: entry.method, path: entry.path, byteLength: entry.byteLength, sha256: entry.sha256, body: entry.body, requestedStream: entry.requestedStream ?? null, served: entry.served ?? null }));
     const allCompletions = peer.requests.filter(entry => /chat\/completions/.test(entry.path ?? ''));
     step('swipe-after-regenerate-issued-one-request', allCompletions.length === requestsBefore + 2,
         `${allCompletions.length - requestsBefore} request(s) after the pre-regenerate mark, expected 2 (regenerate, swipe)`);

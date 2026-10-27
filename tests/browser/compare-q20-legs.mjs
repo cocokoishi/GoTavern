@@ -85,6 +85,44 @@ guard('legsDrove', () => {
     return problems;
 });
 
+// THE PEER SERVED THE WIRE THE PAGE ASKED FOR, on both subjects. Without this guard a peer that answers JSON to a
+// `stream: true` request satisfies every structural guard while the page stores an EMPTY reply -- which is exactly
+// what happened through runs 40387864205..40459475159 and made this leg's greens structure-only. A leg recorded
+// before the `served` field existed reports `null` here and is REFUSED, so an old leg cannot be cited as evidence for
+// a content claim.
+guard('peerServedTheRequestedWire', () => {
+    const problems = [];
+    const seen = {};
+    for (const [subject, report] of Object.entries(reports)) {
+        if (!report) continue;
+        const completions = contextRequests(report);
+        seen[subject] = { wireMode: report.wireMode ?? null, served: completions.map(entry => entry.served ?? null) };
+        if (completions.length === 0) {
+            problems.push(`${subject}: no completion request to judge`);
+            continue;
+        }
+        for (const [index, entry] of completions.entries()) {
+            const served = entry.served ?? null;
+            if (!served || !served.wire) {
+                problems.push(`${subject}: completion #${index} records no \`served\` field, so nothing says what this peer answered (a leg recorded before that field existed cannot support a content claim)`);
+                continue;
+            }
+            const askedStream = entry.requestedStream === true;
+            if (askedStream && served.wire !== 'sse') {
+                problems.push(`${subject}: completion #${index} ASKED for streaming (\`stream: true\`) but the peer served ${JSON.stringify(served.wire)} -- the page's reader gets no frames and stores an empty reply`);
+            }
+            if (askedStream && served.terminal !== true) {
+                problems.push(`${subject}: the SSE reply to completion #${index} did not terminate (\`served.terminal\` false), so the reader cannot know the stream ended`);
+            }
+        }
+    }
+    details.served = seen;
+    if (seen.gotavern?.wireMode !== seen.pinned?.wireMode) {
+        problems.push(`the two subjects ran DIFFERENT peers (wireMode ${seen.gotavern?.wireMode} vs ${seen.pinned?.wireMode}); their requests are not comparable`);
+    }
+    return problems;
+});
+
 guard('saveWroteTheChat', () => {
     const problems = [];
     for (const [subject, report] of Object.entries(reports)) {
@@ -151,26 +189,52 @@ const failedGuards = Object.entries(guards).filter(([, ok]) => !ok).map(([name])
 // NAMED FINDINGS THIS LEG OBSERVES BUT DOES NOT CLAIM AS PARITY. Each is a fact recorded with its evidence, so it can
 // be acted on later without being either asserted away or silently counted as agreement.
 const equallyObserved = {
+    // THE CITATION THE SCORECARD ROW RESTS ON, WITH ITS LIMITATION NAMED IN PLACE. `docs/goal-scorecard.md` Q20 cites
+    // run 40387864205 ("7/7 guards"). That run's guards were STRUCTURE-ONLY, and this is why: the page STREAMS
+    // (`stream_openai` defaults true when the key is missing, public/scripts/openai.js:376; `isStreamingEnabled()`,
+    // script.js:3517-3526) while the peer of that era answered `application/json` to a `stream: true` request, so the
+    // frontend's `EventSourceStream` (public/scripts/sse-stream.js) received no `data:` frames, the stream ended with
+    // zero tokens, and the page stored an assistant message whose text was `''`. The guards that passed judged counts,
+    // swipe arrays and request equality -- real things, but not the text of a reply. It is the SAME discipline as the
+    // withdrawn Q7 pass: a citation keeps its claim only if the reader is told what it could not see.
+    priorCitationLimitation: {
+        runId: '40387864205',
+        workflow: 'Browser differential',
+        mode: 'preset (as cited by the scorecard)',
+        guardsAtTheTime: 7,
+        limitation: 'structure-only: the page streamed against a JSON peer, so the reply text was empty on both subjects and no guard could have judged it',
+        cause: 'peer answered application/json to a request carrying stream: true; EventSourceStream found no data: frames (public/scripts/sse-stream.js, reader at public/scripts/openai.js:3170-3175)',
+        repairedBy: 'the SSE peer in this change (--wire honour), which answers data: {delta}\n\n frames and data: [DONE]',
+        stillValidFor: 'save/reload/swipe structure: chat identity, message counts, swipe arrays, provider request equality',
+        notValidFor: 'anything about the CONTENT of a generated reply',
+    },
     // Measured identically on BOTH subjects in runs 40445671791 and 40448869208: the assistant messages the two turns
     // produce are stored with EMPTY text (`mesLen: 0`) while the peer recorded a completion for each turn. It is
     // EQUALLY OBSERVED, which is exactly why it must not be read as parity: an identical wrong outcome is still wrong.
-    // A hypothesis (the peer answered in a shape `extractMessageFromData` cannot read) was TESTED AND REFUTED -- the
-    // peer answers `choices[0].message.content`, which is precisely what the openai branch reads -- so the cause is
-    // OPEN. `final-file-reflects-swipe` therefore no longer claims the persisted text is a reply.
+    // A hypothesis (the peer answered in a shape `extractMessageFromData` cannot read) was TESTED AND REFUTED, and a
+    // second one (the artefact cannot tell) was replaced by the real cause: THE PEER ANSWERED JSON TO A STREAMING
+    // REQUEST. The SSE peer removes the condition; from this change a reply with empty text is a finding, not a
+    // tolerated state, and `final-file-reflects-swipe` asserts the persisted text is the peer's reply again.
     emptyReplyOnBothSubjects: {
         observedIn: ['40445671791', '40450959982', '40452820868'],
         gotavern: reports.gotavern?.emptyReplyOnBothSubjects ?? null,
         pinned: reports.pinned?.emptyReplyOnBothSubjects ?? null,
-        // CLOSED BY MEASUREMENT AS UNOBSERVABLE-IN-THIS-HARNESS, not left `open`. The two candidate explanations are
-        // "the peer sent empty content" and "the product discarded non-empty content", and the committed evidence
-        // cannot separate them: the harness records peer REQUESTS only (`startCapturePeer` pushes method/path/
-        // body-sha256/body; `url-recorder` records browser-facing URLs), and a sweep of every leg artefact from
-        // 40445671791 / 40450959982 / 40452820868 finds NO field carrying a peer RESPONSE body or status. So a
-        // hypothesis about the peer's answer cannot be tested from these artefacts at all -- which is a limit of the
-        // instrument, recorded rather than dressed as an open question. Answering it needs the peer to record what it
-        // ANSWERED (a `peerResponses` array), which is a harness change of its own.
-        status: 'unobservable-in-this-harness',
-        why: 'no artefact field carries the peer response; peer requests are recorded, peer answers are not',
+        // RESOLVED, and by evidence rather than by preference. This was first recorded as
+        // `unobservable-in-this-harness` because no artefact carried a peer RESPONSE; that was true of the artefact and
+        // false as a conclusion. The cause is now measured: THE PAGE STREAMED AND THE PEER ANSWERED JSON.
+        //   * `stream_openai` defaults TRUE when the key is missing (public/scripts/openai.js:376), and
+        //     `isStreamingEnabled()` (script.js:3517-3526) then routes `Generate` down the streaming branch (:5385);
+        //   * the peer answered `content-type: application/json`, and `EventSourceStream`
+        //     (public/scripts/sse-stream.js) looks for `data:` frames separated by blank lines -- it found none, so the
+        //     reader yielded zero tokens (openai.js:3170-3175) and `StreamingProcessor.generate()` ended with
+        //     `Stream stats: 0 tokens, NaN seconds, rate: NaN TPS` (:3893), recorded in that leg's consoleDiagnostics;
+        //   * the page therefore stored an assistant message with `mes: ''`, which pinned then normalised, backfilling
+        //     an empty swipe (`:6875`, `:6880` -- both warnings are in the leg's own artefact).
+        // The peer now honours `stream: true` (`served.wire: 'sse'`), so this condition cannot recur silently: a JSON
+        // answer to a streaming request fails `peerServedTheRequestedWire`, and an empty reply fails the setup wait.
+        status: 'resolved-by-measurement',
+        why: 'the page streamed (`stream_openai` defaults true, openai.js:376) and the peer answered application/json; EventSourceStream found no data: frames, so the stored reply was empty',
+        evidence: ['consoleDiagnostics: "Stream stats: 0 tokens, NaN seconds, rate: NaN TPS" at script.js:3898', 'consoleDiagnostics: "The message had a swipe that is not a string" at script.js:6875', 'consoleDiagnostics: "The message had missing or invalid swipe_info for a swipe" at script.js:6880'],
         notParity: true,
     },
     // THE ARTEFACT/REPLAY DISAGREEMENT from run 40448869208 is resolved by FIXING WHAT A LEG MAY READ, not by choosing
@@ -195,7 +259,7 @@ const artefact = {
         'the SWIPE BUTTON DOM click: the swipe is the frontend\'s own swipe(), called the way its click handler calls it. Regenerate and continue are NO LONGER in this list -- they have their own legs and comparators (compare-q20-regen-legs.mjs, compare-q20-continue-legs.mjs)',
         'group chats, branch/checkpoint, message editing and deletion',
         'streaming (Q19)',
-        'THE CAUSE of the empty reply text: UNOBSERVABLE IN THIS HARNESS, which records peer REQUESTS and never peer ANSWERS, so "the peer sent empty content" and "the product discarded non-empty content" cannot be separated from any leg artefact. Answering it needs the peer to record its own response body -- a harness change, not a probe rerun',
+        'REGRESSION RISK from the wire: a leg that pins `--wire json` while the page streams will again store an empty reply. That combination is now FAILED by `peerServedTheRequestedWire` rather than tolerated, but no leg currently exercises the `json` mode deliberately',
         'the `savingAfterComplete` flag the leg still sets: it does not exist under pinned `public/**`, so it is inert, and removing it is a change nobody has measured',
     ],
 };

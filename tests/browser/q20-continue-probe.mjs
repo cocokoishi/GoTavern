@@ -170,6 +170,11 @@ const MARKERS = {
     continuation: 'Q20_CONTINUATION_APPENDED',
 };
 
+// CONDITION 5, PROVIDE-DO-NOT-USE: `--wire honour|json|sse`, default `honour` (SSE to a `stream: true` request).
+// Declared before `report` (which carries it) because a `const` read above its declaration is a temporal-dead-zone
+// ReferenceError, which `node --check` cannot see.
+const wireMode = argumentValue(process.argv, '--wire', process.env.Q20_WIRE ?? 'honour');
+
 const report = {
     schemaVersion: 1,
     verb: 'continue',
@@ -180,6 +185,7 @@ const report = {
     sourceChatTree: sourceChatTree ? path.basename(path.resolve(sourceChatTree)) : null,
     extension: { installedRevision: installed.revision, source: installed.source },
     markers: MARKERS,
+    wireMode,
     steps: [],
     pageRequests: [],
     chatRequests: [],
@@ -203,6 +209,7 @@ if (boot.bootRefusal) report.failure = `leg-refused: ${boot.bootRefusal}`;
 // request it is, and the leg cannot know the ordinal until it has counted the turns it drove; `replyText` reads a
 // slot the leg fills in immediately before pressing the control.
 const peer = await startCapturePeer({
+    wire: wireMode,
     replyText: (ordinal, counterpart) => (peerState.continuationOrdinal !== null && peerState.continuationOrdinal === counterpart
         ? `${MARKERS.continuation}_${counterpart}${typeof peerState.continuationTail === 'string' ? peerState.continuationTail : ''}`
         : `Q20_REPLY_${counterpart}`),
@@ -341,7 +348,7 @@ try {
 
     const completionsAfter = peer.requests.filter(entry => /chat\/completions/.test(entry.path ?? ''));
     const continueRequests = completionsAfter.slice(requestsBefore);
-    report.peerRequests = peer.requests.map(entry => ({ method: entry.method, path: entry.path, byteLength: entry.byteLength, sha256: entry.sha256, body: entry.body }));
+    report.peerRequests = peer.requests.map(entry => ({ method: entry.method, path: entry.path, byteLength: entry.byteLength, sha256: entry.sha256, body: entry.body, requestedStream: entry.requestedStream ?? null, served: entry.served ?? null }));
     report.continueRequests = continueRequests.length;
     step('continue-issued-exactly-one-request', continueRequests.length === 1, `${continueRequests.length} new chat/completions request(s); all peer requests: ${peer.requests.length}`);
     step('drive-stayed-on-one-page', report.navigations.length === navigationsBefore, JSON.stringify(report.navigations.slice(navigationsBefore)));
@@ -401,7 +408,7 @@ try {
     await settleQuiet(page, recorder);
     const allCompletions = peer.requests.filter(entry => /chat\/completions/.test(entry.path ?? ''));
     report.nextTurnRequests = allCompletions.length - requestsBefore - 1;
-    report.peerRequests = peer.requests.map(entry => ({ method: entry.method, path: entry.path, byteLength: entry.byteLength, sha256: entry.sha256, body: entry.body }));
+    report.peerRequests = peer.requests.map(entry => ({ method: entry.method, path: entry.path, byteLength: entry.byteLength, sha256: entry.sha256, body: entry.body, requestedStream: entry.requestedStream ?? null, served: entry.served ?? null }));
     step('next-turn-issued-one-request', report.nextTurnRequests === 1, `${report.nextTurnRequests} request(s) after the continue`);
     // THE NUDGE IS THE RESIDUE THIS LOOKS FOR: if the next request's body contains the nudge prompt, the
     // continuation state leaked out of the continue.
