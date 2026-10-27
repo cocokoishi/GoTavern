@@ -4,6 +4,20 @@
   "seededBy": "gh run list --limit 40 --json databaseId,name,headSha,conclusion,createdAt; gh run view <id> --json name,conclusion,headSha,createdAt for the ledger's older citations",
   "purpose": "Lets a reader see a cited run's WORKFLOW and CONCLUSION without trusting the row that cites it. A row whose citation belongs to a run whose conclusion is `failure` must say so in place; that is the shape Q9 and Q19 already carry.",
   "entries": [
+    {
+      "runId": "40520896730",
+      "workflow": "Browser differential",
+      "headSha": "1b9cd81c309e1d738fbec7ac39be3c862f4937e6",
+      "conclusion": "success",
+      "createdAt": "2026-10-27T15:21:00Z"
+    },
+    {
+      "runId": "40507798604",
+      "workflow": "Browser differential",
+      "headSha": "d7a6e5321413561e776a816082ac7234f1d9f18f",
+      "conclusion": "failure",
+      "createdAt": "2026-10-27T12:56:00Z"
+    },
     {"runId": "40250495167", "workflow": "Browser differential", "headSha": "a3c1d437dc001490c49ed5266facd26a1be7c7ee", "conclusion": "success", "createdAt": "2026-10-26T00:40:26Z"},
     {"runId": "40274214952", "workflow": "Browser differential", "headSha": "06a8559c79fec0c02b9c292ea6c1b3120501468e", "conclusion": "success", "createdAt": "2026-10-26T05:26:22Z"},
     {"runId": "40277640647", "workflow": "Browser differential", "headSha": "69591702afe5914df8e91a1a3613bf9b05cc8d03", "conclusion": "success", "createdAt": "2026-10-26T06:03:39Z"},
