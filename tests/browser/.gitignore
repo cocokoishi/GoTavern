@@ -64,3 +64,15 @@ authors-note-pinned-*.json
 redirect-authors-note-*.json
 # Q17/Q18 SCRATCH DIRECTORY: the sweep's default `--out-dir` when a caller points it inside the tree.
 legs/
+# 酒馆助手 VARIABLE/INJECTION LEGS: helper-vars-gotavern-on.json, helper-vars-pinned-on.json,
+# helper-vars-gotavern-off.json, helper-vars-pinned-off.json, helper-vars-*-restart.json.
+#
+# WHY A PREFIX AND NOT `helper-*.json`. The existing helper legs are written into $RUNNER_TEMP, not into the tree, so
+# no pattern has ever been needed for them -- and `helper-*.json` would be a much wider net than the evidence needs.
+# This pattern is anchored on `helper-vars-` for the same reason the preset patterns above are anchored on `-`.
+#
+# THE COMMITTED ARTEFACT IS DELIBERATELY NOT UNDER THIS PREFIX: it is `helper-variables-comparison.json` (the long
+# form), so `helper-vars-*` can never swallow it -- tests/browser/catalog.test.mjs asserts BOTH directions, and its
+# plausible-name list now names a `helper-vars-*-comparison.json` so a future rename fails loudly instead of being
+# silently ignored.
+helper-vars-*.json
