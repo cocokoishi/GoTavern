@@ -148,20 +148,46 @@ guard('nodeEqualsGoAfterSwipe', () => {
 });
 
 const failedGuards = Object.entries(guards).filter(([, ok]) => !ok).map(([name]) => name);
+// NAMED FINDINGS THIS LEG OBSERVES BUT DOES NOT CLAIM AS PARITY. Each is a fact recorded with its evidence, so it can
+// be acted on later without being either asserted away or silently counted as agreement.
+const equallyObserved = {
+    // Measured identically on BOTH subjects in runs 40445671791 and 40448869208: the assistant messages the two turns
+    // produce are stored with EMPTY text (`mesLen: 0`) while the peer recorded a completion for each turn. It is
+    // EQUALLY OBSERVED, which is exactly why it must not be read as parity: an identical wrong outcome is still wrong.
+    // A hypothesis (the peer answered in a shape `extractMessageFromData` cannot read) was TESTED AND REFUTED -- the
+    // peer answers `choices[0].message.content`, which is precisely what the openai branch reads -- so the cause is
+    // OPEN. `final-file-reflects-swipe` therefore no longer claims the persisted text is a reply.
+    emptyReplyOnBothSubjects: {
+        observedIn: ['40445671791', '40448869208'],
+        gotavern: reports.gotavern?.emptyReplyOnBothSubjects ?? null,
+        pinned: reports.pinned?.emptyReplyOnBothSubjects ?? null,
+        status: 'open',
+        notParity: true,
+    },
+    // THE ARTEFACT/REPLAY DISAGREEMENT from run 40448869208 is resolved by FIXING WHAT A LEG MAY READ, not by choosing
+    // a value: the swipe assertion now requires the file to have been read AFTER a successful /api/chats/save, and
+    // refuses (`swipe-save-witnessed`) when that cannot be shown.
+    swipeSaveWitness: {
+        gotavern: reports.gotavern?.saveWitness ?? null,
+        pinned: reports.pinned?.saveWitness ?? null,
+    },
+};
 const artefact = {
     schemaVersion: 1,
     question: 'Does a chat the product SAVED read back on a fresh page load, and do a second turn and a swipe on it reach the model with the same context as pinned?',
     guards,
     details,
+    equallyObserved,
     missingLegs: missing,
     failedGuards,
     verdict: failedGuards.length === 0 ? 'match' : 'mismatch',
     notCompared: [
         'a real provider (rule 22): the peer is a simulated backend that captures and answers',
-        'regenerate and continue: Q20 names four verbs and this leg drives two (a second turn and a swipe)',
-        'the swipe BUTTON DOM click: the swipe is the frontend\'s own swipe(), called the way its click handler calls it',
+        'the SWIPE BUTTON DOM click: the swipe is the frontend\'s own swipe(), called the way its click handler calls it. Regenerate and continue are NO LONGER in this list -- they have their own legs and comparators (compare-q20-regen-legs.mjs, compare-q20-continue-legs.mjs)',
         'group chats, branch/checkpoint, message editing and deletion',
         'streaming (Q19)',
+        'THE CAUSE of the empty reply text recorded in `equallyObserved.emptyReplyOnBothSubjects`: no leg isolates whether the frontend, the peer answer or the save path drops the content',
+        'the `savingAfterComplete` flag the leg still sets: it does not exist under pinned `public/**`, so it is inert, and removing it is a change nobody has measured',
     ],
 };
 

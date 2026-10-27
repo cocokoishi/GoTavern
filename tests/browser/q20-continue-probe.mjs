@@ -87,7 +87,7 @@ import { ensurePinnedExtensionInstalled } from './install-pinned-extension.mjs';
 import { pinnedExtension } from './pinned-extensions.mjs';
 import {
     chatCarrying, configureConnection, openCharacter, openPage, pressContinue,
-    readChatFiles, readProcessCommands, saveConditional, sendTurn, settleQuiet, silenceAndObserve,
+    readChatFiles, readProcessCommands, saveConditional, sendTurn, settleQuiet, silenceAndObserve, waitForReply,
 } from './q20-persistence-drive.mjs';
 import { argumentValue, bootSubject, freePort, repoRoot, startCapturePeer, waitForServer } from './q20-leg-runtime.mjs';
 
@@ -261,19 +261,30 @@ try {
     report.silenced = silenced;
     step('frontend-observers-installed', silenced.processCommandsWrapped === true, JSON.stringify(silenced));
     if (openedContext.chatLength < 3) {
+        // THE TURN WAITS ON THE PRODUCT'S SETUP STATE AND FAILS BY NAME -- `waitForReply` in the shared drive. See the
+        // regenerate probe's note: polling for "the user turn exists" let a leg proceed while the assistant reply had
+        // not landed (run 40448869208), and `requireText` is false because the stored reply has empty text on BOTH
+        // subjects (40445671791) -- an open fixture finding, carried as `emptyReplyOnBothSubjects`, not a red here.
         for (const [index, turnMarker] of [[0, MARKERS.first], [1, MARKERS.second]]) {
             const sent = await sendTurn(page, index === 0 ? `Q20 continuable first turn ${turnMarker}` : `Q20 continuable second turn ${turnMarker}`);
             report[`send${index + 1}`] = sent;
-            const deadline = Date.now() + 30000;
-            let files = [];
-            while (Date.now() < deadline) {
-                files = await readChatFiles(dataRoot);
-                if (chatCarrying(files, turnMarker)) break;
-                await page.waitForTimeout(500);
+            const countBefore = peer.requests.filter(entry => /chat\/completions/.test(entry.path ?? '')).length;
+            const reply = await waitForReply(page, { timeoutMs: 60000, requireText: false, peerCompletions: countBefore + 1 });
+            report[`reply${index + 1}`] = reply;
+            step(`turn-${index + 1}-reply-settled`, reply.ok === true, reply.ok === true ? JSON.stringify(reply.state) : JSON.stringify(reply));
+            if (!reply.ok) {
+                report.failure = report.failure ?? `${reply.name}: ${reply.reading} ${JSON.stringify(reply.state)} peerCompletions=${JSON.stringify(reply.peerCompletions)}`;
+                break;
             }
+            await saveConditional(page);
             await settleQuiet(page, recorder);
-            step(`turn-${index + 1}-saved`, chatCarrying(files, turnMarker) !== null,
-                files.map(file => `${file.file}:${file.lines}`).join(',') || 'none');
+            const files = await readChatFiles(dataRoot);
+            const carried = chatCarrying(files, turnMarker) !== null;
+            step(`turn-${index + 1}-saved`, carried, files.map(file => `${file.file}:${file.lines}`).join(',') || 'none');
+            if (!carried) {
+                report.failure = report.failure ?? `turn-${index + 1}-saved: the file on disk does not carry ${turnMarker}`;
+                break;
+            }
         }
     }
     await settleQuiet(page, recorder);

@@ -40,12 +40,31 @@
 // page's own call, and recorded in the artefact. Without a per-subject content difference the second turn's
 // comparison would be satisfied by any two equal requests.
 //
-// WHY THE FIRST TURN IS SILENTED. A send needs a main API. This leg sets `power_user.savingAfterComplete = false`
-// (`scripts/power-user.js`, the object `getContext().powerUserSettings` also resolves to) so `finishGenerating` does
-// not re-save mid-generation, and the send itself creates the chat identity, so no provider call is needed to get a
-// file on disk. The Q20 pair then starts from THE SAME ON-DISK CHAT on both subjects -- which is what makes the
-// second turn's request comparable in content. The provider path of a send is NOT the subject of this leg; it is
-// proven elsewhere.
+// WHY THE FIRST TURN WAS "SILENTED", AND WHAT IS ACTUALLY TRUE ABOUT IT -- a correction, kept visible because the
+// first version of this block asserted a root cause that measurement then refuted.
+// The original text here said the leg set `power_user.savingAfterComplete = false` so `finishGenerating` "does not
+// re-save mid-generation". MEASURED FALSE: `savingAfterComplete` DOES NOT EXIST anywhere under pinned's `public/**`
+// (grepped every .js), so the flag the leg sets is inert and silences nothing. It is left in place because removing
+// it is a behaviour change nobody has measured, and it is now labelled for what it is.
+//
+// THE EMPTY-TEXT REPLIES ARE A REAL OBSERVATION AND THEIR CAUSE IS NOT YET ESTABLISHED. Measurement, run
+// 40445671791, IDENTICAL on both subjects: the file holds six records -- the header, the greeting (785 chars), the
+// first marker, `is_user:false` with `mesLen: 0`, the second marker, and another `is_user:false` with `mesLen: 0` --
+// while the peer recorded THREE completion requests whose last message was, respectively, the first marker, "Q20
+// second turn input", and the second marker. So each turn DID produce a request, and each request is followed in the
+// file by an EMPTY assistant record.
+// A HYPOTHESIS WAS TESTED AND REFUTED, and it is recorded here so it is not re-derived: the peer answers
+// `{choices: [{message: {role: 'assistant', content: 'Q20_REPLY_n'}}]}`, and `extractMessageFromData` for
+// `main_api === 'openai'` (public/script.js:6454-6478) reads exactly `data.choices[0].message.content`. The answer
+// shape is CORRECT, so "the peer answered in a shape the frontend cannot read" is FALSE.
+// What remains known without a further run: the reply text does not reach disk on either subject, the two subjects
+// are EQUALLY affected (so this is not GoTavern-vs-pinned), and `final-file-reflects-swipe` must therefore not claim
+// the persisted text is a reply. The open question -- why a correct-shaped completion becomes an empty message --
+// is named in the artefact as `emptyReplyOnBothSubjects` and is NOT resolved by choosing a value.
+//
+// WHAT THE TURNS THEREFORE DEPEND ON: each turn's presence on disk is written by the LEG's own explicit
+// `saveChatConditional()`, which is the frontend's own "write it now". The setup below waits on the PRODUCT'S state
+// (last message is an assistant turn, not busy) rather than on a sleep, and fails BY NAME when the budget expires.
 //
 // WHAT THIS DOES NOT PROVE, stated here so the artefact's `notCompared` can repeat it: a real provider (rule 22),
 // streaming (Q19), regenerate/continue (Q20's other two verbs), group chats, and branch/checkpoint features.
@@ -68,7 +87,7 @@ import { pinnedExtension } from './pinned-extensions.mjs';
 // because doing it in the same commit would make "the artefact did not move" unprovable.
 import {
     readChatFiles as driveReadChatFiles, openPage as driveOpenPage,
-    openCharacter as driveOpenCharacter, chatCarrying,
+    openCharacter as driveOpenCharacter, chatCarrying, waitForReply,
 } from './q20-persistence-drive.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -691,6 +710,22 @@ try {
     // subjects (it selects no branch), and the MARKER is then written into the message that send created -- so the
     // two subjects' chats differ in content and must produce DIFFERENT provider requests, which is what makes the
     // equality of the second turn something other than a tautology.
+    //
+    // WHAT THIS BLOCK USED TO GET WRONG, AND WHY IT IS THE (b) FIX. It broke its wait as soon as A USER TURN APPEARED
+    // (`chat.some(position >= before && entry.is_user === true)`), then wrote the marker into that user turn and
+    // returned. When the assistant reply landed later, the wait had already resolved -- so the SWIPE that follows was
+    // performed on a USER message, and `swipe()` refuses that silently (`isSwipingAllowed()` false, no throw). Run
+    // 40448869208 recorded exactly that on the pinned subject: `before {chatLength: 4, mesId: 3, lastIsUser: true,
+    // swipes: null, swipeAllowed: false}` and an `after` where nothing had been swiped. `swipe-held` PASSED in that
+    // state because the swipe had appended one empty swipe to the user message. A guard that can pass through a state
+    // no user can produce is unfalsifiable, and it was supporting a scorecard row.
+    //
+    // THE WAIT IS NOW ON THE ASSISTANT TURN, through the shared `waitForReply`, which fails BY NAME
+    // (`setup-reply-did-not-arrive`) and quotes the screen and the peer's request count. `requireText` is FALSE here
+    // ON PURPOSE and the reason is recorded rather than hidden: runs 40445671791 and 40448869208 measured that the
+    // stored assistant message has EMPTY text on BOTH subjects, so requiring text would turn a known, equally-observed
+    // condition into a red attributed to this leg. The condition is carried in the artefact as
+    // `emptyReplyOnBothSubjects` and its cause is an OPEN finding, not a chosen value.
     const secondTurn = await page.evaluate(async marker => {
         const script = await import('./script.js');
         const textarea = document.querySelector('#send_textarea');
@@ -700,31 +735,54 @@ try {
         textarea.value = 'Q20 second turn input';
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
         button.click();
-        // Bounded wait on the PRODUCT's state before the marker is written: a user turn must exist and must be the
-        // last message, otherwise the marker would land in the greeting.
-        const deadline = Date.now() + 30000;
-        let state = null;
-        while (Date.now() < deadline) {
-            const chat = script.chat ?? [];
-            state = { chatLength: chat.length, lastIsUser: chat[chat.length - 1]?.is_user === true, lastText: String(chat[chat.length - 1]?.mes ?? '').slice(0, 60) };
-            // A USER TURN AFTER `before` IS THE FACT; the assistant's reply lands right after it, so "the last
-            // message is the user's" stops being true the moment generation completes -- run 40385281864 measured
-            // chatLength 3 -> 5 with lastIsUser false and waited out its whole bound for a turn that existed.
-            if (state.chatLength > before && chat.some((entry, position) => position >= before && entry?.is_user === true)) break;
-            await new Promise(resolve => setTimeout(resolve, 250));
-        }
+        return { clicked: true, before };
+    }, MARKERS.second);
+    const peerCompletionsBeforeSecondTurn = peer.requests.filter(entry => /chat\/completions/.test(entry.path ?? '')).length;
+    const secondTurnSettled = await waitForReply(page, { timeoutMs: 60000, requireText: false, peerCompletions: peerCompletionsBeforeSecondTurn + 1 });
+    report.secondTurn = { ...secondTurn, settled: secondTurnSettled };
+    step('second-turn-message-created',
+        secondTurn?.clicked === true && secondTurnSettled.ok === true,
+        secondTurnSettled.ok === true ? JSON.stringify(secondTurnSettled.state) : JSON.stringify(secondTurnSettled));
+    // THE MARKER, WRITTEN INTO THE USER TURN THE PAGE ITSELF CREATED, and only after the reply has settled, so the
+    // message the swipe will act on is the assistant reply and not the user turn.
+    const marked = secondTurnSettled.ok === true ? await page.evaluate(async ({ marker, before }) => {
+        const script = await import('./script.js');
         const chat = script.chat ?? [];
         const userTurnIndex = chat.findIndex((entry, position) => position >= before && entry?.is_user === true);
-        const wroteMarker = userTurnIndex >= 0;
-        const index = wroteMarker ? userTurnIndex : chat.length - 1;
-        if (wroteMarker) {
-            chat[index].mes = marker;
-            script.printMessages();
-        }
-        return { clicked: true, before, state, wroteMarker, index, afterText: String(chat[index]?.mes ?? '') };
-    }, MARKERS.second);
-    report.secondTurn = secondTurn;
-    step('second-turn-message-created', secondTurn?.clicked === true && secondTurn?.wroteMarker === true, JSON.stringify(secondTurn));
+        if (userTurnIndex < 0) return { wroteMarker: false, reason: 'no user turn after the send', chatLength: chat.length };
+        chat[userTurnIndex].mes = marker;
+        script.printMessages();
+        const last = chat[chat.length - 1] ?? null;
+        return {
+            wroteMarker: true,
+            index: userTurnIndex,
+            afterText: String(chat[userTurnIndex]?.mes ?? ''),
+            // WHAT THE SWIPE WILL ACT ON, recorded so the next step cannot be read in the wrong state.
+            lastIsUser: last?.is_user === true,
+            lastTextLength: String(last?.mes ?? '').length,
+            chatLength: chat.length,
+        };
+    }, { marker: MARKERS.second, before: secondTurn?.before ?? 0 }) : { wroteMarker: false, reason: 'the reply never settled' };
+    report.secondTurnMarker = marked;
+    step('second-turn-marker-written', marked?.wroteMarker === true, JSON.stringify(marked));
+    // THE PRECONDITION THE SWIPE ITSELF CHECKS. Asserted here so a swipe that refuses is never read as a finding.
+    const swipePrecondition = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        const chat = script.chat ?? [];
+        return {
+            lastIsUser: chat[chat.length - 1]?.is_user === true,
+            swipeAllowed: typeof script.isSwipingAllowed === 'function' ? script.isSwipingAllowed() : null,
+            isSendPress: script.is_send_press ?? null,
+        };
+    });
+    report.swipePrecondition = swipePrecondition;
+    step('swipe-precondition-reachable',
+        swipePrecondition.lastIsUser === false && swipePrecondition.swipeAllowed !== false && swipePrecondition.isSendPress !== true,
+        JSON.stringify(swipePrecondition));
+
+    // THE EQUALLY-OBSERVED CONDITION, NAMED AND NOT ASSERTED AWAY. If the last assistant message has empty text on BOTH
+    // subjects this is reported as a fact about the fixture; it is NOT parity, and it is NOT this leg's claim.
+    report.emptyReplyOnBothSubjects = secondTurnSettled.ok === true && Number(secondTurnSettled.state?.lastTextLength ?? -1) === 0;
 
     const swiped = await page.evaluate(async () => {
         const script = await import('./script.js');
@@ -770,6 +828,21 @@ try {
 
     // THE CHAT IS SAVED AFTER THE SWIPE, through the frontend's own conditional save (the entry the swipe itself
     // ends with, script.js:9403), so the file on disk reflects the swipe.
+    //
+    // WAIT ON THE SAVE'S OWN COMPLETION BEFORE READING THE FILE -- this is the answer to the artefact/replay
+    // disagreement this lane left open (run 40448869208: the leg recorded `swipePersisted.swipeId: null` while
+    // replaying the SAME recorded `finalFiles` through the same module gave `swipe_id: 1`). Two readings of one
+    // value must not both be true, so what the assertion may use is fixed here rather than chosen later:
+    //   * `saveChatConditional()` resolves when the POST /api/chats/save RESPONSE has arrived (script.js:7395-7454),
+    //     and the server writes the file inside that request (`trySaveChat`, src/endpoints/chats.js:531-541) -- so a
+    //     file read after this resolves is the post-flush file;
+    //   * the read is done ONCE, into `report.finalFiles`, and every guard below reads THAT, never a second snapshot
+    //     taken later or earlier;
+    //   * the read is WITNESSED: the number of successful `/api/chats/save` requests recorded up to and including the
+    //     flush is carried in the artefact, so a reader can tell "the file was read after a 200" from "the leg read a
+    //     file whose save had not been issued". A `saveWitnessed: false` makes the swipe assertion unresolvable
+    //     rather than passing or failing on a stale file.
+    const savesBeforeFlush = chatRequestLog().filter(entry => /\/api\/chats\/save$/.test(entry.path ?? '') && entry.status === 200).length;
     report.savedAfterSwipe = await page.evaluate(async () => {
         const script = await import('./script.js');
         try {
@@ -779,10 +852,25 @@ try {
             return { ok: false, error: String(error && error.message || error) };
         }
     });
-
-    await page.waitForTimeout(1500);
+    // A BOUNDED WAIT, ON THE RECORDER, FOR THE SAVE THE FRONTEND JUST ISSUED -- not a fixed sleep and not a retry:
+    // the condition is "a save request answered 200 that had not answered before the flush", which is the product's
+    // own observable completion.
+    {
+        const deadline = Date.now() + 15000;
+        while (Date.now() < deadline) {
+            await recorder.settled();
+            const saves = chatRequestLog().filter(entry => /\/api\/chats\/save$/.test(entry.path ?? '') && entry.status === 200).length;
+            if (saves > savesBeforeFlush) break;
+            await page.waitForTimeout(250);
+        }
+    }
     await recorder.settled();
     report.chatRequests = chatRequestLog();
+    report.saveWitness = {
+        savesBeforeFlush,
+        savesAfterFlush: chatRequestLog().filter(entry => /\/api\/chats\/save$/.test(entry.path ?? '') && entry.status === 200).length,
+    };
+    report.saveWitnessed = report.saveWitness.savesAfterFlush > savesBeforeFlush;
     report.pageRequests = recorder.requests.map(entry => ({ method: entry.method, path: entry.pathAndQuery, status: entry.status }));
     report.peerRequests = peer.requests.map(entry => ({
         method: entry.method,
@@ -794,6 +882,9 @@ try {
     const completions = report.peerRequests.filter(entry => /chat\/completions/.test(entry.path ?? ''));
     report.completions = completions.length;
     step('peer-reached', completions.length >= 2, `${completions.length} chat/completions request(s); all peer requests: ${report.peerRequests.length}`);
+    step('swipe-save-witnessed', report.saveWitnessed === true,
+        `the swipe assertion needs a successful /api/chats/save AFTER the flush; before=${report.saveWitness.savesBeforeFlush} after=${report.saveWitness.savesAfterFlush}`);
+    // THE ONE READ. Every guard below uses this array, never a later one.
     report.finalFiles = await readChatFiles();
     // TIGHTENED, AND THIS IS A CHANGE IN THE ARTEFACT'S MEANING (stated in the commit message, not only here).
     // THE OLD FORM: `some file has some message with swipes.length > 1`. That is satisfied by ANY chat file in the
@@ -838,6 +929,9 @@ try {
     // EACH SUB-CONDITION IS NAMED, so a red says WHICH field disagreed instead of handing back one boolean.
     const swipeChecks = {
         'the file carrying the second marker exists': Boolean(swipeFile),
+        // THE WITNESS IS PART OF THE ASSERTION, not beside it: a file read before its save answered cannot say
+        // anything about what the product persisted, so the check refuses rather than passing on a stale read.
+        'the file was read AFTER a successful /api/chats/save': report.saveWitnessed === true,
         'exactly ONE persisted message grew its swipes array (the swiped one)': candidates.length === 1,
         'the file holds the same message count the page showed': Boolean(swipeFile) && persistedMessages.length === Number(swipeAfter.chatLength ?? -1),
         'the swiped message is not a user message': persisted?.is_user === false,

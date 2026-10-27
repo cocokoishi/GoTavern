@@ -308,6 +308,78 @@ export const silenceAndObserve = page => page.evaluate(async () => {
 
 export const readProcessCommands = page => page.evaluate(() => window.__q20ProcessCommands ?? []);
 
+/**
+ * WAIT FOR THE PRODUCT'S OWN STATE AFTER A SEND, AND FAIL BY NAME WHEN IT NEVER ARRIVES.
+ *
+ * WHY A NAMED FAILURE AND NOT A SLEEP, NOT A RETRY. Measured across runs 40444282138 / 40445671791 / 40448869208: the
+ * second turn's reply did not always land before the leg acted on it, and in 40448869208 that produced a swipe of a
+ * USER message -- a state the frontend itself refuses (`isSwipingAllowed()` false), so every downstream guard was
+ * measuring something a user cannot produce. A fixed sleep converts that into a slow flake; a retry converts it into
+ * a hidden one. What is wanted is a RED WITH A NAME and the first observation attached, which is the only form this
+ * project can act on (AGENTS rule 10: "no failure reported, but the expected outcome did not happen" is a
+ * probe-faithfulness alarm).
+ *
+ * THE CONDITIONS ARE THE PRODUCT'S, read from the page rather than assumed:
+ *   lastIsUser === false   a reply exists and is the last message. Read from the LAST message rather than from the
+ *                          length, because the two verbs differ: a normal turn appends (`:6738`) while continue
+ *                          replaces the last message's text in place (`:6719-6737`), so a length check would pass for
+ *                          one and fail for the other.
+ *   not busy               `is_send_press` false and no `streamingProcessor` -- which is the same gate the next
+ *                          control checks for itself (script.js:11634 `is_send_press == false`, :11655). Waiting on it
+ *                          means the next press is a user-reachable action rather than one the page is refusing.
+ *   has text               when `requireText` is set, the last message's text is non-empty. This condition was FALSE
+ *                          on BOTH subjects in run 40445671791 (measured: `mesLen: 0`), so it is checked and reported
+ *                          rather than assumed away.
+ *
+ * THE FAILURE CARRIES THE FALSIFIER: `peerCompletions` is how many chat-completion requests the peer had recorded at
+ * that moment. If it did not move, the request never left the page; if it moved, the page received an answer and did
+ * not store it. Those are different findings and a boolean cannot tell them apart.
+ */
+export async function waitForReply(page, { timeoutMs = 60000, requireText = true, peerCompletions = null } = {}) {
+    const deadline = Date.now() + timeoutMs;
+    let last = null;
+    while (Date.now() < deadline) {
+        last = await page.evaluate(async () => {
+            const script = await import('./script.js');
+            const context = window.SillyTavern && window.SillyTavern.getContext ? window.SillyTavern.getContext() : null;
+            const chat = script.chat ?? [];
+            const tail = chat[chat.length - 1] ?? null;
+            return {
+                chatLength: chat.length,
+                chatId: context?.chatId ?? null,
+                lastIsUser: tail?.is_user === true,
+                lastTextLength: String(tail?.mes ?? '').length,
+                isSendPress: script.is_send_press ?? null,
+                streamingProcessor: Boolean(script.streamingProcessor),
+                // WHAT A USER WOULD SEE, quoted into the failure instead of a bare boolean.
+                domLastText: String(document.querySelector('#chat .mes:last-child .mes_text')?.textContent ?? '').slice(0, 200),
+            };
+        });
+        const settled = last.lastIsUser === false && last.isSendPress !== true && last.streamingProcessor !== true;
+        const hasText = requireText ? last.lastTextLength > 0 : true;
+        if (settled && hasText) {
+            return { ok: true, state: last, waitedMs: timeoutMs - Math.max(0, deadline - Date.now()) };
+        }
+        await page.waitForTimeout(250);
+    }
+    return {
+        ok: false,
+        name: 'setup-reply-did-not-arrive',
+        state: last,
+        waitedMs: timeoutMs,
+        peerCompletions,
+        // THE READINGS THAT SEPARATE THE FINDINGS, stated so a log line is self-explanatory.
+        reading: last?.lastIsUser === true
+            ? 'the last message is still the USER turn: no assistant message was created'
+            : (last?.lastTextLength === 0
+                ? 'an assistant message exists but its text is EMPTY: the reply was created without content'
+                : (last?.isSendPress === true || last?.streamingProcessor === true
+                    ? 'the page is still GENERATING: the reply never settled'
+                    : 'the page settled in a state that satisfies no expected condition')),
+    };
+}
+
+
 // ---------------------------------------------------------------------------------------------------------------
 // ONE TURN, THROUGH THE FRONTEND'S OWN SEND, AND ONE REGENERATE.
 // ---------------------------------------------------------------------------------------------------------------

@@ -70,7 +70,7 @@ import { ensurePinnedExtensionInstalled } from './install-pinned-extension.mjs';
 import { pinnedExtension } from './pinned-extensions.mjs';
 import {
     chatCarrying, configureConnection, openCharacter, openPage, pressRegenerateThroughMenu,
-    readChatFiles, readProcessCommands, saveConditional, sendTurn, settleQuiet, silenceAndObserve,
+    readChatFiles, readProcessCommands, saveConditional, sendTurn, settleQuiet, silenceAndObserve, waitForReply,
 } from './q20-persistence-drive.mjs';
 import { argumentValue, bootSubject, freePort, repoRoot, startCapturePeer, waitForServer } from './q20-leg-runtime.mjs';
 
@@ -240,28 +240,38 @@ try {
 
     const beforeFirst = await readChatFiles(dataRoot);
     if (openedContext.chatLength < 3) {
-        // A fresh chat has ONE greeting. Two turns make it (greeting, user, assistant) twice over.
+        // A fresh chat has ONE greeting. Two turns make it (greeting, user, assistant, user, assistant).
+        //
+        // THE TURN WAITS ON THE PRODUCT'S SETUP STATE AND FAILS BY NAME -- `waitForReply` in the shared drive -- rather
+        // than polling for "the user turn exists". Run 40448869208 measured what polling for a USER turn costs: the
+        // leg proceeded while the assistant reply had not landed, and the swipe that followed was performed on the
+        // user message, a state the frontend refuses silently. `requireText` is FALSE for the reason recorded in the
+        // comparator's `emptyReplyOnBothSubjects`: the stored reply has empty text on BOTH subjects (40445671791,
+        // 40448869208), which is an OPEN fixture finding, not a condition this leg may convert into a red.
         for (const [index, turnMarker] of [[0, MARKERS.first], [1, MARKERS.second]]) {
             const sent = await sendTurn(page, index === 0 ? `Q20 regenerable first turn ${turnMarker}` : `Q20 regenerable second turn ${turnMarker}`);
             report[`send${index + 1}`] = sent;
-            const deadline = Date.now() + 30000;
-            let files = [];
-            while (Date.now() < deadline) {
-                files = await readChatFiles(dataRoot);
-                if (chatCarrying(files, turnMarker)) break;
-                await page.waitForTimeout(500);
+            const countBefore = peer.requests.filter(entry => /chat\/completions/.test(entry.path ?? '')).length;
+            const reply = await waitForReply(page, { timeoutMs: 60000, requireText: false, peerCompletions: countBefore + 1 });
+            report[`reply${index + 1}`] = reply;
+            step(`turn-${index + 1}-reply-settled`, reply.ok === true, reply.ok === true ? JSON.stringify(reply.state) : JSON.stringify(reply));
+            if (!reply.ok) {
+                // THE NAMED FAILURE IS THE RESULT: stop here rather than let the later steps act on a state a user
+                // cannot reach. The step above already carries `setup-reply-did-not-arrive` and the falsifier.
+                report.failure = report.failure ?? `${reply.name}: ${reply.reading} ${JSON.stringify(reply.state)} peerCompletions=${JSON.stringify(reply.peerCompletions)}`;
+                break;
             }
+            // THE TURN IS ON DISK THROUGH THE FRONTEND'S OWN WRITE-NOW, and the file (not a snapshot) is what the
+            // later steps read. `saveChatConditional` is the entry `/Generate` itself ends with (script.js:5573).
+            await saveConditional(page);
             await settleQuiet(page, recorder);
+            const files = await readChatFiles(dataRoot);
             const carried = chatCarrying(files, turnMarker) !== null;
-            // THE REPLY MUST EXIST BEFORE THE NEXT TURN, or regenerate would be replacing a user message and the
-            // pinned control would refuse it (`chat[...].is_user == false` at :11630).
-            const lastIsAssistant = await page.evaluate(async () => {
-                const script = await import('./script.js');
-                const chat = script.chat ?? [];
-                return { chatLength: chat.length, lastIsUser: chat[chat.length - 1]?.is_user === true };
-            });
-            step(`turn-${index + 1}-saved`, carried, `${JSON.stringify(lastIsAssistant)} files=${files.map(file => `${file.file}:${file.lines}`).join(',') || 'none'}`);
-            if (!carried) break;
+            step(`turn-${index + 1}-saved`, carried, files.map(file => `${file.file}:${file.lines}`).join(',') || 'none');
+            if (!carried) {
+                report.failure = report.failure ?? `turn-${index + 1}-saved: the file on disk does not carry ${turnMarker}`;
+                break;
+            }
         }
     }
     await settleQuiet(page, recorder);
