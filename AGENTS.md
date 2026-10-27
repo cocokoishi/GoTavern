@@ -1176,6 +1176,30 @@ rather than by review.
     pass instead of three runs. **When successive fixes to one predicate are each off by a step, stop refining the
     predicate and read the sequence it is trying to detect.**
 
+89. **An export is not a member, and a one-boolean step hides which half of a relationship failed.** Two measured
+    defects in one run, and the second is what let the first survive a whole run unseen.
+    THE PROPERTY DID NOT EXIST. The lane polled `window.SillyTavern.eventSource` for readiness.
+    `globalThis.SillyTavern = { libs, getContext };` (`script.js:293`) carries exactly TWO members, and
+    `eventSource` lives in the module's separate `export { ..., eventSource, ... };` block (`:327`), which does NOT
+    add a member to `SillyTavern`. So the property was `undefined` on EVERY page forever and the poll could only
+    ever time out. The real handle is `getContext().eventSource` (`scripts/st-context.js:138`, beside
+    `eventTypes: event_types`), and `SillyTavern.getContext` IS assigned at `:295`.
+    **The lane's own words are the rule: it verified that `eventSource` was EXPORTED and never that it was
+    REACHABLE FROM THE OBJECT IT READ IT OFF. Those are different claims, and it treated one as the other.**
+    Reading the assignment at `:293` -- seven lines -- would have shown what the object carries.
+    AND THE STEP PRINTED ONE BOOLEAN, so the run could not say which half failed. The lane HAD a field that would
+    have named it (`__q20AppReadySubscribeFailed`) and never looked, and the same one-line message appeared for a
+    DIFFERENT cause in the previous run -- so the log was not merely uninformative, it was misleading by
+    coincidence. The fix records `__q20Readiness` (`settingsReady`, `appReady`, `subscribed`, `subscribeFailed`,
+    `viaFallback`, `preloaderGone`) and all three probes print it in their `page-loaded` detail. That is rule 64's
+    second clause again: the summary must carry the fields its own guards read.
+    THE FAMILY, and the lane listed it itself: `settingsReady` assumed to mean ready (flag vs event), `#preloader`
+    assumed to mean initialised (loader vs init), `domcontentloaded` assumed to mean the page had not run yet
+    (already run), and now `eventSource` assumed to be a member (exported vs reachable). **Each time it checked ONE
+    END of a relationship and inferred the other.** The check that catches all four is the same: name both ends --
+    the value and the object it is read from, the flag and the event it stands for, the signal and the state it
+    implies -- and verify the join rather than either side.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
