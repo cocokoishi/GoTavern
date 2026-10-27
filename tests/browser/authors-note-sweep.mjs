@@ -168,6 +168,13 @@ for (const caseId of cases) {
     console.log(`${result.verdict.padEnd(16)} ${caseId}${result.verdict === 'PASS' ? '' : ` -- ${result.reason}`}`);
 }
 const sweep = sweepVerdict({ results, overlay, expectations });
+// The deepest depth this sweep actually drove AND that PASSed, computed from the case records rather than
+// written as a literal: a number that describes the run must come from the run.
+const deepestMeasured = results
+    .filter(entry => entry.verdict === 'PASS' && entry.case?.position === 'IN_CHAT')
+    .map(entry => entry.case?.depth)
+    .filter(depth => Number.isInteger(depth))
+    .reduce((a, b) => Math.max(a, b), 0);
 const artifact = {
     schemaVersion: 1,
     surface: 'authors-note',
@@ -178,8 +185,33 @@ const artifact = {
     context: expectations?.context ?? null,
     parityDepth: expectations?.parityDepth ?? overlay.parityDepth,
     inputs: { expectations: path.basename(expectationsPath), legs: cases.map(caseId => `${caseId}-{gotavern,pinned}.json`) },
+    // WHICH DEPTH CLASSES THIS SWEEP COVERS, AND WHICH IT DOES NOT. Stated as named fields because the
+    // difference between "we measured it", "we decided it is out of scope" and "we never tested it" is the
+    // whole point of a coverage claim, and prose in a commit message does not travel with the artefact.
+    depthCoverage: {
+        deepestMeasuredDepth: deepestMeasured,
+        // `null` is deliberate: there is NO depth at this budget that keeps the note AND every declared turn
+        // (measured, see the numbers below), so "an implementation clamps depth to the history length" is
+        // UNTESTED. Null means unproven; it must never be read as covered.
+        pastHistoryInsideBudget: null,
+        pastHistoryInsideBudgetWhy: 'MEASURED ABSENT: at the keep context the budget holds 12 history turns only when the note is absent. Pinned legs: depth 8 -> 26 messages, 11 history turns, note present; depth 14 -> 23 messages, 12 history turns, note absent (Browser differential 40451173262); depth 20 -> the same 23/12/absent shape (40447689701). The class is therefore unmeasurable against this fixture and the case is retired, not tuned.',
+        pastBudgetOutOfScope: {
+            depths: [14, 20],
+            rule: 'depth past the budget is a truncation fact, not a depth fact',
+            measured: {
+                depth20Run: '40447689701',
+                depth14Run: '40451173262',
+                noteAbsentBothRuns: true,
+                collapsedOntoTheDisabledCase: 'c94a514779239e5d (identical bytes for depth 20 and interval 0, on both subjects)',
+            },
+            ownedBy: 'Q18 (truncation-set-gate.mjs) at the boundary preset-boundary-search.mjs measured',
+        },
+    },
     cases: results,
     sweep: sweep.checks,
+    // Checks that are `null` were deliberately NOT MEASURED. Reported beside the verdict so a decided
+    // exclusion is a stated gap and never a silent pass.
+    notMeasured: sweep.notMeasured ?? [],
     failureReason: sweep.reason,
     verdict: sweep.verdict,
     verdictTaxonomy: ['PRODUCT_MISMATCH', 'PINNED_BEHAVIOR', 'HARNESS_ERROR', 'INFRA_ERROR', 'BLOCKED', 'PASS'],

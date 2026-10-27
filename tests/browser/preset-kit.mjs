@@ -557,14 +557,16 @@ export function authorsNoteOverlaySpec() {
     return {
         // ASCII only, so no encoding trap can hide a difference.
         text: `${AUTHORS_NOTE_OVERLAY_MARKER} Keep the reply under four sentences.`,
-        // THE HISTORY IS LONG ENOUGH THAT DEPTH DISCRIMINATES. The preset's own history is 12 turns
-        // plus the greeting; depths 0, 4, 6, 8 and 20 all fall at different places inside it, and 20 is
-        // beyond the oldest turn so the clamp (`Math.min`, openai.js:867) is reachable.
+        // THE HISTORY IS LONG ENOUGH THAT DEPTH DISCRIMINATES, AND THE BUDGET IS THE LIMIT. At the keep
+        // context the pinned trimmer (openai.js:949-1075) holds 12 history turns only when the note is absent,
+        // so the deepest depth that still delivers the note is 8. Measured on the pinned leg: depths 0, 4, 6
+        // and 8 arrive; 14 and 20 do not (see `depth-deeper-than-history`'s retirement note below).
         parityDepth: 6,
-        // BEYOND THE HISTORY BUT INSIDE THE BUDGET: 14 turns below the note against a 12-turn history, so the
-        // note passes the OLDEST declared turn AND still arrives. Depth 20 was measured to DROP the note
-        // entirely at this budget on both subjects, which made the case indistinguishable from the disabled
-        // one (see `depth-deeper-than-history` below for the measurement and the reasoning).
+        // RETIRED, AND KEPT ONLY AS THE RECORD OF WHAT WAS TRIED. Two runs measured a deep case (depth 20 in
+        // 40447689701, depth 14 in 40451173262) and produced IDENTICAL pinned numbers with the note absent, so
+        // no value in this class can measure depth against this fixture. `resolveAuthorsNoteCase` can still
+        // resolve the intent (a future fixture with a larger budget may re-use it); no case in `cases` below
+        // declares it, and both the sweep and the self-checks treat its absence as a stated gap.
         deeperThanHistoryDepth: 14,
         depth: 6,
         cases: [
@@ -577,22 +579,32 @@ export function authorsNoteOverlaySpec() {
             { id: 'depth0', role: 'system', enabled: true, depthIntent: 'zero' },
             { id: 'depth4', role: 'system', enabled: true, depthIntent: 'item', depthFromParity: -2 },
             { id: 'depth8', role: 'system', enabled: true, depthIntent: 'item', depthFromParity: 2 },
-            // DEEPER THAN THE HISTORY: 14 turns below the note against a 12-turn history, i.e. past the
-            // OLDEST declared turn but still inside the assembled list, so the note still ARRIVES.
+            // RETIRED: `depth-deeper-than-history`. READ THIS BEFORE RE-ADDING A DEEP CASE.
             //
-            // This value is a discovered boundary and not a guess. The first version used depth 20 and the
-            // pinned leg measured a 23-message request at bodyLength 14501 in which the note was ABSENT
-            // (`carriesNoteMarker: false`) -- and, crucially, the DISABLED case measured the SAME bytes
-            // (`c94a514779239e5d` on both subjects, both cases). Two cases with different intents had
-            // collapsed into one observation, so the sweep could not discriminate them and said so instead of
-            // passing. At depth 20 the insertion point falls among the messages `populateChatHistory` sheds at
-            // this budget (`injectIdx = Math.min(depth + totalInserted, messages.length)`, openai.js:866-868,
-            // interacting with the trimmer at :949-1075), so "the note is dropped" is not a property of the
-            // DEPTH axis at all -- it is the budget, and it belongs to the disabled comparison it was
-            // accidentally identical to. Depth 14 keeps the case about DEPTH: the note goes past the oldest
-            // turn AND survives, which is the only form in which "deeper than history" says anything the other
-            // cases do not.
-            { id: 'depth-deeper-than-history', role: 'assistant', enabled: true, depthIntent: 'deeper-than-history' },
+            // Two preset runs measured it and both said the same thing, which is why it is gone rather than
+            // tuned again. Browser differential 40447689701 at depth 20 and 40451173262 at depth 14 produced
+            // IDENTICAL pinned numbers -- noteIndex -1, historyBelow 12, messages 23, bodyLength 14501 -- with
+            // the note ABSENT from the request. Comparing the two depths that DO work, from the same run's
+            // legs:
+            //     depth 8   -> 26 messages, 11 history turns, TURN_00 absent, note PRESENT at index 15
+            //     depth 14  -> 23 messages, 12 history turns, TURN_00 present, note ABSENT
+            // Raised past what the budget can hold, the trimmer (`populateChatHistory`, openai.js:949-1075)
+            // releases older turns, which frees tokens, which lets the frontend emit MORE messages, which moves
+            // the list the injection is placed against (`injectIdx = Math.min(depth + totalInserted,
+            // messages.length)`, openai.js:866-868). At this keep context (4260) the note arrives at depths 0,
+            // 4, 6 and 8 and does not arrive at 14 or 20.
+            //
+            // DEPTH PAST THE BUDGET IS A TRUNCATION FACT, NOT A DEPTH FACT. A case whose observation is "the
+            // note vanished" measures the trimmer, which Q18 already owns with a measured boundary; worse, the
+            // depth-20 form collapsed onto the DISABLED case's exact bytes (`c94a514779239e5d`), i.e. two
+            // different intents, one observation. A fourth value would be a guess dressed as a measurement.
+            //
+            // WHAT IS THEREFORE UNPROVEN AND IS NOT CLAIMED: there is NO depth at this budget that keeps the
+            // note AND every declared turn, so "an implementation clamps depth to the history length" is
+            // UNTESTED. The artefact records that as `pastHistoryInsideBudget: null` with these measurements
+            // beside it, rather than implying coverage. Depth 8 is the deepest point this fixture can still
+            // say something about DEPTH.
+            //
             // DISABLED BY THE PRODUCT'S OWN GATE: `setFloatingPrompt` writes position NONE when the
             // interval is <= 0 (authors-note.js:351-356), which is what the UI's "(0 = Disable)" label
             // promises. The note must be absent from the request -- and the request must still exist,

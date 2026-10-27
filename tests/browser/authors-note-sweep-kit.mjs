@@ -148,33 +148,26 @@ export function sweepVerdict({ results, overlay, expectations }) {
     // `historyBelow` (a HISTORY count) is the measure and the raw index is not: a sibling system injection
     // occupies the neighbouring slot without moving the count.
     checks.depthZeroIsTheNewestPosition = zero === 0 && Boolean(parity) && parity.historyBelow > 0;
-    const deepCase = (overlay.cases ?? []).find(entry => entry.depthIntent === 'deeper-than-history');
-    const deepLayout = deepCase ? layoutFor(deepCase.id) : null;
-    // DEEPER THAN EVERY DECLARED HISTORY TURN -- which is what the case NAME promises, and what the pinned
-    // measurement shows. It is NOT the clamp, and saying so is a correction the oracle forced.
-    //
-    // The first version asserted "the clamp bound" (`historyBelow <= parity`), i.e. that the note landed at
-    // the very top of the list. The pinned measurement from Browser differential 40447689701 contradicts it:
-    // depth 20 against a 12-turn history produced `historyBelow = 12`, i.e. the note sits below ALL TWELVE
-    // history turns and still inside the 23-message list, so depth 20 does NOT reach
-    // `Math.min(depth + totalInserted, messages.length)` -- the list is long enough (the prompt block is
-    // above the history) that a depth of 20 is reachable WITHOUT clamping. Asserting the clamp would have
-    // demanded a behaviour the pinned frontend does not have, i.e. it would have been an oracle gap dressed
-    // as an oracle.
-    //
-    // What the case is genuinely about is therefore: the note went PAST the oldest history turn, which is
-    // only observable as "at least as many turns below it as the scenario declares". The declared turn count
-    // travels BOTH at the top level (`expectations.turns`) and on each case record (`declaredTurns`, written
-    // by prepare-authors-note.mjs), so a comparator reading either has it; `deeperThanHistoryUsedTheDeclared-
-    // TurnCount` records which form was actually available, so a weaker basis is visible rather than implied.
-    const caseTurns = expectations?.cases?.[deepCase?.id]?.declaredTurns;
-    const declaredTurns = Array.isArray(caseTurns) ? caseTurns.length
-        : (Array.isArray(expectations?.turns) ? expectations.turns.length : null);
-    checks.deeperThanHistoryGoesPastEveryDeclaredTurn = Boolean(deepLayout) && Boolean(parity)
-        && (declaredTurns !== null
-            ? deepLayout.historyBelow >= declaredTurns
-            : deepLayout.historyBelow > parity.historyBelow);
-    checks.deeperThanHistoryUsedTheDeclaredTurnCount = declaredTurns !== null;
+    // THE DEEPER-THAN-HISTORY CLASS IS RETIRED (see the case comment in preset-kit.mjs). When the case is
+    // absent these two checks are NOT "false" -- a check that fails because the thing it measures was
+    // deliberately removed would make every run red for a decided exclusion. They become `null`, which this
+    // function reports as NOT MEASURED, and `pastHistoryInsideBudget` is written into the artefact so the
+    // absence is a stated gap rather than a silent one.
+    const deepCase = (overlay.cases ?? []).find(entry => entry.depthIntent === 'deeper-than-history') ?? null;
+    if (!deepCase) {
+        checks.deeperThanHistoryRetiredNotMeasured = null;
+        checks.pastHistoryInsideBudgetUnproven = null;
+    } else {
+        const deepLayout = layoutFor(deepCase.id) ?? null;
+        const caseTurns = expectations?.cases?.[deepCase.id]?.declaredTurns;
+        const declaredTurns = Array.isArray(caseTurns) ? caseTurns.length
+            : (Array.isArray(expectations?.turns) ? expectations.turns.length : null);
+        checks.deeperThanHistoryGoesPastEveryDeclaredTurn = Boolean(deepLayout) && Boolean(parity)
+            && (declaredTurns !== null
+                ? deepLayout.historyBelow >= declaredTurns
+                : deepLayout.historyBelow > parity.historyBelow);
+        checks.deeperThanHistoryUsedTheDeclaredTurnCount = declaredTurns !== null;
+    }
     // A DISCRIMINATING SWEEP: every PASSING case produced a DIFFERENT pinned request. Two cases that agree
     // byte-for-byte are one case wearing two names, and a harness that cannot tell them apart must fail
     // itself (AGENTS.md 50) rather than report a wider claim than it measured.
@@ -194,13 +187,20 @@ export function sweepVerdict({ results, overlay, expectations }) {
 
     const failureRank = ['INFRA_ERROR', 'HARNESS_ERROR', 'PRODUCT_MISMATCH', 'PINNED_BEHAVIOR', 'BLOCKED'];
     const worst = failureRank.find(verdict => results.some(entry => entry.verdict === verdict)) ?? null;
-    const failedChecks = Object.entries(checks).filter(([, value]) => value !== true).map(([name]) => name);
+    // A CHECK IS `true`, `false` OR `null`, AND THE THREE MEAN DIFFERENT THINGS.
+    //   true  -> measured and held.
+    //   false -> measured and did not hold: a red.
+    //   null  -> deliberately NOT MEASURED (a retired case), reported as a stated gap rather than a failure.
+    // Treating `null` as a failure would make every run red for a decided exclusion, which is how a red
+    // becomes noise and then gets ignored. `notMeasured` travels in the result so the gap stays visible.
+    const failedChecks = Object.entries(checks).filter(([, value]) => value === false).map(([name]) => name);
+    const notMeasured = Object.entries(checks).filter(([, value]) => value === null).map(([name]) => name);
     if (worst) {
         const named = results.filter(entry => entry.verdict === worst).map(entry => entry.caseId);
-        return { checks, verdict: worst, reason: `${named.join(', ')}: ${results.find(entry => entry.verdict === worst)?.reason ?? 'no reason recorded'}` };
+        return { checks, notMeasured, verdict: worst, reason: `${named.join(', ')}: ${results.find(entry => entry.verdict === worst)?.reason ?? 'no reason recorded'}` };
     }
     if (failedChecks.length > 0) {
-        return { checks, verdict: 'HARNESS_ERROR', reason: `every case agreed, but the SWEEP is not discriminating: ${failedChecks.join(', ')}` };
+        return { checks, notMeasured, verdict: 'HARNESS_ERROR', reason: `every case agreed, but the SWEEP is not discriminating: ${failedChecks.join(', ')}` };
     }
-    return { checks, verdict: 'PASS', reason: null };
+    return { checks, notMeasured, verdict: 'PASS', reason: null };
 }

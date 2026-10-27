@@ -63,7 +63,12 @@ if (argv.includes('--self-check')) {
     if (!MARKERS.history || !AUTHORS_NOTE_OVERLAY_MARKER) problems.push('preset-kit.mjs does not declare both markers');
     if (overlay.parityDepth < 1) problems.push('the parity depth must be >= 1, or "deeper than parity" cases cannot exist');
     if (!resolved.some(entry => entry.depth === 0)) problems.push('the case list has no depth-0 case');
-    if (!resolved.some(entry => entry.depthIntent === 'deeper-than-history')) problems.push('the case list has no deeper-than-history case');
+    // The deeper-than-history case is RETIRED (preset-kit.mjs records the two runs that forced it), so its
+    // absence is correct. What must still be present is a case DEEPER than the parity anchor but inside the
+    // budget -- depth 8 -- because that is the only remaining case in which depth itself can move the note.
+    if (!resolved.some(entry => entry.depthIntent === 'item' && entry.depth > overlay.parityDepth)) {
+        problems.push('the case list has no case deeper than the parity anchor that still delivers the note; depth 8 is the deepest point this fixture can measure');
+    }
     if (!resolved.some(entry => entry.enabled === false)) problems.push('the case list has no disabled case');
     if (!resolved.some(entry => entry.position === 'IN_PROMPT')) problems.push('the case list records no non-IN_CHAT position');
     if (problems.length > 0) {

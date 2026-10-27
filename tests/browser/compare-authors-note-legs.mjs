@@ -87,8 +87,13 @@ function selfCheck(expectationsPath) {
     }
     const overlay = typeof authorsNoteOverlaySpec === 'function' ? authorsNoteOverlaySpec() : null;
     const ids = (overlay?.cases ?? []).map(entry => entry.id);
-    for (const required of ['depth0', 'depth-deeper-than-history', 'parity']) {
+    // `depth-deeper-than-history` is RETIRED (see the case comment in preset-kit.mjs): it is deliberately not
+    // in the list, so requiring it here would make the self-check refuse a decided exclusion.
+    for (const required of ['depth0', 'parity']) {
         if (!ids.includes(required)) problems.push(`the overlay case list has no ${JSON.stringify(required)} case (it has ${JSON.stringify(ids)})`);
+    }
+    if (!ids.some(id => { try { const r = resolveAuthorsNoteCase(overlay, id); return r.depthIntent === 'item' && r.depth > Number(overlay.parityDepth); } catch { return false; } })) {
+        problems.push('the overlay case list records no depth BELOW the parity anchor that still arrives -- depth 8 is the only case that can show depth moving the note deeper inside the budget');
     }
     if (!ids.some(id => /in[-_]prompt/i.test(id))) problems.push('the overlay case list records no non-IN_CHAT position case');
     if (!ids.some(id => { try { return resolveAuthorsNoteCase(overlay, id).enabled === false; } catch { return false; } })) problems.push('the overlay case list records no DISABLED case');
