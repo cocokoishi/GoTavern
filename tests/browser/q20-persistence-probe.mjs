@@ -923,7 +923,11 @@ try {
         candidateIndexes: candidates.map(message => message.index),
         pageMesId: swipeBefore.mesId ?? null,
         swipesCount: persisted?.swipesCount ?? null,
-        swipeId: persisted?.swipeId ?? null,
+        // THE FIELD IS `swipe_id`, from `chatCarrying`; `swipeId` does not exist on a mapped message. Writing
+        // `persisted.swipeId` read `undefined` and failed the comparison while the file held the right value -- which
+        // is the whole of the artefact/replay disagreement this lane left open: replaying the SAME recorded
+        // `finalFiles` through the same module gives `swipe_id: 1`, and only the assertion's spelling was wrong.
+        swipeId: persisted?.swipe_id ?? null,
         isUser: persisted?.is_user ?? null,
     } : null;
     // EACH SUB-CONDITION IS NAMED, so a red says WHICH field disagreed instead of handing back one boolean.
@@ -936,7 +940,7 @@ try {
         'the file holds the same message count the page showed': Boolean(swipeFile) && persistedMessages.length === Number(swipeAfter.chatLength ?? -1),
         'the swiped message is not a user message': persisted?.is_user === false,
         'the persisted swipes array GREW past what the page had before the swipe': Number(persisted?.swipesCount ?? 0) > grewBeyond,
-        'the persisted swipe_id is the one the page selected': Number(persisted?.swipeId ?? -1) === Number(swipeAfter.swipeId ?? -2),
+        'the persisted swipe_id is the one the page selected': Number(persisted?.swipe_id ?? -1) === Number(swipeAfter.swipeId ?? -2),
     };
     const failedSwipeChecks = Object.entries(swipeChecks).filter(([, ok]) => !ok).map(([name]) => name);
     step('final-file-reflects-swipe', failedSwipeChecks.length === 0,
