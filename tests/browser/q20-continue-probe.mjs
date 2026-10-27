@@ -301,12 +301,63 @@ try {
     });
     report.openedContext = openedContext;
 
+    // THE CHAT IS SELECTED EXPLICITLY WHEN THE CALLER NAMES ONE -- the SAME block the regenerate probe carries, and it
+    // was MISSING here until run 40574536117 measured the cost.
+    //
+    // MEASURED: the workflow resolved and passed `--chat-id "Seraphina - 2023-5-12 @21h 32m 29s 224ms"`, the pinned
+    // leg drove 23 steps green WITHOUT a `chat-selected` step, and the comparator then reported `sameChat`,
+    // `sameMessageGrown`, `nudgeAssemblesLast`, `nodeEqualsGoContinue` and `nextRequestClean` red. THIS PROBE HAD NO
+    // `--chat-id` HANDLING AT ALL -- it did not read the argument and never called the selector -- so the argument was
+    // accepted on the command line and silently ignored, and the pinned leg continued whatever chat the card resumed.
+    //
+    // That is the producer/consumer split again, one layer up: the workflow's consumer was fixed and its producer read
+    // nothing. A click on the card opens the card's LAST-USED chat, which in the copied tree is an 11-message chat from
+    // an earlier run, while the GoTavern leg sat on its own five-message chat.
+    //
+    // `openCharacterChat(file_name)` (pinned script.js:7744) is the product's own entry, and the selection is READ BACK
+    // through `getContext()` -- rule 58 -- so a mismatch fails BY NAME rather than proceeding on a different chat.
+    const wantedChatId = argumentValue(process.argv, '--chat-id', process.env.Q20_CHAT_ID ?? null);
+    if (wantedChatId) {
+        const selected = await page.evaluate(async target => {
+            const script = await import('./script.js');
+            if (typeof script.openCharacterChat !== 'function') {
+                return { requested: target, selected: false, reason: 'openCharacterChat is not exported by the pinned frontend' };
+            }
+            const before = window.SillyTavern.getContext();
+            const beforeId = before.chatId ?? null;
+            await script.openCharacterChat(target);
+            const settle = Date.now() + 30000;
+            while (Date.now() < settle) {
+                const now = window.SillyTavern.getContext();
+                if (String(now.chatId ?? '') === String(target) && (now.chat ?? []).length > 0) {
+                    return { requested: target, selected: true, chatId: String(now.chatId), chatLength: (now.chat ?? []).length, beforeId: String(beforeId ?? '') };
+                }
+                await new Promise(resolve => setTimeout(resolve, 250));
+            }
+            const final = window.SillyTavern.getContext();
+            return { requested: target, selected: false, chatId: final.chatId ?? null, chatLength: (final.chat ?? []).length, beforeId: String(beforeId ?? ''), reason: 'the product never reported the requested chat id' };
+        }, wantedChatId);
+        report.chatSelection = selected;
+        step('chat-selected', selected.selected === true && String(selected.chatId ?? '') === String(wantedChatId),
+            JSON.stringify(selected));
+        report.openedContext = { ...report.openedContext, chatIdAfterSelection: selected.chatId ?? null, chatLengthAfterSelection: selected.chatLength ?? null };
+        // The PRECONDITION IS RE-EVALUATED ON THE SELECTED CHAT: the length read before selection belonged to whatever
+        // chat the card happened to resume, and the steps below need the count of the conversation actually in use.
+        report.openedContext.chatLength = selected.chatLength ?? report.openedContext.chatLength;
+    } else {
+        report.chatSelection = { requested: null, selected: null, reason: 'no --chat-id was supplied; the leg accepted the chat the card resumed' };
+    }
+
     // 1. BRING THE CHAT TO (greeting, user, assistant, user, assistant) -- the same five-message shape the
     // regenerate leg uses, so the two verbs are measured on one conversation and not on two.
     const silenced = await silenceAndObserve(page);
     report.silenced = silenced;
     step('frontend-observers-installed', silenced.processCommandsWrapped === true, JSON.stringify(silenced));
-    if (openedContext.chatLength < 3) {
+    // THE GATE READS THE SELECTED CHAT'S LENGTH, not the pre-selection snapshot. `openedContext.chatLength` was read
+    // before `chat-selected`, so on a leg that switches chats it describes the conversation the card RESUMED -- the
+    // 11-message chat this probe exists to avoid. Left as-is, the setup below would decide "already has enough turns"
+    // from a chat that is no longer open.
+    if (report.openedContext.chatLength < 3) {
         // THE TURN WAITS ON THE PRODUCT'S SETUP STATE AND FAILS BY NAME -- `waitForReply` in the shared drive. See the
         // regenerate probe's note: polling for "the user turn exists" let a leg proceed while the assistant reply had
         // not landed (run 40448869208), and `requireText` is false because the stored reply has empty text on BOTH
