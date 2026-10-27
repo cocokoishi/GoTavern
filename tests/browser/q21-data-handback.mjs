@@ -154,36 +154,108 @@ async function hashTree(root) {
 // page's own list was full). `tests/browser/q20-persistence-probe.mjs:440-472` has the shape that works and is now
 // used verbatim here: wait for the CARD in the DOM (`.character_select#CharID<n>`, script.js:945), click it, then
 // wait on the PRODUCT's own chat state. The card's `data-chid` is recorded so a future mismatch is a field.
-// BOTH HALVES MUST OPEN THE SAME CARD, BY THE NAME THE SERVER SHOWS. Run 40435820387 and its predecessors opened
-// whatever card the DOM rendered first, which is only the same card by luck; the GoTavern half now publishes the
-// staged card's own `data.name` through Q21_CHARACTER_NAME and this opener matches on it, so a mismatch is a
-// named failure instead of two different characters being compared. The DOM remains the source of the click
-// (script.js:945 renders `.character_select#CharID<n>`), because reading page state through a probe-side module
-// instance has already failed twice in this lane.
+// BOTH HALVES MUST OPEN THE SAME CARD, BY THE NAME THE SERVER SHOWS, AND MUST PROVE WHICH CARD THEY OPENED.
+//
+// `Browser differential` 40467141027 (`mode=preset`, step "Hand GoTavern's own tree back to pinned Node (Q21)")
+// measured the previous version of this function's failure in full: `characterStaged` passed, and then
+// `gotavernWrote` failed with `chat files: default-user/chats/default_Assistant/Assistant - 2026-10-27@08h08m09s548ms.jsonl;
+// wanting one under chats/Q21 Handback Card/`. The product had opened the DEFAULT ASSISTANT, saved the turn under
+// it, and the report blamed the chat. On the pinned side the same defect read `no card matching "MARK_002794…";
+// rendered 0`, because the pinned page was still on the welcome screen.
+//
+// THREE THINGS WERE WRONG, and each is answered here:
+//  1. THE STEP LIST HAD NO `opened` ROW. A false opener proceeded to send, so an open failure was reported as a
+//     chat failure. The caller now asserts `opened` (see the `step('opened', …)` calls in each half) BEFORE
+//     anything derived from a chat, which is AGENTS 71: assert the precondition was reached before asserting
+//     what depends on it.
+//  2. THE OPENER MATCHED ON A LABEL THAT DOES NOT EXIST. The pinned template sets the card's `title` on the
+//     `id="CharID<n>"` ELEMENT (`public/script.js:950-957`), not on the `.character_select` wrapper, so reading
+//     `title` off the wrapper always answered "" and no card ever matched. The card is now identified from the
+//     PAGE'S OWN MODEL -- `document.getElementById('CharID<n>').getAttribute('title')` for the label, and the
+//     module's `characters[chid].avatar`/`name` for the identity -- because a label read from the wrong node is
+//     the same class of defect as a state read back through the wrong reader (AGENTS 58).
+//  3. THE WELCOME SCREEN WAS NEVER LEFT. A fresh install renders the welcome panel; `.character_select` rows may
+//     not exist yet, and `q20-persistence-probe.mjs:436-472` already records this shape. The opener now waits on
+//     the SERVER's roster *and* the DOM, clicks through the close button when the panel is up, and then REQUIRES
+//     that the open changed the page's character identity -- a click that leaves `this_chid` on the assistant is
+//     not an open of the staged card, whatever the DOM looked like.
+// The click still comes from the DOM card (`script.js:945` renders `#CharID<n>`), never from a probe-side model
+// mutation, because the question Q21 asks is what a USER can reach.
 async function openCharacterByName(page) {
     const wanted = process.env.Q21_CHARACTER_NAME ?? null;
     const rosterMs = Number(process.env.Q21_ROSTER_MS ?? 90000);
     return page.evaluate(async ({ name, limitMs }) => {
+        const script = await import('./script.js');
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
         const deadline = Date.now() + limitMs;
         let cards = [];
+        const collect = () => {
+            // THE CARD IS `#CharID<n>`; the wrapper carries the class and the id element carries the label.
+            cards = [...document.querySelectorAll('#rm_print_characters_block .character_select')].map(wrapper => ({
+                wrapper,
+                id: wrapper.getAttribute('id') ?? '',
+                label: String(document.getElementById(wrapper.getAttribute('id') ?? '')?.getAttribute('title')
+                    ?? wrapper.getAttribute('title') ?? '').trim(),
+            }));
+            return cards;
+        };
         while (Date.now() < deadline) {
-            cards = [...document.querySelectorAll('#rm_print_characters_block .character_select, #rm_print_characters_block .avatar[data-type="character"]')];
+            collect();
             if (cards.length > 0) break;
-            await new Promise(resolve => setTimeout(resolve, 250));
+            // THE WELCOME SCREEN FIRST: while it is up the roster may be empty, and a probe that waits on the
+            // roster alone times out on a page a user would simply click past.
+            const close = document.querySelector('#chat .mes');
+            if (!close) {
+                document.querySelector('#rm_button_close')?.click();
+                document.querySelector('.welcomePanel .close')?.click();
+            }
+            await sleep(250);
         }
-        const label = card => String(card.getAttribute('title') ?? card.getAttribute('data-chid') ?? '').trim();
-        const card = name ? cards.find(entry => label(entry) === name) ?? null : (cards[0] ?? null);
+        if (cards.length === 0) {
+            return {
+                opened: false,
+                reason: `no .character_select card rendered in #rm_print_characters_block after ${limitMs} ms`,
+                rendered: [],
+                modelNames: (script.characters ?? []).map(entry => entry?.name ?? null),
+            };
+        }
+        const before = {
+            thisChid: script.this_chid ?? null,
+            chatId: script.chatId ?? null,
+            name: script.this_chid !== undefined ? (script.characters?.[script.this_chid]?.name ?? null) : null,
+        };
+        const card = name ? cards.find(entry => entry.label === name) ?? null : cards[0];
         if (!card) {
-            return { opened: false, reason: `no card matching "${name}"; rendered ${cards.length}`, rendered: cards.map(label) };
+            return { opened: false, reason: `no card matching "${name}"`, rendered: cards.map(entry => entry.label), before };
         }
-        const dataChid = card.getAttribute('data-chid');
-        card.click();
+        const chid = card.id.replace('CharID', '');
+        card.wrapper.click();
+        // THE OPEN IS PROVEN BY THE PAGE'S OWN STATE, NOT BY THE CLICK: `this_chid` must become this card's id and
+        // its name must be the one the server listed. A click that leaves the welcome screen in place, or opens the
+        // assistant, fails here instead of three steps later.
         const settle = Date.now() + 30000;
+        let after = null;
         while (Date.now() < settle) {
-            if (document.querySelectorAll('#chat .mes').length > 0) break;
-            await new Promise(resolve => setTimeout(resolve, 250));
+            after = {
+                thisChid: script.this_chid ?? null,
+                chatId: script.chatId ?? null,
+                name: script.this_chid !== undefined ? (script.characters?.[script.this_chid]?.name ?? null) : null,
+                chatLength: (script.chat ?? []).length,
+                messages: document.querySelectorAll('#chat .mes').length,
+            };
+            if (String(after.thisChid) === String(chid) && after.chatLength > 0) break;
+            await sleep(250);
         }
-        return { opened: true, dataChid, label: label(card), messages: document.querySelectorAll('#chat .mes').length };
+        const opened = String(after?.thisChid) === String(chid) && after?.name === card.label;
+        return {
+            opened,
+            dataChid: chid,
+            label: card.label,
+            reason: opened ? null : `clicking "${card.label}" (CharID${chid}) left the page on ${JSON.stringify(after)}; wanted this_chid=${chid} name="${card.label}"`,
+            before,
+            after,
+            rendered: cards.map(entry => entry.label),
+        };
     }, { name: wanted, limitMs: rosterMs });
 }
 const report = {
@@ -455,6 +527,15 @@ async function gotavernWrites() {
         // so this half cannot drift to a different character than the half that reads it back.
         process.env.Q21_CHARACTER_NAME = report.stagedCard.ownName;
         report.opened = await openCharacterByName(page);
+        // THE PRECONDITION IS A STEP OF ITS OWN, ASSERTED BEFORE ANYTHING THAT DEPENDS ON IT. `Browser differential`
+        // 40467141027 sent a turn after the opener had failed and reported `gotavernWrote`, so the finding read
+        // "the chat went to the wrong character" when the truth was "the card never opened" -- the default
+        // assistant took the turn instead. A false opener now fails here, with the opener's own account of what it
+        // saw (rendered labels, the page's before/after identity), and nothing is sent.
+        step('opened', report.opened.opened === true, JSON.stringify(report.opened).slice(0, 600));
+        if (!report.opened.opened) {
+            throw new Error(`the GoTavern half could not open the staged card "${report.stagedCard.ownName}": ${report.opened.reason}`);
+        }
         const sent = await page.evaluate(async marker => {
             const script = await import('./script.js');
             const textarea = document.querySelector('#send_textarea');
@@ -505,6 +586,14 @@ async function pinnedReads() {
         await page.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 120000 });
         // THE SAME CARD, OPENED THE SAME WAY, on the tree the product wrote.
         report.opened = await openCharacterByName(page);
+        // THE SAME PRECONDITION STEP AS THE GOTAVERN HALF, and for the same measured reason: run 40467141027's
+        // pinned half reported four chat-derived failures (`pinnedOpened`, `pinnedReadTheChat`, `pinnedChatIdMatches`,
+        // `noDataLossOnHandBack`) whose single cause was that no card had opened -- the page was on the welcome
+        // screen. One named row here says that; four rows that each restate it do not.
+        step('opened', report.opened.opened === true, JSON.stringify(report.opened).slice(0, 600));
+        if (!report.opened.opened) {
+            throw new Error(`the pinned half could not open the card "${process.env.Q21_CHARACTER_NAME ?? '(none)'}": ${report.opened.reason}`);
+        }
         const read = await page.evaluate(marker => {
             const context = window.SillyTavern?.getContext?.();
             const chat = context?.chat ?? [];
@@ -518,7 +607,14 @@ async function pinnedReads() {
         report.pinnedRead = read;
         step('pinnedOpened', report.opened.opened === true && (read.messages > 0 || read.chatLength > 0), JSON.stringify({ opened: report.opened, read }));
         step('pinnedReadTheChat', read.carriesMarker === true, JSON.stringify(read));
-        step('pinnedChatIdMatches', typeof read.chatId === 'string' && read.chatId.length > 0 && read.chatId === report.opened.chatId, `pinned chatId=${read.chatId} opened chatId=${report.opened.chatId}`);
+        // THE CHAT IDENTITY IS THE FILE'S OWN NAME, compared against what the page says it opened. `opened.after.chatId`
+        // is the page's value AFTER the click; comparing it with itself would be vacuous, so the assertion pairs the
+        // chat id the context reports with the chat name the character row requested, and fails by naming both.
+        const chatId = read.chatId;
+        const openedChat = report.opened.after?.chatId ?? null;
+        step('pinnedChatIdMatches',
+            typeof chatId === 'string' && chatId.length > 0 && chatId === openedChat,
+            `pinned context chatId=${JSON.stringify(chatId)} opened chatId=${JSON.stringify(openedChat)}`);
         const before = await hashTree(dataRoot);
         report.treeBeforePinnedWrote = before;
         // IT ONLY MEANS SOMETHING IF PINNED ACTUALLY READ THE CHAT. Run 40412270626 had this guard pass while pinned
