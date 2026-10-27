@@ -1078,15 +1078,14 @@ func TestCitationAncestryGateCanGoRed(t *testing.T) {
 		// verdict is under test, and it must not appear here.
 	}
 	writeLedgerScratch(t, tree, ledger(siblingCommit), synthetic)
-	err = checkScorecardStructure(tree)
-	if err == nil {
+	refusal := checkScorecardStructure(tree)
+	if refusal == nil {
 		t.Fatalf("the gate ACCEPTED a citation whose run judged %s while the ledger describes %s, a commit that does not contain it", runCommit[:12], siblingCommit[:12])
 	}
-	if !strings.Contains(err.Error(), "not an ancestor") {
-		t.Fatalf("refused, but not for the ancestry reason: %v", err)
+	if !strings.Contains(refusal.Error(), "not an ancestor") {
+		t.Fatalf("refused, but not for the ancestry reason: %v", refusal)
 	}
 }
-
 func ledgerRow(n int, state, citation string) string {
 	return fmt.Sprintf("| Q%d | question %d | %s | %s |", n, n, state, citation)
 }
