@@ -832,6 +832,24 @@ rather than by review.
     Before adding an entry to any list that suppresses comparison, read what consumes the list and count what
     stops being checked.
 
+74. **A noisy checker is worse than no checker, because it gets discarded while the bug class survives.** A lane
+    hit a run-time scope error its toolchain could not see: `const presetStaged = ...` was declared INSIDE
+    `for (const subject of subjects) { ... }` while a module-scope `subjectGuards` object read it. Two scopes,
+    nothing compares them, and `node --check` passes because the code is legal syntax and illegal at run time. The
+    guard existed, the input existed, and they could not see each other — the input was on the wrong side of a
+    brace, which is rule 64's "the summary must carry the field the guard reads" in the language's own scoping
+    rules rather than in a log.
+    The lane then wrote a static check for the class, and **version one flagged 140 problems and was worthless**:
+    guards legitimately read `observed[subject].halfI.valueOnWire`, where `valueOnWire` is a property of a
+    loop-local object rather than a free variable. Filtering to BARE references only — not preceded by `.`, not an
+    object key, not a callback parameter, not a `const` inside the guards body — reduced 140 candidates to exactly
+    ONE, the real defect.
+    Two duties follow. A static check for a run-time error must be MUTATED like any other gate (reintroduce the
+    bug, observe the named red, restore BY BYTES, observe green), because an unmutated checker in a tree looks
+    authoritative while proving nothing. And a checker that fires on everything is not a strict checker: it is one
+    whose output nobody will read, and the defect it was written for survives inside the noise. Report the
+    candidate count BESIDE the finding, so a reader can see the check discriminated rather than saturated.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
