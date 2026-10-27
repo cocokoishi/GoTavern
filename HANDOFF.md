@@ -10,64 +10,73 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint — 2026-10-26
+## Latest checkpoint - 2026-10-27
 
 | Field | Value |
 |---|---|
-| **HEAD (main)** | `2a0d897` |
-| **Pinned baseline** | SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127` |
-| **Live evidence ledger** | `docs/goal-scorecard.md` — twenty-two rows, five classes, and `tests/docs/run-manifest.json` |
-| **Milestone ladder** | `GOAL.md` §11: M0 (closed) through M5; M1..M4 open |
+| **HEAD (main)** | `45473bb` |
+| **Pinned baseline** | SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a9165bce127` |
+| **Live evidence ledger** | `docs/goal-scorecard.md` -- twenty-two rows, five classes, and `tests/docs/run-manifest.json` |
+| **Milestone ladder** | `GOAL.md` section 11: M0 (closed) through M5; M1..M4 open |
+| **Main is GREEN** | `GoTavern CI` 40470281092 (success, `verify` job green) and `GoTavern drop-in qualification` 40470281044 (success), both on `45473bb` -- the first green `GoTavern CI` on `main` in this pass |
 
 ### Active lanes (8 slots: one lead, seven lanes, one owner per area)
 
-A lane owns an AREA, and two lanes never own the same area (`AGENTS.md` rule 39, and the collaboration
-contract in the same file). The table below is the CURRENT allocation; a lane not listed here has no owner
-and is not being worked on.
+A lane owns an AREA, and two lanes never own the same area (`AGENTS.md` rule 39). A lane not listed here has no
+owner and is not being worked on.
 
 | Slot | Area | State |
 |---|---|---|
-| lead | integration, merge into `main`, release decisions | active |
-| 1 | documentation, goal, oracle doctrine, evidence ledger | active — `AGENTS.md`/`GOAL.md`/`ARCHITECTURE.md`/`docs/goal-scorecard.md`; gate `internal/fixtures/documents_test.go` |
-| 2 | core config/startup boot | active |
-| 3 | Q21 data hand-back to pinned Node | active — leg is RED, class `harness failure` (see the ledger) |
-| 4 | Q19 streaming/cancel cut legs | active — on an UNMERGED branch, so `main` has no Q19 evidence |
-| 5 | Q17 Author's Note sweep | active — probes exist, no workflow invokes them |
-| 6 | Q18 truncation past the context boundary | active — no leg drives it yet |
-| 7 | visual assets / helper surfaces | active — Q3-Q8 proven on `Browser differential` 40325398585 (success) |
+| lead | integration, merge into `main`, evidence ledger, the session's rules | active -- `main` green at `45473bb` |
+| 1 | documentation, goal, ledger gate | complete -- merged; `AGENTS.md` rules 58-71 added from the lanes' own measurements |
+| 2 | core config/startup boot | active -- items 1, 1b, 2, 3, 4 green with demonstrated mutations; item 5 (provider edge cases) next |
+| 3 | Q21 data hand-back | active -- the card FIXTURE is repaired and CI-verified (`151/151`, `--check` ok); the hand-back run is queued |
+| 4 | Q17 Author's Note + Q18 truncation | **both rows cite a run now**: `Browser differential` 40465631698 -- Q17 `6/6 cases PASS`, Q18 step 25 SUCCESS, both teeth steps SUCCESS |
+| 5 | regex execution to the final request | active -- three recording defects found and fixed (module TDZ, call shapes, depth-inside-flag-clause); `mode=regex` run queued |
+| 6 | regenerate / continue (Q20) | active -- SSE peer built; `regenerate-ui-held-a-message` and `regenerate-file-holds-the-new-reply` pass for the FIRST time; neither comparator has executed yet |
+| 7 | helper variables (Q10/Q11) | active -- the narrow vehicle drives; four driver reds fixed; the mechanism guard `macroWasTheResolver` is in |
+| 8 | UI layout at four viewports | active on `lane/ui-viewport` -- the modal is dismissed, controls are `reachable`, and a render-state difference is a NAMED REFUSAL rather than a layout finding |
 
 ### Key Actions runs at this HEAD
 
-Quoted as `workflow name + run id + conclusion`, because a run id without its workflow name is not
-evidence (`AGENTS.md` rule 55). Every id here is in `tests/docs/run-manifest.json` with its `head_sha`.
+Quoted as `workflow name + run id + conclusion` (`AGENTS.md` rule 55). Every id here is in
+`tests/docs/run-manifest.json` with its `head_sha`.
 
 | Workflow | Run | Conclusion | What it says |
 |---|---|---|---|
-| `GoTavern CI` | 40438192589 | success | build, vet, gofmt, full Go suite, document-facts and matrix checks |
-| `GoTavern drop-in qualification` | 40438192579 | success | the packaged archive boots a stock tree |
-| `Browser differential` | 40438262854 | **failure** | assets/helper/preset/Q20 legs passed; the Q21 hand-back step FAILED — driver staging, not a product finding |
-| `Browser differential` | 40325398585 | success | asset + helper legs, which is where Q3-Q8 are proven |
-| `Browser differential` | 40387864205 | success | Q20 save -> reload -> swipe |
+| `GoTavern CI` | 40470281092 | success | build, vet, gofmt, the full Go suite, document-facts, the matrix gate and the ledger gate |
+| `GoTavern drop-in qualification` | 40470281044 | success | the packaged archive boots a stock tree |
+| `Browser differential` | 40465631698 | **failure** | Q17 6/6 and Q18 green inside it (steps 25-29 and 40); the only failure is step 35, Q21's fixture defect |
+| `Browser differential` | 40466304979 | success | the repaired card: `151/151` fixture self-test cases, `31/31` asset self-test |
+| `GoTavern Lane CI` | 40444521256 | **failure** | the config-idempotence mutation red (`config_idempotence_test.go:145`) |
+| `GoTavern Lane CI` | 40446314871 | **failure** | the source-bytes mutation red (`source_bytes_test.go:85`, the BOM canary) |
+| `Browser differential` | 40325398585 | success | asset + helper legs, where Q3-Q8 are proven |
+| `Browser differential` | 40387864205 | success | Q20 save -> reload -> swipe, STRUCTURE-ONLY: the page streamed against a JSON peer |
 
 ### Next action
 
-Land the documentation-gate change (`internal/fixtures/documents_test.go` plus this file set) and quote
-its red and green runs. Then, in order of what the ledger says is missing: (1) fix the Q21 hand-back
-leg's card staging so the row can leave `unproven`; (2) merge the Q19 streaming legs so `main` has
-streaming evidence at all; (3) wire `authors-note-sweep.mjs` into a workflow for Q17; (4) add a
-truncation leg for Q18; (5) add regenerate/continue steps to the Q20 probe.
+Wait for the queued browser runs, then, in the order the ledger says is missing: (1) the Q21 hand-back run
+(`mode=preset` on `lane/q21-work`) -- its precondition is finally satisfiable because the fixture is repaired;
+(2) the `mode=regex` run, whose comparator has never executed; (3) the `mode=preset` run for regenerate/continue;
+(4) the `mode=helper` run for the helper-variables claim; (5) one run of `lane/ui-viewport` to see whether a real
+layout is measured now that the modal is dismissed and the render state is recorded. **Do not push while a
+dispatch is queued on the same branch**: the push triggers a helper+assets run and the dispatch waits behind it,
+which has now been measured twice.
 
 ### Blockers
 
-- **The local qualification channel is NOT YET DEMONSTRATED.** It is written as constraints in
-  `AGENTS.md` (collaboration contract, item 5) and `docs/development-loop.md` §4, and nothing may cite it
-  as though a run had exercised it.
-- **Q19 has no evidence on `main`.** Its runs judged a commit on an unmerged branch; the ancestry check
-  refuses such a citation, correctly.
-- **Q21 is red for a harness reason.** The product wrote the file; the driver did not stage the card under
-  the name pinned lists.
+- **The local qualification channel is NOT YET DEMONSTRATED as qualification.** Its INSTRUMENTS exist and were
+  shown to refuse (`scripts/private-workdir.mjs`, `scripts/private-egress-check.mjs`, canary-proven), but this
+  host holds no originals -- `SillyTavern/data` is a directory containing one 0-byte file -- so no canary run may
+  be cited as the channel working.
+- **Q19 has no evidence on `main`.** Its runs judged a commit on an unmerged branch; the ancestry check refuses
+  such a citation, correctly.
+- **The Q21 hand-back has never been judged past its precondition.** Four reported "product defects" in that area
+  resolved to parity once a capture was consulted; the real defects were the fixture's two chunks carrying
+  different documents (now repaired) and a probe reader with the wrong chunk precedence (now fixed).
+- **A card re-record needs the user's original**, which is not on this host. The repair fixed the committed
+  DERIVATION from itself, which is a different thing and is labelled as such in the ledger row.
 
----
 
 ## HISTORY
 

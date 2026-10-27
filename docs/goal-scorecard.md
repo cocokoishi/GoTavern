@@ -1,6 +1,6 @@
 # The evidence ledger: one row per user question, five classes, and a manifest of the runs it cites
 
-Describes: commit `2a0d897` (`main`, 2026-10-27). Every run cited below
+Describes: commit `45473bb` (`main`, 2026-10-27). Every run cited below
 is checked against that commit: the run's `head_sha` must be an ancestor of it, which is what makes a
 citation a statement about THIS code rather than about a branch that has not merged.
 
