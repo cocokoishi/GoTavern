@@ -1453,3 +1453,116 @@ lists by EXACT path and EXACT value, and a manifest entry no fixture carries is 
 user's directory" builds one in Go (`tests/e2e/longlived_test.go` writes a card PNG with a real `chara` chunk, a
 12-turn chat, a 30-entry world book, a 40-prompt preset, backgrounds, a persona and extension state into its own
 temp dir). Nothing in `.github/workflows/` references a path outside the repository.
+---
+
+## 37. Where a request is assembled, where it is observed, and who owns which half (2026-10-26)
+
+This section is the map a reader needs BEFORE debugging a prompt difference. Every claim in it was
+measured against pinned source; the ones that were not are labelled.
+
+### 37.1 The data flow of one generation
+
+```
+  user types / extension fires
+        │
+        ▼
+  BROWSER (pinned public/**, byte-identical, unmodifiable by us)
+    · PromptManager reads the preset file and the live 'in_use' settings
+    · prompt_order / enabled flags / markers / injection_* decide the message list
+    · world info is scanned and inserted at its positions and depths
+    · regex_scripts and promptOnly rewrites are applied to the outgoing text
+    · the character card fields, persona, chat history and Author's Note are spliced in
+    · tokenization for the BUDGET in the frontend uses its own tokenizer
+        │  POST /api/backends/chat-completions/generate  { messages, ...samplers, tools, ... }
+        ▼
+  GOTAVERN (this server)
+    · auth/session/CSRF, body limits, route dispatch
+    · settings/presets/worldinfo/characters/chats READS feed the browser above
+    · secrets resolution, proxy/allowlist/private-address filter
+    · provider ADAPTER: request.body.messages → provider-specific body (convertClaudeMessages,
+      Gemini/Google conversion, system-message handling, prefilling, middleout)
+    · outbound transport: TLS, proxy, redirects, decompression, timeouts, cancellation
+        │  provider-wire request (the observable that decides compatibility)
+        ▼
+  MODEL PROVIDER (real, or the deterministic simulated backend in tests)
+        │  stream / error / close
+        ▼
+  GOTAVERN relay (SSE parse, error mapping, cancel propagation, disconnect handling)
+        │
+        ▼
+  BROWSER (renders, saves the chat through /api/chats/save, fires helper events)
+```
+
+### 37.2 What the browser owns, and what the Go backend owns
+
+This split is the single most misread fact in the project. It was recorded in `AGENTS.md` rule 47 and in
+`docs/real-user-input-audit.md` §1, and restated here because a lane that gets it wrong builds the wrong
+thing.
+
+**The browser owns prompt assembly.** Measured: a grep for `prompt_order`, `promptOrder`, `PromptManager`,
+`squash_system`, `names_behavior` and `wrap_in_quotes` across `src/endpoints/backends/*.js` returns ZERO
+matches, while the same files read `request.body.messages`, `stop`, `max_tokens`, `temperature`, `top_p`,
+`tools`, `tool_choice`, `json_schema`, `reasoning_effort` and `middleout` directly. Therefore:
+
+- **Preset order is the frontend's.** GoTavern must not grow a server-side prompt builder. A Go
+  `prompt_order` implementation would be a second engine that can never match the frontend's — and would
+  make the differential compare our engine against itself.
+- **Regex application is the frontend's**, for the same reason: `regex_scripts` with `promptOnly` rewrite
+  the outgoing prompt in the page. The server's job is to serve the script list faithfully.
+- **Helper invocation is the frontend's.** 酒馆助手 runs user code in a same-origin iframe and drives the
+  host page's own generation path. Our obligation is every route and asset that path touches, not a
+  reimplementation of the helper.
+- **Frontend tokenization decides what FITS in the browser's budget**; server tokenization must still be
+  exact wherever a route or a truncation decision uses it (`ARCHITECTURE.md` §18, `AGENTS.md` rule 9).
+
+**The Go backend owns everything from `request.body` to the wire, plus the data the browser reads:**
+
+- route/status/header/body parity for every route the pinned frontend builds (`AGENTS.md` rules 42-44);
+- the exact bytes of the data it serves — settings, presets, worlds, characters, chats, extension settings —
+  because a dropped field or a reordered list changes the prompt WITHOUT a line of prompt code being wrong;
+- secrets resolution and the provider adapter, including every provider-specific transform;
+- the outbound transport's real-internet behaviour (`ARCHITECTURE.md` §16, `AGENTS.md` rule 29) as distinct
+  from the byte-exact wire client (rule 30);
+- persistence: unknown-field preservation, atomic writes, and what a restart does to a running server
+  (`ARCHITECTURE.md` §13).
+
+**The consequence for a divergence report:** name the message index, its source (preset prompt id, world-info
+entry, character field, helper injection, Author's Note), its depth and role, and which half produced it.
+"Bodies differ" is not a report, and "the prompt builder is wrong" is not a hypothesis we are allowed,
+because we do not have one.
+
+### 37.3 Capture points — where an observation can be taken
+
+| Capture point | What it proves | Where it is recorded |
+|---|---|---|
+| browser → server request | the frontend's own assembly, and that our routes answer it | provider-wire fixtures, browser legs |
+| server → provider request | **the contract** (`AGENTS.md` rule 8): raw target, method, headers, body bytes and SHA-256 | `tests/provider-wire/scenarios/`, `tests/oracle/*.json` |
+| provider stream → server → browser | SSE framing, error mapping, cancellation | browser streaming legs, `docs/SEMANTIC-COMPATIBILITY.md` §8 |
+| filesystem/startup side effects | boot mutations, seeding, migration | `docs/startup-inventory.md`, startup fixtures |
+| browser final state | what the user sees: DOM, image decode, CSS background, console | browser artefact JSONs |
+
+A surface with no capture point is a surface with no gate, and the honest name for it is `unproven` rather
+than "probably fine" (`docs/gate-blindspots.md` is the analysis of five such surfaces).
+
+### 37.4 PUBLIC synthetic fixtures versus LOCAL original-input qualification
+
+Two different kinds of input, with different rules, and confusing them is how a privacy failure would
+happen.
+
+**PUBLIC synthetic fixtures** are committed and run in Actions. They are either synthesised in Go
+(`tests/e2e/longlived_test.go` builds a card, a chat, a world book, a preset and visual assets) or built as
+a DERIVATION of a real input by a generator that proves byte-length preservation and passes a watermark
+scanner (`AGENTS.md` rule 56, `ARCHITECTURE.md` §36). They are reproducible by anyone, they need no secret,
+and they are the only inputs CI ever holds.
+
+**LOCAL original-input qualification** is the channel for the user's actual files. Its purpose is that the
+user's real preset and card are the ORACLE, and they may not leave the machine, so no public run can be the
+gate for them. Its constraints — isolated copy, execution permitted, transmission forbidden, no reversible
+derivative, not a substitute for any public gate — are stated in `AGENTS.md` (collaboration contract, item 5)
+and `docs/development-loop.md` §4. It is **NOT YET DEMONSTRATED**, and it is a narrow revision of a broader
+rule rather than a general permission to run things locally.
+
+**The rule that keeps them apart:** a PUBLIC fixture must be derivable or synthesisable from the repository
+alone; a LOCAL observation may be RECORDED as a finding (counts, hashes, pass/fail, a difference), and may
+never be promoted into a fixture by copying its bytes. The generator is the only door between the two, and
+it refuses rather than approximates.
