@@ -816,6 +816,22 @@ rather than by review.
        step is unverified rather than passed. Quote the step, not the conclusion, and record such a run as
        "proved nothing" rather than citing it.
 
+73. **A difference recorded in a suppression list stops being compared, everywhere.** A lane measured a real
+    provider-wire divergence (a trailing space in `Authorization: "Bearer "`, which `net/http` trims and
+    `node-fetch` keeps) and drafted the obvious entry in `PRODUCTION_TRANSPORT_DIFFERENCES` — then read the
+    CONSUMER before committing and found that entries in that map are dropped from BOTH SIDES of every
+    comparison. Adding `authorization` there would have silently stopped comparing the header that proves a key
+    reached the provider, in EVERY scenario, not only the empty-key one. It reverted the draft and expressed the
+    divergence narrowly instead, in the existing assertion, comparing the DECLARED value modulo optional
+    whitespace.
+    This is guard-widening one layer down: the same instinct that accepts a bare `Bearer` when the guard fires is
+    the instinct that adds the field to a suppression list, and both convert a measured difference into a
+    permitted one. So: a suppression list is for values that CANNOT be compared (a timestamp, a random id) and
+    its blast radius is every comparison of that field; a difference that CAN be compared belongs in the
+    assertion, as a declared expectation with its mechanism, its scope and its residual risk written beside it.
+    Before adding an entry to any list that suppresses comparison, read what consumes the list and count what
+    stops being checked.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
