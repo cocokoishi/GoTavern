@@ -55,7 +55,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { MARKERS, authorsNoteOverlaySpec, layoutOf, parseProviderBody, resolveAuthorsNoteCase } from './preset-kit.mjs';
+import { AUTHORS_NOTE_OVERLAY_MARKER, MARKERS, authorsNoteOverlaySpec, layoutOf, parseProviderBody, resolveAuthorsNoteCase } from './preset-kit.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -74,8 +74,16 @@ function selfCheck(expectationsPath) {
     for (const [name, value] of [['layoutOf', layoutOf], ['parseProviderBody', parseProviderBody], ['resolveAuthorsNoteCase', resolveAuthorsNoteCase], ['authorsNoteOverlaySpec', authorsNoteOverlaySpec]]) {
         if (typeof value !== 'function') problems.push(`preset-kit.mjs does not export ${name}`);
     }
-    for (const marker of ['history', 'authorsNote_DEPTH', 'authorsNote', 'wiBefore', 'wiAfter', 'wiDepth']) {
+    // THE SCENARIO'S MARKERS come from `MARKERS`; Q17's OVERLAY marker is a separate export by design
+    // (see the note above AUTHORS_NOTE_OVERLAY_MARKER in preset-kit.mjs: the preset comparator treats every
+    // entry of MARKERS as required in the plain preset legs, which broke run 40444046677). Each is checked
+    // where it actually lives, so a rename cannot pass this self-check.
+    for (const marker of ['history', 'authorsNote', 'wiBefore', 'wiAfter', 'wiDepth']) {
         if (!MARKERS?.[marker]) problems.push(`preset-kit.mjs does not declare MARKERS.${marker}`);
+    }
+    if (!AUTHORS_NOTE_OVERLAY_MARKER) problems.push('preset-kit.mjs does not export AUTHORS_NOTE_OVERLAY_MARKER');
+    if (MARKERS && Object.values(MARKERS).includes(AUTHORS_NOTE_OVERLAY_MARKER)) {
+        problems.push('AUTHORS_NOTE_OVERLAY_MARKER is also a value inside MARKERS, which would make it a required marker for the PLAIN preset legs (run 40444046677)');
     }
     const overlay = typeof authorsNoteOverlaySpec === 'function' ? authorsNoteOverlaySpec() : null;
     const ids = (overlay?.cases ?? []).map(entry => entry.id);
@@ -102,6 +110,30 @@ function selfCheck(expectationsPath) {
     } catch (error) {
         problems.push(`the pinned expectation is unreadable at ${target} (${error?.message ?? error}); run prepare-authors-note.mjs against the pinned leg first`);
     }
+    // THE COUPLING THAT BROKE RUN 40444046677, refused here in under a second. The Q17 overlay marker must
+    // NOT be one of the markers the PLAIN preset differential requires: the overlay is applied only on the
+    // Q17 legs, so a plain preset leg can never produce it, and requiring it reddens the preset gate for a
+    // reason that has nothing to do with the preset. Both directions are checked -- the module map AND the
+    // committed fixture's own copy, because the comparator prefers the fixture's list when it is present.
+    try {
+        const presetFixture = JSON.parse(fs.readFileSync(path.join(here, 'fixtures', 'preset-complex-settings.json'), 'utf8'));
+        const presetRequired = presetRequiredMarkerNames(presetFixture, MARKERS);
+        const overlayMarkerValues = new Set([AUTHORS_NOTE_OVERLAY_MARKER, authorsNoteOverlaySpec().text.slice(0, AUTHORS_NOTE_OVERLAY_MARKER.length)]);
+        for (const name of presetRequired) {
+            const value = (presetFixture?.capture?.spec?.markers ?? MARKERS)[name];
+            if (overlayMarkerValues.has(value)) {
+                problems.push(`the preset fixture requires marker ${JSON.stringify(name)} = ${JSON.stringify(value)}, which is Q17's OVERLAY marker: the plain preset legs do not apply the overlay, so this reddens the preset gate naming a marker nothing can produce (measured: run 40444046677)`);
+            }
+        }
+        if (presetRequired.some(name => /authorsNote_?depth/i.test(name))) {
+            problems.push('the preset fixture requires a marker named like Q17\'s overlay marker; the overlay belongs outside the preset scenario');
+        }
+        if (Object.values(MARKERS).includes(AUTHORS_NOTE_OVERLAY_MARKER)) {
+            problems.push('AUTHORS_NOTE_OVERLAY_MARKER is a value inside MARKERS, which makes it a required marker for the plain preset legs (run 40444046677)');
+        }
+    } catch (error) {
+        problems.push(`the preset fixture is unreadable at tests/browser/fixtures/preset-complex-settings.json (${error?.message ?? error}); the coupling check above it could not run`);
+    }
     if (problems.length > 0) {
         console.error(`compare-authors-note-legs SELF-CHECK FAILED: ${problems.join('; ')}`);
         return 1;
@@ -113,6 +145,20 @@ function selfCheck(expectationsPath) {
 // ---------------------------------------------------------------------------------------------
 // Reading one leg.
 // ---------------------------------------------------------------------------------------------
+// THE PRESET COMPARATOR'S REQUIRED-MARKER SET, RECOMPUTED HERE SO A COUPLING FAILS AT SELF-CHECK TIME
+// RATHER THAN IN A 20-MINUTE PINNED RUN.
+//
+// `compare-preset-legs.mjs` requires every entry of the scenario's `markers` map (falling back to the
+// module's `MARKERS`) in BOTH legs of the PLAIN preset differential. Run 40444046677 broke exactly here:
+// Q17's overlay marker was an entry of `MARKERS`, the overlay is not applied on the plain preset legs, and
+// the preset gate went red naming a marker nothing could produce. That was a coupling defect, not a product
+// finding, and it cost a run. `presetRequiredMarkerNames` is that derivation in one function, used by the
+// self-check below so the coupling is refused in under a second.
+export function presetRequiredMarkerNames(fixture, markers) {
+    const map = fixture?.capture?.spec?.markers ?? markers ?? MARKERS;
+    return Object.keys(map).filter(name => name !== 'userMarker');
+}
+
 function readLeg(file, subject) {
     if (!file) return { __error: `no ${subject} report was supplied` };
     try {
@@ -141,7 +187,7 @@ function legObservation(report, subject) {
     }
     const layout = layoutOf(parsed.body, {
         historyMarker: MARKERS.history,
-        noteMarker: MARKERS.authorsNote_DEPTH,
+        noteMarker: AUTHORS_NOTE_OVERLAY_MARKER,
         presetNoteMarker: MARKERS.authorsNote,
     });
     return {

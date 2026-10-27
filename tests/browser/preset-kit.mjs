@@ -84,10 +84,6 @@ export const MARKERS = {
     wiAfter: 'PRESET_WI_AFTER_7F',
     wiDepth: 'PRESET_WI_DEPTH_7F',
     authorsNote: 'PRESET_AN_7F',
-    // Q17's overlay uses its OWN marker, so a note that failed to be re-written is distinguishable from
-    // the preset kit's own note: if the sweep sees this marker it knows the overlay applied, and if it
-    // sees the bare `PRESET_AN_7F` note instead it knows the overlay did not.
-    authorsNote_DEPTH: 'PRESET_AN_DEPTH_7F',
     history: 'PRESET_HIST_7F',
     userMarker: 'probe user marker',
     // THE TYPED MESSAGE. The drive types this into the composer and clicks send, so it becomes the
@@ -104,6 +100,24 @@ export function padding(seed, characters) {
     const block = `${seed} `;
     return block.repeat(Math.ceil(characters / block.length)).slice(0, characters);
 }
+
+// Q17'S NOTE MARKER LIVES OUTSIDE `MARKERS`, DELIBERATELY, AND THIS IS A MEASURED CORRECTION.
+//
+// `compare-preset-legs.mjs` derives the set of markers the plain preset scenario MUST produce from
+// `Object.entries(MARKERS)` (`const allMarkers = Object.entries(scenario?.markers ?? MARKERS)`), and
+// requires every one of them in BOTH legs' provider bodies. Putting Q17's overlay marker into that map
+// made it a required marker for the PLAIN preset legs, where the overlay is -- correctly -- not applied:
+// run 40444046677 (Browser differential, mode=preset) failed with
+//   unfaithful preset differential, 5 guard(s) failed: boundaryMarkersArrivedOnBothLegs,
+//   scenarioAppliedOnThePinnedLeg, scenarioAppliedOnTheGOTavernLeg, everyMarkerArrived,
+//   dropVariantCarriesEveryOtherMarker      missingBoundaryMarkers: ["authorsNote_DEPTH"]
+// i.e. the Q17 sweep broke the preset gate it was supposed to run beside, and the failure named a marker
+// that no plain preset leg could ever produce.
+//
+// A marker the OVERLAY produces is not a marker the SCENARIO produces, so it is a separate export with
+// its own name. The Q17 layout code reads it by name (`layoutOf`'s `noteMarker` option), never by iterating
+// `MARKERS`, so nothing about Q17 depends on this map.
+export const AUTHORS_NOTE_OVERLAY_MARKER = 'PRESET_AN_DEPTH_7F';
 
 // THE SPEC. One object, serialised into the page and into the fixture, so the capture and both legs
 // cannot drift apart: there is exactly one description of the scenario in the repository.
@@ -505,25 +519,59 @@ export async function applyPresetKit(spec) {
 // The overlay is applied ON TOP of the preset kit (`applyPresetKit` step 5), which is what gives the
 // sweep its world-info and history context: the note then has competitors at known positions and a
 // history long enough for a depth of 6 and a depth of 20 to produce different requests.
+//
+// WHICH MECHANISM PLACES THE NOTE, STATED ONCE WITH ITS LINES (this decides what every case MEANS):
+//
+//   `scripts/openai.js:810-875`  `populationInjectionPrompts` is the mechanism for an IN_CHAT note. It
+//                                walks `for (let i = 0; i <= maxDepth; i++)` (:820), groups the prompts at
+//                                that depth by `injection_order` and then by role in the order
+//                                `['system','user','assistant']` (:847), and splices each depth's group at
+//                                `const injectIdx = i + totalInsertedMessages` (:867) -- a per-depth
+//                                counter that grows as earlier depths insert -- then reverses the list back
+//                                at :873.
+//   `scripts/openai.js:578`      THE ARRAY IT SPLICES INTO IS NEWEST-FIRST: `setOpenAIMessages` loops
+//                                `for (let i = chat.length - 1; i >= 0; i--)`. Therefore **depth 0 is the
+//                                LAST message sent**, and depth N is N messages above the end. A test that
+//                                assumed "depth 0 = the first message" would assert the OPPOSITE of pinned;
+//                                `depthZeroIsTheNewestPosition` in authors-note-sweep-kit.mjs asserts the
+//                                count of history turns BELOW the note is exactly 0 at depth 0, which is
+//                                that fact in a form that can fail.
+//   `scripts/openai.js:866-868`  the `Math.min(depth + totalInserted, messages.length)` clamp: a depth
+//                                deeper than the conversation lands at the top of the list, so
+//                                "deeper-than-history" is only observable as "at least as deep as the
+//                                oldest turn", never as "strictly deeper".
+//   `scripts/openai.js:1136-1150`, `:1265-1302`, `:1397-1404`
+//                                the IN_PROMPT position is a DIFFERENT mechanism: the note becomes a
+//                                `position: 'end'` prompt, `injectToMain` inserts it around the `main`
+//                                prompt, and the depth is never read. That is why `in-prompt-depth6` asserts
+//                                "the note sits above the chat region", not "the note is at depth 6".
+//
+// REGEX IS DELIBERATELY OUT OF SCOPE FOR THIS NOTE, and saying so is a decision rather than an omission:
+// the regex lane established that user INPUT is rewritten twice in pinned (`script.js:5875` before the text
+// is pushed into `chat`, then `script.js:4506` during assembly). This scenario installs NO regex ruleset on
+// either subject -- the note's text is a plain ASCII marker and the drives apply no `regex_scripts` -- so
+// the note cannot be rewritten between application and the request, and a difference in the note's text can
+// only come from the product. If a future case adds regex, it must revisit this paragraph.
 // ---------------------------------------------------------------------------------------------
 export function authorsNoteOverlaySpec() {
     return {
         // ASCII only, so no encoding trap can hide a difference.
-        text: `${MARKERS.authorsNote_DEPTH} Keep the reply under four sentences.`,
+        text: `${AUTHORS_NOTE_OVERLAY_MARKER} Keep the reply under four sentences.`,
         // THE HISTORY IS LONG ENOUGH THAT DEPTH DISCRIMINATES. The preset's own history is 12 turns
-        // plus the greeting; depths 0, 1, 6 and 20 all fall at different places inside it, and 20 is
-        // beyond the oldest turn so the clamp (`Math.min`) is reachable.
+        // plus the greeting; depths 0, 4, 6, 8 and 20 all fall at different places inside it, and 20 is
+        // beyond the oldest turn so the clamp (`Math.min`, openai.js:867) is reachable.
         parityDepth: 6,
-        // DELIBERATELY UNREACHABLE IF ANYONE ASSERTS ON IT: depth 99999 exists so a predicate can say
-        // "these two cases became indistinguishable because the clamp bound" WITHOUT the verification
-        // case (parity) suffering the same fate.
+        // BEYOND THE HISTORY, DELIBERATELY: this is the value at which the clamp binds, so the case can say
+        // "at least as deep as the oldest turn" instead of pretending a depth of 20 is reachable.
         deeperThanHistoryDepth: 20,
         depth: 6,
         cases: [
             // THE VERIFICATION CASE. Same text, same history, same budget on both subjects: the
-            // provider request must be byte-identical. Everything else is measured against it.
+            // provider request must be byte-identical. Everything else is measured against it, and it is
+            // the case that would catch a product change unrelated to the note.
             { id: 'parity', role: 'system', enabled: true, depthIntent: 'item', depthFromParity: 0 },
-            // THE REQUIRED DEPTH CASES (Q17 in docs/goal-scorecard.md).
+            // THE REQUIRED DEPTH CASES (Q17 in docs/goal-scorecard.md) -- depth 0 (the NEWEST position,
+            // openai.js:578+867), a non-zero depth, and a depth deeper than the history (the clamp).
             { id: 'depth0', role: 'system', enabled: true, depthIntent: 'zero' },
             { id: 'depth4', role: 'system', enabled: true, depthIntent: 'item', depthFromParity: -2 },
             { id: 'depth8', role: 'system', enabled: true, depthIntent: 'item', depthFromParity: 2 },
@@ -533,9 +581,9 @@ export function authorsNoteOverlaySpec() {
             // promises. The note must be absent from the request -- and the request must still exist,
             // which the leg asserts separately so "no note" cannot be confused with "no send".
             { id: 'disabled-interval0', role: 'system', enabled: false, depthIntent: 'parity', disabledBy: 'interval' },
-            // POSITION IS NOT DEPTH. Recorded as its own case so the sweep can state that the
-            // IN_PROMPT position ignores the depth (the pinned source does not read it there) instead of
-            // quietly omitting the position axis.
+            // POSITION IS NOT DEPTH (openai.js:1397-1404 + :1136-1150): recorded as its own case so the
+            // sweep states that the IN_PROMPT position ignores the depth instead of quietly dropping the
+            // position axis.
             { id: 'in-prompt-depth6', role: 'system', position: 'IN_PROMPT', enabled: true, depthIntent: 'item', depthFromParity: 0 },
         ],
     };
@@ -687,7 +735,7 @@ export function layoutOf(body, options) {
     const messages = Array.isArray(body?.messages) ? body.messages : null;
     if (!messages) return null;
     const historyMarker = options?.historyMarker ?? MARKERS.history;
-    const noteMarker = options?.noteMarker ?? MARKERS.authorsNote_DEPTH;
+    const noteMarker = options?.noteMarker ?? AUTHORS_NOTE_OVERLAY_MARKER;
     const worldMarkers = options?.worldMarkers ?? { before: MARKERS.wiBefore, after: MARKERS.wiAfter, depth: MARKERS.wiDepth };
     const chatMarkers = Array.isArray(options?.chatMarkers) ? options.chatMarkers : [];
     const at = needle => findMessage(body, needle);

@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { MARKERS, authorsNoteOverlaySpec, layoutOf, parseProviderBody } from './preset-kit.mjs';
+import { AUTHORS_NOTE_OVERLAY_MARKER, MARKERS, authorsNoteOverlaySpec, layoutOf, parseProviderBody } from './preset-kit.mjs';
 import { compareCase } from './compare-authors-note-legs.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -62,7 +62,7 @@ export function observationOf(report, subject) {
         messageCount: Array.isArray(parsed.body?.messages) ? parsed.body.messages.length : null,
         layout: layoutOf(parsed.body, {
             historyMarker: MARKERS.history,
-            noteMarker: MARKERS.authorsNote_DEPTH,
+            noteMarker: AUTHORS_NOTE_OVERLAY_MARKER,
             presetNoteMarker: MARKERS.authorsNote,
         }),
         overlay: report.authorsNoteOverlay ?? null,
@@ -121,7 +121,23 @@ export function sweepVerdict({ results, overlay, expectations }) {
     const zero = layoutFor('depth0')?.historyBelow ?? null;
     checks.aDeeperCaseIsStrictlyDeeperThanParity = Boolean(parity) && deeper.length > 0 && deeper.every(value => value < parity.historyBelow);
     checks.aShallowerCaseIsStrictlyShallowerThanParity = Boolean(parity) && shallower.length > 0 && shallower.every(value => value > parity.historyBelow);
-    checks.depthZeroIsTheNewestPosition = zero !== null && Boolean(parity) && zero < parity.historyBelow;
+    // DEPTH 0 IS THE **NEWEST** POSITION, NOT THE FIRST MESSAGE -- and this assertion is the one that would
+    // catch a harness (or a product) that had the direction backwards.
+    //
+    // THE MECHANISM, read from the pinned source and cited because the naive reading is the OPPOSITE of
+    // pinned: `setOpenAIMessages` (public/scripts/openai.js:578) builds the list by looping
+    // `for (let i = chat.length - 1; i >= 0; i--)`, i.e. NEWEST FIRST; `populationInjectionPrompts`
+    // (:819-871) then walks `for (let i = 0; i <= maxDepth; i++)` splicing at
+    // `const injectIdx = i + totalInsertedMessages` (:867); the chain ends with `messages.reverse()` (:873).
+    // So depth 0 is index 0 of the REVERSED list = the LAST message sent, and depth N sits N messages above
+    // the end. The count of HISTORY turns BELOW the note therefore equals the depth while it fits, and at
+    // depth 0 it is exactly ZERO.
+    //
+    // The per-depth role order is `['system','user','assistant']` (:847) with a shared `totalInsertedMessages`
+    // counter, so the note can share its depth with up to two sibling injections -- which is why
+    // `historyBelow` (a HISTORY count) is the measure and the raw index is not: a sibling system injection
+    // occupies the neighbouring slot without moving the count.
+    checks.depthZeroIsTheNewestPosition = zero === 0 && Boolean(parity) && parity.historyBelow > 0;
     const deepCase = (overlay.cases ?? []).find(entry => entry.depthIntent === 'deeper-than-history');
     const deepLayout = deepCase ? layoutFor(deepCase.id) : null;
     checks.deeperThanHistoryReachesTheClamp = Boolean(deepLayout) && Boolean(parity)

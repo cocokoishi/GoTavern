@@ -31,7 +31,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { MARKERS, authorsNoteOverlaySpec, parseProviderBody, resolveAuthorsNoteCase, layoutOf } from './preset-kit.mjs';
+import { AUTHORS_NOTE_OVERLAY_MARKER, MARKERS, authorsNoteOverlaySpec, parseProviderBody, resolveAuthorsNoteCase, layoutOf } from './preset-kit.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -60,7 +60,7 @@ if (argv.includes('--self-check')) {
     const problems = [];
     if (typeof layoutOf !== 'function') problems.push('layoutOf is not exported by preset-kit.mjs');
     if (typeof parseProviderBody !== 'function') problems.push('parseProviderBody is not exported by preset-kit.mjs');
-    if (!MARKERS.history || !MARKERS.authorsNote_DEPTH) problems.push('preset-kit.mjs does not declare both markers');
+    if (!MARKERS.history || !AUTHORS_NOTE_OVERLAY_MARKER) problems.push('preset-kit.mjs does not declare both markers');
     if (overlay.parityDepth < 1) problems.push('the parity depth must be >= 1, or "deeper than parity" cases cannot exist');
     if (!resolved.some(entry => entry.depth === 0)) problems.push('the case list has no depth-0 case');
     if (!resolved.some(entry => entry.depthIntent === 'deeper-than-history')) problems.push('the case list has no deeper-than-history case');
@@ -128,7 +128,7 @@ async function drivePinned(caseId, resolved) {
     }
     const layout = layoutOf(parsed.body, {
         historyMarker: MARKERS.history,
-        noteMarker: MARKERS.authorsNote_DEPTH,
+        noteMarker: AUTHORS_NOTE_OVERLAY_MARKER,
         presetNoteMarker: MARKERS.authorsNote,
     });
     const overlayReport = report.authorsNoteOverlay ?? null;

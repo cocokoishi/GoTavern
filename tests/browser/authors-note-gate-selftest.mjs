@@ -36,7 +36,7 @@ import process from 'node:process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-import { MARKERS, authorsNoteOverlaySpec, parseProviderBody, resolveAuthorsNoteCase } from './preset-kit.mjs';
+import { AUTHORS_NOTE_OVERLAY_MARKER, MARKERS, authorsNoteOverlaySpec, parseProviderBody, resolveAuthorsNoteCase } from './preset-kit.mjs';
 import { compareCase } from './compare-authors-note-legs.mjs';
 import { authorsNotePinnedFixture, observationOf, sweepVerdict } from './authors-note-sweep-kit.mjs';
 
@@ -133,9 +133,17 @@ if (missingCases.length > 0) {
 }
 
 const failures = [];
+// THE MUTATION COUNT IS DERIVED, not written as a literal that drifts: every `mutation(...)` call increments
+// it, so a file that runs 14 mutations cannot print "13 caught", and a mutation silently deleted shows up as
+// a smaller number rather than as a passing summary.
+let MUTATION_COUNT = 0;
 const record = (name, ok, detail) => {
     console.log(`${ok ? 'ok  ' : 'MISS'} ${name}${detail ? ` -- ${detail}` : ''}`);
     if (!ok) failures.push(name);
+};
+const mutation = (name, ok, detail) => {
+    MUTATION_COUNT += 1;
+    record(name, ok, detail);
 };
 
 // Judge one case from REPORT OBJECTS (the self-test's shape), reusing the comparator's own observation
@@ -160,12 +168,12 @@ record('baseline is faithful (verdict PASS, no failed check)',
 {
     const expectation = expectations.cases.parity;
     const moved = mutate(reportFor('parity', expectation), body => {
-        const index = body.messages.findIndex(message => String(message.content ?? '').includes(MARKERS.authorsNote_DEPTH));
+        const index = body.messages.findIndex(message => String(message.content ?? '').includes(AUTHORS_NOTE_OVERLAY_MARKER));
         const [note] = body.messages.splice(index, 1);
         body.messages.splice(Math.max(0, index - 1), 0, note);
     });
     const result = judge('parity', moved, reportFor('parity', expectation));
-    record('a note one message deeper is caught by layout.historyAbove/layout.historyBelow',
+    mutation('a note one message deeper is caught by layout.historyAbove/layout.historyBelow',
         result.verdict === 'PRODUCT_MISMATCH'
         && (result.checks?.['layout.historyBelow'] === false || result.checks?.['layout.historyAbove'] === false || result.checks?.['layout.noteIndex'] === false),
         JSON.stringify({ verdict: result.verdict, failedChecks: failedChecksOf(result), reason: result.reason }));
@@ -175,12 +183,12 @@ record('baseline is faithful (verdict PASS, no failed check)',
 {
     const expectation = expectations.cases.parity;
     const moved = mutate(reportFor('parity', expectation), body => {
-        const index = body.messages.findIndex(message => String(message.content ?? '').includes(MARKERS.authorsNote_DEPTH));
+        const index = body.messages.findIndex(message => String(message.content ?? '').includes(AUTHORS_NOTE_OVERLAY_MARKER));
         const [note] = body.messages.splice(index, 1);
         body.messages.splice(Math.min(body.messages.length, index + 1), 0, note);
     });
     const result = judge('parity', moved, reportFor('parity', expectation));
-    record('a note one message shallower is caught',
+    mutation('a note one message shallower is caught',
         result.verdict === 'PRODUCT_MISMATCH'
         && (result.checks?.['layout.historyBelow'] === false || result.checks?.['layout.historyAbove'] === false || result.checks?.['layout.noteIndex'] === false),
         JSON.stringify({ verdict: result.verdict, failedChecks: failedChecksOf(result) }));
@@ -190,11 +198,11 @@ record('baseline is faithful (verdict PASS, no failed check)',
 {
     const expectation = expectations.cases.parity;
     const changed = mutate(reportFor('parity', expectation), body => {
-        const note = body.messages.find(message => String(message.content ?? '').includes(MARKERS.authorsNote_DEPTH));
+        const note = body.messages.find(message => String(message.content ?? '').includes(AUTHORS_NOTE_OVERLAY_MARKER));
         if (note) note.role = 'user';
     });
     const result = judge('parity', changed, reportFor('parity', expectation));
-    record('a note with the wrong ROLE is caught by layout.noteRole',
+    mutation('a note with the wrong ROLE is caught by layout.noteRole',
         result.verdict === 'PRODUCT_MISMATCH' && result.checks?.['layout.noteRole'] === false,
         JSON.stringify({ verdict: result.verdict, failedChecks: failedChecksOf(result), reason: result.reason }));
 }
@@ -203,12 +211,12 @@ record('baseline is faithful (verdict PASS, no failed check)',
 {
     const expectation = expectations.cases.parity;
     const changed = mutate(reportFor('parity', expectation), body => {
-        const note = body.messages.find(message => String(message.content ?? '').includes(MARKERS.authorsNote_DEPTH));
+        const note = body.messages.find(message => String(message.content ?? '').includes(AUTHORS_NOTE_OVERLAY_MARKER));
         if (note) note.content = `${note.content} (edited)`;
     });
     const result = judge('parity', changed, reportFor('parity', expectation));
     const layoutChecksAllTrue = failedChecksOf(result).every(name => !name.startsWith('layout.'));
-    record('a note with the wrong TEXT at the RIGHT position is caught by the bytes, not by the layout',
+    mutation('a note with the wrong TEXT at the RIGHT position is caught by the bytes, not by the layout',
         result.verdict === 'PRODUCT_MISMATCH' && result.checks?.bodySha256Equal === false && layoutChecksAllTrue,
         JSON.stringify({ verdict: result.verdict, failedChecks: failedChecksOf(result), reason: result.reason }));
 }
@@ -217,11 +225,11 @@ record('baseline is faithful (verdict PASS, no failed check)',
 {
     const expectation = expectations.cases.parity;
     const removed = mutate(reportFor('parity', expectation), body => {
-        const index = body.messages.findIndex(message => String(message.content ?? '').includes(MARKERS.authorsNote_DEPTH));
+        const index = body.messages.findIndex(message => String(message.content ?? '').includes(AUTHORS_NOTE_OVERLAY_MARKER));
         if (index >= 0) body.messages.splice(index, 1);
     });
     const result = judge('parity', removed, reportFor('parity', expectation));
-    record('a missing note is caught by layout.noteIndex/layout.noteCarriesTheCaseText',
+    mutation('a missing note is caught by layout.noteIndex/layout.noteCarriesTheCaseText',
         result.verdict === 'PRODUCT_MISMATCH'
         && (result.checks?.['layout.noteIndex'] === false || result.checks?.['layout.noteCarriesTheCaseText'] === false),
         JSON.stringify({ verdict: result.verdict, failedChecks: failedChecksOf(result) }));
@@ -231,7 +239,7 @@ record('baseline is faithful (verdict PASS, no failed check)',
 {
     const empty = { requestArrived: false, recording: [], failure: null, authorsNoteOverlay: reportFor('parity', expectations.cases.parity).authorsNoteOverlay };
     const result = judge('parity', empty, reportFor('parity', expectations.cases.parity));
-    record('an empty capture is HARNESS_ERROR, never a comparison',
+    mutation('an empty capture is HARNESS_ERROR, never a comparison',
         result.verdict === 'HARNESS_ERROR' && result.checks?.gotavernProducedARequest === false,
         JSON.stringify({ verdict: result.verdict, reason: result.reason }));
 }
@@ -240,7 +248,7 @@ record('baseline is faithful (verdict PASS, no failed check)',
 {
     const stale = reportFor('parity', expectations.cases.parity, { overlayProblems: ["the note did not reach extension_prompts[\"2_floating_prompt\"]"] });
     const result = judge('parity', stale, reportFor('parity', expectations.cases.parity));
-    record('a leg whose overlay did not apply is HARNESS_ERROR',
+    mutation('a leg whose overlay did not apply is HARNESS_ERROR',
         result.verdict === 'HARNESS_ERROR' && result.checks?.gotavernOverlayApplied === false,
         JSON.stringify({ verdict: result.verdict, reason: result.reason }));
 }
@@ -251,7 +259,7 @@ record('baseline is faithful (verdict PASS, no failed check)',
     const expectation = expectations.cases.parity;
     const changed = mutate(reportFor('parity', expectation), body => { body.temperature = 0.99; });
     const result = judge('parity', changed, reportFor('parity', expectation));
-    record('a difference outside the note is reported as such, not as a depth difference',
+    mutation('a difference outside the note is reported as such, not as a depth difference',
         result.verdict === 'PRODUCT_MISMATCH'
         && result.checks?.bodySha256Equal === false
         && String(result.reason ?? '').includes('elsewhere in the body'),
@@ -263,7 +271,7 @@ record('baseline is faithful (verdict PASS, no failed check)',
     const withoutCase = clone(expectations);
     delete withoutCase.cases.parity;
     const result = judge('parity', reportFor('parity', expectations.cases.parity), reportFor('parity', expectations.cases.parity), withoutCase);
-    record('a case the pinned leg never measured is BLOCKED, not PASS',
+    mutation('a case the pinned leg never measured is BLOCKED, not PASS',
         result.verdict === 'BLOCKED',
         JSON.stringify({ verdict: result.verdict, reason: result.reason }));
 }
@@ -273,7 +281,7 @@ record('baseline is faithful (verdict PASS, no failed check)',
     const expectation = expectations.cases.parity;
     const drifted = mutate(reportFor('parity', expectation), body => { body.messages.push({ role: 'user', content: 'a message the preparation drive never saw' }); });
     const result = judge('parity', reportFor('parity', expectation), drifted);
-    record('a pinned leg that disagrees with the pinned preparation is HARNESS_ERROR',
+    mutation('a pinned leg that disagrees with the pinned preparation is HARNESS_ERROR',
         result.verdict === 'HARNESS_ERROR'
         && (result.checks?.pinnedPreparationMatchesPinnedLeg === false || result.checks?.pinnedPreparationBytesMatchPinnedLeg === false),
         JSON.stringify({ verdict: result.verdict, reason: result.reason }));
@@ -295,7 +303,7 @@ record('baseline is faithful (verdict PASS, no failed check)',
         overlay,
     }));
     const sweep = sweepVerdict({ results, overlay, expectations: uniform });
-    record('a sweep whose cases produce one identical capture is HARNESS_ERROR',
+    mutation('a sweep whose cases produce one identical capture is HARNESS_ERROR',
         sweep.verdict === 'HARNESS_ERROR'
         && (sweep.checks.theCapturesDiffer === false || sweep.checks.aDeeperCaseIsStrictlyDeeperThanParity === false || sweep.checks.depthZeroIsTheNewestPosition === false),
         JSON.stringify({ verdict: sweep.verdict, reason: sweep.reason, failed: Object.entries(sweep.checks).filter(([, value]) => value !== true).map(([name]) => name) }));
@@ -305,12 +313,12 @@ record('baseline is faithful (verdict PASS, no failed check)',
 {
     const disabledId = caseIds.find(id => resolveAuthorsNoteCase(overlay, id).enabled === false);
     if (!disabledId) {
-        record('the overlay records a disabled case', false, 'no case has enabled === false');
+        mutation('the overlay records a disabled case', false, 'no case has enabled === false');
     } else {
         const expectation = expectations.cases[disabledId];
         const wrong = reportFor(disabledId, expectation, { body: syntheticBody('parity', expectations.cases.parity) });
         const result = judge(disabledId, wrong, reportFor(disabledId, expectation));
-        record(`the disabled case (${disabledId}) carrying an enabled capture is caught`,
+        mutation(`the disabled case (${disabledId}) carrying an enabled capture is caught`,
             result.verdict === 'PRODUCT_MISMATCH' || result.verdict === 'PINNED_BEHAVIOR',
             JSON.stringify({ verdict: result.verdict, reason: result.reason, failedChecks: failedChecksOf(result) }));
     }
@@ -328,12 +336,42 @@ record('baseline is faithful (verdict PASS, no failed check)',
         overlay,
     }));
     const sweep = sweepVerdict({ results, overlay, expectations: unattributed });
-    record('an expectation that does not say measuredBy="pinned-leg" fails the sweep',
+    mutation('an expectation that does not say measuredBy="pinned-leg" fails the sweep',
         sweep.checks.expectationIsPinnedDerived === false && sweep.verdict !== 'PASS',
         JSON.stringify({ verdict: sweep.verdict, reason: sweep.reason }));
 }
 
+// 14. DEPTH 0 IN THE WRONG DIRECTION. This is the mutation for the mistake the mechanism makes easy: pinned
+//     builds the list NEWEST-FIRST (openai.js:578) and splices at `depth + totalInserted` (:867), so depth 0
+//     is the LAST message. A harness (or a product) with the direction reversed would put the depth-0 note at
+//     the TOP, with every history turn below it -- which the strengthened assertion must catch, because the
+//     previous "strictly fewer than parity" form would have called that a pass whenever the note still sat
+//     below at least one turn.
+{
+    const zeroExpectation = expectations.cases.depth0;
+    // The WRONG layout: the note at the head of the list, so all the history sits below it.
+    const wrong = reportFor('depth0', zeroExpectation, { body: syntheticBody('parity', expectations.cases.parity) });
+    const results = caseIds.map(id => {
+        const expectation = expectations.cases[id];
+        const body = id === 'depth0' ? (wrong.recording[0].body) : undefined;
+        const report = body
+            ? { ...reportFor(id, expectation), recording: [{ ...reportFor(id, expectation).recording[0], body, bodySha256: createHash('sha256').update(body).digest('hex'), bodyLength: Buffer.byteLength(body, 'utf8') }] }
+            : reportFor(id, expectation);
+        return compareCase({
+            caseId: id,
+            expectation,
+            gotavern: observationOf(report, 'GoTavern'),
+            pinned: observationOf(reportFor(id, expectation), 'pinned'),
+            overlay,
+        });
+    });
+    const sweep = sweepVerdict({ results, overlay, expectations });
+    mutation('a depth-0 case placed at the TOP of the list (the reversed direction) fails depthZeroIsTheNewestPosition',
+        sweep.checks.depthZeroIsTheNewestPosition === false && sweep.verdict !== 'PASS',
+        JSON.stringify({ verdict: sweep.verdict, reason: sweep.reason, depthZeroHistoryBelow: results.find(entry => entry.caseId === 'depth0')?.details?.pinnedExpectation?.historyBelow ?? null, failed: Object.entries(sweep.checks).filter(([, value]) => value !== true).map(([name]) => name) }));
+}
+
 console.log(failures.length === 0
-    ? `authors-note gate self-test: 13 mutations caught, baseline green`
+    ? `authors-note gate self-test: ${MUTATION_COUNT} mutations caught, baseline green`
     : `authors-note gate self-test: ${failures.length} mutation(s) NOT caught: ${failures.join(', ')}`);
 process.exit(failures.length === 0 ? 0 : 1);
