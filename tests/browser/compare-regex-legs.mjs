@@ -582,6 +582,19 @@ guard('case8_storedChatHoldsTheRewrittenTextOnBothSubjects', () => {
             problems.push(`${subject}: the stored chat holds no user turn, so the case measured nothing`);
             continue;
         }
+        // THE FILE MUST BELONG TO THE CHAT THE PAGE WAS ON, before AND after the drive. A file whose tokens
+        // match but whose chat id moved is an assertion about a different conversation -- correct in every
+        // respect and worthless. The leg records both ids and which candidate matched; this asserts the pair
+        // and names the id and the path when they disagree.
+        if (stored.idStable !== true) {
+            problems.push(`${subject}: the chat id changed across the drive (${JSON.stringify(stored.chatIdAtRead)} -> ${JSON.stringify(stored.chatIdAfterDrive)}), so the file at ${JSON.stringify(stored.path)} (candidate ${JSON.stringify(stored.matchedCandidate)}) may belong to a different conversation than the one driven`);
+        }
+        if (stored.chatIdAtRead === null || stored.chatIdAtRead === undefined) {
+            problems.push(`${subject}: the stored chat carries no chat id at read time, so it cannot be attributed to the conversation this leg drove`);
+        }
+        if (!(stored.bytes > 0)) {
+            problems.push(`${subject}: the stored chat reports ${JSON.stringify(stored.bytes)} bytes`);
+        }
         // THE TYPED TURN, identified by its own marker rather than by position: the last user turn that
         // carries the turn marker is the one this scenario typed.
         const typed = userTurns.filter(message => String(message.mes ?? '').includes(MARKERS.turn));

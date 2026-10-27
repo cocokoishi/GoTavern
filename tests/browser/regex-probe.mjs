@@ -521,16 +521,32 @@ try {
         };
     });
     report.chatIdentity = chatIdentity;
-    // The chats directory is per-user; a fresh tree is `default-user`. Both candidates are tried and the
-    // resolved one is RECORDED, so the comparator never has to assume which layout the leg used.
+    // THE ID IS READ AGAIN AFTER THE DRIVE, and the two must agree. `send` and `swipe` can move the page to
+    // a different chat, so an id captured BEFORE the drive could name a different conversation than the one
+    // whose file satisfies the assertions -- a file correct in every respect but belonging to another chat.
+    // That is the Q21 lesson ("name the card the server thinks it serves") in a new costume: identify the
+    // artefact by the handle the subject reports, at the time the artefact was produced.
+    const chatIdentityAfter = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        return {
+            chatId: typeof script.getCurrentChatId === 'function' ? script.getCurrentChatId() : null,
+            chatLength: Array.isArray(script.chat) ? script.chat.length : null,
+        };
+    });
+    report.chatIdentityAfter = chatIdentityAfter;
+    // The chats directory is per-user; a fresh tree is `default-user`. Both candidates are tried and BOTH the
+    // resolved path AND WHICH CANDIDATE MATCHED are recorded, so the comparator never has to assume which
+    // layout the leg used.
     const storedCandidates = [];
     const chatsRoot = path.join(dataRoot, 'default-user', 'chats');
     let storedPath = null;
+    let matchedCandidate = null;
     if (chatIdentity?.chatId) {
         const direct = path.join(chatsRoot, `${chatIdentity.chatId}.jsonl`);
         storedCandidates.push(path.relative(dataRoot, direct).split(path.sep).join('/'));
         if (await fs.stat(direct).then(() => true, () => false)) {
             storedPath = direct;
+            matchedCandidate = storedCandidates[storedCandidates.length - 1];
         } else {
             // A named chat may live in a per-character subdirectory; list the root's entries so the
             // artefact says what WAS there instead of only what was not.
@@ -542,12 +558,14 @@ try {
                 storedCandidates.push(path.relative(dataRoot, nested).split(path.sep).join('/'));
                 if (await fs.stat(nested).then(() => true, () => false)) {
                     storedPath = nested;
+                    matchedCandidate = storedCandidates[storedCandidates.length - 1];
                     break;
                 }
             }
         }
     }
     report.storedCandidates = storedCandidates;
+    report.storedMatch = { matchedCandidate, chatIdAtRead: chatIdentity?.chatId ?? null, chatIdAfterDrive: chatIdentityAfter?.chatId ?? null, idStable: (chatIdentity?.chatId ?? null) === (chatIdentityAfter?.chatId ?? null) };
     if (storedPath) {
         const raw = await fs.readFile(storedPath, 'utf8');
         // JSONL: one JSON object per line. A malformed line is recorded, not thrown on, so a corrupt file
@@ -567,6 +585,14 @@ try {
             bytes: Buffer.byteLength(raw, 'utf8'),
             messageCount: storedMessages.length,
             badLines,
+            // WHICH CANDIDATE THIS FILE WAS, and the chat id the page reported on both sides of the drive.
+            // A file that satisfies the token assertions but belongs to a DIFFERENT chat is the failure this
+            // metadata exists to make visible (the Q21 lesson). The comparator asserts idStable.
+            matchedCandidate,
+            chatIdAtRead: chatIdentity?.chatId ?? null,
+            chatIdAfterDrive: chatIdentityAfter?.chatId ?? null,
+            idStable: (chatIdentity?.chatId ?? null) === (chatIdentityAfter?.chatId ?? null),
+            persistedHandlePresent: /\bchat_metadata\b/.test(raw),
             // WHAT THE TYPED TURN LOOKS LIKE ON DISK. The rule's output must be here and the user's raw
             // token must not be, because pinned rewrites before the push (:5875-5886).
             messages: storedMessages.map(message => ({
