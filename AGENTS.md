@@ -1128,6 +1128,28 @@ rather than by review.
     spent five runs disproving. A green on the faster subject is not reassurance; it is the reason the difference
     will appear on the slower one.
 
+87. **A mutation that changes something the guard never consults cannot kill it, so a mutation must target the field
+    the guard READS.** Measured in a self-test, and it is the "wrong surface" defect arriving in the MUTATION rather
+    than in the guard -- which is why the sweep in rule 80 has to reach the mutations too.
+    The lane's case 6 had been corrected one commit earlier to read `sides.js.entry` instead of `sides.js.prompt`,
+    because a flagless rule fires on the entry-point shape. The self-test's `change-the-js-answer` mutation still
+    edited `sides.js.prompt`. **It SURVIVED** -- not because the guard was weak, but because the mutation changed a
+    field the guard no longer consults. A surviving mutation is normally read as "the guard is too weak" (rule 3);
+    this one meant "the mutation is aimed at yesterday's code", and the two are indistinguishable from the survivor
+    line alone.
+    So a mutation must be aimed at the field the guard READS, and the check is the same question rule 15 asks of an
+    assertion: what input would make this fail? If the mutation's target and the guard's reader have drifted apart,
+    the mutation proves nothing about either.
+    THE LANE ALSO KEPT ITS EXPECTATION SEMANTICS INTACT while accepting a stronger red: `show-prompt-output-in-display`
+    died at `renderedTextIsTheSameOnBothSubjects` rather than at case 3, because the guard ORDER caught it earlier.
+    Rather than loosen `expectedGuards` (which means ALL of these must fire), it added `anyOfGuards` (ONE of these
+    must fire), so each key keeps its own meaning and nothing is weakened. That is the right shape when a real red
+    lands on a different guard than predicted: add a slot for the observed behaviour instead of widening the
+    existing one.
+    VERIFIED WITHOUT A DISPATCH, on the green run's own six legs: teeth-not-demonstrated with 2 problems ->
+    teeth-demonstrated with 12 mutations each dying at its named guard and the real legs green. All eight cases have
+    a killing mutation. Rule 75 again.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
