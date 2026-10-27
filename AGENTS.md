@@ -917,6 +917,10 @@ rather than by review.
     compared, a branch holding the only copy of something. So the trigger is the FEELING of an easy result, not a
     failing test, and the response is one cheap query: does a capture already answer this, does the consumer of
     this list still compare what I am about to suppress, does `main` contain every file this branch has.
+    **The most reliable marker is not the green itself but the EASE OF WRITING THE EXPLANATION.** When the prose
+    comes quickly and comfortably, that is the tell: it means the result fits what you already believed, which is
+    exactly when nobody checks. Measured in one lane three times — twice it meant the consumer of a list had not
+    been read, and once it meant `argv[3]` had been assumed to be a checkout.
     Corollary for whoever reads a green run: the same question applies to it. A gate that passed on the first try,
     a comparison with no differing field, a patch that applied cleanly — each is a candidate for "arrived too
     easily", and the way to test it is to try to make it fail.
