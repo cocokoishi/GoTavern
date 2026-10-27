@@ -97,7 +97,29 @@
       "name": "card-a",
       "file": "card-a.png",
       "bytes": 18506908,
-      "sha256": "9f4f08341676538a6af8197b7b54a62a727cb969c59fcdba98a32c5b94f77106",
+      "sha256": "37e8693c0ea1dfedf3237a6f02347b3ec0e95674ef1179ce79801050d0c9c5d4",
+      "repair": {
+        "reason": "canonical name taken from the current ccv3 document so prior Q21 reports remain comparable; chara rewritten to carry the same document, because the generator derived each chunk independently",
+        "tool": "tools/repair-card-chunks.mjs",
+        "previousSha256": "9f4f08341676538a6af8197b7b54a62a727cb969c59fcdba98a32c5b94f77106",
+        "previousBytes": 18506908,
+        "input": "the ccv3 document already inside this derivation; the original card was never read",
+        "imageUnchanged": {
+          "idatSha256": "bca3276d31fea3fbd8cf34fcab69797f1819d391ff932ea6a4027a0fe2cf678a",
+          "idatBytes": 125,
+          "chunkOrder": "IHDR(13) IDAT(3197) tEXt(9251658) tEXt(9251657) trAc(303) IEND(0)",
+          "nonCardChunksByteIdentical": true
+        },
+        "chunksCarryTheSameDocument": {
+          "charaEquality": "equal",
+          "ccv3Equality": "equal",
+          "why": "both decoded documents are byte-identical to each other (6938739 JSON bytes each), and so is the DERIVED artifact from which the reader constructs them: decoding is `chara` decodeURIComponent(base64(payload)) and `ccv3` base64(payload), so the decoded bytes of the two are equal while the written payloads differ by exactly the characters the percent-encoding adds. That asymmetry is the pinned reader's own rule (public/script.js decodeASCII, character-card-parser.read), not this tool's convention, and it is why `sameDocumentAcrossChunks` is asserted on the DECODED documents rather than on the raw payloads.",
+          "decodedDataName": "MARK_002794测测测测测测测测",
+          "decodedRootName": "MARK_002792测测测测测测测测",
+          "charaPayloadBytes": 9251658,
+          "ccv3PayloadBytes": 9251657
+        }
+      },
       "origin": {
         "bytes": 19093535,
         "sha256": "b1fb70b3b1681cc2012c5d351544a62ee8f7e769ac03fefae737b05acdf198bd"

@@ -423,6 +423,54 @@ record('scanner REFUSES the same CJK prose unmarked (the pass is right, not loos
     const equalLength = buildCard(equalLengthPath, outDir);
     record('derivation ACCEPTS two equal-length chunks and writes ONE document to both', equalLength.ok,
         equalLength.ok ? undefined : equalLength.output.trim().split('\n').slice(0, 3).join(' | ').slice(0, 400));
+
+    // 3i. THE COMMITTED DERIVATION IS ITSELF A CASE: its two chunks must carry ONE document.
+    //
+    // This is the gate for the repair in this lane. `card-a.png` used to hold `chara: data.name="MARK_000466…"` and
+    // `ccv3: data.name="MARK_002794…"` (`GoTavern Lane CI` 40446833206) and nothing failed, because no gate ever read
+    // the second chunk of a committed card. The assertion is on the DECODED documents, using the character code units
+    // `character-card-parser.read` produces -- `ccv3` = base64, `chara` = decodeURIComponent(base64) -- so it
+    // exercises the reader's own rule rather than a convention this file prefers. The two PAYLOADS are deliberately
+    // not required to be equal: the percent-encoding of a non-ASCII document makes `chara`'s longer (measured:
+    // 9,251,658 vs 9,251,657 bytes), and that difference is the reader's, not a defect in the card.
+    const committedCard = path.join(here, '..', 'tests', 'browser', 'fixtures', 'real', 'card-a.png');
+    if (fs.existsSync(committedCard)) {
+        const image = fs.readFileSync(committedCard);
+        const documents = new Map();
+        let offset = 8;
+        while (offset + 8 <= image.length) {
+            const length = image.readUInt32BE(offset);
+            const type = image.toString('latin1', offset + 4, offset + 8);
+            const dataStart = offset + 8;
+            if (dataStart + length > image.length) break;
+            if (type === 'tEXt') {
+                const body = image.subarray(dataStart, dataStart + length);
+                const zero = body.indexOf(0);
+                const keyword = body.toString('latin1', 0, zero).toLowerCase();
+                if (keyword === 'chara' || keyword === 'ccv3') {
+                    const raw = Buffer.from(body.subarray(zero + 1).toString('latin1'), 'base64');
+                    const text = keyword === 'chara' ? decodeURIComponent(raw.toString('utf8')) : raw.toString('utf8');
+                    documents.set(keyword, Buffer.from(text, 'utf8'));
+                }
+            }
+            offset = dataStart + length + 4;
+            if (type === 'IEND') break;
+        }
+        const chara = documents.get('chara');
+        const ccv3 = documents.get('ccv3');
+        record('the committed derivation carries ONE document in both chunks',
+            Boolean(chara && ccv3 && chara.equals(ccv3)),
+            chara && ccv3 ? `chara ${chara.length} B vs ccv3 ${ccv3.length} B` : 'a chunk is missing');
+        if (chara && ccv3) {
+            const dataName = (buffer) => JSON.parse(buffer.toString('utf8'))?.data?.name ?? null;
+            record('the committed derivation answers the same data.name from either chunk',
+                dataName(chara) === dataName(ccv3),
+                `chara=${JSON.stringify(dataName(chara))} ccv3=${JSON.stringify(dataName(ccv3))}`);
+        }
+    } else {
+        record('the committed derivation carries ONE document in both chunks', false, `${committedCard} is missing`);
+    }
+
     const manifestPath = path.join(outDir, 'real-fixture-manifest.json');
     if (equalLength.ok && fs.existsSync(manifestPath)) {
         const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
