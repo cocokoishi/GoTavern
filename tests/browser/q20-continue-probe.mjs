@@ -281,7 +281,23 @@ try {
     step('character-opened', opened?.opened === true, JSON.stringify(opened));
     const openedContext = await page.evaluate(async () => {
         const context = window.SillyTavern.getContext();
-        return { chatId: context.chatId ?? null, chatLength: (context.chat ?? []).length, thisChid: context.characterId ?? null };
+        const chat = context.chat ?? [];
+        // `characterName` IS RECORDED HERE, and run 40559516968 is why: the continue leg drove all 24 steps green and
+        // the pinned leg never started, because the workflow reads `characterOpen.characterName` with a fallback to
+        // `openedContext.characterName` and THIS PROBE WROTE NEITHER. The regenerate probe records the same field and
+        // resolved `Seraphina` on the same run -- so the fallback I added worked exactly as designed on the one probe
+        // that carried the field, and could not work on the one that did not.
+        //
+        // The name is taken through the CONTEXT's `characterId` and the roster, the reader the product uses
+        // (st-context.js:123), not from a module binding captured before the click -- rule 90's lesson.
+        const chid = context.characterId ?? null;
+        const roster = context.characters ?? [];
+        return {
+            chatId: context.chatId ?? null,
+            chatLength: chat.length,
+            thisChid: chid,
+            characterName: chid !== null && chid !== undefined ? (roster[chid]?.name ?? null) : null,
+        };
     });
     report.openedContext = openedContext;
 
