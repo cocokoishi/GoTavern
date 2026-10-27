@@ -148,7 +148,20 @@ export function startCapturePeer({ replyText = ordinal => `Q20_REPLY_${ordinal}`
             //
             // `replyPrefix` lets a caller stamp the subject's identity into the text, so a difference attributable to
             // the harness is visible AS a difference instead of hiding inside a shared convention.
-            const text = String(replyText(replyIndex) ?? '');
+            // `replyIndex` is passed TWICE -- as the ordinal and as the "counterpart" slot -- so a caller may declare
+            // either `ordinal => ...` (regenerate, save/reload/swipe) or `(ordinal, counterpart) => ...` (continue).
+            //
+            // THE SECOND ARGUMENT EXISTS BECAUSE ITS ABSENCE WAS A SILENT DEFECT. The continue probe declares
+            // `replyText: (ordinal, counterpart) => ...`, and when this call site passed only one argument the reply
+            // text became the literal string `Q20_REPLY_undefined`. NOTHING THREW: the page stored it, the message
+            // count was correct, and only the assertions that READ the reply went red --
+            // `turn-1-saved-the-reply`, `turn-2-saved-the-reply`, `continue-control-reached`,
+            // `continue-ui-shows-the-grown-message` and `continue-file-holds-continuation-in-same-message`. Five reds
+            // from one missing argument, every one of them shaped like a finding about the continue verb.
+            // A signature mismatch between a producer and its only consumer is invisible to `node --check`, and this is
+            // the cheapest possible instance of rule 80: the weak spot was not in the assertion but in the fixture
+            // underneath all of them.
+            const text = String(replyText(replyIndex, replyIndex) ?? '');
             const labelled = replyPrefix ? `${replyPrefix}${text}` : text;
             const serveSse = wire === 'sse' || (wire === 'honour' && wantsStream);
             if (serveSse) {

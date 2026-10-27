@@ -208,13 +208,17 @@ if (boot.bootRefusal) report.failure = `leg-refused: ${boot.bootRefusal}`;
 // registered as an ORDINAL (the next completion the peer answers) because the answer has to be a function of WHICH
 // request it is, and the leg cannot know the ordinal until it has counted the turns it drove; `replyText` reads a
 // slot the leg fills in immediately before pressing the control.
+// DECLARED BEFORE THE PEER, because `replyText` closes over it. A `const` referenced above its declaration is a
+// temporal-dead-zone ReferenceError, and `node --check` cannot see it -- the same TDZ class this file already
+// recorded for `wireMode`. It happens to be safe today only because the closure runs after this line executes; that
+// is an ordering coincidence, not a guarantee, and the comment is cheaper than the alternative.
+const peerState = { continuationOrdinal: null, continuationTail: null };
 const peer = await startCapturePeer({
     wire: wireMode,
     replyText: (ordinal, counterpart) => (peerState.continuationOrdinal !== null && peerState.continuationOrdinal === counterpart
         ? `${MARKERS.continuation}_${counterpart}${typeof peerState.continuationTail === 'string' ? peerState.continuationTail : ''}`
         : `Q20_REPLY_${counterpart}`),
 });
-const peerState = { continuationOrdinal: null, continuationTail: null };
 const peerBase = `http://127.0.0.1:${peer.port}/v1`;
 
 let browser;
