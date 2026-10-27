@@ -1309,6 +1309,31 @@ rather than by review.
     **Asserting an equality you have not observed is how a step goes red for a reason it did not name.** Deleting it
     was the correct action, and deleting it BEFORE the run rather than after is what saved the run.
 
+94. **A fallback verified on one probe is not verified on the other -- grep the CONSUMER's field name in the PRODUCER
+    before shipping the consumer.** This is rule 91 generalised from ASSIGNMENTS to FIELD NAMES ACROSS FILES, and the
+    same lane paid three runs for it.
+    THE LEG THAT PROVED IT. The continue probe's GoTavern leg went FULLY GREEN, 24/24, including every step the lane
+    had been chasing (`continue-grew-the-same-message`, `continue-ui-shows-the-grown-message`,
+    `continue-file-holds-continuation-in-same-message`, `next-request-carries-no-continue-nudge`) -- and the PINNED
+    leg never started, because the workflow reported that the leg recorded no character name in
+    `characterOpen.characterName` OR `openedContext.characterName`. The continue probe wrote NEITHER: its
+    `openedContext` recorded exactly `{ chatId, chatLength, thisChid }`. A fallback added one run earlier worked
+    perfectly and had nothing to fall back to.
+    THE PROOF IT WAS THE HARNESS, FROM THE SAME RUN: the REGENERATE step resolved "the pinned leg will open the card
+    the product opened: Seraphina" -- same tree, same shared `openCharacter`, same workflow line. It worked because
+    the REGENERATE probe records `characterName`. **One workflow line covered BOTH steps, and only one of the two
+    producers emitted its input.** The lane's own words: a fallback verified on one probe is not verified on the
+    other.
+    THE FAMILY, LISTED BY THE LANE, AND IT IS ONE SHAPE: `continuationOrdinal` (declared, never assigned),
+    `characterName` (produced by one probe only), `domMessageCount` (asserted in one probe, only recorded in its
+    twin). **Three defects, one shape: one side of a producer/consumer pair was verified and the other was assumed.**
+    THE CHECK IS TWO QUERIES: grep the CONSUMER's field name in the PRODUCER, and for a shared code path grep it in
+    EVERY producer that path covers. Rule 91 told the lane this and it applied the lesson to assignments rather than
+    to field names across files -- so the rule is restated here at the wider scope deliberately.
+    THE FIX IS RULE 90 APPLIED RATHER THAN RESTATED: the continue probe now records `characterName` from the
+    CONTEXT's `characterId` plus `context.characters` (`st-context.js:119/123`), so the field is read through the
+    product's own accessor at the point of use instead of from a binding captured earlier.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
