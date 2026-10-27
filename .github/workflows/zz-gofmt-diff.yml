@@ -1,0 +1,26 @@
+name: zz gofmt diff (temporary)
+on:
+  push:
+    branches: ['lane/docs-goal']
+permissions:
+  contents: read
+jobs:
+  show:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Upload the canonical gofmt output as one artifact
+        run: |
+          gofmt internal/fixtures/documents_test.go > /tmp/formatted.go
+          mkdir -p /tmp/out
+          cp /tmp/formatted.go /tmp/out/formatted.go
+          diff -u internal/fixtures/documents_test.go /tmp/formatted.go > /tmp/out/gofmt.diff || true
+          wc -l /tmp/out/gofmt.diff
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gofmt-canon
+          path: /tmp/out/
