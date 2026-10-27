@@ -1150,6 +1150,32 @@ rather than by review.
     teeth-demonstrated with 12 mutations each dying at its named guard and the real legs green. All eight cases have
     a killing mutation. Rule 75 again.
 
+88. **When a predicate is about a SEQUENCE, read the whole sequence before the first fix — three attempts at one
+    flag cost three runs that one pass through the enclosing function would have saved.** This is rule 80's most
+    expensive form: the lane swept its predicate across FILES but not across the INITIALISATION ORDER, and each
+    successive answer was "too early" or "too late" by exactly one step.
+    1. `settingsReady` alone -- TOO EARLY. Set inside `getSettings` (`script.js:8046`), which `firstLoadInit` calls
+       at `:752`.
+    2. `#preloader` removal -- ALSO TOO EARLY, and the reason is worth keeping: `yoinkPreloader()`
+       (`action-loader.js:609`) runs once after the first loader hide, i.e. at `initLoaderHandle.hide()`
+       (`script.js:788`) -- BEFORE `fixViewport()` (`:789`) and before `APP_READY` (`:790`). **The preloader marks
+       the LOADER finishing, not the APPLICATION initialising**, and those are different events that look alike.
+    3. A listener installed after `domcontentloaded` -- TOO LATE. `firstLoadInit()` is called at the END of the
+       ready handler (`script.js:12591`), so a fast module finishes init BEFORE `domcontentloaded` fires.
+    THE INSTRUMENT WAS NEVER "A BETTER FLAG". It was the event, observed from BEFORE the page can emit it:
+    `addInitScript` makes Playwright evaluate the subscription before every page script, so it exists before init
+    can fire. And the event name is the LITERAL `APP_READY: 'app_ready'` read from `public/scripts/events.js:5`
+    rather than derived from the constant -- a name guessed from a constant is a name that can be wrong in a way
+    nothing checks.
+    A FALLBACK WAS ADDED FOR THE SAME REASON A SUBSCRIPTION IS NOT PROOF: `fixViewport()` (`:793`) runs immediately
+    before the emit and leaves a durable body-style state nothing else produces, and when it fires
+    `__q20AppReadyViaFallback` is recorded -- so the artefact says WHICH PATH established readiness instead of
+    implying the subscription worked. Rule 64 again: the record must carry the mechanism, not the conclusion.
+    THE LANE'S OWN SUMMARY, which is the rule's reason for existing: the line numbers were all inside ONE 100-line
+    function (`:693-791`) plus its single call site (`:12591`), and reading that function whole would have taken one
+    pass instead of three runs. **When successive fixes to one predicate are each off by a step, stop refining the
+    predicate and read the sequence it is trying to detect.**
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
