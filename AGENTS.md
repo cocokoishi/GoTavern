@@ -720,7 +720,12 @@ rather than by review.
     is inconsistent:" and nothing else, and a real blocker (a shallow checkout) stayed invisible underneath a
     genuine but secondary citation problem. Print the diff you want applied; emit each problem on its own line;
     print each `--- FAIL` with the lines that follow it, because the assertion message is what makes a red
-    actionable.
+    actionable. **And the summary must print the fields its own guards depend on.** A probe recorded per-case
+    mechanism fields but not `provenance.serverPid`, so a guard that requires "this ran in a NEW process" had no
+    input in the log — and the lane, measuring the CONSOLE stream rather than the uploaded artefact, then reported
+    the field as absent and quoted its own blind spot as a finding. Three times in one night a console summary hid
+    the evidence needed to read its own red; the fix each time is to print the input the guard reads, not a
+    summary of the conclusion.
 
 65. **A function handed to a page as SOURCE has no closure.** `page.addScriptTag({content: fn.toString()})`
     serialises by source, so the function runs in the page with only its arguments and page globals available.
