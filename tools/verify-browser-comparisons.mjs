@@ -33,7 +33,7 @@ import {
     bothLegsReached, cancellationReachedProvider, completionRouteUsed, finalTextNonEmpty,
     noDryInvocationInSendWindow, providerRequestsEqual, sendWindowFaithful, streamingSurfacesProven,
 } from './browser-evidence/invariants.mjs';
-import { assetSurface, authorsNoteSurface, dataDomainSurface, extensionSurface, helperGenerationSurface, helperSurface, startupSurface } from './browser-evidence/other-surfaces.mjs';
+import { assetSurface, authorsNoteSurface, dataDomainSurface, extensionSurface, helperGenerationSurface, helperSurface, helperVariablesSurface, startupSurface } from './browser-evidence/other-surfaces.mjs';
 import { SOURCE_HOOKS } from './browser-evidence/source-hooks.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -216,6 +216,10 @@ const main = () => {
     for (const [file, run] of [
         ['helper-comparison.json', helper => helperSurface(helper.ctx, helper.artifact)],
         ['helper-generation-comparison.json', helper => helperGenerationSurface(helper.ctx, helper.artifact)],
+        // THE VARIABLE/INJECTION SURFACE. Its committed artefact is named OUTSIDE the leg prefix
+        // (`helper-vars-*.json` is gitignored; `helper-variables-comparison.json` is tracked), so this entry and
+        // tests/browser/.gitignore's pattern are the two halves of one decision -- catalog.test.mjs asserts both.
+        ['helper-variables-comparison.json', helper => helperVariablesSurface(helper.ctx, helper.artifact)],
     ]) {
         const ctx = createContext(file);
         const payload = readArtifact(file);

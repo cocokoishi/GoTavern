@@ -67,6 +67,16 @@ on:
       - 'tests/browser/url-recorder.mjs'
       - 'tests/browser/helper-generation-probe.mjs'
       - 'tests/browser/compare-helper-generation.mjs'
+      # THE VARIABLE/INJECTION HARNESS PROVES ITSELF ON A PUSH THAT TOUCHES IT, and these entries are also the
+      # reason the first commit of that lane started NO browser run at all: the leg, its kit and its comparator
+      # landed while `push.paths` listed only the render and generation surfaces, so the gate nobody had seen
+      # execute was also never scheduled. That is the same omission the `internal/server/thumbnails.go` entry
+      # below records, in the other direction (a fix travelling without its gate).
+      - 'tests/browser/helper-vars-probe.mjs'
+      - 'tests/browser/extensions/helper-vars-kit.mjs'
+      - 'tests/browser/compare-helper-vars-legs.mjs'
+      - 'tests/browser/helper-vars-generate-probe.mjs'
+      - 'tests/browser/compare-helper-vars-generate-legs.mjs'
       - 'tools/browser-evidence/other-surfaces.mjs'
       - 'tools/verify-browser-comparisons.mjs'
       # THE FILE THAT SERVES THE BROWSER'S IMAGES MUST RE-PROVE THE BROWSER'S IMAGES. Without this entry, a
@@ -97,6 +107,11 @@ on:
       - 'tests/browser/url-recorder.mjs'
       - 'tests/browser/helper-generation-probe.mjs'
       - 'tests/browser/compare-helper-generation.mjs'
+      # The variable/injection surface. Its comparator is already covered by `compare-*-legs.mjs` above; the probe
+      # and the kit that stages its tree are not, and a change to either changes what the artefact MEANS.
+      - 'tests/browser/helper-vars-probe.mjs'
+      - 'tests/browser/helper-vars-generate-probe.mjs'
+      - 'tests/browser/extensions/helper-vars-kit.mjs'
       - 'tests/browser/preset-gate-selftest.mjs'
       - 'tests/browser/run-against-pinned.mjs'
       - 'tests/browser/catalog.test.mjs'
@@ -666,6 +681,122 @@ jobs:
             > /dev/null
           echo "helper generation comparison written to tests/browser/helper-generation-comparison.json"
 
+      # THE VARIABLE / INJECTION LEG (GOAL.md Q10, Q11; AGENTS.md 47/48/49/50).
+      #
+      # A THIRD HELPER DRIVE, because it answers a question neither existing helper artefact can: does a variable
+      # change the FINAL provider request, and does an injection land where pinned puts it. `helper-probe.mjs`
+      # asserts a chat file gained a value and never calls the model; `helper-generation-probe.mjs` calls
+      # `generate({injects:[...]})`, which passes the prompt INTO the extension
+      # (generate/generateRaw.ts:281-414), while this leg drives `injectPrompts -> setExtensionPrompt ->
+      # extension_prompts` -> `populationInjectionPrompts` (public/scripts/openai.js:810-875). Different paths, and
+      # a green on one says nothing about the other.
+      #
+      # SIX LEGS: both subjects x {on, off} on one tree each, plus both subjects RE-RUN on the tree the on-leg left
+      # behind (`--after-restart`), which is the only way "survives a new server process" is observable. The off legs
+      # are the rule-50 control: with no variable written and no injection, every capture must equal the no-variable
+      # form, or the pair cannot show the variable is what changed anything.
+      #
+      # THIS LEG REFUSES RATHER THAN COMPARES when the installed extension is not the pinned commit (the kit reads
+      # `git rev-parse HEAD` and `manifest.json` before the browser starts), so a tree at the wrong revision is a
+      # named failure here and never a green about a different extension.
+      #
+      # !cancelled() so a red render or generation comparison still yields this verdict in the same run: three
+      # independent claims, one expensive setup, and a run that answers all three.
+      - name: Record the helper variable legs (both subjects, on/off, then restarted on the same trees)
+        id: helper-vars
+        if: ${{ !cancelled() && (env.MODE_HELPER == 'helper' || env.MODE_HELPER == 'all') }}
+        timeout-minutes: 45
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          mkdir -p "$work/legs"
+          # THE HARNESS FILES MUST EXIST BEFORE A LEG IS SPENT, the same preflight the render step carries after
+          # Browser differential 40221275271 spent five legs on ERR_MODULE_NOT_FOUND.
+          for harness in helper-vars-generate-probe.mjs compare-helper-vars-generate-legs.mjs extensions/helper-vars-kit.mjs; do
+            if [ ! -f "tests/browser/$harness" ]; then
+              echo "::error::tests/browser/$harness is missing from this checkout; the helper variable surface cannot run"
+              exit 1
+            fi
+          done
+          failures=0
+          declare -A trees
+          for variant in on off; do
+            for subject in gotavern pinned; do
+              tree="$work/helper-vars-tree-$subject-$variant"
+              trees["$subject-$variant"]="$tree"
+              rm -rf "$tree"
+              mkdir -p "$tree"
+              report="$work/legs/helper-vars-$subject-$variant.json"
+              if [ "$subject" = "gotavern" ]; then
+                runner=(node tests/browser/helper-vars-generate-probe.mjs)
+              else
+                runner=(node tests/browser/run-against-pinned.mjs helper-vars-generate-probe.mjs --)
+              fi
+              if "${runner[@]}" --data-root "$tree" --variant "$variant" --report "$report"; then
+                echo "recorded the $subject/$variant helper variable leg (narrow vehicle)"
+              else
+                echo "::error::the $subject/$variant helper variable leg failed to drive"
+                failures=$((failures + 1))
+              fi
+            done
+          done
+          # THE RESTART LEGS. Same tree, NEW process, read-only intent: the on-legs' trees are handed back so the
+          # value a previous process wrote must still resolve from what is on disk. The `off` tree is deliberately
+          # not restarted -- with nothing written there is nothing to survive.
+          for subject in gotavern pinned; do
+            tree="${trees["$subject-on"]}"
+            report="$work/legs/helper-vars-$subject-on-restart.json"
+            if [ "$subject" = "gotavern" ]; then
+              runner=(node tests/browser/helper-vars-probe.mjs)
+            else
+              runner=(node tests/browser/run-against-pinned.mjs helper-vars-probe.mjs --)
+            fi
+            if "${runner[@]}" --data-root "$tree" --variant on --after-restart --report "$report"; then
+              echo "recorded the $subject restart helper variable leg"
+            else
+              echo "::error::the $subject restart helper variable leg failed to drive"
+              failures=$((failures + 1))
+            fi
+          done
+          echo "variable_failures=$failures" >> "$GITHUB_OUTPUT"
+          # A drive failure is reported above and judged below; this step does not mask it.
+          exit 0
+
+      - name: Compare the helper variable legs
+        id: helper-vars-compare
+        if: ${{ !cancelled() && (env.MODE_HELPER == 'helper' || env.MODE_HELPER == 'all') }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          # A JUDGE WHOSE REPORTS ARE ABSENT MUST FAIL BY NAME. If this step's `if:` were false (the defect
+          # browser-differential.yml:148-157 records for the helper surface) it would report nothing and the job
+          # would read as green, so the report files are checked here rather than trusted.
+          missing=0
+          for leg in gotavern-on pinned-on gotavern-off pinned-off gotavern-on-restart pinned-on-restart; do
+            if [ ! -s "$work/legs/helper-vars-$leg.json" ]; then
+              echo "::error::the helper variable leg helper-vars-$leg.json was not recorded, so this surface has no evidence this run"
+              missing=$((missing + 1))
+            fi
+          done
+          if [ "$missing" != "0" ]; then
+            echo "::error::$missing helper variable leg(s) absent; refusing to judge a surface that did not run"
+            exit 1
+          fi
+          if [ "${{ steps.helper-vars.outputs.variable_failures }}" != "0" ]; then
+            echo "::error::a helper variable leg failed to drive (including a REFUSAL for a non-pinned extension), so there is no comparison to judge"
+            exit 1
+          fi
+          node tests/browser/compare-helper-vars-generate-legs.mjs \
+            --gotavern-on "$work/legs/helper-vars-gotavern-on.json" \
+            --pinned-on "$work/legs/helper-vars-pinned-on.json" \
+            --gotavern-off "$work/legs/helper-vars-gotavern-off.json" \
+            --pinned-off "$work/legs/helper-vars-pinned-off.json" \
+            --gotavern-restart "$work/legs/helper-vars-gotavern-on-restart.json" \
+            --pinned-restart "$work/legs/helper-vars-pinned-on-restart.json" \
+            --out tests/browser/helper-variables-comparison.json \
+            > /dev/null
+          echo "helper variables comparison written to tests/browser/helper-variables-comparison.json"
+
       # -------------------------------------------------------------------------------------------------
       # THE COMPLEX-PRESET DIFFERENTIAL (AGENTS.md rule 8 and rule 9).
       #
@@ -1122,7 +1253,7 @@ jobs:
       # job: a freshly recorded artefact that does not support its own claim is a defect in the product
       # or in the harness, not a stale document.
       - name: Verify the FRESH artefacts support their claims
-        if: ${{ !cancelled() && (steps.record.outputs.failures == '0' || steps.record.outputs.failures == '') && (steps.preset.outputs.failures == '0' || steps.preset.outputs.failures == '') && (steps.asset.outputs.failures == '0' || steps.asset.outputs.failures == '') && (steps.helper.outputs.failures == '0' || steps.helper.outputs.failures == '') }}
+        if: ${{ !cancelled() && (steps.record.outputs.failures == '0' || steps.record.outputs.failures == '') && (steps.preset.outputs.failures == '0' || steps.preset.outputs.failures == '') && (steps.asset.outputs.failures == '0' || steps.asset.outputs.failures == '') && (steps.helper.outputs.failures == '0' || steps.helper.outputs.failures == '') && (steps.helper-vars.outputs.variable_failures == '0' || steps.helper-vars.outputs.variable_failures == '') }}
         run: node tools/verify-browser-comparisons.mjs
 
       # DOES THE Q17 VERIFIER HAVE TEETH? The verifier is the gate that re-reads the COMMITTED artefact, so a
@@ -1203,11 +1334,12 @@ jobs:
       # BOTH RECORDING STEPS, AND ONLY WHEN ONE OF THEM ACTUALLY FAILED. A skipped step reports an empty
       # output, so `!= '0'` alone would fail a `preset`-only run at the record step it never entered.
       - name: Fail if a drive could not be recorded or judged
-        if: ${{ (steps.record.outputs.failures != '0' && steps.record.outputs.failures != '') || (steps.preset.outputs.failures != '0' && steps.preset.outputs.failures != '') || (steps.asset.outputs.failures != '0' && steps.asset.outputs.failures != '') || (steps.helper.outputs.failures != '0' && steps.helper.outputs.failures != '') || (steps.helper-generation.outputs.generation_failures != '0' && steps.helper-generation.outputs.generation_failures != '') || (steps.authors-note.outputs.authors_note_legs != '0' && steps.authors-note.outputs.authors_note_legs != '') }}
+        if: ${{ (steps.record.outputs.failures != '0' && steps.record.outputs.failures != '') || (steps.preset.outputs.failures != '0' && steps.preset.outputs.failures != '') || (steps.asset.outputs.failures != '0' && steps.asset.outputs.failures != '') || (steps.helper.outputs.failures != '0' && steps.helper.outputs.failures != '') || (steps.helper-generation.outputs.generation_failures != '0' && steps.helper-generation.outputs.generation_failures != '') || (steps.authors-note.outputs.authors_note_legs != '0' && steps.authors-note.outputs.authors_note_legs != '')  || (steps.helper-vars.outputs.variable_failures != '0' && steps.helper-vars.outputs.variable_failures != '') }}
         run: |
           echo "::error::a drive could not be recorded or was judged unfaithful; see the group output above."
           echo "generation/stream failures: ${{ steps.record.outputs.failures }}"
           echo "preset failures:            ${{ steps.preset.outputs.failures }}"
+          echo "helper variable failures:   ${{ steps.helper-vars.outputs.variable_failures }}"
           echo "Q17 author's-note legs:     ${{ steps.authors-note.outputs.authors_note_legs }}"
           exit 1
 

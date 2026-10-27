@@ -123,7 +123,6 @@ export function assetSurface(ctx, assetComparison) {
     ctx.observe(`${assetComparison.legs?.gotavern?.imageRequests?.length ?? 0} gotavern / ${assetComparison.legs?.pinned?.imageRequests?.length ?? 0} pinned image request(s), ${(assetComparison.divergences ?? []).length} declared divergence(s), all display guards true`);
 }
 
-
 /** startup-comparison.json: every row classified, every divergence explained, the guards faithful. */
 export function startupSurface(ctx, startup) {
     if (!startup) return;
@@ -245,7 +244,6 @@ export function extensionSurface(ctx, label, extensionComparison) {
     }
 }
 
-
 /**
  * helper-comparison.json: the 酒馆助手 RENDER/VARIABLE surface (AGENTS.md 47, GOAL.md Q8 + Q10).
  *
@@ -342,6 +340,7 @@ export function helperGenerationSurface(ctx, generationComparison) {
 }
 
 /**
+/**
  * Q17 -- THE AUTHOR'S NOTE DEPTH SWEEP (GOAL.md Q17, docs/goal-scorecard.md).
  *
  * The claim this artefact makes is positional and byte-exact at once: for every case it drove, the note
@@ -411,4 +410,103 @@ export function authorsNoteSurface(ctx, noteComparison) {
     }
     // A simulated provider must never be sold as a production claim (rule 22).
     ctx.observe(`Q17 covers ${cases.length} case(s); pastHistoryInsideBudget=${JSON.stringify(coverage.pastHistoryInsideBudget)} (null = not measured, declared in notMeasured)`);
+}
+
+/**
+ * helper-variables-comparison.json: the 酒馆助手 VARIABLE surface (GOAL.md Q10; AGENTS.md 47-50).
+ *
+ * THIS ONE IS STRICTER THAN ITS SIBLINGS ON PURPOSE. The claim it makes is the one GOAL.md section 3 makes -- a
+ * variable changes the FINAL provider request -- and the failure mode this repository has shipped before is a green
+ * that proved the weaker thing ("it persisted to the chat file"). So every guard here is REQUIRED, with no unproven[]
+ * escape hatch for any of them: a subject that cannot show the value on the wire, or cannot show it on disk, has not
+ * demonstrated the claim and must not be allowed to declare its way past it.
+ *
+ * TWO VEHICLES, ONE CLAIM, ONE ARTEFACT. `vehicle` says which drove this recording, and the required guard set is
+ * per-vehicle because each can only assert what it exercises:
+ *   NARROW (primary)  one variable, one prompt reading it through the host macro engine, one generateRaw per case.
+ *                     Compare scopes and the nested read belong to the OTHER vehicle -- asserting them here would be
+ *                     requiring a guard this vehicle never computes, which reads as red rather than as not-applicable.
+ *   UI (second)        the full preset/card/chat-select vehicle. It was attempted FIRST and cost four reds, all in
+ *                     the vehicle; it is kept for the `preset` scope, which needs a preset to exist at all.
+ * A recording whose `vehicle` is unrecognised FAILS rather than falling through to a default set, so a future vehicle
+ * cannot inherit these assertions by accident.
+ */
+const VARIABLE_GUARD_SETS = {
+    narrow: [
+        'legsPresent', 'driveCompleted', 'sameApiSurface', 'offIsTheControl',
+        'valueOnWire', 'macroWasTheResolver', 'changeChangesTheWire', 'deleteReturnsToEmptyForm',
+        'globalScopeReachesWire', 'messageStoredNotSurfaced',
+        'survivesFreshPage', 'survivesRestart',
+        'nodeEqualsGo',
+    ],
+    ui: [
+        'legsPresent', 'driveCompleted', 'sameApiSurface', 'offIsTheControl',
+        'valueOnWire', 'changeChangesTheWire', 'deleteReturnsToParent',
+        'valueOnDisk', 'globalOnDisk', 'characterOnDisk', 'survivesFreshPage', 'survivesRestart',
+        'globalScopeReachesWire', 'characterScopeReachesWire', 'nestedValueResolves',
+        'chatScopeIsolated', 'globalScopeNotChatScoped',
+        'messageStoredNotSurfaced',
+        'injectionPlaced', 'injectionRemoved',
+        'nodeEqualsGo',
+    ],
+};
+
+export function helperVariablesSurface(ctx, variableComparison) {
+    if (!variableComparison) return;
+    const guards = variableComparison.guards ?? {};
+    const vehicle = /^narrow/.test(String(variableComparison.vehicle ?? '')) ? 'narrow'
+        : /^ui-select|^UI/.test(String(variableComparison.vehicle ?? '')) || variableComparison.surface?.includes('injection') ? 'ui'
+        : null;
+    if (vehicle === null) {
+        ctx.fail(`names no recognised vehicle (${JSON.stringify(variableComparison.vehicle ?? null)}), so this check cannot say which guards the claim requires -- the artefact must declare it`);
+        return;
+    }
+    ctx.observe(`vehicle: ${vehicle} (${VARIABLE_GUARD_SETS[vehicle].length} required guards)`);
+    const required = VARIABLE_GUARD_SETS[vehicle];
+    for (const guard of required) {
+        if (guards[guard] !== true) {
+            ctx.fail(`guards.${guard} is ${JSON.stringify(guards[guard])}, so the artefact does not support the claim that a 酒馆助手 variable changes the final provider request AND survives on disk identically on both subjects`);
+        }
+    }
+    for (const asymmetry of variableComparison.asymmetries ?? []) {
+        ctx.fail(`asymmetries names ${asymmetry.guard} (gotavern=${JSON.stringify(asymmetry.gotavern)}, pinned=${JSON.stringify(asymmetry.pinned)}): a guard true on one subject and false on the other is the difference this comparison exists to find`);
+    }
+    if ((variableComparison.mismatches ?? []).length > 0) {
+        ctx.fail(`mismatches names ${variableComparison.mismatches.map(item => `${item.case}.${item.field}`).join(', ')}, so the provider request differs between the subjects`);
+    }
+    if (Array.isArray(variableComparison.failedGuards) && variableComparison.failedGuards.length > 0) {
+        ctx.fail(`failedGuards names ${variableComparison.failedGuards.join(', ')}`);
+    }
+    if (Array.isArray(variableComparison.driveStepFailures) && variableComparison.driveStepFailures.length > 0) {
+        ctx.fail(`driveStepFailures names ${variableComparison.driveStepFailures.join('; ')}: a drive step that did not happen makes every later guard unattributable (rule 10)`);
+    }
+    // AN ARTEFACT THAT SAYS A GUARD IS UNPROVEN IS SAYING IT CANNOT SUPPORT THE CLAIM, and every guard above is
+    // required -- so a declaration here is a contradiction rather than an excusal. This is the opposite of
+    // helperSurface's rule and is deliberate: that surface legitimately cannot judge some things, this one can.
+    const declared = new Set(variableComparison.declaredUnproven ?? []);
+    for (const guard of required) {
+        if (declared.has(guard)) {
+            ctx.fail(`${guard} is required for this claim and is also declared unproven: the two cannot both be true`);
+        }
+    }
+    // The pinned revision is part of the claim: the semantics were read from ONE commit, and a comparison against
+    // another extension is a comparison of nothing.
+    const pinnedCommit = variableComparison.apiSurface?.gotavern?.pinnedCommit ?? null;
+    if (pinnedCommit !== '837a6288135cde61522a9279173b98020f08807e') {
+        ctx.fail(`apiSurface.gotavern.pinnedCommit is ${JSON.stringify(pinnedCommit)}, not the pinned N0VI028/JS-Slash-Runner commit`);
+    }
+    // The absences this artefact REPORTS instead of testing must actually have been measured, or the row saying
+    // "there is no setVariables / no quiet option" is a claim about a file nobody read.
+    const absent = variableComparison.apiSurface?.gotavern?.absentConfirmed ?? [];
+    for (const name of ['setVariables', 'quiet option']) {
+        if (!absent.includes(name)) {
+            ctx.fail(`apiSurface.gotavern.absentConfirmed does not record ${JSON.stringify(name)}, so the artefact's statement that it does not exist at the pinned commit was not measured`);
+        }
+    }
+    // Rule 22, as for the generation surface: a simulated peer is not a production claim.
+    const unproven = (variableComparison.unproven ?? []).join(' ');
+    if (!/real provider/i.test(unproven)) {
+        ctx.fail('unproven[] does not name the real-provider limitation: rule 22 makes a simulated peer unverified for production, and the artefact must say it');
+    }
+    ctx.observations.push(`both halves required and green: wire + disk, ${required.length} guards, 0 declarable`);
 }
