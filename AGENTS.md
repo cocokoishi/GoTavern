@@ -783,6 +783,21 @@ rather than by review.
     rule that fires everywhere cannot satisfy a two-direction assertion. A red that cannot name which of
     "skipped" and "never ran" happened is not evidence about either.
 
+72. **A satisfied condition is not the event, and a run whose steps were all SKIPPED is not evidence.**
+    Two measured instances of one shape — a gate that reports success without the thing under test happening:
+    1. A wait for "the reply has landed" was satisfied in **7 ms** by the PREVIOUS turn's reply, because the
+       predicate (`chat settled` and `last text non-empty`) was already true before the second send. The leg then
+       wrote its marker into an empty user turn and swiped while `isSendPress` was still true; it passed on one
+       subject and failed on the other, so the race presented as a subject difference. The fix is to record a
+       BASELINE of the page state BEFORE the action and require the state to have MOVED PAST it — and to carry
+       `moved` plus the baseline in the result, so a caller that omits a baseline gets `moved: null` rather than a
+       silent pass. "The predicate is true" is not "the thing I asked for happened".
+    2. A push-triggered `Browser differential` run concluded **success** while all eight of a lane's steps were
+       SKIPPED, because the push mode cannot reach them. That is the same green-that-proved-nothing this file's
+       working-mode section records, at the run level: a conclusion is about the steps that RAN, and a skipped
+       step is unverified rather than passed. Quote the step, not the conclusion, and record such a run as
+       "proved nothing" rather than citing it.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
