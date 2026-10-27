@@ -33,6 +33,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -127,13 +128,38 @@ func TestPinnedCharacterChatsAreKeyedByTheCardName(t *testing.T) {
 		t.Fatalf("roster/chat_size: %s, wanted a number (calculateChatSize, :342-358)", kind)
 	}
 
-	// THE IDENTITY. `chat` names the file a client appends to, and it must be the file the save route wrote. The
-	// roster does not carry a per-character `file_id` (`file_id` is a /api/characters/chats item field,
-	// characters_read.go:213); the file's stem is therefore asserted where pinned defines it, in that route.
+	// THE `chat` MEMBER IS THE ACTIVE-CHAT SLOT, NOT A RECORD OF THE SAVED FILE.
+	//
+	// THIS EXPECTATION WAS REWRITTEN, AND THE FINDING IT REPLACED WAS WITHDRAWN BEFORE ANY PRODUCT CODE WAS WRITTEN,
+	// BECAUSE THE CAPTURE IT NEEDED ALREADY EXISTED. The first version of this row asserted that `chat` names the
+	// chat file just saved, on a chain of real pinned lines -- script.js:472 saveCharacterDebounced ->
+	// #selected_chat_pole (index.html:6203) -> src/endpoints/characters.js:1115 `char.chat = request.body.chat` ->
+	// readFromV2 :554 leaving a present `chat` alone. Every cited line exists and the conclusion was still WRONG,
+	// because two functions sit DOWNSTREAM and undo it. The recorded pinned capture says so directly
+	// (tests/oracle/sillytavern-1.19.0-characters-write.json, scenarios.editFull), request:
+	//
+	//     {"avatar_url":"EditMe.png","ch_name":"EditMe Edited", …,"chat":"EditMe - 2024-08-08@01h02m03s004ms",…}
+	//
+	// and the card pinned actually wrote for it, scenarios.editFull.characters[10].charaJSON:
+	//
+	//     {"name":"EditMe Edited", …,"chat":"EditMe - <humanizedDateTime>","spec":"chara_card_v3",…}
+	//
+	// The title survived and the TIMESTAMP was regenerated: `charaFormatData` runs `unsetPrivateFields`
+	// (`:498-502`, `_.unset(char, 'chat')`) and the V3 conversion re-seeds the default (`:585-590`,
+	// `_.set(char, 'chat', data.ch_name + ' - ' + humanizedDateTime())`). So the submitted chat name is DISCARDED by
+	// pinned, and the member the roster serves is the default slot the server hands the client. The frontend is the
+	// layer that remembers which file is open (script.js:1419 sets it from the chat list, :7636-7650 sends `file_name`
+	// from that value) -- so pinning a name into the card would have been a DIVERGENCE this test would have demanded.
+	//
+	// THE ASSERTION IS THEREFORE ON THE SHAPE, not on one literal value: the roster's `chat` must still be the
+	// readFromV2 default `<name> - <humanizedDateTime>` after a save, which is exactly what the capture shows pinned
+	// producing after an edit.
 	published, _ := roster["chat"].(string)
-	if want := chatStem + ".jsonl"; published != want {
-		t.Fatalf("chatIdentity: /api/characters/all published chat=%q, wanted %q (the file the save route wrote)",
-			published, want)
+	if !hasDefaultChatShape(published, cardName) {
+		t.Fatalf("roster/chat: /api/characters/all published chat=%q after a save; pinned regenerates the default "+
+			"`<name> - <humanizedDateTime>` on every write (capture: scenarios.editFull, request chat="+
+			"\"EditMe - 2024-08-08@01h02m03s004ms\" -> written chat=\"EditMe - <humanizedDateTime>\"), so a value naming "+
+			"the saved file would be the divergence", published)
 	}
 	listing := env.serve(t, http.MethodPost, "/api/characters/chats", "application/json",
 		`{"avatar_url":"`+fileName+`.png","simple":true}`)
@@ -171,6 +197,35 @@ func typedMemberKind(t *testing.T, row map[string]any, name string) (string, str
 		raw[key] = encoded
 	}
 	return memberKind(raw, name)
+}
+
+// hasDefaultChatShape reports whether `chat` has the readFromV2 default shape `<name> - <stamp>`, where the stamp is
+// `humanizedDateTime`'s `YYYY-MM-DD@HHhMMmSSsNNNms` (characters_format.go mirrors util.js). The SHAPE is asserted
+// rather than a literal because the timestamp is the moment of the read: a literal could only be pinned by freezing
+// the clock, while the contract under test -- "the default was regenerated, not the saved name" -- is a shape.
+func hasDefaultChatShape(chat, name string) bool {
+	prefix := name + " - "
+	if !strings.HasPrefix(chat, prefix) {
+		return false
+	}
+	stamp := strings.TrimPrefix(chat, prefix)
+	const want = "0000-00-00@00h00m00s000ms"
+	if len(stamp) != len(want) {
+		return false
+	}
+	for index := range stamp {
+		switch want[index] {
+		case '0':
+			if stamp[index] < '0' || stamp[index] > '9' {
+				return false
+			}
+		default:
+			if stamp[index] != want[index] {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // characterRow returns the roster row for one avatar, failing with the whole roster when it is absent.
