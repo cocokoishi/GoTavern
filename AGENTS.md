@@ -850,6 +850,20 @@ rather than by review.
     whose output nobody will read, and the defect it was written for survives inside the noise. Report the
     candidate count BESIDE the finding, so a reader can see the check discriminated rather than saturated.
 
+75. **A comparator can be re-run against legs DOWNLOADED from a previous run, so a harness fix is verifiable
+    without spending a dispatch.** Two lanes found this independently and it is the cheapest discipline in this
+    file. One re-ran its comparator against the six leg reports from a finished run and measured its own fixes:
+    failed guards SIX -> THREE, with no run spent. Another replayed a run's real numbers through its judge
+    locally and found two INVERTED assertions and one that was too weak, plus a `mutate()` that wrote to
+    `recording[0]` — the `/models` GET — so every mutation had passed vacuously. A third verified its new
+    diagnosis field against the OLD legs from a superseded run and confirmed it reports `UNRESOLVED` rather than
+    guessing.
+    The rule: when a run's artefacts are uploaded, the legs are INPUT, and a comparator or judge can be exercised
+    against them repeatedly. Dispatch is for producing NEW observations, not for testing whether the reader works.
+    Corollary, and it is the same rule as 61: legs recorded BEFORE a fix cannot answer for the code AFTER it — the
+    one-byte rule change means the recorded bytes are diagnostic history, and the current claim needs a fresh run.
+    Use the download to fix the reader; use the dispatch to judge the product.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
