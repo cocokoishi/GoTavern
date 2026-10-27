@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "recorded": false,
+  "notYetRecorded": "SEED, NOT A RECORDING. tools/oracle/manifest.mjs:280-283 refuses a probe that declares a fixture which is not committed (code dangling-fixture), and the changes job exits 1 on that error, so the oracle job never starts and the recording can never be produced. The graph is therefore bootstrapped by committing this file EMPTY of observations: it declares the probe's existence and nothing else. The oracle run replaces it entirely with the real capture.",
+  "placeholderGuard": "A consumer must treat recorded:false as NOT-AN-ORACLE and refuse to compare against it, rather than reading an absent results member as an empty result set. There is no results member in this file on purpose: an empty one would look like a recording that observed nothing.",
+  "probe": "pinned boot behaviour on a duplicate-key config.yaml: exit, stderr, exit code, and whether the config was migrated before the exit",
+  "source": "src/config-init.js:164-243 (warn-and-continue migration, runs first); src/util.js:70-78 (FATAL + process.exit(1) at first getConfigValue); yaml ^2.8.3 uniqueKeys:true (node_modules/yaml/.../doc/Document.js:39)"
+}
