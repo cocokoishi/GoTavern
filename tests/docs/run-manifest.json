@@ -62,6 +62,7 @@
     {"runId": "40453634485", "workflow": "GoTavern Lane CI", "headSha": "f601d312661fa9581de6c918ea4acc55076cb6d3", "conclusion": "success", "createdAt": "2026-10-27T05:08:44Z"},
     {"runId": "40454607581", "workflow": "GoTavern Lane CI", "headSha": "fc0c8b357650c9b02b09d514037b33afb6edf282", "conclusion": "success", "createdAt": "2026-10-27T05:18:52Z"},
     {"runId": "40465631698", "workflow": "Browser differential", "headSha": "53f68ed4ab6ba015332bda0bf6f8a3b344d7bbae", "conclusion": "failure", "createdAt": "2026-10-27T07:11:34Z"},
-    {"runId": "40476300686", "workflow": "Browser differential", "headSha": "f3be3222f363bf6226a2c138f567512deb71bf06", "conclusion": "success", "createdAt": "2026-10-27T08:50:12Z"}
+    {"runId": "40476300686", "workflow": "Browser differential", "headSha": "f3be3222f363bf6226a2c138f567512deb71bf06", "conclusion": "success", "createdAt": "2026-10-27T08:50:12Z"},
+    {"runId": "40493990375", "workflow": "Browser differential", "headSha": "7c61fab7ebdb9f4ff37772b0f90bf6b8c4211b42", "conclusion": "failure", "createdAt": "2026-10-27T11:09:20Z"}
   ]
 }

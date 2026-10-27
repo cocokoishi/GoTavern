@@ -14,7 +14,7 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 | Field | Value |
 |---|---|
-| **HEAD (main)** | `3749052` |
+| **HEAD (main)** | `035cdf2` |
 | **Pinned baseline** | SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127` |
 | **Live evidence ledger** | `docs/goal-scorecard.md` -- twenty-two rows, five classes, and `tests/docs/run-manifest.json` |
 | **Milestone ladder** | `GOAL.md` section 11: M0 (closed) through M5; M1..M4 open |
