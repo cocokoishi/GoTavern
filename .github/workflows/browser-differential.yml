@@ -128,11 +128,11 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Which surface to re-record: generation | stream | cancel | preset | assets | helper | all'
+        description: 'Which surface to re-record: generation | stream | cancel | preset | regex | assets | helper | all'
         required: true
         default: 'all'
         type: choice
-        options: [generation, stream, cancel, preset, assets, helper, all]
+        options: [generation, stream, cancel, preset, regex, assets, helper, all]
       sources:
         description: 'Comma-separated source ids (custom, groq, mistralai, ...), or empty for every source with a committed artefact'
         required: false
@@ -1350,6 +1350,138 @@ jobs:
             "$work/legs/preset-keep-gotavern.json" "$work/legs/preset-keep-pinned.json" \
             "$work/legs/preset-drop-gotavern.json" "$work/legs/preset-drop-pinned.json" \
             --boundary "$work/preset-boundary.json"
+
+      # =============================================================================================
+      # THE REGEX SURFACE. "The preset loaded" is routinely mistaken for "the regex ran": a settings
+      # file that carries rules loads identically whether the rules fire, are skipped by a flag, or are
+      # ignored by the subject. The only observation that separates those is the FINAL PROVIDER REQUEST
+      # paired with the RENDERED DOM for the same turn, which is what this surface records.
+      #
+      # WHY IT IS ITS OWN MODE AND NOT A PASSENGER ON `preset`. This lane exists because two different
+      # facts were being read as one. Running the regex legs inside the preset surface would put two
+      # attribution domains back into one verdict, so a red could not say which surface failed without
+      # reading the log -- the same conflation, one level up.
+      #
+      # WHAT THIS SURFACE IS NOT. It does not run on a push. `MODE` for a push is the literal 'assets'
+      # (`github.event_name == 'push' && 'assets' || ...`), there is no changed-files primitive inside
+      # `if:`, and adding these files to `on.push.paths` would start the ASSET surface and nothing else.
+      # A decorative path entry that runs the wrong surface is worse than an honest gap, so this leg
+      # runs in `regex` or `all` mode only (a dispatch, or the nightly sweep), and every artefact it
+      # writes says so.
+      #
+      # THREE VARIANTS, because every case needs a NEGATION of itself to be evidence: baseline,
+      # disabled-rewrite (the rewrite rule disabled) and swap-chain (the two chain rules exchanged).
+      # Six drives per run: three variants x two subjects.
+      # =============================================================================================
+      - name: Record the regex legs (three variants, both subjects)
+        id: regex
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'regex' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
+        # SIX browser drives. The measured cost of one preset leg is a few minutes; six is bounded well
+        # inside this, and a wedged page fails here instead of consuming the job's own 90.
+        timeout-minutes: 40
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          mkdir -p "$work/legs"
+          # THE COUNTER IS WRITTEN TO THE OUTPUT FILE ON EVERY FAILURE, not once at the end. Measured in
+          # run 40445569175: all six legs failed, every `::error::` annotation fired, and the step still
+          # reported SUCCESS with `failures=` never echoed and the two judge steps SKIPPED -- so a job whose
+          # every regex leg died was green and claimed nothing (the recording side of the same defect this
+          # lane exists for). Writing the output as each failure happens removes the dependency on the
+          # shell reaching the tail of the script at all.
+          record_failure() {
+            echo "::error::the $1/$2 regex leg failed to drive"
+            echo "failures=1" >> "$GITHUB_OUTPUT"
+          }
+          echo "failures=0" >> "$GITHUB_OUTPUT"
+          for variant in baseline disabled-rewrite swap-chain; do
+            for subject in gotavern pinned; do
+              tree="$work/regex-tree-$subject-$variant"
+              rm -rf "$tree"; mkdir -p "$tree"
+              report="$work/legs/regex-$variant-$subject-leg.json"
+              # THE PROBE'S EXIT CODE IS CAPTURED, NOT TESTED IN A COMPOUND. A `if cmd; then` guard hides the
+              # status from `set -o pipefail`, and a bare `cmd` with `set -e` would abort the whole step on
+              # the first failure, losing the other five legs' evidence. Capturing into a variable keeps both
+              # properties: every leg is attempted, and every failure is recorded.
+              if [ "$subject" = "gotavern" ]; then
+                node tests/browser/regex-probe.mjs --data-root "$tree" --variant "$variant" --report "$report"
+                status=$?
+              else
+                # run-against-pinned.mjs boots pinned Node and supplies --base-url; --data-root is the
+                # only supported way to point it at a caller's tree.
+                node tests/browser/run-against-pinned.mjs regex-probe.mjs -- --data-root "$tree" \
+                  --variant "$variant" --report "$report"
+                status=$?
+              fi
+              if [ "$status" -eq 0 ]; then
+                echo "recorded the $subject/$variant regex leg"
+              else
+                record_failure "$subject" "$variant"
+              fi
+            done
+          done
+          # THE STEP DOES NOT FAIL HERE. The comparator is what fails the job, so the red names an assertion
+          # rather than "a leg failed to drive".
+          #
+          # THE LAST LINE RE-CHECKS THE FILES rather than trusting the counter, because the counter can only
+          # be as good as the shell reaching it. If any of the six reports is absent the output says so, so a
+          # run in which the shell died mid-loop cannot leave `failures=0` standing as a claim that six legs
+          # were recorded.
+          for name in baseline-gotavern baseline-pinned disabled-rewrite-gotavern disabled-rewrite-pinned swap-chain-gotavern swap-chain-pinned; do
+            if [ ! -s "$work/legs/regex-$name-leg.json" ]; then
+              echo "::error::the regex/$name leg wrote no report file"
+              echo "failures=1" >> "$GITHUB_OUTPUT"
+            fi
+          done
+          exit 0
+
+      - name: Compare the regex legs
+        # THE DOUBLE GATE, and both halves are load-bearing.
+        #   1. the MODE, because `steps.regex.outputs.failures` is ABSENT when the step above is skipped,
+        #      and GitHub coerces a missing output to 0 so `== '0'` is true -- that is exactly how run
+        #      40073821604 executed a comparator with no legs recorded and took a whole batch down;
+        #   2. the RECORDING's own count, so a leg that failed to drive does not reach the comparator.
+        # and the script additionally NAMES any missing leg file below rather than dying on ENOENT.
+        if: ${{ ((github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'regex' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all') && steps.regex.outputs.failures == '0' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          missing=0
+          for name in baseline-gotavern baseline-pinned disabled-rewrite-gotavern disabled-rewrite-pinned swap-chain-gotavern swap-chain-pinned; do
+            if [ ! -f "$work/legs/regex-$name-leg.json" ]; then
+              echo "::error::the regex/$name leg produced no report, so nothing is claimed about that variant on that subject"
+              missing=$((missing + 1))
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::$missing regex leg report(s) missing; the comparator is not run against absent evidence"
+            exit 1
+          fi
+          node tests/browser/compare-regex-legs.mjs \
+            "$work/legs/regex-baseline-gotavern-leg.json" "$work/legs/regex-baseline-pinned-leg.json" \
+            --disabled-go "$work/legs/regex-disabled-rewrite-gotavern-leg.json" \
+            --disabled-pinned "$work/legs/regex-disabled-rewrite-pinned-leg.json" \
+            --swapped-go "$work/legs/regex-swap-chain-gotavern-leg.json" \
+            --swapped-pinned "$work/legs/regex-swap-chain-pinned-leg.json" \
+            > tests/browser/regex-comparison.json && status=0 || status=$?
+          cat tests/browser/regex-comparison.json
+          exit "$status"
+
+      - name: Prove the regex gate has teeth
+        # A gate whose failure has never been observed is a gate nobody can trust (AGENTS 4). This mutates
+        # the recorded legs IN MEMORY and requires the comparator to go RED at a named guard, and it also
+        # requires the comparator to be GREEN on the untouched legs -- so the red it produces cannot be a
+        # comparator that always fails.
+        if: ${{ ((github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'regex' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all') && steps.regex.outputs.failures == '0' }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          node tests/browser/regex-gate-selftest.mjs \
+            "$work/legs/regex-baseline-gotavern-leg.json" "$work/legs/regex-baseline-pinned-leg.json" \
+            --disabled-go "$work/legs/regex-disabled-rewrite-gotavern-leg.json" \
+            --disabled-pinned "$work/legs/regex-disabled-rewrite-pinned-leg.json" \
+            --swapped-go "$work/legs/regex-swap-chain-gotavern-leg.json" \
+            --swapped-pinned "$work/legs/regex-swap-chain-pinned-leg.json"
 
       - name: Stage the preset evidence for publishing
         if: ${{ inputs.commit_artifacts }}
