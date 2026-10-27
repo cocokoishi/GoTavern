@@ -382,6 +382,24 @@ try {
 
     // THE SCENARIO'S SELF-CHECK RUNS BEFORE ANY SEND. A kit whose sides all equal their inputs means the
     // rules are inert on THIS subject, and every negative below would then pass for the wrong reason.
+    // THE SPEAKER NAME IS A CONFIGURED FACT, AND THE LEG RECORDS IT BY SOURCE. Measured in run 40496429980:
+    // the GoTavern leg sent `[Unnamed Persona]` while the pinned leg sent `Probe User`, and the CAUSE was only
+    // visible in the console stream -- "Auto-updating user name to [Unnamed Persona]" -- which is a diagnostic,
+    // not a measurement. `selectCurrentPersona` (personas.js) sets `name1` from `power_user.personas[user_avatar]`
+    // when that entry exists, OVERRIDING `settings.username`, which is exactly why writing the username in
+    // settings.json did not fix the 21-byte gap. Recording both maps here makes the difference a value the
+    // comparator can read instead of a story I have to tell.
+    report.userName = await page.evaluate(() => {
+        const context = globalThis.SillyTavern?.getContext?.();
+        const powerUser = context?.powerUserSettings ?? {};
+        return {
+            name1: context?.name1 ?? null,
+            settingsUsername: powerUser.username ?? null,
+            personas: powerUser.personas ?? null,
+            personaDescriptions: powerUser.persona_descriptions ?? null,
+            userAvatar: context?.userAvatar ?? null,
+        };
+    });
     const kit = await page.evaluate(specification => globalThis.__applyRegexKit(specification), spec);
     report.sides = kit.sides ?? null;
     report.perTurn = kit.perTurn ?? null;

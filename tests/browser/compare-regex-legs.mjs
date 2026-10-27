@@ -457,12 +457,16 @@ guard('case6_jsSubstitutionMatchesTheBrowsersOwnAnswer', () => {
         problems.push('the PINNED page did not rewrite the JS-semantics input, so there is no browser oracle to compare against (the rule is inert on the oracle itself)');
         return problems;
     }
-    const expected = String(pinnedSide.prompt ?? '');
+    // R6 IS A PLAIN RULE (no markdownOnly, no promptOnly), so per engine.js:354 it runs ONLY on the
+    // ENTRY-POINT shape -- the one that passes neither flag. Reading `prompt` here was the same defect this
+    // lane already fixed twice (R1 and R5): the case compared two UNCHANGED strings and passed trivially, then
+    // went red on the provider check (run 40496429980). The browser oracle is `entry`.
+    const expected = String(pinnedSide.entry ?? '');
     details.jsExpectedFromPinnedPage = expected;
     // (1) GoTavern's page must produce the SAME string. This is the whole case: equal answers, from two
     // pages, with the expectation supplied by one of them.
-    if (String(goSide.prompt ?? '') !== expected) {
-        problems.push(`the two subjects' pages produced DIFFERENT substitutions for the same input and the same rule: pinned ${JSON.stringify(expected)} vs gotavern ${JSON.stringify(goSide.prompt)}`);
+    if (String(goSide.entry ?? '') !== expected) {
+        problems.push(`the two subjects' pages produced DIFFERENT substitutions for the same input and the same rule: pinned ${JSON.stringify(expected)} vs gotavern ${JSON.stringify(goSide.entry)}`);
     }
     // (2) AND that string must be what reached the provider on each subject.
     for (const subject of ['gotavern', 'pinned']) {
@@ -516,34 +520,51 @@ guard('case7_rawChatKeepsStoredTextAndDisplayIsNotWrittenBack', () => {
                 problems.push(`${subject}: the second application changed the text (${JSON.stringify(expectedSecondApplication)} -> ${JSON.stringify(again)}) while the leg reports the replacement does not re-feed its own rule: one of the two observations is wrong`);
             }
         }
-        // THE STORED TURNS, READ FROM THE PRODUCT. The typed turn was rewritten by sendMessageAsUser BEFORE
-        // it was pushed (script.js:5875-5886), so the chat file holds the rule's output for it -- which is
-        // why asserting "the raw chat holds the user's token" would be wrong about pinned. THIS IS THE
-        // ASSERTION THAT MAKES THE STORED-VS-ASSEMBLED DISTINCTION MEAN SOMETHING rather than a comment: the
-        // typed turn must be stored WITHOUT its own input token and WITH the rule's output.
-        const stored = observed.storedTurnsCarryRawText ?? null;
-        if (!Array.isArray(stored) || stored.length === 0) {
-            problems.push(`${subject}: case 7 recorded no stored turns, so "the typed turn is stored already rewritten" cannot be read`);
+        // THE STORED TURNS, READ FROM THE CHAT FILE THE PRODUCT WROTE. The typed turn was rewritten by
+        // sendMessageAsUser BEFORE it was pushed (script.js:5875-5886), so the file holds the rule's OUTPUT for
+        // it -- asserting "the raw chat holds the user's token" would be wrong about pinned, and asserting it
+        // from the KIT's pre-send view was wrong about the SURFACE.
+        //
+        // MEASURED IN RUN 40496429980: this guard read `observed.storedTurnsCarryRawText`, which the kit builds
+        // BEFORE the second send, so it could only ever see the FIRST round's turns (which carry RXQ_IN_M7 and
+        // RXQ_IN_E7 and no active-rule token at all). Both subjects went red with "the STORED typed turn lacks
+        // RXQ_OUT_A7" while the chat file on disk plainly had it -- the observation was real, the surface was
+        // not. `storedChat.messages` is the file, and it is what this case exists to read.
+        const storedMessages = report.storedChat?.messages ?? null;
+        const storedTurns = report.case7.storedTurnsCarryRawText ?? null;
+        if (!Array.isArray(storedMessages) || storedMessages.length === 0) {
+            problems.push(`${subject}: the leg read no stored chat from disk, so "the typed turn is stored already rewritten" cannot be read`);
         } else {
-            // The typed turn is the LAST stored message at the time the kit ran (the send had not happened yet
-            // during the pre-send application; the kit's own chat is greeting + previous + typed).
-            const typed = stored[stored.length - 1] ?? null;
-            if (!typed) {
-                problems.push(`${subject}: no typed turn in the stored chat`);
+            // The typed turn is the user turn that carries the composer text pattern: it is the only one that
+            // can carry an active-rule token, and it is identified by content rather than by position because
+            // the file may gain trailing assistant turns between the send and the read.
+            const typedStored = storedMessages.find(message => message.is_user === true && String(message.mes ?? '').includes(MARKERS.turn)) ?? null;
+            if (!typedStored) {
+                problems.push(`${subject}: the stored chat on disk has no user turn carrying ${MARKERS.turn}, so the typed turn cannot be identified`);
             } else {
-                const stillHasInput = (typed.rawInputTokens ?? []).includes(MARKERS.inActive);
-                if (stillHasInput) {
-                    problems.push(`${subject}: the STORED typed turn still carries its own input token ${MARKERS.inActive}; pinned rewrites BEFORE pushing (script.js:5875-5886), so the stored form must carry the output instead -- a leg asserting the raw token in the chat is asserting the opposite of pinned`);
+                const typedMes = String(typedStored.mes ?? '');
+                if (typedMes.includes(MARKERS.inActive)) {
+                    problems.push(`${subject}: the STORED typed turn still carries its own input token ${MARKERS.inActive}; pinned rewrites BEFORE pushing (script.js:5875-5886), so the stored form must carry the output instead`);
                 }
-                if (!(typed.outputTokens ?? []).includes(SIDES.input.marker)) {
-                    problems.push(`${subject}: the STORED typed turn lacks ${SIDES.input.marker}; the prefix of the pipeline that stores the rewritten text did not run`);
+                if (!typedMes.includes(SIDES.input.marker)) {
+                    problems.push(`${subject}: the STORED typed turn on disk lacks ${SIDES.input.marker}; the prefix of the pipeline that stores the rewritten text did not run`);
                 }
             }
-            // THE GREETING IS THE CONTROL, and it is allowed exactly ONE rule input: the DISPLAY-only token,
-            // which is there on purpose so case 2 has a turn the display path can reach. Every OTHER rule's
-            // input must be absent from chat[0], or a case could be explained by a rule firing on the wrong
-            // turn. Asserting the ALLOWED set (rather than "no input at all") is what makes this falsifiable:
-            // an extra token appearing here goes red.
+        }
+        // AND THE RENDERING PROPERTY, which is a different claim and comes from the kit's pre-send view: the
+        // rules must not be applied a SECOND time by rendering, and the display text member must not be written
+        // back into the stored message.
+        const rendered = observed.case7 ?? null;
+        if (rendered && rendered.mesUnchangedByRendering !== true) {
+            problems.push(`${subject}: rendering a turn CHANGED the stored message text; messageFormatting must write only to the DOM (script.js:1800-1869)`);
+        }
+        if (rendered && rendered.displayTextMemberPresent === true) {
+            problems.push(`${subject}: a display_text member reached the stored message; the rendered text is not written back`);
+        }
+        if (!Array.isArray(storedTurns) || storedTurns.length === 0) {
+            problems.push(`${subject}: case 7 recorded no pre-send turns, so "rendering does not rewrite a turn" cannot be read`);
+        }
+        const stored = storedTurns ?? [];
             const greeting = stored[0] ?? null;
             if (!greeting) {
                 problems.push(`${subject}: the stored chat has no greeting turn`);
@@ -554,7 +575,6 @@ guard('case7_rawChatKeepsStoredTextAndDisplayIsNotWrittenBack', () => {
                     problems.push(`${subject}: the greeting stores rule input token(s) ${unexpected.join(', ')} which the scenario keeps out of chat[0]; a rule firing on the wrong turn would then explain a case`);
                 }
             }
-        }
         if (observed.displayTextMemberPresent === true) {
             problems.push(`${subject}: a message carries extra.display_text after rendering; the pinned render path does not write it (script.js:2036 renders it, :10119-10131 deletes it) -- so the display WAS written back into the message object`);
         }
