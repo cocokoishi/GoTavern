@@ -91,7 +91,7 @@ func TestPinnedRosterEmitsTheMembersItsCardDocumentCarries(t *testing.T) {
 	}
 	// `chats` IS NOT PINNED'S TO EMIT (no assignment anywhere in the endpoint source; the frontend derives it from
 	// chat_size at public/script.js:567-574). Asserting its absence keeps a future "helpful" addition visible.
-	if kind := memberKind(row, "chats"); kind != "absent" {
+	if _, kind := memberKind(row, "chats"); kind != "absent" {
 		t.Fatalf("rosterWithNoChats: chats is %s; pinned never assigns `chats` in src/endpoints/characters.js, and the "+
 			"frontend computes it from chat_size (public/script.js:567-574) -- emitting it here is a divergence, not a fix", kind)
 	}
@@ -111,7 +111,7 @@ func TestPinnedRosterEmitsTheMembersItsCardDocumentCarries(t *testing.T) {
 		t.Fatalf("rosterWithChats: chat_size is %s (%s), wanted the summed size of the chats directory "+
 			"(calculateChatSize, :342-358)", size, kind)
 	}
-	if kind := memberKind(with[0], "chats"); kind != "absent" {
+	if _, kind := memberKind(with[0], "chats"); kind != "absent" {
 		t.Fatalf("rosterWithChats: chats is %s; see above -- the member is the frontend's, derived from chat_size", kind)
 	}
 }
