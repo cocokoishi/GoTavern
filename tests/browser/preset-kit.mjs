@@ -1,5 +1,21 @@
 // The COMPLEX PRESET, as one executable scenario shared by the capture run and both drive legs.
 //
+// A COMMITTED ORACLE IS NOT AN `inputs` ENTRY, AND THIS IS THE RULE FOR EVERY LANE THAT ADDS ONE.
+// `tests/browser/catalog.test.mjs` reads every string in a committed artefact's `captures`/`inputs` and
+// requires `tests/browser/.gitignore` to ignore it, because a name there is what the harness WROTE for one
+// run. So a COMMITTED golden (an oracle a reader can open, which must never be ignored) has to be declared
+// somewhere else -- here that is `expectsPinnedRecording`. Recording it in `inputs` failed Browser
+// differential 40456523411 step 12 with "the harness wrote authors-note-pinned.json and
+// tests/browser/.gitignore does not ignore it", and the test was right. The next lane to commit an oracle
+// will hit the same wall; this paragraph is the one line that saves it the run.
+//
+// THIS KIT NEVER SELECTS A PRESET BY NAME, DELIBERATELY. `autoSelectPreset`
+// (public/scripts/preset-manager.js:49-76) runs on CHAT_CHANGED and selects the preset whose NAME equals the
+// character's, so a name-based selection here could be silently replaced by opening a character -- and both
+// subjects would then agree on an input nobody chose. Selecting by name is what CREATES that hazard, so the
+// kit edits the live `promptManager` instead, and the identity is asserted after the open and again before
+// the click (see step 1b and the comparator's `*PresetIsNotNamedAfterTheCharacter`).
+//
 // WHAT PROBLEM THIS SOLVES. Every committed browser artefact before this file drives ONE captured
 // configuration (tests/browser/fixtures/custom-source-settings.json: the Default prompt preset, an
 // empty Auxiliary Prompt, no world info, no author's note, no stop strings, a 4096-token context and
