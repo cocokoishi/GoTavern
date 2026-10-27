@@ -350,6 +350,14 @@ try {
             const files = await readChatFiles(dataRoot);
             const carried = chatCarrying(files, turnMarker) !== null;
             step(`turn-${index + 1}-saved`, carried, files.map(file => `${file.file}:${file.lines}`).join(',') || 'none');
+            // THE REPLY, NOT ONLY THE USER TURN (AGENTS rule 80: a weak assertion usually has a twin). `carried` proves
+            // the USER turn reached disk, which is what names the chat; it says nothing about the assistant reply. Run
+            // 40487164548 lost an assistant reply on the pinned leg while a marker-only assertion was green, and the
+            // same predicate shape lived here and in the continue probe. The regenerate verb operates ON the reply, so a
+            // leg that regenerated a message whose predecessor was never persisted would be measuring a different chat.
+            const carriedReply = files.some(file => (file.messages ?? []).some(entry => /Q20_REPLY_\d+/.test(String(entry?.mes ?? ''))));
+            step(`turn-${index + 1}-saved-the-reply`, carriedReply,
+                JSON.stringify(files.map(file => ({ file: file.file, lines: file.lines, messages: (file.messages ?? []).map(entry => String(entry?.mes ?? '').slice(0, 40)) }))));
             if (!carried) {
                 report.failure = report.failure ?? `turn-${index + 1}-saved: the file on disk does not carry ${turnMarker}`;
                 break;

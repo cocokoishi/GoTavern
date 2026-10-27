@@ -301,6 +301,14 @@ try {
             const files = await readChatFiles(dataRoot);
             const carried = chatCarrying(files, turnMarker) !== null;
             step(`turn-${index + 1}-saved`, carried, files.map(file => `${file.file}:${file.lines}`).join(',') || 'none');
+            // THE REPLY, NOT ONLY THE USER TURN (AGENTS rule 80: a weak assertion usually has a twin). The same
+            // marker-only predicate existed here and in the regenerate probe; run 40487164548 lost an assistant reply
+            // while a marker-only assertion was green. CONTINUE appends to the LAST message, so a leg whose predecessor
+            // reply was never persisted would be continuing a different message than the one the other subject
+            // continued -- an equality that cannot discriminate.
+            const carriedReply = files.some(file => (file.messages ?? []).some(entry => /Q20_REPLY_\d+/.test(String(entry?.mes ?? ''))));
+            step(`turn-${index + 1}-saved-the-reply`, carriedReply,
+                JSON.stringify(files.map(file => ({ file: file.file, lines: file.lines, messages: (file.messages ?? []).map(entry => String(entry?.mes ?? '').slice(0, 40)) }))));
             if (!carried) {
                 report.failure = report.failure ?? `turn-${index + 1}-saved: the file on disk does not carry ${turnMarker}`;
                 break;
