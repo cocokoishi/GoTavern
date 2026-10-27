@@ -550,6 +550,74 @@ guard('case7_rawChatKeepsStoredTextAndDisplayIsNotWrittenBack', () => {
 });
 
 // ===================================================================================================
+// CASE 8. THE STORED FORM, FROM DISK. The one case no request-level comparison can see.
+//
+// Pinned applies USER_INPUT in `sendMessageAsUser` (public/script.js:5875) and builds the message from the
+// RESULT (:5882), pushing it at :5914 -- so the chat FILE holds the rule's output, not the user's raw token.
+// At assembly time (:4506) the rules run AGAIN over that stored text.
+//
+// Therefore a subject that applied the rule ONLY at assembly time would produce:
+//   * an identical provider request  (case 1 passes),
+//   * an identical DOM               (case 2 passes),
+// and a DIFFERENT chat file. This guard reads the file the product wrote.
+//
+// WHAT IT ASSERTS, per subject: the stored user turns carry the rule's OUTPUT and do not carry its INPUT;
+// and — the two subjects' stored files agree on their token sets. What it does NOT assert is the file's
+// path or its formatting, because those are the storage lane's contract, not this one's.
+// ===================================================================================================
+guard('case8_storedChatHoldsTheRewrittenTextOnBothSubjects', () => {
+    const problems = [];
+    for (const subject of ['gotavern', 'pinned']) {
+        const report = legs.baseline[subject];
+        if (!require(report, subject, 'this case', problems)) continue;
+        const stored = report.storedChat ?? null;
+        if (!stored) {
+            // AN ABSENT OBSERVATION IS NOT AGREEMENT. The leg records why in its own step.
+            const why = (report.steps ?? []).find(entry => entry.name === 'stored-chat-read');
+            problems.push(`${subject}: no stored chat was read, so "the chat file holds the rewritten text" is unverified here (leg said: ${JSON.stringify(why?.detail ?? null)})`);
+            continue;
+        }
+        const userTurns = (stored.messages ?? []).filter(message => message.is_user === true);
+        if (userTurns.length === 0) {
+            problems.push(`${subject}: the stored chat holds no user turn, so the case measured nothing`);
+            continue;
+        }
+        // THE TYPED TURN, identified by its own marker rather than by position: the last user turn that
+        // carries the turn marker is the one this scenario typed.
+        const typed = userTurns.filter(message => String(message.mes ?? '').includes(MARKERS.turn));
+        if (typed.length === 0) {
+            problems.push(`${subject}: no STORED user turn carries the typed turn marker ${MARKERS.turn}; the file this leg read may not be the chat it drove`);
+            continue;
+        }
+        for (const message of typed) {
+            const hasOutput = (message.outputTokens ?? []).includes(SIDES.input.marker);
+            const hasInput = (message.inputTokens ?? []).includes(MARKERS.inActive);
+            if (!hasOutput) {
+                problems.push(`${subject}: the STORED typed turn does not carry ${SIDES.input.marker}; pinned rewrites before the push (script.js:5875-5886), so a subject that applies the rule only at assembly time is caught exactly here and nowhere else`);
+            }
+            if (hasInput) {
+                problems.push(`${subject}: the STORED typed turn still carries ${MARKERS.inActive}, so the rule was applied at assembly only`);
+            }
+        }
+        details.storedForm = details.storedForm ?? 'pinned stores the rewritten text (script.js:5875-5886 builds mes from the regexed result before chat.push at :5914); this guard reads the file on disk, which is the only surface that distinguishes "rewritten when stored" from "rewritten only when assembled"';
+    }
+    // AND THE TWO SUBJECTS' FILES AGREE ON THE TOKEN SETS, which is the cross-subject half. The PATH is not
+    // compared: where a chat lives is the storage lane's contract.
+    const go = legs.baseline.gotavern?.storedChat ?? null;
+    const node = legs.baseline.pinned?.storedChat ?? null;
+    if (go && node) {
+        const setOf = stored => (stored.messages ?? []).map(message => `${message.is_user ? 'u' : 'a'}:${(message.outputTokens ?? []).join(',')}|${(message.inputTokens ?? []).join(',')}`).join(';');
+        if (setOf(go) !== setOf(node)) {
+            problems.push(`the stored chats disagree on their rule tokens: gotavern ${JSON.stringify(setOf(go).slice(0, 300))} vs pinned ${JSON.stringify(setOf(node).slice(0, 300))}`);
+        }
+        if ((go.messageCount ?? 0) !== (node.messageCount ?? 0)) {
+            problems.push(`the stored chats hold ${go.messageCount} message(s) on GoTavern and ${node.messageCount} on pinned`);
+        }
+    }
+    return problems;
+});
+
+// ===================================================================================================
 // CROSS-SUBJECT EQUALITY, per case-relevant surface. Rule 48's first half: Node(X) == Go(X). The comparator
 // does not soften this to "similar": the bindings are the raw body digests.
 // ===================================================================================================
@@ -678,9 +746,10 @@ const artefact = {
         'character-scoped rules (SCRIPT_TYPES.SCOPED) are not exercised, including the consent prompt for them',
         'placement AI_OUTPUT (2) is observed only where it coincides with the prompt call site for assistant turns; a rule that targets ONLY AI_OUTPUT against a generated reply is not asserted',
         'placements SLASH_COMMAND (3), WORLD_INFO (5) and REASONING (6) are not exercised',
-        "substituteRegex RAW/ESCAPED (engine.js:397-409) and trimStrings (:457-464) are declared in the rule shape but not varied by this scenario",
+        'substituteRegex RAW/ESCAPED (engine.js:397-409) and trimStrings (:457-464) are declared in the rule shape but not varied by this scenario',
         'a real provider (rule 22) and streaming/cancellation are out of scope: the peer captures and answers',
         'the regex extension being DISABLED (extension_settings.disabledExtensions containing "regex") is asserted to be OFF, not exercised as a negative',
+        'the stored-form case (case 8) reads the chat file the product wrote, but it does NOT assert the file\'s PATH or JSONL formatting: where a chat lives is the storage lane\'s contract. It asserts only that the stored user turn carries the rule output and not its input, which is the property a request-level comparison cannot see',
     ],
 };
 

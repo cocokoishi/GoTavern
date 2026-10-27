@@ -231,6 +231,38 @@ const MUTATIONS = [
             return legs;
         },
     },
+    {
+        // THE STORED-FORM CASE, which is the one no request-level comparison can see. A subject that
+        // applied the rule ONLY at assembly time would have an identical provider request, an identical
+        // DOM, and a chat file still holding the user's raw token. This mutation reproduces exactly that
+        // subject by rewriting the recorded stored chat back to its pre-rule form.
+        name: 'store-the-raw-token',
+        expectedGuards: ['case8_storedChatHoldsTheRewrittenTextOnBothSubjects'],
+        apply: legs => {
+            const report = legs.baseline.gotavern;
+            const stored = report.storedChat;
+            if (!stored) return legs;
+            stored.messages = stored.messages.map(message => {
+                if (message.is_user !== true) return message;
+                // Put the input token back and remove the output, i.e. the file a "rewrite at assembly
+                // only" implementation would have left on disk.
+                message.mes = String(message.mes ?? '').split(SIDES.input.marker).join(MARKERS.inActive);
+                message.inputTokens = [...new Set(String(message.mes).match(/RXQ_IN_[A-Z0-9]+/g) ?? [])].sort();
+                message.outputTokens = [...new Set(String(message.mes).match(/RXQ_OUT_[A-Z0-9]+/g) ?? [])].sort();
+                return message;
+            });
+            return legs;
+        },
+    },
+    {
+        // The observation REMOVED rather than corrupted: "we did not look" must not read as "it agreed".
+        name: 'skip-the-stored-read',
+        expectedGuards: ['case8_storedChatHoldsTheRewrittenTextOnBothSubjects'],
+        apply: legs => {
+            legs.baseline.gotavern.storedChat = null;
+            return legs;
+        },
+    },
 ];
 
 // --- run the comparator over a leg map -------------------------------------------------------------

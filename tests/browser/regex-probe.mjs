@@ -244,6 +244,9 @@ const report = {
     order: null,
     case7: null,
     rawChat: null,
+    chatIdentity: null,
+    storedCandidates: null,
+    storedChat: null,
     rendered: {},
     peerRequests: [],
     console: [],
@@ -489,6 +492,99 @@ try {
     await new Promise(resolve => setTimeout(resolve, 1500));
     await readRendered('afterRegenerate');
     report.steps.push({ name: 'regenerate-round-trip', ok: peer.requests.length > requestsBeforeRegenerate, detail: `${peer.requests.length - requestsBeforeRegenerate} new peer request(s)` });
+
+    // -----------------------------------------------------------------------------------------------
+    // STEP 3: THE STORED FORM, READ FROM DISK.
+    //
+    // THIS IS THE CASE NO REQUEST-LEVEL COMPARISON CAN SEE, and the lead asked for it after the pinned
+    // reading established that USER INPUT is rewritten TWICE. Pinned's `sendMessageAsUser` applies
+    // USER_INPUT at public/script.js:5875 and builds the message from the RESULT (`mes:` at :5882), so the
+    // chat FILE holds the rule's output. A GoTavern that applied the rule only at assembly time (:4506)
+    // would produce an IDENTICAL provider request and an IDENTICAL DOM, and only the file on disk would
+    // differ. So read the file.
+    //
+    // WHICH FILE IS ASKED OF THE PAGE, not guessed: the frontend knows its own chat id (`getCurrentChatId`)
+    // and the product wrote the file through its own save path. Pinned stores chats as JSONL under
+    // `<dataRoot>/default-user/chats/`. If the id is absent the leg records that rather than inventing a
+    // path, and the comparator treats "no stored observation" as unverified rather than as a pass.
+    // -----------------------------------------------------------------------------------------------
+    const chatIdentity = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        const chats = await import('./scripts/chats.js').catch(() => null);
+        const id = (typeof script.getCurrentChatId === 'function' ? script.getCurrentChatId() : null)
+            ?? (chats && typeof chats.getCurrentChatId === 'function' ? chats.getCurrentChatId() : null)
+            ?? null;
+        return {
+            chatId: id,
+            userAvatar: script.user_avatar ?? null,
+            chatLength: Array.isArray(script.chat) ? script.chat.length : null,
+        };
+    });
+    report.chatIdentity = chatIdentity;
+    // The chats directory is per-user; a fresh tree is `default-user`. Both candidates are tried and the
+    // resolved one is RECORDED, so the comparator never has to assume which layout the leg used.
+    const storedCandidates = [];
+    const chatsRoot = path.join(dataRoot, 'default-user', 'chats');
+    let storedPath = null;
+    if (chatIdentity?.chatId) {
+        const direct = path.join(chatsRoot, `${chatIdentity.chatId}.jsonl`);
+        storedCandidates.push(path.relative(dataRoot, direct).split(path.sep).join('/'));
+        if (await fs.stat(direct).then(() => true, () => false)) {
+            storedPath = direct;
+        } else {
+            // A named chat may live in a per-character subdirectory; list the root's entries so the
+            // artefact says what WAS there instead of only what was not.
+            const entries = await fs.readdir(chatsRoot, { withFileTypes: true }).catch(() => []);
+            report.chatsRootEntries = entries.map(entry => `${entry.isDirectory() ? 'dir' : 'file'}:${entry.name}`).slice(0, 40);
+            for (const entry of entries) {
+                if (!entry.isDirectory()) continue;
+                const nested = path.join(chatsRoot, entry.name, `${chatIdentity.chatId}.jsonl`);
+                storedCandidates.push(path.relative(dataRoot, nested).split(path.sep).join('/'));
+                if (await fs.stat(nested).then(() => true, () => false)) {
+                    storedPath = nested;
+                    break;
+                }
+            }
+        }
+    }
+    report.storedCandidates = storedCandidates;
+    if (storedPath) {
+        const raw = await fs.readFile(storedPath, 'utf8');
+        // JSONL: one JSON object per line. A malformed line is recorded, not thrown on, so a corrupt file
+        // still yields an artefact that says what is in it.
+        const storedMessages = [];
+        const badLines = [];
+        for (const [index, line] of raw.split('\n').entries()) {
+            if (!line.trim()) continue;
+            try {
+                storedMessages.push(JSON.parse(line));
+            } catch (error) {
+                badLines.push({ line: index + 1, error: String(error?.message ?? error).slice(0, 120) });
+            }
+        }
+        report.storedChat = {
+            path: path.relative(dataRoot, storedPath).split(path.sep).join('/'),
+            bytes: Buffer.byteLength(raw, 'utf8'),
+            messageCount: storedMessages.length,
+            badLines,
+            // WHAT THE TYPED TURN LOOKS LIKE ON DISK. The rule's output must be here and the user's raw
+            // token must not be, because pinned rewrites before the push (:5875-5886).
+            messages: storedMessages.map(message => ({
+                is_user: Boolean(message.is_user),
+                is_system: Boolean(message.is_system),
+                // The stored text, bounded: this is the USER'S OWN typed text plus marker output, never a
+                // real preset or card (rule 56), so it is safe to record in the artefact.
+                mes: String(message.mes ?? '').slice(0, 2000),
+                inputTokens: [...new Set(String(message.mes ?? '').match(/RXQ_IN_[A-Z0-9]+/g) ?? [])].sort(),
+                outputTokens: [...new Set(String(message.mes ?? '').match(/RXQ_OUT_[A-Z0-9]+/g) ?? [])].sort(),
+            })),
+        };
+        step('stored-chat-read', report.storedChat.messageCount > 0, `${report.storedChat.path}: ${report.storedChat.messageCount} message(s), ${report.storedChat.bytes} bytes`);
+    } else {
+        // NAMED, NOT SILENT. A chat the product saved but this leg could not find is a measurement gap, and
+        // the comparator must fail on it rather than treat an absent observation as agreement.
+        step('stored-chat-read', false, `no chat file found for chatId ${JSON.stringify(chatIdentity?.chatId ?? null)}; tried ${storedCandidates.join(', ') || '(nothing, because the page reported no chat id)'}`);
+    }
 
     // THE RECORD. Read ONCE at the end, from the peer's own list, so the artefact carries what the peer
     // received rather than what a step believed it produced.
