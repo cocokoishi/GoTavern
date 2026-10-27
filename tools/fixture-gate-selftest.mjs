@@ -366,6 +366,64 @@ record('scanner ACCEPTS a fully-marked CJK preset (the mojibake regression)', cj
 const cjkRefused = scanFile(cjkUnmarked);
 record('scanner REFUSES the same CJK prose unmarked (the pass is right, not loose)', !cjkRefused.ok && /unmarked|no marker/.test(cjkRefused.output), cjkRefused.ok ? 'the scanner accepted unmarked CJK prose' : undefined);
 
+// 3h. THE TWO CHUNKS OF ONE CARD MUST BE ONE DOCUMENT.
+//
+// THE CASE THAT WOULD HAVE CAUGHT `GoTavern Lane CI` 40446833206. `synthesisedCard` writes the SAME base64 into
+// `chara` and `ccv3`, so every case above exercises a file pinned could have written. The generator used to walk each
+// chunk separately with a shared marker counter, producing a card whose `chara` said `data.name="MARK_000466…"` and
+// whose `ccv3` said `data.name="MARK_002794…"` -- one file, two contradictory cards, and every reader answering
+// whichever chunk its precedence selected. Three rows below pin both directions:
+//   * chunks that differ in an identity field of a DIFFERENT length are REFUSED, because one document cannot keep two
+//     chunk lengths -- the refusal is the gate firing, and it names the chunks;
+//   * chunks that differ by the same length are accepted, and the derived file carries ONE document in both chunks;
+//   * the manifest records that equality, so a re-record cannot reintroduce two documents while this stays green.
+{
+    const baseCard = JSON.parse(JSON.stringify(CLEAN_CARD));
+    const header = synthesisedCard(baseCard).subarray(0, 8 + 12 + 13 + 12 + 22); // signature + IHDR + IDAT chunk
+    const textOf = (document) => Buffer.from(JSON.stringify(document), 'utf8').toString('base64');
+    const twoChunkCard = (target, first, second) => fs.writeFileSync(target, Buffer.concat([
+        header,
+        pngChunk('tEXt', Buffer.concat([Buffer.from('chara\0', 'latin1'), Buffer.from(textOf(first), 'latin1')])),
+        pngChunk('tEXt', Buffer.concat([Buffer.from('ccv3\0', 'latin1'), Buffer.from(textOf(second), 'latin1')])),
+        pngChunk('trAc', Buffer.from([0, 0, 0, 1])),
+        pngChunk('IEND', Buffer.alloc(0)),
+    ]));
+
+    const divergent = JSON.parse(JSON.stringify(CLEAN_CARD));
+    divergent.data.name = 'MARK_000099 DIVERGENT NAME OF A DIFFERENT LENGTH';
+    divergent.name = divergent.data.name;
+    const splitPath = path.join(tempRoot, 'split-chunks.png');
+    twoChunkCard(splitPath, baseCard, divergent);
+    const split = buildCard(splitPath, outDir);
+    record('derivation REFUSES two chunks that are different documents', !split.ok && /same document|DIFFERENT documents/.test(split.output),
+        split.ok ? 'the generator wrote a card from two contradictory documents' : split.output.trim().split('\n').slice(0, 2).join(' | ').slice(0, 400));
+    fs.rmSync(path.join(outDir, 'probe.png'), { force: true });
+
+    const alpha = JSON.parse(JSON.stringify(CLEAN_CARD));
+    const beta = JSON.parse(JSON.stringify(CLEAN_CARD));
+    alpha.data.name = 'DUPLICATE-NAME-ALPHA';
+    beta.data.name = 'DUPLICATE-NAME-BETA-';
+    alpha.name = alpha.data.name;
+    beta.name = beta.data.name;
+    const equalLengthPath = path.join(tempRoot, 'equal-length-chunks.png');
+    twoChunkCard(equalLengthPath, alpha, beta);
+    const equalLength = buildCard(equalLengthPath, outDir);
+    record('derivation ACCEPTS two equal-length chunks and writes ONE document to both', equalLength.ok,
+        equalLength.ok ? undefined : equalLength.output.trim().split('\n').slice(0, 3).join(' | ').slice(0, 400));
+    const manifestPath = path.join(outDir, 'real-fixture-manifest.json');
+    if (equalLength.ok && fs.existsSync(manifestPath)) {
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        const card = (manifest.cards ?? []).find(entry => entry.name === 'probe');
+        const equality = card?.replaced?.preserved?.sameDocumentAcrossChunks;
+        record('the manifest records that both chunks are one document',
+            Boolean(equality?.sameDocument) && Array.isArray(equality?.chunks) && equality.chunks.length === 2,
+            JSON.stringify(equality ?? null).slice(0, 300));
+        fs.rmSync(path.join(outDir, 'probe.png'), { force: true });
+    } else {
+        record('the manifest records that both chunks are one document', false, 'no manifest was written');
+    }
+}
+
 fs.rmSync(tempRoot, { recursive: true, force: true });
 
 const failed = results.filter(entry => !entry.ok);

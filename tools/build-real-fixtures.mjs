@@ -588,19 +588,59 @@ const buildCard = ({ name, file }, outDir) => {
     const stats = { namesReplaced: 0, scriptsReplaced: 0, scriptBytesReplaced: 0, replacedPaths: {}, shortIdentityFields: [] };
     const derivedPayloads = new Map();
     const chunkReport = [];
+    let cardChunkEquality = null;
+
+    // ONE CARD, ONE DOCUMENT -- DERIVE IT ONCE AND WRITE IT TO BOTH CHUNKS.
+    //
+    // WHAT THIS REPLACES, AND WHY IT WAS A DEFECT. Each chunk used to be walked by its own `desensitiseCard` call
+    // with a SHARED, RUNNING `nextMarker()` counter, so the two copies of one card were handed DIFFERENT markers at
+    // every name-bearing field. Measured on the committed derivation (`GoTavern Lane CI` 40446833206):
+    //
+    //     chara: data.name="MARK_000466…" root.name="MARK_000464…"
+    //     ccv3:  data.name="MARK_002794…" root.name="MARK_002792…"
+    //
+    // Pinned reads `ccv3` in preference to `chara` (src/character-card-parser.js:54-78), so the file said two
+    // different things about one character and a probe that read `chara` measured a string the server never answered
+    // -- the Q21 precondition failure in runs 40438262854 and 40444636900, chased through six driver commits.
+    //
+    // PINNED CANNOT PRODUCE SUCH A FILE. `character-card-parser.write` (`src/character-card-parser.js:15-40`) writes
+    // `chara` from the data it is given and derives `ccv3` by `JSON.parse` of that SAME data (`:34-39`), so the two
+    // chunks of any card pinned has written are byte-identical documents. The old fixture described a card that does
+    // not exist.
+    //
+    // THE CANONICAL NAME IS TAKEN FROM THE CURRENT `ccv3` DOCUMENT, so prior Q21 reports (which quote the server's
+    // `…794`) remain comparable across this re-record. The derivation runs ONCE, on the document pinned actually reads,
+    // and both chunks receive its bytes.
+    const cardKeys = [];
+    for (const chunk of chunks) {
+        if (chunk.type !== 'tEXt') continue;
+        const keyword = String(textChunkPayload(chunk.data)?.keyword ?? '').toLowerCase();
+        if (keyword === 'chara' || keyword === 'ccv3') cardKeys.push({ chunk, keyword });
+    }
+    const canonical = cardKeys.find(entry => entry.keyword === 'ccv3') ?? cardKeys[0];
+    if (!canonical) refuse(`${file}: no chara or ccv3 tEXt chunk, so there is no card to derive`);
+    const canonicalBytes = Buffer.from(textChunkPayload(canonical.chunk.data).text, 'base64');
+    if (canonicalBytes.toString('base64') !== textChunkPayload(canonical.chunk.data).text) {
+        refuse(`${file}: the ${canonical.keyword} chunk's base64 does not round-trip, so a re-encode cannot be proven byte-length-preserving`);
+    }
+    const derivedDocument = Buffer.from(JSON.stringify(desensitiseCard(parseCardJSON(canonicalBytes), stats)), 'utf8');
+    if (derivedDocument.length !== canonicalBytes.length) {
+        refuse(`${file}: the derived ${canonical.keyword} JSON is ${derivedDocument.length} bytes, the original is ${canonicalBytes.length} (delta ${derivedDocument.length - canonicalBytes.length})`);
+    }
+
     for (const chunk of chunks) {
         const text = chunk.type === 'tEXt' ? textChunkPayload(chunk.data) : null;
         const keyword = String(text?.keyword ?? '').toLowerCase();
         if (chunk.type === 'tEXt' && (keyword === 'chara' || keyword === 'ccv3')) {
-            // base64 -> JSON bytes -> derived JSON bytes -> base64. THE LENGTH IS ASSERTED AT EVERY HOP,
-            // because base64 padding is where a one-byte JSON change hides.
+            // base64 -> JSON bytes -> THE SHARED DERIVED JSON bytes -> base64. THE LENGTH IS ASSERTED AT EVERY HOP,
+            // because base64 padding is where a one-byte JSON change hides -- and, since both chunks now carry ONE
+            // derivation, a chunk whose original JSON had a different length can only be written if that length is
+            // recovered exactly, which the check below refuses otherwise.
             const jsonBytes = Buffer.from(text.text, 'base64');
             if (jsonBytes.toString('base64') !== text.text) refuse(`${file}: the ${text.keyword} chunk's base64 does not round-trip, so a re-encode cannot be proven byte-length-preserving`);
-            const parsed = parseCardJSON(jsonBytes);
-            const derived = desensitiseCard(parsed, stats);
-            const derivedJSON = Buffer.from(JSON.stringify(derived), 'utf8');
+            const derivedJSON = derivedDocument;
             if (derivedJSON.length !== jsonBytes.length) {
-                refuse(`${file}: the derived ${text.keyword} JSON is ${derivedJSON.length} bytes, the original is ${jsonBytes.length} (delta ${derivedJSON.length - jsonBytes.length})`);
+                refuse(`${file}: the ${text.keyword} chunk holds a ${jsonBytes.length}-byte document but the derived canonical document is ${derivedJSON.length} bytes, so the two chunks are NOT the same document and writing one into both would change this chunk's length`);
             }
             const derivedBase64 = derivedJSON.toString('base64');
             if (derivedBase64.length !== text.text.length) refuse(`${file}: the derived ${text.keyword} base64 is ${derivedBase64.length} chars, the original is ${text.text.length}`);
@@ -713,6 +753,45 @@ const buildCard = ({ name, file }, outDir) => {
         if (!beforeEntry !== !afterEntry) refuse(`${file}: the derived file ${afterEntry ? 'gained' : 'lost'} the ${keyword} chunk`);
         if (beforeEntry && afterEntry && beforeEntry.jsonBytes !== afterEntry.jsonBytes) refuse(`${file}: ${keyword} JSON moved ${beforeEntry.jsonBytes} -> ${afterEntry.jsonBytes}`);
         if (beforeEntry && afterEntry && beforeEntry.chunkBytes !== afterEntry.chunkBytes) refuse(`${file}: ${keyword} chunk moved ${beforeEntry.chunkBytes} -> ${afterEntry.chunkBytes}`);
+    }
+
+    // 2b. THE TWO CHUNKS MUST BE ONE CARD.
+    //
+    // THE CHECK THAT WOULD HAVE CAUGHT RUN 40438262854 BEFORE ANY PROBE RAN. Pinned writes `ccv3` as `JSON.parse` of
+    // the data it put in `chara` (`src/character-card-parser.js:15-40`), so for any card pinned has written the two
+    // chunks hold the SAME document; a derivation that walks each chunk separately produces two cards in one file,
+    // and every reader then answers whichever one its chunk precedence selects. This asserts DEEP EQUALITY of the
+    // two DECODED documents -- not name equality, which would pass for two documents that differ only in prose -- and
+    // it compares against the DERIVED bytes read back from disk, so it cannot be satisfied by the intent above.
+    {
+        const readBack = readPngChunks(derived);
+        const documents = new Map();
+        for (const chunk of readBack) {
+            if (chunk.type !== 'tEXt') continue;
+            const payload = textChunkPayload(chunk.data);
+            const keyword = String(payload?.keyword ?? '').toLowerCase();
+            if (keyword !== 'chara' && keyword !== 'ccv3') continue;
+            documents.set(keyword, Buffer.from(payload.text, 'base64'));
+        }
+        if (documents.size === 2) {
+            const [first, second] = [...documents.entries()];
+            if (!first[1].equals(second[1])) {
+                refuse(`${file}: the derived ${first[0]} and ${second[0]} chunks are DIFFERENT documents `
+                    + `(${first[1].length} vs ${second[1].length} bytes), so one card file would carry two contradictory `
+                    + 'cards; pinned writes both from one document (character-card-parser.js:15-40), so this fixture '
+                    + 'would describe a card pinned cannot produce');
+            }
+            // Deep equality as a SECOND opinion: identical bytes cannot differ structurally, but a future change that
+            // normalises on read would make the byte check pass while the documents diverged, and the structure is
+            // exactly what the diff would hide.
+            const parsedFirst = parseCardJSON(first[1]);
+            const parsedSecond = parseCardJSON(second[1]);
+            if (JSON.stringify(parsedFirst) !== JSON.stringify(parsedSecond)) {
+                refuse(`${file}: the derived ${first[0]} and ${second[0]} chunks decode to different documents even though `
+                    + 'their bytes compare equal; the re-read path is normalising one of them');
+            }
+        }
+        cardChunkEquality = { chunks: [...documents.keys()], sameDocument: documents.size === 2 };
     }
     // 3. THE STRUCTURE THE LEG NEEDS MUST SURVIVE: entry count, greeting count, helper/regex script counts,
     //    book content bytes are all computed by the profiler, so a derivation that flattened the book fails
@@ -849,6 +928,13 @@ const buildCard = ({ name, file }, outDir) => {
             preserved: {
                 chunkSequence: chunks.map((chunk) => ({ type: chunk.type, bytes: chunk.type === 'IDAT' ? null : chunk.length })),
                 cardTextChunks: chunkReport.filter((entry) => entry.keyword),
+                // THE ASSERTION THIS RECORD PROVES RAN, not a description of the intent: the two chunks' derived
+                // documents were compared BYTE-WISE and structurally after the write (step 2b above), so a manifest
+                // that carries this line describes a card whose `chara` and `ccv3` are one document. The original
+                // file's own equality is recorded separately as `profile.charaEqualsCcv3`, because the ORIGINAL may
+                // legitimately differ and the derived file may not.
+                sameDocumentAcrossChunks: cardChunkEquality,
+                canonicalNameSource: 'ccv3 document (the one pinned reads first, character-card-parser.js:54-78), so prior Q21 reports remain comparable',
                 dimensions,
                 atDepthEntriesNote: 'per-entry position/depth fields are preserved untouched; only the prose inside them moved',
             },
