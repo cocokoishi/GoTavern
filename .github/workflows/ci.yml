@@ -407,7 +407,28 @@ jobs:
     # cold module cache or a slow runner still fits, and a wedged compile fails at 30 min rather than 6 h.
     timeout-minutes: 30
     steps:
+      # FULL HISTORY, BECAUSE THIS JOB RUNS A GATE THAT NEEDS IT.
+      #
+      # MEASURED on main at 53f68ed: `go test ./...` in this job runs `internal/fixtures/documents_test.go`,
+      # whose citation-ancestry rule asks `git merge-base --is-ancestor <run's head_sha> <the commit the ledger
+      # describes>`. `actions/checkout` defaults to a depth-1 shallow clone, so EVERY one of those queries exited
+      # 128 -- the objects are simply not here -- and the gate reported 19 "ancestry could not be verified"
+      # problems. It was right to refuse rather than pass silently, but the cause was this job's checkout, not
+      # the ledger.
+      #
+      # `lane.yml` already carries `fetch-depth: 0` for exactly this reason; this job was missed, so the ledger
+      # gate has never been able to pass here. `filter: blob:none` is a PARTIAL clone: the full commit graph is
+      # present (which is all `merge-base` needs) while file contents are fetched on demand, so the cost is a
+      # commit graph rather than a full checkout of every historical blob.
+      #
+      # THE DIAGNOSTIC THAT REVEALED THIS is worth recording: the gate joined its problems with newlines inside
+      # one `fmt.Errorf` and this workflow prints only the tail of the test log, so the first three runs showed
+      # the header and nothing else, and two lanes were blocked by a red they could see and not read. Emitting
+      # each problem on its own line is what turned an unreadable red into this one-line cause.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
       - uses: actions/setup-node@v4
         with:
           node-version: 24.19.0

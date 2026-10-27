@@ -132,10 +132,22 @@ jobs:
           echo "tests executed: $executed"
           echo "--- test log tail ---"
           tail -60 /tmp/all-tests.log
+          # THE FAILING BLOCK IN FULL, NOT ITS TAIL.
+          #
+          # MEASURED TWICE, on two different gates. The ledger gate joins its problems with newlines inside one
+          # error, and a lane that lost the failing message could name the TEST but not the ASSERTION -- a red
+          # it could see and not read, which is AGENTS verification rule 7 in the reporting layer. `tail -60`
+          # shows the end of the whole log, which for a long run is unrelated packages; the assertion lives
+          # directly under its own `--- FAIL` line.
+          #
+          # `grep -A 40` prints each failure with the 40 lines that follow it, which is where t.Fatalf's message
+          # and any subtest detail sit. It is bounded, so a pathological log cannot flood the runner.
+          echo "--- failing blocks (each FAIL plus its next 40 lines) ---"
+          grep -A 40 -E '^--- FAIL' /tmp/all-tests.log || echo "(no --- FAIL line; see the tail above)"
           echo "--- failing tests ---"
           grep -E '^(--- FAIL|FAIL)' /tmp/all-tests.log || echo "(none named)"
           echo "--- failing test detail ---"
-          grep -E '_test\.go:[0-9]+:' /tmp/all-tests.log | head -20 || true
+          grep -E '_test\.go:[0-9]+:' /tmp/all-tests.log | head -40 || true
           echo "--- failing subtests ---"
           grep -E '^\s+--- FAIL' /tmp/all-tests.log | head -20 || true
           if [ "$status" -ne 0 ]; then
