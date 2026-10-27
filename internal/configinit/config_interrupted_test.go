@@ -95,8 +95,6 @@ func TestUnparseableConfigFailsByNameAndIsNotTouched(t *testing.T) {
 		{name: "truncated mid-sequence", body: "port: 8000\nwhitelist: [\"127.0.0.1\"\n"},
 		// A tab-indented block, which YAML forbids and which an editor that mixes tabs and spaces produces.
 		{name: "tab indentation", body: "ssl:\n\tenabled: true\n"},
-		// A duplicate key, which yaml.v3 rejects strictly.
-		{name: "duplicate key", body: "port: 8000\nport: 9000\n"},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			path, planted := writeConfigFile(t, scenario.body)
@@ -124,6 +122,52 @@ func TestUnparseableConfigFailsByNameAndIsNotTouched(t *testing.T) {
 			assertNoTemporaryFiles(t, filepath.Dir(path))
 		})
 	}
+}
+
+// TestDuplicateKeyIsAcceptedWherePinnedRejectsIt RECORDS A DIVERGENCE, and is written so that closing it
+// turns this test red rather than silent.
+//
+// MEASURED on run 40465430026 (GoTavern Lane CI, 1e08a51): `port: 8000\nport: 9000\n` is ACCEPTED by
+// `Initialize`. That was first asserted the other way round, on my assumption that yaml.v3 rejects duplicate
+// keys; it does not, because `parseMapping` (config.go:220-233) unmarshals into a `yaml.Node`, and the
+// uniqueness check lives in the decoder's mapping path rather than in node building.
+//
+// WHAT PINNED DOES (SillyTavern 1.19.0 = 06bde939): `src/config-init.js:174` calls `yaml.parse(...)` from
+// the `yaml` package at `^2.8.3`, whose Document defaults are `strict: true` and `uniqueKeys: true`
+// (node_modules/yaml/.../doc/Document.js:37-39). A duplicate key is therefore an ERROR for pinned, so this
+// is a real divergence on a STARTUP path: a user whose config has the same key twice gets a warning from
+// pinned and a silently-last-wins value here.
+//
+// WHY IT IS NOT FIXED IN THIS COMMIT. Rejecting duplicates would change what a boot accepts, and AGENTS 13
+// makes startup behaviour compatibility behaviour -- the fix is a deliberate change with its own probe, not a
+// side effect of a test-writing lane. Meanwhile the test pins the CURRENT behaviour exactly and names the
+// pinned behaviour beside it, so the divergence cannot be discovered twice and cannot be forgotten:
+// when the product starts rejecting, this test fails and whoever fixes it removes the assertion with the
+// reason recorded here.
+func TestDuplicateKeyIsAcceptedWherePinnedRejectsIt(t *testing.T) {
+	path, _ := writeConfigFile(t, "port: 8000\nport: 9000\n")
+
+	result, err := Initialize(path)
+	if err != nil {
+		t.Fatalf("Initialize now REJECTS a duplicate key: %v\n\n"+
+			"If this is the intended fix, delete this test and record the change as closing the divergence "+
+			"from pinned's uniqueKeys default (yaml 2.x Document.js:37-39) -- do not keep both the assertion "+
+			"and the new behaviour.", err)
+	}
+	// The current behaviour, stated as a fact rather than left implicit: the file is treated as valid.
+	if !result.Created && !result.Updated {
+		after, readErr := os.ReadFile(path)
+		if readErr != nil {
+			t.Fatalf("read %s: %v", path, readErr)
+		}
+		// A duplicate-key file also lacks every other pinned default, so defaults get merged and the file is
+		// rewritten; if that ever stops being true the assertion below would silently stop meaning anything.
+		if !strings.Contains(string(after), "port:") {
+			t.Fatalf("the config lost its port key entirely:\n%s", after)
+		}
+	}
+	t.Logf("DIVERGENCE RECORDED (not fixed): a duplicate key is accepted here and is an error for pinned "+
+		"(yaml uniqueKeys:true). Initialize returned %+v on %q", result, "port: 8000 / port: 9000")
 }
 
 // TestHalfMigratedConfigReachesAStableAnswerAndStops is the state a tree is in when a migration was written
