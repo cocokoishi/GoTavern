@@ -341,8 +341,29 @@ try {
     // 3. THE REAL CONTROL, PRESSED.
     const pressed = await pressRegenerateThroughMenu(page);
     report.regenerate = pressed;
-    step('regenerate-control-reached', pressed?.pressed === true && pressed?.sawRegenerateCall === true,
-        `menuVisible=${pressed?.menuVisible} calls=${JSON.stringify(pressed?.generateCalls)}`);
+    // WHAT "REACHED THE CONTROL" MEANS, corrected by measurement. The first version required my `Generate` wrapper to
+    // record a call; run 40462256569 measured `generateCalls: []` and `sawRegenerateCall: false` WHILE THE REGENERATE
+    // WORKED (`Q20_REPLY_2` -> `Q20_REPLY_3`, chat length unchanged, page and file agreeing). A browser ES module
+    // export is a live binding, so a wrapper assigned onto the namespace may never bind -- and a guard that fails when
+    // its INSTRUMENT fails is a guard on the harness, not on the product (AGENTS rule 10's inverse error). The
+    // subject's own observables are used instead, and the instrument is still reported so a reader knows why:
+    //   * the press was delivered (`pressed.pressed`: the control was in the page and was clicked);
+    //   * the product ACTED: `sawBusy` (the page entered a generation -- `is_send_press` or a `streamingProcessor`),
+    //     and afterwards the last message carries a DIFFERENT peer reply from the one that was there.
+    step('regenerate-control-reached',
+        pressed?.pressed === true
+        && pressed?.sawBusy === true
+        && pressed?.after?.lastIsUser === false
+        && String(pressed?.after?.lastText ?? '') !== String(pressed?.before?.lastMessage?.mes ?? '')
+        && /^Q20_REPLY_\d+$/.test(String(pressed?.after?.lastText ?? '').trim()),
+        JSON.stringify({
+            menuVisible: pressed?.menuVisible,
+            generateWrapStatus: pressed?.generateWrapStatus,
+            calls: pressed?.generateCalls,
+            sawBusy: pressed?.sawBusy,
+            beforeText: pressed?.before?.lastMessage?.mes ?? null,
+            afterText: pressed?.after?.lastText ?? null,
+        }));
     await settleQuiet(page, recorder);
     const saved = await saveConditional(page);
     report.savedAfterRegenerate = saved;

@@ -575,26 +575,53 @@ export async function pressRegenerateThroughMenu(page) {
         if (!before.menuPresent || !before.controlFound) {
             return { pressed: false, before, reason: 'the options menu or the regenerate control is not in the page' };
         }
+        // OBSERVE, NEVER REIMPLEMENT -- and try BOTH ways of observing a module export, recording which one binds.
+        //
+        // WHAT WAS MEASURED: run 40462256569 recorded `generateCalls: []` and `sawRegenerateCall: false` while the
+        // regenerate itself WORKED (`Q20_REPLY_2` -> `Q20_REPLY_3`, chat length unchanged, file and page agreeing). So
+        // the instrument, not the product, was blind. A browser ES module's exported binding is a live binding that
+        // cannot be reassigned from outside (`script.Generate = f` throws in strict mode and is ignored otherwise), and
+        // `openTimeout`/`is_send_press` is what proved the click reached the handler. `Object.defineProperty` on the
+        // namespace object succeeds where plain assignment does not -- but whether it binds is a property of the page,
+        // so it is TRIED and the RESULT IS RECORDED rather than assumed. The assertion that follows therefore does not
+        // depend on this instrument: the verb's effect is judged by the reply text changing, which a user can see.
+        let wrapStatus = 'not-installed';
+        if (!window.__q20GenerateWrap) {
+            window.__q20GenerateWrap = [];
+            const original = script.Generate;
+            if (typeof original === 'function') {
+                const wrapper = function (type, ...rest) {
+                    window.__q20GenerateWrap.push({ type: String(type ?? ''), at: Date.now() });
+                    return original.call(this, type, ...rest);
+                };
+                try {
+                    script.Generate = wrapper;
+                } catch {
+                    // ignored -- the defineProperty attempt below is the one that can work
+                }
+                if (script.Generate !== wrapper) {
+                    try {
+                        Object.defineProperty(script, 'Generate', { value: wrapper, writable: true, configurable: true });
+                    } catch (error) {
+                        wrapStatus = `defineProperty-threw: ${String(error && error.message || error)}`;
+                    }
+                }
+                if (script.Generate === wrapper) wrapStatus = 'bound';
+                else if (wrapStatus === 'not-installed') wrapStatus = 'did-not-bind (module namespace is live/read-only)';
+                window.__q20GenerateWrapStatus = wrapStatus;
+            } else {
+                wrapStatus = 'Generate is not a function on the module';
+                window.__q20GenerateWrapStatus = wrapStatus;
+            }
+        } else {
+            wrapStatus = window.__q20GenerateWrapStatus ?? 'already-installed';
+        }
         // OPEN THE MENU THE WAY THE PAGE OPENS IT, so the anchor is inside a live flyout exactly as a user's press
         // finds it. A page whose menu never opens is reported as such rather than papered over.
         const button = document.querySelector('#options_button');
         if (button) button.click();
         await new Promise(resolve => setTimeout(resolve, 500));
         const menuVisible = document.querySelector('#options')?.style?.display !== 'none';
-        // OBSERVE, NEVER REIMPLEMENT: `Generate` is called through with its own `this` and arguments, and the wrapper
-        // records only the type string. It stays installed for the whole leg (a later press must be observable too),
-        // guarded by a window flag so a second call does not double-wrap.
-        if (!window.__q20GenerateWrap) {
-            window.__q20GenerateWrap = [];
-            const original = script.Generate;
-            if (typeof original === 'function') {
-                window.__q20OriginalGenerate = original;
-                script.Generate = function (type, ...rest) {
-                    window.__q20GenerateWrap.push({ type: String(type ?? ''), at: Date.now() });
-                    return original.call(this, type, ...rest);
-                };
-            }
-        }
         const control = document.querySelector('#option_regenerate');
         control.click();
         const deadline = Date.now() + 30000;
@@ -623,6 +650,7 @@ export async function pressRegenerateThroughMenu(page) {
             before,
             menuVisible,
             generateCalls: (window.__q20GenerateWrap ?? []).slice(),
+            generateWrapStatus: wrapStatus,
             sawRegenerateCall: (window.__q20GenerateWrap ?? []).some(entry => entry.type === 'regenerate'),
             sawBusy,
             after: {
@@ -687,16 +715,35 @@ export async function pressContinue(page) {
         if (button) button.click();
         await new Promise(resolve => setTimeout(resolve, 500));
         const menuVisible = document.querySelector('#options')?.style?.display !== 'none';
+        // OBSERVE, TRYING BOTH WAYS, AND RECORD WHICH BOUND -- the same correction as `pressRegenerateThroughMenu`,
+        // for the same measured reason (a browser ES module export is a live binding, so the wrapper may not bind and
+        // `generateCalls` can stay empty while the verb works). `wrapStatus` is returned so the leg can say so.
+        let wrapStatus = window.__q20GenerateWrapStatus ?? 'not-installed';
         if (!window.__q20GenerateWrap) {
             window.__q20GenerateWrap = [];
             const original = script.Generate;
             if (typeof original === 'function') {
-                window.__q20OriginalGenerate = original;
-                script.Generate = function (type, ...rest) {
+                const wrapper = function (type, ...rest) {
                     window.__q20GenerateWrap.push({ type: String(type ?? ''), at: Date.now() });
                     return original.call(this, type, ...rest);
                 };
+                try {
+                    script.Generate = wrapper;
+                } catch {
+                    // ignored -- see the defineProperty attempt below
+                }
+                if (script.Generate !== wrapper) {
+                    try {
+                        Object.defineProperty(script, 'Generate', { value: wrapper, writable: true, configurable: true });
+                    } catch (error) {
+                        wrapStatus = `defineProperty-threw: ${String(error && error.message || error)}`;
+                    }
+                }
+                wrapStatus = script.Generate === wrapper ? 'bound' : (wrapStatus === 'not-installed' ? 'did-not-bind (module namespace is live/read-only)' : wrapStatus);
+            } else {
+                wrapStatus = 'Generate is not a function on the module';
             }
+            window.__q20GenerateWrapStatus = wrapStatus;
         }
         document.querySelector('#option_continue').click();
         const deadline = Date.now() + 30000;
@@ -712,13 +759,15 @@ export async function pressContinue(page) {
                 streamingProcessor: Boolean(script.streamingProcessor),
             };
             if (state.isSendPress === true || state.streamingProcessor) sawBusy = true;
+            // THE WAIT IS KEYED ON THE EFFECT, NOT ON THE WRAPPER. A continuation changes the last message IN PLACE
+            // (`lastMessage.mes = getMessage`, script.js:6719-6737), so "a new message appeared" is not the signal --
+            // the text growing is. `sawBusy` alone would also fire on a generation that failed; requiring the text to
+            // change means "the page finished a continuation", which is what the assertion then judges.
             if (state.isSendPress !== true) {
-                const called = (window.__q20GenerateWrap ?? []).some(entry => entry.type === 'continue');
-                // A CONTINUATION CHANGES THE LAST MESSAGE IN PLACE, so "a new message appeared" is not the signal.
-                // The DOM's own text is what a user sees change.
+                const grew = String(live[live.length - 1]?.mes ?? '').length > String(before.lastMessage?.mes ?? '').length
+                    && String(live[live.length - 1]?.mes ?? '').startsWith(String(before.lastMessage?.mes ?? '\u0000'));
                 const domText = String(document.querySelector(`#chat .mes[mesid="${live.length - 1}"] .mes_text`)?.textContent ?? '');
-                if (called && sawBusy && domText !== '') break;
-                if (called && !sawBusy && domText !== '') break;
+                if (sawBusy && (grew || domText !== '')) break;
             }
             await new Promise(resolve => setTimeout(resolve, 250));
         }
@@ -729,6 +778,7 @@ export async function pressContinue(page) {
             before,
             menuVisible,
             generateCalls: (window.__q20GenerateWrap ?? []).slice(),
+            generateWrapStatus: wrapStatus,
             sawContinueCall: (window.__q20GenerateWrap ?? []).some(entry => entry.type === 'continue'),
             sawBusy,
             after: {

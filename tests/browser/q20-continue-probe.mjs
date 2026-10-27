@@ -340,8 +340,25 @@ try {
     // 2. THE REAL CONTROL, PRESSED.
     const pressed = await pressContinue(page);
     report.continue = pressed;
-    step('continue-control-reached', pressed?.pressed === true && pressed?.sawContinueCall === true,
-        `menuVisible=${pressed?.menuVisible} calls=${JSON.stringify(pressed?.generateCalls)}`);
+    // SAME CORRECTION AS THE REGENERATE LEG, same measurement: a browser ES module export is a live binding, so a
+    // `Generate` wrapper may never bind and `generateCalls` can be empty while the verb WORKS. The subject's own
+    // observables decide: the press was delivered, the page entered a generation (`sawBusy`), and afterwards the last
+    // message's text is LONGER and starts with the text that was there -- pinned's `appendFinal` (`lastMessage.mes =
+    // getMessage`, script.js:6719-6737) applied to the peer's continuation reply.
+    step('continue-control-reached',
+        pressed?.pressed === true
+        && pressed?.sawBusy === true
+        && pressed?.after?.lastIsUser === false
+        && String(pressed?.after?.lastText ?? '').startsWith(String(pressed?.before?.lastMessage?.mes ?? '\u0000'))
+        && String(pressed?.after?.lastText ?? '').includes('Q20_CONTINUATION_APPENDED'),
+        JSON.stringify({
+            menuVisible: pressed?.menuVisible,
+            generateWrapStatus: pressed?.generateWrapStatus,
+            calls: pressed?.generateCalls,
+            sawBusy: pressed?.sawBusy,
+            beforeText: String(pressed?.before?.lastMessage?.mes ?? '').slice(0, 80),
+            afterText: String(pressed?.after?.lastText ?? '').slice(0, 120),
+        }));
     await settleQuiet(page, recorder);
     report.savedAfterContinue = await saveConditional(page);
     await settleQuiet(page, recorder);
