@@ -66,7 +66,8 @@ func TestPinnedCharacterChatsAreKeyedByTheCardName(t *testing.T) {
 	if own := replayCardField(t, staged, "ccv3", "data.name"); own != cardName {
 		t.Fatalf("staged: the card's own data.name = %q, wanted %q", own, cardName)
 	}
-	if chara, ccv3 := chunkOffset(t, staged, "chara"), chunkOffset(t, staged, "ccv3"); chara < 0 || ccv3 < 0 || chara > ccv3 {
+	if chara, ccv3 := chunkOffset(t, staged, "chara"), chunkOffset(t, staged, "ccv3"); chara < 0 || ccv3 < 0 ||
+		chara > ccv3 {
 		t.Fatalf("chunkOrder: chara@%d ccv3@%d; the precedence rule this gate relies on needs chara FIRST", chara, ccv3)
 	}
 
@@ -131,7 +132,8 @@ func TestPinnedCharacterChatsAreKeyedByTheCardName(t *testing.T) {
 	// characters_read.go:213); the file's stem is therefore asserted where pinned defines it, in that route.
 	published, _ := roster["chat"].(string)
 	if want := chatStem + ".jsonl"; published != want {
-		t.Fatalf("chatIdentity: /api/characters/all published chat=%q, wanted %q (the file the save route wrote)", published, want)
+		t.Fatalf("chatIdentity: /api/characters/all published chat=%q, wanted %q (the file the save route wrote)",
+			published, want)
 	}
 	listing := env.serve(t, http.MethodPost, "/api/characters/chats", "application/json",
 		`{"avatar_url":"`+fileName+`.png","simple":true}`)
