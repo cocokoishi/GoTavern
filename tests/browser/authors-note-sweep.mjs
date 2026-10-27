@@ -182,6 +182,15 @@ const artifact = {
     pinnedBaseline: expectations?.pinnedBaseline ?? 'SillyTavern 1.19.0, commit 06bde939fb1e9c4c8d8641d810f0a9165bce127',
     measuredBy: expectations?.measuredBy ?? null,
     method: 'the expectation is the pinned leg\'s own provider request (prepare-authors-note.mjs -> run-against-pinned.mjs generation-probe.mjs PROBE_MODE=preset); the compared legs are the same program with the same arguments; the request is compared byte-for-byte and the note\'s layout is compared field by field',
+    // WHAT THIS ARTEFACT DOES NOT ESTABLISH, carried WITH the evidence because a reader who opens the
+    // artefact alone must be able to size the claim. The legs drive the `custom` chat-completion source,
+    // and that source is a SERVER-SIDE PASSTHROUGH
+    // (`src/endpoints/backends/chat-completions.js:2394-2421`): it resolves the URL, key and headers, calls
+    // `embedOpenRouterMedia`, and forwards the message array without reading, reordering or re-counting it.
+    // So a green here compares THE FRONTEND running against two servers; it is not evidence about either
+    // server's prompt handling, because on this path neither server handles the prompt.
+    doesNotEstablish: 'server-side prompt handling: the `custom` source is a server-side passthrough (pinned chat-completions.js:2394-2421 never reads `messages`), so these legs compare the pinned frontend against two servers, not two backends. A claim about a server-side transform needs a source whose pinned branch DOES read `messages` (the MINIMAX fold, custom_prompt_post_processing, or a provider that re-encodes roles)',
+
     context: expectations?.context ?? null,
     parityDepth: expectations?.parityDepth ?? overlay.parityDepth,
     // `inputs` NAMES PER-RUN LEGS ONLY, and that is a contract, not a preference.

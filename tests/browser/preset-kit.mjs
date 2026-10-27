@@ -31,6 +31,22 @@
 // asserted to have taken effect before anything is measured. If a step silently does nothing, the
 // capture fails by name instead of recording a smaller preset and calling it complex.
 //
+// WHAT THE `custom` SOURCE DOES **NOT** PROVE, stated here rather than only in a lane report, because a
+// reader of the artefacts needs it to size the claim. These legs select the `custom` chat-completion
+// source, and that source is a SERVER-SIDE PASSTHROUGH: the pinned branch
+// (`src/endpoints/backends/chat-completions.js:2394-2421`) resolves `apiUrl`, the key, headers and
+// `custom_include_body`/`custom_include_headers`, calls `embedOpenRouterMedia(messages, ...)`, and sends
+// the message array on -- it never reads, reorders, rewrites or re-counts `messages`. So a Q17 or Q18 leg
+// comparing `custom` requests is comparing THE FRONTEND running against two different servers, with the
+// server contributing only transport. It is NOT evidence that GoTavern's server-side prompt handling
+// matches pinned's, because on this path neither server handles the prompt at all.
+//
+// The consequence for Q17/Q18, said plainly: a green here means every depth/truncation decision the
+// FRONTEND makes produces the same bytes through both servers, which is the whole claim those rows make.
+// A row that wanted to claim something about a server-side transform would need a source whose pinned
+// branch DOES read `messages` (the MINIMAX fold, `custom_prompt_post_processing`, or a provider that
+// re-encodes roles) -- a different leg, not a stronger reading of this one.
+//
 // WHY MARKERS. Each piece of the preset carries a unique ASCII marker, so the comparator can say
 // WHICH piece moved (a system prompt, the description, one world-info entry, the author's note, one
 // history turn) instead of "the body differs". The comparator also REQUIRES every marker to be

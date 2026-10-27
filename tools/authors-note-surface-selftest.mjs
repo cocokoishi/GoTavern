@@ -46,5 +46,10 @@ check('the truncation rule removed', run(a => { delete a.depthCoverage.pastBudge
 check('the sweep stops discriminating', run(a => { a.sweep.theCapturesDiffer = false; }), /theCapturesDiffer is false/);
 check('a PASS case loses its pinned observation', run(a => { delete a.cases[0].details; }), /records no pinned observation/);
 
+// THE LIMIT MUST BE LOAD-BEARING, not decorative: an artefact that drops it, or keeps a sentence that no
+// longer names the passthrough, must be refused -- otherwise the field is a comment with a schema slot.
+check('doesNotEstablish removed', run(a => { delete a.doesNotEstablish; }), /doesNotEstablish is absent/);
+check('doesNotEstablish no longer names the passthrough', run(a => { a.doesNotEstablish = 'this compares two servers'; }), /does not name the passthrough/);
+
 console.log(bad === 0 ? '\nOK: every mutation of the artefact is caught by name' : `\n${bad} MISSED`);
 process.exit(bad === 0 ? 0 : 1);

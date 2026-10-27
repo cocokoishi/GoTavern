@@ -409,6 +409,19 @@ export function authorsNoteSurface(ctx, noteComparison) {
     if (noteComparison.sweep?.theCapturesDiffer !== true) {
         ctx.fail(`sweep.theCapturesDiffer is ${JSON.stringify(noteComparison.sweep?.theCapturesDiffer)}: cases that produce one identical request are one case wearing several names (AGENTS.md 50)`);
     }
+    // THE LIMIT MUST TRAVEL WITH THE EVIDENCE, not only in a lane report or a harness comment.
+    //
+    // `doesNotEstablish` records that these legs drive the `custom` chat-completion source, whose pinned
+    // branch is a SERVER-SIDE PASSTHROUGH (`src/endpoints/backends/chat-completions.js:2394-2421` never
+    // reads `messages`). So a green here compares the pinned frontend running against two SERVERS; it is not
+    // evidence about either server's prompt handling. That sentence was named as a limit in a report and a
+    // header, and a reader who opens only the artefact could not see it -- which is the shape rule 45 forbids
+    // (a boundary recorded somewhere other than where the claim is made). Required, and required to NAME the
+    // passthrough, so a future artefact cannot drop it while keeping the claim.
+    const limit = typeof noteComparison.doesNotEstablish === 'string' ? noteComparison.doesNotEstablish : '';
+    if (!/passthrough/i.test(limit)) {
+        ctx.fail(`doesNotEstablish ${limit ? 'does not name the passthrough' : 'is absent'}: the \`custom\` source never reads \`messages\` on the pinned side, so this artefact compares the frontend through two servers and must say so where its claim is made`);
+    }
     // A simulated provider must never be sold as a production claim (rule 22).
     ctx.observe(`Q17 covers ${cases.length} case(s); pastHistoryInsideBudget=${JSON.stringify(coverage.pastHistoryInsideBudget)} (null = not measured, declared in notMeasured)`);
 }

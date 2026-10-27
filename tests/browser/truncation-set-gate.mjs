@@ -382,6 +382,15 @@ const main = () => {
         question: 'Q18: is token truncation the same -- do Node and Go keep and drop the same history turns at the measured context boundary?',
         pinnedBaseline: fixture?.provenance?.pinnedBaseline ?? 'SillyTavern 1.19.0, commit 06bde939fb1e9c4c8d8641d810f0a9165bce127',
         method: 'the boundary pair is the one preset-boundary-search.mjs measured by driving run-against-pinned.mjs generation-probe.mjs (the same program and arguments as the compared legs); this gate asks the set question of the four legs the workflow already recorded at that pair, and measures nothing itself',
+        // WHAT THIS ARTEFACT DOES NOT ESTABLISH, carried WITH the evidence. The inherited legs drive the
+        // `custom` chat-completion source, whose pinned branch is a SERVER-SIDE PASSTHROUGH
+        // (`src/endpoints/backends/chat-completions.js:2394-2421` does not read `messages`), so the trimming
+        // being compared is the FRONTEND's `populateChatHistory` running against two servers -- not a
+        // server-side truncator on either side. The boundary is also the sizes the search covered around the
+        // capture's hint, never "truncation proven in general": the TOTAL message count is recorded and
+        // deliberately not asserted, because it is not monotone in `openai_max_context`.
+        doesNotEstablish: 'server-side truncation, and truncation in general: the `custom` source never reads `messages` on the pinned side, so this compares the frontend trimmer through two servers; and the pair is the sizes the pinned search covered, with the total message count recorded and not asserted',
+
         inputs: { boundary: path.basename(boundaryPath), legs: Object.fromEntries(Object.entries(files).map(([name, file]) => [name, file ? path.basename(file) : null])) },
         turns: turns.map(turn => turn.id),
         ...result,
