@@ -190,13 +190,21 @@ func ResolvePaths(options ResolveOptions) (ResolvedPaths, error) {
 		})
 	case result.DataRootCreationPath != result.RuntimeDataRoot:
 		if _, statErr := os.Stat(result.RuntimeDataRoot); errors.Is(statErr, fs.ErrNotExist) {
-			if createErr := os.MkdirAll(result.RuntimeDataRoot, 0o777); createErr != nil {
+			createErr := os.MkdirAll(result.RuntimeDataRoot, 0o777)
+			result.DataRootCreated = createErr == nil
+			// THE CREATION FAILED. This is pinned's `Failed to create data root directory` arm with the
+			// directory the server will actually use, because that is the mkdir this process needed and the
+			// one that did not happen. Reporting it is not optional: a boot that continues without the
+			// directory it serves is the ENOENT the first write hits, and saying nothing about it is the
+			// "no failure reported, but the expected outcome did not happen" shape this project treats as a
+			// defect (for instance a `dataRoot` whose PARENT is a regular file -- the pinned probe's
+			// `failed-data-root-create` shape: `mkdir("<root>/file-blocker/child")` cannot succeed when
+			// `<root>/file-blocker` is a file).
+			if createErr != nil {
 				result.Warnings = append(result.Warnings, PathWarning{
 					Message: fmt.Sprintf("Warning: Failed to create data root directory at %s. Please make sure the path is correct and writable.", result.DataRoot),
 					Err:     createErr,
 				})
-			} else {
-				result.DataRootCreated = true
 			}
 		}
 		// The discarded creation, said out loud and from the user's point of view: which directory was
