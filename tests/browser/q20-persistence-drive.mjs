@@ -120,12 +120,47 @@ export function chatCarrying(files, marker) {
  */
 export async function openPage(page, baseURL) {
     await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
+    // THE `APP_READY` HOOK IS INSTALLED BEFORE ANY WAIT, not inside the readiness loop.
+    //
+    // `APP_READY` is the LAST statement of pinned's `firstLoadInit` (script.js:790), emitted after
+    // `initLoaderHandle.hide()`. `settingsReady` flips far EARLIER (script.js:8046, inside `getSettings`, which
+    // `firstLoadInit` calls at :752). An event that has ALREADY fired cannot be observed by a listener added
+    // afterwards, so a hook installed only once the loop notices `settingsReady` would be a race -- and a race that
+    // fails towards "ready", which is the dangerous direction.
+    //
+    // Installing it here, immediately after `domcontentloaded` and before `waitForFunction`, means the listener exists
+    // while init is still running. `eventSource` is created during module evaluation, so it is available at this
+    // point; the `catch` keeps a shape change from turning a readiness wait into a crash, because the timeout below
+    // already reports "not ready" by name.
+    await page.evaluate(async () => {
+        try {
+            const constants = await import('./scripts/constants.js');
+            const source = window.SillyTavern?.eventSource;
+            window.__q20SawAppReady = false;
+            if (constants?.event_types?.APP_READY && source?.on) {
+                source.on(constants.event_types.APP_READY, () => { window.__q20SawAppReady = true; });
+            }
+        } catch { /* see above: a missing hook must not crash the wait; the timeout reports it */ }
+    });
     await page.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 120000 });
     return page.evaluate(async () => {
         const script = await import('./script.js');
         const started = performance.now();
         while (performance.now() - started < 90000) {
-            if (script.settingsReady) return true;
+            // `settingsReady` IS NOT THE WHOLE READINESS CONTRACT, and run 40513507504 measured the difference.
+            //
+            // The pinned edition emits `app_initialized` and `app_ready` AFTER `settingsReady` is already true. That
+            // leg returned as soon as the flag flipped, the drive pressed send, and the page finished initialising
+            // MID-GENERATION. Measured, in event order:
+            //     generation_started (…564366) -> app_initialized (…564954) -> app_ready (…564975)
+            //     -> generation_started (…565366)
+            // TWO `generation_started` events against the GoTavern leg's ONE. With the chat re-initialised under the
+            // in-flight send, the user turn was never committed: every event reported `chatLength: 1`, the file stayed
+            // at two lines (header + greeting), and `first-turn-saved` failed on the MARKER -- not on the reply. The
+            // comparator then correctly refused and diagnosed `HARNESS ORDERING`.
+            //
+            // So readiness requires BOTH: the settings are loaded AND the application has finished initialising.
+            if (script.settingsReady && window.__q20SawAppReady === true) return true;
             const onboarding = document.querySelector('.popup .onboarding');
             if (onboarding) {
                 const input = onboarding.closest('.popup')?.querySelector('.popup-input');
@@ -137,6 +172,8 @@ export async function openPage(page, baseURL) {
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
+        // A TIMEOUT IS REPORTED AS "NOT READY", never as ready: the caller's `page-loaded` step then fails by name
+        // instead of the drive proceeding into a half-initialised page.
         return false;
     });
 }
