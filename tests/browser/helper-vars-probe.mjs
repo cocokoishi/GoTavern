@@ -318,8 +318,15 @@ try {
             'no host variable macro consults a message scope, so the message row is "stored, not surfaced"');
     }
 
-    // THE FIXTURE: card, chats, and the two derived presets. Staged before boot on the GoTavern leg because the
-    // binary seeds default/** at startup; the presets are derived after boot from the stance that lands.
+    // THE FIXTURE MUST EXIST BEFORE THE SERVER BOOTS, AND BEFORE THE BROWSER READS THE CHARACTER LIST.
+    //
+    // MEASURED, run 40445034876: the first version staged the card and the chats AFTER `waitForServer`, and every
+    // leg recorded `card-opened: {"opened":false,"rendered":[null,null]}` -- two cards rendered with a null `title`,
+    // because the frontend's character list had been read before the card was on disk. Staging after boot is only
+    // safe when the driver clicks the card by CSS class and the greeting is enough (`helper-probe.mjs`), which is
+    // not this leg: it needs the card's OWN data.name and its `extensions.chat` trigger before the page loads.
+    // `tests/browser/q21-data-handback.mjs` already stages the card BEFORE `seedLegConfig` and boot for the same
+    // reason, and that ordering is copied here rather than re-derived.
     report.fixture = { card: await stageProbeCard(dataRoot) };
     if (!afterRestart) {
         report.fixture.chats = await seedChats(dataRoot, {
@@ -430,16 +437,39 @@ try {
         });
     };
 
+    // OPEN THE CARD THE PROBE STAGED, BY THE NAME THE FRONTEND ITSELF RENDERS FOR IT.
+    //
+    // MEASURED, run 40445034876: every leg reported `card-opened: {"opened":false,"rendered":[null,null]}`. The
+    // matcher read `title` off the OUTER card, and the pinned template puts it on the INNER `.avatar`:
+    //   public/script.js:951  template.find('.avatar').attr('title', `[Character] ${item.name}\nFile: ${item.avatar}`);
+    //   public/script.js:952  template.find('.ch_name').text(item.name).attr('title', `[Character] ${item.name}`);
+    // The OUTER `.character_select` therefore carries no title at all -- hence `[null,null]`. Two fixes, in order of
+    // preference, both reading what `getCharacterBlock` renders: the `.ch_name` text (the plain name), then the
+    // `.avatar` title (which is `[Character] <name>` + a File line). The rendered labels are returned whether or not
+    // the match succeeds, so a future mismatch is a field rather than a boolean.
     const openCard = async () => page.evaluate(async wanted => {
+        const describe = () => [...document.querySelectorAll('#rm_print_characters_block .character_select')].map(entry => ({
+            chName: entry.querySelector('.ch_name')?.textContent?.trim() ?? null,
+            avatarTitle: entry.querySelector('.avatar')?.getAttribute('title') ?? null,
+            dataChid: entry.getAttribute('data-chid') ?? null,
+        }));
         const deadline = Date.now() + 60000;
         let card = null;
         while (Date.now() < deadline) {
-            card = [...document.querySelectorAll('#rm_print_characters_block .character_select, #rm_print_characters_block .avatar[data-type="character"]')]
-                .find(entry => String(entry.getAttribute('title') ?? '').includes(wanted)) ?? null;
+            const cards = [...document.querySelectorAll('#rm_print_characters_block .character_select')];
+            card = cards.find(entry => String(entry.querySelector('.ch_name')?.textContent ?? '').trim() === wanted)
+                ?? cards.find(entry => String(entry.querySelector('.avatar')?.getAttribute('title') ?? '').includes(wanted))
+                ?? null;
             if (card) break;
             await new Promise(resolve => setTimeout(resolve, 250));
         }
-        if (!card) return { opened: false, rendered: [...document.querySelectorAll('#rm_print_characters_block .character_select')].map(entry => entry.getAttribute('title')) };
+        if (!card) return { opened: false, rendered: describe() };
+        const matched = {
+            byChName: String(card.querySelector('.ch_name')?.textContent ?? '').trim() === wanted,
+            chName: card.querySelector('.ch_name')?.textContent?.trim() ?? null,
+            dataChid: card.getAttribute('data-chid') ?? null,
+            rendered: describe(),
+        };
         card.click();
         const settle = Date.now() + 45000;
         while (Date.now() < settle) {
@@ -449,34 +479,66 @@ try {
         const context = window.SillyTavern.getContext();
         return {
             opened: true,
+            matched,
             messages: document.querySelectorAll('#chat .mes').length,
             chatId: context.getCurrentChatId ? context.getCurrentChatId() : (context.chatId ?? null),
             characterId: context.characterId ?? null,
+            // THE CHAT'S PRESET AFTER OPENING, which is the CARD's own `extensions.chat` trigger applied by
+            // `autoSelectPreset` on CHAT_CHANGED. If it is not the trio, the chat-scope assertion is about whatever
+            // preset happened to be selected, so this is recorded rather than assumed.
             selectedPreset: context.getPresetManager().getSelectedPresetName(),
+            cardChatPreset: context.characters?.[context.characterId]?.data?.extensions?.chat ?? null,
         };
     }, PROBE_CARD.dataName);
 
     const selectPreset = async name => page.evaluate(async wanted => {
         const context = window.SillyTavern.getContext();
         const manager = context.getPresetManager();
-        // THIS MANAGER IS NOT KEYED (`isKeyedApi()` is false for openai, public/scripts/preset-manager.js:593-598),
-        // so a row's VALUE is its index and the NAME is the option text. Applying a preset requires the CHANGE EDGE
-        // (`onSettingsPresetChange`, public/scripts/openai.js:5020-5075) -- setting `.value` alone applies nothing.
-        const rowValue = manager.findPreset(wanted);
-        if (rowValue === null || rowValue === undefined) {
-            return { selected: false, reason: `findPreset(${wanted}) returned ${rowValue}`, options: [...document.querySelectorAll('#settings_preset_openai option')].map(option => option.text) };
-        }
+        // SELECT BY THE DOM THE FRONTEND RENDERS, NOT BY A jQuery-INTERNALS HELPER.
+        //
+        // MEASURED, run 40445034876: `manager.findPreset('ready-probe')` returned **undefined** on BOTH subjects
+        // while the option list visibly contained `["Default","probe-preset","ready-probe"]`. `findPreset` is
+        // `public/scripts/preset-manager.js:385-390`:
+        //     return $(this.select).find('option').filter(function () { return $(this).text() === name; }).val();
+        // -- an exact `text()` comparison through a jQuery collection captured in the manager's constructor, so what
+        // it compares is not necessarily what `document.querySelectorAll` returns here. The frontend's own call sites
+        // (`:1200`, `:945`, `:965`) use it on the SELECTED or freshly saved entry, which is a narrower situation than
+        // "find a row by name from outside". Reading the rendered `<option>`s directly is the same source of truth
+        // the user's click reads, and it is what the failure message was already printing.
+        //
+        // THIS MANAGER IS NOT KEYED (`isKeyedApi()` false for openai, `:593-598`): a row's VALUE is its index and the
+        // NAME is the option text. Applying a preset requires the CHANGE EDGE (`onSettingsPresetChange`,
+        // `public/scripts/openai.js:5020-5075`) -- setting `.value` alone applies nothing.
         const select = document.querySelector('#settings_preset_openai');
-        const option = select.querySelector(`option[value="${rowValue}"]`);
+        if (!select) return { selected: false, reason: '#settings_preset_openai is not in the DOM' };
+        const rows = [...select.options].map(option => ({ value: option.value, text: String(option.text), selected: option.selected }));
+        // EXACT text match first (the same predicate the frontend uses), then a trimmed match, so a label the
+        // frontend decorated with whitespace is a reported near-miss rather than a silent failure.
+        const exact = rows.find(row => row.text === wanted);
+        const loose = rows.find(row => row.text.trim() === wanted);
+        const row = exact ?? loose;
+        if (!row) {
+            return { selected: false, reason: `no <option> whose text is ${JSON.stringify(wanted)}`, rows, tried: 'exact then trimmed text match on the rendered options' };
+        }
+        const option = select.querySelector(`option[value="${row.value}"]`);
         if (option) option.selected = true;
-        select.value = String(rowValue);
+        select.value = String(row.value);
         select.dispatchEvent(new Event('change', { bubbles: true }));
-        await new Promise(resolve => setTimeout(resolve, 600));
+        // THE CHANGE IS ASYNCHRONOUS (`onSettingsPresetChange` awaits a promise chain), so the wait is on the
+        // PRODUCT's state -- the manager reporting the name -- rather than on a fixed delay.
+        const deadline = Date.now() + 15000;
+        let selectedName = manager.getSelectedPresetName();
+        while (Date.now() < deadline && selectedName !== wanted) {
+            await new Promise(resolve => setTimeout(resolve, 150));
+            selectedName = manager.getSelectedPresetName();
+        }
         const loaded = manager.getCompletionPresetByName(wanted);
         return {
-            selected: manager.getSelectedPresetName() === wanted,
-            selectedName: manager.getSelectedPresetName(),
-            rowValue,
+            selected: selectedName === wanted,
+            selectedName,
+            rowValue: row.value,
+            matchedBy: exact ? 'exact text' : 'trimmed text',
+            rows,
             promptCount: (loaded?.prompts ?? []).length,
             hasResolveRow: (loaded?.prompt_order ?? []).some(group => (group.order ?? []).some(row => row.identifier === 'resolve_identity')),
             identityContent: (loaded?.prompts ?? []).find(prompt => prompt.identifier === 'resolve_identity')?.content ?? null,

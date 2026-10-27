@@ -105,17 +105,22 @@ for (const subject of subjects) {
     const alphaHasValue = anyUnitHas(alpha, MARKERS?.first ?? 'HV-MARKET-ALPHA');
     const betaHasValue = anyUnitHas(beta, MARKERS?.second ?? 'HV-MARKET-BETA');
     // THE CHANGE, AND ITS ATTRIBUTION. Two requests that differ prove nothing on their own -- two timestamps differ.
-    // So: they must differ, AND the only edit between the two inputs is the variable's value, AND the deleted case
-    // must return to the no-variable form. If a subject's bodies differ while neither value appears, the difference
-    // is somebody else's and this guard stays false.
+    // So: the two captures must differ, AND each must carry ITS OWN value (ALPHA then BETA), AND neither may carry
+    // the other's. Without the last part a subject whose macro resolved to a constant would pass: both bodies would
+    // "have a value" while the variable did nothing.
     const alphaBetaDiffer = Boolean(alpha && beta) && alpha.sha256 !== beta.sha256;
-    const alphaLostOld = alphaHasValue && betaHasValue;
+    const betaLostOld = !anyUnitHas(beta, MARKERS?.first ?? 'HV-MARKET-ALPHA');
     const deleteRemoved = Boolean(deleted) && !anyUnitHas(deleted, MARKERS?.first ?? 'HV-MARKET-ALPHA') && !anyUnitHas(deleted, MARKERS?.second ?? 'HV-MARKET-BETA');
-    // THE PARENT FORM. With the variable deleted the macro resolves to '', so the trio's identity unit must equal
-    // the READY capture's own identity unit (the READY preset carries the same prompts, with no variable in it).
+    // THE PARENT FORM: with the variable deleted the macro resolves to '', so the trio's identity unit must be the
+    // one the SAME preset produces when the variable was never set -- never the READY preset's, which carries no
+    // identity prompt at all (the probe passes `identity: ''` for it) and would have made this guard impossible to
+    // satisfy rather than hard to satisfy. The parent is `chat-two` when chat two never set `market_value`, and the
+    // probe also records a `chat-deleted` capture taken AFTER the delete in the same chat, which is the direct form.
     const deletedIdentity = deleted ? unitsOf(deleted).find(content => content.startsWith('HV-IDENTITY-CHAT=')) ?? null : null;
-    const readyIdentity = ready ? unitsOf(ready).find(content => content.startsWith('HV-IDENTITY-CHAT=')) ?? null : null;
-    const deleteReturnedToParent = deletedIdentity !== null && readyIdentity !== null && deletedIdentity === readyIdentity;
+    // THE EMPTY RESOLUTION, asserted as text: the lookups must have collapsed to nothing, i.e. the unit still exists
+    // (the prompt is in the request) but the macro produced no token between its markers.
+    const deleteCollapsed = deletedIdentity !== null && /HV-IDENTITY-CHAT=\|/.test(deletedIdentity);
+    const deleteReturnedToParent = deletedIdentity !== null && deleteCollapsed;
 
     // ---- HALF (ii): the value is on DISK, and survives a fresh page and a new process ---------------------
     const chatRecordsAfterSession = leg?.disk?.chats ?? {};
@@ -226,7 +231,7 @@ for (const subject of subjects) {
         legPresent: Boolean(leg),
         units,
         captures: (leg?.cases ?? []).map(entry => ({ case: entry.case, sha256: entry.request?.sha256 ?? null, byteLength: entry.request?.byteLength ?? null, arrived: Boolean(entry.request) })),
-        halfI: { alphaHasValue, betaHasValue, alphaBetaDiffer, alphaLostOld, deleteRemoved, deleteReturnedToParent },
+        halfI: { alphaHasValue, betaHasValue, alphaBetaDiffer, betaLostOld, deleteRemoved, deleteCollapsed, deleteReturnedToParent },
         halfII: { chatValueOnDisk, globalOnDisk, characterOnDisk, chatValueSurvivesReload, globalSurvivesReload, characterSurvivesReload, reloadWireHasValue, restartHasValue, restartIsNewProcess },
         scopes: { globalHasValue, characterHasValue, nestedHasValue, chatTwoLeaks, chatTwoOwn, globalNotChatScoped },
         messageScope: { messageStored, messageNotOnWire },
@@ -263,7 +268,7 @@ const subjectGuards = {
 
     // HALF (i)
     valueOnWire: subjects.map(subject => observed[subject].halfI.alphaHasValue),
-    changeChangesTheWire: subjects.map(subject => observed[subject].halfI.alphaBetaDiffer && observed[subject].halfI.alphaLostOld),
+    changeChangesTheWire: subjects.map(subject => observed[subject].halfI.alphaHasValue && observed[subject].halfI.betaHasValue && observed[subject].halfI.alphaBetaDiffer && observed[subject].halfI.betaLostOld),
     deleteReturnsToParent: subjects.map(subject => observed[subject].halfI.deleteRemoved && observed[subject].halfI.deleteReturnedToParent),
 
     // HALF (ii)
