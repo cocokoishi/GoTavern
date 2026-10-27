@@ -122,12 +122,31 @@ async function main() {
         mocks: [],
     });
     const vectorsRoot = path.join(server.userRoot, 'vectors');
+    // THE BOOT ITSELF MUST MAKE NO REQUEST. The vector routes are the clearest case in the oracle: their whole
+    // premise is that a local embedding model runs in-process, so a startup request would mean the pinned server
+    // reached a network nobody named (AGENTS.md 25 for our own boot, rule 14 for the probe). Recorded by the
+    // library and previously discarded.
+    if (server.bootOutbound.length > 0) {
+        throw new Error(`EGRESS: the pinned server's BOOT made ${server.bootOutbound.length} outbound request(s) -- `
+            + JSON.stringify(server.bootOutbound.map(entry => `${entry.method} ${entry.url}`)));
+    }
     const steps = [];
     const state = {};
     try {
         const step = async (name, route, body, { query = '', before, beforeFile } = {}) => {
             if (before) before();
             const result = await server.post(`/api/vector/${route}${query}`, JSON.stringify(body ?? {}));
+            // THE CLAIM THIS PROBE'S OWN HEADER MAKES, ASSERTED RATHER THAN DESCRIBED. The header says "these routes
+            // make no outbound request", which was a comment and nothing more (lane/privacy egress audit,
+            // 2026-10-26). A local embedding source calls getPipeline() inside the server and never leaves it, so
+            // ANY outbound request from this route family is a finding -- and without this assertion it would have
+            // been recorded as a plausible response rather than failing (AGENTS.md verification rule 14).
+            const leaked = server.outbound();
+            if (leaked.length > 0) {
+                throw new Error(`EGRESS: step ${name} made ${leaked.length} outbound request(s) and the vector routes claim `
+                    + `none -- ${JSON.stringify(leaked.map(entry => `${entry.method} ${entry.url}`))}. `
+                    + 'A local embedding source runs in-process; a request here is an escape, not a provider feature.');
+            }
             steps.push({ name, route, query, body: body ?? {}, beforeFile: beforeFile ?? null, response: responseCapture(result) });
             state[name] = snapshotDirectory(vectorsRoot);
         };

@@ -275,6 +275,15 @@ async function main() {
                 'X-CSRF-Token': session.csrfToken,
                 'Content-Type': `multipart/form-data; boundary=${BOUNDARY}`,
             }, body);
+            // SPRITE UPLOAD IS A LOCAL FILE OPERATION AND REACHES NO PROVIDER (lane/privacy egress audit,
+            // 2026-10-26). Without this, a request this route made would have been swallowed by the stub and recorded
+            // as nothing rather than failing -- the `sd-models` lesson: an escape is only visible if an assertion
+            // says the peer received exactly what the fixture claims (AGENTS.md verification rule 14).
+            const leaked = server.outbound();
+            if (leaked.length > 0) {
+                throw new Error(`EGRESS: sprite step ${step.name} made ${leaked.length} outbound request(s) and the `
+                    + `sprite routes claim none -- ${JSON.stringify(leaked.map(entry => `${entry.method} ${entry.url}`))}`);
+            }
             observations[step.name] = {
                 status: result.response.status,
                 contentType: result.response.headers.get('content-type'),

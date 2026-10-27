@@ -119,6 +119,15 @@ try {
         rmTree(imagesRoot);
         seedTree(imagesRoot);
         const result = await server.post(route, body);
+        // /api/images/* IS A LOCAL FILE SURFACE AND REACHES NO PROVIDER (lane/privacy egress audit, 2026-10-26).
+        // The probe recorded `bootOutbound` but never asserted that a SCENARIO made no request, so a route that
+        // called out would have had its answer swallowed by the stub and its request recorded as nothing -- the
+        // exact shape AGENTS.md verification rule 14 was written for.
+        const leaked = server.outbound();
+        if (leaked.length > 0) {
+            throw new Error(`EGRESS: images scenario ${label} made ${leaked.length} outbound request(s) and the `
+                + `images routes claim none -- ${JSON.stringify(leaked.map(entry => `${entry.method} ${entry.url}`))}`);
+        }
         const response = captureHttp(result);
         if (response.body && typeof response.body === 'object') {
             response.body = JSON.parse(normalizeTimestamp(JSON.stringify(response.body)));
