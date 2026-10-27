@@ -224,34 +224,40 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 			dataInfo, dataErr := os.Stat(got.Paths.DataRootCreationPath)
 			dataRootIsDirectory := dataErr == nil && dataInfo.IsDir()
 			// THE CREATION PATH IS COMPARED EXCEPT WHERE THIS PROJECT DELIBERATELY DOES NOT CREATE IT
-			// (ARCHITECTURE 34.5).
+			// (ARCHITECTURE 34.5), AND THE STAT IS TAKEN BEFORE THE DIVERGENCE RAN.
 			//
-			// Pinned creates DataRootCreationPath and then uses RuntimeDataRoot. For a RELATIVE dataRoot those
-			// are different directories here, because this harness gives the working directory and the server
-			// directory different TempDirs -- so GoTavern creates only the one it uses and leaves the other
-			// absent. The divergence is therefore the EXPECTED behaviour of every scenario that does not
-			// pre-create the directory, and it is stated as relativeDataRootDivergence rather than as a skip.
+			// Pinned creates DataRootCreationPath and then USES RuntimeDataRoot. For a RELATIVE dataRoot this
+			// harness renders those against different TempDirs, so GoTavern now creates only the runtime one and
+			// leaves the launch rendering absent -- which is why the stat must happen in `docker`/`launchState`,
+			// BEFORE any divergence branch can have created anything. That ordering was paid for: the first
+			// version of this test stat'd after the divergence and compared a directory the product had just
+			// made over the pinned value, so `standalone-existing-data-root` (which the harness pre-creates)
+			// read `is-directory = true` and was reported as the product disagreeing with Node.
 			//
-			// The one scenario that pre-creates it (`standalone-existing-data-root`, whose harness setup does
-			// the MkdirAll the pinned probe recorded) is NOT measuring the product's creation at all: the path
-			// exists before ResolvePaths is called. So the pinned comparison is skipped there by the flag that
-			// says so, and nowhere else.
+			// The three pre-existing shapes, each decided by a flag the fixture records rather than by a guess:
+			//   preCreated            the harness made it; the pinned value is the only thing to compare;
+			//   empty value           pinned's own odd branch: mkdir("") fails, isDir is stat("") = the CWD, the
+			//                         warning fires, nothing is created -- compared against pinned exactly;
+			//   two bases, not created  the divergence: the launch rendering must stay absent.
 			preCreated := scenario.Result.DataRootWasDirectoryBeforeParse
-			if preCreated {
+			emptyValue := got.Paths.DataRoot == ""
+			if preCreated || emptyValue {
 				if dataRootIsDirectory != scenario.Result.DataRootIsDirectory {
 					t.Errorf("data root is directory = %t, Node has %t (stat: %v)", dataRootIsDirectory, scenario.Result.DataRootIsDirectory, dataErr)
 				}
-			} else if dataRootIsDirectory != scenario.Result.DataRootIsDirectory && !twoDataRootBases(got.Paths) {
-				t.Errorf("data root is directory = %t, Node has %t (stat: %v): the two bases coincide, so "+
-					"ARCHITECTURE 34.5 does not apply and the pinned value must hold",
-					dataRootIsDirectory, scenario.Result.DataRootIsDirectory, dataErr)
-			} else if twoDataRootBases(got.Paths) && dataRootIsDirectory != relativeDataRootDivergence.createsLaunchRendering {
+			} else if !twoDataRootBases(got.Paths) {
+				if dataRootIsDirectory != scenario.Result.DataRootIsDirectory {
+					t.Errorf("data root is directory = %t, Node has %t (stat: %v): the two bases coincide, so "+
+						"ARCHITECTURE 34.5 does not apply and the pinned value must hold",
+						dataRootIsDirectory, scenario.Result.DataRootIsDirectory, dataErr)
+				}
+			} else if dataRootIsDirectory != relativeDataRootDivergence.createsLaunchRendering {
 				t.Errorf("the two data-root bases differ, so the launch-directory rendering %s must be created=%t "+
 					"(ARCHITECTURE 34.5: only the runtime root is created); is-directory = %t",
 					got.Paths.DataRootCreationPath, relativeDataRootDivergence.createsLaunchRendering, dataRootIsDirectory)
 			}
 			expectedCreated := !scenario.Result.DataRootWasDirectoryBeforeParse && scenario.Result.DataRootIsDirectory && !scenario.Result.Warnings.FailedDataRootCreation
-			if twoDataRootBases(got.Paths) && !preCreated {
+			if twoDataRootBases(got.Paths) && !preCreated && !emptyValue {
 				// Two bases and nothing pre-created: the product creates the RUNTIME root, so the creation is
 				// exactly "mkdir did not fail".
 				expectedCreated = !scenario.Result.Warnings.FailedDataRootCreation
