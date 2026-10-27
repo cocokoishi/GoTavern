@@ -1,43 +1,165 @@
-# GOAL §7 scorecard — one row per user-facing question, with the evidence this repository can actually cite
+# The evidence ledger: one row per user question, five classes, and a manifest of the runs it cites
 
-GOAL §7 says: "These are the questions the project must be able to answer with evidence. Answering them with test
-counts is a failure to answer." So each row below names an ARTEFACT: a workflow run and the step or field inside it,
-or a document. A row without such a citation says `unproven`, in those words, rather than being left out.
+Describes: commit `a5660b61f549217af9f8d8fe23f798a445140af8` (`main`, 2026-10-26). Every run cited below
+is checked against that commit: the run's `head_sha` must be an ancestor of it, which is what makes a
+citation a statement about THIS code rather than about a branch that has not merged.
 
-This file was created because the evidence existed while the ANSWERS did not: HANDOFF recorded work by topic, while
-GOAL asks by question, so nine of these were provable but unanswerable without a search.
+`GOAL.md` §7 asks twenty-two questions and says that answering them with test counts is a failure to
+answer. This file answers them. It is the ONLY ledger: there is no parallel scorecard, and a second one
+would be a second source of truth for the same question — the failure mode `AGENTS.md` rule 54 records.
+
+Three things live here, and all three are machine-checked by `internal/fixtures/documents_test.go`:
+
+1. **The twenty-two rows.** Per question: the state, and the ARTEFACT a reader can open — a workflow run
+   quoted as `workflow name + run id + conclusion`, the step inside it, and the assertion or field the
+   claim rests on, or a committed file. A row with no artefact says `unproven` **in those words**.
+2. **The five-class ledger** (§2). Every open item belongs to exactly one class, because "there are some
+   gaps" is not a statement anyone can act on.
+3. **Why a red run can prove something.** Some cited runs have a run-level conclusion of `failure` or
+   `cancelled`. Each row says so IN PLACE and names the step the citation rests on, which is green inside
+   that run. The gate REQUIRES the mark: a row that cites a red run without naming its conclusion is
+   refused, because a reader who opens the run must not have been told it passed.
+
+The states are a closed set. `proven`, `partial`, `unproven`, `blocked`, `unsupported`,
+`inherited-pinned-behavior`. Anything else is refused by the gate, and so is a `proven` row whose
+citation names neither a run id nor a committed file, a run id that is not in
+`tests/docs/run-manifest.json`, a run id recorded under the wrong workflow name, a run whose commit is
+not an ancestor of the commit named above, a question that appears twice, and a question that is missing.
+
+## 1. The rows
 
 | # | Question | State | Evidence |
 |---|---|---|---|
-| Q1 | A long-lived SillyTavern directory starts directly | proven | `GoTavern drop-in qualification` per push, step "Smoke 0/4 -- the ARCHIVE binary against a LONG-LIVED user directory"; `tests/e2e/longlived_test.go` asserts every planted file byte-identical after boot plus `/characters/<card>.png`, `/thumbnail?type=avatar`, `/api/worldinfo/get` (30), `/api/chats/get` (12 messages), `/api/backgrounds/all`, `/User%20Avatars/user-default.png` |
-| Q2 | GoTavern did not touch my extensions | proven | auto-update defaults to OFF for every ambiguous input (AGENTS 26); extension lanes assert no silent update; `docs/startup-state-machine.md` |
-| Q3 | Character-list avatars are correct | proven | `Browser differential` 40325398585 (#15/#16 asset legs): `imagesFailed: 0`, `consoleFailedToLoad: 0`, every list avatar decoded on both legs |
-| Q4 | An opened complex card's image is correct | proven | same run: the real 18.5 MB-derived card staged and OPENED on both subjects, 490 book entries, 5 alternate greetings, structure required equal |
-| Q5 | The avatar inside a chat is correct | proven | same run: every message avatar decoded; swiped-message avatar re-renders and decodes |
-| Q6 | Personas are correct | proven | same run: persona picker lists, a non-current row is clicked, `.selected` and `user_avatar` both change, thumbnail decodes 96x144 |
-| Q7 | Backgrounds display as in the original | partial | gallery RENDERS 24 tiles with the staged tile present on both legs; the PAINT step stays in `unproven[]` because `initBackgrounds()`'s bindings are absent IDENTICALLY on both subjects (not a GoTavern gap) |
-| Q8 | The JS-Slash-Runner iframe really works | proven | helper lanes: iframe boots, bridge reaches 25 host modules, `generateRaw` request byte-identical to pinned |
-| Q9 | 酒馆助手's generation APIs work | proven | `generateRaw` request equals pinned's byte for byte; `message_sent`/`message_received` fire, observed in `Browser differential` 40378609525 -- THAT RUN JUDGED FAILURE, and the step the citation rests on is `first-turn-saved: ok` plus `listenerTimings` carrying message_sent 3 / message_received 4; the run failed later, at the reload step |
-| Q10 | 酒馆助手's variables work | proven | Q10 lane: a variable set by the helper persists to the chat file and survives a reload (`40250495167`) |
-| Q11 | Injection changes the model context | proven | depth-0 injection leg: the injected text is present in the captured request on both subjects |
-| Q12 | Mutating `'in_use'` affects generation immediately | proven | `Browser differential` 40277640647: before/after pairs identical across subjects, different from each other (preset A 0716543c -> 5bf90078; preset B 61276bf1 -> 4ee6b389) |
-| Q13 | Switching presets produces genuinely different context | proven | 40274214952: `goATavernDiffersFromGoB` true, `aSharedMarkers: 25` |
-| Q14 | For each preset, Node context == Go context | proven | 40274214952: nine guards true, `Node(A)==Go(A)`, `Node(B)==Go(B)` |
-| Q15 | A complex card's semantics inside the context are the same | proven | the real card is opened on both legs and its assembled request is compared byte for byte in the asset+picker legs (40325398585) |
-| Q16 | World-info activation is the same | proven | provider-wire 220 scenarios close (`40398345829`), which includes the world-info routes' captures; the long-lived tree serves a 30-entry book |
-| Q17 | Author's Note depth is the same | unproven | no leg varies Author's Note depth; the preset legs carry the preset's own depth settings but do not sweep them |
-| Q18 | Token truncation is the same | unproven | exact tokenization is pinned (`1022 cases`) but no leg drives a context past the boundary on both subjects |
-| Q19 | Streaming and helper events are the same | partial | `Browser differential` 40331271988 -- RUN VERDICT FAILURE (abort surface), cited for its RELAYED step, which passed: the relayed control proves both subjects cross a real TCP middle with identical request bytes and 15 frame terminators; a buffering-hop render claim is NOT provable by this harness and is named in the artefact's `notCompared` |
-| Q20 | Reload, swipe, regenerate, continue preserve equality | partial | `40387864205`: save -> fresh-page reload -> second turn -> swipe, 7/7 guards, requests byte-identical across subjects; **regenerate and continue are unproven** and declared in `notCompared` |
-| Q21 | Data written by GoTavern can be handed back to Node | unproven | no leg boots pinned Node on a tree GoTavern wrote; the long-lived test asserts byte-identical preservation of planted files, which is necessary and not the same thing |
-| Q22 | CPU/RAM are measurably lower than Node's | measured | `GoTavern smoke metrics` 40394799325 + 40396669521, runner `ubuntu26`: boot 14,355 vs 61 ms, steady RSS 912 MB vs 37 MB, `GET /version` 62.7 vs 0.43 ms, 10-minute soak on both. Cite that runner and that run only; no multiplier is claimed |
+| Q1 | A long-lived SillyTavern directory starts directly | proven | `GoTavern drop-in qualification` 40438192579 (success) and `GoTavern CI` 40438192589 (success) on `a5660b61f549`; `tests/e2e/longlived_test.go` synthesises the tree in Go and asserts every planted file byte-identical after boot, plus `/characters/<card>.png` with the card's own length, `/thumbnail?type=avatar&file=<card>`, `/api/worldinfo/get` (30 entries), `/api/chats/get` (12 messages), `/api/backgrounds/all` and `/User%20Avatars/user-default.png`. The tree is a SYNTHESIS, not the user's directory — see §3 |
+| Q2 | GoTavern did not touch my extensions | proven | the long-lived leg hashes the extension tree before and after boot and asserts it unchanged; the update path resolves to OFF for every ambiguous input (`AGENTS.md` rule 26, `internal/commandline/autoupdate_test.go`), and `docs/startup-state-machine.md` records the measured boot mutations |
+| Q3 | Character-list avatars are correct | proven | `Browser differential` 40325398585 (success), step `Compare the asset legs`: `imagesFailed: 0`, `consoleFailedToLoad: 0`, every list avatar decoded on both subjects (`tests/browser/compare-asset-legs.mjs`) |
+| Q4 | An opened complex card's image is correct | proven | same run, `Record the asset legs` / `Compare the asset legs`: the derived card is staged and OPENED on both subjects, 490 book entries and 5 alternate greetings required equal |
+| Q5 | The avatar inside a chat is correct | proven | same run, same steps: every message avatar decoded on both subjects |
+| Q6 | Personas are correct | proven | same run: the persona picker lists, a non-current row is clicked, `.selected` and `user_avatar` both change, and the persona thumbnail decodes at 96x144 |
+| Q7 | Backgrounds display as in the original | partial | `Browser differential` 40325398585 (success), `Compare the asset legs`: the gallery RENDERS 24 tiles with the staged tile present on both subjects. The PAINT assertion is not made because `initBackgrounds()`'s bindings are absent IDENTICALLY on both subjects, so no differential can say anything about the painted result. The missing half is named here rather than left to be inferred |
+| Q8 | The JS-Slash-Runner iframe really works | proven | `Browser differential` 40325398585 (success), steps `Record the helper legs` / `Compare the helper legs`: the iframe boots, the bridge reaches the host modules, and the leg fails itself if helper-off and helper-on produce identical captures (`AGENTS.md` rule 50) |
+| Q9 | 酒馆助手's generation APIs work | proven | `Browser differential` 40378609525 — RUN VERDICT FAILURE, and the citation rests on the step `first-turn-saved: ok` inside it plus `listenerTimings` carrying `message_sent` 3 / `message_received` 4; the `generateRaw` request is byte-identical to pinned's. The run failed LATER, at the reload step, which is why Q20 stayed `partial` until `Browser differential` 40387864205 (success) covered reload and swipe |
+| Q10 | 酒馆助手's variables work | proven | `Browser differential` 40250495167 (success), step `Compare the helper legs`: a variable set by the helper persists to the chat file and survives a reload |
+| Q11 | Injection changes the model context | proven | `Browser differential` 40378609525 — RUN VERDICT FAILURE, same run and reason as Q9: the depth-0 injected text is present in the captured provider request on both subjects and absent when injection is off, recorded in the helper generation steps BEFORE the reload step failed |
+| Q12 | Mutating `in_use` affects generation immediately | proven | `Browser differential` 40277640647 (success): before/after pairs identical across subjects and different from each other (preset A `0716543c` -> `5bf90078`; preset B `61276bf1` -> `4ee6b389`) |
+| Q13 | Switching presets produces genuinely different context | proven | `Browser differential` 40274214952 (success), `Compare the preset legs`: `goATavernDiffersFromGoB` true, `aSharedMarkers: 25` |
+| Q14 | For each preset, Node context == Go context | proven | `Browser differential` 40274214952 (success) and 40387864205 (success): the preset-leg guards read true, `Node(A)==Go(A)`, `Node(B)==Go(B)` over the real preset derivations |
+| Q15 | A complex card's semantics inside the context are the same | proven | `Browser differential` 40325398585 (success), asset legs: the derived card is opened on both subjects and its assembled request is compared byte for byte. The card is a COMMITTED DERIVATION — the original never entered the repository (`AGENTS.md` rule 56) |
+| Q16 | World-info activation is the same | proven | `GoTavern CI` 40398345829 (success): the `verify` job `Test` step replays the provider-wire captures including the world-info routes' recorded requests, and the `oracle` job's `Verify generated results are committed` step proves the re-record was byte-identical. The long-lived tree serves a 30-entry book |
+| Q17 | Author's Note depth is the same | partial | `tests/browser/authors-note-sweep.mjs` and `compare-authors-note-legs.mjs` exist and drive the pinned frontend across depths, but NO workflow invokes them, so no run has ever recorded the sweep. A probe that has never run is unverified (`AGENTS.md` doctrine 8), not verified-equal. The change that closes this row is a workflow step plus its run id — not a new probe |
+| Q18 | Token truncation is the same | partial | exact tokenization is pinned (`internal/tokenizers/context_boundary_test.go`: `TestContextBoundaryTailStability`, `TestContextBoundarySameCountDifferentTokens`) and `docs/tokenizer-parity-plan.md` records the plan. What is missing is a leg that drives a real context PAST the boundary on both subjects and compares the truncation, so the observable half is unproven |
+| Q19 | Streaming and helper events are the same | partial | NO CITATION FROM THIS COMMIT. The cut/abort legs and the run that exercised them live on an unmerged lane branch, and `Browser differential` 40331271988 — RUN VERDICT FAILURE — judged `88cb99b` there, a commit that is NOT an ancestor of `a5660b6`. The ancestry check refuses it as evidence about `main` because the code it judged has never merged. So: the relayed control (identical request bytes and 15 frame terminators across a real TCP middle) was OBSERVED on that lane and cannot be cited from here until it lands; a buffering-hop RENDER claim is not provable by that harness at all and is named in the artefact's `notCompared` |
+| Q20 | Reload, swipe, regenerate, continue preserve equality | partial | `Browser differential` 40387864205 (success), steps `Record the Q20 legs (save -> reload -> swipe, on both subjects)` and `Compare the Q20 legs`: save -> fresh-page reload -> second turn -> swipe, every guard true, requests byte-identical across subjects (`tests/browser/q20-persistence-probe.mjs`). **Regenerate and continue are unproven** and declared in `notCompared`; the probe has no step that drives either |
+| Q21 | Data written by GoTavern can be handed back to Node | unproven | `tests/browser/q21-data-handback.mjs` exists and the workflow runs it, and it is RED for a faithful reason: `Browser differential` 40438262854 (failure), step `Judge the hand-back`, reports `pinnedOpened: {"opened":false,"reason":"no card matching ...; rendered 0"}` while the same report's tree digest shows the card WAS written by GoTavern. The leg's own guard has already caught a false positive once (`gotavernWrote` was true for a conversation started with the fresh install's default card, commit `48dadff`), so the current red is the driver not yet staging the card under the name pinned lists — class `harness failure` in §2. This row stays `unproven` until that leg is green |
+| Q22 | CPU/RAM are measurably lower than Node's | proven | `GoTavern smoke metrics` 40394799325 (success) and 40396669521 (success), runner `ubuntu26`: boot 14,355 ms vs 61 ms, steady RSS 912 MB vs 37 MB, `GET /version` 62.7 ms vs 0.43 ms, 10-minute soak on both. Cite that runner and those runs only; no multiplier is claimed |
 
-## What this table changes
+## 2. The five classes
 
-Q17, Q18 and Q21 are `unproven` and were not visible as such before: they were simply absent, and absence reads as
-"probably covered" in a long handoff. Q7, Q19 and Q20 are `partial` with the unproven half named. Everything else has
-a run id or a document a reader can open.
+Every open item in this repository belongs to exactly one of these. The classes have DIFFERENT owners and
+different next actions, and a document that mixes them lets an unproven row look like a boundary and a
+harness defect look like a product defect.
 
-TWO CITATIONS POINT AT RUNS WHOSE VERDICT WAS FAILURE, and both say so in place: 40378609525 (Q9) and
-40331271988 (Q19). Their run-level conclusion is red because a LATER step in the same leg failed; the step each row cites is
-recorded green inside it. A reader who checks the run id will see ailure and must not read that as a contradiction.
+### 2.1 Verified and kept this round
+
+What the latest evidence still supports on `a5660b61f549`, with the artefacts intact:
+
+| Item | Artefact |
+|---|---|
+| the long-lived tree boots and serves its assets unchanged | `GoTavern CI` 40438192589 (success), `tests/e2e/longlived_test.go` |
+| the visual asset surface renders in a browser | `Browser differential` 40325398585 (success) |
+| the real preset derivations reach the same provider request from both subjects | `Browser differential` 40274214952 (success), 40387864205 (success) |
+| the packaged artifact boots against a stock tree | `GoTavern drop-in qualification` 40438192579 (success) |
+| persistence survives save -> reload -> swipe | `Browser differential` 40387864205 (success) |
+
+### 2.2 Current defect
+
+A product behaviour that is wrong NOW, with a reproducer. **None open** at this ledger's date: the three
+P0s the second pass found (P0-D helper, P0-E visual assets, P0-F preset semantics) each have a green
+browser or packaged gate, and their `GOAL.md` §6 rows are closed against those gates. An entry is added
+here the moment a gate goes red naming an assertion, and the row that cites it is demoted in the same
+change (`AGENTS.md` rule 36).
+
+### 2.3 Unproven
+
+Evidence the repository cannot produce yet, with the missing thing named:
+
+| Item | What is missing |
+|---|---|
+| regenerate and continue equality (Q20) | a probe step that drives regenerate and continue; the persistence probe has neither |
+| handing a GoTavern-written tree back to pinned Node (Q21) | a green `q21-data-handback` leg; the leg currently stages the card under a name pinned does not list |
+| Author's Note depth sweep (Q17) | a workflow step running `authors-note-sweep.mjs`; the probe exists and has never executed |
+| truncation past the context boundary (Q18) | a leg comparing the truncated request on both subjects |
+| background PAINT (Q7) | the pinned frontend's own binding is absent on both subjects, so the differential is silent rather than negative |
+
+### 2.4 Harness failure
+
+The measurement, not the product, is wrong. Separate because a harness defect read as a product finding
+sends a lane to change correct code (`AGENTS.md` rule 10):
+
+| Item | Diagnosed as |
+|---|---|
+| `Browser differential` 40438262854, step `Judge the hand-back` | driver staging: the card is written but pinned's roster does not list the name the leg asks for. The archive digest in the same report proves the file exists, so the product did not lose it |
+| `Browser differential` 40438192617 (cancelled) | superseded by 40438262854 for the same `headSha`; a cancellation is never evidence either way |
+| the earlier `Browser differential` runs whose preset or asset legs were `skipped` | narrowing by path, not red product behaviour: the workflow selects surfaces by the files a push touches, so a skipped leg proves nothing about its surface (`AGENTS.md` doctrine 8) |
+
+### 2.5 Explicit boundary
+
+A behaviour the product will not have, decided rather than pending. Each has its own reason and is never
+folded into a `partial`:
+
+| Boundary | Reason |
+|---|---|
+| arbitrary Node server plugins | `AGENTS.md` hard rule 16 and architecture boundary 1; not emulated, ever |
+| in-process ONNX inference (`/api/extra/{caption,classify,classify/labels}`, `/api/speech/*`, local embedding sources) | architecture boundary 2: there is nothing to intercept, so no differential can exist |
+| image re-encoding that claims Jimp byte equality | architecture boundary 3: `/thumbnail` serves the OBSERVABLE contract; `/api/avatars/upload` keeps the boundary until a user requirement reaches it |
+| private third-party wire formats inside npm packages (`/api/google/generate-voice`, `/api/translate/*`) | architecture boundary 4: ownership of an undocumented protocol, reversible by a user requirement |
+| inherited substring hostname matching in content import | architecture boundary 5: reproduced AND recorded, because "safer but different" breaks parity as badly as "different and worse" |
+| the originals themselves as test inputs | `AGENTS.md` rule 56: only a derivation enters the repository. The originals are read-only local inputs, and `docs/development-loop.md` §4 is the channel that permits executing them and forbids transmitting them |
+
+## 3. Boundaries a reader of the rows above could misread
+
+- **Q1's tree is synthesised, not the user's.** `tests/e2e/longlived_test.go` builds it in Go because CI
+  must run without the originals. It is a faithful SHAPE and it is not the user's directory. A claim
+  about the user's directory rests on the local qualification channel in `docs/development-loop.md` §4,
+  whose result is recorded as an observation here — never as an upload.
+- **Q15's card is a derivation.** Same reason; the generator refuses the original by name.
+- **A `success` conclusion is about the run, not about every step.** Two runs cited above have a
+  run-level `failure` and are cited for a step that was green inside them; both say so in place, and the
+  manifest records the conclusion so the reader is told before they click.
+- **`skipped` is not `success`.** The browser workflow narrows itself by the paths a push touches. A
+  skipped leg's surface is unverified for that run, and no row above cites a skipped step.
+
+## 4. Why a row is allowed to cite a red run
+
+Q9 and Q11 cite `Browser differential` 40378609525, whose conclusion is `failure`. That is legitimate for
+one reason: a browser leg is a sequence of independent steps, and the step the citation rests on ran and
+asserted BEFORE the LATER step (the reload) failed. `AGENTS.md` rule 55 is what makes it legal rather
+than sloppy — the workflow name, the run id and the conclusion are quoted TOGETHER, so the reader is never
+told "this run passed". Dropping the citation because the run is red would discard the only execution
+those steps have ever had and make the row `unproven` for a reason that is not true.
+
+The gate enforces the discipline rather than trusting it: a row that cites a run whose recorded
+conclusion is `failure` or `cancelled` must contain that word. That is what keeps the earlier Q19
+citation honest, and it is why Q19 now says what this section used to do instead: its run is red AND its
+commit is not an ancestor of this one, so no amount of marking rescues it as evidence about `main`.
+
+**A deadline on the Q19 gap, stated so it cannot be quietly forgotten.** The lane branch carrying the
+streaming legs is unmerged, which means the product on `main` has no evidence for Q19 at all. The next
+change that touches streaming either lands those legs with a run whose `head_sha` is on `main`, or the
+row stays `partial` with this paragraph as its reason. It must not become `proven` by an edit to this
+file.
+
+## 5. The manifest
+
+`tests/docs/run-manifest.json` carries `{runId, workflow, headSha, conclusion, createdAt}` for every run
+this file cites, seeded from `gh run list` and `gh run view` rather than from memory. It exists because:
+
+- a run id alone is ambiguous — one commit produces several workflows, and `Browser differential` and
+  `GoTavern CI` are created in the same second (rule 55);
+- a stale conclusion is worse than no conclusion: if a run is re-run and its conclusion changes, the
+  manifest is what disagrees, and a disagreement is a repair rather than a silent rewrite.
+
+`node tools/docs-check-manifest.mjs --check` re-reads the live list through `gh` and prints any entry
+whose recorded conclusion no longer matches, any entry whose workflow name has drifted, and any cited id
+that does not exist. It is advisory locally (the host is weak and `gh` may be unauthenticated) and fatal
+in CI when a token is present; the Go gate over the manifest runs unconditionally.

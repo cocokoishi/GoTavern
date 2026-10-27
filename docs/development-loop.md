@@ -1,11 +1,16 @@
 # The development loop: what runs where
 
-**This changed on 2026-10-24.** The development host does not execute builds, tests, probes or
-browsers any more. Every one of them runs in GitHub Actions. This is not a preference: the host is a
-2-core machine that is also doing other work, its measured times are not reproducible under load, and
-— more importantly — a Windows result is not the gate. The gate is the Linux run, because fixtures are
-recorded on Linux and this repository has already been burned once by a host-dependent fixture that
-looked self-consistent on Windows (see `AGENTS.md` verification rules 8, 9 and 18).
+**This changed on 2026-10-24, and was revised narrowly on 2026-10-26 (§4).** The development host does not
+execute builds, tests, probes or browsers for PUBLIC work. Every one of them runs in GitHub Actions. This
+is not a preference: the host is a 2-core machine that is also doing other work, its measured times are not
+reproducible under load, and — more importantly — a Windows result is not the gate. The gate is the Linux
+run, because fixtures are recorded on Linux and this repository has already been burned once by a
+host-dependent fixture that looked self-consistent on Windows (see `AGENTS.md` verification rules 8, 9
+and 18).
+
+There is now exactly ONE exception, and it is for the opposite kind of input: the user's real originals,
+which may not leave the machine and therefore can never be qualified by a public run. It is §4 below. It
+does not authorise running anything else locally.
 
 So the loop is:
 
@@ -109,14 +114,68 @@ true of every browser artefact: producing one requires both legs, a real browser
 frontend, which is what `.github/workflows/browser-differential.yml` exists for. Re-recording a fixture
 to turn red into green, without explaining why the OBSERVATION legitimately changed, is forbidden.
 
+## 4. The LOCAL PRIVATE qualification channel (revised narrowly, 2026-10-26)
+
+**Why this section exists.** Two statements in this document contradicted each other. The originals must
+never leave the machine (`AGENTS.md` rule 56), and every probe must run in Actions. Both cannot hold for the
+input that matters most: the user's real card, real preset and real directory are the ORACLE
+(`GOAL.md` §5), and a public run can never hold them. The contradiction is resolved here by narrowing
+rather than by weakening either half.
+
+**What it is.** The channel is a NARROW revision of the older rule, and it applies to exactly one input
+class: the user's real originals. It is the only place in this project where "run the subject locally" is
+permitted, and it is permitted because there is no other way to observe the oracle at all.
+
+**Permitted, and nothing beyond this:**
+
+1. Copy the originals READ-ONLY into an isolated working directory outside the repository, under an alias
+   (`PRIVATE_PRESET_A`, `PRIVATE_CARD_A`, …). A copy, never a move, and never in place.
+2. Execute them there: a locally built GoTavern against a locally booted pinned Node, driven by the
+   repository's own harness where it can be, with a simulated provider rather than a real one.
+3. Write ONE text report: counts, hashes, pass/fail per scenario, and the identity of any difference. The
+   report refers to inputs by alias only.
+
+**FORBIDDEN, without exception.** Any transmission of the originals — or of anything derived from them in a
+reversible or content-bearing way — to any remote. Concretely that means: no commit, no branch, no push, no
+workflow input, no workflow artifact upload, no issue or pull request, no paste service, no chat or model
+endpoint, no third-party analyser. The forbidden payloads include the files themselves AND: request bodies,
+provider captures, screenshots, screen recordings, browser traces, DOM dumps, console logs containing
+content, and any derivative from which the original's prose could be reconstructed. A desensitised
+DERIVATION that passes `tools/check-fixture-watermarks.mjs` is the only artefact that may cross (`AGENTS.md`
+rule 56), and it crosses through the generator, never by hand.
+
+**Provable from the public side.** The egress side cannot be proven by looking at the local machine, so it
+is proven where it CAN be: the packaged gate in Actions asserts that the release artifact and the repository
+contain no original and no unmarked derivative. That is the packaged drop-in qualification plus
+`tools/check-fixture-watermarks.mjs` in CI's `verify` job. A local observation that cannot point to that
+public proof is an observation, not a gate.
+
+**What it does NOT authorise.** A reader must not be able to use this section to justify running everything
+locally, so the exclusions are explicit:
+
+- it does **not** authorise a local full Go build, `go test`, `go vet`, `gofmt` over the tree, `npm`,
+  Playwright, or any probe that the public gates already run — those stay in Actions, because a Windows
+  result is still not the gate and the host still cannot afford them;
+- it does **not** authorise a local result as a substitute for, or an excuse to skip, any public gate;
+- it does **not** authorise citing a local run as evidence in `docs/goal-scorecard.md` unless the row says
+  in place that the observation was LOCAL and PRIVATE and names what could not be re-derived in CI;
+- it does **not** extend to anything other than the originals: repository fixtures, oracle recordings and
+  browser artefacts are public inputs and belong in Actions.
+
+**STATUS: NOT YET DEMONSTRATED.** The channel exists as constraints because the user requires it to exist.
+No run in this repository has exercised it, and no report may cite it as though one had. Its first
+demonstration is a dated entry in `docs/goal-scorecard.md`'s ledger naming what was observed, by alias, and
+what the public gate proved about egress in the same round.
+
 ## The loop an agent should follow
 
 1. Read the target source and its tests/probes.
 2. `node scripts/dev-verify.mjs --explain` if you want to see what the change can move (classifier only).
 3. Make the smallest change.
 4. `node --check` the files you wrote, if they are JavaScript.
-5. Commit small, on your lane.
-6. Push the lane once and report; the lead merges and the `main` run decides.
+5. Commit small, on your lane — and commit at EVERY coherent step, with the gate's red BEFORE its fix, so
+   the red is observed rather than argued (`AGENTS.md` rule 39 and the working-mode section).
+6. Push the lane and report; the lead merges and the `main` run decides.
 7. Diagnose from the CI log. Do not run the build or the suite on this host to "confirm" what CI said.
 
 The target is that the gate's wall time is spent once per change set, not once per retry.
