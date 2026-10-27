@@ -350,7 +350,7 @@ guard('case5_disabledRuleIsUnchangedAndTheLegSaysWhy', () => {
         }
         const declared = (report.rules ?? []).find(rule => rule.id === 'rx-probe-disabled');
         if (!declared || declared.disabled !== true) problems.push(`${subject}: the leg did not declare R2 as disabled, so its absence cannot be attributed to the disabled flag`);
-        if (side.promptChanged !== false || side.displayChanged !== false) problems.push(`${subject}: R2 is disabled yet changed the text (promptChanged=${side.promptChanged}, displayChanged=${side.displayChanged})`);
+        if (side.entryChanged !== false || side.promptChanged !== false || side.displayChanged !== false) problems.push(`${subject}: R2 is disabled yet changed the text (entryChanged=${side.entryChanged}, promptChanged=${side.promptChanged}, displayChanged=${side.displayChanged})`);
         if (!String(side.prompt ?? '').includes(MARKERS.inDisabled)) problems.push(`${subject}: R2's input ${MARKERS.inDisabled} is missing from the prompt text, so the absence of its output is not the disabled rule's doing`);
         for (const [index, request] of requestsOf(report).entries()) {
             if (allText(request).includes(SIDES.negatives.disabled)) problems.push(`${subject}: chat/completions request #${index} carries ${SIDES.negatives.disabled} although the rule is disabled`);
@@ -408,7 +408,7 @@ guard('case5_noMatchIsUnchangedAndSaysWhy', () => {
             problems.push(`${subject}: no no-match side recorded`);
             continue;
         }
-        if (side.promptChanged !== false || side.displayChanged !== false) problems.push(`${subject}: ${MARKERS.noMatch} was rewritten although no rule's findRegex mentions it`);
+        if (side.entryChanged !== false || side.promptChanged !== false || side.displayChanged !== false) problems.push(`${subject}: ${MARKERS.noMatch} was rewritten although no rule's findRegex mentions it (entryChanged=${side.entryChanged}, promptChanged=${side.promptChanged}, displayChanged=${side.displayChanged})`);
         const sent = requestsOf(report)[0];
         if (sent && !allText(sent).includes(MARKERS.noMatch)) problems.push(`${subject}: the sent request does not contain ${MARKERS.noMatch}, so "unchanged" cannot be read from it`);
         details.noMatchReason = details.noMatchReason ?? 'The no-match token appears in the typed turn and in NO rule findRegex, and the leg asserts the same string reaches the provider request untouched on both surfaces -- the reason it is unchanged is that no rule matches it, which the leg can state because it declares every rule body it planted';
@@ -432,7 +432,7 @@ guard('case6_jsSubstitutionMatchesTheBrowsersOwnAnswer', () => {
     }
     // THE ORACLE: what the PINNED page produced. It must be a REWRITE (if it is not, the rule never ran and
     // the comparison below would compare two unchanged strings).
-    if (pinnedSide.promptChanged !== true) {
+    if (pinnedSide.entryChanged !== true) {
         problems.push('the PINNED page did not rewrite the JS-semantics input, so there is no browser oracle to compare against (the rule is inert on the oracle itself)');
         return problems;
     }
@@ -486,7 +486,7 @@ guard('case7_rawChatKeepsStoredTextAndDisplayIsNotWrittenBack', () => {
         // the rule runs again on every assembly, and whether the text moves depends on the replacement.
         const again = observed.secondApplicationOutput;
         if (again === undefined) problems.push(`${subject}: case 7 did not record the second application's output`);
-        const expectedSecondApplication = String(report.sides?.active?.prompt ?? '');
+        const expectedSecondApplication = String(report.sides?.active?.entry ?? '');
         if (String(again ?? '') !== expectedSecondApplication) {
             // The second application must be a FIXED POINT of the same call: applying the rule to its own
             // output yields that output, because `RXQ_OUT_A7` contains no `RXQ_IN_A7`. If it moved, the
@@ -734,9 +734,16 @@ const artefact = {
         rulesInPlay: report.rulesInPlay,
         request: summarize(requestsOf(report)[0] ?? null),
         requestCount: requestsOf(report).length,
+        // THE THREE CALL SHAPES ARE RECORDED SEPARATELY because they are three different questions
+        // (engine.js:348-355): `entry` is the no-flag shape script.js:5875 and :6481 use, `display` the
+        // isMarkdown shape messageFormatting uses, `prompt` the isPrompt shape assembly uses. Collapsing
+        // them would let a rule that fires where the engine FORBIDS it look identical to one that fires
+        // where it must -- and that distinction is what run 40456389089 taught.
         sides: report.sides ? Object.fromEntries(Object.entries(report.sides).map(([name, side]) => [name, {
+            entryChanged: side.entryChanged,
             displayChanged: side.displayChanged,
             promptChanged: side.promptChanged,
+            entry: side.entry,
             prompt: side.prompt,
         }])) : null,
         displayOnlyUserTurn: report.displayOnlyUserTurn,

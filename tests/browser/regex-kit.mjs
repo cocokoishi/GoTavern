@@ -414,27 +414,46 @@ export async function applyRegexKit(spec) {
         via: 'script.chat mutation',
     });
 
-    // 3. WHAT THE RULES DO, ASKED OF THE PRODUCT. The baseline turn is the LAST one (depth 0), and each
-    //    observation is `getRegexedString` called with the placement/flag combination the pinned call site
-    //    passes. Two calls are made for the same string on purpose:
-    //      - `{ isMarkdown: true }` is what messageFormatting passes (script.js:1860-1864), i.e. DISPLAY;
-    //      - `{ isPrompt: true, depth: 0 }` is what prompt assembly passes (script.js:4504-4506).
-    //    A side whose DISPLAY observation equals its input while its PROMPT observation differs is the
-    //    definition of "provider-only", and the reverse is "display-only" -- both MEASURED, not assumed.
+    // 3. WHAT THE RULES DO, ASKED OF THE PRODUCT -- WITH THE THREE CALL-SITE SHAPES PINNED ACTUALLY USES.
+    //
+    // THE GATE THIS CORRECTS (measured in run 40456389089). engine.js:348-355 admits a rule in exactly one of
+    // three shapes:
+    //     script.markdownOnly && isMarkdown
+    //     script.promptOnly  && isPrompt
+    //     !script.markdownOnly && !script.promptOnly && !isMarkdown && !isPrompt      <- line 354
+    // The third clause is the one that is easy to misread: a rule with NEITHER flag runs ONLY when the caller
+    // passes NEITHER flag. So a plain rule is NOT reached from the two call sites that carry a flag, and my
+    // first version of this kit probed only those two -- it recorded `activeChanged=false` for R1 while R3
+    // (promptOnly) and R4 (markdownOnly) happily fired, which is the product being right and the probe wrong.
+    //
+    // The three shapes are therefore kept separately, each named for the pinned caller it imitates:
+    //   entryPoint  NO flags        -- script.js:5875 sendMessageAsUser (USER_INPUT, before the push) and
+    //                                  :6481 on a received reply. THIS is where a plain rule applies.
+    //   display     {isMarkdown}    -- script.js:1860-1864 messageFormatting. Reaches markdownOnly rules.
+    //   prompt      {isPrompt,depth}-- script.js:4504-4506 prompt assembly. Reaches promptOnly rules, and
+    //                                  never reaches markdownOnly or plain ones.
+    // A side is then characterised by which of the three rewrote it, which is a fact about the pinned engine
+    // rather than an assumption of this file.
     const lastText = String(turns[turns.length - 1]?.mes ?? '');
+    const entryPoint = text => getRegexedString(text, regex_placement.USER_INPUT, { characterOverride: character?.name });
     const display = text => getRegexedString(text, regex_placement.USER_INPUT, { isMarkdown: true, characterOverride: character?.name });
     const prompt = (text, depth = 0) => getRegexedString(text, regex_placement.USER_INPUT, { isPrompt: true, depth, characterOverride: character?.name });
     const sides = {};
     const describe = (name, input, depth = 0) => {
+        const atEntry = entryPoint(input);
         const shown = display(input);
         const sent = prompt(input, depth);
         sides[name] = {
             input,
+            entry: atEntry,
             display: shown,
             prompt: sent,
-            // The three facts the comparator turns into per-case assertions.
+            // The facts the comparator turns into per-case assertions. `entryChanged` is the one a PLAIN rule
+            // must satisfy; `displayChanged`/`promptChanged` are the flag-carrying rules'.
+            entryChanged: atEntry !== input,
             displayChanged: shown !== input,
             promptChanged: sent !== input,
+            entryTokens: [...new Set(String(atEntry).match(/RXQ_[A-Z]+_[A-Z0-9]+/g) ?? [])].sort(),
             // Every distinct token that arrived, so the comparator never has to look for one marker and
             // conclude a rule ran.
             displayTokens: [...new Set(String(shown).match(/RXQ_[A-Z]+_[A-Z0-9]+/g) ?? [])].sort(),
@@ -458,30 +477,39 @@ export async function applyRegexKit(spec) {
     const isDepthAtOne = describe('depthAtOne', `${MARKERS.inDepth}`, 1);
     // THE SELF-CHECK THAT MAKES THE REST MEANINGFUL (AGENTS.md 50, applied to this kit): if the product
     // rewrote NOTHING for any input, then every "negative" below passes vacuously and the whole leg is
-    // decoration. The kit therefore REFUSES to hand back expectations. This check is the FIRST thing after
-    // the observations and it runs unconditionally -- an earlier draft wrapped it in a labelled block, so
-    // a future reader could believe a failing path skipped it.
-    const anyRewrite = Object.values(sides).some(side => side.promptChanged || side.displayChanged);
+    // decoration. The kit therefore REFUSES to hand back expectations. This check runs unconditionally.
+    const anyRewrite = Object.values(sides).some(side => side.entryChanged || side.promptChanged || side.displayChanged);
     if (!anyRewrite) {
-        problems.push('the product rewrote NOTHING for any of the scenario\'s eight inputs: every rule in this run is inert, so a negative result here would be vacuous (HARNESS NON-DISCRIMINATING)');
+        problems.push('the product rewrote NOTHING for any of the scenario\'s inputs on ANY of the three pinned call shapes: every rule in this run is inert, so a negative result here would be vacuous (HARNESS NON-DISCRIMINATING)');
     } else {
-        // The active rule must have fired IN BOTH DIRECTIONS: display and prompt both see its output.
-        if (!isActive.displayChanged || !isActive.promptChanged) {
-            problems.push(`R1 did not fire on both surfaces (displayChanged=${isActive.displayChanged}, promptChanged=${isActive.promptChanged}); the scenario's single positive control is missing`);
+        // EACH RULE IS CHECKED AGAINST THE CALL SHAPE THAT CAN REACH IT, which is the pinned clause structure
+        // at engine.js:348-355 rather than a wish:
+        //   R1 (no flags)          -> entryPoint only. It must NOT be reached from the flagged shapes.
+        //   R3 (promptOnly)        -> prompt only.
+        //   R4 (markdownOnly)      -> display only.
+        //   R5 (no flags,minDepth) -> entryPoint, and depth is only consulted when a numeric depth is passed,
+        //                             so its depth behaviour is observed on the PROMPT shape.
+        // A rule that fires where the engine says it cannot is as much a defect as one that does not fire, so
+        // both directions are asserted for the plain rule below.
+        if (!isActive.entryChanged) {
+            problems.push(`R1 (no flags) did not fire on the ENTRY-POINT shape (no isMarkdown, no isPrompt) that script.js:5875 and :6481 use: entryChanged=${isActive.entryChanged}. The clause at engine.js:354 admits a plain rule ONLY when both flags are absent, so this is the shape that must reach it`);
+        }
+        if (isActive.promptChanged || isActive.displayChanged) {
+            problems.push(`R1 (no flags) fired on a FLAGGED shape (promptChanged=${isActive.promptChanged}, displayChanged=${isActive.displayChanged}); engine.js:354 excludes a plain rule from both, so the engine's clause is not being applied`);
         }
         // The chain's second link must not be reachable from the raw input, or the chain proves nothing.
-        if (!isChain.promptChanged) {
-            problems.push('the chain did not form: C-A then C-B produced no change on the prompt side');
+        if (!isChain.entryChanged) {
+            problems.push('the chain did not form on the entry-point shape: C-A then C-B produced no change');
         }
-        if (isChain.prompt.includes(MARKERS.chainMiddle)) {
-            problems.push(`the chain left its middle token in the prompt (${JSON.stringify(isChain.prompt)}): C-B did not consume C-A's output`);
+        if (isChain.entry.includes(MARKERS.chainMiddle)) {
+            problems.push(`the chain left its middle token in the result (${JSON.stringify(isChain.entry)}): C-B did not consume C-A's output`);
         }
-        // The disabled rule must be inert in BOTH surfaces, and its input must remain.
-        if (isDisabled.displayChanged || isDisabled.promptChanged) {
+        // The disabled rule must be inert everywhere, and its input must remain.
+        if (isDisabled.entryChanged || isDisabled.displayChanged || isDisabled.promptChanged) {
             problems.push('R2 is disabled in the settings but changed the text, so a "disabled" negative here would be meaningless');
         }
-        if (!isDisabled.prompt.includes(MARKERS.inDisabled)) {
-            problems.push('R2\'s input token vanished from the prompt although the rule is disabled: something else consumed it');
+        if (!isDisabled.entry.includes(MARKERS.inDisabled)) {
+            problems.push('R2\'s input token vanished although the rule is disabled: something else consumed it');
         }
         // The depth rule must be inert at 0 and live at 1. Both halves, or the guard is untested.
         if (isDepth.promptChanged) {
@@ -490,9 +518,22 @@ export async function applyRegexKit(spec) {
         if (!isDepthAtOne.promptChanged) {
             problems.push('R5 (minDepth 1) did NOT change the text at depth 1, so the minDepth guard is inverted or ignored');
         }
-        // The no-match input must be untouched: nothing in the scenario's rule set may mention it.
-        if (isNoMatch.promptChanged || isNoMatch.displayChanged) {
+        // The no-match input must be untouched on EVERY shape: nothing in the scenario may mention it.
+        if (isNoMatch.entryChanged || isNoMatch.promptChanged || isNoMatch.displayChanged) {
             problems.push(`the no-match token ${MARKERS.noMatch} was rewritten, so "no match" is not a no-match`);
+        }
+        // AND THE TWO FLAG-CARRYING RULES MUST FIRE WHERE THE ENGINE SAYS THEY DO.
+        if (!isPromptOnly.promptChanged) {
+            problems.push('R3 (promptOnly) did not fire on the prompt shape, so its clause at engine.js:352 is not being applied');
+        }
+        if (isPromptOnly.entryChanged) {
+            problems.push('R3 (promptOnly) fired on the entry-point shape, which passes no isPrompt: engine.js:352 should exclude it');
+        }
+        if (!isDisplayOnly.displayChanged) {
+            problems.push('R4 (markdownOnly) did not fire on the display shape, so its clause at engine.js:350 is not being applied');
+        }
+        if (isDisplayOnly.entryChanged) {
+            problems.push('R4 (markdownOnly) fired on the entry-point shape, which passes no isMarkdown: engine.js:350 should exclude it');
         }
     }
     step('sides', {
