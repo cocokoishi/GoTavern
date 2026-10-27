@@ -939,6 +939,26 @@ rather than by review.
     Both gates named their cause precisely before dumping the block (`rows[7].P.scenarios: committed=5
     generated=8`), which is rule 64 working — so the fix is to run the generators, not to read the dump.
 
+80. **When a predicate is wrong, sweep for every instance of the pattern — a weak assertion usually has a twin.**
+    Measured in one lane across two runs. Its first-turn save was polled with `if (carries(afterFirst,
+    MARKERS.first)) break;`, and `carries` tested only the USER marker. Pinned writes the user turn and the
+    assistant reply in that order, so the poll could break on a file holding `[greeting, marker]` with the reply
+    still to come: `first-turn-saved` PASSED on a chat whose reply was never written, the reload read 2 messages,
+    and the second-turn request was assembled six messages long against the other subject's seven.
+    That 45-byte difference was reported once as a possible PRODUCT divergence. It was a harness defect BOTH times.
+    The lane then built `reload-carried-the-reply` (does the RELOADED chat contain the reply) and did not ask the
+    same question one step earlier (does the SAVED chat contain the reply) — the marker-only assumption was in TWO
+    places and it repaired one. Its own words: "I should have swept the file for `carries(` after the first fix
+    rather than after the second run."
+    **And two green steps covered it**: `first-turn-saved` and `reload-reads-the-chat` both passed on a chat missing
+    its reply, neither able to fail for the reason that mattered. So the sweep is for the PREDICATE, not the step:
+    when an assertion means "X reached disk", every wait for X must ask it in the same words, and a file-wide search
+    for the helper is the check. A fix that repairs one of two identical predicates produces a suite that is green
+    in one place and blind in the other, which is harder to notice than a red.
+    The lane also declined the tempting wrong fix: the 30-second budget was never exhausted, the poll broke EARLY on
+    a condition already true, so a longer timeout would have changed nothing. That is rule 33's shape — a race
+    masked rather than named — arriving as an early exit instead of a timeout.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
