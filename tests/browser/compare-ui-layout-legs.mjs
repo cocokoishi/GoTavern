@@ -39,9 +39,36 @@ function unreachableReasons(observation) {
     if (observation.visibilityHidden) reasons.push('hidden');
     if (!observation.nonZeroArea) reasons.push(`zero-area(${observation.box?.width ?? '?'}x${observation.box?.height ?? '?'})`);
     if (observation.withinViewport === false) reasons.push('outside-viewport');
-    if (observation.topmost === false) reasons.push('covered-at-centre');
+    if (observation.topmost === false) reasons.push(`covered-at-centre(${(observation.coveredBy?.chain ?? []).join(' < ')})`);
     if ((observation.overflowRight ?? 0) > 0) reasons.push(`overflow-right(${observation.overflowRight}px)`);
     return reasons;
+}
+
+/**
+ * A COVERER THAT SPANS THE VIEWPORT IS A HARNESS STATE, NOT A LAYOUT RESULT.
+ *
+ * Run 40450382265 measured `covered-at-centre` for EVERY control on BOTH subjects at ALL FOUR sizes, and the
+ * comparator called it `equally-unreachable` and PASSED. Both halves of that were wrong. The two subjects were
+ * serving the same page and the shapes were identical, so "the subjects agree" was true and MEANINGLESS: the
+ * send button and the navigation toggles do not share a footprint, and no frontend lays out a page where every
+ * control is under the same thing. The cause is a page state the probe never left -- the readiness wait polls
+ * `document.getElementById("preloader") === null`, and a preloader removed from the DOM while its container is
+ * still painted, or any other full-viewport layer, satisfies that wait and then intercepts every hit test.
+ *
+ * The rules that follow, and they are the interesting part:
+ *   * a full-viewport coverer is reported as `HARNESS_NOT_READY`, never as a finding about either subject;
+ *   * the comparator FAILS rather than passing when it sees that shape, because the alternative is a green
+ *     artefact whose every row says "broken on both" -- which a reader would either believe or ignore, and both
+ *     are worse than a red;
+ *   * `equally-unreachable` is only meaningful for a NARROW coverer: an element genuinely under a panel is a
+ *     pinned-layout fact, and it is reported as such.
+ */
+function viewportCoverers(observation) {
+    const names = [];
+    for (const [name, value] of Object.entries(observation?.controls ?? {})) {
+        if (value?.topmost === false && value?.coveredBy?.coversViewport === true) names.push(name);
+    }
+    return names;
 }
 
 function imageReasons(observation) {
@@ -128,12 +155,29 @@ function main() {
             let disagreeingReachability = 0;
             let equallyUnreachable = 0;
             let unreachableOnGotavernOnly = 0;
+            let harnessNotReady = 0;
 
             for (let index = 0; index < gotavern.observations.length; index += 1) {
                 const left = gotavern.observations[index];
                 const right = pinned.observations[index];
+                // BEFORE ANY COMPARISON AT THIS SIZE: is the page even in a state where a hit test means
+                // anything? See viewportCoverers for why this is a refusal and not a finding.
+                let unmeasurable = false;
+                for (const [label, observation] of [['gotavern', left], ['pinned', right]]) {
+                    const coverers = viewportCoverers(observation);
+                    if (coverers.length > 0) {
+                        harnessNotReady += 1;
+                        unmeasurable = true;
+                        const sample = observation.controls[coverers[0]]?.coveredBy;
+                        problems.push(`${left.viewport}: HARNESS_NOT_READY -- ${coverers.length} control(s) are covered by a full-viewport node on ${label} (${sample?.chain?.[0] ?? 'unknown'}); the page never left a loading or overlay state, so no layout was measured at this size`);
+                    }
+                }
                 const size = {
                     viewport: left.viewport,
+                    // a size whose page was not ready is marked so its rows cannot count as agreement; the
+                    // record stays in `sizes` until the summary removes it, so a reader can see it was excluded
+                    // rather than absent.
+                    unmeasurable,
                     gotavernOverflow: left.document?.horizontalOverflow ?? null,
                     pinnedOverflow: right.document?.horizontalOverflow ?? null,
                     controls: {},
@@ -214,7 +258,8 @@ function main() {
                 disagreeingReachability,
                 equallyUnreachable,
                 unreachableOnGotavernOnly,
-                note: 'disagreeingReachability must be 0 for parity; equallyUnreachable is reported and never counted as a pass; unreachableOnGotavernOnly is the subset of disagreement that is a GoTavern-only defect',
+                harnessNotReady,
+                note: 'disagreeingReachability must be 0 for parity; equallyUnreachable is reported and never counted as a pass (and is meaningless for a full-viewport coverer, which is counted in harnessNotReady instead); unreachableOnGotavernOnly is the subset of disagreement that is a GoTavern-only defect',
             };
             // RULE 4, the summary form: the guard that decides is not "no findings" but "nothing DISAGREES".
             artefact.guards.subjectsAgreeOnEveryControlAndImage = disagreeingReachability === 0;
@@ -230,6 +275,13 @@ function main() {
                 problems.push(`only ${observed} element(s) were found on either subject across all sizes; the frontend was not rendered the way this probe drives it, so nothing about layout was measured`);
             }
             artefact.guards.measuredSomething = observed >= 8;
+            // THE LAST GATE, AND THE ONE RUN 40450382265 NEEDED: a size where the page was never ready cannot
+            // contribute a comparison, so its rows must not silently count as agreement.
+            artefact.guards.everySizeWasMeasurable = harnessNotReady === 0;
+            artefact.sizes = artefact.sizes.filter(size => !size.unmeasurable);
+            if (harnessNotReady > 0) {
+                findings.push(`${harnessNotReady} size(s) were unmeasurable because the page never left a loading or overlay state on at least one subject; those sizes are excluded and their absence is NOT a pass`);
+            }
         }
 
         artefact.verdict = problems.length === 0 ? 'PASS' : 'FAIL';

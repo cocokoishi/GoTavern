@@ -100,18 +100,41 @@ async function describeElement(page, selector) {
         const rect = element.getBoundingClientRect();
         const style = window.getComputedStyle(element);
         const box = { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) };
-        // THE CENTRE OF THE BOX IS THE POINT A USER WOULD AIM AT. If it is outside the viewport the element
-        // is reachable only by scrolling, which is still reachable -- so the report keeps both facts apart
-        // rather than collapsing them into one boolean.
+        // WHO IS ON TOP AT THE CENTRE, BY NAME. Run 40450382265 recorded `covered-at-centre` for EVERY control
+        // on BOTH subjects at ALL four sizes -- a shape no real layout produces, because the send button and the
+        // navigation toggles do not share a footprint. A verdict of "covered" with no coverer named is exactly
+        // the unfalsifiable finding this project keeps paying for, so the element that intercepted the hit test
+        // is recorded. A single full-screen node covering everything is a HARNESS state (something never went
+        // away), not a layout observation, and the comparator now refuses it as such.
         const centreX = box.x + Math.floor(box.width / 2);
         const centreY = box.y + Math.floor(box.height / 2);
         const withinViewport = centreX >= 0 && centreY >= 0 && centreX < window.innerWidth && centreY < window.innerHeight;
-        const topmost = withinViewport
-            ? (() => {
-                const hit = document.elementFromPoint(centreX, centreY);
-                return hit ? (hit === element || element.contains(hit) || hit.contains(element)) : null;
-            })()
-            : null;
+        let topmost = null;
+        let coveredBy = null;
+        if (withinViewport) {
+            const hit = document.elementFromPoint(centreX, centreY);
+            topmost = hit ? (hit === element || element.contains(hit) || hit.contains(element)) : null;
+            if (topmost === false && hit) {
+                const describe = node => {
+                    const id = node.id ? `#${node.id}` : '';
+                    const classes = node.classList && node.classList.length ? `.${[...node.classList].slice(0, 3).join('.')}` : '';
+                    const nodeRect = node.getBoundingClientRect();
+                    return `${node.tagName.toLowerCase()}${id}${classes}[${Math.round(nodeRect.width)}x${Math.round(nodeRect.height)}@${Math.round(nodeRect.x)},${Math.round(nodeRect.y)}]`;
+                };
+                const chain = [];
+                for (let node = hit, depth = 0; node && depth < 3; node = node.parentElement, depth += 1) chain.push(describe(node));
+                const hitRect = hit.getBoundingClientRect();
+                coveredBy = {
+                    chain,
+                    // A NODE THAT SPANS THE WHOLE VIEWPORT is the shape of an overlay that never went away, and it
+                    // is what makes "covered" uninformative rather than a finding.
+                    coversViewport: hitRect.width >= window.innerWidth - 1 && hitRect.height >= window.innerHeight - 1,
+                    pointerEvents: window.getComputedStyle(hit).pointerEvents,
+                    opacity: window.getComputedStyle(hit).opacity,
+                    zIndex: window.getComputedStyle(hit).zIndex,
+                };
+            }
+        }
         return {
             present: true,
             box,
@@ -121,6 +144,7 @@ async function describeElement(page, selector) {
             nonZeroArea: box.width > 0 && box.height > 0,
             withinViewport,
             topmost,
+            coveredBy,
             // An element whose own scrollWidth overflows is clipped for someone even if its box is fine.
             contentOverflows: element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1,
             // The horizontal distance the element extends past the right edge, which is what a user cannot
