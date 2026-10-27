@@ -379,7 +379,20 @@ record('scanner REFUSES the same CJK prose unmarked (the pass is right, not loos
 //   * the manifest records that equality, so a re-record cannot reintroduce two documents while this stays green.
 {
     const baseCard = JSON.parse(JSON.stringify(CLEAN_CARD));
-    const header = synthesisedCard(baseCard).subarray(0, 8 + 12 + 13 + 12 + 22); // signature + IHDR + IDAT chunk
+    // THE HEADER IS REBUILT FROM THE SAME PIECES `synthesisedCard` USES, not sliced out of its output: a hand-counted
+    // slice cut the IDAT mid-chunk, and both rows below then failed on "chunk IDAT has CRC ..." instead of on what
+    // they test -- a gate failing for a reason it does not name.
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(2, 0);
+    ihdr.writeUInt32BE(2, 4);
+    ihdr[8] = 8;
+    ihdr[9] = 2;
+    const idat = zlib.deflateSync(Buffer.from([0, 1, 2, 3, 4, 5, 6, 0, 7, 8, 9, 10, 11, 12]), { level: 0 });
+    const header = Buffer.concat([
+        Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
+        pngChunk('IHDR', ihdr),
+        pngChunk('IDAT', idat),
+    ]);
     const textOf = (document) => Buffer.from(JSON.stringify(document), 'utf8').toString('base64');
     const twoChunkCard = (target, first, second) => fs.writeFileSync(target, Buffer.concat([
         header,
