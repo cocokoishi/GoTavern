@@ -205,22 +205,48 @@ func TestBootPreservesEveryExistingUserFile(t *testing.T) {
 	if status != 200 {
 		t.Fatalf("POST /api/settings/get answered %d on a tree whose files were all preserved: %s", status, served)
 	}
-	// The unknown settings key is VISIBLE through the route too, which is the half that matters to the
+	// The unknown settings keys are VISIBLE through the route too, which is the half that matters to the
 	// frontend: preserved on disk but dropped while serving is not preservation.
+	//
+	// HOW THE ROUTE CARRIES THEM, from pinned src/endpoints/settings.js:222-223 and :268-269: the handler reads
+	// the file as TEXT (`fs.readFileSync(pathToSettings, 'utf8')`) and sends it as the `settings` member of the
+	// envelope -- a JSON STRING, not a parsed object. An unknown key is therefore NOT a top-level member of the
+	// response; it is text inside `response.settings`. The first version of this assertion looked for
+	// `futureFeature` as a top-level member, failed on run 40459730334, and the product was behaving exactly as
+	// pinned does: the assertion was wrong, not the product.
+	var envelope struct {
+		Settings json.RawMessage `json:"settings"`
+	}
+	if err := json.Unmarshal([]byte(served), &envelope); err != nil {
+		t.Fatalf("the served settings envelope is not JSON: %v", err)
+	}
+	if len(envelope.Settings) == 0 {
+		t.Fatalf("the served settings envelope has no `settings` member, so the frontend would have no settings "+
+			"at all:\n%s", truncateForLog(served, 600))
+	}
+	// The member is a STRING in pinned. Accept a parsed object too, but require the CONTENT either way, so a
+	// version that parses it is not failed for a shape difference this test is not about.
+	settingsText := string(envelope.Settings)
+	var asString string
+	if err := json.Unmarshal(envelope.Settings, &asString); err == nil {
+		settingsText = asString
+	}
 	for _, unknown := range []string{"futureFeature", "KEEP_ME", "unknown_tuning"} {
-		if !strings.Contains(served, unknown) {
-			t.Fatalf("settings.json was preserved on disk but %q is GONE from what the server serves, so the "+
-				"frontend cannot see it:\n%s", unknown, truncateForLog(served, 600))
+		if !strings.Contains(settingsText, unknown) {
+			t.Fatalf("settings.json was preserved on disk but %q is GONE from the `settings` the server serves, "+
+				"so the frontend cannot see it. Served settings text:\n%s",
+				unknown, truncateForLog(settingsText, 600))
 		}
 	}
-
-	// `futureFeature` must be a JSON member of the served body, not merely a substring somewhere: a comment or
-	// a nested key could satisfy the substring check while the top-level key was dropped.
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(served), &raw); err != nil {
-		t.Fatalf("the served settings are not JSON: %v", err)
+	// And what the route serves must still PARSE as the user's JSON, so "preserved" does not mean "passed
+	// through as unparseable text".
+	var userSettings map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(settingsText), &userSettings); err != nil {
+		t.Fatalf("the `settings` the route serves is not parseable JSON, so the frontend cannot load it: %v\n%s",
+			err, truncateForLog(settingsText, 400))
 	}
-	if _, present := raw["futureFeature"]; !present {
-		t.Fatalf("the served settings dropped the unknown TOP-LEVEL key `futureFeature`")
+	if _, present := userSettings["futureFeature"]; !present {
+		t.Fatalf("the user's unknown TOP-LEVEL settings key `futureFeature` is absent from the parsed settings " +
+			"the route serves")
 	}
 }
