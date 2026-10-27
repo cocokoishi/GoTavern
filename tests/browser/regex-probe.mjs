@@ -307,6 +307,14 @@ try {
     await page.addScriptTag({ content: `globalThis.__applyRegexKit = (${applyRegexKit.toString()});` });
     const spec = {
         markers: MARKERS,
+        // THE SPEAKER NAME TRAVELS WITH THE SPEC, exactly like `markers`: `page.addScriptTag({content})` installs
+        // this function by SOURCE, so it carries no closure and a module-level constant inside it is a FREE
+        // IDENTIFIER. Measured in run 40487920106, where the first version of the persona pin referenced
+        // `PROBE_USER_NAME` from inside the serialised function and the leg died with
+        // "ReferenceError: PROBE_USER_NAME is not defined" at the `page.evaluate`. The Node-side write to
+        // settings.json at :194 is a different scope and was never the problem -- the rule is that anything the
+        // SHIPPED function reads must arrive through the spec.
+        probeUserName: PROBE_USER_NAME,
         // THE VARIANT TRAVELS WITH THE SPEC, because the self-check's positive control depends on it: R1 is
         // DELIBERATELY disabled in `disabled-rewrite`, so "R1 must fire" is the correct expectation in the
         // baseline and the WRONG one there. Measured in run 40468846644, where the baseline legs passed the

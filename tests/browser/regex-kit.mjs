@@ -394,6 +394,15 @@ export async function applyRegexKit(spec) {
     // the same family, and both are invisible to `node --check`. The `spec` argument is the only channel
     // this function has, which is why the probe sends the markers in it.
     const MARKERS = spec?.markers ?? null;
+    // THE SPEAKER NAME COMES FROM THE SPEC, NOT FROM THIS MODULE'S SCOPE. This function is installed with
+    // `page.addScriptTag({ content: fn.toString() })`, so it is SOURCE and has no closure: the module-level
+    // the module-scope constant exported above is a FREE IDENTIFIER here and threw `ReferenceError` in run 40487920106.
+    // It falls back to nothing on purpose -- a missing name must be a named problem, not a silently different
+    // speaker that would resurface as a mysterious byte difference (the 21 bytes this lane already chased once).
+    const probeUserName = spec?.probeUserName ?? null;
+    if (typeof probeUserName !== 'string' || probeUserName.length === 0) {
+        return { problems: ['applyRegexKit received no probeUserName in its spec, so the chat turns would carry a different speaker than the settings file writes; it is installed in the page by source and cannot read the module constant'], steps };
+    }
     if (!MARKERS || typeof MARKERS.inActive !== 'string') {
         return { problems: ['applyRegexKit received no markers in its spec; it is installed in the page by source and cannot see the module that defines them'], steps };
     }
@@ -416,7 +425,7 @@ export async function applyRegexKit(spec) {
     //    `chat[0]` written by hand is not what a real chat holds -- and `messageFormatting` has a
     //    messageId===0 branch (script.js:1805-1812) that substitutes macros into `chat[0]`.
     const turns = spec.turns.map(turn => ({
-        name: turn.isUser ? PROBE_USER_NAME : String(character?.name ?? 'Character'),
+        name: turn.isUser ? probeUserName : String(character?.name ?? 'Character'),
         is_user: Boolean(turn.isUser),
         is_system: false,
         send_date: '2026-01-01T00:00:00.000Z',
@@ -667,7 +676,7 @@ export async function applyRegexKit(spec) {
     // chat the send will use. This append/observe/remove keeps the sent chat exactly what the spec says.
     const displayProbe = { index: script.chat.length };
     script.chat.push({
-        name: PROBE_USER_NAME,
+        name: probeUserName,
         is_user: true,
         is_system: false,
         send_date: '2026-01-01T00:00:00.000Z',

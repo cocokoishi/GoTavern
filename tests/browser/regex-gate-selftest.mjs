@@ -345,6 +345,29 @@ if (control.verdict?.verdict === 'match') {
 
 fs.rmSync(scratch, { recursive: true, force: true });
 
+
+// --- the serialisation check, which must run BEFORE any mutation ------------------------------------
+// `page.addScriptTag({ content: fn.toString() })` installs `applyRegexKit` by SOURCE, so it has NO closure.
+// A module-level constant referenced inside it is a FREE IDENTIFIER and dies at the `page.evaluate`, after the
+// whole leg has booted a server and a browser. Measured in run 40487920106: `PROBE_USER_NAME is not defined`
+// at regex-probe.mjs:377, one dispatch after the persona pin introduced it. Two consequences, both applied:
+// the name now travels in the SPEC (like `markers`), and this check makes the whole class fail HERE, in the
+// self-test, instead of in a recorded run.
+const KIT = await import("./regex-kit.mjs");
+const serialised = KIT.applyRegexKit.toString().split("\n").map(line => line.replace(/\/\/.*$/, "")).join("\n");
+const moduleLevel = [];
+for (const [exportedName, exportedValue] of Object.entries(KIT)) {
+    if (typeof exportedValue !== "function" && typeof exportedValue !== "object") {
+        if (new RegExp(`\\b${exportedName}\\b`).test(serialised)) moduleLevel.push(exportedName);
+    }
+}
+if (moduleLevel.length > 0) {
+    problems.push(`applyRegexKit reads ${moduleLevel.join(", ")} from its module scope, but it is installed in the page by SOURCE and cannot see that scope; pass the value through the spec instead (this is the exact failure that killed run 40487920106)`);
+} else {
+    outcomes.push({ step: "serialisation-carries-no-module-state", ok: true });
+    console.log("ok serialisation-carries-no-module-state: applyRegexKit references no module-level constant, so it is installable by source");
+}
+
 // --- the report -------------------------------------------------------------------------------------
 const report = {
     schemaVersion: 1,
