@@ -233,35 +233,50 @@ async function stageCharacterCard(root) {
 }
 
 // The character list the SERVER returns, asked over HTTP so the answer cannot depend on the probe's module graph.
-async function listCharacters(baseURL) {
-    // THE REQUEST MUST LOOK LIKE THE FRONTEND'S, OR THE ANSWER IS ABOUT THE REQUEST. Run 40424832678 got
-    // `<pre>ForbiddenError:` back from POST /api/characters/all because a POST without a CSRF token is exactly what
-    // the route refuses. Pinned's own flow is `GET /csrf-token` then `X-CSRF-Token: <token>` (script.js:696-698
-    // and :650), so this copies it rather than working around it.
-    let token = null;
-    try {
-        const tokenResponse = await fetch(`${baseURL}/csrf-token`);
-        const tokenData = await tokenResponse.json();
-        token = tokenData?.token ?? null;
-    } catch (error) {
-        return { ok: false, reason: `no CSRF token: ${error?.message ?? error}`, names: [] };
-    }
-    if (!token) return { ok: false, reason: '/csrf-token answered without a token', names: [] };
-    const response = await fetch(`${baseURL}/api/characters/all`, {
+// A MINIMAL COOKIE ROUND TRIP, BECAUSE THE CSRF TOKEN LIVES IN THE SIGNED SESSION COOKIE.
+// internal/server/csrf_session.go: the token is the session's "csrfToken" field (:200-208) and the session travels as
+// `session-<hex>` plus `session-<hex>.sig` (:257-263), with the name derived from the hostname (:172-173) -- so the
+// name is never hard-coded here. Without sending those cookies back, the token cannot be found in the session and the
+// route answers 403 "Invalid CSRF token", which is exactly what run 40427250663 measured. Only NAME=LENGTH pairs are
+// recorded: a session cookie is signing material and this repository does not log secrets.
+async function postForJSON(baseURL, pathName, body) {
+    const jar = new Map();
+    const absorb = response => {
+        for (const [name, value] of response.headers) {
+            if (name.toLowerCase() !== 'set-cookie') continue;
+            const pair = String(value).split(';')[0];
+            const equals = pair.indexOf('=');
+            if (equals > 0) jar.set(pair.slice(0, equals).trim(), pair.slice(equals + 1).trim());
+        }
+    };
+    const cookieHeader = () => [...jar.entries()].map(([name, value]) => `${name}=${value}`).join('; ');
+    const tokenResponse = await fetch(`${baseURL}/csrf-token`);
+    absorb(tokenResponse);
+    const tokenData = await tokenResponse.json().catch(() => null);
+    const token = tokenData?.token ?? null;
+    const cookies = [...jar.keys()];
+    if (!token) return { ok: false, reason: '/csrf-token answered without a token', cookies, names: [] };
+    const response = await fetch(`${baseURL}${pathName}`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-csrf-token': token },
-        body: '{}',
+        headers: { 'content-type': 'application/json', 'x-csrf-token': token, cookie: cookieHeader() },
+        body: JSON.stringify(body ?? {}),
     });
+    absorb(response);
     const text = await response.text();
-    if (!response.ok) return { ok: false, reason: `POST /api/characters/all answered ${response.status}: ${text.slice(0, 160)}`, names: [] };
+    if (!response.ok) return { ok: false, reason: `POST ${pathName} answered ${response.status}: ${text.slice(0, 160)}`, cookies, names: [] };
     let parsed = null;
     try {
         parsed = JSON.parse(text);
     } catch {
-        return { ok: false, reason: `not JSON: ${text.slice(0, 120)}`, names: [] };
+        return { ok: false, reason: `not JSON: ${text.slice(0, 120)}`, cookies, names: [] };
     }
     const rows = Array.isArray(parsed) ? parsed : (parsed?.characters ?? []);
-    return { ok: true, names: rows.map(row => row?.name ?? null), count: rows.length };
+    return { ok: true, names: rows.map(row => row?.name ?? null), count: rows.length, cookies };
+}
+
+async function listCharacters(baseURL) {
+    // THE REQUEST MUST LOOK LIKE THE FRONTEND'S, OR THE ANSWER IS ABOUT THE REQUEST.
+    return postForJSON(baseURL, '/api/characters/all', {});
 }
 async function gotavernWrites() {
     const binarySetting = process.env.GOTAVERN_BINARY;
