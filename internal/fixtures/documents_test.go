@@ -1305,7 +1305,6 @@ func TestAgentsRulesStayShortEnoughToStayNumbered(t *testing.T) {
 	}
 }
 
-
 // TestAgentsRuleGateCanGoRed proves the numbering check discriminates: a duplicated number, a dropped
 // number, a rule moved into another section, and a rule grown into a narrative must each be reported.
 func TestAgentsRuleGateCanGoRed(t *testing.T) {
