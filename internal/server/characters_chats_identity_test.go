@@ -36,7 +36,25 @@ import (
 	"testing"
 )
 
-// TestPinnedCharacterChatsAreKeyedByTheCardName is the consequence gate for the chat-identity defect.
+// TestPinnedCharacterChatsAreKeyedByTheCardName is the consequence gate for the chat-identity question.
+//
+// RETRACTION, KEPT VERBATIM BECAUSE A WITHDRAWN CLAIM IS EVIDENCE: this test was written to prove that "the
+// character's chat identity is derived from the FILE name while pinned derives it from the CARD's name"
+// (`characters_card.go:307`). That premise was WRONG. Pinned keys the chats directory by the FILE name in both places
+// that matter -- `src/endpoints/characters.js:419`:
+//
+//     const chatsDirectory = path.join(directories.chats, item.replace('.png', ''));   // `item` is a readdir entry
+//
+// and `:1503-1504` for `/chats` (`(request.body.avatar_url).replace('.png','')`). `item.replace('.png','')` is exactly
+// what this port does, so the KEY is correct, and the original failure message ("pinned getChats lists
+// chats/<characters[avatar].name>") described a line that does not exist at 06bde939. The red it produced (Lane CI
+// 40444357552 and 40448026086) was a red for a claim this lane no longer holds.
+//
+// THE OBSERVATION IS KEPT, because it is still true and still worth a gate: the roster row carries NO `chats` member,
+// and that is CORRECT -- pinned never assigns `chats` either (no assignment in src/endpoints/characters.js; the
+// frontend derives it from `chat_size` at public/script.js:567-574, so a character with chats resumes normally under
+// either server). Asserting the member's ABSENCE on both subjects is what keeps a future "helpful" addition from
+// silently diverging, which is why the observation stays and only the premise changes.
 func TestPinnedCharacterChatsAreKeyedByTheCardName(t *testing.T) {
 	const (
 		fileName   = "Q21 Handback Card"
@@ -56,11 +74,18 @@ func TestPinnedCharacterChatsAreKeyedByTheCardName(t *testing.T) {
 	cardPath := filepath.Join(env.Directories["characters"], fileName+".png")
 	writeFixtureFile(t, cardPath, staged, 1700000000000)
 
-	// NO ROSTER ROW YET: nothing has written a chat. This is the `chats: false` half of the pinned contract, and
-	// asserting it first means a `chats: true` later cannot be a leftover.
+	// THE ROW CONTRACT, BEFORE ANY CHAT EXISTS, TAKEN FROM PINNED: `chat` is the readFromV2 default string
+	// (:554), `chat_size` a number (:422), and `chats` appears in NO row because pinned never assigns it.
 	empty := characterRow(t, env, fileName+".png")
-	if chats, _ := empty["chats"].(bool); chats {
-		t.Fatalf("staged: /api/characters/all already reports chats=%v with no chat written", chats)
+	if _, kind := memberKind(empty, "chats"); kind != "absent" {
+		t.Fatalf("staged/noChats: the roster row carries `chats` (%s); pinned assigns `chats` nowhere in "+
+			"src/endpoints/characters.js and the frontend derives it from chat_size (public/script.js:567-574)", kind)
+	}
+	if _, kind := memberKind(empty, "chat_size"); kind != "number" {
+		t.Fatalf("staged/noChats: chat_size is %s, wanted a number (assigned unconditionally at :422)", kind)
+	}
+	if text, kind := memberKind(empty, "chat"); kind != "string" || text == "" {
+		t.Fatalf("staged/noChats: chat is %s, wanted the readFromV2 default string", kind)
 	}
 
 	// THE CHAT IS WRITTEN BY THE PRODUCT, through the route a client uses, and under the name a client uses for a
@@ -80,19 +105,25 @@ func TestPinnedCharacterChatsAreKeyedByTheCardName(t *testing.T) {
 			"the roster must agree with", fileName, chatStem, err)
 	}
 
-	// THE ROSTER. `chats` is the flag the pinned frontend branches on (public/script.js openCharacter), so a false
-	// here means the conversation the user just saved is invisible to the client that saved it.
+	// THE ROSTER, AFTER THE CHAT EXISTS. The member set is the SAME as before, which is the point: pinned's row does
+	// not gain a `chats` flag when a chat appears -- the frontend recomputes it from `chat_size`
+	// (public/script.js:567-574), so a browser with chats resumes under either server. The `chats` assertion below is
+	// deliberately an ABSENCE assertion; its failure message states the retraction it belongs to.
 	roster := characterRow(t, env, fileName+".png")
 	if got, _ := roster["name"].(string); got != cardName {
 		t.Fatalf("the roster's name for %s.png = %q, wanted the card's own name %q -- the premise the six driver "+
 			"commits assumed; if this row moves, the projection and not the chat identity is what changed",
 			fileName, got, cardName)
 	}
-	if chats, isBool := roster["chats"].(bool); !isBool || !chats {
-		t.Fatalf("chatsFollowName: /api/characters/all answered chats=%v for a character whose chat this product saved "+
-			"at chats/%s/%s.jsonl; pinned getChats lists chats/<characters[avatar].name>, i.e. the CARD's name %q, so a "+
-			"chat keyed by the FILE name %q is invisible and the frontend never resumes the conversation",
-			roster["chats"], fileName, chatStem, cardName, fileName)
+	if _, kind := memberKind(roster, "chats"); kind != "absent" {
+		t.Fatalf("roster/chats: the row carries `chats`=%s after a chat exists. RETRACTION ON RECORD: this test used to "+
+			"fail here demanding chats=true on the theory that pinned keys chats by the CARD's name; pinned keys them by "+
+			"the FILE name (:419, :1503-1504) and never assigns `chats` at all, so the correct contract is that the "+
+			"member is ABSENT on both subjects and the frontend derives it from chat_size (public/script.js:567-574). "+
+			"An emitted `chats` is now the divergence.", kind)
+	}
+	if _, kind := memberKind(roster, "chat_size"); kind != "number" {
+		t.Fatalf("roster/chat_size: %s, wanted a number (calculateChatSize, :342-358)", kind)
 	}
 
 	// THE IDENTITY. `chat` names the file a client appends to, and it must be the file the save route wrote. The
