@@ -51,7 +51,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 import { seedLegConfig } from './seed-leg-config.mjs';
-import { MARKERS, PROBE_USER_NAME, REGEX_SCENARIO, REGEX_VARIANTS, applyNegation, applyRegexKit, negationFor, regexRules, turnText } from './regex-kit.mjs';
+import { MARKERS, PROBE_USER_AVATAR, PROBE_USER_NAME, REGEX_SCENARIO, REGEX_VARIANTS, applyNegation, applyRegexKit, negationFor, regexRules, turnText } from './regex-kit.mjs';
 
 const playwrightModule = await import('@playwright/test');
 const chromium = playwrightModule.chromium ?? playwrightModule.default?.chromium;
@@ -191,7 +191,17 @@ async function writeSettingsFragment(dataRoot, rules) {
     // exactly like a product defect and is an ASYMMETRIC PRECONDITION. `name1` is `settings.username`
     // (script.js:7931), so pinning it here makes both legs send the same speaker and turns the 21 bytes
     // into a real comparison.
+    // `name1` IS NOT `settings.username` WHEN A PERSONA ROW EXISTS. Measured in run 40496429980, where pinning
+    // the username did NOT close the 21-byte gap: the console reported "Auto-updating user name to [Unnamed
+    // Persona]" and `selectCurrentPersona` (public/scripts/personas.js) sets `name1` from
+    // `power_user.personas[user_avatar]` whenever that entry exists, OVERRIDING the username. The pinned tree
+    // has a persona for `user-default.png`; a fresh GoTavern tree does not, so it falls through to the
+    // placeholder at personas.js:237. Both maps are therefore written here, keyed by the avatar the chat
+    // actually uses, so the speaker is the SAME BY CONSTRUCTION rather than by whichever tree seeded settings.
     settings.username = PROBE_USER_NAME;
+    settings.power_user = settings.power_user ?? {};
+    settings.power_user.personas = settings.power_user.personas ?? {};
+    settings.power_user.personas[PROBE_USER_AVATAR] = PROBE_USER_NAME;
     settings.extension_settings = settings.extension_settings ?? {};    const extensionSettings = settings.extension_settings;
     extensionSettings.regex = rules;
     // Consent, for the click the frontend's own prompt would make (regex/index.js:1327-1337). Written

@@ -685,6 +685,23 @@ guard('providerRequestsEqualAcrossSubjects', () => {
         }
         const go = requestsOf(pair.gotavern);
         const node = requestsOf(pair.pinned);
+        // THE SPEAKER IS ASSERTED BEFORE THE BYTES, because a name difference and an assembly difference
+        // produce the same symptom -- a different sha256 -- and this lane has already spent two runs on that
+        // ambiguity. Measured: a 21-byte invariant gap that was `[Unnamed Persona]` vs `Probe User`, caused by
+        // `selectCurrentPersona` overriding `settings.username` from `power_user.personas[user_avatar]`. If the
+        // two pages disagree about who is speaking, say so by name; the byte comparison below is then meaningful.
+        const goName = pair.gotavern.userName ?? null;
+        const nodeName = pair.pinned.userName ?? null;
+        if (!goName || !nodeName) {
+            problems.push(`${variant}: a leg recorded no userName, so the SPEAKER precondition cannot be checked and a name difference would masquerade as an assembly difference`);
+        } else {
+            if (goName.name1 !== nodeName.name1) {
+                problems.push(`${variant}: the two pages speak as different users -- gotavern name1=${JSON.stringify(goName.name1)} vs pinned name1=${JSON.stringify(nodeName.name1)}; this is a PRECONDITION difference (power_user.personas[user_avatar] overrides settings.username), not an assembly one`);
+            }
+            if (goName.userAvatar !== nodeName.userAvatar) {
+                problems.push(`${variant}: the two pages use different user avatars -- gotavern ${JSON.stringify(goName.userAvatar)} vs pinned ${JSON.stringify(nodeName.userAvatar)}; the persona lookup key itself differs`);
+            }
+        }
         if (go.length !== node.length) {
             problems.push(`${variant}: GoTavern produced ${go.length} chat/completions request(s) and pinned ${node.length}`);
             continue;

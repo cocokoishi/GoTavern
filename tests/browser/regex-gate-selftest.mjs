@@ -129,6 +129,18 @@ function loadLegs() {
 
 const MUTATIONS = [
     {
+        name: 'different-speaker',
+        // Give the GoTavern leg a DIFFERENT SPEAKER than pinned. `providerRequestsEqualAcrossSubjects` must die
+        // naming the speaker rather than reporting two anonymous differing shas -- the 21-byte gap this lane
+        // chased twice was exactly this and presented as a byte difference both times.
+        expectedGuards: ['providerRequestsEqualAcrossSubjects'],
+        apply: legs => {
+            legs.baseline.gotavern.userName = { ...(legs.baseline.gotavern.userName ?? {}), name1: '[Unnamed Persona]', userAvatar: 'user-default.png' };
+            legs.baseline.gotavern.peerRequests = legs.baseline.gotavern.peerRequests;
+            return legs;
+        },
+    },
+    {
         name: 'drop-baseline-gotavern',
         // An absent subject must be a FINDING in every case that needs it, not a silent skip.
         expectedGuards: ['legsPresent', 'case1_rewriteReachedTheProviderRequestOnBothSubjects', 'case2_displayOnlyChangedTheDomAndNotTheProviderRequest', 'case3_promptOnlyChangedTheProviderRequestAndNotTheDisplay'],

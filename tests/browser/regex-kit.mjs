@@ -86,6 +86,13 @@ export const REGEX_SCENARIO = 'GoTavern Regex Probe';
 // into a seeded one).
 export const PROBE_USER_NAME = 'Probe User';
 
+// THE PERSONA KEY MUST MATCH THE AVATAR THE CHAT USES. `selectCurrentPersona` looks up
+// `power_user.personas[user_avatar]` (public/scripts/personas.js), and the recorded chat identity in every leg
+// of runs 40476961120/40496429980 reports `userAvatar: "user-default.png"` -- so that is the key. It is a
+// constant here and ASSERTED against the recorded `chatIdentity.userAvatar` by the comparator, so a future
+// re-record that changes the avatar fails loudly instead of silently reinstating the placeholder speaker.
+export const PROBE_USER_AVATAR = 'user-default.png';
+
 // MARKERS. ASCII only (AGENTS.md rule 9: a non-ASCII input is what exercises an encoding defect, and this
 // gate is about rule execution). Each rule has an INPUT token and an OUTPUT token, both unique, so a body
 // can be asked "did THIS rule's output arrive" without guessing at wording.
