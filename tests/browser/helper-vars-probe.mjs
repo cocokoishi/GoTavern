@@ -548,9 +548,30 @@ try {
             return { selected: false, reason: `no <option> whose text is ${JSON.stringify(wanted)}`, rows, tried: 'exact then trimmed text match on the rendered options' };
         }
         const option = select.querySelector(`option[value="${row.value}"]`);
-        if (option) option.selected = true;
-        select.value = String(row.value);
-        select.dispatchEvent(new Event('change', { bubbles: true }));
+        if (!option) {
+            return { selected: false, reason: `the row for ${JSON.stringify(wanted)} exists in the list but has no option element`, rows };
+        }
+        // SELECT THROUGH jQuery, WHICH IS WHAT THE FRONTEND ITSELF DOES -- NOT THROUGH THE DOM PROPERTY.
+        //
+        // MEASURED, run 40451801982: the option was found by exact text, `option.selected = true` was assigned, and
+        // the manager still reported `getSelectedPresetName()` = "RecoveredRuins" while the row list showed
+        // `Default` as `selected:true`. That is not a product defect: jQuery's `:selected` reads its own cached
+        // selection state, and `presetManager.getSelectedPresetName()` is
+        // `$(this.select).find('option:selected').text()` (public/scripts/preset-manager.js:399-401). Assigning the
+        // DOM `selected` property does not refresh what jQuery sees, so the option LOOKED selected and the manager
+        // read the old one. The frontend's own path is `option.prop('selected', true); $(select).val(value)
+        // .trigger('change')` (`PresetManager.selectPreset`, :415-424), and `openai.js:4369` does the same with
+        // `.prop('selected', true)`. Both lines below are that path, so the leg drives the mechanism the page uses
+        // instead of a DOM operation that happens to look equivalent.
+        if (window.jQuery) {
+            const $select = window.jQuery(select);
+            $select.find(`option[value="${row.value}"]`).prop('selected', true);
+            $select.val(String(row.value)).trigger('change');
+        } else {
+            // No jQuery on the page would itself be a finding, but the leg still drives SOMETHING and says which.
+            option.selected = true;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
         // THE CHANGE IS ASYNCHRONOUS (`onSettingsPresetChange` awaits a promise chain), so the wait is on the
         // PRODUCT's state -- the manager reporting the name -- rather than on a fixed delay.
         const deadline = Date.now() + 15000;
@@ -565,7 +586,12 @@ try {
             selectedName,
             rowValue: row.value,
             matchedBy: exact ? 'exact text' : 'trimmed text',
-            rows,
+            selectionMechanism: window.jQuery ? 'jQuery prop+val+trigger(change), as PresetManager.selectPreset does' : 'DOM property + change event (no jQuery on the page)',
+            // Read back what jQuery reports AFTER the change, so the failure that produced this fix can never be
+            // ambiguous again: `domSelected` is the DOM's view, `jquerySelected` is the panel's.
+            domSelected: [...select.options].filter(entry => entry.selected).map(entry => entry.text),
+            jquerySelected: window.jQuery ? window.jQuery(select).find('option:selected').map((_, entry) => String(entry.text)).get() : null,
+            rows: [...select.options].map(entry => ({ value: entry.value, text: String(entry.text), selected: entry.selected })),
             promptCount: (loaded?.prompts ?? []).length,
             hasResolveRow: (loaded?.prompt_order ?? []).some(group => (group.order ?? []).some(row => row.identifier === 'resolve_identity')),
             identityContent: (loaded?.prompts ?? []).find(prompt => prompt.identifier === 'resolve_identity')?.content ?? null,
@@ -863,6 +889,13 @@ console.log(JSON.stringify({
     afterRestart: report.afterRestart,
     failure: report.failure,
     units: report.units,
-    cases: report.cases.map(entry => ({ case: entry.case, sha256: entry.request?.sha256 ?? null, bytes: entry.request?.byteLength ?? null, arrived: Boolean(entry.request) })),
+    // THE FIXTURE, because a leg whose card and preset identity are not in its own summary cannot be diagnosed from
+    // the log it produced -- which is exactly what happened in run 40451801982: `card-opened` was green while the
+    // manager reported a character-derived preset name, and the log could not say WHICH card was opened.
+    card: report.provenance?.chatOne?.matched ?? null,
+    openedCharacter: report.provenance?.chatOne ?? null,
+    trio: report.provenance?.trio ? { selected: report.provenance.trio.selected, selectedName: report.provenance.trio.selectedName, hasResolveRow: report.provenance.trio.hasResolveRow, promptCount: report.provenance.trio.promptCount } : null,
+    timings: report.timings ? report.timings.phases : null,
+    cases: report.cases.map(entry => ({ case: entry.case, sha256: entry.request?.sha256 ?? null, bytes: entry.request?.byteLength ?? null, arrived: Boolean(entry.request), ms: entry.ms ?? null })),
     steps: report.steps.map(item => `${item.ok === null ? 'n/a' : item.ok ? 'ok' : 'FAIL'} ${item.name}`),
 }, null, 2));
