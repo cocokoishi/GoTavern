@@ -996,6 +996,28 @@ rather than by review.
     21-byte speaker difference the lane had already chased — and a mysterious byte difference is worse than a
     crash, because the crash names itself and the byte difference does not.
 
+82. **A per-subject discriminator must cover EVERY input the legs are fed, not just the one you noticed — and a
+    derivation that reads as the obvious contract can contradict the pinned path.** Two failures in one step, both
+    found before a run was spent on a wrong claim.
+    **The content-level version of rule 50.** Each leg boots its OWN peer process and the capture peer counts from
+    zero, so BOTH subjects were fed IDENTICAL reply text by default: `Q20_REPLY_2` on one leg and `Q20_REPLY_4` on
+    the other only because one leg performed an extra setup completion. The lane had already made the SECOND TURN's
+    text per-subject (`_GOTAVERN` / `_PINNED`); this was the other half of what the legs are fed, and it produced a
+    step that was red for a reason no product difference could explain. **Two legs fed identical bytes cannot
+    testify that the products agree** — the harness must be able to tell its own subjects apart in every input,
+    which is the same requirement as `artefactsDifferPerSubject` in the opposite direction.
+    **And the assertion was a DERIVATION, not an oracle.** `swipesCount after === before` reads as the obvious
+    contract. Pinned's own path contradicts it: regenerate calls
+    `deleteItemizedPromptForMessage(chat.length - 1); chat.length = chat.length - 1; await removeLastMessage();`
+    (`script.js:4408-4410`), so it DELETES the last message and pushes a fresh one, and the regenerated message
+    legitimately holds EXACTLY ONE swipe. Pinned's 2 -> 1 was correct behaviour on a contaminated chat; the other
+    subject's 1 -> 1 was correct on a clean one. The step now asserts the product's contract (exactly one swipe on
+    the regenerated message) and still RECORDS the before-count. Rule 4 with a fresh measurement: where an oracle
+    exists, it wins, and the one-line version of the contract is exactly where a derivation hides.
+    A third defect was caught before it shipped, by asking rule 15's question of the lane's OWN regex: the first
+    pattern `^[A-Z]*_?Q20_REPLY_\d+$` REJECTED `Q20G_Q20_REPLY_2`. Testing it against the three real strings first
+    found that, and the fix accepts all three shapes while still rejecting `nope` and `Q20_REPLY_x`.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
