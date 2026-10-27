@@ -357,8 +357,18 @@ export async function resolveRoster(page) {
  * that moment. If it did not move, the request never left the page; if it moved, the page received an answer and did
  * not store it. Those are different findings and a boolean cannot tell them apart.
  */
-export async function waitForReply(page, { timeoutMs = 60000, requireText = true, peerCompletions = null } = {}) {
+export async function waitForReply(page, { timeoutMs = 60000, requireText = true, peerCompletions = null, baseline = null } = {}) {
     const deadline = Date.now() + timeoutMs;
+    // THE WAIT MUST SEE THE STATE MOVE, NOT MERELY BE SATISFIED. Measured in run 40471528261, pinned leg: this
+    // function returned `ok` in **7 ms** with `chatLength: 3` -- the FIRST turn's reply, already settled before the
+    // second send, so the condition held on the very first poll. The leg then wrote its marker into the user turn and
+    // swiped while the page was still generating (`swipe-precondition-reachable` recorded
+    // `{"lastIsUser":true,"swipeAllowed":false,"isSendPress":true}`) -- a state a user cannot reach, caught by the
+    // precondition guard exactly as designed. A satisfied precondition is NOT "the thing I just asked for happened":
+    // every caller that SENDS first passes the `baseline` it recorded BEFORE the send, and this wait then requires the
+    // page to have moved past it (a different chat length, or a different tail length when the verb appends in place).
+    const baselineLength = baseline?.chatLength ?? null;
+    const baselineTextLength = baseline?.lastTextLength ?? null;
     let last = null;
     while (Date.now() < deadline) {
         last = await page.evaluate(async () => {
@@ -379,8 +389,13 @@ export async function waitForReply(page, { timeoutMs = 60000, requireText = true
         });
         const settled = last.lastIsUser === false && last.isSendPress !== true && last.streamingProcessor !== true;
         const hasText = requireText ? last.lastTextLength > 0 : true;
-        if (settled && hasText) {
-            return { ok: true, state: last, waitedMs: timeoutMs - Math.max(0, deadline - Date.now()) };
+        // DID IT MOVE? Without a baseline there is nothing to move past, so the caller's omission is reported rather
+        // than silently accepted -- the run above is what that omission cost.
+        const moved = baselineLength === null
+            ? null
+            : (last.chatLength !== baselineLength || last.lastTextLength !== baselineTextLength);
+        if (settled && hasText && moved !== false) {
+            return { ok: true, state: last, baseline: { chatLength: baselineLength, lastTextLength: baselineTextLength }, moved, waitedMs: timeoutMs - Math.max(0, deadline - Date.now()) };
         }
         await page.waitForTimeout(250);
     }
@@ -443,10 +458,15 @@ export async function sendTurn(page, marker) {
         const textarea = document.querySelector('#send_textarea');
         const button = document.querySelector('#send_but');
         if (!textarea || !button) return { clicked: false, reason: 'send controls missing' };
+        // THE BASELINE, RECORDED BEFORE THE CLICK, so `waitForReply` can require the page to MOVE PAST it rather than
+        // accept a state that was already true. Run 40471528261 measured the cost of its absence.
+        const chatBefore = frontend.chat ?? [];
+        const tailBefore = chatBefore[chatBefore.length - 1] ?? null;
+        const baseline = { chatLength: chatBefore.length, lastTextLength: String(tailBefore?.mes ?? '').length };
         textarea.value = text;
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
         button.click();
-        return { clicked: true, textareaValue: textarea.value, settingsReadyAtClick, readyWaitMs, silentExitInputs, missingInputs };
+        return { clicked: true, textareaValue: textarea.value, baseline, settingsReadyAtClick, readyWaitMs, silentExitInputs, missingInputs };
     }, marker);
 }
 

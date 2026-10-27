@@ -288,7 +288,7 @@ try {
             const sent = await sendTurn(page, index === 0 ? `Q20 regenerable first turn ${turnMarker}` : `Q20 regenerable second turn ${turnMarker}`);
             report[`send${index + 1}`] = sent;
             const countBefore = peer.requests.filter(entry => /chat\/completions/.test(entry.path ?? '')).length;
-            const reply = await waitForReply(page, { timeoutMs: 60000, requireText: false, peerCompletions: countBefore + 1 });
+            const reply = await waitForReply(page, { timeoutMs: 60000, requireText: false, peerCompletions: countBefore + 1, baseline: sent?.baseline ?? null });
             report[`reply${index + 1}`] = reply;
             step(`turn-${index + 1}-reply-settled`, reply.ok === true, reply.ok === true ? JSON.stringify(reply.state) : JSON.stringify(reply));
             if (!reply.ok) {

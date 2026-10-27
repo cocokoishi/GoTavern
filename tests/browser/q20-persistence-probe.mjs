@@ -785,11 +785,17 @@ try {
         const textarea = document.querySelector('#send_textarea');
         const button = document.querySelector('#send_but');
         if (!textarea || !button) return { clicked: false, reason: 'send controls missing' };
-        const before = (script.chat ?? []).length;
+        const chat = script.chat ?? [];
+        const tail = chat[chat.length - 1] ?? null;
+        // THE BASELINE IS TAKEN BEFORE THE CLICK, and it is what the wait below must see MOVED PAST. Run 40471528261
+        // measured what its absence costs: the wait returned in 7 ms on the PREVIOUS turn's reply, and the swipe that
+        // followed ran while the page was still generating.
+        const before = chat.length;
+        const baseline = { chatLength: chat.length, lastTextLength: String(tail?.mes ?? '').length };
         textarea.value = 'Q20 second turn input';
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
         button.click();
-        return { clicked: true, before };
+        return { clicked: true, before, baseline };
     }, MARKERS.second);
     const peerCompletionsBeforeSecondTurn = peer.requests.filter(entry => /chat\/completions/.test(entry.path ?? '')).length;
     // `requireText` is TRUE again, and it was FALSE only for as long as the peer answered JSON to a streaming request.
@@ -797,7 +803,7 @@ try {
     // (`setup-reply-did-not-arrive`, reading "an assistant message exists but its text is EMPTY") rather than a known
     // condition this leg had to tolerate. Restoring it re-arms the wait that made the streak of structure-only greens
     // possible.
-    const secondTurnSettled = await waitForReply(page, { timeoutMs: 60000, requireText: true, peerCompletions: peerCompletionsBeforeSecondTurn + 1 });
+    const secondTurnSettled = await waitForReply(page, { timeoutMs: 60000, requireText: true, peerCompletions: peerCompletionsBeforeSecondTurn + 1, baseline: secondTurn?.baseline ?? null });
     report.secondTurn = { ...secondTurn, settled: secondTurnSettled };
     step('second-turn-message-created',
         secondTurn?.clicked === true && secondTurnSettled.ok === true,
