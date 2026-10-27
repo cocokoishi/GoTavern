@@ -925,6 +925,20 @@ rather than by review.
     a comparison with no differing field, a patch that applied cleanly — each is a candidate for "arrived too
     easily", and the way to test it is to try to make it fail.
 
+79. **A green lane run is not evidence that a merge will pass `verify`.** `lane.yml` and `ci.yml` do not run the
+    same checks, and the difference is where merges break. Measured twice in one merge: bringing three new
+    provider-wire scenarios into `main` left TWO derived documents stale, checked by two DIFFERENT tools in the
+    same job — `node tools/generate-doc-facts.mjs --check` (step 7) and
+    `node tools/generate-coverage-matrix.mjs --check` (step 8) — while the lane's own CI was green, because
+    `lane.yml` runs neither. The first was `providerWire.capturedScenarios: committed=219 generated=222`; the
+    second was `matrix rows[7].P.scenarios: committed=5 generated=8`, the `custom` source's cell.
+    The rule for an integrator: after any merge that brings in a NEW fixture, scenario, route or artefact, run the
+    derived-document checks yourself before pushing. There are three, all local `node` scripts, all cheap:
+    `generate-doc-facts.mjs --check`, `generate-coverage-matrix.mjs --check`, `compat-matrix/check.mjs`. A fact
+    COMPUTED from the tree must be recomputed by the change that moves the tree, and a merge is such a change.
+    Both gates named their cause precisely before dumping the block (`rows[7].P.scenarios: committed=5
+    generated=8`), which is rule 64 working — so the fix is to run the generators, not to read the dump.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
