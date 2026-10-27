@@ -466,6 +466,32 @@ function assertHeaderCoverage(definition, provider, responseHeaderNames) {
 const PRODUCTION_TRANSPORT_DIFFERENCES = new Map([
     ['connection', 'absent on GoTavern by design; see deepseek_generate_test.go:465-469'],
     ['accept-encoding', '`gzip` on GoTavern (net/http chooses); `gzip, deflate, br` is the wire-exact value'],
+    // OPTIONAL WHITESPACE SURROUNDING THE AUTHORIZATION VALUE, EMPTY-KEY CASE ONLY. Recorded, not fixed.
+    //
+    //   pinned   node-fetch puts the exact string on the wire. `'Bearer ' + apiKey`
+    //            (chat-completions.js:933) with an EMPTY key is `Bearer ` -- one trailing space -- and the recorded
+    //            capture shows it, because the harness rewrites the value to `Bearer <redacted>` only on
+    //            /^Bearer\s/, which a space satisfies.
+    //   GoTavern `net/http`'s Header.writeSubset runs textproto.TrimString on every value, so Go CANNOT emit
+    //            trailing whitespace through its standard request path at all. Measured on run 40474370192's
+    //            provider-wire-captures artifact: 66,101,97,114,101,114 -- six bytes, no whitespace.
+    //   scope    the trailing space is INTERNAL when the key is non-empty (`Bearer sk-...`), so ONLY an empty key
+    //            differs. Fixing it means writing the request over a raw connection, bypassing Header entirely, and
+    //            maintaining that against every redirect, retry, TLS and proxy path -- a production-transport change
+    //            far larger than the byte it buys.
+    //   spec     RFC 7230 section 3.2.4: a recipient MUST strip optional whitespace surrounding a field value, so
+    //            `Bearer ` and `Bearer` are the same field value to any conforming server.
+    //   risk     a NON-conforming recipient that distinguishes them on an empty key -- e.g. `auth.split(' ')[1]`
+    //            yielding undefined instead of '' -- would behave differently. No such provider is known; recording
+    //            it here is what lets an operator see what they are inheriting, the same standard AGENTS 36 applies
+    //            to the content-import hostname weakness.
+    //
+    // DELIBERATELY *NOT* AN ENTRY IN THIS MAP. Entries in the map are DROPPED FROM BOTH SIDES of every comparison
+    // (:835-844), so adding `authorization` would stop comparing the header that proves a key reached the provider
+    // -- in EVERY scenario, not just this one. That is the guard-widening this lane has already been burned by
+    // once: a guard that gets widened when it fires is no longer a guard. The difference is expressed NARROWLY in
+    // the assertion that already exists instead: `stripOptionalWhitespace` compares the DECLARED expected value
+    // modulo OWS, so presence, scheme and the key after it are all still exact.
 ]);
 
 const REDACTED_PROVIDER_HEADERS = new Map([
@@ -617,7 +643,13 @@ async function captureScenario({ file, definition, mockBinary, startBackend, bac
         }
         const recordedBody = normalizeProviderBody(body, mock.address);
         const recordedBodyJSON = JSON.stringify(recordedBody);
-        const declaredCredentialNames = [definition.expectedApiKey?.header, definition.expectedAuthorizationKey ? 'authorization' : null].filter(Boolean);
+        // DECLARED MEANS THE KEY IS PRESENT IN THE DEFINITION, NOT THAT IT IS TRUTHY. `expectedAuthorizationKey: ""`
+        // is a REAL declaration -- it is how a scenario says "this provider is sent an EMPTY key and I am asserting
+        // exactly that" -- and a truthiness test silently treated it as absent, which made the empty-key difference
+        // UNDECLARABLE and therefore unobservable in the artefact. `custom-empty-api-key` needs precisely this: an
+        // empty key is the state of every user who points CUSTOM at a keyless local endpoint (Ollama, llama.cpp).
+        const declaresAuthorizationKey = Object.prototype.hasOwnProperty.call(definition, 'expectedAuthorizationKey');
+        const declaredCredentialNames = [definition.expectedApiKey?.header, declaresAuthorizationKey ? 'authorization' : null].filter(Boolean);
         const normalizedProvider = normalizeProvider(recorded.body, mock.address, declaredCredentialNames);
         const headerCoverage = assertHeaderCoverage(definition, normalizedProvider, [...generated.response.headers.keys()]);
 
@@ -639,13 +671,27 @@ async function captureScenario({ file, definition, mockBinary, startBackend, bac
             apiKeyVerified = true;
         }
         let authorizationKeyVerified = false;
-        if (definition.expectedAuthorizationKey) {
+        if (declaresAuthorizationKey) {
             const observed = (recorded.body.requests ?? [])
                 .flatMap(entry => entry.headers)
                 .find(header => headerNameEquals(header.name, 'authorization'));
+            // THE EXPECTED VALUE IS COMPARED MODULO OPTIONAL WHITESPACE (RFC 7230 section 3.2.4).
+            //
+            // Pinned builds `'Bearer ' + apiKey` (chat-completions.js:933), so with an EMPTY key the value it sends
+            // is `Bearer ` -- one trailing space -- and node-fetch puts those bytes on the wire. GoTavern builds the
+            // same string but `net/http`'s Header.writeSubset runs textproto.TrimString on every value, so Go can
+            // NEVER emit trailing whitespace through its standard request path: it sends `Bearer`. That difference is
+            // RECORDED, not fixed (docs, PRODUCTION_TRANSPORT_DIFFERENCES), and it is semantically neutral because a
+            // conforming recipient MUST strip optional whitespace around a field value.
+            //
+            // So the assertion compares the value with surrounding OWS removed, which keeps the claim it exists to
+            // make -- the header is PRESENT and its scheme is `Bearer`, with the empty key after it -- while not
+            // failing on the one byte the transports cannot agree about. Anything else still fails: a missing header,
+            // a different scheme, or a non-empty key are all still exact mismatches.
+            const stripOptionalWhitespace = value => String(value ?? '').replace(/^[ \t]+|[ \t]+$/g, '');
             const expected = `Bearer ${definition.expectedAuthorizationKey}`;
-            if (!observed || observed.value !== expected) {
-                throw new Error(`scenario ${definition.name}: ${backendLabel} provider saw authorization ${JSON.stringify(observed?.value)}, expected ${JSON.stringify(expected)}; requests=${(recorded.body.requests ?? []).length} headerNames=${JSON.stringify((recorded.body.requests ?? []).map(entry => entry.headers.map(header => header.name)))} urls=${JSON.stringify((recorded.body.requests ?? []).map(entry => entry.url))}`);
+            if (!observed || stripOptionalWhitespace(observed.value) !== stripOptionalWhitespace(expected)) {
+                throw new Error(`scenario ${definition.name}: ${backendLabel} provider saw authorization ${JSON.stringify(observed?.value)}, expected ${JSON.stringify(expected)} (compared with surrounding optional whitespace stripped, RFC 7230 3.2.4); requests=${(recorded.body.requests ?? []).length} headerNames=${JSON.stringify((recorded.body.requests ?? []).map(entry => entry.headers.map(header => header.name)))} urls=${JSON.stringify((recorded.body.requests ?? []).map(entry => entry.url))}`);
             }
             authorizationKeyVerified = true;
         }

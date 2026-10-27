@@ -13539,6 +13539,189 @@
         "pinnedLiteral": "https://api.cohere.ai/v2"
       }
     },
+    "custom-empty-api-key": {
+      "scenario": "custom-empty-api-key.json",
+      "purpose": "CUSTOM with NO api_key_custom secret stored -- the state of a user who configured a local or keyless endpoint (Ollama, llama.cpp, LM Studio), which the custom source exists to serve. Pinned builds the header UNCONDITIONALLY: `'Authorization': 'Bearer ' + apiKey` (src/endpoints/backends/chat-completions.js:933), with apiKey from readSecret (:2396) being undefined when nothing is stored. So the expected wire form is an Authorization header that is PRESENT and equal to 'Bearer ' with a trailing space -- not an absent header, and not 'Bearer undefined'. The three outcomes are distinguishable at the recorded peer and are exactly the reason this scenario exists: an implementation that omitted the header when the key was empty would be 'safer' than pinned and would still work against a keyless endpoint, so nothing but a byte recording can catch it.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "custom-source",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "custom",
+              "custom_url": "http://<mock>/v1",
+              "model": "keyless-local-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": false
+            },
+            "bodySha256": "745bb9c3b33241e76dfc08aee84fbda58d1fe0ffa8cd42288ab1563ea496ae7d"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/v1/chat/completions",
+            "rawPath": "/v1/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "189"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"keyless-local-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJrZXlsZXNzLWxvY2FsLW1vZGVsIiwidGVtcGVyYXR1cmUiOjAuNSwibWF4X3Rva2VucyI6NjQsInN0cmVhbSI6ZmFsc2V9",
+            "bodyLength": 189,
+            "bodySha256": "a7731d1e332a74b1410308e6051538f58b5673f97f7791b78e87be65c1a63f18",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"89-dBsZlhrkHDxXlsMeAnKRe7Hkq0A\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "mock-custom-keyless",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock keyless reply"
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "There is NO stored key in this scenario, so the value is the literal 'Bearer ' with nothing after it (chat-completions.js:933 concatenates unconditionally). The VALUE carries no secret, but it is a credential-shaped header and the recording harness refuses to commit one that normalisation has not rewritten (probe-provider-wire.mjs:503-518) -- so the rule is declared for the same reason it is declared elsewhere: the CONTRACT here is presence plus scheme, and the empty remainder is the property under test, which the guard's shape-preserving rewrite keeps visible.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:933 'Authorization': 'Bearer ' + apiKey"
+          },
+          {
+            "path": "http.requests[].body.custom_url and its bodySha256",
+            "rule": "the mock authority is replaced with <mock> before hashing",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. The rest of the body is compared byte for byte through the digest.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2395 apiUrl = request.body.custom_url"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": false,
+      "apiKeyVerified": false
+    },
     "custom-exclude-body": {
       "scenario": "custom-exclude-body.json",
       "purpose": "CUSTOM custom_exclude_body. excludeKeysByYaml(requestBody, ...) at :2672 runs on the ASSEMBLED request body, so it can delete a member the shared member list copied (temperature) as well as a boolean (stream). The request sends both, and the YAML is the ARRAY shape ('- name'), which is one of the three shapes the helper accepts. A body that ignored the option, or that applied it before assembly, would still carry temperature and stream.",
@@ -13658,6 +13841,190 @@
               "message": {
                 "role": "assistant",
                 "content": "mock custom reply"
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; presence and scheme are the contract, the value is not.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2396 apiKey = readSecret(request.user.directories, SECRET_KEYS.CUSTOM, request.body.secret_id)"
+          },
+          {
+            "path": "http.requests[].body.custom_url and its bodySha256",
+            "rule": "the mock authority is replaced with <mock> before hashing",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. The rest of the body is compared byte for byte through the digest.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2395 apiUrl = request.body.custom_url"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false
+    },
+    "custom-include-body-overrides-assembled": {
+      "scenario": "custom-include-body-overrides-assembled.json",
+      "purpose": "CUSTOM custom_include_body applied to a member the route has ALREADY assembled from the request. `mergeObjectWithYaml(bodyParams, request.body.custom_include_body)` (:2409) runs AFTER bodyParams was built, so a user-supplied member both ADDS a new key and OVERRIDES an assembled one, with the user's value winning. The request below sends custom_include_body defining `temperature: 0.11` (the request also sends temperature 0.5, which the route copies into bodyParams) plus a member the route never sets (`probe_extra_member`). Two behaviours a plausible implementation gets wrong are therefore both visible in the recorded body: applying the YAML BEFORE assembly (0.5 would win) and ignoring unknown members (probe_extra_member would be absent).",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "custom-source",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "custom",
+              "custom_url": "http://<mock>/v1",
+              "custom_include_body": "temperature: 0.11\nprobe_extra_member: from-user-yaml",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": false
+            },
+            "bodySha256": "45af79168df628d9a74cb3b52356d65dc1ff30aed3a6d906b75dab245fc8029a"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/v1/chat/completions",
+            "rawPath": "/v1/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "220"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"probe-model\",\"temperature\":0.11,\"max_tokens\":64,\"stream\":false,\"probe_extra_member\":\"from-user-yaml\"}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJwcm9iZS1tb2RlbCIsInRlbXBlcmF0dXJlIjowLjExLCJtYXhfdG9rZW5zIjo2NCwic3RyZWFtIjpmYWxzZSwicHJvYmVfZXh0cmFfbWVtYmVyIjoiZnJvbS11c2VyLXlhbWwifQ==",
+            "bodyLength": 220,
+            "bodySha256": "ccb105cbb5fe298fc593a2942de9342bc0faaf13d9792be7e1bf92d795fffedf",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"92-+GEsE1BxjfSpHMCsR8j6CsYQB3s\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "mock-custom-override",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock custom override reply"
               },
               "finish_reason": "stop"
             }
@@ -14458,6 +14825,189 @@
           "host",
           "user-agent",
           "x-probe-custom"
+        ],
+        "normalized": [
+          "Host",
+          "authorization"
+        ],
+        "excluded": [
+          "x-response-time"
+        ]
+      },
+      "authorizationKeyVerified": true,
+      "apiKeyVerified": false
+    },
+    "custom-url-trailing-path": {
+      "scenario": "custom-url-trailing-path.json",
+      "purpose": "CUSTOM with a custom_url that ALREADY carries a path segment. Pinned assembles the provider target as raw string concatenation, `fetch(apiUrl + '/chat/completions', config)` (src/endpoints/backends/chat-completions.js:942), where apiUrl is request.body.custom_url VERBATIM (:2395). So a custom_url of <mock>/v1/openai produces <mock>/v1/openai/chat/completions -- the path is KEPT, not replaced, and not normalised. This is the case a user hits whenever their provider documents a versioned base URL. An implementation that resolved the URL relative to the origin (new URL('/chat/completions', base)) would DROP /v1/openai and still answer 200 from a tolerant mock, so the recording is the only way to tell the two apart: the recorded rawTarget is the contract.",
+      "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+      "targetPath": "custom-source",
+      "comparisonRule": "Assert on bodySha256 and bodyLength, which cover the exact bytes. bodyText is a readability projection only and must never be compared: a byte-level encoding difference would round-trip away.",
+      "http": {
+        "observed": true,
+        "note": "Stage 1 drives the backend directly with the browser-equivalent request; this is the driver request, not a browser capture. The mock authority is normalized to <mock> because the mock listens on an ephemeral port.",
+        "requests": [
+          {
+            "method": "POST",
+            "path": "/api/backends/chat-completions/generate",
+            "body": {
+              "chat_completion_source": "custom",
+              "custom_url": "http://<mock>/v1/openai",
+              "model": "probe-model",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "probe system marker"
+                },
+                {
+                  "role": "user",
+                  "content": "probe user marker"
+                }
+              ],
+              "max_tokens": 64,
+              "temperature": 0.5,
+              "stream": false
+            },
+            "bodySha256": "ac6ccc5e76d331d9916a4408de5f0ebb8c33729252dbe5d5556fd111330c812a"
+          }
+        ]
+      },
+      "provider": {
+        "observed": true,
+        "requests": [
+          {
+            "index": 0,
+            "method": "POST",
+            "rawTarget": "/v1/openai/chat/completions",
+            "rawPath": "/v1/openai/chat/completions",
+            "rawQuery": "",
+            "proto": "HTTP/1.1",
+            "headers": [
+              {
+                "name": "accept",
+                "value": "*/*"
+              },
+              {
+                "name": "accept-encoding",
+                "value": "gzip, deflate, br"
+              },
+              {
+                "name": "authorization",
+                "value": "Bearer <redacted>"
+              },
+              {
+                "name": "content-length",
+                "value": "181"
+              },
+              {
+                "name": "content-type",
+                "value": "application/json"
+              },
+              {
+                "name": "user-agent",
+                "value": "node-fetch"
+              },
+              {
+                "name": "Host",
+                "value": "<mock-authority>"
+              },
+              {
+                "name": "Connection",
+                "value": "close"
+              }
+            ],
+            "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"probe system marker\"},{\"role\":\"user\",\"content\":\"probe user marker\"}],\"model\":\"probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false}",
+            "bodyBase64": "eyJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJwcm9iZSBzeXN0ZW0gbWFya2VyIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJwcm9iZSB1c2VyIG1hcmtlciJ9XSwibW9kZWwiOiJwcm9iZS1tb2RlbCIsInRlbXBlcmF0dXJlIjowLjUsIm1heF90b2tlbnMiOjY0LCJzdHJlYW0iOmZhbHNlfQ==",
+            "bodyLength": 181,
+            "bodySha256": "4d8cd2d472b1c33a8860690eb8fed1655436f1b64f6bc0567585bf157e477aac",
+            "chunked": false,
+            "clientDisconnected": false
+          }
+        ]
+      },
+      "providerResponse": {
+        "observed": true,
+        "status": 200,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-opener-policy": "same-origin",
+          "cross-origin-resource-policy": "same-origin",
+          "etag": "W/\"92-J5J32MNalD3ShEupWr07SeaUdBA\"",
+          "origin-agent-cluster": "?1",
+          "referrer-policy": "no-referrer",
+          "strict-transport-security": "max-age=31536000; includeSubDomains",
+          "vary": "Origin, Accept-Encoding",
+          "x-content-type-options": "nosniff",
+          "x-dns-prefetch-control": "off",
+          "x-download-options": "noopen",
+          "x-frame-options": "SAMEORIGIN",
+          "x-permitted-cross-domain-policies": "none",
+          "x-xss-protection": "0"
+        },
+        "contentType": "application/json; charset=utf-8",
+        "abortedByDriver": false,
+        "driverTimedOut": false,
+        "body": {
+          "id": "mock-custom-trailing",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "mock custom trailing reply"
+              },
+              "finish_reason": "stop"
+            }
+          ]
+        }
+      },
+      "browserEvents": {
+        "observed": false,
+        "reason": "Stage 1 has no browser: the request is driven directly. Browser-side prompt assembly and events belong to a later stage."
+      },
+      "filesystem": {
+        "observed": false,
+        "reason": "Provider-wire stage 1 compares the request that reaches the provider; data-tree effects are covered by the existing domain oracles."
+      },
+      "normalization": {
+        "tier2": [
+          {
+            "path": "provider.requests[].headers[Host]",
+            "rule": "value replaced with <mock-authority>",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+            "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port, so the authority is not stable"
+          },
+          {
+            "path": "provider.requests[].headers[authorization]",
+            "rule": "value replaced with Bearer <redacted>, presence and scheme preserved",
+            "reason": "The scenario supplies a synthetic key; presence and scheme are the contract, the value is not.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2396 apiKey = readSecret(request.user.directories, SECRET_KEYS.CUSTOM, request.body.secret_id)"
+          },
+          {
+            "path": "http.requests[].body.custom_url and its bodySha256",
+            "rule": "the mock authority is replaced with <mock> before hashing",
+            "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend. The rest of the body is compared byte for byte through the digest.",
+            "pinnedSource": "src/endpoints/backends/chat-completions.js:2395 apiUrl = request.body.custom_url"
+          }
+        ],
+        "tier3": [
+          {
+            "path": "providerResponse.headers[x-response-time]",
+            "rule": "excluded from the compared headers",
+            "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+            "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+          }
+        ]
+      },
+      "headerCoverage": {
+        "comparedExactly": [
+          "accept",
+          "accept-encoding",
+          "connection",
+          "content-length",
+          "content-type",
+          "host",
+          "user-agent"
         ],
         "normalized": [
           "Host",
