@@ -258,13 +258,50 @@ func bootServer(t *testing.T, extraEnvironment map[string]string) *serverProcess
 // the freshly seeded one this harness invents. Every other caller keeps using bootServer.
 func bootServerAt(t *testing.T, installRoot, dataRoot string, extraEnvironment map[string]string) *serverProcess {
 	t.Helper()
+	return bootServerIn(t, installRoot, installRoot, dataRoot, extraEnvironment)
+}
+
+// bootServerIn boots the binary into installRoot while the PROCESS starts in workingDirectory, and hands it
+// an absolute --dataRoot. That is the layout `cd /srv && /srv/gotavern --dataRoot <abs>`: the launch
+// directory and the install tree are different, and the data root is named outright.
+//
+// WHY A CASE NEEDS THIS. Two startup questions cannot be asked with bootServerAt, because it makes CWD ==
+// install root and passes an absolute dataRoot:
+//
+//   - does a FOREIGN working directory change where anything is created or written? (it must not)
+//   - does an absolute --dataRoot still win over a config file's relative `dataRoot`?
+//
+// and for the second one the answer only means something if the case can name the config whose value is
+// being overridden -- bootServerConfigIn.
+func bootServerIn(t *testing.T, installRoot, workingDirectory, dataRoot string, extraEnvironment map[string]string) *serverProcess {
+	t.Helper()
+	server := bootServerCommand(t, installRoot, workingDirectory, extraEnvironment, []string{"--dataRoot", dataRoot})
+	server.dataRoot = dataRoot
+	return server
+}
+
+// bootServerConfigIn boots with NO --dataRoot, naming only the config file, so the data root is whatever
+// that document resolves to -- exactly as it is for a user who edits config.yaml and runs the binary. The
+// caller asserts the resolution it expects against the tree and the warnings; this function supplies no
+// expectation of its own, because a harness that predicted the answer could not detect a wrong one.
+func bootServerConfigIn(t *testing.T, installRoot, workingDirectory, configPath string, extraEnvironment map[string]string) *serverProcess {
+	t.Helper()
+	return bootServerCommand(t, installRoot, workingDirectory, extraEnvironment, []string{"--configPath", configPath})
+}
+
+// bootServerCommand is the single boot implementation. pathsArguments is everything the case says about
+// paths; the rest of the recipe is fixed, so no case can vary the listener or the heartbeat by accident.
+//
+// dataRoot is LEFT EMPTY: it is the recording of a flag the caller may not have passed, and the boot's own
+// resolution is deliberately not predicted here (see bootServerConfigIn).
+func bootServerCommand(t *testing.T, installRoot, workingDirectory string, extraEnvironment map[string]string, pathsArguments []string) *serverProcess {
+	t.Helper()
 	binary := resolveBinary(t, installRoot)
 	port := freePort(t)
 
-	command := exec.Command(binary, []string{
-		"start",
-		"--configPath", filepath.Join(installRoot, "config.yaml"),
-		"--dataRoot", dataRoot,
+	arguments := []string{"start"}
+	arguments = append(arguments, pathsArguments...)
+	arguments = append(arguments,
 		"--listenAddressIPv4", "127.0.0.1",
 		"--enableIPv4", "true",
 		"--enableIPv6", "false",
@@ -272,17 +309,20 @@ func bootServerAt(t *testing.T, installRoot, dataRoot string, extraEnvironment m
 		"--port", strconv.Itoa(port),
 		"--browserLaunchEnabled", "false",
 		"--heartbeatInterval", "0",
-	}...)
-	command.Dir = installRoot
+	)
+	command := exec.Command(binary, arguments...)
+	command.Dir = workingDirectory
 	command.Env = childEnvironment(extraEnvironment)
 	server := &serverProcess{
-		origin:   "http://127.0.0.1:" + strconv.Itoa(port),
-		install:  installRoot,
-		dataRoot: dataRoot,
-		stdout:   &capturedOutput{},
-		stderr:   &capturedOutput{},
-		command:  command,
-		exitCh:   make(chan struct{}),
+		origin:  "http://127.0.0.1:" + strconv.Itoa(port),
+		install: installRoot,
+		// dataRoot is filled in by bootServerIn for the callers that passed the flag. It stays empty for
+		// bootServerConfigIn on purpose: the boot's own resolution is what those cases assert, and a harness
+		// that recorded its own guess here could satisfy a comparison against itself.
+		stdout:  &capturedOutput{},
+		stderr:  &capturedOutput{},
+		command: command,
+		exitCh:  make(chan struct{}),
 	}
 	command.Stdout = server.stdout
 	command.Stderr = server.stderr
