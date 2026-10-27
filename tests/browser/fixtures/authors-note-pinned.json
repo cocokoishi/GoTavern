@@ -1,0 +1,985 @@
+{
+  "schemaVersion": 1,
+  "surface": "authors-note",
+  "question": "At which position RELATIVE to the history turns, the world-info entries and the other injections does the pinned frontend put the Author's Note, for each (position, depth, role, enabled) the UI offers?",
+  "measuredBy": "pinned-leg",
+  "method": "every case is driven by run-against-pinned.mjs generation-probe.mjs with PROBE_MODE=preset PROBE_AUTHORS_NOTE_CASE=<id> (the same program, arguments and clean state as the compared pinned leg); the observation is the provider REQUEST that drive produced",
+  "pinnedBaseline": "SillyTavern 1.19.0, commit 06bde939fb1e9c4c8d8641d810f0a9165bce127",
+  "context": {
+    "keepContext": 4260,
+    "note": "the context preset-boundary-search.mjs measured; the legs and this sweep must run at the SAME budget or the note and the trimmer compete for it"
+  },
+  "parityDepth": 6,
+  "turns": [
+    {
+      "id": "TURN_00",
+      "textHead": "PRESET_HIST_7F TURN_00 oldest older olde"
+    },
+    {
+      "id": "TURN_01",
+      "textHead": "PRESET_HIST_7F TURN_01 turn-01 turn-01 t"
+    },
+    {
+      "id": "TURN_02",
+      "textHead": "PRESET_HIST_7F TURN_02 turn-02 turn-02 t"
+    },
+    {
+      "id": "TURN_03",
+      "textHead": "PRESET_HIST_7F TURN_03 turn-03 turn-03 t"
+    },
+    {
+      "id": "TURN_04",
+      "textHead": "PRESET_HIST_7F TURN_04 turn-04 turn-04 t"
+    },
+    {
+      "id": "TURN_05",
+      "textHead": "PRESET_HIST_7F TURN_05 turn-05 turn-05 t"
+    },
+    {
+      "id": "TURN_06",
+      "textHead": "PRESET_HIST_7F TURN_06 turn-06 turn-06 t"
+    },
+    {
+      "id": "TURN_07",
+      "textHead": "PRESET_HIST_7F TURN_07 turn-07 turn-07 t"
+    },
+    {
+      "id": "TURN_08",
+      "textHead": "PRESET_HIST_7F TURN_08 turn-08 turn-08 t"
+    },
+    {
+      "id": "TURN_09",
+      "textHead": "PRESET_HIST_7F TURN_09 turn-09 turn-09 t"
+    },
+    {
+      "id": "TURN_10",
+      "textHead": "PRESET_HIST_7F TURN_10 turn-10 turn-10 t"
+    },
+    {
+      "id": "TURN_11",
+      "textHead": "PRESET_HIST_7F TURN_11 turn-11 turn-11 t"
+    }
+  ],
+  "cases": {
+    "parity": {
+      "failure": null,
+      "bodySha256": "0465d2215dd1526ffc647b9ad705a23d4c0186ac84c7e0bf1ec60f95eb32ff38",
+      "bodyLength": 13144,
+      "layout": {
+        "messageCount": 26,
+        "noteIndex": 17,
+        "noteRole": "system",
+        "noteTextHead": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+        "noteMemberNames": [
+          "content",
+          "role"
+        ],
+        "historyCount": 11,
+        "historyAbove": 6,
+        "historyBelow": 5,
+        "historyIndices": [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "above": {
+          "index": 16,
+          "role": "user",
+          "textHead": "PRESET_HIST_7F TURN_06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 turn-06 t"
+        },
+        "below": {
+          "index": 18,
+          "role": "assistant",
+          "textHead": "PRESET_HIST_7F TURN_07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 turn-07 t"
+        },
+        "oldestHistoryIndex": 11,
+        "newestHistoryIndex": 22,
+        "aboveNote": {
+          "worldBefore": true,
+          "worldAfter": true,
+          "worldDepth": false,
+          "chatTurns": 0
+        },
+        "chatTurnsAbove": 0,
+        "chatTurnsBelow": 0,
+        "carriesNoteMarker": true,
+        "hasItsOwnMessage": true,
+        "carriesPresetNoteInsteadOfOverlay": false,
+        "insideSomeOtherMessage": -1
+      },
+      "declaredTurns": [
+        "TURN_00",
+        "TURN_01",
+        "TURN_02",
+        "TURN_03",
+        "TURN_04",
+        "TURN_05",
+        "TURN_06",
+        "TURN_07",
+        "TURN_08",
+        "TURN_09",
+        "TURN_10",
+        "TURN_11"
+      ],
+      "overlay": {
+        "caseId": "parity",
+        "depth": 6,
+        "position": 1,
+        "interval": 1,
+        "role": 0,
+        "fieldsPresent": {
+          "prompt": true,
+          "interval": true,
+          "depth": true,
+          "role": true,
+          "positionRadio": true
+        },
+        "extensionPrompt": {
+          "value": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+          "position": 1,
+          "depth": 6,
+          "role": 0,
+          "scan": false
+        },
+        "counter": "0",
+        "problems": [],
+        "requested": {
+          "id": "parity",
+          "role": "system",
+          "enabled": true,
+          "depthIntent": "item",
+          "depthFromParity": 0,
+          "depth": 6,
+          "position": "IN_CHAT",
+          "interval": 1,
+          "text": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+          "caseId": "parity"
+        }
+      },
+      "preSend": {
+        "caseId": "parity",
+        "requested": {
+          "depth": 6,
+          "position": "IN_CHAT",
+          "interval": 1,
+          "role": "system"
+        },
+        "applied": {
+          "caseId": "parity",
+          "depth": 6,
+          "position": 1,
+          "interval": 1,
+          "role": 0,
+          "fieldsPresent": {
+            "prompt": true,
+            "interval": true,
+            "depth": true,
+            "role": true,
+            "positionRadio": true
+          },
+          "extensionPrompt": {
+            "value": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+            "position": 1,
+            "depth": 6,
+            "role": 0,
+            "scan": false
+          },
+          "counter": "0"
+        },
+        "extensionPrompt": {
+          "value": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+          "position": 1,
+          "depth": 6,
+          "scan": false,
+          "role": 0,
+          "filter": null
+        }
+      },
+      "requested": {
+        "id": "parity",
+        "role": "system",
+        "enabled": true,
+        "depthIntent": "item",
+        "depthFromParity": 0,
+        "depth": 6,
+        "position": "IN_CHAT",
+        "interval": 1,
+        "text": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+        "caseId": "parity"
+      }
+    },
+    "depth0": {
+      "failure": null,
+      "bodySha256": "c94120602da4bcb0c4e597165be75a8c5055b86a3879d25e67dc8ae17b696549",
+      "bodyLength": 14558,
+      "layout": {
+        "messageCount": 23,
+        "noteIndex": 21,
+        "noteRole": "system",
+        "noteTextHead": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.\nPRESET_WI_DEPTH_7F The lantern burns without fuel.",
+        "noteMemberNames": [
+          "content",
+          "role"
+        ],
+        "historyCount": 12,
+        "historyAbove": 12,
+        "historyBelow": 0,
+        "historyIndices": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "above": {
+          "index": 20,
+          "role": "user",
+          "textHead": "probe user marker PRESET_SEND_7F"
+        },
+        "below": {
+          "index": 22,
+          "role": "system",
+          "textHead": "PRESET_JAIL_7F post-history instruction that must stay last in the prompt block."
+        },
+        "oldestHistoryIndex": 8,
+        "newestHistoryIndex": 19,
+        "aboveNote": {
+          "worldBefore": true,
+          "worldAfter": true,
+          "worldDepth": false,
+          "chatTurns": 0
+        },
+        "chatTurnsAbove": 0,
+        "chatTurnsBelow": 0,
+        "carriesNoteMarker": true,
+        "hasItsOwnMessage": true,
+        "carriesPresetNoteInsteadOfOverlay": false,
+        "insideSomeOtherMessage": -1
+      },
+      "declaredTurns": [
+        "TURN_00",
+        "TURN_01",
+        "TURN_02",
+        "TURN_03",
+        "TURN_04",
+        "TURN_05",
+        "TURN_06",
+        "TURN_07",
+        "TURN_08",
+        "TURN_09",
+        "TURN_10",
+        "TURN_11"
+      ],
+      "overlay": {
+        "caseId": "depth0",
+        "depth": 0,
+        "position": 1,
+        "interval": 1,
+        "role": 0,
+        "fieldsPresent": {
+          "prompt": true,
+          "interval": true,
+          "depth": true,
+          "role": true,
+          "positionRadio": true
+        },
+        "extensionPrompt": {
+          "value": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+          "position": 1,
+          "depth": 0,
+          "role": 0,
+          "scan": false
+        },
+        "counter": "0",
+        "problems": [],
+        "requested": {
+          "id": "depth0",
+          "role": "system",
+          "enabled": true,
+          "depthIntent": "zero",
+          "depth": 0,
+          "position": "IN_CHAT",
+          "interval": 1,
+          "text": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+          "caseId": "depth0"
+        }
+      },
+      "preSend": {
+        "caseId": "depth0",
+        "requested": {
+          "depth": 0,
+          "position": "IN_CHAT",
+          "interval": 1,
+          "role": "system"
+        },
+        "applied": {
+          "caseId": "depth0",
+          "depth": 0,
+          "position": 1,
+          "interval": 1,
+          "role": 0,
+          "fieldsPresent": {
+            "prompt": true,
+            "interval": true,
+            "depth": true,
+            "role": true,
+            "positionRadio": true
+          },
+          "extensionPrompt": {
+            "value": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+            "position": 1,
+            "depth": 0,
+            "role": 0,
+            "scan": false
+          },
+          "counter": "0"
+        },
+        "extensionPrompt": {
+          "value": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+          "position": 1,
+          "depth": 0,
+          "scan": false,
+          "role": 0,
+          "filter": null
+        }
+      },
+      "requested": {
+        "id": "depth0",
+        "role": "system",
+        "enabled": true,
+        "depthIntent": "zero",
+        "depth": 0,
+        "position": "IN_CHAT",
+        "interval": 1,
+        "text": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+        "caseId": "depth0"
+      }
+    },
+    "depth4": {
+      "failure": null,
+      "bodySha256": "9d7b73b29a1b1e8c27e11bcbbd9479fd8a061020dde3a349ea7ae160a1e5ece1",
+      "bodyLength": 13144,
+      "layout": {
+        "messageCount": 26,
+        "noteIndex": 19,
+        "noteRole": "system",
+        "noteTextHead": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+        "noteMemberNames": [
+          "content",
+          "role"
+        ],
+        "historyCount": 11,
+        "historyAbove": 8,
+        "historyBelow": 3,
+        "historyIndices": [
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          20,
+          21,
+          22
+        ],
+        "above": {
+          "index": 18,
+          "role": "user",
+          "textHead": "PRESET_HIST_7F TURN_08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 turn-08 t"
+        },
+        "below": {
+          "index": 20,
+          "role": "assistant",
+          "textHead": "PRESET_HIST_7F TURN_09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 turn-09 t"
+        },
+        "oldestHistoryIndex": 11,
+        "newestHistoryIndex": 22,
+        "aboveNote": {
+          "worldBefore": true,
+          "worldAfter": true,
+          "worldDepth": false,
+          "chatTurns": 0
+        },
+        "chatTurnsAbove": 0,
+        "chatTurnsBelow": 0,
+        "carriesNoteMarker": true,
+        "hasItsOwnMessage": true,
+        "carriesPresetNoteInsteadOfOverlay": false,
+        "insideSomeOtherMessage": -1
+      },
+      "declaredTurns": [
+        "TURN_00",
+        "TURN_01",
+        "TURN_02",
+        "TURN_03",
+        "TURN_04",
+        "TURN_05",
+        "TURN_06",
+        "TURN_07",
+        "TURN_08",
+        "TURN_09",
+        "TURN_10",
+        "TURN_11"
+      ],
+      "overlay": {
+        "caseId": "depth4",
+        "depth": 4,
+        "position": 1,
+        "interval": 1,
+        "role": 0,
+        "fieldsPresent": {
+          "prompt": true,
+          "interval": true,
+          "depth": true,
+          "role": true,
+          "positionRadio": true
+        },
+        "extensionPrompt": {
+          "value": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+          "position": 1,
+          "depth": 4,
+          "role": 0,
+          "scan": false
+        },
+        "counter": "0",
+        "problems": [],
+        "requested": {
+          "id": "depth4",
+          "role": "system",
+          "enabled": true,
+          "depthIntent": "item",
+          "depthFromParity": -2,
+          "depth": 4,
+          "position": "IN_CHAT",
+          "interval": 1,
+          "text": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+          "caseId": "depth4"
+        }
+      },
+      "preSend": {
+        "caseId": "depth4",
+        "requested": {
+          "depth": 4,
+          "position": "IN_CHAT",
+          "interval": 1,
+          "role": "system"
+        },
+        "applied": {
+          "caseId": "depth4",
+          "depth": 4,
+          "position": 1,
+          "interval": 1,
+          "role": 0,
+          "fieldsPresent": {
+            "prompt": true,
+            "interval": true,
+            "depth": true,
+            "role": true,
+            "positionRadio": true
+          },
+          "extensionPrompt": {
+            "value": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+            "position": 1,
+            "depth": 4,
+            "role": 0,
+            "scan": false
+          },
+          "counter": "0"
+        },
+        "extensionPrompt": {
+          "value": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+          "position": 1,
+          "depth": 4,
+          "scan": false,
+          "role": 0,
+          "filter": null
+        }
+      },
+      "requested": {
+        "id": "depth4",
+        "role": "system",
+        "enabled": true,
+        "depthIntent": "item",
+        "depthFromParity": -2,
+        "depth": 4,
+        "position": "IN_CHAT",
+        "interval": 1,
+        "text": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+        "caseId": "depth4"
+      }
+    },
+    "depth8": {
+      "failure": null,
+      "bodySha256": "b5a96869fd7077b9ed596a5ca78fb4c2361932820baeaea04dc9173735a91cc4",
+      "bodyLength": 13144,
+      "layout": {
+        "messageCount": 26,
+        "noteIndex": 15,
+        "noteRole": "system",
+        "noteTextHead": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+        "noteMemberNames": [
+          "content",
+          "role"
+        ],
+        "historyCount": 11,
+        "historyAbove": 4,
+        "historyBelow": 7,
+        "historyIndices": [
+          11,
+          12,
+          13,
+          14,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "above": {
+          "index": 14,
+          "role": "user",
+          "textHead": "PRESET_HIST_7F TURN_04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 turn-04 t"
+        },
+        "below": {
+          "index": 16,
+          "role": "assistant",
+          "textHead": "PRESET_HIST_7F TURN_05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 turn-05 t"
+        },
+        "oldestHistoryIndex": 11,
+        "newestHistoryIndex": 22,
+        "aboveNote": {
+          "worldBefore": true,
+          "worldAfter": true,
+          "worldDepth": false,
+          "chatTurns": 0
+        },
+        "chatTurnsAbove": 0,
+        "chatTurnsBelow": 0,
+        "carriesNoteMarker": true,
+        "hasItsOwnMessage": true,
+        "carriesPresetNoteInsteadOfOverlay": false,
+        "insideSomeOtherMessage": -1
+      },
+      "declaredTurns": [
+        "TURN_00",
+        "TURN_01",
+        "TURN_02",
+        "TURN_03",
+        "TURN_04",
+        "TURN_05",
+        "TURN_06",
+        "TURN_07",
+        "TURN_08",
+        "TURN_09",
+        "TURN_10",
+        "TURN_11"
+      ],
+      "overlay": {
+        "caseId": "depth8",
+        "depth": 8,
+        "position": 1,
+        "interval": 1,
+        "role": 0,
+        "fieldsPresent": {
+          "prompt": true,
+          "interval": true,
+          "depth": true,
+          "role": true,
+          "positionRadio": true
+        },
+        "extensionPrompt": {
+          "value": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+          "position": 1,
+          "depth": 8,
+          "role": 0,
+          "scan": false
+        },
+        "counter": "0",
+        "problems": [],
+        "requested": {
+          "id": "depth8",
+          "role": "system",
+          "enabled": true,
+          "depthIntent": "item",
+          "depthFromParity": 2,
+          "depth": 8,
+          "position": "IN_CHAT",
+          "interval": 1,
+          "text": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+          "caseId": "depth8"
+        }
+      },
+      "preSend": {
+        "caseId": "depth8",
+        "requested": {
+          "depth": 8,
+          "position": "IN_CHAT",
+          "interval": 1,
+          "role": "system"
+        },
+        "applied": {
+          "caseId": "depth8",
+          "depth": 8,
+          "position": 1,
+          "interval": 1,
+          "role": 0,
+          "fieldsPresent": {
+            "prompt": true,
+            "interval": true,
+            "depth": true,
+            "role": true,
+            "positionRadio": true
+          },
+          "extensionPrompt": {
+            "value": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+            "position": 1,
+            "depth": 8,
+            "role": 0,
+            "scan": false
+          },
+          "counter": "0"
+        },
+        "extensionPrompt": {
+          "value": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+          "position": 1,
+          "depth": 8,
+          "scan": false,
+          "role": 0,
+          "filter": null
+        }
+      },
+      "requested": {
+        "id": "depth8",
+        "role": "system",
+        "enabled": true,
+        "depthIntent": "item",
+        "depthFromParity": 2,
+        "depth": 8,
+        "position": "IN_CHAT",
+        "interval": 1,
+        "text": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+        "caseId": "depth8"
+      }
+    },
+    "disabled-interval0": {
+      "failure": null,
+      "bodySha256": "c94a514779239e5d3b9cfea4042ee0ff7fea8ce1772cac4dd32ed8d80afdaa6f",
+      "bodyLength": 14501,
+      "layout": {
+        "messageCount": 23,
+        "noteIndex": -1,
+        "noteRole": null,
+        "noteTextHead": null,
+        "noteMemberNames": null,
+        "historyCount": 12,
+        "historyAbove": 0,
+        "historyBelow": 12,
+        "historyIndices": [
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "above": null,
+        "below": null,
+        "oldestHistoryIndex": 8,
+        "newestHistoryIndex": 19,
+        "aboveNote": {
+          "worldBefore": false,
+          "worldAfter": false,
+          "worldDepth": false,
+          "chatTurns": 0
+        },
+        "chatTurnsAbove": 0,
+        "chatTurnsBelow": 0,
+        "carriesNoteMarker": false,
+        "hasItsOwnMessage": false,
+        "carriesPresetNoteInsteadOfOverlay": false,
+        "insideSomeOtherMessage": -1
+      },
+      "declaredTurns": [
+        "TURN_00",
+        "TURN_01",
+        "TURN_02",
+        "TURN_03",
+        "TURN_04",
+        "TURN_05",
+        "TURN_06",
+        "TURN_07",
+        "TURN_08",
+        "TURN_09",
+        "TURN_10",
+        "TURN_11"
+      ],
+      "overlay": {
+        "caseId": "disabled-interval0",
+        "depth": 6,
+        "position": 1,
+        "interval": 0,
+        "role": 0,
+        "fieldsPresent": {
+          "prompt": true,
+          "interval": true,
+          "depth": true,
+          "role": true,
+          "positionRadio": true
+        },
+        "extensionPrompt": {
+          "value": "",
+          "position": -1,
+          "depth": 10000,
+          "role": 0,
+          "scan": false
+        },
+        "counter": "(disabled)",
+        "problems": [],
+        "requested": {
+          "id": "disabled-interval0",
+          "role": "system",
+          "enabled": false,
+          "depthIntent": "parity",
+          "disabledBy": "interval",
+          "depth": 6,
+          "position": "IN_CHAT",
+          "interval": 0,
+          "text": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+          "caseId": "disabled-interval0"
+        }
+      },
+      "preSend": {
+        "caseId": "disabled-interval0",
+        "requested": {
+          "depth": 6,
+          "position": "IN_CHAT",
+          "interval": 0,
+          "role": "system"
+        },
+        "applied": {
+          "caseId": "disabled-interval0",
+          "depth": 6,
+          "position": 1,
+          "interval": 0,
+          "role": 0,
+          "fieldsPresent": {
+            "prompt": true,
+            "interval": true,
+            "depth": true,
+            "role": true,
+            "positionRadio": true
+          },
+          "extensionPrompt": {
+            "value": "",
+            "position": -1,
+            "depth": 10000,
+            "role": 0,
+            "scan": false
+          },
+          "counter": "(disabled)"
+        },
+        "extensionPrompt": {
+          "value": "",
+          "position": -1,
+          "depth": 10000,
+          "scan": false,
+          "role": 0,
+          "filter": null
+        }
+      },
+      "requested": {
+        "id": "disabled-interval0",
+        "role": "system",
+        "enabled": false,
+        "depthIntent": "parity",
+        "disabledBy": "interval",
+        "depth": 6,
+        "position": "IN_CHAT",
+        "interval": 0,
+        "text": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+        "caseId": "disabled-interval0"
+      }
+    },
+    "in-prompt-depth6": {
+      "failure": null,
+      "bodySha256": "fc78522f99c9199fd425e5188170c7d54c78ee6ea71efd4024c50e006a810dd0",
+      "bodyLength": 13144,
+      "layout": {
+        "messageCount": 26,
+        "noteIndex": 1,
+        "noteRole": "system",
+        "noteTextHead": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+        "noteMemberNames": [
+          "content",
+          "role"
+        ],
+        "historyCount": 11,
+        "historyAbove": 0,
+        "historyBelow": 11,
+        "historyIndices": [
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "above": {
+          "index": 0,
+          "role": "system",
+          "textHead": "PRESET_MAIN_7F Write Seraphina's next reply in a fictional chat between Seraphina and Probe User."
+        },
+        "below": {
+          "index": 2,
+          "role": "system",
+          "textHead": "PRESET_WI_BEFORE_7F The glade remembers every name spoken in it.\nProbe User: \"What are your powers?\"\nSeraphina: *Seraphi"
+        },
+        "oldestHistoryIndex": 12,
+        "newestHistoryIndex": 22,
+        "aboveNote": {
+          "worldBefore": false,
+          "worldAfter": false,
+          "worldDepth": false,
+          "chatTurns": 0
+        },
+        "chatTurnsAbove": 0,
+        "chatTurnsBelow": 0,
+        "carriesNoteMarker": true,
+        "hasItsOwnMessage": true,
+        "carriesPresetNoteInsteadOfOverlay": false,
+        "insideSomeOtherMessage": -1
+      },
+      "declaredTurns": [
+        "TURN_00",
+        "TURN_01",
+        "TURN_02",
+        "TURN_03",
+        "TURN_04",
+        "TURN_05",
+        "TURN_06",
+        "TURN_07",
+        "TURN_08",
+        "TURN_09",
+        "TURN_10",
+        "TURN_11"
+      ],
+      "overlay": {
+        "caseId": "in-prompt-depth6",
+        "depth": 6,
+        "position": 0,
+        "interval": 1,
+        "role": 0,
+        "fieldsPresent": {
+          "prompt": true,
+          "interval": true,
+          "depth": true,
+          "role": true,
+          "positionRadio": true
+        },
+        "extensionPrompt": {
+          "value": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+          "position": 0,
+          "depth": 6,
+          "role": 0,
+          "scan": false
+        },
+        "counter": "0",
+        "problems": [],
+        "requested": {
+          "id": "in-prompt-depth6",
+          "role": "system",
+          "position": "IN_PROMPT",
+          "enabled": true,
+          "depthIntent": "item",
+          "depthFromParity": 0,
+          "depth": 6,
+          "interval": 1,
+          "text": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+          "caseId": "in-prompt-depth6"
+        }
+      },
+      "preSend": {
+        "caseId": "in-prompt-depth6",
+        "requested": {
+          "depth": 6,
+          "position": "IN_PROMPT",
+          "interval": 1,
+          "role": "system"
+        },
+        "applied": {
+          "caseId": "in-prompt-depth6",
+          "depth": 6,
+          "position": 0,
+          "interval": 1,
+          "role": 0,
+          "fieldsPresent": {
+            "prompt": true,
+            "interval": true,
+            "depth": true,
+            "role": true,
+            "positionRadio": true
+          },
+          "extensionPrompt": {
+            "value": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+            "position": 0,
+            "depth": 6,
+            "role": 0,
+            "scan": false
+          },
+          "counter": "0"
+        },
+        "extensionPrompt": {
+          "value": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+          "position": 0,
+          "depth": 6,
+          "scan": false,
+          "role": 0,
+          "filter": null
+        }
+      },
+      "requested": {
+        "id": "in-prompt-depth6",
+        "role": "system",
+        "position": "IN_PROMPT",
+        "enabled": true,
+        "depthIntent": "item",
+        "depthFromParity": 0,
+        "depth": 6,
+        "interval": 1,
+        "text": "PRESET_AN_DEPTH_7F Keep the reply under four sentences.",
+        "caseId": "in-prompt-depth6"
+      }
+    }
+  },
+  "failures": []
+}

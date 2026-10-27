@@ -1,0 +1,453 @@
+{
+  "schemaVersion": 1,
+  "surface": "authors-note",
+  "question": "Q17: is Author's Note depth the same -- does the note land at the position the pinned frontend puts it, relative to history, world info and the other injections?",
+  "pinnedBaseline": "SillyTavern 1.19.0, commit 06bde939fb1e9c4c8d8641d810f0a9165bce127",
+  "measuredBy": "pinned-leg",
+  "method": "the expectation is the pinned leg's own provider request (prepare-authors-note.mjs -> run-against-pinned.mjs generation-probe.mjs PROBE_MODE=preset); the compared legs are the same program with the same arguments; the request is compared byte-for-byte and the note's layout is compared field by field",
+  "context": {
+    "keepContext": 4260,
+    "note": "the context preset-boundary-search.mjs measured; the legs and this sweep must run at the SAME budget or the note and the trimmer compete for it"
+  },
+  "parityDepth": 6,
+  "inputs": {
+    "expectations": "authors-note-pinned.json",
+    "legs": [
+      "parity-{gotavern,pinned}.json",
+      "depth0-{gotavern,pinned}.json",
+      "depth4-{gotavern,pinned}.json",
+      "depth8-{gotavern,pinned}.json",
+      "disabled-interval0-{gotavern,pinned}.json",
+      "in-prompt-depth6-{gotavern,pinned}.json"
+    ]
+  },
+  "depthCoverage": {
+    "deepestMeasuredDepth": 8,
+    "pastHistoryInsideBudget": null,
+    "pastHistoryInsideBudgetWhy": "MEASURED ABSENT: at the keep context the budget holds 12 history turns only when the note is absent. Pinned legs: depth 8 -> 26 messages, 11 history turns, note present; depth 14 -> 23 messages, 12 history turns, note absent (Browser differential 40451173262); depth 20 -> the same 23/12/absent shape (40447689701). The class is therefore unmeasurable against this fixture and the case is retired, not tuned.",
+    "pastBudgetOutOfScope": {
+      "depths": [
+        14,
+        20
+      ],
+      "rule": "depth past the budget is a truncation fact, not a depth fact",
+      "measured": {
+        "depth20Run": "40447689701",
+        "depth14Run": "40451173262",
+        "noteAbsentBothRuns": true,
+        "collapsedOntoTheDisabledCase": "c94a514779239e5d (identical bytes for depth 20 and interval 0, on both subjects)"
+      },
+      "ownedBy": "Q18 (truncation-set-gate.mjs) at the boundary preset-boundary-search.mjs measured"
+    }
+  },
+  "cases": [
+    {
+      "caseId": "parity",
+      "case": {
+        "depth": 6,
+        "position": "IN_CHAT",
+        "interval": 1,
+        "role": "system",
+        "enabled": true,
+        "depthIntent": "item"
+      },
+      "verdict": "PASS",
+      "reason": "the note sits at 17 with 5 history turn(s) below it on both subjects, and the request bytes are identical (13144 B)",
+      "checks": {
+        "gotavernProducedARequest": true,
+        "pinnedProducedARequest": true,
+        "gotavernOverlayApplied": true,
+        "pinnedOverlayApplied": true,
+        "pinnedPreparationMatchesPinnedLeg": true,
+        "pinnedPreparationBytesMatchPinnedLeg": true,
+        "layout.noteIndex": true,
+        "layout.noteRole": true,
+        "layout.historyCount": true,
+        "layout.historyAbove": true,
+        "layout.historyBelow": true,
+        "layout.messageCount": true,
+        "layout.aboveNote.worldBefore": true,
+        "layout.aboveNote.worldAfter": true,
+        "layout.aboveNote.worldDepth": true,
+        "layout.aboveNote.chatTurns": true,
+        "layout.noteCarriesTheCaseText": true,
+        "layout.noteIsNotThePresetNote": true,
+        "bodySha256Equal": true,
+        "bodyLengthEqual": true,
+        "memberOrderEqual": true,
+        "messageCountEqual": true,
+        "allLayoutAndByteChecksPassed": true
+      },
+      "details": {
+        "pinnedExpectation": {
+          "noteIndex": 17,
+          "historyAbove": 6,
+          "historyBelow": 5,
+          "messageCount": 26,
+          "bodySha256": "0465d2215dd1526ffc647b9ad705a23d4c0186ac84c7e0bf1ec60f95eb32ff38",
+          "bodyLength": 13144
+        },
+        "pinnedLeg": {
+          "noteIndex": 17,
+          "historyBelow": 5,
+          "messageCount": 26,
+          "bodySha256": "0465d2215dd1526ffc647b9ad705a23d4c0186ac84c7e0bf1ec60f95eb32ff38"
+        },
+        "contract": {
+          "noteIsInTheRequest": true,
+          "noteIsIndexableWhenItIsNotAtTheNewestPosition": true,
+          "noteIsInsideTheChatRegion": true
+        },
+        "gotavern": {
+          "noteIndex": 17,
+          "historyBelow": 5,
+          "bodyLength": 13144
+        }
+      }
+    },
+    {
+      "caseId": "depth0",
+      "case": {
+        "depth": 0,
+        "position": "IN_CHAT",
+        "interval": 1,
+        "role": "system",
+        "enabled": true,
+        "depthIntent": "zero"
+      },
+      "verdict": "PASS",
+      "reason": "the note sits at 21 with 0 history turn(s) below it on both subjects, and the request bytes are identical (14558 B)",
+      "checks": {
+        "gotavernProducedARequest": true,
+        "pinnedProducedARequest": true,
+        "gotavernOverlayApplied": true,
+        "pinnedOverlayApplied": true,
+        "pinnedPreparationMatchesPinnedLeg": true,
+        "pinnedPreparationBytesMatchPinnedLeg": true,
+        "layout.noteIndex": true,
+        "layout.noteRole": true,
+        "layout.historyCount": true,
+        "layout.historyAbove": true,
+        "layout.historyBelow": true,
+        "layout.messageCount": true,
+        "layout.aboveNote.worldBefore": true,
+        "layout.aboveNote.worldAfter": true,
+        "layout.aboveNote.worldDepth": true,
+        "layout.aboveNote.chatTurns": true,
+        "layout.noteCarriesTheCaseText": true,
+        "layout.noteIsNotThePresetNote": true,
+        "bodySha256Equal": true,
+        "bodyLengthEqual": true,
+        "memberOrderEqual": true,
+        "messageCountEqual": true,
+        "allLayoutAndByteChecksPassed": true
+      },
+      "details": {
+        "pinnedExpectation": {
+          "noteIndex": 21,
+          "historyAbove": 12,
+          "historyBelow": 0,
+          "messageCount": 23,
+          "bodySha256": "c94120602da4bcb0c4e597165be75a8c5055b86a3879d25e67dc8ae17b696549",
+          "bodyLength": 14558
+        },
+        "pinnedLeg": {
+          "noteIndex": 21,
+          "historyBelow": 0,
+          "messageCount": 23,
+          "bodySha256": "c94120602da4bcb0c4e597165be75a8c5055b86a3879d25e67dc8ae17b696549"
+        },
+        "contract": {
+          "noteIsInTheRequest": true,
+          "noteIsIndexableWhenItIsNotAtTheNewestPosition": true,
+          "noteIsInsideTheChatRegion": true
+        },
+        "gotavern": {
+          "noteIndex": 21,
+          "historyBelow": 0,
+          "bodyLength": 14558
+        }
+      }
+    },
+    {
+      "caseId": "depth4",
+      "case": {
+        "depth": 4,
+        "position": "IN_CHAT",
+        "interval": 1,
+        "role": "system",
+        "enabled": true,
+        "depthIntent": "item"
+      },
+      "verdict": "PASS",
+      "reason": "the note sits at 19 with 3 history turn(s) below it on both subjects, and the request bytes are identical (13144 B)",
+      "checks": {
+        "gotavernProducedARequest": true,
+        "pinnedProducedARequest": true,
+        "gotavernOverlayApplied": true,
+        "pinnedOverlayApplied": true,
+        "pinnedPreparationMatchesPinnedLeg": true,
+        "pinnedPreparationBytesMatchPinnedLeg": true,
+        "layout.noteIndex": true,
+        "layout.noteRole": true,
+        "layout.historyCount": true,
+        "layout.historyAbove": true,
+        "layout.historyBelow": true,
+        "layout.messageCount": true,
+        "layout.aboveNote.worldBefore": true,
+        "layout.aboveNote.worldAfter": true,
+        "layout.aboveNote.worldDepth": true,
+        "layout.aboveNote.chatTurns": true,
+        "layout.noteCarriesTheCaseText": true,
+        "layout.noteIsNotThePresetNote": true,
+        "bodySha256Equal": true,
+        "bodyLengthEqual": true,
+        "memberOrderEqual": true,
+        "messageCountEqual": true,
+        "allLayoutAndByteChecksPassed": true
+      },
+      "details": {
+        "pinnedExpectation": {
+          "noteIndex": 19,
+          "historyAbove": 8,
+          "historyBelow": 3,
+          "messageCount": 26,
+          "bodySha256": "9d7b73b29a1b1e8c27e11bcbbd9479fd8a061020dde3a349ea7ae160a1e5ece1",
+          "bodyLength": 13144
+        },
+        "pinnedLeg": {
+          "noteIndex": 19,
+          "historyBelow": 3,
+          "messageCount": 26,
+          "bodySha256": "9d7b73b29a1b1e8c27e11bcbbd9479fd8a061020dde3a349ea7ae160a1e5ece1"
+        },
+        "contract": {
+          "noteIsInTheRequest": true,
+          "noteIsIndexableWhenItIsNotAtTheNewestPosition": true,
+          "noteIsInsideTheChatRegion": true
+        },
+        "gotavern": {
+          "noteIndex": 19,
+          "historyBelow": 3,
+          "bodyLength": 13144
+        }
+      }
+    },
+    {
+      "caseId": "depth8",
+      "case": {
+        "depth": 8,
+        "position": "IN_CHAT",
+        "interval": 1,
+        "role": "system",
+        "enabled": true,
+        "depthIntent": "item"
+      },
+      "verdict": "PASS",
+      "reason": "the note sits at 15 with 7 history turn(s) below it on both subjects, and the request bytes are identical (13144 B)",
+      "checks": {
+        "gotavernProducedARequest": true,
+        "pinnedProducedARequest": true,
+        "gotavernOverlayApplied": true,
+        "pinnedOverlayApplied": true,
+        "pinnedPreparationMatchesPinnedLeg": true,
+        "pinnedPreparationBytesMatchPinnedLeg": true,
+        "layout.noteIndex": true,
+        "layout.noteRole": true,
+        "layout.historyCount": true,
+        "layout.historyAbove": true,
+        "layout.historyBelow": true,
+        "layout.messageCount": true,
+        "layout.aboveNote.worldBefore": true,
+        "layout.aboveNote.worldAfter": true,
+        "layout.aboveNote.worldDepth": true,
+        "layout.aboveNote.chatTurns": true,
+        "layout.noteCarriesTheCaseText": true,
+        "layout.noteIsNotThePresetNote": true,
+        "bodySha256Equal": true,
+        "bodyLengthEqual": true,
+        "memberOrderEqual": true,
+        "messageCountEqual": true,
+        "allLayoutAndByteChecksPassed": true
+      },
+      "details": {
+        "pinnedExpectation": {
+          "noteIndex": 15,
+          "historyAbove": 4,
+          "historyBelow": 7,
+          "messageCount": 26,
+          "bodySha256": "b5a96869fd7077b9ed596a5ca78fb4c2361932820baeaea04dc9173735a91cc4",
+          "bodyLength": 13144
+        },
+        "pinnedLeg": {
+          "noteIndex": 15,
+          "historyBelow": 7,
+          "messageCount": 26,
+          "bodySha256": "b5a96869fd7077b9ed596a5ca78fb4c2361932820baeaea04dc9173735a91cc4"
+        },
+        "contract": {
+          "noteIsInTheRequest": true,
+          "noteIsIndexableWhenItIsNotAtTheNewestPosition": true,
+          "noteIsInsideTheChatRegion": true
+        },
+        "gotavern": {
+          "noteIndex": 15,
+          "historyBelow": 7,
+          "bodyLength": 13144
+        }
+      }
+    },
+    {
+      "caseId": "disabled-interval0",
+      "case": {
+        "depth": 6,
+        "position": "IN_CHAT",
+        "interval": 0,
+        "role": "system",
+        "enabled": false,
+        "depthIntent": "parity"
+      },
+      "verdict": "PASS",
+      "reason": "the note sits at -1 with 12 history turn(s) below it on both subjects, and the request bytes are identical (14501 B)",
+      "checks": {
+        "gotavernProducedARequest": true,
+        "pinnedProducedARequest": true,
+        "gotavernOverlayApplied": true,
+        "pinnedOverlayApplied": true,
+        "pinnedPreparationMatchesPinnedLeg": true,
+        "pinnedPreparationBytesMatchPinnedLeg": true,
+        "layout.noteIndex": true,
+        "layout.noteRole": true,
+        "layout.historyCount": true,
+        "layout.historyAbove": true,
+        "layout.historyBelow": true,
+        "layout.messageCount": true,
+        "layout.aboveNote.worldBefore": true,
+        "layout.aboveNote.worldAfter": true,
+        "layout.aboveNote.worldDepth": true,
+        "layout.aboveNote.chatTurns": true,
+        "layout.noteCarriesTheCaseText": true,
+        "layout.noteIsNotThePresetNote": true,
+        "bodySha256Equal": true,
+        "bodyLengthEqual": true,
+        "memberOrderEqual": true,
+        "messageCountEqual": true,
+        "allLayoutAndByteChecksPassed": true
+      },
+      "details": {
+        "pinnedExpectation": {
+          "noteIndex": -1,
+          "historyAbove": 0,
+          "historyBelow": 12,
+          "messageCount": 23,
+          "bodySha256": "c94a514779239e5d3b9cfea4042ee0ff7fea8ce1772cac4dd32ed8d80afdaa6f",
+          "bodyLength": 14501
+        },
+        "pinnedLeg": {
+          "noteIndex": -1,
+          "historyBelow": 12,
+          "messageCount": 23,
+          "bodySha256": "c94a514779239e5d3b9cfea4042ee0ff7fea8ce1772cac4dd32ed8d80afdaa6f"
+        },
+        "contract": {
+          "disabledCaseCarriesNoNote": true
+        },
+        "gotavern": {
+          "noteIndex": -1,
+          "historyBelow": 12,
+          "bodyLength": 14501
+        }
+      }
+    },
+    {
+      "caseId": "in-prompt-depth6",
+      "case": {
+        "depth": 6,
+        "position": "IN_PROMPT",
+        "interval": 1,
+        "role": "system",
+        "enabled": true,
+        "depthIntent": "item"
+      },
+      "verdict": "PASS",
+      "reason": "the note sits at 1 with 11 history turn(s) below it on both subjects, and the request bytes are identical (13144 B)",
+      "checks": {
+        "gotavernProducedARequest": true,
+        "pinnedProducedARequest": true,
+        "gotavernOverlayApplied": true,
+        "pinnedOverlayApplied": true,
+        "pinnedPreparationMatchesPinnedLeg": true,
+        "pinnedPreparationBytesMatchPinnedLeg": true,
+        "layout.noteIndex": true,
+        "layout.noteRole": true,
+        "layout.historyCount": true,
+        "layout.historyAbove": true,
+        "layout.historyBelow": true,
+        "layout.messageCount": true,
+        "layout.aboveNote.worldBefore": true,
+        "layout.aboveNote.worldAfter": true,
+        "layout.aboveNote.worldDepth": true,
+        "layout.aboveNote.chatTurns": true,
+        "layout.noteCarriesTheCaseText": true,
+        "layout.noteIsNotThePresetNote": true,
+        "bodySha256Equal": true,
+        "bodyLengthEqual": true,
+        "memberOrderEqual": true,
+        "messageCountEqual": true,
+        "allLayoutAndByteChecksPassed": true
+      },
+      "details": {
+        "pinnedExpectation": {
+          "noteIndex": 1,
+          "historyAbove": 0,
+          "historyBelow": 11,
+          "messageCount": 26,
+          "bodySha256": "fc78522f99c9199fd425e5188170c7d54c78ee6ea71efd4024c50e006a810dd0",
+          "bodyLength": 13144
+        },
+        "pinnedLeg": {
+          "noteIndex": 1,
+          "historyBelow": 11,
+          "messageCount": 26,
+          "bodySha256": "fc78522f99c9199fd425e5188170c7d54c78ee6ea71efd4024c50e006a810dd0"
+        },
+        "contract": {
+          "noteIsInTheRequest": true,
+          "noteIsIndexableWhenItIsNotAtTheNewestPosition": true,
+          "inPromptCaseSitsAboveTheHistory": true
+        },
+        "gotavern": {
+          "noteIndex": 1,
+          "historyBelow": 11,
+          "bodyLength": 13144
+        }
+      }
+    }
+  ],
+  "sweep": {
+    "parityCaseMeasured": true,
+    "aDeeperCaseIsStrictlyDeeperThanParity": true,
+    "aShallowerCaseIsStrictlyShallowerThanParity": true,
+    "depthZeroIsTheNewestPosition": true,
+    "deeperThanHistoryRetiredNotMeasured": null,
+    "pastHistoryInsideBudgetUnproven": null,
+    "theCapturesDiffer": true,
+    "everyCasePassed": true,
+    "disabledCaseIsNotAnEnabledCapture": true,
+    "expectationIsPinnedDerived": true
+  },
+  "notMeasured": [
+    "deeperThanHistoryRetiredNotMeasured",
+    "pastHistoryInsideBudgetUnproven"
+  ],
+  "failureReason": null,
+  "verdict": "PASS",
+  "verdictTaxonomy": [
+    "PRODUCT_MISMATCH",
+    "PINNED_BEHAVIOR",
+    "HARNESS_ERROR",
+    "INFRA_ERROR",
+    "BLOCKED",
+    "PASS"
+  ]
+}

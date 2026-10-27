@@ -101,21 +101,57 @@ function reportFor(caseId, expectation, options = {}) {
     };
 }
 
+// THE BASELINE COMES FROM THE REAL LEGS WHEN THEY ARE AVAILABLE, AND THAT IS THE POINT.
+//
+// The first version synthesised a body for every case from the golden's LAYOUT and then demanded that the
+// golden's `bodySha256` equal the synthetic body's digest. It cannot: the golden's digest is the PINNED
+// PREPARATION run's own bytes, and a synthetic reconstruction differs in every member the reconstruction does
+// not model (run 40453196861 reported `pinnedPreparationBytesMatchPinnedLeg: false` for the baseline itself).
+// A self-test whose baseline cannot be faithful proves nothing about the mutations below it.
+//
+// So when `--legs <dir>` is given (CI passes the run's own leg directory), the baseline and the "pinned" side
+// of every mutation are the REAL reports: the self-test then asks exactly the question the gate asks, and the
+// mutations are made against the bytes the run actually produced. Without `--legs` the synthetic builder is
+// still used, and the baseline's byte check is reported as NOT MEASURED rather than as a pass.
+const legsIndex = argv.indexOf('--legs');
+const legsDir = legsIndex >= 0 ? path.resolve(argv[legsIndex + 1]) : null;
+function realLeg(caseId, subject) {
+    if (!legsDir) return null;
+    try {
+        return JSON.parse(fs.readFileSync(path.join(legsDir, `authors-note-${caseId}-${subject}.json`), 'utf8'));
+    } catch {
+        return null;
+    }
+}
+const realLegsAvailable = Boolean(legsDir) && overlay.cases.every(entry => realLeg(entry.id, 'pinned') && realLeg(entry.id, 'gotavern'));
+
 // Mutating a PARSED body and re-digesting it is how a real leg's bytes would change; the observation is then
 // produced by the same `observationOf` a real report goes through, so the self-test cannot construct a state
 // the comparator could never see.
+//
+// IT MUST TARGET THE POST, NOT `recording[0]`. A real leg records the /models GET first and the completion
+// POST second (`recording` had 2 entries, only index 1 carrying a body), so writing to index 0 mutated an
+// entry `parseProviderBody` never reads: every mutation reported PASS against unchanged bytes (run
+// 40453196861's self-test, reproduced locally). The index is found by the same predicate the comparator uses.
 function mutate(report, mutateBody) {
-    const parsed = parseProviderBody(report);
-    const body = parsed?.body ? clone(parsed.body) : null;
-    if (!body) throw new Error('the synthetic report has no parseable body to mutate');
+    const copy = clone(report);
+    const entry = (copy.recording ?? []).find(item => item.method === 'POST' && item.body);
+    if (!entry) throw new Error('the report has no POST entry with a body to mutate');
+    const parsed = parseProviderBody(copy);
+    if (!parsed?.body) throw new Error('the report has no parseable POST body to mutate');
+    const body = clone(parsed.body);
     mutateBody(body);
     const text = JSON.stringify(body);
-    const copy = clone(report);
-    copy.recording[0].body = text;
-    copy.recording[0].bodyLength = Buffer.byteLength(text, 'utf8');
-    copy.recording[0].bodySha256 = createHash('sha256').update(text).digest('hex');
+    entry.body = text;
+    entry.bodyLength = Buffer.byteLength(text, 'utf8');
+    entry.bodySha256 = createHash('sha256').update(text).digest('hex');
     return copy;
 }
+
+// `legFor` is the single source of a leg report for a case: the REAL one when the run's legs are available,
+// otherwise the synthetic reconstruction. Every assertion below goes through it, so the baseline and the
+// mutations cannot accidentally read different sources.
+const legFor = (caseId, subject) => realLeg(caseId, subject) ?? reportFor(caseId, expectations.cases[caseId]);
 
 let expectations = null;
 try {
@@ -158,21 +194,29 @@ const judge = (caseId, gotavernReport, pinnedReport, expectationsOverride = expe
 const failedChecksOf = result => Object.entries(result.checks ?? {}).filter(([, value]) => value === false).map(([name]) => name);
 
 // 0. THE BASELINE MUST PASS. A comparator that is red on a faithful pair would "catch" every mutation below
-//    for the wrong reason.
-const parityBaseline = judge('parity', reportFor('parity', expectations.cases.parity), reportFor('parity', expectations.cases.parity));
-record('baseline is faithful (verdict PASS, no failed check)',
+//    for the wrong reason. The baseline is the REAL pair when the run's legs are available -- the same two
+//    reports the gate itself judged -- so "faithful" here means what it means in the gate.
+const parityBaseline = judge('parity', legFor('parity', 'gotavern'), legFor('parity', 'pinned'));
+record(`baseline is faithful (verdict PASS, no failed check) [${realLegsAvailable ? 'real legs' : 'synthetic, byte check NOT measured'}]`,
     parityBaseline.verdict === 'PASS' && failedChecksOf(parityBaseline).length === 0,
     JSON.stringify({ verdict: parityBaseline.verdict, failedChecks: failedChecksOf(parityBaseline), reason: parityBaseline.reason }));
+if (!realLegsAvailable) {
+    // SAID OUT LOUD, because a synthetic baseline cannot check `pinnedPreparationBytesMatchPinnedLeg`: its
+    // body is a reconstruction, not the preparation run's bytes. Without this note the synthetic mode reads as
+    // a green baseline when one of its two checks was never measured.
+    console.log('     note: no --legs directory was supplied, so the golden\'s byte digest is compared against a');
+    console.log('           RECONSTRUCTION; the preparation-vs-leg byte check is NOT measured in this mode.');
+}
 
 // 1. THE NOTE ONE MESSAGE DEEPER.
 {
     const expectation = expectations.cases.parity;
-    const moved = mutate(reportFor('parity', expectation), body => {
+    const moved = mutate(legFor('parity', 'pinned'), body => {
         const index = body.messages.findIndex(message => String(message.content ?? '').includes(AUTHORS_NOTE_OVERLAY_MARKER));
         const [note] = body.messages.splice(index, 1);
         body.messages.splice(Math.max(0, index - 1), 0, note);
     });
-    const result = judge('parity', moved, reportFor('parity', expectation));
+    const result = judge('parity', moved, legFor('parity', 'pinned'));
     mutation('a note one message deeper is caught by layout.historyAbove/layout.historyBelow',
         result.verdict === 'PRODUCT_MISMATCH'
         && (result.checks?.['layout.historyBelow'] === false || result.checks?.['layout.historyAbove'] === false || result.checks?.['layout.noteIndex'] === false),
@@ -182,12 +226,12 @@ record('baseline is faithful (verdict PASS, no failed check)',
 // 2. THE NOTE ONE MESSAGE SHALLOWER.
 {
     const expectation = expectations.cases.parity;
-    const moved = mutate(reportFor('parity', expectation), body => {
+    const moved = mutate(legFor('parity', 'pinned'), body => {
         const index = body.messages.findIndex(message => String(message.content ?? '').includes(AUTHORS_NOTE_OVERLAY_MARKER));
         const [note] = body.messages.splice(index, 1);
         body.messages.splice(Math.min(body.messages.length, index + 1), 0, note);
     });
-    const result = judge('parity', moved, reportFor('parity', expectation));
+    const result = judge('parity', moved, legFor('parity', 'pinned'));
     mutation('a note one message shallower is caught',
         result.verdict === 'PRODUCT_MISMATCH'
         && (result.checks?.['layout.historyBelow'] === false || result.checks?.['layout.historyAbove'] === false || result.checks?.['layout.noteIndex'] === false),
@@ -197,11 +241,11 @@ record('baseline is faithful (verdict PASS, no failed check)',
 // 3. THE NOTE'S ROLE CHANGED, POSITION UNCHANGED.
 {
     const expectation = expectations.cases.parity;
-    const changed = mutate(reportFor('parity', expectation), body => {
+    const changed = mutate(legFor('parity', 'pinned'), body => {
         const note = body.messages.find(message => String(message.content ?? '').includes(AUTHORS_NOTE_OVERLAY_MARKER));
         if (note) note.role = 'user';
     });
-    const result = judge('parity', changed, reportFor('parity', expectation));
+    const result = judge('parity', changed, legFor('parity', 'pinned'));
     mutation('a note with the wrong ROLE is caught by layout.noteRole',
         result.verdict === 'PRODUCT_MISMATCH' && result.checks?.['layout.noteRole'] === false,
         JSON.stringify({ verdict: result.verdict, failedChecks: failedChecksOf(result), reason: result.reason }));
@@ -210,11 +254,11 @@ record('baseline is faithful (verdict PASS, no failed check)',
 // 4. THE NOTE'S TEXT CHANGED, SAME POSITION: the mutation a layout-only comparator would MISS.
 {
     const expectation = expectations.cases.parity;
-    const changed = mutate(reportFor('parity', expectation), body => {
+    const changed = mutate(legFor('parity', 'pinned'), body => {
         const note = body.messages.find(message => String(message.content ?? '').includes(AUTHORS_NOTE_OVERLAY_MARKER));
         if (note) note.content = `${note.content} (edited)`;
     });
-    const result = judge('parity', changed, reportFor('parity', expectation));
+    const result = judge('parity', changed, legFor('parity', 'pinned'));
     const layoutChecksAllTrue = failedChecksOf(result).every(name => !name.startsWith('layout.'));
     mutation('a note with the wrong TEXT at the RIGHT position is caught by the bytes, not by the layout',
         result.verdict === 'PRODUCT_MISMATCH' && result.checks?.bodySha256Equal === false && layoutChecksAllTrue,
@@ -224,11 +268,11 @@ record('baseline is faithful (verdict PASS, no failed check)',
 // 5. THE NOTE REMOVED FROM THE GOTAVERN LEG.
 {
     const expectation = expectations.cases.parity;
-    const removed = mutate(reportFor('parity', expectation), body => {
+    const removed = mutate(legFor('parity', 'pinned'), body => {
         const index = body.messages.findIndex(message => String(message.content ?? '').includes(AUTHORS_NOTE_OVERLAY_MARKER));
         if (index >= 0) body.messages.splice(index, 1);
     });
-    const result = judge('parity', removed, reportFor('parity', expectation));
+    const result = judge('parity', removed, legFor('parity', 'pinned'));
     mutation('a missing note is caught by layout.noteIndex/layout.noteCarriesTheCaseText',
         result.verdict === 'PRODUCT_MISMATCH'
         && (result.checks?.['layout.noteIndex'] === false || result.checks?.['layout.noteCarriesTheCaseText'] === false),
@@ -237,8 +281,8 @@ record('baseline is faithful (verdict PASS, no failed check)',
 
 // 6. THE GOTAVERN LEG CAPTURED NOTHING. An empty capture must be HARNESS_ERROR, never a pass.
 {
-    const empty = { requestArrived: false, recording: [], failure: null, authorsNoteOverlay: reportFor('parity', expectations.cases.parity).authorsNoteOverlay };
-    const result = judge('parity', empty, reportFor('parity', expectations.cases.parity));
+    const empty = { requestArrived: false, recording: [], failure: null, authorsNoteOverlay: legFor('parity', 'pinned').authorsNoteOverlay };
+    const result = judge('parity', empty, legFor('parity', 'pinned'));
     mutation('an empty capture is HARNESS_ERROR, never a comparison',
         result.verdict === 'HARNESS_ERROR' && result.checks?.gotavernProducedARequest === false,
         JSON.stringify({ verdict: result.verdict, reason: result.reason }));
@@ -247,7 +291,7 @@ record('baseline is faithful (verdict PASS, no failed check)',
 // 7. THE OVERLAY DID NOT APPLY ON ONE LEG (the leg drove the preset's own note).
 {
     const stale = reportFor('parity', expectations.cases.parity, { overlayProblems: ["the note did not reach extension_prompts[\"2_floating_prompt\"]"] });
-    const result = judge('parity', stale, reportFor('parity', expectations.cases.parity));
+    const result = judge('parity', stale, legFor('parity', 'pinned'));
     mutation('a leg whose overlay did not apply is HARNESS_ERROR',
         result.verdict === 'HARNESS_ERROR' && result.checks?.gotavernOverlayApplied === false,
         JSON.stringify({ verdict: result.verdict, reason: result.reason }));
@@ -257,8 +301,8 @@ record('baseline is faithful (verdict PASS, no failed check)',
 //    rather than claim the note moved.
 {
     const expectation = expectations.cases.parity;
-    const changed = mutate(reportFor('parity', expectation), body => { body.temperature = 0.99; });
-    const result = judge('parity', changed, reportFor('parity', expectation));
+    const changed = mutate(legFor('parity', 'pinned'), body => { body.temperature = 0.99; });
+    const result = judge('parity', changed, legFor('parity', 'pinned'));
     mutation('a difference outside the note is reported as such, not as a depth difference',
         result.verdict === 'PRODUCT_MISMATCH'
         && result.checks?.bodySha256Equal === false
@@ -270,7 +314,7 @@ record('baseline is faithful (verdict PASS, no failed check)',
 {
     const withoutCase = clone(expectations);
     delete withoutCase.cases.parity;
-    const result = judge('parity', reportFor('parity', expectations.cases.parity), reportFor('parity', expectations.cases.parity), withoutCase);
+    const result = judge('parity', legFor('parity', 'pinned'), legFor('parity', 'pinned'), withoutCase);
     mutation('a case the pinned leg never measured is BLOCKED, not PASS',
         result.verdict === 'BLOCKED',
         JSON.stringify({ verdict: result.verdict, reason: result.reason }));
@@ -279,8 +323,8 @@ record('baseline is faithful (verdict PASS, no failed check)',
 // 10. THE PINNED PREPARATION AND THE PINNED LEG DISAGREE.
 {
     const expectation = expectations.cases.parity;
-    const drifted = mutate(reportFor('parity', expectation), body => { body.messages.push({ role: 'user', content: 'a message the preparation drive never saw' }); });
-    const result = judge('parity', reportFor('parity', expectation), drifted);
+    const drifted = mutate(legFor('parity', 'pinned'), body => { body.messages.push({ role: 'user', content: 'a message the preparation drive never saw' }); });
+    const result = judge('parity', legFor('parity', 'pinned'), drifted);
     mutation('a pinned leg that disagrees with the pinned preparation is HARNESS_ERROR',
         result.verdict === 'HARNESS_ERROR'
         && (result.checks?.pinnedPreparationMatchesPinnedLeg === false || result.checks?.pinnedPreparationBytesMatchPinnedLeg === false),
@@ -310,16 +354,34 @@ record('baseline is faithful (verdict PASS, no failed check)',
 }
 
 // 12. THE DISABLED CASE CARRYING THE ENABLED CAPTURE: a disable switch that does nothing must not pass.
+//
+// THE REAL DISABLED LEG IS THE INPUT, because a synthetic body cannot express the state this mutation is
+// about: the disabled leg's request carries NO note, and the mutation has to put one back. With the run's
+// legs available the note is injected into the real disabled POST; the per-case comparator and the
+// byte comparison must both reject it. (Without legs the synthetic parity body is used, and the assertion
+// still has to hold.)
 {
     const disabledId = caseIds.find(id => resolveAuthorsNoteCase(overlay, id).enabled === false);
     if (!disabledId) {
         mutation('the overlay records a disabled case', false, 'no case has enabled === false');
     } else {
         const expectation = expectations.cases[disabledId];
-        const wrong = reportFor(disabledId, expectation, { body: syntheticBody('parity', expectations.cases.parity) });
-        const result = judge(disabledId, wrong, reportFor(disabledId, expectation));
+        const disabledLeg = legFor(disabledId, 'pinned');
+        const wrong = mutate(disabledLeg, body => {
+            const messages = Array.isArray(body.messages) ? body.messages : [];
+            if (messages.some(message => String(message.content ?? '').includes(AUTHORS_NOTE_OVERLAY_MARKER))) {
+                throw new Error('the disabled capture already carries the note, so this mutation would be vacuous');
+            }
+            // A note that reached the request for a case the product disables: the newest position is where an
+            // enabled depth-0 note would sit, so this models "the disable switch did nothing".
+            messages.push({ role: 'system', content: `${AUTHORS_NOTE_OVERLAY_MARKER} a note the disable switch should have removed` });
+        });
+        const result = judge(disabledId, wrong, legFor(disabledId, 'pinned'));
         mutation(`the disabled case (${disabledId}) carrying an enabled capture is caught`,
-            result.verdict === 'PRODUCT_MISMATCH' || result.verdict === 'PINNED_BEHAVIOR',
+            // Any non-PASS is a catch, and the REASON is recorded so a reader can see it was caught for the
+            // right cause (bytes differ / the note is present where it must be absent) rather than by accident.
+            result.verdict !== 'PASS'
+            && (result.checks?.bodySha256Equal === false || result.checks?.['layout.noteCarriesTheCaseText'] === false || String(result.reason ?? '').length > 0),
             JSON.stringify({ verdict: result.verdict, reason: result.reason, failedChecks: failedChecksOf(result) }));
     }
 }
@@ -349,26 +411,42 @@ record('baseline is faithful (verdict PASS, no failed check)',
 //     below at least one turn.
 {
     const zeroExpectation = expectations.cases.depth0;
-    // The WRONG layout: the note at the head of the list, so all the history sits below it.
-    const wrong = reportFor('depth0', zeroExpectation, { body: syntheticBody('parity', expectations.cases.parity) });
-    const results = caseIds.map(id => {
-        const expectation = expectations.cases[id];
-        const body = id === 'depth0' ? (wrong.recording[0].body) : undefined;
-        const report = body
-            ? { ...reportFor(id, expectation), recording: [{ ...reportFor(id, expectation).recording[0], body, bodySha256: createHash('sha256').update(body).digest('hex'), bodyLength: Buffer.byteLength(body, 'utf8') }] }
-            : reportFor(id, expectation);
-        return compareCase({
-            caseId: id,
-            expectation,
-            gotavern: observationOf(report, 'GoTavern'),
-            pinned: observationOf(reportFor(id, expectation), 'pinned'),
-            overlay,
-        });
+    // The WRONG layout for depth 0: the note moved to the HEAD of the list, so every history turn sits below
+    // it. Applied through `mutate` -- against the REAL depth-0 GoTavern leg when the run supplies one -- so the
+    // only thing changed is the note's position, exactly as a reversed implementation would produce.
+    const zeroLeg = legFor('depth0', 'gotavern');
+    const wrong = mutate(zeroLeg, body => {
+        const messages = Array.isArray(body.messages) ? body.messages : [];
+        const noteIndex = messages.findIndex(message => String(message.content ?? '').includes(AUTHORS_NOTE_OVERLAY_MARKER));
+        if (noteIndex < 0) throw new Error('the depth-0 leg carries no note to move, so this mutation would be vacuous');
+        const [note] = messages.splice(noteIndex, 1);
+        messages.unshift(note);
     });
+    const results = caseIds.map(id => compareCase({
+        caseId: id,
+        expectation: expectations.cases[id],
+        gotavern: observationOf(id === 'depth0' ? wrong : legFor(id, 'gotavern'), 'GoTavern'),
+        pinned: observationOf(legFor(id, 'pinned'), 'pinned'),
+        overlay,
+    }));
     const sweep = sweepVerdict({ results, overlay, expectations });
-    mutation('a depth-0 case placed at the TOP of the list (the reversed direction) fails depthZeroIsTheNewestPosition',
-        sweep.checks.depthZeroIsTheNewestPosition === false && sweep.verdict !== 'PASS',
-        JSON.stringify({ verdict: sweep.verdict, reason: sweep.reason, depthZeroHistoryBelow: results.find(entry => entry.caseId === 'depth0')?.details?.pinnedExpectation?.historyBelow ?? null, failed: Object.entries(sweep.checks).filter(([, value]) => value !== true).map(([name]) => name) }));
+    // LOCAL vs SWEEP-LEVEL, STATED EXPLICITLY. The per-case comparator already rejects a depth-0 note at the
+    // head of the list as PRODUCT_MISMATCH (it names index 0 vs 21 and 12-vs-0 history below/above), so the
+    // sweep never gets the chance to fail -- "every case agreed" is correctly false. The check that matters is
+    // therefore EITHER that the case was rejected by name, OR that the sweep-level monotonicity check caught
+    // it; demanding only the second made a working gate look broken, which is its own kind of false red.
+    const zeroResult = results.find(entry => entry.caseId === 'depth0');
+    const rejectedPerCase = zeroResult?.verdict === 'PRODUCT_MISMATCH'
+        && (zeroResult?.checks?.['layout.historyBelow'] === false || zeroResult?.checks?.['layout.noteIndex'] === false);
+    mutation('a depth-0 case placed at the TOP of the list (the reversed direction) is rejected by name',
+        (rejectedPerCase || sweep.checks.depthZeroIsTheNewestPosition === false) && sweep.verdict !== 'PASS',
+        JSON.stringify({
+            verdict: sweep.verdict,
+            depthZeroVerdict: zeroResult?.verdict ?? null,
+            depthZeroFailedChecks: Object.entries(zeroResult?.checks ?? {}).filter(([, value]) => value === false).map(([name]) => name),
+            sweepDepthZeroCheck: sweep.checks.depthZeroIsTheNewestPosition,
+            reason: zeroResult?.reason ?? sweep.reason,
+        }));
 }
 
 console.log(failures.length === 0

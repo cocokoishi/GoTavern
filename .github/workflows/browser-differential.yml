@@ -924,11 +924,21 @@ jobs:
           cp "$work/legs/authors-note-comparison.json" tests/browser/authors-note-comparison.json
           echo "q17 verdict written to tests/browser/authors-note-comparison.json"
 
-      # DOES THE Q17 GATE HAVE TEETH? Synthetic legs, one thing broken per case, every mutation must be
-      # caught by a NAMED check. This proves the COMPARATOR can fail; it says nothing about the product.
+      # DOES THE Q17 GATE HAVE TEETH? One thing broken per case in the run's OWN legs, and every mutation must
+      # be caught by a NAMED check. This proves the COMPARATOR can fail; it says nothing about the product.
+      #
+      # `--legs` IS NOT OPTIONAL HERE. The first version synthesised every body from the golden's layout and
+      # then required the golden's `bodySha256` to equal the reconstruction's digest -- which cannot hold, since
+      # the golden's digest is the pinned PREPARATION run's own bytes. Run 40453196861 therefore reported the
+      # baseline itself as unfaithful (`pinnedPreparationBytesMatchPinnedLeg: false`) and 9 mutations
+      # "uncaught", all for the same harness reason. With the run's real legs the baseline is the same pair the
+      # gate judged, so a mutation is measured against the bytes the run actually produced.
       - name: Prove the Q17 gate has teeth
         if: ${{ ((github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all') && steps.preset.outputs.failures == '0' }}
-        run: node tests/browser/authors-note-gate-selftest.mjs
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          node tests/browser/authors-note-gate-selftest.mjs --legs "$work/legs"
 
       - name: Record the REAL-preset legs (preset A and preset B, on both subjects)
         id: real-preset
