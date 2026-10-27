@@ -193,28 +193,82 @@ func startupCases(t *testing.T) []caseSpec {
 		{
 			id:        "boot.foreign-cwd-relative-data-root",
 			checklist: "cwd.foreign",
-			// THIS CASE NEEDS A WORK ROOT NOBODY ELSE HAS TOUCHED, OR ITS CENTRAL FACT IS NOT ITS OWN. It reports a
-			// violation when the boot CREATED ./data under the work root and then USED a data root under the install
-			// tree instead. Run 40427159678 recorded that violation and the CI job for the very next commit
-			// (40430089029) recorded the same suite green, and the difference was not the product: the absolute case
-			// above boots over the SHARED foreignWork, so whether foreignWork/data exists when this case looks is a
-			// property of case order and of what a previous process left behind. Its own TempDir makes `created` a
-			// fact THIS case caused, which is the only reading that can judge the product.
+			// THIS CASE'S CENTRAL INPUT MUST REACH THE SUBJECT, AND ON main/a5660b6 IT DID NOT.
+			//
+			// The case plants `dataRoot: "./data"` in <work>/config.yaml and boots with startProductArgs, which
+			// passes NO --configPath. internal/app/server.go:129-131 reproduces pinned's
+			// `process.chdir(serverDirectory)` (server.js:11) whenever the caller names no path option, so the
+			// boot parsed <install>/config.yaml -- a DIFFERENT document -- and the planted `dataRoot` was never
+			// read. The case then took `if startErr == nil { return okResult("booted (...)") }`, which asserts
+			// nothing at all. A case whose input does not arrive cannot judge the product (rule 10), and a
+			// branch that only reports is not an assertion (rule 7); the verdict it produced was about the
+			// filesystem around the boot, not about the boot.
+			//
+			// THREE FIXES, each closing one of those:
+			//   (a) `--configPath <work>/config.yaml` is passed, so the planted document IS the parsed one; the
+			//       case then requires the boot to have been influenced by it (see `exercised` below);
+			//   (b) a boot that succeeds must state WHERE it put the data, and the directory it used must
+			//       exist -- there is no assertion-free success branch;
+			//   (c) the failure branch keeps its original reading: created in one base and used in the other
+			//       is the split that cannot succeed.
+			//
+			// The earlier work-root note still holds and is kept: the case needs a work root nobody else has
+			// touched, because run 40427159678 recorded a violation that the next commit's run
+			// (40430089029) did not reproduce, and the difference was the shared foreignWork the absolute case
+			// above also boots over -- case order and leftover state, not the product.
 			invariant: "the data directory a boot CREATES must be the data directory it USES; a relative dataRoot resolved against two different roots is a boot that cannot succeed",
 			run: func() caseResult {
 				work := t.TempDir()
-				writeText(t, filepath.Join(work, "config.yaml"), "listen: false\nport: 8000\ndataRoot: \"./data\"\n")
-				running, startErr := startProductArgs(foreignInstall, work, foreignRelativePort, noLegacyWait)
+				configPath := filepath.Join(work, "config.yaml")
+				// A marker the parser has no opinion about, so the document this case planted is identifiable
+				// afterwards and a boot that rewrote it is distinguishable from one that never read it.
+				writeText(t, configPath, "listen: false\nport: 8000\ndataRoot: \"./data\"\ngotavernCaseMarker:\n  readBy: relative-data-root\n")
+				running, startErr := startProductArgs(foreignInstall, work, foreignRelativePort, noLegacyWait, "--configPath", configPath)
 				createdInWork := filepath.Join(work, "data")
 				usedInInstall := filepath.Join(foreignInstall, "data")
 				_, createdErr := os.Stat(createdInWork)
 				_, usedErr := os.Stat(usedInInstall)
 				created := createdErr == nil
 				used := usedErr == nil
+				// (a) DID THE INPUT ARRIVE? Two independent witnesses, because either alone is weak: the
+				// planted document still carries its marker (a boot that read it left an unknown key alone --
+				// the sibling config-idempotence invariant), and a data directory exists in at least ONE of
+				// the two bases the relative value can render into (a boot that never saw `./data` would
+				// have used its own default and, with --dataRoot absent, the install root's ./data).
+				onDisk, readErr := os.ReadFile(configPath)
+				markerSurvived := readErr == nil && strings.Contains(string(onDisk), "gotavernCaseMarker")
 				if startErr == nil {
 					_ = running.Close(context.Background())
-					return okResult("booted (created-in-CWD=%t, present-in-install=%t)", created, used)
+					// (b) NO ASSERTION-FREE SUCCESS. A successful boot must have produced a data directory it
+					// can be held to; which of the two it chose is exactly the question this case asks, so
+					// neither answer is "pass" without the other half being checked.
+					if !markerSurvived {
+						return violation("the boot succeeded but the config this case planted is gone or was "+
+							"rewritten without its marker, so the case cannot say its `dataRoot: ./data` was ever "+
+							"parsed (readErr=%v)", readErr)
+					}
+					if !created && !used {
+						return violation("the boot succeeded and parsed %s, yet neither %s nor %s exists: the "+
+							"relative dataRoot was resolved to a directory this case cannot see, so the invariant "+
+							"cannot be judged", configPath, createdInWork, usedInInstall)
+					}
+					if created && used {
+						return violation("the boot created BOTH %s (the launch-directory rendering) and %s (the "+
+							"install-root rendering) of one relative dataRoot: a single `dataRoot` value produced "+
+							"two trees", createdInWork, usedInInstall)
+					}
+					// Exactly one tree, and the success path says which. This IS an assertion: the two bases
+					// disagree only for a relative value, so reaching here means the planted input was read
+					// and produced one directory, which is the pinned observable (one directory created and
+					// used) rather than the split.
+					if used {
+						return okResult("parsed %s and used the install-root rendering %s, which exists; no "+
+							"launch-directory tree was created", configPath, usedInInstall)
+					}
+					return okResult("parsed %s and created %s under the launch directory", configPath, createdInWork)
 				}
+				// (c) the failure branch, unchanged in substance: a boot that created one base and died using
+				// the other is the split this invariant forbids.
 				if created && !used {
 					return violation("boot created %s and then failed using %s, which it never created: %v", createdInWork, usedInInstall, startErr)
 				}
