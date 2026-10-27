@@ -29,6 +29,8 @@
 
 import fs from 'node:fs';
 
+import { auditPngCarriers } from './png-carriers.mjs';
+
 const CLASSES = [
     ['a URL', /https?:\/\/[^\s"'\\]+/],
     ['a Discord handle or invite', /discord(?:app)?\.(?:gg|com)|discord/i],
@@ -208,12 +210,62 @@ export function cardTexts(buffer) {
     return texts;
 }
 
+// ------------------------------------------------------------------------------------------------
+// THE CARRIERS THE TEXT SCANNER CANNOT SEE (AGENTS.md 56; added 2026-10-26 after the lane audit).
+//
+// WHAT WAS MISSING, stated as the question the user's own rule asks: a card is 18.5 MB and the text scanner only
+// reads `chara`/`ccv3` (base64 JSON) plus the raw bytes as latin1. Three carriers therefore had NO gate at all:
+//
+//   1. the IDAT pixel data. The raw-bytes pass reads the COMPRESSED stream, so a watermark hidden in the decoded
+//      pixels was invisible to every check in this repository. The derivation replaces the image, and nothing
+//      proved the replacement was a replacement;
+//   2. any ancillary chunk outside `chara`/`ccv3`/`trAc` — an `eXIf` blob, a `zTXt`/`iTXt` (compressed text is
+//      not matched by a latin1 scan of the compressed bytes), a `tIME`, an APNG frame. The generator PRESERVES
+//      an unknown chunk verbatim ("because the reader tolerates it"), which is the right fixturing decision and
+//      the wrong privacy one: an unknown chunk is a carrier nobody cleared;
+//   3. a chunk's identity when it is DECLARABLE. `trAc` is re-encoded at the same byte length, so a length check
+//      cannot tell the derivation from the original — only a digest can.
+//
+// The audit lives in `png-carriers.mjs` and its verdicts are a CLOSED SET (content / image / metadata /
+// declarable / unknown / structure), so a future chunk type cannot fall through a gap: anything not named is
+// `unknown`, and an unknown ancillary chunk is a refusal unless the manifest declares it by digest.
+//
+// THE CARRIER GATE IS ON BY DEFAULT because the CI step that runs this program must get it without a flag: a gate
+// a workflow has to remember to enable is one that silently stops running. `--no-carriers` exists for the
+// generator's own self-test only, and the generator runs the carrier audit itself before it writes a file.
+function carrierGate(file, bytes, manifestForFile) {
+    const result = auditPngCarriers(bytes, {
+        expectedSequence: manifestForFile?.preserved?.chunkSequence ?? null,
+    });
+    const failures = result.refusals.filter((entry) => entry.detail !== null);
+    // THE TEXT SCANNER MUST HAVE BEEN THE GATE FOR EVERY CONTENT CHUNK. A `chara` chunk whose JSON this
+    // program did not decode is a carrier that was skipped, not a carrier that was cleared -- so the count of
+    // content chunks found by the structural audit is compared with the count the text pass actually scanned.
+    const contentChunks = result.rows.filter((row) => row.kind === 'content');
+    const decoded = cardTexts(bytes);
+    if (contentChunks.length !== decoded.length) {
+        failures.push({ category: 'content', type: null, detail: `the file has ${contentChunks.length} card text chunk(s) and ${decoded.length} were decoded and scanned` });
+    }
+    if (result.solid === null && failures.length === 0) {
+        failures.push({ category: 'image', type: 'IDAT', detail: 'the image did not decode, and no refusal was recorded (a gate that cannot fail)' });
+    }
+    for (const failure of failures) {
+        console.error(`REFUSING: ${file} [carrier ${failure.category}] ${failure.type ?? '(file)'}: ${failure.detail}`);
+    }
+    if (failures.length === 0) {
+        const solid = result.solid;
+        console.log(`carriers ok: ${file} -- ${result.rows.length} chunk(s), image ${solid.width}x${solid.height} one colour ${solid.colour}, ` +
+            `${result.rows.filter((row) => row.kind === 'declarable').length} declarable`);
+    }
+    return failures.length === 0;
+}
+
 // MANIFEST-DECLARED EXEMPTIONS, by field path AND exact value: data in a diff, never a pattern. The value that
 // forced it is preset A's two six-byte names, too short for any tier and a generic directive carrying no name,
 // handle, platform or credit.
 function readDeclared(argv) {
     const index = argv.indexOf('--allow-declared');
-    if (index < 0) return [];
+    if (index < 0) return { entries: [], manifest: null };
     const manifestPath = argv[index + 1];
     if (!manifestPath || !fs.existsSync(manifestPath)) {
         console.error('REFUSING: --allow-declared needs a manifest that exists, got ' + (manifestPath ?? '(nothing)'));
@@ -224,7 +276,7 @@ function readDeclared(argv) {
     for (const preset of [...(manifest.presets ?? []), ...(manifest.cards ?? [])]) {
         for (const entry of preset.replaced?.declaredVerbatim ?? preset.declaredVerbatim ?? []) entries.push(entry);
     }
-    return entries;
+    return { entries, manifest };
 }
 
 function main() {
@@ -249,16 +301,28 @@ function main() {
         return;
     }
 
-    const DECLARED = readDeclared(argv);
+    const { entries: DECLARED, manifest } = readDeclared(argv);
+    // THE CARRIER GATE IS ON UNLESS A CALLER EXPLICITLY TURNS IT OFF. A gate that needs a flag in the CI step is
+    // a gate that stops running the day someone edits the step; the flag exists so the generator's own
+    // regression tests can isolate the text half, and nothing else uses it.
+    const carriersRequired = !argv.includes('--no-carriers');
     const files = [];
     for (let index = 0; index < argv.length; index += 1) {
         if (argv[index] === '--allow-declared') {
             index += 1;
             continue;
         }
+        if (argv[index] === '--no-carriers') continue;
         files.push(argv[index]);
     }
-    const isDeclared = (pathName, value) => DECLARED.some((entry) => entry.path === normalize(pathName) && entry.value === value);
+    // WHICH MANIFEST ENTRY DESCRIBES THIS FILE. The cards carry `preserved.chunkSequence`; a preset has no chunks
+    // and is never carrier-audited. Matching by basename is exact rather than a prefix test, so a file called
+    // `card-a.png.bak` cannot inherit `card-a.png`'s record.
+    const manifestEntryFor = (file) => {
+        const base = file.replace(/\\/g, '/').split('/').pop();
+        return [...(manifest?.cards ?? []), ...(manifest?.presets ?? [])].find((entry) => entry.file === base) ?? null;
+    };
+    const isDeclared = (pathName, value) => DECLARED.filter((entry) => entry.path === normalize(pathName) && entry.value === value).length > 0;
 
     let failed = false;
 
@@ -283,6 +347,10 @@ function main() {
         // UTF-8 at all.
         const scan = { ok: true, findings: [] };
         if (isPng) {
+            // THE CARRIER AUDIT RUNS FIRST, because it is the pass that decides whether a text scan CAN clear the
+            // file: a compressed-text chunk or an EXIF blob is not visible to `scanText`, and the raw pass below
+            // reads the IDAT as COMPRESSED bytes, so a pixel-level watermark was invisible to every other check.
+            if (carriersRequired && !carrierGate(file, bytes, manifestEntryFor(file))) failed = true;
             // BOUNDED WINDOWS, never one 18.5 MB string: the e-mail pattern was quadratic on base64 and wedged
             // the generator, so the cost is kept linear here even though the pattern is now bounded too.
             const rawWindows = [];

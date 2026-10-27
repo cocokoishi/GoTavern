@@ -29,6 +29,7 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { CARD_IDENTITY_FIELDS, MARKER_BYTES, PROSE_THRESHOLD_CHARS, cardIdentityFieldFor, profilePreset, profileCard } from './real-fixture-profile.mjs';
 import { scanText } from './check-fixture-watermarks.mjs';
+import { auditPngCarriers } from './png-carriers.mjs';
 
 const FILLER_UNIT = '测'; // three UTF-8 bytes: the unit that keeps a CJK document the same size
 const FILLER_UNIT_BYTES = Buffer.byteLength(FILLER_UNIT);
@@ -901,6 +902,34 @@ const buildCard = ({ name, file }, outDir) => {
         refuse(`${file}: the derived card fails the watermark scanner (${scanFindings.length} finding(s)), so it is not written`);
     }
 
+    // 6. THE CARRIERS THE TEXT SCAN CANNOT SEE, on the file that is about to be written. The generator and the
+    //    gate run the SAME audit (`tools/png-carriers.mjs`), so a card this tool writes is one the CI step
+    //    accepts, and a card the audit would refuse can never be produced in the first place.
+    //
+    //    THIS IS THE REFUSAL THAT CLOSES "PRESERVED VERBATIM BECAUSE UNKNOWN". Until it existed, the generator
+    //    kept every chunk that was not `chara`/`ccv3`/`IDAT`/`trAc`, byte for byte, with the reason "the reader's
+    //    tolerance of an unknown chunk is part of what the fixture is for". That is the right fixturing argument
+    //    and the wrong privacy one: an `eXIf` blob or a `zTXt` written by the author's editor would have been
+    //    carried into a public repository under a rule that reads like due diligence. The fixture's tolerances
+    //    are exercised by `trAc` alone (`internal/server/characters_card.go` skips unknown chunks), so any other
+    //    metadata chunk is REFUSED by name -- the remedy is a decision (replace it, or add it to the allowlist
+    //    with a reason), never a silent carry-over.
+    //
+    //    AND THE IDAT MUST DECODE TO ONE COLOUR. The derivation writes a solid image, so a single-colour decode
+    //    is a property of the SWAP rather than of the original. It is asserted here because the swap's own
+    //    correctness was previously asserted by LENGTH only (`derivedBytes` in the manifest), which cannot
+    //    distinguish a solid image from the original's deflated stream.
+    const carrierAudit = auditPngCarriers(derived);
+    const carrierFailures = carrierAudit.refusals.filter((entry) => entry.detail !== null);
+    if (carrierFailures.length > 0) {
+        for (const failure of carrierFailures) {
+            console.error(`  carrier [${failure.category}] ${failure.type ?? '(file)'}: ${failure.detail}`);
+        }
+        refuse(`${file}: the derived card has ${carrierFailures.length} carrier(s) the text scan cannot clear, so it is not written`);
+    }
+    if (!carrierAudit.solid) refuse(`${file}: the derived card's image does not decode to a single colour, so the IDAT swap is not proven`);
+    const anchored = { width: carrierAudit.solid.width, height: carrierAudit.solid.height, colour: carrierAudit.solid.colour };
+
     const target = path.join(outDir, `${name}.png`);
     fs.writeFileSync(target, derived);
     console.log(`wrote ${target}: ${derived.length} bytes (original ${original.length}), ${stats.namesReplaced} identity field(s) replaced`);
@@ -924,6 +953,11 @@ const buildCard = ({ name, file }, outDir) => {
                 derivedChunks: 1,
                 replacedWith: `a solid ${dimensions.width}x${dimensions.height} ${solid.bitDepth}-bit image, colour type ${solid.colourType}, ${solid.rawBytes} raw bytes deflated`,
                 reason: 'the original picture is the author\'s art and is not part of the structure the leg needs; the manifest records its length so this cannot be mistaken for a picture fixture',
+                // THE SWAP, VERIFIED BY DECODING RATHER THAN BY LENGTH. `derivedBytes` alone cannot tell a solid
+                // image from the original's deflated stream (both are "some number of bytes"), so the derived
+                // file is decoded and the decoded pixels are asserted to be ONE colour; the colour is recorded so
+                // a later re-derivation that swapped in a different picture is visible in the diff.
+                derivedDecoded: { width: anchored.width, height: anchored.height, singleColour: anchored.colour },
             },
             preserved: {
                 chunkSequence: chunks.map((chunk) => ({ type: chunk.type, bytes: chunk.type === 'IDAT' ? null : chunk.length })),
@@ -937,6 +971,7 @@ const buildCard = ({ name, file }, outDir) => {
                 canonicalNameSource: 'ccv3 document (the one pinned reads first, character-card-parser.js:54-78), so prior Q21 reports remain comparable',
                 dimensions,
                 atDepthEntriesNote: 'per-entry position/depth fields are preserved untouched; only the prose inside them moved',
+                carrierAuditNote: 'every chunk is cleared by tools/png-carriers.mjs: chara/ccv3 are the scanned content, IDAT decodes to one colour, trAc is declarable and re-encoded at the same length. Any other chunk type refuses at build time, because an unknown ancillary chunk preserved verbatim is a carrier no check clears',
             },
         },
         profile: {
