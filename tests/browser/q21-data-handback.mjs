@@ -215,33 +215,92 @@ function step(name, ok, detail = null) {
 const CARD_FILE_NAME = 'Q21 Handback Card';
 const CARD_RELATIVE = path.join(here, 'fixtures', 'real', 'card-a.png');
 
-// THE CHARACTER LIST SHOWS THE CARD`S OWN `data.name`, NOT THE FILE NAME. Run 40431277400 listed the staged card as
-// `MARK_002794…` while the probe asserted `Q21 Handback Card`, so a card that was present all along read as absent --
-// the fifth harness defect in this lane and the third caused by asserting a convenient label instead of the fact.
-// `asset-probe.mjs:208-226` reads the `ccv3`/`chara` tEXt chunk, which is the same place the server reads.
-function cardOwnName(bytes) {
+// WHICH DOCUMENT THE SERVER READS IS PINNED, AND THIS READER MUST READ THE SAME ONE.
+// `GoTavern Lane CI` 40446833206 logged the committed card's four names:
+//     chara: data.name="MARK_000466…" root.name="MARK_000464…"
+//     ccv3:  data.name="MARK_002794…" root.name="MARK_002792…"
+// The server answered …794, because `ccv3` takes precedence (pinned src/character-card-parser.js:54-78; the port's
+// characters_card.go:178-182 is the same rule). This function used to RETURN ON THE FIRST MATCH IN FILE ORDER, and
+// `chara` is written before `ccv3`, so it read …466 -- the OTHER document -- and every later step was then about a
+// name the server had never been asked about. Two runs (40438262854, 40444636900) and six driver commits were spent
+// reconciling that, which is the cost of a reader that is not equivalent to the subject's own.
+//
+// THE RULE, in the pinned order: collect every chara/ccv3 tEXt chunk, then take the FIRST `ccv3`, else the FIRST
+// `chara`. `selfCheckCardReader` below proves this on a synthetic file whose two chunks carry DIFFERENT names,
+// including the `chara`-first order the committed card has.
+function cardChunks(bytes) {
+    const chunks = [];
     let offset = 8;
     while (offset + 8 <= bytes.length) {
         const length = bytes.readUInt32BE(offset);
         const type = bytes.toString('latin1', offset + 4, offset + 8);
         const dataStart = offset + 8;
+        if (dataStart + length > bytes.length) break;
         if (type === 'tEXt') {
             const chunk = bytes.subarray(dataStart, dataStart + length);
             const zero = chunk.indexOf(0);
-            if (zero > 0 && /^(ccv3|chara)$/i.test(chunk.toString('latin1', 0, zero))) {
-                const raw = chunk.subarray(zero + 1).toString('latin1');
-                const text = chunk.toString('latin1', 0, zero).toLowerCase() === 'ccv3' ? Buffer.from(raw, 'base64').toString('utf8') : decodeURIComponent(Buffer.from(raw, 'base64').toString('utf8'));
-                try {
-                    return String(JSON.parse(text)?.data?.name ?? '') || null;
-                } catch {
-                    return null;
-                }
+            const keyword = zero > 0 ? chunk.toString('latin1', 0, zero) : '';
+            if (/^(ccv3|chara)$/i.test(keyword)) {
+                chunks.push({ keyword: keyword.toLowerCase(), base64: chunk.subarray(zero + 1).toString('latin1') });
             }
         }
         offset = dataStart + length + 4;
         if (type === 'IEND') break;
     }
-    return null;
+    return chunks;
+}
+
+function cardChunkDocument(chunk) {
+    const raw = Buffer.from(chunk.base64, 'base64').toString('utf8');
+    // `chara` is the V1/V2 form, which pinned writes percent-encoded in the oldest cards and plain JSON in newer
+    // ones; a decode that throws falls back to the raw text, and JSON.parse decides.
+    const text = chunk.keyword === 'ccv3' ? raw : (() => {
+        try {
+            return decodeURIComponent(raw);
+        } catch {
+            return raw;
+        }
+    })();
+    return JSON.parse(text);
+}
+
+// The name the server will list, read the way the server reads it: ccv3 precedence, `data.name` when present,
+// otherwise the document's own root name (pinned readFromV2, src/endpoints/characters.js:525-551).
+function cardOwnName(bytes) {
+    const chunks = cardChunks(bytes);
+    const selected = chunks.find(chunk => chunk.keyword === 'ccv3') ?? chunks.find(chunk => chunk.keyword === 'chara');
+    if (!selected) return null;
+    try {
+        const document = cardChunkDocument(selected);
+        return String(document?.data?.name ?? document?.name ?? '') || null;
+    } catch {
+        return null;
+    }
+}
+
+// THE READER PROVES ITSELF BEFORE IT IS TRUSTED. A `chara`-first file whose two chunks carry different names must
+// read the `ccv3` one, and the same file with the chunks swapped must read the same value -- so the answer cannot
+// depend on file order, which is the exact defect this replaced.
+function selfCheckCardReader() {
+    const chunk = (keyword, name) => {
+        const payload = Buffer.concat([
+            Buffer.from(`${keyword}\0`, 'latin1'),
+            Buffer.from(Buffer.from(JSON.stringify({ name: `root-${name}`, data: { name } }), 'utf8').toString('base64'), 'latin1'),
+        ]);
+        const length = Buffer.alloc(4);
+        length.writeUInt32BE(payload.length);
+        return Buffer.concat([length, Buffer.from('tEXt', 'latin1'), payload, Buffer.alloc(4)]);
+    };
+    const build = order => Buffer.concat([
+        Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
+        ...order.map(([keyword, name]) => chunk(keyword, name)),
+    ]);
+    const charaFirst = cardOwnName(build([['chara', 'V2_MARKER'], ['ccv3', 'V3_MARKER']]));
+    const ccv3First = cardOwnName(build([['ccv3', 'V3_MARKER'], ['chara', 'V2_MARKER']]));
+    if (charaFirst !== 'V3_MARKER' || ccv3First !== 'V3_MARKER') {
+        throw new Error(`the card reader is not equivalent to the server's: chara-first read "${charaFirst}", ccv3-first read "${ccv3First}", both must be "V3_MARKER" (pinned character-card-parser.js:54-78 gives ccv3 precedence)`);
+    }
+    return { charaFirst, ccv3First };
 }
 
 async function stageCharacterCard(root) {
@@ -255,9 +314,22 @@ async function stageCharacterCard(root) {
     }
     const staged = path.join(charactersDir, `${CARD_FILE_NAME}.png`);
     await fs.writeFile(staged, bytes);
+    // THE READER IS PROVEN BEFORE ITS ANSWER IS USED, and both chunk names are recorded, because the committed card
+    // carries two DIFFERENT documents (Lane CI 40446833206) and a report that shows only one of them cannot say
+    // which document any later disagreement was about.
+    const selfCheck = selfCheckCardReader();
+    const chunks = cardChunks(bytes).map(entry => {
+        let document = null;
+        try {
+            document = cardChunkDocument(entry);
+        } catch {
+            document = null;
+        }
+        return { keyword: entry.keyword, dataName: String(document?.data?.name ?? ''), rootName: String(document?.name ?? '') };
+    });
     const ownName = cardOwnName(bytes);
     if (!ownName) throw new Error(`the committed card at ${CARD_RELATIVE} carries no readable data.name`);
-    return { staged, ownName, byteLength: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
+    return { staged, ownName, chunks, readerSelfCheck: selfCheck, byteLength: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
 }
 
 // The character list the SERVER returns, asked over HTTP so the answer cannot depend on the probe's module graph.
