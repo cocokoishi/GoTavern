@@ -113,6 +113,18 @@ const dataRootMarkerConfig = "listen: false\n" +
 	"gotavernCaseMarker:\n" +
 	"  readBy: startup-longtail\n"
 
+// dataRootProbeSecretKey and its value are the read-back probe for "the directory the server writes is the
+// directory it reads".
+//
+// deeplx_url IS DELIBERATELY AN EXPORTABLE KEY (the pinned EXPORTABLE_KEYS list, src/endpoints/secrets.js:101-106,
+// reproduced at internal/startup/secrets_state.go:111-116). A secret with any other name answers 403 from
+// /api/secrets/find on a default config (:568-570), which is the product refusing correctly and would make the
+// read-back untestable without also flipping a configuration flag this lane has no business flipping.
+const (
+	dataRootProbeSecretKey   = "deeplx_url"
+	dataRootProbeSecretValue = "http://127.0.0.1:9/probe-value-not-a-credential"
+)
+
 // writeText plants one file under a synthesised root, creating its directory, and fails the test rather than
 // the run when the tree cannot be built: a case whose fixture is missing must not reach an assertion.
 func writeText(t *testing.T, path, content string) {
@@ -164,7 +176,7 @@ func TestBootCreatesTheDataDirectoryItServes(t *testing.T) {
 	// only data root the process knows is the one above, so a file appearing under it is the product naming
 	// its own write target.
 	before := treeDigests(t, server.dataRoot)
-	secretID := writeSecret(t, client, deepSeekSecretKey, syntheticDeepSeekKey)
+	secretID := writeSecret(t, client, dataRootProbeSecretKey, dataRootProbeSecretValue)
 	after := treeDigests(t, server.dataRoot)
 	if len(after) <= len(before) {
 		t.Fatalf("POST /api/secrets/write added no file under the resolved data root %s (before: %v). The "+
@@ -173,18 +185,23 @@ func TestBootCreatesTheDataDirectoryItServes(t *testing.T) {
 	}
 
 	// (3) AND THE SAME VALUE READS BACK THROUGH THE PRODUCT. A file appearing is not the same claim as a
-	// value the server can retrieve. The first version used /api/secrets/view, which answered 403 because the
-	// default config has `allowKeysExposure: false` (internal/server/secrets.go:128-131) -- the route was
-	// refusing correctly and the test was asking the wrong question. /api/secrets/find answers {value} for a
-	// non-secret key without that exposure switch (:141-194), so it measures the read path rather than a
-	// configuration flag.
-	findBody, marshalErr := marshalJSON(map[string]string{"key": deepSeekSecretKey, "id": secretID})
+	// value the server can retrieve.
+	//
+	// WHICH KEY, AND WHY IT CHANGED (measured on run 40444937492, Lane CI, a690270): the first version wrote an
+	// API key and asked /api/secrets/find for it, which answered 403 -- correctly. Pinned refuses a
+	// non-exportable key unless `allowKeysExposure` is set (src/endpoints/secrets.js:568-570, with
+	// EXPORTABLE_KEYS at :101-106), and GoTavern reproduces that exactly (internal/server/secrets.go:163-176
+	// over internal/startup/secrets_state.go:111-116). /api/secrets/view is gated on the flag alone (:542-543),
+	// so it is 403 with a default config too. The read-back therefore uses an EXPORTABLE key -- a URL field,
+	// which is what the frontend really stores for these providers -- so the route answers on a default config
+	// and the assertion is about the read path rather than about a configuration switch.
+	findBody, marshalErr := marshalJSON(map[string]string{"key": dataRootProbeSecretKey, "id": secretID})
 	if marshalErr != nil {
 		t.Fatalf("encode the secrets/find body: %v", marshalErr)
 	}
 	status, _, body := client.postJSON(t, "/api/secrets/find", findBody)
 	if status != 200 {
-		t.Fatalf("POST /api/secrets/find answered %d for the secret just written: %s", status, body)
+		t.Fatalf("POST /api/secrets/find answered %d for the exportable secret just written: %s", status, body)
 	}
 	var answer struct {
 		Value string `json:"value"`
@@ -192,7 +209,7 @@ func TestBootCreatesTheDataDirectoryItServes(t *testing.T) {
 	if decodeErr := json.Unmarshal([]byte(body), &answer); decodeErr != nil {
 		t.Fatalf("POST /api/secrets/find did not answer JSON: %v (%s)", decodeErr, body)
 	}
-	if answer.Value != syntheticDeepSeekKey {
+	if answer.Value != dataRootProbeSecretValue {
 		t.Fatalf("the secret read back is %q, not the value written: the directory the server writes is not "+
 			"the directory it reads", answer.Value)
 	}
@@ -334,7 +351,9 @@ func TestAbsoluteDataRootOverridesTheConfigAndAForeignCwdChangesNothing(t *testi
 		t.Fatalf("the boot also created %s from the config's dataRoot while --dataRoot named %s: two data "+
 			"directories for one server", filepath.Join(installRoot, "from-config"), namedRoot)
 	}
-	writeSecret(t, client, deepSeekSecretKey, syntheticDeepSeekKey)
+	// The write goes through the same exportable key as above, for the same reason: any other name is refused
+	// outside this test's subject, and the point here is only that the named root receives it.
+	writeSecret(t, client, dataRootProbeSecretKey, dataRootProbeSecretValue)
 	if digests := treeDigests(t, namedRoot); len(digests) == 0 {
 		t.Fatalf("the product wrote nothing under the --dataRoot directory %s, so the named root is not the "+
 			"root it serves", namedRoot)
