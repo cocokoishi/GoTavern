@@ -264,16 +264,31 @@ func TestResolveCommandLineMatchesPinnedNodeCommandLineParser(t *testing.T) {
 			}
 			// `DataRootCreated` MEANS "THIS PROCESS CREATED A DIRECTORY THAT WAS NOT THERE", so under two bases
 			// it is derived from what the product itself did, not from Node's derived isDir -- which describes
-			// the LAUNCH path and would answer a different question. Two cases, each from a recorded fact:
-			//   empty value             pinned's branch runs mkdir("") and fails: created is false;
-			//   two bases, not empty    the product creates the RUNTIME root: created is "mkdir did not fail".
-			// With one base the pinned derivation is exact and is used unchanged.
-			expectedCreated := !scenario.Result.DataRootWasDirectoryBeforeParse && scenario.Result.DataRootIsDirectory && !scenario.Result.Warnings.FailedDataRootCreation
+			// the LAUNCH path and would answer a different question.
+			//
+			// IT IS NOT DERIVED FROM PINNED UNDER TWO BASES AT ALL, and this is the third ordering mistake in
+			// this block (measured on run 40448384831): pinned's `failedDataRootCreation` reports its
+			// LAUNCH-path mkdir, which this project does not perform, so deriving an expectation from that raw
+			// field here made `failed-data-root-create` expect `created=false` while the product had correctly
+			// created the RUNTIME root. Under two bases there is no pinned value for this field to compare
+			// against, so the assertion becomes the one that has teeth and needs no oracle: the runtime
+			// directory the product says it created EXISTS on disk. A `true` over a missing directory, or a
+			// `false` over one that is there, both fail.
 			if twoDataRootBases(got.Paths) && !emptyValue {
-				expectedCreated = !scenario.Result.Warnings.FailedDataRootCreation
-			}
-			if got.Paths.DataRootCreated != expectedCreated {
-				t.Errorf("data root created = %t, Node setup implies %t", got.Paths.DataRootCreated, expectedCreated)
+				_, runtimeErr := os.Stat(got.Paths.RuntimeDataRoot)
+				switch {
+				case got.Paths.DataRootCreated && runtimeErr != nil:
+					t.Errorf("DataRootCreated is true but the runtime data root %s does not exist (%v): the boot "+
+						"reported a directory it did not make", got.Paths.RuntimeDataRoot, runtimeErr)
+				case !got.Paths.DataRootCreated && runtimeErr == nil:
+					t.Errorf("DataRootCreated is false but the runtime data root %s exists: either the product "+
+						"made it without recording that, or something else did", got.Paths.RuntimeDataRoot)
+				}
+			} else {
+				expectedCreated := !scenario.Result.DataRootWasDirectoryBeforeParse && scenario.Result.DataRootIsDirectory && !scenario.Result.Warnings.FailedDataRootCreation
+				if got.Paths.DataRootCreated != expectedCreated {
+					t.Errorf("data root created = %t, Node setup implies %t", got.Paths.DataRootCreated, expectedCreated)
+				}
 			}
 			warnings := summarizePathWarnings(got.Paths.Warnings)
 			// PINNED'S `failedDataRootCreation` DESCRIBES THE LAUNCH PATH, AND THIS PROJECT NO LONGER MKDS IT.
