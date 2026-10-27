@@ -193,10 +193,19 @@ func startupCases(t *testing.T) []caseSpec {
 		{
 			id:        "boot.foreign-cwd-relative-data-root",
 			checklist: "cwd.foreign",
+			// THIS CASE NEEDS A WORK ROOT NOBODY ELSE HAS TOUCHED, OR ITS CENTRAL FACT IS NOT ITS OWN. It reports a
+			// violation when the boot CREATED ./data under the work root and then USED a data root under the install
+			// tree instead. Run 40427159678 recorded that violation and the CI job for the very next commit
+			// (40430089029) recorded the same suite green, and the difference was not the product: the absolute case
+			// above boots over the SHARED foreignWork, so whether foreignWork/data exists when this case looks is a
+			// property of case order and of what a previous process left behind. Its own TempDir makes `created` a
+			// fact THIS case caused, which is the only reading that can judge the product.
 			invariant: "the data directory a boot CREATES must be the data directory it USES; a relative dataRoot resolved against two different roots is a boot that cannot succeed",
 			run: func() caseResult {
-				running, startErr := startProductArgs(foreignInstall, foreignWork, foreignRelativePort, noLegacyWait)
-				createdInWork := filepath.Join(foreignWork, "data")
+				work := t.TempDir()
+				writeText(t, filepath.Join(work, "config.yaml"), "listen: false\nport: 8000\ndataRoot: \"./data\"\n")
+				running, startErr := startProductArgs(foreignInstall, work, foreignRelativePort, noLegacyWait)
+				createdInWork := filepath.Join(work, "data")
 				usedInInstall := filepath.Join(foreignInstall, "data")
 				_, createdErr := os.Stat(createdInWork)
 				_, usedErr := os.Stat(usedInInstall)
