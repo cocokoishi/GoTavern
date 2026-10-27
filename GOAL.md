@@ -68,7 +68,7 @@ JSON loads; it is compatible because the context it produces is the same. An ava
 
 ## 4. Primary oracle and its precedence
 
-Pinned baseline: **SillyTavern 1.19.0**, commit `06bde939fb1e9c4c8d8641d810f0a9165bce127`.
+Pinned baseline: **SillyTavern 1.19.0**, commit `06bde939fb1e9c4c8d8641d810f0a916b5bce127`.
 
 Evidence precedence, highest first:
 
@@ -105,14 +105,25 @@ only property that made it an oracle.
 
 Every P0 keeps a reproducer, a gate that has been shown to fail, and a packaged-artifact check.
 
-| Id | Defect | State |
-|---|---|---|
-| P0-A | the real provider transport could not reach a real provider (DeepSeek) | fixed, gated |
-| P0-B | the release binary hung during initialisation in a working SillyTavern tree | fixed, gated |
-| P0-C | extensions/plugins were updated without being asked | fixed, gated |
-| P0-D | 酒馆助手 / JS-Slash-Runner does not actually work | **open** |
-| P0-E | core visual assets are missing (character avatars, backgrounds, personas, sprites, thumbnails) | **open** |
-| P0-F | a real complex preset cannot be shown to change the model context the way pinned does | **open** |
+A P0 row is CLOSED only by evidence, and the evidence is the scorecard row that measures the same
+capability: `docs/goal-scorecard.md` is the single ledger, and this table must not hold a defect as open
+while that ledger holds its question as `proven` (or the reverse). The `Evidence` column below is what
+makes the two files checkable against each other by a reader, and the consistency test in
+`internal/fixtures/documents_test.go` refuses a scorecard row that cites a run id nothing can look up.
+
+| Id | Defect | State | Evidence |
+|---|---|---|---|
+| P0-A | the real provider transport could not reach a real provider (DeepSeek) | closed | `internal/outbound` transport matrix plus the DeepSeek canary step of `GoTavern Lane CI`; `docs/network-egress.md` |
+| P0-B | the release binary hung during initialisation in a working SillyTavern tree | closed | `GoTavern drop-in qualification` 40438192579 (success), step `Smoke` — the packaged archive boots a stock tree inside the readiness bound |
+| P0-C | extensions/plugins were updated without being asked | closed | auto-update resolves to OFF for every ambiguous input (`AGENTS.md` rule 26, `internal/commandline/autoupdate_test.go`); the long-lived leg asserts the extension tree unchanged after boot |
+| P0-D | 酒馆助手 / JS-Slash-Runner does not actually work | closed | scorecard Q8 and Q9: `Browser differential` 40325398585 (success) helper legs; the `generateRaw` request is byte-identical to pinned's in 40378609525 (run verdict failure, cited for a step that passed inside it) |
+| P0-E | core visual assets are missing (character avatars, backgrounds, personas, sprites, thumbnails) | closed | scorecard Q3-Q7: `Browser differential` 40325398585 (success) asset legs (`imagesFailed: 0`, `consoleFailedToLoad: 0`), and `tests/e2e/longlived_test.go` asserting `/characters/<card>.png` and `/thumbnail?type=avatar`; Q7's paint half remains `partial` and is named there |
+| P0-F | a real complex preset cannot be shown to change the model context the way pinned does | closed | scorecard Q13-Q15: `Browser differential` 40274214952 (success) proves presets differ AND `Node(X)==Go(X)`; 40387864205 (success) and 40325398585 (success) extend it to the real derivations |
+
+The rule that keeps this table honest: a row may move from open to closed ONLY in the change that adds
+the gate which proves it, and that change names the run. A row that is closed without a run id is a claim,
+not a result (`AGENTS.md` rule 36).
+
 
 ## 7. The user-facing scorecard
 
@@ -192,6 +203,11 @@ nondeterministic is normalised per JSON path with the reason and its evidence re
 
 ## 11. Order of work
 
+The order below is the milestone ladder, and it is the only statement of what comes next. A milestone is
+not a theme: each one names the capability that must be RUNNABLE, and the gate that decides it. Moving to
+the next milestone because the previous one's cheap checks are green is forbidden (`AGENTS.md` rule 23:
+source-tree tests are necessary and insufficient).
+
 ```
 long-lived tree runs
 → visual assets display
@@ -202,6 +218,30 @@ long-lived tree runs
 → Node → Go → Node holds
 → performance
 ```
+
+### The milestone ladder
+
+The ladder exists to stop two failures this project has already paid for: claiming a later capability
+because an earlier one's unit tests are green, and freezing the whole goal behind one unpassable gate.
+Each milestone is CLOSED by its own gate running on a real subject, and the scorecard row in parentheses
+is where its evidence is recorded — one ledger, no second copy.
+
+| Milestone | The capability that must be runnable | Closed by | Scorecard |
+|---|---|---|---|
+| **M0 — baseline, privacy, ledger** | the pinned baseline is one string that every document agrees with; the originals have a channel that can execute them without transmitting them; every user question has a row with a state and an artefact | `internal/fixtures/documents_test.go` (pin consistency, document encoding, ledger structure, rule numbering) plus the manifest check, green on `main` | Q1, Q2 |
+| **M1 — complex preset · card · regex · helper differential runnable** | one command class drives pinned Node and GoTavern against a deterministic simulated backend with a real complex preset DERIVATION, a card derivation, its `regex_scripts` and its `extensions.tavern_helper`, and both halves hold: `Node(X)==Go(X)` AND `X!=Y` | a browser leg that fails itself as `HARNESS NON-DISCRIMINATING` when the captures agree (`AGENTS.md` rule 50), plus the packaged-artifact run | Q3-Q6, Q8, Q13-Q15 |
+| **M2 — Author's Note · truncation · streaming/cancel · regenerate/continue · persistence + Node↔Go↔Node** | each observable is driven on both subjects: Author's Note at several depths, a context pushed PAST the truncation boundary, streaming with cancellation mid-stream, regenerate and continue, and a saved tree handed BACK to pinned Node | the Q17 sweep wired into a workflow, a truncation leg, a regenerate/continue step, and a green hand-back leg — each cited by run id and step | Q7, Q9-Q12, Q16-Q21 |
+| **M3 — UI / extension / migration / long-tail risk matrix** | the surfaces with no cheap differential are enumerated from the ORACLE's own lists (`router.use(...)`, mounted routers, frontend URL builders) and each row is `proven`, `partial`, `unsupported` or `inherited-pinned-behavior` with a reason | the inventory-vs-registration diff (`AGENTS.md` rule 43) and the migration/rollback legs, green on the packaged artifact | Q2 (migration half), the §13 non-claims |
+| **M4 — candidate SHA + release shape full qualification with accurate boundary disclosure** | the packed archive, unpacked into a clean environment, starts against a stock tree, migration, update, rollback and Docker paths all pass, and the release notes state every boundary in §13 and §6 of the scorecard rather than implying full coverage | `GoTavern release qualification`, `GoTavern drop-in qualification` (Linux and Windows) and `GoTavern release` on one candidate SHA | all, re-read on that SHA |
+| **M5 — targeted performance with no compatibility regression** | CPU/RAM/startup measured against pinned Node on the same runner, with the full differential suite green on the SAME commit so the numbers are not bought with a regression | `GoTavern smoke metrics` plus the full oracle sweep on one SHA | Q22 |
+
+Two consequences the ladder makes explicit:
+
+- **M0 is a prerequisite, not paperwork.** A document that disagrees with the pin, or a ledger row that
+  cites a run nobody can find, invalidates every later claim that rests on it.
+- **M5 is last because performance is meaningless on a product that does not work.** Measuring a fast
+  server that produces a different prompt is the exact failure `GOAL.md` §3 describes.
+
 
 Optimising a product that does not work is out of scope. So is claiming a later stage because an
 earlier stage's cheap checks are green.

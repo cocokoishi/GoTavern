@@ -42,6 +42,15 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          # FULL HISTORY, because one of the tests asks a question only git can answer: whether a run's
+          # head_sha is an ANCESTOR of the commit the evidence ledger describes. Under the default
+          # fetch-depth of 1 the answer is `exit 128` for every citation, and the gate correctly reports
+          # "ancestry could not be verified" rather than a verdict -- correct, and useless. Measured on
+          # 2026-10-26: the whole ledger was unverifiable for exactly this reason, on the rule most likely
+          # to be violated. `filter: blob:none` keeps the extra cost to commits and trees.
+          fetch-depth: 0
+          filter: blob:none
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod

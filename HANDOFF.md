@@ -1,11 +1,80 @@
 # HANDOFF
 
-Written at a checkpoint rather than the end of a session. Read this before touching anything. It records
-where the project actually stands, what is red and why, what is unowned, and the invariants that cost the
-most to learn.
+**There is exactly ONE executable checkpoint in this file, and it is `## Latest checkpoint` below. Every
+section after it is HISTORY: a dated record of what was true on the date it names, kept because the
+reasoning is worth more than the state. A history section is never evidence for a current claim — check
+its date, then check `docs/goal-scorecard.md`, which is the live ledger.**
 
 Baseline: SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127`. Oracle checkout lives beside
 this repository at `../SillyTavern` and is READ-ONLY.
+
+---
+
+## Latest checkpoint — 2026-10-26
+
+| Field | Value |
+|---|---|
+| **HEAD (main)** | `a5660b61f549217af9f8d8fe23f798a445140af8` |
+| **Pinned baseline** | SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127` |
+| **Live evidence ledger** | `docs/goal-scorecard.md` — twenty-two rows, five classes, and `tests/docs/run-manifest.json` |
+| **Milestone ladder** | `GOAL.md` §11: M0 (closed) through M5; M1..M4 open |
+
+### Active lanes (8 slots: one lead, seven lanes, one owner per area)
+
+A lane owns an AREA, and two lanes never own the same area (`AGENTS.md` rule 39, and the collaboration
+contract in the same file). The table below is the CURRENT allocation; a lane not listed here has no owner
+and is not being worked on.
+
+| Slot | Area | State |
+|---|---|---|
+| lead | integration, merge into `main`, release decisions | active |
+| 1 | documentation, goal, oracle doctrine, evidence ledger | active — `AGENTS.md`/`GOAL.md`/`ARCHITECTURE.md`/`docs/goal-scorecard.md`; gate `internal/fixtures/documents_test.go` |
+| 2 | core config/startup boot | active |
+| 3 | Q21 data hand-back to pinned Node | active — leg is RED, class `harness failure` (see the ledger) |
+| 4 | Q19 streaming/cancel cut legs | active — on an UNMERGED branch, so `main` has no Q19 evidence |
+| 5 | Q17 Author's Note sweep | active — probes exist, no workflow invokes them |
+| 6 | Q18 truncation past the context boundary | active — no leg drives it yet |
+| 7 | visual assets / helper surfaces | active — Q3-Q8 proven on `Browser differential` 40325398585 (success) |
+
+### Key Actions runs at this HEAD
+
+Quoted as `workflow name + run id + conclusion`, because a run id without its workflow name is not
+evidence (`AGENTS.md` rule 55). Every id here is in `tests/docs/run-manifest.json` with its `head_sha`.
+
+| Workflow | Run | Conclusion | What it says |
+|---|---|---|---|
+| `GoTavern CI` | 40438192589 | success | build, vet, gofmt, full Go suite, document-facts and matrix checks |
+| `GoTavern drop-in qualification` | 40438192579 | success | the packaged archive boots a stock tree |
+| `Browser differential` | 40438262854 | **failure** | assets/helper/preset/Q20 legs passed; the Q21 hand-back step FAILED — driver staging, not a product finding |
+| `Browser differential` | 40325398585 | success | asset + helper legs, which is where Q3-Q8 are proven |
+| `Browser differential` | 40387864205 | success | Q20 save -> reload -> swipe |
+
+### Next action
+
+Land the documentation-gate change (`internal/fixtures/documents_test.go` plus this file set) and quote
+its red and green runs. Then, in order of what the ledger says is missing: (1) fix the Q21 hand-back
+leg's card staging so the row can leave `unproven`; (2) merge the Q19 streaming legs so `main` has
+streaming evidence at all; (3) wire `authors-note-sweep.mjs` into a workflow for Q17; (4) add a
+truncation leg for Q18; (5) add regenerate/continue steps to the Q20 probe.
+
+### Blockers
+
+- **The local qualification channel is NOT YET DEMONSTRATED.** It is written as constraints in
+  `AGENTS.md` (collaboration contract, item 5) and `docs/development-loop.md` §4, and nothing may cite it
+  as though a run had exercised it.
+- **Q19 has no evidence on `main`.** Its runs judged a commit on an unmerged branch; the ancestry check
+  refuses such a citation, correctly.
+- **Q21 is red for a harness reason.** The product wrote the file; the driver did not stage the card under
+  the name pinned lists.
+
+---
+
+## HISTORY
+
+Everything from here down is a DATED RECORD, not current state. Sections keep their original dates and
+their original `main` SHAs. Read them for the reasoning; never quote a number from them as a measurement
+of today. The line below marks where history begins; the first historical section is the P0 second pass
+of 2026-10-25.
 
 ## P0 — second pass: the product a user actually sees (2026-10-25, `main` `ec16bda`)
 
