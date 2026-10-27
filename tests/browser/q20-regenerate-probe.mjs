@@ -71,6 +71,7 @@ import { pinnedExtension } from './pinned-extensions.mjs';
 import {
     chatCarrying, configureConnection, openCharacter, openPage, pressRegenerateThroughMenu,
     readChatFiles, readProcessCommands, resolveRoster, saveConditional, sendTurn, settleQuiet, silenceAndObserve, waitForReply,
+    readReadiness,
 } from './q20-persistence-drive.mjs';
 import { argumentValue, bootSubject, freePort, repoRoot, startCapturePeer, waitForServer } from './q20-leg-runtime.mjs';
 
@@ -235,7 +236,7 @@ try {
 
     // 1. THE PAGE, THE CONNECTION, THE CHAT THE PRODUCT ALREADY WROTE.
     const ready = await openPage(page, baseURL);
-    step('page-loaded', ready === true, `settingsReady=${ready}`);
+    step('page-loaded', ready === true, `settingsReady=${ready}; readiness=${JSON.stringify(await readReadiness(page))}`);
     step('page-no-errors', report.pageErrors.length === 0, JSON.stringify(report.pageErrors));
     const configured = await configureConnection(page, { url: peerBase, model: 'probe-model' });
     report.configured = configured;

@@ -88,6 +88,7 @@ import { pinnedExtension } from './pinned-extensions.mjs';
 import {
     readChatFiles as driveReadChatFiles, openPage as driveOpenPage,
     openCharacter as driveOpenCharacter, chatCarrying, waitForReply,
+    readReadiness,
 } from './q20-persistence-drive.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -503,7 +504,7 @@ try {
     };
 
     const readyFirst = await openPage();
-    step('page-loaded', readyFirst === true, `settingsReady=${readyFirst}`);
+    step('page-loaded', readyFirst === true, `settingsReady=${readyFirst}; readiness=${JSON.stringify(await readReadiness(page))}`);
     step('page-no-errors', report.pageErrors.length === 0, JSON.stringify(report.pageErrors));
 
     // The connection, through the frontend's own controls, after the page is ready.

@@ -113,6 +113,21 @@ export function chatCarrying(files, marker) {
 // ---------------------------------------------------------------------------------------------------------------
 
 /**
+ * THE READINESS FACTS THE LAST `openPage` OBSERVED, so a failing `page-loaded` step names the mechanism instead of
+ * printing `settingsReady=false` and nothing else.
+ *
+ * Two runs were spent on the wrong half of this predicate because the step reported one boolean: 40518720310 failed
+ * because a listener installed after `domcontentloaded` had missed `app_ready`, and 40524162418 failed because the
+ * listener polled `SillyTavern.eventSource`, which does not exist (`globalThis.SillyTavern` is `{ libs, getContext }`,
+ * script.js:293) -- the real handle is `getContext().eventSource` (scripts/st-context.js:138). Both looked identical
+ * in the log. The record now carries `subscribed`, `viaFallback`, `appReady`, `settingsReady` and whether the
+ * preloader is gone, so the next red says which path was taken.
+ */
+export async function readReadiness(page) {
+    return page.evaluate(() => window.__q20Readiness ?? null).catch(() => null);
+}
+
+/**
  * Load the page and wait for `settingsReady`, the flag `script.js` itself checks before it installs listeners.
  *
  * The 90 s bound and the onboarding dismissal are the ones the first leg measured (run 40269030050: a `#send_but`
@@ -140,37 +155,49 @@ export async function openPage(page, baseURL) {
     // BEFORE any page script, and the flag it sets is read by the readiness loop below.
     await page.addInitScript(() => {
         window.__q20AppReady = false;
-        // `eventSource` is created during module evaluation of script.js and is assigned onto `window.SillyTavern`.
-        // Poll for it from a timer loop that starts before init, then subscribe ONCE. `'app_ready'` is the LITERAL
-        // pinned emits (public/scripts/events.js:5 `APP_READY: 'app_ready'`), not a name derived from the constant.
+        // THE HANDLE IS `getContext().eventSource`, NOT `SillyTavern.eventSource`, and run 40524162418 measured the
+        // difference: my previous hook polled `window.SillyTavern?.eventSource` and NEVER found it, so `page-loaded`
+        // failed with `settingsReady=false` on BOTH subjects for the second run running.
+        //
+        // WHY. `globalThis.SillyTavern` is initialised at script.js:293 with exactly `{ libs, getContext }`. The
+        // `eventSource` at script.js:327 lives in the module's separate `export { ... }` block, which does NOT add a
+        // member to that object -- so `SillyTavern.eventSource` is `undefined` on every page, forever, and a poll for
+        // it can only ever time out. The context object built in scripts/st-context.js:138 DOES carry it
+        // (`eventSource,` alongside `eventTypes: event_types`), and `SillyTavern.getContext` is assigned at :295, so
+        // it is reachable from an init script as soon as the module has evaluated.
+        //
+        // `'app_ready'` is the LITERAL pinned emits (public/scripts/events.js:5 `APP_READY: 'app_ready'`), checked
+        // against the source rather than derived from the constant's name.
         let attempts = 0;
         let subscribed = false;
         const attach = () => {
             attempts += 1;
-            const source = window.SillyTavern?.eventSource;
+            let source = null;
+            try {
+                source = window.SillyTavern?.getContext?.()?.eventSource ?? null;
+            } catch { source = null; }
             if (source && typeof source.on === 'function') {
                 source.on('app_ready', () => { window.__q20AppReady = true; });
                 subscribed = true;
+                window.__q20AppReadySubscribed = true;
                 return;
             }
             if (attempts < 6000) setTimeout(attach, 5);
+            else window.__q20AppReadySubscribeFailed = `no eventSource after ${attempts} attempts`;
         };
         attach();
         // THE FALLBACK, because a subscription that loses the race is exactly the failure this hook exists to remove:
         // if `app_ready` already fired before the subscription existed, the callback above never runs and the leg
         // would wait out its budget. `fixViewport()` (script.js:793) is the statement immediately BEFORE the
-        // `APP_READY` emit (:790) and it leaves a durable, observable side effect on `document.body`:
+        // `APP_READY` emit (:790) and leaves a durable, observable side effect on `document.body`:
         //     document.body.style.position = 'absolute'; ... ; document.body.style.position = '';
-        // The empty-string assignment is itself the marker: `style.position` is set by the product (so the attribute is
-        // non-empty) and its value is `''` only after init has torn it down. A body that never had it set reports
-        // `''` too, so the check requires the ATTRIBUTE to be present, which the product's own write guarantees.
+        // so a body whose style attribute mentions `position` while the resolved value is `''` has been through the
+        // init tail. When this fires, `__q20AppReadyViaFallback` records WHICH PATH established readiness instead of
+        // the artefact implying the subscription worked.
         const watchInitTail = () => {
             if (window.__q20AppReady === true) return;
             const style = document.body && document.body.getAttribute('style');
-            if (subscribed !== true && typeof style === 'string' && style.includes('position') && document.body.style.position === '') {
-                // init has been through `fixViewport`; the `APP_READY` emit is the very next statement, so a leg that
-                // sees this state has, for practical purposes, waited it out. Record that the FALLBACK was used, so an
-                // artefact says which path established readiness instead of implying the subscription worked.
+            if (typeof style === 'string' && style.includes('position') && document.body.style.position === '') {
                 window.__q20AppReadyViaFallback = true;
                 window.__q20AppReady = true;
                 return;
@@ -184,9 +211,26 @@ export async function openPage(page, baseURL) {
     return page.evaluate(async () => {
         const script = await import('./script.js');
         const started = performance.now();
+        let last = null;
         while (performance.now() - started < 90000) {
             // BOTH facts: settings loaded AND the application has emitted APP_READY.
-            if (script.settingsReady && window.__q20AppReady === true) return true;
+            if (script.settingsReady && window.__q20AppReady === true) {
+                window.__q20Readiness = {
+                    settingsReady: true,
+                    appReady: true,
+                    viaFallback: window.__q20AppReadyViaFallback === true,
+                    subscribed: window.__q20AppReadySubscribed === true,
+                };
+                return true;
+            }
+            last = {
+                settingsReady: script.settingsReady === true,
+                appReady: window.__q20AppReady === true,
+                subscribed: window.__q20AppReadySubscribed === true,
+                subscribeFailed: window.__q20AppReadySubscribeFailed ?? null,
+                viaFallback: window.__q20AppReadyViaFallback === true,
+                preloaderGone: document.getElementById('preloader') === null,
+            };
             const onboarding = document.querySelector('.popup .onboarding');
             if (onboarding) {
                 const input = onboarding.closest('.popup')?.querySelector('.popup-input');
@@ -199,7 +243,11 @@ export async function openPage(page, baseURL) {
             await new Promise(resolve => setTimeout(resolve, 100));
         }
         // A TIMEOUT IS REPORTED AS "NOT READY", never as ready: the caller's `page-loaded` step then fails by name
-        // instead of the drive proceeding into a half-initialised page.
+        // instead of the drive proceeding into a half-initialised page. The LAST observed readiness facts ride along,
+        // because "settingsReady=false" alone sent two runs looking at the wrong half of this predicate -- once when
+        // `settingsReady` was genuinely false early, and once when the subscription had simply never bound
+        // (`SillyTavern.eventSource` does not exist; the real handle is `getContext().eventSource`).
+        window.__q20Readiness = { ...(last ?? {}), timedOut: true };
         return false;
     });
 }

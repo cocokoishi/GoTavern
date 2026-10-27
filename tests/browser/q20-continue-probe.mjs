@@ -88,6 +88,7 @@ import { pinnedExtension } from './pinned-extensions.mjs';
 import {
     chatCarrying, configureConnection, openCharacter, openPage, pressContinue,
     readChatFiles, readProcessCommands, resolveRoster, saveConditional, sendTurn, settleQuiet, silenceAndObserve, waitForReply,
+    readReadiness,
 } from './q20-persistence-drive.mjs';
 import { argumentValue, bootSubject, freePort, repoRoot, startCapturePeer, waitForServer } from './q20-leg-runtime.mjs';
 
@@ -246,7 +247,7 @@ try {
         .map(entry => ({ method: entry.method, path: entry.pathAndQuery, status: entry.status, contentType: entry.contentType, byteLength: entry.byteLength }));
 
     const ready = await openPage(page, baseURL);
-    step('page-loaded', ready === true, `settingsReady=${ready}`);
+    step('page-loaded', ready === true, `settingsReady=${ready}; readiness=${JSON.stringify(await readReadiness(page))}`);
     step('page-no-errors', report.pageErrors.length === 0, JSON.stringify(report.pageErrors));
     const configured = await configureConnection(page, { url: peerBase, model: 'probe-model' });
     report.configured = configured;
