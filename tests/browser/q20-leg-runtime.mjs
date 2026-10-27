@@ -87,7 +87,7 @@ export async function waitForServer(url, deadlineMs = 120000) {
  * makes a past leg's silence diagnosable -- a leg that drove a streaming page against a JSON peer now says
  * `served.wire: "json"` in its own record instead of leaving the discrepancy to be reasoned about.
  */
-export function startCapturePeer({ replyText = ordinal => `Q20_REPLY_${ordinal}`, wire = 'honour' } = {}) {
+export function startCapturePeer({ replyText = ordinal => `Q20_REPLY_${ordinal}`, wire = 'honour', replyPrefix = '' } = {}) {
     const requests = [];
     let replyIndex = 0;
     const server = http.createServer((request, response) => {
@@ -132,7 +132,24 @@ export function startCapturePeer({ replyText = ordinal => `Q20_REPLY_${ordinal}`
                 return;
             }
             replyIndex += 1;
+            // THE REPLY TEXT CAN BE MADE PER-SUBJECT, and run 40494862493 is why it sometimes must be.
+            //
+            // Each leg boots its OWN peer process with its own `replyIndex` starting at zero, so by default BOTH
+            // subjects receive the SAME text (`Q20_REPLY_1`, `Q20_REPLY_2`, ...). For a single-subject leg that is
+            // harmless. For TWO legs whose equality is the assertion it is a rule-50 defect at the content level: the
+            // requests can be equal because the two subjects were fed identical bytes, so the comparison cannot
+            // distinguish "the product sent the same thing" from "the harness made them the same thing".
+            //
+            // It also BIT the regenerate comparison, in a way that looked like a product finding: the pinned leg
+            // performed one more setup completion than the GoTavern leg, so its counter ran ahead, its chat's last
+            // message was `Q20_REPLY_4` with TWO swipes while GoTavern's was `Q20_REPLY_2` with ONE, and
+            // `regenerate-file-swipes-unchanged` went red with `before=2 after=1`. That red was correct about the
+            // bytes and wrong about the cause -- the extra swipe came from the reply the harness had handed it.
+            //
+            // `replyPrefix` lets a caller stamp the subject's identity into the text, so a difference attributable to
+            // the harness is visible AS a difference instead of hiding inside a shared convention.
             const text = String(replyText(replyIndex) ?? '');
+            const labelled = replyPrefix ? `${replyPrefix}${text}` : text;
             const serveSse = wire === 'sse' || (wire === 'honour' && wantsStream);
             if (serveSse) {
                 // THE FRAMES THE READER EXPECTS: one delta carrying the whole text (a single chunk is enough -- the
@@ -142,7 +159,7 @@ export function startCapturePeer({ replyText = ordinal => `Q20_REPLY_${ordinal}`
                     object: 'chat.completion.chunk',
                     created: 1730000000,
                     model: 'probe-model',
-                    choices: [{ index: 0, delta: { role: 'assistant', content: text }, finish_reason: null }],
+                    choices: [{ index: 0, delta: { role: 'assistant', content: labelled }, finish_reason: null }],
                 });
                 const stop = JSON.stringify({
                     id: `chatcmpl-q20-${replyIndex}`,
@@ -166,7 +183,7 @@ export function startCapturePeer({ replyText = ordinal => `Q20_REPLY_${ordinal}`
                 object: 'chat.completion',
                 created: 1730000000,
                 model: 'probe-model',
-                choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }],
+                choices: [{ index: 0, message: { role: 'assistant', content: labelled }, finish_reason: 'stop' }],
                 usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
             });
             response.writeHead(200, jsonHeaders);

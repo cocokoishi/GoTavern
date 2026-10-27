@@ -306,7 +306,7 @@ try {
             // while a marker-only assertion was green. CONTINUE appends to the LAST message, so a leg whose predecessor
             // reply was never persisted would be continuing a different message than the one the other subject
             // continued -- an equality that cannot discriminate.
-            const carriedReply = files.some(file => (file.messages ?? []).some(entry => /Q20_REPLY_\d+/.test(String(entry?.mes ?? ''))));
+            const carriedReply = files.some(file => (file.messages ?? []).some(entry => /(?:[A-Z0-9]+_)?Q20_REPLY_\d+/.test(String(entry?.mes ?? ''))));
             step(`turn-${index + 1}-saved-the-reply`, carriedReply,
                 JSON.stringify(files.map(file => ({ file: file.file, lines: file.lines, messages: (file.messages ?? []).map(entry => String(entry?.mes ?? '').slice(0, 40)) }))));
             if (!carried) {

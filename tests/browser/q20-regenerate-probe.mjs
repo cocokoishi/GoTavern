@@ -194,7 +194,19 @@ if (boot.bootRefusal) {
 // CONDITION 5, PROVIDE-DO-NOT-USE: `--wire honour|json|sse`. The default HONOURS the request (SSE to a `stream: true`
 // request), so the response format is a function of what the page asked for; a leg may pin it instead, and the choice
 // is recorded in `report.wireMode` so no reader has to infer which peer an artefact came from.
-const peer = await startCapturePeer({ wire: wireMode });
+    // THE PEER IS STAMPED WITH THIS LEG'S SUBJECT, so two legs can never be fed identical bytes by accident. Without
+    // it both subjects receive `Q20_REPLY_1`, `Q20_REPLY_2`, ... from their own counters, and a comparison between the
+    // legs then cannot tell "the product produced the same request" from "the harness produced the same input"
+    // (rule 50). Run 40494862493 is the measurement: the pinned leg used one more setup completion than the GoTavern
+    // leg, so its counter ran ahead and its chat's last reply was `Q20_REPLY_4` against GoTavern's `Q20_REPLY_2`.
+        const replyPrefix = argumentValue(process.argv, '--reply-prefix', process.env.Q20_REPLY_PREFIX ?? '');
+    // THE REPLY MARKER, DEFINED ONCE. The peer's text is `Q20_REPLY_<n>`, optionally stamped with this subject's
+    // `replyPrefix` so two legs cannot be fed identical bytes (see below). These two names are the only places a
+    // reply is recognised, so a prefixed leg and an unprefixed leg are judged by the same rule -- and an assertion
+    // that names the old shape directly would silently stop matching the moment a prefix was configured.
+    const REPLY_MARKER = /Q20_REPLY_\d+/;
+    const REPLY_TEXT = /^(?:[A-Z0-9]+_)?Q20_REPLY_\d+$/;
+    const peer = await startCapturePeer({ wire: wireMode, replyPrefix });
 
 const peerBase = `http://127.0.0.1:${peer.port}/v1`;
 let browser;
@@ -355,7 +367,7 @@ try {
             // 40487164548 lost an assistant reply on the pinned leg while a marker-only assertion was green, and the
             // same predicate shape lived here and in the continue probe. The regenerate verb operates ON the reply, so a
             // leg that regenerated a message whose predecessor was never persisted would be measuring a different chat.
-            const carriedReply = files.some(file => (file.messages ?? []).some(entry => /Q20_REPLY_\d+/.test(String(entry?.mes ?? ''))));
+            const carriedReply = files.some(file => (file.messages ?? []).some(entry => REPLY_MARKER.test(String(entry?.mes ?? ''))));
             step(`turn-${index + 1}-saved-the-reply`, carriedReply,
                 JSON.stringify(files.map(file => ({ file: file.file, lines: file.lines, messages: (file.messages ?? []).map(entry => String(entry?.mes ?? '').slice(0, 40)) }))));
             if (!carried) {
@@ -409,7 +421,7 @@ try {
         && pressed?.sawBusy === true
         && pressed?.after?.lastIsUser === false
         && String(pressed?.after?.lastText ?? '') !== String(pressed?.before?.lastMessage?.mes ?? '')
-        && /^Q20_REPLY_\d+$/.test(String(pressed?.after?.lastText ?? '').trim()),
+        && REPLY_TEXT.test(String(pressed?.after?.lastText ?? '').trim()),
         JSON.stringify({
             menuVisible: pressed?.menuVisible,
             generateWrapStatus: pressed?.generateWrapStatus,
@@ -450,18 +462,36 @@ try {
     const beforeFile = report.preRegenerate.file;
     const afterFile = report.fileAfterRegenerate;
     step('regenerate-ui-held-a-message',
-        report.pageAfter.chatLength === preState.chatLength && report.pageAfter.lastIsUser === false && report.pageAfter.lastText.startsWith('Q20_REPLY_'),
+        report.pageAfter.chatLength === preState.chatLength && report.pageAfter.lastIsUser === false && REPLY_TEXT.test(String(report.pageAfter.lastText ?? '')),
         JSON.stringify({ preState, after: report.pageAfter }));
     step('regenerate-file-held-the-same-message-count',
         beforeFile && afterFile && beforeFile.lines === afterFile.lines,
         `before=${beforeFile?.lines} after=${afterFile?.lines} file=${afterFile?.file ?? 'none'}`);
     step('regenerate-file-holds-the-new-reply',
-        Boolean(afterFile) && afterFile.messages[afterFile.messages.length - 1]?.mes?.startsWith('Q20_REPLY_') === true
+        Boolean(afterFile) && REPLY_MARKER.test(String(afterFile.messages[afterFile.messages.length - 1]?.mes ?? ''))
         && afterFile.messages[afterFile.messages.length - 1]?.mes !== beforeFile?.messages?.[beforeFile.messages.length - 1]?.mes,
         `last=${JSON.stringify(afterFile?.messages?.[afterFile.messages.length - 1]?.mes ?? null)}`);
+    // A REGENERATE DOES NOT KEEP THE OLD SWIPES, AND THE EXPECTED COUNT IS ONE, NOT "THE SAME AS BEFORE".
+    //
+    // Pinned `Generate` for `type === 'regenerate'` DELETES the last message and pushes a fresh one:
+    //     deleteItemizedPromptForMessage(chat.length - 1);
+    //     chat.length = chat.length - 1;
+    //     await removeLastMessage();                       (script.js:4408-4410)
+    // so the regenerated message is a NEW message whose `swipes` holds exactly its own text. Asserting
+    // "swipesCount after === swipesCount before" reads as the obvious contract and is WRONG whenever the message
+    // being regenerated already had more than one swipe -- which is exactly what run 40494862493 measured:
+    // pinned went 2 -> 1 and GoTavern 1 -> 1, and the step went red with `before=2 after=1` while BOTH subjects had
+    // behaved correctly. The `before=2` came from a reply this harness had handed the pinned leg, one setup
+    // completion ahead of the GoTavern leg's counter.
+    //
+    // So the assertion is the PRODUCT's contract -- exactly one swipe, holding the new reply, and the count is not a
+    // carry-over of the replaced message's swipes -- with the before-count RECORDED so a reader can still see when
+    // the two subjects started from different shapes.
+    const beforeSwipe = beforeFile?.messages?.[beforeFile.messages.length - 1] ?? null;
+    const afterSwipe = afterFile?.messages?.[afterFile.messages.length - 1] ?? null;
     step('regenerate-file-swipes-unchanged',
-        (beforeFile?.messages?.[beforeFile.messages.length - 1]?.swipesCount ?? null) === (afterFile?.messages?.[afterFile.messages.length - 1]?.swipesCount ?? null),
-        `before=${beforeFile?.messages?.[beforeFile.messages.length - 1]?.swipesCount ?? null} after=${afterFile?.messages?.[afterFile.messages.length - 1]?.swipesCount ?? null}`);
+        afterSwipe?.swipesCount === 1,
+        `before=${beforeSwipe?.swipesCount ?? null} after=${afterSwipe?.swipesCount ?? null} (a regenerated message is NEW, so pinned's own path leaves exactly 1 swipe: script.js:4408-4410)`);
 
     // 5. THE NEXT REQUEST CARRIES NO RESIDUAL STATE. A swipe AFTER the regenerate is the cheapest probe of that: the
     // swipe's request must equal the regenerate's (same chat, same history) and must not carry the replaced reply.

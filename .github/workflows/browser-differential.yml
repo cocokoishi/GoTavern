@@ -1084,7 +1084,7 @@ jobs:
           # the probe defaults the marker to a constant, both legs recorded 'Q20_REGEN_SECOND_TURN_MARKER', and the
           # comparator's own `artefactsDifferPerSubject` guard refused -- correctly. The probe already supports
           # overriding it; the workflow simply never did.
-          if Q20_REGEN_SECOND_MARKER="Q20_REGEN_SECOND_TURN_MARKER_GOTAVERN" \
+          if Q20_REGEN_SECOND_MARKER="Q20_REGEN_SECOND_TURN_MARKER_GOTAVERN" Q20_REPLY_PREFIX="Q20G_" \
             node tests/browser/q20-regenerate-probe.mjs --data-root "$tree" --character auto \
               --report "$work/legs/q20-regen-gotavern.json"; then
             echo "recorded the gotavern Q20 regenerate leg"
@@ -1109,7 +1109,7 @@ jobs:
             echo "the pinned leg will open the card the product opened: $name (chat: $chatid)"
             ptree="$work/q20-regen-tree-pinned"
             rm -rf "$ptree"; mkdir -p "$ptree"
-            if Q20_REGEN_SECOND_MARKER="Q20_REGEN_SECOND_TURN_MARKER_PINNED" \
+            if Q20_REGEN_SECOND_MARKER="Q20_REGEN_SECOND_TURN_MARKER_PINNED" Q20_REPLY_PREFIX="Q20P_" \
               node tests/browser/run-against-pinned.mjs q20-regenerate-probe.mjs -- --data-root "$ptree" \
                 --data-chat "$tree" --character "$name" --chat-id "$chatid" --report "$work/legs/q20-regen-pinned.json"; then
               echo "recorded the pinned Q20 regenerate leg"
