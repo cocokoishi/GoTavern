@@ -470,29 +470,29 @@ func TestDocumentsEncodingGateCanGoRed(t *testing.T) {
 			want:    "BOM",
 		},
 		{
-			name:   "invalid utf-8 byte",
+			name: "invalid utf-8 byte",
 			corrupt: func(b []byte) []byte {
 				out := append([]byte{}, b...)
 				out = append(out, ' ', 0xE9, '\n') // 0xE9 alone is not valid UTF-8
 				return out
 			},
-			want:    "not valid UTF-8",
+			want: "not valid UTF-8",
 		},
 		{
-			name:   "replacement character",
+			name: "replacement character",
 			corrupt: func(b []byte) []byte {
 				out := append([]byte{}, b...)
 				return append(out, []byte(" "+replacementCharacter+"\n")...)
 			},
-			want:    "REPLACEMENT CHARACTER",
+			want: "REPLACEMENT CHARACTER",
 		},
 		{
-			name:   "cp1252 mojibake",
+			name: "cp1252 mojibake",
 			corrupt: func(b []byte) []byte {
 				out := append([]byte{}, b...)
 				return append(out, []byte(" "+cp1252MojibakeA+cp1252MojibakeUnderscore+" header\n")...)
 			},
-			want:    "mojibake",
+			want: "mojibake",
 		},
 	}
 	for _, tc := range cases {
@@ -792,7 +792,6 @@ func isAncestor(root, ancestor, descendant string) (bool, error) {
 	return true, nil
 }
 
-
 // ledgerRow is one parsed scorecard row. It is a package type rather than a local one because the
 // citation-integrity checks take the rows by value and a second, differently-shaped row type would be a
 // second definition of "the row" (the same failure as two scorecards).
@@ -944,8 +943,10 @@ func TestEvidenceLedgerGateCanGoRed(t *testing.T) {
 			wantSub: "`proven` with no citation",
 		},
 		{
-			name:    "a proven row cites an unknown run",
-			mutate:  func(s string) string { return replaceLedgerRow(s, 4, ledgerRow(4, "proven", "`Browser differential` "+absentRunID)) },
+			name: "a proven row cites an unknown run",
+			mutate: func(s string) string {
+				return replaceLedgerRow(s, 4, ledgerRow(4, "proven", "`Browser differential` "+absentRunID))
+			},
 			wantSub: "not in",
 		},
 		{
@@ -957,8 +958,8 @@ func TestEvidenceLedgerGateCanGoRed(t *testing.T) {
 		// from `GoTavern drop-in qualification`, a workflow that never runs the unit suite, so its green
 		// could not have failed. The row below writes a real run id with the wrong workflow name.
 		{
-			name:    "a cited run carries the wrong workflow name",
-			mutate:  func(s string) string {
+			name: "a cited run carries the wrong workflow name",
+			mutate: func(s string) string {
 				return replaceLedgerRow(s, 4, ledgerRow(4, "proven", "`GoTavern drop-in qualification` 40325398585 (success)"))
 			},
 			wantSub: "but that run belongs to",
@@ -966,8 +967,8 @@ func TestEvidenceLedgerGateCanGoRed(t *testing.T) {
 		// (iii) A RED RUN MUST BE MARKED IN PLACE. 40378609525 concluded failure; the row cites it and
 		// says only "success", which is the reading that makes a red run look green.
 		{
-			name:    "a red run is cited without saying so",
-			mutate:  func(s string) string {
+			name: "a red run is cited without saying so",
+			mutate: func(s string) string {
 				return replaceLedgerRow(s, 4, ledgerRow(4, "proven", "`Browser differential` 40378609525 (success), step `first-turn-saved`"))
 			},
 			wantSub: "without saying so",
