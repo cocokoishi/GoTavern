@@ -701,6 +701,12 @@ rather than by review.
     commits it had merely inherited, conflicted on them, and the correct instrument was
     `git rebase --onto origin/main <that-base>`. Abort on that conflict rather than resolving it: the commits
     being replayed are not yours to resolve.
+    **And the signature can be produced by TIME alone.** A branch whose base predates another lane's files shows
+    those files as whole-file DELETIONS while containing none of the other lane's work — measured: a lane's diff
+    against main showed two deleted files that were main's own additions after its base, and the correct action
+    was a rebase rather than reporting a clean diff that was really a stale base. So (a) means "no file is
+    deleted that you did not intend to delete", and a file that is absent because it did not exist when you
+    branched is a rebase signal, not a contamination one.
 
 63. **Build a vehicle with exactly as many moving parts as the claim needs.** One lane spent four consecutive
     reds on a browser vehicle whose derived preset, staged card and UI select the claim never named; the claim was
@@ -782,6 +788,13 @@ rather than by review.
     shapes, assert the exclusion in the SAME test — inert on the excluded shapes, live on the admitted one — so a
     rule that fires everywhere cannot satisfy a two-direction assertion. A red that cannot name which of
     "skipped" and "never ran" happened is not evidence about either.
+    **Corollary, measured as the fourth instance of this family in one lane: when a variant exists to NEGATE
+    something, its assertions must be inverted with it, or the negation is silently untested.** A
+    `disabled-rewrite` variant switches a rule off, and the self-check was still demanding that rule fire — a
+    positive control asserted against the variant that removes it. The same inversion applied to a
+    `swap-chain` variant, where exchanging the two rules makes the MIDDLE token survive and the FINAL token
+    absent, which is the observable the case exists to assert. Each variant now asserts the expectation that
+    makes IT evidence, and a negation that fails to take effect is itself a failure.
 
 72. **A satisfied condition is not the event, and a run whose steps were all SKIPPED is not evidence.**
     Two measured instances of one shape — a gate that reports success without the thing under test happening:
