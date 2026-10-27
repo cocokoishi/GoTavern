@@ -15,7 +15,7 @@ this repository at `../SillyTavern` and is READ-ONLY.
 | Field | Value |
 |---|---|
 | **HEAD (main)** | `45473bb` |
-| **Pinned baseline** | SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a9165bce127` |
+| **Pinned baseline** | SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127` |
 | **Live evidence ledger** | `docs/goal-scorecard.md` -- twenty-two rows, five classes, and `tests/docs/run-manifest.json` |
 | **Milestone ladder** | `GOAL.md` section 11: M0 (closed) through M5; M1..M4 open |
 | **Main is GREEN** | `GoTavern CI` 40470281092 (success, `verify` job green) and `GoTavern drop-in qualification` 40470281044 (success), both on `45473bb` -- the first green `GoTavern CI` on `main` in this pass |
