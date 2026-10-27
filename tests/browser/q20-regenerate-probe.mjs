@@ -265,6 +265,52 @@ try {
     });
     report.openedContext = openedContext;
 
+    // THE CHAT IS SELECTED EXPLICITLY WHEN THE CALLER NAMES ONE, and this is the fix for run 40482430975.
+    //
+    // MEASURED THERE: clicking the character card opened the card's LAST-USED chat, which differs per tree. The
+    // GoTavern leg started on a 5-message chat of its own; the pinned leg, booting the COPIED tree, opened a
+    // 9-message chat that still carried an EARLIER RUN's messages ("Q20_REPLY_1", "Q20_REPLY_4" were visible in its
+    // first request). Its `characterOpen` recorded `characterChat: null, chatId: null`, i.e. it never reached the
+    // chat the product had written -- and the comparator then correctly refused with "5 vs 9". Every later equality
+    // was meaningless because the two subjects were not on the same conversation.
+    //
+    // `openCharacterChat(file_name)` (pinned script.js:7744) is the product's own entry: it waits for `isChatSaving`
+    // to clear, clears the current chat, sets `characters[this_chid].chat = file_name`, re-runs `getChat()` and
+    // refreshes the chat list. The argument is the chat FILE NAME, and in this product the chat id and the file stem
+    // are the same string (the GoTavern leg recorded `chatId` and `preRegenerate.file` with the one name), so the id
+    // is the right argument and no suffix guessing is needed.
+    //
+    // It is called through the module's own binding, and then the result is READ BACK from the context -- rule 58:
+    // a selection set through one path is verified through the reader the product uses, and a mismatch fails BY NAME.
+    const wantedChatId = argumentValue(process.argv, '--chat-id', process.env.Q20_CHAT_ID ?? null);
+    if (wantedChatId) {
+        const selected = await page.evaluate(async target => {
+            const script = await import('./script.js');
+            if (typeof script.openCharacterChat !== 'function') {
+                return { requested: target, selected: false, reason: 'openCharacterChat is not exported by the pinned frontend' };
+            }
+            const before = window.SillyTavern.getContext();
+            const beforeId = before.chatId ?? null;
+            await script.openCharacterChat(target);
+            const settle = Date.now() + 30000;
+            while (Date.now() < settle) {
+                const now = window.SillyTavern.getContext();
+                if (String(now.chatId ?? '') === String(target) && (now.chat ?? []).length > 0) {
+                    return { requested: target, selected: true, chatId: String(now.chatId), chatLength: (now.chat ?? []).length, beforeId: String(beforeId ?? '') };
+                }
+                await new Promise(resolve => setTimeout(resolve, 250));
+            }
+            const final = window.SillyTavern.getContext();
+            return { requested: target, selected: false, chatId: final.chatId ?? null, chatLength: (final.chat ?? []).length, beforeId: String(beforeId ?? ''), reason: 'the product never reported the requested chat id' };
+        }, wantedChatId);
+        report.chatSelection = selected;
+        step('chat-selected', selected.selected === true && String(selected.chatId ?? '') === String(wantedChatId),
+            JSON.stringify(selected));
+        report.openedContext = { ...openedContext, chatIdAfterSelection: selected.chatId ?? null, chatLengthAfterSelection: selected.chatLength ?? null };
+    } else {
+        report.chatSelection = { requested: null, selected: null, reason: 'no --chat-id was supplied; the leg accepted the chat the card resumed' };
+    }
+
     // 2. THE CHAT IS BROUGHT TO THE STATE THE VERB NEEDS: (greeting, user, assistant, user, assistant).
     //
     // The first turn is SILENCED for the save (`savingAfterComplete = false`) so that the Q20 pair starts from the

@@ -1078,7 +1078,14 @@ jobs:
           # page shows no card at all. The name it opened is then handed to the pinned leg from the artefact -- which is
           # the only place a name is authoritative, because it is what the product said.
           echo "Q20 regenerate: the GoTavern leg resolves its card from the product's own roster (--character auto)"
-          if node tests/browser/q20-regenerate-probe.mjs --data-root "$tree" --character auto \
+          # THE PER-SUBJECT MARKER (rule 50). Each leg's second turn carries text UNIQUE TO THAT SUBJECT, so the request
+          # built from it must differ before the verb; if the two legs' markers were identical, no later equality could
+          # tell the subjects apart and the whole comparison would be vacuous. Run 40482430975 measured exactly that:
+          # the probe defaults the marker to a constant, both legs recorded 'Q20_REGEN_SECOND_TURN_MARKER', and the
+          # comparator's own `artefactsDifferPerSubject` guard refused -- correctly. The probe already supports
+          # overriding it; the workflow simply never did.
+          if Q20_REGEN_SECOND_MARKER="Q20_REGEN_SECOND_TURN_MARKER_GOTAVERN" \
+            node tests/browser/q20-regenerate-probe.mjs --data-root "$tree" --character auto \
               --report "$work/legs/q20-regen-gotavern.json"; then
             echo "recorded the gotavern Q20 regenerate leg"
           else
@@ -1086,15 +1093,25 @@ jobs:
             failures=$((failures + 1))
           fi
           name=$(node -e "const fs=require('fs'); const p=process.argv[1]; if(!fs.existsSync(p)) process.exit(0); const r=JSON.parse(fs.readFileSync(p,'utf8')); process.stdout.write(String(r.characterOpen?.characterName ?? ''))" "$work/legs/q20-regen-gotavern.json")
-          if [ -z "$name" ]; then
+          # THE CHAT, NOT JUST THE CARD. Run 40482430975 proved the card name is not enough: the pinned leg booted the
+          # COPIED tree but resumed the card's LAST-USED chat, which in that tree was a 9-message chat still holding an
+          # EARLIER RUN's messages, while the GoTavern leg sat on its own 5-message chat. The comparator refused with
+          # "5 vs 9" and every later equality was vacuous. The chat id is taken from the GoTavern leg's own artefact --
+          # the product's name for the conversation it wrote -- and the pinned leg OPENS THAT CHAT and verifies it.
+          chatid=$(node -e "const fs=require('fs'); const p=process.argv[1]; if(!fs.existsSync(p)) process.exit(0); const r=JSON.parse(fs.readFileSync(p,'utf8')); process.stdout.write(String(r.preRegenerate?.page?.chatId ?? ''))" "$work/legs/q20-regen-gotavern.json")
+          if [ -z "$chatid" ]; then
+            echo "::error::the gotavern Q20 regenerate leg recorded no chat id, so the pinned leg cannot be put on the same conversation"
+            failures=$((failures + 1))
+          elif [ -z "$name" ]; then
             echo "::error::the gotavern Q20 regenerate leg recorded no character name, so the pinned leg has no chat to open and nothing is claimed for this verb"
             failures=$((failures + 1))
           else
-            echo "the pinned leg will open the card the product opened: $name"
+            echo "the pinned leg will open the card the product opened: $name (chat: $chatid)"
             ptree="$work/q20-regen-tree-pinned"
             rm -rf "$ptree"; mkdir -p "$ptree"
-            if node tests/browser/run-against-pinned.mjs q20-regenerate-probe.mjs -- --data-root "$ptree" \
-                --data-chat "$tree" --character "$name" --report "$work/legs/q20-regen-pinned.json"; then
+            if Q20_REGEN_SECOND_MARKER="Q20_REGEN_SECOND_TURN_MARKER_PINNED" \
+              node tests/browser/run-against-pinned.mjs q20-regenerate-probe.mjs -- --data-root "$ptree" \
+                --data-chat "$tree" --character "$name" --chat-id "$chatid" --report "$work/legs/q20-regen-pinned.json"; then
               echo "recorded the pinned Q20 regenerate leg"
             else
               echo "::error::the pinned Q20 regenerate leg failed to drive"

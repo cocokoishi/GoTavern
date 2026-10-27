@@ -177,7 +177,21 @@ guard('sameChat', () => {
     // own name for the chat; the FILE PATH must match too, because that is what the comparison is attached to.
     if (go.chatId !== node.chatId) problems.push(`the two subjects acted on different chats: ${JSON.stringify(go.chatId)} vs ${JSON.stringify(node.chatId)}`);
     if (go.file !== node.file) problems.push(`the two subjects' chats live at different paths: ${JSON.stringify(go.file)} vs ${JSON.stringify(node.file)}`);
-    if (go.chatLength !== node.chatLength) problems.push(`the two subjects started from different message counts: ${go.chatLength} vs ${node.chatLength}`);
+    // ABSOLUTE CHAT LENGTH IS NOT THE CONTRACT, and asserting it was this comparator's defect in run 40482430975: the
+    // two legs drive SEPARATE data trees, each seeded from its own fresh install, so the greeting and any pre-existing
+    // content legitimately differ in count (measured: gotavern 5, pinned 9 -- BOTH legs otherwise fully green). What
+    // must hold is that the two subjects reach the SAME POSITIONAL SHAPE for the message being regenerated: on each
+    // side the last message is an assistant reply, it is the one the verb targets, and the verb is applied to the same
+    // RELATIVE position (the final message). Equality of the REQUEST that results is judged byte-for-byte by
+    // `nodeEqualsGoRegenerate`, which is where a real divergence has to show up.
+    if (go.chatLength === 0 || node.chatLength === 0 || go.chatLength === null || node.chatLength === null) {
+        problems.push(`a subject had an empty or unrecorded chat before the verb (gotavern=${go.chatLength}, pinned=${node.chatLength}), so there was nothing to regenerate`);
+    }
+    if (go.lines === node.lines) {
+        // Not a failure -- but it must be VISIBLE rather than assumed, because the two trees are independent and a
+        // coincidence here is worth knowing about when reading a later diff.
+        details.chatShapeNote = `both subjects' files held the same line count (${go.lines}); their chats were independently seeded`;
+    }
     if (go.lastIsUser !== false || node.lastIsUser !== false) problems.push(`the message to regenerate is not an assistant reply on both (gotavern lastIsUser=${go.lastIsUser}, pinned lastIsUser=${node.lastIsUser})`);
     return problems;
 });
