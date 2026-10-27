@@ -427,7 +427,7 @@ jobs:
           echo "failures=$failures" >> "$GITHUB_OUTPUT"
 
       # -------------------------------------------------------------------------------------------------
-      # THE BROWSER ASSET DIFFERENTIAL (GOAL.md Ã‚Â§8.4 Q3-Q7, AGENTS.md 42-46, ARCHITECTURE.md Ã‚Â§35.2).
+      # THE BROWSER ASSET DIFFERENTIAL (GOAL.md §8.4 Q3-Q7, AGENTS.md 42-46, ARCHITECTURE.md §35.2).
       #
       # WHAT IT ANSWERS: does a browser loading the unmodified pinned frontend DISPLAY the character-list
       # avatars, the chat-message avatars, the persona thumbnail and the background, on both legs?
@@ -588,7 +588,7 @@ jobs:
           cat "$work/legs/ui-layout-comparison.json"
           exit "$status"
 
-      # THE Ã©â€¦â€™Ã©Â¦â€ Ã¥Å Â©Ã¦â€°â€¹ DIFFERENTIAL (AGENTS.md 47 and 50; GOAL.md Q8-Q12).
+      # THE 酒馆助手 DIFFERENTIAL (AGENTS.md 47 and 50; GOAL.md Q8-Q12).
       #
       # WHAT WAS MISSING UNTIL NOW. extension-tavern-helper-comparison.json installs the pinned extension,
       # reaches user state, counts 32 extension containers and compares the requests the page makes -- and
