@@ -154,6 +154,55 @@ async function hashTree(root) {
 // page's own list was full). `tests/browser/q20-persistence-probe.mjs:440-472` has the shape that works and is now
 // used verbatim here: wait for the CARD in the DOM (`.character_select#CharID<n>`, script.js:945), click it, then
 // wait on the PRODUCT's own chat state. The card's `data-chid` is recorded so a future mismatch is a field.
+// WAIT FOR THE PAGE'S OWN READY FLAG, THEN FOR ITS OWN CHARACTER MODEL.
+//
+// MEASURED, run 40476539225 (`mode=preset`): both halves failed `opened` with
+//   {"opened":false,"reason":"no .character_select card rendered in #rm_print_characters_block after 90000 ms",
+//    "rendered":[],"modelNames":[]}
+// `modelNames` is read from the page's `characters` array, and EMPTY means `getCharacters()` (script.js:1294) had not
+// populated it -- so no selector was ever reached and the 90-second wait was waiting for a render that could not
+// happen. The wait that was missing is the one Q20 already uses (`q20-persistence-probe.mjs:411-434`): the page
+// signals readiness through its OWN flag `settingsReady`, and it prompts `.popup .onboarding` for a user name before
+// it can become ready. A page that is not ready has no character model, whatever the server lists.
+//
+// THE ORDERING IS ALREADY CORRECT and was NOT changed: the card is staged into the tree BEFORE the server boots
+// (`stageCharacterCard` runs before `spawn`), so the first `/api/characters/all` the page makes includes it. The
+// `dataRootWasEmpty` and `characterStaged` rows happen before `page.goto` for exactly that reason.
+async function waitForPageModel(page, { limitMs = 90000 } = {}) {
+    return page.evaluate(async limit => {
+        const script = await import('./script.js');
+        const started = performance.now();
+        const cleared = [];
+        while (performance.now() - started < limit) {
+            if ((script.characters ?? []).length > 0) {
+                return { ready: true, modelNames: script.characters.map(entry => entry?.name ?? null), cleared, waitedMs: Math.round(performance.now() - started) };
+            }
+            // READY FIRST, ONBOARDING SECOND. `settingsReady` is the page's own flag (Q20 measured a click that
+            // emptied the chat because a listener was not installed yet); the onboarding popup blocks it on a fresh
+            // install and asks for a user name.
+            const onboarding = document.querySelector('.popup .onboarding');
+            if (onboarding) {
+                const popup = onboarding.closest('.popup');
+                const input = popup?.querySelector('.popup-input');
+                if (input && input.value !== 'Probe User') {
+                    input.value = 'Probe User';
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                popup?.querySelector('.popup-button-ok')?.click();
+                if (cleared[cleared.length - 1] !== 'onboarding') cleared.push('onboarding');
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        return {
+            ready: false,
+            modelNames: (script.characters ?? []).map(entry => entry?.name ?? null),
+            settingsReady: script.settingsReady === true,
+            cleared,
+            waitedMs: Math.round(performance.now() - started),
+        };
+    }, limitMs);
+}
+
 // BOTH HALVES MUST OPEN THE SAME CARD, BY THE NAME THE SERVER SHOWS, AND MUST PROVE WHICH CARD THEY OPENED.
 //
 // `Browser differential` 40467141027 (`mode=preset`, step "Hand GoTavern's own tree back to pinned Node (Q21)")
@@ -505,6 +554,14 @@ async function gotavernWrites() {
         await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
         await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'domcontentloaded' });
         await page.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 120000 });
+        // THE PAGE MUST HAVE ITS OWN MODEL BEFORE A CARD CAN BE OPENED. Run 40476539225 measured `modelNames: []`
+        // on both halves -- the wait for a render was waiting for a render that could not happen.
+        report.gotavernPageModel = await waitForPageModel(page);
+        step('pageModelLoaded', report.gotavernPageModel.ready === true, JSON.stringify(report.gotavernPageModel).slice(0, 500));
+        if (!report.gotavernPageModel.ready) {
+            throw new Error(`the GoTavern page never populated its character model: ${JSON.stringify(report.gotavernPageModel).slice(0, 400)}`);
+        }
+        // The connection and the API switch BOTH have to be set
         // The connection and the API switch BOTH have to be set: `chat_completion_source` does not move `main_api`,
         // and the fresh-install default is the Horde branch (measured in the Q20 lane, run 40375075025).
         await page.evaluate(async ({ url, model }) => {
@@ -584,6 +641,12 @@ async function pinnedReads() {
         await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
         await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
         await page.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 120000 });
+        // THE SAME MODEL WAIT AS THE GOTAVERN HALF: `modelNames: []` was measured on BOTH subjects in run 40476539225.
+        report.pinnedPageModel = await waitForPageModel(page);
+        step('pageModelLoaded', report.pinnedPageModel.ready === true, JSON.stringify(report.pinnedPageModel).slice(0, 500));
+        if (!report.pinnedPageModel.ready) {
+            throw new Error(`the pinned page never populated its character model: ${JSON.stringify(report.pinnedPageModel).slice(0, 400)}`);
+        }
         // THE SAME CARD, OPENED THE SAME WAY, on the tree the product wrote.
         report.opened = await openCharacterByName(page);
         // THE SAME PRECONDITION STEP AS THE GOTAVERN HALF, and for the same measured reason: run 40467141027's
