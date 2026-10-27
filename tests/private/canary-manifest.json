@@ -1,0 +1,7 @@
+{
+  "_comment": "CANARY MANIFEST -- NOT THE USER'S DATA. This file exists so the private channel's two instruments can be exercised for real: the originals do not exist on this host (the pinned checkout's data root holds one 0-byte file), so a demonstration against them is impossible and claiming one would be the exact failure this channel exists to prevent. The entries below ARE ordinary files in this repository, which makes this run a HARNESS CANARY and never private qualification. scripts/private-workdir.mjs records `manifestInsideRepository` so a reader can see which kind of run produced the report.",
+  "aliases": [
+    { "alias": "PRIVATE_CANARY_CARD", "path": "../../tests/browser/fixtures/real/card-a.png", "kind": "canary-derivation" },
+    { "alias": "PRIVATE_CANARY_PRESET", "path": "../../tests/browser/fixtures/real/preset-a.json", "kind": "canary-derivation" }
+  ]
+}
