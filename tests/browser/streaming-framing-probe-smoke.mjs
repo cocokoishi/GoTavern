@@ -204,12 +204,43 @@ addCase('the classifier names exactly the seven terminal states', () => {
     }
 });
 addCase('only the abort leg may reach the evidence-bearing timeout', () => {
-    // STATE 6 IS GUARDED BY THE MODE and by the hop's own evidence, so a non-abort leg cannot be excused
-    // by a timeout that observed nothing, and an abort leg cannot be excused by a cut that never happened.
-    assert.ok(/probeMode === 'abort' && sawCut/.test(source),
-        'the cut-evidence timeout is not gated on BOTH the abort mode and the observed cut, so an ordinary leg could be reported as a terminal it did not reach');
-    assert.ok(/abortEvidence\.cutsPerformed > 0 && abortEvidence\.framesReleased > 0/.test(source),
+    // THE GATE MOVED TO NODE, and this asserts it THERE: the classification cannot run inside the
+    // page callback (proxy/streamingPeer/report are unreachable there -- run 40643109721), so the
+    // abort-only guard and the hop-evidence guard must both appear in the node-side block.
+    assert.ok(/if \(probeMode === 'abort'\) \{[\s\S]*?cut-evidence-timeout/.test(source),
+        'the cut-evidence timeout is not gated on the abort mode, so an ordinary leg could be reported as a terminal it did not reach');
+    assert.ok(/const sawCut = Boolean\(abortEvidence\.cut && abortEvidence\.cutsPerformed > 0 && abortEvidence\.framesReleased > 0\)/.test(source),
         'the cut evidence does not require both a performed cut and released frames');
+});
+
+
+// A NODE VARIABLE READ FROM INSIDE THE PAGE CALLBACK COMPILES AND DIES IN A BROWSER.
+//
+// `proxy`, `streamingPeer` and `report` are node-side bindings. `node --check` cannot see the mistake and
+// neither could the 16 cases above: the classifier was written inside the drive callback, every local check
+// passed, and both legs died with `ReferenceError: streamingPeer is not defined` / `proxy is not defined`
+// (`Browser differential` 40643109721). This case exists because that class of defect has now cost this
+// lane three dispatches (40307148708, 40310223649, 40643109721).
+addCase('no node-only binding is read inside the drive callback', () => {
+    const lines = driveCallbackCode();
+    // THE ARGUMENT OBJECT AFTER THE CALLBACK IS NODE-SIDE BY CONSTRUCTION (`presetSpec:` and its
+    // siblings read `presetFixture` there and legitimately). Only lines strictly between the call and
+    // that object run in the browser -- the same boundary the outer-handle case above uses -- so a
+    // `key:` line is excluded here for the same reason.
+    const inner = lines.slice(1, Math.max(1, lines.length - 1));
+    const nodeOnly = /\b(?:proxy|streamingPeer|report|presetFixture|mockAddress)\b(?!\s*:)/;
+    const offenders = inner
+        .filter(line => nodeOnly.test(stripLiterals(line.code)) && !/^\s+[A-Za-z]+:/.test(line.code))
+        .map(line => `${line.number}: ${line.code.trim().slice(0, 90)}`);
+    assert.deepEqual(offenders, [],
+        `the drive callback reads a node-side binding that does not exist in the page: ${offenders.join(' | ')}`);
+});
+addCase('the node-binding scan detects a planted read and ignores page state', () => {
+    const scan = code => /\b(?:proxy|streamingPeer|report)\b(?!\s*:)/.test(stripLiterals(code));
+    assert.equal(scan("const q = proxy?.state?.cut ?? null;"), true,
+        'the scan did not see a planted `proxy` read, so it cannot catch the defect it exists for');
+    assert.equal(scan("globalThis.__probeAbortRecorder = { get renderStates() { return []; } };"), false,
+        'the scan flagged page-side state');
 });
 
 let failures = 0;
