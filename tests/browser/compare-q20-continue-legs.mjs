@@ -95,6 +95,44 @@ const guards = {};
 const details = {};
 
 const completionsOf = report => (report?.peerRequests ?? []).filter(entry => /chat\/completions/.test(entry.path ?? ''));
+/**
+ * THE REQUESTS A LEG SENT, AND WHICH OF THEM IS THE CONTINUE -- IDENTIFIED BY THE NUDGE, NOT BY POSITION.
+ *
+ * Every guard here used `requests[requests.length - 3]` to mean "the continue", which silently assumes the leg drove
+ * exactly two setup turns before it. Run 40608845921 measured what that assumption costs: the pinned leg, started from
+ * the handoff, found the setup turns ALREADY PRESENT and correctly SKIPPED them (`setupDecision.carriesPredecessor`
+ * true), so it sent 2 completions instead of 4 and `length - 3` was `undefined`. The guards then reported
+ *     nudgeAssemblesLast:   "pinned: the continued request has no messages array"
+ *     nodeEqualsGoContinue: "one of the subjects produced no continued request"
+ * while the pinned subject had continued correctly.
+ *
+ * A POSITIONAL INDEX IS A DERIVATION ABOUT HOW MANY TURNS A LEG DROVE. The nudge text is the PRODUCT's own marker for
+ * the continue request, so finding the request whose last message carries it identifies the same request on both
+ * subjects regardless of how each reached it. When no request carries it the guards say so by name instead of
+ * dereferencing `undefined`.
+ */
+const continueRequestOf = report => {
+    const nudge = String(report?.configured?.continueNudgePrompt ?? '').trim();
+    if (nudge.length === 0) return { request: null, reason: 'the leg recorded no continueNudgePrompt, so the continue request cannot be identified' };
+    const found = completionsOf(report).filter(entry => {
+        const messages = messagesOf(entry);
+        const last = messages?.[messages.length - 1];
+        return typeof last?.content === 'string' && last.content.includes(nudge);
+    });
+    if (found.length === 0) return { request: null, reason: `no chat completion carries the continue nudge ${JSON.stringify(nudge.slice(0, 60))}` };
+    if (found.length > 1) return { request: found[found.length - 1], reason: null, multiple: found.length };
+    return { request: found[0], reason: null };
+};
+
+/** The request that PRODUCED the message a continue extends: the completion before the continue on the same leg. */
+const producedRequestOf = report => {
+    const all = completionsOf(report);
+    const { request } = continueRequestOf(report);
+    if (!request) return null;
+    const index = all.indexOf(request);
+    return index > 0 ? all[index - 1] : null;
+};
+
 const completions = completionsOf;
 const short = entry => (entry ? { sha256: entry.sha256.slice(0, 12), byteLength: entry.byteLength } : null);
 
@@ -259,8 +297,8 @@ guard('mechanismNamed', () => {
 
 guard('continuationMovedTheHistory', () => {
     const go = completions(reports.gotavern);
-    const continued = go[go.length - 3] ?? null;
-    const produced = go[go.length - 4] ?? null;
+    const continued = continueRequestOf(reports.gotavern).request;
+    const produced = producedRequestOf(reports.gotavern);
     details.gotavernContinuedVsProduced = { continued: short(continued), produced: short(produced) };
     if (!continued || !produced) return [`the GoTavern leg produced ${go.length} completion(s); the continued request and the one that produced the message are needed`];
     if (continued.sha256 === produced.sha256) return ['the continued request is IDENTICAL to the request that produced the message being continued, so the verb changed nothing'];
@@ -272,7 +310,7 @@ guard('nudgeAssemblesLast', () => {
     for (const [subject, report] of Object.entries(reports)) {
         if (!report) continue;
         const requests = completions(report);
-        const continued = requests[requests.length - 3] ?? null;
+        const continued = continueRequestOf(report).request;
         const messages = messagesOf(continued);
         if (!messages) {
             problems.push(`${subject}: the continued request has no messages array`);
@@ -347,8 +385,8 @@ guard('sameSetup', () => {
 guard('nodeEqualsGoContinue', () => {
     const go = completions(reports.gotavern);
     const node = completions(reports.pinned);
-    const goContinued = go[go.length - 3] ?? null;
-    const nodeContinued = node[node.length - 3] ?? null;
+    const goContinued = continueRequestOf(reports.gotavern).request;
+    const nodeContinued = continueRequestOf(reports.pinned).request;
     details.continue = { gotavern: short(goContinued), pinned: short(nodeContinued) };
     if (!goContinued || !nodeContinued) return ['one of the subjects produced no continued request'];
     if (goContinued.sha256 !== nodeContinued.sha256) return [`the continued request differs: gotavern ${goContinued.sha256.slice(0, 12)} (${goContinued.byteLength} B) vs pinned ${nodeContinued.sha256.slice(0, 12)} (${nodeContinued.byteLength} B)`];
