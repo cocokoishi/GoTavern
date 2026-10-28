@@ -5,8 +5,11 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
 > **Status: `v0.1.0-alpha.6` — an ALPHA.** Not yet a daily driver for a data directory you cannot restore.
-> **No known blocking defect is open against the surfaces below**; what is still unproven is listed explicitly in
-> [Compatibility](#compatibility) rather than advertised as finished. Keep a backup of your data directory.
+> **No defect that was reported from real use is still open** — the three that were (missing visual assets,
+> 酒馆助手 not working, and no proof a real preset changes the model context) each now have a passing gate, and
+> [Compatibility](#compatibility) names that gate per surface. What is still unproven is listed there too, rather
+> than implied to be finished: backgrounds' paint half, streaming's cut/abort legs, regenerate/continue's unfixed
+> half, and handing a tree back to Node. Keep a backup of your data directory.
 
 ## TL;DR
 
@@ -21,8 +24,8 @@ the default content and the tokenizer manifest embedded. Node/npm appear only in
 builds.
 
 The practical gain is operational: in the paired benchmark below GoTavern starts in **61 ms** against Node's
-**14,355 ms** and holds **37 MB** of steady RSS against **912 MB**. Those are one runner's numbers, restated with
-their provenance, not a general multiplier.
+**14,355 ms** and holds **37.3 MB** of steady RSS against **912.2 MB**. Those are one runner's numbers, restated
+with their provenance, not a general multiplier.
 
 Baseline: `SillyTavern 1.19.0`, commit `06bde939fb1e9c4c8d8641d810f0a916b5bce127`. Upstream is the oracle: every
 compatibility statement in this README is checked against a **pinned Node SillyTavern** rather than against
@@ -30,30 +33,28 @@ memory.
 
 ## Performance
 
-<!-- BENCHMARK-BLOCK: owned by the lane producing docs/assets/benchmark.svg. The table below is the
-     authoritative structure; numbers already established by `GoTavern smoke metrics` 40394799325
-     (success) and 40396669521 (success) on runner ubuntu26, both subjects measured in the same workflow
-     with a 10-minute soak: boot 14,355 ms (Node) vs 61 ms (GoTavern); steady RSS 912 MB vs 37 MB;
-     GET /version 62.7 ms vs 0.43 ms. Do NOT extend this table with any figure a run does not contain. -->
+![GoTavern against pinned SillyTavern (Node), paired benchmark on runner ubuntu26](docs/assets/benchmark.svg)
 
-<!-- BENCHMARK-SVG-SLOT: the lane producing docs/assets/benchmark.svg replaces this comment with
-     ![Startup time and steady memory, GoTavern against pinned Node SillyTavern](docs/assets/benchmark.svg)
-     once that file exists. It is deliberately NOT referenced yet: an image reference to a missing file
-     renders as a broken image on the release page, which is worse than no chart. -->
+The figure is generated from the recorded paired run, not drawn: every value below appears in
+`docs/assets/benchmark.svg`, and every value in the SVG is from the run named in the provenance line.
 
 | Metric | Pinned Node SillyTavern | GoTavern | Basis |
 |---|---|---|---|
-| Boot to serving | 14,355 ms | **61 ms** | `GoTavern smoke metrics` 40394799325 (success), 40396669521 (success) |
-| Steady-state RSS | 912 MB | **37 MB** | same two runs, 10-minute soak on both subjects |
-| `GET /version` latency | 62.7 ms | **0.43 ms** | same two runs |
+| Cold start to first `/version` 200 | 14,355 ms | **61 ms** | median of 3 rounds, empty data root, no `config.yaml` |
+| Steady-state RSS (`VmRSS` from `/proc`) | 912.2 MB | **37.3 MB** | median of 6, sampled after readiness and after 60 requests |
+| `GET /version` latency | 62.68 ms | **0.431 ms** | median of 90 sequential requests, same client both subjects |
+| `GET /` latency (HTML shell, body consumed) | 14.17 ms | **2.20 ms** | median of 90 sequential requests |
 
-**Provenance.** Runner `ubuntu26`, both subjects measured in the same workflow on the same hardware, each soaked
-for ten minutes before the steady figures are taken. These are point measurements from two runs on one runner
-class, not a benchmark suite: no multiplier is claimed, and you should expect different absolute numbers on
-different hardware. The paired measurement exists so the comparison is same-machine, not to promise a ratio.
+**Provenance.** SillyTavern `1.19.0` (pinned commit `06bde939`), booted from the same checkout, with the same
+data-root seeding and the same port allocator, on runner `ubuntu26`, three rounds of 30 sequential requests per
+path. Workflow: **`GoTavern smoke metrics`, run `40396669521`** (success); the earlier paired run in the same
+series is `40394799325` (success). Full methodology: [`docs/assets/benchmark.svg`](docs/assets/benchmark.svg).
 
-Reproduce it with `GoTavern smoke metrics`; the numbers live in that workflow's output, and the compatibility
-claim they sit beside is gated by the suites under [Compatibility](#compatibility).
+These are runner-dependent numbers on a shared GitHub runner, produced so the comparison is same-machine rather
+than cross-hardware. They are a restatement of two printed values per panel, not a benchmark suite, and not a
+budget you should expect on your own hardware. The ratios printed in the figure are computed from the values in
+each panel and are a restatement, not a separate measurement. Reproduce them with the `GoTavern smoke metrics`
+workflow.
 
 ## Why GoTavern?
 
@@ -79,9 +80,14 @@ from, row by row.
 |---|---|---|
 | Long-lived SillyTavern directory boots and serves its own data | **proven** | `GoTavern drop-in qualification` and `GoTavern CI` boot a packaged archive against a stock tree; `tests/e2e/longlived_test.go` asserts every planted file byte-identical after boot |
 | Existing data is not touched | **proven** | auto-update resolves to OFF for every ambiguous input; the long-lived leg hashes the extension tree before and after boot and asserts it unchanged |
-| Character-list avatars, opened card image, in-chat avatars, personas | **proven** | `Browser differential` 40325398585 (success), `Compare the asset legs`: `imagesFailed: 0`, `consoleFailedToLoad: 0`, every avatar decoded on both subjects |
+| Character-list avatars, opened card image, in-chat avatars, personas, thumbnails | **proven** | `Browser differential` 40325398585 (success), `Compare the asset legs`: `imagesFailed: 0`, `consoleFailedToLoad: 0`, every avatar decoded on both subjects. `/thumbnail` is implemented — it serves real thumbnails from a pure-Go codec at pinned paths and dimensions (160x90 for backgrounds, 96x144 for avatars and personas), gated by `TestPinnedThumbnailServesTheObservableContract`. **Byte equality with Jimp is not claimed** (see boundaries); the images render, which is what a user sees |
 | Backgrounds display as in the original | **partial** | the gallery renders and stages tiles on both subjects; the **paint/behaviour half is not measured**. Reachability of 40 UI elements across four viewport sizes is proven separately by `Browser differential` 40476300686 (success) |
-| 酒馆助手 / JS-Slash-Runner iframe, generation, variables, injection | **proven** | `Browser differential` 40325398585 (success) helper legs; `generateRaw` request byte-identical to pinned's (40378609525, cited for a step that passed inside a failed run); helper variables reach the final provider request; depth-0 injection appears in the captured request on both subjects |
+| 酒馆助手 / JS-Slash-Runner: the iframe boots and the bridge reaches the host page | **proven** | `Browser differential` 40325398585 (success), `Record`/`Compare the helper legs`: the iframe boots, the bridge reaches the host modules, and the leg fails itself if helper-off and helper-on produce identical captures |
+| 酒馆助手: `generateRaw` / `generate` reach the provider identically | **proven** | `Browser differential` 40378609525 (cited for the step `first-turn-saved: ok` inside a run that failed later, at reload): the `generateRaw` request is byte-identical to pinned's, and `message_sent`/`message_received` fire |
+| 酒馆助手: variables persist and reach the final request | **proven** | `Browser differential` 40250495167 (success) persistence; 40493990375 (cited for its `valueOnWire` guards, which went green inside it): a variable's resolved value occupies a slot in the captured provider body |
+| 酒馆助手: injection changes the model context | **proven** | `Browser differential` 40378609525 (same step-level citation as above): depth-0 injected text appears in the captured request on both subjects and is absent when injection is off |
+| 酒馆助手: a preset mutated in `in_use` affects the next generation | **proven** | `Browser differential` 40277640647 (success): before/after pairs identical across subjects and different from each other |
+| 酒馆助手: every feature the extension offers | **partial** | what is proven is the list above — boot, generation, variables, injection and `in_use` mutation. The extension's own breadth (its UI surface, its script-editor workflows, anything it implements purely in the iframe) is **not** covered by these legs; a feature the helper reaches through a route or a user file is our obligation and is gated per route in the ledgers, but "the extension works" is a bigger claim than "these five interactions match pinned" |
 | A real complex preset changes the model context exactly as pinned does | **proven** | `Browser differential` 40274214952 (success): presets differ from each other **and** `Node(X) == Go(X)`; extended to the real preset derivations by 40387864205 (success) |
 | Author's Note depth | **proven** | `Browser differential` 40465631698 (cited for steps 26-28, all success): parity at depths 0/4/8, disabled and `IN_PROMPT`, byte-identical provider requests. **Limit:** one at-depth case is unmeasurable in the product's own trimmer and is recorded as `null`, not as a pass |
 | Token truncation at the context boundary | **proven at the measured boundary** | 40465631698 step 25 (success): both subjects keep and drop the same turns at `keep` and `keep-1`. **Not** "truncation proven in general" — pinned's total message count is not monotone in `openai_max_context` |
@@ -103,20 +109,23 @@ from, row by row.
 
 ### Explicit boundaries
 
-These are decisions, not gaps waiting to close. Each is `not implemented` for a stated reason and is never
-absorbed into a `partial` row:
+**Read this before you migrate.** These are decisions, not gaps waiting to close. Each is `not implemented` for a
+stated reason and is never absorbed into a `partial` row:
 
 - **Arbitrary Node.js server plugins** — the one explicit ecosystem exclusion. Not emulated, not faked; a route
   that needs one reports that boundary.
 - **Local in-process ML** (`/api/extra/{caption,classify}`, `/api/speech/*`, local embeddings) — it would mean
-  adopting an ONNX runtime, which contradicts the single-binary, `CGO_ENABLED=0` distribution.
+  adopting an ONNX runtime, which contradicts the single-binary, `CGO_ENABLED=0` distribution. If your workflow
+  uses captioning, classification or speech through SillyTavern's built-in local models, it will not work here.
 - **Two image-re-encoding routes** (`/api/avatars/upload`'s pixel path and `/thumbnail/<computed>`) — governed by
-  a Jimp-compatible codec decision. `/thumbnail` serves real thumbnails at pinned dimensions; byte equality with
-  Jimp is not claimed.
+  a Jimp-compatible codec decision. `/thumbnail` serves real thumbnails at pinned dimensions, so images **do**
+  render; what is not claimed is byte equality with Jimp's output. Uploading a persona avatar still goes through
+  the bounded pixel path rather than a Jimp-equivalent re-encode.
 - **Wire formats that live inside third-party npm packages** (Google voice `batchexecute`,
   `/api/translate/{google,bing}`) — owning an undocumented protocol is a product decision, not an accident.
 - **Inherited upstream weaknesses are reproduced and recorded, not silently fixed** — content-import host
-  matching is one; a "safer but different" backend would break parity as badly as a worse one.
+  matching is one; a "safer but different" backend would break parity as badly as a worse one. If you relied on
+  SillyTavern's behaviour, you get it; if you relied on it being safe, it is not, and never was.
 
 Also stated rather than implied: VERTEXAI service-account ("full") mode carries the pinned error shape rather
 than a fabricated credential; `gemini.apiVersion` is a config value that is not projected; COHERE streaming is
