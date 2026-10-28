@@ -366,6 +366,125 @@ record('scanner ACCEPTS a fully-marked CJK preset (the mojibake regression)', cj
 const cjkRefused = scanFile(cjkUnmarked);
 record('scanner REFUSES the same CJK prose unmarked (the pass is right, not loose)', !cjkRefused.ok && /unmarked|no marker/.test(cjkRefused.output), cjkRefused.ok ? 'the scanner accepted unmarked CJK prose' : undefined);
 
+// 3h. THE TWO CHUNKS OF ONE CARD MUST BE ONE DOCUMENT.
+//
+// THE CASE THAT WOULD HAVE CAUGHT `GoTavern Lane CI` 40446833206. `synthesisedCard` writes the SAME base64 into
+// `chara` and `ccv3`, so every case above exercises a file pinned could have written. The generator used to walk each
+// chunk separately with a shared marker counter, producing a card whose `chara` said `data.name="MARK_000466…"` and
+// whose `ccv3` said `data.name="MARK_002794…"` -- one file, two contradictory cards, and every reader answering
+// whichever chunk its precedence selected. Three rows below pin both directions:
+//   * chunks that differ in an identity field of a DIFFERENT length are REFUSED, because one document cannot keep two
+//     chunk lengths -- the refusal is the gate firing, and it names the chunks;
+//   * chunks that differ by the same length are accepted, and the derived file carries ONE document in both chunks;
+//   * the manifest records that equality, so a re-record cannot reintroduce two documents while this stays green.
+{
+    const baseCard = JSON.parse(JSON.stringify(CLEAN_CARD));
+    // THE HEADER IS REBUILT FROM THE SAME PIECES `synthesisedCard` USES, not sliced out of its output: a hand-counted
+    // slice cut the IDAT mid-chunk, and both rows below then failed on "chunk IDAT has CRC ..." instead of on what
+    // they test -- a gate failing for a reason it does not name.
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(2, 0);
+    ihdr.writeUInt32BE(2, 4);
+    ihdr[8] = 8;
+    ihdr[9] = 2;
+    const idat = zlib.deflateSync(Buffer.from([0, 1, 2, 3, 4, 5, 6, 0, 7, 8, 9, 10, 11, 12]), { level: 0 });
+    const header = Buffer.concat([
+        Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
+        pngChunk('IHDR', ihdr),
+        pngChunk('IDAT', idat),
+    ]);
+    const textOf = (document) => Buffer.from(JSON.stringify(document), 'utf8').toString('base64');
+    const twoChunkCard = (target, first, second) => fs.writeFileSync(target, Buffer.concat([
+        header,
+        pngChunk('tEXt', Buffer.concat([Buffer.from('chara\0', 'latin1'), Buffer.from(textOf(first), 'latin1')])),
+        pngChunk('tEXt', Buffer.concat([Buffer.from('ccv3\0', 'latin1'), Buffer.from(textOf(second), 'latin1')])),
+        pngChunk('trAc', Buffer.from([0, 0, 0, 1])),
+        pngChunk('IEND', Buffer.alloc(0)),
+    ]));
+
+    const divergent = JSON.parse(JSON.stringify(CLEAN_CARD));
+    divergent.data.name = 'MARK_000099 DIVERGENT NAME OF A DIFFERENT LENGTH';
+    divergent.name = divergent.data.name;
+    const splitPath = path.join(tempRoot, 'split-chunks.png');
+    twoChunkCard(splitPath, baseCard, divergent);
+    const split = buildCard(splitPath, outDir);
+    record('derivation REFUSES two chunks that are different documents', !split.ok && /same document|DIFFERENT documents/.test(split.output),
+        split.ok ? 'the generator wrote a card from two contradictory documents' : split.output.trim().split('\n').slice(0, 2).join(' | ').slice(0, 400));
+    fs.rmSync(path.join(outDir, 'probe.png'), { force: true });
+
+    const alpha = JSON.parse(JSON.stringify(CLEAN_CARD));
+    const beta = JSON.parse(JSON.stringify(CLEAN_CARD));
+    alpha.data.name = 'DUPLICATE-NAME-ALPHA';
+    beta.data.name = 'DUPLICATE-NAME-BETA-';
+    alpha.name = alpha.data.name;
+    beta.name = beta.data.name;
+    const equalLengthPath = path.join(tempRoot, 'equal-length-chunks.png');
+    twoChunkCard(equalLengthPath, alpha, beta);
+    const equalLength = buildCard(equalLengthPath, outDir);
+    record('derivation ACCEPTS two equal-length chunks and writes ONE document to both', equalLength.ok,
+        equalLength.ok ? undefined : equalLength.output.trim().split('\n').slice(0, 3).join(' | ').slice(0, 400));
+
+    // 3i. THE COMMITTED DERIVATION IS ITSELF A CASE: its two chunks must carry ONE document.
+    //
+    // This is the gate for the repair in this lane. `card-a.png` used to hold `chara: data.name="MARK_000466…"` and
+    // `ccv3: data.name="MARK_002794…"` (`GoTavern Lane CI` 40446833206) and nothing failed, because no gate ever read
+    // the second chunk of a committed card. The assertion is on the DECODED documents, using the character code units
+    // `character-card-parser.read` produces -- `ccv3` = base64, `chara` = decodeURIComponent(base64) -- so it
+    // exercises the reader's own rule rather than a convention this file prefers. The two PAYLOADS are deliberately
+    // not required to be equal: the percent-encoding of a non-ASCII document makes `chara`'s longer (measured:
+    // 9,251,658 vs 9,251,657 bytes), and that difference is the reader's, not a defect in the card.
+    const committedCard = path.join(here, '..', 'tests', 'browser', 'fixtures', 'real', 'card-a.png');
+    if (fs.existsSync(committedCard)) {
+        const image = fs.readFileSync(committedCard);
+        const documents = new Map();
+        let offset = 8;
+        while (offset + 8 <= image.length) {
+            const length = image.readUInt32BE(offset);
+            const type = image.toString('latin1', offset + 4, offset + 8);
+            const dataStart = offset + 8;
+            if (dataStart + length > image.length) break;
+            if (type === 'tEXt') {
+                const body = image.subarray(dataStart, dataStart + length);
+                const zero = body.indexOf(0);
+                const keyword = body.toString('latin1', 0, zero).toLowerCase();
+                if (keyword === 'chara' || keyword === 'ccv3') {
+                    const raw = Buffer.from(body.subarray(zero + 1).toString('latin1'), 'base64');
+                    const text = keyword === 'chara' ? decodeURIComponent(raw.toString('utf8')) : raw.toString('utf8');
+                    documents.set(keyword, Buffer.from(text, 'utf8'));
+                }
+            }
+            offset = dataStart + length + 4;
+            if (type === 'IEND') break;
+        }
+        const chara = documents.get('chara');
+        const ccv3 = documents.get('ccv3');
+        record('the committed derivation carries ONE document in both chunks',
+            Boolean(chara && ccv3 && chara.equals(ccv3)),
+            chara && ccv3 ? `chara ${chara.length} B vs ccv3 ${ccv3.length} B` : 'a chunk is missing');
+        if (chara && ccv3) {
+            const dataName = (buffer) => JSON.parse(buffer.toString('utf8'))?.data?.name ?? null;
+            record('the committed derivation answers the same data.name from either chunk',
+                dataName(chara) === dataName(ccv3),
+                `chara=${JSON.stringify(dataName(chara))} ccv3=${JSON.stringify(dataName(ccv3))}`);
+        }
+    } else {
+        record('the committed derivation carries ONE document in both chunks', false, `${committedCard} is missing`);
+    }
+
+    const manifestPath = path.join(outDir, 'real-fixture-manifest.json');
+    if (equalLength.ok && fs.existsSync(manifestPath)) {
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        const card = (manifest.cards ?? []).find(entry => entry.name === 'probe');
+        const equality = card?.replaced?.preserved?.sameDocumentAcrossChunks;
+        record('the manifest records that both chunks are one document',
+            Boolean(equality?.sameDocument) && Array.isArray(equality?.chunks) && equality.chunks.length === 2,
+            JSON.stringify(equality ?? null).slice(0, 300));
+        fs.rmSync(path.join(outDir, 'probe.png'), { force: true });
+    } else {
+        record('the manifest records that both chunks are one document', false, 'no manifest was written');
+    }
+}
+
 fs.rmSync(tempRoot, { recursive: true, force: true });
 
 const failed = results.filter(entry => !entry.ok);
