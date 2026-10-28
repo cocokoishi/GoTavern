@@ -10,7 +10,100 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-10-27: `v0.1.0-alpha.6` SHIPPED -- ACTIVE ALPHA6 DEVELOPMENT CLOSED
+## Latest checkpoint - 2026-10-27: `v0.1.0-alpha.7` SHIPPED -- ACTIVE ALPHA7 DEVELOPMENT CLOSED
+
+> **`ACTIVE ALPHA7 DEVELOPMENT CLOSED`.** `v0.1.0-alpha.7` is published. Nothing in this file is an
+> instruction to continue: the remaining items are accepted limits recorded for the next round, not work in
+> flight. Read the sections below as the closeout record.
+
+| Field | Value |
+|---|---|
+| **Release** | `v0.1.0-alpha.7`, published as a **prerelease** (`isPrerelease=true`) |
+| **Release SHA** | `b114ab113d3954bef1e47651d2695f67e2708a2e` -- the commit the tag names |
+| **Assets** | six canonical archives plus `checksums.txt`, all seven published |
+| **Release notes** | applied to the published release: 6,555 characters |
+| **`main` after the release** | `d0913e1` (the post-tag facts regeneration, which the tag made necessary) |
+| **Pinned baseline** | SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127` |
+| **Live evidence ledger** | `docs/goal-scorecard.md` -- twenty-two rows, five classes, and `tests/docs/run-manifest.json` |
+
+### What alpha.7 adds over alpha.6
+
+One thing, and it is a hardening rather than a feature: **every carrier in a committed card derivation
+is now cleared**, not only its text. `tools/png-carriers.mjs` refuses `eXIf`, `zTXt`/`iTXt`, `tIME` and
+any unknown ancillary chunk at build time and again in CI, and `docs/privacy-audit.md` audits the
+artefact's own claims. With it, `tests/egressguard/` turns the project's oldest verification rule into an
+assertion: a probe must show its controlled peer received exactly the claimed requests, and an escaping
+request must surface as a missing request rather than as plausible data.
+
+### Tag-triggered runs, all green
+
+Quoted as `workflow name + run id + conclusion` (`AGENTS.md` rule 55).
+
+| Workflow | Run | Conclusion |
+|---|---|---|
+| `GoTavern Release` | 40632940109 | success |
+| `GoTavern release qualification` | 40632940208 | success |
+| `GoTavern Docker image` | 40632940145 | success |
+
+### RC evidence
+
+| Evidence | Run | Commit | Note |
+|---|---|---|---|
+| `GoTavern CI` | 40632409330 | `b114ab1` | the release commit; all 18 `verify` steps green |
+| `GoTavern drop-in qualification` | 40632409326 | `b114ab1` | the packaged archive boots a stock tree |
+| `GoTavern Lane CI` | 40629354376 | `26f9019` | the privacy lane tip that was merged |
+
+### Two reds cleared on the way to this tag, both rebase artefacts
+
+Both were the SAME shape and neither was a lane defect: a rebase resolved onto a main that had moved and
+kept the older side of a two-sided invariant.
+
+1. **The pin gate refused a correct document.** `lane/privacy-merge` at `f82451e` had deleted the
+   `declaredOtherPins` entry for `0dddeac181dad9681d9c9eb720a1be66f1126573` (the alpha.6 release SHA) while
+   `HANDOFF.md` still named it, so `TestPinnedCommitStringsMatchThePin` failed -- `GoTavern Lane CI`
+   **40625064857 (failure)**. Repaired as `26f9019` by restoring the hunk from main verbatim; the
+   invariant was asserted on BOTH ends (allowlist 0 to 1, HANDOFF 1 to 1) and the file is now
+   byte-identical to main's.
+2. **The matrix undercounted the tree.** The same merge reverted `goTestFunctions` from **597 to 589**
+   while adding nine test functions of its own, so `verify` failed at "the compatibility matrix cannot
+   claim what this tree does not show" -- `GoTavern CI` **40629671546 (failure)**. Repaired as `b114ab1`
+   with the tool's own renderer (`node tools/compat-matrix/render.mjs --emit`), not by hand: **605**.
+
+### Benchmark provenance
+
+Unchanged this cycle and NOT re-measured: `GoTavern smoke metrics` **40396669521** (success), runner
+`ubuntu26`, against SillyTavern 1.19.0 at pinned commit `06bde939`, three rounds of 30 sequential
+requests per path, medians. Cold start 14,355 ms vs 61 ms; steady RSS 912.2 MB vs 37.3 MB;
+`GET /version` 62.68 ms vs 0.431 ms; `GET /` 14.17 ms vs 2.20 ms. The figure is stylised and its
+per-panel wording is deliberate: **faster** on the timing rows, **lighter** on memory.
+
+### Accepted boundaries carried into the next round
+
+These are the limits the release states to users. None blocks the tag.
+
+- **Streaming cut/abort remains UNPROVEN, and this cycle measured why.** A harness now drives a real TCP
+  middle; its `stream` baseline and `relayed` control legs drive and compare cleanly on both subjects.
+  Its `abort` leg drives the request (the peer records it, with `bodySha256` and 15 frames written) and
+  cuts the stream, but its own judge then waits for a settled page a truncated stream can never produce
+  and reports "the page did not settle within 60s" as a drive failure -- **identically on GoTavern and on
+  pinned Node** (`Browser differential` **40629705640 (failure)**, step `Compare the streaming framing
+  legs`). A symmetric failure is a harness-faithfulness alarm before a product finding, so the defect is
+  in the judge, not in either server. No cut/abort claim is made from this release.
+  **Q19 IS CARRIED TO ALPHA 8** on `lane/q19-streaming-rebase` (branch kept, not merged): the next
+  increment is to make the abort judge accept "cut means never settles" as the expected terminal state
+  instead of a drive failure, then re-dispatch with `mode=stream` (the valid option is `stream`, NOT
+  `streaming`).
+- **Continue.** Save, reload and swipe and regenerate are proven equal; continue has not executed.
+- **Backgrounds: paint half.** Gallery, staging and 40 UI elements across four viewports measured equal;
+  whether the painted background matches is not measured.
+- **Handing a GoTavern tree back to pinned Node.** Red at its own precondition -- a fixture defect in the
+  committed card derivation, not a product finding.
+- **Accepted exclusions**, unchanged: arbitrary Node server plugins; local in-process ML (needs ONNX);
+  byte-exact Jimp image re-encoding; wire formats owned by third-party npm packages (Google voice
+  `batchexecute`, `/api/translate/*`); inherited upstream weaknesses reproduced and recorded.
+- Carried from upstream: VERTEXAI service-account ("full") mode returns pinned's error shape;
+  `gemini.apiVersion` is not projected; Cohere streaming is recorded as not measured.
+## Alpha 6 checkpoint (superseded) - 2026-10-27: `v0.1.0-alpha.6` SHIPPED -- ACTIVE ALPHA6 DEVELOPMENT CLOSED
 
 > **`ACTIVE ALPHA6 DEVELOPMENT CLOSED`.** `v0.1.0-alpha.6` is published. Nothing in this file is an
 > instruction to continue: the remaining items are accepted limits recorded for the next round, not work in

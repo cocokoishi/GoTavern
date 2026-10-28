@@ -417,6 +417,7 @@ var declaredOtherPins = map[string]string{
 	// RELEASE: this list grows by one entry per release, so a release SHA must be declared in the SAME
 	// change that writes its checkpoint, or `verify` goes red on a document that is correct.
 	"0dddeac181dad9681d9c9eb720a1be66f1126573": "v0.1.0-alpha.6 release commit - HANDOFF.md current checkpoint",
+	"b114ab113d3954bef1e47651d2695f67e2708a2e": "v0.1.0-alpha.7 release commit - HANDOFF.md current checkpoint",
 }
 
 // checkPinnedCommitStrings is the gate body, extracted so the red-path test can drive it against a
