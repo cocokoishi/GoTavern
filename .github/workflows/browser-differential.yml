@@ -543,10 +543,25 @@ jobs:
           framing_pair relayed stream pass-through || failures=$((failures + 1))
           echo "::endgroup::"
           echo "::group::framing abort (hop cuts mid-stream, nobody stops)"
-          # HEAD-OF-BODY, not inside-a-record: measured, run 40322630841, a cut inside a record leaves BOTH
-          # subjects with no streamingProcessor and no error path (0 content states, stop button up, identical),
-          # so it proves parity of a hairpin rather than the same truncation and the same partial text.
-          framing_pair abort abort cut-at-head || failures=$((failures + 1))
+          # A CUT AFTER THREE COMPLETE FRAMES, NOT AT THE HEAD OF THE BODY.
+          #
+          # The head cut was chosen because a cut INSIDE a record lands before either frontend has a
+          # streamingProcessor (measured, run 40322630841: 0 content states, stop button up, identical on
+          # both subjects). It solved that and created the next problem: a head cut releases no content
+          # frame at all, so the guards this surface exists for are UNSATISFIABLE BY CONSTRUCTION --
+          # `contentRenderedBeforeTheCutOnBoth`, `partialTextIdenticalOnBothSubjects` and
+          # `partialTextIsAProperPrefixOfTheWholeReply` all need a partial text that a header-only cut
+          # cannot produce. Measured, `Browser differential` 40647194771 (a run that DID arm and DID cut:
+          # cutsPerformed 1, releasedBytes 169, peerDisconnected true, framesWritten 15, identically on
+          # both subjects): `contentStates: 0`, `textAfterCut: null`, every partial-text guard false.
+          #
+          # THREE FRAMES IS NOT "INSIDE A RECORD" AND NOT "NO BODY". The peer writes 15 frames, so a cut
+          # after 3 leaves 12 unrendered: the subject has real content to hold, the partial text is a
+          # proper prefix of the whole reply, and "the stream could not have finished" is arithmetic
+          # (3 < 15). `PROBE_CUT_AFTER_FRAMES` already says 3 and `framesToBytes` already converts it on a
+          # FRAME boundary, so the cut lands at the end of a complete record rather than inside a payload.
+          # `CUT` is the mode that HONOURS `cutAfterBytes`; `cut-at-head` ignores it by design.
+          framing_pair abort abort cut || failures=$((failures + 1))
           echo "::endgroup::"
 
           # THE HOP LOG: what a cut actually measured, ON THIS LOG, while the run is still failing. The
