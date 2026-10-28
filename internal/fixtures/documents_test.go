@@ -409,7 +409,16 @@ var declaredOtherPins = map[string]string{
 	// came from, and that tree is a lane commit rather than the pinned upstream, so the value is a
 	// MEASUREMENT ANCHOR and not a baseline claim. Declared by value AND named, because an allowlist
 	// entry with no reason is exactly where a mistyped pin would hide.
-	"a3c2f5340f152ce96150f52be4ccf7b27695b61f": "commit measured by the paired benchmark — docs/assets/benchmark.svg.provenance.md and scorecard Q22",
+	"a3c2f5340f152ce96150f52be4ccf7b27695b61f": "commit measured by the paired benchmark — docs/assets/benchmark.svg.provenance.md and scorecard Q22",	// A RELEASE'S OWN COMMIT. The HANDOFF checkpoint must name the SHA a release was cut from, or the
+	// document cannot be used to check the release. That SHA is an IDENTITY, not a baseline claim, and it
+	// is not the SillyTavern pin. Declared by value AND named, for the same reason as the entry above: an
+	// allowlist entry with no reason is exactly where a mistyped pin would hide.
+	"0dddeac181dad9681d9c9eb720a1be66f1126573": "v0.1.0-alpha.6 release commit - HANDOFF.md current checkpoint",
+	// NOTE FOR THE NEXT RELEASE: this list grows by one entry per release, because each checkpoint names a
+	// new SHA. That is the gate working as designed -- a mistyped pin cannot hide -- but it means the
+	// alpha.7 release SHA must be declared in the SAME change that writes its checkpoint, or `verify` goes
+	// red on a document that is correct, which is exactly what happened here.
+
 }
 
 // checkPinnedCommitStrings is the gate body, extracted so the red-path test can drive it against a
