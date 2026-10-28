@@ -40,12 +40,31 @@
 // page's own call, and recorded in the artefact. Without a per-subject content difference the second turn's
 // comparison would be satisfied by any two equal requests.
 //
-// WHY THE FIRST TURN IS SILENTED. A send needs a main API. This leg sets `power_user.savingAfterComplete = false`
-// (`scripts/power-user.js`, the object `getContext().powerUserSettings` also resolves to) so `finishGenerating` does
-// not re-save mid-generation, and the send itself creates the chat identity, so no provider call is needed to get a
-// file on disk. The Q20 pair then starts from THE SAME ON-DISK CHAT on both subjects -- which is what makes the
-// second turn's request comparable in content. The provider path of a send is NOT the subject of this leg; it is
-// proven elsewhere.
+// WHY THE FIRST TURN WAS "SILENTED", AND WHAT IS ACTUALLY TRUE ABOUT IT -- a correction, kept visible because the
+// first version of this block asserted a root cause that measurement then refuted.
+// The original text here said the leg set `power_user.savingAfterComplete = false` so `finishGenerating` "does not
+// re-save mid-generation". MEASURED FALSE: `savingAfterComplete` DOES NOT EXIST anywhere under pinned's `public/**`
+// (grepped every .js), so the flag the leg sets is inert and silences nothing. It is left in place because removing
+// it is a behaviour change nobody has measured, and it is now labelled for what it is.
+//
+// THE EMPTY-TEXT REPLIES ARE A REAL OBSERVATION AND THEIR CAUSE IS NOT YET ESTABLISHED. Measurement, run
+// 40445671791, IDENTICAL on both subjects: the file holds six records -- the header, the greeting (785 chars), the
+// first marker, `is_user:false` with `mesLen: 0`, the second marker, and another `is_user:false` with `mesLen: 0` --
+// while the peer recorded THREE completion requests whose last message was, respectively, the first marker, "Q20
+// second turn input", and the second marker. So each turn DID produce a request, and each request is followed in the
+// file by an EMPTY assistant record.
+// A HYPOTHESIS WAS TESTED AND REFUTED, and it is recorded here so it is not re-derived: the peer answers
+// `{choices: [{message: {role: 'assistant', content: 'Q20_REPLY_n'}}]}`, and `extractMessageFromData` for
+// `main_api === 'openai'` (public/script.js:6454-6478) reads exactly `data.choices[0].message.content`. The answer
+// shape is CORRECT, so "the peer answered in a shape the frontend cannot read" is FALSE.
+// What remains known without a further run: the reply text does not reach disk on either subject, the two subjects
+// are EQUALLY affected (so this is not GoTavern-vs-pinned), and `final-file-reflects-swipe` must therefore not claim
+// the persisted text is a reply. The open question -- why a correct-shaped completion becomes an empty message --
+// is named in the artefact as `emptyReplyOnBothSubjects` and is NOT resolved by choosing a value.
+//
+// WHAT THE TURNS THEREFORE DEPEND ON: each turn's presence on disk is written by the LEG's own explicit
+// `saveChatConditional()`, which is the frontend's own "write it now". The setup below waits on the PRODUCT'S state
+// (last message is an assistant turn, not busy) rather than on a sleep, and fails BY NAME when the budget expires.
 //
 // WHAT THIS DOES NOT PROVE, stated here so the artefact's `notCompared` can repeat it: a real provider (rule 22),
 // streaming (Q19), regenerate/continue (Q20's other two verbs), group chats, and branch/checkpoint features.
@@ -60,6 +79,17 @@ import { seedLegConfig } from './seed-leg-config.mjs';
 import { attachUrlRecorder } from './url-recorder.mjs';
 import { ensurePinnedExtensionInstalled } from './install-pinned-extension.mjs';
 import { pinnedExtension } from './pinned-extensions.mjs';
+// THE DRIVE, SHARED WITH THE regenerate AND continue LEGS. What is imported here is exactly what this file now calls:
+// the page/send/save primitives that used to be inline copies. `configureConnection`, `silenceAndObserve` and
+// `sendTurn` are NOT imported yet -- this file still carries its own connection step, its own observer install
+// (which counts listener timings, a field the other legs do not record) and its own second turn (which writes the
+// per-subject marker into the chat); swapping those is a separate, separately-verifiable change and is NOT done here,
+// because doing it in the same commit would make "the artefact did not move" unprovable.
+import {
+    readChatFiles as driveReadChatFiles, openPage as driveOpenPage,
+    openCharacter as driveOpenCharacter, chatCarrying, waitForReply,
+    readReadiness,
+} from './q20-persistence-drive.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -100,7 +130,20 @@ async function waitForServer(url, deadlineMs = 120000) {
 
 // The capture peer: records everything, answers a chat completion whose content carries a marker so the leg can
 // prove the reply came from here. It defines nothing (rule 49).
-function startCapturePeer() {
+//
+// THIS PEER NOW HONOURS `stream: true` WITH REAL SSE, and that is a fix to THIS leg's fixture, not a new feature.
+// Measured: the page STREAMS (`stream_openai` defaults TRUE when the key is missing, public/scripts/openai.js:376;
+// `isStreamingEnabled()`, script.js:3517-3526), so this peer answered JSON to an SSE request, the frontend's
+// `EventSourceStream` (public/scripts/sse-stream.js) found no `data:` frames, the stream ended with zero tokens, and
+// the page stored an EMPTY assistant message -- its own console said `Stream stats: 0 tokens, NaN seconds,
+// rate: NaN TPS`. Consequence for the record: every green this leg produced before this change (including the
+// 40387864205 citation the scorecard row rests on) was STRUCTURE-ONLY -- counts, swipes and request equality -- and
+// its reply text was `''` on both subjects. The frame contract is the frontend's: events separated by a blank line,
+// a `data:` line per event, `data: [DONE]` terminating (openai.js:3173-3174).
+//
+// `served` records WHAT THIS PEER SERVED for every response (`{wire, frames, bytes, terminal}`), so a leg's own
+// artefact says whether it drove a streaming page against a JSON peer instead of leaving that to be reasoned about.
+function startCapturePeer({ wire = 'honour' } = {}) {
     const requests = [];
     let replyIndex = 0;
     const server = http.createServer((request, response) => {
@@ -118,29 +161,64 @@ function startCapturePeer() {
                 response.end();
                 return;
             }
-            requests.push({
+            let wantsStream = false;
+            try {
+                wantsStream = JSON.parse(body.toString('utf8'))?.stream === true;
+            } catch {
+                wantsStream = false;
+            }
+            const record = {
                 method: request.method,
                 path: request.url,
                 byteLength: body.length,
                 sha256: createHash('sha256').update(body).digest('hex'),
                 body: body.toString('utf8'),
-            });
+                requestedStream: wantsStream,
+                served: { wire: null, frames: 0, bytes: 0, terminal: false },
+            };
+            requests.push(record);
             const headers = { 'content-type': 'application/json', 'access-control-allow-origin': '*' };
             if (request.method === 'GET' && /models/.test(request.url ?? '')) {
+                const listing = JSON.stringify({ object: 'list', data: [{ id: 'probe-model', object: 'model' }] });
                 response.writeHead(200, headers);
-                response.end(JSON.stringify({ object: 'list', data: [{ id: 'probe-model', object: 'model' }] }));
+                record.served = { wire: 'json', frames: 0, bytes: Buffer.byteLength(listing), terminal: true };
+                response.end(listing);
                 return;
             }
             replyIndex += 1;
-            response.writeHead(200, headers);
-            response.end(JSON.stringify({
+            const text = `Q20_REPLY_${replyIndex}`;
+            if (wire === 'sse' || (wire === 'honour' && wantsStream)) {
+                const delta = JSON.stringify({
+                    id: `chatcmpl-q20-${replyIndex}`,
+                    object: 'chat.completion.chunk',
+                    created: 1730000000,
+                    model: 'probe-model',
+                    choices: [{ index: 0, delta: { role: 'assistant', content: text }, finish_reason: null }],
+                });
+                const stop = JSON.stringify({
+                    id: `chatcmpl-q20-${replyIndex}`,
+                    object: 'chat.completion.chunk',
+                    created: 1730000000,
+                    model: 'probe-model',
+                    choices: [{ index: 0, delta: {}, finish_reason: 'stop' }],
+                });
+                const payload = `data: ${delta}\n\ndata: ${stop}\n\ndata: [DONE]\n\n`;
+                response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'access-control-allow-origin': '*' });
+                record.served = { wire: 'sse', frames: 3, bytes: Buffer.byteLength(payload), terminal: true };
+                response.end(payload);
+                return;
+            }
+            const payload = JSON.stringify({
                 id: `chatcmpl-q20-${replyIndex}`,
                 object: 'chat.completion',
                 created: 1730000000,
                 model: 'probe-model',
-                choices: [{ index: 0, message: { role: 'assistant', content: `Q20_REPLY_${replyIndex}` }, finish_reason: 'stop' }],
+                choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }],
                 usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
-            }));
+            });
+            response.writeHead(200, headers);
+            record.served = { wire: 'json', frames: 0, bytes: Buffer.byteLength(payload), terminal: true };
+            response.end(payload);
         });
     });
     return new Promise((resolve, reject) => {
@@ -178,6 +256,11 @@ if (!external) {
 }
 
 const baseURL = process.env.PROBE_BASE_URL ?? `http://127.0.0.1:${port}`;
+// CONDITION 5, PROVIDE-DO-NOT-USE: `--wire honour|json|sse`, default `honour` -- SSE to a `stream: true` request.
+// Declared before `report` (which records it), because a `const` read above its declaration is a temporal-dead-zone
+// ReferenceError that `node --check` cannot see.
+const wireMode = argumentValue('--wire', process.env.Q20_WIRE ?? 'honour');
+
 const MARKERS = {
     first: 'Q20_FIRST_TURN_MARKER',
     second: 'Q20_SECOND_TURN_MARKER',
@@ -192,6 +275,7 @@ const report = {
     dataRoot,
     extension: { installedRevision: installed.revision, source: installed.source },
     markers: MARKERS,
+    wireMode,
     steps: [],
     pageRequests: [],
     chatRequests: [],
@@ -214,44 +298,14 @@ function step(name, ok, detail = null) {
 }
 
 // THE CHAT FILES THE PRODUCT WROTE. Read from disk, never written by this leg.
-async function readChatFiles() {
-    const chatsRoot = path.join(dataRoot, 'default-user', 'chats');
-    const found = [];
-    const walk = async directory => {
-        let entries = [];
-        try {
-            entries = await fs.readdir(directory, { withFileTypes: true });
-        } catch {
-            return;
-        }
-        for (const entry of entries) {
-            const full = path.join(directory, entry.name);
-            if (entry.isDirectory()) await walk(full);
-            else if (entry.name.endsWith('.jsonl')) {
-                const body = await fs.readFile(full, 'utf8');
-                found.push({
-                    file: path.relative(path.join(dataRoot, 'default-user'), full),
-                    bytes: Buffer.byteLength(body),
-                    sha256: createHash('sha256').update(body).digest('hex'),
-                    lines: body.split('\n').filter(line => line.trim().length > 0).length,
-                    messages: body.split('\n').filter(line => line.trim().length > 0).map(line => {
-                        try {
-                            return JSON.parse(line);
-                        } catch {
-                            return null;
-                        }
-                    }).filter(Boolean),
-                });
-            }
-        }
-    };
-    await walk(chatsRoot);
-    return found;
-}
+//
+// LIFTED (q20-persistence-drive.mjs) so the regenerate and continue legs read the SAME way this one does; the body is
+// unchanged, and `readChatFiles()` is kept as a zero-argument local because every call site below passes nothing.
+const readChatFiles = () => driveReadChatFiles(dataRoot);
 
 const carries = (files, marker) => files.some(file => (file.messages ?? []).some(message => String(message?.mes ?? '').includes(marker)));
 
-const peer = await startCapturePeer();
+const peer = await startCapturePeer({ wire: wireMode });
 let browser;
 let disarmed = null;
 try {
@@ -408,71 +462,49 @@ try {
     const readPageSide = async () => page.evaluate(() => window.__q20Events ?? []);
     const disarmReloadRecorder = async () => ({ disarmed: true });
 
-    const openPage = async () => {
-        await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
-        await page.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 120000 });
-        // THE PAGE MUST BE READY BEFORE A CLICK IS A USER ACTION. Run 40269030050 measured a #send_but click that
-        // emptied the chat because the listener was not installed yet; `settingsReady` is script.js's own flag.
-        return page.evaluate(async () => {
-            const script = await import('./script.js');
-            const started = performance.now();
-            while (performance.now() - started < 90000) {
-                if (script.settingsReady) return true;
-                const onboarding = document.querySelector('.popup .onboarding');
-                if (onboarding) {
-                    const input = onboarding.closest('.popup')?.querySelector('.popup-input');
-                    if (input) {
-                        input.value = 'Probe User';
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                    onboarding.closest('.popup')?.querySelector('.popup-button-ok')?.click();
-                }
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }
-            return false;
-        });
-    };
+    // THE PAGE, LIFTED: `driveOpenPage` is byte-for-byte the body this file used to carry (domcontentloaded, the
+    // preloader wait, then `settingsReady` with the 90 s bound and the onboarding dismissal). Kept as a thunk so every
+    // call site below -- the first load and the fresh reload -- is unchanged.
+    const openPage = () => driveOpenPage(page, baseURL);
+    // Declared here, READ AFTER the first `openPage()` (see `openCharacter` below): a page-scoped read cannot run
+    // before the navigation that gives the document a base URL.
+    let expectedCardName;
 
     // SELECT A REAL CHARACTER, WHICH IS THE PRECONDITION THE PRODUCT ITSELF CHECKS. The card a fresh install
     // actually renders is `.character_select#CharID<n>` (script.js:945); `.avatar[data-type="character"]` belongs to
     // the interactable lists and is absent here. The card's identity is taken from the page's own `characters` array
     // so a mismatch between the DOM and the model is visible in the artefact rather than assumed.
-    const openCharacter = async () => page.evaluate(async () => {
-        const script = await import('./script.js');
-        const deadline = Date.now() + 60000;
-        let card = null;
-        while (Date.now() < deadline) {
-            card = document.querySelector('#rm_print_characters_block .character_select')
-                ?? document.querySelector('#rm_print_characters_block .avatar[data-type="character"]');
-            if (card) break;
-            await new Promise(resolve => setTimeout(resolve, 250));
+    //
+    // LIFTED, WITH ONE DELIBERATE CHANGE STATED HERE: `driveOpenCharacter` takes the card's NAME and REFUSES when the
+    // page does not list it, instead of clicking the first `.character_select` it finds. On THIS leg that is
+    // behaviour-preserving in the only sense that matters -- a fresh-install tree holds exactly one card, so the
+    // first card IS the named card -- and the name it opens is read back out of the page's own `characters` array
+    // below, so the refusal path can only fire on a tree with no card at all. The change exists because the
+    // regenerate/continue legs must open the card the FIRST leg opened, and "the first card that renders" is not a
+    // precondition a real user has.
+    // THE NAME IS READ FROM A LOADED PAGE, NOT BEFORE ONE. Measured in run 40444282138 (mode=preset): the first
+    // version of this read sat above `openPage()`, so it ran while the document was still `about:blank` and
+    // `import('./script.js')` had no base URL to resolve against -- `TypeError: Failed to resolve module
+    // specifier './script.js'`, every guard downstream red. A page-scoped read belongs after the navigation that
+    // makes the page exist; that is an ordering rule about `page.evaluate`, not about the product.
+    const openCharacter = async () => {
+        if (expectedCardName === undefined) {
+            expectedCardName = await page.evaluate(async () => {
+                const script = await import('./script.js');
+                const deadline = Date.now() + 60000;
+                while (Date.now() < deadline) {
+                    const first = (script.characters ?? [])[0];
+                    if (first?.name) return String(first.name);
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                }
+                return null;
+            });
         }
-        if (!card) {
-            return { clicked: false, reason: 'no character card in #rm_print_characters_block', characters: (script.characters ?? []).map(entry => entry?.name ?? null) };
-        }
-        const chid = card.getAttribute('data-chid');
-        card.click();
-        // The page's own `getChat()` creates a fresh chat and saves it (script.js:7694), so the wait is on the
-        // PRODUCT's state: a chat id or a rendered message.
-        const settle = Date.now() + 30000;
-        while (Date.now() < settle) {
-            if ((script.chat ?? []).length > 0) break;
-            await new Promise(resolve => setTimeout(resolve, 250));
-        }
-        return {
-            clicked: true,
-            cardClass: card.className,
-            dataChid: chid,
-            thisChid: script.this_chid ?? null,
-            characterName: script.characters?.[script.this_chid]?.name ?? null,
-            characterChat: script.characters?.[script.this_chid]?.chat ?? null,
-            chatLength: (script.chat ?? []).length,
-            messages: document.querySelectorAll('#chat .mes').length,
-        };
-    });
+        return driveOpenCharacter(page, expectedCardName);
+    };
 
     const readyFirst = await openPage();
-    step('page-loaded', readyFirst === true, `settingsReady=${readyFirst}`);
+    step('page-loaded', readyFirst === true, `settingsReady=${readyFirst}; readiness=${JSON.stringify(await readReadiness(page))}`);
     step('page-no-errors', report.pageErrors.length === 0, JSON.stringify(report.pageErrors));
 
     // The connection, through the frontend's own controls, after the page is ready.
@@ -638,11 +670,23 @@ try {
     // A SEND IS ASYNCHRONOUS: the click returns immediately and the save lands after the frontend has produced the
     // message and named the chat. The file is polled for the marker with a bounded budget rather than read on the
     // next tick, and the recorded requests are carried in the artefact either way.
+    //
+    // THE POLL WAITS FOR THE REPLY, NOT ONLY FOR THE MARKER -- and this is the defect run 40487164548 measured.
+    // The condition used to be `carries(files, MARKERS.first)`, which the USER turn satisfies on its own. The pinned
+    // frontend saves the user turn and the assistant reply in that order, so the poll could break on a file holding
+    // [greeting, marker] with the reply still to come; `first-turn-saved` then PASSED on a chat whose reply had been
+    // lost, the reload read two messages, and the second-turn request was assembled six messages long against
+    // GoTavern's seven. That produced the stable 45-byte "difference" reported as a product signal in run
+    // 40477360391 -- TWO runs of a wasted investigation, because a marker that proves the USER turn was written was
+    // read as proof the whole turn was written.
+    // So the wait requires BOTH: the marker (the user turn landed) AND the peer's reply (the assistant turn landed).
+    const replyPattern = /Q20_REPLY_\d+/;
+    const carriesReply = files => files.some(file => (file.messages ?? []).some(entry => replyPattern.test(String(entry?.mes ?? ''))));
     let afterFirst = [];
     const firstDeadline = Date.now() + 30000;
     while (Date.now() < firstDeadline) {
         afterFirst = await readChatFiles();
-        if (carries(afterFirst, MARKERS.first)) break;
+        if (carries(afterFirst, MARKERS.first) && carriesReply(afterFirst)) break;
         await page.waitForTimeout(500);
     }
     await recorder.settled();
@@ -673,6 +717,12 @@ try {
         `${report.navigations.length - navigationsBeforeSend} navigation(s) during the first turn: ${JSON.stringify(report.reloadRecorder)}`);
     step('first-turn-saved', carries(afterFirst, MARKERS.first),
         `files=${afterFirst.map(file => `${file.file}:${file.lines}`).join(',') || 'none'}; processCommands=${JSON.stringify(report.processCommands)}`);
+    // THE SAME ASSERTION ONE LAYER STRONGER, and it is not redundant: `first-turn-saved` says the USER turn reached
+    // disk, which is what identifies the chat. This says the ASSISTANT REPLY reached disk too -- the half that run
+    // 40487164548 lost on the pinned leg while `first-turn-saved` was green. Without it, "the chat was saved" can be
+    // true of a saved chat that is missing the thing the user actually wanted persisted.
+    step('first-turn-saved-the-reply', carriesReply(afterFirst),
+        JSON.stringify(afterFirst.map(file => ({ file: file.file, lines: file.lines, messages: (file.messages ?? []).map(entry => String(entry?.mes ?? '').slice(0, 40)) }))));
 
     // 2. A FRESH PAGE LOAD MUST READ THAT CHAT BACK. This is the step no other leg performs.
     const readyReload = await openPage();
@@ -683,13 +733,24 @@ try {
         // `getContext` is exposed on window.SillyTavern, NOT exported by script.js -- the same defect as line 601,
         // which was fixed there and missed here. Run 40378609525 died on it AFTER first-turn-saved went green.
         const context = window.SillyTavern.getContext();
+        const chat = context.chat ?? [];
+        // THE ROLE+TEXT SEQUENCE, not only the length. `carriesMarker` alone proved the USER turn came back; it never
+        // said whether the ASSISTANT REPLY did, and that is precisely the difference run 40477360391 measured at the
+        // provider (GoTavern 7 messages, pinned 6). Two explanations fit that observation identically -- "pinned
+        // drops the reply from context" and "pinned reloaded before its own write landed" -- and this record is what
+        // separates them, because it says what each backend's `chat` HELD at the moment the second turn was sent.
+        const sequence = chat.map(entry => ({ role: entry?.is_user === true ? 'user' : 'assistant', text: String(entry?.mes ?? '').slice(0, 40) }));
         return {
             settingsReady: script.settingsReady === true,
             messages: document.querySelectorAll('#chat .mes').length,
-            chatLength: (context.chat ?? []).length,
+            chatLength: chat.length,
             chatId: context.chatId ?? null,
-            carriesMarker: (context.chat ?? []).some(entry => String(entry?.mes ?? '').includes('Q20_FIRST_TURN_MARKER')),
-            lastIsUser: (context.chat ?? [])[context.chat.length - 1]?.is_user === true,
+            carriesMarker: chat.some(entry => String(entry?.mes ?? '').includes('Q20_FIRST_TURN_MARKER')),
+            // DID THE REPLY SURVIVE THE RELOAD? The peer's reply carries a `Q20_REPLY_n` marker, so its presence is a
+            // measurement rather than an assumption.
+            carriesReply: chat.some(entry => /Q20_REPLY_\d+/.test(String(entry?.mes ?? ''))),
+            sequence,
+            lastIsUser: chat[chat.length - 1]?.is_user === true,
         };
     });
     // THE CONNECTION IS RE-APPLIED, and that is recorded rather than hidden: the peer's port is ephemeral and this
@@ -726,6 +787,14 @@ try {
     report.afterReload = { ...afterReload, reopened, reconnected, settingsReadyAfterReload: readyReload };
     step('reload-reads-the-chat', afterReload.carriesMarker === true, JSON.stringify(report.afterReload));
     step('reload-chat-identity', typeof afterReload.chatId === 'string' && afterReload.chatId.length > 0, `chatId=${afterReload.chatId}`);
+    // MOMENT 1 OF 3: WHAT THE FRESH PAGE HELD. This is the step run 40477360391 could not answer, and it decides
+    // between two explanations of the 45-byte request difference that fit the provider record identically --
+    // "pinned excludes the reply from context" (a PRODUCT finding) and "pinned reloaded before its own write
+    // landed" (a HARNESS ordering defect). `reload-reads-the-chat` above only ever asserted the USER marker, so a
+    // reloaded chat missing the assistant reply passed it. This step fails BY NAME when the reply is absent, and the
+    // whole role+text sequence is carried in the artefact either way.
+    step('reload-carried-the-reply', afterReload.carriesReply === true,
+        JSON.stringify({ carriesReply: afterReload.carriesReply, chatLength: afterReload.chatLength, sequence: afterReload.sequence }));
 
     // 3. A SECOND TURN AND A SWIPE ON THE SAME CHAT.
     //
@@ -733,40 +802,108 @@ try {
     // subjects (it selects no branch), and the MARKER is then written into the message that send created -- so the
     // two subjects' chats differ in content and must produce DIFFERENT provider requests, which is what makes the
     // equality of the second turn something other than a tautology.
+    //
+    // WHAT THIS BLOCK USED TO GET WRONG, AND WHY IT IS THE (b) FIX. It broke its wait as soon as A USER TURN APPEARED
+    // (`chat.some(position >= before && entry.is_user === true)`), then wrote the marker into that user turn and
+    // returned. When the assistant reply landed later, the wait had already resolved -- so the SWIPE that follows was
+    // performed on a USER message, and `swipe()` refuses that silently (`isSwipingAllowed()` false, no throw). Run
+    // 40448869208 recorded exactly that on the pinned subject: `before {chatLength: 4, mesId: 3, lastIsUser: true,
+    // swipes: null, swipeAllowed: false}` and an `after` where nothing had been swiped. `swipe-held` PASSED in that
+    // state because the swipe had appended one empty swipe to the user message. A guard that can pass through a state
+    // no user can produce is unfalsifiable, and it was supporting a scorecard row.
+    //
+    // THE WAIT IS NOW ON THE ASSISTANT TURN, through the shared `waitForReply`, which fails BY NAME
+    // (`setup-reply-did-not-arrive`) and quotes the screen and the peer's request count. `requireText` is FALSE here
+    // ON PURPOSE and the reason is recorded rather than hidden: runs 40445671791 and 40448869208 measured that the
+    // stored assistant message has EMPTY text on BOTH subjects, so requiring text would turn a known, equally-observed
+    // condition into a red attributed to this leg. The condition is carried in the artefact as
+    // `emptyReplyOnBothSubjects` and its cause is an OPEN finding, not a chosen value.
+    // MOMENT 2 OF 3: THE CHAT IMMEDIATELY BEFORE THE SECOND SEND, in the SAME evaluation as the click so nothing can
+    // change between the reading and the action. This is the state the second-turn request is assembled from, and it
+    // is the measurement that separates the two hypotheses about the 45-byte difference.
     const secondTurn = await page.evaluate(async marker => {
         const script = await import('./script.js');
         const textarea = document.querySelector('#send_textarea');
         const button = document.querySelector('#send_but');
         if (!textarea || !button) return { clicked: false, reason: 'send controls missing' };
-        const before = (script.chat ?? []).length;
+        const chat = script.chat ?? [];
+        const tail = chat[chat.length - 1] ?? null;
+        // THE BASELINE IS TAKEN BEFORE THE CLICK, and it is what the wait below must see MOVED PAST. Run 40471528261
+        // measured what its absence costs: the wait returned in 7 ms on the PREVIOUS turn's reply, and the swipe that
+        // followed ran while the page was still generating.
+        const before = chat.length;
+        const baseline = { chatLength: chat.length, lastTextLength: String(tail?.mes ?? '').length };
+        const sequenceBefore = chat.map(entry => ({ role: entry?.is_user === true ? 'user' : 'assistant', text: String(entry?.mes ?? '').slice(0, 40) }));
+        const carriesReplyBefore = chat.some(entry => /Q20_REPLY_\d+/.test(String(entry?.mes ?? '')));
         textarea.value = 'Q20 second turn input';
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
         button.click();
-        // Bounded wait on the PRODUCT's state before the marker is written: a user turn must exist and must be the
-        // last message, otherwise the marker would land in the greeting.
-        const deadline = Date.now() + 30000;
-        let state = null;
-        while (Date.now() < deadline) {
-            const chat = script.chat ?? [];
-            state = { chatLength: chat.length, lastIsUser: chat[chat.length - 1]?.is_user === true, lastText: String(chat[chat.length - 1]?.mes ?? '').slice(0, 60) };
-            // A USER TURN AFTER `before` IS THE FACT; the assistant's reply lands right after it, so "the last
-            // message is the user's" stops being true the moment generation completes -- run 40385281864 measured
-            // chatLength 3 -> 5 with lastIsUser false and waited out its whole bound for a turn that existed.
-            if (state.chatLength > before && chat.some((entry, position) => position >= before && entry?.is_user === true)) break;
-            await new Promise(resolve => setTimeout(resolve, 250));
-        }
+        return { clicked: true, before, baseline, sequenceBefore, carriesReplyBefore };
+    }, MARKERS.second);
+    const peerCompletionsBeforeSecondTurn = peer.requests.filter(entry => /chat\/completions/.test(entry.path ?? '')).length;
+    // `requireText` is TRUE again, and it was FALSE only for as long as the peer answered JSON to a streaming request.
+    // With the SSE peer the page receives `choices[0].delta.content`, so a reply with EMPTY text is now a FINDING
+    // (`setup-reply-did-not-arrive`, reading "an assistant message exists but its text is EMPTY") rather than a known
+    // condition this leg had to tolerate. Restoring it re-arms the wait that made the streak of structure-only greens
+    // possible.
+    const secondTurnSettled = await waitForReply(page, { timeoutMs: 60000, requireText: true, peerCompletions: peerCompletionsBeforeSecondTurn + 1, baseline: secondTurn?.baseline ?? null });
+    report.secondTurn = { ...secondTurn, settled: secondTurnSettled };
+    step('second-turn-message-created',
+        secondTurn?.clicked === true && secondTurnSettled.ok === true,
+        secondTurnSettled.ok === true ? JSON.stringify(secondTurnSettled.state) : JSON.stringify(secondTurnSettled));
+    // THE MARKER, WRITTEN INTO THE USER TURN THE PAGE ITSELF CREATED, and only after the reply has settled, so the
+    // message the swipe will act on is the assistant reply and not the user turn.
+    const marked = secondTurnSettled.ok === true ? await page.evaluate(async ({ marker, before }) => {
+        const script = await import('./script.js');
         const chat = script.chat ?? [];
         const userTurnIndex = chat.findIndex((entry, position) => position >= before && entry?.is_user === true);
-        const wroteMarker = userTurnIndex >= 0;
-        const index = wroteMarker ? userTurnIndex : chat.length - 1;
-        if (wroteMarker) {
-            chat[index].mes = marker;
-            script.printMessages();
-        }
-        return { clicked: true, before, state, wroteMarker, index, afterText: String(chat[index]?.mes ?? '') };
-    }, MARKERS.second);
-    report.secondTurn = secondTurn;
-    step('second-turn-message-created', secondTurn?.clicked === true && secondTurn?.wroteMarker === true, JSON.stringify(secondTurn));
+        if (userTurnIndex < 0) return { wroteMarker: false, reason: 'no user turn after the send', chatLength: chat.length };
+        chat[userTurnIndex].mes = marker;
+        script.printMessages();
+        const last = chat[chat.length - 1] ?? null;
+        return {
+            wroteMarker: true,
+            index: userTurnIndex,
+            afterText: String(chat[userTurnIndex]?.mes ?? ''),
+            // WHAT THE SWIPE WILL ACT ON, recorded so the next step cannot be read in the wrong state.
+            lastIsUser: last?.is_user === true,
+            lastTextLength: String(last?.mes ?? '').length,
+            chatLength: chat.length,
+        };
+    }, { marker: MARKERS.second, before: secondTurn?.before ?? 0 }) : { wroteMarker: false, reason: 'the reply never settled' };
+    report.secondTurnMarker = marked;
+    step('second-turn-marker-written', marked?.wroteMarker === true, JSON.stringify(marked));
+    // MOMENT 3 OF 3: THE CHAT AFTER THE SECOND REPLY IS PERSISTED, with its role+text sequence. Together with
+    // `afterReload.sequence` (moment 1) and `secondTurn.sequenceBefore` (moment 2) this makes the whole history of each
+    // backend's `chat` visible, which is what decides whether the 45-byte request difference came from CONTEXT
+    // ASSEMBLY (a product finding) or from WRITE TIMING AROUND THE RELOAD (a harness ordering defect).
+    report.afterSecondReply = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        const chat = script.chat ?? [];
+        return {
+            chatLength: chat.length,
+            sequence: chat.map(entry => ({ role: entry?.is_user === true ? 'user' : 'assistant', text: String(entry?.mes ?? '').slice(0, 40) })),
+            carriesReply: chat.filter(entry => /Q20_REPLY_\d+/.test(String(entry?.mes ?? ''))).length,
+        };
+    });
+    // THE PRECONDITION THE SWIPE ITSELF CHECKS. Asserted here so a swipe that refuses is never read as a finding.
+    const swipePrecondition = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        const chat = script.chat ?? [];
+        return {
+            lastIsUser: chat[chat.length - 1]?.is_user === true,
+            swipeAllowed: typeof script.isSwipingAllowed === 'function' ? script.isSwipingAllowed() : null,
+            isSendPress: script.is_send_press ?? null,
+        };
+    });
+    report.swipePrecondition = swipePrecondition;
+    step('swipe-precondition-reachable',
+        swipePrecondition.lastIsUser === false && swipePrecondition.swipeAllowed !== false && swipePrecondition.isSendPress !== true,
+        JSON.stringify(swipePrecondition));
+
+    // THE EQUALLY-OBSERVED CONDITION, NAMED AND NOT ASSERTED AWAY. If the last assistant message has empty text on BOTH
+    // subjects this is reported as a fact about the fixture; it is NOT parity, and it is NOT this leg's claim.
+    report.emptyReplyOnBothSubjects = secondTurnSettled.ok === true && Number(secondTurnSettled.state?.lastTextLength ?? -1) === 0;
 
     const swiped = await page.evaluate(async () => {
         const script = await import('./script.js');
@@ -812,6 +949,21 @@ try {
 
     // THE CHAT IS SAVED AFTER THE SWIPE, through the frontend's own conditional save (the entry the swipe itself
     // ends with, script.js:9403), so the file on disk reflects the swipe.
+    //
+    // WAIT ON THE SAVE'S OWN COMPLETION BEFORE READING THE FILE -- this is the answer to the artefact/replay
+    // disagreement this lane left open (run 40448869208: the leg recorded `swipePersisted.swipeId: null` while
+    // replaying the SAME recorded `finalFiles` through the same module gave `swipe_id: 1`). Two readings of one
+    // value must not both be true, so what the assertion may use is fixed here rather than chosen later:
+    //   * `saveChatConditional()` resolves when the POST /api/chats/save RESPONSE has arrived (script.js:7395-7454),
+    //     and the server writes the file inside that request (`trySaveChat`, src/endpoints/chats.js:531-541) -- so a
+    //     file read after this resolves is the post-flush file;
+    //   * the read is done ONCE, into `report.finalFiles`, and every guard below reads THAT, never a second snapshot
+    //     taken later or earlier;
+    //   * the read is WITNESSED: the number of successful `/api/chats/save` requests recorded up to and including the
+    //     flush is carried in the artefact, so a reader can tell "the file was read after a 200" from "the leg read a
+    //     file whose save had not been issued". A `saveWitnessed: false` makes the swipe assertion unresolvable
+    //     rather than passing or failing on a stale file.
+    const savesBeforeFlush = chatRequestLog().filter(entry => /\/api\/chats\/save$/.test(entry.path ?? '') && entry.status === 200).length;
     report.savedAfterSwipe = await page.evaluate(async () => {
         const script = await import('./script.js');
         try {
@@ -821,10 +973,25 @@ try {
             return { ok: false, error: String(error && error.message || error) };
         }
     });
-
-    await page.waitForTimeout(1500);
+    // A BOUNDED WAIT, ON THE RECORDER, FOR THE SAVE THE FRONTEND JUST ISSUED -- not a fixed sleep and not a retry:
+    // the condition is "a save request answered 200 that had not answered before the flush", which is the product's
+    // own observable completion.
+    {
+        const deadline = Date.now() + 15000;
+        while (Date.now() < deadline) {
+            await recorder.settled();
+            const saves = chatRequestLog().filter(entry => /\/api\/chats\/save$/.test(entry.path ?? '') && entry.status === 200).length;
+            if (saves > savesBeforeFlush) break;
+            await page.waitForTimeout(250);
+        }
+    }
     await recorder.settled();
     report.chatRequests = chatRequestLog();
+    report.saveWitness = {
+        savesBeforeFlush,
+        savesAfterFlush: chatRequestLog().filter(entry => /\/api\/chats\/save$/.test(entry.path ?? '') && entry.status === 200).length,
+    };
+    report.saveWitnessed = report.saveWitness.savesAfterFlush > savesBeforeFlush;
     report.pageRequests = recorder.requests.map(entry => ({ method: entry.method, path: entry.pathAndQuery, status: entry.status }));
     report.peerRequests = peer.requests.map(entry => ({
         method: entry.method,
@@ -832,13 +999,89 @@ try {
         byteLength: entry.byteLength,
         sha256: entry.sha256,
         body: entry.body,
+        // WHAT THIS PEER SERVED (CONDITION 1). `served.wire: "json"` on a request that asked for streaming is the
+        // signature of the fixture defect this change removes, and it is now visible in the artefact itself.
+        requestedStream: entry.requestedStream ?? null,
+        served: entry.served ?? null,
     }));
     const completions = report.peerRequests.filter(entry => /chat\/completions/.test(entry.path ?? ''));
     report.completions = completions.length;
     step('peer-reached', completions.length >= 2, `${completions.length} chat/completions request(s); all peer requests: ${report.peerRequests.length}`);
+    step('swipe-save-witnessed', report.saveWitnessed === true,
+        `the swipe assertion needs a successful /api/chats/save AFTER the flush; before=${report.saveWitness.savesBeforeFlush} after=${report.saveWitness.savesAfterFlush}`);
+    // THE ONE READ. Every guard below uses this array, never a later one.
     report.finalFiles = await readChatFiles();
-    step('final-file-reflects-swipe', (report.finalFiles ?? []).some(file => (file.messages ?? []).some(message => Array.isArray(message?.swipes) && message.swipes.length > 1)),
-        JSON.stringify((report.finalFiles ?? []).map(file => `${file.file}:${file.lines}`)));
+    // TIGHTENED, AND THIS IS A CHANGE IN THE ARTEFACT'S MEANING (stated in the commit message, not only here).
+    // THE OLD FORM: `some file has some message with swipes.length > 1`. That is satisfied by ANY chat file in the
+    // tree, by ANY message in it, including one this leg never touched and including a file a previous step left
+    // behind -- so a swipe written into the wrong chat, or a swipe that never reached disk while an unrelated
+    // collection did, both passed. It is the weakest form of this assertion and it was the only one guarding the
+    // swipe's persistence.
+    // THE NEW FORM names the chat and the message: the file that carries this leg's SECOND marker, and the LAST
+    // message in it, must have MORE swipes than the page had before the swipe AND must select the new one. The
+    // before/after counts come from `report.swipe` (the page's own `swipe_id`/`swipes`), so the file is judged
+    // against the state the UI showed rather than against a constant.
+    const swipeFile = chatCarrying(report.finalFiles, MARKERS.second);
+    const swipeBefore = report.swipe?.before ?? {};
+    const swipeAfter = report.swipe?.after ?? {};
+    // WHICH MESSAGE, AND WHY NOT BY NUMBER. `swipe.before.mesId` is a RENDERED DOM ordinal (`mesid`, script.js:8144
+    // `chat[mesElement.attr('mesid')]`), and `chat[0]` is the chat header, so the file index and that number are not
+    // the same namespace -- measured in run 40445671791, where treating them as one pointed the guard at the wrong
+    // message. The file is therefore matched by the ONE thing the page and the file agree on: the message the swipe
+    // was performed on is the assistant reply the page had on screen. It is located by "the last persisted message
+    // that is not a user message and is not the greeting", i.e. the tail of the conversation, and its INDEX is then
+    // recorded so a red names it.
+    const persistedMessages = swipeFile?.messages ?? [];
+    // THE MESSAGE IS FOUND BY THE SWIPE'S OWN SIGNATURE, which is the only thing that identifies it without sharing
+    // an expectation with the product: it is the message whose persisted `swipes` array is LONGER than the array the
+    // page had before the swipe. Measured against run 40445671791's recorded legs: both subjects hold exactly one
+    // such message, at index 4, with `swipes: 2, swipe_id: 1` -- while the greeting also has a `swipes` array (of 1)
+    // and an empty reply also has one, so "an assistant message near the tail" and "a message with text" both pick
+    // the WRONG one. `mesId` from the page is a rendered DOM ordinal over `#chat .mes` and is not the chat index.
+    const grewBeyond = Number(swipeBefore.swipes ?? 0);
+    const candidates = persistedMessages.filter(message => Number(message?.swipesCount ?? 0) > grewBeyond);
+    const persisted = candidates.length === 1 ? candidates[0] : null;
+    report.swipePersisted = swipeFile ? {
+        file: swipeFile.file,
+        headerStripped: swipeFile.hasHeader === true,
+        messageIndex: persisted?.index ?? null,
+        candidateIndexes: candidates.map(message => message.index),
+        pageMesId: swipeBefore.mesId ?? null,
+        swipesCount: persisted?.swipesCount ?? null,
+        // THE FIELD IS `swipe_id`, from `chatCarrying`; `swipeId` does not exist on a mapped message. Writing
+        // `persisted.swipeId` read `undefined` and failed the comparison while the file held the right value -- which
+        // is the whole of the artefact/replay disagreement this lane left open: replaying the SAME recorded
+        // `finalFiles` through the same module gives `swipe_id: 1`, and only the assertion's spelling was wrong.
+        swipeId: persisted?.swipe_id ?? null,
+        isUser: persisted?.is_user ?? null,
+    } : null;
+    // EACH SUB-CONDITION IS NAMED, so a red says WHICH field disagreed instead of handing back one boolean.
+    const swipeChecks = {
+        'the file carrying the second marker exists': Boolean(swipeFile),
+        // THE WITNESS IS PART OF THE ASSERTION, not beside it: a file read before its save answered cannot say
+        // anything about what the product persisted, so the check refuses rather than passing on a stale read.
+        'the file was read AFTER a successful /api/chats/save': report.saveWitnessed === true,
+        'exactly ONE persisted message grew its swipes array (the swiped one)': candidates.length === 1,
+        'the file holds the same message count the page showed': Boolean(swipeFile) && persistedMessages.length === Number(swipeAfter.chatLength ?? -1),
+        'the swiped message is not a user message': persisted?.is_user === false,
+        'the persisted swipes array GREW past what the page had before the swipe': Number(persisted?.swipesCount ?? 0) > grewBeyond,
+        'the persisted swipe_id is the one the page selected': Number(persisted?.swipe_id ?? -1) === Number(swipeAfter.swipeId ?? -2),
+        // RESTORED (CONDITION 4), AND THE WEAKENING IS KEPT VISIBLE. This condition was removed when the peer answered
+        // JSON to a streaming request and the reply text was `''` on BOTH subjects -- an equally-observed empty string
+        // made "the persisted text is a reply" fail on both sides, so it was dropped rather than asserted. The SSE peer
+        // gives the page a real `delta.content`, so the assertion is meaningful again and is back. It checks the
+        // persisted text is the PEER'S reply for this message, not merely non-empty.
+        'the persisted message holds the peer\'s reply': /^Q20_REPLY_\d+$/.test(String(persisted?.mes ?? '').trim()),
+    };
+    const failedSwipeChecks = Object.entries(swipeChecks).filter(([, ok]) => !ok).map(([name]) => name);
+    step('final-file-reflects-swipe', failedSwipeChecks.length === 0,
+        JSON.stringify({
+            failed: failedSwipeChecks,
+            swipePersisted: report.swipePersisted,
+            before: { swipes: swipeBefore.swipes, swipeId: swipeBefore.swipeId, mesId: swipeBefore.mesId },
+            after: { swipes: swipeAfter.swipes, swipeId: swipeAfter.swipeId, chatLength: swipeAfter.chatLength },
+            files: (report.finalFiles ?? []).map(file => `${file.file}:${file.lines}`),
+        }));
 } catch (error) {
     report.failure = report.failure ?? String(error?.stack ?? error);
 } finally {

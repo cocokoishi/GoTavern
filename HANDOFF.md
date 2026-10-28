@@ -329,6 +329,35 @@ appended nothing -- on both subjects. `changeMainAPI('openai')` (script.js:7756)
 Two follow-on lessons, both now in the code's comments: the switch is PER PAGE (a reload resets it, which is why the
 second turn needed it again), and a guard must assert the fact rather than a convenient proxy -- "the last message is
 the user's" is false the moment the reply lands, so the second-turn guard now finds the user turn by index.
+**Q20 REGENERATE and CONTINUE — current checkpoint 2026-10-27 (`lane/regen-continue`, `4aefd83`), NOT YET MERGED.**
+
+This supersedes any earlier Q20 line that says regenerate/continue are unproven, and leaves the history above intact.
+
+**Regenerate: PROVEN.** `Compare`+`Judge the Q20 regenerate legs` success, 13/13 guards, `verdict=match`, on five
+separate runs at lane heads `b354b8c` (40508390830), `f514aa0` (40538908912), `9df0f25` (40551319556), `f3474f1`
+(40559516968), `59dabb9` (40574536117). The defining effect is recorded, not inferred:
+`goRegenerateCarries: {"carriesIt":false,"sameAsPrecedingTurn":true}` — the regenerated request does NOT carry the
+reply it replaces and is byte-identical to the request that produced it. **None of the five is a citation yet:**
+every head is a lane commit, `git merge-base --is-ancestor` is false for all five against `origin/main`, and
+`docs/goal-scorecard.md` still `Describes:` `fc0c8b3` while `origin/main` has moved on. They become citations at merge.
+
+**Continue: PARTIAL, and the gap is instrument-side, not product-side.** Both legs drove every step green (24/24
+go, 23/23 pinned): one request, the last message grown in place by `appendFinal` (`script.js:6719-6737`, count
+unchanged), the file holding continuation + reply, metadata appended, no residual nudge in the next request. The
+comparator executed and reported guards red — but measured directly from the leg files of run 40608845921, the two
+subjects produced a **byte-identical continuation request**:
+
+    gotavern continue request sha256 a1e050cbfa0f
+    pinned   continue request sha256 a1e050cbfa0f
+
+The equality the verb is judged by therefore EXISTED while the guards could not see it. Four of them located the
+continue request by positional index (`requests[requests.length - 3]`), which is valid only when a leg drove exactly
+two setup turns; the pinned leg, correctly starting from the handoff, found those turns already present and drove
+zero, so the index was `undefined`. `4aefd83` selects the continue by the product's own `continueNudgePrompt` marker
+instead. **No CI run has yet reported continue green** — the fix is unconfirmed, and that is stated rather than implied.
+
+**Bottom line for release: no known product defect in any of the three verbs across nine runs. Every red was the
+harness. Q20 stays `partial` because continue's comparator has not yet confirmed the equality it measured.**
 **Q12 (a helper MUTATING the in-use preset changes the next model context, identically) — PROVEN 2026-10-25.**
 `Browser differential` 40277640647, preset mode, four legs, TEN guards all true: legsPresent, legsDrove,
 structureMatchesTheOracle, presetAEqualsAcrossLegs, presetBEqualsAcrossLegs, goATavernDiffersFromGoB,

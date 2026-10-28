@@ -1287,6 +1287,245 @@ jobs:
           cat tests/browser/q20-comparison.json
           exit "$status"
 
+      # THE TWO VERBS Q20 NAMES AND THE PROBE ABOVE DECLARED `notCompared`: regenerate and continue. Each is its own
+      # leg pair because pinned's two verbs are STRUCTURALLY DIFFERENT (read the contract blocks in the comparators):
+      # regenerate DELETES the last assistant message before assembling the prompt (script.js:4399-4406) and then
+      # PUSHES A NEW ONE (script.js:6738), while continue REPLACES the last message's text in place
+      # (script.js:6719-6737) and appends no message at all. An artefact that asserted one shape for both would be
+      # wrong for one of them, which is why they are not one step.
+      #
+      # THE SAME `if:` SHAPE AS EVERY OTHER PRESET STEP, deliberately: no new mode is added, and the push-mode
+      # expression is not touched, because an ordinary push narrows itself to `assets` and would never reach these
+      # steps. These legs are paid for by a mode=preset (or mode=all) dispatch, and the run id is quoted with its
+      # mode wherever it is cited.
+      #
+      # THE PINNED LEG OPENS THE TREE THE GOTAVERN LEG WROTE (`--data-chat`), so both subjects regenerate / continue
+      # the SAME conversation rather than two independent ones. The card is named from the GoTavern leg's OWN artefact
+      # (`characterOpen.characterName`), never re-derived: "the first card that renders" is not a precondition a user
+      # has, and a leg that picked one could silently act on a different chat.
+      - name: Record the Q20 regenerate legs (both subjects, on the same tree)
+        id: q20-regen
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          mkdir -p "$work/legs"
+          failures=0
+          tree="$work/q20-regen-tree-gotavern"
+          rm -rf "$tree"; mkdir -p "$tree"
+          # THE LEG DETERMINES ITS OWN CARD, and this is the second correction of this step -- both measured.
+          # (i) run 40452820868: `--character` was passed to the PINNED leg only, so the GoTavern leg's `openCharacter`
+          #     REFUSED by design and every later step ran with no chat open;
+          # (ii) run 40454879293: the next version read `<dataRoot>/default-user/characters` BEFORE the leg ran, and on a
+          #     FRESH install that directory does not exist yet -- the card is seeded by the SERVER at boot ("no card
+          #     staged under .../q20-regen-tree-gotavern/default-user/characters"), so the name was empty again.
+          # So the leg is told nothing about the card and asks THE PAGE instead: `openCharacter('')`-style guessing is
+          # what this lane removed, so the probe takes `--character auto`, which reads `script.characters[0].name` from
+          # the LOADED page (the product's own roster), records it as `characterOpen.characterName`, and refuses if the
+          # page shows no card at all. The name it opened is then handed to the pinned leg from the artefact -- which is
+          # the only place a name is authoritative, because it is what the product said.
+          echo "Q20 regenerate: the GoTavern leg resolves its card from the product's own roster (--character auto)"
+          # THE PER-SUBJECT MARKER (rule 50). Each leg's second turn carries text UNIQUE TO THAT SUBJECT, so the request
+          # built from it must differ before the verb; if the two legs' markers were identical, no later equality could
+          # tell the subjects apart and the whole comparison would be vacuous. Run 40482430975 measured exactly that:
+          # the probe defaults the marker to a constant, both legs recorded 'Q20_REGEN_SECOND_TURN_MARKER', and the
+          # comparator's own `artefactsDifferPerSubject` guard refused -- correctly. The probe already supports
+          # overriding it; the workflow simply never did.
+          if Q20_REGEN_SECOND_MARKER="Q20_REGEN_SECOND_TURN_MARKER_GOTAVERN" Q20_REPLY_PREFIX="Q20G_" \
+            node tests/browser/q20-regenerate-probe.mjs --data-root "$tree" --character auto \
+              --report "$work/legs/q20-regen-gotavern.json"; then
+            echo "recorded the gotavern Q20 regenerate leg"
+          else
+            echo "::error::the gotavern Q20 regenerate leg failed to drive"
+            failures=$((failures + 1))
+          fi
+          name=$(node -e "const fs=require('fs'); const p=process.argv[1]; if(!fs.existsSync(p)) process.exit(0); const r=JSON.parse(fs.readFileSync(p,'utf8')); process.stdout.write(String(r.characterOpen?.characterName || r.openedContext?.characterName || ''))" "$work/legs/q20-regen-gotavern.json")
+          # THE CHAT, NOT JUST THE CARD. Run 40482430975 proved the card name is not enough: the pinned leg booted the
+          # COPIED tree but resumed the card's LAST-USED chat, which in that tree was a 9-message chat still holding an
+          # EARLIER RUN's messages, while the GoTavern leg sat on its own 5-message chat. The comparator refused with
+          # "5 vs 9" and every later equality was vacuous. The chat id is taken from the GoTavern leg's own artefact --
+          # the product's name for the conversation it wrote -- and the pinned leg OPENS THAT CHAT and verifies it.
+          chatid=$(node -e "const fs=require('fs'); const p=process.argv[1]; if(!fs.existsSync(p)) process.exit(0); const r=JSON.parse(fs.readFileSync(p,'utf8')); process.stdout.write(String(r.preRegenerate?.page?.chatId ?? ''))" "$work/legs/q20-regen-gotavern.json")
+          if [ -z "$chatid" ]; then
+            echo "::error::the gotavern Q20 regenerate leg recorded no chat id, so the pinned leg cannot be put on the same conversation"
+            failures=$((failures + 1))
+          elif [ -z "$name" ]; then
+            echo "::error::the gotavern Q20 regenerate leg recorded no character name in characterOpen.characterName OR openedContext.characterName, so the pinned leg has no chat to open and nothing is claimed for this verb"
+            failures=$((failures + 1))
+          else
+            echo "the pinned leg will open the card the product opened: $name (chat: $chatid)"
+            ptree="$work/q20-regen-tree-pinned"
+            rm -rf "$ptree"; mkdir -p "$ptree"
+            if Q20_REGEN_SECOND_MARKER="Q20_REGEN_SECOND_TURN_MARKER_PINNED" Q20_REPLY_PREFIX="Q20P_" \
+              node tests/browser/run-against-pinned.mjs q20-regenerate-probe.mjs -- --data-root "$ptree" \
+                --data-chat "$tree" --character "$name" --chat-id "$chatid" --report "$work/legs/q20-regen-pinned.json"; then
+              echo "recorded the pinned Q20 regenerate leg"
+            else
+              echo "::error::the pinned Q20 regenerate leg failed to drive"
+              failures=$((failures + 1))
+            fi
+          fi
+          echo "q20_regen_failures=$failures" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Compare the Q20 regenerate legs
+        if: ${{ ((github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all') && steps.q20-regen.outputs.q20_regen_failures == '0' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          node tests/browser/compare-q20-regen-legs.mjs \
+            "$work/legs/q20-regen-gotavern.json" "$work/legs/q20-regen-pinned.json" \
+            > tests/browser/q20-regenerate-comparison.json && status=0 || status=$?
+          cat tests/browser/q20-regenerate-comparison.json
+          exit "$status"
+
+      # THE JUDGE THAT FAILS BY NAME WHEN A LEG REPORT IS ABSENT. A false `if:` on the step above reports NOTHING
+      # (GitHub coerces a skipped step's output to empty), and this project has shipped that green twice -- so the
+      # absence of a report is a FAILURE HERE rather than a quietly skipped comparison. `always()` is what makes it
+      # run when the recording step failed, which is exactly the case it exists for.
+      - name: Judge the Q20 regenerate legs
+        if: ${{ always() && ((github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all') }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          status=0
+          for leg in gotavern pinned; do
+            report="$work/legs/q20-regen-$leg.json"
+            if [ ! -f "$report" ]; then
+              echo "::error::the $leg Q20 regenerate leg produced no report, so nothing is claimed about regenerate"
+              status=1
+              continue
+            fi
+            node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); const leg=process.argv[2]; if (r.failure) { console.error(leg+': '+r.failure); process.exit(1) } console.log(leg+': '+r.steps.map(s=>(s.ok?'ok ':'FAIL ')+s.name).join(', '))" "$report" "$leg" || status=1
+          done
+          # AND THE COMPARISON ITSELF, judged by name here as well: a missing comparison file means the compare step
+          # never ran, which is the same absence one layer up.
+          if [ ! -f tests/browser/q20-regenerate-comparison.json ]; then
+            echo "::error::no Q20 regenerate comparison was produced"
+            status=1
+          else
+            node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); const bad=(a.failedGuards||[]); if (a.verdict !== 'match') { console.error('Q20 regenerate verdict '+a.verdict+'; failed guards: '+bad.join(', ')); process.exit(1) } console.log('Q20 regenerate: '+Object.keys(a.guards||{}).length+' guard(s) held')" tests/browser/q20-regenerate-comparison.json || status=1
+          fi
+          exit "$status"
+
+      - name: Record the Q20 continue legs (both subjects, on the same tree)
+        id: q20-continue
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          mkdir -p "$work/legs"
+          failures=0
+          tree="$work/q20-continue-tree-gotavern"
+          handoff="$work/q20-continue-tree-handoff"
+          rm -rf "$tree"; mkdir -p "$tree"
+          rm -rf "$handoff"
+          # THE SAME CORRECTION AS THE REGENERATE STEP, and for the same measured reason: the card is seeded by the
+          # SERVER at boot, so reading `<dataRoot>/default-user/characters` before the leg runs finds nothing (run
+          # 40454879293). The leg asks the PAGE (`--character auto`), records the name it opened, and the pinned leg is
+          # given that name from the artefact.
+          echo "Q20 continue: the GoTavern leg resolves its card from the product's own roster (--character auto)"
+          # THE HANDOFF TREE: the state the pinned leg must start from, snapshotted by the probe AFTER the continuation
+          # and BEFORE its own residual-state turn. Run 40582180078 measured the cost of not having it: `--data-chat`
+          # pointed at the GoTavern leg's LIVE data root, which by then also held the residual turn's user message and
+          # its reply, so the pinned subject opened a seven-message chat where GoTavern had continued a five-message
+          # one -- `sameChat` "message indices: 4 vs 6", `sameMessageGrown` "counts: 5 vs 7" -- with both subjects
+          # correct on the same chat id and the same file path.
+          if node tests/browser/q20-continue-probe.mjs --data-root "$tree" --character auto \
+              --handoff-tree "$handoff" \
+              --report "$work/legs/q20-continue-gotavern.json"; then
+            echo "recorded the gotavern Q20 continue leg"
+          else
+            echo "::error::the gotavern Q20 continue leg failed to drive"
+            failures=$((failures + 1))
+          fi
+          name=$(node -e "const fs=require('fs'); const p=process.argv[1]; if(!fs.existsSync(p)) process.exit(0); const r=JSON.parse(fs.readFileSync(p,'utf8')); process.stdout.write(String(r.characterOpen?.characterName || r.openedContext?.characterName || ''))" "$work/legs/q20-continue-gotavern.json")
+          if [ -z "$name" ]; then
+            echo "::error::the gotavern Q20 continue leg recorded no character name in characterOpen.characterName OR openedContext.characterName, so the pinned leg has no chat to open and nothing is claimed for this verb"
+            failures=$((failures + 1))
+          else
+            # THE CHAT, NOT JUST THE CARD -- the same correction the REGENERATE leg already carries, and it was
+            # MISSING here until run 40566841294 measured the cost.
+            #
+            # MEASURED THERE: both legs drove every step green (GoTavern 24/24, pinned 23/23) and the comparator then
+            # reported six guards red, ALL sharing one root cause --
+            #     sameChat:          "the two subjects continued different message indices: 4 vs 10"
+            #     sameMessageGrown:  "the two subjects ended with different message counts: 5 vs 11"
+            # Clicking a character card opens the card's LAST-USED chat. In the COPIED tree that was an 11-message chat
+            # left by an EARLIER RUN, while the GoTavern leg sat on its own 5-message chat. Each subject continued a
+            # DIFFERENT message, so `nudgeAssemblesLast`, `nodeEqualsGoContinue` and `nextRequestClean` compared two
+            # different conversations. The difference was produced entirely by which chat the card resumed.
+            #
+            # `--chat-id` is the product's own name for the conversation the GoTavern leg wrote (taken from its
+            # artefact); the probe opens it through `openCharacterChat` (pinned script.js:7744) and verifies the
+            # selection through `getContext()` before driving. Passing it makes both subjects continue THE SAME
+            # message, which is the precondition every guard below actually depends on.
+            chatid=$(node -e "const fs=require('fs'); const p=process.argv[1]; if(!fs.existsSync(p)) process.exit(0); const r=JSON.parse(fs.readFileSync(p,'utf8')); process.stdout.write(String(r.preContinue?.page?.chatId || r.openedContext?.chatId || ''))" "$work/legs/q20-continue-gotavern.json")
+            if [ -z "$chatid" ]; then
+              echo "::error::the gotavern Q20 continue leg recorded no chat id in preContinue.page.chatId OR openedContext.chatId, so the pinned leg cannot be put on the same conversation"
+              failures=$((failures + 1))
+            else
+              echo "the pinned leg will open the card the product opened: $name (chat: $chatid)"
+              ptree="$work/q20-continue-tree-pinned"
+              rm -rf "$ptree"; mkdir -p "$ptree"
+              # `--data-chat` IS THE HANDOFF SNAPSHOT, NOT THE LIVE ROOT. The live root also holds the GoTavern probe's
+              # own residual-state turn, which is a HARNESS probe, not the state a user continues from -- copying it made
+              # the two subjects continue different messages. The handoff is taken by the probe after the continuation
+              # and before that turn; a leg that produced none is reported rather than silently falling back to the
+              # live root, because falling back is exactly the bug this replaces.
+              source_tree="$handoff"
+              if [ ! -d "$source_tree" ]; then
+                echo "::error::the gotavern Q20 continue leg produced no handoff tree, so the pinned leg cannot start from the state the continuation ended in"
+                failures=$((failures + 1))
+                source_tree=""
+              fi
+              if [ -n "$source_tree" ] && node tests/browser/run-against-pinned.mjs q20-continue-probe.mjs -- --data-root "$ptree" \
+                  --data-chat "$source_tree" --character "$name" --chat-id "$chatid" \
+                  --report "$work/legs/q20-continue-pinned.json"; then
+                echo "recorded the pinned Q20 continue leg"
+              elif [ -n "$source_tree" ]; then
+                echo "::error::the pinned Q20 continue leg failed to drive"
+                failures=$((failures + 1))
+              fi
+            fi
+          fi
+          echo "q20_continue_failures=$failures" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Compare the Q20 continue legs
+        if: ${{ ((github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all') && steps.q20-continue.outputs.q20_continue_failures == '0' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          node tests/browser/compare-q20-continue-legs.mjs \
+            "$work/legs/q20-continue-gotavern.json" "$work/legs/q20-continue-pinned.json" \
+            > tests/browser/q20-continue-comparison.json && status=0 || status=$?
+          cat tests/browser/q20-continue-comparison.json
+          exit "$status"
+
+      - name: Judge the Q20 continue legs
+        if: ${{ always() && ((github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all') }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          status=0
+          for leg in gotavern pinned; do
+            report="$work/legs/q20-continue-$leg.json"
+            if [ ! -f "$report" ]; then
+              echo "::error::the $leg Q20 continue leg produced no report, so nothing is claimed about continue"
+              status=1
+              continue
+            fi
+            node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); const leg=process.argv[2]; if (r.failure) { console.error(leg+': '+r.failure); process.exit(1) } console.log(leg+': '+r.steps.map(s=>(s.ok?'ok ':'FAIL ')+s.name).join(', '))" "$report" "$leg" || status=1
+          done
+          if [ ! -f tests/browser/q20-continue-comparison.json ]; then
+            echo "::error::no Q20 continue comparison was produced"
+            status=1
+          else
+            node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); const bad=(a.failedGuards||[]); if (a.verdict !== 'match') { console.error('Q20 continue verdict '+a.verdict+'; failed guards: '+bad.join(', ')); process.exit(1) } console.log('Q20 continue: '+Object.keys(a.guards||{}).length+' guard(s) held')" tests/browser/q20-continue-comparison.json || status=1
+          fi
+          exit "$status"
+
       - name: Hand GoTavern's own tree back to pinned Node (Q21)
         id: q21
         # THE QUESTION NOTHING ELSE ASKED: does the ORIGINAL server open the tree the PRODUCT wrote and continue the
