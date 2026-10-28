@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="804" viewBox="0 0 880 804" role="img" aria-labelledby="benchmarkTitle benchmarkDesc">
+<title id="benchmarkTitle">GoTavern vs SillyTavern (Node) - paired benchmark, ubuntu26</title>
+<desc id="benchmarkDesc">Cold start to first /version 200: SillyTavern 14,355 ms, GoTavern 61 ms; Steady-state RSS: SillyTavern 912.2 MB, GoTavern 37.3 MB; GET /version latency: SillyTavern 62.68 ms, GoTavern 0.431 ms; GET / latency (HTML shell): SillyTavern 14.17 ms, GoTavern 2.20 ms. Lower is better for every metric. Methodology and provenance are stated in the README section below the figure.</desc>
+
+  <style>
+    .title { font: 600 17px -apple-system, "Segoe UI", system-ui, sans-serif; fill: #e6edf3; }
+    .subtitle { font: 400 12px -apple-system, "Segoe UI", system-ui, sans-serif; fill: #9198a1; }
+    .panel-label { font: 600 12.5px -apple-system, "Segoe UI", system-ui, sans-serif; fill: #e6edf3; }
+    .panel-note { font: 400 10.5px -apple-system, "Segoe UI", system-ui, sans-serif; fill: #9198a1; }
+    .value { font: 600 12px "SFMono-Regular", Consolas, "Liberation Mono", monospace; fill: #e6edf3; }
+    .exact { font: 400 9.5px "SFMono-Regular", Consolas, "Liberation Mono", monospace; fill: #9198a1; }
+    .axis { stroke: #30363d; stroke-width: 1; }
+    .axis-label { font: 400 9.5px "SFMono-Regular", Consolas, "Liberation Mono", monospace; fill: #9198a1; }
+    .legend { font: 500 11.5px -apple-system, "Segoe UI", system-ui, sans-serif; fill: #e6edf3; }
+    .ratio { font: 600 11.5px -apple-system, "Segoe UI", system-ui, sans-serif; fill: #e6edf3; }
+    .footer { font: 400 10px -apple-system, "Segoe UI", system-ui, sans-serif; fill: #9198a1; }
+    .total { font: 600 11px -apple-system, "Segoe UI", system-ui, sans-serif; fill: #e6edf3; }
+  </style>
+<rect width="880" height="804" fill="#0d1117" rx="6"/>
+<text class="title" x="28" y="34">GoTavern vs SillyTavern - same machine, one run, alternating rounds</text>
+<text class="subtitle" x="28" y="55">Lower is better for every metric. Each panel has its own zero-based axis; the axis maximum is printed on the panel.</text>
+<text class="subtitle" x="28" y="72">Runner ubuntu26 - 3 rounds x 30 sequential requests per path - medians shown</text>
+<rect x="28" y="83" width="11" height="11" rx="2" fill="#d29922"/>
+<text class="legend" x="45" y="92">SillyTavern (Node)</text>
+<rect x="178" y="83" width="11" height="11" rx="2" fill="#3fb950"/>
+<text class="legend" x="195" y="92">GoTavern</text>
+<rect x="18" y="92" width="844" height="124" rx="5" fill="#161b22"/>
+<text class="panel-label" x="28" y="110">Cold start to first /version 200</text>
+<text class="panel-note" x="28" y="125">median of 3 rounds; empty data root, no config.yaml</text>
+<rect x="238" y="134" width="614.00" height="21" rx="2" fill="#d29922"><title>SillyTavern (Node): 14,355 ms</title></rect>
+<text class="value" x="844.00" y="149" text-anchor="end" fill="#0d1117">14,355 ms</text>
+<rect x="238" y="166" width="4.00" height="21" rx="2" fill="#3fb950"><title>GoTavern: 61 ms</title></rect>
+<text class="value" x="250.00" y="181" text-anchor="start" fill="#e6edf3">61 ms</text>
+<line class="axis" x1="238" y1="202" x2="852" y2="202"/>
+<text class="axis-label" x="238" y="215">0</text>
+<text class="axis-label" x="852" y="215" text-anchor="end">panel max 14,355 ms</text>
+<text class="ratio" x="852" y="110" text-anchor="end">235.3x lower</text>
+<rect x="18" y="240" width="844" height="124" rx="5" fill="#161b22"/>
+<text class="panel-label" x="28" y="258">Steady-state RSS</text>
+<text class="panel-note" x="28" y="273">VmRSS from /proc, sampled after readiness and after 60 requests; median of 6</text>
+<rect x="238" y="282" width="614.00" height="21" rx="2" fill="#d29922"><title>SillyTavern (Node): 912.2 MB</title></rect>
+<text class="value" x="844.00" y="297" text-anchor="end" fill="#0d1117">912.2 MB</text>
+<rect x="238" y="314" width="25.08" height="21" rx="2" fill="#3fb950"><title>GoTavern: 37.3 MB</title></rect>
+<text class="value" x="271.08" y="329" text-anchor="start" fill="#e6edf3">37.3 MB</text>
+<line class="axis" x1="238" y1="350" x2="852" y2="350"/>
+<text class="axis-label" x="238" y="363">0</text>
+<text class="axis-label" x="852" y="363" text-anchor="end">panel max 912.2 MB</text>
+<text class="exact" x="256" y="363">exact: 912,199,680 B / 37,267,456 B</text>
+<text class="ratio" x="852" y="258" text-anchor="end">24.48x lower</text>
+<rect x="18" y="388" width="844" height="124" rx="5" fill="#161b22"/>
+<text class="panel-label" x="28" y="406">GET /version latency</text>
+<text class="panel-note" x="28" y="421">median of 90 sequential requests, same client both subjects</text>
+<rect x="238" y="430" width="614.00" height="21" rx="2" fill="#d29922"><title>SillyTavern (Node): 62.68 ms</title></rect>
+<text class="value" x="844.00" y="445" text-anchor="end" fill="#0d1117">62.68 ms</text>
+<rect x="238" y="462" width="4.22" height="21" rx="2" fill="#3fb950"><title>GoTavern: 0.431 ms</title></rect>
+<text class="value" x="250.22" y="477" text-anchor="start" fill="#e6edf3">0.431 ms</text>
+<line class="axis" x1="238" y1="498" x2="852" y2="498"/>
+<text class="axis-label" x="238" y="511">0</text>
+<text class="axis-label" x="852" y="511" text-anchor="end">panel max 62.68 ms</text>
+<text class="ratio" x="852" y="406" text-anchor="end">145.6x lower</text>
+<rect x="18" y="536" width="844" height="124" rx="5" fill="#161b22"/>
+<text class="panel-label" x="28" y="554">GET / latency (HTML shell)</text>
+<text class="panel-note" x="28" y="569">median of 90 sequential requests, body fully consumed</text>
+<rect x="238" y="578" width="614.00" height="21" rx="2" fill="#d29922"><title>SillyTavern (Node): 14.17 ms</title></rect>
+<text class="value" x="844.00" y="593" text-anchor="end" fill="#0d1117">14.17 ms</text>
+<rect x="238" y="610" width="95.48" height="21" rx="2" fill="#3fb950"><title>GoTavern: 2.20 ms</title></rect>
+<text class="value" x="325.48" y="625" text-anchor="end" fill="#0d1117">2.20 ms</text>
+<line class="axis" x1="238" y1="646" x2="852" y2="646"/>
+<text class="axis-label" x="238" y="659">0</text>
+<text class="axis-label" x="852" y="659" text-anchor="end">panel max 14.17 ms</text>
+<text class="ratio" x="852" y="554" text-anchor="end">6.43x lower</text>
+<line class="axis" x1="18" y1="690" x2="862" y2="690"/>
+<text class="footer" x="18" y="704">Ratios are computed from the two printed values in each panel; they are a restatement, not a separate measurement.</text>
+<text class="footer" x="18" y="719">SillyTavern 1.19.0 (pinned commit 06bde939), booted from the same checkout, same data-root seeding, same port allocator.</text>
+<text class="footer" x="18" y="734">Workflow: GoTavern smoke metrics, run 40396669521 - shared GitHub runner, so these are runner-dependent numbers, not a budget.</text>
+<text class="footer" x="18" y="749">Full methodology and provenance: README, "Performance" section.</text>
+</svg>
