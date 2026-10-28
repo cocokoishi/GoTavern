@@ -77,17 +77,23 @@ BUILD-INFO.txt            # GoTavern version + pinned ST version/SHA
 
 ### Unix-like systems
 
-Intended usage after releases exist:
+Install a published release. **The version must be given explicitly while the newest release is a
+prerelease:**
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.6/install.sh | bash -s -- --version v0.1.0-alpha.6
 ```
+
+**Why the version is not optional yet.** Without `--version` the installer uses `releases/latest/download`,
+which GitHub resolves to the newest **stable** release. No stable release exists yet, so that URL returns
+**404**. This is deliberate: an unpinned `curl | bash` must never hand a stranger a prerelease. Once a
+stable tag exists the flag becomes optional and the plain unpinned form starts working on its own.
 
 Optional explicit directory/version forms are supported by downloading the script first or passing documented arguments:
 
 ```sh
 ./install.sh --dir "$HOME/servers/GoTavern"
-./install.sh --version v0.3.0 --dir "$HOME/servers/GoTavern"
+./install.sh --version v0.1.0-alpha.6 --dir "$HOME/servers/GoTavern"
 ```
 
 Default installation directory:
@@ -98,17 +104,22 @@ $HOME/GoTavern
 
 ### Windows PowerShell
 
-Intended usage after releases exist:
+Install a published release. **The version must be given explicitly while the newest release is a
+prerelease:**
 
 ```powershell
-irm https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.6/install.ps1 -OutFile install.ps1
+.\install.ps1 -Version v0.1.0-alpha.6
 ```
+
+The same reason applies as on Unix: without `-Version` the script uses `releases/latest/download`, which
+resolves to the newest **stable** release, and none exists yet.
 
 For options, save the script and run for example:
 
 ```powershell
 .\install.ps1 -InstallDir "$HOME\Servers\GoTavern"
-.\install.ps1 -Version v0.3.0 -InstallDir "$HOME\Servers\GoTavern"
+.\install.ps1 -Version v0.1.0-alpha.6 -InstallDir "$HOME\Servers\GoTavern"
 ```
 
 Default installation directory:
