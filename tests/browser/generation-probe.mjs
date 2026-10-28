@@ -1485,6 +1485,40 @@ try {
             renderObserver.observe(chatRoot, { subtree: true, childList: true, characterData: true });
         }
         globalThis.__probeClickT = Date.now();
+        // THE ABORT SURFACE'S OWN RECORDER, INSTALLED BEFORE THE SEND.
+        //
+        // It is READ in two places and was ASSIGNED in none: the settle predicate below (`renderStates:
+        // (globalThis.__probeAbortRecorder?.renderStates ?? []).length`) and the node-side observation
+        // after the drive returned. Because nothing created it, the settle loop compared the length of a
+        // list that did not exist -- always 0 -- so the quiet state was rejected forever and both
+        // subjects reported `the page did not settle within 60s` with `renderStates: 0`. That number was
+        // not a measurement of the page; it was the absence of one. Measured, `Browser differential`
+        // 40629705640 (failure), step `Compare the streaming framing legs`.
+        //
+        // WHY IT LIVES HERE, INSIDE THIS `page.evaluate` AND BEFORE THE CLICK. This is the same
+        // page-side, pre-send install point the in-flight counters (`:856`) and the pre-send preset
+        // state (`:1589`) already use. A page handle does not exist inside the drive callback -- putting
+        // an observation there failed on both legs with `page is not defined` (runs 40307148708,
+        // 40310223649) -- so the recorder is created page-side and SURVIVES the callback, which is why
+        // the node-side block can read it after the drive returns.
+        //
+        // IT ALIASES THE OBSERVATION THAT ALREADY EXISTS rather than sampling a second time: the
+        // MutationObserver above already records every distinct rendered text into
+        // `__probeRenderSnapshots`, and a second poll would disagree with it under exactly the timing
+        // this surface is about. `ended` is the emit log's own completion/stop/error entries, filtered
+        // here so the reader does not re-derive them.
+        globalThis.__probeAbortRecorder = {
+            get renderStates() {
+                return globalThis.__probeRenderSnapshots ?? [];
+            },
+            get ended() {
+                return (globalThis.__probeEmitLog ?? []).filter(entry => (
+                    entry.name === 'GENERATION_ENDED'
+                    || entry.name === 'GENERATION_STOPPED'
+                    || entry.name === 'GENERATION_AFTER_COMMANDS'
+                ));
+            },
+        };
         globalThis.__probeClickPerf = Math.round(performance.now());
         // THE PRE-SEND STATE, IN PRESET MODE, MEASURED IMMEDIATELY BEFORE THE CLICK.
         //
@@ -1734,16 +1768,90 @@ try {
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
+        // THE TERMINAL STATE, NAMED. Seven outcomes this surface can reach, each decided from evidence
+        // the harness already records rather than from waiting on a state that may be unreachable:
+        //
+        //   1 normal-completion      GENERATION_ENDED arrived and the page went quiet.
+        //   2 client-abort           GENERATION_STOPPED, with a stop control that was actually clicked
+        //                            (cancel mode only; this surface never clicks one).
+        //   3 network-cut            the hop reports a cut of ITS OWN, by name, and the page stopped
+        //                            moving afterwards -- the terminal a cut stream reaches.
+        //   4 subject-crash          the page reported errors and never returned to idle.
+        //   5 harness-failure        the drive never produced a request, or the page handle was lost.
+        //   6 cut-evidence-timeout   the settle window expired BUT the abort evidence above WAS observed:
+        //                            a named hop cut, at least one frame written, and a frozen render
+        //                            count. This is the case the branch misreported as a drive failure.
+        //   7 no-evidence-timeout    the window expired with nothing above. A real drive failure.
+        //
+        // STATE 6 IS ONLY REACHABLE FOR AN EXPECTED-ABORT LEG, and only when the cut is attributable to
+        // the HOP rather than inferred from a quiet page. Every condition the other modes already used is
+        // preserved untouched: the non-abort legs still settle on `completed && settleInFlight === 0`.
         const settledIdle = idleSince !== null && performance.now() - idleSince >= 1500;
+        const abortEvidence = probeMode === 'abort'
+            ? {
+                cut: proxy?.state?.cut ?? null,
+                mode: proxy?.state?.mode ?? null,
+                // THE HOP'S OWN COUNTERS, named from its state object rather than guessed: writes[]
+                // carries {bytes, frames} per downstream write, cutsPerformed counts the cuts it
+                // actually made, and completed says the upstream peer finished BEFORE the cut point
+                // (the hop records that instead of a cut, so a peer that outran the cut cannot be
+                // credited to the network).
+                framesReleased: (proxy?.state?.writes ?? []).reduce((total, write) => total + (write.frames ?? 0), 0),
+                cutsPerformed: proxy?.state?.cutsPerformed ?? 0,
+                hopCompleted: Boolean(proxy?.state?.completed),
+                renderStates: (globalThis.__probeAbortRecorder?.renderStates ?? []).length,
+                renderFrozen: (globalThis.__probeAbortRecorder?.renderStates ?? []).length === quietSinceRenderChange,
+                stopClicked: false,
+            }
+            : null;
+        const sawCut = Boolean(abortEvidence && abortEvidence.cut && abortEvidence.cutsPerformed > 0 && abortEvidence.framesReleased > 0);
+        // THE EVIDENCE FOR "THE DRIVE REACHED THE SUBJECT", read HERE rather than from report.*, whose
+        // requestArrived is assigned only after this block (L2064) and would therefore be undefined -- the
+        // same read-without-assignment defect this whole change exists to fix. Both sources are populated
+        // before the settle: the peer's own request list and the hop's forwarded count.
+        const requestsObserved = probeMode === 'abort'
+            ? ((proxy?.state?.writes ?? []).length + (proxy?.state?.requestsSeen ?? 0))
+            : (streamingPeer?.state?.requests?.length ?? 0);
+        // PAGE ERRORS ARE NODE-SIDE: page.on('pageerror', ...) at L635 pushes into report.pageErrors.
+        // There is no page global for them, and an earlier draft of this block read one that was
+        // never assigned -- the same defect this whole change exists to fix. `report` is a closure
+        // variable visible inside this callback.
+        const pageErrorsObserved = (report.pageErrors ?? []).length;
+        let terminalState;
+        if (settledIdle) {
+            // 1 and 2 both end quiet; they are separated by HOW the send ended. GENERATION_STOPPED is the
+            // frontend's own abort signal. This surface never clicks a stop control, so on the abort leg
+            // this state is reachable only if something other than the hop aborted the send.
+            const stopped = (globalThis.__probeEmitLog ?? []).some(entry => entry.name === 'GENERATION_STOPPED');
+            terminalState = abortEvidence?.cut ? 'network-cut'
+                : (stopped ? 'client-abort' : 'normal-completion');
+        } else if (probeMode === 'abort' && sawCut) {
+            terminalState = 'cut-evidence-timeout';
+        } else if (pageErrorsObserved > 0) {
+            // 4 and 5 are both "the page broke"; they differ in WHO broke it. A page error with the request
+            // observed is the subject failing; with no request it is the harness never reaching the subject
+            // -- the shape that produced `page is not defined`.
+            terminalState = requestsObserved > 0 ? 'subject-crash' : 'harness-failure';
+        } else if (requestsObserved === 0) {
+            terminalState = 'harness-failure';
+        } else {
+            terminalState = 'no-evidence-timeout';
+        }
         globalThis.__probeSettle = {
             settledIdle,
+            terminalState,
             waitedMs: Math.round(performance.now() - settleStarted),
             completions: globalThis.__probeCompletions ?? 0,
             inFlightAtRead: settleInFlight,
-            endReason: probeMode === 'abort' ? 'error-path-quiet' : 'completion',
+            endReason: probeMode === 'abort'
+                ? (sawCut ? 'hop-cut-observed' : 'error-path-quiet')
+                : 'completion',
+            abortEvidence,
             quietState,
         };
-        if (!settledIdle) {
+        // STATE 6 IS NOT A FAILURE: the leg reached the terminal a cut stream reaches, and the evidence
+        // names it. State 7 still is, and so is any non-abort timeout.
+        if (!settledIdle && terminalState !== 'cut-evidence-timeout') {
             return {
                 preconditions: { charactersLoaded: true, ...before, settle: globalThis.__probeSettle },
                 error: `the page did not settle within 60s (completions: ${globalThis.__probeCompletions ?? 0}, in flight: ${settleInFlight}, quiet state: ${JSON.stringify(quietState)}); the recorded window would end before the send did`,
@@ -1878,6 +1986,11 @@ try {
             .filter(text => text && text !== '\u2026' && text !== 'probe user marker');
         report.streamState = {
             ...(report.streamState ?? {}),
+            // THE NAMED TERMINAL this leg reached (the seven-state classifier in the settle block),
+            // carried beside the evidence it was decided from so the comparator does not have to
+            // re-derive it from a timeout's shape.
+            terminalState: report.settle?.terminalState ?? null,
+            abortEvidence: report.settle?.abortEvidence ?? null,
             stopClickedAt: null,
             // WHAT SURVIVED THE CUT, from the recording rather than from a poll: a state that lasted 100 ms
             // is still observed.

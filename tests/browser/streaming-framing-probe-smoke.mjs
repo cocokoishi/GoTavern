@@ -156,6 +156,62 @@ addCase('the probe, the hop and the comparator all parse', () => {
     }
 });
 
+
+// THE PRODUCER MUST EXIST, NOT ONLY ITS CONSUMERS.
+//
+// This is the check whose absence let the abort leg ship broken. Every case above asserts something about
+// a CONSUMER of `__probeAbortRecorder` -- that the observation block records the keys the comparator
+// reads, that the settle loop compares the render count -- and the recorder itself was ASSIGNED NOWHERE.
+// So `renderStates` was the length of a list that did not exist, always 0, the quiet state was rejected
+// forever, and both subjects timed out with `renderStates: 0` (`Browser differential` 40629705640,
+// failure). Eleven green checks on code that could not work.
+//
+// SEARCH FOR THE ASSIGNMENT, NOT THE IDENTIFIER (`AGENTS.md` rule 91). A scan that counts occurrences, or
+// that matches `__probeAbortRecorder?.` optional reads, would have passed on the broken source, so this
+// case counts only a real assignment and is paired with a mutation proving it can fail.
+const abortRecorderAssignments = (text) => {
+    const withoutLiterals = stripLiterals(text);
+    return [...withoutLiterals.matchAll(/globalThis\.__probeAbortRecorder\s*=(?!=)/g)]
+        .map(match => withoutLiterals.slice(0, match.index).split('\n').length);
+};
+addCase('the abort recorder is ASSIGNED, not merely read', () => {
+    const assignments = abortRecorderAssignments(source);
+    assert.ok(assignments.length > 0,
+        'globalThis.__probeAbortRecorder is read by the settle loop and the observation block but assigned nowhere, so renderStates is always 0 and an abort leg can never settle');
+});
+addCase('the recorder is installed BEFORE the settle loop reads it', () => {
+    const assignments = abortRecorderAssignments(source);
+    const settleAt = source.indexOf('while (performance.now() < settleDeadline) {');
+    assert.ok(settleAt > 0, 'the probe no longer has the settle loop this test knows about');
+    assert.ok(assignments.length > 0 && assignments[0] < settleAt,
+        `the abort recorder is first assigned at line ${assignments[0]} but the settle loop reads it from line ${source.slice(0, settleAt).split('\n').length}, so the loop reads an empty list`);
+});
+// THE CHECKER MUST BE ABLE TO FAIL. The mutant is what the branch actually shipped: reads, no assignment.
+addCase('the assignment scan detects the shipped defect and accepts optional reads', () => {
+    const broken = 'const q = { renderStates: (globalThis.__probeAbortRecorder?.renderStates ?? []).length };';
+    assert.equal(abortRecorderAssignments(broken).length, 0,
+        'the scan credited an optional READ as an assignment, so it cannot see the defect it exists for');
+    const fixed = 'globalThis.__probeAbortRecorder = { get renderStates() { return []; } };';
+    assert.equal(abortRecorderAssignments(fixed).length, 1,
+        'the scan did not see a planted assignment');
+});
+// THE SEVEN STATES THE CLASSIFIER MAY NAME, and the evidence each rests on. A terminal the classifier
+// prints but this list omits would be a state no reader could look up; a state listed here that the
+// classifier cannot reach is dead vocabulary.
+addCase('the classifier names exactly the seven terminal states', () => {
+    for (const state of ['normal-completion', 'client-abort', 'network-cut', 'subject-crash', 'harness-failure', 'cut-evidence-timeout', 'no-evidence-timeout']) {
+        assert.ok(source.includes(`'${state}'`), `the classifier never names \`${state}\`, which the report lists as a reachable terminal`);
+    }
+});
+addCase('only the abort leg may reach the evidence-bearing timeout', () => {
+    // STATE 6 IS GUARDED BY THE MODE and by the hop's own evidence, so a non-abort leg cannot be excused
+    // by a timeout that observed nothing, and an abort leg cannot be excused by a cut that never happened.
+    assert.ok(/probeMode === 'abort' && sawCut/.test(source),
+        'the cut-evidence timeout is not gated on BOTH the abort mode and the observed cut, so an ordinary leg could be reported as a terminal it did not reach');
+    assert.ok(/abortEvidence\.cutsPerformed > 0 && abortEvidence\.framesReleased > 0/.test(source),
+        'the cut evidence does not require both a performed cut and released frames');
+});
+
 let failures = 0;
 for (const testCase of cases) {
     try {
