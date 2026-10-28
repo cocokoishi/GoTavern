@@ -32,8 +32,8 @@ export const FRAMING_GUARD_NAMES = {
         'noCutInTheRelayedSurface', 'relayedDeliveredContentToThePage', 'noPageErrorsThroughTheHop',
     ],
     abort: [
-        'hopCutBothSubjectsMidStream', 'hopRelayedTheReachabilityCheckWhole', 'hopReleasedNoBodyAtTheHead',
-        'noCallerCancelOnEitherSubject', 'peerWroteMoreThanTheHopReleased', 'contentRenderedBeforeTheCutOnBoth',
+        'hopCutBothSubjectsMidStream', 'hopRelayedTheReachabilityCheckWhole', 'hopReleasedSomeBodyBeforeTheCut',
+        'noCallerCancelOnEitherSubject', 'hopReleasedLessThanThePeerWrote', 'contentRenderedBeforeTheCutOnBoth',
         'partialTextIdenticalOnBothSubjects', 'sameTruncationOnBothSubjects', 'sameReleasedByteCountOnBothSubjects',
         'noPageErrorsOnEitherSubject',
     ],
@@ -46,8 +46,15 @@ export const FRAMING_NOT_RECOMPUTABLE = [
     'bothSubjectsReachedThePeer', 'providerRequestBytesEqual', 'requestStreamFlagSetOnBoth',
     'bothSubjectsSawTheWholeScript', 'bothSubjectsSawTheWholeScriptThroughTheHop',
     'hopForwardedIdenticalRequestBytes', 'hopForwardedWhatThePeerReceived', 'relayedFinalTextEqualsTheDirectStream',
-    'peerDidNotDisconnect', 'partialTextIsAProperPrefixOfTheWholeReply', 'noFurtherChunksAppliedAfterTheCut',
-    'pageReturnedToIdleOnBothSubjects',
+    // RENAMED FROM `peerDidNotDisconnect`: on a cut after complete frames the peer DOES see the client go,
+    // identically on both subjects, so asserting the inverse would fail a correct run. The observation is
+    // kept because it is the cut's own signature.
+    'peerSawTheClientDisconnect',
+    'partialTextIsAProperPrefixOfTheWholeReply', 'noFurtherChunksAppliedAfterTheCut',
+    // RENAMED FROM `pageReturnedToIdleOnBothSubjects`: this vehicle's terminal is "left generating with the
+    // stop button up, on both subjects", which is a symmetric, comparable fact. Requiring idle encoded the
+    // other design's terminal.
+    'bothSubjectsLeftGeneratingWithTheStopButtonUp',
 ];
 
 const isPrefixSequence = texts => texts.every((text, index) => index === 0 || text.startsWith(texts[index - 1]));
@@ -91,21 +98,38 @@ export function recomputeFramingSurface(artifact, surface) {
     }
     return {
         ...common,
-        hopCutBothSubjectsMidStream: hop.mode?.abort === 'cut-at-head' && hop.anyCut?.gotavern === 'cut-at-head' && hop.anyCut?.pinned === 'cut-at-head',
+        // THE CUT IS A FACT ABOUT BOTH SUBJECTS, NOT ABOUT ONE VEHICLE'S MODE STRING. The previous form
+        // required `=== 'cut-at-head'` and therefore recorded true under a head cut while the partial-text
+        // guards above it were unsatisfiable, and could never pass once the vehicle cut after complete
+        // frames (`'cut-after-bytes' !== 'cut-at-head'`). Its diagnostic printed `undefined` -- the fallback
+        // failing over a MODE mismatch -- so the verifier reported "the cut did not happen" while the leg
+        // file recorded the cut that happened (`Browser differential` 40659680375). Same defect as the
+        // comparator's copy, fixed in AGENTS 102.
+        hopCutBothSubjectsMidStream: typeof hop.anyCut?.gotavern === 'string'
+            && typeof hop.anyCut?.pinned === 'string'
+            && hop.anyCut.gotavern === hop.anyCut.pinned
+            && hop.anyCut.gotavern !== 'upstream-error',
         hopRelayedTheReachabilityCheckWhole: (hop.cutArmedResponses?.gotavern ?? 0) >= 1 && (hop.cutArmedResponses?.pinned ?? 0) >= 1
             && (hop.relayedWholeResponses?.gotavern ?? 0) >= 1 && (hop.relayedWholeResponses?.pinned ?? 0) >= 1,
-        hopReleasedNoBodyAtTheHead: hop.releasedBytesUnderCut?.gotavern === 0 && hop.releasedBytesUnderCut?.pinned === 0,
+        // THE ABORT SURFACE RELEASES A POSITIVE PREFIX OF THE BODY. `=== 0` was the HEAD cut's signature and
+        // it contradicted `contentRenderedBeforeTheCutOnBoth` BY CONSTRUCTION: no released byte means no
+        // content state. Measured on the three-frame cut: 349 bytes, 2 content states, on both subjects.
+        hopReleasedSomeBodyBeforeTheCut: (hop.releasedBytesUnderCut?.gotavern ?? 0) > 0
+            && (hop.releasedBytesUnderCut?.pinned ?? 0) > 0,
         noCallerCancelOnEitherSubject: gotavern.stopClickedAt === null && pinned.stopClickedAt === null,
-        peerWroteMoreThanTheHopReleased: (hop.framesWritten?.gotavern ?? []).every(frames => frames > 0)
+        hopReleasedLessThanThePeerWrote: (hop.framesWritten?.gotavern ?? []).every(frames => frames > 0)
             && (hop.framesWritten?.pinned ?? []).every(frames => frames > 0)
-            && hop.releasedBytesUnderCut?.gotavern === 0 && hop.releasedBytesUnderCut?.pinned === 0,
+            && (hop.releasedBytesUnderCut?.gotavern ?? 0) > 0
+            && (hop.releasedBytesUnderCut?.pinned ?? 0) > 0,
         contentRenderedBeforeTheCutOnBoth: gvTexts.length >= 1 && pnTexts.length >= 1,
         partialTextIdenticalOnBothSubjects: (gotavern.finalText ?? null) === (pinned.finalText ?? null) && String(gotavern.finalText ?? '').length > 0,
         sameTruncationOnBothSubjects: JSON.stringify(gvTexts) === JSON.stringify(pnTexts) && gvTexts.length >= 1,
-        // A HEAD CUT RELEASES NOTHING ON EITHER SUBJECT, so equality here means "both zero": requiring a
-        // positive count would contradict the surface this guard belongs to.
+        // THE PREFIX EACH SUBJECT RECEIVED MUST BE THE SAME, AND POSITIVE. The previous form required
+        // both to be ZERO, which is the HEAD cut signature and contradicts the content-state guard by
+        // construction: a cut that released no body byte cannot render content. Fourth occurrence of the
+        // same defect on this lane -- see AGENTS 102.
         sameReleasedByteCountOnBothSubjects: hop.releasedBytesUnderCut?.gotavern === hop.releasedBytesUnderCut?.pinned
-            && hop.releasedBytesUnderCut?.gotavern === 0,
+            && (hop.releasedBytesUnderCut?.gotavern ?? 0) > 0,
     };
 }
 
@@ -174,13 +198,23 @@ export function streamingFramingSurface(ctx, artifact) {
         if ((artifact.hop?.relayedWrites?.[leg] ?? 0) <= 1) {
             ctx.fail(`hop.relayedWrites.${leg} is ${show(artifact.hop?.relayedWrites?.[leg])}, so the hop did not relay the body on that subject and the relayed surface measures the direct connection`);
         }
-        // A HEAD-OF-BODY CUT RELEASES ZERO BODY BYTES, and that is the point of the surface: the page got a
-        // response and no body. A positive count here would mean the body had started, i.e. a DIFFERENT fault.
-        if (artifact.hop?.releasedBytesUnderCut?.[leg] !== 0) {
-            ctx.fail(`hop.releasedBytesUnderCut.${leg} is ${show(artifact.hop?.releasedBytesUnderCut?.[leg])}, but a head-of-body cut releases no body byte -- so the body had started and this is not the surface the guards describe`);
+        // A CUT AFTER COMPLETE FRAMES RELEASES A POSITIVE PREFIX OF THE BODY, and that is the point of the
+        // surface: the subject got content, and fewer frames than the peer wrote, so "the stream could not
+        // have finished" is arithmetic. The previous form required ZERO released bytes, which is the HEAD
+        // cut's signature and contradicts the content-state guard by construction -- a cut that releases no
+        // body byte cannot render content. Measured, `Browser differential` 40659680375: 349 bytes and 2
+        // content states on both subjects.
+        const released = artifact.hop?.releasedBytesUnderCut?.[leg];
+        if (!(released > 0)) {
+            ctx.fail(`hop.releasedBytesUnderCut.${leg} is ${show(released)}, but a cut after complete frames releases a positive prefix of the body; zero here means the hop cut at the head, which cannot satisfy the content-state guard`);
         }
-        if (artifact.hop?.anyCut?.[leg] !== 'cut-at-head') {
-            ctx.fail(`hop.anyCut.${leg} is ${show(artifact.hop?.anyCut?.[leg])}, so the cut the abort surface is about did not happen to that subject`);
+        // THE CUT IS A STRING REASON ON BOTH SUBJECTS, AND NOT AN UPSTREAM FAILURE. Naming the mode here is
+        // the defect this line replaces: it required `'cut-at-head'` and printed `undefined` for a correct
+        // `'cut-after-bytes'` run, because the fallback failed over a MODE mismatch rather than a missing
+        // field. Same defect as the comparator's copy (AGENTS 102).
+        const cutReason = artifact.hop?.anyCut?.[leg];
+        if (typeof cutReason !== 'string' || cutReason === 'upstream-error') {
+            ctx.fail(`hop.anyCut.${leg} is ${show(cutReason)}, so the cut the abort surface is about did not happen to that subject, or it was an upstream failure rather than a hop cut`);
         }
     }
     // THE UNPROVEN LIST IS PART OF THE CLAIM. An artefact that declines to say what it does not cover reads

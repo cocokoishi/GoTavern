@@ -25,7 +25,7 @@ function healthy() {
     const guards = {
         stream: allTrue(FRAMING_GUARD_NAMES.stream.concat(['bothSubjectsReachedThePeer', 'providerRequestBytesEqual', 'requestStreamFlagSetOnBoth', 'bothSubjectsSawTheWholeScript'])),
         relayed: allTrue(FRAMING_GUARD_NAMES.relayed.concat(['bothSubjectsSawTheWholeScriptThroughTheHop', 'hopForwardedIdenticalRequestBytes', 'hopForwardedWhatThePeerReceived', 'relayedFinalTextEqualsTheDirectStream'])),
-        abort: allTrue(FRAMING_GUARD_NAMES.abort.concat(['peerDidNotDisconnect', 'partialTextIsAProperPrefixOfTheWholeReply', 'noFurtherChunksAppliedAfterTheCut', 'pageReturnedToIdleOnBothSubjects'])),
+        abort: allTrue(FRAMING_GUARD_NAMES.abort.concat(['peerSawTheClientDisconnect', 'partialTextIsAProperPrefixOfTheWholeReply', 'noFurtherChunksAppliedAfterTheCut', 'bothSubjectsLeftGeneratingWithTheStopButtonUp'])),
     };
     return {
         schemaVersion: 1,
@@ -38,7 +38,8 @@ function healthy() {
             relayedCut: { gotavern: null, pinned: null },
             cutAfterFrames: 3,
             cutAfterBytes: 300,
-            releasedBytesUnderCut: { gotavern: 0, pinned: 0 },
+    releasedBytesUnderCut: { gotavern: 349, pinned: 349 },
+            hopReleasedBytesTotal: { gotavern: 349, pinned: 349 },
             relayedWrites: { gotavern: 14, pinned: 14 },
             relayedFrames: { gotavern: 15, pinned: 15, expected: 14 },
             gzipFramedResponses: { gotavern: 1, pinned: 1 },
@@ -70,7 +71,7 @@ add('a hand-edited false guard is named', artifact => { artifact.abort.guards.sa
 add('a guard that contradicts the stored observations is a finding', artifact => { artifact.observations.abort.pinned.texts = [partial[0]]; }, 'sameTruncationOnBothSubjects is recorded as true but the stored observations recompute to false');
 add('a guard nobody reads is a finding', artifact => { artifact.stream.guards.inventedGuard = true; }, 'stream.guards carries ["inventedGuard"]');
 add('a hop that assembled the body is a finding, read from the hop record itself', artifact => { artifact.hop.relayedWrites.gotavern = 1; }, 'hop.relayedWrites.gotavern is 1');
-add('a head cut that released body bytes is a finding', artifact => { artifact.hop.releasedBytesUnderCut.pinned = 169; }, 'hop.releasedBytesUnderCut.pinned is 169');
+add('a cut that released NOTHING on one subject is a finding: that is a head cut, which cannot render content', artifact => { artifact.hop.releasedBytesUnderCut.pinned = 0; }, 'hop.releasedBytesUnderCut.pinned is');
 // THE RECOMPUTE FIRES FIRST and is the stronger statement: the guard claims a cut on both subjects while
 // the hop's own record says the pinned cut never happened. Either finding is correct; this asserts the
 // recompute, which is the one that also catches a hand-edited flag.

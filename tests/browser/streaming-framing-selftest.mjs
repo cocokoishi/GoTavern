@@ -67,14 +67,15 @@ const relayedHop = () => ({
     releasedBytes: 2600, cutArmedResponses: 0, relayedWholeResponses: 2, gzipFramedResponses: 0,
 });
 const cutHop = () => ({
-    mode: 'cut-at-head', cutArmOnPath: '/chat/completions', cutAfterBytes: 0, cut: 'cut-at-head',
-    anyCut: 'cut-at-head', cutsPerformed: 1,
-    // A HEAD CUT RELAYS NO BODY: one write of nothing, then both ends die. The fixture must say that or the
-    // healthy baseline would be describing a different surface from the one the hop produces.
-    bodyWriteCount: 0,
-    bodyWrites: [],
+    mode: 'cut', cutArmOnPath: '/chat/completions', cutAfterBytes: 513, cut: 'cut-after-bytes',
+    anyCut: 'cut-after-bytes', cutsPerformed: 1,
+    // A CUT AFTER THREE COMPLETE FRAMES RELEASES A POSITIVE PREFIX: 349 bytes in the measured run, from a
+    // script the peer wrote in full. The fixture must describe the SAME vehicle the workflow drives, or the
+    // healthy baseline describes a surface the hop no longer produces.
+    bodyWriteCount: 8,
+    bodyWrites: Array.from({ length: 8 }, () => ({ bytes: 44, frames: 1 })),
     forwarded: [{ method: 'POST', path: '/chat/completions', bodyBytes: 7400, bodySha256: 'a'.repeat(64) }],
-    releasedBytes: 0, releasedAtCut: 0, cutArmedResponses: 1, relayedWholeResponses: 1, gzipFramedResponses: 0,
+    releasedBytes: 349, releasedAtCut: 349, cutArmedResponses: 1, relayedWholeResponses: 1, gzipFramedResponses: 0,
 });
 const directHop = () => ({ mode: null, absent: true });
 
@@ -93,14 +94,22 @@ function baseline() {
                 finalAssistantText: PARTIAL,
                 hop: cutHop(),
                 framesWritten: 15,
-                streamState: { textAfterCut: PARTIAL, textLater: PARTIAL, returnedToIdle: true },
+                // THE MEASURED TERMINAL OF A CUT AFTER COMPLETE FRAMES: the peer sees the client go, and
+                // the page is left generating with the stop button up on BOTH subjects (isGenerating true,
+                // returnedToIdle false). The fixture must describe the vehicle the workflow drives.
+                clientDisconnected: true,
+                streamState: { textAfterCut: PARTIAL, textLater: PARTIAL, returnedToIdle: false },
             }),
             pinned: leg({
                 texts: renderStates(3),
                 finalAssistantText: PARTIAL,
                 hop: cutHop(),
                 framesWritten: 15,
-                streamState: { textAfterCut: PARTIAL, textLater: PARTIAL, returnedToIdle: true },
+                // THE MEASURED TERMINAL OF A CUT AFTER COMPLETE FRAMES: the peer sees the client go, and
+                // the page is left generating with the stop button up on BOTH subjects (isGenerating true,
+                // returnedToIdle false). The fixture must describe the vehicle the workflow drives.
+                clientDisconnected: true,
+                streamState: { textAfterCut: PARTIAL, textLater: PARTIAL, returnedToIdle: false },
             }),
         },
     };
@@ -195,14 +204,17 @@ addCase('a cut on the reachability check instead of the completion is caught',
     { surface: 'abort', name: 'hopRelayedTheReachabilityCheckWhole' });
 addCase('a head cut that relayed body bytes is not a head cut, and is caught',
     legs => {
-        legs.abort.pinned.networkHop.releasedAtCut = 169;
+        legs.abort.pinned.networkHop.releasedBytes = 0;
     },
-    { surface: 'abort', name: 'hopReleasedNoBodyAtTheHead' });
+    { surface: 'abort', name: 'hopReleasedSomeBodyBeforeTheCut' });
 addCase('a peer that recorded a client disconnect makes this cancellation, and is caught',
     legs => {
-        legs.abort.gotavern.recording[0].clientDisconnected = true;
+        // THE PEER MUST SEE THE CLIENT GO; making it see ONLY the connect and never the disconnect
+        // is the mutation. (The old case set this true to simulate cancellation, which is what the
+        // codec did under a head cut -- the opposite expectation.)
+        legs.abort.gotavern.recording[0].clientDisconnected = false;
     },
-    { surface: 'abort', name: 'peerDidNotDisconnect' });
+    { surface: 'abort', name: 'peerSawTheClientDisconnect' });
 addCase('a stop click in the abort surface is caught',
     legs => {
         legs.abort.gotavern.streamState.stopClickedAt = 1234;
@@ -210,9 +222,9 @@ addCase('a stop click in the abort surface is caught',
     { surface: 'abort', name: 'noCallerCancelOnEitherSubject' });
 addCase('a head cut that leaked a body byte is caught',
     legs => {
-        legs.abort.gotavern.networkHop.releasedAtCut = 169;
+        legs.abort.gotavern.networkHop.releasedBytes = 0;
     },
-    { surface: 'abort', name: 'peerWroteMoreThanTheHopReleased' });
+    { surface: 'abort', name: 'hopReleasedSomeBodyBeforeTheCut' });
 
 // ---- 4. THE ROW'S TWO CLAIMS. ------------------------------------------------------------------------
 addCase('nothing rendered before the cut is caught',
@@ -237,9 +249,12 @@ addCase('a partial text that is not a proper prefix of the whole reply is caught
     { surface: 'abort', name: 'partialTextIsAProperPrefixOfTheWholeReply' });
 addCase('a truncation that landed at a different byte on the two subjects is caught',
     legs => {
-        legs.abort.pinned.networkHop.releasedAtCut = 301;
+        legs.abort.pinned.networkHop.releasedBytes = 400;
     },
-    { surface: 'abort', name: 'peerWroteMoreThanTheHopReleased' });
+    { surface: 'abort', name: 'sameReleasedByteCountOnBothSubjects' });
+    // A DIFFERENT BYTE COUNT IS THE sameReleasedByteCountOnBothSubjects GUARD'S JOB, not the
+    // 'released something' guard's: the mutation makes both subjects release a positive prefix, and
+    // only their EQUALITY is violated.
 addCase('a subject that keeps rendering after the cut is caught',
     legs => {
         legs.abort.gotavern.streamState.textLater = `${PARTIAL} extra`;
@@ -247,9 +262,9 @@ addCase('a subject that keeps rendering after the cut is caught',
     { surface: 'abort', name: 'noFurtherChunksAppliedAfterTheCut' });
 addCase('a subject that never returns to idle after the cut is caught',
     legs => {
-        legs.abort.pinned.streamState.returnedToIdle = false;
+        legs.abort.pinned.streamState.returnedToIdle = true;
     },
-    { surface: 'abort', name: 'pageReturnedToIdleOnBothSubjects' });
+    { surface: 'abort', name: 'bothSubjectsLeftGeneratingWithTheStopButtonUp' });
 addCase('a page error escaping on one subject is caught',
     legs => {
         legs.abort.gotavern.pageErrors = ['TypeError: undefined is not a function'];

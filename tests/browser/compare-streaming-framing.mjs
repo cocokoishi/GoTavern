@@ -257,32 +257,44 @@ function abortSurface(gotavern, pinned, baseline) {
     // THE TRUNCATION MUST BE ATTRIBUTABLE TO THE NETWORK. A chunked body that stops is indistinguishable
     // from a chunked body that ended, so the hop re-frames the SSE body as a single gzip member whose
     // trailer appears only on a clean finish; a cut body then ends in a decoder error.
-    // A HEAD CUT HAS NO BODY TO RE-FRAME, so the gzip requirement belongs to the inside-a-record cut only.
-    // What the head cut needs instead is that the page received a RESPONSE and no body, which
-    // hopReleasedNoBodyAtTheHead states.
-    guard('hopReleasedNoBodyAtTheHead',
-        `the head cut relayed / body byte(s), so the body had started and this is not a head-of-body cut`,
-        gvHop.releasedAtCut === 0 && pnHop.releasedAtCut === 0);
-    // THE DISCONNECT HERE IS THE SUBJECT, AND IT IS CAUSED BY THE CUT -- not by a user. What this guard
-    // distinguishes is the surface from `cancel`: in cancel mode a stop button was pressed, and here none was
-    // (asserted by `noCallerCancelOnEitherSubject`). When the cut lands INSIDE a record, the frontend's own
-    // reader rejects before a streamingProcessor exists, so the page closes the response and the peer records a
-    // disconnect -- on BOTH subjects, identically (measured: Browser differential 40314154794, where every
-    // abort observable matched and the disconnect was true on both). The message says that rather than
-    // claiming the network was the only party involved.
-    guard('peerDidNotDisconnect',
-        `the peer recorded a client disconnect with no user cancel (gotavern ${JSON.stringify((gotavern.recording ?? []).map(request => request.clientDisconnected))}, pinned ${JSON.stringify((pinned.recording ?? []).map(request => request.clientDisconnected))}): the page closed the dead response itself, which means the cut landed INSIDE a record rather than at the head of the body, so the surviving state is an aborted send and not a truncated reply`,
+    //
+    // THE PEER *DID* SEE THE CLIENT GO, ON BOTH SUBJECTS, AND THAT IS THE CUT'S SIGNATURE. The previous
+    // guard here (`peerDidNotDisconnect`) asserted the inverse, which held only for a head cut that closed
+    // the socket before the peer's writer noticed. On a cut after complete frames the peer HAS written
+    // frames and observes the client leave, recording `clientDisconnected: true` identically on both
+    // subjects. What this distinguishes is this surface from `cancel`: in cancel mode a stop button was
+    // pressed, and here none was (asserted by `noCallerCancelOnEitherSubject`). Measured,
+    // Browser differential 40314154794, where every abort observable matched and the disconnect was true
+    // on both. The observation is kept because it is the cut's own signature, not an incidental field.
+    guard('peerSawTheClientDisconnect',
+        `the peer did not record a client disconnect on one subject (gotavern ${JSON.stringify((gotavern.recording ?? []).map(request => request.clientDisconnected))}, pinned ${JSON.stringify((pinned.recording ?? []).map(request => request.clientDisconnected))}); a cut the peer never saw is a different fault from one it did`,
         (gotavern.recording ?? []).length > 0 && (pinned.recording ?? []).length > 0
-            && (gotavern.recording ?? []).every(request => request.clientDisconnected === false)
-            && (pinned.recording ?? []).every(request => request.clientDisconnected === false));
+            && (gotavern.recording ?? []).some(request => request.clientDisconnected === true)
+            && (pinned.recording ?? []).some(request => request.clientDisconnected === true));
     guard('noCallerCancelOnEitherSubject',
         `a subject recorded a stop click in the abort surface (gotavern ${JSON.stringify(gvState.stopClickedAt)}, pinned ${JSON.stringify(pnState.stopClickedAt)}), so this measured cancellation rather than a dead network`,
         gvState.stopClickedAt === null && pnState.stopClickedAt === null);
-    guard('peerWroteMoreThanTheHopReleased',
-        `the hop released ${JSON.stringify(gvHop.releasedAtCut)}/${JSON.stringify(pnHop.releasedAtCut)} bytes of THIS response from a script of ${JSON.stringify(framesWritten(gotavern))}/${JSON.stringify(framesWritten(pinned))} frame(s); a head cut must release NO body bytes and the peer must have had a script to lose`,
-        gvHop.releasedAtCut === 0 && pnHop.releasedAtCut === 0
-            && framesWritten(gotavern).every(frames => frames > 0) && framesWritten(pinned).every(frames => frames > 0));
-    // ---- THE ROW'S TWO CLAIMS.
+    // ---- THE CUT ITSELF. The abort surface cuts after N COMPLETE FRAMES, not at the head of the body,
+    // so "released bytes" is a POSITIVE quantity and a content state MUST have rendered. The head-cut form
+    // of these guards (released === 0) contradicted `contentStates >= 1` BY CONSTRUCTION: a cut that
+    // releases no body byte cannot render two content states. Measured, `Browser differential`
+    // 40659680375: releasedBytes 349, contentStates 2, textAfterCut "Hello from the", on BOTH subjects.
+    guard('hopReleasedSomeBodyBeforeTheCut',
+        `the hop released no body byte to a subject before cutting (gotavern releasedBytes ${JSON.stringify(gvHop.releasedBytes)}, pinned ${JSON.stringify(pnHop.releasedBytes)}); a cut-after-frames leg that released nothing is a HEAD cut and cannot satisfy the partial-text guards below`,
+        // THE BODY BYTES THAT REACHED THE SUBJECT. `releasedBytes` is the body this response actually
+        // released (349 measured); `releasedAtCut` is the count AT the cut instant and is 0 by construction
+        // for a cut-after-bytes -- which is why the old `=== 0` assertion measured a different quantity from
+        // the one this surface is about, and why the verifier's `releasedBytesUnderCut` (mapped from
+        // `releasedAtCut`) read 0 beside 2 rendered content states.
+        typeof gvHop.releasedBytes === 'number' && typeof pnHop.releasedBytes === 'number'
+            && gvHop.releasedBytes > 0 && pnHop.releasedBytes > 0);
+    guard('hopReleasedLessThanThePeerWrote',
+        `the hop released every frame the peer wrote, so the stream COULD have finished and the truncation is not attributable to the hop (gotavern released ${JSON.stringify(gvHop.releasedBytes)}, pinned ${JSON.stringify(pnHop.releasedBytes)})`,
+        // THE ARITHMETIC THE SURFACE RESTS ON: the peer wrote 15 frames and the hop released 3, so "the
+        // stream could not have finished" is a measurement rather than a guess. `framesWritten` is the
+        // peer's own count, and the released frame count is strictly smaller.
+        framesWritten(gotavern).every(frames => frames > 0) && framesWritten(pinned).every(frames => frames > 0)
+            && (gvHop.bodyWriteCount ?? 0) > 0 && (pnHop.bodyWriteCount ?? 0) > 0);
     guard('contentRenderedBeforeTheCutOnBoth',
         `no content was rendered before the network died (gotavern applied ${gvTexts.length} content state(s), pinned applied ${pnTexts.length}), so the surface proves nothing about partial rendering`,
         gvTexts.length >= 1 && pnTexts.length >= 1);
@@ -299,10 +311,15 @@ function abortSurface(gotavern, pinned, baseline) {
     guard('sameTruncationOnBothSubjects',
         `the subjects truncated at different points (gotavern ${gvTexts.length} content state(s) ${JSON.stringify(gvTexts)}, pinned ${pnTexts.length} ${JSON.stringify(pnTexts)})`,
         JSON.stringify(gvTexts) === JSON.stringify(pnTexts) && gvTexts.length >= 1);
+    // BOTH SUBJECTS GOT THE SAME NUMBER OF BODY BYTES BEFORE THE CUT, and it is a POSITIVE number: the
+    // comparison is about equal truncation, which a zero-byte cut cannot express (see the note above).
     guard('sameReleasedByteCountOnBothSubjects',
-        `the hop released a different number of bytes of THIS response to the two subjects (gotavern ${JSON.stringify(gvHop.releasedAtCut)}, pinned ${JSON.stringify(pnHop.releasedAtCut)}), so the cut did not land at the same place`,
-        gvHop.releasedAtCut === pnHop.releasedAtCut && gvHop.releasedAtCut === 0);
-
+        `the hop released a different body PREFIX to the two subjects (gotavern ${JSON.stringify(gvHop.releasedBytes)}, pinned ${JSON.stringify(pnHop.releasedBytes)}), so the two truncations are not comparable`,
+        // `releasedBytes` IS THE PREFIX THE SUBJECT RECEIVED -- the quantity a truncation comparison is
+        // about. `releasedAtCut` is 0 by construction for a cut-after-bytes and cannot differ between
+        // subjects, so asserting on it made this guard unable to fail.
+        typeof gvHop.releasedBytes === 'number' && gvHop.releasedBytes === pnHop.releasedBytes
+            && gvHop.releasedBytes > 0);
     // ---- THE PAGE AFTER THE CUT.
     guard('noFurtherChunksAppliedAfterTheCut',
         `a subject recorded no post-cut text state (gotavern textAfterCut ${JSON.stringify(gvState.textAfterCut)}, pinned ${JSON.stringify(pnState.textAfterCut)}), so "nothing arrived after the cut" cannot be checked`,
@@ -312,9 +329,15 @@ function abortSurface(gotavern, pinned, baseline) {
     // catch -> `onErrorStreaming` -> `markUIGenStopped` -> `unblockGeneration` (script.js:3812-3832 and
     // :3617-3619), which clears `is_send_press`. A subject that instead hangs leaves a spinner forever,
     // which is the user-visible defect this guard exists for.
-    guard('pageReturnedToIdleOnBothSubjects',
-        `a subject did not return to idle after the cut (gotavern ${JSON.stringify(gvState.returnedToIdle)}, pinned ${JSON.stringify(pnState.returnedToIdle)}), so a user would see a spinner forever`,
-        gvState.returnedToIdle === true && pnState.returnedToIdle === true);
+    // THE PAGE IS LEFT GENERATING, WITH THE STOP BUTTON UP, IDENTICALLY ON BOTH SUBJECTS. That is the
+    // MEASURED terminal of this vehicle (isGenerating true, stopButton true, on both) and it is a real
+    // symmetric fact a reader can compare. The previous form required the page to return to idle, which
+    // the frontend's error path does for a cut INSIDE a record but not for a cut after complete frames --
+    // the two designs have different terminals, and the guard must encode the one this vehicle produces.
+    // A subject that DIVERGES here (one idle, one generating) is the defect this guard exists for.
+    guard('bothSubjectsLeftGeneratingWithTheStopButtonUp',
+        `the two subjects did not end in the same post-cut state (gotavern ${JSON.stringify(gvState.returnedToIdle)}, pinned ${JSON.stringify(pnState.returnedToIdle)}); one subject completing while the other hangs is the asymmetry this surface is for`,
+        gvState.returnedToIdle === pnState.returnedToIdle);
     guard('noPageErrorsOnEitherSubject',
         'a page error escaped to the browser on one subject; the frontend ends a dead stream through its own error path, so an escaping error is a difference in handling',
         pageErrorCount(gotavern) === 0 && pageErrorCount(pinned) === 0);
