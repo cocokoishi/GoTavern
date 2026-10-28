@@ -358,6 +358,26 @@ try {
     } else {
         report.chatSelection = { requested: null, selected: null, reason: 'no --chat-id was supplied; the leg accepted the chat the card resumed' };
     }
+    // ---- THE CHAT MUST BE ON DISK BEFORE THE SETUP GATE READS IT ------------------------------------
+    // Run 40603103596 and again 40761754633 measured the same divergence: the GoTavern leg opened the
+    // card, its chat was EMPTY and had never been saved, so `readChatFiles` matched nothing, the gate
+    // fell back to the page, and `setupDecision` reported `openChat: null` / `carriesPredecessor: false`
+    // while the pinned leg read the real handoff file and got `true`. `sameSetup` then refused -- correctly,
+    // because a leg that drove two setup turns cannot be compared to one that skipped them (measured:
+    // gotavern 4 completions, pinned 2).
+    //
+    // The gate's own comment already concludes which side was wrong ("the PINNED leg was right and the
+    // GOTAVERN leg was asking a file that was not there"), so the fix is to make the file EXIST, not to
+    // teach the gate a new answer. The rejected alternative -- treating an unsaved chat as a definite
+    // `false` and driving pinned from the same unsaved state -- would have removed the experiment in
+    // order to make the comparison agree, which is what docs/surfaces/continue.md forbids.
+    //
+    // NO ASSERTION IS RELAXED. The gate keeps every branch it had; this only ensures the state it reads
+    // is the state the pinned leg also reads. `sameSetup` can still refuse a real asymmetry, and the
+    // mutation below the step is what demonstrates that.
+    report.preGateSave = await saveConditional(page);
+    // saveConditional returns { ok: true } or { ok: false, error } (q20-persistence-drive.mjs:973).
+    step('pre-gate-save-succeeded', report.preGateSave?.ok === true, JSON.stringify(report.preGateSave ?? null));
 
     // 1. BRING THE CHAT TO (greeting, user, assistant, user, assistant) -- the same five-message shape the
     // regenerate leg uses, so the two verbs are measured on one conversation and not on two.
@@ -412,6 +432,18 @@ try {
         filesOnDisk: onDisk.map(entry => `${entry.file}:${entry.lines}`),
         rule: 'the two setup turns are driven only when the open chat does NOT already carry the second-turn marker',
     };
+    // DID THE SAVE ACTUALLY PUT THE CHAT WHERE THE GATE LOOKS? Asserted, not assumed. This step is the
+    // local verification the fix needs before a dispatch is spent: it fails by name if the chat is still
+    // absent from disk, which is the exact condition that produced `openChat: null` on runs 40603103596
+    // and 40761754633. It is NOT a guard on the comparison -- it records whether the precondition held.
+    step('gate-found-the-chat-on-disk',
+        report.setupDecision?.source === 'file',
+        JSON.stringify({
+            source: report.setupDecision?.source ?? null,
+            openChat: report.setupDecision?.openChat ?? null,
+            lookupId: openChatId || null,
+            filesOnDisk: onDisk.map(entry => entry.file ?? null).slice(0, 6),
+        }));
     if (carriesPredecessor !== true) {
         // THE TURN WAITS ON THE PRODUCT'S SETUP STATE AND FAILS BY NAME -- `waitForReply` in the shared drive. See the
         // regenerate probe's note: polling for "the user turn exists" let a leg proceed while the assistant reply had
