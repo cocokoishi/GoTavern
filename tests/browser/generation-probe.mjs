@@ -1809,8 +1809,33 @@ try {
         // NAMED TERMINAL or a real failure is decided in node, where the hop evidence is visible;
         // this callback cannot see `proxy`, and must not guess.
         if (!settledIdle) {
+            // THE TIMEOUT PATH MUST STILL PUBLISH WHAT IT OBSERVED. It previously returned only an
+            // `error` string, so the abort leg's report carried NO `postSend` at all -- no
+            // `renderSnapshots`, no `streamState`, no `textAfterCut` -- and every guard that reads
+            // those fields evaluated against `[]` and reported "no content rendered" while the page
+            // had in fact rendered it (measured: contentStates 2, textAfterCut "Hello from the").
+            // The observations exist in this scope; not publishing them is what made four guards
+            // vacuous rather than false. AGENTS 103: the consumer reads `postSend.renderSnapshots`;
+            // the producer wrote it only on the settle path, so the boundary was the PRODUCER's
+            // early return, not the field name.
             return {
                 preconditions: { charactersLoaded: true, ...before, settle: globalThis.__probeSettle },
+                // THE SAME KEYS THE SETTLE PATH PUBLISHES, so a consumer cannot tell the two apart
+                // by shape and a guard reading them never silently sees an empty array.
+                postSend: {
+                    renderSnapshots: renderSnapshots(),
+                    finalAssistantText: (() => {
+                        const messages = document.querySelectorAll('#chat .mes');
+                        for (let index = messages.length - 1; index >= 0; index--) {
+                            if (messages[index].getAttribute('is_user') !== 'true') {
+                                return messages[index].querySelector('.mes_text')?.innerText ?? null;
+                            }
+                        }
+                        return null;
+                    })(),
+                    streamState,
+                    renderStatesAtTimeout: quietState?.renderStates ?? null,
+                },
                 error: `the page did not settle within 60s (completions: ${globalThis.__probeCompletions ?? 0}, in flight: ${settleInFlight}, quiet state: ${JSON.stringify(quietState)}); the recorded window would end before the send did`,
             };
         }
