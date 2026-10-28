@@ -631,6 +631,26 @@ lane: a report that cannot answer "does this move us toward `GOAL.md`?" is rejec
     needs "a user's directory" BUILDS one (`tests/e2e/longlived_test.go` synthesises a card, a chat, a world book, a
     preset and the visual assets in Go). Neither path needs the user's machine, which is the whole point: CI must be
     able to run without ever holding the originals.
+
+    **THE OPERATOR'S BOUNDARY, in one paragraph (2026-10-26, lane/privacy).** What is committed of a real input is a
+    DERIVATION and nothing else, and "derivation" is a claim about every CARRIER, not about the prose: the two
+    `tEXt` JSON documents the text scanner decodes, an IDAT stream that decodes to exactly one colour so the
+    original picture cannot be present however it was encoded, and one declared non-standard chunk (`trAc`)
+    re-encoded to its recorded digest. Every other carrier in a PNG -- `eXIf`, `zTXt`/`iTXt`, `tIME`, any unknown
+    ancillary chunk -- is REFUSED by `tools/png-carriers.mjs` at build time and again at the CI step, because a
+    generator that preserves an unknown chunk "because the reader tolerates it" ships a carrier no check clears;
+    the safe default is refusal, and allowing one is a manifest change a reviewer reads. The boundary is also a
+    SCOPE boundary, and the lesson generalises beyond images: **intent does not constrain the set.** A `git add -A`
+    stages every modified and untracked file in the tree (observed 2026-10-26: a mutation commit absorbed four other
+    lanes' unpublished files and the history had to be rebuilt), `COPY . .` copies the build context minus
+    `.dockerignore`, and an artifact glob uploads every path it matches. So the privacy claim rests on allowlists
+    with digests -- a per-lane path list, the release archive's explicit `COPY` set, the upload globs the fixture is
+    absent from -- never on a note saying what should have been included. What an operator may rely on: the
+    committed card carries no metadata carrier and its picture is a re-encode (measured, `docs/privacy-audit.md`
+    §1.3); a card carrying one is refused before it is written. What is NOT covered, and is listed rather than
+    implied: the Go binary's boot egress, `http`/`https`/`WebSocket` used directly by a pinned module, `git`
+    subprocess egress, and the browser legs.
+
 57. **A mutation must be produced in an isolated worktree, and recovering a file must go through its bytes.**
     A mutation run exists to OBSERVE A RED; it is not a commit that may carry anything else. Measured twice on
     2026-10-26: a mutation commit produced in a shared checkout by `git add -A` captured four other lanes'

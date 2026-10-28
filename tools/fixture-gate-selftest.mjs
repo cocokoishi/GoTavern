@@ -36,6 +36,7 @@ import { fileURLToPath } from 'node:url';
 
 import { CARD_IDENTITY_FIELDS, cardIdentityFieldFor } from './real-fixture-profile.mjs';
 import { CONTENT_CLASSES, isIdentityMarker, scanText } from './check-fixture-watermarks.mjs';
+import { auditPngCarriers } from './png-carriers.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const results = [];
@@ -483,6 +484,253 @@ record('scanner REFUSES the same CJK prose unmarked (the pass is right, not loos
     } else {
         record('the manifest records that both chunks are one document', false, 'no manifest was written');
     }
+}
+
+// 3i. THE CARRIERS THE TEXT SCANNER CANNOT SEE (added 2026-10-26 by lane/privacy).
+//
+// WHY THIS SECTION EXISTS, in the terms of the audit that produced it: the committed card is 18.5 MB, the text
+// scanner reads the two base64 JSON chunks and the raw bytes, and three carriers lay outside every gate --
+//  (a) the IDAT PIXELS. The raw pass reads COMPRESSED bytes, so a watermark in the decoded image was invisible;
+//  (b) any ANCILLARY CHUNK the generator preserved "because the reader tolerates it" (an `eXIf` blob, a `zTXt`,
+//      a `tIME`). That rule is right for fixturing and wrong for privacy;
+//  (c) a DECLARABLE chunk's identity: `trAc` is re-encoded at the same LENGTH, so only a digest can tell the
+//      derivation from the original.
+//
+// EVERY CASE PLANTS A SYNTHESISED MARKER IN A DIFFERENT CARRIER, and the marker is a URL, so the SCANNER -- not
+// the fixture's author -- decides. Two rules are applied to each case, and BOTH must hold:
+//   * the planted bytes decode/parse to a payload that is not a surface the derivation ever replaces: only
+//     `chara`/`ccv3` JSON, a single-colour IDAT and an allowlisted `trAc` are legitimate, so the case must be
+//     REFUSED;
+//   * the SAME card WITHOUT the plant must be ACCEPTED, so the refusal belongs to the carrier and not to the
+//     harness (a gate that refuses everything proves nothing -- the `CLEAN_CARD` case above is the control).
+
+// THE MARKER MUST BE INVISIBLE TO THE TEXT PASS, OR THE CASE PROVES NOTHING.
+//
+// MEASURED, and it is why this helper exists: the first version planted the readable marker in every carrier, and
+// when the carrier phase was deleted TEN of eleven cases stayed red -- because `scanText` scans the raw file bytes
+// as latin1 and found the URL itself. Those cases were decoration. The isolation assertion (each case re-runs with
+// `--no-carriers` and must PASS) then failed five of them, which is the check that turned a passing section into
+// an honest one.
+//
+// So the ASCII carriers plant the marker with ONE BYTE DELETED, which breaks the URL and the handle classes while
+// leaving the identity obvious to a human reading a hex dump (`…/MARK 009999`, `…/MARK\u007f009999`). A text scan
+// that only matches the exact URL would miss it, and so would every class list -- which is precisely the point:
+// the CARRIER's presence is the finding, not the marker's shape. The payload is still 100% the canary's own
+// author's data (a synthesised marker), so nothing here is a statement about a real card.
+const brokenMarker = (mode = 'url') => {
+    if (mode === 'url') {
+        const text = 'lane-privacy-canary.invalid/MARK_009999';
+        return Buffer.from(text, 'utf8');
+    }
+    if (mode === 'camel') {
+        // No scheme, no `@`, no platform name: a creator handle written the way a person writes one.
+        return Buffer.from('lanePrivacCanary MARK009999', 'utf8');
+    }
+    // Control bytes around the marker, so the latin1 view contains no printable run at all.
+    return Buffer.concat([Buffer.from([0x00, 0x01, 0x7f]), Buffer.from('MARK 009999', 'utf8'), Buffer.from([0x7f, 0x01, 0x00])]);
+};
+
+/** The carrier's canary payload: bytes the TEXT pass must not be able to match. */
+const CARRIER_PAYLOADS = {
+    exif: Buffer.concat([Buffer.from('Exif\0\0', 'latin1'), brokenMarker('url')]),
+    ztxt: brokenMarker('camel'),
+    itxt: Buffer.concat([Buffer.from('MARK 009999', 'utf8'), Buffer.from([0x00])]),
+    anc: brokenMarker('url'),
+    crit: brokenMarker('url'),
+    text: Buffer.concat([Buffer.from('MARK 009999', 'utf8'), Buffer.from([0x7f])]),
+    time: Buffer.from([0x07, 0xEA, 10, 26, 12, 0, 0]),
+};
+
+/** A synthesised V3 card with the chunks a real card has, plus whatever the caller appends before IEND. */
+function cardWithCarriers(document, extras = [], { solid = true, width = 4, height = 4 } = {}) {
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(width, 0);
+    ihdr.writeUInt32BE(height, 4);
+    ihdr[8] = 8;
+    ihdr[9] = 6; // RGBA
+    const stride = width * 4 + 1;
+    const raw = Buffer.alloc(stride * height, 0x80);
+    for (let row = 0; row < height; row += 1) raw[row * stride] = 0;
+    for (let row = 0; row < height; row += 1) {
+        for (let pixel = 0; pixel < width; pixel += 1) raw[row * stride + 1 + pixel * 4 + 3] = 0xff;
+    }
+    if (!solid) raw[1 + 4 + 0] = 0x01; // one pixel differs: the image is no longer one colour
+    const idat = zlib.deflateSync(raw, { level: 6 });
+    const text = Buffer.from(JSON.stringify(document), 'utf8').toString('base64');
+    const chunks = [
+        pngChunk('IHDR', ihdr),
+        pngChunk('IDAT', idat),
+        pngChunk('tEXt', Buffer.concat([Buffer.from('chara\0', 'latin1'), Buffer.from(text, 'latin1')])),
+        pngChunk('tEXt', Buffer.concat([Buffer.from('ccv3\0', 'latin1'), Buffer.from(text, 'latin1')])),
+        ...extras,
+        pngChunk('IEND', Buffer.alloc(0)),
+    ];
+    return Buffer.concat([Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]), ...chunks]);
+}
+
+const CARRIER_CASES = [
+    {
+        label: 'an EXIF blob (eXIf)',
+        extras: [pngChunk('eXIf', CARRIER_PAYLOADS.exif)],
+        category: 'metadata',
+        type: 'eXIf',
+    },
+    {
+        label: 'compressed text (zTXt) -- a latin1 scan of the compressed bytes cannot match it',
+        // zTXt payload is keyword \0 method(0) zlib(text).
+        extras: [pngChunk('zTXt', Buffer.concat([Buffer.from('Comment\0\0', 'latin1'), zlib.deflateSync(CARRIER_PAYLOADS.ztxt)]))],
+        category: 'metadata',
+        type: 'zTXt',
+    },
+    {
+        label: 'international text (iTXt)',
+        extras: [pngChunk('iTXt', Buffer.concat([Buffer.from('Raw profile type exif\0\0\0\0\0', 'latin1'), CARRIER_PAYLOADS.itxt]))],
+        category: 'metadata',
+        type: 'iTXt',
+    },
+    {
+        label: 'an UNKNOWN ancillary chunk preserved verbatim',
+        // `prIv` is ancillary (lowercase first letter), private and reserved -- exactly the shape of a chunk a
+        // generator keeps "because the reader tolerates it". Nothing clears it.
+        extras: [pngChunk('prIv', CARRIER_PAYLOADS.anc)],
+        category: 'unknown',
+        type: 'prIv',
+    },
+    {
+        label: 'an UNKNOWN critical chunk',
+        extras: [pngChunk('PRIV', CARRIER_PAYLOADS.crit)],
+        category: 'structure',
+        type: 'PRIV',
+    },
+    {
+        label: 'a plain tEXt under a keyword the derivation does not replace',
+        extras: [pngChunk('tEXt', Buffer.concat([Buffer.from('Software\0', 'latin1'), CARRIER_PAYLOADS.text]))],
+        category: 'metadata',
+        type: 'tEXt',
+    },
+    {
+        label: 'a modification timestamp (tIME)',
+        extras: [pngChunk('tIME', CARRIER_PAYLOADS.time)],
+        category: 'metadata',
+        type: 'tIME',
+    },
+];
+
+let carrierCli = null;
+function scanCarriers(target, extraArgs = []) {
+    try {
+        const output = execFileSync(process.execPath, [path.join(here, 'check-fixture-watermarks.mjs'), ...extraArgs, target], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+        carrierCli = { ok: true, output };
+    } catch (error) {
+        carrierCli = { ok: false, output: `${error.stdout ?? ''}${error.stderr ?? ''}` };
+    }
+    return carrierCli;
+}
+
+// THE CONTROL: the same synthesised card, with no plant, must PASS through the real CLI. Without this every
+// refusal below could be the harness's own shape rather than the planted carrier.
+const controlPath = path.join(tempRoot, 'carrier-control.png');
+fs.writeFileSync(controlPath, cardWithCarriers(CLEAN_CARD, [pngChunk('trAc', Buffer.from([0, 0, 0, 1]))]));
+const control = scanCarriers(controlPath);
+record('carrier gate ACCEPTS a synthesised card whose chunks are all cleared (control)', control.ok, control.output.slice(0, 400));
+
+for (const [index, testCase] of CARRIER_CASES.entries()) {
+    const target = path.join(tempRoot, `carrier-${index}.png`);
+    fs.writeFileSync(target, cardWithCarriers(CLEAN_CARD, [...testCase.extras, pngChunk('trAc', Buffer.from([0, 0, 0, 1]))]));
+    const result = scanCarriers(target);
+    // THE REFUSAL MUST COME FROM THE CARRIER PHASE, NOT FROM THE TEXT PASS. Most planted payloads contain the
+    // marker verbatim, so `scanText` would also refuse them -- and a case that is satisfied by the text pass
+    // would keep passing if the carrier phase were deleted, which is the whole failure mode this section exists
+    // to exclude. The isolation therefore runs the SAME file with `--no-carriers`, which must ACCEPT it, and then
+    // with the carrier phase, which must refuse and NAME the category and the chunk type.
+    const textOnly = scanCarriers(target, ['--no-carriers']);
+    const isolated = textOnly.ok === true;
+    const named = result.ok === false && new RegExp(`\\[carrier ${testCase.category}\\] ${testCase.type}`).test(result.output);
+    record(`carrier gate REFUSES ${testCase.label} [${testCase.category}/${testCase.type}]`, named && isolated,
+        !isolated ? `the text pass alone refused this file too, so the case does not isolate the carrier phase (${textOnly.output.trim().split('\n')[0].slice(0, 160)})`
+            : (named ? undefined : `exit ok=${result.ok}; output: ${result.output.trim().split('\n').slice(0, 3).join(' | ').slice(0, 300)}`));
+}
+
+// THE PIXELS. A card whose IDAT decodes to more than one colour is refused, because a re-encoded solid image is
+// the only IDAT the derivation contract allows -- and the plant here is a PIXEL, not a text string, so no text
+// pattern could ever have found it.
+const pixelPath = path.join(tempRoot, 'carrier-pixels.png');
+fs.writeFileSync(pixelPath, cardWithCarriers(CLEAN_CARD, [pngChunk('trAc', Buffer.from([0, 0, 0, 1]))], { solid: false }));
+const pixelResult = scanCarriers(pixelPath);
+record('carrier gate REFUSES an image whose decoded pixels are not one colour', pixelResult.ok === false && /\[carrier image\] IDAT/.test(pixelResult.output),
+    pixelResult.ok ? 'the scanner accepted a multi-colour image' : pixelResult.output.trim().split('\n').slice(0, 2).join(' | ').slice(0, 300));
+
+// AND THE DECLARABLE CHUNK'S DIGEST. `trAc` is re-encoded at the SAME LENGTH, so a length check cannot tell the
+// derivation from the original; the manifest's recorded digest can. The case drives the CLI's manifest option
+// with a synthesised manifest whose digest is deliberately wrong, and requires the refusal to name the digest.
+const digestManifest = path.join(tempRoot, 'digest-manifest.json');
+const digestCardPath = path.join(tempRoot, 'carrier-digest.png');
+fs.writeFileSync(digestCardPath, cardWithCarriers(CLEAN_CARD, [pngChunk('trAc', Buffer.from([0, 0, 0, 1]))]));
+fs.writeFileSync(digestManifest, JSON.stringify({
+    presets: [],
+    cards: [{
+        name: 'digest', file: 'carrier-digest.png', bytes: 0, sha256: '',
+        replaced: {},
+        preserved: { chunkSequence: [
+            { type: 'IHDR', bytes: 13 },
+            { type: 'IDAT', bytes: null },
+            { type: 'tEXt', bytes: 0 },
+            { type: 'tEXt', bytes: 0 },
+            { type: 'trAc', bytes: 4, sha256: '0'.repeat(64) },
+            { type: 'IEND', bytes: 0 },
+        ] },
+    }],
+}));
+let digestResult;
+try {
+    execFileSync(process.execPath, [path.join(here, 'check-fixture-watermarks.mjs'), '--allow-declared', digestManifest, digestCardPath], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    digestResult = { ok: true, output: '' };
+} catch (error) {
+    digestResult = { ok: false, output: `${error.stdout ?? ''}${error.stderr ?? ''}` };
+}
+record('carrier gate REFUSES a declarable chunk that does not hash to the manifest record', digestResult.ok === false && /does not hash to the manifest/.test(digestResult.output),
+    digestResult.ok ? 'the scanner accepted a trAc chunk with a wrong digest' : undefined);
+
+// A MANIFEST THAT RECORDS THE CHUNK BYTES AND DIGEST EXACTLY MUST PASS, so the digest check is not simply "any
+// manifest refuses". The correct digest is taken from the audit the gate itself runs, so the case cannot drift
+// from the implementation.
+{
+    const bytes = fs.readFileSync(digestCardPath);
+    const audit = auditPngCarriers(bytes);
+    const sequence = audit.rows.map((row) => ({ type: row.type, bytes: row.type === 'IDAT' ? null : row.bytes, ...(row.sha256 ? { sha256: row.sha256 } : {}) }));
+    const manifest = JSON.parse(fs.readFileSync(digestManifest, 'utf8'));
+    manifest.cards[0].preserved.chunkSequence = sequence;
+    fs.writeFileSync(digestManifest, JSON.stringify(manifest));
+    let ok = true;
+    try {
+        execFileSync(process.execPath, [path.join(here, 'check-fixture-watermarks.mjs'), '--allow-declared', digestManifest, digestCardPath], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (error) {
+        ok = false;
+    }
+    record('carrier gate ACCEPTS the same chunk when the manifest records its real digest', ok, ok ? undefined : 'a correct digest was refused, so the digest rule is decoration');
+}
+
+// THE CLI'S CARRIER PHASE MUST ALSO BE REACHABLE THE WAY CI RUNS IT. `lane.yml` passes a manifest and the
+// fixtures in one command; if the manifest option silently bypassed the carrier gate, the CI step would still
+// print "ok" for a card carrying an EXIF blob. The case drives that exact invocation shape.
+{
+    const manifest = JSON.parse(fs.readFileSync(digestManifest, 'utf8'));
+    manifest.cards[0].file = 'carrier-with-exif.png';
+    manifest.cards[0].preserved.chunkSequence = [...manifest.cards[0].preserved.chunkSequence];
+    manifest.cards[0].preserved.chunkSequence.splice(4, 0, { type: 'eXIf', bytes: CARRIER_PAYLOADS.exif.length });
+    const exifCard = path.join(tempRoot, 'carrier-with-exif.png');
+    fs.writeFileSync(exifCard, cardWithCarriers(CLEAN_CARD, [pngChunk('trAc', Buffer.from([0, 0, 0, 1])), pngChunk('eXIf', CARRIER_PAYLOADS.exif)]));
+    fs.writeFileSync(digestManifest, JSON.stringify(manifest));
+    let ok = true;
+    let output = '';
+    try {
+        execFileSync(process.execPath, [path.join(here, 'check-fixture-watermarks.mjs'), '--allow-declared', digestManifest, exifCard], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (error) {
+        ok = false;
+        output = `${error.stdout ?? ''}${error.stderr ?? ''}`;
+    }
+    record('the CI invocation shape (--allow-declared + a card) still runs the carrier gate', ok === false && /\[carrier metadata\] eXIf/.test(output),
+        ok ? 'the manifest option bypassed the carrier gate' : undefined);
 }
 
 fs.rmSync(tempRoot, { recursive: true, force: true });
