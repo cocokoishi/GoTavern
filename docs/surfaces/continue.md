@@ -56,6 +56,75 @@ cannot be stated is not a guard, and a guard reading an empty array is a green t
 exact defect the abort lane spent seven dispatches finding. Any guard added here must name a reachable
 input that makes it red, and the mutation must be demonstrated before the guard is trusted.
 
+## The result: `not-observed` for parity on a common setup
+
+**P2 closes `not-observed`, and this section is the reason.** Four runs, no product answer, and the
+reason is structural rather than budgetary.
+
+**C1 measured `a1e050cbfa0f` on both subjects — identical.** That is a *match on two legs that did
+not run the same experiment*, and it is explicitly **not** a parity claim. The digest equality is
+real and reproducible (it is the same digest `AGENTS.md` rule 101 recorded on 2026-10-27); it does
+not show that the subjects behave identically given identical state.
+
+**The named reason, with its numbers:**
+
+```
+gotavern: openChat "chats/.../Seraphina - 2023-5-12 @21h 32m 29s 224ms.jsonl"
+          source "file"  lines 2  messages 2  carriesPredecessor false  openedContextChatLength 0
+pinned:   openChat "chats/.../Seraphina - 2023-5-12 @21h 32m 29s 224ms.jsonl"
+          source "file"  lines 6  messages 6  carriesPredecessor true   openedContextChatLength 5
+chat completions: gotavern 4, pinned 2
+```
+
+**Same path, different file.** The mechanism is at `q20-continue-probe.mjs:520-530`: the handoff tree
+is a `fs.cp` of the **GoTavern leg's data root, taken after its setup turns and before the press**, and
+the pinned leg then inherits it. So the pinned leg is *given* the predecessor that the GoTavern leg
+*wrote*, and the GoTavern leg is then asked to have it independently. **That is not a comparable
+experiment; it is two legs measured on two different starting states.**
+
+## THE RULE THIS SURFACE PRODUCES
+
+> **The handoff tree is an INPUT, and a leg that is not handed it cannot be compared.**
+>
+> A surface whose legs start from different states is `not-observed` for parity, whatever the
+> individual guards say. Where one leg's state is produced by the other leg's drive and then
+> inherited, **the comparison measures the handoff, not the subject.**
+
+This generalises to every verb probe — regenerate, continue, impersonate: any verb where one leg's
+state is derived from the other's drive carries this hazard, and the first question is always **what
+state does each leg start from**.
+
+**A repair that made the file exist but replaced a richer state with a poorer one is the concrete
+instance of why this is a rule rather than an observation.** The pre-gate save fixed `openChat: null`
+and produced `openedContextChatLength: 0` — a two-line file over a six-line one. It closed the
+*existence* half of the divergence while destroying the *content* half, and a further repair would
+have chased the symptom. That is the moment to state the boundary, not to fix the sixth thing.
+
+## What WAS newly measured
+
+`pre-gate-save-succeeded` and `gate-found-the-chat-on-disk` — two new steps, both green, both real.
+`openChat` moved from `null` to a resolved path, and 27 of 27 continue steps passed on the GoTavern leg.
+
+## What is NOT covered
+
+- **V5(a) provider error mid-continue** — still `notCompared`.
+- **V5(b) client disconnect** — now drives (`ok disconnect-mid-continue-recorded`), but the run never
+  reached a comparison, so it measured nothing about the product.
+- **V4-streaming** — a recorded boundary, pinned source verified at `script.js:5388-5391`, `:5393`,
+  `:5404-5406`.
+
+## The four-run cost, as record
+
+| Run | Finding | Outcome |
+|---|---|---|
+| 40757180703 | the V5(b) insertion broke a counting assertion | my defect, fixed by relocation |
+| 40761754633 | setup divergence, `openChat: null` | fixed |
+| (no dispatch) | classification defect, `not-driven` read as `agree` | fixed at zero dispatch cost |
+| 40767188029 | partial fix, content half open | closed as `not-observed` |
+
+**Two instrument findings fixed, one classification defect fixed without a run, one partial fix, and
+one re-measured equality. No product answer.** The cost came almost entirely from the vehicle rather
+than the subject, which is the shape P3 must avoid.
 ## What this surface does NOT claim
 
 - Frontend painting, Canvas or WebGL behaviour. **P4's boundary principle applies here**: browser
