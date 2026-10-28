@@ -1887,7 +1887,7 @@ jobs:
       # job: a freshly recorded artefact that does not support its own claim is a defect in the product
       # or in the harness, not a stale document.
       - name: Verify the FRESH artefacts support their claims
-        if: ${{ !cancelled() && (steps.record.outputs.failures == '0' || steps.record.outputs.failures == '') && (steps.preset.outputs.failures == '0' || steps.preset.outputs.failures == '') && (steps.asset.outputs.failures == '0' || steps.asset.outputs.failures == '') && (steps.helper.outputs.failures == '0' || steps.helper.outputs.failures == '') && (steps.helper-vars.outputs.variable_failures == '0' || steps.helper-vars.outputs.variable_failures == '') }}
+        if: ${{ !cancelled() && (steps.record.outputs.failures == '0' || steps.record.outputs.failures == '') && (steps.preset.outputs.failures == '0' || steps.preset.outputs.failures == '') && (steps.asset.outputs.failures == '0' || steps.asset.outputs.failures == '') && (steps.helper.outputs.failures == '0' || steps.helper.outputs.failures == '') && (steps.helper-vars.outputs.variable_failures == '0' || steps.helper-vars.outputs.variable_failures == '') && (steps.framing.outputs.framing_failures == '0' || steps.framing.outputs.framing_failures == '') }}
         run: node tools/verify-browser-comparisons.mjs
 
       # DOES THE Q17 VERIFIER HAVE TEETH? The verifier is the gate that re-reads the COMMITTED artefact, so a
@@ -1968,13 +1968,14 @@ jobs:
       # BOTH RECORDING STEPS, AND ONLY WHEN ONE OF THEM ACTUALLY FAILED. A skipped step reports an empty
       # output, so `!= '0'` alone would fail a `preset`-only run at the record step it never entered.
       - name: Fail if a drive could not be recorded or judged
-        if: ${{ (steps.record.outputs.failures != '0' && steps.record.outputs.failures != '') || (steps.preset.outputs.failures != '0' && steps.preset.outputs.failures != '') || (steps.asset.outputs.failures != '0' && steps.asset.outputs.failures != '') || (steps.helper.outputs.failures != '0' && steps.helper.outputs.failures != '') || (steps.helper-generation.outputs.generation_failures != '0' && steps.helper-generation.outputs.generation_failures != '') || (steps.authors-note.outputs.authors_note_legs != '0' && steps.authors-note.outputs.authors_note_legs != '') || (steps.ui-layout.outputs.failures != '0' && steps.ui-layout.outputs.failures != '') || (steps.helper-vars.outputs.variable_failures != '0' && steps.helper-vars.outputs.variable_failures != '') }}
+        if: ${{ (steps.record.outputs.failures != '0' && steps.record.outputs.failures != '') || (steps.preset.outputs.failures != '0' && steps.preset.outputs.failures != '') || (steps.asset.outputs.failures != '0' && steps.asset.outputs.failures != '') || (steps.helper.outputs.failures != '0' && steps.helper.outputs.failures != '') || (steps.helper-generation.outputs.generation_failures != '0' && steps.helper-generation.outputs.generation_failures != '') || (steps.authors-note.outputs.authors_note_legs != '0' && steps.authors-note.outputs.authors_note_legs != '') || (steps.ui-layout.outputs.failures != '0' && steps.ui-layout.outputs.failures != '') || (steps.helper-vars.outputs.variable_failures != '0' && steps.helper-vars.outputs.variable_failures != '') || (steps.framing.outputs.framing_failures != '0' && steps.framing.outputs.framing_failures != '') }}
         run: |
           echo "::error::a drive could not be recorded or was judged unfaithful; see the group output above."
           echo "generation/stream failures: ${{ steps.record.outputs.failures }}"
           echo "preset failures:            ${{ steps.preset.outputs.failures }}"
           echo "helper variable failures:   ${{ steps.helper-vars.outputs.variable_failures }}"
           echo "Q17 author's-note legs:     ${{ steps.authors-note.outputs.authors_note_legs }}"
+          echo "framing failures:           ${{ steps.framing.outputs.framing_failures }}"
           exit 1
 
   # THE ONLY JOB THAT MAY WRITE, and it does nothing but commit the preset evidence produced by the run
