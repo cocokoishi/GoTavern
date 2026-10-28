@@ -1452,7 +1452,12 @@ func sectionRuleNumbers(text, section string) []string {
 		if !inSection {
 			continue
 		}
-		if m := regexp.MustCompile(`^(\d{1,2})\. \*\*`).FindStringSubmatch(line); m != nil {
+		// \d{1,3}, NOT \d{1,2}: the citation surface passed 99 rules on 2026-10-27, and a two-digit
+		// pattern silently stops matching at 100 — the extractor then returns a SHORTER list than
+		// agentsCitationNumbering() expects and the gate fails on a document that is correct. This is
+		// the same bounded-pattern defect as a truncated listing (verification rule 11): the check
+		// could not see the very rules it was extended to police.
+		if m := regexp.MustCompile(`^(\d{1,3})\. \*\*`).FindStringSubmatch(line); m != nil {
 			out = append(out, m[1])
 		}
 	}
@@ -1523,7 +1528,7 @@ func TestAgentsRulesStayShortEnoughToStayNumbered(t *testing.T) {
 		length int
 	}
 	var spans []ruleSpan
-	ruleHead := regexp.MustCompile(`^(\d{1,2})\. \*\*`)
+	ruleHead := regexp.MustCompile(`^(\d{1,3})\. \*\*`)
 	current := -1
 	for i, line := range lines {
 		if strings.HasPrefix(line, "## ") || strings.HasPrefix(line, "# ") {
@@ -1605,7 +1610,7 @@ func TestAgentsRuleGateCanGoRed(t *testing.T) {
 // countRuleBodyLines is the longest rule span in a document, shared by the ceiling check and its red
 // path so the two cannot disagree about what "a rule's length" means.
 func countRuleBodyLines(text string) int {
-	ruleHead := regexp.MustCompile(`^(\d{1,2})\. \*\*`)
+	ruleHead := regexp.MustCompile(`^(\d{1,3})\. \*\*`)
 	lines := strings.Split(text, "\n")
 	start, longest := -1, 0
 	closeSpan := func(end int) {
