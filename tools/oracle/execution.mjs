@@ -157,7 +157,30 @@ export function changedJSONPaths(left, right, location = '$', output = []) {
 export function compareProbeRuns(first, second) {
     if (first.equals(second)) return null;
     const paths = changedJSONPaths(JSON.parse(first), JSON.parse(second));
-    return new Error(`oracle changed across identical pinned Node runs at: ${paths.join(', ')}`);
+    // A PATH WITHOUT ITS TWO VALUES IS AN ANONYMOUS RED. Measured: `Browser differential`-adjacent CI run
+    // 40689195143 failed with "oracle changed across identical pinned Node runs at:
+    // $.results.duplicate-key-control.configAfter.mtimeMs" and nothing else -- no values, so the reader
+    // could not tell a wall-clock difference (which the probe ALREADY declares `rule: 'null'` and which
+    // therefore cannot be a product finding) from a real instability of recorded BYTES. AGENTS 103: make
+    // the producer print what the consumer needs before spending the run. The values are truncated
+    // because they are diagnostic, not evidence.
+    const show = value => {
+        const text = value === undefined ? '<absent>' : JSON.stringify(value);
+        return text.length > 120 ? `${text.slice(0, 117)}...` : text;
+    };
+    const details = paths.map(path => {
+        const read = (document) => {
+            let cursor = document;
+            for (const part of path.replace(/^\$\./, '').split('.')) {
+                if (cursor === null || cursor === undefined) return undefined;
+                const key = part.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean);
+                for (const step of key) { cursor = cursor?.[step]; }
+            }
+            return cursor;
+        };
+        return `${path} (run1 ${show(read(JSON.parse(first)))}, run2 ${show(read(JSON.parse(second)))})`;
+    });
+    return new Error(`oracle changed across identical pinned Node runs at: ${details.join(', ')}`);
 }
 
 // ---------------------------------------------------------------------------------------------------
