@@ -10,72 +10,78 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-10-27
+## Latest checkpoint - 2026-10-27: `v0.1.0-alpha.6` SHIPPED -- ACTIVE ALPHA6 DEVELOPMENT CLOSED
+
+> **`ACTIVE ALPHA6 DEVELOPMENT CLOSED`.** `v0.1.0-alpha.6` is published. Nothing in this file is an
+> instruction to continue: the remaining items are accepted limits recorded for the next round, not work in
+> flight. Read the sections below as the closeout record.
 
 | Field | Value |
 |---|---|
-| **HEAD (main)** | `035cdf2` |
+| **Release** | `v0.1.0-alpha.6`, published as a **prerelease** (`isPrerelease=true`) |
+| **Release SHA** | `0dddeac181dad9681d9c9eb720a1be66f1126573` -- the commit the tag names |
+| **Assets** | six canonical archives plus `checksums.txt`, all seven published and listed in the checksums |
+| **`main` after the release** | `52d0a19` (the benchmark restyle merged after the tag; docs and a generated SVG only) |
 | **Pinned baseline** | SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127` |
+| **Release notes** | applied to the published release: 9,971 characters, replacing the 98-character `Full Changelog` stub that every earlier alpha shipped |
 | **Live evidence ledger** | `docs/goal-scorecard.md` -- twenty-two rows, five classes, and `tests/docs/run-manifest.json` |
-| **Milestone ladder** | `GOAL.md` section 11: M0 (closed) through M5; M1..M4 open |
-| **Main is GREEN** | `GoTavern CI` 40470281092 (success, `verify` job green) and `GoTavern drop-in qualification` 40470281044 (success), both on `45473bb` -- the first green `GoTavern CI` on `main` in this pass |
 
-### Active lanes (8 slots: one lead, seven lanes, one owner per area)
+### Tag-triggered runs, all green
 
-A lane owns an AREA, and two lanes never own the same area (`AGENTS.md` rule 39). A lane not listed here has no
-owner and is not being worked on.
+Quoted as `workflow name + run id + conclusion` (`AGENTS.md` rule 55 -- a run id without its workflow is
+not evidence, and one commit produces several workflows).
 
-| Slot | Area | State |
+| Workflow | Run | Conclusion |
 |---|---|---|
-| lead | integration, merge into `main`, evidence ledger, the session's rules | active -- `main` green at `45473bb` |
-| 1 | documentation, goal, ledger gate | complete -- merged; `AGENTS.md` rules 58-71 added from the lanes' own measurements |
-| 2 | core config/startup boot | active -- items 1, 1b, 2, 3, 4 green with demonstrated mutations; item 5 (provider edge cases) next |
-| 3 | Q21 data hand-back | active -- the card FIXTURE is repaired and CI-verified (`151/151`, `--check` ok); the hand-back run is queued |
-| 4 | Q17 Author's Note + Q18 truncation | **both rows cite a run now**: `Browser differential` 40465631698 -- Q17 `6/6 cases PASS`, Q18 step 25 SUCCESS, both teeth steps SUCCESS |
-| 5 | regex execution to the final request | active -- three recording defects found and fixed (module TDZ, call shapes, depth-inside-flag-clause); `mode=regex` run queued |
-| 6 | regenerate / continue (Q20) | active -- SSE peer built; `regenerate-ui-held-a-message` and `regenerate-file-holds-the-new-reply` pass for the FIRST time; neither comparator has executed yet |
-| 7 | helper variables (Q10/Q11) | active -- the narrow vehicle drives; four driver reds fixed; the mechanism guard `macroWasTheResolver` is in |
-| 8 | UI layout at four viewports | active on `lane/ui-viewport` -- the modal is dismissed, controls are `reachable`, and a render-state difference is a NAMED REFUSAL rather than a layout finding |
+| `GoTavern Release` | 40620101068 | success |
+| `GoTavern release qualification` | 40620101066 | success |
+| `GoTavern Docker image` | 40620101104 | success |
 
-### Key Actions runs at this HEAD
+### RC evidence, and the delta it was accepted with
 
-Quoted as `workflow name + run id + conclusion` (`AGENTS.md` rule 55). Every id here is in
-`tests/docs/run-manifest.json` with its `head_sha`.
-
-| Workflow | Run | Conclusion | What it says |
+| Evidence | Run | Commit | Note |
 |---|---|---|---|
-| `GoTavern CI` | 40470281092 | success | build, vet, gofmt, the full Go suite, document-facts, the matrix gate and the ledger gate |
-| `GoTavern drop-in qualification` | 40470281044 | success | the packaged archive boots a stock tree |
-| `Browser differential` | 40465631698 | **failure** | Q17 6/6 and Q18 green inside it (steps 25-29 and 40); the only failure is step 35, Q21's fixture defect |
-| `Browser differential` | 40466304979 | success | the repaired card: `151/151` fixture self-test cases, `31/31` asset self-test |
-| `GoTavern Lane CI` | 40444521256 | **failure** | the config-idempotence mutation red (`config_idempotence_test.go:145`) |
-| `GoTavern Lane CI` | 40446314871 | **failure** | the source-bytes mutation red (`source_bytes_test.go:85`, the BOM canary) |
-| `Browser differential` | 40325398585 | success | asset + helper legs, where Q3-Q8 are proven |
-| `Browser differential` | 40387864205 | success | Q20 save -> reload -> swipe, STRUCTURE-ONLY: the page streamed against a JSON peer |
+| `GoTavern CI` | 40619495151 | `0dddeac` | the release commit |
+| `GoTavern drop-in qualification` | 40619495155 | `0dddeac` | the packaged archive boots a stock tree |
+| `GoTavern release qualification` | 40619090972 | `50f89cd` | **docs-only delta**: `0dddeac` differs from it by ONE markdown file (`docs/INSTALLATION.md`), so a built archive is byte-identical and the run still applies. Stated rather than implied. |
 
-### Next action
+### Benchmark provenance
 
-Wait for the queued browser runs, then, in the order the ledger says is missing: (1) the Q21 hand-back run
-(`mode=preset` on `lane/q21-work`) -- its precondition is finally satisfiable because the fixture is repaired;
-(2) the `mode=regex` run, whose comparator has never executed; (3) the `mode=preset` run for regenerate/continue;
-(4) the `mode=helper` run for the helper-variables claim; (5) one run of `lane/ui-viewport` to see whether a real
-layout is measured now that the modal is dismissed and the render state is recorded. **Do not push while a
-dispatch is queued on the same branch**: the push triggers a helper+assets run and the dispatch waits behind it,
-which has now been measured twice.
+The paired figure in `README.md` and `docs/assets/benchmark.svg` is generated from `GoTavern smoke metrics`
+**40396669521** (success), runner `ubuntu26`, against SillyTavern 1.19.0 at pinned commit `06bde939`, three
+rounds of 30 sequential requests per path, medians. Values: cold start 14,355 ms vs 61 ms; steady RSS 912.2 MB
+vs 37.3 MB; `GET /version` 62.68 ms vs 0.431 ms; `GET /` 14.17 ms vs 2.20 ms. The figure is stylised
+(`#66ccff` on deep navy) and its per-panel wording is deliberate: **faster** on the three timing rows,
+**lighter** on memory, because memory is neither fast nor slow.
 
-### Blockers
+### Accepted boundaries carried into the next round
 
-- **The local qualification channel is NOT YET DEMONSTRATED as qualification.** Its INSTRUMENTS exist and were
-  shown to refuse (`scripts/private-workdir.mjs`, `scripts/private-egress-check.mjs`, canary-proven), but this
-  host holds no originals -- `SillyTavern/data` is a directory containing one 0-byte file -- so no canary run may
-  be cited as the channel working.
-- **Q19 has no evidence on `main`.** Its runs judged a commit on an unmerged branch; the ancestry check refuses
-  such a citation, correctly.
-- **The Q21 hand-back has never been judged past its precondition.** Four reported "product defects" in that area
-  resolved to parity once a capture was consulted; the real defects were the fixture's two chunks carrying
-  different documents (now repaired) and a probe reader with the wrong chunk precedence (now fixed).
-- **A card re-record needs the user's original**, which is not on this host. The repair fixed the committed
-  DERIVATION from itself, which is a different thing and is labelled as such in the ledger row.
+These are the limits the release states to users. They are not open defects and none of them blocks the tag.
+
+- **Backgrounds: paint half unmeasured.** The gallery renders and stages tiles on both subjects, and
+  reachability of 40 UI elements across four viewport sizes was measured equal; whether the painted
+  background matches is not measured (scorecard Q7, `partial`).
+- **Streaming: cut/abort legs.** The legs live on a branch that never merged, so no citation is made from
+  `main` (Q19, `partial`).
+- **Continue.** Regenerate is proven equal with a negative control; continue's comparator has never
+  executed (Q20, `partial`).
+- **Hand-back to pinned Node.** The leg is red at its own precondition -- a fixture defect in the card
+  derivation, not a product finding -- so nothing is claimed (Q21, `unproven`).
+- **Deliberate exclusions**, stated in the README and the release: arbitrary Node server plugins; local
+  in-process ML (would need an ONNX runtime); byte-exact Jimp image re-encoding (`/thumbnail` renders, the
+  bytes are not claimed equal); wire formats owned by third-party npm packages; and inherited upstream
+  weaknesses, reproduced and recorded rather than silently fixed.
+- **The local qualification channel was never demonstrated.** Its instruments exist and were shown to
+  refuse, but this host held no originals, so no run may be cited as the channel working.
+
+### What the next round inherits
+
+1. The four `partial`/`unproven` rows above, each with the missing measurement named in its ledger row.
+2. A green `main`: the ledger gate, the pin gate and the generated-facts gates are all now mechanical, so a
+   documentation claim that outruns its evidence goes red rather than surviving to a release.
+3. One measured lesson from this release worth keeping: **inherited shell redirection corrupts text.**
+   `>` writes UTF-16LE and `Set-Content -Encoding utf8` writes a BOM, both of which render correctly and
+   break tooling. Write release text with an explicit no-BOM encoder and check the FIRST bytes.
 
 
 ## HISTORY
