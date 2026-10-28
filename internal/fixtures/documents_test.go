@@ -405,6 +405,11 @@ var declaredOtherPins = map[string]string{
 	"9e71caef9ba7b3ca324ce9f1cb06a69ff54d734b": "pinned LittleWhiteBox (RT15548/LittleWhiteBox) — AGENTS.md semantic-compat probes",
 	"798bcd823dfd04227a79b487e1cf29e6de9aaece": "pinned SillyTavern-Tokenizers data commit — docs/tokenizer-parity-plan.md",
 	"d00d99b87fc2fbd1ffd218c5ce160d07f27c47ef": "release-qualification.yml BASELINE_REF default — the commit that added the release workflow, not the SillyTavern pin",
+	// The commit a PAIRED BENCHMARK measured. A provenance record must name the exact tree its numbers
+	// came from, and that tree is a lane commit rather than the pinned upstream, so the value is a
+	// MEASUREMENT ANCHOR and not a baseline claim. Declared by value AND named, because an allowlist
+	// entry with no reason is exactly where a mistyped pin would hide.
+	"a3c2f5340f152ce96150f52be4ccf7b27695b61f": "commit measured by the paired benchmark — docs/assets/benchmark.svg.provenance.md and scorecard Q22",
 }
 
 // checkPinnedCommitStrings is the gate body, extracted so the red-path test can drive it against a
