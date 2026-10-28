@@ -305,6 +305,54 @@ const fixture = {
     results,
 };
 
+/**
+ * ENFORCES the probe's own `normalization.tier2` declarations with `rule: 'null'`.
+ *
+ * A DECLARATION NOTHING ENFORCES IS DOCUMENTATION, NOT A CONSTRAINT. This probe declared
+ * `results[*].configBefore.mtimeMs / configAfter.mtimeMs` as `rule: 'null'` -- "a modification time is a
+ * wall-clock measurement of this run, host-dependent by definition" -- and then wrote the REAL wall clock
+ * into the committed fixture anyway (`configAfter.mtimeMs: 1793096024313`). The oracle's
+ * `Verify generated results are committed` step then correctly refused a fixture that changes on every
+ * recording. The checker fix read the declaration; this makes the WRITER honour it.
+ *
+ * Driven from the declaration list rather than a hard-coded field, so the next declared path cannot repeat
+ * this. Only `rule: 'null'` is enforced here; a `rule` with prose (the `stderrLines` rewrite) is a
+ * different transformation and is left to its own consumer.
+ */
+function enforceNullDeclarations(document) {
+    const declarations = document?.normalization?.tier2 ?? [];
+    for (const declaration of declarations) {
+        if (declaration.rule !== 'null') continue;
+        const alternatives = String(declaration.path).split('/').map(part => part.trim()).filter(Boolean);
+        if (alternatives.length === 0) continue;
+        const scope = alternatives[0].split('[*]')[0];
+        for (const alternative of alternatives) {
+            const scoped = alternative.split('[*]')[0] === scope ? alternative : `${scope}[*].${alternative}`;
+            const segments = scoped.split('.');
+            const walk = (node, index) => {
+                if (node === null || node === undefined || typeof node !== 'object') return;
+                if (index === segments.length) return;
+                const segment = segments[index];
+                if (segment.endsWith('[*]')) {
+                    const key = segment.slice(0, -3);
+                    const container = node[key];
+                    if (container && typeof container === 'object') {
+                        for (const entry of Object.values(container)) walk(entry, index + 1);
+                    }
+                    return;
+                }
+                if (index === segments.length - 1) {
+                    if (Object.prototype.hasOwnProperty.call(node, segment)) node[segment] = null;
+                    return;
+                }
+                walk(node[segment], index + 1);
+            };
+            walk(document, 0);
+        }
+    }
+    return document;
+}
+
 // THE FIXTURE IS WRITTEN TO outputRoot, NOT PRINTED. The harness reads the file at
 // <outputRoot>/tests/oracle/<fixture> and diffs it against the committed copy; a probe that only logs its JSON
 // records nothing, and its re-record patch comes back EMPTY -- which reads exactly like "already recorded and
@@ -312,5 +360,7 @@ const fixture = {
 const outputDirectory = path.join(outputRoot, 'tests', 'oracle');
 mkdirSync(outputDirectory, { recursive: true });
 const outputFile = path.join(outputDirectory, 'sillytavern-1.19.0-config-duplicate-key.json');
+// THE DECLARATION IS ENFORCED BEFORE THE WRITE, so the committed fixture honours the schema it states.
+enforceNullDeclarations(fixture);
 writeFileSync(outputFile, `${JSON.stringify(fixture, null, 2)}\n`);
 console.log(`Wrote ${path.relative(outputRoot, outputFile)} from pinned duplicate-key boot`);

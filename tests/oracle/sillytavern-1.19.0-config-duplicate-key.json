@@ -33,12 +33,12 @@
       "configBefore": {
         "bytes": 25,
         "sha256": "c106d06389183eb7c2aa09b7b3bf7ab1d799a1fb2209d178702cfef2ae28aa7a",
-        "mtimeMs": 1767225600000
+        "mtimeMs": null
       },
       "configAfter": {
         "bytes": 3310,
         "sha256": "a166c5b85c947dd6b229fe9a165d02be046575222e7ba35dc0531272371517f9",
-        "mtimeMs": 1793096024313
+        "mtimeMs": null
       },
       "configMigration": "rewritten",
       "userStory": "booted and migrated: the duplicate key did NOT stop the server"
@@ -76,12 +76,12 @@
       "configBefore": {
         "bytes": 36,
         "sha256": "0f0ee0eede70e1c347d8c1c6ca2c417f738dd6e74bf03979e66829ebd790fdd3",
-        "mtimeMs": 1767225600000
+        "mtimeMs": null
       },
       "configAfter": {
         "bytes": 36,
         "sha256": "0f0ee0eede70e1c347d8c1c6ca2c417f738dd6e74bf03979e66829ebd790fdd3",
-        "mtimeMs": 1767225600000
+        "mtimeMs": null
       },
       "configMigration": "untouched",
       "userStory": "untouched file and a refusal: they can fix the duplicate and restart with nothing lost"
@@ -119,12 +119,12 @@
       "configBefore": {
         "bytes": 52,
         "sha256": "57cdc75f23788c511ff5a622526d66baaad42facd8c27106352feec7728fbf94",
-        "mtimeMs": 1767225600000
+        "mtimeMs": null
       },
       "configAfter": {
         "bytes": 52,
         "sha256": "57cdc75f23788c511ff5a622526d66baaad42facd8c27106352feec7728fbf94",
-        "mtimeMs": 1767225600000
+        "mtimeMs": null
       },
       "configMigration": "untouched",
       "userStory": "untouched file and a refusal: they can fix the duplicate and restart with nothing lost"
