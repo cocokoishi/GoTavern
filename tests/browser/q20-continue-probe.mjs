@@ -297,6 +297,10 @@ try {
             chatLength: chat.length,
             thisChid: chid,
             characterName: chid !== null && chid !== undefined ? (roster[chid]?.name ?? null) : null,
+            // THE PAGE'S OWN MESSAGES, so the setup gate can answer "does the open chat carry the predecessor" even
+            // when the chat has never been saved to disk (run 40603103596: a fresh chat has no file, and a gate that
+            // reads only files gets `null` while the other subject gets `true`).
+            chatAfterSelection: chat.map(entry => ({ mes: String(entry?.mes ?? ''), is_user: entry?.is_user === true })),
         };
     });
     report.openedContext = openedContext;
@@ -344,6 +348,13 @@ try {
         // The PRECONDITION IS RE-EVALUATED ON THE SELECTED CHAT: the length read before selection belonged to whatever
         // chat the card happened to resume, and the steps below need the count of the conversation actually in use.
         report.openedContext.chatLength = selected.chatLength ?? report.openedContext.chatLength;
+        // THE MESSAGES TOO, not just the count. `chatAfterSelection` was read BEFORE the switch, so on a leg that
+        // selects a chat it describes the previous conversation. The setup gate reads this array when no file on disk
+        // matches, so stale messages there would answer the question about the wrong chat.
+        report.openedContext.chatAfterSelection = await page.evaluate(() => {
+            const context = window.SillyTavern.getContext();
+            return (context.chat ?? []).map(entry => ({ mes: String(entry?.mes ?? ''), is_user: entry?.is_user === true }));
+        });
     } else {
         report.chatSelection = { requested: null, selected: null, reason: 'no --chat-id was supplied; the leg accepted the chat the card resumed' };
     }
@@ -369,18 +380,36 @@ try {
     // actually needs answered is "does THIS chat already carry the leg's own predecessor marker", which is the same
     // question on both subjects and is answered from the file on disk rather than from a page counter.
     //
-    // The chat is identified by the id the page reports NOW (after `chat-selected`, when one was requested), so the
-    // lookup does not depend on `preContinue`, which is recorded later.
+    // The chat is identified by the id the page reports NOW (after `chat-selected`, when one was requested).
+    //
+    // AND THE FILE MAY NOT EXIST YET ON A FRESH CHAT, which run 40603103596 measured: the GoTavern leg had just opened
+    // the card, its chat was EMPTY and had never been saved, so `readChatFiles` returned nothing that matched and
+    // `setupDecision.openChat` was `null` -- `carriesPredecessor: false` -- while the pinned leg read the real 6-line
+    // file and got `true`. Both legs "answered the question", from one source that existed and one that did not, and
+    // `sameSetup` then (correctly) refused. The PINNED leg was right and the GOTAVERN leg was asking a file that was
+    // not there.
+    //
+    // The state the gate needs is "does the OPEN CHAT already carry the predecessor", and an UNSAVED, EMPTY chat cannot
+    //: the marker is a message, and a chat with no messages has none. So an absent file is a DEFINITE answer (false),
+    // not an unknown -- but it is recorded distinctly (`source: 'no-file'` vs `'file'`) so the two ways of reaching
+    // "false" stay distinguishable in the artefact.
     const openChatId = String(report.openedContext?.chatIdAfterSelection ?? report.openedContext?.chatId ?? '');
-    const openChat = (await readChatFiles(dataRoot))
-        .find(entry => openChatId !== '' && String(entry.file ?? '').includes(openChatId)) ?? null;
-    const carriesPredecessor = (openChat?.messages ?? []).some(entry => String(entry?.mes ?? '').includes(MARKERS.second));
+    const onDisk = await readChatFiles(dataRoot);
+    const openChat = onDisk.find(entry => openChatId !== '' && String(entry.file ?? '').includes(openChatId)) ?? null;
+    const pageMessages = Array.isArray(report.openedContext?.chatAfterSelection)
+        ? report.openedContext.chatAfterSelection
+        : null;
+    const carriesPredecessor = openChat
+        ? (openChat.messages ?? []).some(entry => String(entry?.mes ?? '').includes(MARKERS.second))
+        : (pageMessages ?? []).some(entry => String(entry?.mes ?? '').includes(MARKERS.second));
     report.setupDecision = {
         openChat: openChat?.file ?? null,
+        source: openChat ? 'file' : (pageMessages ? 'page' : 'no-file-and-no-page-chat'),
         lines: openChat?.lines ?? null,
-        messages: (openChat?.messages ?? []).length,
+        messages: openChat ? (openChat.messages ?? []).length : (pageMessages ?? []).length,
         carriesPredecessor,
         openedContextChatLength: report.openedContext.chatLength ?? null,
+        filesOnDisk: onDisk.map(entry => `${entry.file}:${entry.lines}`),
         rule: 'the two setup turns are driven only when the open chat does NOT already carry the second-turn marker',
     };
     if (carriesPredecessor !== true) {
