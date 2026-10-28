@@ -1480,6 +1480,37 @@ rather than by review.
     Continue has 10 of 13 guards green and the last three are attributable to the setup divergence this change
     removes. Regenerate is at 13/13 across EIGHT CI runs; Q20 stays `partial`.
 
+100. **"Cannot decide" is not a third answer when the product's own state has already decided -- an absent file is a
+     VALUE, not an unknown -- and a guard must record WHICH SOURCE it read, so two routes to the same answer stay
+     distinguishable.** Measured by the guard written one rule earlier, on its first execution.
+     THE GUARD FIRED FOR EXACTLY THE REASON IT WAS WRITTEN, and it named the divergence rather than reporting a
+     symptom:
+         gotavern setupDecision: openChat null, lines null, messages 0, carriesPredecessor false
+         pinned   setupDecision: openChat "...Seraphina... .jsonl", lines 6, messages 6, carriesPredecessor true
+         completions: gotavern 4, pinned 2
+     That is rule 99's discipline paying off immediately: a precondition guard, verified against the failure that
+     motivated it, fired on its first real execution and localised the defect in one read.
+     AND THE PINNED LEG WAS RIGHT. The GoTavern leg had just opened the card; its chat was EMPTY and had never been
+     SAVED, so `readChatFiles` matched nothing and the gate read `null`. Pinned, started from the handoff, read the
+     real 6-line file. **Same question, two different sources -- one present, one absent.** The gate then treated "no
+     file" as "cannot decide", when the answer for an unsaved empty chat is FALSE: the predecessor is a MESSAGE, and
+     a chat with no messages cannot carry one. **An absent artefact is a value the product has already determined,
+     not a gap in the harness's knowledge** -- rule 17's distinction between a refusal and an absence, applied to a
+     file lookup.
+     THE FIX READS THE SOURCE THAT EXISTS AND RECORDS WHICH ONE IT USED: the FILE when one matches, the PAGE's own
+     `chat` array otherwise, recording `file` | `page` | `no-file-and-no-page-chat` plus the files on disk -- so the
+     two routes to `false` stay distinguishable in the artefact instead of collapsing into one. Rule 64 again: the
+     record must carry the mechanism.
+     AND ONE MORE INSTANCE OF RULE 90: `chatAfterSelection` is now recorded and RE-READ AFTER `chat-selected`, because
+     the pre-selection array describes the chat the card RESUMED, not the one the leg switched to. A value captured
+     before the operation it describes is a snapshot of the wrong subject.
+     THE LEDGER, SEVEN RUNS, AND IT HAS NOT CHANGED CHARACTER ONCE: every red has been this lane's harness -- a wrapper
+     field that cannot be written (95), `--chat-id` unimplemented in the probe (96), a live-root copy carrying the
+     probe's own residual turn (97), a handoff one step too late (98), a length threshold doing a marker's job (99),
+     and now an unsaved-chat file lookup. **The product has driven 24/24 green on every single attempt: 0 product
+     defects found in this lane, across three verbs.** Regenerate is at 13/13 across NINE CI runs; continue has 9 of
+     14 guards green and the four remaining all trace to this gate. Q20 stays `partial`.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
