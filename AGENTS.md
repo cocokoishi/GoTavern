@@ -1511,6 +1511,37 @@ rather than by review.
      defects found in this lane, across three verbs.** Regenerate is at 13/13 across NINE CI runs; continue has 9 of
      14 guards green and the four remaining all trace to this gate. Q20 stays `partial`.
 
+101. **A positional index is a DERIVATION about the shape of the drive, used to locate a record whose IDENTITY the
+     product already stamped -- select by the product's own marker, not by position.** And when a guard cannot
+     identify its subject, it must say so BY NAME rather than dereference `undefined` and blame the other subject.
+     THE EQUALITY WAS IN THE ARTEFACT AND THE COMPARATOR COULD NOT SEE IT. Measured directly from the run's two leg
+     files:
+         gotavern continue request sha  a1e050cbfa0f
+         pinned   continue request sha  a1e050cbfa0f      <- BYTE-IDENTICAL
+     while four guards each located the continue the same way:
+         const continued = requests[requests.length - 3] ?? null;
+     `length - 3` means "the continue" ONLY IF the leg drove exactly two setup turns first. The pinned leg, started
+     from the handoff, found those turns ALREADY PRESENT and correctly SKIPPED them
+     (`setupDecision.carriesPredecessor: true`, 2 completions instead of 4), so `length - 3` was `undefined` and the
+     guards reported "the continued request has no messages array" and "one of the subjects produced no continued
+     request" -- **while that subject's continuation request was byte-identical to GoTavern's.** The instrument
+     declared the product broken in the same run whose bytes proved it correct.
+     THE FIX SELECTS BY THE PRODUCT'S OWN MARKER: `continueRequestOf` takes the completion whose last message carries
+     `configured.continueNudgePrompt`, and `producedRequestOf` the completion before it on the same leg. A leg whose
+     continue cannot be identified now says so by name instead of dereferencing `undefined` and blaming the other
+     subject -- rule 17 again, a refusal must be distinguishable from an absence.
+     AND THIS IS THE MOMENT THE LANE'S THESIS IS PROVEN, which is why the rule exists: NEITHER VERB EVER HAD A PRODUCT
+     DEFECT. Every single red in NINE runs was this lane's instrument, and **the product's bytes were correct the
+     whole time -- including in the run whose comparator called it broken.** The lane's own statement of why it can
+     now say so is the operational lesson: **the only reason is that the artefacts were compared DIRECTLY instead of
+     trusting the guard's verdict.** That is rule 59's first question ("does a recorded capture already answer this")
+     and rule 75's discipline (measure the artefact, not the console) applied at the end of a long chase -- and both
+     of them would have shortened it by nine runs if they had been asked at the start.
+     THE LEDGER, FINAL FORM: nine runs, six harness defects, ZERO product defects across three verbs, with the product
+     driving 24/24 green on every attempt. Regenerate is at 13/13 across TEN CI runs. Continue's comparator has now
+     produced a byte-identical continuation request on both subjects, measured from a run's own artefacts; Q20 stays
+     `partial` until a run reports it green.
+
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
