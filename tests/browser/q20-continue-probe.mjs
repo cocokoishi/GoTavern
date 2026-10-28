@@ -561,93 +561,6 @@ try {
     step('continue-issued-exactly-one-request', continueRequests.length === 1, `${continueRequests.length} new chat/completions request(s); all peer requests: ${peer.requests.length}`);
     step('drive-stayed-on-one-page', report.navigations.length === navigationsBefore, JSON.stringify(report.navigations.slice(navigationsBefore)));
 
-    // ---- V5(b): A CLIENT DISCONNECT MID-CONTINUE --------------------------------------------------
-    // THE ABORT LANE ESTABLISHED THAT A CUT AND A CALLER ABORT END DIFFERENTLY, so a continue that
-    // treats them as one terminal state is a difference no other surface reveals. The comparator's
-    // `notCompared` already SAID this was unanswered -- "error/cancel mid-continue: no leg drives a
-    // failing provider here, so 'did the product save half a message' is unanswered" -- so this leg
-    // answers a DECLARED gap rather than adding an undeclared one.
-    //
-    // IT IS RECORDED, NOT JUDGED, and that is deliberate: this leg runs AFTER the measurement above and
-    // writes to `report.disconnectDuringContinue`, which no guard reads. A leg that could fail the
-    // surface it belongs to would let an experimental axis suppress the claim it was added to explain.
-    // Whether a difference here becomes a guard is a decision for the comparator, made once there is a
-    // measurement to look at -- evidence first, patch second.
-    //
-    // WHAT IT DRIVES: the peer holds the continue response open without finishing, the page's own fetch
-    // for that response is aborted the way a navigating or closing client aborts it, and the leg records
-    // whether the last message kept the partial text, was rolled back, or was left empty. Both subjects
-    // are driven identically, so an equal result is a fact and an unequal one is a finding.
-    try {
-        const disconnectBefore = peer.requests.length;
-        const halfMessage = await page.evaluate(async (marker) => {
-            const script = await import('./script.js');
-            const context = window.SillyTavern.getContext();
-            const chat = context.chat ?? [];
-            const last = chat[chat.length - 1] ?? null;
-            const before = {
-                lastIsUser: last?.is_user === true,
-                lastText: String(last?.mes ?? ''),
-                chatLength: chat.length,
-            };
-            // The control is pressed and the response is ABORTED from the page side, which is what a
-            // client disconnect looks like to the frontend: no user stop click, no provider error.
-            const controller = new AbortController();
-            const originalFetch = window.fetch;
-            let aborted = 0;
-            window.fetch = function patched(input, init) {
-                const url = String(input?.url ?? input ?? '');
-                if (/chat\/completions/.test(url) && init && typeof init === 'object') {
-                    const merged = { ...init, signal: controller.signal };
-                    const pending = originalFetch.call(this, input, merged);
-                    // Yield so the request reaches the peer, then drop the client side of it.
-                    queueMicrotask(() => { try { controller.abort(); aborted += 1; } catch { /* already gone */ } });
-                    return pending;
-                }
-                return originalFetch.call(this, input, init);
-            };
-            try {
-                document.querySelector('#option_continue')?.click();
-            } catch { /* recorded by the after-state */ }
-            await new Promise(resolve => setTimeout(resolve, 2500));
-            window.fetch = originalFetch;
-            const chatAfter = context.chat ?? [];
-            const lastAfter = chatAfter[chatAfter.length - 1] ?? null;
-            return {
-                before,
-                abortedRequests: aborted,
-                afterChatLength: chatAfter.length,
-                afterLastIsUser: lastAfter?.is_user === true,
-                afterLastText: String(lastAfter?.mes ?? ''),
-                sawBusy: document.querySelector('#mes_stop')?.style?.display !== 'none',
-            };
-        }, 'Q20_DISCONNECT_MARKER');
-        report.disconnectDuringContinue = {
-            ...halfMessage,
-            newPeerRequests: peer.requests.length - disconnectBefore,
-            // THE CLASSIFICATION, stated rather than inferred by a reader:
-            //   'kept-partial'  - the message grew and kept what arrived before the abort
-            //   'rolled-back'   - the message is byte-identical to the before-state
-            //   'emptied'       - the message exists and is now empty
-            //   'not-driven'    - the abort never reached a request, so nothing is claimed
-            outcome: halfMessage.abortedRequests === 0
-                ? 'not-driven'
-                : halfMessage.afterLastText === halfMessage.before.lastText
-                    ? 'rolled-back'
-                    : halfMessage.afterLastText === ''
-                        ? 'emptied'
-                        : 'kept-partial',
-        };
-        step('disconnect-mid-continue-recorded', true, JSON.stringify({
-            outcome: report.disconnectDuringContinue.outcome,
-            aborted: halfMessage.abortedRequests,
-            newRequests: report.disconnectDuringContinue.newPeerRequests,
-        }));
-        await settleQuiet(page, recorder);
-    } catch (error) {
-        report.disconnectDuringContinue = { outcome: 'not-driven', error: String(error && error.message ? error.message : error) };
-        step('disconnect-mid-continue-recorded', false, String(error && error.message ? error.message : error));
-    }
 
     // 3. THE PAGE AFTERWARDS: the SAME message, grown. Pinned's answer is asserted here on BOTH subjects, so a
     // backend that appended a new message instead would fail this step before the comparator sees it.
@@ -755,6 +668,101 @@ try {
     report.pageRequests = recorder.requests.map(entry => ({ method: entry.method, path: entry.pathAndQuery, status: entry.status }));
     report.chatRequests = chatRequestLog();
     report.processCommands = await readProcessCommands(page);
+    // ---- V5(b) RELOCATED HERE, AFTER THE LAST COUNTING STEP ------------------------------------------
+    // It was inserted before `next-turn-issued-one-request`, whose arithmetic (`allCompletions.length -
+    // requestsBefore - 1`) assumes exactly one completion between the baseline and the next turn. This leg
+    // presses continue a second time, so it made that count 2 and the assertion failed ON BOTH SUBJECTS --
+    // an assertion the insertion invalidated, not a stale guard and not a product finding (Browser
+    // differential 40757180703). Moving it below the last counting step keeps the axis and stops it
+    // perturbing a measurement it is not part of. NO ASSERTION WAS CHANGED: the arithmetic was correct for
+    // the surface as it was, and relaxing it to fit an experimental axis is how a guard becomes decoration.
+    // ---- V5(b): A CLIENT DISCONNECT MID-CONTINUE --------------------------------------------------
+    // THE ABORT LANE ESTABLISHED THAT A CUT AND A CALLER ABORT END DIFFERENTLY, so a continue that
+    // treats them as one terminal state is a difference no other surface reveals. The comparator's
+    // `notCompared` already SAID this was unanswered -- "error/cancel mid-continue: no leg drives a
+    // failing provider here, so 'did the product save half a message' is unanswered" -- so this leg
+    // answers a DECLARED gap rather than adding an undeclared one.
+    //
+    // IT IS RECORDED, NOT JUDGED, and that is deliberate: this leg runs AFTER the measurement above and
+    // writes to `report.disconnectDuringContinue`, which no guard reads. A leg that could fail the
+    // surface it belongs to would let an experimental axis suppress the claim it was added to explain.
+    // Whether a difference here becomes a guard is a decision for the comparator, made once there is a
+    // measurement to look at -- evidence first, patch second.
+    //
+    // WHAT IT DRIVES: the peer holds the continue response open without finishing, the page's own fetch
+    // for that response is aborted the way a navigating or closing client aborts it, and the leg records
+    // whether the last message kept the partial text, was rolled back, or was left empty. Both subjects
+    // are driven identically, so an equal result is a fact and an unequal one is a finding.
+    try {
+        const disconnectBefore = peer.requests.length;
+        const halfMessage = await page.evaluate(async (marker) => {
+            const script = await import('./script.js');
+            const context = window.SillyTavern.getContext();
+            const chat = context.chat ?? [];
+            const last = chat[chat.length - 1] ?? null;
+            const before = {
+                lastIsUser: last?.is_user === true,
+                lastText: String(last?.mes ?? ''),
+                chatLength: chat.length,
+            };
+            // The control is pressed and the response is ABORTED from the page side, which is what a
+            // client disconnect looks like to the frontend: no user stop click, no provider error.
+            const controller = new AbortController();
+            const originalFetch = window.fetch;
+            let aborted = 0;
+            window.fetch = function patched(input, init) {
+                const url = String(input?.url ?? input ?? '');
+                if (/chat\/completions/.test(url) && init && typeof init === 'object') {
+                    const merged = { ...init, signal: controller.signal };
+                    const pending = originalFetch.call(this, input, merged);
+                    // Yield so the request reaches the peer, then drop the client side of it.
+                    queueMicrotask(() => { try { controller.abort(); aborted += 1; } catch { /* already gone */ } });
+                    return pending;
+                }
+                return originalFetch.call(this, input, init);
+            };
+            try {
+                document.querySelector('#option_continue')?.click();
+            } catch { /* recorded by the after-state */ }
+            await new Promise(resolve => setTimeout(resolve, 2500));
+            window.fetch = originalFetch;
+            const chatAfter = context.chat ?? [];
+            const lastAfter = chatAfter[chatAfter.length - 1] ?? null;
+            return {
+                before,
+                abortedRequests: aborted,
+                afterChatLength: chatAfter.length,
+                afterLastIsUser: lastAfter?.is_user === true,
+                afterLastText: String(lastAfter?.mes ?? ''),
+                sawBusy: document.querySelector('#mes_stop')?.style?.display !== 'none',
+            };
+        }, 'Q20_DISCONNECT_MARKER');
+        report.disconnectDuringContinue = {
+            ...halfMessage,
+            newPeerRequests: peer.requests.length - disconnectBefore,
+            // THE CLASSIFICATION, stated rather than inferred by a reader:
+            //   'kept-partial'  - the message grew and kept what arrived before the abort
+            //   'rolled-back'   - the message is byte-identical to the before-state
+            //   'emptied'       - the message exists and is now empty
+            //   'not-driven'    - the abort never reached a request, so nothing is claimed
+            outcome: halfMessage.abortedRequests === 0
+                ? 'not-driven'
+                : halfMessage.afterLastText === halfMessage.before.lastText
+                    ? 'rolled-back'
+                    : halfMessage.afterLastText === ''
+                        ? 'emptied'
+                        : 'kept-partial',
+        };
+        step('disconnect-mid-continue-recorded', true, JSON.stringify({
+            outcome: report.disconnectDuringContinue.outcome,
+            aborted: halfMessage.abortedRequests,
+            newRequests: report.disconnectDuringContinue.newPeerRequests,
+        }));
+        await settleQuiet(page, recorder);
+    } catch (error) {
+        report.disconnectDuringContinue = { outcome: 'not-driven', error: String(error && error.message ? error.message : error) };
+        step('disconnect-mid-continue-recorded', false, String(error && error.message ? error.message : error));
+    }
 } catch (error) {
     report.failure = report.failure ?? String(error?.stack ?? error);
 } finally {
