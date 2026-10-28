@@ -156,31 +156,83 @@ export function changedJSONPaths(left, right, location = '$', output = []) {
 // least one still matches the commit. The sd-routes arrival-order race was found exactly this way.
 export function compareProbeRuns(first, second) {
     if (first.equals(second)) return null;
-    const paths = changedJSONPaths(JSON.parse(first), JSON.parse(second));
-    // A PATH WITHOUT ITS TWO VALUES IS AN ANONYMOUS RED. Measured: `Browser differential`-adjacent CI run
-    // 40689195143 failed with "oracle changed across identical pinned Node runs at:
-    // $.results.duplicate-key-control.configAfter.mtimeMs" and nothing else -- no values, so the reader
-    // could not tell a wall-clock difference (which the probe ALREADY declares `rule: 'null'` and which
-    // therefore cannot be a product finding) from a real instability of recorded BYTES. AGENTS 103: make
-    // the producer print what the consumer needs before spending the run. The values are truncated
-    // because they are diagnostic, not evidence.
+    const document = JSON.parse(first);
+    const paths = changedJSONPaths(document, JSON.parse(second));
+    // A FIELD THE PROBE DECLARES UNCOMPARABLE CANNOT BE AN INSTABILITY. The fixture carries its own
+    // `normalization.tier2` declarations, and a rule of `'null'` says "this measurement is host-dependent,
+    // the written fixture nulls it" -- e.g. `results[*].configBefore.mtimeMs / configAfter.mtimeMs`,
+    // declared at tools/probe-config-duplicate-key.mjs:299 as "a wall-clock measurement of this run,
+    // host-dependent by definition". Comparing the RAW record before that normalisation made the checker
+    // report an instability for a field the probe had already said it does not record. Measured across
+    // `GoTavern CI` 40689195143 and 40709245686: the same probe failed on
+    // `$.results.duplicate-key-control.configAfter.mtimeMs` with values 1793199452288 and 1793199468807 --
+    // sixteen seconds apart on a `fs.stat` timestamp, while every field the probe DOES claim to record was
+    // byte-identical. This is AGENTS 103 one layer down: the consumer must read what the producer declared,
+    // which here is the fixture's own normalization list rather than an assumption about which fields move.
+    const shapeOnly = shapeOnlyMatchers(document);
+    const comparable = paths.filter(path => !shapeOnly.some(matcher => matcher(path)));
+    if (comparable.length === 0) return null;
     const show = value => {
         const text = value === undefined ? '<absent>' : JSON.stringify(value);
         return text.length > 120 ? `${text.slice(0, 117)}...` : text;
     };
-    const details = paths.map(path => {
-        const read = (document) => {
-            let cursor = document;
-            for (const part of path.replace(/^\$\./, '').split('.')) {
-                if (cursor === null || cursor === undefined) return undefined;
-                const key = part.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean);
-                for (const step of key) { cursor = cursor?.[step]; }
-            }
-            return cursor;
-        };
-        return `${path} (run1 ${show(read(JSON.parse(first)))}, run2 ${show(read(JSON.parse(second)))})`;
-    });
+    const read = (doc, path) => {
+        let cursor = doc;
+        const parts = path.replace(/^\$\./, '').replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean);
+        for (const step of parts) {
+            if (cursor === null || cursor === undefined) return undefined;
+            cursor = cursor[step];
+        }
+        return cursor;
+    };
+    const second2 = JSON.parse(second);
+    const details = comparable.map(path => `${path} (run1 ${show(read(document, path))}, run2 ${show(read(second2, path))})`);
     return new Error(`oracle changed across identical pinned Node runs at: ${details.join(', ')}`);
+}
+
+/**
+ * Turns the fixture's own `normalization.tier2` declarations with `rule: 'null'` into path matchers.
+ *
+ * A declaration is a SLASH-SEPARATED PATH STRING with `[*]` wildcards, e.g.
+ * `results[*].configBefore.mtimeMs / configAfter.mtimeMs`. It lists the concrete fields that the written
+ * fixture nulls, so each side of the slash becomes a matcher: the array segment stays a wildcard while
+ * the numeric index in a changed path (`results[0]...`) is folded back to `[*]`.
+ */
+/**
+ * Turns the fixture's own `normalization.tier2` declarations with `rule: 'null'` into path matchers.
+ *
+ * A declaration is a SLASH-SEPARATED PATH STRING with `[*]` wildcards, e.g.
+ * `results[*].configBefore.mtimeMs / configAfter.mtimeMs`. The alternatives share the array scope named
+ * by the FIRST one, and later alternatives that do not repeat it are relative to that scope -- which is
+ * why `configAfter.mtimeMs` means `results[*].configAfter.mtimeMs`. Reading the alternatives as absolute
+ * paths is what left `results[0].configAfter.mtimeMs` unmatched while `configBefore` matched, and it is
+ * the difference between an exclusion that works and one that only looks like it does.
+ */
+function shapeOnlyMatchers(document) {
+    const declarations = document?.normalization?.tier2 ?? [];
+    const matchers = [];
+    for (const declaration of declarations) {
+        if (declaration.rule !== 'null') continue;
+        const alternatives = String(declaration.path).split('/').map(part => part.trim()).filter(Boolean);
+        if (alternatives.length === 0) continue;
+        const scope = alternatives[0].split('[*]')[0];
+        for (const alternative of alternatives) {
+            const scoped = alternative.split('[*]')[0] === scope ? alternative : `${scope}[*].${alternative}`;
+            // `[*]` MEANS "ANY ONE SEGMENT", and the two path builders disagree about how they spell it.
+            // `changedJSONPaths` writes an OBJECT key as `.name` and only an ARRAY index as `[0]`
+            // (measured: `$.results.duplicate-key-control.configAfter.mtimeMs`, where `results` is an
+            // object keyed by scenario -- `probe-config-duplicate-key.mjs:259`). A wildcard translated only
+            // to `\[\d+\]` therefore matched nothing for this probe, which is why the first attempt at
+            // this exclusion silently did nothing and the field still failed. Accept either spelling.
+            const segments = scoped.split('[*]').map(segment => segment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+            const body = segments.reduce((acc, segment, index) => (
+                index === 0 ? segment : `${acc}(?:\\[[^\\]]+\\]|\\.[^.]+)${segment}`
+            ));
+            const regex = new RegExp(`^\\$\\.${body}$`);
+            matchers.push(path => regex.test(path));
+        }
+    }
+    return matchers;
 }
 
 // ---------------------------------------------------------------------------------------------------
