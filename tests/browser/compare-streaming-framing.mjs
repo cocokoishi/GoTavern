@@ -380,10 +380,20 @@ const main = async () => {
             cutArmOnPath: hop(abortGotavern).cutArmOnPath ?? null,
             cut: { gotavern: hop(abortGotavern).anyCut ?? hop(abortGotavern).cut ?? null, pinned: hop(abortPinned).anyCut ?? hop(abortPinned).cut ?? null },
             cutPerRequest: { gotavern: hop(abortGotavern).cut ?? null, pinned: hop(abortPinned).cut ?? null },
+            // THE REASON EACH SUBJECT WAS CUT, per subject. The verifier reads `hop.anyCut[leg]` and the
+            // artefact published this only as `cut` (one key, not keyed by subject), so every check that
+            // asked for `anyCut.gotavern` got `undefined` and reported "the cut did not happen" while the
+            // leg file carried `anyCut: "cut-after-bytes"`. `anyCut` is the durable fact -- `cut` belongs
+            // to the request being served and a later request on the same connection clears it.
+            anyCut: { gotavern: hop(abortGotavern).anyCut ?? null, pinned: hop(abortPinned).anyCut ?? null },
             cutsPerformed: { gotavern: hop(abortGotavern).cutsPerformed ?? 0, pinned: hop(abortPinned).cutsPerformed ?? 0 },
             cutAfterFrames: hop(abortGotavern).cutAfterFrames ?? null,
             cutAfterBytes: hop(abortGotavern).cutAfterBytes ?? null,
-            releasedBytesUnderCut: { gotavern: hop(abortGotavern).releasedAtCut ?? null, pinned: hop(abortPinned).releasedAtCut ?? null },
+            // THE PREFIX THE SUBJECT ACTUALLY RECEIVED, which is `releasedBytes`, NOT `releasedAtCut`.
+            // `releasedAtCut` is the count AT the cut instant and is 0 by construction for a cut-after-bytes,
+            // so mapping it here published `0` beside two rendered content states -- the contradiction the
+            // verifier then correctly refused. Measured: leg file releasedBytes 349, artefact said 0.
+            releasedBytesUnderCut: { gotavern: hop(abortGotavern).releasedBytes ?? null, pinned: hop(abortPinned).releasedBytes ?? null },
             hopReleasedBytesTotal: { gotavern: hop(abortGotavern).releasedBytes ?? null, pinned: hop(abortPinned).releasedBytes ?? null },
             relayedWrites: { gotavern: hop(relayedGotavern).bodyWriteCount ?? null, pinned: hop(relayedPinned).bodyWriteCount ?? null },
             relayedFrames: {
