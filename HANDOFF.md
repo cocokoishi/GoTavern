@@ -10,6 +10,106 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
+## HISTORY - earlier checkpoints follow. The entry directly below is superseded by the alpha.8
+## checkpoint above; read it as a dated record, never as current state.
+
+## Latest checkpoint - 2026-10-28: `v0.1.0-alpha.8` SHIPPED -- ACTIVE ALPHA8 DEVELOPMENT CLOSED
+
+> **`ACTIVE ALPHA8 DEVELOPMENT CLOSED`.** `v0.1.0-alpha.8` is published. Nothing in this file is an
+> instruction to continue: the remaining items are accepted limits recorded for the next round, not work in
+> flight. Read the sections below as the closeout record.
+
+| Field | Value |
+|---|---|
+| **Release** | `v0.1.0-alpha.8`, published as a **prerelease** (`isPrerelease=true`, `draft=false`) |
+| **Release SHA** | `dd6f2ac5a13d7f2683125afcf96f6de32dd0e56d` -- the commit the annotated tag names |
+| **Assets** | six canonical archives plus `checksums.txt`, all seven published |
+| **`main` after the release** | `4746af8` (the post-tag facts regeneration, which the tag made necessary) |
+| **Pinned baseline** | SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127` |
+| **Live evidence ledger** | `docs/goal-scorecard.md` |
+
+### What alpha.8 adds over alpha.7
+
+**The streaming abort judge** -- the one explicit proof gap alpha.7 left -- and the network hop it had to be
+judged through. Seven changes, each removing a named, measured defect:
+
+1. **The recorder fix.** The abort drive's render recorder returned the length of a list that did not exist,
+   so every abort leg timed out with no observations. `renderStates` 0 -> 2/1 -> 4.
+2. **The cut-point correction.** The abort leg cut at the head of the body, which releases no content frame,
+   so the partial-text guards were **unsatisfiable by construction** (`contentStates: 0`, `textAfterCut:
+   null`). The leg now cuts after three complete frames, and both subjects render identical partial text
+   (`contentStates: 2`, `textAfterCut: "Hello from the"`).
+3. **The catalogue row.** `streaming-framing-comparison.json` had no entry in `tests/browser/sources.mjs`, so
+   the verifier's own rule made it read as *nothing* rather than a pass.
+4. **The re-derived guard set.** The old abort guards contradicted themselves (`releasedBytesUnderCut === 0`
+   beside `contentStates === 2`). Re-derived for the cut-after-N-frames vehicle;
+   `peerDidNotDisconnect` and `pageReturnedToIdleOnBothSubjects` **renamed to what is measured**
+   (`peerSawTheClientDisconnect`, `bothSubjectsLeftGeneratingWithTheStopButtonUp`). Every guard has a stated
+   reachable failure condition, proven by a 28-case selftest.
+5. **The timeout path publishes what it observed.** It returned only an error string, so four guards read
+   `[]` -- equal, but vacuously.
+6. **Rules 102 and 103**, each with its measurement: a guard must read the fact its name claims *and may
+   exist in more than one place*; and a run must not be spent before comparing the fields the producer
+   writes against the fields the consumer reads.
+7. **The oracle's stability and shape enforcement** -- one probe, three layers: the checker compared a field
+   declared `rule: 'null'`, the writer declared it and wrote the real value anyway, and the fixture could
+   therefore never re-record deterministically. The writer now enforces its own declaration.
+
+### `cut/abort` is no longer `UNPROVEN`
+
+| Claim | Evidence |
+|---|---|
+| `Browser differential` green with both abort legs identical | **40682654579** -- success; steps 15, 16, 17 all passed; `releasedBytes 349`, `contentStates 2`, `textAfterCut "Hello from the"`; 28-case and 14-case selftests green in CI |
+| The green judges what merged | `git diff c3ed9f5 a319cd4` **IDENTICAL** |
+| Oracle green for a legitimate reason | **40753808420** -- success (`changes`, `browser-evidence`, `verify`, `oracle`), steps 12 and 19 both passing |
+| Lane qualification | **40682642159** on `c3ed9f5` success; **40689195171** drop-in qualification success; **40689195143** full `verify` success |
+
+### Tag-triggered runs, all green
+
+Quoted as `workflow name + run id + conclusion` (`AGENTS.md` rule 55).
+
+| Workflow | Run | Conclusion |
+|---|---|---|
+| `GoTavern Release` | 40754588557 | success |
+| `GoTavern release qualification` | 40754588528 | success |
+| `GoTavern Docker image` | 40754588379 | success |
+
+### KNOWN DIFFERENCE -- 酒馆助手 variables after restart (not in alpha.8's committed scope)
+
+`Browser differential` `helper variables (narrow)` reports `asymmetries=[survivesRestart]
+(gotavern=true, pinned=false)` with **`mismatches=[]`** -- no request or response content mismatch. GoTavern
+retains a 酒馆助手 variable value across a server restart in a new process where pinned does not; it does
+*more*, not less. Measured identically on runs **40681692737** (`24babdc`, pre-merge) and **40689195294**
+(`a319cd4`).
+
+**Open, recorded rather than implied:** the same artefact declares `survivesRestart` and `offIsTheControl` as
+**required for its claim** while listing them as **unproven** -- it contradicts itself about its own coverage
+-- and its claim is blocked by `guards.globalScopeReachesWire is false`. The surface is **not claimed as
+proven**; the judge inconsistency and the product question are carried to their own lane, evidence first.
+
+### No runtime `.go` changed
+
+Stated rather than manufactured into a changelog: every change in alpha.8 is harness-side -- the browser
+drive, the framing hop, the comparator, the verifier, the oracle's probe and checker, two fixture documents,
+and two recorded rules. **The product binary is unchanged from alpha.7.**
+
+### Remaining boundaries
+
+- **continue (P2)** -- not started.
+- **hand-back to Node (P3)** -- not started.
+- **backgrounds (P4)** -- not started.
+- **酒馆助手 variables after restart** -- the two open items above.
+
+### Process note: the branch-name collision
+
+A shared branch name let a superseded design displace a verified one, and nothing in `git status` said so.
+`lane/q19-streaming-rebase` was rebased onto `39785cf` producing `8bd55a2`, which contained none of the green
+run's commits; a clean `--no-ff` merge of it produced a plausible tree **missing rules 102/103 and
+`renderStatesAtTimeout`**. Only asserting that the merged tree CONTAINS what it must caught it, before the
+push. The lane was then merged from `lane/q19-judge` instead (`a319cd4`), leaving the other branch to its
+owner and force-pushing nothing.
+
+---
 ## Latest checkpoint - 2026-10-27: `v0.1.0-alpha.7` SHIPPED -- ACTIVE ALPHA7 DEVELOPMENT CLOSED
 
 > **`ACTIVE ALPHA7 DEVELOPMENT CLOSED`.** `v0.1.0-alpha.7` is published. Nothing in this file is an
