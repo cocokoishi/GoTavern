@@ -59,7 +59,7 @@ A row is `PASS` only when every one of these holds:
 | 16 | Arbitrary Node server plugins | **NOT_APPLICABLE** | 3 named test(s), CI job(s) | _none_ |
 | 17 | Embeddings and vector storage | **PARTIAL** | 1 oracle fixture(s), Go implementation, 1 named test(s), CI job(s) | 2 item(s) |
 | 18 | Multi-user: create, admin, recovery, reset, private data, per-user data roots | **PARTIAL** | 6 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
-| 19 | Content import, character export, chat/account backups and restore | **PARTIAL** | 5 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
+| 19 | Content import, character export, chat/account backups and restore | **PARTIAL** | 5 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 3 item(s) |
 | 20 | Startup: config creation and migration, data seeding, locking, no-hang, no egress | **FAIL** | 6 oracle fixture(s), upstream assets, Go implementation, 4 named test(s), CI job(s) | 5 item(s) |
 | 21 | Release artifact: archive, install, upgrade, rollback, docker, smoke | **PARTIAL** | upstream assets, Go implementation, 2 named test(s), CI job(s), release-artifact step | 3 item(s) |
 | 22 | Whole-session differential in a stock tree (load, settings, characters, chat, send, stream, save, reload) | **FAIL** | 1 oracle fixture(s), 2 browser artefact(s), CI job(s) | 3 item(s) |
@@ -447,6 +447,7 @@ Row id: `import-export-backups`
 
 - restore is not proven: a backup is read, but no test restores one into a tree and compares the tree
 - the inherited substring-matching host classifier (ARCHITECTURE.md boundary 5) is recorded as inherited but no test pins its acceptance of chub.ai.attacker.example
+- REQUEST hand-back to Node is ABSENT, not partial: no route is proxied and no configuration selects an upstream. Five routes answer for themselves with ZERO outbound requests -- /api/content/importURL for chub/janitorai/pygmalion/risu/perchance (content.go:171-174), /api/content/importUUID for a non-AICC shape (content_uuid.go:146-151), and /api/image-metadata when generation is unsupported (image_metadata_get.go:71-74) -- each answering 501 and returning before any download or fetch (verified in source, not asserted). The negative is established by three searches: ReverseProxy has 126 hits in internal/ and cmd/ and every one is the pinned provider setting reverse_proxy from the request body, not httputil.NewSingleHostReverseProxy; handback\|hand-back\|upstreamNode\|proxyTo returns two test filenames and no implementation; and the 18 StatusNotImplemented answers are provider-branch 501s rather than a hand-back trigger. DATA hand-back is the other half and it IS proven: Q21 (q21-data-handback.mjs) drives the product writing a tree and pinned opening the same directory, asserting pinnedReadTheChat, pinnedChatIdMatches, pinnedContinued and noDataLossOnHandBack. Contract: docs/surfaces/handback.md. NO TEST YET PINS THE PER-ROUTE TABLE, so this is a recorded boundary awaiting its gate
 
 A backup nobody has restored is a file, not a backup.
 
