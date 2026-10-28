@@ -50,5 +50,28 @@ The generator enforces these properties, each of which a hand edit would silentl
 - one **zero-based** panel per metric, with that panel's axis maximum printed, so nothing is truncated;
 - the raw value printed for both subjects in every panel, plus the ratio derived from those two values;
 - a minimum bar width that affects only the rectangle, never a printed number or the axis;
-- `role="img"` with `<title>` and `<desc>`, so the figure is not opaque to a screen reader;
+- `role="img"` with `<title>` and `<desc>`, so the figure is not opaque to a screen reader, and the `<desc>` carries
+  the SAME per-panel verdict word a sighted reader sees;
 - an explicit background and no external references, no external font, and no script.
+
+## Visual style, and the one word the style may not use (2026-10-27 redesign)
+
+The figure is drawn in a **sketch / whiteboard-marker** style: wobbly bar outlines, hand-drawn panel frames drawn
+twice, sketchy axis ticks, and a hand underline beneath the accent in the identity colour `#66ccff`.
+
+**The wobble is a pure function of its arguments.** `sketchNoise(n)` is a stateless 32-bit integer hash, and every
+curve is `sketchLine`/`sketchRect` seeded from the panel and row index. There is no `Math.random`, no `Date`, and no
+dependence on execution order, so the two runs that produce `benchmark.svg` produce identical bytes -- the property
+the section above depends on. A hand-drawn look and a reproducible artefact are not in tension; what they forbid is
+randomness.
+
+**THE VERDICT WORD IS PER-METRIC, AND THAT IS A CORRECTNESS RULE.** The three timing panels say
+`Nx faster`; the memory panel says `Nx lighter`. A resident-set size is not fast or slow, so printing "faster" over
+the RSS bar would put an inaccurate claim on a release surface. The headline covers all four by making two claims --
+"Faster. Lighter." -- rather than stretching one word over a metric it does not describe.
+
+**On the surface colour.** A paper-white board would force dark ink, and `#66ccff` on white is 2.2:1 -- unreadable as
+text and invisible as a stroke. A deep navy page (`#0a1a2f`) keeps the requested colour as the bright accent it is
+and keeps every text pair past WCAG AA: primary 15.71:1, secondary 9.32:1, identity 9.69:1, and the in-bar value inks
+8.97:1 and 8.59:1. The frame stroke is 3.11:1, above the 3:1 threshold for non-text graphics.
+
