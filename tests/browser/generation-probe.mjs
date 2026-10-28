@@ -43,6 +43,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { PEER_CIRCUIT, sourceFor } from './sources.mjs';
 import { PRESET_FIXTURE, applyPresetKit, applyAuthorsNoteOverlay, authorsNoteOverlaySpec, presetSpec, resolveAuthorsNoteCase } from './preset-kit.mjs';
+import { HOP_MODES, loopbackUpstream, startStreamingHop } from './streaming-framing.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -217,6 +218,44 @@ const probeMode = process.env.PROBE_MODE ?? 'nonstream';
 // (source and protocol are derived above, before the mock script, so one place decides both)
 
 const streamingMode = probeMode === 'stream' || probeMode === 'cancel';
+// ABORT MODE (Q19, the mid-stream network close). Same peer, same paced frames, same drive as `stream`
+// -- the difference is in the NETWORK and in the CALLER, and both are named here rather than inferred:
+//   * the network: the page reaches the peer through the framing proxy in `cut` mode, which releases
+//     only the first N bytes of the upstream body and then closes both sockets. The peer stays healthy
+//     and writes its whole script, so the reply the subject RECEIVED is a strict prefix of the reply it
+//     receives in `stream` mode;
+//   * the caller: the page is NEVER asked to stop. The frontend has to notice a dead stream by itself,
+//     which is the half `cancel` mode cannot measure because there the user pressed the stop button.
+// The two halves are recorded separately (`networkClose` from the proxy, `streamState` from the page) so
+// "the network died" and "the page gave up" can never be confused for one another.
+const abortMode = probeMode === 'abort';
+const streamingModeOrAbort = streamingMode || abortMode;
+// A HOP BETWEEN THE SUBJECT AND THE PEER. `PROBE_NETWORK_HOP=cut` puts the framing hop in front of the
+// peer in its cutting mode, `pass-through` in its control mode; anything else leaves the page talking to
+// the peer directly, which is what every earlier artefact recorded. The mode is applied to whichever
+// address the leg would otherwise use, so the drive code is untouched: only the network underneath it
+// changes, which is the whole point of the gate.
+//
+// THE `buffer` MODE IS DELETED, and the deletion is a measurement rather than a simplification. A hop that
+// releases the whole body in one write does not slow a streaming server down: in ONE release the page
+// reads everything, the pinned SSE reader yields every frame in that same tick, and incremental render is
+// lost on BOTH subjects for reasons that have nothing to do with either server's flushing (measured, run
+// 40299346339: 2 content states on GoTavern, 1 on pinned). A mode whose difference is the browser's commit
+// schedule cannot support a claim about a subject, so it is gone rather than dressed up. See
+// tests/browser/streaming-framing.mjs for the full reasoning.
+const hopModeSetting = process.env.PROBE_NETWORK_HOP ?? '';
+const hopMode = hopModeSetting === HOP_MODES.CUT || hopModeSetting === HOP_MODES.CUT_AT_HEAD || hopModeSetting === HOP_MODES.PASS_THROUGH
+    ? hopModeSetting
+    : null;
+if (hopModeSetting && !hopMode) {
+    throw new Error(`PROBE_NETWORK_HOP must be "${HOP_MODES.CUT}" or "${HOP_MODES.PASS_THROUGH}" (or unset), got ${JSON.stringify(hopModeSetting)}: an unrecognised value would silently measure the direct connection while the artefact claimed a hop`);
+}
+// THE CUT POINT IS THE PEER'S OWN FRAMING, NOT A BYTE COUNT PICKED HERE. The peer writes
+// `data: {...}\n\n`; cutting "after N bytes" would land mid-payload on one protocol and mid-frame on
+// another. So the probe learns the frame length from the peer's OWN encoder and cuts at the END of a
+// frame, which makes the required observation exact: the subject receives at least one complete content
+// frame (so a render must start) and strictly fewer than were written (so the stream cannot finish).
+const cutAfterFrames = Number(process.env.PROBE_CUT_AFTER_FRAMES ?? 2);
 
 // PRESET MODE: the complex-preset differential (AGENTS.md rules 8 and 9).
 //
@@ -395,6 +434,13 @@ function startStreamingPeer(mode, protocol) {
             for (let wordIndex = 0; wordIndex < wordCount; wordIndex += 1) {
                 frames.push(words[wordIndex % words.length] + (wordIndex >= words.length ? '#' + wordIndex : ''));
             }
+            // `abort` IS NOT `cancel` ON THE PEER'S SIDE. In cancel mode the peer holds the stream open
+            // and waits for the caller to go away, because the subject under test is the page's stop
+            // button. In abort mode the CALLER never stops: the network dies in the middle (the framing
+            // proxy cuts) while the peer goes on writing its whole script. So the peer must NOT hold the
+            // stream open, or it would be the peer that truncated the reply and the subject's behaviour
+            // would be unobservable. It finishes normally, and the proxy decides what reaches the page.
+            const holdOpen = mode === 'cancel';
             const frameDelay = Number(process.env.PROBE_FRAME_MS ?? (mode === 'cancel' ? 120 : 40));
             let finished = false;
             response.on('close', () => {
@@ -436,7 +482,7 @@ function startStreamingPeer(mode, protocol) {
                     return;
                 }
                 clearInterval(timer);
-                if (mode === 'cancel') {
+                if (holdOpen) {
                     // Hold the stream open: the browser must abort while text is partially rendered.
                     // The peer only ends when the caller closes (the close handler above records it).
                     return;
@@ -474,7 +520,7 @@ let mockAddress = '';
 // streamed/cancelled drive, is served by the in-process peer that answers by REQUEST: it needs no
 // per-source count at all, which is why the whole class moved to it rather than each source keeping
 // its own entries in a positional script.
-const useInProcessPeer = streamingMode || source.probe.peer.circuit === PEER_CIRCUIT.REQUEST_KEYED;
+const useInProcessPeer = streamingModeOrAbort || source.probe.peer.circuit === PEER_CIRCUIT.REQUEST_KEYED;
 if (useInProcessPeer) {
     streamingPeer = await startStreamingPeer(probeMode, peerProtocol);
     mockAddress = streamingPeer.address;
@@ -493,6 +539,41 @@ if (useInProcessPeer) {
     if (!mockAddress) {
         throw new Error('mock provider did not report its address');
     }
+}
+
+// THE BYTE COUNT THAT ENDS A FRAME. `cutAfterBytes` is resolved per protocol from the peer's own frame
+// encoding, so the cut lands on a FRAME boundary rather than inside a JSON payload: the required
+// observation then becomes a COUNT of complete frames the subject received, and neither chunk coalescing
+// nor a proxy padding decision can move it.
+function framesToBytes(frames, protocol) {
+    const sample = protocol === 'anthropic'
+        ? `event: content_block_delta\ndata: ${JSON.stringify({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Hello' } })}\n\n`
+        : `data: ${JSON.stringify({
+            id: 'chatcmpl-probe', object: 'chat.completion.chunk', created: 1, model: 'probe-model',
+            choices: [{ index: 0, delta: { content: 'Hello' }, finish_reason: null }],
+        })}\n\n`;
+    return Buffer.byteLength(sample, 'utf8') * frames;
+}
+const cutAfterBytes = abortMode && (hopMode === HOP_MODES.CUT || hopMode === HOP_MODES.CUT_AT_HEAD) ? framesToBytes(cutAfterFrames, peerProtocol) : 0;
+// THE HOP GOES IN FRONT OF THE PEER, BEFORE ANYTHING IS AIMED AT IT. Every aim step below reads
+// `mockAddress` -- the seams, the redirect file and the page's own custom_url/reverse_proxy -- so one
+// reassignment moves the whole leg behind the hop and there is no second place the peer's address is
+// spelled. Nothing about the drive changes; only the network underneath it does.
+//
+// THE CUT IS ARMED ONLY ON THE COMPLETION ROUTE, and it is named HERE (by the same `protocol` fact that
+// builds the peer) rather than guessed by the hop: a hop that cut the frontend's own GET /models would
+// truncate the reachability check and the drive would never reach a connected state (measured in the first
+// draft: both subjects ended with `in flight: 1` and no stream at all).
+const cutArmOnPath = peerProtocol === 'anthropic' ? '/messages' : '/chat/completions';
+const proxy = hopMode ? await startStreamingHop({
+    upstream: loopbackUpstream(mockAddress),
+    mode: hopMode,
+    cutAfterBytes,
+    cutArmOnPath,
+}) : null;
+if (proxy) {
+    mockAddress = proxy.address;
+    console.log(`[hop] ${hopMode} ${proxy.address} -> ${streamingPeer ? streamingPeer.address : 'the scripted peer'}${hopMode === HOP_MODES.CUT ? ` (cut on ${cutArmOnPath} after ${cutAfterBytes} B = ${cutAfterFrames} frames)` : ''}`);
 }
 
 // AIM THE LEGS AT THE PEER IN BOTH MODES, FROM THE CATALOG.
@@ -883,7 +964,7 @@ try {
         }
     }
     const outcome = await page.evaluate(async ({ mockUrl, probeMode, probeSource, plan, presetSpec, presetVariant, presetBoundary, presetAnchor, presetContextOverride }) => {
-    const streaming = probeMode === 'stream' || probeMode === 'cancel';
+    const streaming = probeMode === 'stream' || probeMode === 'cancel' || probeMode === 'abort';
         // Faithful drive: load and select a character through the frontend's OWN functions, then send
         // through the UI button. The earlier version pushed into a temporary chat and called
         // Generate() with the frontend already mid-operation and no character bound, which a user
@@ -1404,6 +1485,40 @@ try {
             renderObserver.observe(chatRoot, { subtree: true, childList: true, characterData: true });
         }
         globalThis.__probeClickT = Date.now();
+        // THE ABORT SURFACE'S OWN RECORDER, INSTALLED BEFORE THE SEND.
+        //
+        // It is READ in two places and was ASSIGNED in none: the settle predicate below (`renderStates:
+        // (globalThis.__probeAbortRecorder?.renderStates ?? []).length`) and the node-side observation
+        // after the drive returned. Because nothing created it, the settle loop compared the length of a
+        // list that did not exist -- always 0 -- so the quiet state was rejected forever and both
+        // subjects reported `the page did not settle within 60s` with `renderStates: 0`. That number was
+        // not a measurement of the page; it was the absence of one. Measured, `Browser differential`
+        // 40629705640 (failure), step `Compare the streaming framing legs`.
+        //
+        // WHY IT LIVES HERE, INSIDE THIS `page.evaluate` AND BEFORE THE CLICK. This is the same
+        // page-side, pre-send install point the in-flight counters (`:856`) and the pre-send preset
+        // state (`:1589`) already use. A page handle does not exist inside the drive callback -- putting
+        // an observation there failed on both legs with `page is not defined` (runs 40307148708,
+        // 40310223649) -- so the recorder is created page-side and SURVIVES the callback, which is why
+        // the node-side block can read it after the drive returns.
+        //
+        // IT ALIASES THE OBSERVATION THAT ALREADY EXISTS rather than sampling a second time: the
+        // MutationObserver above already records every distinct rendered text into
+        // `__probeRenderSnapshots`, and a second poll would disagree with it under exactly the timing
+        // this surface is about. `ended` is the emit log's own completion/stop/error entries, filtered
+        // here so the reader does not re-derive them.
+        globalThis.__probeAbortRecorder = {
+            get renderStates() {
+                return globalThis.__probeRenderSnapshots ?? [];
+            },
+            get ended() {
+                return (globalThis.__probeEmitLog ?? []).filter(entry => (
+                    entry.name === 'GENERATION_ENDED'
+                    || entry.name === 'GENERATION_STOPPED'
+                    || entry.name === 'GENERATION_AFTER_COMMANDS'
+                ));
+            },
+        };
         globalThis.__probeClickPerf = Math.round(performance.now());
         // THE PRE-SEND STATE, IN PRESET MODE, MEASURED IMMEDIATELY BEFORE THE CLICK.
         //
@@ -1567,6 +1682,11 @@ try {
                 await new Promise(resolve => setTimeout(resolve, 1500));
                 streamState.snapshotsLater = renderSnapshots().length;
                 streamState.textLater = renderSnapshots().at(-1)?.text ?? null;
+            } else if (probeMode === 'abort') {
+                // THE OBSERVATION IS TAKEN AFTER THE DRIVE RETURNS, OUTSIDE THE PAGE CONTEXT. See the
+                // probeMode === 'abort' block below the settle: a page handle is not reachable from
+                // inside this callback, and an earlier draft put it here, which is what made both
+                // abort legs fail with 'page is not defined' (runs 40307148708 and 40310223649).
             } else {
                 await waitUntil(() => !script.isGenerating, 30000);
                 await new Promise(resolve => setTimeout(resolve, 500));
@@ -1587,11 +1707,54 @@ try {
         // the frontend's own dry generation, which is what the dry counters count -- starts and
         // finishes INSIDE the window instead of falling off its end on one leg only.
         const settleStarted = performance.now();
+        // THE PAGE-SIDE PREDICATE, INSTALLED BEFORE THE SETTLE LOOP READS IT. `isGenerating` is a FUNCTION
+        // over module state (`script.js:604`: is_send_press || is_group_generating), so it is CALLED, and it
+        // is called from inside the page's own context -- a `page.evaluate` body cannot reach the outer
+        // `page` object, which is how the first version of this failed on both legs at once.
+        // A SURFACE WHOSE END IS AN ERROR SETTLES WHEN THE PAGE IS QUIET, NOT WHEN A COMPLETION LANDED.
+        // On a mid-stream cut the pinned frontend ends the send through its own error path
+        // (`StreamingProcessor.generate`'s catch -> `onErrorStreaming` -> `markUIGenStopped` ->
+        // `unblockGeneration`, script.js:3812-3832/3617-3619), NOT through a normal completion -- so
+        // `__probeCompletions` stays 0 by design and requiring one made the drive report a 60 s timeout
+        // while the page had already stopped (measured, run 40299346339). The window therefore ends on the
+        // state a user sees: `isGenerating()` false AND no stop button, held for the same 1500 ms the
+        // completion path uses.
         const settleDeadline = settleStarted + 60000;
         let idleSince = null;
         let settleInFlight = null;
+        let quietState = null;
+        let quietSinceRenderChange = 0;
         while (performance.now() < settleDeadline) {
             settleInFlight = globalThis.__probeInFlight ?? 0;
+            if (probeMode === 'abort') {
+                // THE QUIET STATE, WITH NO IMPORT INSIDE THE LOOP, and the render count from the
+                // page-side recorder so "nothing arrived after the cut" is a comparison of two states of
+                // ONE recording rather than of two polls.
+                const scriptModule = await import('./script.js');
+                quietState = {
+                    isGenerating: Boolean(scriptModule.isGenerating()),
+                    generatingAttribute: document.body.dataset.generating ?? null,
+                    stopButton: Boolean(document.querySelector('#mes_stop')),
+                    sendButtonDisabled: Boolean(document.querySelector('#send_but')?.disabled),
+                    renderStates: (globalThis.__probeAbortRecorder?.renderStates ?? []).length,
+                };
+                const quiet = !quietState.isGenerating && quietState.generatingAttribute === null && !quietState.stopButton;
+                // THE WINDOW NEEDS THE QUIET STATE **AND** NO RENDER MOVEMENT FOR 1500 ms: a quiet moment
+                // between two frames is not an end. Measured, run 40304606443, where a poll sampled the
+                // in-operation state and the reply had already been saved and rendered before the next one.
+                if (quiet) {
+                    if (idleSince === null || quietState.renderStates !== quietSinceRenderChange) {
+                        idleSince = performance.now();
+                        quietSinceRenderChange = quietState.renderStates;
+                    } else if (performance.now() - idleSince >= 1500) {
+                        break;
+                    }
+                } else {
+                    idleSince = null;
+                }
+                await new Promise(resolve => setTimeout(resolve, 50));
+                continue;
+            }
             const completed = (globalThis.__probeCompletions ?? 0) >= 1;
             if (completed && settleInFlight === 0) {
                 if (idleSince === null) {
@@ -1605,17 +1768,75 @@ try {
             }
             await new Promise(resolve => setTimeout(resolve, 100));
         }
+        // THE TERMINAL STATE, NAMED. Seven outcomes this surface can reach, each decided from evidence
+        // the harness already records rather than from waiting on a state that may be unreachable:
+        //
+        //   1 normal-completion      GENERATION_ENDED arrived and the page went quiet.
+        //   2 client-abort           GENERATION_STOPPED, with a stop control that was actually clicked
+        //                            (cancel mode only; this surface never clicks one).
+        //   3 network-cut            the hop reports a cut of ITS OWN, by name, and the page stopped
+        //                            moving afterwards -- the terminal a cut stream reaches.
+        //   4 subject-crash          the page reported errors and never returned to idle.
+        //   5 harness-failure        the drive never produced a request, or the page handle was lost.
+        //   6 cut-evidence-timeout   the settle window expired BUT the abort evidence above WAS observed:
+        //                            a named hop cut, at least one frame written, and a frozen render
+        //                            count. This is the case the branch misreported as a drive failure.
+        //   7 no-evidence-timeout    the window expired with nothing above. A real drive failure.
+        //
+        // STATE 6 IS ONLY REACHABLE FOR AN EXPECTED-ABORT LEG, and only when the cut is attributable to
+        // the HOP rather than inferred from a quiet page. Every condition the other modes already used is
+        // preserved untouched: the non-abort legs still settle on `completed && settleInFlight === 0`.
         const settledIdle = idleSince !== null && performance.now() - idleSince >= 1500;
+        // THE PAGE REPORTS FACTS, NODE DECIDES THE STATE. Everything reachable from inside this
+        // callback is page-side state; `proxy`, `streamingPeer` and `report` are NODE variables and a
+        // `page.evaluate` body cannot see them -- reading them here failed on BOTH legs with
+        // `ReferenceError: streamingPeer is not defined` / `proxy is not defined` (Browser differential
+        // 40643109721), which is the same outer-handle defect this file records at L3-7. So the settle
+        // block records WHAT IT OBSERVED, and the seven-state classification runs in node below.
+        const stoppedEmitted = (globalThis.__probeEmitLog ?? []).some(entry => entry.name === 'GENERATION_STOPPED');
         globalThis.__probeSettle = {
             settledIdle,
             waitedMs: Math.round(performance.now() - settleStarted),
             completions: globalThis.__probeCompletions ?? 0,
             inFlightAtRead: settleInFlight,
+            // PAGE-SIDE ONLY. The hop's cut evidence and the node-side classification are added below,
+            // outside this callback, where proxy and report exist.
+            endReason: 'settle-window-closed',
+            stoppedEmitted,
+            quietState,
         };
+        // THE WINDOW DID NOT CLOSE, so the drive reports a timeout here. Whether that timeout is a
+        // NAMED TERMINAL or a real failure is decided in node, where the hop evidence is visible;
+        // this callback cannot see `proxy`, and must not guess.
         if (!settledIdle) {
+            // THE TIMEOUT PATH MUST STILL PUBLISH WHAT IT OBSERVED. It previously returned only an
+            // `error` string, so the abort leg's report carried NO `postSend` at all -- no
+            // `renderSnapshots`, no `streamState`, no `textAfterCut` -- and every guard that reads
+            // those fields evaluated against `[]` and reported "no content rendered" while the page
+            // had in fact rendered it (measured: contentStates 2, textAfterCut "Hello from the").
+            // The observations exist in this scope; not publishing them is what made four guards
+            // vacuous rather than false. AGENTS 103: the consumer reads `postSend.renderSnapshots`;
+            // the producer wrote it only on the settle path, so the boundary was the PRODUCER's
+            // early return, not the field name.
             return {
                 preconditions: { charactersLoaded: true, ...before, settle: globalThis.__probeSettle },
-                error: `the send did not complete and settle within 60s (completions: ${globalThis.__probeCompletions ?? 0}, in flight: ${settleInFlight}); the recorded window would end before the send did`,
+                // THE SAME KEYS THE SETTLE PATH PUBLISHES, so a consumer cannot tell the two apart
+                // by shape and a guard reading them never silently sees an empty array.
+                postSend: {
+                    renderSnapshots: renderSnapshots(),
+                    finalAssistantText: (() => {
+                        const messages = document.querySelectorAll('#chat .mes');
+                        for (let index = messages.length - 1; index >= 0; index--) {
+                            if (messages[index].getAttribute('is_user') !== 'true') {
+                                return messages[index].querySelector('.mes_text')?.innerText ?? null;
+                            }
+                        }
+                        return null;
+                    })(),
+                    streamState,
+                    renderStatesAtTimeout: quietState?.renderStates ?? null,
+                },
+                error: `the page did not settle within 60s (completions: ${globalThis.__probeCompletions ?? 0}, in flight: ${settleInFlight}, quiet state: ${JSON.stringify(quietState)}); the recorded window would end before the send did`,
             };
         }
         // Post-send measurement: whether the user message was appended (sendMessageAsUser got past
@@ -1695,6 +1916,49 @@ try {
             invocations: started.map(entry => ({ dryRun: entry.dryRun, t: entry.t })),
         };
     });
+    // THE SEVEN-STATE TERMINAL, DECIDED HERE BECAUSE ONLY NODE CAN SEE THE EVIDENCE.
+    //
+    // The settle block records what the PAGE observed; the hop's own cut record, the peer's request list
+    // and the page-error log are all node-side, so the classification lives here. An earlier draft put it
+    // inside the page callback and both legs died with `ReferenceError: streamingPeer is not defined`
+    // (`Browser differential` 40643109721) -- the same outer-handle defect this file records at L3-7.
+    if (probeMode === 'abort') {
+        const settle = outcome.postSend?.settle ?? null;
+        const hopState = proxy?.state ?? null;
+        const abortEvidence = {
+            cut: hopState?.cut ?? null,
+            mode: hopState?.mode ?? null,
+            cutsPerformed: hopState?.cutsPerformed ?? 0,
+            framesReleased: (hopState?.writes ?? []).reduce((total, write) => total + (write.frames ?? 0), 0),
+            hopCompleted: Boolean(hopState?.completed),
+            renderStates: settle?.quietState?.renderStates ?? 0,
+        };
+        const sawCut = Boolean(abortEvidence.cut && abortEvidence.cutsPerformed > 0 && abortEvidence.framesReleased > 0);
+        const requestsObserved = (hopState?.writes ?? []).length + (hopState?.requestsSeen ?? 0);
+        const pageErrorsObserved = (report.pageErrors ?? []).length;
+        const stopped = (settle?.stoppedEmitted ?? false);
+        const settledIdle = Boolean(settle?.settledIdle);
+        let terminalState;
+        if (settledIdle) {
+            terminalState = abortEvidence.cut ? 'network-cut' : (stopped ? 'client-abort' : 'normal-completion');
+        } else if (sawCut) {
+            terminalState = 'cut-evidence-timeout';
+        } else if (pageErrorsObserved > 0) {
+            terminalState = requestsObserved > 0 ? 'subject-crash' : 'harness-failure';
+        } else if (requestsObserved === 0) {
+            terminalState = 'harness-failure';
+        } else {
+            terminalState = 'no-evidence-timeout';
+        }
+        report.abortTerminal = { terminalState, settledIdle, sawCut, abortEvidence, requestsObserved, pageErrorsObserved, stopped };
+        // STATE 6 IS NOT A FAILURE. The leg reached the terminal a cut stream reaches and the evidence
+        // names it, so the drive timeout is replaced by a statement of what was observed. States 4, 5 and
+        // 7 keep their failure, and so does any non-abort timeout (this block is abort-only).
+        if (report.failure && terminalState === 'cut-evidence-timeout') {
+            report.driveTimeout = report.failure;
+            report.failure = null;
+        }
+    }
     report.clickT = await page.evaluate(() => globalThis.__probeClickT ?? null);
     report.emitLog = await page.evaluate(() => (globalThis.__probeEmitLog ?? []).filter(entry => entry.t >= (globalThis.__probeClickPerf ?? 0) - 50));
     report.requestsAfterClick = report.requests.filter(entry => report.clickT !== null && entry.t >= report.clickT - 50);
@@ -1736,12 +2000,91 @@ try {
         report.domDumpError = String(error.message ?? error);
     }
     report.streamState = outcome.postSend?.streamState ?? null;
+    // THE ABORT SURFACE'S OBSERVATIONS ARE TAKEN HERE, IN NODE, AFTER THE DRIVE HAS RETURNED. They were
+    // briefly inside the drive's `page.evaluate` callback, where the outer `page` handle does not exist and
+    // both legs failed with "page is not defined" (runs 40307148708, 40310223649) -- a defect that built
+    // cleanly and was only visible in a browser. The recorder they read is page-side and survives the
+    // callback, so nothing else had to move.
+    if (probeMode === 'abort') {
+        const recorder = await page.evaluate(() => globalThis.__probeAbortRecorder ?? null);
+        const recordedStates = (recorder?.renderStates ?? []).map(entry => entry.text)
+            .filter(text => text && text !== '\u2026' && text !== 'probe user marker');
+        report.streamState = {
+            ...(report.streamState ?? {}),
+            // THE NAMED TERMINAL this leg reached (the seven-state classifier in the settle block),
+            // carried beside the evidence it was decided from so the comparator does not have to
+            // re-derive it from a timeout's shape.
+            terminalState: report.settle?.terminalState ?? null,
+            abortEvidence: report.settle?.abortEvidence ?? null,
+            stopClickedAt: null,
+            // WHAT SURVIVED THE CUT, from the recording rather than from a poll: a state that lasted 100 ms
+            // is still observed.
+            textAfterCut: recordedStates.at(-1) ?? null,
+            contentStatesAtCut: recordedStates.length,
+            snapshotsAtCut: recorder?.renderStates?.length ?? 0,
+            // THE FRONTEND'S OWN IDLE FLAG, read through the module AFTER the drive returned. The frontend
+            // ends a dead stream through its own error path (StreamingProcessor.generate's catch ->
+            // onErrorStreaming -> markUIGenStopped -> unblockGeneration, script.js:3812-3832/3617-3619),
+            // which clears this flag; a subject that hangs leaves it set and a user sees a spinner forever.
+            // THE FLAG IS READ FROM THE PAGE, because document also does not exist here.
+            returnedToIdle: await page.evaluate(async () => {
+                const script = await import('./script.js');
+                return !Boolean(script.isGenerating()) && document.body.dataset.generating === undefined;
+            }),
+            endedEvents: recorder?.ended ?? [],
+            toastrAfterCut: await page.evaluate(() => (document.querySelector('#toast-container')?.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 300)),
+        };
+        // A SECOND WINDOW, 700 ms later: "nothing arrived after the cut" needs a later sample of the same
+        // recording.
+        await new Promise(resolve => setTimeout(resolve, 700));
+        const later = await page.evaluate(() => globalThis.__probeAbortRecorder ?? null);
+        const laterStates = (later?.renderStates ?? []).map(entry => entry.text).filter(Boolean);
+        report.streamState = {
+            ...(report.streamState ?? {}),
+            textLater: laterStates.at(-1) ?? null,
+            snapshotsLater: later?.renderStates?.length ?? 0,
+        };
+    }
+    // THE HOP, RECORDED FROM ITS OWN SIDE. What the hop forwarded (byte digests, never bodies), how many
+    // downstream body writes it made and how many frames each carried, how many bytes it released, whether
+    // it re-framed the stream as a single gzip member, which responses it cut and which it relayed whole,
+    // and -- in cut mode -- whether the cut actually happened. A truncation the network did NOT perform
+    // must be visible as `cut: null`, or a subject that truncated by itself would be credited to the
+    // network. `absent` is recorded explicitly when no hop was configured, so "no hop" is a value rather
+    // than a missing field.
+    report.networkHop = proxy ? {
+        mode: proxy.state.mode,
+        cutArmOnPath: proxy.state.cutArmOnPath,
+        cutAfterBytes: proxy.state.cutAfterBytes,
+        cutAfterFrames,
+        requestsSeen: proxy.state.requestsSeen,
+        cutArmedResponses: proxy.state.cutArmedResponses ?? 0,
+        relayedWholeResponses: proxy.state.relayedWholeResponses ?? 0,
+        gzipFramedResponses: proxy.state.gzipFramedResponses ?? 0,
+        forwarded: proxy.state.forwarded,
+        bodyWrites: proxy.state.writes,
+        bodyWriteCount: proxy.state.writes.length,
+        releasedBytes: proxy.state.releasedBytes,
+        // THE COUNT THE ABORT SURFACE IS ABOUT: this RESPONSE's body, not the hop-wide cumulative total
+        // (which includes the reachability check relayed whole before it).
+        releasedAtCut: proxy.state.releasedAtCut ?? null,
+        // A CUT BELONGS TO A REQUEST, and a later request on the same connection can clear `cut`.
+        // `anyCut` is the durable fact and is what a reader should trust when the two disagree;
+        // measured twice (runs 40314154794, 40316734219) where `cut` was null beside 533 released
+        // bytes. Both are recorded so the disagreement itself is visible rather than smoothed over.
+        cut: proxy.state.cut,
+        anyCut: proxy.state.anyCut ?? null,
+        cutsPerformed: proxy.state.cutsPerformed ?? 0,
+        completed: proxy.state.completed === true,
+        callerClosed: proxy.state.callerClosed === true,
+        upstreamErrors: proxy.state.upstreamErrors,
+    } : { mode: null, absent: true };
     // WHICH BODY-DERIVED VALUE THIS DRIVE DROVE. A source whose host depends on a body field cannot be
     // read back unless the record says which value the drive selected, so every model-control record
     // the plan declared is copied out here by name.
     report.controls = await page.evaluate(names => Object.fromEntries(names.map(name => [name, globalThis[name] ?? null])), modelControlRecords);
     report.endpoint = report.controls[modelControlRecords[0]] ?? null;
-    if (streamingMode) {
+    if (streamingModeOrAbort) {
         // The in-process peer recorded the request, its body digest, whether the caller closed the
         // stream before it finished (cancellation), and how many frames it wrote.
         report.recording = streamingPeer.state.requests.map(request => ({
@@ -1844,6 +2187,10 @@ try {
     server?.kill();
     mock?.kill();
     await streamingPeer?.close();
+    // THE HOP GOES DOWN AFTER THE PEER: closing the proxy first would make the peer record a
+    // disconnect the subject never performed, which is the cancellation observation wearing another
+    // mode's name.
+    await proxy?.close();
     // The scratch directory holds a built binary and a mock binary -- about 78 MB per run, and
     // twenty-nine abandoned copies of it filled the disk to 0.09 GB free, which then failed an
     // unrelated `go build` inside a differential with "not enough space on the disk". Clean up by

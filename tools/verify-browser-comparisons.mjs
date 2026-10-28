@@ -34,6 +34,7 @@ import {
     noDryInvocationInSendWindow, providerRequestsEqual, sendWindowFaithful, streamingSurfacesProven,
 } from './browser-evidence/invariants.mjs';
 import { assetSurface, authorsNoteSurface, dataDomainSurface, extensionSurface, helperGenerationSurface, helperSurface, helperVariablesSurface, startupSurface } from './browser-evidence/other-surfaces.mjs';
+import { streamingFramingSurface } from './browser-evidence/streaming-framing.mjs';
 import { SOURCE_HOOKS } from './browser-evidence/source-hooks.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -220,6 +221,10 @@ const main = () => {
         // (`helper-vars-*.json` is gitignored; `helper-variables-comparison.json` is tracked), so this entry and
         // tests/browser/.gitignore's pattern are the two halves of one decision -- catalog.test.mjs asserts both.
         ['helper-variables-comparison.json', helper => helperVariablesSurface(helper.ctx, helper.artifact)],
+        // THE NETWORK HOP (Q19): a buffering proxy and a mid-stream cut between subject and peer. Same
+        // present-is-verified / absent-is-said-out-loud rule: a run that did not ask for stream mode must
+        // not read as a pass, and a COMMITTED artefact that contradicts its own observations is a failure.
+        ['streaming-framing-comparison.json', framing => streamingFramingSurface(framing.ctx, framing.artifact)],
     ]) {
         const ctx = createContext(file);
         const payload = readArtifact(file);
@@ -232,7 +237,10 @@ const main = () => {
                 for (const finding of ctx.findings) lines.push(`       ${finding}`);
             } else {
                 lines.push(`NOT-RECORDED ${file}`);
-                lines.push('       this run produced no such artefact (the helper surface did not run); this is not a pass');
+                // THE REASON IS NOT ALWAYS THE HELPER SURFACE: this loop now also carries the network-hop
+                // artefact, which a stream run produces. A fixed reason would have told a reader the wrong
+                // step did not run.
+                lines.push('       this run produced no such artefact (the surface it belongs to did not run); this is not a pass');
             }
             continue;
         }

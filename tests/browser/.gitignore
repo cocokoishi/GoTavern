@@ -87,3 +87,10 @@ q20-regen-gotavern.json
 q20-regen-pinned.json
 q20-continue-gotavern.json
 q20-continue-pinned.json
+# FRAMING LEGS: framing-stream-gotavern.json, framing-buffered-pinned.json,
+# framing-abort-gotavern.json, and the per-run redirect map redirect-framing-<tag>.json. The committed
+# artefact is `streaming-framing-comparison.json`, which matches NONE of the patterns above or below:
+# `stream-*.json` needs `stream-` at the START, and `framing-*` does not end in `-stream-`. The catalog
+# test asserts both directions (every recorded leg ignored, no committed artefact ignored).
+framing-*.json
+redirect-framing-*.json

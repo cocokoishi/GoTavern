@@ -93,7 +93,15 @@ export const SOURCES = [
         // column is a statement about the frontend, not about this drive.
         proxy: 'unsupported',
         capabilities: { generation: true, streaming: true, cancellation: true },
-        evidence: { generation: 'generation-comparison.json', streaming: 'streaming-comparison.json' },
+        // THE NETWORK-HOP SURFACE IS SOURCE-AGNOSTIC BY NATURE: the hop is a property of the HOP, not
+        // of a provider, so the framing artefact is claimed by ONE source and records which id it was
+        // driven with (FRAMING_SOURCE). Claiming it here is what makes the verifier's invariants run
+        // against it at all -- without this row the artefact reads as nothing, not as a pass.
+        evidence: {
+            generation: 'generation-comparison.json',
+            streaming: 'streaming-comparison.json',
+            framing: 'streaming-framing-comparison.json',
+        },
         driveParameters: null,
     }),
     define({
@@ -653,11 +661,16 @@ export function validateCatalog(sources = SOURCES) {
             if (typeof capabilities[surface] !== 'boolean') problems.push(`${where}: capabilities.${surface} must be a boolean`);
         }
         const evidence = source.evidence ?? {};
-        for (const surface of ['generation', 'streaming']) {
+        // 'framing' is an evidence-only surface: the network hop has no capability of its own, so it is
+        // validated for file existence here and skipped by the capability cross-check below.
+        for (const surface of ['generation', 'streaming', 'framing']) {
             const file = evidence[surface];
             if (file && !artifacts.has(file)) artifacts.set(file, []);
             if (file) artifacts.get(file).push(source.id);
-            if (file && capabilities[surface] !== true) {
+            // 'framing' HAS NO CAPABILITY FLAG -- it is not something a source can or cannot do, it is
+            // the network between any source and its peer -- so the cross-check applies to the two
+            // surfaces that do carry one.
+            if (surface !== 'framing' && file && capabilities[surface] !== true) {
                 problems.push(`${where}: evidence.${surface} names ${file} but capabilities.${surface} is false, so the artefact is for a drive this catalog says cannot run`);
             }
         }
@@ -711,7 +724,9 @@ export function artifactFor(id, surface) {
 /** Reverse lookup: which source does this artefact belong to. Used by the coverage test. */
 export function sourceForArtifact(fileName) {
     for (const source of SOURCES) {
-        for (const surface of ['generation', 'streaming']) {
+        // 'framing' is an evidence-only surface (the network hop has no capability of its own), and it
+        // must be searched here or the verifier reads the artefact as claimed by nobody.
+        for (const surface of ['generation', 'streaming', 'framing']) {
             if (source.evidence?.[surface] === fileName) return { source, surface };
         }
     }
