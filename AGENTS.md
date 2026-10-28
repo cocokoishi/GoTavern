@@ -1562,30 +1562,34 @@ rather than by review.
      produced a byte-identical continuation request on both subjects, measured from a run's own artefacts; Q20 stays
      `partial` until a run reports it green.
 
-102. **A guard's condition must read the fact its name claims, and a guard keyed on one enumerated value
-     silently becomes unfalsifiable-wrong when that value changes.** Measured on the Q19 framing lane, across two
-     runs of the SAME guard:
-         guard('hopCutBothSubjectsMidStream', ..., gvHop.mode === 'cut-at-head' && pnHop.mode === 'cut-at-head'
-             && gvHop.anyCut === 'cut-at-head' && pnHop.anyCut === 'cut-at-head');
-     The guard's name is about a fact -- both subjects were cut mid-stream -- and `anyCut` is documented two lines
-     above as "the durable fact". The condition nevertheless required that fact to equal ONE vehicle's mode
-     string, so it was a verdict about the vehicle wearing the name of a verdict about the cut.
-     **First run** (`Browser differential` 40647194771), vehicle = `cut-at-head`: recorded `true`, while the
-     partial-text guards it sits above were UNSATISFIABLE -- a head cut releases no content frame, so
-     `contentStates: 0`, `textAfterCut: null`. A correct verdict for the wrong reason; the contradiction between
-     its recorded value and its recomputation was the only thing that localised the fault.
-     **Second run** (`Browser differential` 40654598370), vehicle = `cut`, which DID cut after three complete
-     frames and produced `anyCut: "cut-after-bytes"`, `contentStates: 2`, `textAfterCut: "Hello from the"`,
-     identically on both subjects: the same guard recorded **`false`**, because
-     `'cut-after-bytes' !== 'cut-at-head'`. Its own diagnostic printed `undefined` -- the `??` fallback failing
-     over a MODE mismatch, not a missing field -- so the comparator reported "the cut the abort surface is about
-     did not happen to that subject" while the leg file recorded the cut that happened.
-     So one guard produced a correct verdict for the wrong reason and then a wrong verdict for a correct state,
-     under one name. Two duties follow. Assert the predicate the name states (`both subjects were cut, by the
-     same reason, and the reason is not an upstream error`), never one enumerated value that a legitimate vehicle
-     change can invalidate. And when a guard's recorded value disagrees with a recomputation from its own stored
-     observations, treat the DISAGREEMENT as the finding: it localises the defect, and a harness that reconciled
-     the two silently would have hidden this one.
+102. **A guard's condition must read the fact its name claims, and THE GUARD MAY EXIST IN MORE THAN ONE PLACE
+     -- fixing one occurrence is not fixing the guard.** Measured on the Q19 framing lane. The guard
+     `hopCutBothSubjectsMidStream` read a field documented as "the durable fact" and required it to equal ONE
+     vehicle's mode string:
+         gvHop.mode === 'cut-at-head' && pnHop.mode === 'cut-at-head'
+             && gvHop.anyCut === 'cut-at-head' && pnHop.anyCut === 'cut-at-head'
+     **First run** (`Browser differential` 40647194771), vehicle = `cut-at-head`: it recorded `true` while the
+     partial-text guards beneath it were UNSATISFIABLE -- a head cut releases no content frame, so
+     `contentStates: 0`, `textAfterCut: null`. A correct verdict for the wrong reason, and the disagreement
+     between its recorded value and its recomputation was the only thing that localised the fault.
+     **Second run** (`Browser differential` 40654598370), vehicle = `cut` after three complete frames, which
+     measured `anyCut: "cut-after-bytes"`, `contentStates: 2`, `textAfterCut: "Hello from the"` identically on
+     both subjects: the same guard recorded **`false`**, because `'cut-after-bytes' !== 'cut-at-head'`. Its
+     diagnostic printed `undefined` -- the `??` fallback failing over a MODE mismatch, not a missing field --
+     so the comparator reported "the cut the abort surface is about did not happen to that subject" while the
+     leg file recorded the cut that happened.
+     **Third run** (`Browser differential` 40659680375): the comparator's copy was fixed, the run STILL failed,
+     and the identical condition was found in `tools/browser-evidence/streaming-framing.mjs` -- a second,
+     independent implementation of the same guard, in the file that verifies the committed artefact. **That**
+     copy, not the fixed one, had been printing the `undefined` diagnostic for three runs. A further pass found
+     the same `=== 'cut-at-head'` in a third site and the same zero-byte assumption in four, spread across both
+     files.
+     Two duties follow. Assert the predicate the NAME states (`both subjects were cut, by the same reason, and
+     the reason is not an upstream error`), never one enumerated value a legitimate vehicle change can
+     invalidate. And before declaring such a guard fixed, ENUMERATE EVERY PLACE IT LIVES -- comparator, verifier,
+     recompute block, per-leg assertion, fixture and selftest -- because a guard is a claim about the artefact,
+     and several files make the same claim. A green reached by fixing one copy is a green whose other copy is
+     still wrong, and the diagnostic a reader trusts may come from the copy nobody edited.
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence
