@@ -525,16 +525,40 @@ const artefact = {
     // What it CAN do already, with no threshold: catch the two subjects DISAGREEING. `agree` records
     // that beside the per-subject outcomes so a reader sees which two values produced it, and
     // `not-measured` stays distinct from `agree` -- collapsing the two is how an unrun axis reads as a pass.
-    disconnectDuringContinue: {
-        gotavern: reports.gotavern?.disconnectDuringContinue?.outcome ?? 'absent',
-        pinned: reports.pinned?.disconnectDuringContinue?.outcome ?? 'absent',
-        agree: (reports.gotavern?.disconnectDuringContinue?.outcome ?? 'absent') === 'absent'
-            || (reports.pinned?.disconnectDuringContinue?.outcome ?? 'absent') === 'absent'
-            ? 'not-measured'
-            : ((reports.gotavern?.disconnectDuringContinue?.outcome) === (reports.pinned?.disconnectDuringContinue?.outcome)
-                ? 'agree'
-                : 'differ'),
-    },
+    // ---- V5(b): CLIENT DISCONNECT MID-CONTINUE, CLASSIFIED COMPLETELY -------------------------------
+    // THE OUTCOME VOCABULARY, stated in full so no case is patched one at a time. The probe writes one of:
+    //   `kept-partial`  the message grew and kept what arrived before the abort
+    //   `rolled-back`   the message is byte-identical to the before-state
+    //   `emptied`       the message exists and is now empty
+    //   `not-driven`    the abort never reached a request
+    //   `absent`        the leg produced no `disconnectDuringContinue` at all
+    //
+    // THE VERDICT IS A SEPARATE AXIS AND MUST NOT CONFLATE TWO NON-MEASUREMENTS WITH AGREEMENT.
+    // `not-driven` and `absent` are both NON-MEASUREMENTS: two subjects that failed to drive have not
+    // agreed about the product, they have both failed to observe it. Mapping them to `agree` (run
+    // 40761754633 did exactly that, reporting "agree" for two `not-driven` legs) is the same class of
+    // defect as a green that cannot fail -- it reads as a satisfied guard while nothing was measured.
+    // Only two MEASURED outcomes are comparable; anything else is `not-measured`.
+    disconnectDuringContinue: (() => {
+        const outcomeOf = report => report?.disconnectDuringContinue?.outcome ?? 'absent';
+        const gotavernOutcome = outcomeOf(reports.gotavern);
+        const pinnedOutcome = outcomeOf(reports.pinned);
+        const measured = new Set(['kept-partial', 'rolled-back', 'emptied']);
+        const gotavernMeasured = measured.has(gotavernOutcome);
+        const pinnedMeasured = measured.has(pinnedOutcome);
+        return {
+            gotavern: gotavernOutcome,
+            pinned: pinnedOutcome,
+            verdict: !gotavernMeasured || !pinnedMeasured
+                ? 'not-measured'
+                : (gotavernOutcome === pinnedOutcome ? 'agree' : 'differ'),
+            // WHY it is not measured, so a reader is never left to infer it from two identical strings.
+            notMeasuredReason: !gotavernMeasured || !pinnedMeasured
+                ? [gotavernMeasured ? null : `gotavern=${gotavernOutcome}`,
+                    pinnedMeasured ? null : `pinned=${pinnedOutcome}`].filter(Boolean).join(' ')
+                : null,
+        };
+    })(),
     notCompared: [
         'a real provider (rule 22): the peer is a simulated backend that captures and answers',
         'streaming (Q19): the streaming continuation branch (`streamingProcessor.firstMessageText = \'\'`, script.js:5388-5404) is a different path and is not driven',
