@@ -230,12 +230,24 @@ function abortSurface(gotavern, pinned, baseline) {
     const pnState = pinned.streamState ?? {};
 
     guard('hopCutBothSubjectsMidStream',
-        `the hop did not cut both subjects (gotavern mode ${JSON.stringify(gvHop.mode)} cut ${JSON.stringify(gvHop.cut)}, pinned mode ${JSON.stringify(pnHop.mode)} cut ${JSON.stringify(pnHop.cut)}), so no truncation was observed and nothing below is about one`,
-        // nyCut IS THE DURABLE FACT: cut belongs to the request being served and a later request on the
+        `the hop did not cut both subjects by the same mechanism (gotavern mode ${JSON.stringify(gvHop.mode)} anyCut ${JSON.stringify(gvHop.anyCut)}, pinned mode ${JSON.stringify(pnHop.mode)} anyCut ${JSON.stringify(pnHop.anyCut)}); a hop that relayed a subject whole, or failed upstream instead of cutting, is not the surface this comparison is about`,
+        // anyCut IS THE DURABLE FACT: cut belongs to the request being served and a later request on the
         // same connection clears it. Measured twice (runs 40314154794, 40316734219) where cut was null
         // beside 533 released bytes, so the guard reads the fact that cannot be overwritten.
-        gvHop.mode === 'cut-at-head' && pnHop.mode === 'cut-at-head'
-            && gvHop.anyCut === 'cut-at-head' && pnHop.anyCut === 'cut-at-head');
+        //
+        // IT ASSERTS *SAME MECHANISM*, NOT ONE HARD-CODED MODE (AGENTS 102). This condition used to read
+        // `=== 'cut-at-head'`, which is a verdict about ONE vehicle: it passed while the lane cut at the
+        // head of the body and could NEVER pass once the vehicle cut after three complete frames, because
+        // `'cut-after-bytes' !== 'cut-at-head'`. Its own diagnostic then printed `undefined` -- the
+        // fallback failing over a mode mismatch, not a missing field -- so the comparator reported "the cut
+        // did not happen" while the leg file recorded `anyCut: "cut-after-bytes"` (Browser differential
+        // 40654598370). The guard now reads the fact its name claims: BOTH subjects were cut, by the SAME
+        // reason, and the reason is a CUT rather than an upstream error. It failed before on a mode string
+        // it does not care about; it fails now on a relayed subject or a failed upstream, which is what it
+        // is for.
+        typeof gvHop.anyCut === 'string' && typeof pnHop.anyCut === 'string'
+            && gvHop.anyCut === pnHop.anyCut
+            && gvHop.anyCut !== 'upstream-error');
     // THE CUT LANDED ON THE COMPLETION, not on the frontend's reachability check: the hop relays every
     // other response whole, and both legs must show that it did.
     guard('hopRelayedTheReachabilityCheckWhole',
