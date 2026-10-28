@@ -63,6 +63,22 @@ input that makes it red, and the mutation must be demonstrated before the guard 
 - Byte parity of the **response** body — only the request.
 - Anything about a continuation driven by a Node server plugin (deliberate exclusion).
 - Anything about a continuation that crosses an extension the pinned frontend does not load.
+- **Streaming continuation (V4, streaming branch) — BOUNDARY, not a gap.** The streaming continue
+  goes through a different path: `script.js:5388-5391` sets `streamingProcessor.firstMessageText = ''
+  ` when `isContinue`, then `:5393` drives it through `sendStreamingRequest`, and `:5404-5406` prepends
+  `continue_mag` to the assembled reply. Verified against the vendored pinned source
+  (`upstream/public/script.js`), so the stated reason still holds. Driving it requires a streaming
+  generator the capture peer does not provide, and the comparator records the same boundary at
+  `artefact.notCompared`. **A boundary with a stated reason is a complete answer**; the streaming
+  branch is therefore not counted against this surface, and the non-streaming branch it *does* claim
+  is named as the branch measured.
+- **Provider error mid-continue (V5(a)) — NOT YET DRIVEN.** No leg produces a failing provider, so
+  "did the product save half a message on a provider error" is unanswered. Recorded in
+  `artefact.notCompared` rather than implied.
+- **Client disconnect mid-continue (V5(b)) — RECORDED, NOT YET JUDGED.** The leg drives an abort of the
+  continue response and records both outcomes at `artefact.disconnectDuringContinue` with an `agree`
+  verdict, because zero thresholds exist yet. It becomes a guard when there is a stated failure
+  condition, not before.
 
 ## Pre-stated expectation, recorded before the run
 

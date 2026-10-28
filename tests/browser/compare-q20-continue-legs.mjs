@@ -515,6 +515,26 @@ const artefact = {
     missingLegs: missing,
     failedGuards,
     verdict: failedGuards.length === 0 ? 'match' : 'mismatch',
+    // ---- V5(b): CLIENT DISCONNECT MID-CONTINUE, RECORDED BUT NOT YET JUDGED ------------------------
+    // The probe drives an abort of the continue response itself, which is a client disconnect rather
+    // than a user stop or a provider error. Both subjects outcomes are recorded here so the measurement
+    // exists in the artefact. It is NOT a guard yet and deliberately so: a new axis gets a stated
+    // failure condition before it gets the power to fail a surface, and inventing one from a single run
+    // is the "patch first" mistake the contract at docs/surfaces/continue.md forbids.
+    //
+    // What it CAN do already, with no threshold: catch the two subjects DISAGREEING. `agree` records
+    // that beside the per-subject outcomes so a reader sees which two values produced it, and
+    // `not-measured` stays distinct from `agree` -- collapsing the two is how an unrun axis reads as a pass.
+    disconnectDuringContinue: {
+        gotavern: reports.gotavern?.disconnectDuringContinue?.outcome ?? 'absent',
+        pinned: reports.pinned?.disconnectDuringContinue?.outcome ?? 'absent',
+        agree: (reports.gotavern?.disconnectDuringContinue?.outcome ?? 'absent') === 'absent'
+            || (reports.pinned?.disconnectDuringContinue?.outcome ?? 'absent') === 'absent'
+            ? 'not-measured'
+            : ((reports.gotavern?.disconnectDuringContinue?.outcome) === (reports.pinned?.disconnectDuringContinue?.outcome)
+                ? 'agree'
+                : 'differ'),
+    },
     notCompared: [
         'a real provider (rule 22): the peer is a simulated backend that captures and answers',
         'streaming (Q19): the streaming continuation branch (`streamingProcessor.firstMessageText = \'\'`, script.js:5388-5404) is a different path and is not driven',
@@ -522,7 +542,7 @@ const artefact = {
         'auto-continue (power_user.auto_continue, script.js:5711-5790): a different trigger that re-clicks the same control',
         'continuing a USER message, and continuing the first message (script.js:5080 isContinuingOnFirstMessage)',
         'group chats',
-        'error/cancel mid-continue: no leg drives a failing provider here, so "did the product save half a message" is unanswered',
+        'error MID-continue (a failing provider): no leg drives one, so did the product save half a message is STILL UNANSWERED on that axis. CLIENT DISCONNECT mid-continue is now recorded at artefact.disconnectDuringContinue -- the outcome on both subjects plus an agree verdict -- recorded rather than judged, because a new axis gets a stated failure condition before it gets the power to fail a surface',
         'passing the tree to pinned Node afterwards (Q21 owns the hand-back)',
     ],
 };
