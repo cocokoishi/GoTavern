@@ -11,12 +11,29 @@ Baseline: SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127`.
 
 ## Two different hand-backs, and only one exists
 
-**DATA hand-back — driven and asserted.** `Q21` (`tests/browser/q21-data-handback.mjs`, workflow
-step `browser-differential.yml:1690`) boots the product over a fresh data root, lets it write a
-real conversation, then hands **the same directory** to pinned via `run-against-pinned.mjs
---data-root`. It asserts `gotavernWrote`, `pinnedOpened`, `pinnedReadTheChat`, `pinnedChatIdMatches`,
-`pinnedContinued`, and `noDataLossOnHandBack` (every file the product wrote is still present with
-the same SHA-256). **This is a real hand-back capability and it is proven.**
+**DATA hand-back — driven, and judged.** `Q21` (`tests/browser/q21-data-handback.mjs`, workflow
+steps `Hand GoTavern's own tree back to pinned Node (Q21)` and `Judge the hand-back`) boots the
+product over a fresh data root, lets it write a real conversation, then hands **the same
+directory** to pinned via `run-against-pinned.mjs --data-root`, and then hands a
+pinned-written tree back the other way. The assertions are `gotavernWrote`, `pinnedOpened`,
+`pinnedOpenedSavedChat`, `pinnedReadTheChat`, `pinnedChatIdMatches`, `pinnedContinued`,
+`pinnedBranched`, `noDataLossOnHandBack`, plus the reverse-direction rows `gotavernMutated`,
+`branchStateSurvivesGoWrite` and `pinnedReadGotavernsTurn`.
+
+**The claim is judged, not inferred.** `tests/oracle/q21/judge-handback.mjs` is a separate program
+that names the rows each DIRECTION requires, distinguishes `unreached` (the probe never got there)
+from `mismatch` (it got there and disagreed), refuses `match` on an all-zero count, and has its own
+negative controls (a zero-step report, a missing `pinnedContinued`, a zero `continueRequests`, absent
+counts, a red row, a failure field). The earlier version of this file listed `pinnedContinued` as an
+assertion while no code asserted it; that is why the judge exists.
+
+**What this surface still does not claim.** A hand-back is not a proof about the USER's tree: the
+fixture is the committed synthetic derivation, and `card-a.png` could not be re-derived without the
+private original, so the container's own root/data and `trAc`/extension relations remain unproven
+while the generator's one-canonical-document invariant is proven on synthetic sources. The state of
+the Q21 claim itself lives in [`docs/goal-scorecard.md`](../goal-scorecard.md)'s Q21 row, never
+here — this file describes the SURFACE, and a surface document that reports a status is how two
+sources of truth start.
 
 **REQUEST hand-back — absent, and this contract's subject.** No route is proxied, no request is
 forwarded, and no configuration selects an upstream Node.

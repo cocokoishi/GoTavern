@@ -10,10 +10,62 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## HISTORY - earlier checkpoints follow. The entry directly below is superseded by the alpha.8
-## checkpoint above; read it as a dated record, never as current state.
+## Latest checkpoint - 2026-10-29: the evidence chain was rebuilt after a history rewrite
 
-## Latest checkpoint - 2026-10-28: `v0.1.0-alpha.8` SHIPPED -- ACTIVE ALPHA8 DEVELOPMENT CLOSED
+**The repository's history was rewritten on 2026-10-29** to normalise commit identities (the rewrite is
+itself gated by `scripts/check-commit-identity.sh` in `GoTavern CI`). Changing a commit changes its
+identity and every descendant's, so **every commit object that an earlier CI run had judged became
+unreachable from `main`**. The old evidence ledger's own anchor was one of them.
+
+That is not a cosmetic problem. Measured, not inferred:
+
+- `TestEvidenceLedgerIsConsistent` reported one `ancestry could not be verified` finding per citation,
+  so the repository's Go suite was RED for a documentation reason while its prose said everything was
+  proven;
+- `GoTavern CI` never even reached `go test ./...` on the affected commits, because a stale generated
+  count failed an earlier step in the same job (`compat-matrix` expected 666 Go test functions, the tree
+  had 687). That gate was right: commit `a575418` had legitimately added 21 test functions.
+
+What was done, in the order it had to happen:
+
+1. **The count gate was repaired as a MEASUREMENT, not as a number.** The walker counted `TestMain` (a
+   package's test entry point, not a test) and skipped the tracked `upstream/` Go package, and the
+   generator and the gate that validates its citations used two different exclusion policies. One shared
+   definition now counts `func Test...` declarations in tracked `*_test.go` files via `git ls-files`:
+   689. Teeth: appending one test function turned the gate red (690 vs 689); restoring it turned it green.
+2. **`docs/goal-scorecard.md` was RE-DERIVED, not edited.** It now describes commit `a8d5945`, cites only
+   runs whose `head_sha` is that commit, and keeps the pre-rewrite citations in an appendix marked
+   inadmissible. A citation that cannot be ancestry-checked is not evidence, and the honest response was
+   to say so rather than to keep the old ids.
+3. **The Browser differential red was diagnosed to eight HARNESS defects, not a product difference.**
+   Root causes: the variable comparator compared two captures the driver had deliberately made differ;
+   the global-scope clause existed only in a string the probe substituted for itself; and the pinned leg
+   **auto-updated 酒馆助手 off its pin mid-run** (`837a6288` -> `e71c9906`), which made the restart leg
+   refuse. The installer now freezes the extension's origin to an offline bare mirror at the pinned
+   commit, `run-against-pinned.mjs` passes `PROBE_SERVER_PID`, and the artefact is committed.
+4. **Q21 was closed at its root cause.** The generator derived each card carrier with its own marker
+   pipeline, so one logical object could disagree with itself (`root.name` vs `data.name`, and the `trAc`
+   chunk vs `data.extensions`). Every identity replacement is now a pure function of the source value,
+   the invariant is a regression that is red on a conflicting source, the container is proved against
+   the PINNED module's own `read`/`write`, and a separate judge names the rows each hand-back direction
+   requires and refuses `match` on an empty report.
+5. **Five config keys that were accepted and silently ignored now behave**: `dnsPreferIPv6`,
+   `enableKeepAlive`, `logging.minLogLevel`, `requestOverrides`, `openai.randomizeUserId`. The rest are
+   recorded as boundaries in `docs/config-inventory.md` with the pinned source and what a user sees.
+6. **README was rewritten LAST**, after the fresh runs, and states only what those runs show.
+
+**Current state:** every row of `docs/goal-scorecard.md` on `a8d5945` is re-derived against fresh runs,
+`docs/compatibility-matrix.md` is generated and current, and the remaining limitations are named in the
+ledger's §2.3 and the README's boundaries. The limits that did NOT close are the ones worth knowing:
+background PAINT is unmeasured, a mid-stream TLS close and frame ordering are unobserved, the committed
+card's own chunk relations cannot be re-derived without the private original, and every remote provider
+embedding source answers an unimplemented status.
+
+---
+
+## HISTORY - earlier checkpoints follow. The entry directly below is a dated record, never current state.
+
+## HISTORY checkpoint - 2026-10-28: `v0.1.0-alpha.8` SHIPPED -- ACTIVE ALPHA8 DEVELOPMENT CLOSED
 
 > **`ACTIVE ALPHA8 DEVELOPMENT CLOSED`.** `v0.1.0-alpha.8` is published. Nothing in this file is an
 > instruction to continue: the remaining items are accepted limits recorded for the next round, not work in

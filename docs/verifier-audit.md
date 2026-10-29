@@ -1,5 +1,39 @@
 # Verifier audit — guards that cannot discriminate
 
+> **THIS IS A HISTORICAL INVESTIGATION, NOT CURRENT STATUS.** Its scope was a commit that the
+> repository's lineage no longer contains (the history was rewritten on 2026-10-29 to normalise commit
+> identities), so every `file:line` and every "fixed and CI-green" statement below describes a tree that
+> is no longer on `main`. The live per-question ledger is
+> [`docs/goal-scorecard.md`](goal-scorecard.md); the current status of these findings is the table in
+> §0, which was re-measured at HEAD rather than carried forward.
+
+## 0. Current status, re-measured 2026-10-29 (the only current claim in this file)
+
+A re-audit at HEAD asked, for every finding, not "did a run go green" but **"does the guard exist in
+this tree, does it run in CI, and can it still fail"**. That distinction matters because a run citation
+about an orphaned commit cannot prove anything about this code.
+
+| Finding | Status at HEAD | Current guard |
+|---|---|---|
+| F1, F16 (a failed lane read as green; counters never read) | fixed, `fae8513` | `browser-differential.yml` terminal gate reads every lane's failure counter; **no teeth proof and no structural test** — the closure is unguarded against regression |
+| F2 (tokenizer pairing positional) | fixed (pairing), observation still separate by decision | `compare-preset-legs.mjs` pairs by request key; `tokenizer-comparator-selftest.mjs` includes the old positional walk as a control |
+| F3 (no per-subject discriminator in save/reload/swipe) | fixed (guard), **teeth owed** | `compare-q20-legs.mjs` `artefactsDifferPerSubject`; there is no comparator self-test for it |
+| F4, F5, F6, F7, F8, F10, F11, F12, F13, F14 | fixed, `14d5e57` (F12 also `fae8513` lineage) | each has a named selftest case under `tests/browser/*-gate-selftest.mjs`, `verifier-guards-gate-selftest.mjs` or `streaming-framing-selftest.mjs` |
+| F9 (helper-generation `driveCompleted` vacuous) | **false finding** — the `Boolean(leg) &&` guard was present before the audit was written | `compare-helper-generation.mjs`; regression case retained |
+| F15 (self-tests claim more coverage than they have) | **OPEN** | measured at HEAD: two framing guards and five regex guards are named in no self-test while the footer claims "every guard … can fail" |
+| F17 (a nondeterministic body classified `equal`) | **OPEN, documented decision** | `compare-startup-legs.mjs` still counts the shape-classified body into `summary.equal`; it does not record the unstable value, so no compared field carries it |
+| §3 Q20 continue positional selection | fixed | `continueRequestOf` anchors on the product's own nudge marker; `q20-continue-comparator-selftest.mjs` kills all 14 required guards by name |
+
+Two claims this document made about verifier integrity are **narrower than stated** and are corrected
+here: guards are compared by NAME presence per surface, and a two-way set comparison (so a guard cannot
+silently appear or disappear) exists only for the streaming-framing and chat-completion checks — not for
+assets, helper or variables. And `tools/docs-check-manifest.mjs`, the only thing that can re-check a
+recorded run CONCLUSION against the live API, is not invoked by any workflow.
+
+---
+
+## Historical audit (scope: a pre-rewrite commit, kept for the reasoning, never as current status)
+
 Scope: every browser-differential comparator, self-test, evidence module and the workflow that runs
 them, at HEAD `292905f`. Method: for each guard, answer "what input/state would make this fail?" and,
 mirror-wise, "what real defect would this guard NOT catch?". A guard with no answer to the first

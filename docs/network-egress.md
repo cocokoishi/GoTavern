@@ -1,5 +1,16 @@
 # Network egress inventory (Phase 0.2)
 
+> **HISTORICAL INVENTORY, WITH ONE SUPERSEDED SECTION.** This was recorded at main 10314c8 and its §2
+> describes the tree at that time, when internal/outbound/raw.go wrote HTTP/1.1 by hand and was ALSO the
+> client that carried user traffic. That is no longer true: aw.go is now ORACLE-ONLY (its own comment says
+> so), and internal/outbound/transport.go is a separate production client with proxy awareness, bounded
+> connect/TLS/header/idle timeouts, decompression, redirect policy, keep-alive honouring enableKeepAlive,
+> and the private-address dial filter -- selected for user traffic by TransportMode. So §2's D1-D8 list is
+> a record of the defect that produced P0-A, not a current description; read internal/outbound/transport.go
+> and 	ransport_matrix_test.go for what the production client does today. §1's egress inventory and §3/§4's
+> requirements remain the right questions. **Current status lives in docs/goal-scorecard.md and
+> docs/compatibility-matrix.json; a historical inventory is not evidence about the current tree.**
+
 Recorded at `main` `10314c8`. Every row was read from the source named in it; nothing here is inferred from a
 document or from a green CI run.
 
