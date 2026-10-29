@@ -5,11 +5,11 @@
     {
       "name": "preset-a",
       "file": "preset-a.json",
-      "bytes": 72499,
-      "sha256": "5bf9007891bd441f642ea2cfc9008bf8662cfef6541f04f1b21c0dcd68ee0b28",
+      "bytes": 71423,
+      "sha256": "58f6e3ae1e22791ce5b6b5dbb61d5bf580a6a63678df7946e921cbbf589949cc",
       "origin": {
         "bytes": 99740,
-        "sha256": "83aad8e26be778e538d7720e9d883413125956575fde44b3a71b617f29d6a388"
+        "sha256": "[REDACTED]"
       },
       "replaced": {
         "stringsReplaced": 54,
@@ -53,7 +53,7 @@
       "sha256": "4ee6b389b50e315e68e0ce1cdd2b8ee93d5fa3864a6ffc85246358248bcab84a",
       "origin": {
         "bytes": 1428750,
-        "sha256": "77e620d002e2be7b12c2785333702178ea95112e7c8e60f521e818974d284f0b"
+        "sha256": "[REDACTED]"
       },
       "replaced": {
         "stringsReplaced": 89,
@@ -122,7 +122,7 @@
       },
       "origin": {
         "bytes": 19093535,
-        "sha256": "b1fb70b3b1681cc2012c5d351544a62ee8f7e769ac03fefae737b05acdf198bd"
+        "sha256": "[REDACTED]"
       },
       "replaced": {
         "namesReplaced": 4659,
