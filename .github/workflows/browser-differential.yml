@@ -748,10 +748,27 @@ jobs:
           # on both legs, which is the property the asset lane learned the expensive way (run 40202885055).
           cp tests/browser/fixtures/real/card-a.png "$tree_gotavern/default-user/characters/UI Layout Card.png"
           cp tests/browser/fixtures/real/card-a.png "$tree_pinned/default-user/characters/UI Layout Card.png"
+          # A DRIVE THAT FAILS MUST NAME ITSELF IN THE LOG. Measured 2026-10-29 (Browser differential
+          # 40898261299): the pinned leg exited 1 two seconds after readiness, the wrapper printed only
+          # "[pinned] child exited 1", and the diagnosis then depended on downloading a 406 MB artifact to
+          # read one JSON field. The probe writes its reason into the report, so the report is printed here
+          # on failure -- a probe that fails silently costs a full run per guess (AGENTS.md rule 20).
+          dump_leg() {
+            local file="$1"
+            if [ -s "$file" ]; then
+              echo "--- $file (first 4000 bytes) ---"
+              head -c 4000 "$file"
+              echo
+              echo "--- end $file ---"
+            else
+              echo "--- $file was not written at all ---"
+            fi
+          }
           if node tests/browser/ui-layout-probe.mjs --data-root "$tree_gotavern" --report "$work/legs/ui-layout-gotavern-leg.json"; then
             echo "recorded the GoTavern layout leg"
           else
             echo "::error::the GoTavern layout leg failed to drive"
+            dump_leg "$work/legs/ui-layout-gotavern-leg.json"
             failures=$((failures + 1))
             echo "failures=$failures" >> "$GITHUB_OUTPUT"
           fi
@@ -759,6 +776,7 @@ jobs:
             echo "recorded the pinned layout leg"
           else
             echo "::error::the pinned layout leg failed to drive"
+            dump_leg "$work/legs/ui-layout-pinned-leg.json"
             failures=$((failures + 1))
             echo "failures=$failures" >> "$GITHUB_OUTPUT"
           fi
