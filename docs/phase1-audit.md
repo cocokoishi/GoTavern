@@ -85,9 +85,29 @@ Dimension coverage of `real-preset-probe.mjs`, by hits in the file:
 **So Phase 1 does not need a new harness.** It needs two dimensions added to an existing probe and its
 comparator, reusing the structural-count guard so a green still cannot come from a default preset.
 
-**Not yet established, and stated rather than implied:** how much of the character, extension and chat-state
-dimensions the probe already reaches. Only that world info and macros are at zero. Reading the probe's drive
-steps in full is the first task of the next increment.
+**The drive sequence, read in full so the coverage is established rather than inferred.** The probe's own
+`step(...)` calls are, in order:
+
+```
+step('page-loaded')             the frontend loaded
+step('settings-ready')          script.js settingsReady
+step('real-preset-loaded')      the preset FILE loaded through the frontend's own manager
+step('real-preset-structure')   the counts the frontend reports match the fixture's
+step('connection-configured')   the connection is set
+step('character-open')          a character is open (chatAvailable)
+step('generation-completed')    the generation finished
+step('peer-reached')            at least one request reached the capturing peer
+```
+
+So the sequence is **load preset -> configure connection -> open character -> generate -> capture**, and the
+dimension coverage follows from it: **preset is fully driven** (load plus the structure guard), **character and
+chat are driven** (`character-open`, and 15 chat-related lines), and **world info, lorebook, macros, persona and
+group are not driven at all** — zero lines each, against 10 for character and 15 for chat.
+
+That is the measured gap, and it is narrower than it looked: the probe already drives four of the eight steps a
+complex workflow needs, and what is missing is the **world-info / lorebook** dimension and the **macros**
+dimension. Persona and group are absent too, but they are not named in the Phase 1 dimension list and are
+recorded here as observed-absent rather than as Phase 1 obligations.
 
 ## 5. The privacy model Phase 1 must hold to
 
