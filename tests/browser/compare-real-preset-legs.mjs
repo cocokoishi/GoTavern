@@ -36,12 +36,21 @@
 //                        reporting a pass.
 //
 // Usage: node tests/browser/compare-real-preset-legs.mjs <gotavern-a> <pinned-a> <gotavern-b> <pinned-b>
+//          [--preset-a <preset-a.json>]   optional; enables the TEXT-based form of the enabled-row guard
 // Prints the verdict as JSON on stdout and exits non-zero when the verdict is not a match.
 
 import fs from 'node:fs';
 import path from 'node:path';
 
-const [gotavernA, pinnedA, gotavernB, pinnedB] = process.argv.slice(2);
+// OPTIONAL --preset-a <path>. When supplied, the enabled-row guard identifies prompt bodies by their own
+// TEXT instead of by the `MARK_` marker the committed derivation substitutes for prose -- which is what makes
+// the guard satisfiable against a REAL preset. When absent, every path below is exactly as it was, so the
+// derivation call site is unaffected by construction rather than by argument.
+const argv = process.argv.slice(2);
+const presetAFlag = argv.indexOf('--preset-a');
+const presetAPath = presetAFlag >= 0 ? argv[presetAFlag + 1] : null;
+const positionals = argv.filter((arg, index) => !arg.startsWith('--') && !(presetAFlag >= 0 && index === presetAFlag + 1));
+const [gotavernA, pinnedA, gotavernB, pinnedB] = positionals;
 if (!gotavernA || !pinnedA || !gotavernB || !pinnedB) {
     console.error('usage: node compare-real-preset-legs.mjs <gotavern-a.json> <pinned-a.json> <gotavern-b.json> <pinned-b.json>');
     process.exit(2);
@@ -203,6 +212,54 @@ guard('aEnabledRowPointingAtDisabledPromptContributes', () => {
     // Measured: a Layer A run against two real private presets passed every other guard (both
     // equality halves of rule 48, both discriminations, rule 50) and failed only this one, for this
     // reason. The derivation case is unaffected -- verified against its saved leg reports, still match.
+    // TEXT-BASED IDENTIFICATION, when the caller supplied --preset-a. This is the additive half: it asks
+    // the SAME question the marker branch asks -- does an enabled order row pointing at a prompt whose own
+    // `enabled` is false still contribute its body? -- but it names the bodies from the preset itself instead
+    // of from a substituted marker, so a real preset can answer it.
+    //
+    // It sits BEFORE the marker branch and does not modify it: with no --preset-a the control flow below is
+    // byte-for-byte what it was, which is why the derivation call site cannot be affected by this change.
+    if (presetAPath) {
+        let preset = null;
+        try { preset = JSON.parse(fs.readFileSync(presetAPath, 'utf8')); }
+        catch (error) { return ['--preset-a could not be read: ' + error.message]; }
+        const byIdentifier = new Map((preset.prompts || []).map(p => [p.identifier, p]));
+        const qualifying = [];
+        for (const entry of (preset.prompt_order || [])) {
+            for (const row of (entry.order || [])) {
+                const prompt = byIdentifier.get(row.identifier);
+                if (row.enabled === true && prompt && prompt.enabled === false
+                    && typeof prompt.content === 'string' && prompt.content.trim().length > 0) {
+                    qualifying.push(prompt.content);
+                }
+            }
+        }
+        if (qualifying.length === 0) {
+            return ['no enabled order row points at a disabled prompt in this preset, so this fixture does not exercise the property'];
+        }
+        const bodiesOf = report => Array.from(
+            { length: contextRequestCount(report) },
+            (unused, index) => String(contextRequest(report, index)?.body ?? ''),
+        ).join('\n');
+        const leftBodies = bodiesOf(reports.A?.go);
+        const rightBodies = bodiesOf(reports.A?.node);
+        const arrivedLeft = qualifying.filter(text => leftBodies.includes(text));
+        const arrivedRight = qualifying.filter(text => rightBodies.includes(text));
+        details.aTextBodies = {
+            qualifying: qualifying.length,
+            arrivedGotavern: arrivedLeft.length,
+            arrivedPinned: arrivedRight.length,
+        };
+        if (arrivedLeft.length === 0 || arrivedRight.length === 0) {
+            return ['no enabled-row body arrived verbatim on both legs (gotavern ' + arrivedLeft.length
+                + ' of ' + qualifying.length + ', pinned ' + arrivedRight.length + ' of ' + qualifying.length
+                + '). Bodies carrying macros are substituted before they reach the request, so verbatim text '
+                + 'is the strict form of this question; a zero here means either nothing contributed or '
+                + 'everything was substituted, and this guard does not distinguish those.'];
+        }
+        return [];
+    }
+
     if (left.size === 0 || right.size === 0) return [
         'no preset-A request on either leg carried a fixture marker, so this guard cannot ask its '
         + 'question for this input class: it identifies a prompt body by the MARK_NNNNNN marker the '
