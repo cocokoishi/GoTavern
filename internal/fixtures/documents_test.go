@@ -1666,3 +1666,55 @@ func joinedProblems(problems []string) string {
 	}
 	return builder.String()
 }
+
+// minDeclaredPinReason is the floor for a declared pin's reason, in characters. Every existing entry is a
+// full sentence naming what the commit IS and where it is RELIED ON; the shortest current value is 61
+// characters (a release-SHA entry, "v0.1.0-alpha.8 release commit - HANDOFF.md current checkpoint").
+// 40 is deliberately below every real entry and above every trivial
+// one: it refuses "TODO", "see above", "release" and a bare SHA while leaving room for a short but honest
+// sentence. Raising this is a policy change; lowering it is how an allowlist starts accepting noise.
+const minDeclaredPinReason = 40
+
+// TestDeclaredPinsAreJustified is the gate the comment above `declaredOtherPins` has promised since it was
+// written, and it did not exist until now:
+//
+//	"A value added here without a reason is refused by TestDeclaredPinsAreJustified below."
+//
+// THAT PROMISE WAS THE DEFECT. The map is consumed only as a SET (`if _, declared := declaredOtherPins[value];
+// declared` at the two call sites), so the reason string was never read by anything -- an entry could carry
+// "" or "   " and every existing gate would still pass. A comment that promises a gate is worse than no
+// comment, because it tells a reader they are protected. This test makes the promise true.
+//
+// It rejects, in order of how the failure would arrive:
+//  1. an EMPTY allowlist -- a gate that iterates zero times passes vacuously, which is the shape rule 19
+//     exists for: a test that cannot fail;
+//  2. an EMPTY reason ("");
+//  3. a WHITESPACE-ONLY reason ("   ", "\t\n"), which is why the trim runs before the length check;
+//  4. a TRIVIAL reason below minDeclaredPinReason;
+func TestDeclaredPinsAreJustified(t *testing.T) {
+	if len(declaredOtherPins) == 0 {
+		t.Fatal("declaredOtherPins is EMPTY: this test would pass vacuously, which is the defect it exists to refuse (rule 19)")
+	}
+
+	var reasons []string
+	for sha, reason := range declaredOtherPins {
+		if reason == "" {
+			reasons = append(reasons, fmt.Sprintf("%s carries an EMPTY reason", sha))
+			continue
+		}
+		trimmed := strings.TrimSpace(reason)
+		if trimmed == "" {
+			reasons = append(reasons, fmt.Sprintf("%s carries a WHITESPACE-ONLY reason %q", sha, reason))
+			continue
+		}
+		if len(trimmed) < minDeclaredPinReason {
+			reasons = append(reasons, fmt.Sprintf(
+				"%s carries a TRIVIAL reason (%d characters, floor %d): %q -- a declared pin's reason must name what the commit is and where it is relied on",
+				sha, len(trimmed), minDeclaredPinReason, trimmed))
+		}
+	}
+
+	if len(reasons) > 0 {
+		t.Fatalf("declaredOtherPins entries are not justified:\n  - %s", strings.Join(reasons, "\n  - "))
+	}
+}

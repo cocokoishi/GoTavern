@@ -330,6 +330,25 @@ function writeFileStrict(relativePath, content) {
     if (content.charCodeAt(0) === 0xfeff) throw new Error(`${relativePath}: refusing to write a BOM`);
     mkdirSync(path.dirname(absolutePath), { recursive: true });
     writeFileSync(absolutePath, content, 'utf8');
+    // EXACT READ-BACK, BY BYTES, BEFORE THE WRITE IS BELIEVED. A parser accepting the file, or the diff
+    // looking right, is not evidence that the bytes on disk are the bytes intended: two instances in one
+    // round produced semantically perfect edits that failed a byte-level actor -- a hand-written entry that
+    // lost its leading tab (0x09) and broke `Verify Go formatting`, and an insertion that glued a comment
+    // onto the previous line. BOTH pass a parser. So: read the file back, decode it strictly, and require
+    // equality with what was meant to be written. The read-back is the cheapest check in the tree and it is
+    // the one that was missing.
+    const written = readFileSync(absolutePath);
+    const decoded = new TextDecoder('utf-8', { fatal: true }).decode(written);
+    if (decoded !== content) {
+        const at = [...content].findIndex((ch, index) => decoded[index] !== ch);
+        throw new Error(`${relativePath}: read-back does not match what was written (first difference at character ${at}: wrote ${JSON.stringify(decoded[at])}, intended ${JSON.stringify([...content][at])})`);
+    }
+    if (written.length > 0 && written[0] === 0xef && written[1] === 0xbb && written[2] === 0xbf) {
+        throw new Error(`${relativePath}: read-back found a UTF-8 BOM that was not intended`);
+    }
+    if (content.endsWith('\n') && !decoded.endsWith('\n')) {
+        throw new Error(`${relativePath}: read-back lost the trailing newline`);
+    }
 }
 
 function main() {
