@@ -1,4 +1,4 @@
-// DO 酒馆助手's VARIABLES REACH THE FINAL PROVIDER REQUEST -- the NARROW vehicle.
+// DO é…’é¦†åŠ©æ‰‹'s VARIABLES REACH THE FINAL PROVIDER REQUEST -- the NARROW vehicle.
 //
 // THE CLAIM, in one sentence and in the two halves that either alone cannot prove: a helper writes a variable, and
 //   (i)  a prompt that reads it through the HOST macro engine resolves the value DURING GENERATION so the resolved
@@ -173,7 +173,7 @@ function startCapturePeer() {
 
 const report = {
     schemaVersion: 1,
-    question: 'Does a 酒馆助手 variable resolve into the FINAL provider request during a real generateRaw, and is it still readable from disk after a fresh page and a new server process?',
+    question: 'Does a é…’é¦†åŠ©æ‰‹ variable resolve into the FINAL provider request during a real generateRaw, and is it still readable from disk after a fresh page and a new server process?',
     vehicle: 'narrow: one variable, one prompt that reads it through the host macro engine, one generateRaw per case. The UI-select vehicle was attempted first and cost four reds, all in the vehicle; the claim does not require it.',
     uiVehicleRedRuns: [
         { run: '40445034876', step: 'card-opened', mechanism: 'card matched by a field the template does not set (title lives on the inner .avatar)' },
@@ -223,6 +223,49 @@ function binaryPath() {
     return binarySetting ? path.resolve(binarySetting) : path.join(dataRoot, process.platform === 'win32' ? 'gotavern.exe' : 'gotavern');
 }
 
+function git(args, cwd) {
+    return new Promise((resolve, reject) => {
+        const child = spawn('git', args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
+        const output = [];
+        child.stdout.on('data', chunk => output.push(chunk.toString()));
+        child.stderr.on('data', chunk => output.push(chunk.toString()));
+        child.on('error', reject);
+        child.on('close', code => (code === 0
+            ? resolve(output.join('').trim())
+            : reject(new Error(`git ${args.join(' ')} exited ${code}\n${output.join('').slice(-2000)}`))));
+    });
+}
+
+/**
+ * A RECORDED FAILURE MUST NOT CARRY A HOST PATH, even when it fails.
+ *
+ * MEASURED IN 40878005589: `tools/verify-browser-comparisons.mjs` refused the fresh artefact on
+ * `records a host-derived address matching /\/home\//`, and the match was the pinned restart leg's REFUSAL message --
+ * `/home/runner/work/_temp/.../JS-Slash-Runner is at e71c9906..., not the pinned ...`, plus its `file:///home/...`
+ * stack frames. The refusal is a real, useful observation; the RUNNER'S PATH inside it is not part of the product and
+ * belongs to the run that produced it. Both carriers are normalised here (this file owns the two roots): the DATA ROOT
+ * and the REPO ROOT become markers, keeping the file and line that make the message actionable.
+ *
+ * A STACK FRAME INSIDE A DEPENDENCY has neither root, so the fallback is deliberately NARROW -- only the absolute
+ * roots that are host-specific (`/home`, `/Users`, `/tmp`, ...), a Windows drive, and `file://` URLs. A broad
+ * "replace anything that starts with a slash" rule would rewrite `/api/settings/save` into a marker and destroy the
+ * message it was supposed to keep.
+ */
+function neutraliseHostPaths(text) {
+    let out = String(text ?? '');
+    const slash = value => String(value ?? '').split(path.sep).join('/');
+    for (const [root, marker] of [[repoRoot, '<repo>'], [dataRoot, '<data-root>']]) {
+        if (!root) continue;
+        for (const form of [root, slash(root), `file:///${slash(root)}`]) {
+            if (form) out = out.split(form).join(marker);
+        }
+    }
+    out = out.replace(/(?<![A-Za-z])[A-Za-z]:[\\/][^\s"'`)<>]*/g, '<host-path>');
+    out = out.replace(/file:\/\/\/[^\s"'`)<>]*/g, '<host-path>');
+    out = out.replace(/\/(?:home|Users|root|tmp|var|opt|mnt|runner|workspace|builds|github)(?:\/[^\s"'`)<>]*)?/g, '<host-path>');
+    return out;
+}
+
 /**
  * THE GENERATION SCRIPT, run INSIDE the extension's own script iframe. It is the only thing this leg installs, and it
  * uses the extension's own API: `replaceScriptTrees` to exist at all, `insertOrAssignVariables` to write,
@@ -259,6 +302,13 @@ function binaryPath() {
 const SCRIPT = [
     'const cfg = window.parent.__hvn;',
     'const out = { cases: [], error: null };',
+    // THE RUN ID IS HOW THE DRIVER TELLS A FRESH EXECUTION FROM A STALE ONE. A script tree saved by
+    // `replaceScriptTrees` is re-activated on the NEXT page load, before the driver has put its payload back into
+    // `window.parent.__hvn`, so on the reload a STALE iframe can carry a `__hvnDone` whose `cases` list is empty and
+    // whose only trace is `Cannot read properties of undefined (reading "cases")`. Measured on this host: the reload
+    // case then produced NO capture while `script-completed` stayed green. `null` here is itself the diagnosis: the
+    // iframe ran without the payload.
+    'out.runId = (cfg && cfg.runId) || null;',
     'const record = (name, extra) => out.cases.push(Object.assign({ name }, extra));',
     'const taThelperSubstitute = text => (typeof TavernHelper?.substitudeMacros === "function"',
     '  ? TavernHelper.substitudeMacros(text)',
@@ -326,6 +376,18 @@ try {
     const installed = await ensurePinnedExtensionInstalled(dataRoot, pinnedExtension('tavern-helper'));
     report.provenance.extension.installedRevision = installed.revision;
     report.provenance.extension.installSource = installed.source ?? null;
+    // THE PIN IS HELD BEFORE THE SERVER BOOTS, because the page's auto-update is what moved it (see
+    // ensureFrozenOrigin in install-pinned-extension.mjs).
+    // THIS IS THE START-OF-DRIVE ASSERTION the lead asked for: the git HEAD itself, not the API surface that
+    // was read from the same tree. A leg that drifts here fails by name instead of measuring a different extension.
+    const extensionRevisionAtStart = await git(['rev-parse', 'HEAD'], installed.extensionDirectory).catch(() => null);
+    report.provenance.extension.pinnedAtDriveStart = {
+        expected: pinnedExtension('tavern-helper').commit,
+        atDriveStart: extensionRevisionAtStart,
+        frozenOrigin: installed.frozen ?? null,
+    };
+    step('extension-pinned-at-drive-start', extensionRevisionAtStart === pinnedExtension('tavern-helper').commit,
+        JSON.stringify(report.provenance.extension.pinnedAtDriveStart));
 
     // ---- THE SIX REFUSAL CHECKS, kept from the UI vehicle without exception ------------------------------
     const apiSurface = await readHelperApiSurface(installed, installed.extensionDirectory);
@@ -365,8 +427,26 @@ try {
         server.stderr.on('data', () => {});
         report.provenance.serverPid = server.pid ?? null;
     }
+    // THE PINNED LEG'S PID COMES FROM THE WRAPPER, which owns that process (run-against-pinned.mjs exports it).
+    // Without it, restartIsNewProcess was "Boolean(undefined) && ..." = FALSE on this subject for every recording.
+    if (external) {
+        report.provenance.serverPid = process.env.PROBE_SERVER_PID ? Number(process.env.PROBE_SERVER_PID) : null;
+        report.provenance.serverPidSource = process.env.PROBE_SERVER_PID ? 'run-against-pinned.mjs (PROBE_SERVER_PID)' : null;
+    }
     report.provenance.configFile = { path: 'config.yaml', sha256: legConfig?.sha256 ?? null, matchesSource: legConfig?.matchesSource ?? null };
     const baseURL = process.env.PROBE_BASE_URL ?? `http://127.0.0.1:${port}`;
+    // THE SERVER INSTANCE THIS LEG TALKED TO, AS A DIGEST RATHER THAN A URL.
+    //
+    // MEASURED IN 40878005589: no PINNED leg recorded `provenance.serverPid` (the pinned server is booted by
+    // run-against-pinned.mjs, not by this probe), so the comparator's `restartIsNewProcess` was
+    // `Boolean(undefined) && â€¦` = FALSE on the pinned subject for every recording -- a structural asymmetry no product
+    // behaviour could clear, and half of the reason `survivesRestart` came out true on one subject and false on the
+    // other. The probe cannot see that pid (the wrapper does not pass it), so it records the one identity it CAN see:
+    // every invocation is served by its own server -- this probe allocates a port and spawns the binary for a GoTavern
+    // leg, the wrapper allocates a port and spawns server.js for a pinned leg -- so a DIFFERENT endpoint means a
+    // DIFFERENT SERVER INSTANCE, which is exactly the fact "a new process read this tree" needs. The URL is never
+    // recorded, only a digest of it, so no host value reaches the artefact.
+    report.provenance.serverEpoch = createHash('sha256').update(`server:${baseURL}`).digest('hex').slice(0, 16);
     await waitForServer(`${baseURL}/version`);
     phase('server-ready');
     report.provenance.serverVersion = await fetch(`${baseURL}/version`).then(response => response.json(), () => null);
@@ -464,7 +544,21 @@ try {
         const names = (await fs.readdir(presetDirectory).catch(() => [])).filter(name => name.endsWith('.json'));
         if (names.length === 0) throw new Error(`the leg tree has no chat-completion preset to derive from: ${presetDirectory}`);
         const stance = JSON.parse(await fs.readFile(path.join(presetDirectory, names[0]), 'utf8'));
-        const identity = `HV-PRESET-CHAT={{getvar::${PRESET_VARIABLE}}}`;
+        // ONE PROMPT CARRIES BOTH CLAUSES: the chat-scoped lookup AND the global-scoped one.
+        //
+        // MEASURED IN 40878005589, and it is why `guards.globalScopeReachesWire` was false on BOTH subjects. The
+        // staged prompt carried ONLY `HV-PRESET-CHAT=`, while the global case's clause lived in the `prompt` string the
+        // probe substitutes for itself (`renderedWithMacroEngine`) and NEVER SENDS -- `generate()` is called with
+        // `preset_name`, so the wire content is the PRESET, not that string. A body can therefore never contain
+        // `HV-PRESET-GLOBAL=<value>` no matter what the product does: a guard false on both subjects, and false for a
+        // reason the driver created (AGENTS.md 10 -- the probe never drove a state a user can reach, because a user's
+        // preset prompt CAN carry `{{getglobalvar::x}}`).
+        //
+        // THE ORDER IS PART OF THE ASSERTION, NOT TIDINESS. `deleteReturnsToEmptyForm` reads the deleted case's
+        // rendered form with `endsWith('HV-PRESET-CHAT=')` -- the deleted chat clause must be the LAST thing in the
+        // string, so the CHAT clause goes last. With it first, deleting the variable would leave the global clause
+        // after it and that guard could never be satisfied while the global clause was present.
+        const identity = `HV-PRESET-GLOBAL={{getglobalvar::hv_global}}|HV-PRESET-CHAT={{getvar::${PRESET_VARIABLE}}}`;
         const trio = buildTrio({ stance, readyMarker: 'hv-preset-ready', identity });
         report.fixture = {
             committedPreset: { file: committed.file, sha256: committed.sha256, byteLength: committed.byteLength },
@@ -500,7 +594,7 @@ try {
     // THE `message` SCOPE NEEDS A NON-EMPTY CHAT, AND THAT IS A PINNED FACT THIS LEG RECORDS.
     //
     // Measured in Browser differential 40460818792: `insertOrAssignVariables({...}, {type:'message', message_id: 0})`
-    // on a chat with ZERO messages throws `提供的消息楼层号 '0' 超出了范围 [0, 0)`, because the pinned bound is
+    // on a chat with ZERO messages throws `æä¾›çš„æ¶ˆæ¯æ¥¼å±‚å· '0' è¶…å‡ºäº†èŒƒå›´ [0, 0)`, because the pinned bound is
     // `_.inRange(option.message_id, -chat.length, chat.length)` (src/function/variables.ts:58-63) and with
     // `chat.length === 0` NO index is valid. That is pinned behaving CORRECTLY, so the leg does two things:
     //   1. seeds ONE message through the helper's own `createChatMessages`, so the scope has a valid index and the
@@ -529,7 +623,17 @@ try {
     const chatPrompt = `${PROMPTS.chat}{{getvar::${PRESET_VARIABLE}}}`;
     const globalPrompt = `${PROMPTS.global}{{getglobalvar::hv_global}}`;
     const messagePrompt = `${PROMPTS.message}{{getvar::hv_message}}`;
-    const cases = writesVariables ? [
+    const cases = afterRestart ? [
+        // THE RESTART LEG WRITES NOTHING. It is the ONLY case set that may not, and the earlier version of this file
+        // got that wrong in the most expensive way available: it ran the SAME `writesVariables` list, so its
+        // `chat-alpha` RE-WROTE `hv_preset` before generating and `survivesRestart` came out true because the leg had
+        // just written the value, not because the tree carried it. MEASURED in 40878005589: every restart case's
+        // sha256 EQUALS the on-leg's (`chat-alpha` b82308a7â€¦, `chat-beta` 52ba205dâ€¦, â€¦) -- the same drive, twice.
+        // A guard satisfied by the leg's own write is a green that cannot fail (AGENTS.md 7). So a restart leg is ONE
+        // read-only generation whose prompt is the preset's own, and the only value it can resolve is the one the NEW
+        // PROCESS reads off the disk the previous process left.
+        { name: 'reload-chat', ops: [], prompt: chatPrompt },
+    ] : writesVariables ? [
         { name: 'chat-alpha', ops: [{ kind: 'insert', scope: 'chat', values: { [PRESET_VARIABLE]: MARKERS.first } }], prompt: chatPrompt },
         { name: 'chat-beta', ops: [{ kind: 'insert', scope: 'chat', values: { [PRESET_VARIABLE]: MARKERS.second } }], prompt: chatPrompt },
         { name: 'chat-deleted', ops: [{ kind: 'delete', scope: 'chat', path: PRESET_VARIABLE }], prompt: chatPrompt },
@@ -548,36 +652,54 @@ try {
 
     // THE SCRIPT RUNS IN THE EXTENSION'S OWN IFRAME, through the helper's own API, exactly as the render and
     // generation legs do -- so what is captured is the request the helper produced, not one this harness built.
+    //
+    // A FRESH IDENTITY PER RUN, AND A RUN ID THE DRIVER WAITS FOR. A tree installed by `replaceScriptTrees` is SAVED
+    // and re-activated on the next page load, which happens BEFORE `window.parent.__hvn` is set again -- so on the
+    // reload the extension executes the previous tree with no payload. Measured on this host (Windows, same drive
+    // otherwise byte-identical to CI: every case sha matched): the reload leg recorded
+    // `{"cases":[],"error":"Cannot read properties of undefined (reading 'cases')"}` and produced NO capture, while
+    // `reload-page-loaded` stayed green because the driver accepted any `__hvnDone` it found. Re-adding a tree with
+    // the SAME id and content does not recreate the iframe, so the stale result was read forever. Two changes:
+    // the id carries a per-run nonce (a new tree, therefore a new iframe, therefore a real execution), and the poll
+    // only accepts a `__hvnDone` whose `runId` is THIS run's.
+    let scriptRunCounter = 0;
     const runScript = async list => {
         const before = peer.requests.length;
-        await page.evaluate(payload => {
-            window.__hvn = payload;
+        scriptRunCounter += 1;
+        const payload = { runId: `gotavern-hv-narrow-${scriptRunCounter}`, content: SCRIPT, cases: list, presetName: TARGET_PRESET_NAME, resolveIdentifier: RESOLVE_IDENTIFIER };
+        await page.evaluate(item => {
+            window.__hvn = item;
             window.TavernHelper.replaceScriptTrees([{
                 type: 'script',
                 enabled: true,
-                name: 'gotavern-hv-narrow',
-                id: 'gotavern-hv-narrow',
-                content: payload.content,
+                name: item.runId,
+                id: item.runId,
+                content: item.content,
                 button: { enabled: false, buttons: [] },
             }], { type: 'global' });
-        }, { content: SCRIPT, cases: list, presetName: TARGET_PRESET_NAME, resolveIdentifier: RESOLVE_IDENTIFIER });
+        }, payload);
         const deadline = Date.now() + 120000;
         let done = null;
+        let stale = null;
         while (Date.now() < deadline) {
-            done = await page.evaluate(() => {
-                const frame = Array.from(document.querySelectorAll('iframe')).find(item => {
-                    try {
-                        return Boolean(item.contentWindow?.__hvnDone);
-                    } catch {
-                        return false;
-                    }
-                });
-                return frame ? frame.contentWindow.__hvnDone : null;
-            });
-            if (done) break;
+            const found = await page.evaluate(() => Array.from(document.querySelectorAll('iframe')).map(item => {
+                try {
+                    return item.contentWindow?.__hvnDone ?? null;
+                } catch {
+                    return null;
+                }
+            }).filter(Boolean));
+            // PREFER THE MATCHING RUN: a stale iframe must never be read as this run's result, and must never be
+            // silently ignored either -- it is kept as `stale` so a driver defect names itself.
+            done = found.find(item => item.runId === payload.runId) ?? null;
+            if (done) {
+                stale = found.find(item => item.runId !== payload.runId) ?? null;
+                break;
+            }
+            stale = found.find(item => item.runId !== payload.runId) ?? stale;
             await new Promise(resolve => setTimeout(resolve, 250));
         }
-        return { done, requests: peer.requests.slice(before) };
+        return { done, stale, runId: payload.runId, requests: peer.requests.slice(before) };
     };
 
     /**
@@ -667,26 +789,76 @@ try {
     step('mechanism-recorded-per-case', report.cases.every(entry => typeof entry.promptRaw === 'string' && entry.promptRaw.includes('{{') ),
         report.cases.map(entry => `${entry.case}:${typeof entry.promptRaw === 'string' ? 'has-promptRaw' : 'MISSING'}`).join(','));
 
-    // ---- HALF (ii): DISK, re-read in this process ---------------------------------------------------------
+    // ---- HALF (ii): DISK, and it is a BOUNDED WAIT ON THE FILE, never a sleep ---------------------------------
+    //
+    // MEASURED IN 40878005589 AND REPRODUCED LOCALLY: `disk.settings.variablesGlobal` was `{}` on BOTH subjects after
+    // the global write, which had succeeded in the page (`applied[3].after = {hv_global: "HV-GLOBAL-e05f"}`). The
+    // written path is `extension_settings.variables.global` + `saveSettingsDebounced()`
+    // (src/function/variables.ts:169-173), and `saveSettingsDebounced` is
+    // `debounce(saveSettings, DEFAULT_SAVE_EDIT_TIMEOUT)` with `DEFAULT_SAVE_EDIT_TIMEOUT = debounce_timeout.relaxed`
+    // = 1000 ms (public/script.js:466,470; public/scripts/constants.js:14). The drive read the file ~100 ms after the
+    // last case, so the queue was still pending; the reload page then NAVIGATED, which kills the pending timer. The
+    // artefact therefore had NO disk evidence for half (ii) at all -- and `survivesFreshPage` only looked green
+    // because the reloaded preset resolved to the EMPTY clause, which is the `(localVariable || '')` fallback
+    // (public/scripts/variables.js:45) and proves nothing about persistence.
+    //
+    // THE WAIT IS ON THE PRODUCT'S OWN OUTPUT, and a value that never appears is a NAMED drive failure rather than a
+    // quiet red on the claim (AGENTS.md 33 forbids masking a readiness race with a sleep; this polls the file).
+    // The deadline is 25 s: 25x the debounce, so a slow CI runner cannot turn a correct save into a red.
+    let persistence = null;
+    if (writesVariables && !afterRestart) {
+        const persistenceStart = Date.now();
+        const persistenceDeadline = persistenceStart + 25000;
+        let settings = await readSettingsFile(dataRoot);
+        while (Date.now() < persistenceDeadline && !JSON.stringify(settings?.variablesGlobal ?? null).includes(MARKERS.global)) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            settings = await readSettingsFile(dataRoot);
+        }
+        persistence = {
+            waitedMs: Date.now() - persistenceStart,
+            found: JSON.stringify(settings?.variablesGlobal ?? null).includes(MARKERS.global),
+            settingsSha256: settings?.sha256 ?? null,
+            variablesGlobal: settings?.variablesGlobal ?? null,
+            mechanism: 'polled default-user/settings.json for the global marker; the write is saved by a 1000 ms debounce (public/script.js:466,470)',
+        };
+        report.persistence = persistence;
+        step('global-write-persisted', persistence.found === true, JSON.stringify({ found: persistence.found, waitedMs: persistence.waitedMs, variablesGlobal: persistence.variablesGlobal }));
+    }
+
     report.disk = { chats: await readChatRecords(dataRoot), settings: await readSettingsFile(dataRoot) };
 
     // ---- A FRESH PAGE over the same process ----------------------------------------------------------------
-    const reloadBoot = await openPage();
-    const reloadConnect = await connect(`http://127.0.0.1:${peer.port}/v1`);
-    const reloadRun = await runScript([{ name: 'reload-chat', ops: [], prompt: chatPrompt }]);
-    report.reload = {
-        boot: reloadBoot,
-        connection: reloadConnect,
-        script: reloadRun.done,
-        request: summarise((attributeRequests(reloadRun.requests, [{ name: 'reload-chat' }]).byCase.get('reload-chat') ?? [])[0] ?? null),
-        disk: { chats: await readChatRecords(dataRoot), settings: await readSettingsFile(dataRoot) },
-    };
-    step('reload-page-loaded', reloadBoot?.settingsReady === true && reloadRun.done !== null, JSON.stringify({ settingsReady: reloadBoot?.settingsReady, scriptError: reloadRun.done?.error ?? null }));
-    phase('reload');
+    // SKIPPED ON THE RESTART LEG: that leg's single read-only case IS a fresh page in a NEW process, so a second
+    // page would double its cost and add nothing. The comparator reads `leg.reload` only for the on legs.
+    if (!afterRestart) {
+        const reloadBoot = await openPage();
+        const reloadConnect = await connect(`http://127.0.0.1:${peer.port}/v1`);
+        const reloadRun = await runScript([{ name: 'reload-chat', ops: [], prompt: chatPrompt }]);
+        report.reload = {
+            boot: reloadBoot,
+            connection: reloadConnect,
+            script: reloadRun.done,
+            staleScript: reloadRun.stale,
+            request: summarise((attributeRequests(reloadRun.requests, [{ name: 'reload-chat' }]).byCase.get('reload-chat') ?? [])[0] ?? null),
+            disk: { chats: await readChatRecords(dataRoot), settings: await readSettingsFile(dataRoot) },
+        };
+        step('reload-page-loaded', reloadBoot?.settingsReady === true && reloadRun.done !== null && !reloadRun.done?.error,
+            JSON.stringify({ settingsReady: reloadBoot?.settingsReady, scriptError: reloadRun.done?.error ?? null, staleRunId: reloadRun.stale?.runId ?? null, captured: Boolean(report.reload.request) }));
+        phase('reload');
+    }
+
+    // THE EXTENSION MUST STILL BE THE REVISION THE CLAIM NAMES, AFTER the drive. The pinned page's auto-update runs
+    // during the first load of a fresh tree; the frozen origin makes it a local no-op, and this is the assertion
+    // that the checkout really did not move -- so a future change that reopens the network path fails HERE, by name,
+    // instead of producing an asymmetry two legs later.
+    const revisionAfterDrive = await git(['rev-parse', 'HEAD'], installed.extensionDirectory).catch(() => null);
+    const expectedRevision = pinnedExtension('tavern-helper').commit;
+    step('extension-revision-held', revisionAfterDrive === expectedRevision,
+        JSON.stringify({ expected: expectedRevision, after: revisionAfterDrive, held: report.provenance.extension.heldAtPin ?? null }));
 
     report.completions = peer.requests.filter(entry => /completions$/.test(entry.path ?? '')).length;
 } catch (error) {
-    report.failure = report.failure ?? String(error?.stack ?? error);
+    report.failure = report.failure ?? neutraliseHostPaths(String(error?.stack ?? error));
 } finally {
     const teardownStart = Date.now();
     if (browser) {
@@ -737,7 +909,7 @@ try {
 // artefact, which is uploaded as a zip. The red was undiagnosable from the run that produced it, which is the same
 // rule-40 mistake as a green `card-opened` nobody could attribute. The per-case mechanism triple and a bounded slice
 // of the body are therefore printed here, so the next verdict is readable without downloading anything.
-const bounded = (value, limit = 400) => (typeof value === 'string' && value.length > limit ? `${value.slice(0, limit)}…(${value.length} chars)` : value ?? null);
+const bounded = (value, limit = 400) => (typeof value === 'string' && value.length > limit ? `${value.slice(0, limit)}â€¦(${value.length} chars)` : value ?? null);
 console.log(JSON.stringify({
     subject: report.subject,
     variant: report.variant,

@@ -49,6 +49,46 @@ export async function installedRevision(extensionDirectory) {
     }
 }
 
+// THE PIN MUST NOT BE ABLE TO MOVE, AND THE INSTALL IS WHERE THAT IS GUARANTEED.
+//
+// MEASURED IN Browser differential 40878005589, and it made the pinned subject unpinnable mid-comparison: a probe leg
+// installed 酒馆助手 at 837a6288…, the page then AUTO-UPDATED it to e71c9906… (the remote head) while the leg was
+// running, and the restart invocation refused because the checkout was no longer the pinned commit. The pinned chain is
+// `extensions.autoUpdate` defaulting to true (src/endpoints/settings.js:15) -> `enable_extensions_auto_update`
+// (public/script.js:8022) -> `autoUpdateExtensions` on a version change (public/scripts/extensions.js:1809-1810) ->
+// POST /api/extensions/update -> `git.fetch('origin')` + `git.pull('origin', branch)`
+// (src/endpoints/extensions.js:193-206). With `origin` at github.com that pull moves the checkout.
+//
+// SO THE ORIGIN BECOMES A LOCAL, IMMUTABLE MIRROR OF THE PINNED CHECKOUT ITSELF: a bare clone inside the DATA ROOT
+// (`<dataRoot>/.pinned-extension-origins/<name>.git`), whose HEAD and only branch are the pinned commit. The update
+// route still runs git against a real remote -- fetch and version check are genuine -- but the fetch is local, a pull
+// can only ever be a no-op, and NO REQUEST LEAVES THE PROCESS (AGENTS.md 14). This is the seed design
+// (`GOTAVERN_EXTENSION_SEED_ROOT`) made unconditional: it used to depend on an env var the workflows never set, so the
+// network origin survived into every leg. It works OFFLINE because the mirror is cloned from the checkout already on
+// disk, and it is ASSERTED twice: here (the mirror's HEAD must equal the pin) and by the caller at the start and the
+// end of its drive, so a moving checkout fails a named step instead of silently measuring a different extension.
+async function ensureFrozenOrigin(dataRoot, extensionDirectory, commit) {
+    const originRoot = path.join(dataRoot, '.pinned-extension-origins');
+    const mirror = path.join(originRoot, `${path.basename(extensionDirectory)}.git`);
+    await fs.mkdir(originRoot, { recursive: true });
+    const headOf = directory => run('git', ['rev-parse', '--verify', '--quiet', 'HEAD'], directory)
+        .then(value => value.trim(), () => null);
+    if (await headOf(mirror) !== commit) {
+        await fs.rm(mirror, { recursive: true, force: true });
+        await run('git', ['clone', '--bare', '--quiet', extensionDirectory, mirror], originRoot);
+        const cloned = await headOf(mirror);
+        if (cloned !== commit) {
+            throw new Error(`the frozen origin ${mirror} is at ${cloned}, not the pinned ${commit}`);
+        }
+    }
+    await run('git', ['remote', 'set-url', 'origin', mirror], extensionDirectory);
+    const revision = await headOf(extensionDirectory);
+    if (revision !== commit) {
+        throw new Error(`freezing the origin of ${extensionDirectory} left it at ${revision}, not the pinned ${commit}`);
+    }
+    return { origin: 'a local bare mirror of this checkout inside the data root (offline, cannot advance)', revision };
+}
+
 // Idempotent: an existing checkout at the requested revision is left alone, so
 // the two legs of a comparison share one installed tree rather than each cloning.
 // source in the result says how the tree got there ('seed', 'remote' or 'existing'), so an
@@ -58,7 +98,7 @@ export async function ensurePinnedExtensionInstalled(dataRoot, extension) {
     const extensionDirectory = path.join(extensionsRoot, extension.name);
     const current = await installedRevision(extensionDirectory);
     if (current === extension.commit) {
-        return { extensionDirectory, revision: current, installed: false, source: 'existing', remote: await preferSeedRemote(extensionDirectory, extension) };
+        return { extensionDirectory, revision: current, installed: false, source: 'existing', remote: 'local-mirror', frozen: await ensureFrozenOrigin(dataRoot, extensionDirectory, extension.commit) };
     }
     if (current !== null) {
         // A checkout at the wrong revision is a harness defect, not something to
@@ -87,15 +127,9 @@ export async function ensurePinnedExtensionInstalled(dataRoot, extension) {
             if (copied !== extension.commit) {
                 throw new Error('copied seed ' + seedDirectory + ' to ' + extensionDirectory + ' but it is at ' + copied);
             }
-            // POINT origin AT THE SEED, not at github.com. /api/extensions/update runs `git fetch`
-            // against the checkout's remote, so a github remote makes the extension probe's timing --
-            // and, when the network is slow, its RESULT -- depend on a third party: measured on this
-            // host, that request was still unresolved after a 30 s network-quiet deadline while
-            // github refused the connection. A local seed keeps the fetch real (the route still runs
-            // git) but deterministic, and BOTH legs get the same rewritten remote, so the pair
-            // compares the two servers rather than two network conditions.
-            await run('git', ['remote', 'set-url', 'origin', seedDirectory], extensionDirectory);
-            return { extensionDirectory, revision: copied, installed: true, source: 'seed', remote: 'local-seed' };
+            // THE SEED AND THE FRESH CLONE GET THE SAME TREATMENT: the origin is frozen to a local mirror, so a
+            // page-triggered update cannot advance either one (see ensureFrozenOrigin).
+            return { extensionDirectory, revision: copied, installed: true, source: 'seed', remote: 'local-mirror', frozen: await ensureFrozenOrigin(dataRoot, extensionDirectory, extension.commit) };
         }
     }
     await fs.mkdir(extensionDirectory, { recursive: true });
@@ -112,26 +146,12 @@ export async function ensurePinnedExtensionInstalled(dataRoot, extension) {
     if (revision !== extension.commit) {
         throw new Error(`installed ${extension.name} at ${revision}, not the pinned ${extension.commit}`);
     }
-    return { extensionDirectory, revision, installed: true, source: 'remote' };
+    return { extensionDirectory, revision, installed: true, source: 'remote', remote: 'local-mirror', frozen: await ensureFrozenOrigin(dataRoot, extensionDirectory, extension.commit) };
 }
 
 // What the installed tree contains, so a leg records WHICH revision it measured
-// rather than only that something was installed.
-// A checkout that is already at the pinned revision is good enough for CONTENT but not for the
-// network: /api/extensions/update runs `git fetch` against its remote, so an inherited github origin
-// makes that request's timing -- and, when github refuses the connection, its result -- a property of
-// a third party. When a seed is configured and holds the same revision, origin is pointed at the seed
-// so the route still runs git while the fetch is local and deterministic. A failure here THROWS: a
-// silent fallback would leave exactly the network dependency this exists to remove.
-async function preferSeedRemote(extensionDirectory, extension) {
-    const seedRoot = process.env.GOTAVERN_EXTENSION_SEED_ROOT;
-    if (!seedRoot) return 'remote';
-    const seedDirectory = path.join(path.resolve(seedRoot), extension.name);
-    if (await installedRevision(seedDirectory) !== extension.commit) return 'remote';
-    await run('git', ['remote', 'set-url', 'origin', seedDirectory], extensionDirectory);
-    return 'local-seed';
-}
-
+// rather than only that something was installed. (The origin freeze that used to live here as an
+// env-var-conditional step is now unconditional in ensureFrozenOrigin, above.)
 export async function describeInstalledExtension(extensionDirectory) {
     const manifestPath = path.join(extensionDirectory, 'manifest.json');
     let manifest = null;

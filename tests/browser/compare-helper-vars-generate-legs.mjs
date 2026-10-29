@@ -16,7 +16,9 @@
 // THE OFF CONTROL IS PART OF THE VERDICT. Rule 50: if the on and off captures are identical, the pair cannot show the
 // variable is what changed anything, so `offIsTheControl` is required and is computed from the OFF legs.
 
+import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import process from 'node:process';
 
 function argumentValue(name, fallback = null) {
@@ -24,12 +26,39 @@ function argumentValue(name, fallback = null) {
     return index === -1 ? fallback : process.argv[index + 1];
 }
 
+/**
+ * A COMMITTED ARTEFACT MUST NOT CARRY A HOST PATH, AND A FAILED LEG IS THE EASIEST PLACE FOR ONE TO ARRIVE.
+ *
+ * MEASURED IN 40878005589: `tools/verify-browser-comparisons.mjs` refused the fresh artefact with
+ * `records a host-derived address matching /\/home\//`, and the two carriers were (a) every leg's `path` field, which
+ * was the ABSOLUTE report path `/home/runner/work/_temp/browser-differential/legs/helper-vars-*.json`, and (b) the
+ * pinned restart leg's refusal message, whose stack frames are `file:///home/runner/work/GoTavern/GoTavern/...`.
+ * Neither is a property of the product: the directory belongs to the run that produced it.
+ *
+ * The probe normalises its own failure against its two roots; this is the defence for a leg recorded by an OLDER probe
+ * (a committed artefact can be produced from a leg this file did not write), so it repeats the narrow rule rather than
+ * assuming. It is deliberately narrow: a broad "anything starting with a slash" would rewrite `/api/settings/save`
+ * inside a message and destroy the information the message exists to carry.
+ */
+function neutraliseHostPaths(text) {
+    if (typeof text !== 'string') return text ?? null;
+    return text
+        // `(?<![A-Za-z])` because without it the drive-letter alternative matches the "e:/" inside "file:///" and
+        // leaves a fragment of the scheme behind ("at fil<host-path>…"), which reads like corruption.
+        .replace(/(?<![A-Za-z])[A-Za-z]:[\\/][^\s"'`)<>]*/g, '<host-path>')
+        .replace(/file:\/\/\/[^\s"'`)<>]*/g, '<host-path>')
+        .replace(/\/(?:home|Users|root|tmp|var|opt|mnt|runner|workspace|builds|github)(?:\/[^\s"'`)<>]*)?/g, '<host-path>');
+}
+
+/** The file a leg came from, named rather than located (see neutraliseHostPaths). */
+const legFileName = file => (file === null || file === undefined ? null : path.basename(String(file)));
+
 async function readLeg(label, file) {
     if (!file) return { label, present: false, leg: null, path: null };
     try {
         return { label, present: true, leg: JSON.parse(await fs.readFile(file, 'utf8')), path: file };
     } catch (error) {
-        return { label, present: false, leg: null, path: file, error: String(error?.message ?? error) };
+        return { label, present: false, leg: null, path: file, error: neutraliseHostPaths(String(error?.message ?? error)) };
     }
 }
 
@@ -50,6 +79,18 @@ const restart = { gotavern: legs.gotavernRestart.leg, pinned: legs.pinnedRestart
 const DRIVE_STEPS = new Set([
     'page-loaded', 'extension-is-pinned', 'api-surface-recorded', 'host-macro-surface-present',
     'connection-configured', 'script-completed', 'helper-api-present', 'one-capture-per-case', 'message-scope-unreadable-by-macro',
+    // THE TWO PRECONDITIONS ADDED AFTER 40878005589, because each of them was silently FALSE while the guards that
+    // depend on it still passed:
+    //   extension-revision-held   the pinned page's auto-update moved the checkout to the remote head mid-leg, so the
+    //                             restart invocation refused and the pair no longer shared a revision (see the probe's
+    //                             holdExtensionAtPin).
+    //   global-write-persisted    the global write never reached settings.json (a 1000 ms debounce whose timer the
+    //                             reload navigation killed), so half (ii) had no disk evidence at all.
+    'extension-revision-held', 'global-write-persisted',
+    // THE PIN AT THE START OF THE DRIVE, asserted on the git HEAD rather than on the API surface read from the same
+    // tree: install-pinned-extension.mjs freezes the origin to a local mirror, and this step fails if a page-triggered
+    // update ever moves the checkout again.
+    'extension-pinned-at-drive-start',
 ]);
 const DRIVE_STEP_FAILURES = [];
 for (const [label, entry] of Object.entries(legs)) {
@@ -76,13 +117,31 @@ const messageMark = MARKS?.message ?? 'HV-MESSAGE-1a88';
 // a reason that has nothing to do with the product, so the default tracks the vehicle.
 const C = CLAUSES ?? { chat: 'HV-PRESET-CHAT=', global: 'HV-PRESET-GLOBAL=', message: 'HV-PRESET-MESSAGE=' };
 
+// EVERY CASE NAME ANY LEG RECORDED. Used for exactly one thing: masking the driver's OWN injected input out of the two
+// off captures before comparing them (see the off control below). Masking a name needs no knowledge of which leg it
+// came from, and taking the union means a renamed case does not silently stop being masked.
+const caseNames = [...new Set([on.gotavern, on.pinned, off.gotavern, off.pinned, restart.gotavern, restart.pinned]
+    .flatMap(leg => (leg?.cases ?? []).map(entry => entry.case))
+    .filter(name => typeof name === 'string'))];
+const digestOf = text => createHash('sha256').update(String(text)).digest('hex');
+
 const observed = {};
-// THE STAGED PRESET MUST EXIST ON BOTH SUBJECTS BEFORE EITHER IS JUDGED, and the probe reports it (`fixture.afterWrite`).
-// Without this guard a leg could generate from whatever preset the tree happened to carry, and every wire assertion
-// would then be about the wrong prompt -- red, or worse green, for a reason that has nothing to do with the product.
-// DECLARED AT MODULE SCOPE, not inside the per-subject loop below: registering it in `subjectGuards` from a
-// loop-local binding threw `ReferenceError: presetStaged is not defined` on run 40479754257, which crashed the
-// comparator and read as a judgment until the log was opened.
+// THE RESTART LEG'S CASE SET IS PART OF THE CLAIM, NOT A CONVENTION.
+//
+// `survivesRestart` says "a NEW process read the value off the tree the previous one left". That is only true if the
+// restart leg WROTE NOTHING, and nothing in the wire can prove it: the leg could write the value and then read it back.
+// The probe therefore runs exactly one read-only case there (`reload-chat`), and this asserts the leg's OWN recorded
+// plan is that case list -- so a future edit that quietly restores the write list is a red here rather than a
+// survived-from-nowhere green. MEASURED IN 40878005589: the restart leg ran the SAME `writesVariables` list, so its
+// `chat-alpha` re-wrote `hv_preset` and every restart sha256 equalled the on-leg's (b82308a7… both) -- the guard was
+// satisfied by the leg's own write.
+const READ_ONLY_RESTART_CASES = ['reload-chat'];
+const restartLegIsReadOnly = subjects.map(subject => {
+    const planned = restart[subject]?.plannedCases ?? null;
+    return Array.isArray(planned)
+        && planned.length === READ_ONLY_RESTART_CASES.length
+        && READ_ONLY_RESTART_CASES.every((name, index) => planned[index] === name);
+});
 const presetStagedPerSubject = subjects.map(subject => on[subject]?.fixture?.afterWrite?.present === true);
 for (const subject of subjects) {
     const leg = on[subject];
@@ -173,32 +232,83 @@ for (const subject of subjects) {
     const chatVariables = Object.entries(leg?.disk?.chats ?? {})
         .flatMap(([file, record]) => Object.entries(record?.variables ?? {}).map(([name, value]) => ({ file, name, value })));
     // The value that must be on disk is whichever one the run left: alpha was overwritten by beta and then deleted,
-    // so the surviving evidence is the REPLAYED case in the restart leg and the GLOBAL write, which nothing deletes.
+    // so the surviving evidence is the GLOBAL write, which nothing deletes.
     const globalOnDisk = JSON.stringify(leg?.disk?.settings?.variablesGlobal ?? null).includes(globalMark);
-    const reloadWireValue = hasClause({ request: leg?.reload?.request ?? null }, C.chat, chat) || hasClause({ request: leg?.reload?.request ?? null }, C.chat, chatBeta);
     const reloadSawEmpty = hasEmptyClause({ request: leg?.reload?.request ?? null }, C.chat);
-    // THE FRESH PAGE READ THE FILE, so one of the two states is what the CHAT FILE said.
-    const survivesFreshPage = Boolean(leg?.reload?.request) && (reloadWireValue || reloadSawEmpty);
 
-    // THE RESTART LEG: a NEW process over the tree the on-leg left.
-    const restartCase = caseOf(restartLeg, 'reload-chat') ?? caseOf(restartLeg, 'chat-alpha');
-    const restartWireValue = hasClause(restartCase, C.chat, chat) || hasClause(restartCase, C.chat, chatBeta) || hasEmptyClause(restartCase, C.chat);
-    const restartIsNewProcess = Boolean(restartLeg?.provenance?.serverPid) && restartLeg?.provenance?.serverPid !== leg?.provenance?.serverPid;
-    // THE STAGED PRESET MUST EXIST ON BOTH SUBJECTS BEFORE EITHER IS JUDGED, and the probe now reports it. Without
-    // this, a leg would generate from whatever preset the tree happened to carry and every wire assertion would be
-    // about the wrong prompt -- red, or worse green, for a reason that has nothing to do with the product.
-    const survivesRestart = Boolean(restartCase?.request) && restartWireValue && restartIsNewProcess;
+    // HALF (ii) IS ASSERTED ON THE VALUE THE TREE CAN ACTUALLY CARRY, NOT ON THE EMPTY FORM.
+    //
+    // MEASURED IN 40878005589: `disk.settings.variablesGlobal` was `{}` on BOTH subjects while `survivesFreshPage`
+    // was green, because the old guard accepted `hasEmptyClause(C.chat)` -- "the macro resolved to nothing" -- as
+    // evidence that a value had survived. It cannot be: the empty form is exactly what a value that was NEVER written
+    // produces (`(localVariable || '')`, public/scripts/variables.js:45), so the assertion was satisfied by the
+    // absence of any value. That is the green-that-cannot-fail shape AGENTS.md 7 exists against.
+    //
+    // The value this vehicle can persist is the GLOBAL one, for a reason read from the pinned semantics rather than
+    // chosen: `hv_preset` is DELETED by the last chat case (src/function/variables.ts:130-150 -> chat_metadata), and no
+    // chat is open in this vehicle, so the chat scope never reaches a file at all; the global write goes to
+    // `extension_settings.variables.global` + `saveSettingsDebounced` (:169-173), and the probe now WAITS for that file
+    // (bounded, `global-write-persisted`). The staged preset prompt carries the global clause (`HV-PRESET-GLOBAL=`), so
+    // a page -- and a process -- that wrote NOTHING resolves the value from settings.json or not at all.
+    const reloadCapture = leg?.reload?.request ?? null;
+    const reloadGlobalValue = hasClause({ request: reloadCapture }, C.global, globalMark);
+    const survivesFreshPage = Boolean(reloadCapture) && reloadGlobalValue;
+
+    // THE RESTART LEG: a NEW process over the tree the on-leg left, and its case set WRITES NOTHING.
+    const restartCase = caseOf(restartLeg, 'reload-chat');
+    const restartGlobalValue = hasClause(restartCase, C.global, globalMark);
+    // A NEW SERVER INSTANCE, FROM WHAT THE LEG CAN SEE. Two signals, either of which establishes it:
+    //   - the process ids, when BOTH legs were spawned by the probe (the GoTavern legs);
+    //   - the endpoint epochs, which is the only one available on the pinned leg. MEASURED IN 40878005589: every
+    //     PINNED leg recorded NO `serverPid` -- the pinned server is booted by run-against-pinned.mjs, not by the
+    //     probe -- so `Boolean(undefined) && …` made this FALSE on the pinned subject for every recording. That is a
+    //     structural asymmetry no product behaviour could clear, and half of the survivesRestart asymmetry.
+    const onPid = leg?.provenance?.serverPid ?? null;
+    const restartPid = restartLeg?.provenance?.serverPid ?? null;
+    const onEpoch = leg?.provenance?.serverEpoch ?? null;
+    const restartEpoch = restartLeg?.provenance?.serverEpoch ?? null;
+    const restartIsNewProcess = (restartPid !== null && onPid !== null && restartPid !== onPid)
+        || (restartEpoch !== null && onEpoch !== null && restartEpoch !== onEpoch);
+    // NO FALLBACK TO `chat-alpha`. The previous version fell back to the restart leg's `chat-alpha` case, which the
+    // restart leg WROTE before generating -- so the guard was satisfied by the leg's own write, not by the tree. The
+    // read-only case is the whole assertion; if it is absent the guard is false, and the drive-step list says so.
+    const survivesRestart = Boolean(restartCase?.request) && restartGlobalValue && restartIsNewProcess;
 
     // THE OFF CONTROL
     const offAlpha = caseOf(offLeg, 'chat-alpha');
     const offBeta = caseOf(offLeg, 'chat-deleted');
+    const onAlpha = caseOf(leg, 'chat-alpha');
     const offHasNoValue = Boolean(offLeg)
         && !hasClause(offLeg && caseOf(offLeg, 'chat-alpha'), C.chat, chat)
         && !hasClause(offLeg && caseOf(offLeg, 'global-set'), C.global, globalMark)
         && Boolean(offAlpha?.request);
-    // The two off captures must be byte-identical to each other: nothing was written between them, so a difference
-    // would mean the harness changed something on its own.
-    const offStable = Boolean(offAlpha?.request && offBeta?.request) && offAlpha.request.sha256 === offBeta.request.sha256;
+    // THE PAIR MUST BE STABLE, AND THE ONLY THING ALLOWED TO DIFFER IS THE DRIVER'S OWN INPUT.
+    //
+    // MEASURED IN 40878005589: `offStable` compared the off leg's `chat-alpha` and `chat-deleted` captures by RAW
+    // sha256, and they were NEVER equal -- e6659347… (293 B) vs f02c04bb… (295 B), the SAME two digests on BOTH
+    // subjects -- because every case passes its own NAME as `generate({user_input})` and the host puts it on the wire
+    // as the last user message (`{"role":"user","content":"chat-alpha"}`). The 2-byte difference between the two names
+    // was the entire difference, so the guard was unsatisfiable by construction: a harness precondition, not a product
+    // observation. The comparator then declared it unproven, and the verifier refused the artefact because a guard can
+    // be neither required nor declared away.
+    //
+    // THE FIX IS NOT TO DROP THE COMPARISON. The property the guard exists for is "nothing the HARNESS did between two
+    // otherwise identical cases changed the request", so the two captures are compared with EXACTLY the driver's own
+    // injected literal masked on both sides and nothing else edited. Every remaining byte still has to match, so a
+    // variable write that leaked into the off leg, a timestamp, or any other interference still fails this.
+    const maskOwnInput = entry => {
+        let text = body(entry);
+        for (const name of caseNames) {
+            text = text.replace(new RegExp(`("content"\\s*:\\s*)"${escapeRegExp(name)}"`, 'g'), '$1"<case-input>"');
+        }
+        return text;
+    };
+    const offAlphaMaskedSha = offAlpha?.request ? digestOf(maskOwnInput(offAlpha)) : null;
+    const offBetaMaskedSha = offBeta?.request ? digestOf(maskOwnInput(offBeta)) : null;
+    const offStable = Boolean(offAlpha?.request && offBeta?.request) && offAlphaMaskedSha === offBetaMaskedSha;
+    // ...AND THE PAIR MUST DISCRIMINATE (rule 50): the on capture for the same case must DIFFER from the off one, or
+    // the variable changed nothing and "the off control matched" is satisfied by two identical requests.
+    const offDiffersFromOn = Boolean(onAlpha?.request && offAlpha?.request) && onAlpha.request.sha256 !== offAlpha.request.sha256;
 
     observed[subject] = {
         legPresent: Boolean(leg),
@@ -212,11 +322,40 @@ for (const subject of subjects) {
         halfI: { valueOnWire, secondValueOnWire, changeDiffered, changeLostOld, macroWasTheResolver, deleteIsEmptyForm, deleteDroppedValue, deleteMechanismShown },
         mechanism: { alpha: alphaMechanism, beta: betaMechanism, global: globalMechanism, deleted: deleteMechanism },
         scopes: { globalOnWire, messageStored, messageNotOnWire, messageRefused, messageRowComplete, chatSeedOk },
-        halfII: { chatVariableNames: [...new Set(chatVariables.map(entry => entry.name))], globalOnDisk, survivesFreshPage, survivesRestart, restartIsNewProcess },
-        offControl: { offHasNoValue, offStable },
+        halfII: {
+            chatVariableNames: [...new Set(chatVariables.map(entry => entry.name))],
+            globalOnDisk,
+            reloadSawEmpty,
+            reloadGlobalValue,
+            survivesFreshPage,
+            restartCaseName: restartCase?.case ?? null,
+            restartGlobalValue,
+            survivesRestart,
+            restartIsNewProcess,
+            restartProcessProof: {
+                onPid,
+                restartPid,
+                onEpoch,
+                restartEpoch,
+                mechanism: 'process ids when the probe spawned both servers; otherwise the endpoint epoch (a digest of the base URL, never the URL), because every invocation is served by its own server',
+            },
+        },
+        offControl: {
+            offHasNoValue,
+            offStable,
+            offDiffersFromOn,
+            offRawSha: { alpha: offAlpha?.request?.sha256 ?? null, beta: offBeta?.request?.sha256 ?? null },
+            offMaskedSha: { alpha: offAlphaMaskedSha, beta: offBetaMaskedSha },
+            mask: 'the driver passes each case NAME as generate({user_input}), so "content":"<case>" is replaced with "content":"<case-input>" on BOTH off captures before they are compared; nothing else is edited',
+            maskedTokens: caseNames,
+        },
+        extensionRevision: {
+            installed: leg?.provenance?.extension?.installedRevision ?? null,
+            heldAfterDrive: (leg?.steps ?? []).find(item => item.name === 'extension-revision-held')?.ok ?? null,
+        },
         captures: (leg?.cases ?? []).map(entry => ({ case: entry.case, sha256: entry.request?.sha256 ?? null, byteLength: entry.request?.byteLength ?? null, arrived: Boolean(entry.request), error: entry.error ?? null })),
         timings: leg?.timings?.phases ?? null,
-        failure: leg?.failure ?? null,
+        failure: neutraliseHostPaths(leg?.failure ?? null),
     };
 }
 
@@ -228,10 +367,15 @@ const guards = {};
 const PINNED_HELPER_COMMIT = '837a6288135cde61522a9279173b98020f08807e';
 const subjectGuards = {
     legsPresent: subjects.map(subject => observed[subject].legPresent),
-    // THE PRESET THE MARKER RIDES MUST BE ON DISK ON BOTH SUBJECTS. Registered as its own guard rather than folded
-    // into the wire assertions, because "the preset was staged" and "the value reached the wire" are different
-    // claims and a single red must not leave a reader guessing which one failed.
+    // THE STAGED PRESET MUST EXIST ON BOTH SUBJECTS BEFORE EITHER IS JUDGED, and the probe reports it
+    // (`fixture.afterWrite`). Without this guard a leg could generate from whatever preset the tree happened to carry,
+    // and every wire assertion would then be about the wrong prompt -- red, or worse green, for a reason that has
+    // nothing to do with the product. DECLARED AT MODULE SCOPE, not inside the per-subject loop below: registering it
+    // in `subjectGuards` from a loop-local binding threw `ReferenceError: presetStaged is not defined` on run
+    // 40479754257, which crashed the comparator and read as a judgment until the log was opened.
     presetStaged: subjects.map((subject, index) => presetStagedPerSubject[index]),
+    // THE RESTART LEG MUST HAVE WRITTEN NOTHING (see restartLegIsReadOnly above).
+    restartLegIsReadOnly: restartLegIsReadOnly,
     sameApiSurface: subjects.map(subject => {
         const surface = observed[subject].apiSurface;
         return Boolean(surface) && surface.pinnedCommit === PINNED_HELPER_COMMIT && surface.scopes.length === 7 && surface.exportCount >= 14;
@@ -253,8 +397,12 @@ const subjectGuards = {
     // HALF (ii)
     survivesFreshPage: subjects.map(subject => observed[subject].halfII.survivesFreshPage),
     survivesRestart: subjects.map(subject => observed[subject].halfII.survivesRestart),
-    // THE PAIR IS DISCRIMINATING
-    offIsTheControl: subjects.map(subject => observed[subject].offControl.offHasNoValue && observed[subject].offControl.offStable),
+    // THE PAIR IS DISCRIMINATING: nothing was written in the off leg, its two captures agree once the driver's own
+    // case-name input is masked out, and the on capture for the same case DIFFERS from it (rule 50 -- without the
+    // last part the guard is satisfied by two identical requests, which is the state it exists to detect).
+    offIsTheControl: subjects.map(subject => observed[subject].offControl.offHasNoValue
+        && observed[subject].offControl.offStable
+        && observed[subject].offControl.offDiffersFromOn),
 };
 
 const asymmetries = [];
@@ -277,7 +425,7 @@ guards.nodeEqualsGo = mismatches.length === 0;
 
 if (DRIVE_STEP_FAILURES.length > 0) guards.driveCompleted = false;
 else guards.driveCompleted = true;
-const missingLegs = Object.entries(legs).filter(([, entry]) => !entry.present).map(([key, entry]) => `${key}${entry.path ? ` (${entry.path}: ${entry.error ?? 'absent'})` : ''}`);
+const missingLegs = Object.entries(legs).filter(([, entry]) => !entry.present).map(([key, entry]) => `${key}${entry.path ? ` (${legFileName(entry.path)}: ${entry.error ?? 'absent'})` : ''}`);
 if (missingLegs.length > 0) guards.legsPresent = false;
 
 const unprovenEntries = [
@@ -287,8 +435,8 @@ const unprovenEntries = [
     'the `script` and `extension` scopes: both exist at the pinned commit and neither has a host macro, so neither can reach a provider request; recorded in apiSurface.scopes and not driven.',
 ];
 const guardMechanisms = {
-    survivesRestart: () => `the restart leg did not show the value from the tree: restartPids=${JSON.stringify(subjects.map(subject => restart[subject]?.provenance?.serverPid ?? null))}, onPids=${JSON.stringify(subjects.map(subject => on[subject]?.provenance?.serverPid ?? null))}. A restart leg that did not boot a NEW process is a harness failure, not a product finding.`,
-    offIsTheControl: () => `the off legs did not behave as a control: offHasNoValue=${JSON.stringify(subjects.map(subject => observed[subject].offControl.offHasNoValue))} offStable=${JSON.stringify(subjects.map(subject => observed[subject].offControl.offStable))}. A pair whose on and off captures are identical is HARNESS NON-DISCRIMINATING (rule 50).`,
+    survivesRestart: () => `the restart leg did not show the GLOBAL value from the tree: restartPids=${JSON.stringify(subjects.map(subject => restart[subject]?.provenance?.serverPid ?? null))}, onPids=${JSON.stringify(subjects.map(subject => on[subject]?.provenance?.serverPid ?? null))}, restartCase=${JSON.stringify(subjects.map(subject => observed[subject].halfII.restartCaseName))}, restartGlobalValue=${JSON.stringify(subjects.map(subject => observed[subject].halfII.restartGlobalValue))}, revisionHeld=${JSON.stringify(subjects.map(subject => observed[subject].extensionRevision.heldAfterDrive))}. A restart leg that did not boot a NEW process, or whose only case is not the read-only one, is a HARNESS failure rather than a product finding -- measured in 40878005589, where the pinned leg was REFUSED because the page's own extension auto-update had moved the checkout off the pin (see the probe's holdExtensionAtPin) and the guard therefore came out true on one subject and false on the other.`,
+    offIsTheControl: () => `the off legs did not behave as a control: offHasNoValue=${JSON.stringify(subjects.map(subject => observed[subject].offControl.offHasNoValue))} offStable=${JSON.stringify(subjects.map(subject => observed[subject].offControl.offStable))} offDiffersFromOn=${JSON.stringify(subjects.map(subject => observed[subject].offControl.offDiffersFromOn))} offRawSha=${JSON.stringify(subjects.map(subject => observed[subject].offControl.offRawSha))} offMaskedSha=${JSON.stringify(subjects.map(subject => observed[subject].offControl.offMaskedSha))}. A pair whose on and off captures are identical is HARNESS NON-DISCRIMINATING (rule 50); a pair whose two off captures differ AFTER the driver's own case-name input is masked is the harness changing something on his own.`,
 };
 for (const [name, mechanism] of Object.entries(guardMechanisms)) {
     if (guards[name] !== true) unprovenEntries.push(`${name}: ${mechanism()}`);
@@ -332,7 +480,21 @@ const artefact = {
         'message scope': 'guards.messageStoredNotSurfaced -- a FINDING: stored in the page, absent from the wire because no host macro reads a message scope',
         'not exercised here': 'preset and character scopes (the UI-vehicle probe), real provider, streaming (see unproven[])',
     },
-    legs: Object.fromEntries(Object.entries(legs).map(([key, value]) => [key, { present: value.present, path: value.path, subject: value.leg?.subject ?? null, variant: value.leg?.variant ?? null, afterRestart: value.leg?.afterRestart ?? null, failure: value.leg?.failure ?? null, cases: (value.leg?.cases ?? []).map(entry => entry.case), steps: (value.leg?.steps ?? []).map(item => `${item.ok === null ? 'n/a' : item.ok ? 'ok' : 'FAIL'} ${item.name}`) }])),
+    legs: Object.fromEntries(Object.entries(legs).map(([key, value]) => [key, {
+        present: value.present,
+        // THE FILE IS NAMED, NOT LOCATED. The report path is the RUN's directory -- `/home/runner/work/_temp/...` in CI,
+        // `C:\Users\<user>\AppData\Local\Temp\...` on a development host -- and a committed artefact may not carry it
+        // (tools/verify-browser-comparisons.mjs HOST_DERIVED_PATTERNS refused the fresh artefact on exactly this field).
+        file: legFileName(value.path),
+        subject: value.leg?.subject ?? null,
+        variant: value.leg?.variant ?? null,
+        afterRestart: value.leg?.afterRestart ?? null,
+        // THE EXCEPTION PATH IS KEPT AND THE MACHINE IS REMOVED: a leg that REFUSED is the most valuable record in the
+        // artefact, and its message is what makes it actionable, so only the absolute paths inside it are normalised.
+        failure: neutraliseHostPaths(value.leg?.failure ?? null),
+        cases: (value.leg?.cases ?? []).map(entry => entry.case),
+        steps: (value.leg?.steps ?? []).map(item => `${item.ok === null ? 'n/a' : item.ok ? 'ok' : 'FAIL'} ${item.name}`),
+    }])),
 };
 
 const serialised = `${JSON.stringify(artefact, null, 2)}\n`;

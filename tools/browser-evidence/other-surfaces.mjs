@@ -439,6 +439,9 @@ export function authorsNoteSurface(ctx, noteComparison) {
  *   NARROW (primary)  one variable, one prompt reading it through the host macro engine, one generateRaw per case.
  *                     Compare scopes and the nested read belong to the OTHER vehicle -- asserting them here would be
  *                     requiring a guard this vehicle never computes, which reads as red rather than as not-applicable.
+ *                     `restartLegIsReadOnly` is here because `survivesRestart` cannot be evidence of persistence if the
+ *                     restart leg wrote the value before reading it -- measured in 40878005589, where it did exactly
+ *                     that (every restart capture's sha256 equalled the on-leg's).
  *   UI (second)        the full preset/card/chat-select vehicle. It was attempted FIRST and cost four reds, all in
  *                     the vehicle; it is kept for the `preset` scope, which needs a preset to exist at all.
  * A recording whose `vehicle` is unrecognised FAILS rather than falling through to a default set, so a future vehicle
@@ -449,7 +452,7 @@ const VARIABLE_GUARD_SETS = {
         'legsPresent', 'driveCompleted', 'sameApiSurface', 'offIsTheControl',
         'valueOnWire', 'macroWasTheResolver', 'changeChangesTheWire', 'deleteReturnsToEmptyForm',
         'globalScopeReachesWire', 'messageStoredNotSurfaced',
-        'survivesFreshPage', 'survivesRestart',
+        'survivesFreshPage', 'survivesRestart', 'restartLegIsReadOnly',
         'nodeEqualsGo',
     ],
     ui: [

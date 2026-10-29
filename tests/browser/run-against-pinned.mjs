@@ -218,7 +218,12 @@ try {
     const child = spawn(process.execPath, [scriptPath, '--base-url', baseURL, ...forwarded], {
         cwd: here,
         stdio: 'inherit',
-        env: { ...process.env, PROBE_BASE_URL: baseURL, CAPTURE_BASE_URL: baseURL, PROBE_LEG_CONFIG_JSON: JSON.stringify(legConfig) },
+        // PROBE_SERVER_PID IS A REAL OBSERVATION, NOT A HINT. A probe asked to prove "a NEW server process read this
+        // tree" cannot see a server it did not spawn, and every leg that recorded `restartIsNewProcess` against this
+        // wrapper recorded `Boolean(undefined) && …` = FALSE for the pinned subject -- a structural asymmetry no product
+        // behaviour could clear (measured: Browser differential 40878005589, the helper-vars restart leg). The wrapper
+        // owns the process, so it is the only place the pid can come from.
+        env: { ...process.env, PROBE_BASE_URL: baseURL, CAPTURE_BASE_URL: baseURL, PROBE_LEG_CONFIG_JSON: JSON.stringify(legConfig), PROBE_SERVER_PID: String(server.pid) },
     });
     exitCode = (await new Promise(resolve => child.on('exit', resolve))) ?? 1;
     console.log(`[pinned] child exited ${exitCode}`);

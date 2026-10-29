@@ -1,0 +1,699 @@
+{
+  "schemaVersion": 1,
+  "question": "Does a 酒馆助手 variable resolve into the FINAL provider request during a real generateRaw, and is it still readable from disk after a fresh page and a new server process?",
+  "generatedBy": "tests/browser/compare-helper-vars-generate-legs.mjs",
+  "vehicle": "narrow: one variable, one prompt that reads it through the host macro engine, one generateRaw per case. The UI-select vehicle was attempted first and cost four reds, all in the vehicle; the claim does not require it.",
+  "uiVehicleRedRuns": [
+    {
+      "run": "40445034876",
+      "step": "card-opened",
+      "mechanism": "card matched by a field the template does not set (title lives on the inner .avatar)"
+    },
+    {
+      "run": "40451801982",
+      "step": "ready-preset-selected",
+      "mechanism": "card staged after the frontend read the character list"
+    },
+    {
+      "run": "40457217583",
+      "step": "ready-preset-selected",
+      "mechanism": "DOM selected property vs jQuery cached selection"
+    },
+    {
+      "run": "(source-diagnosed, unfixed)",
+      "step": "ready-preset-selected",
+      "mechanism": "manager resolved by ambient main_api, not the openai select"
+    }
+  ],
+  "subject": "tavern-helper@837a6288135cde61522a9279173b98020f08807e (manifest 4.11.3), host SillyTavern 06bde939fb1e9c4c8d8641d810f0a9165b5ce127",
+  "surface": "variables through the host macro engine (Q10), narrow vehicle",
+  "verdict": "PASS",
+  "guards": {
+    "legsPresent": true,
+    "presetStaged": true,
+    "restartLegIsReadOnly": true,
+    "sameApiSurface": true,
+    "valueOnWire": true,
+    "macroWasTheResolver": true,
+    "changeChangesTheWire": true,
+    "deleteReturnsToEmptyForm": true,
+    "globalScopeReachesWire": true,
+    "messageStoredNotSurfaced": true,
+    "survivesFreshPage": true,
+    "survivesRestart": true,
+    "offIsTheControl": true,
+    "nodeEqualsGo": true,
+    "driveCompleted": true
+  },
+  "failedGuards": [],
+  "driveStepFailures": [],
+  "missingLegs": [],
+  "asymmetries": [],
+  "mismatches": [],
+  "marks": {
+    "first": "HV-ALPHA-7c31",
+    "second": "HV-BETA-9d42",
+    "global": "HV-GLOBAL-e05f",
+    "message": "HV-MESSAGE-1a88"
+  },
+  "clauses": {
+    "chat": "HV-PRESET-CHAT=",
+    "global": "HV-PRESET-GLOBAL=",
+    "message": "HV-PRESET-MESSAGE="
+  },
+  "apiSurface": {
+    "gotavern": {
+      "pinnedCommit": "837a6288135cde61522a9279173b98020f08807e",
+      "manifestVersion": "4.11.3",
+      "scopes": [
+        "chat",
+        "character",
+        "preset",
+        "global",
+        "message",
+        "script",
+        "extension"
+      ],
+      "exportCount": 24,
+      "absentConfirmed": [
+        "setVariables",
+        "quiet option"
+      ]
+    },
+    "pinned": {
+      "pinnedCommit": "837a6288135cde61522a9279173b98020f08807e",
+      "manifestVersion": "4.11.3",
+      "scopes": [
+        "chat",
+        "character",
+        "preset",
+        "global",
+        "message",
+        "script",
+        "extension"
+      ],
+      "exportCount": 24,
+      "absentConfirmed": [
+        "setVariables",
+        "quiet option"
+      ]
+    }
+  },
+  "unproven": [
+    "a real provider: the peer is an in-process simulated backend, so rule 22 makes every wire measurement here unverified for PRODUCTION. What is proven is the frontend+helper transform, not the transport to a live endpoint.",
+    "the `preset` and `character` scopes: this vehicle writes chat, global and message only. The preset scope needs a preset to exist, which is the SECOND probe (helper-vars-probe.mjs) and the harder vehicle for that narrower purpose.",
+    "streaming / cancellation: every generateRaw sets should_stream false so the peer can answer without SSE framing.",
+    "the `script` and `extension` scopes: both exist at the pinned commit and neither has a host macro, so neither can reach a provider request; recorded in apiSurface.scopes and not driven."
+  ],
+  "declaredUnproven": [
+    "a real provider",
+    "streaming / cancellation",
+    "the `preset` and `character` scopes",
+    "the `script` and `extension` scopes"
+  ],
+  "subjects": {
+    "gotavern": {
+      "legPresent": true,
+      "apiSurface": {
+        "pinnedCommit": "837a6288135cde61522a9279173b98020f08807e",
+        "manifestVersion": "4.11.3",
+        "scopes": [
+          "chat",
+          "character",
+          "preset",
+          "global",
+          "message",
+          "script",
+          "extension"
+        ],
+        "exportCount": 24,
+        "absentConfirmed": [
+          "setVariables",
+          "quiet option"
+        ]
+      },
+      "halfI": {
+        "valueOnWire": true,
+        "secondValueOnWire": true,
+        "changeDiffered": true,
+        "changeLostOld": true,
+        "macroWasTheResolver": true,
+        "deleteIsEmptyForm": true,
+        "deleteDroppedValue": true,
+        "deleteMechanismShown": true
+      },
+      "mechanism": {
+        "alpha": {
+          "staged": null,
+          "rawHasMacroSyntax": true,
+          "renderedHasNoMacroSyntax": true,
+          "renderedCarriesValue": true,
+          "wireHasRenderedForm": true,
+          "wireStillHasRawForm": false,
+          "raw": "HV-PRESET-CHAT={{getvar::hv_preset}}",
+          "rendered": "HV-PRESET-CHAT=HV-ALPHA-7c31"
+        },
+        "beta": {
+          "staged": null,
+          "rawHasMacroSyntax": true,
+          "renderedHasNoMacroSyntax": true,
+          "renderedCarriesValue": true,
+          "wireHasRenderedForm": true,
+          "wireStillHasRawForm": false,
+          "raw": "HV-PRESET-CHAT={{getvar::hv_preset}}",
+          "rendered": "HV-PRESET-CHAT=HV-BETA-9d42"
+        },
+        "global": {
+          "staged": null,
+          "rawHasMacroSyntax": true,
+          "renderedHasNoMacroSyntax": true,
+          "renderedCarriesValue": true,
+          "wireHasRenderedForm": true,
+          "wireStillHasRawForm": false,
+          "raw": "HV-PRESET-GLOBAL={{getglobalvar::hv_global}}",
+          "rendered": "HV-PRESET-GLOBAL=HV-GLOBAL-e05f"
+        },
+        "deleted": {
+          "staged": null,
+          "rawHasMacroSyntax": true,
+          "renderedHasNoMacroSyntax": true,
+          "renderedCarriesValue": false,
+          "wireHasRenderedForm": true,
+          "wireStillHasRawForm": false,
+          "raw": "HV-PRESET-CHAT={{getvar::hv_preset}}",
+          "rendered": "HV-PRESET-CHAT="
+        }
+      },
+      "scopes": {
+        "globalOnWire": true,
+        "messageStored": true,
+        "messageNotOnWire": true,
+        "messageRefused": false,
+        "messageRowComplete": true,
+        "chatSeedOk": true
+      },
+      "halfII": {
+        "chatVariableNames": [],
+        "globalOnDisk": true,
+        "reloadSawEmpty": true,
+        "reloadGlobalValue": true,
+        "survivesFreshPage": true,
+        "restartCaseName": "reload-chat",
+        "restartGlobalValue": true,
+        "survivesRestart": true,
+        "restartIsNewProcess": true,
+        "restartProcessProof": {
+          "onPid": 7836,
+          "restartPid": 10680,
+          "onEpoch": "9444fedc276634e7",
+          "restartEpoch": "0d4113fc61d810f7",
+          "mechanism": "process ids when the probe spawned both servers; otherwise the endpoint epoch (a digest of the base URL, never the URL), because every invocation is served by its own server"
+        }
+      },
+      "offControl": {
+        "offHasNoValue": true,
+        "offStable": true,
+        "offDiffersFromOn": true,
+        "offRawSha": {
+          "alpha": "ce0b60b2427b66bfc1c47fd3578d347f860474e1b8be71ee0dda5dc9b39787aa",
+          "beta": "8d132485595688e2123e54a3ee9a54c1db17132fd30abdc1398e63abc7062373"
+        },
+        "offMaskedSha": {
+          "alpha": "a567001e79e8a56a49547eb06d100453beb246cf5c0f6da3eaf345e3c065eebc",
+          "beta": "a567001e79e8a56a49547eb06d100453beb246cf5c0f6da3eaf345e3c065eebc"
+        },
+        "mask": "the driver passes each case NAME as generate({user_input}), so \"content\":\"<case>\" is replaced with \"content\":\"<case-input>\" on BOTH off captures before they are compared; nothing else is edited",
+        "maskedTokens": [
+          "chat-alpha",
+          "chat-beta",
+          "chat-deleted",
+          "global-set",
+          "message-set",
+          "reload-chat"
+        ]
+      },
+      "extensionRevision": {
+        "installed": "837a6288135cde61522a9279173b98020f08807e",
+        "heldAfterDrive": true
+      },
+      "captures": [
+        {
+          "case": "chat-alpha",
+          "sha256": "090b3bce457f885da663903b3c55b5cb299a1a5b93901b6459d21ab360e8b4bb",
+          "byteLength": 324,
+          "arrived": true,
+          "error": null
+        },
+        {
+          "case": "chat-beta",
+          "sha256": "53f983fc0f167a40d0b5e8789c1948e781139be21aa0d526782b15b409b3f2d8",
+          "byteLength": 322,
+          "arrived": true,
+          "error": null
+        },
+        {
+          "case": "chat-deleted",
+          "sha256": "8d132485595688e2123e54a3ee9a54c1db17132fd30abdc1398e63abc7062373",
+          "byteLength": 313,
+          "arrived": true,
+          "error": null
+        },
+        {
+          "case": "global-set",
+          "sha256": "05fdf0b3ee37311c8e012c9d2383af85bb98739cd79030f8f65b3354ed951775",
+          "byteLength": 325,
+          "arrived": true,
+          "error": null
+        },
+        {
+          "case": "message-set",
+          "sha256": "1b60f402ff3b8d2cb2109c03a2a2009e7dea5a987c3dc308539a9cfb175488af",
+          "byteLength": 326,
+          "arrived": true,
+          "error": null
+        }
+      ],
+      "timings": [
+        {
+          "phase": "refusals",
+          "ms": 4723
+        },
+        {
+          "phase": "server-ready",
+          "ms": 2220
+        },
+        {
+          "phase": "page-loaded",
+          "ms": 25370
+        },
+        {
+          "phase": "cases-run",
+          "ms": 8297
+        },
+        {
+          "phase": "reload",
+          "ms": 29961
+        },
+        {
+          "phase": "browser-close",
+          "ms": 8487
+        },
+        {
+          "phase": "peer-close",
+          "ms": 8488
+        }
+      ],
+      "failure": null
+    },
+    "pinned": {
+      "legPresent": true,
+      "apiSurface": {
+        "pinnedCommit": "837a6288135cde61522a9279173b98020f08807e",
+        "manifestVersion": "4.11.3",
+        "scopes": [
+          "chat",
+          "character",
+          "preset",
+          "global",
+          "message",
+          "script",
+          "extension"
+        ],
+        "exportCount": 24,
+        "absentConfirmed": [
+          "setVariables",
+          "quiet option"
+        ]
+      },
+      "halfI": {
+        "valueOnWire": true,
+        "secondValueOnWire": true,
+        "changeDiffered": true,
+        "changeLostOld": true,
+        "macroWasTheResolver": true,
+        "deleteIsEmptyForm": true,
+        "deleteDroppedValue": true,
+        "deleteMechanismShown": true
+      },
+      "mechanism": {
+        "alpha": {
+          "staged": null,
+          "rawHasMacroSyntax": true,
+          "renderedHasNoMacroSyntax": true,
+          "renderedCarriesValue": true,
+          "wireHasRenderedForm": true,
+          "wireStillHasRawForm": false,
+          "raw": "HV-PRESET-CHAT={{getvar::hv_preset}}",
+          "rendered": "HV-PRESET-CHAT=HV-ALPHA-7c31"
+        },
+        "beta": {
+          "staged": null,
+          "rawHasMacroSyntax": true,
+          "renderedHasNoMacroSyntax": true,
+          "renderedCarriesValue": true,
+          "wireHasRenderedForm": true,
+          "wireStillHasRawForm": false,
+          "raw": "HV-PRESET-CHAT={{getvar::hv_preset}}",
+          "rendered": "HV-PRESET-CHAT=HV-BETA-9d42"
+        },
+        "global": {
+          "staged": null,
+          "rawHasMacroSyntax": true,
+          "renderedHasNoMacroSyntax": true,
+          "renderedCarriesValue": true,
+          "wireHasRenderedForm": true,
+          "wireStillHasRawForm": false,
+          "raw": "HV-PRESET-GLOBAL={{getglobalvar::hv_global}}",
+          "rendered": "HV-PRESET-GLOBAL=HV-GLOBAL-e05f"
+        },
+        "deleted": {
+          "staged": null,
+          "rawHasMacroSyntax": true,
+          "renderedHasNoMacroSyntax": true,
+          "renderedCarriesValue": false,
+          "wireHasRenderedForm": true,
+          "wireStillHasRawForm": false,
+          "raw": "HV-PRESET-CHAT={{getvar::hv_preset}}",
+          "rendered": "HV-PRESET-CHAT="
+        }
+      },
+      "scopes": {
+        "globalOnWire": true,
+        "messageStored": true,
+        "messageNotOnWire": true,
+        "messageRefused": false,
+        "messageRowComplete": true,
+        "chatSeedOk": true
+      },
+      "halfII": {
+        "chatVariableNames": [],
+        "globalOnDisk": true,
+        "reloadSawEmpty": true,
+        "reloadGlobalValue": true,
+        "survivesFreshPage": true,
+        "restartCaseName": "reload-chat",
+        "restartGlobalValue": true,
+        "survivesRestart": true,
+        "restartIsNewProcess": true,
+        "restartProcessProof": {
+          "onPid": 7764,
+          "restartPid": 12472,
+          "onEpoch": "655b636cda2d1073",
+          "restartEpoch": "5a6a667efa25e10e",
+          "mechanism": "process ids when the probe spawned both servers; otherwise the endpoint epoch (a digest of the base URL, never the URL), because every invocation is served by its own server"
+        }
+      },
+      "offControl": {
+        "offHasNoValue": true,
+        "offStable": true,
+        "offDiffersFromOn": true,
+        "offRawSha": {
+          "alpha": "ce0b60b2427b66bfc1c47fd3578d347f860474e1b8be71ee0dda5dc9b39787aa",
+          "beta": "8d132485595688e2123e54a3ee9a54c1db17132fd30abdc1398e63abc7062373"
+        },
+        "offMaskedSha": {
+          "alpha": "a567001e79e8a56a49547eb06d100453beb246cf5c0f6da3eaf345e3c065eebc",
+          "beta": "a567001e79e8a56a49547eb06d100453beb246cf5c0f6da3eaf345e3c065eebc"
+        },
+        "mask": "the driver passes each case NAME as generate({user_input}), so \"content\":\"<case>\" is replaced with \"content\":\"<case-input>\" on BOTH off captures before they are compared; nothing else is edited",
+        "maskedTokens": [
+          "chat-alpha",
+          "chat-beta",
+          "chat-deleted",
+          "global-set",
+          "message-set",
+          "reload-chat"
+        ]
+      },
+      "extensionRevision": {
+        "installed": "837a6288135cde61522a9279173b98020f08807e",
+        "heldAfterDrive": true
+      },
+      "captures": [
+        {
+          "case": "chat-alpha",
+          "sha256": "090b3bce457f885da663903b3c55b5cb299a1a5b93901b6459d21ab360e8b4bb",
+          "byteLength": 324,
+          "arrived": true,
+          "error": null
+        },
+        {
+          "case": "chat-beta",
+          "sha256": "53f983fc0f167a40d0b5e8789c1948e781139be21aa0d526782b15b409b3f2d8",
+          "byteLength": 322,
+          "arrived": true,
+          "error": null
+        },
+        {
+          "case": "chat-deleted",
+          "sha256": "8d132485595688e2123e54a3ee9a54c1db17132fd30abdc1398e63abc7062373",
+          "byteLength": 313,
+          "arrived": true,
+          "error": null
+        },
+        {
+          "case": "global-set",
+          "sha256": "05fdf0b3ee37311c8e012c9d2383af85bb98739cd79030f8f65b3354ed951775",
+          "byteLength": 325,
+          "arrived": true,
+          "error": null
+        },
+        {
+          "case": "message-set",
+          "sha256": "1b60f402ff3b8d2cb2109c03a2a2009e7dea5a987c3dc308539a9cfb175488af",
+          "byteLength": 326,
+          "arrived": true,
+          "error": null
+        }
+      ],
+      "timings": [
+        {
+          "phase": "refusals",
+          "ms": 3044
+        },
+        {
+          "phase": "server-ready",
+          "ms": 781
+        },
+        {
+          "phase": "page-loaded",
+          "ms": 23947
+        },
+        {
+          "phase": "cases-run",
+          "ms": 7577
+        },
+        {
+          "phase": "reload",
+          "ms": 22669
+        },
+        {
+          "phase": "browser-close",
+          "ms": 21638
+        },
+        {
+          "phase": "peer-close",
+          "ms": 21647
+        }
+      ],
+      "failure": null
+    }
+  },
+  "answers": {
+    "Q10 do variables reach the final request": "guards.valueOnWire + guards.macroWasTheResolver + guards.changeChangesTheWire + guards.deleteReturnsToEmptyForm -- on the RAW BODY BYTES, at the clause the prompt carries. SCOPE: generateRaw's ordered_prompts assembly, NOT an ordinary chat-completion turn; the claim supported is \"a chat-scoped helper variable reaches the wire through generateRaw's ordered prompts and the host macro engine\", not \"through an ordinary Generate turn\".",
+    "Q10 persistence": "guards.survivesFreshPage + guards.survivesRestart -- a fresh page and a NEW server process",
+    "scope isolation / second scope": "guards.globalScopeReachesWire",
+    "message scope": "guards.messageStoredNotSurfaced -- a FINDING: stored in the page, absent from the wire because no host macro reads a message scope",
+    "not exercised here": "preset and character scopes (the UI-vehicle probe), real provider, streaming (see unproven[])"
+  },
+  "legs": {
+    "gotavernOn": {
+      "present": true,
+      "file": "helper-vars-gotavern-on.json",
+      "subject": "gotavern",
+      "variant": "on",
+      "afterRestart": false,
+      "failure": null,
+      "cases": [
+        "chat-alpha",
+        "chat-beta",
+        "chat-deleted",
+        "global-set",
+        "message-set"
+      ],
+      "steps": [
+        "ok extension-pinned-at-drive-start",
+        "ok extension-is-pinned",
+        "ok api-surface-recorded",
+        "ok absent-features-recorded",
+        "ok message-scope-unreadable-by-macro",
+        "ok host-macro-surface-present",
+        "ok preset-prompt-staged",
+        "ok page-loaded",
+        "ok connection-configured",
+        "ok chat-seeded-for-message-scope",
+        "ok script-completed",
+        "ok helper-api-present",
+        "ok one-capture-per-case",
+        "ok mechanism-recorded-per-case",
+        "ok global-write-persisted",
+        "ok reload-page-loaded",
+        "ok extension-revision-held"
+      ]
+    },
+    "pinnedOn": {
+      "present": true,
+      "file": "helper-vars-pinned-on.json",
+      "subject": "pinned",
+      "variant": "on",
+      "afterRestart": false,
+      "failure": null,
+      "cases": [
+        "chat-alpha",
+        "chat-beta",
+        "chat-deleted",
+        "global-set",
+        "message-set"
+      ],
+      "steps": [
+        "ok extension-pinned-at-drive-start",
+        "ok extension-is-pinned",
+        "ok api-surface-recorded",
+        "ok absent-features-recorded",
+        "ok message-scope-unreadable-by-macro",
+        "ok host-macro-surface-present",
+        "ok preset-prompt-staged",
+        "ok page-loaded",
+        "ok connection-configured",
+        "ok chat-seeded-for-message-scope",
+        "ok script-completed",
+        "ok helper-api-present",
+        "ok one-capture-per-case",
+        "ok mechanism-recorded-per-case",
+        "ok global-write-persisted",
+        "ok reload-page-loaded",
+        "ok extension-revision-held"
+      ]
+    },
+    "gotavernOff": {
+      "present": true,
+      "file": "helper-vars-gotavern-off.json",
+      "subject": "gotavern",
+      "variant": "off",
+      "afterRestart": false,
+      "failure": null,
+      "cases": [
+        "chat-alpha",
+        "chat-deleted",
+        "global-set",
+        "message-set"
+      ],
+      "steps": [
+        "ok extension-pinned-at-drive-start",
+        "ok extension-is-pinned",
+        "ok api-surface-recorded",
+        "ok absent-features-recorded",
+        "ok message-scope-unreadable-by-macro",
+        "ok host-macro-surface-present",
+        "ok preset-prompt-staged",
+        "ok page-loaded",
+        "ok connection-configured",
+        "ok chat-seeded-for-message-scope",
+        "ok script-completed",
+        "ok helper-api-present",
+        "ok one-capture-per-case",
+        "ok mechanism-recorded-per-case",
+        "ok reload-page-loaded",
+        "ok extension-revision-held"
+      ]
+    },
+    "pinnedOff": {
+      "present": true,
+      "file": "helper-vars-pinned-off.json",
+      "subject": "pinned",
+      "variant": "off",
+      "afterRestart": false,
+      "failure": null,
+      "cases": [
+        "chat-alpha",
+        "chat-deleted",
+        "global-set",
+        "message-set"
+      ],
+      "steps": [
+        "ok extension-pinned-at-drive-start",
+        "ok extension-is-pinned",
+        "ok api-surface-recorded",
+        "ok absent-features-recorded",
+        "ok message-scope-unreadable-by-macro",
+        "ok host-macro-surface-present",
+        "ok preset-prompt-staged",
+        "ok page-loaded",
+        "ok connection-configured",
+        "ok chat-seeded-for-message-scope",
+        "ok script-completed",
+        "ok helper-api-present",
+        "ok one-capture-per-case",
+        "ok mechanism-recorded-per-case",
+        "ok reload-page-loaded",
+        "ok extension-revision-held"
+      ]
+    },
+    "gotavernRestart": {
+      "present": true,
+      "file": "helper-vars-gotavern-on-restart.json",
+      "subject": "gotavern",
+      "variant": "on",
+      "afterRestart": true,
+      "failure": null,
+      "cases": [
+        "reload-chat"
+      ],
+      "steps": [
+        "ok extension-pinned-at-drive-start",
+        "ok extension-is-pinned",
+        "ok api-surface-recorded",
+        "ok absent-features-recorded",
+        "ok message-scope-unreadable-by-macro",
+        "ok host-macro-surface-present",
+        "ok restart-tree-carries-the-preset",
+        "ok page-loaded",
+        "ok connection-configured",
+        "ok chat-seeded-for-message-scope",
+        "ok script-completed",
+        "ok helper-api-present",
+        "ok one-capture-per-case",
+        "ok mechanism-recorded-per-case",
+        "ok extension-revision-held"
+      ]
+    },
+    "pinnedRestart": {
+      "present": true,
+      "file": "helper-vars-pinned-on-restart.json",
+      "subject": "pinned",
+      "variant": "on",
+      "afterRestart": true,
+      "failure": null,
+      "cases": [
+        "reload-chat"
+      ],
+      "steps": [
+        "ok extension-pinned-at-drive-start",
+        "ok extension-is-pinned",
+        "ok api-surface-recorded",
+        "ok absent-features-recorded",
+        "ok message-scope-unreadable-by-macro",
+        "ok host-macro-surface-present",
+        "ok restart-tree-carries-the-preset",
+        "ok page-loaded",
+        "ok connection-configured",
+        "ok chat-seeded-for-message-scope",
+        "ok script-completed",
+        "ok helper-api-present",
+        "ok one-capture-per-case",
+        "ok mechanism-recorded-per-case",
+        "ok extension-revision-held"
+      ]
+    }
+  }
+}
