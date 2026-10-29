@@ -584,3 +584,57 @@ evidence, GoTavern evidence, a named surface contract, harness error excluded, b
 
 **So the browser gate's greenness and Phase 1's verification path are the same blocker**, and it is a product
 investigation rather than a harness repair.
+
+
+### 14. `survivesRestart`: what the guard measures, and why the next step is a decision
+
+Section 13 identified `survivesRestart` as the reason `main`'s browser gate is red. Reading the guard and the
+probe turns that into a precise question.
+
+**The guard:**
+```
+survivesRestart: subjects.map(subject => observed[subject].halfII.restartHasValue
+                                  && observed[subject].halfII.restartIsNewProcess)
+```
+
+**The drive, from the probe's own comment:**
+```
+K  fresh page, same process -> select trio -> send: the value from DISK is on the wire (half ii, reload).
+L  THE RESTART LEG is a separate invocation (`--after-restart`) over the tree K left behind, on a NEW server
+   process: same assertions, and the artefact records that the process is not the one that wrote.
+```
+
+**So the asymmetry is specifically about a NEW PROCESS over the SAME TREE.** Leg K -- a fresh page in the
+same process -- is not where it differs; leg L is. Measured: `gotavern=true, pinned=false`, identically on
+`24babdc` and `a319cd4` (runs `40681692737`, `40689195294`), with `mismatches=[]` -- no request or response
+content differs, so this is a state question rather than a wire question.
+
+**What that means in one sentence:** after a restart, GoTavern serves a 酒馆助手 variable value from the tree
+that pinned, in the same situation, does not.
+
+**Which behaviour is "correct" is a product decision, not a defect report**, and the project has a precedent
+for exactly this shape. Rule 26's auto-update divergence -- GoTavern defaults it OFF against pinned's own
+default -- is recorded in `AGENTS.md` as *"the product decision, and it is recorded as such"*. A deliberate
+divergence is legitimate when it is stated; what rule 18 forbids is a difference that is presented as parity.
+
+**Two candidate decisions, and the evidence each would need:**
+
+1. **Reproduce pinned's loss.** Parity is the project's promise, and pinned is the oracle. This needs the
+   mechanism named on both sides -- where pinned keeps the value that it does not reload, and where GoTavern
+   reads it from -- because "make it lose the value" without knowing which storage path differs would be a
+   patch aimed at a symptom.
+2. **Keep GoTavern's retention and record it as a deliberate improvement**, exactly as auto-update is
+   recorded. This needs the user-facing consequence written down: a user switching backends sees a variable
+   persist that used to vanish.
+
+**What the guard cannot do as written, and it is the same defect class this audit keeps finding.** The
+artefact declares `survivesRestart` and `offIsTheControl` **both required for its claim and unproven** -- a
+self-contradiction recorded in the Alpha 8 notes. A guard that is required and unproven at once cannot say
+what it asserts, so before either decision is implemented the declaration has to be resolved: either the guard
+becomes a real assertion (and then it must pass), or it becomes a recorded observation (and then it must not
+be listed as required).
+
+**So the next step is not a code change.** It is: read the probe's `globalOnDisk` / `characterOnDisk` values
+for both subjects from a helper-vars run, name which storage path differs, and then choose (1) or (2) with the
+consequence stated. That is the five-part rule's first two parts -- Node evidence and GoTavern evidence -- and
+neither exists yet in a form that names the mechanism.
