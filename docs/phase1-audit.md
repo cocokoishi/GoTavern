@@ -691,3 +691,52 @@ a document change rather than a code change.
 `characterOnDisk` for both subjects, and those values name which storage path differs. **Neither this section
 nor the last has that value**, so the mechanism is still unnamed -- what has changed is that the *question* is
 now "which position does the project take", not "which implementation is wrong".
+
+
+### 16. Correction to section 15: the contradiction is the SECOND failure, not the first
+
+Section 15 said the fix was a declaration change and called the defect a documentation one. Reading
+`tools/browser-evidence/other-surfaces.mjs` shows that is incomplete, and the correction matters because it
+changes what the fix has to achieve.
+
+**The checker fails on two independent things:**
+
+```
+// line 485
+ctx.fail(`asymmetries names ${asymmetry.guard} (gotavern=..., pinned=...): a guard true on one subject and
+          false on the other is the difference this comparison exists to find`);
+
+// line 496-504
+// AN ARTEFACT THAT SAYS A GUARD IS UNPROVEN IS SAYING IT CANNOT SUPPORT THE CLAIM, and every guard above is
+// required -- so a declaration here is a contradiction rather than an excusal. This is the opposite of
+// helperSurface's rule and is deliberate: that surface legitimately cannot judge some things, this one can.
+const declared = new Set(variableComparison.declaredUnproven ?? []);
+for (const guard of required) {
+  if (declared.has(guard)) {
+    ctx.fail(`${guard} is required for this claim and is also declared unproven: the two cannot both be true`);
+  }
+}
+```
+
+**The FIRST failure is the asymmetry itself** -- `gotavern=true, pinned=false` on `survivesRestart`. **The second
+is the artefact's attempt to excuse it.** So section 15's "the fix is a document change" describes only the
+second failure, and resolving the declaration alone would leave the first one standing.
+
+**And the checker's comment states its position explicitly**: for THIS surface, unlike `helperSurface`, a
+declaration of unproven is *"a contradiction rather than an excusal"*, because *"that surface legitimately
+cannot judge some things, this one can."* So the excusal is refused **deliberately** -- which means removing it
+is not a fix but a weakening, and would need the same kind of recorded reason rule 32 requires before a gate is
+loosened.
+
+**What that leaves.** The asymmetry must be resolved on the merits, which is position 1 from section 15:
+
+- **Make the subjects agree** -- reproduce pinned's loss, which needs GOAL §3 amended because the project
+  currently claims the stronger property.
+- **Or amend the check deliberately**, recording that a `survivesRestart` asymmetry is an accepted difference
+  rather than a failure. That is a gate change with a stated reason, and it is the honest form of position 2 --
+  not an excusal smuggled in through `declaredUnproven`.
+
+**So the decision is unchanged, but its cost is now visible**: position 2 is not a document edit, it is a
+**deliberate loosening of a check whose own comment says this surface can judge the property**. That is a
+different and more expensive thing than section 15 implied, and it should be chosen with that in view rather
+than as the cheap option.
