@@ -55,14 +55,14 @@ A row is `PASS` only when every one of these holds:
 | 12 | Streaming SSE framing, incremental render and cancellation | **PARTIAL** | 2 oracle fixture(s), Go implementation, 7 named test(s), 3 browser artefact(s), CI job(s) | 2 item(s) |
 | 13 | Exact tokenization and context boundaries | **PARTIAL** | 1 oracle fixture(s), upstream assets, Go implementation, 3 named test(s), 1 browser artefact(s), CI job(s), release-artifact step | 3 item(s) |
 | 14 | Files, avatars, backgrounds, images, sprites, image metadata | **PARTIAL** | 8 oracle fixture(s), Go implementation, 9 named test(s), CI job(s) | 3 item(s) |
-| 15 | Extensions: discovery, static serving, install, update, switch, delete, and the Tavern Helper / LittleWhiteBox canaries | **PARTIAL** | 3 oracle fixture(s), Go implementation, 6 named test(s), 2 browser artefact(s), CI job(s) | 3 item(s) |
+| 15 | Extensions: discovery, static serving, install, update, switch, delete, and the Tavern Helper / LittleWhiteBox canaries | **PARTIAL** | 3 oracle fixture(s), Go implementation, 6 named test(s), 2 browser artefact(s), CI job(s) | 4 item(s) |
 | 16 | Arbitrary Node server plugins | **NOT_APPLICABLE** | 3 named test(s), CI job(s) | _none_ |
 | 17 | Embeddings and vector storage | **PARTIAL** | 1 oracle fixture(s), Go implementation, 1 named test(s), CI job(s) | 2 item(s) |
 | 18 | Multi-user: create, admin, recovery, reset, private data, per-user data roots | **PARTIAL** | 6 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
-| 19 | Content import, character export, chat/account backups and restore | **PARTIAL** | 5 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 3 item(s) |
+| 19 | Content import, character export, chat/account backups and restore | **PARTIAL** | 5 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 5 item(s) |
 | 20 | Startup: config creation and migration, data seeding, locking, no-hang, no egress | **FAIL** | 6 oracle fixture(s), upstream assets, Go implementation, 4 named test(s), CI job(s) | 5 item(s) |
-| 21 | Release artifact: archive, install, upgrade, rollback, docker, smoke | **PARTIAL** | upstream assets, Go implementation, 2 named test(s), CI job(s), release-artifact step | 3 item(s) |
-| 22 | Whole-session differential in a stock tree (load, settings, characters, chat, send, stream, save, reload) | **FAIL** | 1 oracle fixture(s), 2 browser artefact(s), CI job(s) | 3 item(s) |
+| 21 | Release artifact: archive, install, upgrade, rollback, docker, smoke | **PARTIAL** | upstream assets, Go implementation, 2 named test(s), CI job(s), release-artifact step | 4 item(s) |
+| 22 | Whole-session differential in a stock tree (load, settings, characters, chat, send, stream, save, reload) | **FAIL** | 1 oracle fixture(s), 2 browser artefact(s), CI job(s) | 4 item(s) |
 
 ## Evidence and gaps, per row
 
@@ -83,7 +83,7 @@ Row id: `core-http-static`
 - no release-artifact result for a stock tree (AGENTS.md 23/34)
 - the pinned public/** byte identity is recorded per file by upstream/manifests, but no gate compares the SERVED bytes against that manifest end to end
 
-Route-level HTTP parity is the most mature area in this tree: 118 oracle recordings, 512 Go test functions. Maturity of the fixtures is exactly why the three P0 defects shipped, so this row is not PASS for that reason alone.
+Route-level HTTP parity is the most mature area in this tree. The counts this note used to carry BY HAND ("118 oracle recordings, 512 Go test functions") had already drifted to 119 and 689; they are deleted here rather than corrected, because the generated "Counts measured from this tree" section is now the only place a count lives. Maturity of the fixtures is exactly why the three P0 defects shipped, so this row is not PASS for that reason alone.
 
 ### Basic auth, per-user auth, sessions, CSRF and cookies — `PARTIAL`
 
@@ -218,8 +218,8 @@ Row id: `world-info`
 
 **Evidence gap**
 
-- route parity is recorded, but activation into an assembled prompt is proven only by the preset browser artefact, whose boundary pair has repeatedly failed to bind (runs 40082539457, 40087218275, 40073821604)
-- no gate proves the before/after/atDepth slots all reach the provider in order for a stock preset
+- route parity is recorded; activation into an assembled prompt is proven by the preset and Author's-Note differentials, whose boundary pair now binds (the committed preset-complex-comparison.json records keepContext 4260 / dropContext 4259 with providerRequestEqual true). The clause naming three repeatedly-failing runs predates that record and is superseded
+- no gate proves the before/after/atDepth world-info slots all reach the provider IN ORDER for a stock preset; that ordering assertion is the remaining item
 
 Blocked by: `whole-session-e2e`
 
@@ -239,7 +239,7 @@ Row id: `presets-and-ui-content`
 
 **Evidence gap**
 
-- the complex-preset differential is the only prompt-assembly gate and it has not yet produced a passing keep/drop pair on both legs
+- the complex-preset differential now RECORDS a passing keep/drop pair in tests/browser/preset-complex-comparison.json (keepContext 4260 / dropContext 4259, 24 vs 26 messages, providerRequestEqual true, verdict match), so the older clause saying no passing pair existed was stale and is removed; what the artefact does not cover is preset features outside its measured contract (instruct/context templates are set but not asserted, secondary world-info keys, recursion/probability/outlets, group chats)
 - the NAME_MAX host-dependent difference is recorded as an unresolved known difference rather than parity
 
 Blocked by: `whole-session-e2e`
@@ -261,10 +261,10 @@ Row id: `providers-transport`
 **Evidence gap**
 
 - every provider differential runs against our own recording peer: AGENTS.md 22 makes that `unverified` for production
-- docs/network-egress.md §2 records eight places where the production transport does not meet the contract (system roots, proxy awareness, bounded timeouts, decompression, redirect policy, cancellation)
-- the byte-exact client and the production client are the same client, which AGENTS.md 30 forbids and which is the mechanism behind P0-A
-- no test asserts the causal error text of a DNS, connect, TLS or timeout failure without printing a secret (AGENTS.md 35)
-- DEEPSEEK's pinned catch answers a thrown fetch with `{error:true}` and discards the cause, so on this source the causal-error requirement cannot be met without a recorded divergence from pinned's body (docs/network-egress.md §4)
+- the byte-exact oracle client and the production client are now SEPARATE -- internal/outbound/raw.go is oracle-only and internal/outbound/transport.go carries proxy awareness, bounded connect/TLS/header/idle timeouts, decompression, redirect policy, keep-alive honouring enableKeepAlive, and the private-address dial filter -- so the old "the same client" clause is RETIRED; what remains unproven is that those properties hold against a controlled internet-shaped peer
+- docs/network-egress.md section 2's "eight places it does not meet the contract" list describes the tree BEFORE that production transport and is superseded by it; the document needs that section restated rather than read as current
+- no test asserts the causal error text of a DNS, connect, TLS, proxy or timeout failure while proving no secret is printed (AGENTS.md 35)
+- DEEPSEEK's pinned catch answers a thrown fetch with `{error:true}` and discards the cause, so on this source the causal-error requirement cannot be met without a recorded divergence from pinned's body
 - the live canary that does reach api.deepseek.com runs only where DEEPSEEK_API_KEY is configured, and prints one SKIPPED line where it is not
 
 P0-A: a provider that could not be reached shipped through a green CI because every provider test used a mock peer and therefore never exercised a socket with a real hostname. The row is FAIL until a test reaches a controlled real-internet-shaped transport (not the live network: a local TLS peer with a real trust chain, a refusing proxy and a hanging socket), and the shipped artifact passes it.
@@ -326,7 +326,7 @@ Row id: `tokenization`
 
 **Evidence gap**
 
-- the context-boundary differential (AGENTS.md 9) has not produced a binding keep/drop pair on both legs in any run so far
+- the context-boundary differential (AGENTS.md 9) is implemented as tests/browser/truncation-set-gate.mjs, which INHERITS the keep/drop pair the committed boundary search found and asserts both subjects keep and drop the same turn at both contexts -- the old "has not produced a binding pair in any run" clause is superseded by that gate and by the committed boundary record
 - tokenizer tree resolution is proven for a fresh root and a migrated tree, not for a stock tree whose src/tokenizers sits beside a user's data root
 - INHERITED WEAKNESS, reproduced deliberately (architecture boundary 5): with no tokenizer tree pinned answers HTTP 200 with a guesstimate count and no ids (docs/tokenizer-parity-plan.md:141), so an inexact count is indistinguishable from an exact one -- GoTavern reproduces it for parity rather than refusing
 
@@ -368,9 +368,10 @@ Row id: `extensions`
 
 **Evidence gap**
 
-- P0-C: extension/plugin updates happened without being asked for; no gate asserts that every ambiguous auto-update input resolves to OFF (AGENTS.md 26), which is the property that shipped broken
+- P0-C's property now HAS a gate: TestResolveAutoUpdateIsStrictAndDefaultsOff and TestStockConfigSayingAutoUpdateTrueResolvesOff assert that every ambiguous auto-update input resolves to OFF (AGENTS.md 26). The clause that said no gate existed was stale and is removed
 - no test asserts that a dirty extension worktree is refused rather than forced (AGENTS.md 28)
-- the 酒馆助手 canary now proves the iframe/bridge/generation path rather than the files loading: an unsandboxed script iframe with parent.TavernHelper (157 members) reachable inside it, all 25 static host imports served, a generateRaw({ordered_prompts}) request that is byte-identical on both subjects, and a depth-0 injection visible in the generate() request (Q8/Q9/Q11). Variable persistence (Q10) is now PROVEN on both subjects -- the helper script's chat variable reaches the chat file on disk on GoTavern and on pinned Node while a helper-off leg still persists nothing (Browser differential 40250495167: variablePersisted is absent from the artefact's declared-unproven list, which the verifier permits only for a guard true on both). Still declared unproven in that artefact: the render path and the URLs a rendered message puts in the DOM, a real user preset assembling the model context is now PROVEN equal on both backends (Browser differential 40274214952: presetAEqualsAcrossLegs, presetBEqualsAcrossLegs and goATavernDiffersFromGoB all true on the user's own 105-prompt and 119-prompt presets), a helper MUTATING the in-use preset changes the next request identically on both backends (Q12 proven, Browser differential 40277640647: presetMutationChangeRequest with identical before/after pairs on both subjects), while streaming (Q19) and reload/swipe (Q20) remain unproven
+- the 酒馆助手 canary proves the iframe/bridge/generation path rather than the files loading: an unsandboxed script iframe with parent.TavernHelper reachable inside it, the static host imports served, a generateRaw request byte-identical on both subjects, and a depth-0 injection visible in the generate() request (Q8/Q9/Q11). Variable persistence and the wire half are Q10's; the render path and the URLs a rendered message puts in the DOM stay declared unproven in that artefact
+- the pinned leg's extension was auto-updating itself OFF the pin during a differential (measured 2026-10-29: 酒馆助手 837a6288 -> e71c9906 mid-run, which made the restart leg refuse); the installer now freezes the extension's origin to an offline bare mirror at the pinned commit and a drive asserts the HEAD at start and end, but that is harness input control, not a product capability of this row
 
 Blocked by: `startup`, `whole-session-e2e`
 
@@ -406,8 +407,8 @@ Row id: `embeddings-vector`
 
 **Evidence gap**
 
-- local in-process embedding sources are a decided exclusion (ARCHITECTURE.md boundary 2) and are not implemented; the routes exist but the local providers cannot
-- no test of a remote embedding provider's error handling, which is the only path a user can actually take
+- local in-process embedding sources are a decided exclusion (ARCHITECTURE.md boundary 2) and are not implemented
+- EVERY remote provider embedding source answers 500 at HEAD: internal/server/vector.go lists openai, togetherai, mistral, cohere, ollama, llamacpp, vllm, vertexai and palm, and only webllm/koboldcpp and body-supplied vectors work. The previous clause named only the LOCAL sources, which understated the gap: a user who selects any remote provider gets an unimplemented status, never an embedding
 
 Blocked by: `providers-transport`
 
@@ -448,7 +449,9 @@ Row id: `import-export-backups`
 
 - restore is not proven: a backup is read, but no test restores one into a tree and compares the tree
 - the inherited substring-matching host classifier (ARCHITECTURE.md boundary 5) is recorded as inherited but no test pins its acceptance of chub.ai.attacker.example
-- REQUEST hand-back to Node is ABSENT, not partial: no route is proxied and no configuration selects an upstream. Five routes answer for themselves with ZERO outbound requests -- /api/content/importURL for chub/janitorai/pygmalion/risu/perchance (content.go:171-174), /api/content/importUUID for a non-AICC shape (content_uuid.go:146-151), and /api/image-metadata when generation is unsupported (image_metadata_get.go:71-74) -- each answering 501 and returning before any download or fetch (verified in source, not asserted). The negative is established by three searches: ReverseProxy has 126 hits in internal/ and cmd/ and every one is the pinned provider setting reverse_proxy from the request body, not httputil.NewSingleHostReverseProxy; handback\|hand-back\|upstreamNode\|proxyTo returns two test filenames and no implementation; and the 18 StatusNotImplemented answers are provider-branch 501s rather than a hand-back trigger. DATA hand-back is the other half and it IS proven: Q21 (q21-data-handback.mjs) drives the product writing a tree and pinned opening the same directory, asserting pinnedReadTheChat, pinnedChatIdMatches, pinnedContinued and noDataLossOnHandBack. Contract: docs/surfaces/handback.md. NO TEST YET PINS THE PER-ROUTE TABLE, so this is a recorded boundary awaiting its gate
+- REQUEST hand-back to Node is ABSENT, not partial: no route is proxied and no configuration selects an upstream. Five routes answer for themselves with ZERO outbound requests -- /api/content/importURL for chub/janitorai/pygmalion/risu/perchance (content.go:171-174), /api/content/importUUID for a non-AICC shape (content_uuid.go:146-151), and /api/image-metadata when generation is unsupported (image_metadata_get.go:71-74) -- each answering 501 and returning before any download or fetch. The negative is established by three searches: ReverseProxy has 126 hits in internal/ and cmd/ and every one is the pinned provider setting reverse_proxy from the request body; handback\|hand-back\|upstreamNode\|proxyTo returns two test filenames and no implementation; the 18 StatusNotImplemented answers are provider-branch 501s
+- DATA hand-back: the driver and its judge now EXIST (tests/browser/q21-data-handback.mjs drives BOTH directions; tests/oracle/q21/judge-handback.mjs names the rows each direction requires and refuses `match` on zero counts), but the earlier claim that it WAS proven was false -- it had never been judged past its precondition, and the probe did not assert pinnedContinued at all. The state of this claim belongs to docs/goal-scorecard.md Q21, not to this row
+- NO TEST YET PINS THE PER-ROUTE 501 TABLE: the five routes are verified in source rather than asserted, so this is a recorded boundary awaiting its gate
 
 A backup nobody has restored is a file, not a backup.
 
@@ -488,9 +491,10 @@ Row id: `packaging-release`
 
 **Evidence gap**
 
-- the stock-tree qualification (release-qualification.yml#qualify-dropin-linux, and dropin-qualification.yml#dropin-current-head on every push) executes only the LINUX archive, against a tree DERIVED from the pinned source rather than recorded from a pinned Node run: the Windows archive and Start.cmd are never executed, so AGENTS.md 34/38 is covered for one platform and one derived tree (docs/dropin-qualification.md, Limits)
-- no qualification result for handing the data back to pinned Node after GoTavern has run over it (AGENTS.md 38)
-- quoted releaseArtifact here is a workflow step, not a recorded run id
+- the stock-tree qualification executes the LINUX archive on every push (dropin-qualification.yml#dropin-current-head) and the WINDOWS archive on windows-latest (dropin-qualification.yml runs-on windows-latest: a Start.cmd run, a pristine-config run, a trimmed-config run and an exe-direct scenario) -- the older clause saying the Windows archive is never executed was stale and is removed
+- the stock tree the Linux job boots is DERIVED from the pinned source rather than recorded from a pinned Node run, so AGENTS.md 38's "the real migration path" is covered by a derivation, not by a captured tree
+- no qualification result for handing the data back to pinned Node AFTER GoTavern has run over it (AGENTS.md 38)
+- quoted releaseArtifact here is a workflow step, not a recorded run id; the run id belongs in docs/goal-scorecard.md Q1/Q21
 
 Blocked by: `startup`
 
@@ -510,9 +514,10 @@ Row id: `whole-session-e2e`
 
 **Evidence gap**
 
-- CROSS-STEP STATE IS NOW GATED, BUT ONLY PARTLY: `Browser differential` 40387864205 does save -> a FRESH page load -> second turn -> swipe inside ONE runtime root, with seven of seven guards true and the two provider requests byte-identical across subjects (794bfa4552f8 and 9ab9e8c13421). What that leg does NOT carry: `regenerate` and `continue` (declared in its notCompared), and it is four actions rather than a user session
-- the two existing browser artefacts that touch startup compare a startup RECORD, not a user session
-- send and stream are still compared per-source against a mock peer, never as one user's sequence in one tree, and NO leg boots pinned Node over a tree GoTavern WROTE -- the data-handback question (GOAL 10, scorecard Q21) has no driver at all
+- CROSS-STEP STATE IS PARTLY GATED: a save -> fresh page load -> second turn -> swipe leg runs inside ONE runtime root with every guard true and the two provider requests byte-identical across subjects; regenerate and continue now have their own comparator steps, but not inside that same session leg
+- the two browser artefacts that touch startup compare a startup RECORD, not a user session
+- send and stream are still compared per-source against a mock peer rather than as one user's sequence in one tree
+- the old clause "NO leg boots pinned Node over a tree GoTavern WROTE -- the data-handback question has no driver at all" is now FALSE and is removed: tests/browser/q21-data-handback.mjs is that driver and boots pinned Node over the Go-written tree, and the reverse direction over the pinned-written tree, judged by tests/oracle/q21/judge-handback.mjs. This row stays FAIL for the session shape above, not for a missing driver
 
 Blocked by: `startup`, `providers-transport`
 
@@ -568,8 +573,8 @@ with `TestMain` excluded because it is a package's test entry point rather than 
 | Measure | In the tree | Cited by this matrix |
 |---|---|---|
 | Oracle fixtures | 119 | 67 |
-| Browser artefacts | 37 | 11 |
-| Go test functions | 689 | 66 |
+| Browser artefacts | 38 | 11 |
+| Go test functions | 697 | 66 |
 | Workflow jobs | 32 in 9 workflow(s) | _n/a_ |
 | Rows | 22 | PASS 0, PARTIAL 18, FAIL 3, NOT_APPLICABLE 1 |
 | Session steps | 8 | 7 with a probe, 1 without, 0 sharing a runtime |
