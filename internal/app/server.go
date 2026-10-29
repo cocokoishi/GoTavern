@@ -18,7 +18,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/cocokoishi/gotavern/internal/commandline"
@@ -527,10 +526,6 @@ func optionString(value any) string {
 		return ""
 	}
 	return strings.TrimSpace(fmt.Sprint(value))
-}
-
-func isAddressInUse(err error) bool {
-	return errors.Is(err, syscall.EADDRINUSE)
 }
 
 func defaultPort(scheme string) string {

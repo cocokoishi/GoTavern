@@ -52,7 +52,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/cocokoishi/gotavern/internal/outbound"
 	"github.com/cocokoishi/gotavern/internal/startup"
@@ -160,11 +159,16 @@ func pinnedChatCompletionTransportErrorFlagServerError(err error) *pinnedChatCom
 	return pinnedChatCompletionJSONFailure(http.StatusInternalServerError, pinnedChatCompletionErrorFlagWithCause(err))
 }
 
+// pinnedChatCompletionTransportMessage reproduces pinned's catch message
+// (chat-completions.js:2719-2721). The refusal test is platform-dependent: Node
+// reports `error.code === 'ECONNREFUSED'` on every platform, while the Go errno
+// that carries a refused connection differs on Windows, so the classification
+// lives behind the isConnectionRefused seam rather than in this shared file.
 func pinnedChatCompletionTransportMessage(err error) string {
 	if err == nil {
 		return "Unknown error occurred"
 	}
-	if errors.Is(err, syscall.ECONNREFUSED) {
+	if isConnectionRefused(err) {
 		return "Connection refused: " + err.Error()
 	}
 	if err.Error() != "" {
