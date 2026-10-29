@@ -474,3 +474,64 @@ run proves macro handling is IDENTICAL on both subjects. It does not prove that 
 macro the way pinned would in isolation -- but since both are compared against each other on the same input,
 identical is the claim Phase 1 needs. A macro that is substituted wrongly on both sides would still be a
 `match`, and that limitation is inherent to a differential, not to this run.
+
+
+### 12. The full dimension coverage, measured
+
+Sections 10 and 11 left three dimensions as "not established". Reading the probe and the workflow settles all
+three, and the picture is different from what either section implied.
+
+**Character card -- the mechanism is driven, but not against a user's card.** The probe opens whatever the
+roster holds:
+
+```
+tests/browser/real-preset-probe.mjs:322   const selector = '#rm_print_characters_block .avatar[data-type="character"]';
+tests/browser/real-preset-probe.mjs:327   const card = document.querySelector(selector);
+tests/browser/real-preset-probe.mjs:328   if (!card) return { clicked: false, reason: 'no character card in the list' };
+tests/browser/real-preset-probe.mjs:344   step('character-open', chatAvailable, ...);
+```
+
+and its own comment records why the step exists: *"a bare page has no character selected and the send controls
+are inert"* -- run `40259110733` reached its peer with ZERO requests for exactly that reason. The gate is the
+subject's own state (`chatAvailable`), not the click.
+
+**The real-preset workflow step passes no `--character`**, so the card that opens is the one the fresh tree
+seeds. So the dimension is exercised **as a mechanism** and not against a complex user card -- which is the
+distinction that matters for Phase 1, because a card's `description`, `personality`, `scenario`, example
+messages, character book, alternate greetings and depth prompt are where a complex workflow lives.
+
+**Extension -- installed and pinned, but nothing asserts it acted.**
+
+```
+real-preset-probe.mjs:152   const extension = pinnedExtension('tavern-helper');
+real-preset-probe.mjs:153   const installed = await ensurePinnedExtensionInstalled(dataRoot, extension);
+tests/browser/pinned-extensions.mjs   'tavern-helper': { label: 'Tavern Helper / JS-Slash-Runner',
+                                        name: 'JS-Slash-Runner',
+                                        repo: 'https://github.com/N0VI028/JS-Slash-Runner.git',
+                                        commit: '837a6288135cde61522a9279173b98020f08807e' }
+```
+
+That is the canary `AGENTS.md` requires, at its pinned commit. **But the probe's eight steps are**
+`page-loaded, settings-ready, real-preset-loaded, real-preset-structure, connection-configured,
+character-open, generation-completed, peer-reached` -- **and none of them concerns the extension.** It is
+installed so that the page it drives is a realistic page; nothing in this leg asserts the helper did anything.
+
+**Chat state -- driven, partially.** `character-open` requires `chatAvailable`, so a chat exists, and the
+probe's second request per leg is described in the comparator as *"a minimal single-turn assembly"*. What the
+leg does not do is vary the chat: no long chat, no swipe, no regenerate, no continue, no edit, no
+truncation boundary.
+
+**The complete picture, and it is the honest input to a Phase 1 completion report:**
+
+| dimension | status |
+|---|---|
+| preset | **proven** -- `verdict: match`, 10/10 guards, two real private presets |
+| macros | **exercised incidentally** -- 42 distinct names in one fixture, byte-identical across subjects |
+| world info | **zero** -- no world-book handling in the probe at all; needs new code |
+| character card | **mechanism driven, default card** -- not a complex user card |
+| extension | **installed and pinned, nothing asserted** -- Tavern Helper is present, not exercised |
+| chat state | **driven, partial** -- one short chat, no variation |
+
+**So one dimension is proven, one is covered incidentally, and four are somewhere between partial and absent.**
+The Phase 1 brief names all six; a completion report must say which of them the evidence reaches, and this
+table is what it should be built from rather than from the impression that "the preset run passed".
