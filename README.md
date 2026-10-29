@@ -45,6 +45,15 @@
 >   FAILURE, cited for steps 44, 45, 47 and 48 inside it, all success) printed `Q20 continue: 14 guard(s) held`.
 >   That closes the surface that was red at the start of this round; the run's only failure is the pre-existing
 >   Q21 hand-back fixture defect.
+> - **`privateAddressWhitelist` now actually filters.** It used to be accepted and ignored — an operator could
+>   switch ON an SSRF control and get nothing but a warning. It is implemented on the single outbound policy:
+>   blocked at connect time on the **DNS-resolved** address, every redirect hop validated,
+>   `allowUnresolvedHosts` honoured, `allowedRanges` accepted as CIDR **and** as `ip-matching` wildcard forms, both
+>   log switches honoured. **One deliberate divergence, recorded as a product decision:** pinned's `ip-matching`
+>   answers `false` for `10.0.0.0/8` against `::ffff:10.0.0.1` — measured by probing the package — so pinned lets a
+>   v4-mapped-v6 address past every IPv4 range *and* every IPv4 whitelist entry. GoTavern canonicalises the mapped
+>   form and is therefore **stricter than pinned** there. Details in `docs/config-inventory.md`, including why
+>   `allowedRanges: []` cannot mean "allow nothing" (pinned refills it).
 
 ## TL;DR
 
@@ -164,7 +173,7 @@ from, row by row.
 | Token truncation at the context boundary | **proven at the measured boundary** | 40465631698 step 25 (success): both subjects keep and drop the same turns at `keep` and `keep-1`. **Not** "truncation proven in general" — pinned's total message count is not monotone in `openai_max_context` |
 | World-info activation | **proven** | `GoTavern CI` 40398345829 (success): provider-wire captures including the world-info routes, byte-identical on re-record |
 | Streaming and helper events | **partial** | cut/abort is **proven**: `Browser differential` 40682654579 (success) drives the abort leg with a byte-offset cut on a frame boundary, and both subjects render the same partial text. The row stays `partial` for two other reasons the matrix names: a mid-stream TLS close is unobserved, and no gate asserts the ordering property itself. A buffering-hop render claim is not provable by the current harness and the artefact says so |
-| Reload, swipe, regenerate, continue | **partial** | save→reload→swipe proven (40387864205, success; five consecutive green runs since). Regenerate proven equality with a negative control. **Continue: the comparator now reports `verdict: match` with 14/14 guards, measured locally on both subjects after the harness defect below was fixed — the CI verdict for this commit is PENDING and the row does not claim it.** The defect was in the harness, not the product: see the status block above, and `tests/browser/q20-continue-comparator-selftest.mjs`, which now kills all 14 guards by name |
+| Reload, swipe, regenerate, continue | **proven** | All four verbs. `Browser differential` **40865569008** (RUN VERDICT FAILURE, cited for the steps that are green inside it) carries the fresh evidence: step 40 `Compare the Q20 legs` — save→reload→swipe — is SUCCESS with the comparator's **nine** guards held, including `artefactsDifferPerSubject`, which proves the two subjects were fed *different* bytes at a position neither compared request carries; step 48/49 `Compare`/`Judge the Q20 continue legs` are SUCCESS with `Q20 continue: 14 guard(s) held`; and the earlier regenerate citation (40387864205, success) stands with its negative control. The run's only failure is step 51 `Judge the hand-back`, which is the Q21 fixture defect in the row below. **The limits are kept in [`docs/goal-scorecard.md`](docs/goal-scorecard.md)'s Q20 row, not hidden here:** the discriminator proves the harness *can* feed different bytes and that the stamp was applied — it does not make the equality a response to different inputs, which is what a controlled differential deliberately does not do |
 | Handing a GoTavern-written tree back to pinned Node | **unproven** | the hand-back leg is red at its own precondition: the committed card derivation carries different names in its `chara` and `ccv3` chunks, which pinned's reader resolves differently. A fixture defect, not a product finding — and therefore not a claim |
 | CPU/RAM/startup versus Node | **proven** | `GoTavern smoke metrics` 40394799325 (success), 40396669521 (success) — the figures in [Performance](#performance) |
 
