@@ -224,3 +224,89 @@ build rather than reuse.
 Steps 4 and 5 are **executable on this host**. Nothing needs provisioning, no decision is outstanding, and
 the option list in the previous report is withdrawn as moot. The remaining work is to add the world-info and
 macro dimensions to the probe, build a current binary, and run one complex private fixture.
+
+
+## 9. Layer A, first run — a real result on real private content
+
+Steps 4-5 have now been executed **locally**, against two real private presets, with the pinned SillyTavern
+checkout as the oracle. Nothing about this run is committable: the fixture content, the leg reports and the
+comparison artefact all live under the gitignored `/.private-fixtures/`. What is recorded here is the
+**method** and the **structural result**, which is the part that can leave the machine.
+
+### The method, which is the CI invocation with the fixture swapped
+
+```
+GOTAVERN_BINARY=<built binary> node tests/browser/real-preset-probe.mjs \
+    --data-root <tree-gotavern> --preset <real preset> --preset-name <opaque> \
+    --expect-prompts N --expect-rows N --expect-enabled N --report <leg>
+
+node tests/browser/run-against-pinned.mjs real-preset-probe.mjs -- \
+    --data-root <tree-pinned> --preset <real preset> --preset-name <opaque> \
+    --expect-prompts N --expect-rows N --expect-enabled N --report <leg>
+
+node tests/browser/compare-real-preset-legs.mjs <gv-a> <pn-a> <gv-b> <pn-b>
+```
+
+**Three requirements that are not obvious and each cost a run to find:**
+
+1. **A separate data root per subject.** The first attempt shared one tree and the pinned leg failed at
+   `generation-completed` with `peerRequests: 0` -- it was reading state the GoTavern leg had written. That is
+   the ordered/shared-state hazard, and it presents as a probe-faithfulness alarm rather than as anything
+   about the product. CI uses `real-preset-tree-$subject-$preset` for exactly this reason.
+2. **Two presets, not one.** The comparator's usage line is
+   `<gotavern-a> <pinned-a> <gotavern-b> <pinned-b>`, because rule 48's second half is that `X != Y` within
+   one implementation: a comparator handed a single preset can only check `Node(X) == Go(X)`, and an
+   implementation that ignored preset selection entirely would satisfy that against a weak comparator.
+3. **The `--expect-*` values are the fixture's own structure counts**, derived from the preset JSON
+   (`prompts.length`, and the total and enabled counts across `prompt_order[].order[]`). They matched the
+   values CI passes for the committed derivations exactly.
+
+### The result
+
+Four legs, two fixtures, **two requests per leg** -- the comparator's own comment explains why: *"since the Q12
+change each leg sends two, and the first is a minimal single-turn assembly."*
+
+| fixture | request | bytes | messages | cross-subject |
+|---|---|---|---|---|
+| A | full assembly | 5,810 | 8 | **identical** |
+| A | minimal single-turn | 201 | 1 | **identical** |
+| B | full assembly | 9,816 | 15 | **identical** |
+| B | minimal single-turn | 199 | 1 | **identical** |
+
+**Eight requests recorded, four independent cross-subject comparisons, every one equal** on body sha256,
+byte length and the message array -- and A differs from B on both assemblies, which is rule 48 in full.
+`harnessDiscriminates` (rule 50) also held.
+
+**This is the first substantial parity evidence on real private content**, and it is stronger than a
+single-request run would have been, because each fixture contributes two independent comparisons.
+
+### The one guard that cannot pass here, and why it is a fixture limitation
+
+`aEnabledRowPointingAtDisabledPromptContributes` failed with *"no preset-A request carried a fixture marker at
+all."* Its own documentation says what it wants: *"A has 46 rows that are enabled while their prompt says
+`enabled:false`; at least one of their bodies must arrive on both legs."*
+
+**It identifies a prompt's body by the `MARK_NNNNNN` marker the committed derivation substitutes for prose.**
+A real preset carries prose instead, so the guard is **unsatisfiable on real content by construction**. That
+is a fixture-scope limitation and not a product finding -- but it is a real Phase 1 finding: **Layer A needs a
+marker-independent guard for that property**, or the comparator needs a real-preset mode. Until then the
+verdict cannot reach `match` on real content even when every parity guard passes.
+
+### What this run does not establish
+
+- **Windows only**, against a binary built from a named commit that reports `0.0-dev` and therefore carries
+  **no commit identity of its own**. A Windows result is not the Linux gate; this is Layer A evidence, which
+  is precisely the kind that has no Linux gate, and it must not be presented as a CI green.
+- **No world info, no macros, no extension, no character card.** The probe's drive sequence covers preset,
+  character and chat; world info and macros are at zero hits and are the remaining real-content dimensions.
+- **The request is compared, not the model's response**, and no real provider is contacted (rule 22 is not
+  exercised here).
+
+### The method's own hazard, recorded because it happened
+
+**Three consecutive rounds of this work produced a reported defect that turned out to be a misreading** --
+a wrong `node_modules` path, a "201 bytes" figure taken from the comparator's summary of a *different*
+request than the one being described, and a "comparator discrepancy" that was the same index confusion. The
+instrument was right each time. The lesson is not "trust the tooling" but the project's own rule applied to
+reporting: **a derived field is not a measurement, and a reading must be checked against its source before it
+is reported as a finding.**
