@@ -35,10 +35,38 @@
 // BY THE RECORDED `/api/chats/save` REQUEST, never by a resolved promise.
 //
 // WHY THE SECOND TURN PUTS ITS MARKER IN THE CHAT AFTERWARDS, decided here rather than derived. The send CLEARS
-// `#send_textarea` before it reads it in places, so the only way to prove the message CONTENT differs between
-// subjects is for the leg to write it into the message it just created -- still the page's own state, through the
-// page's own call, and recorded in the artefact. Without a per-subject content difference the second turn's
-// comparison would be satisfied by any two equal requests.
+// `#send_textarea` before it reads it in places, so the only way to give the swipe something different to act on is
+// for the leg to write the marker into the message it just created -- still the page's own state, through the page's
+// own call, and recorded in the artefact. (This block used to say the marker made "the message CONTENT differ between
+// subjects". It does not: both legs are handed the SAME marker. The per-subject difference is the DISCRIMINATOR
+// below, and it is placed where the compared requests cannot carry it.)
+//
+// THE PER-SUBJECT DISCRIMINATOR (AGENTS "Differential-testing doctrine" 4 and rule 50; docs/verifier-audit.md F3).
+// Both legs used to be fed byte-identical user turns AND byte-identical peer replies, so the comparator's
+// `nodeEqualsGoAfterReload`/`nodeEqualsGoAfterSwipe` compared requests the harness had made identical in content,
+// and the lane could not show that its own fixture was even CAPABLE of telling the two subjects apart.
+// `Q20_REPLY_PREFIX` (or `--reply-prefix`) now stamps THIS leg's identity into one reply, and the workflow passes
+// `Q20G_` to the GoTavern leg and `Q20P_` to the pinned one, so the two peers provably serve different bytes.
+//
+// WHICH REPLY IT IS STAMPED INTO IS DERIVED FROM PINNED SOURCE, NOT CHOSEN, and the derivation is the whole point:
+// the compared requests are the second turn (`contextRequests[1]`) and the swipe (`contextRequests[2]`), and a
+// per-subject difference may live only where NEITHER of them carries it.
+//   * the FIRST turn's user text and the first turn's reply are carried by BOTH: the messages array is built from
+//     the whole `coreChat` (public/script.js:4834 `oaiMessages = setOpenAIMessages(coreChat);`), so a difference
+//     there would make both equality guards red for a HARNESS reason;
+//   * the SECOND turn's user text (`MARKERS.second`, overridable as `Q20_SECOND_MARKER`) is carried by the SWIPE
+//     request, because only the message being swiped is popped -- so a difference there would make
+//     `nodeEqualsGoAfterSwipe` red for a harness reason. THAT is why the workflow keeps the second marker SHARED
+//     even though the override now exists;
+//   * the SECOND turn's REPLY is carried by NEITHER: the second-turn request precedes it, and the swipe pops it
+//     (public/script.js:4497-4499 `if (type === 'swipe') { coreChat.pop(); }`, and :4834 builds the messages from
+//     that same popped array). It is therefore the one position where a per-subject difference is both FED to the
+//     subject and INVISIBLE to the compared requests -- and asserting it is absent from the swipe request is a real
+//     PRODUCT assertion, because the message being swiped must not be in the prompt.
+//
+// THE STAMP IS ARMED BY ORDINAL, FROM THE PEER'S OWN COUNT immediately before the second send, rather than by a
+// literal `2`: a counter that runs ahead (the failure the regenerate lane measured at q20-leg-runtime.mjs:143-147)
+// would otherwise stamp the wrong reply and the mistake would read as a product difference.
 //
 // WHY THE FIRST TURN WAS "SILENTED", AND WHAT IS ACTUALLY TRUE ABOUT IT -- a correction, kept visible because the
 // first version of this block asserted a root cause that measurement then refuted.
@@ -143,7 +171,7 @@ async function waitForServer(url, deadlineMs = 120000) {
 //
 // `served` records WHAT THIS PEER SERVED for every response (`{wire, frames, bytes, terminal}`), so a leg's own
 // artefact says whether it drove a streaming page against a JSON peer instead of leaving that to be reasoned about.
-function startCapturePeer({ wire = 'honour' } = {}) {
+function startCapturePeer({ wire = 'honour', replyPrefix = '', discriminator = null } = {}) {
     const requests = [];
     let replyIndex = 0;
     const server = http.createServer((request, response) => {
@@ -186,7 +214,12 @@ function startCapturePeer({ wire = 'honour' } = {}) {
                 return;
             }
             replyIndex += 1;
-            const text = `Q20_REPLY_${replyIndex}`;
+            // THE DISCRIMINATOR IS STAMPED ON THE ONE REPLY BOTH COMPARED REQUESTS OMIT (see the header). Armed by
+            // ordinal from the peer's own completion count, so a counter that ran ahead leaves the stamp OFF rather
+            // than putting it on a reply a compared request carries.
+            const stamped = replyPrefix.length > 0 && discriminator !== null && discriminator.ordinal === replyIndex;
+            const text = `${stamped ? replyPrefix : ''}Q20_REPLY_${replyIndex}`;
+            if (stamped) discriminator.stampedText = text;
             if (wire === 'sse' || (wire === 'honour' && wantsStream)) {
                 const delta = JSON.stringify({
                     id: `chatcmpl-q20-${replyIndex}`,
@@ -260,10 +293,19 @@ const baseURL = process.env.PROBE_BASE_URL ?? `http://127.0.0.1:${port}`;
 // Declared before `report` (which records it), because a `const` read above its declaration is a temporal-dead-zone
 // ReferenceError that `node --check` cannot see.
 const wireMode = argumentValue('--wire', process.env.Q20_WIRE ?? 'honour');
+// THE PER-SUBJECT DISCRIMINATOR (see the header). `--reply-prefix` / `Q20_REPLY_PREFIX` mirrors the regenerate probe
+// exactly. `discriminator` is the LIVE object the peer fills in and the report carries, so the artefact records what
+// the peer DID rather than a second derivation of it. Declared before `report` (which records it) and before the peer
+// is started, for the same temporal-dead-zone reason as `wireMode`.
+const replyPrefix = argumentValue('--reply-prefix', process.env.Q20_REPLY_PREFIX ?? '');
+const discriminator = { replyPrefix, ordinal: null, stampedText: null };
 
 const MARKERS = {
     first: 'Q20_FIRST_TURN_MARKER',
-    second: 'Q20_SECOND_TURN_MARKER',
+    // OVERRIDABLE, AND DELIBERATELY SHARED BY THE WORKFLOW: this text is carried by the SWIPE request (only the
+    // message being swiped is popped, public/script.js:4497-4499), so a per-subject value here would make
+    // `nodeEqualsGoAfterSwipe` red for a harness reason. See the discriminator block in the header.
+    second: process.env.Q20_SECOND_MARKER ?? 'Q20_SECOND_TURN_MARKER',
     swipe: 'Q20_SWIPE_MARKER',
 };
 
@@ -275,6 +317,10 @@ const report = {
     dataRoot,
     extension: { installedRevision: installed.revision, source: installed.source },
     markers: MARKERS,
+    // WHAT MAKES THIS SUBJECT'S INPUT DISTINCT FROM THE OTHER'S, and where it was stamped. The comparator's
+    // `artefactsDifferPerSubject` reads `replyPrefix` and verifies from the raw evidence that it was APPLIED and
+    // that it did not leak into a compared request.
+    discriminator,
     wireMode,
     steps: [],
     pageRequests: [],
@@ -305,7 +351,7 @@ const readChatFiles = () => driveReadChatFiles(dataRoot);
 
 const carries = (files, marker) => files.some(file => (file.messages ?? []).some(message => String(message?.mes ?? '').includes(marker)));
 
-const peer = await startCapturePeer({ wire: wireMode });
+const peer = await startCapturePeer({ wire: wireMode, replyPrefix, discriminator });
 let browser;
 let disarmed = null;
 try {
@@ -818,6 +864,11 @@ try {
     // stored assistant message has EMPTY text on BOTH subjects, so requiring text would turn a known, equally-observed
     // condition into a red attributed to this leg. The condition is carried in the artefact as
     // `emptyReplyOnBothSubjects` and its cause is an OPEN finding, not a chosen value.
+    // ARM THE DISCRIMINATOR ON THE REQUEST THIS SEND IS ABOUT TO MAKE, read from the PEER'S own completion count --
+    // the same technique, and the same reason, as the continue probe's `continuationOrdinal`: a literal ordinal is a
+    // derivation about how many turns the drive made, and the regenerate lane measured what that costs when its
+    // counter ran ahead (q20-leg-runtime.mjs:143-147). Armed BEFORE the click, because the click issues the request.
+    discriminator.ordinal = peer.requests.filter(entry => /chat\/completions/.test(entry.path ?? '')).length + 1;
     // MOMENT 2 OF 3: THE CHAT IMMEDIATELY BEFORE THE SECOND SEND, in the SAME evaluation as the click so nothing can
     // change between the reading and the action. This is the state the second-turn request is assembled from, and it
     // is the measurement that separates the two hypotheses about the 45-byte difference.
@@ -886,6 +937,32 @@ try {
             carriesReply: chat.filter(entry => /Q20_REPLY_\d+/.test(String(entry?.mes ?? ''))).length,
         };
     });
+    // THE DISCRIMINATOR MUST HAVE LANDED, and the leg says so itself rather than leaving it to the comparator: a
+    // CONFIGURED discriminator the peer never stamped is a harness defect, and it would otherwise surface as a
+    // confusing red one file away. `appliedOnThePage` is read from the page's own chat -- the state the second-turn
+    // request was assembled from -- and the comparator re-derives the same fact from this recorded sequence rather
+    // than trusting a boolean here.
+    //
+    // THE ONE BRANCH THAT PASSES WITHOUT A DISCRIMINATOR IS STATED RATHER THAN HIDDEN: a leg run by hand with no
+    // `Q20_REPLY_PREFIX` has nothing to apply, and the COMPARATOR is the gate that requires one (`artefactsDifferPerSubject`).
+    // What this step refuses is a discriminator that was configured and did not land.
+    // THE SAME READER THE COMPARATOR USES -- the LAST assistant message the page held before the swipe, which is the
+    // second turn's reply -- so the leg's own check is as strict as the guard's rather than looser than it.
+    const pageSequence = report.afterSecondReply?.sequence ?? [];
+    const lastAssistantText = String([...pageSequence].reverse().find(entry => entry?.role === 'assistant')?.text ?? '');
+    const discriminatorOnThePage = replyPrefix.length > 0 && lastAssistantText.includes(replyPrefix);
+    step('discriminator-applied-to-the-excluded-reply',
+        replyPrefix.length === 0 || (discriminator.stampedText !== null && discriminatorOnThePage),
+        JSON.stringify({
+            replyPrefix,
+            stampedOrdinal: discriminator.ordinal,
+            stampedText: discriminator.stampedText,
+            lastAssistantText,
+            appliedOnThePage: discriminatorOnThePage,
+            note: replyPrefix.length === 0
+                ? 'no discriminator configured; the comparator, not this leg, requires one'
+                : 'stamped into the second turn\'s reply -- the one message neither compared request carries',
+        }));
     // THE PRECONDITION THE SWIPE ITSELF CHECKS. Asserted here so a swipe that refuses is never read as a finding.
     const swipePrecondition = await page.evaluate(async () => {
         const script = await import('./script.js');

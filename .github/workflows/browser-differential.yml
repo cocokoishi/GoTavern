@@ -1441,17 +1441,31 @@ jobs:
             tree="$work/q20-tree-$subject"
             rm -rf "$tree"; mkdir -p "$tree"
             report="$work/legs/q20-$subject.json"
+            # THE PER-SUBJECT DISCRIMINATOR (AGENTS rule 50; docs/verifier-audit.md F3). Without it both subjects are
+            # fed byte-identical user turns AND byte-identical peer replies, so the comparator's
+            # `nodeEqualsGoAfterReload`/`nodeEqualsGoAfterSwipe` compare requests the harness made identical in
+            # content and the lane cannot show that its fixture is even able to tell the two subjects apart. The
+            # probe stamps this prefix into the ONE reply neither compared request carries -- the second turn's reply
+            # (the second-turn request precedes it; the swipe pops the message being swiped, public/script.js:4497-4499)
+            # -- and `compare-q20-legs.mjs`'s `artefactsDifferPerSubject` requires the two values to differ, requires
+            # each to have been APPLIED, and requires neither to appear in a compared request.
+            #
+            # `Q20_SECOND_MARKER` IS DELIBERATELY *NOT* PASSED PER SUBJECT even though the probe can override it:
+            # the second turn's USER text is carried by the SWIPE request, so two different values there would make
+            # `nodeEqualsGoAfterSwipe` red for a HARNESS reason and the red would be misread as a product finding --
+            # the failure mode q20-leg-runtime.mjs:143-147 records for the regenerate lane.
+            if [ "$subject" = "gotavern" ]; then q20_reply_prefix="Q20G_"; else q20_reply_prefix="Q20P_"; fi
             if [ "$subject" = "gotavern" ]; then
-              if node tests/browser/q20-persistence-probe.mjs --data-root "$tree" --report "$report"; then
-                echo "recorded the $subject Q20 leg"
+              if Q20_REPLY_PREFIX="$q20_reply_prefix" node tests/browser/q20-persistence-probe.mjs --data-root "$tree" --report "$report"; then
+                echo "recorded the $subject Q20 leg (discriminator $q20_reply_prefix)"
               else
                 echo "::error::the $subject Q20 leg failed to drive"
                 failures=$((failures + 1))
                 echo "failures=$failures" >> "$GITHUB_OUTPUT"
               fi
             else
-              if node tests/browser/run-against-pinned.mjs q20-persistence-probe.mjs -- --data-root "$tree" --report "$report"; then
-                echo "recorded the $subject Q20 leg"
+              if Q20_REPLY_PREFIX="$q20_reply_prefix" node tests/browser/run-against-pinned.mjs q20-persistence-probe.mjs -- --data-root "$tree" --report "$report"; then
+                echo "recorded the $subject Q20 leg (discriminator $q20_reply_prefix)"
               else
                 echo "::error::the $subject Q20 leg failed to drive"
                 failures=$((failures + 1))

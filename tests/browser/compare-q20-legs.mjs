@@ -10,8 +10,12 @@
 //   contextRequests[1]  the reply to the SECOND turn. Content: greeting + first turn + reply + second turn, and
 //                       crucially the message pair the PREVIOUS PAGE wrote -- so this request is the one that
 //                       proves a fresh page read the saved chat back with its identity intact.
-//   contextRequests[2]  the SWIPE of the reply to the second turn. Same chat, same history, one message's swipes
-//                       array one longer: it must differ from contextRequests[1] and equal pinned's.
+//   contextRequests[2]  the SWIPE of the reply to the second turn. The message being swiped is POPPED before the
+//                       prompt is assembled (public/script.js:4497-4499 `if (type === 'swipe') { coreChat.pop(); }`,
+//                       and the messages array is built from that same array at :4834 `setOpenAIMessages(coreChat)`),
+//                       so the swipe request carries NO swipes array and does NOT contain the reply it replaces.
+//                       The difference this leg can account for against contextRequests[1] is the second turn's
+//                       USER text, which the leg rewrites before the swipe. It must equal pinned's.
 // The first request is why contextRequests[0] is not used for equality: the read-back face is [1], and [1] cannot
 // be produced without the reload.
 //
@@ -24,9 +28,13 @@
 //   reloadReadsTheChat     a FRESH page load has that marker in its in-memory chat, on both subjects, and the chat
 //                          it read carries an identity. A save that is not readable back is the failure Q1 cannot
 //                          see (the bytes can be intact on disk).
+//   artefactsDifferPerSubject  the two legs carry DISTINCT per-subject discriminators, each was APPLIED to its own
+//                          subject, and neither reached a compared request (rule 50; docs/verifier-audit.md F3).
+//                          Without it the two equality guards below compare requests the harness made identical in
+//                          content, which is what the lane did until this guard existed.
 //   nodeEqualsGoAfterReload the second turn's provider request is byte-identical across subjects
 //   goSwipeDiffersFromGoTurn  the swipe produced a DIFFERENT request from the second turn from the SAME backend,
-//                          so the swipe actually changed the context rather than repeating it
+//                          so the swipe assembled its own request rather than repeating it
 //   nodeEqualsGoAfterSwipe the swipe's provider request is byte-identical across subjects
 //
 // Usage: node tests/browser/compare-q20-legs.mjs <gotavern.json> <pinned.json>
@@ -210,6 +218,93 @@ guard('reloadReadsTheChat', () => {
     return problems;
 });
 
+// THE PER-SUBJECT DISCRIMINATOR (AGENTS "Differential-testing doctrine" 4 and rule 50; docs/verifier-audit.md F3).
+//
+// WHAT WAS MISSING: both legs were fed byte-identical user turns and byte-identical peer replies, so
+// `nodeEqualsGoAfterReload` and `nodeEqualsGoAfterSwipe` compared requests the harness had made identical in
+// content, and the lane could not show that its own fixture was CAPABLE of telling the two subjects apart. This is
+// the guard the regenerate sibling enforces (`compare-q20-regen-legs.mjs`'s `artefactsDifferPerSubject`), ported
+// with the two additions the save/reload/swipe lane needs because it has no producer/consumer handoff to lean on.
+//
+// WHAT IT ASSERTS, in three parts, and why each part is needed:
+//   1. the two legs recorded DISTINCT, non-empty discriminators (`report.discriminator.replyPrefix`). This is the
+//      configuration check, and on its own it is only half a guard -- two different strings that never reached a
+//      subject would satisfy it;
+//   2. each leg's OWN discriminator was APPLIED to that subject: it appears in the page's own recorded chat after
+//      the second turn (`afterSecondReply.sequence`). A workflow that passes the value while the probe ignores it
+//      fails here;
+//   3. neither leg's discriminator appears in EITHER compared request. For the SWIPE this is a real PRODUCT
+//      assertion, not a harness one: the discriminator is stamped into the reply to the second turn, which is
+//      exactly the message the swipe must EXCLUDE -- pinned pops it before the prompt is assembled
+//      (public/script.js:4497-4499 `if (type === 'swipe') { coreChat.pop(); }`), and the messages array is built
+//      from that same popped array (:4834 `oaiMessages = setOpenAIMessages(coreChat)`). A subject whose swipe
+//      request still carries the swiped message therefore fails part 3 BY NAME, and fails
+//      `nodeEqualsGoAfterSwipe` beside it, instead of producing an anonymous byte difference.
+//
+// THE EXACT INPUTS THAT MAKE THIS GUARD RED, one per part, so it is not decoration:
+//   (a) a run that passes the SAME `Q20_REPLY_PREFIX` to both legs -- the mandatory mutation of this change, and
+//       the state this lane was in before it: part 1 then reports two identical discriminators, while parts 2 and 3
+//       still hold, which is exactly why part 1 alone is not enough and the other two exist;
+//   (b) a leg whose probe was handed a discriminator it never stamped (the peer's ordinal never matched, so
+//       `discriminator.stampedText` stayed null): part 2;
+//   (c) a subject whose compared request carries the message being swiped -- i.e. a backend that does not pop it,
+//       or a harness that stamps a reply the compared requests do carry: part 3.
+//
+// WHERE THE DISCRIMINATOR MAY BE STAMPED IS DERIVED, NOT CHOSEN, and this is why the workflow passes a REPLY PREFIX
+// per subject and deliberately keeps `Q20_SECOND_MARKER` SHARED:
+//   * the first turn's user text and the first turn's reply are carried by BOTH compared requests (the messages
+//     array is the whole `coreChat`), so a per-subject difference there would make both equality guards red for a
+//     HARNESS reason;
+//   * the second turn's user text is carried by the SWIPE request (only the message being swiped is popped), so a
+//     per-subject difference there would make `nodeEqualsGoAfterSwipe` red for a harness reason;
+//   * the second turn's REPLY is carried by neither -- the second-turn request precedes it and the swipe pops it --
+//     so it is the one position where a per-subject difference is both fed to the subject and invisible to the
+//     compared requests. That is where the probe stamps it.
+guard('artefactsDifferPerSubject', () => {
+    const problems = [];
+    const seen = {};
+    for (const [subject, report] of Object.entries(reports)) {
+        if (!report) continue;
+        const discriminator = String(report?.discriminator?.replyPrefix ?? '');
+        const sequence = report?.afterSecondReply?.sequence ?? [];
+        // THE LAST ASSISTANT MESSAGE THE PAGE HELD BEFORE THE SWIPE is the second turn's reply -- the message the
+        // discriminator must be on. "Somewhere in the chat" would also be satisfied by a stamp on a reply the
+        // compared requests DO carry, which is the placement this guard exists to forbid.
+        const lastAssistantText = String([...sequence].reverse().find(entry => entry?.role === 'assistant')?.text ?? '');
+        const appliedOnThePage = discriminator.length > 0 && lastAssistantText.includes(discriminator);
+        const compared = [
+            { name: 'the second turn', entry: contextRequests(report)[1] ?? null },
+            { name: 'the swipe', entry: contextRequests(report)[2] ?? null },
+        ];
+        const leakedInto = compared
+            .filter(item => discriminator.length > 0 && String(item.entry?.body ?? '').includes(discriminator))
+            .map(item => item.name);
+        seen[subject] = {
+            replyPrefix: discriminator,
+            stampedOrdinal: report?.discriminator?.ordinal ?? null,
+            stampedText: report?.discriminator?.stampedText ?? null,
+            lastAssistantText,
+            appliedOnThePage,
+            leakedIntoComparedRequests: leakedInto,
+        };
+        if (discriminator.length === 0) {
+            problems.push(`${subject}: the leg recorded no per-subject discriminator (discriminator.replyPrefix is empty), so nothing shows this subject was fed bytes distinct from the other's; the workflow passes Q20_REPLY_PREFIX`);
+        } else if (!appliedOnThePage) {
+            problems.push(`${subject}: the discriminator ${JSON.stringify(discriminator)} was CONFIGURED but never APPLIED -- the last assistant message the page held before the swipe is ${JSON.stringify(lastAssistantText.slice(0, 60))}, which does not carry it (stampedText was ${JSON.stringify(report?.discriminator?.stampedText ?? null)})`);
+        }
+        if (leakedInto.length > 0) {
+            problems.push(`${subject}: the per-subject discriminator ${JSON.stringify(discriminator)} appears in the recorded body of ${leakedInto.join(' and ')}, so that request carries a harness identity and its equality across subjects is not a product measurement (for the swipe this is the message being swiped, which pinned pops at script.js:4497-4499)`);
+        }
+    }
+    details.discriminator = seen;
+    const go = seen.gotavern?.replyPrefix ?? null;
+    const node = seen.pinned?.replyPrefix ?? null;
+    if (!go || !node || go === node) {
+        problems.push(`the legs did not carry distinct per-subject discriminators (${JSON.stringify(go)} vs ${JSON.stringify(node)}), so no later equality can discriminate: with both subjects fed the same bytes, "the requests are equal" is satisfied by the harness rather than measured`);
+    }
+    return problems;
+});
+
 guard('nodeEqualsGoAfterReload', () => {
     const go = contextRequests(reports.gotavern)[1] ?? null;
     const node = contextRequests(reports.pinned)[1] ?? null;
@@ -245,6 +340,13 @@ guard('nodeEqualsGoAfterReload', () => {
 });
 
 guard('goSwipeDiffersFromGoTurn', () => {
+    // WHAT THIS PROVES, corrected from pinned source rather than left as the aspiration the first comment carried
+    // ("so the swipe actually changed the context rather than repeating it"). It does NOT prove the history changed:
+    // the swipe's history is the same up to the message being swiped, which is POPPED
+    // (public/script.js:4497-4499), and the difference this leg can account for against the second turn's request is
+    // the second turn's USER text, which the leg rewrites before the swipe. What it does prove is that the swipe
+    // ASSEMBLED ITS OWN REQUEST rather than reusing the previous one -- and the assertion is unchanged, because that
+    // is the claim its name makes and the only claim the observation supports.
     const first = contextRequests(reports.gotavern)[1] ?? null;
     const swipe = contextRequests(reports.gotavern)[2] ?? null;
     if (!first || !swipe) return [`the GoTavern leg produced ${contextRequests(reports.gotavern).length} context request(s), so turn and swipe cannot be compared`];
@@ -332,6 +434,15 @@ const artefact = {
     verdict: failedGuards.length === 0 ? 'match' : 'mismatch',
     notCompared: [
         'a real provider (rule 22): the peer is a simulated backend that captures and answers',
+        // THE LIMIT OF THE DISCRIMINATOR, stated here rather than implied by the guard's name. `artefactsDifferPerSubject`
+        // proves the two subjects were CONFIGURED and FED differently (the second turn's reply carries a leg-specific
+        // prefix), that each stamp was APPLIED, and that neither reached a compared request. It does NOT make the
+        // compared requests a response to DIFFERENT inputs: their own content (the first turn, its reply, the second
+        // turn, the swipe's user text) is still byte-identical across subjects by construction, because a controlled
+        // differential needs exactly that. So "they are equal" remains equality on a SHARED input -- which is the
+        // right question for parity -- and the discriminator answers the different question "could this harness have
+        // shown a difference at all, and is the difference it can show absent from what is being compared".
+        'a DELTA-based comparison: the compared requests are still built from byte-identical inputs, so this lane proves "same input -> same request" and not "a leg-specific input delta appears as exactly that delta in the request"',
         'the SWIPE BUTTON DOM click: the swipe is the frontend\'s own swipe(), called the way its click handler calls it. Regenerate and continue are NO LONGER in this list -- they have their own legs and comparators (compare-q20-regen-legs.mjs, compare-q20-continue-legs.mjs)',
         'group chats, branch/checkpoint, message editing and deletion',
         'streaming (Q19)',
