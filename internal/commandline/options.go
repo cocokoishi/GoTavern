@@ -130,6 +130,16 @@ type CommandLineResult struct {
 	// read straight from the config rather than through the startup settings map, so it is excluded
 	// from the serialized result.
 	AccessLogEnabled bool `json:"-"`
+	// CacheBuster carries cacheBuster.enabled and cacheBuster.userAgentPattern, which the pinned
+	// cacheBuster middleware singleton reads at src/middleware/cacheBuster.js:28-29. Like the fields
+	// above it is read straight from the config rather than through the startup settings map, so it is
+	// excluded from the serialized result the command-line differential compares against Node.
+	CacheBuster CacheBusterSettings `json:"-"`
+	// UnimplementedConfigWarnings names config keys the operator set that GoTavern accepts and does
+	// NOT implement (see unimplemented_config.go). It is the honesty channel AGENTS.md rule 18
+	// requires and is excluded from the serialized result for the same reason: Node's startup
+	// settings map has no such member.
+	UnimplementedConfigWarnings []UnimplementedConfigWarning `json:"-"`
 }
 
 type cliOptionKind uint8
@@ -294,7 +304,7 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		UseDiskCache:               getConfigValue(config, "performance.useDiskCache", true, cliBoolean),
 		SettingsBackupRetention:    getConfigValue(config, "backups.common.numberOfBackups", 50, cliNumber),
 	}
-	return CommandLineResult{Paths: paths, Options: result, StartupSettings: startupSettings, Warnings: warnings, TokenizersDownloadAllowed: tokenizersDownloadAllowed(config), ImportDomainsWhitelist: importDomainsWhitelist(config), BrowserLaunchApp: browserLaunchApp(config), AccessLogEnabled: accessLogEnabled(config)}, nil
+	return CommandLineResult{Paths: paths, Options: result, StartupSettings: startupSettings, Warnings: warnings, TokenizersDownloadAllowed: tokenizersDownloadAllowed(config), ImportDomainsWhitelist: importDomainsWhitelist(config), BrowserLaunchApp: browserLaunchApp(config), AccessLogEnabled: accessLogEnabled(config), CacheBuster: cacheBusterSettings(config), UnimplementedConfigWarnings: unimplementedConfigWarnings(config)}, nil
 }
 
 // browserLaunchApp resolves browserLaunch.browser the way the pinned

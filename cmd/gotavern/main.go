@@ -208,6 +208,11 @@ func runServer(args []string, stdout, stderr io.Writer) error {
 	for _, warning := range running.CommandLine.Paths.Warnings {
 		fmt.Fprintln(stderr, warning.Message)
 	}
+	// AGENTS.md rule 18: a config key an operator set that GoTavern accepts and does not act on must
+	// say so, by name, where an operator sees it. These are NOT claims that a feature works; each
+	// message states that the behaviour is not implemented and that the setting has no effect. See
+	// internal/commandline/unimplemented_config.go.
+	printUnimplementedConfigWarnings(stderr, running.CommandLine.UnimplementedConfigWarnings)
 	for _, diagnostic := range running.DataStartup.Diagnostics {
 		fmt.Fprintf(stderr, "Warning: %s: %v\n", diagnostic.Stage, diagnostic.Err)
 	}
@@ -254,6 +259,16 @@ func runServer(args []string, stdout, stderr io.Writer) error {
 		return running.Close(ctx)
 	case serveErr := <-running.ServeErrors():
 		return fmt.Errorf("HTTP listener failed: %w", serveErr)
+	}
+}
+
+// printUnimplementedConfigWarnings writes, to the same stream main already uses for startup warnings,
+// one line per config key the operator set that GoTavern does not implement. It exists as a named
+// function so the wiring can be tested with a buffer: the point of these lines is that a user sees
+// them, so "the message was built" is not the claim — "the message was printed" is.
+func printUnimplementedConfigWarnings(stderr io.Writer, warnings []commandline.UnimplementedConfigWarning) {
+	for _, warning := range warnings {
+		fmt.Fprintln(stderr, warning.Message)
 	}
 }
 

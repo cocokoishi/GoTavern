@@ -101,6 +101,11 @@ type HTTPHandlerOptions struct {
 	// jpeg quality, parsed from thumbnails.* with pinned's predicates and defaults. SEE thumbnails.go.
 	Thumbnails ThumbnailSettings
 
+	// CacheBuster is cacheBuster.*, read at startup the way the pinned middleware singleton reads it
+	// (src/middleware/cacheBuster.js:28-29). It gates the `Clear-Site-Data: "cache"` header on the
+	// host index page and on the three image-replacement routes. SEE cache_buster.go.
+	CacheBuster commandline.CacheBusterSettings
+
 	// Listen is pinned's `listen` option. It is not only a listener setting: the pinned access logger
 	// is mounted ONLY when it is true (src/server-main.js:152-154), so the fresh-install `listen: false`
 	// produces no access log however logging.enableAccessLog is set.
@@ -177,6 +182,9 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 		}
 	}
 	options.Thumbnails = thumbnailSettingsFromStartup(settings.ThumbnailsEnabled, settings.ThumbnailsFormat, settings.ThumbnailsQuality)
+	// cacheBuster.* is read straight from the config rather than through the startup settings map, the
+	// way the pinned singleton reads it (src/middleware/cacheBuster.js:28-29).
+	options.CacheBuster = parsed.CacheBuster
 	if settings.ThumbnailDimensionsSet || settings.ThumbnailDimensionsBG != nil || settings.ThumbnailDimensionsAvatar != nil || settings.ThumbnailDimensionsPersona != nil {
 		options.ImageMetadataThumbnailDimensions = map[string]any{
 			"bg":      settings.ThumbnailDimensionsBG,
@@ -588,6 +596,13 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 		}
 		if !corsSettings.enabled && servePinnedExpressAutomaticOptions(w, r, mux, methodlessOptionsRoutes) {
 			return
+		}
+		// PINNED POSITION: `app.get('/', cacheBuster.middleware, handler)` (src/server-main.js:214). The
+		// buster is mounted on the index route only — NOT app-wide — and the route sits after
+		// cookieSession/setUserData (so the handle is resolved) and before the `shouldRedirectToLogin`
+		// check inside that same route, which is why it runs here rather than inside the static handler.
+		if isPinnedIndexRequest(r) {
+			accounts.cacheBuster.handleIndex(w, r, requestAccountHandle(user))
 		}
 		mux.ServeHTTP(w, r)
 	}))

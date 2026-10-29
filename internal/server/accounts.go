@@ -94,6 +94,10 @@ type accountRuntime struct {
 	settingsSaveMu   sync.Mutex
 	settingsSaves    map[string]*settingsSaveThrottle
 	settingsSaveWait time.Duration
+	// cacheBuster is the pinned cacheBuster singleton (src/middleware/cacheBuster.js:109). It is one
+	// instance per handler, shared by the index-page middleware and the three image-replacement routes
+	// that call `bust` directly, because pinned has exactly one module-level instance.
+	cacheBuster *cacheBuster
 }
 
 type recoveryCodeEntry struct {
@@ -154,6 +158,7 @@ func newAccountRuntime(options HTTPHandlerOptions) *accountRuntime {
 		recoverLimiter:   &memoryLoginLimiter{points: recoverPoints, duration: 5 * time.Minute, entries: make(map[string]loginAttemptWindow)},
 		resetLimiter:     &memoryLoginLimiter{points: resetPoints, duration: 5 * time.Minute, entries: make(map[string]loginAttemptWindow)},
 		defaultUser:      defaultUser,
+		cacheBuster:      newCacheBuster(options.CacheBuster),
 		recoveryCodes:    make(map[string]recoveryCodeEntry),
 		resetCodes:       make(map[string]recoveryCodeEntry),
 		settingsSaves:    make(map[string]*settingsSaveThrottle),

@@ -397,6 +397,11 @@ func (runtime *accountRuntime) serveCharactersEdit(w http.ResponseWriter, reques
 		serveStatusText(w, http.StatusInternalServerError)
 		return
 	}
+	// characters.js:1131-1132 — "Bust cache to reload the new avatar", in the `request.file` branch only
+	// (the avatar image was replaced) and before response.sendStatus(200).
+	if parsed.stagedPath != "" {
+		runtime.cacheBuster.bust(w, request)
+	}
 	serveStatusText(w, http.StatusOK)
 }
 
@@ -460,6 +465,9 @@ func (runtime *accountRuntime) serveCharactersEditAvatar(w http.ResponseWriter, 
 		serveStatusText(w, http.StatusInternalServerError)
 		return
 	}
+	// characters.js:1172-1173 — "Reset images caches", after the temp file is removed and before
+	// response.sendStatus(200).
+	runtime.cacheBuster.bust(w, request)
 	serveStatusText(w, http.StatusOK)
 }
 

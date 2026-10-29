@@ -90,12 +90,14 @@ func (runtime *accountRuntime) serveAvatarsUpload(w http.ResponseWriter, request
 		filename = strconv.FormatInt(time.Now().UnixMilli(), 10) + ".png"
 	}
 
-	// avatars.js:51-54 — invalidate the persona thumbnail BEFORE the write. This is the disk-observable
-	// half. cacheBuster.bust (src/middleware/cacheBuster.js:101-105) only emits Clear-Site-Data when
-	// cacheBuster.enabled is true, and that config defaults to FALSE (:28), so the shipped default
-	// correctly emits no such header and this route does not add one.
+	// avatars.js:51-54 — invalidate the persona thumbnail and bust the browser cache BEFORE the write.
+	// This is the disk-observable half plus the header half: `cacheBuster.bust` (src/middleware/
+	// cacheBuster.js:101-105) sets `Clear-Site-Data: "cache"` when `cacheBuster.enabled` is true and the
+	// request's user agent matches `cacheBuster.userAgentPattern`. That config defaults to FALSE
+	// (:28), so a shipped-default install correctly emits no such header and this call is a no-op.
 	if overwriteName != "" {
 		invalidatePersonaThumbnail(runtime.options.DataRoot, account.string("handle"), filename)
+		runtime.cacheBuster.bust(w, request)
 	}
 
 	directories, dirErr := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
