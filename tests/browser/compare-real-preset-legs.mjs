@@ -15,6 +15,23 @@
 //                        request on either leg;
 //   aEnabledRowPointingAtDisabledPromptContributes   A has 46 rows that are enabled while their prompt says
 //                        enabled:false; at least one of their bodies must arrive on both legs;
+//
+//                        MARKER-DEPENDENT, AND THEREFORE UNSATISFIABLE ON A REAL PRESET. It identifies a
+//                        prompt's body by the `MARK_NNNNNN` marker the committed derivation substitutes for
+//                        prose. A user's real preset carries prose instead, so this guard cannot pass when
+//                        the legs are driven against one -- it fails with "no preset-A request carried a
+//                        fixture marker at all" no matter how the two subjects compare. Measured: a Layer A
+//                        run against two real private presets passed every other guard (both equality halves
+//                        of rule 48, both discriminations, rule 50) and failed only this one, for exactly
+//                        that reason.
+//
+//                        CONSEQUENCE FOR ANYONE RUNNING AGAINST REAL CONTENT: the verdict cannot reach
+//                        `match` even when the parity is exact. Either give this property a
+//                        marker-independent guard -- identify the 46 bodies by their own text rather than by
+//                        a substituted marker -- or give the comparator a real-preset mode that declares
+//                        this guard out of scope and says so in the verdict. Do NOT delete the guard: on the
+//                        committed derivation it is a real assertion, and it is the only check that an
+//                        enabled order row pointing at a disabled prompt still contributes.
 //   harnessDiscriminates   rule 50: if A and B capture identically, this gate fails ITSELF rather than
 //                        reporting a pass.
 //
