@@ -221,7 +221,7 @@ Migrations run in `addMissingConfigValues()` before missing defaults are added. 
 
 - Fresh config bytes and existing-config migration/default insertion: implemented against the pinned Node oracle in `internal/configinit`.
 - Runtime read sites: statically detected only for literal `getConfigValue()` calls; dynamic key use needs manual review.
-- CLI precedence, global-mode path rules, deprecated aliases, data-root creation, malformed-config continuation, and startup integration: not implemented or not fully probed.
+- CLI precedence, global-mode path rules, deprecated aliases, data-root creation, malformed-config continuation and startup integration are implemented in `internal/commandline` and `internal/app` and pinned against `tests/oracle/sillytavern-1.19.0-commandline-paths.json`; this line said "not implemented or not fully probed" until 2026-10-29, when both halves were read and found to be stale.
 
 ## Recorded boundaries
 

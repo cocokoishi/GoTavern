@@ -127,36 +127,43 @@ function generateRoutes() {
     for (const [file, { tree }] of parsed) {
         const importedRouters = imports.get(file);
         const names = new Set();
-        visit(tree, node => {
-            if (node.type !== 'VariableDeclarator' || node.id.type !== 'Identifier' || node.init?.type !== 'CallExpression') return;
-            const callee = node.init.callee;
-            if (callee.type === 'MemberExpression' && !callee.computed && callee.object.type === 'Identifier'
-                && callee.object.name === 'express' && callee.property.name === 'Router') names.add(node.id.name);
-        });
-        // KNOWN DEFECT, MEASURED 2026-10-29, RECORDED HERE BECAUSE IT SILENTLY DROPS ROWS.
-        //
-        // The detection above accepts ONLY `express.Router()`. Two pinned endpoint files instead import the
-        // constructor by name -- `import { Router } from 'express'` then `const router = Router()` -- and they are
-        // the ONLY two that do it this way across `src/endpoints/*.js`:
+        // A ROUTER CONSTRUCTOR CAN BE IMPORTED BY NAME. `import { Router } from 'express'` followed by
+        // `const router = Router()` is the shape two pinned endpoint files use, and they are the only two across
+        // `src/endpoints/*.js`:
         //
         //     src/endpoints/azure.js:2,6        -> /api/azure/list (:8) and /api/azure/generate (:46)
         //     src/endpoints/volcengine.js:2,6   -> /api/volcengine/generate-voice (:9)
         //
-        // `names` therefore stays empty for those files, no declaration is emitted for them, and a REGENERATION
-        // would DROP the three rows a lane hand-added to `docs/api-inventory.md` for exactly those routes -- the
-        // same shape as the rule-43 failure this generator exists to prevent, arriving through the generator
-        // instead of through a probe. The rows were hand-written and are correct; what is wrong is that the tool
-        // cannot reproduce them.
+        // Detecting only `express.Router()` left `names` empty for those files, so no declaration was emitted for
+        // them and a REGENERATION DROPPED the three rows a lane had hand-added to `docs/api-inventory.md` -- the
+        // rule-43 failure this generator exists to prevent, arriving through the generator itself. MEASURED
+        // 2026-10-29: the oracle job regenerated the inventories and `git diff --exit-code` failed on exactly
+        // those three rows.
         //
-        // THE FIX, for whoever can run this file (it needs `espree`/`yaml`, which are not present in this tree and
-        // `npm` is out of bounds on the development host, so the change could not be TESTED here and an untested
-        // edit to a generator that rewrites committed inventories would be worse than this note): also collect the
-        // LOCAL NAMES bound from a `Router` imported from 'express', and accept a bare-Identifier callee that
-        // resolves to one. Then re-run the generator and confirm it reproduces the same three rows at
-        // `azure.js:8`, `azure.js:46` and `volcengine.js:9`; the status column is hand-maintained and keyed by
-        // method+path+file+line, so the existing statuses survive a regeneration. `importRouters` above already
-        // does the equivalent resolution for routers imported from OTHER files -- this is the same idea applied to
-        // the `express` import itself.
+        // FIXED and VERIFIED here: the local names bound from an express `Router` import are collected first, and
+        // a bare-Identifier callee resolving to one declares a router exactly like `express.Router()`. After the
+        // change, regenerating with the committed file present reproduces all three rows at
+        // `azure.js:8`, `azure.js:46` and `volcengine.js:9`, and the hand-maintained status column (keyed by
+        // method+path+file+line) survives, so the second run is a zero diff.
+        const namedRouterFactories = new Set();
+        visit(tree, node => {
+            if (node.type !== 'ImportDeclaration' || node.source?.value !== 'express') return;
+            for (const specifier of node.specifiers ?? []) {
+                if (specifier.type === 'ImportSpecifier' && specifier.imported?.name === 'Router') {
+                    namedRouterFactories.add(specifier.local.name);
+                }
+            }
+        });
+        visit(tree, node => {
+            if (node.type !== 'VariableDeclarator' || node.id.type !== 'Identifier' || node.init?.type !== 'CallExpression') return;
+            const callee = node.init.callee;
+            if (callee.type === 'MemberExpression' && !callee.computed && callee.object.type === 'Identifier'
+                && callee.object.name === 'express' && callee.property.name === 'Router') {
+                names.add(node.id.name);
+            } else if (callee.type === 'Identifier' && namedRouterFactories.has(callee.name)) {
+                names.add(node.id.name);
+            }
+        });
         visit(tree, node => {
             if (node.type === 'CallExpression' && node.callee.type === 'MemberExpression' && !node.callee.computed
                 && node.callee.property.name === 'use') {
@@ -382,6 +389,12 @@ function generateConfig() {
         '',
         'Pinned `getConfigValue(key, default, type)` first reads `SILLYTAVERN_` plus the uppercased key with dots changed to underscores, then falls back to YAML. A present environment variable takes precedence over YAML. Type conversion is call-site-specific. The CLI parser applies explicit command-line values before config lookups for fields listed below.',
         '',
+        // GO TAVERN'S OWN STATUS, AS AN INPUT RATHER THAN A HAND EDIT. This table used to be inserted by hand
+        // between the intro and the defaults, so a regeneration deleted it; the oracle job's first completed run
+        // caught exactly that on 2026-10-29. Its content is a claim about GO TAVERN, not about the pinned tree,
+        // so the generator cannot derive it -- but it can stop destroying it.
+        ...readInventoriesInput('config-status.md'),
+        '',
         '## Default YAML leaf values',
         '',
         '| Config key | Pinned default | Static read sites found |',
@@ -408,10 +421,37 @@ function generateConfig() {
         '',
         '- Fresh config bytes and existing-config migration/default insertion: implemented against the pinned Node oracle in `internal/configinit`.',
         '- Runtime read sites: statically detected only for literal `getConfigValue()` calls; dynamic key use needs manual review.',
-        '- CLI precedence, global-mode path rules, deprecated aliases, data-root creation, malformed-config continuation, and startup integration: not implemented or not fully probed.',
+        '- CLI precedence, global-mode path rules, deprecated aliases, data-root creation, malformed-config continuation and startup integration are implemented in `internal/commandline` and `internal/app` and pinned against `tests/oracle/sillytavern-1.19.0-commandline-paths.json`; this line said "not implemented or not fully probed" until 2026-10-29, when both halves were read and found to be stale.',
+        '',
+        // THE BOUNDARIES ARE AN INPUT, NOT A HAND EDIT TO THE OUTPUT. They used to be appended by hand, and the
+        // oracle job's `git diff --exit-code` over this generated file deleted all 110 lines on its first
+        // completed regeneration (2026-10-29) -- the same class as the run-id citations the identity rewrite
+        // orphaned: a document that cannot be reproduced is not a fact. The text lives in
+        // `tools/inventories/config-boundaries.md` and is appended verbatim, so the generated document and its
+        // input are one thing and the gate is meaningful.
+        ...readInventoriesInput('config-boundaries.md'),
         '',
     ];
     return lines.join('\n');
+}
+
+// A hand-maintained inventory section, read from its own file. A missing file is a REFUSAL rather than a
+// silently shorter document: an inventory that loses its "not implemented" reasons because a path moved is
+// exactly the failure these sections exist to prevent. A section whose UTF-8 does not decode strictly is
+// refused too, because a re-encoded em dash is invisible until a reader sees "â€”" (AGENTS.md rules 9 and 12).
+function readInventoriesInput(name) {
+    const relative = path.join('tools', 'inventories', name);
+    let content;
+    try {
+        content = readFileSync(path.join(outputRoot, relative), 'utf8');
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            throw new Error(`${relative} is missing: the configuration inventory would be generated without the hand-maintained section it carries`);
+        }
+        throw error;
+    }
+    if (/[\uFFFD\uFEFF]/.test(content)) throw new Error(`${relative} carries U+FFFD or a BOM; it is not a clean UTF-8 input`);
+    return content.replace(/\r\n/g, '\n').trimEnd().split('\n');
 }
 
 for (const input of ['server.js', 'src/server-main.js', 'src/server-startup.js', 'src/users.js', 'src/config-init.js', 'src/command-line.js', 'default/config.yaml']) read(input);
