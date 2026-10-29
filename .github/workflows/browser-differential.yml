@@ -102,6 +102,16 @@ on:
       # stayed green -- would not run the one gate that can see it. It is also what makes the mutation in the
       # companion commit observable at all, instead of a local edit no CI run could see.
       - 'internal/server/thumbnails.go'
+      # THE Q20 CONTINUE COMPARATOR'S TEETH TEST PROVES ITSELF ON A PUSH THAT TOUCHES IT, and this entry is
+      # meaningful ONLY because the step below carries NO mode gate: a push hard-codes the `assets` mode while
+      # every Q20 continue step is gated to `preset`/`all`, so a mode-gated teeth proof would be SKIPPED by
+      # exactly the run this entry schedules -- the omission this list already records for the layout surface
+      # and for `internal/server/thumbnails.go`. It needs no browser, no server and no leg report, so it costs
+      # a fraction of a second and can be armed on every trigger.
+      - 'tests/browser/q20-continue-comparator-selftest.mjs'
+      # THE VERIFIER'S OWN TEETH PROOF, armed on every trigger for the same reason: it needs no browser, no server
+      # and no leg report, so it is the cheap proof that the judges this workflow trusts can go red at all.
+      - 'tests/browser/verifier-guards-gate-selftest.mjs'
       # THE WORKFLOW ITSELF. Measured: commit 555cbdc fixed the asset step's missing directory and started
       # NO browser run, because only the four files above were listed -- so the fix to this gate went
       # unverified by this gate, which is the same defect as a fix travelling with its gate. The
@@ -136,6 +146,16 @@ on:
       - 'tests/browser/helper-vars-generate-probe.mjs'
       - 'tests/browser/extensions/helper-vars-kit.mjs'
       - 'tests/browser/preset-gate-selftest.mjs'
+      # The Q20 continue comparator's teeth test, beside the other gate self-test. The probe is listed here
+      # because a PR runs EVERY mode (`inputs.mode` is empty on a pull_request, so the mode expression is
+      # `all`), which is the only place a change to the probe is re-proved: `compare-q20-continue-legs.mjs`
+      # itself is already covered by the `compare-*-legs.mjs` glob above, and neither file is reachable from
+      # the `push` list, whose mode is hard-coded to `assets`.
+      - 'tests/browser/q20-continue-comparator-selftest.mjs'
+      # THE VERIFIER'S OWN TEETH PROOF, armed on every trigger for the same reason: it needs no browser, no server
+      # and no leg report, so it is the cheap proof that the judges this workflow trusts can go red at all.
+      - 'tests/browser/verifier-guards-gate-selftest.mjs'
+      - 'tests/browser/q20-continue-probe.mjs'
       - 'tests/browser/run-against-pinned.mjs'
       - 'tests/browser/catalog.test.mjs'
       - 'tools/browser-evidence/**'
@@ -1652,6 +1672,40 @@ jobs:
           echo "q20_continue_failures=$failures" >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Prove the Q20 continue comparator has teeth (no browser, no legs)
+        # A GATE WHOSE FAILURE HAS NEVER BEEN OBSERVED IS DECORATION (AGENTS.md "Differential-testing doctrine"
+        # 4). `compare-q20-continue-legs.mjs` carried fourteen guards and no teeth test: nothing in this
+        # repository had ever demonstrated that any one of them can go red, and it is the gate that held
+        # `main`'s Browser differential red (run 40837309332, failedGuards: ["nextRequestClean"]).
+        #
+        # IT NEEDS NO BROWSER, NO SERVER AND NO LEG REPORT. It builds a synthetic leg pair, runs the REAL
+        # comparator against it as a process, and requires every mutation to be killed BY A NAMED GUARD, so it
+        # is the cheap proof that the judge works before the comparator below is trusted with this run's legs.
+        #
+        # NO MODE GATE, DELIBERATELY, and this is what makes the `push.paths` entry beside it meaningful: a
+        # push hard-codes MODE `assets` while every Q20 continue step is gated to `preset`/`all`, so a
+        # mode-gated teeth proof would be SKIPPED by exactly the run its path entry schedules -- the omission
+        # this workflow already records for the layout surface and for `internal/server/thumbnails.go`. It
+        # costs a fraction of a second, so running it on every trigger of this workflow is free.
+        run: |
+          set -euo pipefail
+          node tests/browser/q20-continue-comparator-selftest.mjs
+
+      - name: Prove the verifier's guards can fail (synthesised artefacts, no browser)
+        # THE SAME REASON AS THE Q20 TEETH PROOF BELOW, one layer up. `docs/verifier-audit.md` found six guards in
+        # the verifier and its comparators that could not discriminate at all: a recompute that read the same
+        # subject twice while requiring the flag true, a final-state key list that reported absent-on-both as
+        # EQUAL, a `sameApiSurface` that compared the pinned subject with itself, a catalog ternary whose condition
+        # could not change the outcome, a comparator that never set an exit status, and a hop guard that compared
+        # neither of the two numbers in its own name. Every one is fixed and proven here by a mutation the OLD code
+        # accepted and the NEW one refuses, quoted by assertion name (doctrine 4).
+        #
+        # NO MODE GATE, for the reason the Q20 step below records: a push hard-codes MODE `assets`, so a
+        # mode-gated teeth proof would be skipped by exactly the run its `push.paths` entry schedules.
+        run: |
+          set -euo pipefail
+          node tests/browser/verifier-guards-gate-selftest.mjs
+
       - name: Compare the Q20 continue legs
         if: ${{ ((github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all') && steps.q20-continue.outputs.q20_continue_failures == '0' }}
         run: |
@@ -1980,17 +2034,37 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-      # BOTH RECORDING STEPS, AND ONLY WHEN ONE OF THEM ACTUALLY FAILED. A skipped step reports an empty
+      # EVERY RECORDING STEP, AND ONLY WHEN ONE OF THEM ACTUALLY FAILED. A skipped step reports an empty
       # output, so `!= '0'` alone would fail a `preset`-only run at the record step it never entered.
+      #
+      # SIX SURFACES WERE MISSING FROM THIS LIST UNTIL 2026-10-29, AND EACH ONE COULD THEREFORE BE GREEN
+      # WITHOUT BEING MEASURED. The pattern is the same in every case: the record step writes `failures=1`
+      # and `exit 0`, its compare and judge steps are gated `if: ... failures == '0'`, so they SKIP -- and
+      # because this terminal step did not name that counter, nothing else failed the job either. A run in
+      # which every leg of such a surface died reported SUCCESS and claimed nothing about it. The missing
+      # six were `real-preset`, `q20`, `q20-regen`, `q20-continue`, `q21` and `regex`; `regex` is the one the
+      # step's own comment at the record step says was fixed in run 40445569175 ("all six legs failed ...
+      # and the step still reported SUCCESS") -- the counter was written, its consumer here never was. The
+      # counters below are read from the same steps that write them, so this is a closed set.
       - name: Fail if a drive could not be recorded or judged
-        if: ${{ (steps.record.outputs.failures != '0' && steps.record.outputs.failures != '') || (steps.preset.outputs.failures != '0' && steps.preset.outputs.failures != '') || (steps.asset.outputs.failures != '0' && steps.asset.outputs.failures != '') || (steps.helper.outputs.failures != '0' && steps.helper.outputs.failures != '') || (steps.helper-generation.outputs.generation_failures != '0' && steps.helper-generation.outputs.generation_failures != '') || (steps.authors-note.outputs.authors_note_legs != '0' && steps.authors-note.outputs.authors_note_legs != '') || (steps.ui-layout.outputs.failures != '0' && steps.ui-layout.outputs.failures != '') || (steps.helper-vars.outputs.variable_failures != '0' && steps.helper-vars.outputs.variable_failures != '') || (steps.framing.outputs.framing_failures != '0' && steps.framing.outputs.framing_failures != '') }}
+        if: ${{ (steps.record.outputs.failures != '0' && steps.record.outputs.failures != '') || (steps.preset.outputs.failures != '0' && steps.preset.outputs.failures != '') || (steps.asset.outputs.failures != '0' && steps.asset.outputs.failures != '') || (steps.helper.outputs.failures != '0' && steps.helper.outputs.failures != '') || (steps.helper-generation.outputs.generation_failures != '0' && steps.helper-generation.outputs.generation_failures != '') || (steps.authors-note.outputs.authors_note_legs != '0' && steps.authors-note.outputs.authors_note_legs != '') || (steps.ui-layout.outputs.failures != '0' && steps.ui-layout.outputs.failures != '') || (steps.helper-vars.outputs.variable_failures != '0' && steps.helper-vars.outputs.variable_failures != '') || (steps.framing.outputs.framing_failures != '0' && steps.framing.outputs.framing_failures != '') || (steps.real-preset.outputs.real_preset_failures != '0' && steps.real-preset.outputs.real_preset_failures != '') || (steps.q20.outputs.q20_failures != '0' && steps.q20.outputs.q20_failures != '') || (steps.q20-regen.outputs.q20_regen_failures != '0' && steps.q20-regen.outputs.q20_regen_failures != '') || (steps.q20-continue.outputs.q20_continue_failures != '0' && steps.q20-continue.outputs.q20_continue_failures != '') || (steps.q21.outputs.q21_failures != '0' && steps.q21.outputs.q21_failures != '') || (steps.regex.outputs.failures != '0' && steps.regex.outputs.failures != '') }}
         run: |
           echo "::error::a drive could not be recorded or was judged unfaithful; see the group output above."
           echo "generation/stream failures: ${{ steps.record.outputs.failures }}"
           echo "preset failures:            ${{ steps.preset.outputs.failures }}"
+          echo "asset failures:             ${{ steps.asset.outputs.failures }}"
+          echo "helper failures:            ${{ steps.helper.outputs.failures }}"
+          echo "helper generation failures: ${{ steps.helper-generation.outputs.generation_failures }}"
           echo "helper variable failures:   ${{ steps.helper-vars.outputs.variable_failures }}"
           echo "Q17 author's-note legs:     ${{ steps.authors-note.outputs.authors_note_legs }}"
+          echo "UI layout failures:         ${{ steps.ui-layout.outputs.failures }}"
           echo "framing failures:           ${{ steps.framing.outputs.framing_failures }}"
+          echo "real-preset failures:       ${{ steps.real-preset.outputs.real_preset_failures }}"
+          echo "Q20 save/reload/swipe:      ${{ steps.q20.outputs.q20_failures }}"
+          echo "Q20 regenerate:             ${{ steps.q20-regen.outputs.q20_regen_failures }}"
+          echo "Q20 continue:               ${{ steps.q20-continue.outputs.q20_continue_failures }}"
+          echo "Q21 hand-back:              ${{ steps.q21.outputs.q21_failures }}"
+          echo "regex failures:             ${{ steps.regex.outputs.failures }}"
           exit 1
 
   # THE ONLY JOB THAT MAY WRITE, and it does nothing but commit the preset evidence produced by the run

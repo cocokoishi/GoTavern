@@ -366,6 +366,14 @@ jobs:
         # for a surface nobody could prove is worth nothing unless it is shown going RED, so every case builds two
         # synthetic legs and requires the NAMED guard to fire (AGENTS.md 7, differential doctrine 4).
         run: node tests/browser/asset-gate-selftest.mjs
+      - name: Prove the verifier's guards can fail (synthesised artefacts, no browser)
+        # F6/F8/F9/F11/F12/F13 of docs/verifier-audit.md: six guards that could not discriminate at all -- a
+        # recompute that read the same subject twice, a key list that reported absent-on-both as EQUAL, a
+        # self-comparison of the pinned subject, a ternary whose condition could not change the outcome, a
+        # comparator that never set an exit status. Each was fixed and each fix is proven HERE by a mutation the
+        # old code accepted and the new code refuses, quoted by assertion name (differential doctrine 4). Pure
+        # Node: no browser, no server, and no committed artefact is moved.
+        run: node tests/browser/verifier-guards-gate-selftest.mjs
       - name: Prove the fixture gates can refuse (synthesised inputs, no originals needed)
         # AGENTS.md verification rule 7 and differential doctrine 4: every gate has teeth, and the teeth are
         # DEMONSTRATED. The two gates this runs stand between a user's real card and a public repository, so

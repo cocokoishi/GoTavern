@@ -227,6 +227,9 @@ jobs:
         run: |
           node tools/fixture-gate-selftest.mjs
           node tests/browser/asset-gate-selftest.mjs
+          # AND THE VERIFIER'S OWN GUARDS, because a lane must be able to run the teeth proof for a comparator it
+          # changed without waiting for the nightly browser sweep (docs/verifier-audit.md F6/F8/F9/F11/F12/F13).
+          node tests/browser/verifier-guards-gate-selftest.mjs
           # AND THE COMMITTED FIXTURES MUST STILL BE THE ONES THE MANIFEST DESCRIBES, which needs neither the
           # originals nor a rebuild: `--check` re-derives every digest from the tree.
           node tools/build-real-fixtures.mjs --check --out tests/browser/fixtures/real
