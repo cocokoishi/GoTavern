@@ -368,16 +368,38 @@ guard('sameSetup', () => {
     details.setup = decisions;
     const go = decisions.gotavern ?? {};
     const node = decisions.pinned ?? {};
-    if (go.carriesPredecessor !== node.carriesPredecessor) {
-        problems.push(`the two subjects took DIFFERENT setup paths (gotavern carriesPredecessor=${go.carriesPredecessor} on ${JSON.stringify(go.openChat)}, pinned=${node.carriesPredecessor} on ${JSON.stringify(node.openChat)}); their continuations are not the same experiment`);
+    // THE TWO LEGS HAVE DIFFERENT ROLES, SO THEIR SETUP PATHS MUST DIFFER, AND THE OLD GUARD HERE
+    // DEMANDED THEY BE EQUAL. This guard used to read `if (go.carriesPredecessor !== node.carriesPredecessor)`
+    // and push "the two subjects took DIFFERENT setup paths". That is unsatisfiable by construction: the
+    // GoTavern leg is the PRODUCER -- it starts from a 2-line chat, drives the setup turns, the file grows to
+    // 6, and it writes the handoff -- while the pinned leg is the CONSUMER, handed the finished 6-line tree,
+    // and it correctly SKIPS turns it can see are already present. The comment at :103 of this file says the
+    // consumer "found the setup turns ALREADY PRESENT and correctly SKIPPED them", so the guard contradicted
+    // the design its own comment describes. Measured on run 40832655173: gotavern filesOnDisk 2 lines,
+    // pinned 6, for the SAME path -- the producer/consumer signature.
+    //
+    // WHAT REPLACES IT, and it has teeth rather than being a deletion: THE CONSUMER MUST FIND THE PREDECESSOR,
+    // because it was handed the finished state. A consumer that reports `false` read a tree without the setup
+    // turns, which means the handoff did not carry them -- the defect this leg exists to catch. The producer's
+    // value is RECORDED and deliberately NOT constrained: it depends on where in its own drive it read.
+    if (node.carriesPredecessor !== true) {
+        problems.push(`the CONSUMER (pinned) did not find the predecessor (carriesPredecessor=${JSON.stringify(node.carriesPredecessor)} on ${JSON.stringify(node.openChat)}); it was handed the finished handoff tree, so a false here means the handoff did not carry the setup turns. Producer (gotavern) read ${JSON.stringify(go.carriesPredecessor)} on ${JSON.stringify(go.openChat)} at its own point in the drive, which is recorded rather than constrained.`);
+    }
+    if (go.carriesPredecessor === true && node.carriesPredecessor === true && go.openChat !== node.openChat) {
+        problems.push(`both subjects skipped their setup turns but read DIFFERENT chats (gotavern ${JSON.stringify(go.openChat)}, pinned ${JSON.stringify(node.openChat)}); a comparison of two chats is not a comparison`);
     }
     // The completions each leg sent are the observable consequence of that decision, so they are reported alongside it.
     details.setup.completions = {
         gotavern: completionsOf(reports.gotavern).length,
         pinned: completionsOf(reports.pinned).length,
     };
-    if (details.setup.completions.gotavern !== details.setup.completions.pinned) {
-        problems.push(`the two subjects sent a different number of chat completions (gotavern ${details.setup.completions.gotavern}, pinned ${details.setup.completions.pinned}); a leg that skipped its setup turns cannot be compared to one that drove them`);
+    // THE COMPLETION COUNTS ARE THE ASYMMETRY WORKING, NOT A SYMPTOM. The producer drives the setup turns
+    // and the consumer does not, so the producer's count is expected to be HIGHER; requiring equality here
+    // was the same unsatisfiable demand as the setup-path guard above. What is asserted instead is the
+    // RELATION the roles imply: the consumer must not have driven MORE completions than the producer, because
+    // the only way it could is by driving setup turns the handoff already carried.
+    if (details.setup.completions.pinned > details.setup.completions.gotavern) {
+        problems.push(`the CONSUMER (pinned) sent MORE chat completions than the producer (gotavern ${details.setup.completions.gotavern}, pinned ${details.setup.completions.pinned}); it was handed the finished tree, so it cannot legitimately have driven more than the leg that produced it`);
     }
     return problems;
 });
