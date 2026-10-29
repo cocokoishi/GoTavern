@@ -214,6 +214,15 @@ function legObservation(report, subject) {
                 chatTurns: report.preset.chatTurns ?? null,
             }
             : null,
+        // THE PRESET IDENTITY, RECORDED BY THIS OBSERVATION TOO. `compareCase` reads
+        // `presetIdentityAtSend` / `presetIdentityAfterOpen` and the sweep's `observationOf` supplies them,
+        // but this CLI-side producer did not -- so the per-case CLI could only ever see two nulls and would
+        // now refuse every case it was asked to judge. A producer and a consumer of the same observation must
+        // agree on its fields (the sweep kit and this function are the two producers).
+        presetIdentityAtSend: report.presetPreSend?.presetIdentity ?? null,
+        presetIdentityAfterOpen: Array.isArray(report.preset?.steps)
+            ? (report.preset.steps.find(entry => entry.step === 'preset identity after character open') ?? null)
+            : null,
         failure: report.failure ?? null,
     };
 }
@@ -303,9 +312,21 @@ export function compareCase({ caseId, expectation, gotavern, pinned, overlay }) 
     for (const [subject, leg] of [['gotavern', gotavern], ['pinned', pinned]]) {
         const atSend = leg?.presetIdentityAtSend ?? null;
         const after = leg?.presetIdentityAfterOpen ?? null;
+        // A LEG THAT RECORDS NO IDENTITY AT ALL IS NOT A PASS. `fired === false` was TRUE for a leg whose two
+        // identity fields are both absent, so "the probe never recorded this" read as "checked and fine" --
+        // the exact inverse of the comment above it, and unreachable by the self-test, which only covered the
+        // `matchesCharacter: true` branch. The guard is now true only when the identity WAS recorded and the
+        // hook did not fire; a leg that recorded neither field is refused by name, as a HARNESS_ERROR, because
+        // "not measured" is not a product finding either.
+        const recorded = atSend !== null || after !== null;
         const fired = atSend?.matchesCharacter === true || after?.matchesCharacter === true;
-        checks[`${subject}PresetIsNotNamedAfterTheCharacter`] = fired === false;
+        checks[`${subject}PresetIsNotNamedAfterTheCharacter`] = recorded && fired === false;
         details[`${subject}PresetIdentity`] = { atSend, afterOpen: after };
+        if (!recorded) {
+            return fail('HARNESS_ERROR',
+                `the ${subject} leg recorded NO preset identity (presetIdentityAtSend and presetIdentityAfterOpen are both absent), so "the preset in effect is not named after the character" was never measured and must not read as checked; the probe records the step ${JSON.stringify('preset identity after character open')} and presetPreSend.presetIdentity, so an absent pair means one of those stopped being recorded`,
+                { [subject]: { presetIdentityAtSend: atSend, presetIdentityAfterOpen: after } });
+        }
         if (fired) {
             const observedName = atSend?.beforeClick ?? after?.afterCharacterOpen ?? null;
             const characterName = atSend?.characterName ?? after?.characterName ?? null;

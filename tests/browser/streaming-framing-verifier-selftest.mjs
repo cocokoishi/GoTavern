@@ -40,6 +40,9 @@ function healthy() {
             cutAfterBytes: 300,
     releasedBytesUnderCut: { gotavern: 349, pinned: 349 },
             hopReleasedBytesTotal: { gotavern: 349, pinned: 349 },
+            // THE FRAMES THE HOP RELAYED BEFORE THE CUT, the quantity `hopReleasedLessThanThePeerWrote` is
+            // an arithmetic claim about: 3 relayed against the peer's 15 written.
+            relayedFramesUnderCut: { gotavern: 3, pinned: 3 },
             relayedWrites: { gotavern: 14, pinned: 14 },
             relayedFrames: { gotavern: 15, pinned: 15, expected: 14 },
             gzipFramedResponses: { gotavern: 1, pinned: 1 },
@@ -71,6 +74,13 @@ add('a hand-edited false guard is named', artifact => { artifact.abort.guards.sa
 add('a guard that contradicts the stored observations is a finding', artifact => { artifact.observations.abort.pinned.texts = [partial[0]]; }, 'sameTruncationOnBothSubjects is recorded as true but the stored observations recompute to false');
 add('a guard nobody reads is a finding', artifact => { artifact.stream.guards.inventedGuard = true; }, 'stream.guards carries ["inventedGuard"]');
 add('a hop that assembled the body is a finding, read from the hop record itself', artifact => { artifact.hop.relayedWrites.gotavern = 1; }, 'hop.relayedWrites.gotavern is 1');
+// THE RECOMPUTE NOW PERFORMS THE ARITHMETIC THE GUARD'S NAME CLAIMS. A hop that relayed every frame the
+// peer wrote satisfies the old formula ("some frames written, some writes issued") and must not satisfy
+// this one; the failure is the contradiction between the recorded true and the recomputed false.
+add('a hop that relayed every frame the peer wrote is a finding', artifact => { artifact.hop.relayedFramesUnderCut.gotavern = 15; }, 'hopReleasedLessThanThePeerWrote is recorded as true but the stored observations recompute to false');
+// A MISSING COUNT IS NOT ZERO: an artefact whose hop record omits the relayed frame count cannot be checked,
+// and defaulting it would let a hand-edited `true` agree with the recompute.
+add('an artefact whose hop record omits the relayed frame count is a finding', artifact => { delete artifact.hop.relayedFramesUnderCut.pinned; }, 'hopReleasedLessThanThePeerWrote is recorded as true but the stored observations recompute to false');
 add('a cut that released NOTHING on one subject is a finding: that is a head cut, which cannot render content', artifact => { artifact.hop.releasedBytesUnderCut.pinned = 0; }, 'hop.releasedBytesUnderCut.pinned is');
 // THE RECOMPUTE FIRES FIRST and is the stronger statement: the guard claims a cut on both subjects while
 // the hop's own record says the pinned cut never happened. Either finding is correct; this asserts the

@@ -78,11 +78,6 @@ const compareMode = (gotavern, pinned, { expectClientDisconnected, expectStreamF
         providerRequestMethodsAndPathsEqual: JSON.stringify(gotavernRequests.map(request => `${request.method} ${request.path}`)) === JSON.stringify(pinnedRequests.map(request => `${request.method} ${request.path}`)),
         providerBodyEqual: JSON.stringify(gotavernRequests.map(request => [request.bodyLength, request.bodySha256])) === JSON.stringify(pinnedRequests.map(request => [request.bodyLength, request.bodySha256])),
         finalTextEqual: (gotavern.postSend?.finalAssistantText ?? null) === (pinned.postSend?.finalAssistantText ?? null),
-        // EQUAL IS NOT ENOUGH WHEN BOTH ARE EMPTY. A stream neither leg can parse renders nothing, and
-        // `finalTextEqual` alone calls that agreement: two servers that BOTH fail to decode the framing
-        // would compare EQUAL and the drive would look proven while the surface rendered nothing. This
-        // check is what makes "the leg streamed" mean text, not merely parity.
-        finalTextNonEmpty: String(gotavern.postSend?.finalAssistantText ?? '').trim().length > 0 && String(pinned.postSend?.finalAssistantText ?? '').trim().length > 0,
         // TICK ALIGNMENT IS RECORDED, NOT ASSERTED. Measured twice with the SAME build: GoTavern's third
         // render tick was "Hello from" in one run and "Hello from the" in the next, while pinned produced
         // "Hello from the" both times. A boundary that moves on ONE leg across repeats is a coalescing
@@ -93,6 +88,13 @@ const compareMode = (gotavern, pinned, { expectClientDisconnected, expectStreamF
         streamedRenderPrefixes: isPrefixSequence(streamedTexts(gotavern)) && isPrefixSequence(streamedTexts(pinned)),
         // EQUAL AND EMPTY IS NOT A PASS. For a STREAM this can fail because of the PEER'S FRAMING: a claude
         // stream the page cannot parse renders nothing and would otherwise compare equal on both legs.
+        //
+        // THIS IS THE ONLY DECLARATION OF THIS KEY, and the survivor of a duplicate. The literal used to
+        // declare `finalTextNonEmpty` TWICE -- an earlier `.trim()`-based copy and this one -- so the earlier
+        // definition was dead code and the two were not equivalent for a whitespace-only reply. This form is
+        // kept because it is the one `tools/browser-evidence/invariants.mjs` recomputes (`finalTextNonEmpty`,
+        // :227); a `.trim()` here would make the comparator and the committed-artefact gate disagree about
+        // the same stored observation.
         finalTextNonEmpty: typeof gotavern.postSend?.finalAssistantText === 'string' && gotavern.postSend.finalAssistantText.length > 0
             && typeof pinned.postSend?.finalAssistantText === 'string' && pinned.postSend.finalAssistantText.length > 0,
         pagesHaveNoErrors: (gotavern.pageErrors ?? []).length === 0 && (pinned.pageErrors ?? []).length === 0,
@@ -241,6 +243,21 @@ const main = async () => {
         ],
     };
     console.log(JSON.stringify(comparison, null, 2));
+    // THE COMPARATOR'S OWN EXIT STATUS. It printed a `compatibleReady: false` verdict and exited 0, so the
+    // workflow's attribution branch --
+    // `node compare-streaming-legs.mjs ... > artefact || { echo "::error::...refused"; failures=$((failures+1)); }`
+    // (browser-differential.yml:446-450) -- was dead code, and the refusal was attributed one layer away to
+    // `tools/verify-browser-comparisons.mjs`. The artefact is still written (a red artefact IS the evidence);
+    // the status now says what the artefact says. compare-generation-legs.mjs already exits non-zero, so this
+    // is the streaming half of one rule rather than a new one.
+    if (comparison.compatibleReady !== true) {
+        const failed = ['streaming', 'cancellation', 'nonstream'].flatMap(surface =>
+            Object.entries(comparison[surface]?.checks ?? {})
+                .filter(([, value]) => value !== true)
+                .map(([name]) => `${surface}.${name}`));
+        console.error(`the streaming comparison refused: ${failed.join(', ') || 'no check isolated'}`);
+        process.exitCode = 1;
+    }
 };
 
 await main();

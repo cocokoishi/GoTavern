@@ -401,10 +401,21 @@ export function compare({ gotavernKeep, pinnedKeep, gotavernDrop, pinnedDrop, fi
             // CONSISTENCY WITH THE CAPTURE, not monotonicity: the drive must have assembled the same two
             // lists the boundary was measured on. Both totals and both history counts have to match the
             // fixture, whatever their values are.
+            //
+            // THE HISTORY COUNTS MUST BE PRESENT, AND THEY ARE REQUIRED RATHER THAN DEFAULTED. The previous
+            // form was `keepDrop.keep.pinnedHistoryMessages === (boundary.keepHistoryMessages ??
+            // keepDrop.keep.pinnedHistoryMessages)`: with no `keepHistoryMessages` in the boundary file the
+            // right-hand side IS the left-hand side, so the conjunct compared the observed value with ITSELF
+            // and was vacuously true -- the guard's name ("the boundary matches the capture") claimed a
+            // comparison that had not happened. The totals conjuncts above do catch a boundary file whose
+            // totals are missing, so this was a dead conjunct rather than an open hole; a dead conjunct is
+            // where the next reader assumes a check exists.
             guards.boundaryMatchesTheCapture = keepDrop.keep.pinnedMessages === variants.keep.expectedMessages
                 && keepDrop.drop.pinnedMessages === variants.drop.expectedMessages
-                && keepDrop.keep.pinnedHistoryMessages === (boundary.keepHistoryMessages ?? keepDrop.keep.pinnedHistoryMessages)
-                && keepDrop.drop.pinnedHistoryMessages === (boundary.dropHistoryMessages ?? keepDrop.drop.pinnedHistoryMessages);
+                && typeof boundary.keepHistoryMessages === 'number'
+                && typeof boundary.dropHistoryMessages === 'number'
+                && keepDrop.keep.pinnedHistoryMessages === boundary.keepHistoryMessages
+                && keepDrop.drop.pinnedHistoryMessages === boundary.dropHistoryMessages;
             // THE TOKENIZER MUST BE REAL. `resolved` is a filesystem observation made by the probe; the
             // anchor is the pinned count of a fixed body (tests/oracle/sillytavern-1.19.0-tokenizers.json,
             // openai/count#llama#simple = 7). A server on the Guesstimate path answers something else and

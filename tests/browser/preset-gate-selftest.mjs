@@ -85,7 +85,7 @@ const boundaryFile = boundaryIndex >= 0
         search: [],
         bracket: null,
     } : null);
-const run = overrides => compare({ ...legs, ...overrides, fixture, boundaryFile, inputs });
+const run = (overrides, boundaryOverride = boundaryFile) => compare({ ...legs, ...overrides, fixture, boundaryFile: boundaryOverride, inputs });
 
 const failures = [];
 const record = (name, ok, detail) => {
@@ -163,7 +163,31 @@ const fourth = run({ gotavernKeep: noAnchor });
 record('a guesstimating tokenizer fails the anchor guard', fourth.guards?.tokenizerAnchorExactOnBothLegs === false,
     JSON.stringify(fourth.guards?.tokenizerTree ?? null));
 
+// 5. THE BOUNDARY MUST SAY WHICH HISTORY COUNTS IT MEASURED. `boundaryMatchesTheCapture` used to fall back to
+//    the OBSERVED count when the boundary file omitted `keepHistoryMessages`/`dropHistoryMessages`, which made
+//    those two conjuncts compare a value with itself: the guard reported "the drive assembled what the boundary
+//    was measured on" without having compared anything. The mutation strips the history counts from the
+//    boundary file -- the shape a search that stopped recording them would produce -- and the guard must go
+//    false by name. It must NOT be excused: a boundary whose own numbers are absent is a harness gap, not a
+//    product finding.
+if (boundaryFile) {
+    const boundaryWithoutHistoryCounts = {
+        ...boundaryFile,
+        keep: { ...(boundaryFile.keep ?? {}), history: undefined },
+        drop: { ...(boundaryFile.drop ?? {}), history: undefined },
+    };
+    const fifth = run({}, boundaryWithoutHistoryCounts);
+    record('a boundary file that omits its history counts is refused, not compared with itself',
+        fifth.guards?.boundaryMatchesTheCapture === false,
+        JSON.stringify({ guard: fifth.guards?.boundaryMatchesTheCapture ?? 'ABSENT', boundary: { keep: boundaryFile.keep, drop: boundaryFile.drop } }));
+} else {
+    // A REFUSAL, NOT A PASS: without a boundary file this case cannot run, and reporting it as green would be
+    // the absent-input-reads-as-pass defect the case exists to remove.
+    record('a boundary file that omits its history counts is refused, not compared with itself', false,
+        'no boundary file was supplied to this self-test, so the mutation could not be applied');
+}
+
 console.log(failures.length === 0
-    ? `preset gate self-test: ${4} mutations caught, baseline green`
+    ? `preset gate self-test: ${5} mutations caught, baseline green`
     : `preset gate self-test: ${failures.length} mutation(s) NOT caught: ${failures.join(', ')}`);
 process.exit(failures.length === 0 ? 0 : 1);

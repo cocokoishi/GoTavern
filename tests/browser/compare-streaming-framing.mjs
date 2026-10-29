@@ -79,6 +79,15 @@ const renderTexts = report => (report.postSend?.renderSnapshots ?? []).map(snaps
 const CONTENT = text => Boolean(text) && text !== '\u2026' && text !== 'probe user marker';
 const streamedTexts = report => renderTexts(report).filter(CONTENT);
 const framesWritten = report => (report.recording ?? []).map(request => request.framesWritten ?? 0);
+// THE PEER'S OWN FRAME COUNT, SUMMED. `framesWritten` is per REQUEST; the arithmetic the abort surface
+// rests on ("the hop released strictly fewer frames than the peer wrote") is about the total, so the two
+// quantities are made comparable in ONE place instead of each guard reducing the array its own way.
+const totalFramesWritten = report => framesWritten(report).reduce((total, frames) => total + frames, 0);
+// THE FRAMES THE HOP ACTUALLY RELAYED, summed over its own body writes. Module-level because THREE callers
+// need the same number: the relayed surface's "carried the whole reply" guard, the abort surface's
+// "released fewer than the peer wrote" guard, and the artefact field the verifier recomputes that guard
+// from. A local copy in each place is how the comparator and the gate came to compute different formulas.
+const relayedFrames = hopRecord => (hopRecord.bodyWrites ?? []).reduce((total, write) => total + (write.frames ?? 0), 0);
 const requestDigests = report => (report.recording ?? []).map(request => [request.method, request.path, request.bodyLength, request.bodySha256]);
 const finalText = report => (report.postSend?.finalAssistantText ?? null);
 const hop = report => report.networkHop ?? {};
@@ -168,7 +177,6 @@ function relayedSurface(gotavern, pinned, baseline) {
     const pnHop = hop(pinned);
     const gvTexts = streamedTexts(gotavern);
     const pnTexts = streamedTexts(pinned);
-    const relayedFrames = h => (h.bodyWrites ?? []).reduce((total, write) => total + (write.frames ?? 0), 0);
 
     guard('hopPresentOnBothSubjects',
         `a leg did not cross the hop (gotavern mode ${JSON.stringify(gvHop.mode)}, pinned mode ${JSON.stringify(pnHop.mode)}), so this surface measured the direct connection`,
@@ -289,12 +297,19 @@ function abortSurface(gotavern, pinned, baseline) {
         typeof gvHop.releasedBytes === 'number' && typeof pnHop.releasedBytes === 'number'
             && gvHop.releasedBytes > 0 && pnHop.releasedBytes > 0);
     guard('hopReleasedLessThanThePeerWrote',
-        `the hop released every frame the peer wrote, so the stream COULD have finished and the truncation is not attributable to the hop (gotavern released ${JSON.stringify(gvHop.releasedBytes)}, pinned ${JSON.stringify(pnHop.releasedBytes)})`,
-        // THE ARITHMETIC THE SURFACE RESTS ON: the peer wrote 15 frames and the hop released 3, so "the
-        // stream could not have finished" is a measurement rather than a guess. `framesWritten` is the
-        // peer's own count, and the released frame count is strictly smaller.
-        framesWritten(gotavern).every(frames => frames > 0) && framesWritten(pinned).every(frames => frames > 0)
-            && (gvHop.bodyWriteCount ?? 0) > 0 && (pnHop.bodyWriteCount ?? 0) > 0);
+        `the hop released every frame the peer wrote, so the stream COULD have finished and the truncation is not attributable to the hop (gotavern relayed ${relayedFrames(gvHop)} of the peer's ${totalFramesWritten(gotavern)} frame(s), pinned relayed ${relayedFrames(pnHop)} of ${totalFramesWritten(pinned)})`,
+        // THE ARITHMETIC THE SURFACE RESTS ON, PERFORMED RATHER THAN DESCRIBED. The peer wrote 15 frames and
+        // the hop relayed 3, so "the stream could not have finished" is a measurement: the frames the HOP
+        // relayed are STRICTLY FEWER than the frames the PEER wrote, on each subject. Both sides are frame
+        // counts from the two independent records (the peer's `framesWritten`, the hop's own `bodyWrites`),
+        // so this is not the same number compared with itself.
+        //
+        // THE FORM THIS REPLACES compared neither quantity: it asserted that the peer wrote a positive number
+        // of frames and that the hop issued a positive number of body writes -- true of a hop that relayed the
+        // WHOLE body, which is exactly the state this guard exists to refuse. `framesWritten(x).every(...)` was
+        // also vacuously TRUE for an empty recording, so a leg that was never driven satisfied it.
+        totalFramesWritten(gotavern) > relayedFrames(gvHop)
+            && totalFramesWritten(pinned) > relayedFrames(pnHop));
     guard('contentRenderedBeforeTheCutOnBoth',
         `no content was rendered before the network died (gotavern applied ${gvTexts.length} content state(s), pinned applied ${pnTexts.length}), so the surface proves nothing about partial rendering`,
         gvTexts.length >= 1 && pnTexts.length >= 1);
@@ -394,6 +409,12 @@ const main = async () => {
             // so mapping it here published `0` beside two rendered content states -- the contradiction the
             // verifier then correctly refused. Measured: leg file releasedBytes 349, artefact said 0.
             releasedBytesUnderCut: { gotavern: hop(abortGotavern).releasedBytes ?? null, pinned: hop(abortPinned).releasedBytes ?? null },
+            // THE FRAMES THE HOP ACTUALLY RELAYED FOR THE CUT RESPONSE, published so the committed-artefact
+            // gate can RECOMPUTE `hopReleasedLessThanThePeerWrote` with the same arithmetic the comparator
+            // applies (`framesWritten` > `relayedFramesUnderCut`) instead of repeating a weaker formula that
+            // agreed with a mislabelled guard. Without this field the verifier had nothing to compare the
+            // peer's written count against, which is how the guard's name and its condition drifted apart.
+            relayedFramesUnderCut: { gotavern: relayedFrames(hop(abortGotavern)), pinned: relayedFrames(hop(abortPinned)) },
             hopReleasedBytesTotal: { gotavern: hop(abortGotavern).releasedBytes ?? null, pinned: hop(abortPinned).releasedBytes ?? null },
             relayedWrites: { gotavern: hop(relayedGotavern).bodyWriteCount ?? null, pinned: hop(relayedPinned).bodyWriteCount ?? null },
             relayedFrames: {

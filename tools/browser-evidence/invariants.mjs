@@ -247,10 +247,15 @@ export function recomputeSurface(block) {
     return recomputed;
 }
 
-export const NOT_RECOMPUTABLE = ['pagesHaveNoErrors', 'requestStreamFlagMatches', 'abortTextIsPrefixOfStreamedReply'];
+// THE ABORT-PREFIX PROPERTY IS RECOMPUTED HERE, FOR BOTH SUBJECTS. It is NOT in `NOT_RECOMPUTABLE`: the
+// per-leg `finalAssistantText` values are stored in the artefact, so the property IS derivable, and the list
+// below used to name it anyway -- the list and the code disagreed about what this gate does, and the code was
+// the half that was wrong (`abortedText(block)` reads `block.gotavern`, so the second conjunct repeated the
+// first and the PINNED leg's aborted text was never checked at all while the flag was required true).
+export const NOT_RECOMPUTABLE = ['pagesHaveNoErrors', 'requestStreamFlagMatches'];
 
 export function streamingSurfacesProven(ctx, artifact) {
-    const abortedText = block => String(block?.gotavern?.finalAssistantText ?? '');
+    const abortedText = (block, leg) => String(block?.[leg]?.finalAssistantText ?? '');
     const streamedReply = String(artifact.streaming?.gotavern?.finalAssistantText ?? '');
     for (const surface of ['streaming', 'cancellation', 'nonstream']) {
         const block = artifact[surface];
@@ -276,11 +281,16 @@ export function streamingSurfacesProven(ctx, artifact) {
             }
         }
         // THE ABORT-PREFIX PROPERTY, recomputed here because it is the cancellation surface's core claim.
+        // BOTH SUBJECTS ARE RECOMPUTED: the pinned leg's aborted text is a stored observation too, and a
+        // recompute that read only the GoTavern leg left the pinned half of the claim checked by nothing but
+        // the recorded flag -- which is the one thing this gate exists not to trust.
         if (surface === 'cancellation') {
             const prefix = text => text.trim().length > 0 && streamedReply.startsWith(text);
-            const observed = streamedReply.length > 0 && prefix(abortedText(block)) && prefix(abortedText(block));
+            const observed = streamedReply.length > 0
+                && prefix(abortedText(block, 'gotavern'))
+                && prefix(abortedText(block, 'pinned'));
             if (checks.abortTextIsPrefixOfStreamedReply === true && !observed) {
-                ctx.fail(`cancellation.checks.abortTextIsPrefixOfStreamedReply is recorded true, but the aborted text is not a non-empty prefix of the streamed reply`);
+                ctx.fail(`cancellation.checks.abortTextIsPrefixOfStreamedReply is recorded true, but the aborted text is not a non-empty prefix of the streamed reply (gotavern ${show(abortedText(block, 'gotavern'))}, pinned ${show(abortedText(block, 'pinned'))}, streamed reply ${show(streamedReply)})`);
             }
         }
         // THE SURFACE'S OWN VERDICT, recomputed: `proven` must equal the conjunction of the checks it carries.

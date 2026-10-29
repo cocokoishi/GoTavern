@@ -221,6 +221,11 @@ for (const subject of subjects) {
 }
 
 const guards = {};
+// THE PINNED COMMIT AS A LITERAL, NOT AS THE OTHER LEG'S RECORD. Same defect and same fix as
+// compare-helper-vars-legs.mjs: the right-hand side of the old comparison was `on.pinned.apiSurface`, i.e. the
+// object the pinned subject's own value came from, so the pinned half of this guard was a self-comparison and
+// could not fail.
+const PINNED_HELPER_COMMIT = '837a6288135cde61522a9279173b98020f08807e';
 const subjectGuards = {
     legsPresent: subjects.map(subject => observed[subject].legPresent),
     // THE PRESET THE MARKER RIDES MUST BE ON DISK ON BOTH SUBJECTS. Registered as its own guard rather than folded
@@ -229,7 +234,7 @@ const subjectGuards = {
     presetStaged: subjects.map((subject, index) => presetStagedPerSubject[index]),
     sameApiSurface: subjects.map(subject => {
         const surface = observed[subject].apiSurface;
-        return Boolean(surface) && surface.pinnedCommit === (on.pinned?.apiSurface?.pinnedCommit ?? null) && surface.scopes.length === 7 && surface.exportCount >= 14;
+        return Boolean(surface) && surface.pinnedCommit === PINNED_HELPER_COMMIT && surface.scopes.length === 7 && surface.exportCount >= 14;
     }),
     // HALF (i)
     valueOnWire: subjects.map(subject => observed[subject].halfI.valueOnWire),

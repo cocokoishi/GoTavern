@@ -163,6 +163,15 @@ expects('clicking the tile did not change #bg1 -> stagedBackgroundDrivenOnBothLe
     leg.dom.backgroundDriven.appliedBackgroundImage = 'url("/backgrounds/__transparent.png")';
     leg.dom.stagedBackgroundDriven = false;
 });
+// THE PAINT IS ITS OWN MEASUREMENT, NOT AN ALIAS OF THE DRIVE. `stagedBackgroundPaintedOnBothLegs` used to be
+// `= guards.stagedBackgroundDrivenOnBothLegs`, so ONE measurement stood under TWO names: a leg whose drive ran
+// (the probe's `stagedBackgroundDriven` true) but whose `#bg1` still carried the fresh tree's
+// `__transparent.png` satisfied BOTH names, and the guard whose name states the PAINT could not fail on the
+// only input that contradicts it. This mutation leaves the drive true and the paint wrong.
+expects('the staged tile was DRIVEN but #bg1 still carries another file -> stagedBackgroundPaintedOnBothLegs fails', 'stagedBackgroundPaintedOnBothLegs', leg => {
+    leg.dom.stagedBackgroundDriven = true;
+    leg.dom.backgroundDriven.appliedBackgroundImage = 'url("http://127.0.0.1:1/backgrounds/__transparent.png")';
+});
 // THE THREE PAINT FAILURES MUST BE DISTINGUISHABLE IN THE FINDINGS, because they are three different defects and
 // run 40307800425 produced the FIRST one while reading like a product failure.
 {

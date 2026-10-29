@@ -121,17 +121,35 @@ const parseStartupDoc = async () => {
     return classifications;
 };
 
+// THE FINAL PAGE STATE THE PROBE IS EXPECTED TO RECORD. Kept as the EXPECTED set so that a key which
+// disappears from BOTH legs is still visible: it is reported as UNMEASURED rather than silently dropped.
+const EXPECTED_FINAL_STATE_KEYS = ['settingsReady', 'onlineStatus', 'characterRows', 'mainApiValue', 'sendButtonPresent', 'sendButtonDisabled', 'topBarPresent', 'apiPanelPresent', 'toastr', 'bodyGenerating', 'title', 'extensionPanels', 'promptManagerPresent', 'characterListPresent', 'quickReplyPresent'];
+
+// A FIXED KEY LIST WITH `?? null` ON BOTH SIDES CALLED "NOT RECORDED" EQUAL. A key the probe stopped
+// recording is `null` on both legs, so `null === null` put it in `equalFields` and the artefact read as
+// "this field was compared and agrees" when nothing had been observed at all. The keys are now the UNION of
+// the expected set and both legs' own keys, and a key that is ABSENT ON BOTH is reported in
+// `unmeasuredFields` instead of `equalFields` -- the shape compare-extension-legs.mjs:169 already uses for
+// the union half. A key present on exactly one leg is a difference, and it records WHICH side was absent,
+// because `null` as a value and "not recorded" are different facts.
 const finalStateDiff = (gotavern, pinned) => {
-    const keys = ['settingsReady', 'onlineStatus', 'characterRows', 'mainApiValue', 'sendButtonPresent', 'sendButtonDisabled', 'topBarPresent', 'apiPanelPresent', 'toastr', 'bodyGenerating', 'title', 'extensionPanels', 'promptManagerPresent', 'characterListPresent', 'quickReplyPresent'];
+    const keys = [...new Set([...EXPECTED_FINAL_STATE_KEYS, ...Object.keys(gotavern ?? {}), ...Object.keys(pinned ?? {})])].sort();
     const equal = [];
+    const unmeasured = [];
     const differences = [];
     for (const key of keys) {
+        const recordedOnGotavern = Object.prototype.hasOwnProperty.call(gotavern ?? {}, key);
+        const recordedOnPinned = Object.prototype.hasOwnProperty.call(pinned ?? {}, key);
+        if (!recordedOnGotavern && !recordedOnPinned) {
+            unmeasured.push(key);
+            continue;
+        }
         const left = gotavern?.[key] ?? null;
         const right = pinned?.[key] ?? null;
         if (JSON.stringify(left) === JSON.stringify(right)) equal.push(key);
-        else differences.push({ field: key, gotavern: left, pinned: right });
+        else differences.push({ field: key, gotavern: left, pinned: right, recorded: { gotavern: recordedOnGotavern, pinned: recordedOnPinned } });
     }
-    return { equalFields: equal, differences };
+    return { equalFields: equal, unmeasuredFields: unmeasured, differences };
 };
 
 const main = async () => {

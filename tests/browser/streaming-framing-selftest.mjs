@@ -225,6 +225,20 @@ addCase('a head cut that leaked a body byte is caught',
         legs.abort.gotavern.networkHop.releasedBytes = 0;
     },
     { surface: 'abort', name: 'hopReleasedSomeBodyBeforeTheCut' });
+// THE ARITHMETIC THE SURFACE RESTS ON, made falsifiable. The peer wrote 15 frames; this hop relayed all 15
+// of them and then cut, so "the stream could not have finished" is NOT a measurement and the guard whose
+// name says exactly that must go red. The old form ("the peer wrote a positive count and the hop issued a
+// positive write") accepted this state, which is why the case did not exist.
+addCase('a hop that relayed every frame the peer wrote is caught',
+    legs => {
+        legs.abort.gotavern.networkHop.bodyWrites = Array.from({ length: 15 }, () => ({ bytes: 44, frames: 1 }));
+    },
+    { surface: 'abort', name: 'hopReleasedLessThanThePeerWrote' });
+addCase('a subject whose peer wrote no frames at all is caught (an empty count is not a pass)',
+    legs => {
+        legs.abort.pinned.recording = [];
+    },
+    { surface: 'abort', name: 'hopReleasedLessThanThePeerWrote' });
 
 // ---- 4. THE ROW'S TWO CLAIMS. ------------------------------------------------------------------------
 addCase('nothing rendered before the cut is caught',

@@ -98,7 +98,13 @@ export function proxyCredentialRow(ctx, source, artifact, surface) {
         return;
     }
     const expected = source.proxy === 'capable-through-setting';
-    const record = surface === 'generation' ? artifact.proxyPasswordPresent : artifact.proxyPasswordPresent;
+    // WHERE THE FIELD LIVES. This read used to be a ternary whose two branches were the same expression
+    // (`surface === 'generation' ? artifact.proxyPasswordPresent : artifact.proxyPasswordPresent`), so the
+    // `surface` parameter could not influence the outcome and the intended surface-specific read had never
+    // been written. Both comparators currently record the field at the TOP level
+    // (compare-streaming-legs.mjs:232, compare-generation-legs.mjs), so the fallback is what runs today --
+    // but a surface that nests it is now read from its own block instead of silently from the wrong one.
+    const record = artifact?.[surface]?.proxyPasswordPresent ?? artifact.proxyPasswordPresent;
     if (!record || typeof record !== 'object') {
         ctx.fail(`does not record proxyPasswordPresent, but ${source.id}'s row claims the credential ${expected ? 'travelled as proxy_password' : 'could not travel'} -- an unrecorded claim is an unchecked one`);
         return;
@@ -116,9 +122,26 @@ export function proxyCredentialRow(ctx, source, artifact, surface) {
  * The comparators take PROBE_SOURCE from the environment, and the only thing tying an artefact to a
  * source today is its filename. A run that compared openrouter legs and wrote them into the groq file
  * would pass every other check, because both rows have the same shape.
+ *
+ * WHAT THIS FUNCTION CHECKS, stated exactly, because its name promises a gate and its first version only
+ * observed. The FORWARD direction -- "the artefact names THIS source" -- is `driveParametersMatchCatalog`'s
+ * (`:74-81` compares `seamEnvVar` against the row's own seam, and the required-key loop above rejects a
+ * missing evidence key). The direction nothing checked is the CONVERSE: an artefact that carries an
+ * evidence key its catalogue row does NOT declare is an artefact that names a DIFFERENT source -- exactly
+ * the openrouter-legs-in-the-groq-file case, one level over. That is performed here.
+ *
+ * The remaining hole is stated rather than implied: for a source with no evidence keys at all (`custom`),
+ * the artefact carries nothing that identifies its source, so a `custom` run written into another
+ * seam-less file is indistinguishable from a correct one. No observable exists to check that, and
+ * inventing one would be a claim about the harness rather than about the drive.
  */
 export function artifactNamesItsSource(ctx, source, artifact, surface) {
     const parameters = artifact.driveParameters ?? {};
+    const declared = new Set(requiredDriveParameters(source).all);
+    const foreign = [...EVIDENCE_KEYS].filter(key => key in parameters && parameters[key] !== null && parameters[key] !== undefined && !declared.has(key));
+    if (foreign.length > 0) {
+        ctx.fail(`records the evidence field(s) ${foreign.join(', ')} that ${source.id}'s catalogue row does not declare (it declares ${[...declared].join(', ') || 'no evidence fields'}), so this artefact names a DIFFERENT source than the file it was written into`);
+    }
     const named = parameters.seamEnvVar;
     if (named && source.probe.seams.length > 0 && named !== source.probe.seams[0].env) {
         // reported by driveParametersMatchCatalog with the same detail; kept out here to avoid a duplicate.

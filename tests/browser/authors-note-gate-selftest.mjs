@@ -91,7 +91,20 @@ function reportFor(caseId, expectation, options = {}) {
             bodySha256: createHash('sha256').update(text).digest('hex'),
         }],
         failure: options.failure ?? null,
-        preset: { variant: 'keep', maxContextApplied: 4253, problems: [], chatTurns: 13 },
+        // THE PRESET IDENTITY THE REAL PROBE RECORDS, on the synthetic leg too. `generation-probe.mjs` writes
+        // `presetPreSend.presetIdentity` (:1631) and `applyPresetKit` records the step
+        // `preset identity after character open` (preset-kit.mjs:343), so a leg with NEITHER is a leg whose
+        // probe regression the comparator must refuse. Before this, the synthetic baseline recorded neither
+        // and the comparator still called it checked -- the vacuity mutation 16 below is what proves the
+        // refusal now happens.
+        presetPreSend: { presetIdentity: { beforeClick: 'Probe Preset', characterName: 'Probe Character', matchesCharacter: false } },
+        preset: {
+            variant: 'keep',
+            maxContextApplied: 4253,
+            problems: [],
+            chatTurns: 13,
+            steps: [{ step: 'preset identity after character open', afterCharacterOpen: 'Probe Preset', characterName: 'Probe Character', matchesCharacter: false }],
+        },
         authorsNoteOverlay: {
             requested: { ...resolved, caseId },
             applied: { caseId, extensionPrompt: resolved.enabled === false ? { value: '', position: -1 } : { value: resolved.text, position: 1, depth: resolved.depth } },
@@ -473,6 +486,30 @@ if (!realLegsAvailable) {
             namedCheck: result.checks?.gotavernPresetIsNotNamedAfterTheCharacter ?? 'ABSENT',
             reason: result.reason,
             recordedActually: result.details?.gotavern?.presetIdentityAtSend ?? null,
+        }));
+}
+
+// 16. THE IDENTITY WAS NEVER RECORDED -- the vacuity the guard's own comment forbade and the code performed.
+//     `fired === false` is true when BOTH identity fields are absent, so a probe regression that stopped
+//     recording `presetPreSend.presetIdentity` and the `preset identity after character open` step would have
+//     read as "the preset is not named after the character: checked and fine". The mutation removes both
+//     records; the comparator must refuse the case by name rather than judge it.
+{
+    const leg = clone(legFor('parity', 'gotavern'));
+    delete leg.presetPreSend;
+    if (leg.preset) delete leg.preset.steps;
+    const result = judge('parity', leg, legFor('parity', 'pinned'));
+    const named = result.checks?.gotavernPresetIsNotNamedAfterTheCharacter === false;
+    mutation('a leg that records NO preset identity is refused rather than read as checked',
+        result.verdict === 'HARNESS_ERROR' && named,
+        JSON.stringify({
+            verdict: result.verdict,
+            namedCheck: result.checks?.gotavernPresetIsNotNamedAfterTheCharacter ?? 'ABSENT',
+            recorded: {
+                atSend: result.details?.gotavern?.presetIdentityAtSend ?? null,
+                afterOpen: result.details?.gotavern?.presetIdentityAfterOpen ?? null,
+            },
+            reason: result.reason,
         }));
 }
 

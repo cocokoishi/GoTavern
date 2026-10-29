@@ -288,11 +288,18 @@ for (const subject of subjects) {
 // THE GUARDS.
 // ---------------------------------------------------------------------------------------------------------------
 const guards = {};
+// THE PINNED COMMIT AS A LITERAL, NOT AS THE OTHER LEG'S RECORD. `surface.pinnedCommit ===
+// (on.pinned?.apiSurface?.pinnedCommit ?? null)` compared the PINNED subject against ITSELF -- the right side
+// is the very object the left side came from -- so the pinned half of this guard could not fail, and a run
+// whose extension was not the pinned revision would have passed on both subjects as long as they agreed.
+// The revision is part of the claim (the semantics were read from ONE commit), so it is compared against the
+// literal that `tools/browser-evidence/other-surfaces.mjs` already pins the committed artefact to.
+const PINNED_HELPER_COMMIT = '837a6288135cde61522a9279173b98020f08807e';
 const subjectGuards = {
     legsPresent: subjects.map(subject => observed[subject].legPresent),
     sameApiSurface: subjects.map(subject => {
         const surface = observed[subject].apiSurface;
-        return Boolean(surface) && surface.pinnedCommit === (on.pinned?.apiSurface?.pinnedCommit ?? null) && surface.scopes.length === 7;
+        return Boolean(surface) && surface.pinnedCommit === PINNED_HELPER_COMMIT && surface.scopes.length === 7;
     }),
 
     // HALF (i)

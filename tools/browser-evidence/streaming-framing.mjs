@@ -59,6 +59,9 @@ export const FRAMING_NOT_RECOMPUTABLE = [
 
 const isPrefixSequence = texts => texts.every((text, index) => index === 0 || text.startsWith(texts[index - 1]));
 
+/** The peer's written frame count, summed over its requests. Mirrors the comparator's `totalFramesWritten`. */
+const totalFramesWritten = list => (Array.isArray(list) ? list : []).reduce((total, frames) => total + (frames ?? 0), 0);
+
 /** Recomputes every derivable guard for one surface from `observations[surface]` and the hop record. */
 export function recomputeFramingSurface(artifact, surface) {
     const observed = artifact.observations?.[surface] ?? {};
@@ -117,10 +120,18 @@ export function recomputeFramingSurface(artifact, surface) {
         hopReleasedSomeBodyBeforeTheCut: (hop.releasedBytesUnderCut?.gotavern ?? 0) > 0
             && (hop.releasedBytesUnderCut?.pinned ?? 0) > 0,
         noCallerCancelOnEitherSubject: gotavern.stopClickedAt === null && pinned.stopClickedAt === null,
-        hopReleasedLessThanThePeerWrote: (hop.framesWritten?.gotavern ?? []).every(frames => frames > 0)
-            && (hop.framesWritten?.pinned ?? []).every(frames => frames > 0)
-            && (hop.releasedBytesUnderCut?.gotavern ?? 0) > 0
-            && (hop.releasedBytesUnderCut?.pinned ?? 0) > 0,
+        // THE ARITHMETIC THE GUARD'S NAME CLAIMS, recomputed from the two independent records: the frames the
+        // PEER wrote (`framesWritten`, its own counter) against the frames the HOP relayed
+        // (`relayedFramesUnderCut`, from the hop's body writes). This used to repeat the comparator's
+        // mislabelled formula -- "the peer wrote some frames and the hop wrote something" -- which a hop that
+        // relayed the WHOLE body satisfies, so the recompute could never disagree with the recorded flag.
+        //
+        // THE HOP'S COUNT MUST BE A NUMBER: a missing field is not "zero released frames", it is an artefact
+        // this gate cannot check, and defaulting it would make the recompute agree with a hand-edited true.
+        hopReleasedLessThanThePeerWrote: typeof hop.relayedFramesUnderCut?.gotavern === 'number'
+            && typeof hop.relayedFramesUnderCut?.pinned === 'number'
+            && totalFramesWritten(hop.framesWritten?.gotavern) > hop.relayedFramesUnderCut.gotavern
+            && totalFramesWritten(hop.framesWritten?.pinned) > hop.relayedFramesUnderCut.pinned,
         contentRenderedBeforeTheCutOnBoth: gvTexts.length >= 1 && pnTexts.length >= 1,
         partialTextIdenticalOnBothSubjects: (gotavern.finalText ?? null) === (pinned.finalText ?? null) && String(gotavern.finalText ?? '').length > 0,
         sameTruncationOnBothSubjects: JSON.stringify(gvTexts) === JSON.stringify(pnTexts) && gvTexts.length >= 1,

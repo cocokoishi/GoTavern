@@ -82,6 +82,10 @@ export function compare({ gotavern, pinned }) {
     // THE BACKGROUND IS A CSS URL, so it is proven by joining the applied CSS value to a request that
     // answered with bytes. A `background-image: url(/backgrounds/x.png)` that 404s is the user-visible
     // "backgrounds are broken" and no status comparison of the ROUTE would see it.
+    // THE FILE THE FIXTURE STAGES, named once: the PAINT guard and the paint diagnosis both ask whether
+    // `#bg1` carries THIS file, and two literals for one fact is how the two questions drift apart.
+    const STAGED_BACKGROUND_FILE = 'probe-asset-background.png';
+    const STAGED_BACKGROUND_PATH = `/backgrounds/${STAGED_BACKGROUND_FILE}`;
     const backgroundOf = report => {
         const driven = dom(report)?.backgroundDriven ?? null;
         const applied = driven?.appliedBackgroundImage ?? dom(report)?.background?.computedBackgroundImage ?? null;
@@ -140,7 +144,20 @@ export function compare({ gotavern, pinned }) {
     // A `url(…)` in the tile's computed style is the thumbnail painting; `none` is not.
     const tilePainted = leg => /url\(/.test(String((backgrounds[leg].driven ?? {}).tileThumbnailAfterLoad ?? ''));
     guards.galleryTileThumbnailPaintedOnBothLegs = tilePainted('gotavern') && tilePainted('pinned');
-    guards.stagedBackgroundPaintedOnBothLegs = guards.stagedBackgroundDrivenOnBothLegs;
+    // THE PAINT ITSELF, MEASURED RATHER THAN ALIASED. This guard used to read
+    // `= guards.stagedBackgroundDrivenOnBothLegs`, i.e. ONE measurement under TWO names -- and because
+    // `unproven[]` names both, both were excused and NEITHER could fail independently: the `unproven` list
+    // carried two entries for one cause.
+    //
+    // The claim in the name is "the STAGED background is PAINTED", and its observable is the applied CSS
+    // value on `#bg1` naming the staged file -- the value `backgroundOf` already joins to a request that
+    // answered with bytes. `stagedBackgroundDrivenOnBothLegs` keeps its own, different observation (the
+    // probe's `stagedBackgroundDriven`), so the two names now stand for two facts: the DRIVE and the PAINT.
+    // Measured today: the drive does not paint the staged tile on either subject
+    // (`appliedBackgroundImage` is the fresh tree's `__transparent.png`), so both guards are false and both
+    // are declared in `unproven[]` with their measured cause.
+    guards.stagedBackgroundPaintedOnBothLegs = ['gotavern', 'pinned'].every(leg =>
+        backgrounds[leg].requestPath === STAGED_BACKGROUND_PATH);
 
     // ---- THE PERSONA PICKER (Q6's missing half) --------------------------------------------------
     //
@@ -243,7 +260,7 @@ export function compare({ gotavern, pinned }) {
         if (driven.status !== 'observed') continue;
         if (guards.stagedBackgroundPaintedOnBothLegs) continue;
         const selected = driven.selectedTileAfterClick ?? null;
-        if (selected !== 'probe-asset-background.png') {
+        if (selected !== STAGED_BACKGROUND_FILE) {
             // THE CAUSE, NAMED. A binding that is absent cannot be painted by any click, so that is a different
             // report from "the binding is there and the click did not reach it".
             const cause = driven.delegatedBgClickBound !== true
