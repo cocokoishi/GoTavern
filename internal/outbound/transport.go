@@ -134,10 +134,14 @@ func buildProductionClient(config *tls.Config) *http.Client {
 		// providerProxy decides per request from the value ConfigureRequestProxy stored, so a setting
 		// applied late still takes effect instead of being baked into a cached client.
 		Proxy: providerProxy,
-		DialContext: (&net.Dialer{
+		// THE PRIVATE ADDRESS FILTER SITS ON THE DIAL, which is pinned's own placement: it replaces the
+		// global http/https agents (src/private-request-filter.js:254-255), so the check happens when a
+		// socket is opened and therefore covers every redirect hop. With no filter configured the wrapper
+		// delegates to the base dialer unchanged, byte for byte. SEE privatefilter.go.
+		DialContext: privateAddressDialContext(&net.Dialer{
 			Timeout:   productionConnectTimeout,
 			KeepAlive: 30 * time.Second,
-		}).DialContext,
+		}),
 		TLSHandshakeTimeout:   productionTLSHandshakeTimeout,
 		ResponseHeaderTimeout: productionResponseHeaderTimeout,
 		IdleConnTimeout:       productionIdleConnTimeout,

@@ -20,15 +20,17 @@ package commandline
 //     (default/config.yaml:137-139), so "present and truthy" is true on every stock install, and the
 //     list has no effect in pinned either unless an SSO method is enabled (src/users.js:761-767).
 //     It is named inside the two switch warnings instead.
-//   - `privateAddressWhitelist.allowedRanges`, `.log.blockedRequests`, `.log.allowedRequests` and
-//     `.allowUnresolvedHosts` alone are NOT warned about. They are read only INSIDE
-//     `initPrivateRequestFilter`'s enabled branch (src/private-request-filter.js:240-252), so with
-//     `enabled: false` — the pinned default, and the shipped value — pinned ignores them too and
-//     GoTavern matches pinned exactly. They are named inside the `enabled` warning instead.
 //
-// The two switches that DO warn are the ones where pinned and GoTavern diverge:
-// `sso.autheliaAuth`/`sso.authentikAuth` (src/users.js:30-31, :761-767) and
-// `privateAddressWhitelist.enabled` (src/server-main.js:340).
+// `privateAddressWhitelist.*` USED TO WARN HERE and no longer does. The warning said "GoTavern does NOT
+// implement the private address filter", which was true when it was written and is not true now: the
+// filter is implemented in internal/outbound (see outbound/privatefilter.go and
+// commandline/privateaddress.go). Keeping it would be the same defect in the other direction -- a startup
+// message that contradicts the product -- so the row was RETIRED rather than reworded. The four
+// subordinate keys never warned, for the reason above: they are read only inside the enabled branch, so
+// with `enabled: false` pinned ignores them too and GoTavern matches pinned exactly.
+//
+// The switches that DO warn are the ones where pinned and GoTavern still diverge:
+// `sso.autheliaAuth`/`sso.authentikAuth` (src/users.js:30-31, :761-767).
 
 // UnimplementedConfigWarning is one config key the operator set that GoTavern accepts and does not act
 // on. Key is carried separately from Message so a caller (and a test) can key on the setting rather
@@ -44,20 +46,15 @@ type UnimplementedConfigWarning struct {
 //	sso.autheliaAuth     getConfigValue('sso.autheliaAuth', false, 'boolean')      src/users.js:30
 //	sso.authentikAuth    getConfigValue('sso.authentikAuth', false, 'boolean')     src/users.js:31
 //	                     if (AUTHELIA_AUTH && await autheliaUserLogin(request))     src/users.js:761-767
-//	privateAddressWhitelist.enabled
-//	                     getConfigValue('privateAddressWhitelist.enabled', false, 'boolean')
-//	                                                                                src/server-main.js:340
-//	                     http.globalAgent = agent; https.globalAgent = agent;       src/private-request-filter.js:254-255
 const (
-	ssoAutheliaKey   = "sso.autheliaAuth"
-	ssoAuthentikKey  = "sso.authentikAuth"
-	privateFilterKey = "privateAddressWhitelist.enabled"
+	ssoAutheliaKey  = "sso.autheliaAuth"
+	ssoAuthentikKey = "sso.authentikAuth"
 )
 
 // unimplementedConfigWarnings reports the config keys an operator set that GoTavern does not implement.
 // The order is fixed so the startup output is deterministic.
 func unimplementedConfigWarnings(config map[string]any) []UnimplementedConfigWarning {
-	warnings := make([]UnimplementedConfigWarning, 0, 3)
+	warnings := make([]UnimplementedConfigWarning, 0, 2)
 	if jsBoolean(getConfigValue(config, ssoAutheliaKey, false, cliBoolean)) {
 		warnings = append(warnings, UnimplementedConfigWarning{
 			Key: ssoAutheliaKey,
@@ -72,16 +69,6 @@ func unimplementedConfigWarnings(config map[string]any) []UnimplementedConfigWar
 			Message: "Warning: " + ssoAuthentikKey + " is true, but GoTavern does NOT implement SSO auto-login: " +
 				"a request carrying the Authentik `X-Authentik-Username` header will not establish a session, and users must log in manually. " +
 				"sso.trustedProxies is not consulted either. This setting has no effect.",
-		})
-	}
-	if jsBoolean(getConfigValue(config, privateFilterKey, false, cliBoolean)) {
-		warnings = append(warnings, UnimplementedConfigWarning{
-			Key: privateFilterKey,
-			Message: "Warning: " + privateFilterKey + " is true, but GoTavern does NOT implement the private address filter: " +
-				"outbound requests that resolve into a private IP range are NOT blocked. " +
-				"privateAddressWhitelist.allowedRanges, privateAddressWhitelist.log.blockedRequests, " +
-				"privateAddressWhitelist.log.allowedRequests and privateAddressWhitelist.allowUnresolvedHosts are not consulted either. " +
-				"This setting has no effect.",
 		})
 	}
 	return warnings

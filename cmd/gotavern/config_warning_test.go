@@ -95,15 +95,22 @@ func TestAnEnabledUnimplementedKeyIsNamedOnStartup(t *testing.T) {
 	printUnimplementedConfigWarnings(&stderr, running.CommandLine.UnimplementedConfigWarnings)
 	output := stderr.String()
 
-	for _, key := range []string{"sso.autheliaAuth", "privateAddressWhitelist.enabled"} {
+	for _, key := range []string{"sso.autheliaAuth"} {
 		if !strings.Contains(output, key) {
 			t.Errorf("startup output %q does not name %q; an operator who set that key must be told it is ignored", output, key)
 		}
 	}
+	// `privateAddressWhitelist.enabled: true` is in this config and must NOT produce a "not implemented"
+	// warning any more: the filter is implemented (internal/outbound/privatefilter.go) and the warning's
+	// text would be false. The retirement is asserted here, at the level the operator reads, and the
+	// feature itself is proven in internal/outbound and internal/app.
+	if strings.Contains(output, "privateAddressWhitelist") {
+		t.Errorf("startup output %q still claims privateAddressWhitelist is unimplemented, which is no longer true", output)
+	}
 	if strings.Contains(output, "sso.authentikAuth") {
 		t.Errorf("startup output %q warns about sso.authentikAuth, which is false in this config", output)
 	}
-	// The warning must not read as a working feature.
+	// The remaining warning must not read as a working feature.
 	for _, phrase := range []string{"NOT implement", "no effect"} {
 		if !strings.Contains(output, phrase) {
 			t.Errorf("startup output %q does not contain %q, so it could be read as a claim that the setting works", output, phrase)

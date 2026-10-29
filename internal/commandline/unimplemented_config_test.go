@@ -244,36 +244,34 @@ func TestUnimplementedConfigWarningsNameTheKey(t *testing.T) {
 				"enabled (src/users.js:761-767), so warning on it would fire on every stock boot",
 		},
 		{
-			name:     "privateAddressWhitelist.enabled true",
+			// THIS ROW WAS RETIRED, NOT REWORDED. It used to assert that `enabled: true` produced a
+			// warning saying the private address filter was not implemented. The filter IS implemented
+			// now (internal/outbound/privatefilter.go), so that message would be false, and a false
+			// startup message is the same defect in the other direction. The row now pins the ABSENCE,
+			// and the settings themselves are pinned in privateaddress_test.go.
+			name:     "privateAddressWhitelist.enabled true no longer warns: the filter is implemented",
 			config:   map[string]any{"privateAddressWhitelist": map[string]any{"enabled": true}},
-			wantKeys: []string{"privateAddressWhitelist.enabled"},
-			why:      "src/server-main.js:340, src/private-request-filter.js:254-255 — pinned replaces the global agents",
+			wantKeys: nil,
+			why:      "src/server-main.js:340 is now READ and enforced; the only warning left for this family would be a lie",
 		},
 		{
-			name: "the enabled warning names the sub-keys it also ignores",
+			name: "the whole privateAddressWhitelist family is silent, enabled or not",
 			config: map[string]any{"privateAddressWhitelist": map[string]any{
 				"enabled": true, "allowUnresolvedHosts": true,
 				"allowedRanges": []any{"10.0.0.0/8"},
+				"log":           map[string]any{"allowedRequests": true, "blockedRequests": false},
 			}},
-			wantKeys: []string{"privateAddressWhitelist.enabled"},
-			why:      "one warning, naming the whole family, so a reader can act on all of it",
+			wantKeys:   nil,
+			wantAbsent: []string{"privateAddressWhitelist.enabled", "privateAddressWhitelist.allowedRanges"},
+			why:        "every one of the five keys is read by internal/commandline/privateaddress.go now",
 		},
 		{
-			name: "privateAddressWhitelist sub-keys alone are not warned about",
+			name: "privateAddressWhitelist string true is true, and still does not warn",
 			config: map[string]any{"privateAddressWhitelist": map[string]any{
-				"enabled": false, "allowUnresolvedHosts": true,
-				"allowedRanges": []any{"10.0.0.0/8"},
-				"log":           map[string]any{"allowedRequests": true},
+				"enabled": "1", "allowedRanges": "10.0.0.0/8",
 			}},
 			wantKeys: nil,
-			why: "they are read only inside the enabled branch (src/private-request-filter.js:240-252), so with " +
-				"enabled:false pinned ignores them too and GoTavern MATCHES pinned — there is nothing to warn about",
-		},
-		{
-			name:     "privateAddressWhitelist string true is true",
-			config:   map[string]any{"privateAddressWhitelist": map[string]any{"enabled": "1"}},
-			wantKeys: []string{"privateAddressWhitelist.enabled"},
-			why:      "toBoolean('1') === true",
+			why:      "toBoolean('1') === true, and the scalar allowedRanges is handled by the pinned shape rule rather than warned about here",
 		},
 	}
 	for _, testCase := range cases {
@@ -348,14 +346,18 @@ func TestCacheBusterAndWarningsReachTheResolvedCommandLine(t *testing.T) {
 	if result.CacheBuster.UserAgentPattern != "firefox|safari" {
 		t.Errorf("CacheBuster.UserAgentPattern = %q, want %q", result.CacheBuster.UserAgentPattern, "firefox|safari")
 	}
-	wantKeys := []string{"sso.autheliaAuth", "privateAddressWhitelist.enabled"}
+	wantKeys := []string{"sso.autheliaAuth"}
 	if len(result.UnimplementedConfigWarnings) != len(wantKeys) {
-		t.Fatalf("UnimplementedConfigWarnings = %v, want %v", result.UnimplementedConfigWarnings, wantKeys)
+		t.Fatalf("UnimplementedConfigWarnings = %v, want %v (privateAddressWhitelist.enabled must NOT warn: it is implemented)", result.UnimplementedConfigWarnings, wantKeys)
 	}
 	for index, want := range wantKeys {
 		if result.UnimplementedConfigWarnings[index].Key != want {
 			t.Errorf("warning %d key = %q, want %q", index, result.UnimplementedConfigWarnings[index].Key, want)
 		}
+	}
+	// The same config.yaml that used to produce a "not implemented" warning now configures the filter.
+	if !result.PrivateAddressFilter.Enabled {
+		t.Error("PrivateAddressFilter.Enabled = false, want true: the key that warned before is now read")
 	}
 }
 

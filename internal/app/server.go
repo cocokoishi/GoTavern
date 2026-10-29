@@ -179,6 +179,14 @@ func Start(options StartOptions) (*RunningServer, error) {
 			return nil, fmt.Errorf("inspect the data directory the server will use (%s): %w", runtimeRoot, statErr)
 		}
 	}
+	// THE PRIVATE ADDRESS FILTER IS INSTALLED FIRST, then the request proxy: that is pinned's order
+	// (src/server-main.js:348 then :351) and it is observable, because with the filter enabled the
+	// transport validates the address it is about to dial -- which, behind a proxy, is the PROXY's.
+	// Neither call can fail the boot: pinned drops an invalid whitelist entry with a warning rather than
+	// refusing to start, and a boot that failed here would turn a typo into an unreachable server.
+	if filterErr := configurePrivateAddressFilter(parsed); filterErr != nil {
+		return nil, filterErr
+	}
 	// APPLY THE USER'S CONFIGURED PROXY BEFORE ANY PROVIDER CAN BE CALLED.
 	//
 	// pinned parses requestProxy.enabled/url/bypass into its command-line options

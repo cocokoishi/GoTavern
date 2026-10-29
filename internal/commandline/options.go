@@ -140,6 +140,11 @@ type CommandLineResult struct {
 	// requires and is excluded from the serialized result for the same reason: Node's startup
 	// settings map has no such member.
 	UnimplementedConfigWarnings []UnimplementedConfigWarning `json:"-"`
+	// PrivateAddressFilter carries privateAddressWhitelist.*, which the pinned server reads at
+	// src/server-main.js:337-348 and enforces by replacing the global HTTP agents. Like the fields
+	// above it is read straight from the config rather than through the startup settings map, so it is
+	// excluded from the serialized result the command-line differential compares against Node.
+	PrivateAddressFilter PrivateAddressFilterSettings `json:"-"`
 }
 
 type cliOptionKind uint8
@@ -304,7 +309,7 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		UseDiskCache:               getConfigValue(config, "performance.useDiskCache", true, cliBoolean),
 		SettingsBackupRetention:    getConfigValue(config, "backups.common.numberOfBackups", 50, cliNumber),
 	}
-	return CommandLineResult{Paths: paths, Options: result, StartupSettings: startupSettings, Warnings: warnings, TokenizersDownloadAllowed: tokenizersDownloadAllowed(config), ImportDomainsWhitelist: importDomainsWhitelist(config), BrowserLaunchApp: browserLaunchApp(config), AccessLogEnabled: accessLogEnabled(config), CacheBuster: cacheBusterSettings(config), UnimplementedConfigWarnings: unimplementedConfigWarnings(config)}, nil
+	return CommandLineResult{Paths: paths, Options: result, StartupSettings: startupSettings, Warnings: warnings, TokenizersDownloadAllowed: tokenizersDownloadAllowed(config), ImportDomainsWhitelist: importDomainsWhitelist(config), BrowserLaunchApp: browserLaunchApp(config), AccessLogEnabled: accessLogEnabled(config), CacheBuster: cacheBusterSettings(config), UnimplementedConfigWarnings: unimplementedConfigWarnings(config), PrivateAddressFilter: privateAddressFilterSettings(config)}, nil
 }
 
 // browserLaunchApp resolves browserLaunch.browser the way the pinned
