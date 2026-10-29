@@ -432,3 +432,45 @@ drop-in qualification 40832547895   success
 `oracle` **skipped** the commit, so it did not judge it, and the browser gate -- the only one that exercises
 the comparator -- has no conclusion. The change is gate-clean and not yet behaviour-verified in CI, and those
 are different claims.
+
+
+### 11. The macro dimension is already exercised by the preset run
+
+Section 10 concluded that world info and macros each need new probe code. **That is half wrong, and the half
+that is wrong shrinks the remaining brief.** Measured over the two real private presets:
+
+```
+fixture A   105 prompts,  57 enabled    macros in ENABLED prompts: 14 occurrences,  4 distinct names
+fixture B   119 prompts,  39 enabled    macros in ENABLED prompts: 43 occurrences, 42 distinct names
+
+recorded request bodies: 8
+  unsubstituted macro occurrences in those requests: 4
+```
+
+**Macros are present in the enabled prompts of both real presets, at 4 and 42 distinct names, and the requests
+those presets produced are byte-identical across subjects.** So macro handling -- substitution, and the
+pass-through of whatever is not substituted -- is exercised by the preset run that already reaches
+`verdict: match`. A separate macro dimension would re-measure something the preset dimension already covers.
+
+**The four surviving occurrences are the sharp part, not a defect.** A macro that reached the request verbatim
+is one substitution did not replace -- an unknown or undefined name, most plausibly. **Both subjects produce
+the same four**, because the bodies are byte-identical, so pass-through parity holds for exactly the macros
+that are not substituted. That is the property a macro dimension would want to assert, and it is already
+asserted by the byte comparison.
+
+**What remains genuinely uncovered, therefore, is narrower than section 10 said:**
+
+- **world info** -- still zero. The probe carries no world-book handling at all, so this one does need new
+  code: a world-book fixture in the data root, a step selecting it for the character, and an assertion that
+  its entries reached the request.
+- **macros** -- exercised incidentally by the preset run, at 42 distinct names in one fixture. **Not a
+  separate dimension.**
+- **character card** -- the probe drives `character-open`; how much of the card's own prompt surface it
+  exercises is not established.
+- **extension** -- 15 hits in the probe; how much of the helper surface it drives is not established.
+
+**The distinction to keep**, because it is the difference between a measurement and a coincidence: the preset
+run proves macro handling is IDENTICAL on both subjects. It does not prove that either subject substitutes a
+macro the way pinned would in isolation -- but since both are compared against each other on the same input,
+identical is the claim Phase 1 needs. A macro that is substituted wrongly on both sides would still be a
+`match`, and that limitation is inherent to a differential, not to this run.
