@@ -385,3 +385,50 @@ deleted: the property is real, and on real content it is currently the only unas
 outcome. That run reaches `verdict: match` with all ten guards, verified against its saved leg reports, and it
 is the baseline the change is measured against -- **if the derivation stops reaching `match`, the change is
 wrong regardless of what it does for real content.**
+
+
+### 10. What the remaining dimensions actually need, and one resource finding
+
+**The world-info dimension is new probe code, not a parameter.** Read rather than assumed:
+
+```
+grep 'worldInfo|world_info|worldinfo|World Info|--world' tests/browser/real-preset-probe.mjs  ->  NOTHING
+```
+
+The probe's drive sequence is `load preset -> configure connection -> open character -> generate -> capture`,
+and it carries no world-book handling at all. So the dimension cannot be reached by adding a flag: it needs a
+world-book fixture planted into the data root, a step that selects it for the character, and an assertion that
+its entries reached the request. That is a probe extension of the same shape as the preset work, and it should
+be planned as one rather than attempted as an edit.
+
+**A consequence for the cost estimate.** The preset dimension was cheap because `real-preset-probe.mjs` and
+its comparator already existed -- Phase 1 reused them. World info and macros have no such vehicle: the probe
+does not touch either. The honest estimate is therefore **two new dimensions**, each with its own fixture,
+drive step and guard, not two flags on an existing run.
+
+**A resource finding, recorded because it blocked a verification.** `Browser differential` `mode=preset` was
+dispatched to verify the comparator change, and it did not conclude:
+
+```
+Browser differential 40832655173 on b3007b3 (mode=preset)
+  created 2026-10-29T07:00:25Z
+  updated 2026-10-29T07:00:29Z      <- unchanged 12 minutes later, reading as QUEUED not executing
+  job timeout-minutes: 90
+```
+
+This is the **second** dispatch in this workstream that produced no information -- an earlier `GoTavern CI`
+`40810753084` never allocated a runner at all. **The pattern matters for Phase 1's remote discipline**: the
+discipline assumes a dispatch produces a verdict, and when it does not, the honest report is that the QUEUE
+blocked verification rather than that the change was verified. A stalled run must never be allowed to stand as
+an implied green.
+
+**What the change does have.** `b3007b3` is `verify`-clean and drop-in-clean in CI:
+
+```
+GoTavern CI 40832547870     changes success | browser-evidence success | verify SUCCESS | oracle SKIPPED
+drop-in qualification 40832547895   success
+```
+
+`oracle` **skipped** the commit, so it did not judge it, and the browser gate -- the only one that exercises
+the comparator -- has no conclusion. The change is gate-clean and not yet behaviour-verified in CI, and those
+are different claims.
