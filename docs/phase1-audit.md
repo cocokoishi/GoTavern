@@ -825,3 +825,56 @@ repairing a probe. It was written as a finding and never applied as a change.
 absent from the failing set, but **absence from a failure list is not a pass**, and the `mode=preset`
 dispatch's step set may not include the helper-vars leg at all. Any decision about `survivesRestart` should
 wait on re-establishing its state, not on this run's silence about it.
+
+
+### 19. The browser gate's blocker, found: `setupDecision` is read before the setup turns land
+
+The chain from section 18 is closed, and the cause is a probe-ordering defect at one site. The decisive block
+was **in the artefact all along**, under `details.setup`:
+
+```
+details.setup:
+  gotavern: { openChat: "chats/default_Seraphina/....jsonl", source: "file",
+              lines: 2, messages: 2, carriesPredecessor: false, openedContextChatLength: 0 }
+  pinned:   { openChat: "chats/default_Seraphina/....jsonl", source: "file",
+              lines: 6, messages: 6, carriesPredecessor: true,  openedContextChatLength: 5 }
+
+details.setup.completions: { gotavern: 4, pinned: 2 }
+```
+
+**Same file, `source: "file"` on both** -- so the probe's reader worked and the page fallback was never taken.
+**And `preContinue.file.sha256` -- read later -- equals the handoff exactly (`2a05a9ab...`).**
+
+**So the file holds 6 lines when `preContinue` reads it (line 504) and 2 when `setupDecision` reads it (line
+416).** The two reads happen at different points, and `setupDecision` is computed **before the setup turns have
+landed**.
+
+**Consequence, and it is the whole symptom:** a leg that reads a 2-line file concludes it does not carry the
+predecessor, so it **drives two setup turns it had already driven** -- which is exactly the `gotavern 4`
+against `pinned 2` completions, and the `carriesPredecessor=false` against `true`. **The guard is doing the
+right thing by failing; the probe asked its question too early.** No product code is implicated.
+
+**The fix, precisely:** compute `setupDecision` **after** the setup turns, so it reads the state the legs
+actually continue from. Its own recorded `rule` says what it is for -- *"the two setup turns are driven only
+when the open chat does NOT already carry the second-turn marker"* -- and that decision must be made on the
+post-setup state.
+
+**The acceptance test is already in the artefact:** `lines` and `messages` must agree across subjects, and
+`completions` must be equal. `4` vs `2` is the symptom that should become equal.
+
+### What this cost, and the lesson that generalises
+
+**Ten self-corrections in this workstream, and three of the last four were the same mistake**: a field was
+read, a conclusion was drawn, and the field that decided the question had not been read. Two rounds were spent
+on the handoff's hash -- which was always correct, and whose guard always passed -- while `details.setup`
+printed `source`, `lines`, `messages`, `openedContextChatLength` and `filesOnDisk`, **every one of which was
+decisive**.
+
+**The specific lesson: when a guard's verdict is surprising, read the guard's OWN INPUTS before theorising
+about the system.** The block was printed under the key `"setup"` and searched for as `"setupDecision"` -- so
+a comparator that had printed everything looked like a comparator that had dropped the basis of its verdict.
+
+**And the compounding error was reporting absences from bounded reads**: a log line truncated at 120
+characters, a `git grep` with a path spec that matched nothing, a `Select-String` for a phrase that wraps
+across a line break. **Each produced a confident negative, and each was quoted as a finding.** Nine of the ten
+corrections trace to that one habit.
