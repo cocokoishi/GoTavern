@@ -535,3 +535,52 @@ truncation boundary.
 **So one dimension is proven, one is covered incidentally, and four are somewhere between partial and absent.**
 The Phase 1 brief names all six; a completion report must say which of them the evidence reaches, and this
 table is what it should be built from rather than from the impression that "the preset run passed".
+
+
+### 13. Why `main`'s browser gate cannot certify a Phase 1 change
+
+A comparator change (`b3007b3`) was dispatched to `Browser differential` `mode=preset` for verification and
+never concluded. Investigating why produced a finding that matters more than the dispatch: **the gate is red
+on `main` for a recorded product difference, so it cannot certify a change that does not touch that
+difference.**
+
+**The failures are not one cause.** They sit on different commits and were initially collapsed into "all
+pre-existing", which is wrong:
+
+```
+40767188029  on d1d6ef9   FAILED step 45 Compare the Q20 continue legs
+                          FAILED step 46 Judge the Q20 continue legs
+```
+
+`d1d6ef9` is a `lane/p2-continue` commit, not `main`, so that failure is a lane's in-progress work. **The
+relevant commit for a `main` change is `main`**, and the Alpha 8 round established its state precisely at
+`a319cd4`:
+
+```
+helper variables (narrow) FAILED
+  guards=[globalScopeReachesWire]  asymmetries=[survivesRestart]  mismatches=[]
+  survivesRestart (gotavern=true, pinned=false)
+```
+
+**That is a `KNOWN DIFFERENCE`, not a broken gate.** After a restart in a new process, GoTavern retains a
+酒馆助手 variable value that pinned loses; `mismatches=[]` means no request or response content differs, so the
+red is a guard plus a stated asymmetry rather than a parity failure. It was carried to Alpha 9 with the
+artefact's own self-contradiction (`survivesRestart` declared both required for its claim and unproven)
+recorded beside it.
+
+**The consequence for Phase 1's verification path, stated plainly:** a `Browser differential` run on `main`
+fails for that reason whatever else is in the tree, so **a red from such a run does not isolate the change
+under test**. Reading it as "the comparator is wrong" would attribute a verdict to the wrong subject -- the
+failure mode AGENTS rule 55 exists to forbid. The comparator change therefore rests on **local execution**
+against both saved leg-report sets, which for a pure-Node comparator is execution rather than derivation, and
+**not** on a gate that is already red.
+
+**And it reframes the next action.** "Fix the pre-existing failure" is the wrong instruction, because the
+failure is a *finding*. The right action is the one the Alpha 8 round already scoped: the `survivesRestart`
+question -- is retaining that state across a restart desirable, or a defect? -- under the five-part rule (Node
+evidence, GoTavern evidence, a named surface contract, harness error excluded, before any runtime change).
+**Two of the five already exist**: a stable asymmetric result measured identically on `24babdc` and `a319cd4`
+(runs `40681692737` and `40689195294`), with `mismatches=[]`.
+
+**So the browser gate's greenness and Phase 1's verification path are the same blocker**, and it is a product
+investigation rather than a harness repair.
