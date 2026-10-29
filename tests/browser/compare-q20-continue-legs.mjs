@@ -133,6 +133,26 @@ const producedRequestOf = report => {
     return index > 0 ? all[index - 1] : null;
 };
 
+/**
+ * The request AFTER the continue: the normal turn whose residual-state question this comparison answers.
+ *
+ * FOUND RELATIVE TO THE CONTINUE, NOT AS "THE LAST COMPLETION". `nextRequestClean` used
+ * `completions[completions.length - 1]`, which is a positional derivation about how many turns the leg drove AFTER
+ * the verb -- the same class of assumption the comment at :99-113 records for `length - 3`, and it fails the same
+ * way. A leg that produced no next turn has the CONTINUE as its last completion, so the old expression would hand
+ * the guard the continue request and compare it against the other subject's next turn, reporting "the request AFTER
+ * the Continue differs" while comparing two different objects. Selecting the completion immediately after the one
+ * that carries the product's own nudge marker cannot do that: with no request after the continue the answer is
+ * `null`, and the guard says so by name instead of inventing a comparison.
+ */
+const nextRequestOf = report => {
+    const all = completionsOf(report);
+    const { request } = continueRequestOf(report);
+    if (!request) return null;
+    const index = all.indexOf(request);
+    return index >= 0 && index + 1 < all.length ? all[index + 1] : null;
+};
+
 const completions = completionsOf;
 const short = entry => (entry ? { sha256: entry.sha256.slice(0, 12), byteLength: entry.byteLength } : null);
 
@@ -501,10 +521,11 @@ guard('diskMetadataAppended', () => {
 
 guard('nextRequestClean', () => {
     const problems = [];
-    const go = completions(reports.gotavern);
-    const node = completions(reports.pinned);
-    const goNext = go[go.length - 1] ?? null;
-    const nodeNext = node[node.length - 1] ?? null;
+    // IDENTIFIED BY ITS POSITION RELATIVE TO THE NUDGE-CARRYING REQUEST, never as "the last completion" -- see
+    // `nextRequestOf`. The old `completions[length - 1]` would silently compare the CONTINUE against the other
+    // subject's next turn on a leg that drove no turn after the verb.
+    const goNext = nextRequestOf(reports.gotavern);
+    const nodeNext = nextRequestOf(reports.pinned);
     details.nextRequest = { gotavern: short(goNext), pinned: short(nodeNext) };
     if (!goNext || !nodeNext) return ['one of the subjects produced no request after the Continue'];
     if (goNext.sha256 !== nodeNext.sha256) problems.push(`the request AFTER the Continue differs: gotavern ${goNext.sha256.slice(0, 12)} vs pinned ${nodeNext.sha256.slice(0, 12)}`);

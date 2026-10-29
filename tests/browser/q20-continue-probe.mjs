@@ -213,17 +213,42 @@ if (boot.bootRefusal) report.failure = `leg-refused: ${boot.bootRefusal}`;
 // temporal-dead-zone ReferenceError, and `node --check` cannot see it -- the same TDZ class this file already
 // recorded for `wireMode`. It happens to be safe today only because the closure runs after this line executes; that
 // is an ordering coincidence, not a guarantee, and the comment is cheaper than the alternative.
-const peerState = { continuationOrdinal: null, continuationTail: null };
+const peerState = { continuationOrdinal: null, continuationTail: null, continuationsServed: 0 };
 const peer = await startCapturePeer({
     wire: wireMode,
     // THE CONTINUATION IS A SUFFIX, and the shape matters: `appendFinal` makes the message `existingText +
-    // continuation`, so the reply MUST NOT repeat the reply it extends and MUST NOT re-state the first turn. The
-    // marker is the whole payload, with the ordinal carried BEFORE it so the string stays a pure suffix:
-    //     before: "Q20_REPLY_2"   after: "Q20_REPLY_2 Q20_CONTINUATION_APPENDED_3"
-    // `continuationTail` is appended after the ordinal so a leg can name which completion continued if it needs to.
-    replyText: (ordinal, counterpart) => (peerState.continuationOrdinal !== null && peerState.continuationOrdinal === counterpart
-        ? `${MARKERS.continuation}_${counterpart}${typeof peerState.continuationTail === 'string' ? peerState.continuationTail : ''}`
-        : `Q20_REPLY_${counterpart}`),
+    // continuation`, so the reply MUST NOT repeat the reply it extends and MUST NOT re-state the first turn:
+    //     before: "Q20_REPLY_2"   after: "Q20_REPLY_2 Q20_CONTINUATION_APPENDED_1"
+    // `continuationTail` is appended after the number so a leg can name which continuation it was if it needs to.
+    //
+    // THE NUMBER IS THE CONTINUATION COUNT, NOT THE ARRIVAL ORDINAL -- AND THAT IS A MEASURED CORRECTION.
+    //
+    // It used to be `${MARKERS.continuation}_${counterpart}`, where `counterpart` is the peer's ARRIVAL ORDINAL of
+    // the chat/completions request. That ordinal is LEG-SPECIFIC BY CONSTRUCTION, because the two legs have
+    // different ROLES: the GoTavern leg is the PRODUCER (it starts from a 2-line chat, drives the two setup turns,
+    // so its continue is arrival 3 -> `_3`) while the pinned leg is the CONSUMER (handed the finished handoff tree,
+    // it correctly finds the turns already present and skips them, so its continue is arrival 1 -> `_1`). The
+    // marker is persisted into the chat, so it travels inside the NEXT request's messages array, and
+    // `compare-q20-continue-legs.mjs` `nextRequestClean` then compared two bodies that differ by ONE BYTE.
+    //
+    // MEASURED, and reproduced locally rather than inferred: `Browser differential` 40837309332 on 292905f failed
+    // with `failedGuards: ["nextRequestClean"]`; the two next-turn bodies were both 4444 B with their FIRST AND ONLY
+    // difference at offset 4250 -- `Q20_CONTINUATION_APPENDED_3` on GoTavern against `Q20_CONTINUATION_APPENDED_1`
+    // on pinned. The guard was UNSATISFIABLE BY CONSTRUCTION and reported a product mismatch where the two subjects
+    // in fact agreed: both grew the same message in place with the continuation text their own peer gave them.
+    //
+    // `q20-leg-runtime.mjs:137-141` states the design this restores: "by default BOTH subjects receive the SAME text
+    // (`Q20_REPLY_1`, `Q20_REPLY_2`, ...)". Counting continuations keeps that promise, keeps the marker distinct
+    // from a plain `Q20_REPLY_N`, and still makes a leg that fires the continuation branch twice visible (the second
+    // continuation would be `_2`, and a leg whose count differs from the other's shows up as a real difference). The
+    // arrival ordinal is not lost: every request carries its own `index`/position in the leg report.
+    replyText: (ordinal, counterpart) => {
+        if (peerState.continuationOrdinal !== null && peerState.continuationOrdinal === counterpart) {
+            peerState.continuationsServed += 1;
+            return `${MARKERS.continuation}_${peerState.continuationsServed}${typeof peerState.continuationTail === 'string' ? peerState.continuationTail : ''}`;
+        }
+        return `Q20_REPLY_${counterpart}`;
+    },
 });
 const peerBase = `http://127.0.0.1:${peer.port}/v1`;
 
