@@ -20,10 +20,10 @@
   "routes": {
     "bareNotImplemented": 0,
     "compatible": 0,
-    "partial": 328,
-    "reachableCeiling": 329,
+    "partial": 331,
+    "reachableCeiling": 332,
     "reasonedExclusions": 10,
-    "total": 339,
+    "total": 342,
     "unsupported": 0
   },
   "schemaVersion": 1,

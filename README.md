@@ -79,6 +79,42 @@ budget you should expect on your own hardware. The ratios printed in the figure 
 each panel and are a restatement, not a separate measurement. Reproduce them with the `GoTavern smoke metrics`
 workflow.
 
+### The in-process baseline, and one profile-driven fix
+
+The paired benchmark above answers "is it cheaper to run than Node". It cannot answer "which function allocates,
+and did a change make it worse" — and until 2026-10-29 there was **not one `func Benchmark` in this repository**,
+so there was no `ns/op`, no `B/op` and nothing to attach a profile to. `internal/server/bench_test.go` is that
+vehicle: it builds a handler exactly as the tests do, completes the product's own CSRF and login handshake rather
+than bypassing the middleware, and measures a tiny route, the HTML shell, a static asset, the settings
+aggregation and the character list.
+
+The first profile found a real one. Serving `/script.js` — **497,669 bytes** — allocated **1,010,107 B/op**, and
+`pprof -alloc_space` put 66% of it in a single leaf: `embed.FS.ReadFile`, called once per request. A page load
+requests roughly 229 assets, so the server was copying every asset into the heap on every request, for bytes that
+never change. Static serving now resolves the content **lazily** and streams the slice the response already
+declared, with a re-read fallback so a failure cannot produce a short body under a declared `Content-Length`.
+
+| Benchmark | Before `ns/op` | After `ns/op` | Before `B/op` | After `B/op` | Change in `B/op` |
+|---|---:|---:|---:|---:|---:|
+| `GET /script.js` (497,669 B asset) | 478,654 | **170,644** | 1,010,107 | **43,347** | **−95.7%** |
+| `GET /` (HTML shell) | 662,703 | **408,641** | 773,647 | **68,060** | **−91.2%** |
+| five assets (one page load's worth) | 2,339,272 | **1,791,303** | 1,909,012 | **219,880** | **−88.5%** |
+| `GET /version` (control, no asset) | 315,372 | 310,424 | 25,145 | 25,145 | 0% |
+
+**Provenance, stated because it is not the table above.** These are **local, single-machine** numbers from this
+project's development host (Windows/arm64, Go 1.27), produced with
+`go test ./internal/server/ -run '^$' -bench Benchmark -benchmem -benchtime 300x`, before and after the change on
+the same machine in the same session. They are an **engineering baseline, not a product comparison**: do not read
+them as a claim about your hardware, and do not compare them with the `ubuntu26` figures above. The `GET /version`
+row is the control — it serves no asset, and it did not move, which is what says the change was confined to static
+serving. The allocation reduction is confirmed causally rather than only by the totals: `embed.FS.ReadFile` was
+66% of `alloc_space` before and **does not appear in the profile at all** afterwards, and total bytes allocated
+over the same 2,000 iterations fell from **2,910 MB to about 85 MB**.
+
+Observable behaviour is unchanged by construction — same status, same bytes, same `Content-Length`, same headers,
+same range and conditional handling — and the pinned static fixture replay and the frontend asset contract test
+both still pass. The remaining allocation is `io.copyBuffer`: the 32 KB streaming buffer, which is the point.
+
 ## Why GoTavern?
 
 - **Drop-in, not a migration.** Point it at an existing SillyTavern directory — or copy one in read-only — and it

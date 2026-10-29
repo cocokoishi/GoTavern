@@ -795,7 +795,7 @@ Earlier in this checkpoint: `v0.1.0-alpha.1` was released (run `40066449948`), t
 
 ## 1. Where the project stands
 
-**Route accounting is CLOSED.** <!-- BEGIN GENERATED: routes.accounting -->`339` inventoried routes; `0` bare `not implemented`; `10` reasoned exclusions; `329` reachable.<!-- END GENERATED: routes.accounting --> That is a statement about ROUTES. It is not a release-ready claim: almost every area is still `partial` because the
+**Route accounting is CLOSED.** <!-- BEGIN GENERATED: routes.accounting -->`342` inventoried routes; `0` bare `not implemented`; `10` reasoned exclusions; `332` reachable.<!-- END GENERATED: routes.accounting --> That is a statement about ROUTES. It is not a release-ready claim: almost every area is still `partial` because the
 E (browser events/final state) and C (cancel/streaming) surfaces are measured for few of them, and
 because the release path itself has only just begun to be EXECUTED.
 
