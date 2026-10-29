@@ -638,3 +638,56 @@ be listed as required).
 for both subjects from a helper-vars run, name which storage path differs, and then choose (1) or (2) with the
 consequence stated. That is the five-part rule's first two parts -- Node evidence and GoTavern evidence -- and
 neither exists yet in a form that names the mechanism.
+
+
+### 15. `survivesRestart`, reframed: GoTavern satisfies a claim pinned does not
+
+Section 14 called this a decision between reproducing pinned's loss and keeping GoTavern's retention. Reading
+what the probe is *for* changes the framing, because the claim is not "the two must agree" -- it is a specific
+property the project wants to be true.
+
+**The probe's own statement of its purpose:**
+```
+// WHY THIS LEG EXISTS. The evidence for variables stopped at "the value persisted to the chat file"
+// (guard `variablePersisted`, run 40250495167). GOAL §3 makes a stronger claim and no leg in this
+// repository [proved it]
+//
+//   chat      chat_metadata.variables   :72-74 / :151-155 -> saveMetadataDebounced :153
+//
+//   HALF (ii) the value is re-readable FROM DISK after a fresh page AND after a NEW SERVER PROCESS.
+```
+
+and its question field: *"Does a 酒馆助手 variable change the FINAL provider request through host macro
+substitution AND survive [a restart]"*, with half (ii) as *"the value is re-readable from DISK after a fresh
+page and after a new server process"*.
+
+**So half (ii) is a CLAIM the project wants to make, and `survivesRestart` is the guard that asks whether it
+holds.** Measured: `gotavern=true, pinned=false`.
+
+**That inverts the reading in section 14.** This is not "GoTavern diverges from the oracle and must be brought
+back". It is: **GoTavern satisfies the project's stated half-(ii) claim, and pinned does not.** The comparison
+reports it as an `asymmetry` because a guard true on one subject and false on the other is exactly what a
+differential exists to surface -- but which side is *right* is decided by the claim, not by which side is
+pinned.
+
+**The three honest positions, and they are now genuinely different:**
+
+1. **Parity wins.** A drop-in replacement reproduces pinned, including a behaviour the project would prefer.
+   That means deliberately making GoTavern LOSE the value, and it needs GOAL §3 amended -- a document cannot
+   simultaneously claim the stronger property and require the weaker behaviour.
+2. **The claim wins.** GoTavern keeps the retention, GOAL §3 stands, and the divergence is recorded as a
+   deliberate improvement with its user-facing consequence: a user switching backends sees a variable persist
+   that used to vanish. This is the shape rule 26's auto-update divergence already has.
+3. **The claim is withdrawn.** Half (ii) is narrowed to "after a fresh page", dropping "after a new server
+   process", and the guard asserts only what both subjects do.
+
+**What cannot stand is the current state**, and this is the finding: **the artefact declares `survivesRestart`
+required for its claim and unproven at the same time.** Under position 2 the declaration is simply wrong --
+the guard is not unproven, it is proven and GoTavern passes it. Under positions 1 or 3 the guard's meaning
+changes. Either way the declaration must be resolved before the gate can say anything, and that resolution is
+a document change rather than a code change.
+
+**The measurement still needed, unchanged from section 14:** the probe records `globalOnDisk` and
+`characterOnDisk` for both subjects, and those values name which storage path differs. **Neither this section
+nor the last has that value**, so the mechanism is still unnamed -- what has changed is that the *question* is
+now "which position does the project take", not "which implementation is wrong".
