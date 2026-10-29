@@ -5,17 +5,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/cocokoishi/gotavern/internal/app"
 	"github.com/cocokoishi/gotavern/internal/assetmanifest"
+	"github.com/cocokoishi/gotavern/internal/commandline"
 	"github.com/cocokoishi/gotavern/internal/migrate"
+	"github.com/cocokoishi/gotavern/internal/startup"
 	"github.com/cocokoishi/gotavern/upstream"
 )
 
@@ -39,18 +43,26 @@ func main() {
 }
 
 func run(args []string) error {
+	return runWithStreams(args, os.Stdout, os.Stderr)
+}
+
+// runWithStreams is run with its output streams injected, so a test can capture
+// exactly what a user would see on stdout and stderr separately. pinned's own
+// help and version output goes to stdout (yargs `showHelp("log")` /
+// `showVersion("log")`), which the previous stderr-only usage text contradicted.
+func runWithStreams(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		return runServer(args)
+		return runServer(args, stdout, stderr)
 	}
 	if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		printUsage()
+		printUsage(stdout)
 		return nil
 	}
 	if args[0] == "--version" {
-		return run(append([]string{"version"}, args[1:]...))
+		return runWithStreams(append([]string{"version"}, args[1:]...), stdout, stderr)
 	}
 	if strings.HasPrefix(args[0], "--") {
-		return runServer(args)
+		return runServer(args, stdout, stderr)
 	}
 
 	switch args[0] {
@@ -61,14 +73,14 @@ func run(args []string) error {
 			SillyTavernCommit:  upstream.SillyTavernCommit,
 		}
 		if len(args) == 2 && args[1] == "--json" {
-			encoder := json.NewEncoder(os.Stdout)
+			encoder := json.NewEncoder(stdout)
 			encoder.SetIndent("", "  ")
 			return encoder.Encode(info)
 		}
 		if len(args) != 1 {
 			return fmt.Errorf("usage: gotavern version [--json]")
 		}
-		fmt.Printf("GoTavern %s\nSillyTavern baseline %s (%s)\n", info.GoTavernVersion, info.SillyTavernVersion, info.SillyTavernCommit)
+		fmt.Fprintf(stdout, "GoTavern %s\nSillyTavern baseline %s (%s)\n", info.GoTavernVersion, info.SillyTavernVersion, info.SillyTavernCommit)
 		return nil
 	case "assets":
 		if len(args) != 2 || args[1] != "verify" {
@@ -85,7 +97,7 @@ func run(args []string) error {
 			if err := assetmanifest.Verify(upstream.Assets, item.root, item.manifest); err != nil {
 				return err
 			}
-			fmt.Printf("verified upstream/%s\n", item.root)
+			fmt.Fprintf(stdout, "verified upstream/%s\n", item.root)
 		}
 		// tokenizers is shipped as a DIRECTORY BESIDE THE BINARY, not in the embedded filesystem,
 		// because that is where the tokenizer routes read it from (<InstallRoot>/tokenizers). Only
@@ -96,7 +108,7 @@ func run(args []string) error {
 		// high -- so a release could pass verification and then silently count every prompt wrong.
 		// A browser probe measured exactly that signature and it was misread as a tokenizer route
 		// defect until the installation layout was checked.
-		if err := verifyInstalledTokenizers(); err != nil {
+		if err := verifyInstalledTokenizers(stdout); err != nil {
 			return err
 		}
 		return nil
@@ -108,12 +120,12 @@ func run(args []string) error {
 		if parseErr != nil {
 			return parseErr
 		}
-		return migrate.Run(options, os.Stdout)
+		return migrate.Run(options, stdout)
 	default:
 		if args[0] == "start" {
-			return runServer(args[1:])
+			return runServer(args[1:], stdout, stderr)
 		}
-		printUsage()
+		printUsage(stdout)
 		return fmt.Errorf("unknown command %q", args[0])
 	}
 }
@@ -121,7 +133,7 @@ func run(args []string) error {
 // verifyInstalledTokenizers hashes the tokenizers directory beside the executable against the
 // embedded manifest. It fails when the tree is absent, which is the point: without it the tokenizer
 // routes silently degrade to guesstimates instead of reporting a broken installation.
-func verifyInstalledTokenizers() error {
+func verifyInstalledTokenizers(stdout io.Writer) error {
 	manifest, err := fs.ReadFile(upstream.Assets, "manifests/tokenizers.sha256")
 	if err != nil {
 		return fmt.Errorf("read embedded tokenizers manifest: %w", err)
@@ -152,13 +164,13 @@ func verifyInstalledTokenizers() error {
 		if err := assetmanifest.VerifyWithManifest(os.DirFS(candidate.dir), candidate.tree, "manifests/tokenizers.sha256", manifest); err != nil {
 			return err
 		}
-		fmt.Printf("verified installed tokenizers (%s)\n", filepath.Join(candidate.dir, candidate.tree))
+		fmt.Fprintf(stdout, "verified installed tokenizers (%s)\n", filepath.Join(candidate.dir, candidate.tree))
 		return nil
 	}
 	return fmt.Errorf("tokenizers are missing from %s, %s and %s: the tokenizer routes would silently fall back to guesstimates", filepath.Join(installRoot, "src", "tokenizers"), installRoot, filepath.Join(installRoot, "upstream", "tokenizers"))
 }
 
-func runServer(args []string) error {
+func runServer(args []string, stdout, stderr io.Writer) error {
 	workingDirectory, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("get working directory: %w", err)
@@ -172,16 +184,17 @@ func runServer(args []string) error {
 		Args:             args,
 		WorkingDirectory: workingDirectory,
 		InstallRoot:      installRoot,
+		StartupTrace:     stderr,
 	})
 	if err != nil {
 		var startupError *app.StartupError
 		if errors.As(err, &startupError) {
 			for _, event := range startupError.SecurityEvents {
 				if len(event.Args) == 0 {
-					fmt.Fprintln(os.Stderr)
+					fmt.Fprintln(stderr)
 					continue
 				}
-				fmt.Fprintln(os.Stderr, strings.Join(event.Args, " "))
+				fmt.Fprintln(stderr, strings.Join(event.Args, " "))
 			}
 		}
 		return err
@@ -193,35 +206,41 @@ func runServer(args []string) error {
 	}()
 
 	for _, warning := range running.CommandLine.Paths.Warnings {
-		fmt.Fprintln(os.Stderr, warning.Message)
+		fmt.Fprintln(stderr, warning.Message)
 	}
 	for _, diagnostic := range running.DataStartup.Diagnostics {
-		fmt.Fprintf(os.Stderr, "Warning: %s: %v\n", diagnostic.Stage, diagnostic.Err)
+		fmt.Fprintf(stderr, "Warning: %s: %v\n", diagnostic.Stage, diagnostic.Err)
 	}
 	for _, failure := range running.ListenerFailures {
 		family := "IPv4"
 		if failure.IPv6 {
 			family = "IPv6"
 		}
-		fmt.Fprintf(os.Stderr, "Warning: failed to start server on %s: %v\n", family, failure.Err)
+		fmt.Fprintf(stderr, "Warning: failed to start server on %s: %v\n", family, failure.Err)
 	}
+
+	// PINNED ORDER: postSetupTasks launches the browser (src/server-main.js:362-395) BEFORE it prints the
+	// listener lines and the `Go to:` line (:421-446), so the launch line is the first thing a user sees.
+	// The launch is gated on the existing `browserLaunch.enabled` key -- true on a fresh install because
+	// GoTavern ships pinned's default/config.yaml -- and never fails the boot.
+	options := running.CommandLine.Options
+	launchBrowser(stdout, stderr, options, running.CommandLine.BrowserLaunchApp, running.Protocols.UseIPv6, running.Protocols.UseIPv4, runtime.GOOS, execBrowserOpener)
+
 	if running.StartedIPv6 {
-		fmt.Printf("GoTavern is listening on IPv6: %s\n", running.Listeners()[0].Addr())
+		fmt.Fprintf(stdout, "GoTavern is listening on IPv6: %s\n", running.Listeners()[0].Addr())
 	}
 	if running.StartedIPv4 {
 		index := 0
 		if running.StartedIPv6 {
 			index = 1
 		}
-		fmt.Printf("GoTavern is listening on IPv4: %s\n", running.Listeners()[index].Addr())
+		fmt.Fprintf(stdout, "GoTavern is listening on IPv4: %s\n", running.Listeners()[index].Addr())
 	}
-	hostname := running.CommandLine.Options.ResolveBrowserLaunchHostname(running.Protocols.UseIPv6, running.Protocols.UseIPv4)
-	browserURL, err := running.CommandLine.Options.BrowserLaunchURL(fmt.Sprint(hostname))
-	if err == nil {
-		fmt.Printf("Go to: %s to open GoTavern\n", browserURL)
-	}
-	if running.CommandLine.Options.BrowserLaunchEnabled == true {
-		fmt.Fprintln(os.Stderr, "Warning: automatic browser launch is not implemented; open the URL above manually")
+	// PINNED `listen: true` HINT BLOCK (src/server-main.js:439-443). It is printed whenever the listener
+	// is network-visible, and it is the operator's only pointer to the per-connection log.
+	printListenHint(stdout, jsTruthy(options.Listen), running.CommandLine.Paths.RuntimeDataRoot)
+	if browserURL, urlErr := resolveBrowserLaunchTarget(options, running.Protocols.UseIPv6, running.Protocols.UseIPv4); urlErr == nil {
+		fmt.Fprintf(stdout, "Go to: %s to open GoTavern\n", browserURL)
 	}
 
 	signals := make(chan os.Signal, 1)
@@ -229,7 +248,7 @@ func runServer(args []string) error {
 	defer signal.Stop(signals)
 	select {
 	case received := <-signals:
-		fmt.Fprintf(os.Stderr, "Shutting down after %s\n", received)
+		fmt.Fprintf(stderr, "Shutting down after %s\n", received)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		return running.Close(ctx)
@@ -238,13 +257,27 @@ func runServer(args []string) error {
 	}
 }
 
-func printUsage() {
-	fmt.Fprintln(os.Stderr, "Usage:")
-	fmt.Fprintln(os.Stderr, "  gotavern [server options]")
-	fmt.Fprintln(os.Stderr, "  gotavern start [server options]")
-	fmt.Fprintln(os.Stderr, "  gotavern version [--json]")
-	fmt.Fprintln(os.Stderr, "  gotavern assets verify")
-	fmt.Fprintln(os.Stderr, "  gotavern migrate --from <sillytavern-root> --dest <dir> [--dry-run] [--force]")
-	fmt.Fprintln(os.Stderr, "  gotavern help")
-	fmt.Fprintln(os.Stderr, "")
+// printListenHint reproduces pinned's listen-mode hint block
+// (src/server-main.js:439-443), including the blank line before it and the
+// access.log path it names. It is printed on stdout whenever `listen` is true,
+// independently of logging.enableAccessLog -- that is pinned's own condition.
+func printListenHint(stdout io.Writer, listen bool, dataRoot string) {
+	if !listen {
+		return
+	}
+	fmt.Fprintln(stdout)
+	fmt.Fprintln(stdout, `To limit connections to internal localhost only ([::1] or 127.0.0.1), change the setting in config.yaml to "listen: false".`)
+	fmt.Fprintf(stdout, "Check the \"access.log\" file in the data directory to inspect incoming connections: %s\n", startup.AccessLogPath(dataRoot))
+}
+
+func printUsage(stdout io.Writer) {
+	fmt.Fprintln(stdout, "Usage:")
+	fmt.Fprintln(stdout, "  gotavern [server options]")
+	fmt.Fprintln(stdout, "  gotavern start [server options]")
+	fmt.Fprintln(stdout, "  gotavern version [--json]")
+	fmt.Fprintln(stdout, "  gotavern assets verify")
+	fmt.Fprintln(stdout, "  gotavern migrate --from <sillytavern-root> --dest <dir> [--dry-run] [--force]")
+	fmt.Fprintln(stdout, "  gotavern help")
+	fmt.Fprintln(stdout, "")
+	fmt.Fprint(stdout, commandline.OptionsHelp())
 }

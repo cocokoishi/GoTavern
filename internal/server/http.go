@@ -100,6 +100,24 @@ type HTTPHandlerOptions struct {
 	// Thumbnails is the /thumbnail codec decision (ARCHITECTURE.md 35.2): enabled, encoded format and
 	// jpeg quality, parsed from thumbnails.* with pinned's predicates and defaults. SEE thumbnails.go.
 	Thumbnails ThumbnailSettings
+
+	// Listen is pinned's `listen` option. It is not only a listener setting: the pinned access logger
+	// is mounted ONLY when it is true (src/server-main.js:152-154), so the fresh-install `listen: false`
+	// produces no access log however logging.enableAccessLog is set.
+	Listen bool
+	// AccessLogEnabled is logging.enableAccessLog, whose pinned default is true
+	// (src/middleware/accessLogWriter.js:6).
+	AccessLogEnabled bool
+
+	// accessLogConsole and accessLogErrors receive the pinned console.info/console.error lines of the
+	// access logger. Nil means os.Stdout / os.Stderr, which is what the shipped binary uses; tests
+	// substitute buffers so they can assert the console line's exact shape.
+	accessLogConsole io.Writer
+	accessLogErrors  io.Writer
+	// accessLogNow supplies the timestamp the pinned middleware writes
+	// (`new Date().toISOString()`, accessLogWriter.js:46). Nil means time.Now; tests inject a fixed
+	// clock so the exact line bytes are assertable.
+	accessLogNow func() time.Time
 }
 
 // HTTPHandlerOptionsFromCommandLine translates config-derived values used by
@@ -108,6 +126,8 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 	settings := parsed.StartupSettings
 	options := HTTPHandlerOptions{
 		DataRoot:              parsed.Paths.RuntimeDataRoot,
+		Listen:                optionBoolean(parsed.Options.Listen),
+		AccessLogEnabled:      parsed.AccessLogEnabled,
 		DisableCSRF:           optionBoolean(parsed.Options.DisableCsrf),
 		EnableCorsProxy:       optionBoolean(parsed.Options.EnableCorsProxy),
 		WhitelistEnabled:      optionBoolean(parsed.Options.WhitelistMode),
@@ -298,6 +318,11 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	accounts := newAccountRuntime(options)
 	basicAuth := newBasicAuthRuntime(options)
 	hostWhitelist := newHostWhitelistRuntime(options)
+	// The pinned access logger is mounted only in listen mode (src/server-main.js:152-154).
+	var accessLog *accessLogWriter
+	if options.Listen {
+		accessLog = newAccessLogWriter(options)
+	}
 	corsSettings := pinnedCORSSettingsFromOptions(options)
 	methodlessOptionsRoutes := pinnedExpressMethodlessOptionsMethods()
 	mux := http.NewServeMux()
@@ -507,6 +532,12 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 		}
 		if !hostWhitelist.allow(w, r) {
 			return
+		}
+		// PINNED POSITION: after the whitelist and host-whitelist middleware, before the cookie
+		// session (src/server-main.js:150-156). A request those middleware refuse is never logged,
+		// which is why this sits below them rather than at the top of the chain.
+		if accessLog != nil {
+			accessLog.record(r)
 		}
 		var session *cookieSession
 		if options.AccountsEnabled || (r.URL.Path == "/csrf-token" && r.Method == http.MethodGet) || (r.Method == http.MethodPost && (r.URL.Path == "/api/users/logout" || r.URL.Path == "/api/users/change-password")) || (!options.DisableCSRF && requiresCSRFSynchronization(r, options)) {

@@ -17,6 +17,16 @@ type AccessLogMigrationResult struct {
 	Errors   []error
 }
 
+// AccessLogPath returns the per-connection log's location, which pinned computes
+// as path.join(globalThis.DATA_ROOT, 'access.log') in
+// src/middleware/accessLogWriter.js:10. It is exported because three callers
+// must agree on it: the migration below, the writer middleware that appends to
+// it, and the `listen: true` hint that prints it
+// (src/server-main.js:442).
+func AccessLogPath(dataRoot string) string {
+	return filepath.Join(dataRoot, "access.log")
+}
+
 // MigrateAccessLog moves serverDirectory/access.log into DATA_ROOT only when
 // the source exists and the destination does not.
 func MigrateAccessLog(serverDirectory, dataRoot string) AccessLogMigrationResult {
@@ -29,7 +39,7 @@ func MigrateAccessLog(serverDirectory, dataRoot string) AccessLogMigrationResult
 		return AccessLogMigrationResult{Errors: []error{fmt.Errorf("resolve data root: %w", err)}}
 	}
 	source := filepath.Join(installRoot, "access.log")
-	destination := filepath.Join(absoluteDataRoot, "access.log")
+	destination := AccessLogPath(absoluteDataRoot)
 	if err := ensureContained(installRoot, source); err != nil {
 		return AccessLogMigrationResult{Errors: []error{fmt.Errorf("invalid legacy access-log path: %w", err)}}
 	}

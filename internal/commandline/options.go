@@ -120,6 +120,16 @@ type CommandLineResult struct {
 	// not contain this key, and adding it there made the command-line differential disagree with
 	// Node in four scenarios before this was split out.
 	ImportDomainsWhitelist []string `json:"-"`
+	// BrowserLaunchApp carries String(getConfigValue('browserLaunch.browser', 'default') ?? ''),
+	// which the pinned postSetupTasks reads at src/server-main.js:365 -- NOT through the parser, so
+	// it is not one of the resolved options and must not be added to that compared map. It is the
+	// label the launch line prints and the key the named-application lookup uses.
+	BrowserLaunchApp string `json:"-"`
+	// AccessLogEnabled carries logging.enableAccessLog, which the pinned access-log middleware reads
+	// at src/middleware/accessLogWriter.js:6 with a default of true. Like the two fields above it is
+	// read straight from the config rather than through the startup settings map, so it is excluded
+	// from the serialized result.
+	AccessLogEnabled bool `json:"-"`
 }
 
 type cliOptionKind uint8
@@ -284,7 +294,29 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		UseDiskCache:               getConfigValue(config, "performance.useDiskCache", true, cliBoolean),
 		SettingsBackupRetention:    getConfigValue(config, "backups.common.numberOfBackups", 50, cliNumber),
 	}
-	return CommandLineResult{Paths: paths, Options: result, StartupSettings: startupSettings, Warnings: warnings, TokenizersDownloadAllowed: tokenizersDownloadAllowed(config), ImportDomainsWhitelist: importDomainsWhitelist(config)}, nil
+	return CommandLineResult{Paths: paths, Options: result, StartupSettings: startupSettings, Warnings: warnings, TokenizersDownloadAllowed: tokenizersDownloadAllowed(config), ImportDomainsWhitelist: importDomainsWhitelist(config), BrowserLaunchApp: browserLaunchApp(config), AccessLogEnabled: accessLogEnabled(config)}, nil
+}
+
+// browserLaunchApp resolves browserLaunch.browser the way the pinned
+// postSetupTasks does (src/server-main.js:365):
+// String(getConfigValue('browserLaunch.browser', 'default') ?? empty).
+//
+// The nullish fallback is not decoration: an explicit YAML `browser: null` yields the
+// empty string, not "null", while a boolean or a list is stringified with
+// JavaScript's String() rules -- which is why jsString is reused here rather
+// than a type assertion that would silently drop an unusual value.
+func browserLaunchApp(config map[string]any) string {
+	value := getConfigValue(config, "browserLaunch.browser", "default", cliString)
+	if value == nil {
+		return ""
+	}
+	return jsString(value)
+}
+
+// accessLogEnabled resolves logging.enableAccessLog with the pinned default of
+// true (src/middleware/accessLogWriter.js:6).
+func accessLogEnabled(config map[string]any) bool {
+	return jsBoolean(getConfigValue(config, "logging.enableAccessLog", true, cliBoolean))
 }
 
 // importDomainsWhitelist resolves whitelistImportDomains the way the pinned
