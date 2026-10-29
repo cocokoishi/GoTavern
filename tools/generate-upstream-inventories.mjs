@@ -133,6 +133,30 @@ function generateRoutes() {
             if (callee.type === 'MemberExpression' && !callee.computed && callee.object.type === 'Identifier'
                 && callee.object.name === 'express' && callee.property.name === 'Router') names.add(node.id.name);
         });
+        // KNOWN DEFECT, MEASURED 2026-10-29, RECORDED HERE BECAUSE IT SILENTLY DROPS ROWS.
+        //
+        // The detection above accepts ONLY `express.Router()`. Two pinned endpoint files instead import the
+        // constructor by name -- `import { Router } from 'express'` then `const router = Router()` -- and they are
+        // the ONLY two that do it this way across `src/endpoints/*.js`:
+        //
+        //     src/endpoints/azure.js:2,6        -> /api/azure/list (:8) and /api/azure/generate (:46)
+        //     src/endpoints/volcengine.js:2,6   -> /api/volcengine/generate-voice (:9)
+        //
+        // `names` therefore stays empty for those files, no declaration is emitted for them, and a REGENERATION
+        // would DROP the three rows a lane hand-added to `docs/api-inventory.md` for exactly those routes -- the
+        // same shape as the rule-43 failure this generator exists to prevent, arriving through the generator
+        // instead of through a probe. The rows were hand-written and are correct; what is wrong is that the tool
+        // cannot reproduce them.
+        //
+        // THE FIX, for whoever can run this file (it needs `espree`/`yaml`, which are not present in this tree and
+        // `npm` is out of bounds on the development host, so the change could not be TESTED here and an untested
+        // edit to a generator that rewrites committed inventories would be worse than this note): also collect the
+        // LOCAL NAMES bound from a `Router` imported from 'express', and accept a bare-Identifier callee that
+        // resolves to one. Then re-run the generator and confirm it reproduces the same three rows at
+        // `azure.js:8`, `azure.js:46` and `volcengine.js:9`; the status column is hand-maintained and keyed by
+        // method+path+file+line, so the existing statuses survive a regeneration. `importRouters` above already
+        // does the equivalent resolution for routers imported from OTHER files -- this is the same idea applied to
+        // the `express` import itself.
         visit(tree, node => {
             if (node.type === 'CallExpression' && node.callee.type === 'MemberExpression' && !node.callee.computed
                 && node.callee.property.name === 'use') {
