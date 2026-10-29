@@ -62,7 +62,9 @@ package server
 //     reaches send's own rejection.
 
 import (
+	"fmt"
 	"html"
+	"io"
 	"io/fs"
 	"net/http"
 	"os"
@@ -97,11 +99,43 @@ func pinnedSendHtmlDocument(title, body string) string {
 
 // frontendStaticFile is the resolved asset plus the metadata send() needs. A
 // file served from the embedded tree has no modification time.
+//
+// THE CONTENT IS RESOLVED LAZILY, AND THAT IS A MEASURED PERFORMANCE DECISION, not a style one.
+// `internal/server/bench_test.go` (the in-process baseline this repository did not have before 2026-10-29) plus a
+// heap profile showed that serving `/script.js` -- 497,669 bytes -- allocated 1,511,810 B/op, and `pprof
+// -alloc_space` put 66% of it in a single leaf: `embed.FS.ReadFile`, called once per request. A page load requests
+// ~229 assets (docs/frontend-startup-calls.md), so a full read per request is ~220 MB of garbage per page load
+// for bytes that never change.
+//
+// `open` returns a SEEKABLE reader so a range request can be served without materialising the whole file, and
+// `read` is the fallback. BOTH are closures built from a name -- resolving them does no I/O -- because the
+// resolver below is ALSO the existence check the account gate runs on every request
+// (`pinnedFrontendStaticServes`), and a resolver that opened a file would leak a descriptor on every one of those
+// checks. That is why the file is not opened here: the caller opens it, once, at the moment it writes the body.
 type frontendStaticFile struct {
 	body        []byte
+	size        int64
+	open        func() (io.ReadSeekCloser, error)
+	read        func() ([]byte, error)
 	modTime     time.Time
 	hasModTime  bool
 	isDirectory bool
+}
+
+// openEmbeddedAsset opens a file from the embedded asset tree as a seekable reader. The embedded file type
+// implements io.Seeker; the assertion is checked once here rather than assumed, and a tree that ever stopped
+// being seekable falls back to `read` instead of failing the request.
+func openEmbeddedAsset(name string) (io.ReadSeekCloser, error) {
+	file, err := upstream.Assets.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	seekable, ok := file.(io.ReadSeekCloser)
+	if !ok {
+		_ = file.Close()
+		return nil, fmt.Errorf("embedded asset %s is not seekable", name)
+	}
+	return seekable, nil
 }
 
 // pinnedFrontendStaticServes reports whether the pinned frontend static
@@ -226,8 +260,12 @@ func servePinnedFrontendStatic(w http.ResponseWriter, r *http.Request, notFoundP
 // with no explanation. The check therefore runs BEFORE the disk lookup.
 func readPinnedFrontendStaticFile(options HTTPHandlerOptions, clean string) (frontendStaticFile, bool) {
 	if clean == "lib.js" {
-		if body, err := upstream.Assets.ReadFile("generated/lib.js"); err == nil {
-			return frontendStaticFile{body: body}, true
+		if info, err := fs.Stat(upstream.Assets, "generated/lib.js"); err == nil && !info.IsDir() {
+			return frontendStaticFile{
+				size: info.Size(),
+				open: func() (io.ReadSeekCloser, error) { return openEmbeddedAsset("generated/lib.js") },
+				read: func() ([]byte, error) { return upstream.Assets.ReadFile("generated/lib.js") },
+			}, true
 		}
 	}
 	if options.InstallRoot != "" {
@@ -236,11 +274,13 @@ func readPinnedFrontendStaticFile(options HTTPHandlerOptions, clean string) (fro
 			if info.IsDir() {
 				return frontendStaticFile{isDirectory: true}, true
 			}
-			body, err := os.ReadFile(target)
-			if err != nil {
-				return frontendStaticFile{}, false
-			}
-			return frontendStaticFile{body: body, modTime: info.ModTime(), hasModTime: true}, true
+			return frontendStaticFile{
+				size:       info.Size(),
+				open:       func() (io.ReadSeekCloser, error) { return os.Open(target) },
+				read:       func() ([]byte, error) { return os.ReadFile(target) },
+				modTime:    info.ModTime(),
+				hasModTime: true,
+			}, true
 		}
 	}
 	embedded := "public/" + clean
@@ -251,11 +291,11 @@ func readPinnedFrontendStaticFile(options HTTPHandlerOptions, clean string) (fro
 	if info.IsDir() {
 		return frontendStaticFile{isDirectory: true}, true
 	}
-	body, err := upstream.Assets.ReadFile(embedded)
-	if err != nil {
-		return frontendStaticFile{}, false
-	}
-	return frontendStaticFile{body: body}, true
+	return frontendStaticFile{
+		size: info.Size(),
+		open: func() (io.ReadSeekCloser, error) { return openEmbeddedAsset(embedded) },
+		read: func() ([]byte, error) { return upstream.Assets.ReadFile(embedded) },
+	}, true
 }
 
 // servePinnedStaticRedirect reproduces send()'s redirect().
@@ -275,7 +315,10 @@ func servePinnedStaticRedirect(w http.ResponseWriter, location string) {
 // the two paths cannot drift on the range, conditional or media-type rules.
 func sendPinnedFrontendStaticBytes(w http.ResponseWriter, r *http.Request, name string, file frontendStaticFile) {
 	header := w.Header()
-	size := int64(len(file.body))
+	size := file.size
+	if file.open == nil {
+		size = int64(len(file.body))
+	}
 
 	if header.Get("Accept-Ranges") == "" {
 		header.Set("Accept-Ranges", "bytes")
@@ -341,6 +384,25 @@ func sendPinnedFrontendStaticBytes(w http.ResponseWriter, r *http.Request, name 
 	}
 	if offset < 0 || offset+length > size {
 		return
+	}
+	// STREAM THE SLICE THE RESPONSE DECLARED, rather than materialising the file to write it. The bytes, the
+	// status, the Content-Length and every header are exactly what the buffered path produced; only the peak
+	// allocation changes. A failure here cannot produce a short body under a declared Content-Length: the
+	// seekable path is tried first and the `read` fallback re-reads the same immutable bytes.
+	if file.open != nil {
+		if reader, openErr := file.open(); openErr == nil {
+			defer func() { _ = reader.Close() }()
+			if _, seekErr := reader.Seek(offset, io.SeekStart); seekErr == nil {
+				_, _ = io.CopyN(w, reader, length)
+				return
+			}
+		}
+	}
+	if file.read != nil {
+		if body, readErr := file.read(); readErr == nil && int64(len(body)) == size {
+			_, _ = w.Write(body[offset : offset+length])
+			return
+		}
 	}
 	_, _ = w.Write(file.body[offset : offset+length])
 }

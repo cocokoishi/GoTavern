@@ -12,6 +12,15 @@
 /gotavern
 /gotavern.exe
 /coverage.out
+# Compiled test binaries. `go test` writes `<pkg>.test` (or `.test.exe` on Windows) into the package directory,
+# and `go test -c` / a profiled run can leave one in the repository root. Untracked and unignored is the
+# combination that makes a `git add -A` stage a binary (AGENTS.md rule 56: intent does not constrain the set).
+*.test
+*.test.exe
+*.out
+# CPU and heap profiles from the benchmarks in internal/server/bench_test.go.
+/cpu.out
+/mem.out
 # The binaries the browser differential runs (`.browser-bin/gotavern` and `.browser-bin/mock-provider`,
 # built by browser-differential.yml). It is ~70 MB of build output that lives in the working tree, and it
 # was NOT ignored: a `git add -A` -- which this repository has already been burned by twice, once absorbing
