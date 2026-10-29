@@ -445,7 +445,8 @@ func assertProviderRequest(t *testing.T, recorded mockprovider.Request, scenario
 }
 
 // assertProductionTransportFingerprint is the assertion that this request was NOT carried by the
-// wire-exact client. See the harness comment for why these three headers are the discriminators.
+// wire-exact client. See the harness comment for why accept-encoding and the canonicalised Content-Type
+// are the discriminators.
 func assertProductionTransportFingerprint(t *testing.T, recorded mockprovider.Request, name string) {
 	t.Helper()
 
@@ -462,10 +463,23 @@ func assertProductionTransportFingerprint(t *testing.T, recorded mockprovider.Re
 			"proved nothing about user traffic.", name, encoding)
 	}
 
-	if connection, present := headerValue(recorded, "connection"); present {
-		t.Fatalf("%s: the peer received `Connection: %s`. The production client sends no Connection "+
-			"header (it keeps the connection alive and reuses it); `Connection: close` is the plans' "+
-			"node-fetch value that only the wire-exact client reproduces.", name, connection)
+	// THE CONNECTION HEADER NOW FOLLOWS `enableKeepAlive`, AND ITS DEFAULT IS OFF. This assertion used
+	// to require its ABSENCE, because the production client always kept the connection alive; it now
+	// requires `close`, because the production client honours the pinned command-line default
+	// (`src/command-line.js:323`, default false at `:80`), and Go's transport signals a non-reused
+	// connection with `Connection: close`.
+	//
+	// MEASURED 2026-10-29: the previous form failed all three legs of
+	// TestDeepSeekGenerateEndToEndThroughTheProductionTransport ("the peer received `Connection: close`")
+	// as soon as that default was honoured. The change is product-correct and this header is NOT the
+	// production-vs-wire-exact discriminator any more -- node-fetch also writes `close`, so both clients
+	// agree here. The two discriminators that remain are asserted above (accept-encoding exactly `gzip`)
+	// and below (canonicalised `Content-Type`), and the keep-alive behaviour itself is asserted with a
+	// connection count in TestProductionTransportKeepAliveFollowsTheConfigKey.
+	if connection, present := headerValue(recorded, "connection"); !present || !strings.EqualFold(connection, "close") {
+		t.Fatalf("%s: the peer received Connection: %q (present=%v), want exactly \"close\". The shipped "+
+			"default is `enableKeepAlive: false` (pinned src/command-line.js:323, default :80), so the "+
+			"production client must not reuse the connection for this request.", name, connection, present)
 	}
 
 	canonical := false
