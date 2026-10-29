@@ -318,12 +318,35 @@ func TestHordeImageCancelOnDisconnect(t *testing.T) {
 		close(done)
 	}()
 	// Let the submission land, then disconnect.
-	deadline := time.Now().Add(2 * time.Second)
+	//
+	// THE PRECONDITION IS "THE CLIENT HAS THE GENERATION ID", NOT "THE PEER SAW A REQUEST". Waiting for
+	// `len(peer.seen) > 0` is satisfied the moment the peer's handler runs, which is BEFORE the client has
+	// received the response -- so a cancel landing in that window aborts the submission POST itself, the
+	// handler takes its `!found` branch, and there is no id to DELETE. Not sending a DELETE for a
+	// generation that was never started is correct product behaviour; the assertion then failed for a
+	// reason that has nothing to do with cancellation.
+	//
+	// MEASURED 2026-10-29 in a whole-package run: this test failed once with "a cancelled request must
+	// send DELETE /generate/status/{id}", and passed both in isolation and on a re-run. The window widened
+	// when the production transport started honouring pinned's `enableKeepAlive: false` default (one
+	// connection per request instead of a pooled one), which turned the race from rare into observable.
+	//
+	// `/generate/check/` is the subject's OWN evidence that it received the id and entered the poll loop --
+	// the state a cancel is supposed to interrupt. This is AGENTS.md rule 10's shape (derive the driver's
+	// precondition from the flag the subject itself checks) and it does not weaken the assertion below: a
+	// DELETE is still required, and nothing about the wait can satisfy it.
+	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		peer.mu.Lock()
-		submitted := len(peer.seen) > 0
+		polling := false
+		for _, entry := range peer.seen {
+			if strings.Contains(entry.Path, "/generate/check/") {
+				polling = true
+				break
+			}
+		}
 		peer.mu.Unlock()
-		if submitted {
+		if polling {
 			break
 		}
 		time.Sleep(5 * time.Millisecond)
