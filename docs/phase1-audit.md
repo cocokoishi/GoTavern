@@ -310,3 +310,36 @@ request than the one being described, and a "comparator discrepancy" that was th
 instrument was right each time. The lesson is not "trust the tooling" but the project's own rule applied to
 reporting: **a derived field is not a measurement, and a reading must be checked against its source before it
 is reported as a finding.**
+
+
+### 9b. The guard's marker dependency, confirmed by a controlled comparison
+
+The claim in 9 was that `aEnabledRowPointingAtDisabledPromptContributes` fails on real content because it
+identifies a prompt's body by the `MARK_NNNNNN` marker the derivation substitutes for prose. **A claim about a
+cause deserves a control**, so the same four-leg comparison was run a second time against the **committed
+derivation** -- same probe, same runner pattern, same comparator, one variable changed.
+
+```
+COMMITTED DERIVATION (tests/browser/fixtures/real/preset-{a,b}.json)
+  verdict        match
+  failedGuards   []
+  all ten guards ok, including aEnabledRowPointingAtDisabledPromptContributes
+
+REAL PRIVATE PRESETS
+  verdict        mismatch
+  failedGuards   ["aEnabledRowPointingAtDisabledPromptContributes"]
+  nine of ten guards ok; every parity guard true
+```
+
+**Two data points, one variable.** The guard passes where the markers are and fails where they are not, with
+every other guard true in both cases -- so the failure is the fixture's marker dependency and not the product,
+and not a defect in the guard itself.
+
+**The derivation run is public-safe** -- its fixture is committed -- so unlike the Layer A run this result can
+be stated in full: **the committed derivation reaches `verdict: match` with all ten guards green on this
+host.** That is worth recording as a baseline, because it means the comparator's own happy path is confirmed
+locally and the only thing standing between Layer A and a `match` verdict is the marker dependency.
+
+**What the fix must preserve, therefore:** whatever makes the enabled-row property satisfiable on real content
+must leave the derivation's `match` intact. The guard is a real assertion on the class where it works, so the
+change is additive -- a second way to identify the bodies -- rather than a replacement.
