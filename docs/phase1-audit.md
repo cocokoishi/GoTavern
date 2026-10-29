@@ -740,3 +740,42 @@ loosened.
 **deliberate loosening of a check whose own comment says this surface can judge the property**. That is a
 different and more expensive thing than section 15 implied, and it should be chosen with that in view rather
 than as the cheap option.
+
+
+### 17. Correction: narrowing the claim does not resolve the gate, so position 3 does not work
+
+Section 16 recommended position 3 -- narrow half (ii) to what both subjects do -- as "the cheapest honest
+resolution". **That recommendation is wrong**, and reading the checker's two failure sites shows why.
+
+The two failures are at different places and answer different questions:
+
+```
+line 485   ctx.fail(`asymmetries names ${asymmetry.guard} (gotavern=..., pinned=...): a guard true on one
+           subject and false on the other is the difference this comparison exists to find`);
+line 496   // ... a declaration here is a contradiction rather than an excusal.
+           for (const guard of required) { if (declared.has(guard)) ctx.fail(...); }
+```
+
+**Line 485 asks whether the two subjects differ. It does not read the claim at all.** So rewording half (ii)
+-- in the probe's header and in its `question` field -- leaves that failure exactly where it is. **The
+asymmetry is a fact about the two subjects, not about the sentence describing them.**
+
+**Which means every position reduces to the same two options:**
+
+1. **Make the subjects agree.** A behaviour change, and the only path that leaves every check intact.
+2. **Loosen the asymmetry check** for this guard, deliberately, with a recorded reason.
+
+**Position 3 was never a third option.** Narrowing the claim would additionally have to excuse the asymmetry,
+and excusing it is the loosening -- so position 3 was position 2 wearing a cheaper-looking name, and I
+recommended it without checking which check it addressed.
+
+**What that leaves as the honest recommendation:** **position 1**, and its cost is now the whole cost -- GOAL
+§3's stronger claim has to be amended, because the project cannot both claim that a variable survives a new
+server process and require GoTavern to lose it. That is a real product decision with a real document
+consequence, and it is the only path that does not weaken a check.
+
+**A note on the `required` list, recorded because it bears on any loosening.** The checker's own comment says
+what that list is for: *"They are REQUIRED here, not merely recorded: the artefact used to list them in
+`unproven[]`, and a required-list entry is what turns 'driven' into 'cannot silently regress to unproven'."*
+So removing an entry is not a tidying edit -- it is the exact regression the list was built to prevent, and
+rule 32's standard applies to it.
