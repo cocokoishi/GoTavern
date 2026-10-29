@@ -21,12 +21,12 @@
 //
 // Usage: node tools/compat-matrix/check.mjs [--quiet]
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-import { loadMatrix, render, computeDerived, repoRoot, markdownPath } from './render.mjs';
+import { loadMatrix, render, computeDerived, goTestFunctions, repoRoot, markdownPath } from './render.mjs';
 
 const STATUSES = new Set(['PASS', 'PARTIAL', 'FAIL', 'NOT_APPLICABLE']);
 const EVIDENCE_SLOTS = ['oracleFixtures', 'upstreamAssets', 'implementation', 'tests', 'browserArtifacts', 'ci'];
@@ -35,26 +35,13 @@ const failures = [];
 const fail = (where, message) => failures.push(`${where}: ${message}`);
 
 // ---------------------------------------------------------------------------------------------
-// A test name is real when some *_test.go declares it. Read once: the tree has ~500 of them and the
-// matrix cites a few dozen, so a set is cheaper than a scan per citation.
+// A test name is real when some TRACKED *_test.go declares it. The enumeration lives in `render.mjs`
+// (`goTestFunctions`) so this gate and the count it validates cannot answer "is this a declared test?"
+// from two different walks -- which they did until 2026-10-29: the generator skipped `upstream/` and this
+// file did not, so a citation of `TestPinnedAssetManifests` resolved here and counted as uncited there.
+// `TestMain` is not a test and is excluded by the shared definition.
 // ---------------------------------------------------------------------------------------------
-function goTestNames() {
-    const names = new Set();
-    const walk = directory => {
-        for (const entry of readdirSync(directory, { withFileTypes: true })) {
-            if (entry.name === '.git' || entry.name === 'node_modules') continue;
-            const full = path.join(directory, entry.name);
-            if (entry.isDirectory()) {
-                walk(full);
-            } else if (entry.name.endsWith('_test.go')) {
-                const source = readFileSync(full, 'utf8');
-                for (const match of source.matchAll(/^func (Test[A-Za-z0-9_]+)\(/gm)) names.add(match[1]);
-            }
-        }
-    };
-    walk(repoRoot);
-    return names;
-}
+const tests = goTestFunctions().names;
 
 // `ci.yml#job` -- the workflow must exist and the job must be declared in it.
 function resolveCi(jobReference) {
@@ -69,7 +56,6 @@ function resolveCi(jobReference) {
 }
 
 const matrix = loadMatrix();
-const tests = goTestNames();
 
 if (matrix.schemaVersion !== 1) fail('meta', `schemaVersion is ${matrix.schemaVersion}, expected 1`);
 

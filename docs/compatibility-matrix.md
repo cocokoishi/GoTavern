@@ -562,12 +562,14 @@ Forbidden: dropping whole response bodies; sorting arrays whose order is the con
 
 Recomputed by `tools/compat-matrix/check.mjs` on every run; a disagreement fails the build, so these
 numbers cannot drift away from the tree the way four documents once disagreed about one route count.
+"Go test functions" counts `func Test...` declarations in tracked `*_test.go` files, from `git ls-files`,
+with `TestMain` excluded because it is a package's test entry point rather than a test.
 
 | Measure | In the tree | Cited by this matrix |
 |---|---|---|
 | Oracle fixtures | 119 | 67 |
 | Browser artefacts | 37 | 11 |
-| Go test functions | 666 | 66 |
+| Go test functions | 689 | 66 |
 | Workflow jobs | 32 in 9 workflow(s) | _n/a_ |
 | Rows | 22 | PASS 0, PARTIAL 18, FAIL 3, NOT_APPLICABLE 1 |
 | Session steps | 8 | 7 with a probe, 1 without, 0 sharing a runtime |

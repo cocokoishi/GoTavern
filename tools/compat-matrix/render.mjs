@@ -9,6 +9,7 @@
 // Deterministic by construction: rows are emitted in JSON order, no timestamps, no host paths, no counts
 // computed from the environment. Two runs on two machines produce identical bytes.
 
+import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -30,14 +31,34 @@ export function loadMatrix() {
 // a CI job turns the matrix red until it is regenerated — which is what makes this a gate and not a
 // document (AGENTS.md 36: documentation may not claim ahead of evidence).
 // ---------------------------------------------------------------------------------------------------
-function walk(directory, accept, found = []) {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-        if (entry.name === '.git' || entry.name === 'node_modules' || entry.name === 'upstream') continue;
-        const full = path.join(directory, entry.name);
-        if (entry.isDirectory()) walk(full, accept, found);
-        else if (accept(entry.name)) found.push(full);
+// ---------------------------------------------------------------------------------------------------
+// GO TEST FUNCTIONS are enumerated from the COMMITTED tree (`git ls-files`), not from a filesystem walk.
+// Three defects in the walk this replaces, each measured on 2026-10-29:
+//   * it started at the repository root, so an untracked scratch `*_test.go` would inflate the count, and
+//     this repository keeps a gitignored `.private-fixtures` area inside that root -- a count that depends
+//     on what a developer left on disk is not a fact about the tree;
+//   * it counted `TestMain`, which is a package's test ENTRY POINT rather than a test. Three packages
+//     declare one, so the reported total carried three non-tests;
+//   * it skipped the whole `upstream/` directory to avoid the vendored asset trees under it, which also
+//     dropped `upstream/assets_test.go` and `upstream/tokenizers_test.go` -- three real tests -- while
+//     `check.mjs` walked the same root WITHOUT that exclusion, so the generator and the gate that validates
+//     the generator's citations answered "is this a declared test?" from two different definitions.
+// Both callers now share this one definition. `TestMain` is excluded by name and never counted.
+export function goTestFunctions() {
+    const files = execFileSync('git', ['-C', repoRoot, 'ls-files', '--', '*_test.go'], { encoding: 'utf8' })
+        .split('\n')
+        .filter(Boolean);
+    const names = new Set();
+    let count = 0;
+    for (const relative of files) {
+        const source = readFileSync(path.join(repoRoot, relative), 'utf8');
+        for (const match of source.matchAll(/^func (Test[A-Za-z0-9_]+)\(/gm)) {
+            if (match[1] === 'TestMain') continue;
+            names.add(match[1]);
+            count++;
+        }
     }
-    return found;
+    return { names, count };
 }
 
 export function computeDerived(matrix) {
@@ -46,10 +67,7 @@ export function computeDerived(matrix) {
     const oracleFixtures = readdirSync(fixtureDir).filter(name => name.endsWith('.json'));
     const browserArtefacts = readdirSync(browserDir).filter(name => name.endsWith('-comparison.json'));
 
-    const goTestFunctions = new Set();
-    for (const file of walk(repoRoot, name => name.endsWith('_test.go'))) {
-        for (const match of readFileSync(file, 'utf8').matchAll(/^func (Test[A-Za-z0-9_]+)\(/gm)) goTestFunctions.add(match[1]);
-    }
+    const goTest = goTestFunctions();
 
     const workflowDir = path.join(repoRoot, '.github', 'workflows');
     const workflows = readdirSync(workflowDir).filter(name => name.endsWith('.yml'));
@@ -77,8 +95,8 @@ export function computeDerived(matrix) {
             citedByMatrix: browserArtefacts.filter(name => citedArtefacts.has(`tests/browser/${name}`)).length,
         },
         goTestFunctions: {
-            inTree: goTestFunctions.size,
-            citedByMatrix: [...citedTests].filter(entry => goTestFunctions.has(entry)).length,
+            inTree: goTest.count,
+            citedByMatrix: [...citedTests].filter(entry => goTest.names.has(entry)).length,
         },
         workflows: { inTree: workflows.length, jobsInTree: ciJobs },
         rows: {
@@ -232,6 +250,8 @@ export function render(matrix) {
         push('');
         push('Recomputed by `tools/compat-matrix/check.mjs` on every run; a disagreement fails the build, so these');
         push('numbers cannot drift away from the tree the way four documents once disagreed about one route count.');
+        push('"Go test functions" counts `func Test...` declarations in tracked `*_test.go` files, from `git ls-files`,');
+        push('with `TestMain` excluded because it is a package\'s test entry point rather than a test.');
         push('');
         push('| Measure | In the tree | Cited by this matrix |');
         push('|---|---|---|');
