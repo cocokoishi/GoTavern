@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -60,13 +59,15 @@ func (runtime *hostWhitelistRuntime) warnOnce(host string) {
 	if writer == nil {
 		writer = os.Stderr
 	}
-	fmt.Fprintln(writer, "Request from untrusted host:", host)
-	fmt.Fprintln(writer, "If you trust this host, you can add it to hostWhitelist.hosts in config.yaml")
+	// src/middleware/hostWhitelist.js:29-36 -- all four lines are `console.warn`, so all four are gated by
+	// `logging.minLogLevel` <= WARN (src/util.js:1141).
+	consoleWarnf(writer, "Request from untrusted host: %s\n", host)
+	consoleWarnf(writer, "If you trust this host, you can add it to hostWhitelist.hosts in config.yaml\n")
 	if !runtime.options.HostWhitelistEnabled && firstWarning {
-		fmt.Fprintln(writer, "To protect against host spoofing, consider setting hostWhitelist.enabled to true")
+		consoleWarnf(writer, "To protect against host spoofing, consider setting hostWhitelist.enabled to true\n")
 	}
 	if firstWarning {
-		fmt.Fprintln(writer, "To disable this warning, set hostWhitelist.scan to false")
+		consoleWarnf(writer, "To disable this warning, set hostWhitelist.scan to false\n")
 	}
 }
 

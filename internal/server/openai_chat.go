@@ -52,6 +52,20 @@ func pinnedOpenAIChatPlan(request chatCompletionRequest) (*outbound.Request, *pi
 		apiKey = secret
 	}
 	pinnedChatCompletionApplyLogprobs(&bodyParams, body, request.isTextCompletion)
+	// chat-completions.js:2296-2298, INSIDE the OPENAI arm and nowhere else:
+	//   `if (getConfigValue('openai.randomizeUserId', false, 'boolean')) { bodyParams['user'] = uuidv4(); }`
+	//
+	// TWO DETAILS A TIDY REWRITE GETS WRONG. First, the key is read from the runtime config per request and
+	// its default is FALSE (default/config.yaml:326-327). Second, the member value is the UUID ITSELF, not a
+	// prefixed label: `user: 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'`, fresh per request, landing in
+	// `...bodyParams` at the END of the request body (chat-completions.js:2652-2669), i.e. after `n`. No
+	// other source sends it, so this assignment living in the OPENAI planner is the whole of the behaviour.
+	//
+	// Its bytes cannot be compared with a capture -- they are random by design -- so the test asserts the
+	// SHAPE and that the value is fresh per request, which is what a user observes.
+	if pinnedChatConfigBool(request.directories, []string{"openai", "randomizeUserId"}, false) {
+		bodyParams.setMember("user", nodeString(pinnedRandomUUIDv4()))
+	}
 
 	return pinnedChatCompletionAssemble(chatCompletionSourceOpenAI, request, chatCompletionPlanInputs{
 		body:          body,

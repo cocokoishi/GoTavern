@@ -184,6 +184,13 @@ func pinnedChatCompletionOpenRouterBodyParams(bodyParams *orderedNodeJSON, body 
 		// awaits `isOpenRouterModelCacheable(model)` for these models, which issues an extra `GET /models`.
 		// That probe is deliberately NOT implemented in this increment (see the route comment), so a gemini
 		// model through OpenRouter sends this body but ONE FEWER outbound request than pinned.
+		//
+		// `gemini.enableSystemPromptCache` IS PART OF THE SAME GAP and is recorded, not silently dropped: the
+		// pinned gate is `isGemini && await isOpenRouterModelCacheable(model)` && the flag
+		// (chat-completions.js:2369-2388), so the cache_control stamp can only be applied to a model the
+		// /models probe advertised `pricing.input_cache_write` for. Applying the flag WITHOUT the probe would
+		// emit `cache_control` on models pinned would not cache -- a different provider body, not a partial
+		// port. See docs/config-inventory.md, "Recorded boundaries", for the full entry.
 		bodyParams.setMember("safety_settings", pinnedGeminiSafety())
 	}
 }

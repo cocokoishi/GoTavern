@@ -13,8 +13,11 @@ package outbound
 // redirects, decompression and cancellation.
 //
 // WHAT DELIBERATELY DIFFERS FROM THE CAPTURES (rule 30 sanctions exactly this):
-//   - `Connection: keep-alive` where the captures record `close`. Reuse is a requirement (rule 29);
-//     the captured value is node-fetch's, and reproducing it would defeat reuse.
+//   - `Connection: keep-alive` where the captures record `close`. The captured value is node-fetch's,
+//     and its agent is not the one that carries user traffic. Whether THIS client reuses a connection
+//     is not a capture question at all: `enableKeepAlive` (src/command-line.js:323, default false at
+//     :80) decides it, and ConfigureProductionTransport applies that value. Reuse as a CAPABILITY
+//     (rule 29) is preserved; the default follows the shipped config.
 //   - `Accept-Encoding: gzip` instead of `gzip, deflate, br`. We have no brotli decoder and cannot add
 //     one here (go.mod has no such module and this host cannot produce a go.sum), so the production
 //     client advertises only what it decodes; net/http then adds gzip itself and decompresses it
@@ -62,14 +65,65 @@ var (
 	wireExactOnce sync.Once
 	wireExactMode bool
 
-	// Clients are shared so that keep-alive works (D5). The key is the caller's TLS configuration:
-	// production passes nil and gets the one shared client; a test that trusts a local certificate
-	// passes its own pointer and gets a client of its own, so two requests with the SAME configuration
-	// still reuse a connection while a per-request configuration cannot mutate state another request
-	// observes. Nothing here selects a transport -- that is the seam's job, and this is not it.
+	// Clients are shared so that keep-alive works (D5) when it is enabled. The key is the caller's TLS
+	// configuration: production passes nil and gets the one shared client; a test that trusts a local
+	// certificate passes its own pointer and gets a client of its own, so two requests with the SAME
+	// configuration still reuse a connection while a per-request configuration cannot mutate state
+	// another request observes. Nothing here selects a transport -- that is the seam's job, and this is
+	// not it.
 	clientsMu sync.Mutex
 	clients   = map[*tls.Config]*http.Client{}
+
+	// productionSettingsState carries the two command-line options that shape this client itself rather
+	// than a single request: `enableKeepAlive` and `dnsPreferIPv6`. It is an atomic.Value for the same
+	// reason `requestProxy` is: a setting applied after a client exists must still take effect.
+	productionSettingsState atomic.Value // ProductionTransportOptions
 )
+
+// ProductionTransportOptions is what the pinned command line hands the process, resolved and validated by
+// the caller: `enableKeepAlive` (src/command-line.js:323) and `dnsPreferIPv6` (:309).
+type ProductionTransportOptions struct {
+	// EnableKeepAlive is pinned's `enableKeepAlive`, default FALSE (src/command-line.js:80,
+	// default/config.yaml:44-46). pinned installs it on the global agents at src/server-main.js:100-101
+	// (`new http.Agent({ keepAlive: cliArgs.enableKeepAlive })`), i.e. as `Agent({keepAlive:false})` the
+	// agent does not reuse a socket and sends `Connection: close`.
+	EnableKeepAlive bool
+	// PreferIPv6 is pinned's `dnsPreferIPv6`, default FALSE (src/command-line.js:66,
+	// default/config.yaml:17-18). pinned applies it with `dns.setDefaultResultOrder('ipv6first')` /
+	// `'ipv4first'` at src/server-main.js:465-477. SEE dnsorder.go for the Go equivalent and why the
+	// preference cannot be expressed as a dialer knob.
+	PreferIPv6 bool
+}
+
+// ConfigureProductionTransport applies the two pinned command-line options that configure this client
+// rather than a request. It is called once at startup, before any provider can be called; a later call
+// rebuilds the cached clients so a setting applied late is not silently ignored (the "capability that
+// never reaches the behaviour" failure).
+func ConfigureProductionTransport(options ProductionTransportOptions) {
+	productionSettingsState.Store(options)
+	resetProductionClients()
+}
+
+// currentProductionTransport is the installed settings, or their zero value. The zero value is the
+// shipped configuration -- keep-alive OFF and IPv4 first -- so a process that never calls Configure
+// behaves exactly like a fresh install, and NOT like the old always-reuse behaviour.
+func currentProductionTransport() ProductionTransportOptions {
+	settings, _ := productionSettingsState.Load().(ProductionTransportOptions)
+	return settings
+}
+
+// resetProductionClients drops the cached clients, closing idle sockets first so a rebuilt client does
+// not leave a pool nobody owns.
+func resetProductionClients() {
+	clientsMu.Lock()
+	defer clientsMu.Unlock()
+	for _, client := range clients {
+		if transport, ok := client.Transport.(*http.Transport); ok {
+			transport.CloseIdleConnections()
+		}
+	}
+	clients = map[*tls.Config]*http.Client{}
+}
 
 // TransportMode reports which client carries this process's provider traffic, so that a test can
 // assert the seam actually took effect. Without that assertion GOTAVERN_OUTBOUND_WIRE_EXACT could be
@@ -124,6 +178,11 @@ func transportFor(config *tls.Config) *http.Client {
 }
 
 func buildProductionClient(config *tls.Config) *http.Client {
+	settings := currentProductionTransport()
+	baseDialer := &net.Dialer{
+		Timeout:   productionConnectTimeout,
+		KeepAlive: 30 * time.Second,
+	}
 	transport := &http.Transport{
 		// THE USER'S CONFIGURED PROXY FIRST, THEN THE ENVIRONMENT.
 		//
@@ -138,16 +197,20 @@ func buildProductionClient(config *tls.Config) *http.Client {
 		// global http/https agents (src/private-request-filter.js:254-255), so the check happens when a
 		// socket is opened and therefore covers every redirect hop. With no filter configured the wrapper
 		// delegates to the base dialer unchanged, byte for byte. SEE privatefilter.go.
-		DialContext: privateAddressDialContext(&net.Dialer{
-			Timeout:   productionConnectTimeout,
-			KeepAlive: 30 * time.Second,
-		}),
+		//
+		// THE DNS PREFERENCE IS THE OUTERMOST WRAPPER, which is also pinned's order in effect: the
+		// preference decides which address the resolver hands to the connect in the first place, and the
+		// filter then validates the address that is about to be dialled. SEE dnsorder.go.
+		DialContext:           dnsOrderedDialContext(privateAddressDialContext(baseDialer), baseDialer),
 		TLSHandshakeTimeout:   productionTLSHandshakeTimeout,
 		ResponseHeaderTimeout: productionResponseHeaderTimeout,
 		IdleConnTimeout:       productionIdleConnTimeout,
 		MaxIdleConns:          productionMaxIdleConnections,
 		MaxIdleConnsPerHost:   productionMaxIdleConnections,
-		DisableKeepAlives:     false,
+		// `Agent({keepAlive: cliArgs.enableKeepAlive})`: pinned's agent does not keep a socket alive
+		// unless the operator asked for it (src/server-main.js:100-101, default false at
+		// src/command-line.js:80).
+		DisableKeepAlives: !settings.EnableKeepAlive,
 		// We never set Accept-Encoding, so net/http advertises gzip and decodes it transparently.
 		DisableCompression: false,
 		ForceAttemptHTTP2:  true,

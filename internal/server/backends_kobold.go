@@ -56,6 +56,10 @@ func (runtime *accountRuntime) serveBackendsKoboldStatus(w http.ResponseWriter, 
 		return
 	}
 	headers["content-type"] = "application/json"
+	// kobold.js:150-154: the Content-Type literal, then `setAdditionalHeaders(request, args, api_server)`,
+	// whose last act is the `requestOverrides` Object.assign -- so the override wins over both the content type
+	// and the secret-backed headers.
+	pinnedApplyRequestOverrides(directories, apiServer, headers)
 
 	// Pinned Promise.all order: united version, extra version, model. Each request catches its own
 	// failure and substitutes a default object.
@@ -132,6 +136,10 @@ func (runtime *accountRuntime) serveBackendsKoboldEmbed(w http.ResponseWriter, r
 		backendsEmbedInternalError(w)
 		return
 	}
+	// kobold.js:209-210: `const headers = {}` then `setAdditionalHeadersByType(headers, KOBOLDCPP, server, ...)`,
+	// so the override is the last assignment made to this set. `server` is the RAW body member, not the
+	// re-serialised URL, because that is the string the pinned `new URL(server)` parses.
+	pinnedApplyRequestOverrides(directories, backendsStringMember(serverNode), headers)
 	target := sdURLWithPath(parsedServer, "/api/extra/embeddings")
 	payload := nodeObject()
 	if items := sdBodyMember(body, "items"); !items.isUndefined() {

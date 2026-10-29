@@ -318,8 +318,9 @@ func searchVisitHeaders() map[string]string {
 const searchVisitUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
 
 // searchAdditionalHeaders reproduces setAdditionalHeadersByType (src/additional-headers.js) for the
-// koboldcpp route: the api_type selects a secret-backed header set, and `requestOverrides` config
-// headers are NOT part of this implementation (recorded as a known gap).
+// koboldcpp route: the api_type selects a secret-backed header set. `requestOverrides` is applied by the
+// CALLER, because the pinned `Object.assign` happens after the caller's own Content-Type and therefore wins
+// over it -- see request_overrides.go and pinnedApplyRequestOverrides.
 func searchAdditionalHeaders(body orderedNodeJSON, directories startup.UserDirectories) (map[string]string, error) {
 	apiType := searchJSString(sdBodyMember(body, "api_type"))
 	secretID := searchSecretIDNode(body)

@@ -208,7 +208,8 @@ func backendsStreamingFetch(request *http.Request, spec searchRequest) (*outboun
 
 // serveBackendsKoboldGenerate is kobold.js:11.
 func (runtime *accountRuntime) serveBackendsKoboldGenerate(w http.ResponseWriter, request *http.Request) {
-	if _, _, ok := runtime.sdUser(w, request); !ok {
+	_, directories, ok := runtime.sdUser(w, request)
+	if !ok {
 		return
 	}
 	body, ok := runtime.sdRequestBody(w, request)
@@ -236,6 +237,10 @@ func (runtime *accountRuntime) serveBackendsKoboldGenerate(w http.ResponseWriter
 	// setAdditionalHeaders, so a configured koboldcpp secret must NOT appear (the capture records
 	// that with the secret set).
 	headers := map[string]string{"content-type": "application/json"}
+	// kobold.js:86-89 puts `getOverrideHeaders((new URL(request.body.api_server))?.host)` in the SAME
+	// Object.assign, AFTER the Content-Type literal, so `requestOverrides` wins over it. Applied here, at the
+	// point the header set is complete, which is the same assignment in the same order.
+	pinnedApplyRequestOverrides(directories, apiServer, headers)
 
 	streaming := pinnedJSTruthy(sdBodyMember(body, "streaming"))
 	target := apiServer + "/v1/generate"
@@ -505,6 +510,11 @@ func (runtime *accountRuntime) serveBackendsKoboldTranscribeAudio(w http.Respons
 
 	// No content-type header is set on this request: the pinned code passes only the api-type
 	// headers, so the JSON body travels without one.
+	//
+	// kobold.js:250-251 is `const headers = {}` then `setAdditionalHeadersByType(headers, KOBOLDCPP, server,
+	// ...)`, whose last act is the `requestOverrides` Object.assign -- applied here, on the raw `server` field
+	// the pinned `new URL(server)` parsed.
+	pinnedApplyRequestOverrides(directories, upload.fields["server"], headers)
 	response, fetchErr := backendsFetch(request, searchRequest{
 		Method:  http.MethodPost,
 		URL:     target,

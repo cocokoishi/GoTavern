@@ -198,6 +198,12 @@ func Start(options StartOptions) (*RunningServer, error) {
 	if proxyErr := configureProviderProxy(parsed.Options); proxyErr != nil {
 		return nil, proxyErr
 	}
+	// THE TWO OPTIONS THAT SHAPE THE TRANSPORT ITSELF, applied before any provider can be called:
+	// `enableKeepAlive` (src/server-main.js:100-101, installed at module load in pinned) and
+	// `dnsPreferIPv6` (src/server-main.js:481, `.then(setDnsResolutionOrder)` in the startup chain).
+	// Neither can fail the boot: pinned's DNS call is wrapped in its own try/catch that only warns
+	// (:475-476), and an unparseable keep-alive value resolves to false, which is the shipped default.
+	configureProductionTransport(parsed)
 
 	whitelistPage, _ := os.ReadFile(filepath.Join(parsed.Paths.RuntimeDataRoot, "_errors", "forbidden-by-whitelist.html"))
 

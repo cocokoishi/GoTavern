@@ -135,6 +135,11 @@ type CommandLineResult struct {
 	// above it is read straight from the config rather than through the startup settings map, so it is
 	// excluded from the serialized result the command-line differential compares against Node.
 	CacheBuster CacheBusterSettings `json:"-"`
+	// ConsoleMinLogLevel carries logging.minLogLevel, which the pinned setupLogLevel reads at
+	// src/util.js:1137 with a default of LOG_LEVELS.DEBUG (0). Like AccessLogEnabled it is read straight
+	// from the config rather than through the startup settings map, so it is excluded from the serialized
+	// result: Node's map has no such member, and adding it made the differential disagree.
+	ConsoleMinLogLevel float64 `json:"-"`
 	// UnimplementedConfigWarnings names config keys the operator set that GoTavern accepts and does
 	// NOT implement (see unimplemented_config.go). It is the honesty channel AGENTS.md rule 18
 	// requires and is excluded from the serialized result for the same reason: Node's startup
@@ -309,7 +314,25 @@ func ResolveCommandLine(options ResolveOptions) (CommandLineResult, error) {
 		UseDiskCache:               getConfigValue(config, "performance.useDiskCache", true, cliBoolean),
 		SettingsBackupRetention:    getConfigValue(config, "backups.common.numberOfBackups", 50, cliNumber),
 	}
-	return CommandLineResult{Paths: paths, Options: result, StartupSettings: startupSettings, Warnings: warnings, TokenizersDownloadAllowed: tokenizersDownloadAllowed(config), ImportDomainsWhitelist: importDomainsWhitelist(config), BrowserLaunchApp: browserLaunchApp(config), AccessLogEnabled: accessLogEnabled(config), CacheBuster: cacheBusterSettings(config), UnimplementedConfigWarnings: unimplementedConfigWarnings(config), PrivateAddressFilter: privateAddressFilterSettings(config)}, nil
+	return CommandLineResult{Paths: paths, Options: result, StartupSettings: startupSettings, Warnings: warnings, TokenizersDownloadAllowed: tokenizersDownloadAllowed(config), ImportDomainsWhitelist: importDomainsWhitelist(config), BrowserLaunchApp: browserLaunchApp(config), AccessLogEnabled: accessLogEnabled(config), CacheBuster: cacheBusterSettings(config), ConsoleMinLogLevel: consoleMinLogLevel(config), UnimplementedConfigWarnings: unimplementedConfigWarnings(config), PrivateAddressFilter: privateAddressFilterSettings(config)}, nil
+}
+
+// consoleMinLogLevel resolves logging.minLogLevel the way the pinned setupLogLevel reads it
+// (src/util.js:1137): `getConfigValue('logging.minLogLevel', LOG_LEVELS.DEBUG, 'number')`, i.e. a
+// parseFloat-shaped read whose DEFAULT is 0 -- and whose effective default in a real install is the
+// `logging.minLogLevel: 0` that config-init inserts (upstream default/config.yaml:189; the legacy top-level
+// `minLogLevel` migrates onto it at src/config-init.js:85-89).
+//
+// THE VALUE IS KEPT AS A FLOAT, because pinned's comparison `logLevel <= LOG_LEVELS.LEVEL` is numeric: at
+// 2.5 only ERROR (3) survives, while truncating to 2 would let WARN through as well. A value that does not
+// start with a number keeps the fallback, which is exactly what getConfigValue's 'number' conversion does,
+// and a value the conversion cannot represent (NaN) silences every level under that same comparison.
+func consoleMinLogLevel(config map[string]any) float64 {
+	value := getConfigValue(config, "logging.minLogLevel", float64(0), cliNumber)
+	if number, ok := value.(float64); ok {
+		return number
+	}
+	return 0
 }
 
 // browserLaunchApp resolves browserLaunch.browser the way the pinned

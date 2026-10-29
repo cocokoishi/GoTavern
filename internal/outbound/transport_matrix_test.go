@@ -223,36 +223,59 @@ func TestProductionTransportFollowsARedirect(t *testing.T) {
 	}
 }
 
-// TestProductionTransportReusesConnections covers D5. Every message currently pays a fresh TCP+TLS
-// handshake, which is both slow and hostile to providers that rate-limit connection churn.
-func TestProductionTransportReusesConnections(t *testing.T) {
-	var connections int64
-	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(auditJSON))
-	}))
-	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
-		if state == http.StateNew {
-			atomic.AddInt64(&connections, 1)
-		}
-	}
-	server.StartTLS()
-	t.Cleanup(server.Close)
-	pool := x509.NewCertPool()
-	pool.AddCert(server.Certificate())
-	clientTLS := &tls.Config{RootCAs: pool}
+// TestProductionTransportKeepAliveFollowsTheConfigKey covers D5 *and* `enableKeepAlive`. Reuse used to be
+// unconditional here; pinned makes it a config key whose shipped value is FALSE
+// (src/command-line.js:80/323, installed as `new http.Agent({keepAlive: cliArgs.enableKeepAlive})` at
+// src/server-main.js:100-101), so the two values must be observably different:
+//
+//	disabled (the default) -> each request opens its own connection
+//	enabled                -> the second request reuses the first connection
+//
+// The connection count is measured by the PEER, at http.StateNew, so "reused" is not inferred from the
+// client's own view of its pool.
+func TestProductionTransportKeepAliveFollowsTheConfigKey(t *testing.T) {
+	for _, testCase := range []struct {
+		name               string
+		enable             bool
+		wantNewConnections int64
+	}{
+		{name: "disabled is the shipped default and opens a connection per request", enable: false, wantNewConnections: 2},
+		{name: "enabled reuses the connection", enable: true, wantNewConnections: 1},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			ConfigureProductionTransport(ProductionTransportOptions{EnableKeepAlive: testCase.enable})
+			t.Cleanup(func() { ConfigureProductionTransport(ProductionTransportOptions{}) })
 
-	for attempt := 0; attempt < 2; attempt++ {
-		response, err := Send(context.Background(), providerRequest(server.URL+"/v1/chat/completions", []byte("{}"), clientTLS), 5*time.Second)
-		if err != nil {
-			t.Fatalf("send %d: %v", attempt, err)
-		}
-		if string(response.Body) != auditJSON {
-			t.Fatalf("send %d body = %q", attempt, string(response.Body))
-		}
-	}
-	if got := atomic.LoadInt64(&connections); got != 1 {
-		t.Fatalf("%d TCP connections for 2 sequential requests, want 1: the transport does not keep connections alive", got)
+			var connections int64
+			server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(auditJSON))
+			}))
+			server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+				if state == http.StateNew {
+					atomic.AddInt64(&connections, 1)
+				}
+			}
+			server.StartTLS()
+			t.Cleanup(server.Close)
+			pool := x509.NewCertPool()
+			pool.AddCert(server.Certificate())
+			clientTLS := &tls.Config{RootCAs: pool}
+
+			for attempt := 0; attempt < 2; attempt++ {
+				response, err := Send(context.Background(), providerRequest(server.URL+"/v1/chat/completions", []byte("{}"), clientTLS), 5*time.Second)
+				if err != nil {
+					t.Fatalf("send %d: %v", attempt, err)
+				}
+				if string(response.Body) != auditJSON {
+					t.Fatalf("send %d body = %q", attempt, string(response.Body))
+				}
+			}
+			if got := atomic.LoadInt64(&connections); got != testCase.wantNewConnections {
+				t.Fatalf("%d TCP connections for 2 sequential requests with enableKeepAlive=%t, want %d: the transport ignores the pinned key",
+					got, testCase.enable, testCase.wantNewConnections)
+			}
+		})
 	}
 }
 

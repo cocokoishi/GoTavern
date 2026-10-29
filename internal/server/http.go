@@ -113,6 +113,9 @@ type HTTPHandlerOptions struct {
 	// AccessLogEnabled is logging.enableAccessLog, whose pinned default is true
 	// (src/middleware/accessLogWriter.js:6).
 	AccessLogEnabled bool
+	// ConsoleMinLogLevel is logging.minLogLevel, the level pinned's setupLogLevel installs into
+	// console.debug/info/warn/error (src/util.js:1136-1143), default 0 (DEBUG).
+	ConsoleMinLogLevel float64
 
 	// accessLogConsole and accessLogErrors receive the pinned console.info/console.error lines of the
 	// access logger. Nil means os.Stdout / os.Stderr, which is what the shipped binary uses; tests
@@ -133,6 +136,7 @@ func HTTPHandlerOptionsFromCommandLine(parsed commandline.CommandLineResult) HTT
 		DataRoot:              parsed.Paths.RuntimeDataRoot,
 		Listen:                optionBoolean(parsed.Options.Listen),
 		AccessLogEnabled:      parsed.AccessLogEnabled,
+		ConsoleMinLogLevel:    parsed.ConsoleMinLogLevel,
 		DisableCSRF:           optionBoolean(parsed.Options.DisableCsrf),
 		EnableCorsProxy:       optionBoolean(parsed.Options.EnableCorsProxy),
 		WhitelistEnabled:      optionBoolean(parsed.Options.WhitelistMode),
@@ -323,6 +327,10 @@ func NewHTTPHandlerWithOptions(options HTTPHandlerOptions) http.Handler {
 }
 
 func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handler {
+	// THE CONSOLE LEVEL IS INSTALLED BEFORE THE FIRST REQUEST CAN BE SERVED, which is pinned's ordering:
+	// setupLogLevel runs at the end of the startup chain (src/server-main.js:448), i.e. before the listener
+	// accepts anything. SEE console.go.
+	configureConsoleMinLevel(options.ConsoleMinLogLevel)
 	accounts := newAccountRuntime(options)
 	basicAuth := newBasicAuthRuntime(options)
 	hostWhitelist := newHostWhitelistRuntime(options)

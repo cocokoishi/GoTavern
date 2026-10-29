@@ -416,6 +416,9 @@ func (runtime *accountRuntime) serveBackendsTextCompletionGenerate(w http.Respon
 		return
 	}
 	headers["content-type"] = backendsTextgenJSONType
+	// text-completions.js:326-334: the Content-Type literal, then `setAdditionalHeaders(request, args,
+	// baseUrl)` with the UNTRIMMED base, whose last act is the `requestOverrides` Object.assign.
+	pinnedApplyRequestOverrides(directories, apiServer, headers)
 
 	// Cancellation: the pinned fetch carries `signal: controller.signal`, and a client close on a
 	// koboldcpp request also POSTs `{trimV1(base)}/api/extra/abort` with the additional headers. The
@@ -430,6 +433,9 @@ func (runtime *accountRuntime) serveBackendsTextCompletionGenerate(w http.Respon
 				if headerErr != nil {
 					return
 				}
+				// text-completions.js:80-89: `abortKoboldCppRequest(request, trimV1(baseUrl))` runs
+				// setAdditionalHeaders against the TRIMMED base, so that is the host the override matches.
+				pinnedApplyRequestOverrides(directories, trimmedBase, abortHeaders)
 				// A detached context on purpose: the caller is already gone, and the pinned abort POST is a fresh fetch.
 				_, _ = searchFetch(context.Background(), searchRequest{Method: http.MethodPost, URL: trimmedBase + "/api/extra/abort", Headers: abortHeaders})
 			case <-finished:

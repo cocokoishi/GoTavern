@@ -113,12 +113,16 @@ func (writer *accessLogWriter) record(request *http.Request) {
 	// console.info adds its own newline, so the console output ends with a blank line.
 	// The colour wrapper is not reproduced: GoTavern's startup output is uncoloured
 	// throughout, and the coloured and plain renderings are the same bytes off a TTY.
-	fmt.Fprintf(writer.consoleWriter(), "New connection from %s; User Agent: %s\n\n", clientIP, userAgent)
+	//
+	// GATED BY `logging.minLogLevel`: this is a console.info call made WHILE SERVING, which pinned
+	// replaces with a no-op unless the level is <= INFO (src/util.js:1140). The FILE line below is not
+	// gated, because pinned replaces the console function and leaves the append alone.
+	consoleInfof(writer.consoleWriter(), "New connection from %s; User Agent: %s\n\n", clientIP, userAgent)
 
 	line := fmt.Sprintf("%s %s %s\n", writer.now().UTC().Format("2006-01-02T15:04:05.000Z"), clientIP, userAgent)
 	if err := writer.appendLine(startup.AccessLogPath(writer.dataRoot), []byte(line)); err != nil {
 		// console.error('Failed to write access log:', err)
-		fmt.Fprintf(writer.errorWriter(), "Failed to write access log: %v\n", err)
+		consoleErrorf(writer.errorWriter(), "Failed to write access log: %v\n", err)
 	}
 }
 

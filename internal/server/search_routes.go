@@ -340,6 +340,9 @@ func (runtime *accountRuntime) serveSearchKoboldcpp(w http.ResponseWriter, reque
 		searchStatus(w, http.StatusInternalServerError)
 		return
 	}
+	// search.js:286 `setAdditionalHeaders(request, args, baseUrl)`: the `requestOverrides` Object.assign is the
+	// last thing it does, so it wins over the secret-backed header selected for this host.
+	pinnedApplyRequestOverrides(directories, baseURL, headers)
 	payload := nodeObject()
 	if query := sdBodyMember(body, "query"); !query.isUndefined() {
 		payload.setMember("q", query)

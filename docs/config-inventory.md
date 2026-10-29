@@ -18,6 +18,14 @@ state is recorded here so a reader does not have to infer it from the key's pres
 | `sso.autheliaAuth`, `sso.authentikAuth` | **NOT implemented — and now warned** | SSO auto-login does not exist in GoTavern; a truthy switch prints a named stderr warning saying so and saying the setting has no effect (`internal/commandline/unimplemented_config.go`). `sso.trustedProxies` alone deliberately does not warn: its shipped default is truthy and it is inert in pinned too unless a method is enabled, so warning on it would fire on every stock boot |
 | `privateAddressWhitelist.*` | **implemented** (was `NOT implemented — and now warned`) | the filter is installed on the single outbound policy (`internal/outbound/privatefilter.go`), wired at boot before the provider proxy (`internal/app/server.go`), gated on `enabled`. It blocks at CONNECT time on the DNS-RESOLVED address, validates every redirect hop, honours `allowUnresolvedHosts`, accepts `allowedRanges` as CIDR **and** as `ip-matching` wildcard/range/mask forms (32 probe-derived grammar rows), and honours both log switches. Each refusal assertion is a REQUEST COUNT (rule 17). **THE WARNING THAT USED TO FIRE HERE IS RETIRED**, because its sentence ("GoTavern does NOT implement the private address filter") became false and keeping it would be the same defect in the other direction. **ONE DELIBERATE DIVERGENCE, recorded as a product decision (AGENTS.md boundary 5):** pinned's `ip-matching` answers `false` for `10.0.0.0/8` against `::ffff:10.0.0.1` — MEASURED by probing the package — so pinned lets a v4-mapped-v6 address past every IPv4 range *and* every IPv4 whitelist entry, an inherited SSRF bypass. GoTavern canonicalises the mapped form and is therefore STRICTER than pinned here; the whitelist keeps both readings so an existing `::ffff:0:0/96` entry is not broken. **A parity quirk worth knowing:** `allowedRanges: []` cannot mean "allow nothing", because pinned's `_.defaultsDeep` refills the empty array with the default loopback pair, and GoTavern reproduces that; the way to narrow to nothing is a NON-array value, which is pinned's own shape rule |
 
+| `enableKeepAlive` / `--enableKeepAlive` | **implemented** (was accepted and ignored) | `src/command-line.js:323` (default `false`, `:80`) is installed on the provider transport as `DisableKeepAlives = !enableKeepAlive`, which is what `new http.Agent({keepAlive: cliArgs.enableKeepAlive})` does at `src/server-main.js:100-101`. Production transport only (`internal/outbound/transport.go`, wired at `internal/app/transport.go`); the byte-exact oracle client is untouched (rule 30). Test: `TestProductionTransportKeepAliveFollowsTheConfigKey` counts connections AT THE PEER - 2 requests must open 2 connections when disabled and reuse 1 when enabled |
+| `dnsPreferIPv6` / `--dnsPreferIPv6` | **implemented** (was accepted and ignored) | `src/server-main.js:465-477` calls `dns.setDefaultResultOrder('ipv6first' / 'ipv4first')` from the startup chain (`:481`), with the flag resolved at `src/command-line.js:309` and defaulted `false` (`:66`). The Go equivalent is `internal/outbound/dnsorder.go`: resolve once, order the addresses with the preferred family first, dial in that order - because Go has no dialer knob for it (`net` re-sorts a multi-family answer with `sortByRFC6724`). Test: `TestProductionTransportDNSOrderPrefersTheConfiguredFamily` runs one listener per family on ONE port with the resolver seam listing IPv6 FIRST, and asserts which listener accepted the connection |
+| `logging.minLogLevel` | **implemented for the console calls made while serving** (was accepted and ignored) | `src/util.js:1136-1143` replaces `console.debug/info/warn/error` with no-ops unless `logLevel <= LEVEL`, at the END of the startup chain (`src/server-main.js:448`), so startup lines are NOT gated and are left alone here. `internal/server/console.go` gates the post-startup calls that go through those levels: the access log's `console.info`/`console.error` (`src/middleware/accessLogWriter.js:44-47`) and the host-whitelist `console.warn` (`src/middleware/hostWhitelist.js:29-36`). The value is kept as a FLOAT because the pinned comparison is numeric (`2.5` silences WARN). The FILE line of the access log is deliberately not gated. Tests: `TestConsoleMinLogLevelGatesTheAccessLogConsoleLineOnly`, `TestConsoleMinLogLevelGatesWarningsButNotConsoleLog`, `TestConsoleMinLogLevelResolvesLikeSetupLogLevel`. The two account-code lines stay ungated because pinned uses `console.log`, which setupLogLevel does not replace |
+| `requestOverrides` | **implemented** (was parsed and explicitly not applied) | `src/additional-headers.js:202-210` plus the `Object.assign` at `:251-262`: the first entry whose `hosts` includes `new URL(server).host` (lowercase, default port dropped), assigned LAST so it overrides the type's headers including `Authorization`/`Content-Type`. Applied at every Go call site that reproduces a pinned `setAdditionalHeaders`/`getOverrideHeaders` call: text-completions status/props/generate (+ the kobold abort), tabby download, kobold status/embed/generate/transcribe, and `/api/search/koboldcpp`. `internal/server/request_overrides.go`. Test: `TestRequestOverridesReachTheProviderAndWin` reads the headers the PEER received, including the precedence and first-match rows |
+| `openai.randomizeUserId` | **implemented** (was accepted and ignored) | `src/endpoints/backends/chat-completions.js:2296-2298` sets `bodyParams['user'] = uuidv4()` inside the OPENAI arm only, default `false` (`default/config.yaml:326-327`). `internal/server/openai_chat.go` adds a fresh lowercase RFC 4122 v4 UUID as the body's LAST member (`...bodyParams` is the final spread at `:2652-2669`); `internal/server/uuid.go` builds the shape from `crypto/rand`. No dependency added. Test: `TestOpenAIRandomizeUserIdSendsAPinnedUUIDv4Member` asserts the shape, the position, freshness per request, absence when off, and absence on another source with the flag on |
+| `performance.memoryCacheCapacity` | **NOT implemented - there is no cache for it to bound** | see "Recorded boundaries" below |
+| `gemini.enableSystemPromptCache` | **NOT implemented - its pinned gate is an unimplemented probe** | see "Recorded boundaries" below |
+
 ## Default YAML leaf values
 
 | Config key | Pinned default | Static read sites found |
@@ -214,3 +222,127 @@ Migrations run in `addMissingConfigValues()` before missing defaults are added. 
 - Fresh config bytes and existing-config migration/default insertion: implemented against the pinned Node oracle in `internal/configinit`.
 - Runtime read sites: statically detected only for literal `getConfigValue()` calls; dynamic key use needs manual review.
 - CLI precedence, global-mode path rules, deprecated aliases, data-root creation, malformed-config continuation, and startup integration: not implemented or not fully probed.
+
+## Recorded boundaries
+
+These keys are ACCEPTED (parsed, preserved, and reported through the migration/default-insertion paths) and are NOT
+implemented. Each entry says what is missing, where the pinned behaviour lives, why a pure-Go port is out of scope
+or too large for this change, and what a user sees because of it. This section exists because a parser touch that is
+never read is the failure AGENTS.md rule 18 forbids, and the honest alternative is a named gap with a reason.
+
+### `performance.memoryCacheCapacity` (and its legacy spelling `cardsCacheCapacity`)
+
+- **Missing:** the bounded in-memory cache of PARSED CHARACTER CARD JSON. Pinned reads the key once at module load
+  (`src/endpoints/characters.js:30-31`: `const memoryCacheCapacity = getConfigValue('performance.memoryCacheCapacity',
+  '100mb'); const memoryCache = new MemoryLimitedMap(memoryCacheCapacity);`) and `MemoryLimitedMap`
+  (`src/util.js:1144-1323`) evicts least-recently-inserted entries whenever `currentMemory + newValueSize` would
+  exceed `bytes.parse(capacity)`; `estimateStringSize` is `str.length * 2`; a value whose own size exceeds the
+  capacity is refused outright; and `maxMemory <= 0` disables the cache entirely. A legacy `cardsCacheCapacity: N`
+  is migrated to `N` + `mb` (`src/config-init.js:91-94`, mirrored by `internal/configinit/config.go:63`).
+- **Why no port:** GoTavern does not keep a character-card memory cache at all. Cards are read and parsed per
+  request (`internal/server/characters_read.go` -> `processCharacter`), so there is no cache for a capacity to
+  bound, and implementing one would be adding a new performance subsystem rather than porting a config key. That
+  is a real product decision with a real cost (a large card library re-parses a card on every listing) and it does
+  not belong in a parity-key change. **`performance.useDiskCache` is in the same position** and is the other half
+  of the same pinned feature: `useDiskCache` writes the parsed JSON to a disk cache, `memoryCacheCapacity` bounds
+  the in-memory copy, and neither exists here.
+- **What a user sees:** the setting is accepted, preserved in `config.yaml`, and has NO effect. Nothing breaks and
+  no response differs - unlike the other boundaries this one has no observable HTTP difference, only a memory and
+  latency one (a large library costs more CPU per `/api/characters/all`, and the process's memory use does not
+  follow the configured figure). A `0` that pinned treats as "no cache" therefore also changes nothing, which
+  means an operator cannot use a divergence here to detect the gap.
+
+### `gemini.enableSystemPromptCache`
+
+- **Missing:** the OpenRouter `cache_control` stamp on the system prompt for a cacheable Gemini model. Pinned reads
+  the flag per request (`src/endpoints/backends/chat-completions.js:2370`) and applies it at `:2386-2388`, but only
+  inside `if (isCacheableGemini && enableGeminiSystemPromptCache)` where
+  `isCacheableGemini = isGemini && await isOpenRouterModelCacheable(request.body.model)` (`:2369`). The transform is
+  `cachingSystemPromptForOpenRouter` (`src/prompt-converters.js:1072-1113`): find the FIRST `system` message, do
+  nothing if it already carries `cache_control` at message or part level, otherwise stamp the LAST `text` part with
+  `{type:'ephemeral'}` - no `ttl`, unlike Claude's `cacheTTL` - and replace a string `content` with a one-element
+  block array carrying it.
+- **Why no port in this change:** the flag CANNOT be applied without the `isOpenRouterModelCacheable` probe, and
+  that probe is itself a recorded gap: it is `await fetch('https://openrouter.ai/api/v1/models')` with a
+  5-second abort (`:138-175`), matched against `pricing.input_cache_write != null`, with positive results cached in
+  a module-level array. Three consequences, each of which makes "apply the flag only" WRONG rather than partial:
+  the probe adds an outbound request to every Gemini-through-OpenRouter call (so a body comparison that ignored the
+  request count would pass while the request sequence differed); the probe is a live network capability lookup that
+  GoTavern does not currently make anywhere; and without it the only defensible assumption is "cacheable", which
+  would emit `cache_control` for models pinned would NOT cache - a different provider body, not a subset. The
+  /models probe is deliberately absent from `internal/server/openrouter_chat.go` (see its
+  `pinnedOpenRouterGeminiModel` branch, which sends `safety_settings` but makes one fewer request than pinned).
+- **What a user sees:** with the flag on and a Gemini model routed through OpenRouter, GoTavern's request carries no
+  `cache_control`, so the provider offers no prompt-cache write discount; token accounting and billing differ, while
+  the completion itself does not. **The same flag name under `claude` IS implemented** (`claude.enableSystemPromptCache`,
+  `internal/server/claude_cache.go`), so a reader must not generalise from that one to Gemini's.
+  **Remaining work, in two pieces:** (1) the `isOpenRouterModelCacheable` probe with a seam for the recorded
+  differential and a positive-only cache; (2) `cachingSystemPromptForOpenRouter` applied to `request.body.messages`
+  before assembly, gated on the probe result AND the flag. Piece 2 without piece 1 must never be shipped.
+
+### `git.backend: builtin` (integrated isomorphic-git backend)
+
+- **Missing:** the integrated git backend. `default/config.yaml:312-317` documents `auto` (prefer system git, fall
+  back to the integrated one), `system` and `builtin`; the value is read by `src/endpoints/extensions.js` through
+  the git-backend selector, and `builtin` forces the in-process implementation rather than shelling out to `git`.
+- **Why out of scope:** "builtin" is not a config switch on one code path, it is a whole git implementation. Pinned
+  gets it from `isomorphic-git` (a JavaScript re-implementation of the git object model, the packfile protocol,
+  refs, index formats and checkout), and reproducing its semantics faithfully enough that extension install/update
+  results stay byte-identical to pinned is a project of its own. The alternative - treat `builtin` as `system` -
+  would silently claim the wrong capability and would break on a machine with no `git`, which is exactly the case
+  the setting exists for. GoTavern's git path therefore stays the system-git path, and `builtin` must stay a
+  visible boundary. **A pure-Go git library would also be a new module dependency** (AGENTS distribution rules),
+  which is not something a parity-key change may take on unilaterally.
+- **What a user sees:** extension and server-plugin repository operations still work wherever the system `git` is
+  on `PATH`. On a machine with no `git`, they fail with a causal error naming the missing executable rather than
+  using the integrated backend, and setting `git.backend: builtin` (or `auto` on such a machine) does not change
+  that. Selection is not silently ignored in the other direction: no code pretends `builtin` was used.
+
+### `backups.chat.*` (per-chat backups)
+
+- **Missing:** the per-chat chat-file backup subsystem. `default/config.yaml` carries `backups.chat.enabled`,
+  `backups.chat.maxTotalBackups` and `backups.chat.throttleInterval` (migrated from `disableChatBackup`,
+  `maxTotalChatBackups` and `chatBackupThrottleInterval` at `src/config-init.js`, mirrored by
+  `internal/configinit/config.go:50-53`), and `src/endpoints/chats.js` consults them when it writes a chat: it
+  decides whether a pre-write snapshot is taken, prunes the snapshot directory by total size, and throttles how
+  often a snapshot is taken for the same chat.
+- **Why out of scope:** this is a storage subsystem with its own retention/pruning rules, its own failure handling
+  and its own on-disk layout under the user's data directory, not a switch on an existing writer. Porting it
+  requires reproducing the exact naming, the exact prune order and the exact throttle bookkeeping before it can be
+  claimed, and a partial port (write snapshots, no pruning) would fill a user's disk - worse than the gap. Only
+  `backups.common.numberOfBackups` and `backups.allowFullDataBackup` participate in the implemented settings-backup
+  path, and they are reported as such; the per-chat family is not.
+- **What a user sees:** chat writes and chat persistence are unaffected, and nothing is ever pruned by a
+  half-implemented backup path. What is absent is the safety net: after a bad edit or an accidental overwrite
+  there is no per-chat snapshot to restore, and the chat-backup directory a pinned install would have populated
+  stays absent. The settings UI still shows the toggles, because it is the pinned frontend.
+
+### VertexAI service-account mode
+
+- **Missing:** Vertex AI's service-account credential path (the JSON key file, its JWT-bearer OAuth flow, token
+  caching and the project/region endpoint construction). Pinned's Google backend accepts either an API key or a
+  service-account JSON and, in the latter case, obtains an OAuth access token before calling the regional
+  `*-aiplatform.googleapis.com` endpoint.
+- **Why out of scope:** it is an OAuth client-credentials implementation with its own token lifecycle and a
+  different endpoint scheme, and it cannot be verified without either a real service account or a recorded
+  credential exchange. Faking the exchange would produce a fixture for a behaviour that never ran. It is a
+  self-contained feature request, not a config-key read.
+- **What a user sees:** API-key use of the Google/Gemini sources works. A user who configures a Vertex AI
+  service-account JSON is not silently routed: the request fails with an error naming the unsupported credential
+  mode instead of sending a malformed provider request to a regional endpoint.
+
+### Provider embedding sources
+
+- **Missing:** the provider-hosted embedding sources inside `/api/vector/*` (OpenAI/Google/Cohere/Mistral etc.).
+  Those routes call out to a provider's embeddings endpoint through the same additional-headers machinery the
+  implemented chat paths use.
+- **Why out of scope here:** the local in-process sources are already recorded as an architectural exclusion
+  (AGENTS.md boundary list, local ML inference: `getPipeline()` in `src/transformers.js` runs an ONNX model inside
+  the server, and serving that would mean adopting an ONNX runtime, which contradicts `CGO_ENABLED=0`). The
+  provider-hosted sources are a separate and larger piece - each has its own request shape, batching, dimension
+  handling and error mapping - and none of it is a config key; it is route work that must land with its own
+  provider-wire evidence, not as a side effect of a config-parity change.
+- **What a user sees:** vector storage/search that depends on a provider-hosted embedding is not available, and the
+  routes report it as unimplemented rather than returning an empty embedding set, which would corrupt a user's
+  vector index silently. This boundary is NOT claimed as covered by the local-inference exclusion; they are two
+  different gaps that share a route prefix.

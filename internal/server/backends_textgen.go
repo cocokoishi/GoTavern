@@ -73,6 +73,9 @@ func (runtime *accountRuntime) serveBackendsTextCompletionStatus(w http.Response
 		return
 	}
 	headers["content-type"] = "application/json"
+	// text-completions.js:111-115: the Content-Type literal is set FIRST, then `setAdditionalHeaders(request,
+	// args, baseUrl)`, whose last act is the `requestOverrides` Object.assign.
+	pinnedApplyRequestOverrides(directories, baseURL, headers)
 	apiType, _ := sdBodyMember(body, "api_type").stringValue()
 	target := baseURL + backendsTextCompletionStatusSuffix(apiType)
 
@@ -212,6 +215,8 @@ func (runtime *accountRuntime) serveBackendsTextCompletionProps(w http.ResponseW
 		backendsStatus(w, http.StatusInternalServerError)
 		return
 	}
+	// text-completions.js:239-243: `headers: {}` then `setAdditionalHeaders(request, args, baseUrl)`.
+	pinnedApplyRequestOverrides(directories, baseURL, headers)
 	apiType, _ := sdBodyMember(body, "api_type").stringValue()
 	target := baseURL + "/props"
 	if apiType == "llamacpp" {
@@ -500,6 +505,9 @@ func (runtime *accountRuntime) serveBackendsTabbyDownload(w http.ResponseWriter,
 		return
 	}
 	headers["content-type"] = "application/json"
+	// text-completions.js:604-611: the Content-Type literal, then `setAdditionalHeaders(request, args,
+	// baseUrl)`, whose last act is the `requestOverrides` Object.assign.
+	pinnedApplyRequestOverrides(directories, baseURL, headers)
 	encoded, err := marshalOrderedNodeJSON(body)
 	if err != nil {
 		backendsStatus(w, http.StatusInternalServerError)
