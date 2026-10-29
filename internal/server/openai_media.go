@@ -8,11 +8,17 @@ package server
 //	POST /api/openai/chutes/generate-voice       (419)  binary audio, upstream content-type forwarded
 //	POST /api/openai/generate-image              (619)  JSON passthrough
 //
-// DEFERRED this round, still `not implemented` (recorded in the fixture knownDifferences):
-// /caption-image (a 250-line per-api provider matrix), /generate-video (five-second polling loop
-// with client abort), and the four transcribe-audio routes plus chutes/transcribe-audio (multipart
-// upload recording with part order and part headers), and the entire /api/google domain (OAuth or
-// api-key provider configuration, static language table, PCM-to-WAV wrapping).
+// THE "DEFERRED" LIST THAT STOOD HERE WAS WRONG, and corrected 2026-10-29 by reading the registrations:
+// every route it called `not implemented` is registered --
+//
+//	/api/openai/caption-image       openai_caption.go:88      (the per-api provider matrix)
+//	/api/openai/generate-video      openai_generate_video.go:82  (the polling loop with client abort)
+//	/api/openai/transcribe-audio    openai_transcribe.go:55   (and the chutes variant, openai_chutes_transcribe.go)
+//	/api/google/*                   google_media.go:49-50, google_voice.go:49-50, google_video.go:66,
+//	                                google_native_tts.go:527
+//
+// A header may say what a file DOES; it may not be the only place a capability is denied, because a reader
+// believes it and the next lane builds what already exists.
 //
 // Evidence: tools/probe-openai-media.mjs drives the pinned server with node-fetch replaced by a
 // controlled peer, records tests/oracle/sillytavern-1.19.0-openai-media.json, and

@@ -5,13 +5,16 @@ package server
 //	POST /api/novelai/status          (133)  credential/entitlement probe; JSON envelope, always 200
 //	POST /api/novelai/generate-voice  (442)  one-shot GET, binary audio/mpeg response
 //
-// DEFERRED, recorded in the fixture knownDifferences:
-//	/api/novelai/generate        (167) model-dependent bad-word/logit-bias/repetition-penalty tables
-//	                                   plus an SSE streaming forward;
-//	/api/novelai/generate-image  (300) NAI Diffusion body, PNG zip extraction, conditional upscale
-//	                                   with a fallback to the original image.
+// THE "DEFERRED" LIST THAT STOOD HERE WAS WRONG, and corrected 2026-10-29 by reading the registrations: both
+// routes it called `not implemented` are registered in `novelai_generate.go:72-73` --
+// `/api/novelai/generate` (pinned novelai.js:167, the model-dependent bad-word/logit-bias/repetition-penalty
+// tables plus the SSE streaming forward) and `/api/novelai/generate-image` (pinned :300, the NAI Diffusion
+// body, PNG zip extraction and the conditional upscale with its fallback to the original image). A header that
+// denies a capability that exists is worse than an omission: it manufactures a phantom boundary and sends the
+// next lane to build what is already there. The registrations are the answer.
+//
 // /api/extra/{caption,classify,classify/labels} are NOT provider routes (local Transformers.js
-// pipelines with no outbound HTTP); they stay not implemented for that reason.
+// pipelines with no outbound HTTP); they stay not implemented for that reason, which IS a real boundary.
 //
 // Evidence: tools/probe-novelai.mjs records tests/oracle/sillytavern-1.19.0-novelai.json against the
 // pinned server with node-fetch replaced by a controlled peer; internal/server/novelai_test.go

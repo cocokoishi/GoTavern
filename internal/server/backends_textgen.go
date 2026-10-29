@@ -10,8 +10,9 @@ package server
 //	POST /text-completions/ollama/caption-image    (475)
 //	POST /text-completions/tabby/download          (600)
 //
-// DEFERRED (not implemented, fixture knownDifferences): /text-completions/generate, the streaming
-// proxy with per-api-type key filtering, Ollama JSON-frame streaming and cancellation.
+// THE "DEFERRED" SENTENCE THAT STOOD HERE WAS WRONG, corrected 2026-10-29 by reading the registrations:
+// `/api/backends/text-completions/generate` IS implemented, in `backends_textgen_generate.go:59` -- the
+// streaming proxy with per-api-type key filtering, Ollama JSON-frame streaming and cancellation.
 //
 // These routes take their upstream URL from the request body, so no seam is needed; the failure
 // paths are exercised against a closed loopback port in the fixture (kobold/status) and through

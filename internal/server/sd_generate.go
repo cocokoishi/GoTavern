@@ -10,8 +10,12 @@ package server
 // member ORDER and omitted-undefined members are behaviour, and a per-provider seam asserted against the
 // pinned literal.
 //
-// The other seventeen `/api/sd/*/generate*` routes stay `not implemented`; `tools/probe-sd-generate.mjs`
-// records the deferred list in the fixture so the gap is machine-readable rather than implied.
+// THE SENTENCE THAT STOOD HERE -- "the other seventeen `/api/sd/*/generate*` routes stay `not implemented`" --
+// WAS WRONG, and corrected 2026-10-29 by reading the registrations: all nineteen are implemented, in
+// `sd_generate.go` (this file), `sd_generate_wave2.go`, `sd_generate_wave5.go`, `sd_generate_comfy.go`,
+// `sd_zai.go` and `sd.go:108,132,136,145,146`. `docs/compat-matrix.md` already recorded all 19 as implemented,
+// so the code and the ledger agreed and only this header disagreed with both -- which is exactly how a stale
+// comment becomes a phantom boundary. The registrations are the answer; a header is not.
 //
 // Pinned details a careful implementation would get wrong, each recorded:
 //

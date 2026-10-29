@@ -11,10 +11,20 @@ package server
 //	ollama:            POST /download (445), POST /caption-image (475)
 //	tabby:             POST /download (600)
 //
-// DEFERRED this round, still `not implemented`: `/chat-completions/status` (a ~380-line provider
-// matrix), `/kobold/generate` and `/text-completions/generate` (live provider stream proxies with
-// cancellation, retry and per-api-type body filtering), `/kobold/transcribe-audio` (multipart
-// upload). Each needs its own oracle harness; the fixture's knownDifferences records that.
+// THE "DEFERRED THIS ROUND" LIST THAT STOOD HERE HAS BEEN DELETED, because it was WRONG IN THE DANGEROUS
+// DIRECTION: it described four routes as `not implemented` that are registered and tested. A stale TODO
+// understates the product and manufactures a phantom boundary, so a reader -- or a lane deciding what to build
+// next -- is told a capability is absent when it exists. Corrected 2026-10-29 by reading the registrations
+// rather than the comment:
+//
+//	/chat-completions/status     backends.go:125                       (accounts.serveBackendsChatCompletionStatus)
+//	/kobold/generate             backends_kobold_deferred.go:66
+//	/kobold/transcribe-audio     backends_kobold_deferred.go:67
+//	/text-completions/generate   backends_textgen_generate.go:59
+//
+// THE RULE THIS FILE LEARNED: whether a route is implemented is answered by the registrations and by the
+// rule-43 route inventory, never by a header comment. A header may say what a file DOES; it may not be the
+// only place a capability is denied.
 //
 // `/chat-completions/generate` is implemented elsewhere and is NOT touched here.
 //

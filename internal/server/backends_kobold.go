@@ -5,8 +5,11 @@ package server
 //	POST /status  (143)  three concurrent probes with per-probe defaults
 //	POST /embed   (241)  precomputed-input embeddings proxy
 //
-// DEFERRED (not implemented, recorded in the fixture knownDifferences): /generate (streaming proxy
-// with retry/cancellation) and /transcribe-audio (multipart upload).
+// THE "DEFERRED" SENTENCE THAT STOOD HERE WAS WRONG, corrected 2026-10-29 by reading the registrations: both
+// routes it called `not implemented` are registered in `backends_kobold_deferred.go:66-67` --
+// `/api/backends/kobold/generate` (the streaming proxy with retry and cancellation) and
+// `/api/backends/kobold/transcribe-audio` (the multipart upload). The file name says "deferred" and the routes
+// are implemented, which is the same trap in the other direction.
 //
 // Pinned crash, deliberately not reproduced: /status has no try/catch, so a request whose
 // api_server is missing or not a string throws inside the async handler and the pinned process

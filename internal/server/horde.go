@@ -5,8 +5,12 @@ package server
 //	POST /api/horde/status      horde.js:128
 //	POST /api/horde/text-models horde.js:96
 //
-// SCOPE: two routes to unblock a send. The rest of the Horde domain talks to a Horde generation
-// backend and is not implemented here or claimed anywhere.
+// SCOPE, CORRECTED 2026-10-29: this file registers the three STARTUP routes, and the rest of the Horde domain
+// is NOT absent -- `horde_generation.go:93-100` registers eight more (`/cancel-task`, `/task-status`,
+// `/generate-text`, `/sd-samplers`, `/sd-models`, `/caption-image`, `/user-info`, `/generate-image`). The
+// sentence that stood here said "the rest of the Horde domain ... is not implemented here or claimed
+// anywhere", which understated the product by eleven routes and is exactly the phantom-boundary class a
+// missing/stub sweep is told to collect. The registrations are the answer; a header is not.
 //
 // Both are outbound routes, so they follow the project-level convention in
 // docs/tokenizer-parity-plan.md §11: the upstream URL is a seam that DEFAULTS TO THE PINNED URL

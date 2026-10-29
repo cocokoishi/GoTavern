@@ -15,8 +15,12 @@ package server
 //	            electronhub/sizes (1282), nanogpt/models (1391), aimlapi/models (1796),
 //	            workersai/models (2062), pollinations/models (1013), falai/models (1593)
 //
-// The 19 `*/generate*` routes are out of scope and remain `not implemented`; they terminate at
-// the final 404 the same way any other unimplemented route does.
+// The 19 `*/generate*` routes ARE IMPLEMENTED, and the sentence that stood here ("out of scope and remain
+// `not implemented`") was WRONG -- corrected 2026-10-29 by reading the registrations, which are spread across
+// `sd_generate.go`, `sd_generate_wave2.go`, `sd_generate_wave5.go`, `sd_generate_comfy.go`, `sd_zai.go` and
+// `sd.go:108,132,136,145,146`. `docs/compat-matrix.md` already recorded all 19 as implemented, so the code and
+// the ledger agreed and only this header disagreed with both. Whether a route is implemented is answered by the
+// registrations and the rule-43 inventory, never by a comment.
 //
 // EVERYTHING HERE IS ORACLE-BACKED. tools/probe-sd-routes.mjs starts the pinned server, drives
 // these routes (against a local mock peer, or with `request.body.url` pointed at one) and records
