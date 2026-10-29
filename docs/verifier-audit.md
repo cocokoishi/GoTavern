@@ -452,9 +452,25 @@ stays an OBSERVATION rather than a guard, exactly as the artefact's own comment 
 1. The committed `preset-complex-comparison.json` has **not** been re-recorded, so its `firstDifference` still
    carries the wrong diagnosis; the next `preset`-mode run that commits artefacts replaces it, and until then a
    reader must discount that one field.
-2. **The six extra tokenizer calls are a real behavioural difference and remain UNEXPLAINED.** The corrected
-   comparator names them; it does not say why GoTavern makes six more count calls than pinned, and nobody has
-   looked. That is a product question this lane surfaced rather than answered.
+2. **The six extra tokenizer calls are characterised but NOT explained, and the earlier wording of this entry
+   overclaimed.** It said "a real behavioural difference", which implies the product; the evidence does not support
+   that yet, and the correction is recorded here rather than quietly edited away. What the committed artefact
+   actually shows, aligned call by call:
+   - pinned's 67 calls are matched **in order and exactly** by a subsequence of GoTavern's 73;
+   - every one of the six GoTavern-only calls carries a value that **already appears in pinned's sequence**
+     (225 at pinned index 6, 380 at 3, 589 at 4, 749 at 5, 57 at 10, 13 at 11 and 65) — so GoTavern's run
+     **re-counted six messages pinned counted once**, rather than counting anything new;
+   - the final provider request is **byte-identical on both legs** (`529fed72fc2d`, `providerRequestEqual: true`,
+     `verdict: match`), so the extra counting changed no assembled context.
+
+   Two hypotheses fit and neither is established: a **harness-side** drive divergence (the six extras cluster at
+   indices 18, 20-22, 31, 34 rather than spreading uniformly, which is what a divergence partway through the drive
+   looks like), or a **product-side** response difference that makes the frontend's token-count cache miss. The
+   counts themselves agree everywhere they are shared, so GoTavern's tokenizer ANSWERS are numerically correct
+   either way. **The next `preset`-mode run decides it**, because the corrected comparator now records the
+   `requestText` of every extra and missing call — which is exactly what the old artefact could not record, and
+   why this question could not be asked before. Nobody has looked yet; it is a question this lane surfaced rather
+   than answered, and it must not be reported as a product defect until one of the two hypotheses is excluded.
 3. F3 (the Q20 save/reload/swipe discriminator) is now recorded as an explicit limit in
    `docs/goal-scorecard.md`'s Q20 row rather than left implied; F4-F8 and F11-F15 were fixed by their own lane with
    observed reds; **F9 was found to be wrong at HEAD** (the guard already carried its `Boolean(leg) &&`) and was
