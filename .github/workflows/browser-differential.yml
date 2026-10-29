@@ -228,12 +228,22 @@ jobs:
       MODE_HELPER: ${{ inputs.mode || (github.event_name == 'push' && 'helper' || 'all') }}
     # SIZED FROM THE MEASUREMENT, not from a round number. Run 40068803201 (the first full sweep, before
     # any cache) recorded its setup in 1.2 minutes total and was still inside the drive step at 25.5
-    # minutes, with 15 sources x 8 browser drives to pay for; the whole job is projected at ~45 minutes.
-    # 90 = twice that projection, which tolerates one slow source without letting a wedged browser hold a
-    # runner for hours. The probe also has its own deadlines (30 s server wait, 60 s settings-ready, 60 s
-    # quiescence, 60 s settle, 30 s connect), so a hung page normally fails in a few minutes and this cap
-    # is the backstop rather than the first line of defence.
-    timeout-minutes: 90
+    # minutes, with 15 sources x 8 browser drives to pay for; the whole job was once projected at ~45
+    # minutes. THAT PROJECTION IS NOW WRONG BY MEASUREMENT, and the cap that encoded it cut a sweep.
+    #
+    # MEASURED 2026-10-29 on run 40903953724 (mode=all, the first full sweep since the helper, framing,
+    # Q17, Q18, Q20, Q21 and regex lanes landed): setup 0.6 min, "Record the selected drives" 40.5 min,
+    # streaming framing 5.2, asset legs 3.9, UI layout 0.3, helper 11.6, helper generation 6.8, helper
+    # variables 1.0 -- already 70.7 min BEFORE the preset boundary search, Q17 sweep, REAL-preset legs,
+    # the four Q20 verbs, Q21 and the regex lane, which together need roughly another 35. The 90-minute
+    # backstop therefore cancelled a run that was working correctly, which is the worst outcome for a
+    # timeout: it destroyed the evidence of every completed step above.
+    #
+    # 150 = the measured ~110 min plus a third, so a single slow source still fits and a wedged browser
+    # still fails inside a bounded window rather than holding a runner for the service maximum. The
+    # probe's own deadlines (30 s server wait, 60 s settings-ready, 60 s quiescence, 60 s settle, 30 s
+    # connect) remain the first line of defence; this is the backstop.
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
 
