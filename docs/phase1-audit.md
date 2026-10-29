@@ -779,3 +779,49 @@ what that list is for: *"They are REQUIRED here, not merely recorded: the artefa
 `unproven[]`, and a required-list entry is what turns 'driven' into 'cannot silently regress to unproven'."*
 So removing an entry is not a tidying edit -- it is the exact regression the list was built to prevent, and
 rule 32's standard applies to it.
+
+
+### 18. The gate's actual blocker, and a correction to sections 13-17
+
+Sections 13-17 analysed `survivesRestart` as the reason `main`'s browser gate is red. **The premise was
+stale**, and the run that finally concluded shows it.
+
+```
+Browser differential 40832655173 on b3007b3 (mode=preset): COMPLETED/FAILURE
+  JOB differential: failure
+     FAILED STEP 45: Compare the Q20 continue legs
+     FAILED STEP 46: Judge the Q20 continue legs
+
+Q20 continue comparison failed: sameSetup, nextRequestClean
+```
+
+**`main`'s gate fails on the Q20 continue surface, and `survivesRestart` is not in the failing set.** The
+premise came from the **Alpha 8** measurement at `a319cd4`, where the failing set was helper-variable *plus*
+Q20. **I carried that across rounds without re-establishing it on the current tree** -- rule 61's corollary in
+a new costume, and the fifth self-correction of this workstream.
+
+**`sameSetup` and `nextRequestClean` are the exact two guards the Alpha 8 `lane/p2-continue` work diagnosed.**
+So the gate is red on the surface whose root cause was already found: **the handoff tree is an `fs.cp` of
+GoTavern's data root taken after its setup turns, which pinned then inherits** -- so pinned is handed a
+predecessor that GoTavern is asked to generate. That lane closed as `not-observed`.
+
+**And a distinction I conflated last round:** a surface can be honestly recorded as `not-observed` and still
+fail the gate, because **the gate does not read the record, it reads the guards.** The P2 lane's honesty about
+its own result and the gate's greenness are independent.
+
+**So the same shape appears twice, with different outcomes:**
+
+| surface | recorded finding | gate |
+|---|---|---|
+| `survivesRestart` | `KNOWN DIFFERENCE`, carried to Alpha 9 | not in the failing set on this tree |
+| **Q20 continue `sameSetup`** | **`not-observed`, root cause named** | **FAILS** |
+
+**And the fix's specification is already written.** `docs/surfaces/continue.md` records the line the Alpha 8
+round produced: *"The handoff tree is an INPUT, and a leg that is not handed it cannot be compared."* **That is
+the specification for making the Q20 continue legs comparable** -- hand both legs the same input rather than
+repairing a probe. It was written as a finding and never applied as a change.
+
+**What is NOT established, and must not be assumed:** whether `survivesRestart` passes on this tree. It is
+absent from the failing set, but **absence from a failure list is not a pass**, and the `mode=preset`
+dispatch's step set may not include the helper-vars leg at all. Any decision about `survivesRestart` should
+wait on re-establishing its state, not on this run's silence about it.
