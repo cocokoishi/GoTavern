@@ -81,7 +81,7 @@ Install a published release. **The version must be given explicitly while the ne
 prerelease:**
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.6/install.sh | bash -s -- --version v0.1.0-alpha.6
+curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.8/install.sh | bash -s -- --version v0.1.0-alpha.8
 ```
 
 **Why the version is not optional yet.** Without `--version` the installer uses `releases/latest/download`,
@@ -93,7 +93,7 @@ Optional explicit directory/version forms are supported by downloading the scrip
 
 ```sh
 ./install.sh --dir "$HOME/servers/GoTavern"
-./install.sh --version v0.1.0-alpha.6 --dir "$HOME/servers/GoTavern"
+./install.sh --version v0.1.0-alpha.8 --dir "$HOME/servers/GoTavern"
 ```
 
 Default installation directory:
@@ -108,8 +108,8 @@ Install a published release. **The version must be given explicitly while the ne
 prerelease:**
 
 ```powershell
-irm https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.6/install.ps1 -OutFile install.ps1
-.\install.ps1 -Version v0.1.0-alpha.6
+irm https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.8/install.ps1 -OutFile install.ps1
+.\install.ps1 -Version v0.1.0-alpha.8
 ```
 
 The same reason applies as on Unix: without `-Version` the script uses `releases/latest/download`, which
@@ -119,7 +119,7 @@ For options, save the script and run for example:
 
 ```powershell
 .\install.ps1 -InstallDir "$HOME\Servers\GoTavern"
-.\install.ps1 -Version v0.1.0-alpha.6 -InstallDir "$HOME\Servers\GoTavern"
+.\install.ps1 -Version v0.1.0-alpha.8 -InstallDir "$HOME\Servers\GoTavern"
 ```
 
 Default installation directory:

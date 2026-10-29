@@ -4,7 +4,7 @@
 [![Latest release](https://img.shields.io/github/v/release/cocokoishi/GoTavern?include_prereleases&label=release)](https://github.com/cocokoishi/GoTavern/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-> **Status: `v0.1.0-alpha.6` — an ALPHA.** Not yet a daily driver for a data directory you cannot restore.
+> **Status: `v0.1.0-alpha.8` — an ALPHA.** Not yet a daily driver for a data directory you cannot restore.
 > **No defect that was reported from real use is still open** — the three that were (missing visual assets,
 > 酒馆助手 not working, and no proof a real preset changes the model context) each now have a passing gate, and
 > [Compatibility](#compatibility) names that gate per surface. What is still unproven is listed there too, rather
@@ -137,20 +137,20 @@ stable release.
 
 Every path downloads a **prebuilt archive**; nothing is compiled on the target machine.
 
-**[→ All releases](https://github.com/cocokoishi/GoTavern/releases)** — `v0.1.0-alpha.6` is the current
+**[→ All releases](https://github.com/cocokoishi/GoTavern/releases)** — `v0.1.0-alpha.8` is the current
 prerelease.
 
 **Linux / macOS**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.6/install.sh | bash -s -- --version v0.1.0-alpha.6
+curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.8/install.sh | bash -s -- --version v0.1.0-alpha.8
 ```
 
 **Windows (PowerShell)**
 
 ```powershell
-irm https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.6/install.ps1 -OutFile install.ps1
-.\install.ps1 -Version v0.1.0-alpha.6
+irm https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.8/install.ps1 -OutFile install.ps1
+.\install.ps1 -Version v0.1.0-alpha.8
 ```
 
 **An explicit `--version` / `-Version` IS REQUIRED WHILE THE NEWEST RELEASE IS A PRERELEASE.** Without it the
@@ -161,7 +161,7 @@ there is none yet, so that URL 404s. That is deliberate: a prerelease must never
 **Docker**
 
 ```bash
-docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.6
+docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.8
 ```
 
 `:latest` deliberately lags — it only moves when a **stable** tag is published, so `docker pull ...:latest`
