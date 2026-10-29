@@ -74,6 +74,7 @@
     {"runId":"40898332226","workflow":"GoTavern smoke metrics","headSha":"a8d594501bf1223511f77acefa0cc5f2715a9211","conclusion":"success","createdAt":"2026-10-29T15:07:23Z"},
     {"runId":"40903954848","workflow":"GoTavern drop-in qualification","headSha":"e4d78d44d0647aaad5b6f8031c5815d8a897e4a6","conclusion":"success","createdAt":"2026-10-29T15:40:31Z"},
     {"runId":"40903953724","workflow":"Browser differential","headSha":"e4d78d44d0647aaad5b6f8031c5815d8a897e4a6","conclusion":"cancelled","createdAt":"2026-10-29T15:40:30Z"},
-    {"runId":"40917936757","workflow":"Browser differential","headSha":"e4d78d44d0647aaad5b6f8031c5815d8a897e4a6","conclusion":"failure","createdAt":"2026-10-29T17:05:23Z"}
+    {"runId":"40917936757","workflow":"Browser differential","headSha":"e4d78d44d0647aaad5b6f8031c5815d8a897e4a6","conclusion":"failure","createdAt":"2026-10-29T17:05:23Z"},
+    {"runId":"40925514681","workflow":"Browser differential","headSha":"913e3c598d0e76ea5cd4cbf7ae15ff1e72635124","conclusion":"success","createdAt":"2026-10-29T17:52:50Z"}
   ]
 }
