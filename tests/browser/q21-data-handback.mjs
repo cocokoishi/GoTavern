@@ -428,7 +428,15 @@ const report = {
 
 function step(name, ok, detail = null) {
     report.steps.push({ name, ok, detail });
-    if (!ok && !report.failure) report.failure = `${name}: ${detail ?? 'failed'}`;
+    // A STRUCTURED DETAIL MUST BE RENDERED, NOT INTERPOLATED. Template interpolation of an object is
+    // "[object Object]", which is what the first CI execution of this probe printed for the one failing
+    // row: "FAILURE: pinnedContinued: [object Object]" (Browser differential 40917936757). The reason
+    // existed in the report and was unreadable in the log, so the next reader had to search the uploaded
+    // JSON -- the same diagnostic defect AGENTS.md rule 20 records for a probe that fails silently.
+    if (!ok && !report.failure) {
+        const rendered = typeof detail === 'string' ? detail : JSON.stringify(detail);
+        report.failure = `${name}: ${detail == null ? 'failed' : rendered}`;
+    }
     return ok;
 }
 
