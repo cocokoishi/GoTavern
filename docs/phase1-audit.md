@@ -343,3 +343,45 @@ locally and the only thing standing between Layer A and a `match` verdict is the
 **What the fix must preserve, therefore:** whatever makes the enabled-row property satisfiable on real content
 must leave the derivation's `match` intact. The guard is a real assertion on the class where it works, so the
 change is additive -- a second way to identify the bodies -- rather than a replacement.
+
+
+### 9c. What the marker-independent guard actually needs, established before writing it
+
+The obvious fix for the guard's marker dependency is "identify the 46 bodies by their own text instead of by a
+substituted marker". **That fix cannot be written from the comparator's current inputs**, and finding that out
+first is cheaper than discovering it half-way through an edit.
+
+What the comparator has, read from a leg report rather than assumed:
+
+```
+leg report top-level keys:  schemaVersion, question, subject, preset, expected, steps, structure,
+                            connection, peerRequests, console, pageErrors, failure, characterOpen, generation
+preset keys:                name, file, bytes, sha256, plantedAt
+peerRequest keys:           method, path, contentType, byteLength, sha256, body
+```
+
+**`preset` carries an identity, not a content.** There is no prompt array, no `prompt_order`, and no data
+root -- `plantedAt` is a path *relative to a data root the comparator never receives*. So the comparator can
+say which preset was planted and can hash it, but it cannot read a single prompt body. A text-based
+identification has nothing to identify from.
+
+**Therefore the change is an interface change, not a logic change**, and there are three honest shapes:
+
+1. **Give the comparator the preset paths** as optional arguments (`--preset-a`, `--preset-b`). When present,
+   the guard reads each preset, finds the enabled order rows whose prompt carries `enabled: false`, and asks
+   whether any of their bodies arrives on both legs; when absent, it falls back to markers exactly as now.
+   **Additive and backward-compatible** -- the derivation call site passes nothing new and keeps its `match`.
+2. **Have the probe record the prompt bodies in the report.** Rejected: the report is a file, and a real
+   preset's prompt bodies in a leg report is private content in one more place for no gain the first shape
+   does not give.
+3. **Declare the property `not-observed` for real content** and say so in the verdict. This is the least
+   work and the weakest result: the property would then be asserted on the derivation and merely *named* on
+   real content, which is honest but leaves the enabled-row behaviour unmeasured where it matters most.
+
+**Shape 1 is the one to build**, and the reason to prefer it is the same reason the guard should not be
+deleted: the property is real, and on real content it is currently the only unasserted one.
+
+**What shape 1 must not do**, recorded because it is the easy mistake: it must not change the derivation's
+outcome. That run reaches `verdict: match` with all ten guards, verified against its saved leg reports, and it
+is the baseline the change is measured against -- **if the derivation stops reaching `match`, the change is
+wrong regardless of what it does for real content.**
