@@ -423,3 +423,40 @@ thing that was checking.
 This is an audit of the harness, not a statement about the product. Nothing here declares the project
 complete, and no product behaviour was executed to produce it: every measurement above comes from
 committed artefacts, committed source and the workflow file.
+
+## 7. What has since been FIXED, and what a reader must still discount
+
+Added 2026-10-29 by the integrating lane, so this file does not read as a list of live defects when part of it is
+now history. Each entry names the fix and the evidence; anything not listed here is still open.
+
+**F2 (the tokenizer comparison) is FIXED, and the committed artefact's diagnosis is SUPERSEDED — read that
+artefact with this in mind.** The audit's claim was verified against the committed data BEFORE any code changed,
+and it holds exactly: pinned's entire 67-count sequence is a **subsequence** of GoTavern's 73, matched in order,
+with **six** calls on the GoTavern side that pinned never made (225, 380, 589, 749, 57 and 13, at indices 18, 20,
+21, 22, 31 and 34), and every common call agreeing. So `preset-complex-comparison.json`'s recorded
+`firstDifference` — `index 18: pinnedCount 275, gotavernCount 225`, noted as *"the same message counted differently
+by the two servers"* — is **wrong twice over**: it describes six EXTRA calls as a per-message disagreement, and it
+attaches a `requestText` from pinned's call #18 to GoTavern's call #18, which by then was a different call.
+
+The fix pairs by what each call was ABOUT (its path plus the first message's content) and compares the counts for
+one key in the order that key recurred, naming three outcomes separately — `perMessageDifferences`,
+`extraOnGotavern`, `missingOnPinned` — with an empty comparison refused as `unmeasurable` rather than reported as
+agreement (rule 19). The artefact now records those three arrays, which is what makes the diagnosis checkable from
+the artefact alone; the old shape recorded only the counts, which is precisely why the wrong diagnosis could not
+be falsified by reading it. `tests/browser/tokenizer-comparator-selftest.mjs` (19 cases, wired into `ci.yml`,
+`lane.yml` and `browser-differential.yml`) runs the real exported comparison over the defect's own shape and
+**controls it against the old positional walk**, so a change that reproduced the old output would fail. The verdict
+stays an OBSERVATION rather than a guard, exactly as the artefact's own comment requires.
+
+**WHAT IS STILL OPEN HERE, stated so the fix is not read as more than it is.**
+1. The committed `preset-complex-comparison.json` has **not** been re-recorded, so its `firstDifference` still
+   carries the wrong diagnosis; the next `preset`-mode run that commits artefacts replaces it, and until then a
+   reader must discount that one field.
+2. **The six extra tokenizer calls are a real behavioural difference and remain UNEXPLAINED.** The corrected
+   comparator names them; it does not say why GoTavern makes six more count calls than pinned, and nobody has
+   looked. That is a product question this lane surfaced rather than answered.
+3. F3 (the Q20 save/reload/swipe discriminator) is now recorded as an explicit limit in
+   `docs/goal-scorecard.md`'s Q20 row rather than left implied; F4-F8 and F11-F15 were fixed by their own lane with
+   observed reds; **F9 was found to be wrong at HEAD** (the guard already carried its `Boolean(leg) &&`) and was
+   left alone, with a regression case added instead. F1/F16 are fixed and the terminal failure gate now consumes
+   every recording counter.
