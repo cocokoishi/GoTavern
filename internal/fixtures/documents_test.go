@@ -117,10 +117,51 @@ func contractDocumentFiles() []string {
 	}
 }
 
+// gitIgnoredDirectories lists the tree-relative, slash-separated directories git ignores, so a walk can skip
+// them. A file git ignores is NOT part of this repository, so it is not one of this repository's documents.
+//
+// WHY THIS EXISTS (measured 2026-10-29). `allMarkdownFiles` skipped `.git`, `node_modules`, `.reference` and
+// `upstream`, but nothing else, so it walked every OTHER directory on disk -- including the gitignored
+// `/.private-fixtures/` qualification area, which holds real installed SillyTavern trees. On a host where that
+// area exists the gate read a user's installed extension `CHANGELOG.md`, found an object-id-shaped string that
+// is not the pin, and reported:
+//
+//	TestPinnedCommitStringsMatchThePin: pinned-commit consistency failed ... "3eb2beaa... is not the pinned
+//	commit and not a declared other pin"
+//
+// -- a FALSE RED, because CI never has that directory and the gate is green there. A gate whose verdict depends
+// on the presence of untracked local data cannot state a fact about the tree. Two further consequences made it
+// worth fixing as a class rather than as one name:
+//   - the failure message prints the private path and a value read out of the user's own checkout, which is
+//     exactly the class of derived information the privacy boundary forbids leaving the machine;
+//   - a name blocklist would have to be extended for every future ignored directory, while asking git derives
+//     the answer from the ignore rules themselves.
+//
+// A tree that is not a git repository (the scratch trees the teeth tests build) yields no ignored set and the
+// walk behaves as before, which is the pre-existing behaviour rather than a new hazard.
+func gitIgnoredDirectories(root string) map[string]bool {
+	ignored := make(map[string]bool)
+	// --others --ignored --exclude-standard --directory collapses an entirely ignored directory to one
+	// `dir/` entry, which is what a walk needs to decide SkipDir on.
+	out, err := exec.Command("git", "-C", root, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory").Output()
+	if err != nil {
+		return ignored
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		ignored[strings.TrimSuffix(filepath.ToSlash(line), "/")] = true
+	}
+	return ignored
+}
+
 // allMarkdownFiles walks the tree for *.md, skipping the vendored upstream checkout (which carries
-// SillyTavern's own documentation and is byte-pinned, not ours to check).
+// SillyTavern's own documentation and is byte-pinned, not ours to check) and every directory git ignores.
 func allMarkdownFiles(root string) ([]string, error) {
 	var out []string
+	ignored := gitIgnoredDirectories(root)
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -132,6 +173,12 @@ func allMarkdownFiles(root string) ([]string, error) {
 				return filepath.SkipDir
 			}
 			if strings.Contains(slashed, "/upstream/") || strings.HasSuffix(slashed, "/upstream") {
+				return filepath.SkipDir
+			}
+			// THE IGNORE RULES ARE THE AUTHORITY, not a list of names: a gitignored directory is not part of
+			// this repository and therefore holds none of its documents. This is what keeps a private local
+			// qualification area -- and any future ignored directory -- out of the scan.
+			if rel, relErr := filepath.Rel(root, path); relErr == nil && rel != "." && ignored[filepath.ToSlash(rel)] {
 				return filepath.SkipDir
 			}
 			return nil
@@ -594,6 +641,80 @@ func TestDocumentsConsistencyGateCanGoRed(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), badPin) {
 		t.Fatalf("refused, but the message does not quote the offending literal: %v", err)
+	}
+}
+
+// TestDocumentsGateSkipsGitIgnoredDirectories is the regression test for a defect measured on 2026-10-29.
+//
+// `allMarkdownFiles` skipped four names and walked everything else, so on a host carrying the gitignored private
+// qualification area the pin gate read a real installed SillyTavern extension's `CHANGELOG.md`, found an
+// object-id-shaped string that is not the pin, and reported a FALSE RED. CI never has that directory, so the gate
+// was green there and nothing could have caught it. The message also printed the private path and a value read
+// out of the user's own tree -- derived information the privacy boundary forbids leaving the machine.
+//
+// TEETH, AND WHY BOTH HALVES ARE REQUIRED. The same tree is checked twice: first with the planted document in an
+// ORDINARY directory (the gate must refuse it and name it), then with that one directory added to `.gitignore`
+// (the gate must pass). A test that asserted only the second half would also pass if the walk had stopped
+// scanning markdown altogether -- the vacuous-green shape this repository keeps paying for.
+func TestDocumentsGateSkipsGitIgnoredDirectories(t *testing.T) {
+	pin, err := pinnedCommitFromTree(documentsRoot)
+	if err != nil {
+		t.Fatalf("the authority file itself is unreadable: %v", err)
+	}
+	if _, lookErr := exec.LookPath("git"); lookErr != nil {
+		t.Skipf("git is not available, so the ignore rules cannot be read and this gate cannot be exercised: %v", lookErr)
+	}
+	// Derived from the pin rather than typed, so a documented baseline bump cannot make this plant something
+	// that happens to be correct.
+	badPin := pin[:38] + "6" + pin[38:]
+	if badPin == pin {
+		t.Fatalf("the planted spelling equals the pin; the mutation cannot discriminate (rule 15)")
+	}
+
+	tree := t.TempDir()
+	writeScratchTree(t, tree, pin, pin)
+	gitIn := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", tree}, args...)...)
+		if out, runErr := cmd.CombinedOutput(); runErr != nil {
+			t.Fatalf("git %s: %v (%s)", strings.Join(args, " "), runErr, out)
+		}
+	}
+	// A real repository, because the ignore rules ARE the input this test varies.
+	gitIn("init", "--quiet")
+
+	const localDir = "private-local-area"
+	localDoc := localDir + "/CHANGELOG.md"
+	if mkErr := os.MkdirAll(filepath.Join(tree, localDir), 0o755); mkErr != nil {
+		t.Fatalf("mkdir %s: %v", localDir, mkErr)
+	}
+	// THE SPELLING MUST BE IN THE SHAPE A DOCUMENT CARRIES IT, or the planted defect is invisible and this
+	// test would pass for the wrong reason. Measured on the first run of this test: a BARE 41-character run
+	// is matched by NEITHER document pattern -- `bareObjectIDPattern` is exactly 40 hex (a longer run is a
+	// SHA-256 prefix, which an earlier version flagged as a phantom defect) and `backtickedObjectIDPattern`
+	// needs backticks -- so the gate correctly saw nothing and the assertion below failed. Backticks are the
+	// canonical spelling `writeScratchTree` already uses, and they are what makes the 38-44 window apply
+	// (AGENTS.md rule 15: an assertion is decoration unless its input exercises the transformation).
+	if writeErr := os.WriteFile(filepath.Join(tree, filepath.FromSlash(localDoc)), []byte("## v9\n\nPinned: `"+badPin+"`.\n"), 0o644); writeErr != nil {
+		t.Fatalf("write %s: %v", localDoc, writeErr)
+	}
+
+	// HALF ONE -- not yet ignored. The gate must still scan an ordinary directory and refuse this tree BY NAME.
+	_, err = checkPinnedCommitStrings(tree, treePinnedCommitMode)
+	if err == nil {
+		t.Fatalf("the gate ACCEPTED a tree carrying %q in %s while that directory was NOT ignored; the walk must keep scanning ordinary directories, and without this half the assertion below would pass vacuously", badPin, localDoc)
+	}
+	if !strings.Contains(err.Error(), localDoc) {
+		t.Fatalf("the gate refused the tree but its message does not name %s, so a reader cannot find the defect: %v", localDoc, err)
+	}
+
+	// HALF TWO -- the same bytes, one ignore rule later. A gitignored path is not part of this repository and so
+	// holds none of this repository's documents; it must not be able to turn the gate red.
+	if writeErr := os.WriteFile(filepath.Join(tree, ".gitignore"), []byte("/"+localDir+"/\n"), 0o644); writeErr != nil {
+		t.Fatalf("write .gitignore: %v", writeErr)
+	}
+	if _, err := checkPinnedCommitStrings(tree, treePinnedCommitMode); err != nil {
+		t.Fatalf("the gate refused a tree whose only offending document lives under a gitignored directory (%s): a gitignored path is not part of this repository. On a developer host this is exactly how the private qualification area turned the pin gate red while CI, which never has that directory, stayed green: %v", localDoc, err)
 	}
 }
 
