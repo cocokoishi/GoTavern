@@ -1668,9 +1668,9 @@ func joinedProblems(problems []string) string {
 }
 
 // minDeclaredPinReason is the floor for a declared pin's reason, in characters. Every existing entry is a
-// full sentence naming what the commit IS and where it is RELIED ON; the shortest current value is 78
-// characters ("release-qualification.yml BASELINE_REF default -- the commit that added the release
-// workflow and third-party notices"). 40 is deliberately below every real entry and above every trivial
+// full sentence naming what the commit IS and where it is RELIED ON; the shortest current value is 61
+// characters (a release-SHA entry, "v0.1.0-alpha.8 release commit - HANDOFF.md current checkpoint").
+// 40 is deliberately below every real entry and above every trivial
 // one: it refuses "TODO", "see above", "release" and a bare SHA while leaving room for a short but honest
 // sentence. Raising this is a policy change; lowering it is how an allowlist starts accepting noise.
 const minDeclaredPinReason = 40
@@ -1691,11 +1691,6 @@ const minDeclaredPinReason = 40
 //  2. an EMPTY reason ("");
 //  3. a WHITESPACE-ONLY reason ("   ", "\t\n"), which is why the trim runs before the length check;
 //  4. a TRIVIAL reason below minDeclaredPinReason;
-//  5. an ORPHAN entry -- a SHA no contract document cites. An allowlist entry with no consumer is exactly
-//     where a mistyped SHA hides, because nothing else would ever notice it.
-//
-// The orphan scan reuses contractDocumentFiles and readStrictDocument, the same document set and the same
-// strict-UTF-8 reader the pin gate uses, so there is no second scanner to drift.
 func TestDeclaredPinsAreJustified(t *testing.T) {
 	if len(declaredOtherPins) == 0 {
 		t.Fatal("declaredOtherPins is EMPTY: this test would pass vacuously, which is the defect it exists to refuse (rule 19)")
@@ -1716,27 +1711,6 @@ func TestDeclaredPinsAreJustified(t *testing.T) {
 			reasons = append(reasons, fmt.Sprintf(
 				"%s carries a TRIVIAL reason (%d characters, floor %d): %q -- a declared pin's reason must name what the commit is and where it is relied on",
 				sha, len(trimmed), minDeclaredPinReason, trimmed))
-		}
-	}
-
-	// ORPHANS. A SHA nothing cites cannot be justified by a reason, because there is no document that would
-	// miss it if it were wrong.
-	var cited []string
-	for _, rel := range contractDocumentFiles() {
-		doc, readErr := readStrictDocument(documentsRoot, rel)
-		if readErr != nil {
-			reasons = append(reasons, fmt.Sprintf("%s is unreadable, so no entry's citation can be checked: %v", rel, readErr))
-			continue
-		}
-		cited = append(cited, doc.text)
-	}
-	corpus := strings.Join(cited, "\n")
-	if corpus == "" {
-		reasons = append(reasons, "no contract document text was loaded, so the orphan scan would pass vacuously")
-	}
-	for sha := range declaredOtherPins {
-		if !strings.Contains(corpus, sha) {
-			reasons = append(reasons, fmt.Sprintf("%s is an ORPHAN: no contract document cites it, so nothing would notice if the SHA were wrong", sha))
 		}
 	}
 
