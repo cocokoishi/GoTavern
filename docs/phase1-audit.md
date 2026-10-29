@@ -878,3 +878,61 @@ a comparator that had printed everything looked like a comparator that had dropp
 characters, a `git grep` with a path spec that matched nothing, a `Select-String` for a phrase that wraps
 across a line break. **Each produced a confident negative, and each was quoted as a finding.** Nine of the ten
 corrections trace to that one habit.
+
+
+### 20. The answer, and it inverts section 19: both legs are correct, the comparator's guard is wrong
+
+Section 19 concluded that `setupDecision` is read before the setup turns land and called it a probe-ordering
+defect. **`filesOnDisk` -- printed in the artefact from the start -- settles it differently:**
+
+```
+gotavern filesOnDisk: ["chats/default_Seraphina/...224ms.jsonl:2"]
+pinned   filesOnDisk: ["chats/default_Seraphina/...224ms.jsonl:6"]
+```
+
+**Same path, and each leg's OWN view of its tree.** GoTavern's tree held 2 lines when it read; pinned's held 6.
+And `preContinue.file.sha256`, read later on the GoTavern leg, **equals the handoff sha `2a05a9ab...`** -- so
+the file GREW from 2 to 6 lines inside the GoTavern leg's own run.
+
+**That is not a defect. It is the two legs' different roles.**
+
+- **The GoTavern leg is the PRODUCER.** It starts from a 2-line chat, drives the setup turns, the file grows to
+  6, and it writes the handoff. Its `carriesPredecessor: false` is **correct** -- at its read the turns had not
+  happened, so it drives them.
+- **The pinned leg is the CONSUMER.** It is handed the 6-line handoff and correctly skips turns it can see are
+  already present. Its `carriesPredecessor: true` is **correct**.
+- **`completions` 4 vs 2 follows from exactly that, and is also correct** -- the producer drove the setup turns
+  and the consumer did not.
+
+**And the comparator already says so, in the comment beside the guard that fails:**
+
+```
+tests/browser/compare-q20-continue-legs.mjs:103
+ * the handoff, found the setup turns ALREADY PRESENT and correctly SKIPPED them
+   (`setupDecision.carriesPredecessor` ...
+```
+
+**It documents that the pinned leg CORRECTLY skipped, and then a guard forty lines later requires the two
+legs' `carriesPredecessor` to be equal** -- impossible for a producer and a consumer by construction.
+
+**So the defect is in the comparator, not the probe**, and it is the same class this audit keeps finding: **a
+guard whose condition does not match the behaviour its own comment describes.**
+
+**What `sameSetup` should assert:** that both legs continued from the SAME STATE -- which the artefact already
+proves three ways, and which already passes:
+
+```
+gotavernHandoffSha == pinnedReadSha == gotavernPreContinueSha == 2a05a9ab...
+```
+
+**The equality that matters is the one that holds.** A producer that drove the turns and a consumer handed
+their result are the same experiment; the guard should assert the shared starting state, not the shared setup
+path. `completions` differing is the asymmetry WORKING, not a symptom.
+
+**Four proposals, all wrong, and the lesson.** I proposed the handoff ordering, a missing hash, a reader
+defect, and `setupDecision` read too early. **All four assumed a leg was misbehaving, and none was.** The
+reading that settles it in one step is `filesOnDisk` -- two different line counts for the same path is the
+producer/consumer signature, and it was in the artefact the whole time.
+
+**And section 19 is retracted rather than amended:** its "read before the setup turns land" describes the
+producer's correct read, and calling it a defect would have led to a probe change that broke the producer.
