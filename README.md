@@ -33,6 +33,18 @@
 > - **A Windows-only class of false reds is closed.** A real Winsock errno never matched `errors.Is`, so an
 >   occupied port and a refused provider connection both lost their causal error message on Windows; and four
 >   tests were red there for host reasons. Details in `docs/local-red-triage.md`.
+> - **Static assets are no longer copied into memory on every request.** Serving `/script.js` (497,669 B) cost
+>   1,010,107 B/op; a profile put 66% of it in `embed.FS.ReadFile`, called once per request. It is now **43,347
+>   B/op** (−95.7%), and the numbers with their provenance are in [Performance](#performance).
+> - **`cacheBuster` is implemented**, and two config families that GoTavern used to accept and then **silently
+>   ignore** now say so: `sso.autheliaAuth`/`authentikAuth` (SSO auto-login does not exist) and
+>   `privateAddressWhitelist.enabled` (the SSRF filter does not exist) each print a named startup warning. The
+>   warning makes them **visible, not safe** — `docs/config-inventory.md` records the true status of all three,
+>   and the SSRF filter remains unimplemented.
+> - **`continue` is now proven on CI**, not only locally: `Browser differential` `40850329628` (RUN VERDICT
+>   FAILURE, cited for steps 44, 45, 47 and 48 inside it, all success) printed `Q20 continue: 14 guard(s) held`.
+>   That closes the surface that was red at the start of this round; the run's only failure is the pre-existing
+>   Q21 hand-back fixture defect.
 
 ## TL;DR
 
