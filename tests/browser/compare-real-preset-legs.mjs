@@ -194,7 +194,21 @@ guard('aEnabledRowPointingAtDisabledPromptContributes', () => {
     );
     const left = markersOf(reports.A?.go);
     const right = markersOf(reports.A?.node);
-    if (left.size === 0 || right.size === 0) return ['no preset-A request on one of the legs carried a fixture marker at all'];
+    // A VERDICT MUST EXPLAIN ITSELF. This branch is reached when neither leg's request carries a
+    // `MARK_` marker, and it is reached for exactly one reason: the legs were driven against a REAL
+    // preset, which carries prose where the committed derivation carries markers. The guard identifies
+    // a prompt's body by its marker, so without markers it cannot ask its question at all -- it is not
+    // reporting a parity failure, and a reader who sees only the verdict must be told that.
+    //
+    // Measured: a Layer A run against two real private presets passed every other guard (both
+    // equality halves of rule 48, both discriminations, rule 50) and failed only this one, for this
+    // reason. The derivation case is unaffected -- verified against its saved leg reports, still match.
+    if (left.size === 0 || right.size === 0) return [
+        'no preset-A request on either leg carried a fixture marker, so this guard cannot ask its '
+        + 'question for this input class: it identifies a prompt body by the MARK_NNNNNN marker the '
+        + 'committed derivation substitutes for prose, and a real preset carries prose instead. '
+        + 'FIXTURE-CLASS LIMITATION, NOT A PARITY FAILURE -- see the header note on this guard.',
+    ];
     const shared = [...left].filter(marker => right.has(marker));
     if (shared.length === 0) return ['the two legs share no fixture marker, so nothing can be said about what contributed'];
     details.aSharedMarkers = shared.length;
