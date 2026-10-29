@@ -8,7 +8,7 @@
 > **No defect that was reported from real use is still open** — the three that were (missing visual assets,
 > 酒馆助手 not working, and no proof a real preset changes the model context) each now have a passing gate, and
 > [Compatibility](#compatibility) names that gate per surface. What is still unproven is listed there too, rather
-> than implied to be finished: backgrounds' paint half, streaming's cut/abort legs, regenerate/continue's unfixed
+> than implied to be finished: backgrounds' paint half, regenerate/continue's unfixed
 > half, and handing a tree back to Node. Keep a backup of your data directory.
 
 ## TL;DR
@@ -92,7 +92,7 @@ from, row by row.
 | Author's Note depth | **proven** | `Browser differential` 40465631698 (cited for steps 26-28, all success): parity at depths 0/4/8, disabled and `IN_PROMPT`, byte-identical provider requests. **Limit:** one at-depth case is unmeasurable in the product's own trimmer and is recorded as `null`, not as a pass |
 | Token truncation at the context boundary | **proven at the measured boundary** | 40465631698 step 25 (success): both subjects keep and drop the same turns at `keep` and `keep-1`. **Not** "truncation proven in general" — pinned's total message count is not monotone in `openai_max_context` |
 | World-info activation | **proven** | `GoTavern CI` 40398345829 (success): provider-wire captures including the world-info routes, byte-identical on re-record |
-| Streaming and helper events | **partial** | the cut/abort legs that would prove it live on a lane that has not merged, so there is no citation from `main`; a buffering-hop render claim is not provable by the current harness and the artefact says so |
+| Streaming and helper events | **partial** | cut/abort is **proven**: `Browser differential` 40682654579 (success) drives the abort leg with a byte-offset cut on a frame boundary, and both subjects render the same partial text. The row stays `partial` for two other reasons the matrix names: a mid-stream TLS close is unobserved, and no gate asserts the ordering property itself. A buffering-hop render claim is not provable by the current harness and the artefact says so |
 | Reload, swipe, regenerate, continue | **partial** | save→reload→swipe proven (40387864205, success; five consecutive green runs since). Regenerate proven equality with a negative control. **Continue's comparator has never executed** |
 | Handing a GoTavern-written tree back to pinned Node | **unproven** | the hand-back leg is red at its own precondition: the committed card derivation carries different names in its `chara` and `ccv3` chunks, which pinned's reader resolves differently. A fixture defect, not a product finding — and therefore not a claim |
 | CPU/RAM/startup versus Node | **proven** | `GoTavern smoke metrics` 40394799325 (success), 40396669521 (success) — the figures in [Performance](#performance) |
