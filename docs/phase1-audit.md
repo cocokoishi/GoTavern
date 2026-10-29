@@ -153,3 +153,74 @@ When Phase 1 is done, the claim that will be supportable is narrow and worth sta
 
 The claim that will **not** be supportable, and must not be written: that every future SillyTavern behaviour
 is proven identical. Where a surface cannot be observed, the row says so rather than going green by omission.
+
+
+## 8. Local execution capability — measured, and a correction
+
+Phase 1's Layer A must run **locally**, because it reads real user data and that data may never reach CI. An
+earlier report in this workstream claimed the host could not run it. **That claim was wrong in every respect**,
+and the measurements are recorded here so the error is not repeated.
+
+What is actually present on this host:
+
+```
+node     v24.19.0
+npm      11.17.0
+go       go1.27.0 windows/arm64
+python   3.15.0
+harness  tests/browser/node_modules/@playwright/test 1.56.1   (pinned to the baseline's own Playwright)
+oracle   ../SillyTavern  (package.json and public/ present, one level ABOVE the repository)
+```
+
+### The six errors behind the false blocker
+
+All six are the same class — a wrong path or a failed invocation producing a **confident false negative**:
+
+1. **`node_modules` looked for at the repository root** instead of `tests/browser/node_modules`. The
+   dependencies were installed the whole time, one directory deeper.
+2. **`SillyTavern` looked for inside the repository** instead of at the parent level. The oracle sat one
+   directory up.
+3. **`npm` invoked as `& npm --version`**, which fails in PowerShell; `npm.cmd --version` answers `11.17.0`.
+4. **`go` invoked the same way**, which fails identically; `go.exe version` answers `go1.27.0`.
+5. **A glob one level short** — the harness's own config sits in `.private-fixtures/`, so `../` is the
+   repository, not its parent.
+6. **A vacuous pass inside the harness's own gate**: *"every private source is OUTSIDE the repository"*
+   reported **ok** while the config failed to parse, because the loop over the declared roots never ran. That
+   check now requires a non-empty resolved set before it can pass at all.
+
+**The lesson is the project's own, applied to a precondition gate rather than to a test**: a check that looks
+in the wrong place is worse than no check, because it produces a confident negative and that negative gets
+reported as a finding. Six instances in one gate is why the gate now asserts every path against a resolved
+absolute value rather than composing one and trusting it.
+
+### The probe's invocation, established
+
+`tests/browser/real-preset-probe.mjs` requires:
+
+```
+GOTAVERN_BINARY=<path>  node tests/browser/real-preset-probe.mjs \
+    --preset <preset.json> --preset-name <name> \
+    --expect-prompts N --expect-rows N --expect-enabled N \
+    --data-root <tree> --report <out.json>
+```
+
+`GOTAVERN_BINARY` is mandatory — the probe throws `GOTAVERN_BINARY is required for the GoTavern leg` without
+it. The `--expect-*` values are the fixture's own structure counts, which is what makes a green meaningful: a
+cross-leg green on a default preset is worthless.
+
+### The one real constraint: the binary must be built
+
+A prebuilt `gotavern.exe` sits in the repository root, **dated 2026-10-23 and reporting `0.0.0-dev` — no
+commit identity at all**. It is stale: **35 runtime `.go` files have changed since that date**, the most
+recent being `93dc064` on 2026-10-26.
+
+So a Layer A run must **build a current binary first**. Using the stale one would measure an older GoTavern
+and the result would say nothing about `main`. And because the prebuilt binary carries no revision, a result
+produced from it could not be attributed to a commit even if it were current — which is a second reason to
+build rather than reuse.
+
+### What this changes
+
+Steps 4 and 5 are **executable on this host**. Nothing needs provisioning, no decision is outstanding, and
+the option list in the previous report is withdrawn as moot. The remaining work is to add the world-info and
+macro dimensions to the probe, build a current binary, and run one complex private fixture.
