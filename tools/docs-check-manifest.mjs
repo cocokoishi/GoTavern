@@ -74,6 +74,27 @@ function entriesById(manifest) {
   return map;
 }
 
+// serializeManifest writes the header fields pretty-printed and EVERY ENTRY ON ONE LINE. That is not a
+// style choice: `internal/fixtures/documents_test.go` scans this file with a line-oriented regex so a
+// duplicate key or a missing field is a repair rather than a mystery, and an entry spread over five
+// lines is invisible to it. This serializer is the single writer, so the two formats cannot drift.
+function serializeManifest(manifest) {
+    const header = Object.entries(manifest).filter(([key]) => key !== 'entries');
+    const lines = ['{'];
+    for (const [key, value] of header) {
+        const rendered = JSON.stringify(value, null, 2).replace(/\n/g, '\n  ');
+        lines.push(`  ${JSON.stringify(key)}: ${rendered},`);
+    }
+    lines.push('  "entries": [');
+    (manifest.entries ?? []).forEach((entry, index) => {
+        const comma = index === (manifest.entries.length - 1) ? '' : ',';
+        lines.push(`    ${JSON.stringify(entry)}${comma}`);
+    });
+    lines.push('  ]');
+    lines.push('}');
+    return `${lines.join('\n')}\n`;
+}
+
 function main() {
   const manifest = readManifest();
 
@@ -105,7 +126,22 @@ function main() {
         conclusion: live.conclusion,
         createdAt: live.createdAt,
       });
-      writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+      writeFileSync(manifestPath, serializeManifest(manifest), 'utf8');
+      // READ BACK WITH THE GATE'S OWN PARSER. The Go gate (`internal/fixtures/documents_test.go`) reads
+      // ONE OBJECT PER LINE, deliberately: it avoids a JSON decoder so a duplicate key or a missing field
+      // is a repair rather than a mystery. This tool used to write `JSON.stringify(..., null, 2)`, which
+      // put every field on its own line -- so `--add` produced an entry the gate COULD NOT SEE, and a
+      // citation added by the documented command failed the ledger as "not in the manifest". Measured
+      // 2026-10-29 on runs 40898261148 and 40898332226. A capability must be proved to REACH the
+      // behaviour it was built for (AGENTS.md verification rule 7), so the write is followed by the
+      // gate's own regex, and a mismatch is fatal rather than a silent success.
+      const written = readFileSync(manifestPath, 'utf8');
+      const gatePattern = /\{"runId":\s*"(\d{6,})",\s*"workflow":\s*"([^"]*)",\s*"headSha":\s*"([0-9a-f]{40})",\s*"conclusion":\s*"([a-z_]+)"/;
+      const visible = new Set([...written.matchAll(new RegExp(gatePattern, 'g'))].map(match => match[1]));
+      if (!visible.has(runId)) {
+        console.error(`REFUSING: the entry for ${runId} was written but the ledger gate's parser cannot see it`);
+        process.exit(1);
+      }
     }
     console.log(`recorded ${runId} (${live.name}, ${live.conclusion}) ${live.headSha.slice(0, 12)}`);
     return;
