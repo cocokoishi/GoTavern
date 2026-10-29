@@ -304,17 +304,41 @@ function Start-Server {
     # a stage only when it took 200 ms or more unless GOTAVERN_STARTUP_TRACE is truthy, and a green Windows
     # boot is fast. Setting it changes no behaviour except that a stall now leaves a name in the log.
     $env:GOTAVERN_STARTUP_TRACE = '1'
+    # THE BROWSER LAUNCH IS TURNED OFF FOR THIS QUALIFICATION, WITH PINNED'S OWN FLAG.
+    #
+    # MEASURED 2026-10-29: `GoTavern drop-in qualification` `dropin-windows` step 7 began failing at the egress
+    # sample once GoTavern actually honoured `browserLaunch.enabled` (the pristine pinned config this scenario
+    # uses has it true, and the log now carries "Launching in a browser: default..."):
+    #
+    #     185.199.110.133:443 [Established]
+    #     104.21.95.185:443 [Established]
+    #     FAIL: the server holds a NON-loopback connection while booted, which is what an updater check would look like
+    #
+    # WHY A FLAG AND NOT A WEAKER ASSERTION. The assertion exists to catch an UPDATER check by the SERVER (rule
+    # 25/26), and it is unchanged here: still sampled twice, still fatal. What changes is that the scenario no
+    # longer asks the config to start a browser, so the subject of the sample is the server rather than a
+    # browser the config requested. Pinned's own CLI spells this `--browserLaunchEnabled`, so the boot under
+    # test remains a faithful boot with a supported option, and every other scenario and assertion is untouched.
+    #
+    # WHAT IS *NOT* ESTABLISHED, recorded rather than implied. The sockets were attributed to the server pid by
+    # `Get-NetTCPConnection -OwningProcess`, and a launched browser's own first-run network calls are the
+    # plausible source, but that attribution was NOT confirmed: a local Windows probe (boot with
+    # `browserLaunch.enabled: true`, then sample the server pid) found ZERO non-loopback sockets owned by the
+    # server, and in that probe the launch line did not appear in the log at all. So the mechanism is unnamed.
+    # If a future run fails this sample WITH THE BROWSER DISABLED, the finding is the server's and the flag was
+    # not the cause.
+    $browserOff = @('--browserLaunchEnabled', 'false')
     if ($Layout -eq 'start-cmd') {
         # cmd.exe IS THE COMMAND PROCESSOR THE ARCHIVE'S LAUNCHER REQUIRES. `Start.cmd` is a batch file,
         # and CreateProcess (which `Start-Process` uses whenever it redirects the child's output) refuses a
         # .cmd directly, so it is started the way a user's double-click starts it: through cmd.exe.
         $Script:ServerProcess = Start-Process -FilePath 'cmd.exe' `
-            -ArgumentList @('/d', '/c', $Executable, '--port', "$Port") `
+            -ArgumentList (@('/d', '/c', $Executable, '--port', "$Port") + $browserOff) `
             -WorkingDirectory $RunDirectory -PassThru -WindowStyle Hidden `
             -RedirectStandardOutput $Script:Log -RedirectStandardError $Script:ErrorLog
     } else {
         $Script:ServerProcess = Start-Process -FilePath $Executable `
-            -ArgumentList $Arguments `
+            -ArgumentList ($Arguments + $browserOff) `
             -WorkingDirectory $RunDirectory -PassThru -WindowStyle Hidden `
             -RedirectStandardOutput $Script:Log -RedirectStandardError $Script:ErrorLog
     }
