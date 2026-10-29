@@ -8,8 +8,31 @@
 > **No defect that was reported from real use is still open** — the three that were (missing visual assets,
 > 酒馆助手 not working, and no proof a real preset changes the model context) each now have a passing gate, and
 > [Compatibility](#compatibility) names that gate per surface. What is still unproven is listed there too, rather
-> than implied to be finished: backgrounds' paint half, regenerate/continue's unfixed
-> half, and handing a tree back to Node. Keep a backup of your data directory.
+> than implied to be finished: backgrounds' paint half, handing a tree back to Node, and the CI verdict for the
+> `continue` comparator fix described below. Keep a backup of your data directory.
+>
+> **What changed in the working tree after alpha.8** (unreleased; no tag names it yet). Two of these are
+> user-visible on a fresh install:
+>
+> - **The browser now opens on startup**, as pinned does. GoTavern shipped the same `default/config.yaml`
+>   (`browserLaunch.enabled: true`) and then declined to launch anything; `browserLaunch.browser` was never read.
+>   It now honours the key, the named browsers and pinned's non-fatal failure message.
+> - **`--help` goes to stdout and documents all 31 options**, as pinned's yargs does. It used to print five lines
+>   of subcommands to stderr, so a redirected `--help` was empty and `--port`/`--dataRoot`/`--configPath` were
+>   undiscoverable.
+> - **The access log is written** when `listen: true` (pinned gates the middleware on that key too — it is *not*
+>   default-on for a fresh install, and this README previously implied otherwise via the sweep it came from).
+> - **The `continue` comparator defect is fixed.** `Browser differential` run `40837309332` on `292905f` failed at
+>   `Compare the Q20 continue legs` with `failedGuards: ["nextRequestClean"]`. That was a **harness** defect, not a
+>   product one: the probe's continuation marker embedded the peer's *arrival ordinal*, which is leg-specific by
+>   design (the GoTavern leg produces the setup turns, the pinned leg is handed them), and that marker is persisted
+>   into the chat and re-sent in the next request — so the two next-turn bodies differed by exactly one byte
+>   (`..._3` vs `..._1`, both 4444 B, first and only difference at offset 4250). Both legs now render
+>   `verdict: match` with 14/14 guards, verified locally on both subjects; the CI verdict for this commit is
+>   pending and is not claimed here.
+> - **A Windows-only class of false reds is closed.** A real Winsock errno never matched `errors.Is`, so an
+>   occupied port and a refused provider connection both lost their causal error message on Windows; and four
+>   tests were red there for host reasons. Details in `docs/local-red-triage.md`.
 
 ## TL;DR
 
@@ -93,7 +116,7 @@ from, row by row.
 | Token truncation at the context boundary | **proven at the measured boundary** | 40465631698 step 25 (success): both subjects keep and drop the same turns at `keep` and `keep-1`. **Not** "truncation proven in general" — pinned's total message count is not monotone in `openai_max_context` |
 | World-info activation | **proven** | `GoTavern CI` 40398345829 (success): provider-wire captures including the world-info routes, byte-identical on re-record |
 | Streaming and helper events | **partial** | cut/abort is **proven**: `Browser differential` 40682654579 (success) drives the abort leg with a byte-offset cut on a frame boundary, and both subjects render the same partial text. The row stays `partial` for two other reasons the matrix names: a mid-stream TLS close is unobserved, and no gate asserts the ordering property itself. A buffering-hop render claim is not provable by the current harness and the artefact says so |
-| Reload, swipe, regenerate, continue | **partial** | save→reload→swipe proven (40387864205, success; five consecutive green runs since). Regenerate proven equality with a negative control. **Continue's comparator has never executed** |
+| Reload, swipe, regenerate, continue | **partial** | save→reload→swipe proven (40387864205, success; five consecutive green runs since). Regenerate proven equality with a negative control. **Continue: the comparator now reports `verdict: match` with 14/14 guards, measured locally on both subjects after the harness defect below was fixed — the CI verdict for this commit is PENDING and the row does not claim it.** The defect was in the harness, not the product: see the status block above, and `tests/browser/q20-continue-comparator-selftest.mjs`, which now kills all 14 guards by name |
 | Handing a GoTavern-written tree back to pinned Node | **unproven** | the hand-back leg is red at its own precondition: the committed card derivation carries different names in its `chara` and `ccv3` chunks, which pinned's reader resolves differently. A fixture defect, not a product finding — and therefore not a claim |
 | CPU/RAM/startup versus Node | **proven** | `GoTavern smoke metrics` 40394799325 (success), 40396669521 (success) — the figures in [Performance](#performance) |
 
@@ -204,8 +227,12 @@ boundaries above, and the ledgers say so per row rather than implying full parit
 
 ## Development
 
-The loop is built for a weak machine; [`docs/development-loop.md`](docs/development-loop.md) lists the tiers and
-the measurements.
+`docs/development-loop.md` lists the tiers and the measurements. **The loop is not limited to CI:** the host can
+build (`go build ./...`, 20.7 s), run the whole Go suite (`go test ./...`, 434 s) and drive the browser
+differential end to end (both legs plus the comparator), so a failure can be reproduced locally before a CI run is
+spent. `AGENTS.md`'s "Working mode" carries those measurements and the two host artefacts to exclude first — a
+`gofmt -l` that flags 173 files because `core.autocrlf=true` checks the tree out as CRLF, and a Windows-only
+environment-variable case difference that used to make four tests red for host reasons.
 
 ```bash
 node scripts/dev-verify.mjs          # ~7 s: gofmt + build + the tests your change can break
