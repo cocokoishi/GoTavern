@@ -19,3 +19,8 @@
 # Serialisation lock for concurrent pinned-probe boots (tools/pinned-boot-lock.mjs)
 /.pinned-boot-lock/
 oracle-rerecord.patch
+
+# Phase 1 private differential fixtures. REAL user data lives OUTSIDE this repository and is referenced
+# READ-ONLY; nothing under this path is ever committed, staged or printed in full. Only opaque results
+# (categories, counts, field names) may leave it. See docs/local-preflight.md for the read-back rule.
+/.private-fixtures/
