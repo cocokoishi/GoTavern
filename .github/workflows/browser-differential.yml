@@ -112,6 +112,9 @@ on:
       # THE VERIFIER'S OWN TEETH PROOF, armed on every trigger for the same reason: it needs no browser, no server
       # and no leg report, so it is the cheap proof that the judges this workflow trusts can go red at all.
       - 'tests/browser/verifier-guards-gate-selftest.mjs'
+      # AND THE TOKENIZER COMPARISON'S, whose positional pairing produced a wrong diagnosis in committed evidence.
+      - 'tests/browser/tokenizer-comparator-selftest.mjs'
+      - 'tests/browser/compare-preset-legs.mjs'
       # THE WORKFLOW ITSELF. Measured: commit 555cbdc fixed the asset step's missing directory and started
       # NO browser run, because only the four files above were listed -- so the fix to this gate went
       # unverified by this gate, which is the same defect as a fix travelling with its gate. The
@@ -155,6 +158,9 @@ on:
       # THE VERIFIER'S OWN TEETH PROOF, armed on every trigger for the same reason: it needs no browser, no server
       # and no leg report, so it is the cheap proof that the judges this workflow trusts can go red at all.
       - 'tests/browser/verifier-guards-gate-selftest.mjs'
+      # AND THE TOKENIZER COMPARISON'S, whose positional pairing produced a wrong diagnosis in committed evidence.
+      - 'tests/browser/tokenizer-comparator-selftest.mjs'
+      - 'tests/browser/compare-preset-legs.mjs'
       - 'tests/browser/q20-continue-probe.mjs'
       - 'tests/browser/run-against-pinned.mjs'
       - 'tests/browser/catalog.test.mjs'
@@ -1705,6 +1711,19 @@ jobs:
         run: |
           set -euo pipefail
           node tests/browser/verifier-guards-gate-selftest.mjs
+
+      - name: Prove the tokenizer comparison pairs the two legs correctly (no browser, no legs)
+        # THE SAME REASON AS THE TWO TEETH PROOFS BELOW, one surface over. `compareTokenizers` walked both legs'
+        # count arrays with ONE index, and the committed `preset-complex-comparison.json` shows what that cost:
+        # 73 GoTavern calls against 67 pinned, recorded as "the same message counted differently", when pinned's
+        # whole sequence is a SUBSEQUENCE of GoTavern's with six extra calls and every common call agreeing. The
+        # artefact sent a reader after a counting bug in a message both servers counted identically.
+        #
+        # NO MODE GATE, for the reason the Q20 step records: a push hard-codes MODE `assets`, so a mode-gated
+        # proof would be skipped by exactly the run its `push.paths` entry schedules.
+        run: |
+          set -euo pipefail
+          node tests/browser/tokenizer-comparator-selftest.mjs
 
       - name: Compare the Q20 continue legs
         if: ${{ ((github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all') && steps.q20-continue.outputs.q20_continue_failures == '0' }}

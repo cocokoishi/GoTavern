@@ -374,6 +374,14 @@ jobs:
         # old code accepted and the new code refuses, quoted by assertion name (differential doctrine 4). Pure
         # Node: no browser, no server, and no committed artefact is moved.
         run: node tests/browser/verifier-guards-gate-selftest.mjs
+      - name: Prove the tokenizer comparison pairs the two legs correctly (synthesised calls, no browser)
+        # `compareTokenizers` used to walk both legs' count arrays with ONE index, which produced a WRONG
+        # diagnosis in a committed artefact: `preset-complex-comparison.json` recorded 73 GoTavern calls against
+        # 67 pinned and called it "the same message counted differently", while pinned's whole sequence is a
+        # subsequence of GoTavern's with six extra calls and every common call agreeing. A wrong diagnosis in
+        # committed evidence is a false finding. This runs the real exported comparison over synthesised calls,
+        # including that exact shape, and controls it against the old positional walk.
+        run: node tests/browser/tokenizer-comparator-selftest.mjs
       - name: Prove the fixture gates can refuse (synthesised inputs, no originals needed)
         # AGENTS.md verification rule 7 and differential doctrine 4: every gate has teeth, and the teeth are
         # DEMONSTRATED. The two gates this runs stand between a user's real card and a public repository, so

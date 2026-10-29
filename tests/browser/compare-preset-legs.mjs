@@ -157,28 +157,125 @@ function tokenizerCounts(report) {
         });
 }
 
-function compareTokenizers(gotavernCounts, pinnedCounts) {
-    const total = Math.max(gotavernCounts.length, pinnedCounts.length);
-    for (let index = 0; index < total; index++) {
-        const mine = gotavernCounts[index];
-        const theirs = pinnedCounts[index];
-        if (!mine || !theirs) {
-            return { equal: false, firstDifference: { index, note: `GoTavern made ${gotavernCounts.length} count calls, pinned made ${pinnedCounts.length}` } };
+/**
+ * PAIR THE TWO LEGS' TOKENIZER CALLS BY WHAT EACH CALL WAS ABOUT, NEVER BY POSITION.
+ *
+ * THE DEFECT THIS REPLACES, MEASURED. The previous implementation walked both arrays with one index:
+ *
+ *     for (let index = 0; index < Math.max(go.length, pin.length); index++) { if (go[index].count !== pin[index].count) ... }
+ *
+ * That is a derivation about the two legs having made the SAME NUMBER of calls in the SAME ORDER, and nothing
+ * asserts it. The committed artefact proves the assumption false: `preset-complex-comparison.json` records
+ * `gotavernCalls: 73` against `pinnedCalls: 67`, and the recorded `firstDifference` says
+ * `index 18: pinnedCount 275, gotavernCount 225` with the note "the same message counted differently by the two
+ * servers" and pinned's `requestText` attached to it. Aligning the two arrays by their VALUES shows what actually
+ * happened: pinned's entire 67-count sequence is a SUBSEQUENCE of GoTavern's 73, matched in order, with SIX calls
+ * on the GoTavern side that pinned never made (225, 380, 589, 749, 57 and 13, at indices 18, 20, 21, 22, 31 and
+ * 34). Every common call agreed. So the recorded diagnosis was wrong twice over: it described six EXTRA calls as
+ * a per-message disagreement, and it attached a `requestText` from pinned's call #18 to GoTavern's call #18, which
+ * by then was a different call. A reader of that artefact would go looking for a counting bug in a message both
+ * servers counted identically, and would not find the six calls that are the actual difference.
+ *
+ * THE FIX IS A KEYED COMPARISON, and it keeps the verdict an OBSERVATION rather than a guard (see the artefact's
+ * `tokenizerCountsAgree`, which is deliberately not in `guards`: a count difference is the product finding this
+ * lane exists to surface, so it must not be reported as harness unfaithfulness). A call is identified by WHAT IT
+ * WAS ABOUT -- its path plus the first message's content, which is what `tokenizerCounts` already records -- and
+ * the counts for one key are compared IN THE ORDER THAT KEY RECURRED, because the same text can legitimately be
+ * counted more than once. Three outcomes are named separately, because they are three different findings:
+ *
+ *   perMessageDifferences  the SAME key, counted differently, in order  -> a real counting disagreement
+ *   extraOnGotavern        a key GoTavern counted and pinned never did  -> extra work on our side
+ *   missingOnPinned        a key pinned counted and GoTavern never did  -> work we skipped
+ *
+ * AND AN EMPTY COMPARISON IS NOT AGREEMENT (AGENTS.md rule 19): when the two legs share no key at all, nothing was
+ * compared, so `equal` is false with `unmeasurable` set, rather than true because no difference was found.
+ */
+export function compareTokenizers(gotavernCounts, pinnedCounts) {
+    const keyOf = entry => `${entry?.path ?? ''}\u0000${entry?.requestText ?? ''}`;
+    const textOf = key => key.slice(key.indexOf('\u0000') + 1);
+    const groupByKey = entries => {
+        const grouped = new Map();
+        for (const entry of entries) {
+            const key = keyOf(entry);
+            if (!grouped.has(key)) grouped.set(key, []);
+            grouped.get(key).push(entry.count);
         }
-        if (mine.count !== theirs.count) {
-            return {
-                equal: false,
-                firstDifference: {
-                    index,
-                    pinnedCount: theirs.count,
-                    gotavernCount: mine.count,
-                    requestText: theirs.requestText ?? mine.requestText,
-                    note: 'the same message counted differently by the two servers; the pinned count is the oracle',
-                },
-            };
+        return grouped;
+    };
+
+    const mine = groupByKey(gotavernCounts);
+    const theirs = groupByKey(pinnedCounts);
+    const perMessageDifferences = [];
+    const extraOnGotavern = [];
+    const missingOnPinned = [];
+
+    for (const [key, pinnedSequence] of theirs) {
+        const gotavernSequence = mine.get(key);
+        if (!gotavernSequence) {
+            missingOnPinned.push({ requestText: textOf(key), pinnedCounts: pinnedSequence });
+            continue;
+        }
+        const shared = Math.min(pinnedSequence.length, gotavernSequence.length);
+        for (let occurrence = 0; occurrence < shared; occurrence++) {
+            if (gotavernSequence[occurrence] !== pinnedSequence[occurrence]) {
+                perMessageDifferences.push({
+                    requestText: textOf(key),
+                    occurrence,
+                    pinnedCount: pinnedSequence[occurrence],
+                    gotavernCount: gotavernSequence[occurrence],
+                });
+            }
+        }
+        if (gotavernSequence.length !== pinnedSequence.length) {
+            perMessageDifferences.push({
+                requestText: textOf(key),
+                occurrence: shared,
+                note: `this request was counted ${gotavernSequence.length} time(s) on GoTavern and ${pinnedSequence.length} time(s) on pinned`,
+            });
         }
     }
-    return { equal: true, firstDifference: null };
+    for (const [key, gotavernSequence] of mine) {
+        if (!theirs.has(key)) extraOnGotavern.push({ requestText: textOf(key), gotavernCounts: gotavernSequence });
+    }
+
+    const commonKeys = [...theirs.keys()].filter(key => mine.has(key)).length;
+    const unmeasurable = commonKeys === 0
+        ? `the two legs made ${gotavernCounts.length} and ${pinnedCounts.length} count call(s) and share NO request in common, so no count was compared`
+        : null;
+    const equal = unmeasurable === null
+        && perMessageDifferences.length === 0
+        && extraOnGotavern.length === 0
+        && missingOnPinned.length === 0;
+
+    // THE FIRST DIFFERENCE KEEPS ITS SHAPE (a reader and the artefact's own report both read it), but its
+    // diagnosis is now the measured one. `index` is deliberately ABSENT: a positional index is exactly the
+    // derivation this function exists to stop reporting.
+    let firstDifference = null;
+    if (unmeasurable) {
+        firstDifference = { note: unmeasurable, unmeasurable: true };
+    } else if (perMessageDifferences.length > 0) {
+        const first = perMessageDifferences[0];
+        firstDifference = {
+            pinnedCount: first.pinnedCount ?? null,
+            gotavernCount: first.gotavernCount ?? null,
+            requestText: first.requestText ?? null,
+            note: first.note ?? 'the same request was counted differently by the two servers; the pinned count is the oracle',
+        };
+    } else if (extraOnGotavern.length > 0) {
+        firstDifference = {
+            requestText: extraOnGotavern[0].requestText ?? null,
+            gotavernCounts: extraOnGotavern[0].gotavernCounts,
+            note: `GoTavern made ${extraOnGotavern.length} count call(s) pinned did not make; every request they BOTH counted agreed`,
+        };
+    } else if (missingOnPinned.length > 0) {
+        firstDifference = {
+            requestText: missingOnPinned[0].requestText ?? null,
+            pinnedCounts: missingOnPinned[0].pinnedCounts,
+            note: `pinned made ${missingOnPinned.length} count call(s) GoTavern did not make`,
+        };
+    }
+
+    return { equal, firstDifference, perMessageDifferences, extraOnGotavern, missingOnPinned, commonKeys, unmeasurable };
 }
 
 function legPreset(report) {
