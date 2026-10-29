@@ -280,6 +280,47 @@ func TestHordeTextWorkersProxiesAndCaches(t *testing.T) {
 	}
 }
 
+// THE WORKERS ROUTE MUST SERVE THE PROVIDER'S BYTES THE WAY PINNED DOES, AND THE FIXTURE ABOVE CANNOT SEE IT.
+//
+// Pinned parses and then `response.send(data)`s (src/endpoints/horde.js:67-74), which is `JSON.stringify`: the
+// parsed member order survives, and `<`, `>`, `&` are NOT escaped. A `map[string]any` round trip does the
+// opposite on both counts -- it sorts the members and escapes those characters -- so the served bytes differed,
+// and so did the weak ETag computed over them. The fixture above is a SINGLE-member, HTML-free object, so it has
+// no order to get wrong and no character to mis-escape: "what input would make this assertion fail?" had no
+// answer in it (AGENTS.md rule 15). This one has both, and it asserts the two defects by NAME so a regression
+// says which came back.
+func TestHordeTextWorkersServesTheProvidersMemberOrderAndEscaping(t *testing.T) {
+	// NON-ALPHABETICAL on purpose (sorted order would be alpha, emoji, zulu), and carrying `<`, `&` and a
+	// non-BMP character on purpose: Go escapes the first two by default and JavaScript's stringify does not.
+	// A DOUBLE-QUOTED literal, because a backtick string is raw and would put the twelve characters `\uD83D`
+	// into the fixture instead of the character -- which is how this test first failed, comparing a served emoji
+	// against a literal escape sequence.
+	const upstream = "[{\"zulu\":\"a < b & c\",\"alpha\":\"x\",\"emoji\":\"\U0001F600\"}]"
+	mock := newHordeMock(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if strings.HasPrefix(r.URL.Path, "/api/v2/workers") {
+			_, _ = w.Write([]byte(upstream))
+			return
+		}
+		_, _ = w.Write([]byte(`{}`))
+	})
+	handler := hordeRouteHandler(t, mock)
+	response := postHorde(t, handler, "/api/horde/text-workers", `{"force":true}`)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", response.Code, response.Body.String())
+	}
+	got := response.Body.String()
+	if got != upstream {
+		t.Fatalf("the served body is not the provider's bytes as pinned would send them:\n got %s\nwant %s", got, upstream)
+	}
+	if strings.Contains(got, `\u003c`) || strings.Contains(got, `\u0026`) {
+		t.Fatalf("the served body HTML-escapes, which JSON.stringify does not: %s", got)
+	}
+	if strings.Index(got, `"zulu"`) > strings.Index(got, `"alpha"`) {
+		t.Fatalf("the served body sorted the members, which JSON.stringify does not: %s", got)
+	}
+}
+
 func TestHordeTextWorkersNonJSONAnswers500(t *testing.T) {
 	mock := newHordeMock(t, func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`not json`))

@@ -240,12 +240,33 @@ func (runtime *accountRuntime) serveHordeTextWorkers(w http.ResponseWriter, requ
 		serveStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	var workers any
-	if err := json.Unmarshal(response.Body, &workers); err != nil {
+	// THE PROVIDER'S BYTES ARE REPRODUCED THE WAY PINNED REPRODUCES THEM, NOT THE WAY Go WOULD BY DEFAULT.
+	//
+	// Pinned does `fetch(...).then(res => res.json()).then(data => response.send(data))`
+	// (src/endpoints/horde.js:67-74), and Express's `send` on an object runs `JSON.stringify`. That has two
+	// observable consequences Go's `json.Marshal` on a `map[string]any` gets WRONG:
+	//
+	//   member ORDER   JSON.stringify preserves the parsed insertion order, so the provider's own member order
+	//                  survives; Go sorts map keys alphabetically.
+	//   HTML escaping  JSON.stringify does NOT escape `<`, `>` or `&`; Go's encoder writes `\u003c`, `\u003e`
+	//                  and `\u0026` unless `SetEscapeHTML(false)` is set.
+	//
+	// Both are byte-level differences on a browser-facing route, and the weak ETag `respondJSONBytes` computes
+	// is derived from those bytes, so the two differences are observable together. The project already owns the
+	// correct serialiser for JavaScript semantics -- `decodeOrderedNodeJSON` plus `marshalOrderedNodeJSON`, whose
+	// string path (`marshalNodeJSONString` -> `marshalNodeJSON` with `SetEscapeHTML(false)`, then U+2028/U+2029
+	// un-escaped) is exactly `JSON.stringify` -- so this uses it rather than re-deriving one.
+	//
+	// THE EXISTING TEST COULD NOT SEE EITHER DIFFERENCE: `horde_test.go`'s fixture is a SINGLE-member object with
+	// no HTML characters, and a one-member object has no order to get wrong (AGENTS.md rule 15: "what input would
+	// make this assertion fail?" had no answer in it). The test beside this change uses a multi-member,
+	// non-alphabetical body carrying `<`, `&` and a non-BMP character.
+	workers, err := decodeOrderedNodeJSON(response.Body)
+	if err != nil {
 		serveStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	body, err := json.Marshal(workers)
+	body, err := marshalOrderedNodeJSON(workers)
 	if err != nil {
 		serveStatusText(w, http.StatusInternalServerError)
 		return
