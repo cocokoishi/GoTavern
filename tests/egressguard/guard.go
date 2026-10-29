@@ -46,6 +46,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"runtime"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -64,14 +65,43 @@ var ProviderEnvironmentVariables = []string{
 	"NO_PROXY", "no_proxy",
 }
 
+// proxyVariableNamesToScrub returns the names ScrubProviderEnvironment and Install must SAVE and RESTORE.
+//
+// IT IS NOT ALWAYS ALL OF ProviderEnvironmentVariables, AND ON WINDOWS SAVING ALL OF THEM IS DESTRUCTIVE.
+// MEASURED 2026-10-29: on Windows an environment-variable NAME is CASE-INSENSITIVE (Go reaches
+// `SetEnvironmentVariable`, whose name comparison ignores case), so the eight spellings above are FOUR
+// variables and `os.Unsetenv("https_proxy")` removes `HTTPS_PROXY`. A save loop that unsets while saving --
+// which `ScrubProviderEnvironment` does, because its whole job is to leave the environment empty -- therefore
+// records the SECOND spelling of each pair as ABSENT, and the restore then re-sets the first spelling and
+// unsets the second, DELETING what it had just put back. The observed failure was
+// `TestScrubRemovesEveryProxyVariable: the restore lost HTTPS_PROXY: ""`, and every one of HTTP_PROXY,
+// HTTPS_PROXY, ALL_PROXY and NO_PROXY was lost across the round trip. Under POSIX semantics the two spellings
+// are genuinely distinct variables, the same list is correct, and the defect cannot appear -- which is why it
+// was invisible to a suite that only ever runs on ubuntu-latest.
+//
+// THE UPPERCASE SPELLING IS KEPT, and it is sufficient on the host where the pair is one variable: unsetting
+// `HTTPS_PROXY` removes it whatever case it was stored in, so the uppercase names cover both spellings there,
+// and they are half of what the POSIX path needs anyway. ProviderEnvironmentVariables itself stays COMPLETE,
+// because `guard_test.go` enumerates all eight spellings when it asserts that nothing survived.
+func proxyVariableNamesToScrub() []string {
+	if runtime.GOOS == "windows" {
+		return []string{"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"}
+	}
+	return ProviderEnvironmentVariables
+}
+
 // ScrubProviderEnvironment removes every proxy variable from the process environment and returns a restore
 // function. It is called before a peer is started, so the only proxy a transport can discover is the one the
 // harness installs afterwards.
 func ScrubProviderEnvironment(t *testing.T) (restore func()) {
 	t.Helper()
-	saved := make(map[string]string, len(ProviderEnvironmentVariables))
-	present := make(map[string]bool, len(ProviderEnvironmentVariables))
-	for _, name := range ProviderEnvironmentVariables {
+	// THE HOST-AWARE LIST, because saving both spellings of a pair is destructive on a case-insensitive host
+	// (see proxyVariableNamesToScrub): the save loop unsets as it goes, so the second spelling reads as absent
+	// and the restore deletes the first one's value.
+	names := proxyVariableNamesToScrub()
+	saved := make(map[string]string, len(names))
+	present := make(map[string]bool, len(names))
+	for _, name := range names {
 		value, ok := os.LookupEnv(name)
 		saved[name], present[name] = value, ok
 		if err := os.Unsetenv(name); err != nil {
@@ -79,7 +109,7 @@ func ScrubProviderEnvironment(t *testing.T) (restore func()) {
 		}
 	}
 	return func() {
-		for _, name := range ProviderEnvironmentVariables {
+		for _, name := range names {
 			if present[name] {
 				_ = os.Setenv(name, saved[name])
 			} else {
@@ -371,7 +401,10 @@ func (p *Proxy) Install() (restore func(), err error) {
 	if providerClientBuilt.Load() {
 		return nil, ErrClientAlreadyBuilt
 	}
-	names := ProviderEnvironmentVariables
+	// THE HOST-AWARE LIST for the save/restore pair, for the same reason as ScrubProviderEnvironment: on a
+	// case-insensitive host the eight spellings are four variables, and a restore that iterates all eight
+	// would unset the value it had just re-set.
+	names := proxyVariableNamesToScrub()
 	saved := make(map[string]string, len(names))
 	present := make(map[string]bool, len(names))
 	for _, name := range names {

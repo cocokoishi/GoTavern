@@ -118,6 +118,25 @@ func startupCases(t *testing.T) []caseSpec {
 			checklist: "home.missing",
 			invariant: "a $HOME that cannot exist fails with a named error inside a bound; it may not hang or crash (rule 24/35)",
 			run: func() caseResult {
+				// THE PRECONDITION IS PROBED, NOT ASSUMED, AND ON WINDOWS IT CANNOT BE ESTABLISHED AT ALL.
+				//
+				// MEASURED 2026-10-29 on Windows (go1.27.0 windows/arm64). The subject resolves its home through
+				// `os.UserHomeDir()` (internal/commandline/paths.go:245,252,262), and on Windows that reads
+				// %USERPROFILE% -- `HOME` is NOT consulted (`go doc os.UserHomeDir`: "On Unix, including macOS, it
+				// returns the $HOME environment variable. On Windows, it returns %USERPROFILE%."). A probe on this
+				// host with HOME set to a non-existent path still returned C:\Users\<user>, so the subject's home
+				// is unchanged, the boot legitimately succeeds, and this case reported
+				//     VIOLATED boot.missing-home: boot with a non-existent $HOME (...) reportedly succeeded
+				// -- a VIOLATION for a condition the case never created. That is the shape harness_test.go:14
+				// forbids ("a case that cannot discriminate on this host is notApplicable and must say why; it is
+				// never [a violation]"), and the sibling cases already do it: boot.readonly-install-root and
+				// boot.readonly-directory probe their own precondition and answer notApplicable when the host
+				// cannot produce it. This case did not, which made a Windows developer's `go test ./...` red for a
+				// reason that says nothing about the product.
+				//
+				// THE PROBE IS THE SUBJECT'S OWN RESOLVER, not a guess about the platform: set HOME first, then ask
+				// `os.UserHomeDir()` what the subject would actually see. On POSIX it returns the value just set, so
+				// the case proceeds exactly as before and Linux behaviour does not move.
 				previous, had := os.LookupEnv("HOME")
 				if err := os.Setenv("HOME", missingHome); err != nil {
 					return violation("set HOME: %v", err)
@@ -129,6 +148,9 @@ func startupCases(t *testing.T) []caseSpec {
 						_ = os.Unsetenv("HOME")
 					}
 				}()
+				if resolved, resolveErr := os.UserHomeDir(); resolveErr == nil && resolved != missingHome {
+					return notApplicable("os.UserHomeDir() resolves %q on this host and does not read HOME, so a missing $HOME cannot be created for the subject", resolved)
+				}
 				running, startErr := startProductGlobal(missingHomeInstall, missingHomeWork, missingHomePort)
 				if startErr == nil {
 					_ = running.Close(context.Background())
@@ -288,6 +310,27 @@ func startupCases(t *testing.T) []caseSpec {
 			checklist: "port.bound",
 			invariant: "a port owned by another process (the user's working `node server.js`) is reported as a named listener failure inside a bound",
 			run: func() caseResult {
+				// THE PRECONDITION IS PROBED, NOT ASSUMED, AND ON WINDOWS IT CANNOT BE ESTABLISHED.
+				//
+				// MEASURED 2026-10-29 on Windows. The harness occupies the WILDCARD address
+				// (`net.Listen("tcp4", "0.0.0.0:0")`, line 75) while the subject binds the LOOPBACK address for
+				// that port, and on Windows those two binds COEXIST. A standalone probe on this host, with
+				// 0.0.0.0:65476 held, measured:
+				//     second bind 0.0.0.0:65476    REFUSED: bind: Only one usage of each socket address ...
+				//     second bind 127.0.0.1:65476  SUCCEEDED
+				// so the subject's bind succeeds, and this case reported
+				//     VIOLATED boot.port-already-bound: boot reported success although port N is already bound
+				// -- a VIOLATION for a port the case had not actually made unavailable. Same shape and same fix
+				// as boot.missing-home above: probe the precondition and answer notApplicable when the host cannot
+				// produce it (harness_test.go:14), rather than blaming the product for the harness's address.
+				//
+				// THE PROBE ASKS THE EXACT QUESTION THE CASE NEEDS: can anything still bind the address the
+				// subject will use? If yes, the case cannot discriminate. On Linux the loopback bind fails while
+				// the wildcard is held, so the case proceeds exactly as before.
+				if probe, probeErr := net.Listen("tcp4", fmt.Sprintf("127.0.0.1:%d", boundPort)); probeErr == nil {
+					_ = probe.Close()
+					return notApplicable("a loopback bind on port %d still succeeds while the wildcard address is held, so the port the subject will bind is not actually unavailable on this host", boundPort)
+				}
 				running, startErr := startProduct(boundInstall, boundWork, boundData, boundPort, noLegacyWait)
 				if startErr == nil {
 					_ = running.Close(context.Background())

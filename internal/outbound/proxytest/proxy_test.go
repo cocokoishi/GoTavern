@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -51,9 +52,26 @@ func TestMain(m *testing.M) {
 	_ = os.Setenv("HTTP_PROXY", proxy.URL)
 	_ = os.Setenv("HTTPS_PROXY", proxy.URL)
 	_ = os.Setenv("NO_PROXY", bypassHost)
-	_ = os.Unsetenv("http_proxy")
-	_ = os.Unsetenv("https_proxy")
-	_ = os.Unsetenv("no_proxy")
+
+	// THE PRECONDITION IS ASSERTED, NOT ASSUMED, because its violation presents as a PRODUCT finding.
+	//
+	// MEASURED 2026-10-29. Three `os.Unsetenv("http_proxy"/"https_proxy"/"no_proxy")` calls used to sit here,
+	// "clearing the other spelling". On Windows an environment-variable NAME is CASE-INSENSITIVE -- Go reaches
+	// `SetEnvironmentVariable`, whose name comparison ignores case -- so those three calls DELETED the three
+	// variables set immediately above, and the whole package ran with no proxy environment at all. The
+	// resulting failures read as product defects:
+	//     proxy_test.go:186  send through HTTPS_PROXY: timeout waiting for provider 192.0.2.1:<port> to answer
+	//     proxy_test.go:229  HTTPS_PROXY is not being applied to a non-loopback provider host
+	// (a direct dial to TEST-NET-1, and an empty HTTPSProxy from `httpproxy.getEnvAny`). On POSIX the calls were
+	// no-ops, because `getEnvAny` prefers the first non-empty name and the uppercase ones are set -- which is
+	// why no Linux CI run could see it, and why the assertion below exists: a harness precondition this
+	// load-bearing must fail BY NAME rather than as a phantom transport defect (AGENTS.md rule 40).
+	for _, name := range []string{"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"} {
+		if os.Getenv(name) == "" {
+			fmt.Fprintf(os.Stderr, "proxytest: %s is empty after TestMain installed the proxy; this package would exercise a direct-dial path and report PRODUCT findings for a harness defect, so it refuses to run\n", name)
+			os.Exit(1)
+		}
+	}
 
 	code := m.Run()
 	// A kept-alive tunnel leaves a CONNECT handler blocked in io.Copy, and Close waits for handlers, so
