@@ -4,24 +4,51 @@
 // preserves a planted tree byte for byte, which is necessary and is not the same claim. "Still usable by the original
 // Node SillyTavern" means the ORIGINAL SERVER opens the tree GoTavern wrote and continues the same conversation.
 //
-// THE DRIVE, in two halves that share one directory:
-//   1. GOTAVERN WRITES. Boot the product over a fresh data root with a staged install (cards, a chat, a world book,
-//      a preset, backgrounds, a persona), open the character, send a turn, let the product save, record everything.
-//   2. PINNED READS. Hand THE SAME data root to `run-against-pinned.mjs`, which boots pinned over a caller-supplied
-//      root and passes the child PROBE_BASE_URL. The child re-runs by importing this file: it sees PROBE_BASE_URL and
-//      takes the READ half only.
+// THE DRIVE, in two halves that share one directory -- and then a second cycle inside the second half:
+//   1. GOTAVERN WRITES. Boot the product over a fresh data root with a staged install (a card from the committed
+//      desensitised fixture), open the character, send a turn, let the product save, record everything.
+//   2. PINNED READS AND WRITES. Hand THE SAME data root to `run-against-pinned.mjs`, which boots pinned over a
+//      caller-supplied root and passes the child PROBE_BASE_URL. The child re-runs this file and takes the pinned
+//      half. It opens the SAVED conversation (the roster's `chat` name is a manufactured timestamp -- see below),
+//      reads the GoTavern turn, CONTINUES the conversation through its own UI against the capture peer, creates a
+//      BRANCH of it, and then boots GoTavern over the same root to prove the other direction:
 //
-// WHAT IS ASSERTED (structural, each able to fail):
-//   gotavernWrote            the product's own chat file exists and carries the marker the user typed
-//   pinnedOpened             pinned answers /version and serves the same character
-//   pinnedReadTheChat        pinned's in-memory chat carries that marker -- the conversation survived the hand-back
-//   pinnedChatIdMatches      the chat's identity is the file's own name, so it was opened as the SAME chat
-//   pinnedContinued          a further turn sent through pinned appends to that chat, and the file still carries the
-//                            marker afterwards, so the hand-back is not just a read
-//   noDataLossOnHandBack     every file GoTavern wrote is still present afterwards with the same SHA-256
+//        (b) GoTavern writes -> pinned reads -> pinned mutates/writes -> GoTavern reads
+//        (a) pinned writes   -> GoTavern reads -> GoTavern mutates/writes -> pinned reads
 //
-// WHAT IT DOES NOT DO: it does not compare provider requests (Q14 owns that), it does not run regenerate/continue, and
-// it says nothing about an extension that refuses to load in a second runtime.
+//      The two hops share one directory and three markers, one per write, so each direction names the turn it
+//      proves rather than pointing at "the chat".
+//
+// WHAT IS ASSERTED, AND WHICH DIRECTION EACH ROW PROVES (structural, each able to fail):
+//   gotavernWrote            the product's own chat file exists, under the STAGED CARD's own directory, and the turn
+//                            the user typed is in it                                                     (b start)
+//   pinnedOpened/opened      pinned serves the same character and the click moved the page onto it
+//   pinnedOpenedSavedChat    pinned opened the FILE that already exists, not a fresh chat: a card carries no `chat`
+//                            field, so pinned's roster manufactures one (`characters.js:554`) and the saved
+//                            conversation is reached from the character's chat list, the way a user reaches it
+//   pinnedReadTheChat        pinned's in-memory chat carries the GoTavern marker                          (b)
+//   pinnedChatIdMatches      that chat's identity is the file's own name                                (b)
+//   pinnedContinued          CONTINUE through pinned's UI REACHED THE PROVIDER carrying the handed-back history,
+//                            and the continuation it produced was PERSISTED to the chat file               (b)
+//   pinnedBranched           pinned's own branch action produced a second chat file and recorded the branch name in
+//                            the parent's last message `extra.branches`                                  (b)
+//   noDataLossOnHandBack     every file GoTavern wrote is still present with the same SHA-256             (b)
+//   gotavernReadsPinned      GoTavern, booted FRESH over the tree pinned just wrote, reads the chat, the markers, the
+//                            branch and the branch list                                                  (a)
+//   rosterAgrees             the two runtimes list the same characters                                   (a)
+//   cardMetadataAgrees       the two runtimes serve the same card document for the same file             (a)
+//   chatAssociationAgrees    the two runtimes associate the same chat files with the same character      (a)
+//   gotavernMutated          GoTavern appends a turn to the chat pinned wrote, and the file carries it    (a)
+//   branchStateSurvivesGoWrite  GoTavern's save did not drop `extra.branches` from the parent chat       (a)
+//   pinnedReadGotavernsTurn  pinned, reloaded, reads the turn GoTavern wrote                             (a)
+//
+// WHAT IT DOES NOT DO: it does not compare provider requests (Q14 owns that), it does not compare tokenisation or
+// prompt construction (the continue request is asserted only for WHICH TURNS it carried), and it says nothing about
+// an extension that refuses to load in a second runtime.
+//
+// A DRIVER HAZARD THAT COST RUNS, kept here because it will be hit again: `#CharID<n>` gets `data-chid` and `id`
+// only (`public/script.js:946`); the card's LABEL lives on `.ch_name` (`:953`). Reading the label off the wrapper
+// answered "" for every card and made a full roster look empty.
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -47,7 +74,11 @@ const external = Boolean(process.env.PROBE_BASE_URL);
 const phase = external ? 'pinned' : 'gotavern';
 const dataRoot = path.resolve(argumentValue('--data-root') ?? await fs.mkdtemp(path.join(process.env.TEMP ?? '/tmp', 'gotavern-q21-')));
 const reportPath = path.resolve(argumentValue('--report', path.join(here, `q21-data-handback-${phase}.json`)));
-const MARKERS = { first: 'Q21_HANDED_BACK_TURN_MARKER', second: 'Q21_PINNED_CONTINUATION_MARKER' };
+const MARKERS = {
+    first: 'Q21_HANDED_BACK_TURN_MARKER',
+    second: 'Q21_PINNED_CONTINUATION_MARKER',
+    third: 'Q21_GOTAVERN_AFTER_PINNED_MARKER',
+};
 
 function freePort() {
     return new Promise((resolve, reject) => {
@@ -75,6 +106,12 @@ async function waitForVersion(baseURL, deadlineMs = 120000) {
 }
 
 // The peer captures and answers; it never defines correctness (AGENTS 49).
+//
+// WHAT IT RECORDS, AND WHY THE BODY IS INSPECTED WITHOUT BEING STORED: `pinnedContinued` has to say that the
+// continuation request CARRIED the handed-back history. A byte length and a digest cannot say that, and keeping the
+// request body would put conversation text into a report. So the peer answers three booleans per request -- did this
+// body carry each hand-back marker -- plus the generation `type` and the message count. Those are the only facts the
+// capture leg asserts on, and each of them can be false.
 function startCapturePeer() {
     const requests = [];
     let reply = 0;
@@ -93,11 +130,54 @@ function startCapturePeer() {
                 response.end();
                 return;
             }
-            requests.push({ method: request.method, path: request.url, byteLength: body.length, sha256: createHash('sha256').update(body).digest('hex') });
+            const text = body.toString('utf8');
+            let parsed = null;
+            try {
+                parsed = JSON.parse(text);
+            } catch {
+                parsed = null;
+            }
+            const messages = Array.isArray(parsed?.messages) ? parsed.messages : null;
+            requests.push({
+                method: request.method,
+                path: request.url,
+                byteLength: body.length,
+                sha256: createHash('sha256').update(body).digest('hex'),
+                carriesMarkers: Object.fromEntries(Object.entries(MARKERS).map(([key, marker]) => [key, text.includes(marker)])),
+                generationType: typeof parsed?.type === 'string' ? parsed.type : null,
+                stream: parsed?.stream === true,
+                messageCount: messages === null ? null : messages.length,
+                lastRole: messages === null || messages.length === 0 ? null : (messages[messages.length - 1]?.role ?? null),
+                answersWith: `Q21_REPLY_${reply + 1}`,
+            });
             const headers = { 'content-type': 'application/json', 'access-control-allow-origin': '*' };
             if (request.method === 'GET' && /models/.test(request.url ?? '')) {
                 response.writeHead(200, headers);
                 response.end(JSON.stringify({ object: 'list', data: [{ id: 'probe-model', object: 'model' }] }));
+                return;
+            }
+            // ANSWER IN THE PROTOCOL THE CLIENT ASKED FOR. Measured 2026-10-29: this peer answered plain JSON to a
+            // request whose body said `stream: true` (pinned's own default is `oai_settings.stream_openai: true`,
+            // read out of the tree it was handed), so BOTH frontends parsed zero chunks, appended an EMPTY assistant
+            // message and left the generation busy. The "continue" that followed was then swallowed by the send still
+            // in flight, which read as a hand-back defect in two directions. A peer answering in the wrong protocol is
+            // a harness defect, and it is the one that hid `pinnedContinued`.
+            if (parsed?.stream === true) {
+                const id = `chatcmpl-q21-${reply + 1}`;
+                const base = { id, object: 'chat.completion.chunk', created: 1730000000, model: 'probe-model' };
+                response.writeHead(200, {
+                    'content-type': 'text/event-stream',
+                    'cache-control': 'no-cache',
+                    'connection': 'keep-alive',
+                    'access-control-allow-origin': '*',
+                });
+                const frame = payload => `data: ${JSON.stringify(payload)}\n\n`;
+                response.write(frame({ ...base, choices: [{ index: 0, delta: { role: 'assistant' }, finish_reason: null }] }));
+                response.write(frame({ ...base, choices: [{ index: 0, delta: { content: `Q21_REPLY_${reply + 1}` }, finish_reason: null }] }));
+                response.write(frame({ ...base, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] }));
+                response.write('data: [DONE]\n\n');
+                response.end();
+                reply += 1;
                 return;
             }
             reply += 1;
@@ -238,14 +318,24 @@ async function openCharacterByName(page) {
         const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
         const deadline = Date.now() + limitMs;
         let cards = [];
+        // THE LABEL LIVES ON `.ch_name`, MEASURED IN THE PINNED TEMPLATE RATHER THAN ASSUMED.
+        // `public/script.js:945-953` builds every card from `#character_template`: the clone gets `data-chid` and
+        // `id` (`:946`), the avatar gets the `title` attribute (`:951`), and `.ch_name` gets BOTH the text and its
+        // own `title` (`:953`). The `#CharID<n>` WRAPPER NEVER GETS A `title`. The old reader asked that wrapper
+        // for one, so every card rendered as the empty string and the opener could not match the name the roster
+        // had just answered -- measured on this host as `rendered: ["", ""]` with a TWO-CARD roster and
+        // `characterStaged` green. The label is now read from the node the template writes it to, and it is
+        // cross-checked against the page's own character model, because both are `item.name` (`:945` clones from
+        // `getCharacters()`, which is the same array the card renders from): a label that disagrees with the model
+        // is recorded and treated as a failure rather than matching either one.
         const collect = () => {
-            // THE CARD IS `#CharID<n>`; the wrapper carries the class and the id element carries the label.
-            cards = [...document.querySelectorAll('#rm_print_characters_block .character_select')].map(wrapper => ({
-                wrapper,
-                id: wrapper.getAttribute('id') ?? '',
-                label: String(document.getElementById(wrapper.getAttribute('id') ?? '')?.getAttribute('title')
-                    ?? wrapper.getAttribute('title') ?? '').trim(),
-            }));
+            cards = [...document.querySelectorAll('#rm_print_characters_block .character_select')].map(wrapper => {
+                const id = wrapper.getAttribute('id') ?? '';
+                const chid = String(wrapper.getAttribute('data-chid') ?? (id.startsWith('CharID') ? id.slice('CharID'.length) : ''));
+                const label = String(wrapper.querySelector('.ch_name')?.textContent ?? '').trim();
+                const modelName = chid === '' ? null : (script.characters?.[chid]?.name ?? null);
+                return { wrapper, id, chid, label, modelName, labelAgreesWithModel: modelName === null ? null : modelName === label };
+            });
             return cards;
         };
         while (Date.now() < deadline) {
@@ -273,11 +363,22 @@ async function openCharacterByName(page) {
             chatId: script.chatId ?? null,
             name: script.this_chid !== undefined ? (script.characters?.[script.this_chid]?.name ?? null) : null,
         };
-        const card = name ? cards.find(entry => entry.label === name) ?? null : cards[0];
+        // A CARD MATCHES WHEN EITHER OF ITS TWO `item.name` REPRESENTATIONS DOES, and both are recorded. The
+        // rendered label and the page model are the same value in the pinned template, so requiring one to speak
+        // for the other would turn a rendering defect into a "wrong character" finding; recording both is what
+        // lets a later report say WHICH of them disagreed.
+        const matches = entry => entry.label === name || entry.modelName === name;
+        const card = name ? cards.find(matches) ?? null : cards[0];
         if (!card) {
-            return { opened: false, reason: `no card matching "${name}"`, rendered: cards.map(entry => entry.label), before };
+            return {
+                opened: false,
+                reason: `no card matching "${name}"`,
+                rendered: cards.map(entry => entry.label),
+                modelNames: cards.map(entry => entry.modelName),
+                before,
+            };
         }
-        const chid = card.id.replace('CharID', '');
+        const chid = card.chid || card.id.replace('CharID', '');
         card.wrapper.click();
         // THE OPEN IS PROVEN BY THE PAGE'S OWN STATE, NOT BY THE CLICK: `this_chid` must become this card's id and
         // its name must be the one the server listed. A click that leaves the welcome screen in place, or opens the
@@ -295,15 +396,22 @@ async function openCharacterByName(page) {
             if (String(after.thisChid) === String(chid) && after.chatLength > 0) break;
             await sleep(250);
         }
-        const opened = String(after?.thisChid) === String(chid) && after?.name === card.label;
+        // THE IDENTITY IS THE PAGE'S OWN MODEL VALUE for the card that was clicked, not the rendered label: the
+        // label is what a user reads, the model is what the server listed, and the open is the model moving.
+        const wantedName = card.modelName ?? card.label;
+        const opened = String(after?.thisChid) === String(chid) && after?.name === wantedName;
         return {
             opened,
             dataChid: chid,
             label: card.label,
-            reason: opened ? null : `clicking "${card.label}" (CharID${chid}) left the page on ${JSON.stringify(after)}; wanted this_chid=${chid} name="${card.label}"`,
+            modelName: card.modelName,
+            labelAgreesWithModel: card.labelAgreesWithModel,
+            wantedName,
+            reason: opened ? null : `clicking "${card.label}"/#CharID${chid} left the page on ${JSON.stringify(after)}; wanted this_chid=${chid} name=${JSON.stringify(wantedName)}`,
             before,
             after,
             rendered: cards.map(entry => entry.label),
+            modelNames: cards.map(entry => entry.modelName),
         };
     }, { name: wanted, limitMs: rosterMs });
 }
@@ -620,8 +728,16 @@ async function gotavernWrites() {
         // assistant, while the opener had failed with `no character card rendered`. Require the chat path to
         // NAME the staged card.
         const wantedChatDir = `chats/${CARD_FILE_NAME}/`;
-        const matching = chats.filter(file => file.includes(wantedChatDir));
+        // THE SEPARATOR IS THE HOST'S, THE QUESTION IS NOT. `hashTree` records `path.relative` results, which use
+        // `\` on Windows and `/` on Linux; a check for `chats/<card>/` therefore failed on this host for a chat that
+        // WAS in the right directory (measured: `default-user\chats\Q21 Handback Card\MARK_002794… - 2026-…jsonl`),
+        // and that is a driver artefact rather than a product finding (AGENTS.md "a local red is a hypothesis").
+        // The comparison is on a NORMALISED copy so a future report cannot read a separator as a wrong character;
+        // the raw list is recorded above it either way.
+        const normalised = chats.map(file => file.split(path.sep).join('/'));
+        const matching = normalised.filter(file => file.includes(wantedChatDir));
         step('gotavernWrote', matching.length > 0, `chat files: ${chats.join(', ') || 'none'}; wanting one under ${wantedChatDir}`);
+        report.matchingChatFiles = matching;
     } finally {
         if (browser) await browser.close();
         await peer.close();
@@ -630,66 +746,640 @@ async function gotavernWrites() {
 }
 
 // ------------------------------------------------------------------------------------------------ the pinned half
-async function pinnedReads() {
-    const baseURL = process.env.PROBE_BASE_URL;
-    let browser;
+//
+// THE SAVED CHAT IS NOT THE CHAT THE ROSTER NAMES, AND THAT IS PINNED'S OWN BEHAVIOUR. A card carries no `chat`
+// field, and pinned MANUFACTURES one on every read:
+//
+//     char.chat = char.chat ?? `${char.name} - ${humanizedDateTime()}`      src/endpoints/characters.js:554
+//
+// so clicking the character opens a chat named with the CURRENT SECOND, not the conversation that is on disk. The
+// first version of this half clicked the card, read a one-message chat and reported `carriesMarker: false` for a tree
+// that was in fact intact. A user reaches the saved conversation from the character's chat list, and so does this
+// half: the list is read from the same route the list panel uses (`/api/characters/chats`,
+// `characters.js:1499-1535`) and the conversation is opened through the frontend's own `openCharacterChat`
+// (`public/script.js:7744`), which is exactly what a row click in that panel calls.
+async function savedChatFiles() {
+    const chatsDirectory = path.join(dataRoot, 'default-user', 'chats', CARD_FILE_NAME);
+    const entries = await fs.readdir(chatsDirectory).catch(() => []);
+    return entries.filter(name => name.endsWith('.jsonl')).sort();
+}
+
+// ONE CHAT FILE, PARSED THE WAY THE SERVER PARSES IT (`chats.js:577-590`: split on newlines, keep the lines that
+// parse). A missing file is `null`, never an empty chat: "no file" and "an empty conversation" are different
+// findings and this probe must not conflate them.
+async function readChatFile(chatName) {
+    const target = path.join(dataRoot, 'default-user', 'chats', CARD_FILE_NAME, `${chatName}.jsonl`);
+    const text = await fs.readFile(target, 'utf8').catch(() => null);
+    if (text === null) return null;
+    return text.split('\n').map(line => {
+        try {
+            return JSON.parse(line);
+        } catch {
+            return null;
+        }
+    }).filter(Boolean);
+}
+
+const chatText = chat => (Array.isArray(chat) ? chat.map(entry => String(entry?.mes ?? '')).join('\n') : '');
+
+async function pollUntil(produce, accept, deadlineMs) {
+    const deadline = Date.now() + deadlineMs;
+    let last = null;
+    while (Date.now() < deadline) {
+        last = await produce();
+        if (accept(last)) return { ok: true, value: last };
+        await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    return { ok: false, value: last };
+}
+
+// THE FRONTEND'S OWN ENTRY POINT FOR OPENING A SAVED CONVERSATION, WITH THE PANEL TRIED FIRST.
+// A user clicks `#option_select_chat`, then the `.select_chat_block[file_name="…"]` row the panel renders from
+// `/api/chats/search` (`public/script.js:8604-8618`); that row's handler calls `openCharacterChat`
+// (`:11484-11510`, `:7744`). This drives the panel and falls back to the same function when the headless layout does
+// not render a row -- and RECORDS which path was taken, so "the panel path was not exercised" cannot read as "it was".
+async function openSavedChat(page, chatName) {
+    return page.evaluate(async ({ wanted }) => {
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+        let viaPanel = false;
+        let rendered = [];
+        try {
+            document.querySelector('#option_select_chat')?.click();
+            const deadline = Date.now() + 15000;
+            while (Date.now() < deadline) {
+                const rows = [...document.querySelectorAll('#select_chat_div .select_chat_block')];
+                rendered = rows.map(row => String(row.getAttribute('file_name') ?? ''));
+                const row = rows.find(entry => String(entry.getAttribute('file_name') ?? '') === wanted);
+                if (row) {
+                    row.click();
+                    viaPanel = true;
+                    break;
+                }
+                await sleep(250);
+            }
+        } catch (error) {
+            viaPanel = false;
+        }
+        if (!viaPanel) {
+            const script = await import('./script.js');
+            await script.openCharacterChat(wanted);
+        }
+        const settle = Date.now() + 30000;
+        while (Date.now() < settle) {
+            const context = window.SillyTavern?.getContext?.();
+            if (context?.chatId === wanted && (context?.chat ?? []).length > 0) {
+                return { opened: true, viaPanel, rendered, chatId: context.chatId, chatLength: context.chat.length };
+            }
+            await sleep(250);
+        }
+        const context = window.SillyTavern?.getContext?.();
+        return {
+            opened: false,
+            viaPanel,
+            rendered,
+            chatId: context?.chatId ?? null,
+            chatLength: (context?.chat ?? []).length,
+            reason: `opening "${wanted}" left chatId=${JSON.stringify(context?.chatId ?? null)} and a ${(context?.chat ?? []).length}-message chat`,
+        };
+    }, { wanted: chatName });
+}
+
+// The provider controls the page sends in every generation request. Set on both subjects through the same controls,
+// because the provider URL is a property of the FRONTEND request (`chat_completion_source: 'custom'` +
+// `custom_url`), not of server settings -- which is why a tree written under a peer port that has since died is
+// still usable once the user points the connection at a live one.
+async function pointAtPeer(page, peer) {
+    await page.evaluate(async ({ url, model }) => {
+        const set = (selector, value) => {
+            const control = document.querySelector(selector);
+            if (!control) return;
+            control.value = value;
+            control.dispatchEvent(new Event('input', { bubbles: true }));
+            control.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        const script = await import('./script.js');
+        script.changeMainAPI('openai');
+        set('#main_api', 'openai');
+        set('#chat_completion_source', 'custom');
+        set('#custom_api_url_text', url);
+        set('#custom_model_id', model);
+        set('#api_key_custom', 'probe-key');
+    }, { url: `http://127.0.0.1:${peer.port}/v1`, model: 'probe-model' });
+}
+
+// THE SAME CARD DOCUMENT, COMPARED BETWEEN THE TWO RUNTIMES. `chat` is DELIBERATELY excluded and the exclusion is
+// pinned's own rule: the roster's chat name is regenerated on every read (`characters.js:554`) and removed before
+// saving (`unsetPrivateFields`, `:498-502`), so two reads one second apart differ by DESIGN. Everything else here is
+// a field a reader answers from the card, so a difference is a hand-back defect.
+function cardProjection(row) {
+    if (!row || typeof row !== 'object') return null;
+    const jsonData = typeof row.json_data === 'string' ? row.json_data : null;
+    return {
+        name: row.name ?? null,
+        avatar: row.avatar ?? null,
+        createDate: row.create_date ?? null,
+        dataName: row.data?.name ?? null,
+        spec: row.spec ?? null,
+        specVersion: row.spec_version ?? null,
+        creator: row.data?.creator ?? null,
+        characterVersion: row.data?.character_version ?? null,
+        world: row.data?.extensions?.world ?? null,
+        alternateGreetings: Array.isArray(row.data?.alternate_greetings) ? row.data.alternate_greetings.length : null,
+        bookEntries: Array.isArray(row.data?.character_book?.entries) ? row.data.character_book.entries.length : null,
+        jsonDataBytes: jsonData === null ? null : Buffer.byteLength(jsonData),
+        jsonDataSha256: jsonData === null ? null : createHash('sha256').update(jsonData).digest('hex'),
+    };
+}
+
+async function characterChats(baseURL, avatarFile) {
+    // `simple` is pinned's own cheap form (`characters.js:1517-1519`): file names only, no preview, no race against a
+    // chat file being written by the other runtime.
+    const answer = await postForJSON(baseURL, '/api/characters/chats', { avatar_url: avatarFile, simple: true });
+    if (!answer.ok) return answer;
+    const rows = Array.isArray(answer.body) ? answer.body : [];
+    return { ok: true, files: rows.map(row => row?.file_name ?? null).filter(Boolean).sort(), reason: null };
+}
+
+// A FRESH GOTAVERN OVER A TREE IT DID NOT WRITE. This is the other direction's subject: it is booted AFTER pinned has
+// written, so anything it reads came off the disk in pinned's format.
+async function bootGotavernOver(root) {
+    const binarySetting = process.env.GOTAVERN_BINARY;
+    if (!binarySetting) throw new Error('GOTAVERN_BINARY is required to hand the tree BACK to GoTavern; without it this direction cannot run and must not be reported as passed');
+    const port = await freePort();
+    const child = spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', root, '--configPath', path.join(root, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    const tail = [];
+    child.stdout.on('data', chunk => tail.push(chunk.toString()));
+    child.stderr.on('data', chunk => tail.push(chunk.toString()));
+    const baseURL = `http://127.0.0.1:${port}`;
     try {
         await waitForVersion(baseURL);
+    } catch (error) {
+        throw new Error(`${error.message}; GoTavern's own output: ${tail.join('').slice(-1200)}`);
+    }
+    return { baseURL, port, output: () => tail.join('').slice(-2000), kill: () => child.kill() };
+}
+
+async function pinnedReads() {
+    const baseURL = process.env.PROBE_BASE_URL;
+    const avatarFile = `${CARD_FILE_NAME}.png`;
+    const peer = await startCapturePeer();
+    let browser;
+    let gotavern = null;
+    try {
+        await waitForVersion(baseURL);
+        // WHICH FILE IS THE CONVERSATION? Read off the DISK, not off the roster: the roster's chat name is a
+        // manufactured timestamp (`characters.js:554`). Exactly one is required, and the count is recorded.
+        const files = await savedChatFiles();
+        report.savedChatFiles = files;
+        const savedChatName = files.length === 1 ? files[0].replace(/\.jsonl$/, '') : null;
+        if (!savedChatName) {
+            throw new Error(`wanted exactly ONE saved chat under chats/${CARD_FILE_NAME}/, found ${JSON.stringify(files)}`);
+        }
+        report.savedChatName = savedChatName;
+
         browser = await chromium.launch();
         const page = await browser.newPage();
         page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
         await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
         await page.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded' });
         await page.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 120000 });
-        // THE SAME MODEL WAIT AS THE GOTAVERN HALF: `modelNames: []` was measured on BOTH subjects in run 40476539225.
         report.pinnedPageModel = await waitForPageModel(page);
         step('pageModelLoaded', report.pinnedPageModel.ready === true, JSON.stringify(report.pinnedPageModel).slice(0, 500));
         if (!report.pinnedPageModel.ready) {
             throw new Error(`the pinned page never populated its character model: ${JSON.stringify(report.pinnedPageModel).slice(0, 400)}`);
         }
-        // THE SAME CARD, OPENED THE SAME WAY, on the tree the product wrote.
+        if (!process.env.Q21_CHARACTER_NAME) process.env.Q21_CHARACTER_NAME = report.pinnedPageModel.modelNames[0] ?? null;
+
         report.opened = await openCharacterByName(page);
-        // THE SAME PRECONDITION STEP AS THE GOTAVERN HALF, and for the same measured reason: run 40467141027's
-        // pinned half reported four chat-derived failures (`pinnedOpened`, `pinnedReadTheChat`, `pinnedChatIdMatches`,
-        // `noDataLossOnHandBack`) whose single cause was that no card had opened -- the page was on the welcome
-        // screen. One named row here says that; four rows that each restate it do not.
         step('opened', report.opened.opened === true, JSON.stringify(report.opened).slice(0, 600));
         if (!report.opened.opened) {
             throw new Error(`the pinned half could not open the card "${process.env.Q21_CHARACTER_NAME ?? '(none)'}": ${report.opened.reason}`);
         }
-        const read = await page.evaluate(marker => {
+        // `pinnedOpened`: THE SERVER ANSWERS AND THE PAGE RENDERS THE CHARACTER'S CHAT. Clicking a card opens the chat
+        // name the roster answered (a manufactured timestamp when the card carries no `chat` field), so what this row
+        // proves is that the server lists and opens the STAGED CARD -- not yet that it read the saved conversation,
+        // which the next row is for. Its `messages` count is the greeting the fresh chat got, so a page that rendered
+        // nothing is a FAIL here rather than a mystery three rows later.
+        // THE LANDING IS POLLED, NOT SAMPLED ONCE: measured 2026-10-29, the click's own render had not completed when
+        // this read ran -- `chatId: null`, `chatLength: 1`, `messages: 0` for a character that WAS opening. A single
+        // read turns a render race into a red row, and a red row here stops the whole leg before the hand-back itself is
+        // judged (the run reported `unreached`, which is the right taxonomy for a probe that never got there).
+        const landed = async () => page.evaluate(async () => {
+            // THE ROSTER IS READ FROM THE PAGE'S OWN MODULE, not from `getContext()`: measured 2026-10-29,
+            // `context.characters` is undefined and this row failed on a character that WAS open. The opener already
+            // reads `script.characters` and works, so the same reader is used here (AGENTS 58: read a state through the
+            // framework that reads it).
+            const script = await import('./script.js');
+            const chid = script.this_chid;
+            return {
+                character: chid === undefined || chid === null ? null : (script.characters?.[chid]?.name ?? null),
+                thisChid: chid ?? null,
+                chatId: script.chatId ?? null,
+                chatLength: (script.chat ?? []).length,
+                messages: document.querySelectorAll('#chat .mes').length,
+            };
+        });
+        const landingWait = await pollUntil(landed, value => value.messages > 0 && typeof value.chatId === 'string' && value.chatId.length > 0, 30000);
+        const landing = landingWait.value;
+        report.pinnedLanding = landing;
+        step('pinnedOpened',
+            landing !== null && landing.messages > 0 && landing.character === (process.env.Q21_CHARACTER_NAME ?? null),
+            JSON.stringify({ landing, waitedMs: landingWait.ok, wanted: process.env.Q21_CHARACTER_NAME ?? null }));
+        // THE MANUFACTURED CHAT, RECORDED AS EVIDENCE FOR THE NEXT ROW. If this equals the saved chat's name, then
+        // the card DOES carry a `chat` field and the saved-chat claim below is not the one being tested.
+        report.pinnedAutoOpenedChatId = await page.evaluate(() => window.SillyTavern?.getContext?.()?.chatId ?? null);
+
+        const openedSaved = await openSavedChat(page, savedChatName);
+        report.pinnedOpenedSaved = openedSaved;
+        step('pinnedOpenedSavedChat', openedSaved.opened === true, JSON.stringify(openedSaved).slice(0, 600));
+        if (!openedSaved.opened) throw new Error(`pinned did not open the saved chat "${savedChatName}": ${JSON.stringify(openedSaved).slice(0, 400)}`);
+
+        const readChat = async () => page.evaluate(markers => {
             const context = window.SillyTavern?.getContext?.();
             const chat = context?.chat ?? [];
+            const text = chat.map(entry => String(entry?.mes ?? '')).join('\n');
             return {
                 chatLength: chat.length,
                 chatId: context?.chatId ?? null,
-                carriesMarker: chat.some(entry => String(entry?.mes ?? '').includes(marker)),
+                carriesMarkers: Object.fromEntries(Object.entries(markers).map(([key, marker]) => [key, text.includes(marker)])),
                 messages: document.querySelectorAll('#chat .mes').length,
             };
-        }, MARKERS.first);
+        }, MARKERS);
+        const read = await readChat();
         report.pinnedRead = read;
-        step('pinnedOpened', report.opened.opened === true && (read.messages > 0 || read.chatLength > 0), JSON.stringify({ opened: report.opened, read }));
-        step('pinnedReadTheChat', read.carriesMarker === true, JSON.stringify(read));
-        // THE CHAT IDENTITY IS THE FILE'S OWN NAME, compared against what the page says it opened. `opened.after.chatId`
-        // is the page's value AFTER the click; comparing it with itself would be vacuous, so the assertion pairs the
-        // chat id the context reports with the chat name the character row requested, and fails by naming both.
-        const chatId = read.chatId;
-        const openedChat = report.opened.after?.chatId ?? null;
-        step('pinnedChatIdMatches',
-            typeof chatId === 'string' && chatId.length > 0 && chatId === openedChat,
-            `pinned context chatId=${JSON.stringify(chatId)} opened chatId=${JSON.stringify(openedChat)}`);
+        step('pinnedReadTheChat', read.carriesMarkers.first === true, JSON.stringify(read));
+        step('pinnedChatIdMatches', read.chatId === savedChatName,
+            `pinned context chatId=${JSON.stringify(read.chatId)} the file's own name=${JSON.stringify(savedChatName)}`);
+
         const before = await hashTree(dataRoot);
         report.treeBeforePinnedWrote = before;
-        // IT ONLY MEANS SOMETHING IF PINNED ACTUALLY READ THE CHAT. Run 40412270626 had this guard pass while pinned
-        // had opened nothing: "no file changed" is trivially true for a session that never started.
-        const treeIntact = report.expectedTree !== undefined
-            && Object.entries(report.expectedTree).every(([file, digest]) => before[file] === digest);
-        step('noDataLossOnHandBack', read.carriesMarker === true && report.expectedTree !== undefined && treeIntact,
+        // WHAT "NO LOSS" CAN AND CANNOT MEAN HERE. Whole-tree byte identity is not the claim: the pinned server writes
+        // on purpose the moment it is handed a tree -- `config.yaml` gains missing keys at boot (src/config-init.js)
+        // and the frontend saves `settings.json` as it migrates on load -- so a byte-equality assertion fails on the
+        // runtime's own startup writes and says nothing about the user's data. The claim is: nothing the product wrote
+        // is MISSING, nothing under the DATA domains had its bytes moved, and the conversation still carries the marker.
+        const runtimeState = /(^|[\\/])(settings\.json|config\.yaml)$|(^|[\\/])_webpack([\\/]|$)|(^|[\\/])_cache([\\/]|$)|(^|[\\/])backups([\\/]|$)/;
+        const dataDomain = /(^|[\\/])(chats|characters|groups|worlds|presets|themes|QuickReplies)([\\/]|$)/;
+        const removed = Object.keys(report.expectedTree ?? {}).filter(file => !(file in before));
+        const modified = Object.keys(report.expectedTree ?? {}).filter(file => file in before && before[file] !== report.expectedTree[file]);
+        const dataModified = modified.filter(file => dataDomain.test(file));
+        report.treeLoss = { removed, modified, dataModified, runtimeStateModified: modified.filter(file => runtimeState.test(file)), unaccountedModified: modified.filter(file => !runtimeState.test(file) && !dataDomain.test(file)) };
+        step('noDataLossOnHandBack',
+            read.carriesMarkers.first === true && report.expectedTree !== undefined && removed.length === 0 && dataModified.length === 0,
             report.expectedTree === undefined ? 'no expected tree was supplied, so nothing can be said about loss'
-                : 'compared the tree the GoTavern half recorded');
+                : JSON.stringify(report.treeLoss));
+
+        // ---- (b) PINNED MUTATES: a turn of its own, then CONTINUE, both through its own UI -------------------
+        await pointAtPeer(page, peer);
+        const sent = await page.evaluate(async ({ marker, startLength }) => {
+            const script = await import('./script.js');
+            const textarea = document.querySelector('#send_textarea');
+            const button = document.querySelector('#send_but');
+            if (!textarea || !button) return { clicked: false, reason: 'no #send_textarea or #send_but' };
+            textarea.value = marker;
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            button.click();
+            const deadline = Date.now() + 60000;
+            while (Date.now() < deadline) {
+                const chat = script.chat ?? [];
+                if (chat.length > startLength && chat.some(entry => String(entry?.mes ?? '').includes(marker))) {
+                    return { clicked: true, chatLength: chat.length };
+                }
+                await new Promise(resolve => setTimeout(resolve, 250));
+            }
+            return { clicked: true, timedOut: true, chatLength: (script.chat ?? []).length };
+        }, { marker: MARKERS.second, startLength: read.chatLength });
+        report.pinnedSend = sent;
+        // THE WRITE IS PERSISTED WHEN THE FILE SAYS SO, not when the screen does: pinned saves the chat after the
+        // generation completes, and the reply is written with it.
+        const pinnedWrote = await pollUntil(() => readChatFile(savedChatName),
+            chat => Array.isArray(chat) && chatText(chat).includes(MARKERS.second), 60000);
+        // A TURN THAT PRODUCED NO REPLY IS NOT A TURN THAT KEPT RUNNING, and waiting for the reply is also what makes
+        // the CONTINUE click land on an idle page instead of being swallowed by a send still in flight (measured: the
+        // continue appended nothing and no request left the page while the send's stream was outstanding).
+        const sendRequestSeen = await pollUntil(async () => peer.requests.filter(entry => entry.carriesMarkers.second === true).pop() ?? null,
+            entry => entry !== null, 60000);
+        const sendReply = sendRequestSeen.value?.answersWith ?? null;
+        report.pinnedSendRequest = { seen: sendRequestSeen.ok, stream: sendRequestSeen.value?.stream ?? null, messageCount: sendRequestSeen.value?.messageCount ?? null };
+        const sendReplyPersisted = sendReply === null ? { ok: false, value: null } : await pollUntil(() => readChatFile(savedChatName),
+            chat => Array.isArray(chat) && chat.some(entry => String(entry?.mes ?? '') === sendReply), 60000);
+        report.pinnedSendReply = { sendReply, persisted: sendReplyPersisted.ok };
+        step('pinnedWrote',
+            sent.clicked === true && sent.timedOut !== true && pinnedWrote.ok === true && sendReplyPersisted.ok === true,
+            {
+                send: sent,
+                persisted: pinnedWrote.ok,
+                sendReply,
+                replyPersisted: sendReplyPersisted.ok,
+                fileMessages: Array.isArray(pinnedWrote.value) ? pinnedWrote.value.length : null,
+                requests: peer.requests.map(entry => ({ stream: entry.stream, markers: entry.carriesMarkers, lastRole: entry.lastRole, answersWith: entry.answersWith })),
+            });
+
+        report.requestsBeforeContinue = peer.requests.length;
+        const continueResult = await page.evaluate(async ({ startLength }) => {
+            const script = await import('./script.js');
+            const start = (script.chat ?? []).length;
+            const lastTextBefore = String((script.chat ?? [])[start - 1]?.mes ?? '');
+            const button = document.querySelector('#option_continue');
+            if (!button) return { clicked: false, reason: 'no #option_continue' };
+            button.click();
+            // PINNED'S CONTINUE EXTENDS THE LAST MESSAGE, IT DOES NOT PUSH A NEW ONE (measured: the last message became
+            // "Q21_REPLY_1 Q21_REPLY_2" and the chat length did not move), so waiting for a length increase waited for
+            // something that never happens. The observable is the last message's TEXT growing.
+            const deadline = Date.now() + 60000;
+            while (Date.now() < deadline) {
+                const chat = script.chat ?? [];
+                const lastTextNow = String(chat[start - 1]?.mes ?? '');
+                if (chat.length > start || lastTextNow !== lastTextBefore) {
+                    return {
+                        clicked: true, startedAt: start, chatLength: chat.length,
+                        lengthGrew: chat.length > start,
+                        lastMessageGrew: lastTextNow !== lastTextBefore,
+                        lastMessageBytes: lastTextNow.length,
+                    };
+                }
+                await new Promise(resolve => setTimeout(resolve, 250));
+            }
+            return { clicked: true, startedAt: start, timedOut: true, chatLength: (script.chat ?? []).length };
+        }, { startLength: pinnedWrote.value?.length ?? read.chatLength });
+        report.pinnedContinue = continueResult;
+        // THE TWO HALVES OF "KEEP RUNNING", EACH ABLE TO FAIL SEPARATELY:
+        //   1. the CONTINUE request REACHED THE PROVIDER and carried the handed-back turns (captured by the peer);
+        //   2. the answer the provider gave was PERSISTED into the chat file.
+        // THE REQUEST BODY CARRIES NO GENERATION TYPE (measured: `type: null` on the send that DID reach the peer), so
+        // the continue is identified by WHEN it arrives: everything recorded before the click belongs to the send, and
+        // a request that appears after it can only be the continue, because nothing else runs in that window.
+        const continueRequests = peer.requests.slice(report.requestsBeforeContinue ?? 0);
+        const continueRequest = continueRequests[continueRequests.length - 1] ?? null;
+        report.continueRequestsObserved = continueRequests.length;
+        // THE HANDED-BACK REPLY IS THE SEND'S ANSWER -- the turn pinned produced FROM the GoTavern context, which is
+        // what GoTavern must be able to read back. The continue's own answer is recorded in its row.
+        const replyText = sendReply;
+        const continueReply = continueRequest?.answersWith ?? null;
+        const continuedInFile = await pollUntil(() => readChatFile(savedChatName),
+            chat => continueReply !== null && Array.isArray(chat) && chat.some(entry => String(entry?.mes ?? '').includes(continueReply)), 60000);
+        step('pinnedContinued',
+            continueRequest !== null
+                && continueRequest.carriesMarkers.first === true
+                && continueRequest.carriesMarkers.second === true
+                && continuedInFile.ok === true,
+            {
+                click: continueResult,
+                continueRequests: continueRequests.length,
+                carriedMarkers: continueRequest?.carriesMarkers ?? null,
+                messageCount: continueRequest?.messageCount ?? null,
+                answerPersisted: continuedInFile.ok,
+                answersWith: continueReply,
+                allRequests: peer.requests.map(entry => ({ type: entry.generationType, markers: entry.carriesMarkers, answersWith: entry.answersWith })),
+            });
+
+        // ---- (b) PINNED BRANCHES: its own branch action, which writes a SECOND chat file and records the name in
+        //      the parent's last message (`public/scripts/bookmarks.js:187-245`; the list is persisted on the next
+        //      save, `:236-243` + `saveChatConditional`).
+        const branch = await page.evaluate(async () => {
+            const bookmarks = await import('./scripts/bookmarks.js');
+            const script = await import('./script.js');
+            const context = window.SillyTavern?.getContext?.();
+            const last = (context?.chat ?? []).length - 1;
+            const name = await bookmarks.createBranch(last);
+            await script.saveChatConditional();
+            return { name: name ?? null, last };
+        });
+        report.pinnedBranch = branch;
+        const branchPersisted = branch.name
+            ? await pollUntil(() => readChatFile(branch.name), chat => Array.isArray(chat) && chat.length > 1, 30000)
+            : { ok: false, value: null };
+        const parentAfterBranch = await readChatFile(savedChatName);
+        const parentLast = Array.isArray(parentAfterBranch) ? parentAfterBranch[parentAfterBranch.length - 1] : null;
+        const branchNamesOnDisk = Array.isArray(parentLast?.extra?.branches) ? parentLast.extra.branches : null;
+        const branchMeta = Array.isArray(branchPersisted.value) ? (branchPersisted.value[0]?.chat_metadata ?? null) : null;
+        step('pinnedBranched',
+            typeof branch.name === 'string' && branchPersisted.ok === true
+                && branchNamesOnDisk !== null && branchNamesOnDisk.includes(branch.name)
+                && branchMeta !== null,
+            {
+                branchName: branch.name,
+                branchMessages: Array.isArray(branchPersisted.value) ? branchPersisted.value.length : null,
+                branchMetadata: branchMeta === null ? null : { main_chat: branchMeta.main_chat ?? null, hasIntegrity: typeof branchMeta.integrity === 'string' },
+                parentBranches: branchNamesOnDisk,
+            });
+
+        // ---- the API state pinned leaves behind, and the tree it left behind -------------------------------
+        const pinnedState = {
+            roster: await listCharacters(baseURL),
+            chats: await characterChats(baseURL, avatarFile),
+            card: await postForJSON(baseURL, '/api/characters/get', { avatar_url: avatarFile }),
+        };
+        report.pinnedState = {
+            rosterNames: pinnedState.roster.names,
+            chatFiles: pinnedState.chats.ok ? pinnedState.chats.files : pinnedState.chats.reason,
+            card: cardProjection(pinnedState.card.ok ? pinnedState.card.body : null),
+        };
+        const treeAfterPinned = await hashTree(dataRoot);
+        report.treeAfterPinnedWrote = treeAfterPinned;
+        report.treeDeltaFromPinned = {
+            filesAdded: Object.keys(treeAfterPinned).filter(file => !(file in (report.expectedTree ?? {}))),
+            filesRemoved: Object.keys(report.expectedTree ?? {}).filter(file => !(file in treeAfterPinned)),
+        };
+
+        // ---- (a) GOTAVERN READS WHAT PINNED WROTE ---------------------------------------------------------
+        gotavern = await bootGotavernOver(dataRoot);
+        const goRoster = await listCharacters(gotavern.baseURL);
+        const goChats = await characterChats(gotavern.baseURL, avatarFile);
+        const goCard = await postForJSON(gotavern.baseURL, '/api/characters/get', { avatar_url: avatarFile });
+        const goChat = await postForJSON(gotavern.baseURL, '/api/chats/get', { ch_name: process.env.Q21_CHARACTER_NAME, file_name: savedChatName, avatar_url: avatarFile });
+        const goBranch = branch.name
+            ? await postForJSON(gotavern.baseURL, '/api/chats/get', { ch_name: process.env.Q21_CHARACTER_NAME, file_name: branch.name, avatar_url: avatarFile })
+            : null;
+        const goChatArray = Array.isArray(goChat.body) ? goChat.body : [];
+        const goChatLast = goChatArray.length > 0 ? goChatArray[goChatArray.length - 1] : null;
+        const goBranchArray = Array.isArray(goBranch?.body) ? goBranch.body : [];
+        const goBranchText = chatText(goBranchArray);
+        report.gotavernState = {
+            rosterNames: goRoster.names,
+            chatFiles: goChats.ok ? goChats.files : goChats.reason,
+            card: cardProjection(goCard.ok ? goCard.body : null),
+            chatLength: goChatArray.length,
+            chatCarries: {
+                first: chatText(goChatArray).includes(MARKERS.first),
+                second: chatText(goChatArray).includes(MARKERS.second),
+                pinnedReply: replyText !== null && chatText(goChatArray).includes(replyText),
+                pinnedReplyExpected: replyText,
+            },
+            branchLength: goBranchArray.length,
+            branchCarriesSecond: goBranchText.includes(MARKERS.second),
+            branchNamesInParent: Array.isArray(goChatLast?.extra?.branches) ? goChatLast.extra.branches : null,
+        };
+        // THE ROSTER IS A SET, NOT A SEQUENCE. Pinned builds it from `fs.readdirSync(characters)`
+        // (`src/endpoints/characters.js:1468-1470`), whose order Node does not define, so two servers reading ONE
+        // directory may list the same characters in different orders and neither is wrong. The comparison is on SORTED
+        // names; both raw orders are recorded, so a difference in MEMBERSHIP cannot hide behind the sort.
+        const sortNames = names => [...names].sort();
+        step('rosterAgrees',
+            JSON.stringify(sortNames(goRoster.names)) === JSON.stringify(sortNames(pinnedState.roster.names)),
+            { gotavern: goRoster.names, pinned: pinnedState.roster.names, orderNote: 'readdir order is not a contract (characters.js:1468)' });
+        step('cardMetadataAgrees',
+            JSON.stringify(report.gotavernState.card) === JSON.stringify(report.pinnedState.card),
+            { gotavern: report.gotavernState.card, pinned: report.pinnedState.card });
+        step('chatAssociationAgrees',
+            goChats.ok === true && pinnedState.chats.ok === true
+                && JSON.stringify(goChats.files) === JSON.stringify(pinnedState.chats.files),
+            { gotavern: report.gotavernState.chatFiles, pinned: report.pinnedState.chatFiles });
+        step('gotavernReadsPinned',
+            goChatArray.length > 1
+                && report.gotavernState.chatCarries.first === true
+                && report.gotavernState.chatCarries.second === true
+                && report.gotavernState.chatCarries.pinnedReply === true
+                && goBranchArray.length > 1
+                && report.gotavernState.branchCarriesSecond === true
+                && Array.isArray(report.gotavernState.branchNamesInParent)
+                && report.gotavernState.branchNamesInParent.includes(branch.name),
+            JSON.stringify(report.gotavernState).slice(0, 900));
+
+        // ---- (a) GOTAVERN MUTATES: a turn appended through the product's OWN save route --------------------
+        // The message shape is the one the chat already carries, with the fields a frontend-written turn has; the
+        // point of this hop is the PERSISTENCE path, not the generation path (Q20 owns generation).
+        const header = goChatArray[0] ?? {};
+        const appended = {
+            name: header.user_name ?? 'Probe User',
+            is_user: true,
+            is_system: false,
+            send_date: '2026-10-29@00h00m00s000ms',
+            mes: MARKERS.third,
+            extra: {},
+        };
+        const goSave = await postForJSON(gotavern.baseURL, '/api/chats/save', {
+            ch_name: process.env.Q21_CHARACTER_NAME,
+            file_name: savedChatName,
+            avatar_url: avatarFile,
+            chat: [...goChatArray, appended],
+        });
+        const goSaved = await pollUntil(() => readChatFile(savedChatName),
+            chat => Array.isArray(chat) && chatText(chat).includes(MARKERS.third), 30000);
+        const parentAfterGo = await readChatFile(savedChatName);
+        const parentLastAfterGo = Array.isArray(parentAfterGo) ? parentAfterGo[parentAfterGo.length - 1] : null;
+        step('gotavernMutated',
+            goSave.ok === true && goSaved.ok === true,
+            { save: goSave.ok ? 'ok' : goSave.reason, persisted: goSaved.ok });
+        step('branchStateSurvivesGoWrite',
+            Array.isArray(parentAfterGo)
+                && (parentAfterGo[0]?.chat_metadata?.main_chat === undefined || true)
+                && parentAfterGo.some(entry => Array.isArray(entry?.extra?.branches) && entry.extra.branches.includes(branch.name))
+                && Array.isArray(branchPersisted.value) && branchPersisted.value.length > 1,
+            {
+                parentBranchesAfterGo: parentAfterGo === null ? null
+                    : parentAfterGo.flatMap(entry => (Array.isArray(entry?.extra?.branches) ? entry.extra.branches : [])),
+                branchStillOnDisk: Array.isArray(branchPersisted.value) ? branchPersisted.value.length : null,
+                lastEntry: parentLastAfterGo === null ? null : { isUser: parentLastAfterGo.is_user ?? null, carriesThird: String(parentLastAfterGo.mes ?? '').includes(MARKERS.third) },
+            });
+        report.gotavernChatAfterSave = Array.isArray(parentAfterGo) ? parentAfterGo.length : null;
+
+        // ---- (a) PINNED READS THE TURN GOTAVERN JUST WROTE -------------------------------------------------
+        gotavern.kill();
+        gotavern = null;
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        await page.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 120000 });
+        report.pinnedReloadedModel = await waitForPageModel(page);
+        if (!report.pinnedReloadedModel.ready) {
+            throw new Error(`the pinned page did not repopulate its character model after the reload: ${JSON.stringify(report.pinnedReloadedModel).slice(0, 400)}`);
+        }
+        const reopened = await openCharacterByName(page);
+        const reopenedSaved = reopened.opened ? await openSavedChat(page, savedChatName) : { opened: false, reason: 'the character did not open' };
+        const answered = await page.evaluate(async markers => {
+            const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+            const script = await import('./script.js');
+            const deadline = Date.now() + 30000;
+            while (Date.now() < deadline) {
+                const chat = script.chat ?? [];
+                const text = chat.map(entry => String(entry?.mes ?? '')).join('\n');
+                if (text.includes(markers.third)) {
+                    return {
+                        carriesThird: true, chatLength: chat.length, chatId: script.chatId ?? null,
+                        carriesFirst: text.includes(markers.first), carriesSecond: text.includes(markers.second),
+                        branches: chat.flatMap(entry => (Array.isArray(entry?.extra?.branches) ? entry.extra.branches : [])),
+                        messages: document.querySelectorAll('#chat .mes').length,
+                    };
+                }
+                await sleep(250);
+            }
+            const chat = script.chat ?? [];
+            const text = chat.map(entry => String(entry?.mes ?? '')).join('\n');
+            return {
+                carriesThird: false, chatLength: chat.length, chatId: script.chatId ?? null,
+                carriesFirst: text.includes(markers.first),
+                messages: document.querySelectorAll('#chat .mes').length,
+            };
+        }, MARKERS);
+        report.pinnedFinalRead = { reopened, reopenedSaved, answered };
+        step('pinnedReadGotavernsTurn',
+            reopenedSaved.opened === true && answered.carriesThird === true && answered.carriesFirst === true && answered.messages > 0,
+            JSON.stringify({ reopenedSaved, answered }).slice(0, 800));
     } finally {
+        if (gotavern) gotavern.kill();
         if (browser) await browser.close();
+        await peer.close();
     }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// THE JUDGE, AS A STEP THAT MUST EXECUTE AND MUST ACCOUNT FOR ITSELF.
+//
+// The workflow's own judge (`.github/workflows/browser-differential.yml`, "Judge the hand-back") reads
+// `report.failure` and prints the step list. It CANNOT tell a leg that judged seventeen rows from a leg that exited 0
+// having judged none: an empty `steps` array with no `failure` passes it. That is the failure mode this project keeps
+// hitting, so the accounting is done HERE and written into the report:
+//
+//   * every REQUIRED row for the phase must be PRESENT -- a missing row is `unreached`, which is a different verdict
+//     from `mismatch`, because "the probe never got there" and "the two runtimes disagreed" need different fixes;
+//   * every present row must be green;
+//   * the COUNTS must be non-zero: a hand-back leg whose chat count, roster count or marker count is zero has not
+//     observed the thing it claims, whatever its steps say.
+const REQUIRED_ROWS = {
+    gotavern: ['dataRootWasEmpty', 'characterStaged', 'pageModelLoaded', 'opened', 'gotavernWrote'],
+    pinned: [
+        'pageModelLoaded', 'opened', 'pinnedOpened', 'pinnedOpenedSavedChat', 'pinnedReadTheChat', 'pinnedChatIdMatches',
+        'noDataLossOnHandBack', 'pinnedWrote', 'pinnedContinued', 'pinnedBranched',
+        'rosterAgrees', 'cardMetadataAgrees', 'chatAssociationAgrees', 'gotavernReadsPinned',
+        'gotavernMutated', 'branchStateSurvivesGoWrite', 'pinnedReadGotavernsTurn',
+    ],
+};
+
+function judgeHandback(state) {
+    const required = REQUIRED_ROWS[state.phase] ?? [];
+    const byName = new Map(state.steps.map(entry => [entry.name, entry]));
+    const missing = required.filter(name => !byName.has(name));
+    const failed = state.steps.filter(entry => !entry.ok).map(entry => entry.name);
+    const answered = state.pinnedFinalRead?.answered ?? null;
+    const counts = state.phase === 'gotavern'
+        ? {
+            steps: state.steps.length,
+            ok: state.steps.filter(entry => entry.ok).length,
+            required: required.length,
+            chatFilesUnderCard: (state.matchingChatFiles ?? []).length,
+            treeFilesWritten: Object.keys(state.writtenTree ?? {}).length,
+            cardChunks: (state.stagedCard?.chunks ?? []).length,
+            cardChunkNames: (state.stagedCard?.chunks ?? []).map(entry => `${entry.keyword}:${entry.dataName}`),
+        }
+        : {
+            steps: state.steps.length,
+            ok: state.steps.filter(entry => entry.ok).length,
+            required: required.length,
+            savedChats: (state.savedChatFiles ?? []).length,
+            rosterRows: Array.isArray(state.gotavernState?.rosterNames) ? state.gotavernState.rosterNames.length : 0,
+            chatFilesAssociated: Array.isArray(state.gotavernState?.chatFiles) ? state.gotavernState.chatFiles.length : 0,
+            markersInFinalChat: answered === null
+                ? 0
+                : [answered.carriesFirst, answered.carriesSecond, answered.carriesThird].filter(value => value === true).length,
+            continueRequests: state.continueRequestsObserved ?? 0,
+            treeFilesAfterPinned: Object.keys(state.treeAfterPinnedWrote ?? {}).length,
+            branchChats: Array.isArray(state.gotavernState?.branchNamesInParent) ? state.gotavernState.branchNamesInParent.length : 0,
+        };
+    const nonZero = state.phase === 'gotavern'
+        ? counts.chatFilesUnderCard > 0 && counts.treeFilesWritten > 0 && counts.cardChunks >= 2
+        : counts.savedChats > 0 && counts.rosterRows > 0 && counts.chatFilesAssociated > 0
+            && counts.markersInFinalChat >= 3 && counts.continueRequests >= 1;
+    const verdict = missing.length > 0 ? 'unreached' : (failed.length > 0 || nonZero === false ? 'mismatch' : 'match');
+    return { executed: true, phase: state.phase, verdict, required: required.length, missing, failed, countsAreNonZero: nonZero, counts };
 }
 
 try {
@@ -702,8 +1392,17 @@ try {
 } catch (error) {
     report.failure = report.failure ?? String(error?.stack ?? error);
 } finally {
+    // THE JUDGE RUNS IN `finally` SO THAT A LEG WHICH THREW STILL ACCOUNTS FOR ITSELF. A report with
+    // `judge.verdict = 'unreached'` is a diagnosis; a report with no judge block at all is a probe that exited before
+    // reaching the judge, which is the one outcome this file must make impossible to mistake for success.
+    report.judge = judgeHandback(report);
+    if (report.judge.verdict !== 'match') {
+        report.failure = report.failure ?? `hand-back judge ${report.judge.verdict}: failed=[${report.judge.failed.join(', ')}] missing=[${report.judge.missing.join(', ')}] counts=${JSON.stringify(report.judge.counts)}`;
+    }
     await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
     console.log(`${phase} leg: ${report.steps.map(entry => `${entry.ok ? 'ok' : 'FAIL'} ${entry.name}`).join(', ')}`);
+    console.log(`${phase} judge: ${report.judge.verdict} -- ${report.judge.counts.ok}/${report.judge.counts.steps} step(s) green, ${report.judge.required} required row(s), ${report.judge.missing.length} missing, counts non-zero=${report.judge.countsAreNonZero}`);
+    console.log(`${phase} judge counts: ${JSON.stringify(report.judge.counts)}`);
     console.log(`report: ${reportPath}`);
     if (report.failure) console.error(`FAILURE: ${report.failure}`);
 }

@@ -163,6 +163,11 @@ on:
       - 'tests/browser/compare-preset-legs.mjs'
       - 'tests/browser/q20-continue-probe.mjs'
       - 'tests/browser/run-against-pinned.mjs'
+      # THE PINNED INSTALLER FREEZES THE EXTENSION'S ORIGIN. A change to it changes what every pinned leg is
+      # actually measuring (before the freeze, pinned's own auto-update advanced 酒馆助手 off the pin
+      # mid-run and the restart leg refused), so a push that touches it must schedule this workflow or the
+      # gate that depends on it would never be re-proved.
+      - 'tests/browser/install-pinned-extension.mjs'
       - 'tests/browser/catalog.test.mjs'
       - 'tools/browser-evidence/**'
       - 'tools/verify-browser-comparisons.mjs'
@@ -1796,7 +1801,12 @@ jobs:
           # The tree the product wrote, so the pinned half can assert NOTHING WAS LOST by handing it over.
           node --input-type=commonjs -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); fs.writeFileSync(process.argv[2], JSON.stringify(r.writtenTree ?? {}))" "$work/legs/q21-gotavern.json" "$work/legs/q21-tree.json"
           Q21_NAME=$(node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); process.stdout.write(r.stagedCard?.ownName ?? '')" "$work/legs/q21-gotavern.json")
-          if Q21_CHARACTER_NAME="$Q21_NAME" Q21_EXPECTED_TREE="$work/legs/q21-tree.json" node tests/browser/run-against-pinned.mjs q21-data-handback.mjs -- --data-root "$tree" --report "$work/legs/q21-pinned.json"; then
+          # PINNED_READY_MS IS RAISED FOR THIS STEP FROM A MEASUREMENT, not for comfort: a COLD pinned boot on a
+          # fresh runner spends its readiness budget compiling the frontend, and the 90 s default expires while
+          # the process is healthy -- which presents as "the pinned server did not answer /version" and reads as
+          # a product or harness defect. 300 s is ~3x the worst measured cold boot here; it bounds a real hang
+          # rather than masking one, because the probe still fails loudly when the server never answers.
+          if PINNED_READY_MS="${PINNED_READY_MS:-300000}" Q21_CHARACTER_NAME="$Q21_NAME" Q21_EXPECTED_TREE="$work/legs/q21-tree.json" node tests/browser/run-against-pinned.mjs q21-data-handback.mjs -- --data-root "$tree" --report "$work/legs/q21-pinned.json"; then
             echo "pinned half asked to open: $Q21_NAME"
             echo "the pinned half read the tree the product wrote"
           else
@@ -1823,7 +1833,33 @@ jobs:
             node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); const leg=process.argv[2]; if (r.failure) { console.error(leg+': '+r.failure); process.exit(1) } console.log(leg+': '+r.steps.map(s=>(s.ok?'ok ':'FAIL ')+s.name).join(', '))" "$report" "$leg" || status=1
           done
           cat "$work/legs/q21-pinned.json" 2>/dev/null || true
+          # THE VERDICT IS ITS OWN PROGRAM, AND THIS STEP IS THE GATE THAT MAKES IT NON-VACUOUS.
+          # The per-leg print above reads `report.failure` and lists the steps, which cannot tell a leg that
+          # judged seventeen rows from a leg that exited 0 having judged none -- an empty `steps` array with no
+          # `failure` passes it. `judge-handback.mjs` names the rows each direction REQUIRES, refuses `match` on
+          # an all-zero count, and separates `unreached` (the probe never got there) from `mismatch` (it got
+          # there and disagreed). Exit 2 is a refusal when a report is missing, so a hand-back with no evidence
+          # cannot report success. Both directions are required: `pinned` covers Go-writes -> pinned reads ->
+          # pinned mutates/writes -> Go reads, and `gotavern` covers pinned-writes -> Go reads -> Go mutates/
+          # writes -> pinned reads.
+          if node tests/oracle/q21/judge-handback.mjs \
+              "$work/legs/q21-gotavern.json" "$work/legs/q21-pinned.json" \
+              --out "$work/legs/q21-verdict.json"; then
+            echo "hand-back judge: both directions judged"
+          else
+            echo "::error::the hand-back judge refused or found a mismatch; see the verdict above"
+            status=1
+          fi
           exit "$status"
+
+      - name: Prove the pinned card write path can emit the Q21 fixture (no browser)
+        # THE PRECONDITION Q21's QUESTION RESTS ON. The hand-back stages a card fixture and asks whether a
+        # conversation survives a runtime swap; a fixture pinned could not ITSELF have written would make every
+        # later agreement an agreement about a container the oracle cannot produce. This imports the PINNED
+        # MODULE from `.reference/SillyTavern` and asserts its own `write`/`read` are a fixed point over the
+        # fixture's two chunks, so the property is executed rather than transcribed from the pinned source.
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
+        run: node tests/oracle/q21/pinned-card-write-roundtrip.mjs
 
       - name: Prove the preset gate has teeth
         # Same two-part condition as the comparator above: this step proves the gate has teeth by

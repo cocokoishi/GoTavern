@@ -27,7 +27,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
-import { CARD_IDENTITY_FIELDS, MARKER_BYTES, PROSE_THRESHOLD_CHARS, cardIdentityFieldFor, profilePreset, profileCard } from './real-fixture-profile.mjs';
+import { CARD_IDENTITY_FIELDS, CARD_MIRRORED_CHUNKS, MARKER_BYTES, PROSE_THRESHOLD_CHARS, cardIdentityFieldFor, cardIdentityOccurrences, cardIdentityRelationViolations, profilePreset, profileCard } from './real-fixture-profile.mjs';
 import { scanText } from './check-fixture-watermarks.mjs';
 import { auditPngCarriers } from './png-carriers.mjs';
 
@@ -409,13 +409,82 @@ const parseCardJSON = (jsonBytes) => {
     return parsed;
 };
 
+// ONE VALUE, ONE REPLACEMENT -- THE RULE THIS DERIVATION WAS MISSING.
+//
+// THE DEFECT, measured by `tests/oracle/q21/derivation-invariant.test.mjs` on a synthetic source whose root copies
+// EQUAL their `data` twins and whose `trAc` chunk equals `data.extensions.odysseia_trace` (2026-10-29):
+//
+//     root.name "MARK_000000..."       data.name "MARK_000005..."                          (source: equal)
+//     root.first_mes "MARK_000002..."  data.first_mes "MARK_000007..."                     (source: equal)
+//     trAc.ciphertext "MARK_000017..." extensions.odysseia_trace.ciphertext "MARK_000016..."  (source: equal)
+//
+// One character, several carriers, a DIFFERENT marker in each, because every carrier ran its own walk against a
+// shared RUNNING counter. That is the same mechanism that put 466 in `chara` and 794 in `ccv3` in the committed
+// fixture (the `chara`/`ccv3` half of the repair is in `buildCard`, which derives the document ONCE). THIS is the
+// rest of the rule: the replacement is a pure function of the source VALUE, so two carriers of one value cannot
+// disagree, and two different values cannot collapse into one. `buildCard` refuses on either outcome after the write.
+//
+// The KIND is part of the key because the alphabet is chosen by the FIELD, not by the value (a base64 field needs a
+// base64 filler, a script body a JavaScript stub). Two carriers of one value under two different kinds cannot agree,
+// and that case is refused rather than special-cased.
+const memoiseReplacement = (memo, kind, value, produce) => {
+    const key = `${kind}\u0000${value}`;
+    const hit = memo.get(key);
+    if (hit !== undefined) {
+        hit.uses += 1;
+        return { replacement: hit.replacement, shared: true };
+    }
+    const entry = { replacement: produce(), uses: 1 };
+    memo.set(key, entry);
+    return { replacement: entry.replacement, shared: false };
+};
+
+// THE ONE PLACE A MARKER IS BUILT, so two carriers cannot disagree about it.
+//
+// The card document and a mirrored chunk (measured: `trAc` beside `data.extensions.odysseia_trace`) are two
+// representations of ONE object, and before this function existed each walker decided the tier for itself -- one used
+// the M-form for a 7-byte field, the other the #-form, so the SAME source value came back as `M000014` in the document
+// and `#000018` in the chunk. That is the Q21 defect one carrier over, and the relation check at the end of
+// `buildCard` caught it on the first synthetic card it was given. Tier rules, unchanged in substance:
+//
+//   * `MARK_NNNNNN` (11 bytes) where the field has room for it;
+//   * `MNNNNNN` (7 bytes) below that -- a 13-byte real name cannot hold the long form plus filler, and a marker that
+//     FILLS the field exactly is a better fixture than a refusal;
+//   * `#` + digits padded to the field's own length below that, because the watermark scanner refuses a bare six-byte
+//     `Mk0001` (it is the shape of a real two-character name) and accepts `#\\d+` only at that exact shape.
+//
+// The 1-byte tier has exactly ONE representable value, so two different 1-byte fields necessarily collide; that limit
+// is recorded per field (`shortIdentityFields`) and reported separately by the relation check.
+const CARD_SHORT_TIER_LIMIT = Buffer.byteLength('M000000');
+
+const cardMarkerReplacement = ({ bytes, value, pathName, memo }) => {
+    const base64 = BASE64_IDENTITY_FIELDS.test(pathName);
+    return memoiseReplacement(memo, base64 ? 'base64' : 'tier', value, () => {
+        const markerIndex = markerIndexFor(nextMarker());
+        const longForm = `MARK_${String(markerIndex).padStart(6, '0')}`;
+        const mediumForm = `M${String(markerIndex).padStart(6, '0')}`;
+        const shortForm = bytes === 1 ? '#' : `#${String(markerIndex).padStart(Math.max(0, bytes - 1), '0').slice(-Math.max(0, bytes - 1))}`;
+        const form = bytes >= Buffer.byteLength(longForm) ? longForm
+            : (bytes >= Buffer.byteLength(mediumForm) ? mediumForm : shortForm);
+        if (bytes < Buffer.byteLength(form)) refuse(`${pathName}: ${bytes} bytes cannot hold a marker, and no card field is left verbatim`);
+        const tail = bytes - Buffer.byteLength(form);
+        // A BASE64 FIELD'S FILLER MUST CARRY A MARKER INSIDE THE RUN ITSELF: the scanner's unmarked-long-string rule
+        // looks INSIDE every 64+ character string, so `MARK_000010` + megabytes of `A` is reported as an unmarked run.
+        const candidate = base64
+            ? form + base64MarkedFiller(tail)
+            : form + FILLER_UNIT.repeat(Math.floor(tail / FILLER_UNIT_BYTES)) + 'x'.repeat(tail % FILLER_UNIT_BYTES);
+        if (Buffer.byteLength(candidate) !== bytes) refuse(`${pathName}: replacement produced ${Buffer.byteLength(candidate)} bytes, wanted ${bytes}`);
+        return candidate;
+    });
+};
+
 // Walk the card DOCUMENT, replacing every identity field with a marker of the same SERIALISED byte length.
 // ONE WALKER, keyed on the path the child is at, so a field the list names cannot be reached by two
 // different code paths that disagree ("data.name" and "_root.name" are two paths into one value and either
 // one left verbatim publishes the name). The two subtleties the preset work already paid for are kept: the
 // budget is the SERIALISED length (JSON escaping inflates a quote, a newline or a backslash), and every
 // replacement is asserted per string.
-const desensitiseCard = (document, stats) => {
+const desensitiseCard = (document, stats, memo) => {
     const visit = (value, pathParts) => {
         // THE PATH IS THE v3 DOCUMENT'S OWN (`data.name`, `_root.name`). `cardIdentityFieldFor` accepts both
         // spellings and resolves them against the `data`-relative list, so the walker does not have to strip a
@@ -427,58 +496,18 @@ const desensitiseCard = (document, stats) => {
             const bytes = Buffer.byteLength(JSON.stringify(value)) - 2;
             if (bytes === 0) return value;
             if (/^extensions\.tavern_helper\.scripts\.\d+\.content$/.test(pathName)) {
-                const stub = scriptStubFor(bytes, nextMarker(), pathName);
+                const { replacement, shared } = memoiseReplacement(memo, 'script', value, () => scriptStubFor(bytes, nextMarker(), pathName));
+                if (shared) stats.sharedReplacements += 1;
                 stats.scriptsReplaced += 1;
                 stats.scriptBytesReplaced += bytes;
                 stats.replacedPaths[field.path] = (stats.replacedPaths[field.path] ?? 0) + 1;
-                return stub;
+                return replacement;
             }
-            // THREE marker tiers, and the third one is a MEASURED decision rather than a convenience. Real cards
-            // carry short identity fields: this repository's own fixture car builder writes `personality:
-            // 'calm'` (4 bytes), and the real card's `tags` entries and `character_version` run 2-10 bytes. The
-            // watermark scanner refuses a bare six-byte `Mk0001` because that is exactly the shape of a real
-            // two-character CJK name (preset A's `勿动`), so a short tier cannot be `M` + digits at 6 bytes.
-            // THE SHORT TIER IS `#` + a fixed-width number padded to the field's own length, and `#` cannot
-            // begin a name: no card in this project's audit uses it, and the scanner's marker rule accepts it
-            // ONLY at that shape (`#\d+` filling the field exactly). A field too short even for `#0` (1 byte)
-            // is refused, never left verbatim.
-            const markerIndex = markerIndexFor(nextMarker());
-            const longForm = `MARK_${String(markerIndex).padStart(6, '0')}`;
-            const shortForm = `M${String(markerIndex).padStart(6, '0')}`;
-            const form = bytes >= Buffer.byteLength(longForm) ? longForm
-                : (bytes >= Buffer.byteLength(shortForm) ? shortForm : null);
-            if (form === null) {
-                // THE SHORT TIER: `#` followed by digits, padded to the field's exact length. `#0` is the
-                // shortest form (2 bytes) and a 1-byte identity field cannot hold it -- measured on the real
-                // card, `character_book.entries.8.keys[2]` is the single character `K` -- so a 1-byte field
-                // becomes the bare `#`. The scanner accepts `#` alone as the 1-byte tier for the same reason the
-                // 2+ byte tier exists: `#` is not a word, cannot begin a name in either audited card, and the
-                // self-test drives the same predicate with `K`, `v1`, `DG` and the card's own short values and
-                // requires each to be refused. Nothing is ever left verbatim, which is the property that matters.
-                if (bytes < 1) {
-                    refuse(`${pathName}: a zero-byte identity field cannot carry a marker, and no card field is left verbatim`);
-                }
-                const shortMarker = bytes === 1 ? '#' : `#${String(markerIndex).padStart(bytes - 1, '0').slice(-(bytes - 1))}`;
-                if (Buffer.byteLength(shortMarker) !== bytes) refuse(`${pathName}: short marker ${JSON.stringify(shortMarker)} is ${Buffer.byteLength(shortMarker)} bytes, wanted ${bytes}`);
-                stats.namesReplaced += 1;
-                stats.replacedPaths[field.path] = (stats.replacedPaths[field.path] ?? 0) + 1;
-                stats.shortIdentityFields.push({ path: pathName, bytes, marker: shortMarker });
-                return shortMarker;
-            }
-            const tailBytes = bytes - Buffer.byteLength(form);
-            // A BASE64 FIELD'S FILLER MUST CARRY A MARKER INSIDE THE RUN ITSELF. The scanner's
-            // unmarked-long-string rule looks INSIDE every 64+ character string, so a field of `MARK_000010` +
-            // 9 MB of `A` is reported as an unmarked run even though a marker is at its head -- measured on the
-            // real card, where the refusal named the ORIGINAL ciphertext (read from the JSON-escaped form, which
-            // is what the scanner sees). The filler is therefore a repeating base64-safe unit that contains a
-            // marker every 64 characters, so every window the rule can extract carries one.
-            const replacement = form
-                + (BASE64_IDENTITY_FIELDS.test(pathName)
-                    ? base64MarkedFiller(tailBytes)
-                    : FILLER_UNIT.repeat(Math.floor(tailBytes / FILLER_UNIT_BYTES)) + 'x'.repeat(tailBytes % FILLER_UNIT_BYTES));
-            if (Buffer.byteLength(replacement) !== bytes) refuse(`${pathName}: replacement produced ${Buffer.byteLength(replacement)} bytes, wanted ${bytes}`);
-            stats.namesReplaced += 1;
+            const { replacement, shared } = cardMarkerReplacement({ bytes, value, pathName, memo });
+            if (shared) stats.sharedReplacements += 1;
+            if (bytes < CARD_SHORT_TIER_LIMIT) stats.shortIdentityFields.push({ path: pathName, bytes, marker: replacement });
             stats.replacedPaths[field.path] = (stats.replacedPaths[field.path] ?? 0) + 1;
+            stats.namesReplaced += 1;
             return replacement;
         }
         if (Array.isArray(value)) return value.map((entry, index) => visit(entry, [...pathParts, String(index)]));
@@ -529,13 +558,16 @@ const base64MarkedFiller = (bytes) => {
     return filler;
 };
 
-// A NON-CARD CHUNK'S JSON IS WALKED BY THE SAME LIST. The measured case is `trAc`, whose payload is
-// `{ciphertext,kid,nonce,v}` -- the same trace `data.extensions.odysseia_trace` holds. Rooting the walk at
-// `extensions.odysseia_trace` is not a guess: the chunk's keys ARE the extension's keys (compared below), so a
-// chunk that mirrors an extension subtree is recognised by the list rather than by a second, parallel predicate.
-// When the keys do NOT match a known extension the walk still runs at `_root.` and REFUSES if any identity field
-// survives, because an unknown chunk's JSON is not a place to leave a ciphertext.
-const desensitiseCardRootedAt = (document, stats) => {
+// A NON-CARD CHUNK'S JSON IS WALKED BY THE SAME LIST, THROUGH THE SAME MEMO. The measured case is `trAc`, whose
+// payload is `{ciphertext,kid,nonce,v}` -- the SAME trace `data.extensions.odysseia_trace` holds. Rooting the walk at
+// `extensions.odysseia_trace` is not a guess: the chunk's keys ARE the extension's keys (compared below), so a chunk
+// that mirrors an extension subtree is recognised by the list rather than by a second, parallel predicate.
+//
+// THE MEMO IS SHARED WITH THE DOCUMENT'S WALK, AND THAT IS THE FIX FOR THE SECOND HALF OF THE Q21 DEFECT. Two separate
+// walks put MARK_002859 in the extension and MARK_005120 in the chunk for the SAME ciphertext, so the derived
+// container said two different things about one trace. With one memo the chunk reuses the replacement the document
+// already chose; the refusal at the end of `buildCard` proves the relation survived.
+const desensitiseCardRootedAt = (document, stats, memo) => {
     const extensionMatch = EXTENSION_MIRROR_KEYS.find(entry => entry.keys.every(key => Object.prototype.hasOwnProperty.call(document, key))
         && Object.keys(document).length === entry.keys.length);
     const rootParts = extensionMatch ? ['_root', 'extensions', extensionMatch.extension] : ['_root'];
@@ -546,15 +578,13 @@ const desensitiseCardRootedAt = (document, stats) => {
             if (!field) return value;
             const bytes = Buffer.byteLength(JSON.stringify(value)) - 2;
             if (bytes === 0) return value;
-            if (BASE64_IDENTITY_FIELDS.test(pathName)) return base64MarkedFiller(bytes);
-            const markerIndex = markerIndexFor(nextMarker());
-            const longForm = `MARK_${String(markerIndex).padStart(6, '0')}`;
-            const form = bytes >= Buffer.byteLength(longForm) ? longForm : `#${String(markerIndex).padStart(Math.max(1, bytes - 1), '0').slice(-(bytes - 1))}`;
-            if (bytes < Buffer.byteLength(form)) refuse(`${pathName}: ${bytes} bytes cannot hold a marker`);
-            const tail = bytes - Buffer.byteLength(form);
-            stats.namesReplaced += 1;
+            // THE SAME BUILDER AND THE SAME MEMO AS THE DOCUMENT'S WALK: a value the document already replaced comes
+            // back identical here, which is what makes the two carriers of one trace agree about identity.
+            const { replacement, shared } = cardMarkerReplacement({ bytes, value, pathName, memo });
+            if (shared) stats.sharedReplacements += 1;
             stats.replacedPaths[field.path] = (stats.replacedPaths[field.path] ?? 0) + 1;
-            return form + FILLER_UNIT.repeat(Math.floor(tail / FILLER_UNIT_BYTES)) + 'x'.repeat(tail % FILLER_UNIT_BYTES);
+            stats.namesReplaced += 1;
+            return replacement;
         }
         if (Array.isArray(value)) return value.map((entry, index) => visit(entry, [...pathParts, String(index)]));
         if (value && typeof value === 'object') {
@@ -586,7 +616,13 @@ const buildCard = ({ name, file }, outDir) => {
         && ['chara', 'ccv3'].includes(String(textChunkPayload(chunk.data)?.keyword ?? '').toLowerCase()));
     if (cardTextChunks.length === 0) refuse(`${file}: no chara or ccv3 tEXt chunk, so there is no card to derive`);
 
-    const stats = { namesReplaced: 0, scriptsReplaced: 0, scriptBytesReplaced: 0, replacedPaths: {}, shortIdentityFields: [] };
+    const stats = { namesReplaced: 0, scriptsReplaced: 0, scriptBytesReplaced: 0, replacedPaths: {}, shortIdentityFields: [], sharedReplacements: 0 };
+    // ONE MEMO FOR THE WHOLE CONTAINER: the card document, its V1 root copies and every mirrored chunk share it, so a
+    // value cannot be given two replacements by two carriers. See `memoiseReplacement` above.
+    const identityMemo = new Map();
+    const sourceMirrorChunks = [];
+    const derivedMirrorChunks = [];
+    const sourceMirrorTypes = [];
     const derivedPayloads = new Map();
     const chunkReport = [];
     let cardChunkEquality = null;
@@ -620,11 +656,58 @@ const buildCard = ({ name, file }, outDir) => {
     }
     const canonical = cardKeys.find(entry => entry.keyword === 'ccv3') ?? cardKeys[0];
     if (!canonical) refuse(`${file}: no chara or ccv3 tEXt chunk, so there is no card to derive`);
+
+    // MANY CARRIERS, ONE CARD: WHICH DOCUMENT IS AUTHORITATIVE, RECORDED RATHER THAN ASSUMED.
+    //
+    // A source may carry two chunks that disagree -- `card-a.png` was committed that way (466 in `chara`, 794 in
+    // `ccv3`). Pinned's reader answers `ccv3` (`src/character-card-parser.js:64-74`), so the derivation is defined on
+    // THAT document and the other chunk is REPLACED by its bytes. Replacement is the opposite of the Q21 defect: the
+    // defect derived each chunk on its own, this derives one and copies it.
+    //
+    // THE NORMALISATION IS RECORDED, WITH THE FIELDS THAT DIFFERED. A derivation that rewrites one chunk's identity is
+    // exactly what a reviewer must be able to see, and the relation check (2c) then holds the KEPT representations to
+    // one identity each. The per-chunk length check below still refuses when the two documents are not the same
+    // LENGTH, because then copying one into the other would change a chunk's size and the size class.
+    //
+    // The one comparison exception is pinned's own: `character-card-parser.write` stamps `spec`/`spec_version` on the
+    // `ccv3` copy (`:35-36`) and leaves `chara` as it was, so a card pinned ITSELF wrote legitimately carries
+    // `chara_card_v2` in one chunk and `chara_card_v3` in the other.
+    let sourceChunkNormalisation = null;
+    {
+        const comparable = document => {
+            const clone = { ...document };
+            delete clone.spec;
+            delete clone.spec_version;
+            return JSON.stringify(clone);
+        };
+        const readable = cardKeys.map(entry => ({ keyword: entry.keyword, document: parseCardJSON(Buffer.from(textChunkPayload(entry.chunk.data).text, 'base64')) }));
+        const agreed = new Set(readable.map(entry => comparable(entry.document))).size === 1;
+        const differing = [];
+        if (!agreed && readable.length === 2) {
+            const [first, second] = readable;
+            const left = cardIdentityOccurrences({ documents: [{ carrier: first.keyword, document: first.document }] });
+            const right = cardIdentityOccurrences({ documents: [{ carrier: second.keyword, document: second.document }] });
+            for (let index = 0; index < left.length; index += 1) {
+                if (left[index].path !== right[index]?.path || left[index].value !== right[index]?.value) {
+                    differing.push(`${first.keyword}:${left[index].path} vs ${second.keyword}:${right[index]?.path ?? '(missing)'}`);
+                }
+            }
+        }
+        sourceChunkNormalisation = {
+            agreed,
+            kept: canonical.keyword,
+            replaced: readable.filter(entry => entry.keyword !== canonical.keyword).map(entry => entry.keyword),
+            differingFields: differing.slice(0, 8),
+            why: 'pinned reads ccv3 first (src/character-card-parser.js:64-74), so the derivation is defined on that '
+                + 'document and every other card chunk is REPLACED by its bytes rather than derived on its own',
+        };
+    }
     const canonicalBytes = Buffer.from(textChunkPayload(canonical.chunk.data).text, 'base64');
     if (canonicalBytes.toString('base64') !== textChunkPayload(canonical.chunk.data).text) {
         refuse(`${file}: the ${canonical.keyword} chunk's base64 does not round-trip, so a re-encode cannot be proven byte-length-preserving`);
     }
-    const derivedDocument = Buffer.from(JSON.stringify(desensitiseCard(parseCardJSON(canonicalBytes), stats)), 'utf8');
+    const canonicalSourceDocument = parseCardJSON(canonicalBytes);
+    const derivedDocument = Buffer.from(JSON.stringify(desensitiseCard(canonicalSourceDocument, stats, identityMemo)), 'utf8');
     if (derivedDocument.length !== canonicalBytes.length) {
         refuse(`${file}: the derived ${canonical.keyword} JSON is ${derivedDocument.length} bytes, the original is ${canonicalBytes.length} (delta ${derivedDocument.length - canonicalBytes.length})`);
     }
@@ -689,12 +772,16 @@ const buildCard = ({ name, file }, outDir) => {
             continue; // not JSON: preserved verbatim, and the survivor sweep still reads it as latin1
         }
         // The same identity walker, rooted at `extensions.` so a chunk that mirrors the card's extension tree is
-        // recognised by the SAME list rather than by a second, parallel one.
-        const derivedChunk = desensitiseCardRootedAt(parsedChunk, stats);
+        // recognised by the SAME list rather than by a second, parallel one -- and through the SAME memo, so a value
+        // the document already replaced is replaced identically here.
+        const derivedChunk = desensitiseCardRootedAt(parsedChunk, stats, identityMemo);
         const derivedChunkJSON = Buffer.from(JSON.stringify(derivedChunk), 'utf8');
         if (derivedChunkJSON.length !== chunk.data.length) {
             refuse(`${file}: the ${chunk.type} chunk's JSON is ${chunk.data.length} bytes and derived to ${derivedChunkJSON.length}, so it cannot be replaced byte-length-preservingly`);
         }
+        sourceMirrorChunks.push(parsedChunk);
+        derivedMirrorChunks.push(derivedChunk);
+        sourceMirrorTypes.push(chunk.type);
         derivedPayloads.set(chunk, derivedChunkJSON);
         chunkReport.push({ type: chunk.type, originalBytes: chunk.length, derivedBytes: 13 + derivedChunkJSON.length, reencoded: true, reason: 'a JSON payload carrying an identity field, re-encoded at the same length' });
     }
@@ -793,6 +880,58 @@ const buildCard = ({ name, file }, outDir) => {
             }
         }
         cardChunkEquality = { chunks: [...documents.keys()], sameDocument: documents.size === 2 };
+    }
+
+    // 2c. ONE LOGICAL OBJECT, ONE REPRESENTATION.
+    //
+    // The check 2b cannot make: the container describes ONE character through SEVERAL carriers -- the document, its V1
+    // root copies beside their V2 `data` twins, and any chunk whose JSON mirrors an extension subtree. The derivation
+    // must preserve the EQUALITY PARTITION of the source's identity values across all of them. A derivation that gives
+    // each carrier its own replacement SPLITS one identity into two (the Q21 defect: 466 in `chara`, 794 in `ccv3`;
+    // then `MARK_002859` in the extension and `MARK_005120` in `trAc` for one ciphertext); one that reuses a
+    // replacement across DIFFERENT values INVENTS an identity. Both are refused, on the RE-READ bytes.
+    //
+    // The comparison is positional over the occurrences `real-fixture-profile.mjs:cardIdentityOccurrences` extracts, so
+    // it holds for every carrier rather than for the pairs someone thought to name.
+    let cardRelations = null;
+    {
+        const readBack = readPngChunks(derived);
+        const readBackMirror = readBack.filter(chunk => sourceMirrorTypes.includes(chunk.type));
+        if (readBackMirror.length !== sourceMirrorTypes.length) {
+            refuse(`${file}: the derived file has ${readBackMirror.length} mirrored chunk(s) and ${sourceMirrorTypes.length} were derived`);
+        }
+        const sourceOccurrences = cardIdentityOccurrences({
+            documents: [{ carrier: 'card document', document: canonicalSourceDocument }],
+            chunks: sourceMirrorChunks.map((document, index) => ({ carrier: `${sourceMirrorTypes[index]} chunk`, document })),
+        });
+        const derivedOccurrences = cardIdentityOccurrences({
+            documents: [{ carrier: 'card document', document: JSON.parse(derivedDocument.toString('utf8')) }],
+            chunks: readBackMirror.map((chunk, index) => {
+                let parsed = null;
+                try {
+                    parsed = JSON.parse(chunk.data.toString('utf8'));
+                } catch (error) {
+                    refuse(`${file}: the derived ${sourceMirrorTypes[index]} chunk is not JSON after the write: ${String(error?.message ?? error).slice(0, 120)}`);
+                }
+                return { carrier: `${sourceMirrorTypes[index]} chunk`, document: parsed };
+            }),
+        });
+        const relations = cardIdentityRelationViolations(sourceOccurrences, derivedOccurrences);
+        if (relations.violations.length > 0) {
+            const first = relations.violations[0];
+            refuse(`${file}: the derivation does not preserve ${relations.violations.length} identity relation(s), so one `
+                + `container would describe one object in two ways; first [${first.kind}] ${first.detail} -- `
+                + `${first.left.carrier} ${first.left.path} vs ${first.right.carrier} ${first.right.path} `
+                + `(source values ${JSON.stringify(first.sourceValues)})`);
+        }
+        cardRelations = {
+            occurrences: sourceOccurrences.length,
+            equalPairs: relations.equalityPairs,
+            differencePairs: relations.differencePairs,
+            shortTierDifferenceUnrepresentable: relations.shortTierPairs.length,
+            sharedReplacements: stats.sharedReplacements,
+            rule: 'every pair of carriers whose source identity values are equal must carry equal derived values, and unequal must stay unequal (except the one-byte tier, which has a single representable marker)',
+        };
     }
     // 3. THE STRUCTURE THE LEG NEEDS MUST SURVIVE: entry count, greeting count, helper/regex script counts,
     //    book content bytes are all computed by the profiler, so a derivation that flattened the book fails
@@ -968,6 +1107,15 @@ const buildCard = ({ name, file }, outDir) => {
                 // file's own equality is recorded separately as `profile.charaEqualsCcv3`, because the ORIGINAL may
                 // legitimately differ and the derived file may not.
                 sameDocumentAcrossChunks: cardChunkEquality,
+                // WHICH SOURCE DOCUMENT WAS AUTHORITATIVE, AND WHETHER THE SOURCE EVEN AGREED WITH ITSELF. `agreed:
+                // false` plus `differingFields` is the record of a normalisation a reviewer can audit; `agreed: true`
+                // is the ordinary case. Either way one derivation is written to every card chunk.
+                sourceChunkNormalisation,
+                // THE INVARIANT THAT MAKES THE CARRIERS AGREE, and the count that proves it ran: every pair of
+                // carriers holding ONE source value received ONE replacement, compared positionally on the RE-READ
+                // derived bytes (step 2c above). A non-zero violation count REFUSES instead of writing, so a manifest
+                // that carries `violations` at all describes a container whose carriers agree about identity.
+                identityRelations: cardRelations,
                 canonicalNameSource: 'ccv3 document (the one pinned reads first, character-card-parser.js:54-78), so prior Q21 reports remain comparable',
                 dimensions,
                 atDepthEntriesNote: 'per-entry position/depth fields are preserved untouched; only the prose inside them moved',

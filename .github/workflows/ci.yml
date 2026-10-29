@@ -499,7 +499,12 @@ jobs:
         # loudly for the wrong reason or, once it is "fixed" by wrapping it in `|| true`, passes while running
         # nothing -- the same class as `go test -run` matching no test. `node --test <glob>` discovers both files
         # here (and bash expands the glob before Node sees it), so this step cannot silently test nothing.
-        run: node --test tests/oracle/*.test.mjs
+        # THE GLOB IS EXTENDED RATHER THAN REPLACED, AND IT MUST MATCH AT LEAST THE TWO DIRECTORIES THAT EXIST.
+        # `tests/oracle/q21/*.test.mjs` is the fixture-generator invariant that Q21's fixture repair rests on:
+        # every identity replacement must be a pure function of the source value, so the TWO chunks of one card
+        # container cannot disagree. It is a Node test because the generator is Node; the glob stays explicit so a
+        # new directory has to be added here rather than being discovered by accident.
+        run: node --test tests/oracle/*.test.mjs tests/oracle/q21/*.test.mjs
       - name: Verify the release channel classifier decides tags correctly
         # `release.yml` and `docker.yml` both ask scripts/classify-version-tag.sh whether a tag is stable, and the
         # answer decides two things users feel: whether a tag becomes a GitHub PRE-release (so it is not what

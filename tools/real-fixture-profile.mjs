@@ -292,6 +292,149 @@ export function profilePreset(text) {
     };
 }
 
+// --- ONE LOGICAL OBJECT, MANY REPRESENTATIONS ---------------------------------------------------
+//
+// A card container describes ONE character through SEVERAL carriers, and a derivation that gives each carrier its
+// own replacement manufactures a container that contradicts itself about identity. Measured on the committed
+// derivation before this rule existed (`GoTavern Lane CI` 40446833206):
+//
+//     chara: data.name="MARK_000466…" root.name="MARK_000464…"
+//     ccv3:  data.name="MARK_002794…" root.name="MARK_000792…"
+//
+// Two different names for one character in one file, while pinned answers `ccv3`
+// (`src/character-card-parser.js:64-74`) and pinned's own writer emits both carriers from ONE document
+// (`:28-39`, `ccv3` = `JSON.parse` of the data given for `chara`) -- so that file was not a card pinned can produce.
+//
+// THE REPRESENTATIONS, enumerated from the container rather than from the identity list:
+//   1. the `chara` and `ccv3` tEXt documents (must be ONE document; the writer rule above);
+//   2. inside a document, the V1 root copies (`name`, `description`, … at the root) beside their V2 `data` twins --
+//      pinned's `readFromV2` OVERWRITES the root from `data` and only WARNS on a mismatch
+//      (`src/endpoints/characters.js:525-552`, the warning at `:548-550`), so both carriers exist and either may be
+//      what a reader answers;
+//   3. an ancillary chunk whose JSON mirrors an `extensions` subtree -- measured: `trAc` =
+//      `{ciphertext,kid,nonce,v}`, exactly the keys of `data.extensions.odysseia_trace`.
+//
+// THE RULE THIS MODULE COMPUTES: the derivation must preserve the EQUALITY PARTITION of identity values across every
+// carrier. Equal in the source -> equal in the derivation (one logical object, one representation); different in the
+// source -> still different (the fixture may not invent an identity either). `cardIdentityOccurrence`s and
+// `cardIdentityRelationViolations` below are that rule, and `tools/build-real-fixtures.mjs` refuses on them.
+export const CARD_MIRRORED_CHUNKS = [
+    { extension: 'odysseia_trace', keys: ['ciphertext', 'kid', 'nonce', 'v'] },
+];
+
+// THE SHORT TIER CANNOT CARRY DIFFERENCE, and this is where that limit is named rather than silently tolerated: a
+// one-byte identity field has exactly one representable marker (`#`, see the generator's tier rules), so two
+// DIFFERENT one-byte values necessarily collide. Equality is still preserved (same value -> same marker); only
+// difference is not. Occurrences in this tier are reported separately, never counted as a violation.
+const SHORTEST_TIER_BYTES = 1;
+
+const identityWalk = (value, pathParts, visit) => {
+    if (typeof value === 'string') {
+        const field = cardIdentityFieldFor(pathParts.join('.'));
+        if (field) visit({ path: pathParts.join('.'), value, field: field.path });
+        return;
+    }
+    if (Array.isArray(value)) {
+        value.forEach((entry, index) => identityWalk(entry, [...pathParts, String(index)], visit));
+        return;
+    }
+    if (value && typeof value === 'object') {
+        for (const key of Object.keys(value)) identityWalk(value[key], [...pathParts, key], visit);
+    }
+};
+
+/**
+ * Every identity-bearing string the container carries, WITH ITS CARRIER, so two carriers of one value can be
+ * compared.
+ *
+ * `documents` is an ordered list `[{carrier, document}]`; a card document is rooted the way the GENERATOR roots it
+ * (`data.<field>` for the V2 subtree, `_root.<field>` for everything at the top), so a path means the same thing in
+ * the source and in the derivation and the two occurrence lists are positionally comparable.
+ *
+ * `chunks` is an ordered list `[{carrier, document}]` for ancillary carriers; a chunk whose key set equals a
+ * `CARD_MIRRORED_CHUNKS` entry is walked rooted at that extension (mirroring the generator), any other chunk at
+ * `_root`.
+ */
+export function cardIdentityOccurrences({ documents = [], chunks = [] } = {}) {
+    const occurrences = [];
+    for (const { carrier, document } of documents) {
+        for (const key of Object.keys(document ?? {})) {
+            const pathParts = key === 'data' ? ['data'] : ['_root', key];
+            identityWalk(document[key], pathParts, entry => occurrences.push({ carrier, ...entry }));
+        }
+    }
+    for (const { carrier, document } of chunks) {
+        const mirror = CARD_MIRRORED_CHUNKS.find(entry => Object.prototype.hasOwnProperty.call(document ?? {}, entry.keys[0])
+            && entry.keys.every(key => Object.prototype.hasOwnProperty.call(document, key))
+            && Object.keys(document ?? {}).length === entry.keys.length);
+        const rootParts = mirror ? ['_root', 'extensions', mirror.extension] : ['_root'];
+        for (const key of Object.keys(document ?? {})) {
+            identityWalk(document[key], [...rootParts, key], entry => occurrences.push({ carrier, ...entry }));
+        }
+    }
+    return occurrences;
+}
+
+/**
+ * Compare the SOURCE container's identity occurrence list with the DERIVED one, position by position.
+ *
+ * Returns `{ violations, equalityPairs, differencePairs, shortTierPairs }`. A violation is a pair of positions
+ * where the source values agreed and the derived values do not (an object split into two identities) or where the
+ * source values differed and the derived values agree (an identity invented by the derivation). Both are refused by
+ * the generator: the first is the Q21 defect, the second is its mirror image.
+ */
+export function cardIdentityRelationViolations(sourceOccurrences, derivedOccurrences) {
+    const violations = [];
+    const shortTierPairs = [];
+    let equalityPairs = 0;
+    let differencePairs = 0;
+    if (sourceOccurrences.length !== derivedOccurrences.length) {
+        return {
+            violations: [{
+                kind: 'shape',
+                detail: `the source has ${sourceOccurrences.length} identity occurrence(s) and the derived container has ${derivedOccurrences.length}, so the two carriers cannot be compared position by position`,
+            }],
+            equalityPairs,
+            differencePairs,
+            shortTierPairs,
+        };
+    }
+    for (let left = 0; left < sourceOccurrences.length; left += 1) {
+        for (let right = left + 1; right < sourceOccurrences.length; right += 1) {
+            const sourceEqual = sourceOccurrences[left].value === sourceOccurrences[right].value;
+            const derivedEqual = derivedOccurrences[left].value === derivedOccurrences[right].value;
+            if (sourceEqual === derivedEqual) {
+                if (sourceEqual) equalityPairs += 1;
+                else differencePairs += 1;
+                continue;
+            }
+            const pair = {
+                sourceEqual,
+                derivedEqual,
+                left: { carrier: sourceOccurrences[left].carrier, path: sourceOccurrences[left].path },
+                right: { carrier: sourceOccurrences[right].carrier, path: sourceOccurrences[right].path },
+                sourceValues: [sourceOccurrences[left].value, sourceOccurrences[right].value].map(value => value.slice(0, 24)),
+            };
+            // A DIFFERENT one-byte value cannot be represented as different, so its collision is recorded against
+            // the short tier instead of being called a derivation defect.
+            if (!sourceEqual && derivedEqual
+                && Buffer.byteLength(sourceOccurrences[left].value) <= SHORTEST_TIER_BYTES
+                && Buffer.byteLength(sourceOccurrences[right].value) <= SHORTEST_TIER_BYTES) {
+                shortTierPairs.push(pair);
+                continue;
+            }
+            violations.push({
+                kind: sourceEqual ? 'split-identity' : 'invented-identity',
+                detail: sourceEqual
+                    ? 'two carriers of ONE value were given different replacements, so the derived container says two different things about one identity'
+                    : 'two DIFFERENT values were given the same replacement, so the derived container claims an identity the source did not have',
+                ...pair,
+            });
+        }
+    }
+    return { violations, equalityPairs, differencePairs, shortTierPairs };
+}
+
 // --- PNG cards ---------------------------------------------------------------------------------
 // A card is a PNG whose tEXt chunks carry base64 JSON (chara = V2, ccv3 = V3). The profile reports every
 // chunk so the generator can prove it kept them all: dropping trAc would silently change the reader's
