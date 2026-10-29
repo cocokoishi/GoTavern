@@ -3,13 +3,28 @@
 GoTavern: `gotavern start --port 55927 --dataRoot <scratch>`
 Requests observed during page load: 229. Page errors: 0.
 
+> **THIS IS AN OBSERVATION, NOT AN INVENTORY, AND ITS NEGATIVE ROWS GO STALE SILENTLY.**
+>
+> It records one page load against one build, and it names no commit. Three of its rows were re-measured on
+> 2026-10-29 with the tree at `292905f` and every one of them had moved — see the corrected rows below, each
+> marked `RE-MEASURED`. Two consequences, both of which have already cost time:
+>
+> 1. **A route's absence here is NOT evidence of absence.** AGENTS.md rule 43 requires the route inventory to
+>    be enumerated from the oracle's own lists (every `router.use(...)` mount, every `endpoints/*.js` router
+>    mounted in `src/server-startup.js`, every URL a pinned frontend module builds), not accumulated from
+>    whatever one page load happened to touch. Use `docs/api-inventory.md` and the rule-43 gate for the
+>    question "is this route registered"; use this file only for "what did the page request, once".
+> 2. **A `missing` classification is a snapshot, not a status.** `POST /api/horde/text-workers` was labelled
+>    BLOCKING here and is now served and refusing (403, the pinned no-API-key answer). Re-generate this file
+>    against a named build before quoting any row, and state the commit beside the numbers.
+
 Classification: `missing` reached no registered route (work to do), `misbehaving` reached a
 registered route and still errored (a bug in code we have), `cosmetic` is an image, stylesheet,
 font or media request that cannot block a send, and `ok` is a 2xx.
 
 | method | path | resource | status | classification |
 | --- | --- | --- | --- | --- |
-| POST | `/api/horde/text-workers` | fetch | 404 | missing |
+| POST | `/api/horde/text-workers` | fetch | 404 | missing — **RE-MEASURED 2026-10-29: 403 `text/html; charset=utf-8`, i.e. the route IS registered and is refusing for want of a Horde API key (`internal/server/horde.go`). Not missing.** |
 | GET | `/backgrounds/__transparent.png` | image | 404 | cosmetic |
 | GET | `/css/accounts.css` | stylesheet | 200 | cosmetic |
 | GET | `/css/animations.css` | stylesheet | 200 | cosmetic |
@@ -43,7 +58,7 @@ font or media request that cannot block a send, and `ok` is a 2xx.
 | GET | `/css/tags.css` | stylesheet | 200 | cosmetic |
 | GET | `/css/toastr.min.css` | stylesheet | 200 | cosmetic |
 | GET | `/css/toggle-dependent.css` | stylesheet | 200 | cosmetic |
-| GET | `/css/user.css` | stylesheet | no response | cosmetic |
+| GET | `/css/user.css` | stylesheet | no response | cosmetic — **RE-MEASURED 2026-10-29: 200 `text/css; charset=UTF-8`, 30 B.** |
 | GET | `/css/welcome.css` | stylesheet | 200 | cosmetic |
 | GET | `/css/world-info.css` | stylesheet | 200 | cosmetic |
 | GET | `/img/ai4.png` | image | 200 | cosmetic |
@@ -53,7 +68,7 @@ font or media request that cannot block a send, and `ok` is a 2xx.
 | GET | `/lib/dialog-polyfill.css` | stylesheet | 200 | cosmetic |
 | GET | `/sounds/message.mp3` | media | 206 | cosmetic |
 | GET | `/style.css` | stylesheet | 200 | cosmetic |
-| GET | `/thumbnail?type=persona&file=user-default.png` | image | 404 | cosmetic |
+| GET | `/thumbnail?type=persona&file=user-default.png` | image | 404 | cosmetic — **RE-MEASURED 2026-10-29: 200 `image/png`, 3184 B. `/thumbnail` is IMPLEMENTED; see AGENTS.md boundary 3, which this row's old value contradicted.** |
 | GET | `/webfonts/fa-solid-900.woff2` | font | 200 | cosmetic |
 | GET | `/webfonts/NotoSans/NotoSans-Bold.woff2` | font | 200 | cosmetic |
 | GET | `/webfonts/NotoSans/NotoSans-Medium.woff2` | font | 200 | cosmetic |
@@ -242,6 +257,10 @@ font or media request that cannot block a send, and `ok` is a 2xx.
 ## Blocking candidates: 1 missing, 0 misbehaving
 
 - POST `/api/horde/text-workers` (fetch)
+
+**WITHDRAWN 2026-10-29.** Re-measured against `292905f`: the route answers **403 `text/html; charset=utf-8`**,
+which is the pinned no-API-key refusal, so it is REGISTERED and no longer a blocking candidate. The list above
+is kept as the observation it was; the count is not a current status. See the header note.
 
 No registered route answered an error during load.
 

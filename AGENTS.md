@@ -41,9 +41,10 @@ For each endpoint/startup/config/provider behavior:
    - browser event/final state.
 7. Add Node->Go->Node round trips for persistent data.
 8. Update `docs/compat-matrix.md`.
-9. Let CI run formatting/tests/build. Do not run the Go toolchain, npm, Playwright or any probe on
-   this host (see "Working mode: CI-first" below); a local green is not the gate and a local red on this
-   host can be a CRLF or host-path artefact rather than a defect.
+9. Let CI run formatting/tests/build. The Linux CI result is the gate (see "Working mode" below): a local
+   green is not the gate, and a local red on this host can be a CRLF or host-path artefact rather than a
+   defect — exclude the two measured host artefacts before writing a finding. Running the suite locally to
+   reproduce or triage is allowed; reporting a local green as a CI verdict is not.
 
 If uncertain, write a probe. Do not guess.
 
@@ -343,18 +344,27 @@ exists because its inverse has already produced a passing test that proved nothi
    it is a product decision that must be made explicitly and recorded here — never absorbed silently
    into a `partial` row. FAKE FIXTURES FOR THESE ARE FORBIDDEN: a recorded "response" would be
    evidence for a behaviour that was never executed.
-3. **Image re-encoding is a codec decision, not a test gap.** Two routes are in this class, both
-   because their bytes are the output of Jimp. `/api/avatars/upload` decodes, crops, covers and
-   re-encodes; `/thumbnail/<computed>` does `Jimp.read` -> `resize` with `ResizeStrategy.BILINEAR`
-   -> crop -> `getBuffer(JimpMime.png)` or `getBuffer(JimpMime.jpeg, {quality})`. For both, an oracle
-   CAN exist (the pinned output is recordable), but a Go implementation cannot reproduce those bytes
-   without a Jimp-compatible codec, so neither can be claimed `partial` through HTTP comparison
-   alone. Do not fake byte equality by copying the recorded bytes, and do not add a production seam
-   purely to make them testable. Decide the codec question explicitly first.
-   This matters for reading the startup differential: two of its four known differences are
-   `/thumbnail` 404s, and they are THIS BOUNDARY rather than missing work. Without that stated, a
-   future increment would set out to implement thumbnails and discover the codec problem only after
-   building a harness.
+3. **Image re-encoding is a codec decision, not a test gap — and for one of the two routes the decision is
+   MADE, for the other it is still OPEN. Read this entry with `internal/server/thumbnails.go:1-38` and
+   `ARCHITECTURE.md` §35.2, which is where the decision is recorded.**
+   - **`/thumbnail/<computed>`: IMPLEMENTED, and it was a P0 rather than a boundary.** This entry used to
+     present it as an undecided codec question whose 404s were *"THIS BOUNDARY rather than missing work"*, and
+     that second half was wrong in a way a user could see. `public/script.js`'s `getThumbnailUrl` is what
+     renders the character list (`buildAvatarList`), EVERY chat-message avatar in both directions, group
+     collages, the persona list and the background gallery tiles, and it has no `onerror` fallback — so while
+     the route answered 404 every one of those images was a broken image. Worse, the frontend PERSISTS
+     `mes.force_avatar` as a literal `/thumbnail` URL inside the chat `.jsonl`, so a chat written under pinned
+     Node carries the URL into a GoTavern session and the defect cannot be worked around client-side. Rule 45
+     is the lesson: a boundary may not justify an absence a user can see, and when a boundary is recorded the
+     SAME change must record what the user sees because of it. **The decision, recorded here:** serve a REAL
+     thumbnail from a pure-Go codec, and gate the OBSERVABLE — status, MIME, decodability, dimensions, cache
+     behaviour — never byte equality with Jimp. The branch order in `thumbnails.go` is pinned's own order and
+     is the contract; the MIME/original-name mismatch it reproduces is deliberate.
+   - **`/api/avatars/upload`: the codec question is still OPEN.** It decodes, crops, covers and re-encodes, so
+     an oracle CAN exist (the pinned output is recordable) but a Go implementation cannot reproduce those bytes
+     without a Jimp-compatible codec, so it cannot be claimed `partial` through HTTP comparison alone. Do not
+     fake byte equality by copying the recorded bytes, and do not add a production seam purely to make it
+     testable. Decide the codec question explicitly first.
 4. **A behaviour implemented inside a dependency is not ported unless a user requirement forces it.**
    `/api/google/generate-voice` runs a private Google `batchexecute` protocol that lives in the
    `google-translate-api-x` package; `/api/translate/{google,bing}` are the same class. This is NOT
@@ -384,15 +394,45 @@ exists because its inverse has already produced a passing test that proved nothi
 
 ## Working mode: CI-first, branch-merge, no pull requests
 
-The development host is weak. Since 2026-10-24 the rule is not "prefer CI", it is **the host does
-not run heavy work at all**. Everything that compiles, boots a server, drives a browser, records a
-fixture or runs a test suite happens in GitHub Actions.
+**The host description that used to open this section was wrong, and it is replaced (measured 2026-10-29).**
+It said "the development host is weak ... the host does not run heavy work at all", and everything that
+compiled, booted, drove a browser or ran a suite had to happen in GitHub Actions. That was never a
+measurement, and it cost real work: a lane reported a false blocker ("Phase 1 cannot run locally") which
+was traced to six path and invocation errors rather than to the machine (`docs/phase1-audit.md` §8).
 
-- **Allowed locally:** editing files, `git` (branch/commit/merge/revert), reading code and fixtures,
-  `node --check` on a single file you just edited, and `git diff` inspection. Nothing else.
-- **Forbidden locally:** `go build`, `go test`, `go vet`, `gofmt` over the tree, `npm`, Playwright,
-  `tools/build-generated-lib.mjs`, the browser harness, any probe. The machine cannot afford them and
-  a Windows result is not the Linux gate anyway (see the CRLF and host-path traps in the rules above).
+What is actually present here, measured rather than assumed:
+
+| fact | measurement |
+|---|---|
+| Go | `go1.27.0 windows/arm64` |
+| Node / npm | `v24.19.0` / `11.17.0` |
+| `go build ./...` | **20.7 s** cold; 8.4 s for the two browser-differential binaries |
+| `go test ./...` | **434 s** (7 min 14 s) over 30 packages |
+| Playwright | `@playwright/test` 1.56.1 in `tests/browser/node_modules`, chromium downloaded |
+| pinned oracle | `../SillyTavern`, at exactly `06bde939fb1e9c4c8d8641d810f0a916b5bce127` |
+| browser differential | runs END TO END locally: both legs plus the comparator |
+
+So the rule is no longer "run nothing". It is:
+
+- **CI remains the gate and a local green is still not the gate.** A claim cites a Linux run; a Windows
+  result is Layer A evidence and must be labelled as such (rules 23, 61). What is forbidden is
+  *reporting* a local green as a CI verdict, never *obtaining* one.
+- **Running the local suite is allowed and expected** when it answers a question: reproducing a reported
+  red, proving a comparator has teeth, or triaging a failure before spending a CI run.
+- **A local red is a hypothesis, not a defect, and two host artefacts must be excluded first** — each
+  measured, each capable of producing a confident false finding:
+  - `gofmt -l` flags **173 files** repo-wide because `core.autocrlf=true` checks the tree out as CRLF
+    while gofmt wants LF. Verify formatting on an LF-normalised copy of the file you changed, never on
+    the working tree.
+  - The proxy tests were red here for a Windows-only reason: an environment-variable NAME is
+    case-insensitive, so `os.Unsetenv("https_proxy")` deletes `HTTPS_PROXY`. Both were TEST defects, not
+    product defects, and they presented as product findings ("timeout waiting for provider 192.0.2.1:…
+    to answer", "HTTPS_PROXY is not being applied"). Diagnosed and fixed in
+    `internal/outbound/proxytest` and `tests/egressguard`; see `docs/local-red-triage.md`.
+- **No CI job runs the Go suite on Windows**, so a Windows-only PRODUCT defect would be equally invisible
+  while presenting exactly like those host artefacts. `ci.yml` and `lane.yml` are `ubuntu-latest`; the
+  Windows jobs only qualify installers and artefacts. Adding a bounded Windows job for
+  `./internal/outbound/...` and `./tests/egressguard` is an open item, not a claim.
 - **A relative path in a .NET or PowerShell file API does not follow `cd`.** `[System.IO.File]::WriteAllText('internal/x.go', …)` resolves against the PROCESS working directory, which is the session workspace, while `cd` only changes PowerShell's location. An edit aimed at another worktree therefore lands in this checkout, silently, and the read-back that would have caught it is the only thing that does. Two lanes have already written into the wrong tree this way. Use absolute paths for every write (`Resolve-Path` first, then write), and after any edit in a worktree that is not this one, read the file back and confirm which tree changed before reporting it.
 - **No pull requests, but NOT one-push-per-task.** Branch count and duplicated multi-hour sweeps got out
   of control: five PRs meant five oracle jobs. So: no pull requests, and `main` is the only long-lived
