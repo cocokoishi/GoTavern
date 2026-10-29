@@ -6,6 +6,18 @@ Default leaf keys inventoried: **116**. CLI options inventoried: **31**.
 
 Pinned `getConfigValue(key, default, type)` first reads `SILLYTAVERN_` plus the uppercased key with dots changed to underscores, then falls back to YAML. A present environment variable takes precedence over YAML. Type conversion is call-site-specific. The CLI parser applies explicit command-line values before config lookups for fields listed below.
 
+## Keys whose GoTavern status is NOT "it just works"
+
+This table lists pinned's keys and defaults. It does not, on its own, say what GoTavern does with each one — and three
+families used to be accepted and then silently ignored, which is the failure AGENTS.md rule 18 forbids. Their true
+state is recorded here so a reader does not have to infer it from the key's presence:
+
+| Config family | GoTavern status | Evidence |
+|---|---|---|
+| `cacheBuster.enabled`, `cacheBuster.userAgentPattern` | **implemented** | the middleware is mounted where pinned mounts it (`app.get('/', …)`, `src/server-main.js:214`, which Express also routes `HEAD` to) plus the three direct `bust` calls; `internal/server/cache_buster.go`, `internal/server/cache_buster_test.go`. Reproduces two pinned quirks rather than simplifying them: the pattern is read with **no** type converter and tested for JavaScript *truthiness* (`Boolean("false")` is true, unlike `toBoolean("false")`), and the once-per-key set is consumed **before** the header decision. The header value is the quoted `"cache"` |
+| `sso.autheliaAuth`, `sso.authentikAuth` | **NOT implemented — and now warned** | SSO auto-login does not exist in GoTavern; a truthy switch prints a named stderr warning saying so and saying the setting has no effect (`internal/commandline/unimplemented_config.go`). `sso.trustedProxies` alone deliberately does not warn: its shipped default is truthy and it is inert in pinned too unless a method is enabled, so warning on it would fire on every stock boot |
+| `privateAddressWhitelist.*` | **NOT implemented — and now warned** | the SSRF filter does not exist. A truthy `enabled` prints a named warning. The warning makes it VISIBLE, not SAFE. A faithful port needs a connect-time block on the DNS-resolved address, per-redirect-hop validation, `allowUnresolvedHosts`, `ip-matching` wildcard syntax as well as CIDR, and two log switches; a subset would be a control that READS as complete, which is the failure this row exists to prevent. The four sub-keys alone deliberately do not warn: they are read only inside the enabled branch, so with `enabled: false` (the default AND the shipped value) pinned ignores them too and GoTavern matches pinned |
+
 ## Default YAML leaf values
 
 | Config key | Pinned default | Static read sites found |
