@@ -821,7 +821,9 @@
           "TestInitializeDataStartupMatchesPinnedNodeFreshStartInventory",
           "TestInitializeCreatesPinnedFreshConfig",
           "TestInitializeMigratesLegacyConfigAndPreservesUnknownFields",
-          "TestResolveProtocolSelectionMatchesPinnedServerStartup"
+          "TestResolveProtocolSelectionMatchesPinnedServerStartup",
+          "TestDuplicateKeyIsRejectedAsPinnedRecords",
+          "TestDuplicateKeyConfigExitsOneWithPinnedLines"
         ],
         "browserArtifacts": [],
         "ci": [
@@ -843,10 +845,10 @@
         "no gate asserts that startup makes no non-essential network access (AGENTS.md 25)",
         "no gate asserts that a parseable config is never rewritten as a side effect (AGENTS.md 27)",
         "every startup fixture starts from a fresh or migrated runtime root, never from a stock SillyTavern tree that a user already runs",
-        "DUPLICATE-KEY CONFIG: pinned refuses it by name and does NOT rewrite the file (measured, tests/oracle/sillytavern-1.19.0-config-duplicate-key.json): exit 1, 'Could not add missing config values ... YAMLParseError: Map keys must be unique at line N, column M' with code DUPLICATE_KEY, then 'FATAL: Failed to read config.yaml. Please check the file for syntax errors.', and the file's bytes and mtime are IDENTICAL before and after (sha256 0f0ee0ee/57cdc75f both sides). The control -- the same document minus the duplicate -- boots AND is migrated (25 -> 3310 bytes), which is what makes 'untouched' readable rather than vacuous. THE USER-VISIBLE STORY IS THE GOOD ONE: they can fix the duplicate and restart with nothing lost, rather than having their config rewritten on the way to a crash. GoTavern currently ACCEPTS a duplicate key where pinned exits 1, so the divergence runs in the direction of being more permissive; that is recorded here rather than asserted as parity, and TestDuplicateKeyIsAcceptedWherePinnedRejectsIt is the test that names it"
+        "DUPLICATE-KEY CONFIG: CLOSED 2026-10-29. pinned refuses it by name and does NOT rewrite the file (measured, tests/oracle/sillytavern-1.19.0-config-duplicate-key.json: exit 1, 'YAMLParseError: Map keys must be unique at line N, column M', then 'FATAL: Failed to read config.yaml. Please check the file for syntax errors.', and the config's bytes and mtime IDENTICAL before and after; the control -- the same document minus the duplicate -- boots AND is migrated 25 -> 3310 bytes, which is what makes 'untouched' readable rather than vacuous). GoTavern used to ACCEPT a duplicate key, a divergence in the permissive direction; it now reproduces the refusal: `configinit.ParseError` carries pinned's message, `cmd/gotavern` prints the warning, the FATAL line and the message again and exits 1, and the config is left byte-identical. Asserted twice -- `TestDuplicateKeyIsRejectedAsPinnedRecords` replays the recording against the config layer (exact message including the trimmed source frame and the duplicate's line/column, unchanged sha256, control migrated) and `TestDuplicateKeyConfigExitsOneWithPinnedLines` runs the shipped binary and asserts exit 1, the recorded stderr order, the absence of a 'gotavern:' prefix or a fake Node stack, and an untouched file. WHAT REMAINS IN THIS ROW is the other four gaps below: the bounded-boot gate, the no-egress gate, the no-side-effect-rewrite gate, and a stock-tree (not fresh/migrated) fixture."
       ],
       "blockedBy": [],
-      "notes": "The state machine is documented in detail and the invariants are written into AGENTS.md 24-28; what does not exist is a test that fails when a wait is unbounded or a stock tree hangs. That absence is the defect the process is missing (AGENTS.md 40)."
+      "notes": "The duplicate-key divergence this row recorded is CLOSED, and closing it moved the product TOWARDS pinned rather than away: a config pinned refuses is now refused by the same message, the same exit code and the same untouched bytes. The row stays FAIL because the bounded-boot gate it names still does not exist -- a stock-tree hang would still go red nowhere."
     },
     {
       "id": "packaging-release",
@@ -1104,8 +1106,8 @@
       "citedByMatrix": 11
     },
     "goTestFunctions": {
-      "inTree": 706,
-      "citedByMatrix": 66
+      "inTree": 707,
+      "citedByMatrix": 68
     },
     "workflows": {
       "inTree": 9,

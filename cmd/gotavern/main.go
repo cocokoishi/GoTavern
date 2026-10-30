@@ -18,6 +18,7 @@ import (
 	"github.com/cocokoishi/gotavern/internal/app"
 	"github.com/cocokoishi/gotavern/internal/assetmanifest"
 	"github.com/cocokoishi/gotavern/internal/commandline"
+	"github.com/cocokoishi/gotavern/internal/configinit"
 	"github.com/cocokoishi/gotavern/internal/migrate"
 	"github.com/cocokoishi/gotavern/internal/startup"
 	"github.com/cocokoishi/gotavern/upstream"
@@ -33,6 +34,13 @@ type buildInfo struct {
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
+		// A CONFIG THAT PINNED REFUSES PRINTS PINNED'S LINES AND EXITS 1, not a GoTavern-prefixed error and
+		// exit 2. The recorded pinned boot (tests/oracle/sillytavern-1.19.0-config-duplicate-key.json) is
+		// exit 1 with the yaml message reported twice around a FATAL line, and a user diffing the two
+		// backends over a broken config.yaml must see the same thing from both.
+		if code, reported := reportConfigParseFailure(os.Stderr, err); reported {
+			os.Exit(code)
+		}
 		fmt.Fprintln(os.Stderr, "gotavern:", err)
 		var exitError interface{ ExitCode() int }
 		if errors.As(err, &exitError) {
@@ -40,6 +48,25 @@ func main() {
 		}
 		os.Exit(2)
 	}
+}
+
+// reportConfigParseFailure writes the two blocks pinned writes for a config.yaml it refuses, and reports
+// whether it handled the error.
+//
+// PINNED'S SHAPE, from the recording: the migration pass catches the parse error and warns with the yaml
+// message inline after "YAMLParseError: "; the first `getConfigValue` then re-parses, fails again, prints
+// "FATAL: Failed to read config.yaml. Please check the file for syntax errors." and the message a second
+// time, and exits 1. The recording also carries pinned's Node stack frames; they name pinned's module paths
+// and a Go binary cannot emit them honestly, so they are omitted here and asserted absent rather than faked.
+func reportConfigParseFailure(stderr io.Writer, err error) (int, bool) {
+	var parseError *configinit.ParseError
+	if !errors.As(err, &parseError) {
+		return 0, false
+	}
+	fmt.Fprintf(stderr, "Could not add missing config values to config.yaml YAMLParseError: %s\n", parseError.Message)
+	fmt.Fprintln(stderr, "FATAL: Failed to read config.yaml. Please check the file for syntax errors.")
+	fmt.Fprintln(stderr, parseError.Message)
+	return 1, true
 }
 
 func run(args []string) error {

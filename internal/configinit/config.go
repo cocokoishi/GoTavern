@@ -217,10 +217,108 @@ func atomicWrite(target string, body []byte, existingMode fs.FileMode, preserveM
 	return nil
 }
 
+// ParseError is a config.yaml that pinned REFUSES TO READ, carrying the message pinned prints for it.
+//
+// WHY THIS TYPE EXISTS. pinned parses config.yaml with the `yaml` package at `^2.8.3`, whose document
+// defaults are `strict: true` and `uniqueKeys: true` (node_modules/yaml/.../doc/Document.js:37-39), so a
+// duplicate mapping key is an ERROR there. `yaml.v3` in Go does NOT report it when unmarshalling into a
+// `yaml.Node` -- the uniqueness check lives in the decoder's mapping path, not in node building -- so this
+// package accepted a document pinned refuses. The divergence was recorded rather than hidden (matrix row
+// `startup`, and the test that used to be named TestDuplicateKeyIsAcceptedWherePinnedRejectsIt), and it
+// ran in the PERMISSIVE direction: a user whose config has the same key twice got a silently-last-wins
+// value here and a named error from pinned.
+//
+// THE CONTRACT IS THE RECORDED ONE, not a guess. tests/oracle/sillytavern-1.19.0-config-duplicate-key.json
+// records the pinned boot for three documents (a control with no duplicate, a flat duplicate, a nested
+// one): exit 1, the config's bytes AND mtime unchanged, and stderr carrying
+//
+//	Could not add missing config values to config.yaml YAMLParseError: Map keys must be unique at line L, column C:
+//	<first occurrence's line>
+//	<duplicate's line>
+//	^
+//	FATAL: Failed to read config.yaml. Please check the file for syntax errors.
+//	Map keys must be unique at line L, column C:
+//	<first occurrence's line>
+//	<duplicate's line>
+//	^
+//
+// The recording also contains pinned's Node stack frames; those name pinned's own module paths and a Go
+// binary cannot emit them honestly, so they are deliberately not reproduced and the fixture normalises
+// their build root. What is reproduced is what a user reads and acts on.
+type ParseError struct {
+	// Message is the yaml-level message including its source frame, ending at the caret line. It is the
+	// text that appears twice in pinned's output: inline after "YAMLParseError: " and again after FATAL.
+	Message string
+	Cause   error
+}
+
+func (parseError *ParseError) Error() string { return parseError.Message }
+
+func (parseError *ParseError) Unwrap() error { return parseError.Cause }
+
+// duplicateKeyError walks every mapping in the document and returns pinned's message for the first
+// duplicate scalar key it finds, in document order. Scalar keys only, which is what the yaml package's
+// uniqueKeys rule compares; a complex (mapping/sequence) key is left alone rather than guessed at.
+func duplicateKeyError(document *yaml.Node, input []byte) error {
+	lines := strings.Split(strings.ReplaceAll(string(input), "\r\n", "\n"), "\n")
+	// THE FRAME IS TRIMMED, and that is the recorded shape rather than a convenience: pinned's yaml renders
+	// the two source lines WITHOUT their indentation (the nested `ssl.enabled` case records
+	// "enabled: false" / "enabled: true", not the two-spaced originals) and a caret with no column offset.
+	// Matching the recording exactly is what makes this a parity test rather than a resemblance.
+	sourceLine := func(line int) string {
+		if line < 1 || line > len(lines) {
+			return ""
+		}
+		return strings.TrimLeft(lines[line-1], " \t")
+	}
+	var walk func(node *yaml.Node) *ParseError
+	walk = func(node *yaml.Node) *ParseError {
+		if node == nil {
+			return nil
+		}
+		if node.Kind == yaml.MappingNode {
+			seen := make(map[string]*yaml.Node, len(node.Content)/2)
+			for index := 0; index+1 < len(node.Content); index += 2 {
+				key, value := node.Content[index], node.Content[index+1]
+				if key.Kind != yaml.ScalarNode {
+					continue
+				}
+				if first, duplicate := seen[key.Value]; duplicate {
+					// THE POSITION PINNED REPORTS IS THE DUPLICATE'S OWN KEY, not the first one: the
+					// recording for `port: 8000\nport: 9000` says line 2, column 1, and the nested case
+					// `ssl.enabled` twice says line 4, column 3.
+					message := fmt.Sprintf("Map keys must be unique at line %d, column %d:\n%s\n%s\n^",
+						key.Line, key.Column, sourceLine(first.Line), sourceLine(key.Line))
+					return &ParseError{Message: message}
+				}
+				seen[key.Value] = key
+				if found := walk(value); found != nil {
+					return found
+				}
+				continue
+			}
+			return nil
+		}
+		for _, child := range node.Content {
+			if found := walk(child); found != nil {
+				return found
+			}
+		}
+		return nil
+	}
+	if found := walk(document); found != nil {
+		return found
+	}
+	return nil
+}
+
 func parseMapping(input []byte) (*yaml.Node, error) {
 	var document yaml.Node
 	if err := yaml.Unmarshal(input, &document); err != nil {
-		return nil, err
+		return nil, &ParseError{Message: err.Error(), Cause: err}
+	}
+	if duplicate := duplicateKeyError(&document, input); duplicate != nil {
+		return nil, duplicate
 	}
 	if len(document.Content) == 0 || document.Content[0].Kind == 0 || document.Content[0].Tag == "!!null" {
 		document.Content = []*yaml.Node{mappingNode()}

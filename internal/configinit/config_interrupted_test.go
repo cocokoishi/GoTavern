@@ -38,11 +38,24 @@ package configinit
 //  4. no partial write survives any of the above: the config is never observed as a truncated stub.
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
+
+// sha256Hex is the digest spelling the pinned recordings use (lowercase hex), so a test can compare the
+// file it planted against the recording's before-image without inventing a second convention.
+func sha256Hex(body []byte) string {
+	digest := sha256.Sum256(body)
+	return hex.EncodeToString(digest[:])
+}
 
 // writeConfigFile plants a config and returns its path and exact bytes.
 func writeConfigFile(t *testing.T, body string) (string, []byte) {
@@ -124,50 +137,122 @@ func TestUnparseableConfigFailsByNameAndIsNotTouched(t *testing.T) {
 	}
 }
 
-// TestDuplicateKeyIsAcceptedWherePinnedRejectsIt RECORDS A DIVERGENCE, and is written so that closing it
-// turns this test red rather than silent.
+// TestDuplicateKeyIsRejectedAsPinnedRecords replaces the divergence test that used to live here, on the
+// terms that test stated: it failed the moment the product started rejecting, and it asked to be deleted
+// with the reason recorded rather than kept beside a changed behaviour.
 //
-// MEASURED on run 40465430026 (GoTavern Lane CI, 1e08a51): `port: 8000\nport: 9000\n` is ACCEPTED by
-// `Initialize`. That was first asserted the other way round, on my assumption that yaml.v3 rejects duplicate
-// keys; it does not, because `parseMapping` (config.go:220-233) unmarshals into a `yaml.Node`, and the
-// uniqueness check lives in the decoder's mapping path rather than in node building.
+// THE ORACLE IS THE COMMITTED RECORDING, not an expectation written by hand.
+// `tests/oracle/sillytavern-1.19.0-config-duplicate-key.json` records the pinned boot for three documents:
+// a control with no duplicate (exit 0, config MIGRATED 25 -> 3310 bytes), a flat duplicate, and a nested
+// one (both exit 1, config bytes AND mtime unchanged, and the yaml message printed twice around the FATAL
+// line). This test replays all three and compares against the recording:
 //
-// WHAT PINNED DOES (SillyTavern 1.19.0 = 06bde939): `src/config-init.js:174` calls `yaml.parse(...)` from
-// the `yaml` package at `^2.8.3`, whose Document defaults are `strict: true` and `uniqueKeys: true`
-// (node_modules/yaml/.../doc/Document.js:37-39). A duplicate key is therefore an ERROR for pinned, so this
-// is a real divergence on a STARTUP path: a user whose config has the same key twice gets a warning from
-// pinned and a silently-last-wins value here.
+//   - the exit code the recording states decides whether Initialize returns an error;
+//   - the recorded stderr's yaml message (its first line after "YAMLParseError: ", plus the source frame
+//     lines that follow it, up to the caret) must equal our ParseError's message EXACTLY, which pins the
+//     line and column pinned reports (`line 2, column 1` for the flat case and `line 4, column 3` for the
+//     nested one -- the position of the DUPLICATE key, not the first);
+//   - the config's bytes must be unchanged, and no temporary file may be left, because the recording says
+//     the tree is untouched.
 //
-// WHY IT IS NOT FIXED IN THIS COMMIT. Rejecting duplicates would change what a boot accepts, and AGENTS 13
-// makes startup behaviour compatibility behaviour -- the fix is a deliberate change with its own probe, not a
-// side effect of a test-writing lane. Meanwhile the test pins the CURRENT behaviour exactly and names the
-// pinned behaviour beside it, so the divergence cannot be discovered twice and cannot be forgotten:
-// when the product starts rejecting, this test fails and whoever fixes it removes the assertion with the
-// reason recorded here.
-func TestDuplicateKeyIsAcceptedWherePinnedRejectsIt(t *testing.T) {
-	path, _ := writeConfigFile(t, "port: 8000\nport: 9000\n")
-
-	result, err := Initialize(path)
+// pinned's Node stack frames are deliberately NOT compared: they name pinned's own module paths (the
+// recording normalises the build root) and a Go binary cannot emit them honestly. What is compared is what
+// a user reads and acts on.
+func TestDuplicateKeyIsRejectedAsPinnedRecords(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "tests", "oracle", "sillytavern-1.19.0-config-duplicate-key.json"))
 	if err != nil {
-		t.Fatalf("Initialize now REJECTS a duplicate key: %v\n\n"+
-			"If this is the intended fix, delete this test and record the change as closing the divergence "+
-			"from pinned's uniqueKeys default (yaml 2.x Document.js:37-39) -- do not keep both the assertion "+
-			"and the new behaviour.", err)
+		t.Fatalf("read the pinned recording: %v", err)
 	}
-	// The current behaviour, stated as a fact rather than left implicit: the file is treated as valid.
-	if !result.Created && !result.Updated {
+	var fixture struct {
+		// THE RECORDING'S `results` IS AN OBJECT KEYED BY THE SCENARIO DOCUMENT, not an array: the probe
+		// wrote one entry per planted config. Decoding it as a slice is the mistake this comment prevents;
+		// the iteration below is over SORTED keys so a failure message is deterministic.
+		Results map[string]struct {
+			Scenario     string   `json:"scenario"`
+			ExitCode     int      `json:"exitCode"`
+			StderrLines  []string `json:"stderrLines"`
+			ConfigBefore struct {
+				Bytes  int    `json:"bytes"`
+				SHA256 string `json:"sha256"`
+			} `json:"configBefore"`
+			ConfigAfter struct {
+				Bytes  int    `json:"bytes"`
+				SHA256 string `json:"sha256"`
+			} `json:"configAfter"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(raw, &fixture); err != nil {
+		t.Fatalf("decode the pinned recording: %v", err)
+	}
+	if len(fixture.Results) < 3 {
+		t.Fatalf("the recording carries %d scenarios; expected the control, the flat duplicate and the nested one -- a smaller set would let this test pass on a subset", len(fixture.Results))
+	}
+
+	const warnPrefix = "Could not add missing config values to config.yaml YAMLParseError: "
+	scenarios := make([]string, 0, len(fixture.Results))
+	for document := range fixture.Results {
+		scenarios = append(scenarios, document)
+	}
+	sort.Strings(scenarios)
+	refused := 0
+	for index, document := range scenarios {
+		scenario := fixture.Results[document]
+		path, before := writeConfigFile(t, scenario.Scenario)
+		_, initializeErr := Initialize(path)
 		after, readErr := os.ReadFile(path)
 		if readErr != nil {
-			t.Fatalf("read %s: %v", path, readErr)
+			t.Fatalf("scenario %d: read back the config: %v", index, readErr)
 		}
-		// A duplicate-key file also lacks every other pinned default, so defaults get merged and the file is
-		// rewritten; if that ever stops being true the assertion below would silently stop meaning anything.
-		if !strings.Contains(string(after), "port:") {
-			t.Fatalf("the config lost its port key entirely:\n%s", after)
+
+		if scenario.ExitCode == 0 {
+			if initializeErr != nil {
+				t.Fatalf("scenario %d (control, pinned exit 0): Initialize returned %v; pinned boots and MIGRATES this document", index, initializeErr)
+			}
+			// The control's point is that "untouched" is meaningful: the same shape WITHOUT the duplicate is
+			// rewritten, so an untouched duplicate-key file is a refusal rather than an inert file.
+			if bytes.Equal(before, after) {
+				t.Fatalf("scenario %d (control): the config was not migrated (%d bytes before and after), so the pinned recording's 25 -> 3310 byte migration is not reproduced", index, len(after))
+			}
+			continue
 		}
+
+		refused++
+		var parseError *ParseError
+		if !errors.As(initializeErr, &parseError) {
+			t.Fatalf("scenario %d: pinned refuses this document (exit 1) with a yaml parse error; Initialize returned %v", index, initializeErr)
+		}
+		// The expected message is the recorded yaml text: everything after the warn prefix on the first
+		// stderr line, then the source frame lines up to and including the caret.
+		if len(scenario.StderrLines) < 2 || !strings.HasPrefix(scenario.StderrLines[0], warnPrefix) {
+			t.Fatalf("scenario %d: the recording's first stderr line is not the pinned YAMLParseError warning: %q", index, scenario.StderrLines[0])
+		}
+		frame := []string{strings.TrimPrefix(scenario.StderrLines[0], warnPrefix)}
+		for _, line := range scenario.StderrLines[1:] {
+			// The recording's stack frames begin at the first "at " line; the yaml frame ends at the caret.
+			if strings.HasPrefix(line, "at ") {
+				break
+			}
+			frame = append(frame, line)
+		}
+		expected := strings.Join(frame, "\n")
+		if got := parseError.Message; got != expected {
+			t.Fatalf("scenario %d: the refusal message differs from the pinned recording\n  want %q\n  got  %q", index, expected, got)
+		}
+		// THE TREE IS UNTOUCHED: same bytes, same digest as the recording's before-image, no temp files.
+		if !bytes.Equal(before, after) {
+			t.Fatalf("scenario %d: a refused config was MODIFIED (%d bytes -> %d); pinned leaves it byte-identical", index, len(before), len(after))
+		}
+		if got := sha256Hex(after); scenario.ConfigBefore.SHA256 != "" && got != scenario.ConfigBefore.SHA256 {
+			t.Fatalf("scenario %d: config sha256 = %s, the recording's before-image is %s", index, got, scenario.ConfigBefore.SHA256)
+		}
+		if scenario.ConfigBefore.SHA256 != scenario.ConfigAfter.SHA256 {
+			t.Fatalf("scenario %d: the recording itself is inconsistent: before %s, after %s", index, scenario.ConfigBefore.SHA256, scenario.ConfigAfter.SHA256)
+		}
+		assertNoTemporaryFiles(t, filepath.Dir(path))
 	}
-	t.Logf("DIVERGENCE RECORDED (not fixed): a duplicate key is accepted here and is an error for pinned "+
-		"(yaml uniqueKeys:true). Initialize returned %+v on %q", result, "port: 8000 / port: 9000")
+	if refused != 2 {
+		t.Fatalf("only %d scenario(s) exercised the refusal path; the recording has two duplicate-key documents, and a filter that matches fewer reports success vacuously (AGENTS.md rule 19)", refused)
+	}
 }
 
 // TestHalfMigratedConfigReachesAStableAnswerAndStops is the state a tree is in when a migration was written
