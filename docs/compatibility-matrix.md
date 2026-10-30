@@ -54,7 +54,7 @@ A row is `PASS` only when every one of these holds:
 | 11 | Per-source provider-wire request bytes (15 catalogued sources) | **PARTIAL** | 1 oracle fixture(s), Go implementation, 3 named test(s), 3 browser artefact(s), CI job(s) | 3 item(s) |
 | 12 | Streaming SSE framing, incremental render and cancellation | **PASS** | 2 oracle fixture(s), Go implementation, 11 named test(s), 3 browser artefact(s), CI job(s) | _none_ |
 | 13 | Exact tokenization and context boundaries | **PARTIAL** | 1 oracle fixture(s), upstream assets, Go implementation, 3 named test(s), 1 browser artefact(s), CI job(s), release-artifact step | 3 item(s) |
-| 14 | Files, avatars, backgrounds, images, sprites, image metadata | **PARTIAL** | 8 oracle fixture(s), Go implementation, 9 named test(s), CI job(s) | 3 item(s) |
+| 14 | Files, avatars, backgrounds, images, sprites, image metadata | **PARTIAL** | 8 oracle fixture(s), Go implementation, 12 named test(s), CI job(s) | 3 item(s) |
 | 15 | Extensions: discovery, static serving, install, update, switch, delete, and the Tavern Helper / LittleWhiteBox canaries | **PARTIAL** | 3 oracle fixture(s), Go implementation, 6 named test(s), 2 browser artefact(s), CI job(s) | 4 item(s) |
 | 16 | Arbitrary Node server plugins | **NOT_APPLICABLE** | 3 named test(s), CI job(s) | _none_ |
 | 17 | Embeddings and vector storage | **PARTIAL** | 1 oracle fixture(s), Go implementation, 1 named test(s), CI job(s) | 2 item(s) |
@@ -337,7 +337,7 @@ Row id: `files-and-media`
 - Oracle fixtures: `tests/oracle/sillytavern-1.19.0-files-upload.json`, `tests/oracle/sillytavern-1.19.0-files-delete.json`, `tests/oracle/sillytavern-1.19.0-files-verify.json`, `tests/oracle/sillytavern-1.19.0-files-sanitize-filename.json`, `tests/oracle/sillytavern-1.19.0-avatars-get.json`, `tests/oracle/sillytavern-1.19.0-backgrounds-upload.json`, `tests/oracle/sillytavern-1.19.0-sprites.json`, `tests/oracle/sillytavern-1.19.0-image-metadata-get.json`
 - Upstream assets: _none_
 - Go implementation: `internal/server`
-- Named tests: `TestPinnedNodeFilesUpload`, `TestPinnedNodeSpritesUpload`, `TestImagesRoutesMatchPinnedOracle`, `TestPinnedFrontendAssetContractMountsServeMarkedBytes`, `TestPinnedThumbnailServesTheObservableContract`, `TestPersonaAvatarUploadCreatesTheFile`, `TestPersonaAvatarUploadAppliesCrop`, `TestPersonaAvatarUploadRejectsAForbiddenName`, `TestPersonaAvatarUploadInvalidatesThePersonaThumbnail`
+- Named tests: `TestPinnedNodeFilesUpload`, `TestPinnedNodeSpritesUpload`, `TestImagesRoutesMatchPinnedOracle`, `TestPinnedFrontendAssetContractMountsServeMarkedBytes`, `TestPinnedThumbnailServesTheObservableContract`, `TestPersonaAvatarUploadCreatesTheFile`, `TestPersonaAvatarUploadAppliesCrop`, `TestPersonaAvatarUploadRejectsAForbiddenName`, `TestPersonaAvatarUploadInvalidatesThePersonaThumbnail`, `TestPersonaAvatarUploadWantResizeProducesThePinnedAvatarBox`, `TestPersonaAvatarUploadStoresAPNGWhateverWasUploaded`, `TestPersonaAvatarUploadCoversInsteadOfStretching`
 - Browser artefacts: _none_
 - CI jobs: `ci.yml#oracle`
 - Release artifact: _none_
@@ -348,7 +348,7 @@ Row id: `files-and-media`
 - no multi-part upload test through a real browser; every upload fixture posts a hand-built body
 - THE BROWSER LAYER IS A RECORDED EXCLUSION, and it is the one thing this row did not say: where the frontend paints a thumbnail ITSELF the pixels are the browser's, not the server's, and browser pixel equality is not a Go backend parity requirement. public/scripts/backgrounds.js has TWO paths -- getThumbnailUrl('bg', file) at :860 and :1434 for the server route, and getThumbnailFromStorage at :858 and :1431 for an ANIMATED background with animation OFF, which fetches the plain static asset and runs createThumbnail in the browser (:452) then caches the blob in IndexedDB (:454). Nothing in the client path is server-observable: its only server interaction is the static asset fetch, which the /backgrounds/{rest...} mount (frontend_assets.go:84) already owns. Contract: docs/surfaces/backgrounds.md. The distinction matters because a screenshot comparison would measure the browser layer and could not support a server-surface claim
 
-Upload paths are the highest-consequence writes in the product (a user's assets). The sanitize-filename differential is unusually thorough.
+Upload paths are the highest-consequence writes in the product (a user's assets). The sanitize-filename differential is unusually thorough. THE AVATAR-UPLOAD CODEC QUESTION IS DECIDED (2026-10-29), not open: the pure-Go codec serves it and the claim is the observable transformation — the pinned 512x768 box for want_resize, the crop box otherwise, cover rather than stretch, and a PNG output whatever was uploaded. The cover-versus-stretch discriminator matters because a stretch yields the same dimensions: its teeth were observed by replacing cover with a direct resize, which produced "the outer border of the source is VISIBLE, so the image was STRETCHED instead of cover-cropped".
 
 ### Extensions: discovery, static serving, install, update, switch, delete, and the Tavern Helper / LittleWhiteBox canaries — `PARTIAL`
 
@@ -569,7 +569,7 @@ with `TestMain` excluded because it is a package's test entry point rather than 
 |---|---|---|
 | Oracle fixtures | 119 | 67 |
 | Browser artefacts | 38 | 11 |
-| Go test functions | 716 | 80 |
+| Go test functions | 719 | 83 |
 | Workflow jobs | 33 in 9 workflow(s) | _n/a_ |
 | Rows | 22 | PASS 1, PARTIAL 19, FAIL 1, NOT_APPLICABLE 1 |
 | Session steps | 8 | 7 with a probe, 1 without, 0 sharing a runtime |

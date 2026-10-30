@@ -360,11 +360,25 @@ exists because its inverse has already produced a passing test that proved nothi
      thumbnail from a pure-Go codec, and gate the OBSERVABLE — status, MIME, decodability, dimensions, cache
      behaviour — never byte equality with Jimp. The branch order in `thumbnails.go` is pinned's own order and
      is the contract; the MIME/original-name mismatch it reproduces is deliberate.
-   - **`/api/avatars/upload`: the codec question is still OPEN.** It decodes, crops, covers and re-encodes, so
-     an oracle CAN exist (the pinned output is recordable) but a Go implementation cannot reproduce those bytes
-     without a Jimp-compatible codec, so it cannot be claimed `partial` through HTTP comparison alone. Do not
-     fake byte equality by copying the recorded bytes, and do not add a production seam purely to make it
-     testable. Decide the codec question explicitly first.
+   - **`/api/avatars/upload`: DECIDED 2026-10-29 — the pure-Go codec serves it, and the claim is the
+     OBSERVABLE, not byte equality with Jimp.** The question this entry used to leave OPEN was whether a Go
+     implementation may legitimately answer a route whose stored file IS the Jimp output. The recorded answer is
+     yes, on the same terms as `/thumbnail`, because the pinned contract is a TRANSFORMATION rather than an
+     encoder identity: `src/endpoints/characters.js:283-306` (`applyAvatarCropResize`) crops when
+     `x/y/width/height` are all numbers, sets the final box to `AVATAR_WIDTH x AVATAR_HEIGHT` (512x768,
+     `src/constants.js:358-359`) when `crop.want_resize` is truthy and to `crop.width x crop.height` otherwise,
+     covers to that box, then encodes PNG (`JimpMime.png`). All of that is observable without Jimp: the stored
+     file's dimensions, the geometry of what lands in it, and that it is a PNG. Jimp's BYTES are not claimed
+     and nothing may fake them. The gates are `TestPersonaAvatarUploadWantResizeProducesThePinnedAvatarBox`
+     (the 512x768 branch, previously uncovered), `TestPersonaAvatarUploadCoversInsteadOfStretching` (a source
+     with black side borders whose borders must be CROPPED AWAY; a stretch produces the same dimensions, so
+     the discriminator is the edge pixel, not the size) and
+     `TestPersonaAvatarUploadStoresAPNGWhateverWasUploaded` (a JPEG upload lands as PNG bytes). Teeth observed:
+     replacing `cover`'s scale-to-cover with a direct resize turns the geometry test red with "the outer border
+     of the source is VISIBLE, so the image was STRETCHED instead of cover-cropped". The route also KEEPS
+     pinned's inherited behaviour instead of tidying it: the multer temp file is left behind on a refusal
+     (`avatars.js:59` has no cleanup in that branch), and an explicit `overwrite_name` is stored exactly as
+     typed, extension included.
 4. **A behaviour implemented inside a dependency is not ported unless a user requirement forces it.**
    `/api/google/generate-voice` runs a private Google `batchexecute` protocol that lives in the
    `google-translate-api-x` package; `/api/translate/{google,bing}` are the same class. This is NOT

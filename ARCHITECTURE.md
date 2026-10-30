@@ -1416,8 +1416,13 @@ Consequences:
   divergence explicitly — `bytes differ (Jimp vs pure-Go codec), observable equal`. The gate asserts the
   observable: status, MIME from `thumbnails.format`, image decodes, rendered dimensions equal the configured
   thumbnail dimensions, cache hit does not re-encode, and the deleted/changed original invalidates.
-  `/api/avatars/upload`'s pixel path keeps the original boundary until a user requirement reaches it, because
-  there the thumbnail argument does not apply: the *stored file* is the Jimp output.
+  `/api/avatars/upload`'s pixel path is served by the same pure-Go codec, and the claim there is the OBSERVABLE
+  TRANSFORMATION rather than Jimp's bytes (decision recorded in `AGENTS.md` boundary 3, 2026-10-29). The
+  transformation is pinned's own: crop when `x/y/width/height` are all numbers, the pinned 512x768 box when
+  `crop.want_resize` is truthy and the crop's own box otherwise, then cover, then encode PNG — even when a JPEG
+  was uploaded. Three gates hold it: the 512x768 branch, the PNG encoding, and a cover-versus-stretch discriminator
+  built from a source whose borders lie OUTSIDE the cover box (a stretch produces the same dimensions and a
+  different picture, so a size assertion alone would pass for both).
 - **Thumbnail absence is FAIL, never PARTIAL** (`AGENTS.md` rule 46). A startup differential whose expected
   value for a browser-required asset is a 404 is a bug report.
 - **Assets and generation are one gate, not two** (`AGENTS.md` rule: combination). One data-root or path bug

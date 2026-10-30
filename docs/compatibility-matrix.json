@@ -585,7 +585,10 @@
           "TestPersonaAvatarUploadCreatesTheFile",
           "TestPersonaAvatarUploadAppliesCrop",
           "TestPersonaAvatarUploadRejectsAForbiddenName",
-          "TestPersonaAvatarUploadInvalidatesThePersonaThumbnail"
+          "TestPersonaAvatarUploadInvalidatesThePersonaThumbnail",
+          "TestPersonaAvatarUploadWantResizeProducesThePinnedAvatarBox",
+          "TestPersonaAvatarUploadStoresAPNGWhateverWasUploaded",
+          "TestPersonaAvatarUploadCoversInsteadOfStretching"
         ],
         "browserArtifacts": [],
         "ci": [
@@ -603,7 +606,7 @@
         "THE BROWSER LAYER IS A RECORDED EXCLUSION, and it is the one thing this row did not say: where the frontend paints a thumbnail ITSELF the pixels are the browser's, not the server's, and browser pixel equality is not a Go backend parity requirement. public/scripts/backgrounds.js has TWO paths -- getThumbnailUrl('bg', file) at :860 and :1434 for the server route, and getThumbnailFromStorage at :858 and :1431 for an ANIMATED background with animation OFF, which fetches the plain static asset and runs createThumbnail in the browser (:452) then caches the blob in IndexedDB (:454). Nothing in the client path is server-observable: its only server interaction is the static asset fetch, which the /backgrounds/{rest...} mount (frontend_assets.go:84) already owns. Contract: docs/surfaces/backgrounds.md. The distinction matters because a screenshot comparison would measure the browser layer and could not support a server-surface claim"
       ],
       "blockedBy": [],
-      "notes": "Upload paths are the highest-consequence writes in the product (a user's assets). The sanitize-filename differential is unusually thorough."
+      "notes": "Upload paths are the highest-consequence writes in the product (a user's assets). The sanitize-filename differential is unusually thorough. THE AVATAR-UPLOAD CODEC QUESTION IS DECIDED (2026-10-29), not open: the pure-Go codec serves it and the claim is the observable transformation — the pinned 512x768 box for want_resize, the crop box otherwise, cover rather than stretch, and a PNG output whatever was uploaded. The cover-versus-stretch discriminator matters because a stretch yields the same dimensions: its teeth were observed by replacing cover with a direct resize, which produced \"the outer border of the source is VISIBLE, so the image was STRETCHED instead of cover-cropped\"."
     },
     {
       "id": "extensions",
@@ -1105,8 +1108,8 @@
       "citedByMatrix": 11
     },
     "goTestFunctions": {
-      "inTree": 716,
-      "citedByMatrix": 80
+      "inTree": 719,
+      "citedByMatrix": 83
     },
     "workflows": {
       "inTree": 9,
