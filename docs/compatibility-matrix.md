@@ -15,8 +15,8 @@ what is claimed, what evidences the claim, and — where the claim is short — 
 | Status | Count | Meaning |
 |---|---|---|
 | PASS | 0 | Every evidence slot the derivation rule requires is present and exists in this tree, and the row carries no evidenceGap. Says nothing about production fitness beyond what the cited evidence covers. |
-| PARTIAL | 19 | The mechanism exists and something in this tree gates it, but at least one required evidence slot is missing or a named gap remains. The gap is always named in evidenceGap. |
-| FAIL | 2 | A user-visible capability is known to be broken, or the evidence needed to claim it is absent while the defect it would have caught has already shipped. A FAIL row is a finding, not a placeholder. |
+| PARTIAL | 20 | The mechanism exists and something in this tree gates it, but at least one required evidence slot is missing or a named gap remains. The gap is always named in evidenceGap. |
+| FAIL | 1 | A user-visible capability is known to be broken, or the evidence needed to claim it is absent while the defect it would have caught has already shipped. A FAIL row is a finding, not a placeholder. |
 | NOT_APPLICABLE | 1 | A decided, recorded exclusion with its reason. Never used for work that is merely unwritten. |
 
 ## How a status is derived
@@ -50,7 +50,7 @@ A row is `PASS` only when every one of these holds:
 | 7 | Groups and group chats, including the metadata migration | **PARTIAL** | 2 oracle fixture(s), Go implementation, 2 named test(s), CI job(s) | 2 item(s) |
 | 8 | World info: books, entries, activation, positions | **PARTIAL** | 1 oracle fixture(s), Go implementation, 1 named test(s), 1 browser artefact(s), CI job(s) | 2 item(s) |
 | 9 | Presets, quick replies, themes, moving UI, system prompts | **PARTIAL** | 5 oracle fixture(s), Go implementation, 3 named test(s), 1 browser artefact(s), CI job(s) | 2 item(s) |
-| 10 | Provider transport on the real internet (TLS, proxy, timeouts, decompression, redirects) | **FAIL** | Go implementation, 4 named test(s), CI job(s) | 6 item(s) |
+| 10 | Provider transport on the real internet (TLS, proxy, timeouts, decompression, redirects) | **PARTIAL** | Go implementation, 9 named test(s), CI job(s) | 5 item(s) |
 | 11 | Per-source provider-wire request bytes (15 catalogued sources) | **PARTIAL** | 1 oracle fixture(s), Go implementation, 3 named test(s), 3 browser artefact(s), CI job(s) | 3 item(s) |
 | 12 | Streaming SSE framing, incremental render and cancellation | **PARTIAL** | 2 oracle fixture(s), Go implementation, 7 named test(s), 3 browser artefact(s), CI job(s) | 2 item(s) |
 | 13 | Exact tokenization and context boundaries | **PARTIAL** | 1 oracle fixture(s), upstream assets, Go implementation, 3 named test(s), 1 browser artefact(s), CI job(s), release-artifact step | 3 item(s) |
@@ -246,28 +246,27 @@ Blocked by: `whole-session-e2e`
 
 AGENTS.md 8 is the rule this row answers to: 'it can chat' proves nothing, and the gate that proves more does not yet pass.
 
-### Provider transport on the real internet (TLS, proxy, timeouts, decompression, redirects) — `FAIL`
+### Provider transport on the real internet (TLS, proxy, timeouts, decompression, redirects) — `PARTIAL`
 
 Row id: `providers-transport`
 
 - Oracle fixtures: _none_
 - Upstream assets: _none_
 - Go implementation: `internal/outbound`
-- Named tests: `TestChatCompletionAimlapiTransportFailureAnswers200`, `TestOpenRouterOutboundTargetIsPinned`, `TestDeepSeekGenerateEndToEndThroughTheProductionTransport`, `TestDeepSeekEndToEndRefusesTheWireExactSeam`
+- Named tests: `TestChatCompletionAimlapiTransportFailureAnswers200`, `TestOpenRouterOutboundTargetIsPinned`, `TestDeepSeekGenerateEndToEndThroughTheProductionTransport`, `TestDeepSeekEndToEndRefusesTheWireExactSeam`, `TestProductionTransportRefusesAnUntrustedCertificate`, `TestProductionTransportNamesADNSFailure`, `TestProductionTransportNamesAConnectRefusal`, `TestProductionTransportNamesAProxyRefusal`, `TestProviderTransportFailureIsCausalThroughTheShippedBinary`
 - Browser artefacts: _none_
 - CI jobs: `ci.yml#oracle`
 - Release artifact: _none_
 
 **Evidence gap**
 
-- every provider differential runs against our own recording peer: AGENTS.md 22 makes that `unverified` for production
-- the byte-exact oracle client and the production client are now SEPARATE -- internal/outbound/raw.go is oracle-only and internal/outbound/transport.go carries proxy awareness, bounded connect/TLS/header/idle timeouts, decompression, redirect policy, keep-alive honouring enableKeepAlive, and the private-address dial filter -- so the old "the same client" clause is RETIRED; what remains unproven is that those properties hold against a controlled internet-shaped peer
-- docs/network-egress.md section 2's "eight places it does not meet the contract" list describes the tree BEFORE that production transport and is superseded by it; the document needs that section restated rather than read as current
-- no test asserts the causal error text of a DNS, connect, TLS, proxy or timeout failure while proving no secret is printed (AGENTS.md 35)
-- DEEPSEEK's pinned catch answers a thrown fetch with `{error:true}` and discards the cause, so on this source the causal-error requirement cannot be met without a recorded divergence from pinned's body
-- the live canary that does reach api.deepseek.com runs only where DEEPSEEK_API_KEY is configured, and prints one SKIPPED line where it is not
+- CLOSED 2026-10-29 -- THE INTERNET-SHAPED GATE. Every production-transport property was asserted against a recording peer that answers HTTP quickly and correctly, so the shapes a real network produces had no test. `internal/outbound/transport_internet_shape_test.go` now drives the PRODUCTION transport against a peer for each failure class, and each assertion is three-part: the error exists, it NAMES the stage and the provider host, and it does NOT contain the request's bearer token. TLS: an untrusted certificate is refused (`TestProductionTransportRefusesAnUntrustedCertificate`). DNS: the RFC 2606 `.invalid` TLD cannot resolve (`TestProductionTransportNamesADNSFailure`). Connect: a port that was just closed refuses (`TestProductionTransportNamesAConnectRefusal`). Proxy: a proxy answering 407 is named as the proxy, not as the provider (`TestProductionTransportNamesAProxyRefusal`). Timeout: a peer that accepts and never answers is attributed to the header stage (`TestProductionTransportAttributesATimeoutToTheHeaderStage`, pre-existing). The connect test's expected wording is deliberately platform-neutral ("connect" + "refused"), because Unix says `connect: connection refused` and Windows says `connectex: ... actively refused it`, and a host-specific phrase would have made the gate untransportable
+- CLOSED 2026-10-29 -- THROUGH THE SHIPPED ARTIFACT, which is what AGENTS.md 23 and 35 require. `tests/e2e`'s `TestProviderTransportFailureIsCausalThroughTheShippedBinary` boots the built binary, points a provider's chat URL at a local TLS peer whose certificate cannot chain, drives a real completion through `/api/backends/chat-completions/generate`, and asserts the JSON the browser receives carries `error` exactly as pinned's branch sends it PLUS a `message` that names the TLS stage and contains no credential -- and that the untrusted peer was never reached. THE TEETH WERE OBSERVED: removing the `message` member from `pinnedChatCompletionErrorFlagWithCause` turns it red with `the failure body carries no message, so the user sees no cause (this is the P0-A shape): {"error":true}` (exit 1); the byte copy was restored and the test went green
+- CLOSED 2026-10-29 -- THE STALE DOCUMENT. `docs/network-egress.md` §2 presented the pre-split `raw.go` measurements as current and is now restated: a status table maps each of D1-D8 to the implementation and the test that would go red, the old table is kept as HISTORY with a banner saying it is superseded, and a paragraph names what is still NOT proven (the differential corpus still runs against our own recording peer)
+- THE DEEPSEEK CLAUSE IS NOW RECORDED AS THE DECLARED SUPERSET IT IS. Pinned's catch discards the cause (`{error:true}`), so a causal message there would have been impossible without diverging. GoTavern diverges deliberately and declares it (`internal/server/chat_completions.go:141-154`): `error` stays exactly what pinned sends and a `message` member is added. The artifact test asserts BOTH halves -- the pinned member unchanged and the additive one present -- so the divergence cannot silently become a replacement
+- STILL OPEN, AND STATED RATHER THAN IMPLIED: every provider differential in this corpus runs against our own recording peer, and AGENTS.md 22 makes that `unverified` for production purposes. The live canary that reaches a real provider (`scripts/live-canary.mjs`, `scripts/deepseek-canary.mjs`) needs a credential and is not part of the default suite, so "a user's own provider, through a user's own proxy" is exercised by the user and by nothing here
 
-P0-A: a provider that could not be reached shipped through a green CI because every provider test used a mock peer and therefore never exercised a socket with a real hostname. The row is FAIL until a test reaches a controlled real-internet-shaped transport (not the live network: a local TLS peer with a real trust chain, a refusing proxy and a hanging socket), and the shipped artifact passes it.
+RE-DERIVED 2026-10-29: FAIL -> PARTIAL. The FAIL was for an absent gate: no test asserted a causala error text for a DNS, connect, TLS, proxy or timeout failure while proving no secret was printed, and every measurement came from a recording peer that cannot produce any of those shapes. Four new peers (untrusted certificate, .invalid host, closed port, 407 proxy) plus the pre-existing stalled-peer test are that gate at the transport, and a shipped-binary test asserts the same taxonomy reaches the browser payload with no credential. The row is PARTIAL rather than PASS because the corpus still runs against our own peer and the live canary needs a credential.
 
 ### Per-source provider-wire request bytes (15 catalogued sources) — `PARTIAL`
 
@@ -573,7 +572,7 @@ with `TestMain` excluded because it is a package's test entry point rather than 
 |---|---|---|
 | Oracle fixtures | 119 | 67 |
 | Browser artefacts | 38 | 11 |
-| Go test functions | 707 | 71 |
+| Go test functions | 712 | 76 |
 | Workflow jobs | 33 in 9 workflow(s) | _n/a_ |
-| Rows | 22 | PASS 0, PARTIAL 19, FAIL 2, NOT_APPLICABLE 1 |
+| Rows | 22 | PASS 0, PARTIAL 20, FAIL 1, NOT_APPLICABLE 1 |
 | Session steps | 8 | 7 with a probe, 1 without, 0 sharing a runtime |

@@ -387,7 +387,7 @@
     {
       "id": "providers-transport",
       "area": "Provider transport on the real internet (TLS, proxy, timeouts, decompression, redirects)",
-      "status": "FAIL",
+      "status": "PARTIAL",
       "evidence": {
         "oracleFixtures": [],
         "upstreamAssets": [],
@@ -398,7 +398,12 @@
           "TestChatCompletionAimlapiTransportFailureAnswers200",
           "TestOpenRouterOutboundTargetIsPinned",
           "TestDeepSeekGenerateEndToEndThroughTheProductionTransport",
-          "TestDeepSeekEndToEndRefusesTheWireExactSeam"
+          "TestDeepSeekEndToEndRefusesTheWireExactSeam",
+          "TestProductionTransportRefusesAnUntrustedCertificate",
+          "TestProductionTransportNamesADNSFailure",
+          "TestProductionTransportNamesAConnectRefusal",
+          "TestProductionTransportNamesAProxyRefusal",
+          "TestProviderTransportFailureIsCausalThroughTheShippedBinary"
         ],
         "browserArtifacts": [],
         "ci": [
@@ -407,23 +412,18 @@
         "releaseArtifact": null
       },
       "wouldGoRedIfWrong": {
-        "test": "TestDeepSeekGenerateEndToEndThroughTheProductionTransport",
-        "explanation": "this row stays FAIL, but it is no longer true that nothing observes the client carrying user traffic: the subprocess test boots the shipped binary and asserts at the recording peer that the provider request arrived with the production client's own fingerprint (accept-encoding exactly `gzip`, no Connection header, canonical header names) and that the captured provider body arrived byte-identically. If the wire-exact client were on the user path, every one of those three assertions goes red."
-      },
-      "absentGate": {
-        "owner": "lane A (network / provider transport)",
-        "mustAssert": "a controlled peer that behaves like the internet: a local TLS listener with a real trust chain, a refusing proxy, and a socket that accepts then never answers — each asserted to produce a NAMED causal error (DNS, connect, TLS, proxy, timeout) with no secret in it, through the shipped artifact"
+        "test": "TestProductionTransportRefusesAnUntrustedCertificate",
+        "explanation": "An untrusted certificate must be refused with an error naming the TLS stage and the provider host and carrying no credential. The row previously had no gate at all for any network failure class; this test plus the DNS, connect and proxy siblings are that gate, and the artifact-level half is TestProviderTransportFailureIsCausalThroughTheShippedBinary."
       },
       "evidenceGap": [
-        "every provider differential runs against our own recording peer: AGENTS.md 22 makes that `unverified` for production",
-        "the byte-exact oracle client and the production client are now SEPARATE -- internal/outbound/raw.go is oracle-only and internal/outbound/transport.go carries proxy awareness, bounded connect/TLS/header/idle timeouts, decompression, redirect policy, keep-alive honouring enableKeepAlive, and the private-address dial filter -- so the old \"the same client\" clause is RETIRED; what remains unproven is that those properties hold against a controlled internet-shaped peer",
-        "docs/network-egress.md section 2's \"eight places it does not meet the contract\" list describes the tree BEFORE that production transport and is superseded by it; the document needs that section restated rather than read as current",
-        "no test asserts the causal error text of a DNS, connect, TLS, proxy or timeout failure while proving no secret is printed (AGENTS.md 35)",
-        "DEEPSEEK's pinned catch answers a thrown fetch with `{error:true}` and discards the cause, so on this source the causal-error requirement cannot be met without a recorded divergence from pinned's body",
-        "the live canary that does reach api.deepseek.com runs only where DEEPSEEK_API_KEY is configured, and prints one SKIPPED line where it is not"
+        "CLOSED 2026-10-29 -- THE INTERNET-SHAPED GATE. Every production-transport property was asserted against a recording peer that answers HTTP quickly and correctly, so the shapes a real network produces had no test. `internal/outbound/transport_internet_shape_test.go` now drives the PRODUCTION transport against a peer for each failure class, and each assertion is three-part: the error exists, it NAMES the stage and the provider host, and it does NOT contain the request's bearer token. TLS: an untrusted certificate is refused (`TestProductionTransportRefusesAnUntrustedCertificate`). DNS: the RFC 2606 `.invalid` TLD cannot resolve (`TestProductionTransportNamesADNSFailure`). Connect: a port that was just closed refuses (`TestProductionTransportNamesAConnectRefusal`). Proxy: a proxy answering 407 is named as the proxy, not as the provider (`TestProductionTransportNamesAProxyRefusal`). Timeout: a peer that accepts and never answers is attributed to the header stage (`TestProductionTransportAttributesATimeoutToTheHeaderStage`, pre-existing). The connect test's expected wording is deliberately platform-neutral (\"connect\" + \"refused\"), because Unix says `connect: connection refused` and Windows says `connectex: ... actively refused it`, and a host-specific phrase would have made the gate untransportable",
+        "CLOSED 2026-10-29 -- THROUGH THE SHIPPED ARTIFACT, which is what AGENTS.md 23 and 35 require. `tests/e2e`'s `TestProviderTransportFailureIsCausalThroughTheShippedBinary` boots the built binary, points a provider's chat URL at a local TLS peer whose certificate cannot chain, drives a real completion through `/api/backends/chat-completions/generate`, and asserts the JSON the browser receives carries `error` exactly as pinned's branch sends it PLUS a `message` that names the TLS stage and contains no credential -- and that the untrusted peer was never reached. THE TEETH WERE OBSERVED: removing the `message` member from `pinnedChatCompletionErrorFlagWithCause` turns it red with `the failure body carries no message, so the user sees no cause (this is the P0-A shape): {\"error\":true}` (exit 1); the byte copy was restored and the test went green",
+        "CLOSED 2026-10-29 -- THE STALE DOCUMENT. `docs/network-egress.md` §2 presented the pre-split `raw.go` measurements as current and is now restated: a status table maps each of D1-D8 to the implementation and the test that would go red, the old table is kept as HISTORY with a banner saying it is superseded, and a paragraph names what is still NOT proven (the differential corpus still runs against our own recording peer)",
+        "THE DEEPSEEK CLAUSE IS NOW RECORDED AS THE DECLARED SUPERSET IT IS. Pinned's catch discards the cause (`{error:true}`), so a causal message there would have been impossible without diverging. GoTavern diverges deliberately and declares it (`internal/server/chat_completions.go:141-154`): `error` stays exactly what pinned sends and a `message` member is added. The artifact test asserts BOTH halves -- the pinned member unchanged and the additive one present -- so the divergence cannot silently become a replacement",
+        "STILL OPEN, AND STATED RATHER THAN IMPLIED: every provider differential in this corpus runs against our own recording peer, and AGENTS.md 22 makes that `unverified` for production purposes. The live canary that reaches a real provider (`scripts/live-canary.mjs`, `scripts/deepseek-canary.mjs`) needs a credential and is not part of the default suite, so \"a user's own provider, through a user's own proxy\" is exercised by the user and by nothing here"
       ],
       "blockedBy": [],
-      "notes": "P0-A: a provider that could not be reached shipped through a green CI because every provider test used a mock peer and therefore never exercised a socket with a real hostname. The row is FAIL until a test reaches a controlled real-internet-shaped transport (not the live network: a local TLS peer with a real trust chain, a refusing proxy and a hanging socket), and the shipped artifact passes it."
+      "notes": "RE-DERIVED 2026-10-29: FAIL -> PARTIAL. The FAIL was for an absent gate: no test asserted a causala error text for a DNS, connect, TLS, proxy or timeout failure while proving no secret was printed, and every measurement came from a recording peer that cannot produce any of those shapes. Four new peers (untrusted certificate, .invalid host, closed port, 407 proxy) plus the pre-existing stalled-peer test are that gate at the transport, and a shipped-binary test asserts the same taxonomy reaches the browser payload with no credential. The row is PARTIAL rather than PASS because the corpus still runs against our own peer and the live canary needs a credential."
     },
     {
       "id": "providers-per-source-wire",
@@ -1104,8 +1104,8 @@
       "citedByMatrix": 11
     },
     "goTestFunctions": {
-      "inTree": 707,
-      "citedByMatrix": 71
+      "inTree": 712,
+      "citedByMatrix": 76
     },
     "workflows": {
       "inTree": 9,
@@ -1114,8 +1114,8 @@
     "rows": {
       "total": 22,
       "PASS": 0,
-      "PARTIAL": 19,
-      "FAIL": 2,
+      "PARTIAL": 20,
+      "FAIL": 1,
       "NOT_APPLICABLE": 1
     },
     "sessionSteps": {

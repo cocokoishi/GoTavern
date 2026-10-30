@@ -42,7 +42,54 @@ migrated config gets `true` — and the unmodified frontend then offers (and, wi
 drive) the git-backed update routes. The fix is the product contract in `AGENTS.md` rule 26: **missing, null,
 unparsed or legacy means OFF**, whatever upstream's default says.
 
-## 2. The production transport contract, and the eight places it does not meet it
+## 2. The production transport contract, and where it now stands
+
+**READ THE NEXT TABLE, NOT THE ONE AFTER IT.** This section used to open with an "eight places the production
+transport does not meet the contract" table, written against `internal/outbound/raw.go` when that hand-written
+client carried user traffic. `raw.go` is now the **oracle-only** byte-exact client (`Send`, `sendWireExact`) and
+the production path is `internal/outbound/transport.go`, which is a `net/http` client with proxy awareness,
+bounded connect/handshake/header/idle timeouts, decompression, a redirect policy, keep-alive honouring
+`enableKeepAlive`, cancellation and the private-address dial filter. The old table is kept verbatim below as
+HISTORY, because it is the measurement that made the split happen and because deleting it would hide why
+`transport.go` exists. It is **superseded**, and the status table above it is the current statement.
+
+| # | Contract property | Status now | Gate that would go red |
+|---|---|---|---|
+| D1 | Bounded connect / handshake / header / idle timeouts | **closed** — `transport.go` bounds each stage and attributes a timeout to the stage it happened in | `TestProductionTransportAttributesATimeoutToTheHeaderStage` |
+| D2 | Response decompression (gzip, deflate, chunked) | **closed** — the transport decompresses and refuses an encoding it cannot decode causally | `TestProductionTransportDecompressesGzipJSON`, `…DeflateJSON`, `…DecodesGzipOverChunkedFraming`, `…ReportsAnUndecodableEncodingCausally` |
+| D3 | Proxy support (`requestProxy.*` and the environment, never merged) | **closed** — explicit config wins over the environment, bypass is honoured, and a proxy that REFUSES is named as the proxy | `TestConfigureRequestProxyValidatesItsInput`, `TestProviderProxyUsesTheConfiguredProxyAndHonoursBypass`, `TestProductionTransportNamesAProxyRefusal` |
+| D4 | Redirect following | **closed** — a bounded hop policy | `TestProductionTransportFollowsARedirect` |
+| D5 | Connection reuse / keep-alive | **closed** — follows `enableKeepAlive` (pinned's default is false) | `TestProductionTransportKeepAliveFollowsTheConfigKey` |
+| D6 | TLS verification and a bounded handshake | **closed** — system roots, verification on, handshake bounded; an untrusted chain is refused CAUSALLY | `TestProductionTransportRefusesAnUntrustedCertificate`, `TestSendRejectsAnUntrustedCertificate` (wire-exact) |
+| D7 | No per-request goroutine leak | **closed** by construction — `net/http` owns the connection lifecycle; a mid-stream close surfaces causally instead of hanging | `TestProductionTransportSurfacesAMidStreamCloseCausally` |
+| D8 | Framing, `Expect: 100-continue`, HTTP/2 | **closed** by construction for the production path (the standard client), and still absent from `raw.go` **on purpose**: that client exists to reproduce pinned's bytes, not to be a general HTTP stack | covered indirectly by every production-transport test; `raw.go`'s narrowness is the oracle's contract |
+
+**THE INTERNET-SHAPED GATE (added 2026-10-29).** Every property above was, until this change, asserted against a
+recording peer that answers HTTP quickly and correctly. The shapes a real network produces had no test:
+`internal/outbound/transport_internet_shape_test.go` now drives the production transport against a peer for each
+failure class and requires the error to (a) exist, (b) NAME the stage and the provider host, and (c) NOT contain
+the request's bearer token:
+
+- an untrusted certificate → `TestProductionTransportRefusesAnUntrustedCertificate` (TLS);
+- a hostname that cannot resolve (`.invalid`) → `TestProductionTransportNamesADNSFailure` (DNS);
+- a port that refuses → `TestProductionTransportNamesAConnectRefusal` (connect);
+- a proxy that answers 407 → `TestProductionTransportNamesAProxyRefusal` (proxy);
+- a peer that accepts and never answers → `TestProductionTransportAttributesATimeoutToTheHeaderStage` (timeout,
+  pre-existing).
+
+And the artifact-level half, which is what AGENTS.md 23/35 actually require: `tests/e2e`'s
+`TestProviderTransportFailureIsCausalThroughTheShippedBinary` boots the built binary, points a provider at an
+untrusted TLS peer, drives a real chat completion and asserts the JSON the browser receives carries `error`
+exactly as pinned's branch sends it **plus** a `message` that names the TLS stage and no credential. That test's
+teeth were observed: removing the `message` member from `pinnedChatCompletionErrorFlagWithCause` turns it red with
+`the failure body carries no message, so the user sees no cause (this is the P0-A shape): {"error":true}`.
+
+**WHAT IS STILL NOT PROVEN, so this section does not claim it.** The differential corpus still runs against our own
+recording peer, and AGENTS.md 22 makes that `unverified` for production purposes: the live canary that reaches a
+real provider (`scripts/live-canary.mjs`, `scripts/deepseek-canary.mjs`) needs a credential and is not part of the
+default suite. A user's own provider, through a user's own proxy, is exercised by the user and by nothing here.
+
+### 2.1 HISTORY — the table that was current before the split
 
 `internal/outbound/raw.go` writes HTTP/1.1 by hand. That is a legitimate way to reproduce a byte-exact oracle,
 and the provider-wire fixture proves it does reproduce one. It is **not** evidence that the same code is a
@@ -59,7 +106,7 @@ serviceable production client, and the following are measured gaps, not suspicio
 | D7 | **A goroutine per request waits for `ctx.Done()`** | `raw.go:169-172` | with a background context this goroutine outlives the request; with thousands of requests it is a leak |
 | D8 | **No HTTP/2, no `Expect: 100-continue`, no body framing for `HEAD`/204/304** | the whole of `raw.go` | narrow today, but these are the reasons a hand-written stack is the wrong default for production traffic |
 
-None of this is visible to the oracle: the recording peer is plain HTTP, answers complete bodies, never
+None of this was visible to the oracle: the recording peer is plain HTTP, answers complete bodies, never
 compresses, never redirects and never stalls. **That is the same shape of blind spot the repository already
 recorded for TLS** ("`outbound.Send` dials plain TCP and does not perform a TLS handshake … against a local mock
 the routes are correct and fully tested; against the real pinned URL they answer 500", `internal/server/horde.go:26`,
