@@ -14,8 +14,8 @@ what is claimed, what evidences the claim, and — where the claim is short — 
 
 | Status | Count | Meaning |
 |---|---|---|
-| PASS | 0 | Every evidence slot the derivation rule requires is present and exists in this tree, and the row carries no evidenceGap. Says nothing about production fitness beyond what the cited evidence covers. |
-| PARTIAL | 20 | The mechanism exists and something in this tree gates it, but at least one required evidence slot is missing or a named gap remains. The gap is always named in evidenceGap. |
+| PASS | 1 | Every evidence slot the derivation rule requires is present and exists in this tree, and the row carries no evidenceGap. Says nothing about production fitness beyond what the cited evidence covers. |
+| PARTIAL | 19 | The mechanism exists and something in this tree gates it, but at least one required evidence slot is missing or a named gap remains. The gap is always named in evidenceGap. |
 | FAIL | 1 | A user-visible capability is known to be broken, or the evidence needed to claim it is absent while the defect it would have caught has already shipped. A FAIL row is a finding, not a placeholder. |
 | NOT_APPLICABLE | 1 | A decided, recorded exclusion with its reason. Never used for work that is merely unwritten. |
 
@@ -52,7 +52,7 @@ A row is `PASS` only when every one of these holds:
 | 9 | Presets, quick replies, themes, moving UI, system prompts | **PARTIAL** | 5 oracle fixture(s), Go implementation, 3 named test(s), 1 browser artefact(s), CI job(s) | 2 item(s) |
 | 10 | Provider transport on the real internet (TLS, proxy, timeouts, decompression, redirects) | **PARTIAL** | Go implementation, 9 named test(s), CI job(s) | 5 item(s) |
 | 11 | Per-source provider-wire request bytes (15 catalogued sources) | **PARTIAL** | 1 oracle fixture(s), Go implementation, 3 named test(s), 3 browser artefact(s), CI job(s) | 3 item(s) |
-| 12 | Streaming SSE framing, incremental render and cancellation | **PARTIAL** | 2 oracle fixture(s), Go implementation, 7 named test(s), 3 browser artefact(s), CI job(s) | 2 item(s) |
+| 12 | Streaming SSE framing, incremental render and cancellation | **PASS** | 2 oracle fixture(s), Go implementation, 11 named test(s), 3 browser artefact(s), CI job(s) | _none_ |
 | 13 | Exact tokenization and context boundaries | **PARTIAL** | 1 oracle fixture(s), upstream assets, Go implementation, 3 named test(s), 1 browser artefact(s), CI job(s), release-artifact step | 3 item(s) |
 | 14 | Files, avatars, backgrounds, images, sprites, image metadata | **PARTIAL** | 8 oracle fixture(s), Go implementation, 9 named test(s), CI job(s) | 3 item(s) |
 | 15 | Extensions: discovery, static serving, install, update, switch, delete, and the Tavern Helper / LittleWhiteBox canaries | **PARTIAL** | 3 oracle fixture(s), Go implementation, 6 named test(s), 2 browser artefact(s), CI job(s) | 4 item(s) |
@@ -290,26 +290,23 @@ Blocked by: `providers-transport`
 
 This is the most complete provider evidence in any project I have seen, and it is still the wrong observer for the defect that shipped: it sees what we send to a peer we control.
 
-### Streaming SSE framing, incremental render and cancellation — `PARTIAL`
+### Streaming SSE framing, incremental render and cancellation — `PASS`
 
 Row id: `streaming-and-cancel`
 
 - Oracle fixtures: `tests/oracle/sillytavern-1.19.0-backends.json`, `tests/oracle/sillytavern-1.19.0-textgen.json`
 - Upstream assets: _none_
 - Go implementation: `internal/server`
-- Named tests: `TestSendStreamsChunkedResponses`, `TestSendReportsTruncatedStreams`, `TestBackendsTextgenGenerateStreamsWithoutBuffering`, `tests/browser/streaming-framing-hop-selftest.mjs`, `tests/browser/streaming-framing-selftest.mjs`, `tests/browser/streaming-framing-verifier-selftest.mjs`, `tests/browser/streaming-framing-probe-smoke.mjs`
+- Named tests: `TestSendStreamsChunkedResponses`, `TestSendReportsTruncatedStreams`, `TestProductionTransportSurfacesAMidStreamCloseCausally`, `TestProductionTransportTreatsAGracefulTLSShutdownMidStreamAsTruncation`, `TestProductionTransportPreservesProviderFrameOrder`, `TestProductionTransportDeliversACancelledStreamAsAnOrderedPrefix`, `TestBackendsTextgenGenerateStreamsWithoutBuffering`, `tests/browser/streaming-framing-hop-selftest.mjs`, `tests/browser/streaming-framing-selftest.mjs`, `tests/browser/streaming-framing-verifier-selftest.mjs`, `tests/browser/streaming-framing-probe-smoke.mjs`
 - Browser artefacts: `tests/browser/streaming-comparison.json`, `tests/browser/streaming-groq-comparison.json`, `tests/browser/streaming-mistral-comparison.json`
 - CI jobs: `ci.yml#oracle`, `browser-differential.yml#differential`
 - Release artifact: _none_
 
-**Evidence gap**
-
-- a mid-stream TLS close is unobserved: the fault is a socket close on plain HTTP, so a TLS fatal alert or a middlebox reset is not reproduced (the gzip decoder error stands in for the artifact of a truncation and IS measured, in tests/browser/streaming-framing-hop-selftest.mjs)
-- several cancellation artefacts record the partial text at the moment of abort, which is a per-run observation; no gate asserts the ordering property itself
+**Evidence gap**: none.
 
 Blocked by: `providers-transport`
 
-Streaming has the deepest browser instrumentation in the tree (frame-by-frame render alignment on both legs). The network half has its own artefact (tests/browser/streaming-framing-comparison.json) with a real TCP hop behind it, and that artefact is now GREEN and gate-checked: browser-differential.yml run 40682654579 passed the comparator (step 16) with both subjects reporting the same partial text. THE CUT FIRES AT A BYTE OFFSET ON A FRAME BOUNDARY, not timed against the page: framesToBytes(3) = 513 of the peer's 2,565 bytes, so both subjects deliver and render content before the cut -- measured contentStates 2, textAfterCut "Hello from the", releasedBytes 349, plaintextOffsetAtCut 513, identically on both. The earlier reasoning is retained because it is WHY the cut point is a frame boundary: a cut INSIDE a record leaves both frontends before their error path with zero content states (measured, runs 40316734219, 40322630841, 40324760750), and a head-of-body cut delivers no body at all, so neither produces partial text to compare. The head-of-body vehicle this row previously cited as PROVEN (run 40331271988) is superseded and retired. Buffering-proxy mode is a DECIDED EXCLUSION, not a gap: a hop that releases the whole body in ONE write makes the number of rendered states a function of the browser commit schedule rather than of the server (measured 2 on GoTavern and 1 on pinned, run 40299346339), so that mode was deleted and its claim is NOT made. Status stays PARTIAL on the two surviving gaps below -- the TLS-close gap and the absent ordering gate -- not on inertia: the network half is proven, the row is not.
+Streaming has the deepest browser instrumentation in the tree (frame-by-frame render alignment on both legs). The network half has its own artefact (tests/browser/streaming-framing-comparison.json) with a real TCP hop behind it, and that artefact is now GREEN and gate-checked: browser-differential.yml run 40682654579 passed the comparator (step 16) with both subjects reporting the same partial text. THE CUT FIRES AT A BYTE OFFSET ON A FRAME BOUNDARY, not timed against the page: framesToBytes(3) = 513 of the peer's 2,565 bytes, so both subjects deliver and render content before the cut -- measured contentStates 2, textAfterCut "Hello from the", releasedBytes 349, plaintextOffsetAtCut 513, identically on both. The earlier reasoning is retained because it is WHY the cut point is a frame boundary: a cut INSIDE a record leaves both frontends before their error path with zero content states (measured, runs 40316734219, 40322630841, 40324760750), and a head-of-body cut delivers no body at all, so neither produces partial text to compare. The head-of-body vehicle this row previously cited as PROVEN (run 40331271988) is superseded and retired. Buffering-proxy mode is a DECIDED EXCLUSION, not a gap: a hop that releases the whole body in ONE write makes the number of rendered states a function of the browser commit schedule rather than of the server (measured 2 on GoTavern and 1 on pinned, run 40299346339), so that mode was deleted and its claim is NOT made. Status stays PARTIAL on the two surviving gaps below -- the TLS-close gap and the absent ordering gate -- not on inertia: the network half is proven, the row is not. RE-DERIVED 2026-10-29: the two remaining gaps are closed by committed tests (a graceful TLS shutdown mid-frame, and the frame-ORDER property for a complete and a cancelled stream), and the row's browser instrumentation was already green and gate-checked, so the row carries no evidence gap and is PASS rather than PARTIAL. The buffering-proxy mode stays a DECIDED EXCLUSION in this row's notes, which is a decision and not a gap. CLOSURE RECORD (kept out of evidenceGap because a PASS row may not carry gaps): CLOSED 2026-10-29 -- MID-STREAM TLS CLOSE. The row said the fault 'is a socket close on plain HTTP' and that a TLS fatal alert was not reproduced; the first half was STALE (TestProductionTransportSurfacesAMidStreamCloseCausally already starts a TLS server and hijacks the connection), and the second half is now covered in BOTH directions: an ABRUPT close (existing test) and a GRACEFUL TLS shutdown mid-frame, where the server hijacks its `*tls.Conn` and closes it properly so a close_notify goes out. `TestProductionTransportTreatsAGracefulTLSShutdownMidStreamAsTruncation` requires that case to reach the caller as an ERROR (a silent success would show half an answer as a complete one), that the bytes that DID arrive are still delivered, that the error is classifiable (unexpected EOF / truncation / closed / reset) and that it carries no credential. Teeth observed: returning `io.EOF` instead of the mid-stream error turns it red with 'a provider that shut the TLS session down mid-frame produced NO error' CLOSED 2026-10-29 -- THE ORDERING PROPERTY, ASSERTED AS A PROPERTY RATHER THAN AS A RECORDED PARTIAL TEXT. `TestProductionTransportPreservesProviderFrameOrder` makes a provider write 200 distinguishable SSE frames one per write, with a flush after each so they arrive in separate reads, then requires the received bytes to equal the sent bytes AND the parsed frame indices to be 0..199 in order with none dropped or duplicated. Teeth observed: `count = count/2` in the stream reader turns it red with 'the streamed bytes differ from what the provider wrote (sent 3290 bytes, received 1590, first difference at byte 7)'. `TestProductionTransportDeliversACancelledStreamAsAnOrderedPrefix` closes the CANCELLATION half of the same property: after a mid-stream cancel, the bytes the caller holds must be a PREFIX of what the provider wrote -- the beginning of the real answer, not a reshuffled fragment -- which is what makes a per-run 'partial text at the moment of abort' observation unnecessary for the ordering claim
 
 ### Exact tokenization and context boundaries — `PARTIAL`
 
@@ -572,7 +569,7 @@ with `TestMain` excluded because it is a package's test entry point rather than 
 |---|---|---|
 | Oracle fixtures | 119 | 67 |
 | Browser artefacts | 38 | 11 |
-| Go test functions | 713 | 76 |
+| Go test functions | 716 | 80 |
 | Workflow jobs | 33 in 9 workflow(s) | _n/a_ |
-| Rows | 22 | PASS 0, PARTIAL 20, FAIL 1, NOT_APPLICABLE 1 |
+| Rows | 22 | PASS 1, PARTIAL 19, FAIL 1, NOT_APPLICABLE 1 |
 | Session steps | 8 | 7 with a probe, 1 without, 0 sharing a runtime |
