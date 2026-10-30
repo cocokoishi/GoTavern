@@ -1108,7 +1108,21 @@ async function pinnedReads() {
                 }
                 await new Promise(resolve => setTimeout(resolve, 250));
             }
-            return { clicked: true, startedAt: start, timedOut: true, chatLength: (script.chat ?? []).length };
+            // A TIMEOUT MUST CARRY THE STATE IT SAW. The first CI run of this row failed with
+            // `timedOut: true` and nothing else, so the difference between "pinned never appended the
+            // answer", "pinned appended it somewhere else" and "the click did not start a generation"
+            // could not be told apart without another run. The snapshot below is the page's own chat
+            // after the wait, which is what a reader needs to classify the failure.
+            const snapshot = (script.chat ?? []).slice(-3).map(entry => ({
+                role: entry?.is_user ? 'user' : entry?.is_system ? 'system' : 'assistant',
+                chars: String(entry?.mes ?? '').length,
+                tail: String(entry?.mes ?? '').slice(-40),
+            }));
+            return {
+                clicked: true, startedAt: start, timedOut: true,
+                chatLength: (script.chat ?? []).length,
+                messagesAtTimeout: snapshot,
+            };
         }, { startLength: pinnedWrote.value?.length ?? read.chatLength });
         report.pinnedContinue = continueResult;
         // THE TWO HALVES OF "KEEP RUNNING", EACH ABLE TO FAIL SEPARATELY:
@@ -1126,6 +1140,14 @@ async function pinnedReads() {
         const continueReply = continueRequest?.answersWith ?? null;
         const continuedInFile = await pollUntil(() => readChatFile(savedChatName),
             chat => continueReply !== null && Array.isArray(chat) && chat.some(entry => String(entry?.mes ?? '').includes(continueReply)), 60000);
+        // THE FILE'S OWN TAIL, RECORDED ONLY WHEN THE POLL FAILED. It answers the question the row cannot
+        // answer from `answerPersisted:false` alone: did pinned write NOTHING, write the nudge without an
+        // answer, or write the answer under a name the probe is not polling?
+        const fileTail = continuedInFile.ok ? null : await readChatFile(savedChatName).then(chat => (Array.isArray(chat) ? chat.slice(-3).map(entry => ({
+            role: entry?.is_user ? 'user' : entry?.is_system ? 'system' : 'assistant',
+            chars: String(entry?.mes ?? '').length,
+            tail: String(entry?.mes ?? '').slice(-40),
+        })) : chat)).catch(error => `unreadable: ${String(error?.message ?? error).slice(0, 120)}`);
         step('pinnedContinued',
             continueRequest !== null
                 && continueRequest.carriesMarkers.first === true
@@ -1138,6 +1160,7 @@ async function pinnedReads() {
                 messageCount: continueRequest?.messageCount ?? null,
                 answerPersisted: continuedInFile.ok,
                 answersWith: continueReply,
+                chatFileTail: fileTail,
                 allRequests: peer.requests.map(entry => ({ type: entry.generationType, markers: entry.carriesMarkers, answersWith: entry.answersWith })),
             });
 
