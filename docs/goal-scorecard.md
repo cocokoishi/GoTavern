@@ -1,6 +1,6 @@
 # The evidence ledger: one row per user question, and the run that proves it
 
-Describes: commit `e2f7422` (`main`, 2026-10-29). Every run cited below judged a commit that is an
+Describes: commit `1255b29` (`main`, 2026-10-29). Every run cited below judged a commit that is an
 ancestor of it -- most of them `913e3c5` itself -- and every commit after it is documentation. This file replaces a ledger whose citations named commits
 that the 2026-10-29 history rewrite orphaned; §0 records why that made every citation inadmissible
 rather than merely old.
@@ -96,10 +96,14 @@ Evidence the repository cannot produce yet, with the missing thing named:
 ### 2.4 Harness failure
 The measurement, not the product, is wrong. Separate because a harness defect read as a product
 finding sends a lane to change correct code (`AGENTS.md` rule 10). Two were found and closed this
-round: the helper-variable legs compared captures the driver had deliberately made differ, staged a
-global clause it never sent, and let the pinned extension auto-update itself off the pin; and the
-Q21 probe could exit 0 without judging. Both are now gated (`tests/oracle/q21/judge-handback.mjs`,
-the frozen extension origin, the `offIsTheControl` and `restartLegIsReadOnly` guards).
+round, and a third class was found by a gate that did not exist until this round: the helper-variable
+legs compared captures the driver had deliberately made differ, staged a global clause it never sent, and
+let the pinned extension auto-update itself off the pin; the Q21 probe could exit 0 without judging; and
+`go test -race` -- which CANNOT run on the development host, so it had never run anywhere -- found seven
+data races in the in-process fixture peers, where a handler writes `peer.seen` under a mutex while the
+test reads it without one. All three are now gated: `tests/oracle/q21/judge-handback.mjs`, the frozen
+extension origin, the `offIsTheControl` and `restartLegIsReadOnly` guards, and the `race` job in
+`ci.yml` (rule 104), which is green with the peers reading through a locked `recorded()` accessor.
 
 ### 2.5 Explicit boundary
 A behaviour the product will not have, decided rather than pending:

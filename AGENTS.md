@@ -1652,6 +1652,24 @@ rather than by review.
      was never checked, the comparison is the first thing to do, not the fifth.
      The corollary is the same discipline as 102 one layer down: 102 says a guard lives in several places; this
      says the VALUE a guard reads crosses a boundary between two artefacts, and the boundary is where they disagree.
+
+104. **THE RACE DETECTOR CANNOT RUN ON THE DEVELOPMENT HOST, SO IT RUNS IN CI — AND WHAT IT FINDS IN A TEST PEER IS
+     STILL A DEFECT.** Measured 2026-10-29 on windows/arm64: `go test -race` answers "-race is not supported on
+     windows/arm64". Before that day NO gate had ever run it, so the whole tree's concurrency was unverified by
+     construction. `ci.yml`'s `race` job now runs `go test -race -count=1` over the packages that own shared mutable
+     state (`internal/server`, `internal/outbound`, `internal/fsretry`, `internal/startup`, `tests/egressguard`), with
+     CGO on in that job only, because `-race` needs it on linux/amd64 while every artifact stays `CGO_ENABLED=0`.
+     Its first two executions found SEVEN findings, all in TEST code and all one shape: an in-process `httptest`
+     peer's handler records each request into `peer.seen` under `peer.mu`, and the test then reads `peer.seen`
+     directly. There is no happens-before edge the detector can see between the handler goroutine's write and the
+     test goroutine's read -- crossing a socket is not a Go synchronisation primitive -- so a request still in flight
+     at subtest cleanup, or a handler that outlives its test, appends while the assertion is reading. The fix is a
+     `recorded()` accessor that copies the slice under the same mutex, used at every read site; a locking accessor
+     called from inside an already-locked region would deadlock, so those sites keep using the mutex directly.
+     Two consequences to apply. A peer's slice is SHARED STATE, not test-local data: treat every fixture peer like a
+     production cache. And a red from this job is never "just tests" -- it means the measurement could have reported
+     a value that was being changed underneath it, which is the same class as a guard reading a field the producer
+     does not write (rule 103). Fix the harness, keep the gate, and never disable the detector to get green.
 ## The collaboration and privacy contract (current, 2026-10-26)
 
 This section states how work on this repository is organised NOW. Where it conflicts with an older sentence

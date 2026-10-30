@@ -1570,6 +1570,10 @@ func agentsCitationNumbering() map[string][]string {
 		"## Verification rules added 2026-10-27 (from a day of lanes, each with its measurement)": {
 			"58", "59", "60", "61", "62", "63", "64", "65", "66", "67", "68", "69", "70", "71", "72", "73", "74", "75",
 			"76", "77", "78", "79", "80", "81", "82", "83", "84", "85", "86", "87", "88", "89", "90", "91", "92", "93", "94", "95", "96", "97", "98", "99", "100", "101", "102", "103",
+			// 104 was appended with the race gate: the detector cannot run on windows/arm64, so its first
+			// CI executions are the only evidence this tree's concurrency has ever had, and they found
+			// seven findings in test peers. Adding a rule means adding its number here in the SAME change.
+			"104",
 		},
 	}
 }
