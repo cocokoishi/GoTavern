@@ -167,7 +167,7 @@ func TestBackendsTextgenGenerateMatchesPinnedOracle(t *testing.T) {
 			statuses[response.Code]++
 			if response.Code != scenario.Response.Status {
 				t.Fatalf("%s: status = %d, pinned %d (body %q; peer saw %v)",
-					label, response.Code, scenario.Response.Status, response.Body.String(), peerSummary(peer.seen))
+					label, response.Code, scenario.Response.Status, response.Body.String(), peerSummary(peer.recorded()))
 			}
 			if scenario.ResponseShape != "" {
 				// The pinned body is V8 engine text (a property-read or JSON.parse message), so the
@@ -188,11 +188,11 @@ func TestBackendsTextgenGenerateMatchesPinnedOracle(t *testing.T) {
 				}
 			}
 
-			if len(peer.seen) != len(scenario.Outbound) {
-				t.Fatalf("%s: peer received %d requests, pinned %d (%v)", label, len(peer.seen), len(scenario.Outbound), peerSummary(peer.seen))
+			if len(peer.recorded()) != len(scenario.Outbound) {
+				t.Fatalf("%s: peer received %d requests, pinned %d (%v)", label, len(peer.recorded()), len(scenario.Outbound), peerSummary(peer.recorded()))
 			}
 			for index, recorded := range scenario.Outbound {
-				seen := peer.seen[index]
+				seen := peer.recorded()[index]
 				if seen.Method != recorded.Method {
 					t.Fatalf("%s: request %d method = %s, pinned %s", label, index, seen.Method, recorded.Method)
 				}

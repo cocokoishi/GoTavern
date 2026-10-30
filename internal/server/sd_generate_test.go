@@ -178,6 +178,18 @@ type sdGeneratePeer struct {
 	seen   []sdSeenRequest
 }
 
+// recorded returns a COPY of the requests this peer has answered, taken under the same mutex its handler
+// writes with. Reading peer.seen directly from test code is a data race the CI race job found on
+// 2026-10-29: the handler records a request before it answers, the test reads the slice after the response
+// arrives, and those two orders are not ordered by anything the detector can see -- so a late or leaked
+// handler from the previous subtest can be appended while the test is reading, and the resulting race is
+// not theoretical.
+func (peer *sdGeneratePeer) recorded() []sdSeenRequest {
+	peer.mu.Lock()
+	defer peer.mu.Unlock()
+	return append([]sdSeenRequest(nil), peer.seen...)
+}
+
 // newSDGeneratePeer replays the scenario's rule list. A provider response that carries a fetchable URL in
 // `data[0].url` gets a SECOND rule pointed at this listener, because that request leaves the provider seam
 // and must still land on the controlled peer (AGENTS.md rule 14).
@@ -396,23 +408,23 @@ func TestSDGenerateRoutesMatchPinnedOracle(t *testing.T) {
 			response := postSecretsRoute(t, handler, scenario.Route, requestBody)
 			statuses[response.Code]++
 			if response.Code != scenario.Response.Status {
-				t.Fatalf("%s: status = %d, want %d (body %q; peer saw %v)", label, response.Code, scenario.Response.Status, response.Body.String(), peerSummary(peer.seen))
+				t.Fatalf("%s: status = %d, want %d (body %q; peer saw %v)", label, response.Code, scenario.Response.Status, response.Body.String(), peerSummary(peer.recorded()))
 			}
 			assertPinnedHeaders(t, response.Header(), scenario.Response.Headers)
 			if got := normalizeSdSeed(response.Body.String()); got != normalizeSdSeed(scenario.Response.BodyText) {
 				t.Fatalf("%s: body = %q, pinned %q", label, got, scenario.Response.BodyText)
 			}
 			if len(scenario.Outbound) == 0 {
-				if len(peer.seen) != 0 {
+				if len(peer.recorded()) != 0 {
 					t.Fatalf("%s: Go reached the peer, the pinned handler did not", label)
 				}
 				return
 			}
-			if len(peer.seen) != len(scenario.Outbound) {
-				t.Fatalf("%s: peer received %d requests, pinned %d", label, len(peer.seen), len(scenario.Outbound))
+			if len(peer.recorded()) != len(scenario.Outbound) {
+				t.Fatalf("%s: peer received %d requests, pinned %d", label, len(peer.recorded()), len(scenario.Outbound))
 			}
 			for index, recorded := range scenario.Outbound {
-				seen := peer.seen[index]
+				seen := peer.recorded()[index]
 				if seen.Method != recorded.Method {
 					t.Fatalf("%s: request %d method = %s, pinned %s", label, index, seen.Method, recorded.Method)
 				}

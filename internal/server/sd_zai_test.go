@@ -217,11 +217,21 @@ func (peer *sdZaiPeer) matches(index int, target string) bool {
 	return false
 }
 
+// recorded returns a COPY of the requests this peer answered, taken under the mutex its handler writes
+// with. Reading peer.seen from test code without it is a data race: the handler records before it answers,
+// the test reads after the response arrives, and a late or leaked handler from the previous subtest can
+// append in between (found by the CI race job, 2026-10-29).
+func (peer *sdZaiPeer) recorded() []sdZaiSeen {
+	peer.mu.Lock()
+	defer peer.mu.Unlock()
+	return append([]sdZaiSeen(nil), peer.seen...)
+}
+
 func (peer *sdZaiPeer) summary() []string {
 	peer.mu.Lock()
 	defer peer.mu.Unlock()
-	result := make([]string, 0, len(peer.seen))
-	for _, entry := range peer.seen {
+	result := make([]string, 0, len(peer.recorded()))
+	for _, entry := range peer.recorded() {
 		result = append(result, entry.Method+" "+entry.Target)
 	}
 	return result
@@ -329,11 +339,11 @@ func TestSDZaiRoutesMatchPinnedOracle(t *testing.T) {
 			}
 			// The request COUNT first, and named: for a refusal it is the observation, for the video route
 			// it is the poll count.
-			if len(peer.seen) != len(scenario.Outbound) {
-				t.Fatalf("%s: peer received %d request(s), pinned %d (peer saw %v)", label, len(peer.seen), len(scenario.Outbound), peer.summary())
+			if len(peer.recorded()) != len(scenario.Outbound) {
+				t.Fatalf("%s: peer received %d request(s), pinned %d (peer saw %v)", label, len(peer.recorded()), len(scenario.Outbound), peer.summary())
 			}
 			for index, recorded := range scenario.Outbound {
-				seen := peer.seen[index]
+				seen := peer.recorded()[index]
 				if seen.Method != recorded.Method {
 					t.Fatalf("%s: request %d method = %s, pinned %s", label, index, seen.Method, recorded.Method)
 				}
@@ -392,7 +402,7 @@ func TestSDZaiRefusalNeverFetchesTheProviderURL(t *testing.T) {
 		if response.Code != http.StatusInternalServerError {
 			t.Fatalf("%s: status = %d, want 500", label, response.Code)
 		}
-		if len(peer.seen) != 1 {
+		if len(peer.recorded()) != 1 {
 			t.Fatalf("%s: the provider URL was FETCHED (%v); a refused URL must never produce a second request", label, peer.summary())
 		}
 	}

@@ -136,7 +136,7 @@ func TestSDComfyGenerateRoutesMatchPinnedOracle(t *testing.T) {
 			routes[scenario.Route]++
 			if response.Code != scenario.Response.Status {
 				t.Fatalf("%s: status = %d, pinned %d (body %q; peer saw %v)",
-					label, response.Code, scenario.Response.Status, response.Body.String(), peerSummary(peer.seen))
+					label, response.Code, scenario.Response.Status, response.Body.String(), peerSummary(peer.recorded()))
 			}
 			if scenario.ResponseShape != nil {
 				// The pinned body is a V8 engine message whose text is engine-version specific, so the
@@ -158,12 +158,12 @@ func TestSDComfyGenerateRoutesMatchPinnedOracle(t *testing.T) {
 				}
 			}
 
-			if len(peer.seen) != len(scenario.Outbound) {
+			if len(peer.recorded()) != len(scenario.Outbound) {
 				t.Fatalf("%s: peer received %d requests, pinned %d (%v; recorded %v)",
-					label, len(peer.seen), len(scenario.Outbound), peerSummary(peer.seen), sdComfyRecordedSummary(scenario.Outbound))
+					label, len(peer.recorded()), len(scenario.Outbound), peerSummary(peer.recorded()), sdComfyRecordedSummary(scenario.Outbound))
 			}
 			for index, recorded := range scenario.Outbound {
-				seen := peer.seen[index]
+				seen := peer.recorded()[index]
 				if seen.Method != recorded.Method {
 					t.Fatalf("%s: request %d method = %s, pinned %s", label, index, seen.Method, recorded.Method)
 				}

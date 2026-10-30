@@ -321,11 +321,21 @@ func (peer *sdWave5Peer) matches(index int, target string) bool {
 	return false
 }
 
+// recorded returns a COPY of the requests this peer answered, taken under the mutex its handler writes
+// with. Reading peer.seen from test code without it is a data race: the handler records before it answers,
+// the test reads after the response arrives, and a late or leaked handler from the previous subtest can
+// append in between (found by the CI race job, 2026-10-29).
+func (peer *sdWave5Peer) recorded() []sdWave5Seen {
+	peer.mu.Lock()
+	defer peer.mu.Unlock()
+	return append([]sdWave5Seen(nil), peer.seen...)
+}
+
 func (peer *sdWave5Peer) summary() []string {
 	peer.mu.Lock()
 	defer peer.mu.Unlock()
-	result := make([]string, 0, len(peer.seen))
-	for _, entry := range peer.seen {
+	result := make([]string, 0, len(peer.recorded()))
+	for _, entry := range peer.recorded() {
 		result = append(result, entry.Method+" "+entry.Target)
 	}
 	return result
@@ -410,15 +420,15 @@ func TestSDGenerateWave5RoutesMatchPinnedOracle(t *testing.T) {
 			}
 			// THE POLL COUNT, asserted first among the outbound observations and named as such: a route
 			// that skipped or repeated a poll fails here with a message about the loop.
-			if len(peer.seen) != len(scenario.Outbound) {
+			if len(peer.recorded()) != len(scenario.Outbound) {
 				t.Fatalf("%s: peer received %d request(s), pinned %d - the poll count is behaviour (peer saw %v)",
-					label, len(peer.seen), len(scenario.Outbound), peer.summary())
+					label, len(peer.recorded()), len(scenario.Outbound), peer.summary())
 			}
 			if len(scenario.Outbound) == 0 {
 				return
 			}
 			for index, recorded := range scenario.Outbound {
-				seen := peer.seen[index]
+				seen := peer.recorded()[index]
 				if seen.Method != recorded.Method {
 					t.Fatalf("%s: request %d method = %s, pinned %s", label, index, seen.Method, recorded.Method)
 				}
