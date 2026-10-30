@@ -332,8 +332,13 @@ const dockerHostLookupTimeout = 2 * time.Second
 //
 // ONE ADDRESS PER NAME, exactly as pinned does: `dns.promises.lookup(entry)` without `all: true` returns a
 // single address, and :46 pushes `result.address`. A name that fails to resolve, times out or answers with no
-// address contributes nothing -- the same observable as pinned's catch block, minus the console line (see
-// docs/verification/startup-egress.md for why no output is added here).
+// address contributes nothing -- the same observable as pinned's catch block, minus the console line.
+//
+// WHY NO CONSOLE LINE IS ADDED HERE, stated instead of pointed at: pinned prints an info line on success
+// (:45) and a warning on failure (:48), and neither is reproduced, because the boot's console output is
+// compared against pinned-derived fixtures elsewhere and adding a line here would move bytes those fixtures
+// own. The consequence is stated plainly: a lookup that times out is SILENT to a user. The startup trace is
+// where such a warning belongs if it is ever wanted, and that is a parity change in its own right.
 func dockerHostWhitelistEntries() []string {
 	entries := make([]string, 0, len(dockerHostnames))
 	for _, hostname := range dockerHostnames {
