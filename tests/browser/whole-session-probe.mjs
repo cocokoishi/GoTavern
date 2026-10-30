@@ -607,6 +607,12 @@ async function drivePhase({ page, recorder, openPage, connect, readPageState, pa
     // one is pushed (:6738), so the request must NOT carry the reply it replaced. That absence is a product assertion,
     // and it is what mutation C attacks.
     const regenerateCompletionsBefore = completions().length;
+    // THE REPLY THAT IS ABOUT TO BE DELETED IS READ FROM THE PAGE HERE, NOT FROM THE VERB'S OWN `before`. Measured in
+    // this surface's first CI run: `pressRegenerate`'s `before` carries the chat LENGTH and the swipe state but NO
+    // `lastText` (that field exists only in its `after`), so `String(before.lastText ?? '')` was `''`, the
+    // "replaced text is non-empty" precondition refused, and the step went red for a reason one layer below the claim.
+    const beforeRegenerate = await readPageState();
+    const replacedText = String(beforeRegenerate.rawSequence.at(-1) ?? '');
     const regenerated = await pressRegenerate(page);
     // THE PRESS'S OWN BEFORE/AFTER ARE HOISTED, not left inside `result`: the comparator names this verb's chat length,
     // and a guard that has to know whether a field sits under `.result` is a guard that will one day read `undefined`
@@ -614,15 +620,15 @@ async function drivePhase({ page, recorder, openPage, connect, readPageState, pa
     report.browser.regenerate = {
         result: regenerated, completionsBefore: regenerateCompletionsBefore,
         before: regenerated?.before ?? null, after: regenerated?.after ?? null,
+        replacerState: { chatLength: beforeRegenerate.chatLength, lastTextLength: replacedText.length, lastText: replacedText },
     };
     if (regenerated?.pressed === true) {
         const settled = await waitForReply(page, {
             timeoutMs: 90000, requireText: true,
             peerCompletions: regenerateCompletionsBefore + 1,
-            baseline: { chatLength: regenerated.before?.chatLength ?? null, lastTextLength: String(regenerated.before?.lastText ?? '').length },
+            baseline: { chatLength: beforeRegenerate.chatLength, lastTextLength: replacedText.length },
         });
         const request = completions()[regenerateCompletionsBefore] ?? null;
-        const replacedText = String(regenerated.before?.lastText ?? '');
         report.browser.regenerate.settled = settled;
         report.browser.regenerate.request = request === null ? null : {
             index: regenerateCompletionsBefore + 1,
@@ -650,20 +656,26 @@ async function drivePhase({ page, recorder, openPage, connect, readPageState, pa
     // GROWN text at the SAME length — the opposite of regenerate's, and the reason the two verbs cannot share an
     // assertion (mutation D is what catches a driver that points at the wrong request).
     const continueCompletionsBefore = completions().length;
+    // THE SAME MEASUREMENT AS REGENERATE, one verb over: `pressContinue`'s `before` has no `lastText`, so the text the
+    // continuation must GROW is read from the page here. Without it, `beforeLength` was 0, the vacuous-pass refusal
+    // fired, and the red described the fixture rather than the product.
+    const beforeContinue = await readPageState();
+    const continuedText = String(beforeContinue.rawSequence.at(-1) ?? '');
     const continued = await pressContinue(page);
     report.browser.continue = {
         result: continued, completionsBefore: continueCompletionsBefore,
         before: continued?.before ?? null, after: continued?.after ?? null,
+        growerState: { chatLength: beforeContinue.chatLength, lastTextLength: continuedText.length, lastText: continuedText },
     };
     if (continued?.pressed === true) {
         const settled = await waitForReply(page, {
             timeoutMs: 90000, requireText: true,
             peerCompletions: continueCompletionsBefore + 1,
-            baseline: { chatLength: continued.before?.chatLength ?? null, lastTextLength: String(continued.before?.lastText ?? '').length },
+            baseline: { chatLength: beforeContinue.chatLength, lastTextLength: continuedText.length },
         });
         const afterContinue = await readPageState();
         const request = completions()[continueCompletionsBefore] ?? null;
-        const beforeLength = String(continued.before?.lastText ?? '').length;
+        const beforeLength = continuedText.length;
         const afterLength = String(afterContinue.rawSequence.at(-1) ?? '').length;
         report.browser.continue.settled = settled;
         report.browser.continue.after = afterContinue;

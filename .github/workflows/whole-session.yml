@@ -171,17 +171,21 @@ jobs:
             if [ "$subject" = "gotavern" ]; then prefix="WSG_"; else prefix="WSP_"; fi
             for phase in drive restart; do
               report="$work/legs/whole-session-$phase-$subject.json"
+              # A FAILING LEG MUST NOT ABORT THE STEP. GitHub runs `run:` blocks under `bash -e`, so the call is
+              # WRAPPED rather than merely followed by `status=$?`: measured in this workflow's first run
+              # (41014268160), where the GoTavern drive leg's red ended the step and the other THREE legs never ran --
+              # the pinned half of the differential was never recorded, and the step's own `failures` counter still
+              # read 0 because the shell died before reaching `record_failure`. A loop that reports four legs must
+              # attempt four legs.
               if [ "$subject" = "gotavern" ]; then
-                node tests/browser/whole-session-probe.mjs --phase "$phase" --data-root "$tree" \
-                  --reply-prefix "$prefix" --report "$report"
-                status=$?
+                if node tests/browser/whole-session-probe.mjs --phase "$phase" --data-root "$tree" \
+                    --reply-prefix "$prefix" --report "$report"; then status=0; else status=$?; fi
               else
                 # `run-against-pinned.mjs` boots pinned Node over the SAME tree and owns its process; it supplies
                 # PROBE_BASE_URL and PROBE_SERVER_PID, which is how the restart leg's pid can differ from the drive
                 # leg's without this workflow ever touching a process it did not spawn.
-                node tests/browser/run-against-pinned.mjs whole-session-probe.mjs -- --phase "$phase" \
-                  --data-root "$tree" --reply-prefix "$prefix" --report "$report"
-                status=$?
+                if node tests/browser/run-against-pinned.mjs whole-session-probe.mjs -- --phase "$phase" \
+                    --data-root "$tree" --reply-prefix "$prefix" --report "$report"; then status=0; else status=$?; fi
               fi
               if [ "$status" -eq 0 ]; then
                 echo "recorded the $subject/$phase leg"
