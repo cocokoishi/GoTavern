@@ -774,7 +774,8 @@
           "TestImportDomainsWhitelistDefaultsToThePinnedFourHosts",
           "TestPinnedNodeBackupsRoutes",
           "TestPinnedNodeBackupsChatGet",
-          "TestContentImportURLProviderBranchesAnswer501WithNoOutbound"
+          "TestContentImportURLProviderBranchesAnswer501WithNoOutbound",
+          "TestChatBackupRestoreRoundTripPreservesTheChat"
         ],
         "browserArtifacts": [],
         "ci": [
@@ -787,12 +788,11 @@
         "explanation": "the row's claims about content import, character export, chat/account backups and restore rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
       },
       "evidenceGap": [
-        "restore is not proven: a backup is read, but no test restores one into a tree and compares the tree",
         "REQUEST hand-back to Node is ABSENT, not partial: no route is proxied and no configuration selects an upstream. Five routes answer for themselves with ZERO outbound requests -- /api/content/importURL for chub/janitorai/pygmalion/risu/perchance (content.go:171-174), /api/content/importUUID for a non-AICC shape (content_uuid.go:146-151), and /api/image-metadata when generation is unsupported (image_metadata_get.go:71-74) -- each answering 501 and returning before any download or fetch. The negative is established by three searches: ReverseProxy has 126 hits in internal/ and cmd/ and every one is the pinned provider setting reverse_proxy from the request body; handback|hand-back|upstreamNode|proxyTo returns two test filenames and no implementation; the 18 StatusNotImplemented answers are provider-branch 501s",
         "DATA hand-back: the driver and its judge now EXIST (tests/browser/q21-data-handback.mjs drives BOTH directions; tests/oracle/q21/judge-handback.mjs names the rows each direction requires and refuses `match` on zero counts), but the claim was later judged in CI and PASSED: Browser differential 40977195387 printed `hand-back verdict: match` with both directions judged and every count non-zero (GoTavern 5/5, pinned 17/17). An earlier execution of the same judge failed on pinnedContinued's persistence wait and passed on re-run, so the probe now records the page and chat-file tails on a timeout. The claim's live state is docs/goal-scorecard.md Q21"
       ],
       "blockedBy": [],
-      "notes": "A backup nobody has restored is a file, not a backup. TWO OF THIS ROW S GAPS CLOSED 2026-10-29 by one committed test: the per-route 501 table (status + zero outbound per provider branch) and the inherited substring classifier (the chub look-alike is accepted, with a 404 control proving the assertion is discriminating). The row stays PARTIAL for the gaps that remain: no restore-into-a-tree test, and the REQUEST hand-back to Node is a recorded absence. CLOSED GAPS, moved out of evidenceGap so that field contains only OPEN gaps: CLOSED 2026-10-29 -- THE INHERITED CLASSIFIER IS NOW PINNED BY A TEST, not only recorded. The same table includes `https://chub.ai.attacker.example/...` and requires it to answer 501 (the chub branch's unimplemented status), because pinned classifies with `host.includes('chub.ai')` (AGENTS.md architecture boundary 5). A 404 there would have meant we had silently hardened a classifier and changed the compatibility claim; a weaker test would not have discriminated 'treated as chub' from 'refused by the whitelist', so the row's control (a genuinely unlisted host answering 404) sits beside it CLOSED 2026-10-29 -- THE PER-ROUTE 501 TABLE IS NOW ASSERTED, not read. `TestContentImportURLProviderBranchesAnswer501WithNoOutbound` drives `/api/content/importURL` for every provider host (chub.ai, characterhub.org, janitorai, pygmalion.chat, realm.risuai.net, perchance.org) plus a policy-refusal control, and pins BOTH halves of each branch: the STATUS (501 for not-implemented, 404 for the whitelist refusal, so the two stay distinguishable per AGENTS.md rule 17) and ZERO OUTBOUND REQUESTS, with a recording peer behind the seam so a branch that fetched before refusing would be visible as an arrival rather than as plausible data. Teeth observed: making the provider branches answer 404 turns the chub subtest red with 'POST /api/content/importURL https://chub.ai/characters/someone/a-character = 404, want 501'"
+      "notes": "A backup nobody has restored is a file, not a backup. TWO OF THIS ROW S GAPS CLOSED 2026-10-29 by one committed test: the per-route 501 table (status + zero outbound per provider branch) and the inherited substring classifier (the chub look-alike is accepted, with a 404 control proving the assertion is discriminating). The row stays PARTIAL for the gaps that remain: no restore-into-a-tree test, and the REQUEST hand-back to Node is a recorded absence. CLOSED GAPS, moved out of evidenceGap so that field contains only OPEN gaps: CLOSED 2026-10-29 -- THE INHERITED CLASSIFIER IS NOW PINNED BY A TEST, not only recorded. The same table includes `https://chub.ai.attacker.example/...` and requires it to answer 501 (the chub branch's unimplemented status), because pinned classifies with `host.includes('chub.ai')` (AGENTS.md architecture boundary 5). A 404 there would have meant we had silently hardened a classifier and changed the compatibility claim; a weaker test would not have discriminated 'treated as chub' from 'refused by the whitelist', so the row's control (a genuinely unlisted host answering 404) sits beside it CLOSED 2026-10-29 -- THE PER-ROUTE 501 TABLE IS NOW ASSERTED, not read. `TestContentImportURLProviderBranchesAnswer501WithNoOutbound` drives `/api/content/importURL` for every provider host (chub.ai, characterhub.org, janitorai, pygmalion.chat, realm.risuai.net, perchance.org) plus a policy-refusal control, and pins BOTH halves of each branch: the STATUS (501 for not-implemented, 404 for the whitelist refusal, so the two stay distinguishable per AGENTS.md rule 17) and ZERO OUTBOUND REQUESTS, with a recording peer behind the seam so a branch that fetched before refusing would be visible as an arrival rather than as plausible data. Teeth observed: making the provider branches answer 404 turns the chub subtest red with 'POST /api/content/importURL https://chub.ai/characters/someone/a-character = 404, want 501' CLOSED 2026-10-29 -- RESTORE, driven the way the pinned UI drives it. `TestChatBackupRestoreRoundTripPreservesTheChat` performs the two client-side steps of `public/scripts/chat-backups.js:73-118` against one tree: it plants a character chat and the `chat_`-prefixed backup pinned would have left, DELETES the chat, downloads the backup through `POST /api/backups/chat/download` (asserting byte equality and the Content-Disposition the browser needs), then imports those bytes through `POST /api/chats/import` with the pinned multipart field names, and asserts the restored chat file carries the backup s MESSAGES in order. Teeth observed: making the import keep only the header line turns it red with \"the restored chat s messages differ from the backup s: backup [Hello there. Hi Seraphina.] restored []\". The ranked gap list entry for this row was re-derived: restore is closed, so the ranked item is now the REQUEST hand-back absence."
     },
     {
       "id": "startup",
@@ -1045,9 +1045,9 @@
     {
       "rank": 4,
       "row": "import-export-backups",
-      "title": "Backups are read but never restored into a tree",
-      "wouldStopARealUser": "yes at the worst moment: a user restoring after data loss would find the backup unproven",
-      "evidence": "tests/oracle/sillytavern-1.19.0-backups.json compares reads only; no test restores a backup and compares the resulting tree. (The inherited host classifier that used to sit beside this item is now PINNED by TestContentImportURLProviderBranchesAnswer501WithNoOutbound)"
+      "title": "No REQUEST hand-back to Node: five content-import routes answer for themselves and no configuration selects an upstream",
+      "wouldStopARealUser": "for a user who expects GoTavern to proxy a provider import through their existing SillyTavern, yes; for the rest it is a recorded absence",
+      "evidence": "the import-export-backups row: the five provider routes are now GATED to answer 501 with zero outbound, so the absence is asserted rather than implied; what remains is that nothing can proxy them. (Restore, which used to sit beside this item, is now proven end to end by TestChatBackupRestoreRoundTripPreservesTheChat)"
     },
     {
       "rank": 5,
@@ -1102,8 +1102,8 @@
       "citedByMatrix": 11
     },
     "goTestFunctions": {
-      "inTree": 720,
-      "citedByMatrix": 84
+      "inTree": 721,
+      "citedByMatrix": 85
     },
     "workflows": {
       "inTree": 9,
