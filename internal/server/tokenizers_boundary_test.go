@@ -74,6 +74,11 @@ func tokenizerCountRoute(t *testing.T, handler http.Handler, model string, messa
 // arithmetic under test is the budget rule rather than a model's chat overhead.
 func TestContextBoundaryBudgetFlipAtRouteLevel(t *testing.T) {
 	handler := tokenizerRouteHandler(t)
+	// THE GATE RUNS BEFORE THE COMPARISON. A server that answers the pinned guesstimate instead
+	// of tokenizing exactly would make every number below an estimate's arithmetic, so the gate
+	// refuses it (naming what the server reported) rather than asserting a boundary pair against
+	// it. tokenizers_exactness_test.go owns the refusal and its own teeth.
+	requireExactTokenizerServer(t, handler)
 	const model = "llama"
 
 	// ANCHOR: every number below is measured through the route, so a shift in the route's count
