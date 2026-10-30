@@ -416,14 +416,11 @@
         "explanation": "An untrusted certificate must be refused with an error naming the TLS stage and the provider host and carrying no credential. The row previously had no gate at all for any network failure class; this test plus the DNS, connect and proxy siblings are that gate, and the artifact-level half is TestProviderTransportFailureIsCausalThroughTheShippedBinary."
       },
       "evidenceGap": [
-        "CLOSED 2026-10-29 -- THE INTERNET-SHAPED GATE. Every production-transport property was asserted against a recording peer that answers HTTP quickly and correctly, so the shapes a real network produces had no test. `internal/outbound/transport_internet_shape_test.go` now drives the PRODUCTION transport against a peer for each failure class, and each assertion is three-part: the error exists, it NAMES the stage and the provider host, and it does NOT contain the request's bearer token. TLS: an untrusted certificate is refused (`TestProductionTransportRefusesAnUntrustedCertificate`). DNS: the RFC 2606 `.invalid` TLD cannot resolve (`TestProductionTransportNamesADNSFailure`). Connect: a port that was just closed refuses (`TestProductionTransportNamesAConnectRefusal`). Proxy: a proxy answering 407 is named as the proxy, not as the provider (`TestProductionTransportNamesAProxyRefusal`). Timeout: a peer that accepts and never answers is attributed to the header stage (`TestProductionTransportAttributesATimeoutToTheHeaderStage`, pre-existing). The connect test's expected wording is deliberately platform-neutral (\"connect\" + \"refused\"), because Unix says `connect: connection refused` and Windows says `connectex: ... actively refused it`, and a host-specific phrase would have made the gate untransportable",
-        "CLOSED 2026-10-29 -- THROUGH THE SHIPPED ARTIFACT, which is what AGENTS.md 23 and 35 require. `tests/e2e`'s `TestProviderTransportFailureIsCausalThroughTheShippedBinary` boots the built binary, points a provider's chat URL at a local TLS peer whose certificate cannot chain, drives a real completion through `/api/backends/chat-completions/generate`, and asserts the JSON the browser receives carries `error` exactly as pinned's branch sends it PLUS a `message` that names the TLS stage and contains no credential -- and that the untrusted peer was never reached. THE TEETH WERE OBSERVED: removing the `message` member from `pinnedChatCompletionErrorFlagWithCause` turns it red with `the failure body carries no message, so the user sees no cause (this is the P0-A shape): {\"error\":true}` (exit 1); the byte copy was restored and the test went green",
-        "CLOSED 2026-10-29 -- THE STALE DOCUMENT. `docs/network-egress.md` §2 presented the pre-split `raw.go` measurements as current and is now restated: a status table maps each of D1-D8 to the implementation and the test that would go red, the old table is kept as HISTORY with a banner saying it is superseded, and a paragraph names what is still NOT proven (the differential corpus still runs against our own recording peer)",
         "THE DEEPSEEK CLAUSE IS NOW RECORDED AS THE DECLARED SUPERSET IT IS. Pinned's catch discards the cause (`{error:true}`), so a causal message there would have been impossible without diverging. GoTavern diverges deliberately and declares it (`internal/server/chat_completions.go:141-154`): `error` stays exactly what pinned sends and a `message` member is added. The artifact test asserts BOTH halves -- the pinned member unchanged and the additive one present -- so the divergence cannot silently become a replacement",
         "STILL OPEN, AND STATED RATHER THAN IMPLIED: every provider differential in this corpus runs against our own recording peer, and AGENTS.md 22 makes that `unverified` for production purposes. The live canary that reaches a real provider (`scripts/live-canary.mjs`, `scripts/deepseek-canary.mjs`) needs a credential and is not part of the default suite, so \"a user's own provider, through a user's own proxy\" is exercised by the user and by nothing here"
       ],
       "blockedBy": [],
-      "notes": "RE-DERIVED 2026-10-29: FAIL -> PARTIAL. The FAIL was for an absent gate: no test asserted a causala error text for a DNS, connect, TLS, proxy or timeout failure while proving no secret was printed, and every measurement came from a recording peer that cannot produce any of those shapes. Four new peers (untrusted certificate, .invalid host, closed port, 407 proxy) plus the pre-existing stalled-peer test are that gate at the transport, and a shipped-binary test asserts the same taxonomy reaches the browser payload with no credential. The row is PARTIAL rather than PASS because the corpus still runs against our own peer and the live canary needs a credential."
+      "notes": "RE-DERIVED 2026-10-29: FAIL -> PARTIAL. The FAIL was for an absent gate: no test asserted a causala error text for a DNS, connect, TLS, proxy or timeout failure while proving no secret was printed, and every measurement came from a recording peer that cannot produce any of those shapes. Four new peers (untrusted certificate, .invalid host, closed port, 407 proxy) plus the pre-existing stalled-peer test are that gate at the transport, and a shipped-binary test asserts the same taxonomy reaches the browser payload with no credential. The row is PARTIAL rather than PASS because the corpus still runs against our own peer and the live canary needs a credential. CLOSED GAPS, moved out of evidenceGap so that field contains only OPEN gaps: CLOSED 2026-10-29 -- THE INTERNET-SHAPED GATE. Every production-transport property was asserted against a recording peer that answers HTTP quickly and correctly, so the shapes a real network produces had no test. `internal/outbound/transport_internet_shape_test.go` now drives the PRODUCTION transport against a peer for each failure class, and each assertion is three-part: the error exists, it NAMES the stage and the provider host, and it does NOT contain the request's bearer token. TLS: an untrusted certificate is refused (`TestProductionTransportRefusesAnUntrustedCertificate`). DNS: the RFC 2606 `.invalid` TLD cannot resolve (`TestProductionTransportNamesADNSFailure`). Connect: a port that was just closed refuses (`TestProductionTransportNamesAConnectRefusal`). Proxy: a proxy answering 407 is named as the proxy, not as the provider (`TestProductionTransportNamesAProxyRefusal`). Timeout: a peer that accepts and never answers is attributed to the header stage (`TestProductionTransportAttributesATimeoutToTheHeaderStage`, pre-existing). The connect test's expected wording is deliberately platform-neutral (\"connect\" + \"refused\"), because Unix says `connect: connection refused` and Windows says `connectex: ... actively refused it`, and a host-specific phrase would have made the gate untransportable CLOSED 2026-10-29 -- THROUGH THE SHIPPED ARTIFACT, which is what AGENTS.md 23 and 35 require. `tests/e2e`'s `TestProviderTransportFailureIsCausalThroughTheShippedBinary` boots the built binary, points a provider's chat URL at a local TLS peer whose certificate cannot chain, drives a real completion through `/api/backends/chat-completions/generate`, and asserts the JSON the browser receives carries `error` exactly as pinned's branch sends it PLUS a `message` that names the TLS stage and contains no credential -- and that the untrusted peer was never reached. THE TEETH WERE OBSERVED: removing the `message` member from `pinnedChatCompletionErrorFlagWithCause` turns it red with `the failure body carries no message, so the user sees no cause (this is the P0-A shape): {\"error\":true}` (exit 1); the byte copy was restored and the test went green CLOSED 2026-10-29 -- THE STALE DOCUMENT. `docs/network-egress.md` §2 presented the pre-split `raw.go` measurements as current and is now restated: a status table maps each of D1-D8 to the implementation and the test that would go red, the old table is kept as HISTORY with a banner saying it is superseded, and a paragraph names what is still NOT proven (the differential corpus still runs against our own recording peer)"
     },
     {
       "id": "providers-per-source-wire",
@@ -776,7 +773,8 @@
         "tests": [
           "TestImportDomainsWhitelistDefaultsToThePinnedFourHosts",
           "TestPinnedNodeBackupsRoutes",
-          "TestPinnedNodeBackupsChatGet"
+          "TestPinnedNodeBackupsChatGet",
+          "TestContentImportURLProviderBranchesAnswer501WithNoOutbound"
         ],
         "browserArtifacts": [],
         "ci": [
@@ -790,13 +788,11 @@
       },
       "evidenceGap": [
         "restore is not proven: a backup is read, but no test restores one into a tree and compares the tree",
-        "the inherited substring-matching host classifier (ARCHITECTURE.md boundary 5) is recorded as inherited but no test pins its acceptance of chub.ai.attacker.example",
         "REQUEST hand-back to Node is ABSENT, not partial: no route is proxied and no configuration selects an upstream. Five routes answer for themselves with ZERO outbound requests -- /api/content/importURL for chub/janitorai/pygmalion/risu/perchance (content.go:171-174), /api/content/importUUID for a non-AICC shape (content_uuid.go:146-151), and /api/image-metadata when generation is unsupported (image_metadata_get.go:71-74) -- each answering 501 and returning before any download or fetch. The negative is established by three searches: ReverseProxy has 126 hits in internal/ and cmd/ and every one is the pinned provider setting reverse_proxy from the request body; handback|hand-back|upstreamNode|proxyTo returns two test filenames and no implementation; the 18 StatusNotImplemented answers are provider-branch 501s",
-        "DATA hand-back: the driver and its judge now EXIST (tests/browser/q21-data-handback.mjs drives BOTH directions; tests/oracle/q21/judge-handback.mjs names the rows each direction requires and refuses `match` on zero counts), but the claim was later judged in CI and PASSED: Browser differential 40977195387 printed `hand-back verdict: match` with both directions judged and every count non-zero (GoTavern 5/5, pinned 17/17). An earlier execution of the same judge failed on pinnedContinued's persistence wait and passed on re-run, so the probe now records the page and chat-file tails on a timeout. The claim's live state is docs/goal-scorecard.md Q21",
-        "NO TEST YET PINS THE PER-ROUTE 501 TABLE: the five routes are verified in source rather than asserted, so this is a recorded boundary awaiting its gate"
+        "DATA hand-back: the driver and its judge now EXIST (tests/browser/q21-data-handback.mjs drives BOTH directions; tests/oracle/q21/judge-handback.mjs names the rows each direction requires and refuses `match` on zero counts), but the claim was later judged in CI and PASSED: Browser differential 40977195387 printed `hand-back verdict: match` with both directions judged and every count non-zero (GoTavern 5/5, pinned 17/17). An earlier execution of the same judge failed on pinnedContinued's persistence wait and passed on re-run, so the probe now records the page and chat-file tails on a timeout. The claim's live state is docs/goal-scorecard.md Q21"
       ],
       "blockedBy": [],
-      "notes": "A backup nobody has restored is a file, not a backup."
+      "notes": "A backup nobody has restored is a file, not a backup. TWO OF THIS ROW S GAPS CLOSED 2026-10-29 by one committed test: the per-route 501 table (status + zero outbound per provider branch) and the inherited substring classifier (the chub look-alike is accepted, with a 404 control proving the assertion is discriminating). The row stays PARTIAL for the gaps that remain: no restore-into-a-tree test, and the REQUEST hand-back to Node is a recorded absence. CLOSED GAPS, moved out of evidenceGap so that field contains only OPEN gaps: CLOSED 2026-10-29 -- THE INHERITED CLASSIFIER IS NOW PINNED BY A TEST, not only recorded. The same table includes `https://chub.ai.attacker.example/...` and requires it to answer 501 (the chub branch's unimplemented status), because pinned classifies with `host.includes('chub.ai')` (AGENTS.md architecture boundary 5). A 404 there would have meant we had silently hardened a classifier and changed the compatibility claim; a weaker test would not have discriminated 'treated as chub' from 'refused by the whitelist', so the row's control (a genuinely unlisted host answering 404) sits beside it CLOSED 2026-10-29 -- THE PER-ROUTE 501 TABLE IS NOW ASSERTED, not read. `TestContentImportURLProviderBranchesAnswer501WithNoOutbound` drives `/api/content/importURL` for every provider host (chub.ai, characterhub.org, janitorai, pygmalion.chat, realm.risuai.net, perchance.org) plus a policy-refusal control, and pins BOTH halves of each branch: the STATUS (501 for not-implemented, 404 for the whitelist refusal, so the two stay distinguishable per AGENTS.md rule 17) and ZERO OUTBOUND REQUESTS, with a recording peer behind the seam so a branch that fetched before refusing would be visible as an arrival rather than as plausible data. Teeth observed: making the provider branches answer 404 turns the chub subtest red with 'POST /api/content/importURL https://chub.ai/characters/someone/a-character = 404, want 501'"
     },
     {
       "id": "startup",
@@ -844,13 +840,11 @@
         "explanation": "A boot over a stock layout that hangs fails this test inside startBounded's bound, printing the bound, the tree diff and the goroutine stacks. It is the row's own gate for P0-B and it exists at HEAD; the row previously claimed no gate existed, which is why the status was FAIL and is now PARTIAL."
       },
       "evidenceGap": [
-        "P0-B's bounded-boot gate NOW EXISTS and passes: internal/app/startup_p0b_test.go drives a stock tree in the working directory (`TestP0BStockTreeInWorkingDirectoryStarts`), a foreign working directory on a fresh tree (`TestP0BForeignWorkingDirectoryStartsOnAFreshTree`, which also asserts nothing is left in the launch directory), a config lock held by another process (`TestP0BConfigLockHeldByAnotherProcessFailsWithNamedError`), a stale lock file (`TestP0BStaleConfigLockFileDoesNotBlockBoot`), legacy keys (`TestP0BLegacyKeysBootBounded`) and two concurrent boots (`TestP0BTwoConcurrentBootsDoNotHang`). Every one goes through `startBounded`, whose failure names the bound, the tree changes and the goroutine stacks -- so a hang goes red with the wait named, which is what this row asked for. The earlier text claiming no such gate existed was STALE and is corrected here rather than kept",
         "NO GATE ASSERTS THAT STARTUP MAKES NO NON-ESSENTIAL NETWORK ACCESS (AGENTS.md 25). The startup path is documented as local-only with one bounded docker-hostname lookup, and no test fails if a future change adds an outbound call during boot. Closing it needs a seam (a recording dialer or proxy the boot must not touch), not a stronger assertion on an existing one",
-        "STARTUP-DIFFERENTIAL FIXTURES STILL START FROM FRESH OR MIGRATED RUNTIME ROOTS, never from a populated stock SillyTavern tree. A populated tree IS covered by two other gates -- `tests/e2e/longlived_test.go` synthesises one in Go and the packaged drop-in qualification boots an archive against a stock tree -- but neither is a startup-differential fixture, so the startup surface's own corpus does not include one",
-        "DUPLICATE-KEY CONFIG: CLOSED 2026-10-29. pinned refuses it by name and does NOT rewrite the file (measured, tests/oracle/sillytavern-1.19.0-config-duplicate-key.json: exit 1, the yaml message with code DUPLICATE_KEY, then 'FATAL: Failed to read config.yaml. Please check the file for syntax errors.', and the config's bytes and mtime IDENTICAL before and after; the control -- the same document minus the duplicate -- boots AND is migrated 25 -> 3310 bytes). GoTavern used to ACCEPT a duplicate key, a divergence in the permissive direction; it now reproduces the refusal, asserted twice: `TestDuplicateKeyIsRejectedAsPinnedRecords` replays the recording against the config layer (exact message including the trimmed source frame and the duplicate's line/column, unchanged sha256, control migrated) and `TestDuplicateKeyConfigExitsOneWithPinnedLines` runs the shipped binary and asserts exit 1, the recorded stderr ORDER, the absence of a 'gotavern:' prefix or a fake Node stack, and an untouched file"
+        "STARTUP-DIFFERENTIAL FIXTURES STILL START FROM FRESH OR MIGRATED RUNTIME ROOTS, never from a populated stock SillyTavern tree. A populated tree IS covered by two other gates -- `tests/e2e/longlived_test.go` synthesises one in Go and the packaged drop-in qualification boots an archive against a stock tree -- but neither is a startup-differential fixture, so the startup surface's own corpus does not include one"
       ],
       "blockedBy": [],
-      "notes": "RE-DERIVED 2026-10-29. The row was FAIL on a premise that is false at HEAD: it said no bounded-boot gate existed, and internal/app/startup_p0b_test.go has seven such gates, all passing, all through startBounded. Two gaps are real and remain: no gate asserts startup makes no non-essential network access, and the startup-differential fixtures still begin from fresh or migrated roots rather than a populated stock tree (a populated tree is covered by the longlived e2e leg and the packaged drop-in gate, not by a startup fixture). The duplicate-key divergence recorded here is closed and gated at both the config layer and the shipped binary."
+      "notes": "RE-DERIVED 2026-10-29. The row was FAIL on a premise that is false at HEAD: it said no bounded-boot gate existed, and internal/app/startup_p0b_test.go has seven such gates, all passing, all through startBounded. Two gaps are real and remain: no gate asserts startup makes no non-essential network access, and the startup-differential fixtures still begin from fresh or migrated roots rather than a populated stock tree (a populated tree is covered by the longlived e2e leg and the packaged drop-in gate, not by a startup fixture). The duplicate-key divergence recorded here is closed and gated at both the config layer and the shipped binary. CLOSED 2026-10-29 -- P0-B's bounded-boot gate NOW EXISTS and passes: internal/app/startup_p0b_test.go drives a stock tree in the working directory (`TestP0BStockTreeInWorkingDirectoryStarts`), a foreign working directory on a fresh tree (`TestP0BForeignWorkingDirectoryStartsOnAFreshTree`, which also asserts nothing is left in the launch directory), a config lock held by another process (`TestP0BConfigLockHeldByAnotherProcessFailsWithNamedError`), a stale lock file (`TestP0BStaleConfigLockFileDoesNotBlockBoot`), legacy keys (`TestP0BLegacyKeysBootBounded`) and two concurrent boots (`TestP0BTwoConcurrentBootsDoNotHang`). Every one goes through `startBounded`, whose failure names the bound, the tree changes and the goroutine stacks -- so a hang goes red with the wait named, which is what this row asked for. The earlier text claiming no such gate existed was STALE and is corrected here rather than kept CLOSED 2026-10-29 -- DUPLICATE-KEY CONFIG: CLOSED 2026-10-29. pinned refuses it by name and does NOT rewrite the file (measured, tests/oracle/sillytavern-1.19.0-config-duplicate-key.json: exit 1, the yaml message with code DUPLICATE_KEY, then 'FATAL: Failed to read config.yaml. Please check the file for syntax errors.', and the config's bytes and mtime IDENTICAL before and after; the control -- the same document minus the duplicate -- boots AND is migrated 25 -> 3310 bytes). GoTavern used to ACCEPT a duplicate key, a divergence in the permissive direction; it now reproduces the refusal, asserted twice: `TestDuplicateKeyIsRejectedAsPinnedRecords` replays the recording against the config layer (exact message including the trimmed source frame and the duplicate's line/column, unchanged sha256, control migrated) and `TestDuplicateKeyConfigExitsOneWithPinnedLines` runs the shipped binary and asserts exit 1, the recorded stderr ORDER, the absence of a 'gotavern:' prefix or a fake Node stack, and an untouched file"
     },
     {
       "id": "packaging-release",
@@ -1029,73 +1023,73 @@
   "gaps": [
     {
       "rank": 1,
-      "title": "The provider transport cannot reach a real provider, and every test proves it can reach our mock",
-      "row": "providers-transport",
-      "wouldStopARealUser": "yes - it already did (P0-A): the user cannot chat at all",
-      "evidence": "docs/network-egress.md §2 (eight unmet transport requirements); AGENTS.md 22, 29, 30; no test in the tree opens a socket to a hostname it does not control"
+      "row": "whole-session-e2e",
+      "title": "No whole-session differential exists: eight steps, eight experiments, zero sessions",
+      "wouldStopARealUser": "indirectly - it is the evidence layer whose absence let all three P0s through",
+      "evidence": "session.steps table: every probe sets sharesRuntimeWithOtherSteps=false; a chat saved and reloaded in one tree is gated nowhere; regenerate and continue have their own comparators but not inside the one session leg that saves and reloads"
     },
     {
       "rank": 2,
-      "title": "A boot inside a real SillyTavern tree hangs, and no gate bounds a startup wait",
-      "row": "startup",
-      "wouldStopARealUser": "yes - it already did (P0-B): the server never becomes usable",
-      "evidence": "docs/startup-state-machine.md §2 (unbounded flock/resolver/sleep/join); AGENTS.md 24; every startup fixture starts from a fresh root"
+      "row": "packaging-release",
+      "title": "The stock tree a user brings is qualified for the Linux archive only, and from a tree derived from the pinned source",
+      "wouldStopARealUser": "yes for an existing SillyTavern user, which is the entire target audience",
+      "evidence": "release-qualification.yml#qualify-dropin-linux and dropin-qualification.yml#dropin-current-head unpack an archive into a stock tree and boot it (both layouts, both config modes); what remains is that only the Linux archive is executed and that scripts/build-stock-tree.sh DERIVES the tree from upstream/** rather than recording a pinned Node run"
     },
     {
       "rank": 3,
-      "title": "Extension updates happen without being asked for; no gate asserts the decision to update",
-      "row": "extensions",
-      "wouldStopARealUser": "yes - it already did (P0-C): a user's extensions changed under them",
-      "evidence": "AGENTS.md 26 (ambiguous input resolves to OFF) has no test; the extension fixtures cover serving and discovery, not the update decision"
+      "row": "world-info",
+      "title": "World-info slot ORDERING (before / after / atDepth) into the provider request is not asserted for a stock preset",
+      "wouldStopARealUser": "no, but it silently changes what the model is told, which is the product promise",
+      "evidence": "the world-info row: activation into an assembled prompt is proven by the preset and Author s-Note differentials, but no gate asserts that all three slot positions reach the provider in pinned order for a stock preset"
     },
     {
       "rank": 4,
-      "title": "No whole-session differential exists: eight steps, eight experiments, zero sessions",
-      "row": "whole-session-e2e",
-      "wouldStopARealUser": "indirectly - it is the evidence layer whose absence let all three P0s through",
-      "evidence": "session.steps table: every probe sets sharesRuntimeWithOtherSteps=false; a chat saved and reloaded in one tree is gated nowhere"
+      "row": "import-export-backups",
+      "title": "Backups are read but never restored into a tree",
+      "wouldStopARealUser": "yes at the worst moment: a user restoring after data loss would find the backup unproven",
+      "evidence": "tests/oracle/sillytavern-1.19.0-backups.json compares reads only; no test restores a backup and compares the resulting tree. (The inherited host classifier that used to sit beside this item is now PINNED by TestContentImportURLProviderBranchesAnswer501WithNoOutbound)"
     },
     {
       "rank": 5,
-      "title": "The stock tree a user brings is qualified for the Linux archive only, and from a tree derived from the pinned source",
-      "row": "packaging-release",
-      "wouldStopARealUser": "yes for an existing SillyTavern user, which is the entire target audience",
-      "evidence": "release-qualification.yml#qualify-dropin-linux and dropin-qualification.yml#dropin-current-head unpack an archive into a stock tree and boot it (both layouts, both config modes), so the empty-root half of this gap is closed; what remains is that only the Linux archive is executed (no .zip, no Start.cmd) and that scripts/build-stock-tree.sh DERIVES the tree from upstream/** rather than recording a pinned Node run (docs/dropin-qualification.md, Limits)"
+      "row": "tokenization",
+      "title": "Context-boundary tokenization is inherited with pinned s guesstimate fallback, so an inexact count is indistinguishable from an exact one",
+      "wouldStopARealUser": "no, but AGENTS.md 9 makes exact tokenization mandatory where marked compatible",
+      "evidence": "docs/tokenizer-parity-plan.md:141: with no tokenizer tree pinned answers 200 with a guesstimate and no ids; GoTavern reproduces the weakness deliberately (boundary 5) and the gate refuses a guesstimating server rather than asserting a boundary pair"
     },
     {
       "rank": 6,
-      "title": "Prompt assembly for the paths that matter (world info positions, group turns, presets) has one gate and it does not pass",
-      "row": "world-info",
-      "wouldStopARealUser": "no, but it silently changes what the model is told, which is the product's core promise",
-      "evidence": "browser-differential preset artefacts; three runs (40082539457, 40087218275, 40073821604) failed to bind a keep/drop pair"
+      "row": "files-and-media",
+      "title": "Media re-encoding is a DECIDED codec divergence, not parity: Jimp s bytes are never claimed",
+      "wouldStopARealUser": "no, but it is a bounded quality difference in a user s own images",
+      "evidence": "ARCHITECTURE.md boundary 3 and AGENTS.md boundary 3 (both routes now DECIDED 2026-10-29): the observable transformation is gated and byte equality with Jimp is explicitly not claimed"
     },
     {
       "rank": 7,
-      "title": "Context-boundary tokenization is measured but never made to bind on both legs",
-      "row": "tokenization",
-      "wouldStopARealUser": "no, but AGENTS.md 9 makes it mandatory where marked compatible",
-      "evidence": "tests/browser/preset-complex-comparison.json; the tokenizer anchor test refuses a guesstimating server, which is correct, but the boundary itself has no passing pair"
+      "row": "accounts-multi-user",
+      "title": "Two users writing the same tree concurrently is not tested; the per-user lock is asserted per route, not under contention",
+      "wouldStopARealUser": "no for a single-user install, yes for the multi-user feature the route set already supports",
+      "evidence": "the accounts-multi-user row: no contention test and no stock-tree multi-user migration result"
     },
     {
       "rank": 8,
-      "title": "Backups are read but never restored, and the inherited host classifier is unpinned",
-      "row": "import-export-backups",
-      "wouldStopARealUser": "yes at the worst moment: a user restoring after data loss would find the backup unproven",
-      "evidence": "tests/oracle/sillytavern-1.19.0-backups.json compares reads only; ARCHITECTURE.md boundary 5 requires the chub.ai substring behaviour to be reproduced and recorded"
+      "row": "extensions",
+      "title": "A dirty extension worktree must be refused rather than forced, and no test asserts it (AGENTS.md 28)",
+      "wouldStopARealUser": "no, but it is the difference between refusing and clobbering a user s local edits",
+      "evidence": "the extensions row names this gap; the update decision itself is gated (TestResolveAutoUpdateIsStrictAndDefaultsOff)"
     },
     {
       "rank": 9,
-      "title": "Media re-encoding is a codec boundary, not parity: avatar crops and thumbnails are not byte-comparable",
-      "row": "files-and-media",
-      "wouldStopARealUser": "no, but it is an unbounded quality difference in a user's own images",
-      "evidence": "ARCHITECTURE.md boundary 3; the character import fixture compares pixels through pngjs because the pinned Jimp path cannot be reproduced"
+      "row": "secrets",
+      "title": "No sweep asserts that a stored secret is never printed on ANY error path, only on the routes that were probed",
+      "wouldStopARealUser": "no, but a leaked key is unrecoverable for the user",
+      "evidence": "the secrets row: AGENTS.md 35 is asserted per probed route; the unprobed paths are not covered by a sweep"
     },
     {
       "rank": 10,
-      "title": "Server plugins and local embeddings are excluded, and the exclusion is only as visible as the last document that mentioned it",
       "row": "server-plugins",
+      "title": "Server plugins and local embeddings are excluded, and the exclusion is only as visible as the last document that mentioned it",
       "wouldStopARealUser": "for the small set of users who rely on them, yes; they should learn it before installing",
-      "evidence": "AGENTS.md 16 and ARCHITECTURE.md boundary 2; TestPluginsAreReportedAndNeverCopied asserts the negative, but no matrix row was machine-readable until now"
+      "evidence": "AGENTS.md 16 and ARCHITECTURE.md boundary 2; TestPluginsAreReportedAndNeverCopied asserts the negative"
     }
   ],
   "derived": {
@@ -1108,8 +1102,8 @@
       "citedByMatrix": 11
     },
     "goTestFunctions": {
-      "inTree": 719,
-      "citedByMatrix": 83
+      "inTree": 720,
+      "citedByMatrix": 84
     },
     "workflows": {
       "inTree": 9,
