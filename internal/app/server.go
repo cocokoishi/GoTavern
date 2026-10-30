@@ -253,11 +253,7 @@ func Start(options StartOptions) (*RunningServer, error) {
 	handlerOptions.ForbiddenPage = whitelistPage
 	handlerOptions.PreserveForbiddenPage = true
 	if optionEnabled(parsed.StartupSettings.WhitelistDockerHosts) && runningInDocker() {
-		for _, hostname := range []string{"host.docker.internal", "gateway.docker.internal"} {
-			if addresses, err := net.LookupIP(hostname); err == nil && len(addresses) > 0 {
-				handlerOptions.Whitelist = append(handlerOptions.Whitelist, addresses[0].String())
-			}
-		}
+		handlerOptions.Whitelist = append(handlerOptions.Whitelist, dockerHostWhitelistEntries()...)
 	}
 	handler := server.NewHTTPHandlerWithOptions(handlerOptions)
 	trace.end()
@@ -316,13 +312,62 @@ func loadWhitelistPatterns(configured []string, installRoot string) []string {
 	return patterns
 }
 
-func runningInDocker() bool {
+// dockerHostnames are the two names pinned resolves when whitelistDockerHosts is on and the process is in a
+// container: src/middleware/whitelist.js:40 `const whitelistHosts = ['host.docker.internal',
+// 'gateway.docker.internal']`, walked in that order at :42-50.
+var dockerHostnames = []string{"host.docker.internal", "gateway.docker.internal"}
+
+// dockerHostLookupTimeout bounds ONE of those resolutions.
+//
+// THE BOUND IS NOT PINNED'S, AND IT IS DELIBERATE. Pinned awaits `dns.promises.lookup` with no timeout of its
+// own (:44), so a container whose DNS server accepts the question and never answers holds its startup for as
+// long as the system resolver retries. AGENTS.md rule 24 forbids exactly that ("no unbounded resolver call"),
+// docs/network-egress.md §3.4 states the requirement ("the only allowed startup network call ... must be
+// bounded"), and docs/startup-state-machine.md §2 records the site as W10 with "no bound". Rule 24 outranks
+// parity here, so each lookup gets this bound and a failure is non-fatal, which is pinned's own catch at
+// :47-49 (`console.warn` and continue). The worst case added to a boot is therefore 2 x this value.
+const dockerHostLookupTimeout = 2 * time.Second
+
+// dockerHostWhitelistEntries resolves the two Docker hostnames and returns the addresses to whitelist.
+//
+// ONE ADDRESS PER NAME, exactly as pinned does: `dns.promises.lookup(entry)` without `all: true` returns a
+// single address, and :46 pushes `result.address`. A name that fails to resolve, times out or answers with no
+// address contributes nothing -- the same observable as pinned's catch block, minus the console line (see
+// docs/verification/startup-egress.md for why no output is added here).
+func dockerHostWhitelistEntries() []string {
+	entries := make([]string, 0, len(dockerHostnames))
+	for _, hostname := range dockerHostnames {
+		ctx, cancel := context.WithTimeout(context.Background(), dockerHostLookupTimeout)
+		addresses, err := net.DefaultResolver.LookupIPAddr(ctx, hostname)
+		cancel()
+		if err != nil || len(addresses) == 0 {
+			continue
+		}
+		entries = append(entries, addresses[0].IP.String())
+	}
+	return entries
+}
+
+// runningInDocker reports whether this process is in a container, which is pinned's `isDocker()` gate on the
+// docker-hostname resolution.
+func runningInDockerProbe() bool {
 	if _, err := os.Stat("/.dockerenv"); err == nil {
 		return true
 	}
 	contents, err := os.ReadFile("/proc/self/cgroup")
 	return err == nil && strings.Contains(string(contents), "docker")
 }
+
+// runningInDocker is a VARIABLE so the startup-egress gate can drive BOTH sides of the branch on a host that
+// is not in a container: `internal/app/startup_egress_test.go` runs the allowed case (the two names resolved,
+// recorded by name) and the zero-egress case (neither resolved) against the REAL Start. Without the seam the
+// allowed case could only be asserted where a container exists, i.e. never on the CI runner that judges it,
+// and a gate that cannot reach its own allowed branch is decoration (AGENTS.md rule 7).
+//
+// THE PRECEDENT IS THE PROJECT'S OWN: internal/outbound/dnsorder.go:40-46 makes its resolver a variable for
+// the same reason, and its comment says "It is never assigned outside a test". The only writer is a test;
+// production code reads it.
+var runningInDocker = runningInDockerProbe
 
 // ServeErrors receives an unexpected error after a listener has started.
 func (running *RunningServer) ServeErrors() <-chan error { return running.serveErrors }
