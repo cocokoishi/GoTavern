@@ -117,10 +117,16 @@ const stripPrefix = value => (replyPrefix === ''
 
 // THE DISCRIMINATOR'S ARM. The ordinal is set from the PEER'S OWN count immediately before the send that will consume
 // it, so a counter that runs ahead cannot stamp the wrong reply (the failure q20-leg-runtime.mjs:143-147 records).
+//
+// THE REPLIES ARE PADDED SO THEY DIFFER IN LENGTH, and that is a fixture requirement rather than decoration. The shared
+// `waitForReply` decides "the product's state MOVED" from the chat length or the TAIL TEXT LENGTH -- deliberately, see
+// its own header -- and regenerate replaces one reply with another of the same nominal length. An unpadded fixture is
+// therefore indistinguishable from "nothing happened" after a regenerate: measured in run 41014576819, where BOTH
+// subjects sat for the full 90 s in `setup-reply-did-not-arrive` while the product had regenerated correctly (the peer
+// recorded request 4 and the page showed the new reply `WS_REPLY_4`). One `#` per ordinal makes the tail length a
+// function of the reply, so a replaced reply is visibly replaced.
 let stampOrdinal = null;
-const replyText = ordinal => (stampOrdinal !== null && ordinal === stampOrdinal
-    ? `${replyPrefix}WS_REPLY_${ordinal}`
-    : `WS_REPLY_${ordinal}`);
+const replyText = ordinal => `${stampOrdinal !== null && ordinal === stampOrdinal ? replyPrefix : ''}WS_REPLY_${ordinal}${'#'.repeat(ordinal)}`;
 
 // ---------------------------------------------------------------------------------------------------------------
 // THE ARTEFACT. Written even on failure: a leg that died with no report is indistinguishable from one that never ran,
@@ -498,7 +504,9 @@ async function drivePhase({ page, recorder, openPage, connect, readPageState, pa
     // `rawSequence` because `sequence` is already normalised.
     report.discriminator = {
         stampOrdinal,
-        stampedText: replyPrefix === '' ? null : `${replyPrefix}WS_REPLY_${stampOrdinal}`,
+        // READ BACK THROUGH THE SAME FUNCTION that produced it, so the artefact cannot record a literal the peer never
+        // served (the padding added below is part of the served text).
+        stampedText: replyPrefix === '' ? null : replyText(stampOrdinal),
         appliedOnThePage: replyPrefix !== '' && afterFirst.rawSequence.some(text => text.includes(replyPrefix)),
     };
     step('discriminator-applied-to-the-swipeable-reply',
