@@ -625,7 +625,8 @@
           "TestPinnedNodeExtensionStaticServing",
           "TestPluginsAreReportedAndNeverCopied",
           "TestResolveAutoUpdateIsStrictAndDefaultsOff",
-          "TestStockConfigSayingAutoUpdateTrueResolvesOff"
+          "TestStockConfigSayingAutoUpdateTrueResolvesOff",
+          "TestExtensionUpdateRefusesADirtyWorktreeAndKeepsTheUserEdits"
         ],
         "browserArtifacts": [
           "tests/browser/extension-tavern-helper-comparison.json",
@@ -642,16 +643,13 @@
         "explanation": "the DECISION to update is what shipped broken (P0-C), and this gate is that decision: every ambiguous input -- missing key, unknown legacy key, null, unparsed value, unreadable config, migrated config -- resolves to OFF, and TestStockConfigSayingAutoUpdateTrueResolvesOff pins the case where pinned's own default would have turned it on"
       },
       "evidenceGap": [
-        "P0-C's property now HAS a gate: TestResolveAutoUpdateIsStrictAndDefaultsOff and TestStockConfigSayingAutoUpdateTrueResolvesOff assert that every ambiguous auto-update input resolves to OFF (AGENTS.md 26). The clause that said no gate existed was stale and is removed",
-        "no test asserts that a dirty extension worktree is refused rather than forced (AGENTS.md 28)",
-        "the 酒馆助手 canary proves the iframe/bridge/generation path rather than the files loading: an unsandboxed script iframe with parent.TavernHelper reachable inside it, the static host imports served, a generateRaw request byte-identical on both subjects, and a depth-0 injection visible in the generate() request (Q8/Q9/Q11). Variable persistence and the wire half are Q10's; the render path and the URLs a rendered message puts in the DOM stay declared unproven in that artefact",
-        "the pinned leg's extension was auto-updating itself OFF the pin during a differential (measured 2026-10-29: 酒馆助手 837a6288 -> e71c9906 mid-run, which made the restart leg refuse); the installer now freezes the extension's origin to an offline bare mirror at the pinned commit and a drive asserts the HEAD at start and end, but that is harness input control, not a product capability of this row"
+        "the 酒馆助手 canary proves the iframe/bridge/generation path rather than the files loading: an unsandboxed script iframe with parent.TavernHelper reachable inside it, the static host imports served, a generateRaw request byte-identical on both subjects, and a depth-0 injection visible in the generate() request (Q8/Q9/Q11). Variable persistence and the wire half are Q10's; the render path and the URLs a rendered message puts in the DOM stay declared unproven in that artefact"
       ],
       "blockedBy": [
         "startup",
         "whole-session-e2e"
       ],
-      "notes": "The DECISION to update now has a gate (TestResolveAutoUpdateIsStrictAndDefaultsOff plus TestStockConfigSayingAutoUpdateTrueResolvesOff), which is why this row is PARTIAL rather than FAIL. The canary artefact that carries the Q8/Q9/Q11 evidence is produced by the Browser differential workflow and is not committed to the repository yet, so the freshness check reports it NOT-COMMITTED rather than passing it."
+      "notes": "The DECISION to update now has a gate (TestResolveAutoUpdateIsStrictAndDefaultsOff plus TestStockConfigSayingAutoUpdateTrueResolvesOff), which is why this row is PARTIAL rather than FAIL. The canary artefact that carries the Q8/Q9/Q11 evidence is produced by the Browser differential workflow and is not committed to the repository yet, so the freshness check reports it NOT-COMMITTED rather than passing it. CLOSED 2026-10-29 -- A DIRTY WORKTREE IS REFUSED AND THE USER S EDIT SURVIVES (AGENTS.md 28). `TestExtensionUpdateRefusesADirtyWorktreeAndKeepsTheUserEdits` builds two real local repositories (a bare origin with an incoming commit, and a clone parked one commit behind ON A REAL BRANCH), makes an uncommitted edit to the very file the incoming commit changes, and drives `POST /api/extensions/update`. Assertions: the route does NOT answer 200 (a refusal the frontend never sees is a forced update the user cannot explain), the edited file is byte-identical afterwards, HEAD does not move, the worktree is still dirty, and the incoming commit is not an ancestor of HEAD. Teeth observed: inserting `git checkout -- .` before the pull (a helpful recovery) turns it red with \"POST /api/extensions/update over a dirty worktree answered 200 ... a forced update the user cannot explain\". THE FIRST VERSION OF THIS TEST PASSED FOR THE WRONG REASON -- it checked out the commit, producing a detached HEAD, so `git pull origin <empty branch>` failed regardless of dirtiness and the mutation survived; it now asserts `rev-parse --abbrev-ref HEAD == main` as a precondition. CLOSED 2026-10-29 (moved out of evidenceGap, which now holds only open items): P0-C's property now HAS a gate: TestResolveAutoUpdateIsStrictAndDefaultsOff and TestStockConfigSayingAutoUpdateTrueResolvesOff assert that every ambiguous auto-update input resolves to OFF (AGENTS.md 26). The clause that said no gate existed was stale and is removed CLOSED 2026-10-29 (moved out of evidenceGap, which now holds only open items): the pinned leg's extension was auto-updating itself OFF the pin during a differential (measured 2026-10-29: 酒馆助手 837a6288 -> e71c9906 mid-run, which made the restart leg refuse); the installer now freezes the extension's origin to an offline bare mirror at the pinned commit and a drive asserts the HEAD at start and end, but that is harness input control, not a product capability of this row"
     },
     {
       "id": "server-plugins",
@@ -1073,9 +1071,9 @@
     {
       "rank": 8,
       "row": "extensions",
-      "title": "A dirty extension worktree must be refused rather than forced, and no test asserts it (AGENTS.md 28)",
-      "wouldStopARealUser": "no, but it is the difference between refusing and clobbering a user s local edits",
-      "evidence": "the extensions row names this gap; the update decision itself is gated (TestResolveAutoUpdateIsStrictAndDefaultsOff)"
+      "title": "The 酒馆助手 canary proves the deep iframe/bridge/generation path; the plain \"the files load\" surface is the half it does not cover",
+      "wouldStopARealUser": "no, but a manifest or module the host serves wrongly makes an installed extension appear dead with no error the user can act on",
+      "evidence": "the extensions row: the canary proves an unsandboxed script iframe with parent.TavernHelper reachable, the static host imports served, a byte-identical generateRaw request on both subjects and a depth-0 injection visible in generate(); what it does not prove is the ordinary asset-serving path an extension needs before any of that runs. (Auto-update defaulting OFF and the dirty-worktree refusal, which used to sit beside this item, are both gated now)"
     },
     {
       "rank": 9,
@@ -1102,8 +1100,8 @@
       "citedByMatrix": 11
     },
     "goTestFunctions": {
-      "inTree": 721,
-      "citedByMatrix": 85
+      "inTree": 722,
+      "citedByMatrix": 86
     },
     "workflows": {
       "inTree": 9,
