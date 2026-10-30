@@ -80,6 +80,13 @@ on:
       - 'tests/browser/helper-vars-probe.mjs'
       - 'tests/browser/extensions/helper-vars-kit.mjs'
       - 'tests/browser/compare-helper-vars-legs.mjs'
+      # THE ORDINARY EXTENSION ASSET-SERVING SURFACE PROVES ITSELF ON A PUSH THAT TOUCHES IT (AGENTS.md 7): a lane that
+      # adds a gate it cannot run is a gate nobody has seen execute. These four files are the whole surface, and the
+      # step is gated on `MODE_HELPER`, which a push hard-codes to `helper` -- so this list is what schedules it.
+      - 'tests/browser/extension-assets-fixture.mjs'
+      - 'tests/browser/extension-assets-probe.mjs'
+      - 'tests/browser/extension-assets-compare.mjs'
+      - 'tests/browser/extension-assets-run.mjs'
       # THE NARROW VEHICLE, which is the PRIMARY: one variable, one prompt that reads it, one generateRaw. Listed
       # separately because it is a separate probe and a change to it changes what the narrow artefact MEANS.
       - 'tests/browser/helper-vars-generate-probe.mjs'
@@ -2054,6 +2061,41 @@ jobs:
           name: preset-evidence
           path: ${{ runner.temp }}/publish
           retention-days: 14
+
+      # THE ORDINARY EXTENSION ASSET-SERVING PATH. The 酒馆助手 canary proves the deep iframe/bridge/generation path;
+      # this proves the half a user meets FIRST, where a manifest or module served with the wrong status, content type
+      # or bytes makes an installed extension look dead with no error the user can act on. It is wired here, and not
+      # in its own workflow, because it needs EXACTLY what this job already builds: the GoTavern binary, the pinned
+      # checkout and its node_modules. `extension-assets-run.mjs` is one bounded command -- both legs, the comparator,
+      # the six-case teeth selftest, a deep-install re-run that MUST go red, and a restore that MUST come back green --
+      # so a step cannot report a green by simply not running the mutation.
+      - name: Extension asset serving -- the plain "the files load" surface, both subjects
+        id: extension-assets
+        if: ${{ env.MODE_HELPER == 'helper' || env.MODE_HELPER == 'all' }}
+        # FOUR server boots (two layouts x two subjects) plus the teeth re-runs. The pinned boots dominate; the runner's
+        # own readiness deadline is 420 s and this cap leaves room for it to fail loudly instead of wedging the job.
+        timeout-minutes: 25
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential"
+          mkdir -p "$work/extension-assets"
+          # `if cmd; then` rather than `cmd; status=$?`: GitHub runs this under `bash -e`, so an unguarded failing
+          # command would end the step before the error line below could name the stage that failed.
+          if node tests/browser/extension-assets-run.mjs --work-root "$work/extension-assets" --keep; then
+            echo "the installed extension's manifest, module, stylesheet, locale and nested scripts served identically on both subjects"
+          else
+            echo "::error::extension asset serving: a stage failed (stages are named in the output above; leg reports in $work/extension-assets/reports)"
+            exit 1
+          fi
+
+      - name: Upload the extension asset-serving reports
+        if: ${{ always() && (env.MODE_HELPER == 'helper' || env.MODE_HELPER == 'all') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-assets-reports
+          path: ${{ runner.temp }}/browser-differential/extension-assets/reports/*.json
+          retention-days: 14
+          if-no-files-found: warn
 
       # THE VERIFIER, against the artefacts this run just produced. This is the step that can fail the
       # job: a freshly recorded artefact that does not support its own claim is a defect in the product
