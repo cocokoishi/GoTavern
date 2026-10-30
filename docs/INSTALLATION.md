@@ -77,56 +77,84 @@ BUILD-INFO.txt            # GoTavern version + pinned ST version/SHA
 
 ### Unix-like systems
 
-Install a published release. **The version must be given explicitly while the newest release is a
-prerelease:**
+Install a published release into the directory you are in. **The version must be given explicitly while the
+newest release is a prerelease:**
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.8/install.sh | bash -s -- --version v0.1.0-alpha.8
+mkdir GoTavern
+cd GoTavern
+
+curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.8/install.sh | sh -s -- --version v0.1.0-alpha.8
 ```
 
 **Why the version is not optional yet.** Without `--version` the installer uses `releases/latest/download`,
 which GitHub resolves to the newest **stable** release. No stable release exists yet, so that URL returns
-**404**. This is deliberate: an unpinned `curl | bash` must never hand a stranger a prerelease. Once a
-stable tag exists the flag becomes optional and the plain unpinned form starts working on its own.
+**404**. This is deliberate: an unpinned `curl | sh` must never hand a stranger a prerelease. Once a stable
+tag exists the flag becomes optional and the plain unpinned form starts working on its own.
 
-Optional explicit directory/version forms are supported by downloading the script first or passing documented arguments:
-
-```sh
-./install.sh --dir "$HOME/servers/GoTavern"
-./install.sh --version v0.1.0-alpha.8 --dir "$HOME/servers/GoTavern"
-```
-
-Default installation directory:
+Default installation directory — **the caller's current working directory**:
 
 ```text
-$HOME/GoTavern
+$(pwd -P)
 ```
+
+Both installers behave the same way there: the directory the user `cd`s into is the directory GoTavern lands
+in. `--dir` remains an **advanced override** — for example to keep several installs side by side — and the
+normal invocation does not need it:
+
+```sh
+sh install.sh --version v0.1.0-alpha.8 --dir "$HOME/servers/GoTavern"
+```
+
+The contract is executed rather than asserted in prose: `scripts/test-install-sh.sh` runs four cases against
+a loopback mirror and a synthetic release — no `--dir` installs into the current working directory and creates
+nothing at the old default, `--dir` wins and leaves the working directory alone, an existing `config.yaml`
+and `data/` survive both an install and a re-install byte-for-byte, and invoking the script by absolute path
+from another directory installs into that directory rather than beside the script. Uninstall is a directory
+removal by the operator; the installer never deletes runtime state.
 
 ### Windows PowerShell
 
-Install a published release. **The version must be given explicitly while the newest release is a
-prerelease:**
+Install a published release into the directory you are in. **The version must be given explicitly while the
+newest release is a prerelease:**
 
 ```powershell
+mkdir GoTavern
+cd GoTavern
+
 irm https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.8/install.ps1 -OutFile install.ps1
 .\install.ps1 -Version v0.1.0-alpha.8
 ```
 
-The same reason applies as on Unix: without `-Version` the script uses `releases/latest/download`, which
-resolves to the newest **stable** release, and none exists yet.
+The same version reason applies as on Unix: without `-Version` the script uses `releases/latest/download`,
+which resolves to the newest **stable** release, and none exists yet.
 
-For options, save the script and run for example:
-
-```powershell
-.\install.ps1 -InstallDir "$HOME\Servers\GoTavern"
-.\install.ps1 -Version v0.1.0-alpha.8 -InstallDir "$HOME\Servers\GoTavern"
-```
-
-Default installation directory:
+Default installation directory — **the caller's current working directory**:
 
 ```text
-%USERPROFILE%\GoTavern
+(Get-Location).Path
 ```
+
+It is `Get-Location`, deliberately, and not the script's own directory: `C:\Tools\install.ps1` invoked from
+`D:\Target` installs into `D:\Target`. The directory you `cd` into is the directory GoTavern lands in.
+
+`-InstallDir` remains available as an **advanced override** — for example to keep several installs side by
+side — and the normal invocation does not need it:
+
+```powershell
+.\install.ps1 -Version v0.1.0-alpha.8 -InstallDir "D:\Servers\GoTavern"
+```
+
+The install location contract is executed, not asserted in prose: `scripts/test-install-ps1.ps1` runs four
+cases against a loopback mirror and a synthetic release — no `-InstallDir` installs into the current working
+directory and creates nothing at the old default, `-InstallDir` wins and leaves the working directory alone,
+an existing `config.yaml` and `data\` survive both an install and an upgrade byte-for-byte, and invoking the
+script by absolute path from another directory installs into that directory rather than beside the script.
+
+**Upgrading** is the same command re-run in the same directory. Only immutable release files
+(`gotavern.exe`, `Start.cmd`, `LICENSE`, notices, `BUILD-INFO.txt`, `src/tokenizers/`) are replaced;
+`config.yaml`, `data\`, `extensions\` and `certs\` are never deleted, never rewritten, and the target
+directory is never rebuilt.
 
 ### Required installer properties
 

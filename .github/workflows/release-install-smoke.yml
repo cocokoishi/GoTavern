@@ -422,6 +422,15 @@ jobs:
           done
 
       # ---- 4. THE INSTALLER, OVER THE REAL NETWORK ----------------------------------------------
+      # THE INSTALL LOCATION CONTRACT, on the platform whose installer is a POSIX script. The TLS step below
+      # always passes `--dir`, so it can never catch a wrong DEFAULT; this one runs install.sh four ways --
+      # no `--dir` from a directory it must land in, `--dir` as an override, an install over an existing
+      # config.yaml/data, and an invocation by absolute path from another directory -- against a loopback
+      # mirror and a synthetic release, so it needs no network and no real tag. It is the gate that goes red
+      # if the default ever drifts back to $HOME/GoTavern.
+      - name: Qualify the install LOCATION contract (default = current working directory)
+        run: bash scripts/test-install-sh.sh
+
       - name: Install the published release with install.sh over TLS
         env:
           VERSION: ${{ steps.release.outputs.version }}
@@ -453,8 +462,20 @@ jobs:
             echo "::error::the installer did not report release: ${VERSION}" >&2
             exit 1
           }
-          grep -q "Installed GoTavern into: ${prefix}" installer.log || {
+          # THE SUMMARY SHAPE IS AN INSTALLER CONTRACT for the same reason the checksum line is: a user
+          # reads it to learn where their files went. It used to be one sentence ("Installed GoTavern into:
+          # <path>"); it is now a labelled block naming the directory and how to start it, so the assertion
+          # follows the labels AND the paths rather than an exact sentence.
+          grep -qx 'Install directory:' installer.log || {
+            echo "::error::the installer did not print an 'Install directory:' line" >&2
+            exit 1
+          }
+          grep -qxF "${prefix}" installer.log || {
             echo "::error::the installer did not report installing into ${prefix}" >&2
+            exit 1
+          }
+          grep -qxF "${prefix}/start.sh" installer.log || {
+            echo "::error::the installer did not name the start.sh it installed" >&2
             exit 1
           }
 

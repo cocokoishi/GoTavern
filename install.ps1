@@ -3,12 +3,32 @@
 
 [CmdletBinding()]
 param(
-    [string]$InstallDir = (Join-Path $HOME 'GoTavern'),
+    # THE DEFAULT IS THE CALLER'S CURRENT WORKING DIRECTORY, and it is deliberately NOT $PSScriptRoot.
+    #
+    # A user who runs this in the directory they want GoTavern in -- `cd D:\Apps\GoTavern` then
+    # `.\install.ps1 -Version v0.1.0-alpha.8` -- must get GoTavern THERE, not in $HOME\GoTavern and not
+    # beside the script. The two differ whenever the script is invoked by path from somewhere else
+    # (`C:\Tools\install.ps1` run from `D:\Target` means `D:\Target`), so the value has to come from
+    # `Get-Location`, which is evaluated in the caller's session before this script runs.
+    #
+    # `-InstallDir` still overrides it, for anyone laying several installs out deliberately.
+    [string]$InstallDir = (Get-Location).Path,
     [string]$Version = 'latest'
 )
 
 $ErrorActionPreference = 'Stop'
 $Repo = 'cocokoishi/GoTavern'
+
+# NORMALISE THE INSTALL DIRECTORY, because three inputs are legal and only one of them is already a full
+# path: a defaulted or empty value (the current directory, or `-InstallDir ''`), a relative one
+# (`-InstallDir .\games\tavern`), and an absolute one. GetFullPath resolves all three against the process
+# working directory, which is what a relative path means to the person who typed it.
+if ([string]::IsNullOrWhiteSpace($InstallDir)) { $InstallDir = (Get-Location).Path }
+$currentLocation = Get-Location
+if ($currentLocation.Provider.Name -ne 'FileSystem') {
+    throw "The current PowerShell location ($($currentLocation.Provider.Name):$($currentLocation.Path)) is not a filesystem directory, so there is no directory to install into. Run the installer from a filesystem location, or pass -InstallDir <path>."
+}
+$InstallDir = [System.IO.Path]::GetFullPath($InstallDir)
 
 try {
     $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
@@ -163,15 +183,28 @@ cd /d "%~dp0"
     Move-Item -LiteralPath $tokenizersNew -Destination $tokenizersTarget
     Remove-Item -LiteralPath $tokenizersOld -Recurse -Force -ErrorAction SilentlyContinue
 
+    # THE SUMMARY NAMES THE THREE THINGS A USER NEEDS: what was installed, WHERE it went, and how to start
+    # it. The directory is printed as an absolute path, because the default is the caller's working directory
+    # and "installed successfully" without a location leaves the user hunting for it.
+    $displayVersion = 'latest stable release'
+    if ($Version -ne 'latest') { $displayVersion = $Version }
     Write-Host
-    Write-Host "Installed GoTavern into: $InstallDir"
-    Write-Host 'Start it with:'
+    Write-Host "GoTavern $displayVersion installed successfully."
+    Write-Host
+    Write-Host 'Install directory:'
+    Write-Host "  $InstallDir"
+    Write-Host
+    Write-Host 'Start GoTavern with:'
     Write-Host "  $(Join-Path $InstallDir 'Start.cmd')"
-    Write-Host
 
-    if ((Test-Path -LiteralPath (Join-Path $InstallDir 'config.yaml')) -or
-        (Test-Path -LiteralPath (Join-Path $InstallDir 'data') -PathType Container)) {
-        Write-Host 'Existing runtime state was preserved.'
+    # RUNTIME STATE IS NAMED, NOT SUMMARISED. "Existing runtime state was preserved" makes a reader check
+    # the installer's code to learn what that means; naming the files that were found is the answer.
+    $runtimeState = @()
+    if (Test-Path -LiteralPath (Join-Path $InstallDir 'config.yaml') -PathType Leaf) { $runtimeState += 'config.yaml' }
+    if (Test-Path -LiteralPath (Join-Path $InstallDir 'data') -PathType Container) { $runtimeState += 'data/' }
+    Write-Host
+    if ($runtimeState.Count -gt 0) {
+        Write-Host ("Existing {0} preserved." -f ($runtimeState -join ' and '))
     } else {
         Write-Host 'No runtime state exists yet. The first server start will initialize the pinned SillyTavern-compatible defaults.'
     }

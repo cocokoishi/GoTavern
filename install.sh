@@ -6,14 +6,20 @@ set -eu
 
 REPO="cocokoishi/GoTavern"
 VERSION="latest"
-INSTALL_DIR="${HOME}/GoTavern"
+# THE DEFAULT IS THE DIRECTORY THE INSTALLER WAS RUN FROM, and it is deliberately NOT $HOME/GoTavern.
+#
+# The documented flow is `mkdir GoTavern && cd GoTavern` and then the piped installer, so the directory the
+# user is standing in is the one they expect GoTavern in. It is also NOT the script's own location: the
+# documented command pipes the script into `sh`, which has no meaningful script directory at all, and a user
+# who saved it somewhere and ran it from a target folder means that target folder. `--dir` still overrides it.
+INSTALL_DIR=$(pwd -P)
 
 usage() {
     cat <<'EOF'
 Usage: install.sh [--dir PATH] [--version TAG]
 
 Options:
-  --dir PATH      Installation/runtime directory (default: $HOME/GoTavern)
+  --dir PATH      Installation/runtime directory (default: the current directory)
   --version TAG   GitHub release tag to install (default: latest stable release)
   -h, --help      Show this help
 
@@ -45,6 +51,15 @@ while [ "$#" -gt 0 ]; do
             ;;
     esac
 done
+
+# NORMALISE THE INSTALL DIRECTORY: the default or an empty `--dir ''` means the current directory, a
+# relative `--dir ./servers/tavern` means relative to where this was run, and an absolute path is already
+# final. A relative path is resolved HERE, before anything changes directory.
+case "$INSTALL_DIR" in
+    "") INSTALL_DIR=$(pwd -P) ;;
+    /*) ;;
+    *)  INSTALL_DIR="$(pwd -P)/${INSTALL_DIR}" ;;
+esac
 
 OS_RAW=$(uname -s 2>/dev/null || true)
 case "$OS_RAW" in
@@ -244,13 +259,27 @@ fi
 mv "$TOKENIZERS_NEW" "$INSTALL_DIR/src/tokenizers"
 rm -rf "$TOKENIZERS_OLD"
 
+# THE SUMMARY NAMES THE THREE THINGS A USER NEEDS: what was installed, WHERE it went, and how to start it.
+# The directory is printed as an absolute path, because the default is the caller's working directory and
+# "installed successfully" without a location leaves the user hunting for it.
 echo
-echo "Installed GoTavern into: $INSTALL_DIR"
-echo "Start it with:"
-echo "  $INSTALL_DIR/start.sh"
+echo "GoTavern $RELEASE_LABEL installed successfully."
 echo
-if [ -e "$INSTALL_DIR/config.yaml" ] || [ -d "$INSTALL_DIR/data" ]; then
-    echo "Existing runtime state was preserved."
+echo "Install directory:"
+echo "$INSTALL_DIR"
+echo
+echo "Start GoTavern with:"
+echo "$INSTALL_DIR/start.sh"
+echo
+# RUNTIME STATE IS NAMED, NOT SUMMARISED. "Existing runtime state was preserved" makes a reader check the
+# installer's code to learn what that means; naming what was found is the answer.
+PRESERVED=""
+if [ -e "$INSTALL_DIR/config.yaml" ]; then PRESERVED="config.yaml"; fi
+if [ -d "$INSTALL_DIR/data" ]; then
+    if [ -n "$PRESERVED" ]; then PRESERVED="$PRESERVED and data/"; else PRESERVED="data/"; fi
+fi
+if [ -n "$PRESERVED" ]; then
+    echo "Existing $PRESERVED preserved."
 else
     echo "No runtime state exists yet. The first server start will initialize the pinned SillyTavern-compatible defaults."
 fi

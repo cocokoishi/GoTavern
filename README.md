@@ -44,15 +44,44 @@ prerelease.
 
 **Linux / macOS**
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.8/install.sh | bash -s -- --version v0.1.0-alpha.8
+```sh
+mkdir GoTavern
+cd GoTavern
+
+curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.8/install.sh | sh -s -- --version v0.1.0-alpha.8
 ```
+
+> **Both installers install GoTavern directly into the current working directory** — on Linux and macOS as
+> well as on Windows. Create the folder, `cd` into it, run the installer; that folder is where the files
+> land. `--dir` / `-InstallDir` remain available as an **advanced override** for anyone laying several
+> installs out deliberately.
 
 **Windows (PowerShell)**
 
 ```powershell
+mkdir GoTavern
+cd GoTavern
+
 irm https://raw.githubusercontent.com/cocokoishi/GoTavern/v0.1.0-alpha.8/install.ps1 -OutFile install.ps1
 .\install.ps1 -Version v0.1.0-alpha.8
+```
+
+> **By default, the Windows installer installs GoTavern directly into the current working directory.**
+> The directory you `cd` into is the directory GoTavern lands in — not `$HOME\GoTavern`, and not the folder
+> the script was downloaded to. Create the folder, `cd` into it, run the installer.`-InstallDir` is an **advanced override** for anyone laying several installs out deliberately; the normal
+invocation does not need it:
+
+```powershell
+.\install.ps1 -Version v0.1.0-alpha.8 -InstallDir "D:\Servers\GoTavern"
+```
+
+Re-running the installer inside an existing install **upgrades the program files in place** and leaves
+`config.yaml`, `data\`, `extensions\` and `certs\` untouched: it never deletes or rebuilds the target
+directory. `Start.cmd` resolves its own location, so the installed tree can be started from any shell:
+
+```powershell
+cd D:\Apps\GoTavern
+.\Start.cmd
 ```
 
 **An explicit `--version` / `-Version` IS REQUIRED WHILE THE NEWEST RELEASE IS A PRERELEASE.** Without

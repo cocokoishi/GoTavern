@@ -365,6 +365,16 @@ jobs:
         shell: pwsh
         run: pwsh -NoProfile -File scripts/qualify-install-windows.ps1 -DistDir "$PWD"
 
+      # THE INSTALL LOCATION CONTRACT, which is a different question from the one above: that script always
+      # passes `-InstallDir`, so it can never catch a wrong DEFAULT. This one runs the installer four ways --
+      # no `-InstallDir` from a directory it must land in, `-InstallDir` as an override, an install over an
+      # existing config.yaml/data, and an invocation by absolute path from another directory -- against a
+      # loopback mirror and a synthetic release, so it needs no network and no real tag. It is the gate that
+      # goes red if the default ever drifts back to `$HOME\GoTavern`.
+      - name: Qualify the install LOCATION contract (default = current working directory)
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/test-install-ps1.ps1
+
       - name: Report failure context
         if: failure()
         shell: pwsh

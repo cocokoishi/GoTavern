@@ -304,7 +304,22 @@ Installer properties:
 - report clearly when no compatible release exists;
 - do not automatically start a migrated server before the user has stopped the source Node instance.
 
-The initial portable default is `$HOME/GoTavern` on Unix-like systems and `$HOME\GoTavern` on Windows, overrideable by an installer argument.
+The initial portable default is **the caller's current working directory on both platforms**, and both are
+overrideable by an installer argument:
+
+- **Unix-like:** `$(pwd -P)` (`install.sh --dir <path>` overrides it). It is deliberately NOT the script's own
+  directory: the documented flow pipes the script into `sh`, which has no meaningful script directory, and a
+  user who saved it elsewhere and ran it from a target folder means the target folder.
+- **Windows:** `(Get-Location).Path` (`install.ps1 -InstallDir <path>` overrides it). Also not
+  `$PSScriptRoot`, for the same reason: `C:\Tools\install.ps1` invoked from `D:\Target` installs into
+  `D:\Target`.
+
+The rule both share: the directory the user `cd`'d into is the directory GoTavern lands in.
+`scripts/test-install-sh.sh` and `scripts/test-install-ps1.ps1` assert the four cases of that contract for
+each installer — no flag installs into the working directory and creates nothing at the old default
+(`$HOME/GoTavern`), the explicit flag wins and leaves the working directory alone, an existing `config.yaml`
+and `data/` survive install and re-install byte-for-byte, and invoking the script by absolute path from
+another directory installs into that directory rather than beside the script.
 
 ### 5.3 Familiar launchers
 
