@@ -456,7 +456,7 @@ var declaredOtherPins = map[string]string{
 	// came from, and that tree is a lane commit rather than the pinned upstream, so the value is a
 	// MEASUREMENT ANCHOR and not a baseline claim. Declared by value AND named, because an allowlist
 	// entry with no reason is exactly where a mistyped pin would hide.
-	"a3c2f5340f152ce96150f52be4ccf7b27695b61f": "commit measured by the paired benchmark — docs/assets/benchmark.svg.provenance.md and scorecard Q22",
+	"a8d594501bf1223511f77acefa0cc5f2715a9211": "commit measured by the paired benchmark run 40898332226 — docs/assets/benchmark.svg.provenance.md and scorecard Q22. Replaces a3c2f5340, whose commit the 2026-10-29 history rewrite orphaned: the figure is regenerated from a run this tree can ancestry-check",
 	// A RELEASE'S OWN COMMIT. The HANDOFF checkpoint must name the SHA a release was cut from, or the
 	// document cannot be used to check the release. That SHA is an IDENTITY, not a baseline claim, and
 	// it is not the SillyTavern pin. Declared by value AND named for the same reason as the entry above:

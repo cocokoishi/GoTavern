@@ -6,11 +6,11 @@ The figure is **generated**, never hand-drawn. Every number in it is read out of
 ## How it was produced
 
 ```
-gh run download 40396669521 -n q22-paired-benchmark -D ./q22
+gh run download 40898332226 -n q22-paired-benchmark -D ./q22
 node tools/benchmark-svg.mjs \
   --report ./q22/q22-paired-benchmark.json \
   --out docs/assets/benchmark.svg \
-  --run-id 40396669521
+  --run-id 40898332226
 ```
 
 ## The artefact it is drawn from
@@ -18,27 +18,30 @@ node tools/benchmark-svg.mjs \
 | field | value |
 |---|---|
 | workflow | `GoTavern smoke metrics` |
-| run id | `40396669521` (conclusion: success) |
-| run branch | `lane/q22-paired-bench` |
-| commit measured | `a3c2f5340f152ce96150f52be4ccf7b27695b61f` |
+| run id | `40898332226` (conclusion: success) |
+| run branch | `main`, `workflow_dispatch` |
+| commit measured | `a8d594501bf1223511f77acefa0cc5f2715a9211` (an ancestor of the current `main`) |
 | runner image | `ubuntu26` |
 | rounds / requests | 3 alternating rounds x 30 sequential requests per path |
-| soak | 10-minute window, both subjects, 30 s sampling |
+| soak | 2 x 10-minute windows, one per subject, 30 s sampling (both completed) |
 
-`smoke-metrics.yml` has no `pull_request` trigger and `workflow_dispatch` needs the file on the default branch, so
-the run above was dispatched from a lane branch while that lane carried a temporary push trigger. The same numbers
-are recorded in `docs/goal-scorecard.md` row Q22, which cites this run and `40394799325`.
+`docs/goal-scorecard.md` row Q22 cites this run, and the README's Performance table quotes its medians, so the
+picture, the table and the ledger all restate ONE recording.
 
-## Why this run and not a newer one
+## Why this run and not another one
 
-- It is the only run whose artefact contains **both subjects AND the 10-minute soak** (`40394799325` has no soak
-  block; it is cited for the paired medians only).
-- It is on `main`'s history. Since it ran, exactly **one production `.go` file** changed
-  (`internal/commandline/paths.go`), and that change is confined to the *relative*-`dataRoot` branch. The benchmark
-  passes an absolute `mkdtemp` root, so it takes the `default:` arm, which the change did not touch.
-- Re-running would produce a third set of numbers differing from both existing runs (boot programs measured at
-  14,355 ms and 8,777 ms on the same image), because this is a shared runner. A re-run could not change the release
-  decision; it could only make the currently cited runs non-authoritative.
+- **It is on this tree's history.** `40394799325` and `40396669521` measured `dea6ad83` and `a3c2f5340`, and the
+  repository history was rewritten on 2026-10-29 to normalise commit identities. Those commits no longer exist, so
+  their recordings cannot be attached to this tree: `git merge-base --is-ancestor` rejects them. Their numbers are
+  still real measurements, and they are the reason this project knows the numbers move between runs at all
+  (pinned boot was measured at 14,355 ms, 8,777 ms and 12,985 ms on the same image), but a citation that cannot be
+  ancestry-checked is not evidence here.
+- **It measured the same experiment.** Same runner image, same alternating rounds, same fresh-`mkdtemp` data root per
+  round, same 30 requests per path, and its artefact asserts `everyRoundAnswered`, `sampleCountsMatch`,
+  `soakCompleted` and `soakSeriesMatch`.
+- **The absolute numbers are host noise; the verdict is not.** GoTavern's boot was 136 ms here against 32 ms and
+  61 ms in the earlier runs, because a shared runner under load is the dominant variable. What does not move by a
+  factor of that size is the order of magnitude, which is the claim the README makes.
 
 ## Editing this figure
 
