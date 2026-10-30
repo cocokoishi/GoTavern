@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/cocokoishi/gotavern/internal/fsretry"
 	"github.com/cocokoishi/gotavern/internal/lockacquire"
 	"github.com/cocokoishi/gotavern/upstream"
 	"github.com/gofrs/flock"
@@ -312,6 +313,20 @@ func addOwnerWrite(target string) error {
 	return os.Chmod(target, mode)
 }
 
+// renameIntoPlace moves a finished temporary file over its target, and on Windows it RETRIES the sharing
+// violation a concurrent READER causes.
+//
+// WHY THIS EXISTS. `os.Rename` over an existing file is atomic on both platforms, but Windows refuses it
+// with `Access is denied` while any other handle has the destination open, and Go's `os.ReadFile` opens
+// with FILE_SHARE_READ|FILE_SHARE_WRITE but NOT FILE_SHARE_DELETE. So a reader on the request path could
+// make a concurrent write fail outright -- measured on this host (windows/arm64, 2026-10-29) by holding
+// the target open and calling os.Rename: the write lost the race every time. The retry is bounded and
+// Windows-only: Unix renames do not fail this way, so its behaviour is unchanged, and a genuinely stuck
+// handle still returns an error after ~200 ms rather than hanging.
+func renameIntoPlace(temporary, target string) error {
+	return fsretry.Do(func() error { return os.Rename(temporary, target) })
+}
+
 func atomicReplace(target string, body []byte) error {
 	directory := filepath.Dir(target)
 	mode := fs.FileMode(0o666)
@@ -359,7 +374,7 @@ func atomicReplace(target string, body []byte) error {
 	if err := temporary.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tempName, target); err != nil {
+	if err := renameIntoPlace(tempName, target); err != nil {
 		return err
 	}
 	if directoryFile, err := os.Open(directory); err == nil {

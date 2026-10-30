@@ -235,13 +235,104 @@ func loadStoredAccounts(dataRoot string) (map[string]storedAccount, error) {
 	return accounts, nil
 }
 
+// THE USER RECORD IS READ ON EVERY AUTHENTICATED REQUEST, AND THAT WAS 40% OF A REQUEST'S CPU.
+//
+// Measured 2026-10-29 with this repository's in-process vehicle
+// (`go test ./internal/server -bench BenchmarkManyFrontendAssets -cpuprofile`):
+// accountRuntime.currentUser -> loadStoredAccount -> os.ReadFile was 40.4% cumulative, with os.ReadFile
+// alone 1.95 s of 5.42 s sampled, while every static asset the same request served accounted for 17%.
+// The read is a file open + read + two JSON decodes per request, for a record that changes almost never.
+//
+// THE CACHE KEY IS THE FILE'S OWN IDENTITY, NOT A TIMEOUT. `os.Stat` is asked for the record's mtime and
+// size on every read, and a hit requires both to be unchanged. That is what answers the five questions
+// this repository requires before a cache may exist:
+//   - key: the absolute record path;
+//   - owner: this package, process-local, no cross-process state and no shared file;
+//   - external modification: ANY write changes mtime (and nearly always size), so the entry is dropped --
+//     including a write by pinned Node over the same tree or a user editing the store by hand;
+//   - restart: the cache starts empty, so the first read is an ordinary read;
+//   - concurrent writes: a write through this server replaces the file atomically and therefore changes
+//     the same two stat fields, so the next read misses.
+//
+// A TTL was rejected on purpose: a TTL answers "did this change?" with "not recently enough", which is
+// the stale-read defect a cache must not introduce.
+//
+// The cached account is never handed out by reference: the fields map is copied, because one caller
+// mutates a record it built itself and a shared map would let that reach the next request.
+const storedAccountCacheLimit = 256
+
+type storedAccountCacheEntry struct {
+	modTime time.Time
+	size    int64
+	account storedAccount
+	found   bool
+}
+
+var (
+	storedAccountCacheMu sync.Mutex
+	storedAccountCache   = make(map[string]storedAccountCacheEntry)
+)
+
+func cachedStoredAccount(path string, info os.FileInfo) (storedAccountCacheEntry, bool) {
+	storedAccountCacheMu.Lock()
+	defer storedAccountCacheMu.Unlock()
+	entry, ok := storedAccountCache[path]
+	if !ok || !entry.modTime.Equal(info.ModTime()) || entry.size != info.Size() {
+		return storedAccountCacheEntry{}, false
+	}
+	return entry, true
+}
+
+func rememberStoredAccount(path string, info os.FileInfo, account storedAccount, found bool) {
+	storedAccountCacheMu.Lock()
+	defer storedAccountCacheMu.Unlock()
+	if len(storedAccountCache) >= storedAccountCacheLimit {
+		// A bounded cache is the only kind this package may own: the key is a path that arrives from a
+		// request-controlled handle, so an unbounded map would be a memory growth vector. Dropping the
+		// whole map is correct (every entry is re-derivable from its file) and costs one round of reads.
+		storedAccountCache = make(map[string]storedAccountCacheEntry)
+	}
+	storedAccountCache[path] = storedAccountCacheEntry{modTime: info.ModTime(), size: info.Size(), account: account, found: found}
+}
+
+func forgetStoredAccount(path string) {
+	storedAccountCacheMu.Lock()
+	defer storedAccountCacheMu.Unlock()
+	delete(storedAccountCache, path)
+}
+
+// clone returns an account whose fields map is the caller's own, so a mutation cannot reach the cache.
+func (account storedAccount) clone() storedAccount {
+	fields := make(map[string]json.RawMessage, len(account.fields))
+	for key, value := range account.fields {
+		fields[key] = value
+	}
+	return storedAccount{fields: fields}
+}
+
 func loadStoredAccount(dataRoot, handle string) (storedAccount, bool, error) {
 	if dataRoot == "" {
 		return storedAccount{}, false, nil
 	}
 	key := userStoragePrefix + handle
-	body, err := os.ReadFile(filepath.Join(dataRoot, userStorageFolder, nodeStoreFilename(key)))
+	recordPath := filepath.Join(dataRoot, userStorageFolder, nodeStoreFilename(key))
+	// THE IDENTITY IS READ WITHOUT OPENING THE FILE. A stat is one syscall; a read plus two decodes is
+	// what the profile measured. A record that does not exist is also a hit worth caching away: the
+	// common case for a forged handle, and it must not leave an entry behind.
+	info, statErr := os.Stat(recordPath)
+	if errors.Is(statErr, os.ErrNotExist) {
+		forgetStoredAccount(recordPath)
+		return storedAccount{}, false, nil
+	}
+	if statErr != nil {
+		return storedAccount{}, false, fmt.Errorf("read node-persist record %s: %w", key, statErr)
+	}
+	if entry, ok := cachedStoredAccount(recordPath, info); ok {
+		return entry.account.clone(), entry.found, nil
+	}
+	body, err := os.ReadFile(recordPath)
 	if errors.Is(err, os.ErrNotExist) {
+		forgetStoredAccount(recordPath)
 		return storedAccount{}, false, nil
 	}
 	if err != nil {
@@ -252,6 +343,7 @@ func loadStoredAccount(dataRoot, handle string) (storedAccount, bool, error) {
 		return storedAccount{}, false, fmt.Errorf("decode node-persist record %s: invalid storage file", key)
 	}
 	if !nodeTruthyJSON(record["value"]) {
+		rememberStoredAccount(recordPath, info, storedAccount{}, false)
 		return storedAccount{}, false, nil
 	}
 	var fields map[string]json.RawMessage
@@ -260,7 +352,9 @@ func loadStoredAccount(dataRoot, handle string) (storedAccount, bool, error) {
 		// then sees a missing handle/enabled field on primitives and arrays.
 		fields = make(map[string]json.RawMessage)
 	}
-	return storedAccount{fields: fields}, true, nil
+	account := storedAccount{fields: fields}
+	rememberStoredAccount(recordPath, info, account, true)
+	return account.clone(), true, nil
 }
 
 func (account storedAccount) raw(name string) json.RawMessage {
