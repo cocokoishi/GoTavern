@@ -797,7 +797,7 @@
     {
       "id": "startup",
       "area": "Startup: config creation and migration, data seeding, locking, no-hang, no egress",
-      "status": "FAIL",
+      "status": "PARTIAL",
       "evidence": {
         "oracleFixtures": [
           "tests/oracle/sillytavern-1.19.0-fresh-start.json",
@@ -818,10 +818,13 @@
           "internal/app"
         ],
         "tests": [
-          "TestInitializeDataStartupMatchesPinnedNodeFreshStartInventory",
-          "TestInitializeCreatesPinnedFreshConfig",
-          "TestInitializeMigratesLegacyConfigAndPreservesUnknownFields",
-          "TestResolveProtocolSelectionMatchesPinnedServerStartup",
+          "TestP0BStockTreeInWorkingDirectoryStarts",
+          "TestP0BForeignWorkingDirectoryStartsOnAFreshTree",
+          "TestP0BConfigLockHeldByAnotherProcessFailsWithNamedError",
+          "TestP0BStaleConfigLockFileDoesNotBlockBoot",
+          "TestP0BLegacyKeysBootBounded",
+          "TestP0BTwoConcurrentBootsDoNotHang",
+          "TestP0BParseableConfigIsNotRewrittenOnBoot",
           "TestDuplicateKeyIsRejectedAsPinnedRecords",
           "TestDuplicateKeyConfigExitsOneWithPinnedLines"
         ],
@@ -833,22 +836,17 @@
         "releaseArtifact": null
       },
       "wouldGoRedIfWrong": {
-        "test": null,
-        "explanation": "no gate exists: docs/startup-state-machine.md §2 lists the unbounded waits and no test bounds them, so a stock-tree hang would go red nowhere. The gate that must land is a boot with a wall-clock bound per wait, against a real SillyTavern directory, failing with the wait named."
-      },
-      "absentGate": {
-        "owner": "lane B (startup state machine)",
-        "mustAssert": "a boot over a stock SillyTavern directory completes inside a wall-clock bound, with every wait in docs/startup-state-machine.md §2 individually bounded and its bound named in the failure, and the tree left unmodified"
+        "test": "TestP0BStockTreeInWorkingDirectoryStarts",
+        "explanation": "A boot over a stock layout that hangs fails this test inside startBounded's bound, printing the bound, the tree diff and the goroutine stacks. It is the row's own gate for P0-B and it exists at HEAD; the row previously claimed no gate existed, which is why the status was FAIL and is now PARTIAL."
       },
       "evidenceGap": [
-        "P0-B: a boot inside a real SillyTavern directory hung; docs/startup-state-machine.md §2 lists the unbounded waits (flock acquisition, resolver call, sleep loop, join without producer) and no gate bounds them (AGENTS.md 24)",
-        "no gate asserts that startup makes no non-essential network access (AGENTS.md 25)",
-        "no gate asserts that a parseable config is never rewritten as a side effect (AGENTS.md 27)",
-        "every startup fixture starts from a fresh or migrated runtime root, never from a stock SillyTavern tree that a user already runs",
-        "DUPLICATE-KEY CONFIG: CLOSED 2026-10-29. pinned refuses it by name and does NOT rewrite the file (measured, tests/oracle/sillytavern-1.19.0-config-duplicate-key.json: exit 1, 'YAMLParseError: Map keys must be unique at line N, column M', then 'FATAL: Failed to read config.yaml. Please check the file for syntax errors.', and the config's bytes and mtime IDENTICAL before and after; the control -- the same document minus the duplicate -- boots AND is migrated 25 -> 3310 bytes, which is what makes 'untouched' readable rather than vacuous). GoTavern used to ACCEPT a duplicate key, a divergence in the permissive direction; it now reproduces the refusal: `configinit.ParseError` carries pinned's message, `cmd/gotavern` prints the warning, the FATAL line and the message again and exits 1, and the config is left byte-identical. Asserted twice -- `TestDuplicateKeyIsRejectedAsPinnedRecords` replays the recording against the config layer (exact message including the trimmed source frame and the duplicate's line/column, unchanged sha256, control migrated) and `TestDuplicateKeyConfigExitsOneWithPinnedLines` runs the shipped binary and asserts exit 1, the recorded stderr order, the absence of a 'gotavern:' prefix or a fake Node stack, and an untouched file. WHAT REMAINS IN THIS ROW is the other four gaps below: the bounded-boot gate, the no-egress gate, the no-side-effect-rewrite gate, and a stock-tree (not fresh/migrated) fixture."
+        "P0-B's bounded-boot gate NOW EXISTS and passes: internal/app/startup_p0b_test.go drives a stock tree in the working directory (`TestP0BStockTreeInWorkingDirectoryStarts`), a foreign working directory on a fresh tree (`TestP0BForeignWorkingDirectoryStartsOnAFreshTree`, which also asserts nothing is left in the launch directory), a config lock held by another process (`TestP0BConfigLockHeldByAnotherProcessFailsWithNamedError`), a stale lock file (`TestP0BStaleConfigLockFileDoesNotBlockBoot`), legacy keys (`TestP0BLegacyKeysBootBounded`) and two concurrent boots (`TestP0BTwoConcurrentBootsDoNotHang`). Every one goes through `startBounded`, whose failure names the bound, the tree changes and the goroutine stacks -- so a hang goes red with the wait named, which is what this row asked for. The earlier text claiming no such gate existed was STALE and is corrected here rather than kept",
+        "NO GATE ASSERTS THAT STARTUP MAKES NO NON-ESSENTIAL NETWORK ACCESS (AGENTS.md 25). The startup path is documented as local-only with one bounded docker-hostname lookup, and no test fails if a future change adds an outbound call during boot. Closing it needs a seam (a recording dialer or proxy the boot must not touch), not a stronger assertion on an existing one",
+        "STARTUP-DIFFERENTIAL FIXTURES STILL START FROM FRESH OR MIGRATED RUNTIME ROOTS, never from a populated stock SillyTavern tree. A populated tree IS covered by two other gates -- `tests/e2e/longlived_test.go` synthesises one in Go and the packaged drop-in qualification boots an archive against a stock tree -- but neither is a startup-differential fixture, so the startup surface's own corpus does not include one",
+        "DUPLICATE-KEY CONFIG: CLOSED 2026-10-29. pinned refuses it by name and does NOT rewrite the file (measured, tests/oracle/sillytavern-1.19.0-config-duplicate-key.json: exit 1, the yaml message with code DUPLICATE_KEY, then 'FATAL: Failed to read config.yaml. Please check the file for syntax errors.', and the config's bytes and mtime IDENTICAL before and after; the control -- the same document minus the duplicate -- boots AND is migrated 25 -> 3310 bytes). GoTavern used to ACCEPT a duplicate key, a divergence in the permissive direction; it now reproduces the refusal, asserted twice: `TestDuplicateKeyIsRejectedAsPinnedRecords` replays the recording against the config layer (exact message including the trimmed source frame and the duplicate's line/column, unchanged sha256, control migrated) and `TestDuplicateKeyConfigExitsOneWithPinnedLines` runs the shipped binary and asserts exit 1, the recorded stderr ORDER, the absence of a 'gotavern:' prefix or a fake Node stack, and an untouched file"
       ],
       "blockedBy": [],
-      "notes": "The duplicate-key divergence this row recorded is CLOSED, and closing it moved the product TOWARDS pinned rather than away: a config pinned refuses is now refused by the same message, the same exit code and the same untouched bytes. The row stays FAIL because the bounded-boot gate it names still does not exist -- a stock-tree hang would still go red nowhere."
+      "notes": "RE-DERIVED 2026-10-29. The row was FAIL on a premise that is false at HEAD: it said no bounded-boot gate existed, and internal/app/startup_p0b_test.go has seven such gates, all passing, all through startBounded. Two gaps are real and remain: no gate asserts startup makes no non-essential network access, and the startup-differential fixtures still begin from fresh or migrated roots rather than a populated stock tree (a populated tree is covered by the longlived e2e leg and the packaged drop-in gate, not by a startup fixture). The duplicate-key divergence recorded here is closed and gated at both the config layer and the shipped binary."
     },
     {
       "id": "packaging-release",
@@ -1107,7 +1105,7 @@
     },
     "goTestFunctions": {
       "inTree": 707,
-      "citedByMatrix": 68
+      "citedByMatrix": 71
     },
     "workflows": {
       "inTree": 9,
@@ -1116,8 +1114,8 @@
     "rows": {
       "total": 22,
       "PASS": 0,
-      "PARTIAL": 18,
-      "FAIL": 3,
+      "PARTIAL": 19,
+      "FAIL": 2,
       "NOT_APPLICABLE": 1
     },
     "sessionSteps": {
