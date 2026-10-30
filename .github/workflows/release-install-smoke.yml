@@ -29,8 +29,10 @@ name: GoTavern published-release install smoke
 #   5. the installed binary boots, `/version` answers, and the TOKENIZER ROUTES return real ids from
 #      `<root>/src/tokenizers` -- see the next block, because this is the assertion that the archive
 #      layout is actually USABLE and it is the one no other job makes;
-#   6. a prerelease tag never becomes `releases/latest`, so an alpha cannot reach a user who installed
-#      without pinning a version.
+#   6. the channel is asserted in BOTH directions. A prerelease tag never becomes `releases/latest`, so an
+#      alpha cannot reach a user who installed without pinning a version -- and a STABLE tag (including the
+#      documented `v0.1.0-alpha.9` historical graduation) IS what `releases/latest` serves, with its own
+#      `checksums.txt` bytes, so an unpinned install receives the release that was just published.
 #
 # WHY THE TOKENIZER CLAIM IS ROUTE-LEVEL, AND WHY IT CANNOT BE A STATUS CODE. `gotavern assets verify`
 # hashes the tree on disk against the embedded manifest, which proves the FILES are correct. It does not
@@ -47,9 +49,13 @@ name: GoTavern published-release install smoke
 #     executed: this runner is Linux. Those live in `release-qualification.yml`'s qualify-windows-amd64
 #     job (windows-latest) -- but against IN-RUN archives, so the published WINDOWS INSTALLER remains
 #     unexecuted by any job. The windows ZIP here is opened and content-asserted, never installed.
-#   - `releases/latest/download/...` is asserted NOT to serve a prerelease, not asserted to serve a
-#     stable one: no stable release exists yet, and inventing that expectation would be a promise the
-#     repository cannot currently keep.
+#   - `releases/latest/download/...` is asserted NOT to serve a prerelease for a prerelease tag. For a STABLE
+#     tag this job resolves itself (the scheduled shape) the positive direction is now asserted too: the file
+#     must be this release's own `checksums.txt` and `releases/latest`'s `tag_name` must be this tag. That
+#     expectation only became keepable when `v0.1.0-alpha.9` graduated to the stable channel (the single
+#     exception in scripts/classify-version-tag.sh); before it, no stable release existed and asserting the
+#     positive direction would have been a promise the repository could not keep. A DISPATCHED older stable
+#     tag keeps the weaker flag-only claim, because an older release is legitimately not `latest`.
 #   - the archives are booted on one platform only (linux-amd64). darwin and linux-arm64 are opened, not
 #     run; a runner of each architecture is the only thing that could change that.
 #
@@ -149,6 +155,13 @@ jobs:
             echo "candidates, newest first:"
             git for-each-ref --sort=-v:refname --format='  %(refname:short) %(objectname:short)' 'refs/tags/v*' | sed -n '1,10p'
           fi
+          # WHETHER THIS JOB CHOSE THE TAG MATTERS TO THE CHANNEL ASSERTION LATER. An auto-resolved tag is the
+          # newest in the repository, so if it is stable it MUST be what `releases/latest` serves; a dispatched
+          # tag may legitimately be an older release, so only the weaker flag claim applies to it.
+          if [ -n "${REQUESTED}" ]; then resolved='requested'; else resolved='auto'; fi
+          echo "tag resolution: ${resolved}"
+          echo "resolved=${resolved}" >> "$GITHUB_OUTPUT"
+
           echo "release tag: ${VERSION}"
 
           # The classifier is the SAME rule release.yml used to choose `--prerelease`/`--latest=false`, and
@@ -595,16 +608,18 @@ jobs:
           done
           echo "ok: three models across two engines returned real ids from the installed src/tokenizers tree"
 
-      # ---- 6. AN ALPHA MUST NEVER BECOME `latest` ----------------------------------------------
-      - name: Assert releases/latest does not serve a prerelease
+      # ---- 6. THE CHANNEL, IN BOTH DIRECTIONS --------------------------------------------------
+      - name: Assert the release that releases/latest serves, in the direction the channel requires
         env:
           VERSION: ${{ steps.release.outputs.version }}
           CHANNEL: ${{ steps.release.outputs.channel }}
+          RESOLVED: ${{ steps.release.outputs.resolved }}
         run: |
           set -eu
-          # `releases/latest` is what both installers fetch when no version is pinned, and GitHub resolves
-          # it to the newest NON-prerelease release. So this is the assertion that a user who runs the
-          # documented one-liner can never receive an alpha.
+          # `releases/latest` is what both installers fetch when no version is pinned, and GitHub resolves it to
+          # the newest NON-prerelease release. For a prerelease tag this is the assertion that a user who runs
+          # the documented one-liner can never receive an alpha; for a stable tag it is the assertion that the
+          # user receives THIS release, byte for byte.
           url="https://github.com/${REPO}/releases/latest/download/checksums.txt"
           rm -f latest-checksums.txt
           status="$(curl -sS -L -o latest-checksums.txt -w '%{http_code}' "${url}" || true)"
@@ -636,8 +651,8 @@ jobs:
                 echo "ok: latest serves a DIFFERENT release than the prerelease ${VERSION}"
                 ;;
               404)
-                echo "ok: latest serves nothing, because no stable release exists yet; an unpinned install"
-                echo "    fails loudly instead of receiving the prerelease ${VERSION}"
+                echo "ok: latest serves nothing (no stable release exists), so an unpinned install fails"
+                echo "    loudly instead of receiving the prerelease ${VERSION}"
                 ;;
               *)
                 echo "::error::unexpected status ${status} for ${url}" >&2
@@ -665,6 +680,33 @@ jobs:
             if [ "${latest_pre}" != "false" ]; then
               echo "::error::releases/latest resolves to a prerelease (${latest_tag})" >&2
               exit 1
+            fi
+            if [ "${RESOLVED}" = "auto" ]; then
+              # THE POSITIVE CLAIM, asserted the way a user experiences it: the BYTES. The unpinned installer
+              # parses `latest/download/checksums.txt` first (install.sh:166, install.ps1:98), and two releases
+              # cannot share that file because every archive's digest differs. A 200 carrying a stable flag from
+              # a DIFFERENT release is the failure this catches and the flag check above cannot: an older stable
+              # release is `prerelease=false` as well.
+              if ! cmp -s latest-checksums.txt dist/checksums.txt; then
+                echo "::error::releases/latest/download/checksums.txt is not ${VERSION}'s own file; a bare" >&2
+                echo "::error::(unpinned) install would resolve a different release. latest is ${latest_tag}." >&2
+                exit 1
+              fi
+              echo "ok: releases/latest serves ${VERSION}'s own checksums.txt, so a bare install resolves ${VERSION}"
+              # AND NAME IT. This is where a release created without making it latest shows up: release.yml's
+              # stable branch must not pass `--latest=false`, or this tag would never be what users get.
+              if [ "${latest_tag}" != "${VERSION}" ]; then
+                echo "::error::this job resolved the newest tag (${VERSION}), the classifier calls it stable, but" >&2
+                echo "::error::releases/latest is ${latest_tag}. release.yml's stable branch must not pass" >&2
+                echo "::error::--latest=false; GitHub's automatic latest then follows the newest release." >&2
+                exit 1
+              fi
+              echo "ok: releases/latest is ${latest_tag}, which is the tag this job resolved"
+            else
+              # A DISPATCHED tag may be an older stable release, which is legitimately not `latest`. The claim
+              # that still holds is the flag one asserted above; byte identity would fail for a legitimate
+              # reason here and would train the reader to ignore this step.
+              echo "ok: ${VERSION} was requested explicitly, so only the channel flag is asserted for it"
             fi
           fi
 
