@@ -119,7 +119,13 @@ function bootSubject({ root, port }) {
         console.error(`REFUSING: GOTAVERN_BINARY points at ${binarySetting}, which does not exist`);
         process.exit(2);
     }
-    const server = spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', root, '--configPath', path.join(root, 'config.yaml')], {
+    // `--browserLaunchEnabled false` IS NOT OPTIONAL. The config every leg is seeded with comes from the PINNED default
+    // tree, whose `browserLaunch.enabled` is TRUE, so a server that honours it opens the developer's DEFAULT BROWSER at
+    // boot. This leg measures a server over plain HTTP and must never open a window on the machine running it: the
+    // operator forbids local browser launches, and a boot that opens one is a violation whether or not the leg notices.
+    // The flag overrides the config without editing the tree (AGENTS rule 14). `run-against-pinned.mjs` has always
+    // passed the equivalent flag to the pinned server for exactly this reason.
+    const server = spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', root, '--configPath', path.join(root, 'config.yaml'), '--browserLaunchEnabled', 'false'], {
         cwd: repoRoot,
         stdio: ['ignore', 'pipe', 'pipe'],
     });
