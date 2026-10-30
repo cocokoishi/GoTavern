@@ -1104,12 +1104,12 @@
       "citedByMatrix": 11
     },
     "goTestFunctions": {
-      "inTree": 697,
+      "inTree": 706,
       "citedByMatrix": 66
     },
     "workflows": {
       "inTree": 9,
-      "jobsInTree": 32
+      "jobsInTree": 33
     },
     "rows": {
       "total": 22,

@@ -379,7 +379,13 @@ jobs:
         # A `preset`-only run must NOT fall into this step's "everything that is not generation is
         # streaming" branch and pay for fifteen sources' streaming drives. The preset lane has its own
         # steps below, and `all` still runs both. An `assets`-only run has its own step for the same reason.
-        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) != 'preset' && (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) != 'assets' && (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) != 'helper' }}
+        # A NARROW MODE MUST NOT PAY FOR THE PROVIDER DRIVES. `preset`, `assets`, `helper` and the lanes that
+        # have their own steps below already skip this one; `regex` was the exception that got missed, and the
+        # cost is not theoretical: dispatching `mode=regex` on 2026-10-29 (run 40979974591) started the full
+        # fifteen-source drive step, ~40 minutes of provider traffic for a lane that never reads it. A cost
+        # saving that silently REMOVES a gate is worse than the cost (that is why `helper` is not narrowed on
+        # push), but this narrowing removes nothing: the regex lane has its own record/compare/teeth steps.
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) != 'preset' && (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) != 'assets' && (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) != 'helper' && (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) != 'regex' }}
         env:
           # A SCHEDULED RUN HAS NO INPUTS, so an empty mode means "everything": the nightly job is the
           # one that must compare every surface, and a `|| 'all'` here is what makes that true without a

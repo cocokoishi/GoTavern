@@ -581,3 +581,32 @@ jobs:
             echo "::endgroup::"
           done
           echo "all six release platforms compile"
+
+  race:
+    runs-on: ubuntu-latest
+    # WHY THIS JOB EXISTS, AND WHY IT DID NOT UNTIL NOW. The product's most damaging recent defects were
+    # concurrency-shaped: a shared HTTP client whose TLS configuration could be mutated by another request, a
+    # cached account record handed out by reference, a results slice appended from two goroutines. None of them
+    # can be seen without the race detector, and the development host cannot run it at all -- measured
+    # 2026-10-29: `go test -race` answers "-race is not supported on windows/arm64". So the only place this gate
+    # can run is a Linux runner, which is exactly where it now runs.
+    #
+    # IT IS A BOUNDED SUBSET ON PURPOSE. `-race` multiplies the cost of the whole suite by roughly four, and a
+    # red that takes an hour is a red people stop reading. The packages here are the ones that own shared
+    # mutable state: the handler package (caches, account runtime, per-user locks, streaming), the outbound
+    # transport (client sharing, proxy state), the retry helper and the egress guard. The rest of the tree is
+    # covered by `verify` without the detector.
+    #
+    # CGO IS ON HERE AND ONLY HERE. `-race` needs cgo on linux/amd64, and this job builds nothing that ships:
+    # every release artifact and every cross-compile still runs with CGO_ENABLED=0.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Race detector over the packages that own shared state
+        run: |
+          set -euo pipefail
+          go test -race -count=1 ./internal/server ./internal/outbound ./internal/fsretry ./internal/startup ./tests/egressguard
