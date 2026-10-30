@@ -63,6 +63,8 @@ var checklistItems = map[string]string{
 	"autoupdate.inherited":     "stock config saying autoUpdate: true (ARCHITECTURE 34.3)",
 	"legacy.only":              "legacy-only config",
 	"config.readonly":          "config owned by another user / read-only directory; parseable config rewritten",
+	"config.readonly.file":     "read-only config FILE (the shape Windows enforces), on any host",
+	"data.malformed":           "malformed user data at boot (secrets.json, node-persist record) must be reported and left byte-identical",
 	"install.readonly":         "read-only install root",
 	"config.parent-missing":    "config whose parent directory does not exist",
 	"data-root.parent-missing": "data root whose parent directory does not exist",
@@ -86,9 +88,10 @@ var checklistItems = map[string]string{
 
 func allCases(t *testing.T) []caseSpec {
 	t.Helper()
-	cases := make([]caseSpec, 0, 32)
+	cases := make([]caseSpec, 0, 36)
 	cases = append(cases, configCases(t)...)
 	cases = append(cases, startupCases(t)...)
+	cases = append(cases, hardeningCases(t)...)
 	cases = append(cases, transportCases(t)...)
 	cases = append(cases, extensionsCases(t)...)
 	return cases
