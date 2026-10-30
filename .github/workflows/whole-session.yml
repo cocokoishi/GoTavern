@@ -1,0 +1,259 @@
+# THE WHOLE-SESSION DIFFERENTIAL — the surface `docs/compatibility-matrix.json`'s `whole-session-e2e` row names.
+#
+# WHAT IT RUNS. One stock tree per subject. On each subject, the SAME browser journey over that one tree — boot, page
+# load, settings read/change/save, characters, open the card, a streamed turn, a swipe, save, a page RELOAD, a second
+# turn, regenerate, continue — and then a SECOND process over the SAME tree that reopens the chat and takes another
+# turn. Then `compare-whole-session-legs.mjs` judges the three fact classes (browser observable, provider wire, disk
+# state) and `whole-session-gate-selftest.mjs` proves the judge has teeth by mutating the run's own artefacts.
+#
+# WHY IT IS ITS OWN WORKFLOW INSTEAD OF A SURFACE INSIDE `browser-differential.yml`. Two measured reasons:
+#   * every existing surface there is an EXPERIMENT on its own runtime; this one exists precisely because eight of
+#     those exist and none of them shares a session. Mixing it in would put the one stateful journey behind the same
+#     trigger and the same 150-minute budget as eighteen stateless ones, and a red could no longer say which shape
+#     failed without reading the log;
+#   * iteration cost. This surface had to be developed against CI (a browser must not be launched on the developer's
+#     host), and a standalone job is ~10 minutes to a verdict instead of an hour. The cost is one more workflow file,
+#     which is cheaper than a debugging loop that pays for fifteen unrelated sources on every attempt.
+#
+# WHAT A GREEN RUN DOES NOT PROVE, stated here because the matrix row will quote it: a real provider (the peer answers
+# with markers), group chats, branches/checkpoints, multi-user, or a real user's data. The tree is a fresh install the
+# server seeds itself, and the model is a recording peer.
+
+name: GoTavern whole-session differential
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tests/browser/whole-session-probe.mjs'
+      - 'tests/browser/compare-whole-session-legs.mjs'
+      - 'tests/browser/whole-session-gate-selftest.mjs'
+      - 'tests/browser/q20-persistence-drive.mjs'
+      - 'tests/browser/q20-leg-runtime.mjs'
+      - 'tests/browser/url-recorder.mjs'
+      - 'tests/browser/seed-leg-config.mjs'
+      - 'tests/browser/run-against-pinned.mjs'
+      - '.github/workflows/whole-session.yml'
+
+permissions:
+  contents: read
+
+# ONE RUN AT A TIME PER BRANCH, and a new push supersedes an older one: this job costs browser minutes, and a superseded
+# run cannot change what ships.
+concurrency:
+  group: whole-session-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PINNED_BASELINE_COMMIT: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
+
+jobs:
+  whole-session:
+    runs-on: ubuntu-latest
+    # SIZED FROM THE DRIVES, not from a round number: four browser journeys (two subjects x drive + restart), two of
+    # which boot pinned Node (~40 s each) and all of which load the unmodified frontend, plus the comparator and the
+    # teeth proof. The probe's own deadlines (120 s server, 90 s reply, 45 s chat load) are the first line of defence;
+    # this is the backstop that bounds a wedged browser instead of holding a runner for the service maximum.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # THE PINNED REFERENCE IS THE ORACLE, at the baseline commit AGENTS.md names — the same commit the oracle job and
+      # the browser differential use, so no lane can drift onto a different baseline.
+      - uses: actions/checkout@v4
+        with:
+          repository: SillyTavern/SillyTavern
+          ref: ${{ env.PINNED_BASELINE_COMMIT }}
+          path: .reference/SillyTavern
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # THE SAME THREE CACHES, KEYED THE SAME WAY, as `browser-differential.yml`: a hit SKIPS an install, so the key has
+      # to PROVE the identity of what it restores (the pinned commit plus that checkout's lockfile, the harness
+      # lockfile, the Playwright download) rather than merely suggest it. No `restore-keys`, for the reason recorded
+      # there: a partial restore reports cache-hit=false while handing back an older tree.
+      - name: Cache the pinned server's node_modules
+        id: cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Install the pinned server's dependencies
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "pinned server node_modules: CACHE HIT for ${{ env.PINNED_BASELINE_COMMIT }} -- install SKIPPED"
+          else
+            echo "pinned server node_modules: cache MISS -- installing from the pinned checkout's own manifest"
+            cd .reference/SillyTavern
+            if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          fi
+
+      - name: Install the browser harness
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            echo "tests/browser/node_modules: cache MISS -- npm ci"
+            (cd tests/browser && npm ci --no-audit --no-fund)
+          fi
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            echo "playwright chromium: CACHE HIT -- browser download SKIPPED, OS packages still ensured"
+            (cd tests/browser && npx playwright install-deps chromium)
+          else
+            echo "playwright chromium: cache MISS -- downloading the browser and its OS packages"
+            (cd tests/browser && npx playwright install --with-deps chromium)
+          fi
+
+      - name: Which setup branches this run took
+        run: |
+          echo "pinned server node_modules cache-hit: ${{ steps.cache-pinned-modules.outputs.cache-hit }}"
+          echo "harness node_modules cache-hit:       ${{ steps.cache-harness-modules.outputs.cache-hit }}"
+          echo "playwright browsers cache-hit:        ${{ steps.cache-playwright.outputs.cache-hit }}"
+          echo "(true = the install above was skipped; false or empty = it ran)"
+
+      - name: Build the subject binary
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          mkdir -p .browser-bin
+          go build -trimpath -o .browser-bin/gotavern ./cmd/gotavern
+          echo "GOTAVERN_BINARY=${PWD}/.browser-bin/gotavern" >> "$GITHUB_ENV"
+          echo "GOTAVERN_REFERENCE=${PWD}/.reference/SillyTavern" >> "$GITHUB_ENV"
+
+      # THE FOUR LEGS. The loop is SEQUENTIAL ON PURPOSE: the restart leg of a subject must run after that subject's
+      # drive leg, over the same tree, or "the new process read what the old one wrote" is not what was measured.
+      #
+      # THE COUNTER IS WRITTEN ON EVERY FAILURE, not once at the end: a shell that dies mid-loop would otherwise leave
+      # `failures=0` standing as a claim that four legs were recorded (the defect `browser-differential.yml` records for
+      # run 40445569175, where six failed legs still produced a green step).
+      - name: Record the four legs (drive and restart, on both subjects)
+        id: legs
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/whole-session"
+          mkdir -p "$work/legs"
+          echo "failures=0" >> "$GITHUB_OUTPUT"
+          record_failure() {
+            echo "::error::$1"
+            echo "failures=1" >> "$GITHUB_OUTPUT"
+          }
+          for subject in gotavern pinned; do
+            tree="$work/tree-$subject"
+            rm -rf "$tree"; mkdir -p "$tree"
+            # THE PER-SUBJECT DISCRIMINATOR (AGENTS rule 50). Each subject's first reply carries a different prefix, so
+            # the comparator can require the two artefacts to DIFFER where the fixture put a difference instead of
+            # proving parity between two runs the harness made identical.
+            if [ "$subject" = "gotavern" ]; then prefix="WSG_"; else prefix="WSP_"; fi
+            for phase in drive restart; do
+              report="$work/legs/whole-session-$phase-$subject.json"
+              if [ "$subject" = "gotavern" ]; then
+                node tests/browser/whole-session-probe.mjs --phase "$phase" --data-root "$tree" \
+                  --reply-prefix "$prefix" --report "$report"
+                status=$?
+              else
+                # `run-against-pinned.mjs` boots pinned Node over the SAME tree and owns its process; it supplies
+                # PROBE_BASE_URL and PROBE_SERVER_PID, which is how the restart leg's pid can differ from the drive
+                # leg's without this workflow ever touching a process it did not spawn.
+                node tests/browser/run-against-pinned.mjs whole-session-probe.mjs -- --phase "$phase" \
+                  --data-root "$tree" --reply-prefix "$prefix" --report "$report"
+                status=$?
+              fi
+              if [ "$status" -eq 0 ]; then
+                echo "recorded the $subject/$phase leg"
+              else
+                record_failure "the $subject/$phase leg failed to drive"
+              fi
+              # A LEG THAT WROTE NO REPORT IS THE ABSENCE OF EVIDENCE, and the comparator refuses rather than passing.
+              if [ ! -s "$report" ]; then
+                record_failure "the $subject/$phase leg wrote no report at $report"
+              fi
+            done
+          done
+          exit 0
+
+      - name: Compare the four legs
+        id: compare
+        if: ${{ steps.legs.outputs.failures == '0' }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/whole-session"
+          missing=0
+          for name in drive-gotavern drive-pinned restart-gotavern restart-pinned; do
+            if [ ! -s "$work/legs/whole-session-$name.json" ]; then
+              echo "::error::the $name leg produced no report, so nothing can be claimed about it"
+              missing=$((missing + 1))
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::$missing leg report(s) missing; the comparator is not run against absent evidence"
+            exit 1
+          fi
+          node tests/browser/compare-whole-session-legs.mjs \
+            --drive-go      "$work/legs/whole-session-drive-gotavern.json" \
+            --drive-pinned  "$work/legs/whole-session-drive-pinned.json" \
+            --restart-go    "$work/legs/whole-session-restart-gotavern.json" \
+            --restart-pinned "$work/legs/whole-session-restart-pinned.json" \
+            --out tests/browser/whole-session-comparison.json
+
+      # DOES THE GATE HAVE TEETH? Eleven mutations of THIS RUN's own artefacts, each required to produce its NAMED red
+      # on top of a green baseline. It needs no browser and no server, so it costs a fraction of a second after the
+      # drives have been paid for — and running it against the same artefacts the gate judged is the only way the
+      # baseline is the pair the run actually produced.
+      - name: Prove the whole-session gate has teeth
+        if: ${{ steps.legs.outputs.failures == '0' && steps.compare.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/whole-session"
+          node tests/browser/whole-session-gate-selftest.mjs \
+            --drive-go      "$work/legs/whole-session-drive-gotavern.json" \
+            --drive-pinned  "$work/legs/whole-session-drive-pinned.json" \
+            --restart-go    "$work/legs/whole-session-restart-gotavern.json" \
+            --restart-pinned "$work/legs/whole-session-restart-pinned.json" \
+            --out "$RUNNER_TEMP/whole-session/whole-session-teeth.json"
+
+      # A DRIVE THAT COULD NOT BE RECORDED OR JUDGED MUST FAIL THE JOB. Every other step above is gated on
+      # `failures == '0'`, so a failed drive SKIPS the compare and nothing else would be red: that shape has shipped a
+      # green run of a surface whose legs all died, twice in this repository's history.
+      - name: Fail if a drive could not be recorded or judged
+        if: ${{ always() && (steps.legs.outputs.failures != '0' || steps.compare.outcome == 'skipped' || steps.compare.outcome == 'failure') }}
+        run: |
+          echo "::error::a whole-session drive could not be recorded, or the comparison failed; see the group output above."
+          echo "leg failures:       ${{ steps.legs.outputs.failures }}"
+          echo "compare outcome:    ${{ steps.compare.outcome }}"
+          exit 1
+
+      - name: Upload the legs, the verdict and the teeth report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: whole-session-${{ github.run_id }}
+          path: |
+            tests/browser/whole-session-comparison.json
+            ${{ runner.temp }}/whole-session/**
+          retention-days: 14
+          if-no-files-found: warn

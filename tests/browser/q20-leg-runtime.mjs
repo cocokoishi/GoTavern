@@ -234,7 +234,14 @@ export async function bootSubject({ argv, dataRoot, port, external }) {
     const { seedLegConfig } = await import('./seed-leg-config.mjs');
     await fs.cp(path.join(repoRoot, 'upstream', 'tokenizers'), path.join(dataRoot, 'tokenizers'), { recursive: true });
     await seedLegConfig(dataRoot);
-    const server = spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    // `--browserLaunchEnabled false` IS NOT OPTIONAL, AND THIS LEG LEARNED IT THE EXPENSIVE WAY. The config every leg is
+    // seeded with is derived from the PINNED default tree, whose `browserLaunch.enabled` is TRUE, and a server that
+    // honours it opens the developer's DEFAULT BROWSER at boot. Measured on a local run of the whole-session surface:
+    // the GoTavern leg's own process opened a real browser tab on the developer's desktop while the leg was measuring
+    // a page in headless Chromium. `run-against-pinned.mjs` has always passed the equivalent flag to the pinned
+    // server for exactly this reason; the GoTavern leg did not, so every caller of this helper could do it too. The
+    // flag overrides the config without editing the tree (AGENTS rule 14).
+    const server = spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
     const serverLog = [];
     const collect = chunk => {
         if (serverLog.length < 200) serverLog.push(String(chunk).slice(0, 400));
