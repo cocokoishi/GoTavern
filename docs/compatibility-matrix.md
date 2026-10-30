@@ -62,7 +62,7 @@ A row is `PASS` only when every one of these holds:
 | 19 | Content import, character export, chat/account backups and restore | **PARTIAL** | 5 oracle fixture(s), Go implementation, 5 named test(s), CI job(s) | 2 item(s) |
 | 20 | Startup: config creation and migration, data seeding, locking, no-hang, no egress | **PARTIAL** | 6 oracle fixture(s), upstream assets, Go implementation, 9 named test(s), CI job(s) | 2 item(s) |
 | 21 | Release artifact: archive, install, upgrade, rollback, docker, smoke | **PARTIAL** | upstream assets, Go implementation, 2 named test(s), CI job(s), release-artifact step | 4 item(s) |
-| 22 | Whole-session differential in a stock tree (load, settings, characters, chat, send, stream, save, reload) | **FAIL** | 1 oracle fixture(s), 2 browser artefact(s), CI job(s) | 4 item(s) |
+| 22 | Whole-session differential in a stock tree (load, settings, characters, chat, send, stream, save, reload) | **FAIL** | 1 oracle fixture(s), Go implementation, CI job(s) | 4 item(s) |
 
 ## Evidence and gaps, per row
 
@@ -490,28 +490,28 @@ Row id: `whole-session-e2e`
 
 - Oracle fixtures: `tests/oracle/sillytavern-1.19.0-fresh-start.json`
 - Upstream assets: _none_
-- Go implementation: _none_
+- Go implementation: `tests/browser/whole-session-probe.mjs`, `tests/browser/compare-whole-session-legs.mjs`, `tests/browser/whole-session-gate-selftest.mjs`
 - Named tests: _none_
-- Browser artefacts: `tests/browser/startup-comparison.json`, `tests/browser/data-domain-comparison.json`
-- CI jobs: `browser-differential.yml#differential`
+- Browser artefacts: _none_
+- CI jobs: `whole-session.yml#whole-session`
 - Release artifact: _none_
 
 **Evidence gap**
 
-- CROSS-STEP STATE IS PARTLY GATED: a save -> fresh page load -> second turn -> swipe leg runs inside ONE runtime root with every guard true and the two provider requests byte-identical across subjects; regenerate and continue now have their own comparator steps, but not inside that same session leg
-- the two browser artefacts that touch startup compare a startup RECORD, not a user session
-- send and stream are still compared per-source against a mock peer rather than as one user's sequence in one tree
-- the old clause "NO leg boots pinned Node over a tree GoTavern WROTE -- the data-handback question has no driver at all" is now FALSE and is removed: tests/browser/q21-data-handback.mjs is that driver and boots pinned Node over the Go-written tree, and the reverse direction over the pinned-written tree, judged by tests/oracle/q21/judge-handback.mjs. This row stays FAIL for the session shape above, not for a missing driver
+- THE GATE EXISTS AND IS RED FOR A REAL DIFFERENCE, not for a missing mechanism. Run 41015209900 (GoTavern whole-session differential) recorded all four legs green — 25 drive steps and 12 restart steps on BOTH subjects — and the 39-guard comparator held every browser-observable, disk-state and restart guard; 37 of 39 guards held in total. The two that failed are completion-1-equal and completion-2-equal: the FIRST turn request and the SWIPE request differ between subjects in ONE system message, the character example dialogue. Pinned sends four example pairs, GoTavern sends the same pairs in the same order MINUS THE FIRST (What are your powers?), 3191 bytes against 2477
+- that difference is CONFINED and it is NOT the card data: both subjects /api/characters/all payloads are the same 31282 bytes and differ only in their last ~80 bytes (a clock-bearing tail), and requests 3-5 (second turn, regenerate, continue, all AFTER the page reload) are BYTE-IDENTICAL. Whatever drops the first example block is a page-load-time assembly difference that a reload clears, and it must be explained before this row passes
+- the rest of the original gap list is closed by the same programme: one runtime root, one browsing context, state carried from every step into the next, a fresh page load whose chat is then continued, and a SERVER RESTART as a second process over the same tree (pids recorded and required to differ)
+- NOT COMPARED, and printed by the comparator itself: a real provider (the peer answers with markers), group chats, branches/checkpoints, multi-user trees, and every clock-bearing field (chat_metadata and per-message send_date are recorded and never compared)
 
 Blocked by: `startup`, `providers-transport`
 
-This is the row this lane exists to create, and it is honestly FAIL today: most of the harness still covers its steps as independent experiments. One leg now carries state (see the first evidence gap), which is one of four things this row needs; the row stays FAIL until the other three exist. Section `session` records the per-step inventory that supports that claim.
+The row claim is now MEASURED rather than inferred: eight steps, eight experiments is replaced by one session per subject, and the surface found a concrete provider-context difference on its first run with green legs — which is what this row was for. It stays FAIL because a user first request reaching the model with different example dialogue than pinned is a parity defect, not evidence debt. The finding above is the next change whole brief: record the example-dialogue block as the page holds it at first load and after the reload, and diff it against the served card payload, per subject.
 
 ## The whole-session differential (what exists today)
 
 The whole-session differential AGENTS.md 34/38 asks for, inventoried against the harness that exists. It proves the claim above: every step has a probe, no probe shares a runtime with another, so there is no session.
 
-- State carried between steps: **false**
+- State carried between steps: **true**
 - One shared runtime/fixture across steps: **false**
 - Harness reused: `tools/probe-*.mjs`, `tests/browser/generation-probe.mjs`, `tests/browser/capture-preset.mjs`
 
@@ -557,8 +557,8 @@ with `TestMain` excluded because it is a package's test entry point rather than 
 | Measure | In the tree | Cited by this matrix |
 |---|---|---|
 | Oracle fixtures | 119 | 67 |
-| Browser artefacts | 38 | 11 |
-| Go test functions | 722 | 86 |
-| Workflow jobs | 33 in 9 workflow(s) | _n/a_ |
+| Browser artefacts | 38 | 9 |
+| Go test functions | 733 | 86 |
+| Workflow jobs | 35 in 10 workflow(s) | _n/a_ |
 | Rows | 22 | PASS 1, PARTIAL 19, FAIL 1, NOT_APPLICABLE 1 |
 | Session steps | 8 | 7 with a probe, 1 without, 0 sharing a runtime |
