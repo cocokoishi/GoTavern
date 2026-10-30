@@ -95,6 +95,26 @@ func withFastHordePolling(t *testing.T) {
 	t.Cleanup(func() { hordePollCheckInterval = previous })
 }
 
+// recorded returns a COPY of the requests this peer answered, under the mutex its handler writes with.
+// Reading peer.seen from test code without it is a data race the CI race job reported on 2026-10-29 (five
+// findings, reads at :225/:229/:237 against the handler's write at :118): the handler records before it
+// answers, but a request still in flight at subtest cleanup can append while the test is asserting.
+func (peer *hordeMockPeer) recorded() []struct {
+	Method string
+	Path   string
+	Header http.Header
+	Body   string
+} {
+	peer.mu.Lock()
+	defer peer.mu.Unlock()
+	return append([]struct {
+		Method string
+		Path   string
+		Header http.Header
+		Body   string
+	}(nil), peer.seen...)
+}
+
 // hordeMockPeer replays the fixture's rule list with the same first-match, `times`-counted semantics the
 // probe's controlled peer used.
 type hordeMockPeer struct {
@@ -217,16 +237,16 @@ func TestHordeGenerationRoutesMatchPinnedOracle(t *testing.T) {
 				t.Fatalf("%s: body = %q, pinned %q", label, got, scenario.Response.BodyText)
 			}
 			if len(scenario.Outbound) == 0 {
-				if len(peer.seen) != 0 {
+				if len(peer.recorded()) != 0 {
 					t.Fatalf("%s: Go reached the peer, but the pinned handler never did", label)
 				}
 				return
 			}
-			if len(peer.seen) != len(scenario.Outbound) {
-				t.Fatalf("%s: peer received %d requests, pinned recorded %d: %v", label, len(peer.seen), len(scenario.Outbound), seenSummary(peer.seen))
+			if len(peer.recorded()) != len(scenario.Outbound) {
+				t.Fatalf("%s: peer received %d requests, pinned recorded %d: %v", label, len(peer.seen), len(scenario.Outbound), seenSummary(peer.recorded()))
 			}
 			for index, recorded := range scenario.Outbound {
-				seen := peer.seen[index]
+				seen := peer.recorded()[index]
 				if seen.Method != recorded.Method {
 					t.Fatalf("%s: request %d method = %s, pinned %s", label, index, seen.Method, recorded.Method)
 				}
