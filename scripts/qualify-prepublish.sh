@@ -2,7 +2,7 @@
 #
 # qualify-prepublish.sh DIST_DIR CANDIDATE_TAG
 #
-# PROVE THE BARE-INSTALL PATH FOR A CANDIDATE RELEASE BEFORE ITS TAG EXISTS.
+# PROVE THE INSTALL PATH FOR A CANDIDATE RELEASE BEFORE ITS TAG EXISTS, ON THE CHANNEL IT WILL PUBLISH TO.
 #
 # WHY THIS EXISTS. `install.sh` and `install.ps1` with no version argument download
 # `https://github.com/<repo>/releases/latest/download/...`. That URL only exists AFTER a release is
@@ -13,25 +13,29 @@
 # the mirror seam, not that the SIX CANONICAL assets this run built resolve through the installer's latest
 # path with THEIR OWN checksums.txt entries.
 #
-# WHAT THIS DOES, and each item is an assertion in the body rather than a claim in this header:
-#   1. asks the canonical classifier (scripts/classify-version-tag.sh) what channel CANDIDATE_TAG is, and
-#      REFUSES to qualify a bare-install candidate that is not `stable`. A prerelease must NOT become
-#      releases/latest; that negative direction is asserted after publication by
-#      release-install-smoke.yml, and qualifying one here would prove the wrong thing;
+# WHAT THIS DOES, and each item is an assertion in the body rather than a claim in this header. THE FORM DEPENDS ON
+# THE CHANNEL, and the difference is the point:
+#   1. asks the canonical classifier (scripts/classify-version-tag.sh) what channel CANDIDATE_TAG is;
+#      `stable` qualifies the BARE-install form (no --version) through a labelled latest/download stand-in,
+#      `prerelease` qualifies the TAG-ADDRESSED form (`--version <tag>` / `-Version <tag>`) AND asserts the
+#      NEGATIVE direction pre-publication: a bare install must NOT install the candidate, because
+#      `releases/latest` will never serve a prerelease. Before Beta 1 this script refused a prerelease
+#      outright, so `GoTavern Release` could not even rehearse a Beta tag (dispatch run 41203035805 is the
+#      record: build green, prepublish red on that refusal);
 #   2. requires the six canonical archives plus checksums.txt (produced by
 #      scripts/release-assemble-checksums.sh, the SAME script release.yml's publish job calls) and
 #      re-verifies every digest and every installer-parser entry independently;
 #   3. requires the archive to NAME the candidate: BUILD-INFO.txt says "GoTavern release <tag>" and the
 #      shipped binaries carry the tag's bytes, so the artefact this qualification installs is the
 #      artefact the tag will publish;
-#   4. builds a release mirror in the canonical layout, <base>/<tag>/ AND <base>/latest/download/, from
-#      those very files. THE MIRROR'S latest/download IS A STAND-IN, AND IT SAYS SO: GitHub's
+#   4. builds a release mirror in the canonical layout, <base>/<tag>/ -- and, for a stable candidate ONLY,
+#      <base>/latest/download/. THE MIRROR'S latest/download IS A STAND-IN, AND IT SAYS SO: GitHub's
 #      releases/latest for this tag does not exist and is NOT consulted; the directory stands in for the
 #      pointer the stable channel will create, and it is populated only because assertion 1 said
 #      `stable`. Nothing here pretends a remote `latest` exists or invents a network path;
 #   5. serves that mirror on loopback, points the installers at it with GOTAVERN_RELEASES_BASE_URL, and
-#      runs the BARE forms -- `install.sh --dir <prefix>` and `install.ps1 -InstallDir <prefix>`, no
-#      `--version` / `-Version` -- so the code path under test is the documented one-liner's;
+#      runs the form the channel's users are documented to use -- bare for stable, `--version` for a
+#      prerelease -- so the code path under test is the documented one's;
 #   6. requires the mirror to have SERVED the checksums and the archive for the platform under test, so an
 #      installer that ignored the seam and reached github.com shows up as a MISSING request rather than as
 #      a successful install (AGENTS.md "Verification methods" 14);
@@ -57,7 +61,7 @@
 #
 # Usage: sh scripts/qualify-prepublish.sh DIST_DIR CANDIDATE_TAG
 #   DIST_DIR       directory holding the six canonical archives and checksums.txt
-#   CANDIDATE_TAG  the tag the candidate will be published as (must classify `stable`)
+#   CANDIDATE_TAG  the tag the candidate will be published as (classifier decides stable vs prerelease)
 # Requirements: sh, tar, unzip, python3 (the mirror), curl (readiness), sha256sum, and pwsh
 #               (a missing pwsh is a FAILURE: a run without it would assert nothing about install.ps1).
 set -eu
@@ -120,17 +124,10 @@ free_port() {
 channel="$(bash "$REPO_ROOT/scripts/classify-version-tag.sh" "$CANDIDATE_TAG")" || {
     fail "scripts/classify-version-tag.sh REFUSED '${CANDIDATE_TAG}' (exit 2): it is not a version tag this repository can release"
 }
-if [ "$channel" != "stable" ]; then
-    cat >&2 <<EOF
-FAIL: '${CANDIDATE_TAG}' is classified '${channel}' by scripts/classify-version-tag.sh, not 'stable'.
-      The bare-install path (releases/latest/download) may only be qualified for a tag the classifier
-      calls stable, because only then will the release that publishes it become releases/latest. A
-      PRERELEASE candidate's correct bare-install behaviour is the opposite -- latest must NOT resolve it
-      -- and that direction is proven after publication by release-install-smoke.yml.
-EOF
-    exit 1
+if [ "$channel" != "stable" ] && [ "$channel" != "prerelease" ]; then
+    fail "'${CANDIDATE_TAG}' classified as '${channel}', which is neither stable nor prerelease"
 fi
-ok "canonical classifier: '${CANDIDATE_TAG}' is stable (scripts/classify-version-tag.sh)"
+ok "canonical classifier: '${CANDIDATE_TAG}' is ${channel} (scripts/classify-version-tag.sh)"
 
 # ---- 2. THE SIX CANONICAL ARCHIVES AND THEIR OWN checksums.txt --------------------------------------
 for asset in $CANONICAL; do
@@ -180,27 +177,42 @@ grep -qF "$CANDIDATE_TAG" "$WORK_ROOT/unpack-linux/gotavern" || fail "the linux 
 grep -qF "$CANDIDATE_TAG" "$WORK_ROOT/unpack-windows/gotavern.exe" || fail "the windows binary does not carry the release version string '${CANDIDATE_TAG}'"
 ok "both candidate archives name ${CANDIDATE_TAG} in BUILD-INFO.txt and carry its bytes in the binary"
 
-# ---- 4. THE MIRROR: the candidate in the canonical layout, including the latest pointer --------------
+# ---- 4. THE MIRROR: the candidate in the canonical layout, plus latest for a STABLE candidate ----------
 # READ THIS BEFORE TRUSTING THE WORD "latest" ANYWHERE BELOW. GitHub's releases/latest for CANDIDATE_TAG
-# does not exist yet, and this run never asks GitHub. <base>/latest/download/ is a STAND-IN for the
-# pointer the stable channel will create: it holds the candidate's own files because assertion 1
-# classified the candidate stable, which is exactly the state GitHub will be in after the tag publishes.
-# The alternative -- publishing first and qualifying later -- is what release-install-smoke.yml does, and
-# it cannot fail the release before users see it.
+# does not exist yet, and this run never asks GitHub. <base>/latest/download/ is a STAND-IN for the pointer the
+# stable channel will create: it holds the candidate's own files because assertion 1 classified the candidate
+# stable, which is exactly the state GitHub will be in after the tag publishes. FOR A PRERELEASE THERE IS NO
+# latest STAND-IN AT ALL, and that absence is load-bearing: the bare installer must fail against this mirror,
+# which is the pre-publication form of "a prerelease never becomes releases/latest".
+# The alternative -- publishing first and qualifying later -- is what release-install-smoke.yml does, and it
+# cannot fail the release before users see it.
 GOOD_MIRROR="$WORK_ROOT/mirror"
 BAD_MIRROR="$WORK_ROOT/mirror-tampered"
 for base in "$GOOD_MIRROR" "$BAD_MIRROR"; do
-    mkdir -p "$base/$CANDIDATE_TAG" "$base/latest/download"
+    mkdir -p "$base/$CANDIDATE_TAG"
     for asset in $CANONICAL checksums.txt; do
         cp "$DIST_DIR/$asset" "$base/$CANDIDATE_TAG/$asset"
-        cp "$DIST_DIR/$asset" "$base/latest/download/$asset"
     done
+    if [ "$channel" = "stable" ]; then
+        mkdir -p "$base/latest/download"
+        for asset in $CANONICAL checksums.txt; do
+            cp "$DIST_DIR/$asset" "$base/latest/download/$asset"
+        done
+    fi
 done
 # The tampered mirror keeps the checksums.txt generated BEFORE the alteration: that is precisely the
-# situation the digest check exists for.
-printf 'tampered\n' >> "$BAD_MIRROR/latest/download/$ASSET_LINUX"
-ok "built the candidate mirror (<base>/${CANDIDATE_TAG}/ and the latest stand-in <base>/latest/download/) and a tampered copy"
-echo "note: releases/latest is NOT consulted in this run -- <base>/latest/download is a stand-in for the pointer the tag will create"
+# situation the digest check exists for. The tampering lands on the path the channel's installer will request.
+printf 'tampered\n' >> "$BAD_MIRROR/$CANDIDATE_TAG/$ASSET_LINUX"
+if [ "$channel" = "stable" ]; then
+    printf 'tampered\n' >> "$BAD_MIRROR/latest/download/$ASSET_LINUX"
+fi
+if [ "$channel" = "stable" ]; then
+    ok "built the candidate mirror (<base>/${CANDIDATE_TAG}/ and the latest stand-in <base>/latest/download/) and a tampered copy"
+    echo "note: releases/latest is NOT consulted in this run -- <base>/latest/download is a stand-in for the pointer the tag will create"
+else
+    ok "built the PRERELEASE candidate mirror (<base>/${CANDIDATE_TAG}/, deliberately NO latest/) and a tampered copy"
+    echo "note: releases/latest is NOT consulted and no latest stand-in exists: a prerelease must never be resolvable by a bare install"
+fi
 
 # ---- 5. SERVE BOTH MIRRORS ON LOOPBACK ---------------------------------------------------------------
 cat > "$WORK_ROOT/serve.py" <<'PY'
@@ -249,20 +261,49 @@ BAD_PID=$MIRROR_LAST_PID
 BAD_URL="http://127.0.0.1:$MIRROR_LAST_PORT"
 ok "serving the candidate mirror at $GOOD_URL and the tampered one at $BAD_URL"
 
-# ---- 6. BARE `install.sh` (NO --version): resolves latest/download, verifies, installs, RUNS ----------
+# ---- 6. `install.sh`: the channel's documented form, verifies, installs, RUNS -------------------------
+# STABLE takes the bare form (no --version) and must resolve <base>/latest/download/. PRERELEASE takes the
+# tag-addressed form (--version) and must resolve <base>/<tag>/; the bare form is then run as a NEGATIVE case
+# below, because a prerelease that a bare install can reach is exactly the bug the channel rule exists to stop.
 PREFIX="$WORK_ROOT/prefix-linux"
-if GOTAVERN_RELEASES_BASE_URL="$GOOD_URL" sh "$REPO_ROOT/install.sh" --dir "$PREFIX" > "$WORK_ROOT/install-linux.log" 2>&1; then
-    ok "install.sh with NO --version installed through <base>/latest/download/"
+if [ "$channel" = "stable" ]; then
+    if GOTAVERN_RELEASES_BASE_URL="$GOOD_URL" sh "$REPO_ROOT/install.sh" --dir "$PREFIX" > "$WORK_ROOT/install-linux.log" 2>&1; then
+        ok "install.sh with NO --version installed through <base>/latest/download/"
+    else
+        cat "$WORK_ROOT/install-linux.log" >&2
+        cat "$WORK_ROOT/good.log" >&2
+        fail "the BARE install.sh form did not install the candidate"
+    fi
+    grep -q 'release: latest stable' "$WORK_ROOT/install-linux.log" || {
+        cat "$WORK_ROOT/install-linux.log" >&2
+        fail "install.sh did not take the 'latest stable' form (was a --version passed?)"
+    }
+    mirror_checksums_path="/latest/download/checksums.txt"
+    mirror_asset_path="/latest/download/$ASSET_LINUX"
 else
-    cat "$WORK_ROOT/install-linux.log" >&2
-    cat "$WORK_ROOT/good.log" >&2
-    fail "the BARE install.sh form did not install the candidate"
+    if GOTAVERN_RELEASES_BASE_URL="$GOOD_URL" sh "$REPO_ROOT/install.sh" --version "$CANDIDATE_TAG" --dir "$PREFIX" > "$WORK_ROOT/install-linux.log" 2>&1; then
+        ok "install.sh --version ${CANDIDATE_TAG} installed through <base>/${CANDIDATE_TAG}/"
+    else
+        cat "$WORK_ROOT/install-linux.log" >&2
+        cat "$WORK_ROOT/good.log" >&2
+        fail "the TAG-ADDRESSED install.sh form did not install the candidate"
+    fi
+    grep -q "release: ${CANDIDATE_TAG}" "$WORK_ROOT/install-linux.log" || {
+        cat "$WORK_ROOT/install-linux.log" >&2
+        fail "install.sh did not take the '${CANDIDATE_TAG}' form"
+    }
+    mirror_checksums_path="/${CANDIDATE_TAG}/checksums.txt"
+    mirror_asset_path="/${CANDIDATE_TAG}/$ASSET_LINUX"
+    # THE NEGATIVE DIRECTION, BEFORE THE TAG EXISTS. No latest stand-in was built for a prerelease, so the bare
+    # installer must fail and install nothing. A green here would mean a bare install can receive a prerelease.
+    BARE_PREFIX="$WORK_ROOT/prefix-prerelease-bare"
+    if GOTAVERN_RELEASES_BASE_URL="$GOOD_URL" sh "$REPO_ROOT/install.sh" --dir "$BARE_PREFIX" > "$WORK_ROOT/install-prerelease-bare.log" 2>&1; then
+        cat "$WORK_ROOT/install-prerelease-bare.log" >&2
+        fail "a BARE install.sh SUCCEEDED against a PRERELEASE candidate mirror: an unpinned install would receive ${CANDIDATE_TAG}"
+    fi
+    [ ! -e "$BARE_PREFIX/gotavern" ] || fail "the bare installer failed but left a gotavern binary in the prefix for a prerelease candidate"
+    ok "a BARE install.sh was REFUSED against the prerelease candidate (no latest stand-in exists, by design)"
 fi
-# The bare form selected the latest path, not a tag path.
-grep -q 'release: latest stable' "$WORK_ROOT/install-linux.log" || {
-    cat "$WORK_ROOT/install-linux.log" >&2
-    fail "install.sh did not take the 'latest stable' form (was a --version passed?)"
-}
 grep -q '^Checksum verified\.$' "$WORK_ROOT/install-linux.log" || {
     cat "$WORK_ROOT/install-linux.log" >&2
     fail "install.sh did not report a verified checksum"
@@ -270,15 +311,15 @@ grep -q '^Checksum verified\.$' "$WORK_ROOT/install-linux.log" || {
 # THE MIRROR MUST HAVE SERVED THE REQUESTS: an installer that ignored the seam and reached github.com
 # would fail later anyway (the tag is not published), but a MISSING request is the assertion that names
 # it, rather than an unexplained download error.
-grep -q "/latest/download/checksums.txt" "$WORK_ROOT/good.log" || {
+grep -q "$mirror_checksums_path" "$WORK_ROOT/good.log" || {
     cat "$WORK_ROOT/good.log" >&2
-    fail "the mirror was never asked for latest/download/checksums.txt (did install.sh ignore GOTAVERN_RELEASES_BASE_URL?)"
+    fail "the mirror was never asked for ${mirror_checksums_path} (did install.sh ignore GOTAVERN_RELEASES_BASE_URL?)"
 }
-grep -q "/latest/download/$ASSET_LINUX" "$WORK_ROOT/good.log" || {
+grep -q "$mirror_asset_path" "$WORK_ROOT/good.log" || {
     cat "$WORK_ROOT/good.log" >&2
-    fail "the mirror was never asked for latest/download/$ASSET_LINUX"
+    fail "the mirror was never asked for ${mirror_asset_path}"
 }
-ok "the mirror served the bare installer's checksums and archive requests"
+ok "the mirror served the installer's checksums and archive requests (${mirror_checksums_path})"
 
 [ -x "$PREFIX/gotavern" ] || fail "the installed prefix has no executable gotavern"
 [ -d "$PREFIX/src/tokenizers" ] || fail "the installed prefix has no src/tokenizers/"
@@ -298,7 +339,7 @@ ok "the installed binary EXECUTES and reports ${CANDIDATE_TAG}"
 
 ( cd "$PREFIX" && "./gotavern" assets verify ) > "$WORK_ROOT/assets-verify.log" 2>&1 || {
     cat "$WORK_ROOT/assets-verify.log" >&2
-    fail "assets verify FAILED from the bare-installed prefix"
+    fail "assets verify FAILED from the installed prefix"
 }
 grep -q '/src/tokenizers' "$WORK_ROOT/assets-verify.log" || fail "assets verify did not confirm the src/tokenizers layout"
 ok "assets verify passes from the installed prefix (src/tokenizers/ shipped)"
@@ -318,23 +359,28 @@ while [ "$attempt" -lt 60 ]; do
     fi
     if ! kill -0 "$SERVER_PID" 2>/dev/null; then
         cat "$WORK_ROOT/server.log" >&2
-        fail "the bare-installed binary exited before answering /version"
+        fail "the installed binary exited before answering /version"
     fi
     attempt=$((attempt + 1))
     sleep 1
 done
-[ "$SERVER_READY" -eq 1 ] || { cat "$WORK_ROOT/server.log" >&2; fail "the bare-installed binary never answered /version within 60 s"; }
+[ "$SERVER_READY" -eq 1 ] || { cat "$WORK_ROOT/server.log" >&2; fail "the installed binary never answered /version within 60 s"; }
 cat "$WORK_ROOT/version-endpoint.json"
 kill "$SERVER_PID" 2>/dev/null || true
 wait "$SERVER_PID" 2>/dev/null || true
 SERVER_PID=""
-ok "the bare-installed binary booted and answered /version"
+ok "the installed binary booted and answered /version"
 
 # ---- 8. A TAMPERED ARCHIVE MUST BE REFUSED -----------------------------------------------------------
 TAMPERED_PREFIX="$WORK_ROOT/prefix-tampered"
-if GOTAVERN_RELEASES_BASE_URL="$BAD_URL" sh "$REPO_ROOT/install.sh" --dir "$TAMPERED_PREFIX" > "$WORK_ROOT/install-tampered.log" 2>&1; then
+if [ "$channel" = "stable" ]; then
+    GOTAVERN_RELEASES_BASE_URL="$BAD_URL" sh "$REPO_ROOT/install.sh" --dir "$TAMPERED_PREFIX" > "$WORK_ROOT/install-tampered.log" 2>&1 && tampered_succeeded=1 || tampered_succeeded=0
+else
+    GOTAVERN_RELEASES_BASE_URL="$BAD_URL" sh "$REPO_ROOT/install.sh" --version "$CANDIDATE_TAG" --dir "$TAMPERED_PREFIX" > "$WORK_ROOT/install-tampered.log" 2>&1 && tampered_succeeded=1 || tampered_succeeded=0
+fi
+if [ "$tampered_succeeded" = "1" ]; then
     cat "$WORK_ROOT/install-tampered.log" >&2
-    fail "the bare installer SUCCEEDED on a tampered archive"
+    fail "the installer SUCCEEDED on a tampered archive"
 fi
 grep -q 'SHA-256 verification failed' "$WORK_ROOT/install-tampered.log" || {
     cat "$WORK_ROOT/install-tampered.log" >&2
@@ -342,26 +388,44 @@ grep -q 'SHA-256 verification failed' "$WORK_ROOT/install-tampered.log" || {
 }
 [ ! -e "$TAMPERED_PREFIX/gotavern" ] || fail "the installer left gotavern in the prefix after a checksum failure"
 [ ! -e "$TAMPERED_PREFIX/src/tokenizers" ] || fail "the installer left src/tokenizers/ in the prefix after a checksum failure"
-ok "a tampered archive was REFUSED by the bare installer, naming the mismatch, and installed nothing"
+ok "a tampered archive was REFUSED by the installer, naming the mismatch, and installed nothing"
 
-# ---- 9. BARE `install.ps1` (NO -Version): the real windows/amd64 zip, resolver + install -------------
+# ---- 9. `install.ps1`: the real windows/amd64 zip, resolver + install --------------------------------
 # install.ps1 is executed under pwsh ON LINUX. Its download/verify/extract/install path is
 # platform-independent and this is the REAL windows/amd64 zip from the release build, so what is proven
-# is: the bare (latest) resolver, the checksum entry, the archive, and the installed file set. What is
-# NOT proven here is the PE binary's runtime behaviour -- it cannot be executed on a Linux runner.
+# is: the resolver (bare for stable, -Version for prerelease), the checksum entry, the archive, and the
+# installed file set. What is NOT proven here is the PE binary's runtime behaviour -- it cannot be executed
+# on a Linux runner. The PUBLISHED Windows installer is executed on a real Windows runner by
+# release-install-smoke.yml's windows job, under Windows PowerShell 5.1.
 PREFIX_WIN="$WORK_ROOT/prefix-windows"
-if GOTAVERN_RELEASES_BASE_URL="$GOOD_URL" "$PWSH" -NoProfile -NonInteractive -File "$REPO_ROOT/install.ps1" -InstallDir "$PREFIX_WIN" > "$WORK_ROOT/install-windows.log" 2>&1; then
-    ok "install.ps1 with NO -Version installed through <base>/latest/download/"
+if [ "$channel" = "stable" ]; then
+    if GOTAVERN_RELEASES_BASE_URL="$GOOD_URL" "$PWSH" -NoProfile -NonInteractive -File "$REPO_ROOT/install.ps1" -InstallDir "$PREFIX_WIN" > "$WORK_ROOT/install-windows.log" 2>&1; then
+        ok "install.ps1 with NO -Version installed through <base>/latest/download/"
+    else
+        cat "$WORK_ROOT/install-windows.log" >&2
+        cat "$WORK_ROOT/good.log" >&2
+        fail "the BARE install.ps1 form did not install the candidate"
+    fi
+    windows_expected_path="/latest/download/$ASSET_WINDOWS"
 else
-    cat "$WORK_ROOT/install-windows.log" >&2
-    cat "$WORK_ROOT/good.log" >&2
-    fail "the BARE install.ps1 form did not install the candidate"
+    if GOTAVERN_RELEASES_BASE_URL="$GOOD_URL" "$PWSH" -NoProfile -NonInteractive -File "$REPO_ROOT/install.ps1" -Version "$CANDIDATE_TAG" -InstallDir "$PREFIX_WIN" > "$WORK_ROOT/install-windows.log" 2>&1; then
+        ok "install.ps1 -Version ${CANDIDATE_TAG} installed through <base>/${CANDIDATE_TAG}/"
+    else
+        cat "$WORK_ROOT/install-windows.log" >&2
+        cat "$WORK_ROOT/good.log" >&2
+        fail "the TAG-ADDRESSED install.ps1 form did not install the candidate"
+    fi
+    grep -q "release: ${CANDIDATE_TAG}" "$WORK_ROOT/install-windows.log" || {
+        cat "$WORK_ROOT/install-windows.log" >&2
+        fail "install.ps1 did not name ${CANDIDATE_TAG} as the release it installed"
+    }
+    windows_expected_path="/${CANDIDATE_TAG}/$ASSET_WINDOWS"
 fi
 grep -q 'Checksum verified\.' "$WORK_ROOT/install-windows.log" || {
     cat "$WORK_ROOT/install-windows.log" >&2
     fail "install.ps1 did not report a verified checksum"
 }
-# WHICH WINDOWS ASSET DID THE BARE RESOLVER ASK FOR? install.ps1 selects the asset from the RUNNER's
+# WHICH WINDOWS ASSET DID THE RESOLVER ASK FOR? install.ps1 selects the asset from the RUNNER's
 # architecture, and the claim this qualification makes is about the canonical windows/amd64 archive. The
 # installer prints the platform it selected, so it is READ AND ASSERTED rather than assumed: on a
 # non-x64 runner the run would be proving a different asset, which must fail loudly instead of being read
@@ -372,9 +436,9 @@ windows_arch="$(sed -n 's/.*target:  windows\/\([A-Za-z0-9]*\).*/\1/p' "$WORK_RO
     fail "could not read the platform install.ps1 selected (expected a 'target:  windows/<arch>' line)"
 }
 [ "$windows_arch" = "amd64" ] || fail "install.ps1 selected windows/${windows_arch} on this runner; this qualification asserts the canonical windows/amd64 archive on the release workflow's linux/amd64 runner, so a different host would prove a different claim"
-grep -q "/latest/download/$ASSET_WINDOWS" "$WORK_ROOT/good.log" || {
+grep -q "$windows_expected_path" "$WORK_ROOT/good.log" || {
     cat "$WORK_ROOT/good.log" >&2
-    fail "the mirror was never asked for latest/download/$ASSET_WINDOWS"
+    fail "the mirror was never asked for ${windows_expected_path}"
 }
 [ -s "$PREFIX_WIN/gotavern.exe" ] || fail "the installed Windows prefix has no gotavern.exe"
 [ -f "$PREFIX_WIN/Start.cmd" ] || fail "install.ps1 did not write Start.cmd"
@@ -386,14 +450,36 @@ ok "the installed gotavern.exe is byte-identical to the candidate archive's"
 echo "skip: the installed gotavern.exe was NOT executed -- a windows/amd64 PE cannot run on this Linux runner."
 echo "      Its identity is ARCHIVE-INSPECTED here (bytes + BUILD-INFO); Windows runtime qualification is"
 echo "      release-qualification.yml's qualify-windows-amd64 job, which executes the installer and the"
-echo "      binary on a Windows runner against archives it builds itself."
+echo "      binary on a Windows runner against archives it builds itself; the PUBLISHED Windows installer"
+echo "      runs in release-install-smoke.yml's windows job under Windows PowerShell 5.1."
+
+if [ "$channel" = "prerelease" ]; then
+    # THE NEGATIVE DIRECTION FOR THE WINDOWS INSTALLER TOO. No latest stand-in exists in the mirror, so a bare
+    # install.ps1 must fail and install nothing. Both installers are asserted, because "a prerelease never becomes
+    # releases/latest" is a property of the CHANNEL, not of one script.
+    BARE_WIN="$WORK_ROOT/prefix-windows-bare"
+    if GOTAVERN_RELEASES_BASE_URL="$GOOD_URL" "$PWSH" -NoProfile -NonInteractive -File "$REPO_ROOT/install.ps1" -InstallDir "$BARE_WIN" > "$WORK_ROOT/install-windows-bare.log" 2>&1; then
+        cat "$WORK_ROOT/install-windows-bare.log" >&2
+        fail "a BARE install.ps1 SUCCEEDED against a PRERELEASE candidate mirror: an unpinned install would receive ${CANDIDATE_TAG}"
+    fi
+    [ ! -e "$BARE_WIN/gotavern.exe" ] || fail "the bare install.ps1 failed but left a gotavern.exe in the prefix for a prerelease candidate"
+    ok "a BARE install.ps1 was REFUSED against the prerelease candidate (no latest stand-in exists, by design)"
+fi
 
 # ---- WHAT THE GREEN MEANS ---------------------------------------------------------------------------
 echo
 echo "prepublish qualification for ${CANDIDATE_TAG}: every assertion passed"
-echo "  - classifier: stable (the same answer release.yml and docker.yml consume)"
-echo "  - bare install.sh : latest/download -> checksum entry -> the candidate archive -> executed ${CANDIDATE_TAG}"
-echo "  - bare install.ps1: latest/download -> checksum entry -> the candidate windows archive -> installed (not executed)"
+echo "  - classifier: ${channel} (the same answer release.yml and docker.yml consume)"
+if [ "$channel" = "stable" ]; then
+    echo "  - bare install.sh : latest/download -> checksum entry -> the candidate archive -> executed ${CANDIDATE_TAG}"
+    echo "  - bare install.ps1: latest/download -> checksum entry -> the candidate windows archive -> installed (not executed)"
+    echo "  - releases/latest on GitHub: NOT consulted (the tag does not exist yet); the mirror's latest/download"
+    echo "    is the stand-in, populated only because the classifier calls this candidate stable"
+else
+    echo "  - tagged install.sh : ${CANDIDATE_TAG}/ -> checksum entry -> the candidate archive -> executed ${CANDIDATE_TAG}"
+    echo "  - tagged install.ps1: ${CANDIDATE_TAG}/ -> checksum entry -> the candidate windows archive -> installed (not executed)"
+    echo "  - bare install.sh / install.ps1: REFUSED (no latest stand-in), so an unpinned install cannot receive a prerelease"
+    echo "  - releases/latest on GitHub: NOT consulted and asserted NOT to resolve this tag after publication by"
+    echo "    release-install-smoke.yml; this run proves the pre-publication negative direction from the mirror itself"
+fi
 echo "  - tampered archive: refused, nothing installed"
-echo "  - releases/latest on GitHub: NOT consulted (the tag does not exist yet); the mirror's latest/download"
-echo "    is the stand-in, populated only because the classifier calls this candidate stable"
