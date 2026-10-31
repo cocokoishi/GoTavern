@@ -40,7 +40,23 @@ import (
 	"testing"
 )
 
-const corpusEnv = "GOTAVERN_LONGLIVED_CORPUS" // optional prebuilt corpus root (manifest.json inside)
+const corpusEnv = "GOTAVERN_LONGLIVED_CORPUS"   // optional prebuilt corpus root (manifest.json inside)
+const corpusSizeEnv = "GOTAVERN_LONGLIVED_SIZE" // optional: small (default), medium or large
+
+// corpusGateSize reads the size class this job is gate-ing. The longlived workflow generates the corpus ONCE per size
+// and exports both variables, so a medium/large run boots the artifact it generated instead of silently re-generating
+// the small one (which would make the "large" job a small job with a misleading name).
+func corpusGateSize(t *testing.T) string {
+	t.Helper()
+	size := strings.TrimSpace(os.Getenv(corpusSizeEnv))
+	if size == "" {
+		return "small"
+	}
+	if size != "small" && size != "medium" && size != "large" {
+		t.Fatalf("%s=%q is not a corpus size (small, medium, large)", corpusSizeEnv, size)
+	}
+	return size
+}
 
 type corpusManifest struct {
 	Schema        string         `json:"schema"`
@@ -274,7 +290,8 @@ func digestTree(t *testing.T, root string) map[string]string {
 // long-lived surface the browser qualifier will then drive.
 func TestLongLivedCorpus(t *testing.T) {
 	requireProductionTransport(t)
-	corpusRoot, manifest := buildLongLivedCorpus(t, "small")
+	size := corpusGateSize(t)
+	corpusRoot, manifest := buildLongLivedCorpus(t, size)
 
 	// The manifest must describe a LONG-LIVED tree, not a freshly seeded one. These are absolute assertions,
 	// not comparisons: a comparison between two subjects cannot see a journey that was short on BOTH sides.
