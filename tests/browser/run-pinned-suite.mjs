@@ -166,7 +166,8 @@ export default defineConfig({
     workers: Number(process.env.ST_WORKERS ?? 1),
     fullyParallel: Number(process.env.ST_WORKERS ?? 1) > 1,
     reporter: [['json', { outputFile: process.env.ST_REPORT_FILE }]],
-    use: { baseURL, video: 'off', screenshot: 'off', trace: 'off' },
+    // HEADLESS IS EXPLICIT: this suite drives the pinned frontend in a measurement, never for a person to watch.
+    use: { baseURL, headless: true, video: 'off', screenshot: 'off', trace: 'off' },
 });
 `);
 // The binary is either given (CI builds it once) or built here into the scratch directory, so
@@ -182,7 +183,11 @@ if (!binarySetting) {
         throw new Error('go build failed');
     }
 }
-const server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot], {
+// `--browserLaunchEnabled false` IS NOT OPTIONAL. The seeded config is the pinned default, whose
+// `browserLaunch.enabled` is TRUE, so a server booted from this scratch root opens the OPERATOR'S DEFAULT BROWSER
+// at startup (the same hazard run-against-pinned.mjs and q20-leg-runtime.mjs record). A test runner must not open
+// a desktop window; the flag overrides the config without editing the pinned tree.
+const server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--browserLaunchEnabled', 'false'], {
     cwd: repoRoot,
     stdio: ['ignore', 'pipe', 'pipe'],
     env: process.env,

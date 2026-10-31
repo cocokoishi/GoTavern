@@ -708,7 +708,13 @@ async function gotavernWrites() {
     report.stagedCard = await stageCharacterCard(dataRoot);
     await seedLegConfig(dataRoot);
     const port = await freePort();
-    const server = spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    // `--browserLaunchEnabled false` IS NOT OPTIONAL, AND THIS LEG WAS MISSING IT. The seeded config is the
+    // PINNED default, whose `browserLaunch.enabled` is TRUE (`upstream/default/config.yaml`), so a server that
+    // honours it opens the OPERATOR'S DEFAULT BROWSER at boot. A local stability campaign therefore opened real
+    // tabs on the developer's desktop -- measured and reported by the operator -- which is exactly the hazard
+    // `run-against-pinned.mjs` and `q20-leg-runtime.mjs` already record for the same flag. The override keeps the
+    // pinned config bytes untouched (rule 14) while making a probe boot a headless server.
+    const server = spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
     server.stdout.on('data', () => {});
     server.stderr.on('data', () => {});
     const peer = await startCapturePeer({ replyTag: 'Q21_GOTAVERN' });
@@ -738,7 +744,10 @@ async function gotavernWrites() {
         if (!starter.ok || !starter.names.includes(stagedName)) {
             throw new Error(`the staged card "${stagedName}" is not listed by the server: ${JSON.stringify(starter).slice(0, 300)}`);
         }
-        browser = await chromium.launch();
+        // HEADLESS IS EXPLICIT, NOT IMPLIED. Playwright's default is headless today, but a browser window on the
+        // operator's desktop is not a failure mode worth leaving to a default: the probe measures page state and
+        // never needs a visible surface.
+        browser = await chromium.launch({ headless: true });
         const page = await browser.newPage();
         page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
         await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
@@ -1038,7 +1047,9 @@ async function bootGotavernOver(root) {
     const binarySetting = process.env.GOTAVERN_BINARY;
     if (!binarySetting) throw new Error('GOTAVERN_BINARY is required to hand the tree BACK to GoTavern; without it this direction cannot run and must not be reported as passed');
     const port = await freePort();
-    const child = spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', root, '--configPath', path.join(root, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    // SAME FLAG AS THE OTHER BOOT SITE: this second GoTavern process (over the tree pinned just wrote) must not
+    // open a desktop browser either. The flag is passed at every boot rather than relying on the caller.
+    const child = spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', root, '--configPath', path.join(root, 'config.yaml'), '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
     const tail = [];
     child.stdout.on('data', chunk => tail.push(chunk.toString()));
     child.stderr.on('data', chunk => tail.push(chunk.toString()));
@@ -1069,7 +1080,10 @@ async function pinnedReads() {
         }
         report.savedChatName = savedChatName;
 
-        browser = await chromium.launch();
+        // HEADLESS IS EXPLICIT, NOT IMPLIED. Playwright's default is headless today, but a browser window on the
+        // operator's desktop is not a failure mode worth leaving to a default: the probe measures page state and
+        // never needs a visible surface.
+        browser = await chromium.launch({ headless: true });
         const page = await browser.newPage();
         page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
         await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
