@@ -55,6 +55,33 @@ function resolveCi(jobReference) {
     return null;
 }
 
+// A committed Node harness can be a row's gate when the surface is browser-only. This extends the
+// CITATION VOCABULARY, not the evidence standard: the same three facts a Go citation must satisfy are
+// required -- (a) the gate exists in this tree, (b) the row lists it among its own evidence.tests, and
+// (c) a workflow named by the row's evidence.ci EXECUTES it -- and each failure names the condition that
+// broke. It exists because a browser-only row (one page lineage, a restarted process, a Node comparator
+// with 39 guards and a named-mutation self-test) has no honest Go citation; before this, such a row could
+// only be PASS by citing a Go test that does not guard its claim, which is the phantom evidence this
+// checker exists to refuse. The status rules, the PASS-needs-no-gap rule and every evidence standard are
+// untouched.
+function resolveHarnessGate(relativePath, row) {
+    if (!existsSync(path.join(repoRoot, relativePath))) {
+        return `wouldGoRedIfWrong cites ${relativePath}, which does not exist in this tree`;
+    }
+    if (!(row.evidence.tests ?? []).includes(relativePath)) {
+        return `wouldGoRedIfWrong cites ${relativePath}, which is not listed in this row's own evidence.tests`;
+    }
+    const escaped = relativePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const executed = new RegExp(`(?:^|[\\s;&|(])(?:node|npx|bash|sh)\\s+[^\\n]*${escaped}(?=$|[\\s\\\\;|)&])`);
+    for (const reference of row.evidence.ci ?? []) {
+        const [workflow] = String(reference).split('#');
+        const workflowPath = path.join(repoRoot, '.github', 'workflows', workflow);
+        if (!existsSync(workflowPath)) continue;
+        if (executed.test(readFileSync(workflowPath, 'utf8'))) return null;
+    }
+    return `wouldGoRedIfWrong cites ${relativePath}, but no workflow named by this row's evidence.ci executes it`;
+}
+
 const matrix = loadMatrix();
 
 if (matrix.schemaVersion !== 1) fail('meta', `schemaVersion is ${matrix.schemaVersion}, expected 1`);
@@ -165,7 +192,9 @@ for (const gap of matrix.gaps ?? []) {
 
 // EVERY ROW NAMES WHAT WOULD GO RED IF IT WERE WRONG. A row whose verdict no test can contradict is a
 // document, not a gate (AGENTS.md 31: every bug reproduced before it is fixed; 32: a test that cannot fail
-// is worse than no test). A FAIL row names the gate that does not exist yet instead.
+// is worse than no test). A FAIL row names the gate that does not exist yet instead. A committed Node
+// harness can be cited when the row's surface is browser-only; `resolveHarnessGate` requires existence,
+// same-row evidence and a cited workflow that actually executes it (see its comment).
 for (const row of matrix.rows) {
     const where = `row "${row.id}"`;
     const claim = row.wouldGoRedIfWrong;
@@ -176,6 +205,9 @@ for (const row of matrix.rows) {
     if (claim.test === null) {
         if (row.status !== 'FAIL') fail(where, 'wouldGoRedIfWrong.test is null, which is only allowed for a FAIL row that names its absent gate');
         if (!claim.explanation || claim.explanation.length < 80) fail(where, 'a null wouldGoRedIfWrong needs an explanation naming the absent gate and what it must assert');
+    } else if (typeof claim.test === 'string' && claim.test.endsWith('.mjs')) {
+        const problem = resolveHarnessGate(claim.test, row);
+        if (problem) fail(where, problem);
     } else if (!tests.has(claim.test)) {
         fail(where, `wouldGoRedIfWrong cites ${JSON.stringify(claim.test)}, which is not a declared Go test in this tree`);
     } else if (!(row.evidence.tests ?? []).includes(claim.test)) {

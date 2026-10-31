@@ -18,10 +18,11 @@ cannot hurt a user ranks below one that is hard to close and changes the model's
 Release condition: **`FAIL = 0`; `PARTIAL > 0` is allowed when every partial row is understood, documented,
 classified and non-blocking.**
 
-At this candidate the machine matrix is `PASS 2 / PARTIAL 18 / FAIL 1 / NOT_APPLICABLE 1`: `world-info` is
-now PASS (its slot-order gate went green in CI at `8de82c2`; see section 4), 18 rows remain PARTIAL, and the
-single FAIL is `whole-session-e2e`, a P0 for the tag (section 2, rank 1). The 18 PARTIAL rows are classified
-in section 3: **P0 0 / P1 8 / P2 10**. No PARTIAL row hides a P0.
+At this candidate the machine matrix is `PASS 3 / PARTIAL 18 / FAIL 0 / NOT_APPLICABLE 1`, so the release
+condition **IS MET**: `streaming-and-cancel`, `world-info` and `whole-session-e2e` are PASS, 18 rows remain
+PARTIAL, and every remaining PARTIAL row is understood, documented and classified below. The 18 PARTIAL rows
+are **P0 0 / P1 8 / P2 10**; no PARTIAL row hides a P0. The last FAIL (`whole-session-e2e`) closed as a
+measured HARNESS installation defect, not a product difference (section 4).
 
 What this lane did and did not run: it re-derived the matrix mechanically (`node
 tools/compat-matrix/render.mjs --emit`), ran `node tools/compat-matrix/check.mjs` green, re-resolved every
@@ -51,24 +52,23 @@ This is the same ranked list as `docs/compatibility-matrix.json`'s `gaps` (regen
 
 | # | gap (row) | would it stop a real user? | cause class | severity |
 | --- | --- | --- | --- | --- |
-| 1 | The whole-session differential is RED for a real FIRST-TURN provider-context difference (`whole-session-e2e`) | **yes** - the model is given different context on the first turn after a page load than pinned Node gives it; this is the product promise | product parity defect | **P0** |
-| 2 | An existing user's tree is qualified through a DERIVED stock tree, and hand-back after GoTavern has written the tree is not in the packaged drop-in gate (`packaging-release`) | **yes for the target audience** - an existing SillyTavern user, until the stock tree is recorded and one round trip returns the tree to pinned Node | release-artifact evidence missing / production-vs-derived limitation | **P1** |
-| 3 | Preset features outside the measured contract are unasserted: instruct/context templates, secondary world-info keys, recursion/probability/outlets, group-chat presets (`presets-and-ui-content`) | no for an ordinary preset; a complex preset can diverge with no gate | evidence debt | **P1** |
-| 4 | Chat JSONL atomicity is asserted per route but not at a crash-or-kill boundary; the browser save->reload leg belongs to the red whole-session gate (`chats`) | yes if a kill lands mid-write - the conversation is the product - but no failure observed | evidence debt / extreme edge untested | **P1** |
-| 5 | CharX, BYAF and RisuAI imports are unimplemented; avatar crop/resize is unprobed; no browser create/read-back (`characters`) | yes for a user arriving with one of those card formats; ordinary PNG/JSON/YAML use is unaffected | production limitation + deliberate codec divergence | **P1** |
-| 6 | Every REMOTE embedding provider answers 500; only webllm/koboldcpp and caller-supplied vectors work (`embeddings-vector`) | yes for a user enabling vector storage with a remote provider; not the default chat journey | production limitation | **P1** |
-| 7 | Every provider differential runs against this repository's own recording peer; a real provider through a real proxy is exercised by the user and nothing here (`providers-transport`) | no for a user with a working provider, but the corpus cannot prove the real path | production-vs-mock limitation / evidence debt | **P1** |
-| 8 | 酒馆助手 render path, DOM URLs and variable persistence remain unproven; the ordinary asset-serving path is now executed (`extensions`) | no for a normal extension install; a workflow depending on persisted variables or rendered URLs stays unproven | secondary feature evidence gap / observer coverage | **P1** |
-| 9 | With no tokenizer tree an inexact count cannot be told apart from an exact one; resolution is unproven beside a user's data (`tokenization`) | no for a fresh install, but AGENTS.md 9 makes exact tokenization mandatory where marked compatible | deliberate inherited weakness / evidence debt | **P2** |
-| 10 | Media re-encoding is a DECIDED codec divergence; no browser posts a real multipart upload (`files-and-media`) | no - the observable transformation is gated; Jimp byte equality is explicitly not claimed | deliberate architectural boundary / evidence debt | **P2** |
-| 11 | Two users writing the same world/preset tree concurrently is untested; per-user locks are asserted per route (`accounts-multi-user`) | no for a single-user install; yes for a multi-user deployment under contention | evidence debt / extreme edge untested | **P2** |
-| 12 | No sweep asserts a stored secret is never printed on ANY error path, only on the probed routes (`secrets`) | no, but a leaked key is unrecoverable for the user | evidence debt | **P2** |
-| 13 | Server plugins and local ONNX embeddings are excluded, and the exclusion is only as visible as the last document that mentioned it (`server-plugins`) | for the small set of users who rely on them, yes; they must learn it before installing | deliberate architectural boundary | **P2** |
+| 1 | An existing user's tree is qualified through a DERIVED stock tree, and hand-back after GoTavern has written the tree is not in the packaged drop-in gate (`packaging-release`) | **yes for the target audience** - an existing SillyTavern user, until the stock tree is recorded and one round trip returns the tree to pinned Node | release-artifact evidence missing / production-vs-derived limitation | **P1** |
+| 2 | Preset features outside the measured contract are unasserted: instruct/context templates, secondary world-info keys, recursion/probability/outlets, group-chat presets (`presets-and-ui-content`) | no for an ordinary preset; a complex preset can diverge with no gate | evidence debt | **P1** |
+| 3 | Chat JSONL atomicity is asserted per route but not at a crash-or-kill boundary; the browser save->reload leg belongs to the red whole-session gate (`chats`) | yes if a kill lands mid-write - the conversation is the product - but no failure observed | evidence debt / extreme edge untested | **P1** |
+| 4 | CharX, BYAF and RisuAI imports are unimplemented; avatar crop/resize is unprobed; no browser create/read-back (`characters`) | yes for a user arriving with one of those card formats; ordinary PNG/JSON/YAML use is unaffected | production limitation + deliberate codec divergence | **P1** |
+| 5 | Every REMOTE embedding provider answers 500; only webllm/koboldcpp and caller-supplied vectors work (`embeddings-vector`) | yes for a user enabling vector storage with a remote provider; not the default chat journey | production limitation | **P1** |
+| 6 | Every provider differential runs against this repository's own recording peer; a real provider through a real proxy is exercised by the user and nothing here (`providers-transport`) | no for a user with a working provider, but the corpus cannot prove the real path | production-vs-mock limitation / evidence debt | **P1** |
+| 7 | 酒馆助手 render path, DOM URLs and variable persistence remain unproven; the ordinary asset-serving path is now executed (`extensions`) | no for a normal extension install; a workflow depending on persisted variables or rendered URLs stays unproven | secondary feature evidence gap / observer coverage | **P1** |
+| 8 | With no tokenizer tree an inexact count cannot be told apart from an exact one; resolution is unproven beside a user's data (`tokenization`) | no for a fresh install, but AGENTS.md 9 makes exact tokenization mandatory where marked compatible | deliberate inherited weakness / evidence debt | **P2** |
+| 9 | Media re-encoding is a DECIDED codec divergence; no browser posts a real multipart upload (`files-and-media`) | no - the observable transformation is gated; Jimp byte equality is explicitly not claimed | deliberate architectural boundary / evidence debt | **P2** |
+| 10 | Two users writing the same world/preset tree concurrently is untested; per-user locks are asserted per route (`accounts-multi-user`) | no for a single-user install; yes for a multi-user deployment under contention | evidence debt / extreme edge untested | **P2** |
+| 11 | No sweep asserts a stored secret is never printed on ANY error path, only on the probed routes (`secrets`) | no, but a leaked key is unrecoverable for the user | evidence debt | **P2** |
+| 12 | Server plugins and local ONNX embeddings are excluded, and the exclusion is only as visible as the last document that mentioned it (`server-plugins`) | for the small set of users who rely on them, yes; they must learn it before installing | deliberate architectural boundary | **P2** |
 
 The P2 rows are correctly below the user-blocking ones: each is a decided boundary, a narrow edge, or a
 secondary surface. None of them can corrupt data or stop a fresh install from starting.
 
-## 3. Release disposition for every PARTIAL row, plus the FAIL row
+## 3. Release disposition for every PARTIAL row (the former FAIL is closed in section 4)
 
 Columns: the exact capability that is not proven; whether the DEFAULT user journey is affected; the cause
 class; the severity; and the one-sentence release disposition.
@@ -80,7 +80,7 @@ class; the severity; and the one-sentence release disposition.
 | `settings` | No stock-tree settings save/reload round trip; fixtures write fresh runtime roots, so a real user's settings.json with unknown/legacy keys has never round-tripped. | yes (settings save) | evidence debt / production-vs-fixture | P2 | Safe to ship because serialisation and aggregation are pinned and unknown-field preservation is a hard rule exercised elsewhere; the unproven input is a real user's file, which is evidence work rather than a known defect. |
 | `secrets` | No sweep proves a stored secret is never printed on ANY error path; only the probed routes assert it. | yes when a secret is stored | evidence debt (security sweep) | P2 | Safe to ship because every probed route and the shipped-binary error payload are asserted to carry no credential, and this is an incomplete observer rather than an observed leak. |
 | `characters` | CharX/BYAF/RisuAI imports unimplemented (honest pinned error shape); uploaded-avatar crop is source-implemented but not Jimp-identical and unprobed; no browser create-in-frontend/read-back E2E. | no for ordinary PNG/JSON/YAML cards; yes for those three formats | production limitation + deliberate codec divergence | P1 | Ships with a named limitation: ordinary card flows are byte-recorded and parity-tested and a CharX/BYAF/Risu import returns the pinned error rather than corrupting data, so the missing formats are a documented capability gap, not a data hazard. |
-| `chats` | No crash-or-kill boundary test for JSONL append/rewrite; the one-session save/reload/continue assertion belongs to `whole-session-e2e`, which is red. | yes (chat save/load is the product) | evidence debt / dependency on the FAIL row | P1 | Ships only once `whole-session-e2e` is green at the candidate SHA (that run is the save/reload proof); the crash-atomicity boundary stays a documented post-tag evidence item because writes are already locked and atomic per route. |
+| `chats` | No crash-or-kill boundary test for JSONL append/rewrite; the one-session save/reload/continue leg is now GREEN in `whole-session-e2e` (run 41171620691 at `91e1e15`). | yes (chat save/load is the product) | evidence debt / dependency on the FAIL row | P1 | Ships: the save/reload proof is green in the whole-session run, and the crash-atomicity boundary stays a documented post-tag evidence item because writes are already locked and atomic per route. |
 | `groups` | No generation test: a group chat's multi-character turn order reaches the provider through a path no fixture covers, and group activation has no browser E2E. | no for single-character chat; yes for group chats | observer coverage | P1 | Ships with a named limitation: group route and metadata-migration parity is fixture-pinned, while the multi-character prompt assembly is unproven and cannot corrupt stored data. |
 | `presets-and-ui-content` | Preset features outside the measured contract are unasserted (instruct/context templates, secondary world-info keys, recursion/probability/outlets, group chats); the NAME_MAX host difference is a recorded known difference. | yes (presets are core) | evidence debt | P1 | Ships because the complex-preset keep/drop pair is measured (`keepContext 4260 / dropContext 4259`, 24 vs 26 messages, `providerRequestEqual true`) and both halves of AGENTS.md 48 hold inside that contract; features outside it are documented as unmeasured, not claimed. |
 | `providers-transport` | No real-network/provider evidence: every differential runs against this repository's recording peer, and the credential-gated live canaries are not in the default suite. | yes (provider transport is core), but the production transport is the runtime path and internet-shaped failures are gated | production-vs-mock limitation | P1 | Safe to ship because the production transport (TLS/system roots, proxy, bounded timeouts, decompression, redirects, cancellation) is the path users execute, four internet-shaped failure peers plus a shipped-binary test assert the causal taxonomy, and the additive `message` member is a declared superset; a credentialed live-provider run remains the documented evidence gap. |
@@ -95,7 +95,6 @@ class; the severity; and the one-sentence release disposition.
 | `import-export-backups` | REQUEST hand-back to Node is absent by design (no proxying, no upstream selector); the DATA hand-back driver and judge exist and passed in Browser differential run 40977195387 (`match`, both directions), but not in the packaged drop-in gate. | yes when importing/backing up | recorded absence + evidence placement | P2 | Safe to ship because restore is proven end to end, the five provider import branches and the UUID classifier are gated to answer 501/404 with zero outbound, and request hand-back is a recorded absence rather than a silent failure; data hand-back belongs in the drop-in gate before the next tag. |
 | `startup` | Startup-differential fixtures still start from fresh/migrated roots, not a populated stock tree. The egress half is CLOSED: a runtime recording-resolver gate plus an AST second opinion both exist and are cited. | yes (every boot), but bounded-boot and egress are gated | evidence debt / fixture coverage | P2 | Safe to ship because boot is bounded and local-only with a recording-resolver gate (`TestStartupMakesNoEgressOnAFreshBoot` and the docker-hostname cases), the AST scan covers the shapes the resolver cannot see, and a populated tree is booted by the long-lived e2e and packaged drop-in gates; the startup-differential corpus should add a populated tree post-tag. |
 | `packaging-release` | The stock tree is DERIVED from the pinned source rather than recorded from a pinned Node run; data hand-back after GoTavern has run is absent from the packaged drop-in gate; quoted `releaseArtifact` is a workflow step, not a recorded run id. | yes for an existing SillyTavern user, the entire target audience | release-artifact evidence missing / production-vs-derived limitation | P1 | Must be explicitly accepted before the tag: the Linux and Windows amd64 archives are unpacked and booted against a stock tree in both layouts and both config modes, but that tree is a derivation, and a DERIVED tree is one step away from the real migration input this release claims; either record a pinned-generated stock tree and one hand-back in the drop-in gate, or the Lead records this residual in the release notes. |
-| `whole-session-e2e` | **The FAIL.** Run 41015209900 (GoTavern whole-session differential) recorded 25 drive + 12 restart steps on both subjects with 37/39 guards green; `completion-1-equal` and `completion-2-equal` differ in ONE system message on the FIRST turn only (pinned 3191 bytes vs GoTavern 2477; pinned sends four example pairs, GoTavern the same pairs minus the first; requests 3-5, after the reload, are byte-identical). | **yes** - the first turn is the cheapest path a new user takes | product parity defect | **P0** | **Must be closed before the tag:** a fresh green whole-session run at the exact candidate SHA, with the comparator verdict and guard list, is the only thing that promotes this row; the release condition `FAIL = 0` cannot be met without it. |
 
 ## 4. Disposition of the 2026-10-25 sweep's findings (G-01 to G-12)
 
@@ -139,6 +138,24 @@ onboarding handler writes; once the fixture was faithful, the product's onboardi
 subjects. The matrix row is re-derived PARTIAL -> PASS with the ordering evidenceGap emptied, ranked gap #3
 is removed, and the ranks are renumbered.
 
+**Closed by the release candidate: whole-session e2e (the last FAIL).** `GoTavern whole-session differential`
+run 41171620691 at `91e1e15` (success) is the first green run of the surface: four legs green (drive 27/27 and
+restart 12/12 on both subjects), comparator verdict `match -- "whole-session: match -- 39 guard(s), 0 failed"`
+(failedGuards: []), gate selftest 11/11 named mutations. The measured cause of the original FAIL was a HARNESS
+INSTALLATION defect, not a provider-assembly difference: the GoTavern leg was booted from a scratch directory
+without the release archive's `<root>/src/tokenizers` tree, so `/api/tokenizers` answered the pinned
+Guesstimate fallback (755 vs 589, 971 vs 749) and the world-info token budget dropped the `power` entry
+(6682 B vs 7404 B); with the tree installed beside the binary both subjects send the SAME 7404 B body
+(sha256 b0935add2892564da7f254ab54a2007a8329499db9bd0a5afb808cdea406bd4b) and the probe asserts
+`subject-tokenizes-exactly` on both (pinned carries no exactness header, GoTavern is exact on every response).
+The product assembly was never the difference; the harness fix (712f5f0) also removes a measured first-send
+race by waiting for the chat to load. The row is re-derived FAIL -> PASS, gap #1 is removed, the ranks are
+renumbered, and its `wouldGoRedIfWrong` cites the committed `whole-session-gate-selftest.mjs` under the
+checker's browser-harness citation rule added in the same change (a citation-vocabulary extension, not an
+evidence relaxation: the harness must exist, be listed in the row's evidence.tests, and be executed by a
+workflow the row's evidence.ci names). The row does NOT cite a final-candidate run: the release gate
+re-runs this workflow at the frozen candidate SHA and THAT run is cited in the release record, not here.
+
 ## 5. Freshness: which rows depend on which run, and what must be re-run at the frozen SHA
 
 **What a green push run does NOT cover.** `ci.yml#oracle` is NARROWED on a push: a `changes` job computes
@@ -163,7 +180,7 @@ evidence for any row below, is a harness failure rather than a red product gate,
 | `ci.yml#browser-evidence` | every row carrying a committed browser artefact | green at the candidate; it recomputes the committed artefacts' claims and reports their freshness, it does not re-record them |
 | `browser-differential.yml#differential` (`mode: all`) | world-info, presets-and-ui-content, providers-per-source-wire, streaming-and-cancel, extensions | a FULL browser differential at the candidate; a push-narrowed assets/helper run is NOT sufficient |
 | `worldinfo-slots.yml#worldinfo-slots` | world-info (now PASS) | dispatch at the candidate; it re-runs both legs, requires 21/21 guards, and REFUSES unless the fresh artefact reproduces the committed one byte for byte |
-| `whole-session.yml#whole-session` | whole-session-e2e, and the save/reload leg inside chats | a fresh dispatch at the EXACT candidate SHA; the row may only cite that run id |
+| `whole-session.yml#whole-session` | whole-session-e2e, and the save/reload leg inside chats | a fresh dispatch at the EXACT frozen candidate SHA is the release gate; that run is cited in the release record (`docs/release-checklist.md` and the GitHub Release), NOT in the row, because a row cannot name a run of the commit that contains it |
 | `dropin-qualification.yml#dropin-current-head` / `windows-inputs` / `dropin-windows` | packaging-release; it is also the only packaged-artifact boot for an existing stock tree | a run at the candidate (it runs on `main`/`lane/**` pushes; a tag-time run must be dispatched if the candidate is not a branch head) |
 | `release-qualification.yml#qualify-linux-amd64` | tokenization, startup, packaging-release | **COLD** - the workflow triggers only on a `v*` tag or dispatch; dispatch it at the candidate |
 | `release-qualification.yml#qualify-windows-amd64`, `#qualify-upgrade-rollback`, `#qualify-dropin-linux` | packaging-release | **COLD** - same tag/dispatch trigger; dispatch at the candidate |
@@ -183,8 +200,9 @@ measurement.
 
 **Rows whose evidence can newly FAIL at freeze because it is cold (not because the tree changed):**
 
-- `whole-session-e2e` - its only run evidence is run 41015209900 at head `d01de1d`, not the candidate; the
-  row is honest as FAIL today, and only a fresh candidate run can flip it.
+- `whole-session-e2e` - its PASS cites run 41171620691 at `91e1e15`; the release gate is a FRESH re-run at the
+  frozen candidate SHA, cited in the release record, not in the row. If that run is absent or red, the release
+  gate is NOT satisfied even though the row reads PASS.
 - `packaging-release` - five release-pipeline jobs, three of which are tag/dispatch-only; a green at an
   older SHA does not move with the candidate.
 - `tokenization` and `startup` - the only shipped-artifact evidence they cite is

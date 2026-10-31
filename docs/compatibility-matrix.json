@@ -259,13 +259,12 @@
         "explanation": "the row's claims about chats: save, get, search, recent, import, mutations rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
       },
       "evidenceGap": [
-        "no test carries a chat through save, reload and continuation the way the frontend does across a page reload",
         "JSONL append/rewrite atomicity is asserted per route but not under a crash-or-kill boundary"
       ],
       "blockedBy": [
         "whole-session-e2e"
       ],
-      "notes": "Chat JSONL is the surface where a partial write loses a user's conversation, so the missing session test matters more here than elsewhere."
+      "notes": "Chat JSONL is the surface where a partial write loses a user's conversation, so the missing session test matters more here than elsewhere.\n\nCLOSED 2026-10-31 -- THE SAVE/RELOAD/CONTINUATION LEG (moved out of evidenceGap, which now holds only open items): the green whole-session run 41171620691 at 91e1e15 carries ONE chat through save, a fresh page load, a second turn, regenerate and continue on both subjects under 39/39 guards. The row stays PARTIAL on the crash-or-kill atomicity boundary only."
     },
     {
       "id": "groups",
@@ -898,7 +897,7 @@
     {
       "id": "whole-session-e2e",
       "area": "Whole-session differential in a stock tree (load, settings, characters, chat, send, stream, save, reload)",
-      "status": "FAIL",
+      "status": "PASS",
       "evidence": {
         "oracleFixtures": [
           "tests/oracle/sillytavern-1.19.0-fresh-start.json"
@@ -909,7 +908,11 @@
           "tests/browser/compare-whole-session-legs.mjs",
           "tests/browser/whole-session-gate-selftest.mjs"
         ],
-        "tests": [],
+        "tests": [
+          "tests/browser/whole-session-probe.mjs",
+          "tests/browser/compare-whole-session-legs.mjs",
+          "tests/browser/whole-session-gate-selftest.mjs"
+        ],
         "browserArtifacts": [],
         "ci": [
           "whole-session.yml#whole-session"
@@ -917,30 +920,21 @@
         "releaseArtifact": null
       },
       "wouldGoRedIfWrong": {
-        "test": null,
-        "explanation": "the gate now exists and has been observed red: eleven mutations of the run own four legs each produce a NAMED red on top of a green baseline, covering a reply that is never saved, a reload that reads another chat, a regenerate request that carries the reply it deleted, a continue paired with the wrong request, a persisted field that changed, a restart that reused the process, artefacts that stopped differing per subject, and two SYMMETRIC defects an equality-only comparator cannot see"
+        "test": "tests/browser/whole-session-gate-selftest.mjs",
+        "explanation": "the gate is the committed harness pair plus its self-test: compare-whole-session-legs.mjs carries 39 required guards over the browser-observable, provider-wire and disk-state facts across all four legs (drive and restart on both subjects), and whole-session-gate-selftest.mjs mutates the run own four legs to produce 11/11 NAMED reds on an otherwise green baseline, so a comparator that stopped discriminating fails here instead of passing. Run 41171620691 at 91e1e15: verdict match, 39 guard(s), 0 failed, self-test 11/11 named mutations; the citation is a committed Node harness because this is a browser-only row and check.mjs records that citation vocabulary explicitly."
       },
-      "absentGate": {
-        "owner": "closed by this lane",
-        "mustAssert": "one stock tree, one pinned server, one GoTavern server, one unmodified frontend: load, settings, characters, open chat, send, stream, save, reload — with state carried across the steps and the comparison canonicalised per field path rather than by dropping bodies"
-      },
-      "evidenceGap": [
-        "THE GATE EXISTS AND IS RED FOR A REAL DIFFERENCE, not for a missing mechanism. Run 41015209900 (GoTavern whole-session differential) recorded all four legs green — 25 drive steps and 12 restart steps on BOTH subjects — and the 39-guard comparator held every browser-observable, disk-state and restart guard; 37 of 39 guards held in total. The two that failed are completion-1-equal and completion-2-equal: the FIRST turn request and the SWIPE request differ between subjects in ONE system message, the character example dialogue. Pinned sends four example pairs, GoTavern sends the same pairs in the same order MINUS THE FIRST (What are your powers?), 3191 bytes against 2477",
-        "that difference is CONFINED and it is NOT the card data: both subjects /api/characters/all payloads are the same 31282 bytes and differ only in their last ~80 bytes (a clock-bearing tail), and requests 3-5 (second turn, regenerate, continue, all AFTER the page reload) are BYTE-IDENTICAL. Whatever drops the first example block is a page-load-time assembly difference that a reload clears, and it must be explained before this row passes",
-        "the rest of the original gap list is closed by the same programme: one runtime root, one browsing context, state carried from every step into the next, a fresh page load whose chat is then continued, and a SERVER RESTART as a second process over the same tree (pids recorded and required to differ)",
-        "NOT COMPARED, and printed by the comparator itself: a real provider (the peer answers with markers), group chats, branches/checkpoints, multi-user trees, and every clock-bearing field (chat_metadata and per-message send_date are recorded and never compared)"
-      ],
+      "evidenceGap": [],
       "blockedBy": [
         "startup",
         "providers-transport"
       ],
-      "notes": "The row claim is now MEASURED rather than inferred: eight steps, eight experiments is replaced by one session per subject, and the surface found a concrete provider-context difference on its first run with green legs — which is what this row was for. It stays FAIL because a user first request reaching the model with different example dialogue than pinned is a parity defect, not evidence debt. The finding above is the next change whole brief: record the example-dialogue block as the page holds it at first load and after the reload, and diff it against the served card payload, per subject."
+      "notes": "MEASURED, GATED AND GREEN: one stock tree per subject, one browser lineage over that tree, then a SERVER RESTART as a second process over the same tree; the comparator holds every browser-observable, disk-state and restart guard on both subjects. The measured cause of the original FAIL, in one verifiable sentence: the FAIL was a FIXTURE that compared an unsupported install shape (a binary without the release archive's `src/tokenizers` tree) against a supported one, so `/api/tokenizers` answered the pinned Guesstimate fallback (755 vs 589 and 971 vs 749) and the world-info token budget dropped the `power` entry (6682 B vs 7404 B); with the tokenizer tree installed beside the binary both subjects send the SAME 7404 B body (sha256 b0935add2892564da7f254ab54a2007a8329499db9bd0a5afb808cdea406bd4b) and the probe asserts `subject-tokenizes-exactly` on BOTH subjects (pinned must carry no exactness header, GoTavern must be exact on every tokenizer response). The product assembly was never the difference; the harness fix is 712f5f0 (it also fixes a measured first-send race by waiting for the chat to load). The gate was NEVER GREEN before this fix. CLOSURE RECORD: GoTavern whole-session differential 41171620691 at head 91e1e15 (success) is the run that closed this gap: four legs green (drive 27/27 and restart 12/12 on both subjects), comparator verdict match -- \"whole-session: match -- 39 guard(s), 0 failed\" (failedGuards: []), gate selftest 11/11 mutations produced their NAMED red, baseline green. The release gate re-runs this workflow at the final candidate SHA; that run is cited in the release record (docs/release-checklist.md and the GitHub Release), NOT here, because a citation inside this row cannot name a run of the commit that contains the row. LIMITS, printed by the comparator itself and not claimed: a real provider (the peer answers with markers), group chats, branches/checkpoints, multi-user trees, and every clock-bearing field (chat_metadata and per-message send_date are recorded and never compared)."
     }
   ],
   "session": {
-    "purpose": "The whole-session differential AGENTS.md 34/38 asks for NOW EXISTS as tests/browser/whole-session-probe.mjs + compare-whole-session-legs.mjs, gated by whole-session.yml#whole-session, and its first run (41015209900) was red for a real first-turn provider-context difference: see row `whole-session-e2e`. The step table below is the PREVIOUS per-surface inventory it subsumes and is retained because those probes are still each surface’s evidence. `sharedFixture` stays false and the row stays FAIL until a fresh green run at the candidate SHA exists, because `tools/compat-matrix/check.mjs` refuses a FAIL row that asserts a shared session.",
+    "purpose": "The whole-session differential AGENTS.md 34/38 asks for EXISTS and is GREEN: one stock tree per subject, one browser lineage, then a server restart over the same tree, judged by a 39-guard comparator whose red was observed on a real first-turn difference before the fix (a harness installation defect - a missing tokenizer tree - not a product difference). The step table below is the PREVIOUS per-surface inventory that the shared session subsumes; those probes remain each surface's own evidence and are not replaced by the session leg. `sharedFixture` is true because the shared-session surface now exists and is green; `tools/compat-matrix/check.mjs` refuses sharedFixture=true beside a FAIL row, and that consistency is what this flip restores.",
     "stateCarriedBetweenSteps": true,
-    "sharedFixture": false,
+    "sharedFixture": true,
     "existingHarness": [
       "tools/probe-*.mjs",
       "tests/browser/generation-probe.mjs",
@@ -1031,90 +1025,83 @@
   "gaps": [
     {
       "rank": 1,
-      "row": "whole-session-e2e",
-      "title": "The whole-session differential is RED for a real first-turn provider-context difference — the only FAIL, and the tag blocker",
-      "wouldStopARealUser": "yes — the model is given different context on a user’s FIRST turn after a page load than pinned Node gives it, which is the product promise itself",
-      "evidence": "row whole-session-e2e: `GoTavern whole-session differential` run 41015209900 recorded 25 drive steps and 12 restart steps on both subjects with 37 of 39 guards green; completion-1-equal and completion-2-equal differ in ONE system message on the FIRST turn only (pinned 3191 bytes vs GoTavern 2477; pinned sends four example pairs, GoTavern the same pairs in the same order minus the first; requests 3-5, all after the reload, are byte-identical). A fresh green run at the EXACT candidate SHA is required before this row may pass, and the release Lead supplies its workflow name, run id and head SHA"
-    },
-    {
-      "rank": 2,
       "row": "packaging-release",
       "title": "An existing SillyTavern user’s tree is qualified through a DERIVED stock tree, and the hand-back after GoTavern has written the tree is not part of the drop-in gate",
       "wouldStopARealUser": "yes for an existing SillyTavern user, which is the entire target audience, until the stock tree is recorded from a pinned Node run and one full round trip returns the tree to pinned Node",
       "evidence": "row packaging-release: dropin-qualification.yml#dropin-current-head boots the Linux archive against a stock tree on every push, and #windows-inputs + #dropin-windows execute the WINDOWS archive on windows-latest (a Start.cmd run, a pristine-config run, a trimmed-config run and an exe-direct scenario); both layouts and both config modes are covered. What remains: scripts/build-stock-tree.sh DERIVES that tree from upstream/** rather than recording it from a pinned Node run, and the q21 data hand-back that DID pass (Browser differential run 40977195387, verdict match, both directions) is a browser-differential job, not the packaged drop-in gate"
     },
     {
-      "rank": 3,
+      "rank": 2,
       "row": "presets-and-ui-content",
       "title": "Preset features outside the measured contract are unasserted: instruct/context templates, secondary world-info keys, recursion/probability/outlets and group-chat presets",
       "wouldStopARealUser": "no for an ordinary preset, but a user whose complex preset uses one of those features can have a final request that differs from pinned’s with no test to notice",
       "evidence": "the presets-and-ui-content row: the complex-preset differential now RECORDS a passing keep/drop pair (tests/browser/preset-complex-comparison.json, keepContext 4260 / dropContext 4259, 24 vs 26 messages, providerRequestEqual true, verdict match), so the older \"no passing pair\" clause was stale and is removed; what the artefact does not cover is exactly the features listed in the title, and the NAME_MAX host-dependent difference is recorded as an unresolved known difference rather than parity"
     },
     {
-      "rank": 4,
+      "rank": 3,
       "row": "chats",
       "title": "Chat JSONL atomicity is asserted per route but not at a crash-or-kill boundary, and the browser save->reload leg is owned by the red whole-session gate",
       "wouldStopARealUser": "yes if a crash or a kill lands mid-write — the user’s conversation is the product — but no such failure has been observed",
       "evidence": "the chats row: save/get/search/recent/import/mutations are route-differential-tested against the pinned server, and writes are locked and atomic through the shared user-content helper; what is missing is a crash-or-kill boundary test, plus the one-session save/reload assertion that lives in the whole-session row and is now RED for a different reason"
     },
     {
-      "rank": 5,
+      "rank": 4,
       "row": "characters",
       "title": "CharX, BYAF and RisuAI card/sprite imports are unimplemented; the uploaded-avatar crop is source-implemented but unprobed, and no browser creates a character and reads it back",
       "wouldStopARealUser": "yes for a user arriving with a CharX, BYAF or RisuAI card, which returns the pinned error shape rather than importing; ordinary PNG/JSON card use is unaffected",
       "evidence": "the characters row: read/write/import/avatar routes carry byte-recorded response text, but CharX, BYAF and RisuAI import shapes are not implemented and answer the pinned `{ error: true }`; uploaded-image crop/resize is not Jimp-identical (ARCHITECTURE.md boundary 3) so the crop is unprobed; and the create-in-the-frontend/read-back-through-GoTavern path has no browser E2E"
     },
     {
-      "rank": 6,
+      "rank": 5,
       "row": "embeddings-vector",
       "title": "Every REMOTE embedding provider source answers 500 at HEAD, so vector storage works only for webllm/koboldcpp or caller-supplied vectors",
       "wouldStopARealUser": "yes for a user who enables vector storage with a remote provider: the source is selectable and returns an unimplemented status instead of an embedding",
       "evidence": "the embeddings-vector row: internal/server/vector.go lists openai, togetherai, mistral, cohere, ollama, llamacpp, vllm, vertexai and palm, and only webllm/koboldcpp and body-supplied vectors work; the local in-process sources are a decided exclusion (ARCHITECTURE.md boundary 2), but the remote 500s are an implemented-status gap, not an exclusion. The older text named only the local sources and understated this"
     },
     {
-      "rank": 7,
+      "rank": 6,
       "row": "providers-transport",
       "title": "Every provider differential runs against this repository’s own recording peer; a real user’s provider through a real proxy is exercised by the user and by nothing in the default suite",
       "wouldStopARealUser": "no for a user with a working provider — the production transport is implemented and the internet-shaped failures are gated — but the corpus cannot prove a real TLS/proxy/provider path",
       "evidence": "the providers-transport row: the tool-call/provider-wire differentials and the four internet-shaped failure peers are real gates, yet AGENTS.md 22 makes a peer-only observation unverified for production; the live canaries (scripts/live-canary.mjs, scripts/deepseek-canary.mjs) need a credential and are not part of the default suite. The additive `message` member on the pinned `{error:true}` body is a DECLARED divergence, asserted as both halves, not a silence"
     },
     {
-      "rank": 8,
+      "rank": 7,
       "row": "extensions",
       "title": "The 酒馆助手 render path, DOM URLs and variable persistence remain unproven; the ordinary asset-serving path is now executed",
       "wouldStopARealUser": "no for a normal extension install — the plain \"the files load\" surface is now gated — but a 酒馆助手 workflow that depends on persisted variables or rendered message URLs stays unproven",
       "evidence": "the extensions row: tests/browser/extension-assets-{fixture,probe,compare,run}.mjs install a synthetic extension and fetch every URL class the pinned loader builds, executed by browser-differential.yml step \"Extension asset serving -- the plain \\\"the files load\\\" surface, both subjects\" (the older \"not gated\" clause was stale and is removed); the 酒馆助手 canary proves the iframe/bridge/generation path and a byte-identical generateRaw request, while Q10 variable persistence (red on BOTH subjects) and the render path/DOM URLs stay declared unproven"
     },
     {
-      "rank": 9,
+      "rank": 8,
       "row": "tokenization",
       "title": "An inexact token count is reproduced from pinned with no tokenizer tree, so it cannot be told apart from an exact one; tokenizer resolution is unproven for a stock tree whose src/tokenizers sits beside user data",
       "wouldStopARealUser": "no for a fresh install, but AGENTS.md 9 makes exact tokenization mandatory where marked compatible, and a guesstimate that looks like an exact count is a silent context-boundary risk",
       "evidence": "the tokenization row: the context-boundary differential is now implemented as tests/browser/truncation-set-gate.mjs, which asserts both subjects keep and drop the same turn at both contexts (the older \"no binding pair\" clause is superseded); tests/oracle/sillytavern-1.19.0-tokenizers.json pins the anchor, and the gate REFUSES a guesstimating server rather than asserting a boundary pair. The inherited guesstimate fallback is reproduced deliberately (architecture boundary 5), and tokenizer tree resolution is proven for a fresh root and a migrated tree, not for a stock tree"
     },
     {
-      "rank": 10,
+      "rank": 9,
       "row": "files-and-media",
       "title": "Media re-encoding is a DECIDED codec divergence, not parity: Jimp’s bytes are never claimed, and no browser posts a real multipart upload",
       "wouldStopARealUser": "no — the observable transformation is gated and byte equality with Jimp is explicitly not claimed; a cropped or thumbnailed asset renders with the pinned geometry and MIME",
       "evidence": "ARCHITECTURE.md boundary 3 and AGENTS.md boundary 3 (both routes DECIDED 2026-10-29): /thumbnail and POST /api/avatars/upload serve a real pure-Go re-encode, gated on the OBSERVABLE (status, MIME from the original filename, decodability, exact dimensions, the pinned 512x768 want_resize box, cover rather than stretch, a PNG output whatever was uploaded, cache behaviour), with teeth observed for the cover-vs-stretch discriminator; pinned’s no-size-cap and leftover multer staging file are reproduced and recorded. The browser layer that paints a thumbnail itself is a recorded exclusion; the remaining gap is that every upload fixture posts a hand-built body"
     },
     {
-      "rank": 11,
+      "rank": 10,
       "row": "accounts-multi-user",
       "title": "Two users writing the same world/preset tree concurrently is not tested; the per-user lock is asserted per route, not under contention",
       "wouldStopARealUser": "no for a single-user install, yes for a multi-user deployment the route set already supports",
       "evidence": "the accounts-multi-user row: account creation/admin/recovery/reset and the private per-user data roots have broad fixture coverage, but there is no contention test and no stock-tree multi-user migration result"
     },
     {
-      "rank": 12,
+      "rank": 11,
       "row": "secrets",
       "title": "No sweep asserts that a stored secret is never printed on ANY error path, only on the routes that were probed",
       "wouldStopARealUser": "no, but a leaked key is unrecoverable for the user, so the unprobed paths matter",
       "evidence": "the secrets row: AGENTS.md 35 is asserted per probed route (storage, active source, per-provider slots), and the unprobed error paths are not covered by a sweep"
     },
     {
-      "rank": 13,
+      "rank": 12,
       "row": "server-plugins",
       "title": "Server plugins and local in-process embeddings are excluded, and the exclusion is only as visible as the last document that mentioned it",
       "wouldStopARealUser": "for the small set of users who rely on them, yes; they should learn it before installing",
@@ -1140,9 +1127,9 @@
     },
     "rows": {
       "total": 22,
-      "PASS": 2,
+      "PASS": 3,
       "PARTIAL": 18,
-      "FAIL": 1,
+      "FAIL": 0,
       "NOT_APPLICABLE": 1
     },
     "sessionSteps": {
