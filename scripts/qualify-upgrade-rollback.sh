@@ -313,6 +313,12 @@ qualify_published_alpha9() {
     [ -s "$CORPUS/manifest.json" ] || fail "the generated corpus has no manifest.json"
     node "$REPO_ROOT/tools/longlived/verify.mjs" --corpus "$CORPUS" >/dev/null 2>"$WORK_ROOT/corpus-verify.log" \
         || fail "the generated corpus was refused by tools/longlived/verify.mjs"
+    # THE INSTALLED PREFIX HAS NO data/ UNTIL A SERVER BOOTS, so copying the corpus into it needs the directory
+    # created first. This branch is Linux-only (it boots the published linux-amd64 asset) and was therefore never
+    # executed on the Windows development host -- CI run 41205015776 is the record: `cp: cannot create directory
+    # .../published-install/data/default-user: No such file or directory`. The failure was in the harness, not the
+    # product, and the qualification produced no verdict.
+    mkdir -p "$PREFIX/data"
     cp -R "$CORPUS/default-user" "$PREFIX/data/default-user"
     cp "$CORPUS/config.yaml" "$PREFIX/config.yaml"
     [ -s "$CORPUS/content.log" ] && cp "$CORPUS/content.log" "$PREFIX/data/content.log"
@@ -480,6 +486,7 @@ PY
         fail "install.sh failed for a FRESH candidate install"
     fi
     [ "$(tag_of_binary "$FRESH_PREFIX/gotavern")" = "$CANDIDATE_TAG" ] || fail "the fresh install does not report $CANDIDATE_TAG"
+    mkdir -p "$FRESH_PREFIX/data"
     cp -R "$CORPUS/default-user" "$FRESH_PREFIX/data/default-user"
     cp "$CORPUS/config.yaml" "$FRESH_PREFIX/config.yaml"
     [ -s "$CORPUS/content.log" ] && cp "$CORPUS/content.log" "$FRESH_PREFIX/data/content.log"
@@ -495,6 +502,7 @@ PY
 
     mkdir -p "$DROPIN_PREFIX"
     cp -R "$WORK_ROOT/stage-candidate/." "$DROPIN_PREFIX/"
+    mkdir -p "$DROPIN_PREFIX/data"
     cp -R "$CORPUS/default-user" "$DROPIN_PREFIX/data/default-user"
     cp "$CORPUS/config.yaml" "$DROPIN_PREFIX/config.yaml"
     [ -s "$CORPUS/content.log" ] && cp "$CORPUS/content.log" "$DROPIN_PREFIX/data/content.log"
