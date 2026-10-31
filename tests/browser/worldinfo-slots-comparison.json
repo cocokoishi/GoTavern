@@ -188,6 +188,10 @@
           "ok": true
         },
         {
+          "name": "user-name-set",
+          "ok": true
+        },
+        {
           "name": "provider-request-arrived",
           "ok": true
         },
@@ -278,6 +282,10 @@
         },
         {
           "name": "connection-configured",
+          "ok": true
+        },
+        {
+          "name": "user-name-set",
           "ok": true
         },
         {
