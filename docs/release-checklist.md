@@ -1,4 +1,88 @@
-# Alpha.9 release checklist (machine-checkable)
+# Release checklist (the executable SOP)
+
+Scope of the current release: GoTavern **`v0.1.0-beta.1`**, the first Beta, published on the **prerelease**
+channel. Pinned compatibility target: SillyTavern `1.19.0`, commit
+`06bde939fb1e9c4c8d8641d810f0a916b5bce127`. The alpha.9 checklist is kept below as HISTORY; its sections are
+still the reference for the individual gates, and this section is the order they run in for a release.
+
+**The one rule that overrides every step below:** every required run must judge **CANDIDATE_SHA**, the commit
+the tag points at. `release.yml` enforces this mechanically (`scripts/verify-release-gates.mjs` reads
+`docs/release-manifest.json` and refuses a green run on another commit). A checklist step that produces a green
+on a different SHA is not evidence.
+
+## 0. Channel decision (before anything else)
+
+| # | item | command / gate | expected | evidence | failure policy |
+|---|---|---|---|---|---|
+| 0.1 | The tag's channel is decided by ONE rule | `bash scripts/test-classify-version-tag.sh` | `v0.1.0-beta.1` -> `prerelease`; `v0.1.0-alpha.9` stays the documented stable graduation | the case table in the CI `verify` log | any failure blocks the tag |
+| 0.2 | Channel semantics are stated in one place a user can read | README status block + Install/Docker sections | prerelease: GitHub pre-release, `releases/latest` keeps the stable alpha.9, bare installers install stable, Docker `:latest` stays stable; Beta is an explicit `--version` | README; this checklist | a mismatch between README and the classifier is a documentation defect, fixed before the tag |
+
+## 1. Freeze the candidate (pre-tag)
+
+| # | item | command / gate | expected | evidence | failure policy |
+|---|---|---|---|---|---|
+| 1.1 | Worktree clean; candidate is a pushed commit on `main` | `git status --porcelain`; `git log origin/main..HEAD` | both empty | shell output | not taggable |
+| 1.2 | Local doc gates that CI also runs | `node tools/generate-doc-facts.mjs --check`; `node tools/generate-coverage-matrix.mjs --check`; `node tools/compat-matrix/check.mjs`; `node tools/verify-oracle-citations.mjs`; `node tools/compat-matrix/surface-coverage.mjs --check`; `node --test scripts/release-governance.test.mjs` | all green | command output | fix before the sweep |
+| 1.3 | The release notes exist, name the tag, and pass the validator | `node scripts/verify-release-notes.mjs docs/releases/v0.1.0-beta.1.md v0.1.0-beta.1 --checksums <candidate checksums.txt>` | `release notes OK` | validator output | placeholders / TODO / example checksums block the tag |
+| 1.4 | Dispatch the **release dry run** to build and qualify the six archives | `gh workflow run release.yml --ref main -f candidate_version=v0.1.0-beta.1` | build green, `prepublish-qualification` green (tag-addressed installers for a prerelease, both bare installers REFUSED), publish skipped | run id | a red here blocks the sweep |
+
+## 2. Required gates at CANDIDATE_SHA (all green at the SAME commit)
+
+Dispatch each on `--ref main` after 1.1-1.4, and record workflow + run id + conclusion:
+
+| # | workflow | dispatch | proves |
+|---|---|---|---|
+| 2.1 | `GoTavern CI` | `gh workflow run ci.yml --ref main` | verify (gofmt, facts, matrix, surface drift, classifier, governance tests, Go suite, vet, build, assets), race, browser evidence, full oracle sweep |
+| 2.2 | `GoTavern whole-session differential` | `gh workflow run whole-session.yml --ref main` | one session lineage; restart + resumed turn; 12 legs, 3 comparators, 3 teeth proofs |
+| 2.3 | `GoTavern world-info slot ordering` | `gh workflow run worldinfo-slots.yml --ref main` | before/after/atDepth slots in pinned's order in the final provider request |
+| 2.4 | `GoTavern drop-in qualification` | `gh workflow run dropin-qualification.yml --ref main` | packaged archive boots against a stock tree (Linux and Windows) |
+| 2.5 | `Browser differential` | `gh workflow run browser-differential.yml --ref main -f mode=all` | the pinned frontend's real journeys, including the Q21 hand-back judge |
+| 2.6 | `Browser differential` repeated stability | `gh workflow run browser-differential.yml --ref main -f mode=preset -f stability_runs=20` | the hand-back judge is stable under repetition (20/20) |
+| 2.7 | `GoTavern long-lived corpus qualification` | `gh workflow run longlived.yml --ref main -f size=medium` | the synthetic long-lived corpus: browser journey, restart/resume, teeth |
+| 2.8 | `GoTavern release qualification` | `gh workflow run release-qualification.yml --ref main -f baseline_ref=v0.1.0-alpha.9` | archives, boot, update/rollback, published alpha.9 -> Beta upgrade, three arrival paths |
+| 2.9 | `GoTavern smoke metrics` | `gh workflow run smoke-metrics.yml --ref main` | paired performance record + soak |
+| 2.10 | `GoTavern Docker image` | `gh workflow run docker.yml --ref main` (no push) | image builds, `assets verify` inside it, pinned route smoke |
+| 2.11 | `GoTavern published-release install smoke` | after publication only (section 5) | real TLS installer + boot from the published release |
+
+Failure policy: a red gate is investigated and fixed, then the candidate is REFROZEN and the whole sweep
+re-runs. A gate is never skipped, never xfailed, and never replaced by a green from an earlier SHA.
+
+## 3. Tag (immutable candidate)
+
+| # | item | command | expected | failure policy |
+|---|---|---|---|---|
+| 3.1 | Annotated tag on CANDIDATE_SHA | `git tag -a v0.1.0-beta.1 <CANDIDATE_SHA> -m "..."`; `git push origin v0.1.0-beta.1` | `git rev-parse v0.1.0-beta.1^{commit}` equals CANDIDATE_SHA | never move or force the tag; a wrong tag is a new tag |
+| 3.2 | `release.yml` runs on the tag | automatic on tag push | build -> prepublish -> same-SHA gate -> notes validation -> publish with `--prerelease --latest=false` | red = no release; fix forward on a new commit, never re-point the tag |
+| 3.3 | Docker runs on the tag | automatic | image pushed as `:v0.1.0-beta.1`, `:latest` NOT moved | red = fix forward |
+
+## 4. Publish verification
+
+| # | item | command | expected |
+|---|---|---|---|
+| 4.1 | Release identity | `gh release view v0.1.0-beta.1 --json isDraft,isPrerelease,createdAt,tagName,assets` | draft=false, prerelease=true, the expected assets, body carries the same-SHA evidence table |
+| 4.2 | `releases/latest` unchanged | `gh api repos/cocokoishi/GoTavern/releases/latest --jq '.tag_name,.prerelease'` | still `v0.1.0-alpha.9`, `false` |
+| 4.3 | Assets match the local build | compare published `checksums.txt` digests with the qualification run's archive digests | equal, or the difference is explained and the release is not re-uploaded (asset bytes are immutable) |
+| 4.4 | Docker pull-back | `docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-beta.1` + `assets verify` inside it | digest reported, binary version `v0.1.0-beta.1`, `:latest` still the stable image |
+
+## 5. Published-release smoke (public endpoints only)
+
+| # | item | command | expected |
+|---|---|---|---|
+| 5.1 | Public installer over TLS, explicit tag | `gh workflow run release-install-smoke.yml --ref main -f version=v0.1.0-beta.1` | linux job (install.sh + boot + tokenizer ids) and windows job (install.ps1 under Windows PowerShell 5.1 + boot + tokenizer ids) both green; channel step asserts the prerelease is NOT `releases/latest` |
+| 5.2 | Bare install stays stable | the same run's channel assertion | `releases/latest` resolves the stable release, not the Beta |
+
+## 6. Post-release (main health)
+
+| # | item | command | expected |
+|---|---|---|---|
+| 6.1 | Generated facts regenerated on `main` | automatic: `release.yml`'s `post-release-facts` job | a facts commit on `main`, then a dispatched `GoTavern CI` run printed with its run id |
+| 6.2 | Main is green at the post-release commit | `gh run list --workflow ci.yml --branch main --limit 1` | success at the facts commit |
+| 6.3 | Tag and assets unchanged | `git rev-parse v0.1.0-beta.1^{commit}`; `gh release view ... --json assets` | equal to the values recorded at 3.1/4.1 |
+| 6.4 | Worktree clean | `git status --porcelain` | empty |
+
+---
+
+# HISTORY: Alpha.9 release checklist (machine-checkable)
 
 Scope: GoTavern `v0.1.0-alpha.9`, the first **stable-channel** release (the tag keeps its historical alpha
 spelling; the channel is decided by `scripts/classify-version-tag.sh`). Pinned compatibility target:
