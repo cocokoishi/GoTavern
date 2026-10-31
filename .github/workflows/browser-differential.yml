@@ -200,6 +200,22 @@ on:
         required: false
         default: false
         type: boolean
+      stability_runs:
+        # REPEATED-STABILITY MODE, AND IT IS NOT THE FULL SWEEP. A non-zero value runs the `handback-stability`
+        # job, which repeats ONLY the Q21 hand-back leg (GoTavern writes -> pinned reads/continues/writes ->
+        # GoTavern reads) N times on this commit, this pinned checkout, this built binary and this fixture, and
+        # emits a per-iteration verdict plus a machine-readable summary. The `differential` job is SKIPPED in
+        # that mode, so the number a stability dispatch reports is about the hand-back and nothing else.
+        #
+        # WHY IT EXISTS: run 41171855911 (Browser differential, mode=all) was green on every surface except
+        # the hand-back judge, which reported `pinnedContinued` red with `continueRequests: 0`; the identical
+        # commit re-judged green on 41179659240. "Occasionally red" is not an acceptable Beta 1 gate, so the
+        # way to settle it is repetition on one commit rather than a single lucky dispatch. The cause and the
+        # per-iteration evidence are recorded in docs/browser-stability.md.
+        description: 'Repeat ONLY the Q21 hand-back leg N times on this commit (0 = run the normal differential)'
+        required: false
+        default: '0'
+        type: string
   schedule:
     # Nightly, off-peak and at a non-round minute. The freshness report is the thing that tells us the
     # committed evidence has drifted from HEAD; without a schedule it only runs when someone remembers.
@@ -220,6 +236,11 @@ env:
 
 jobs:
   differential:
+    # A STABILITY DISPATCH RUNS ONLY THE HAND-BACK LEG (`handback-stability` below). Running the whole suite
+    # as well would make the stability run pay for surfaces its question never touches, and would muddy the
+    # claim: this job is skipped when `stability_runs` is non-zero, so the only Q21 evidence in such a run
+    # is the repeated one.
+    if: ${{ (inputs.stability_runs || '0') == '0' }}
     runs-on: ubuntu-latest
     # THE HELPER SURFACE NARROWS ITSELF THE SAME WAY THE ASSET SURFACE DOES, and it must be declared at JOB
     # level: the first version put MODE_HELPER in the record step's own env, so the helper steps' `if:`
@@ -1868,7 +1889,12 @@ jobs:
               status=1
               continue
             fi
-            node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); const leg=process.argv[2]; if (r.failure) { console.error(leg+': '+r.failure); process.exit(1) } console.log(leg+': '+r.steps.map(s=>(s.ok?'ok ':'FAIL ')+s.name).join(', '))" "$report" "$leg" || status=1
+            # THE FAILING ROW AND THE WAIT IT FAILED ARE PRINTED SEPARATELY. `report.failure` already carries both
+            # (the probe throws with the condition's `waitedFor`/`observed`), and `report.conditions` is the
+            # independent list, so a log reader sees "CONDITION FAILED <name> -- waited for <condition>; observed
+            # <state>" instead of inferring a cause from a zero count. A report with no `conditions` (an older
+            # probe) still prints its rows and `failure` -- the gate does not depend on the new field.
+            node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); const leg=process.argv[2]; console.log(leg+': '+(r.steps||[]).map(s=>(s.ok?'ok ':'FAIL ')+s.name).join(', ')); const bad=(r.conditions||[]).filter(c=>c.ok!==true); for (const c of bad) console.error(leg+': CONDITION FAILED '+c.name+' -- waited for '+c.waitedFor+'; observed '+JSON.stringify(c.observed).slice(0,900)); if (r.failure) { console.error(leg+': '+r.failure); process.exit(1) }" "$report" "$leg" || status=1
           done
           cat "$work/legs/q21-pinned.json" 2>/dev/null || true
           # THE VERDICT IS ITS OWN PROGRAM, AND THIS STEP IS THE GATE THAT MAKES IT NON-VACUOUS.
@@ -2208,6 +2234,236 @@ jobs:
           echo "Q21 hand-back:              ${{ steps.q21.outputs.q21_failures }}"
           echo "regex failures:             ${{ steps.regex.outputs.failures }}"
           exit 1
+
+  # =============================================================================================
+  # Q21 HAND-BACK REPEATED-STABILITY MODE (`stability_runs`).
+  #
+  # WHAT IT PROVES: that the hand-back leg, run N times on ONE commit, ONE pinned checkout, ONE built binary
+  # and ONE fixture, reaches the SAME verdict every time. That is the evidence "this gate is stable" needs
+  # and a single green dispatch cannot supply.
+  #
+  # WHAT IT DOES NOT PROVE: nothing about any other surface. It is NOT the scheduled full sweep (AGENTS.md
+  # differential doctrine 8: narrowing reduces cost, never strength), and the summary it writes says so in
+  # its own `scope` field.
+  #
+  # THE FAILURE IT WAS BUILT FOR: run 41171855911 recorded `pinnedContinued` red with `continueRequests: 0`
+  # and the identical commit re-judged green on 41179659240. The probe now waits on NAMED conditions and
+  # records the one that failed with the page/peer/file state it observed, so an iteration that goes red
+  # names the wait instead of leaving `count continueRequests was 0` to be interpreted. Root cause, fix and
+  # per-iteration evidence: docs/browser-stability.md.
+  handback-stability:
+    # Non-zero `stability_runs` selects THIS job and skips `differential`, so a stability dispatch measures the
+    # hand-back and nothing else. On push/schedule `inputs` is empty, so this is false and nothing changes.
+    if: ${{ (inputs.stability_runs || '0') != '0' }}
+    runs-on: ubuntu-latest
+    # Measured: the whole hand-back leg (two browser drives and two server boots) took ~66 s in run
+    # 41179659240. 20 iterations therefore fit in a fraction of this; the cap is a wedge bound sized so the
+    # maximum accepted campaign (40) still completes at ~3x that measured cost.
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/checkout-pinned
+        with:
+          commit: ${{ env.PINNED_BASELINE_COMMIT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # THE SAME THREE CACHES AS THE DIFFERENTIAL JOB, and for the same reason: every iteration must run
+      # against the install this run's pinned checkout and lockfiles identify, not against a runner default.
+      - name: Cache the pinned server's node_modules
+        id: cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Install the pinned server's dependencies
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "pinned server node_modules: CACHE HIT for ${{ env.PINNED_BASELINE_COMMIT }} -- install SKIPPED"
+          else
+            echo "pinned server node_modules: cache MISS -- installing from the pinned checkout's own manifest"
+            cd .reference/SillyTavern
+            if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          fi
+
+      - name: Install the browser harness
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            echo "tests/browser/node_modules: cache MISS -- npm ci"
+            (cd tests/browser && npm ci --no-audit --no-fund)
+          fi
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            echo "playwright chromium: CACHE HIT -- browser download SKIPPED, OS packages still ensured"
+            (cd tests/browser && npx playwright install-deps chromium)
+          else
+            echo "playwright chromium: cache MISS -- downloading the browser and its OS packages"
+            (cd tests/browser && npx playwright install --with-deps chromium)
+          fi
+
+      - name: Build the binaries the drives run
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          mkdir -p .browser-bin
+          go build -trimpath -o .browser-bin/gotavern ./cmd/gotavern
+          echo "GOTAVERN_BINARY=${PWD}/.browser-bin/gotavern" >> "$GITHUB_ENV"
+          echo "GOTAVERN_REFERENCE=${PWD}/.reference/SillyTavern" >> "$GITHUB_ENV"
+
+      - name: Repeat the Q21 hand-back leg
+        id: stability
+        # NOT `set -e`. One red iteration must not abort the campaign: the deliverable is the per-iteration
+        # record, and "red at iteration 7, then ten greens" is a different finding from "it stopped after 7".
+        # The step always exits 0; the summary step below is the gate.
+        env:
+          STABILITY_RUNS: ${{ inputs.stability_runs }}
+        run: |
+          set -uo pipefail
+          runs="$STABILITY_RUNS"
+          case "$runs" in
+            ''|*[!0-9]*) echo "::error::stability_runs must be a whole number of iterations, got '$runs'"; exit 2 ;;
+          esac
+          if [ "$runs" -lt 1 ] || [ "$runs" -gt 40 ]; then
+            echo "::error::stability_runs=$runs is outside 1..40; a larger campaign belongs in a scheduled sweep, not a dispatch"
+            exit 2
+          fi
+          work="$RUNNER_TEMP/handback-stability"
+          rm -rf "$work"; mkdir -p "$work"
+          : > "$work/results.jsonl"
+          failures=0
+          passed=0
+          echo "Q21 hand-back repeated-stability: $runs iteration(s) on commit ${GITHUB_SHA}"
+          echo "fixture tests/browser/fixtures/real/card-a.png sha256=$(sha256sum tests/browser/fixtures/real/card-a.png | awk '{print $1}')"
+          for i in $(seq 1 "$runs"); do
+            dir="$work/iter-$(printf '%02d' "$i")"
+            mkdir -p "$dir"
+            tree="$dir/tree"
+            rm -rf "$tree"; mkdir -p "$tree"
+            started=$(date +%s)
+            verdict="match"
+            failed_rows=""
+            failed_condition=""
+            go_code=0; pinned_code=0; judge_code=0
+            node tests/browser/q21-data-handback.mjs --data-root "$tree" --report "$dir/q21-gotavern.json" > "$dir/gotavern.log" 2>&1 || go_code=$?
+            if [ "$go_code" -ne 0 ]; then
+              verdict="gotavern-error"
+            else
+              node --input-type=commonjs -e "const fs=require('fs');const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));fs.writeFileSync(process.argv[2],JSON.stringify(r.writtenTree??{}));process.stdout.write(r.stagedCard?.ownName??'')" "$dir/q21-gotavern.json" "$dir/q21-tree.json" > "$dir/name.txt" || verdict="gotavern-report-unreadable"
+            fi
+            if [ "$verdict" = "match" ]; then
+              PINNED_READY_MS="${PINNED_READY_MS:-300000}" Q21_CHARACTER_NAME="$(cat "$dir/name.txt")" Q21_EXPECTED_TREE="$dir/q21-tree.json" \
+                node tests/browser/run-against-pinned.mjs q21-data-handback.mjs -- --data-root "$tree" --report "$dir/q21-pinned.json" > "$dir/pinned.log" 2>&1 || pinned_code=$?
+              if [ "$pinned_code" -ne 0 ]; then verdict="pinned-error"; fi
+            fi
+            if [ "$verdict" = "match" ]; then
+              node tests/oracle/q21/judge-handback.mjs "$dir/q21-gotavern.json" "$dir/q21-pinned.json" --out "$dir/q21-verdict.json" > "$dir/judge.log" 2>&1 || judge_code=$?
+              if [ "$judge_code" -ne 0 ]; then verdict="judge-red"; fi
+            fi
+            seconds=$(( $(date +%s) - started ))
+            if [ "$verdict" = "match" ]; then
+              passed=$((passed + 1))
+            else
+              failures=$((failures + 1))
+              failed_rows=$(node --input-type=commonjs -e "const fs=require('fs');try{const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write((r.steps||[]).filter(s=>s.ok!==true).map(s=>s.name).join(','))}catch{process.stdout.write('(report unreadable)')}" "$dir/q21-pinned.json")
+              failed_condition=$(node --input-type=commonjs -e "const fs=require('fs');try{const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));process.stdout.write((r.conditions||[]).filter(c=>c.ok!==true).map(c=>c.name+': waited for '+c.waitedFor).join(' | '))}catch{process.stdout.write('(report unreadable)')}" "$dir/q21-pinned.json")
+            fi
+            ITER="$i" VERDICT="$verdict" SECONDS="$seconds" FAILED_ROWS="$failed_rows" FAILED_CONDITION="$failed_condition" GO_CODE="$go_code" PINNED_CODE="$pinned_code" JUDGE_CODE="$judge_code" \
+              node --input-type=commonjs -e "const fs=require('fs');fs.appendFileSync(process.argv[1],JSON.stringify({iteration:Number(process.env.ITER),verdict:process.env.VERDICT,seconds:Number(process.env.SECONDS),goExit:Number(process.env.GO_CODE),pinnedExit:Number(process.env.PINNED_CODE),judgeExit:Number(process.env.JUDGE_CODE),failedRows:process.env.FAILED_ROWS||null,failedCondition:process.env.FAILED_CONDITION||null})+'\n')" "$work/results.jsonl"
+            echo "iteration $i/$runs: $verdict (${seconds}s)"
+            if [ "$verdict" != "match" ]; then
+              echo "::error::Q21 hand-back stability iteration $i/$runs was ${verdict}; failed rows=[${failed_rows}]; failed condition=[${failed_condition}]"
+              tail -n 20 "$dir/judge.log" || true
+              tail -n 20 "$dir/pinned.log" || true
+            fi
+            # The judged reports are kept. The TREE is not (it holds a 7 MB card and a built frontend), and the
+            # GoTavern report embeds the full card document, which is not what a stability artefact is for.
+            rm -rf "$tree"
+            rm -f "$dir/q21-gotavern.json"
+          done
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+          echo "runs=$runs" >> "$GITHUB_OUTPUT"
+          echo "failures=$failures" >> "$GITHUB_OUTPUT"
+
+      - name: Summarise the repeated-stability verdict
+        # ALWAYS. The campaign step exits 0 even with red iterations, so a crash inside it must still surface
+        # as "the summary could not be built", never as a skipped step.
+        if: always()
+        env:
+          STABILITY_RUNS: ${{ inputs.stability_runs }}
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/handback-stability"
+          if [ ! -f "$work/results.jsonl" ]; then
+            echo "::error::the stability campaign wrote no per-iteration record; nothing is claimed"
+            exit 1
+          fi
+          export FIXTURE_SHA=$(sha256sum tests/browser/fixtures/real/card-a.png | awk '{print $1}')
+          node --input-type=commonjs - "$work/results.jsonl" "$work/stability-summary.json" <<'NODE'
+          const fs = require('fs');
+          const [resultsPath, summaryPath] = process.argv.slice(2);
+          const rows = fs.readFileSync(resultsPath, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line));
+          const requested = Number(process.env.STABILITY_RUNS ?? rows.length);
+          const passed = rows.filter(row => row.verdict === 'match').length;
+          const summary = {
+            schemaVersion: 1,
+            question: 'Does the Q21 hand-back leg reach the SAME verdict on every repetition of one commit, one pinned checkout, one built binary and one fixture?',
+            scope: 'Q21 hand-back leg only. This is NOT the scheduled full differential sweep, and it claims nothing about any other surface.',
+            commitSha: process.env.GITHUB_SHA ?? null,
+            pinnedBaselineCommit: process.env.PINNED_BASELINE_COMMIT ?? null,
+            fixture: 'tests/browser/fixtures/real/card-a.png',
+            fixtureSha256: process.env.FIXTURE_SHA ?? null,
+            requested,
+            executed: rows.length,
+            passed,
+            failed: rows.length - passed,
+            verdict: rows.length > 0 && rows.length === passed && passed === requested ? 'stable' : 'unstable',
+            iterations: rows,
+          };
+          fs.writeFileSync(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);
+          console.log(JSON.stringify({ verdict: summary.verdict, executed: summary.executed, passed: summary.passed, failed: summary.failed }));
+          const table = ['| iteration | verdict | seconds | failed rows | failed condition |', '| --- | --- | --- | --- | --- |',
+            ...rows.map(row => `| ${row.iteration} | ${row.verdict} | ${row.seconds} | ${row.failedRows ?? ''} | ${String(row.failedCondition ?? '').replace(/\|/g, '/')} |`)];
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, ['## Q21 hand-back repeated stability', '', `verdict: **${summary.verdict}** -- ${summary.passed}/${summary.executed} iteration(s) matched (requested ${requested})`, '', ...table, ''].join('\n'));
+          if (summary.verdict !== 'stable') {
+            console.error(`::error::the Q21 hand-back leg was NOT stable: ${summary.passed}/${summary.executed} iteration(s) matched, wanted ${requested}`);
+            process.exit(1);
+          }
+          NODE
+
+      - name: Upload the per-iteration evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: q21-handback-stability-${{ github.run_id }}
+          path: ${{ runner.temp }}/handback-stability/**
+          retention-days: 14
+          if-no-files-found: warn
 
   # THE ONLY JOB THAT MAY WRITE, and it does nothing but commit the preset evidence produced by the run
   # above. Keeping `contents: read` on the differential job means a compromised probe cannot push; keeping
