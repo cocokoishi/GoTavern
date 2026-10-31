@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cocokoishi/gotavern/internal/fsretry"
 	"github.com/cocokoishi/gotavern/internal/startup"
 	"github.com/cocokoishi/gotavern/upstream"
 	"golang.org/x/crypto/scrypt"
@@ -214,7 +215,7 @@ func loadStoredAccounts(dataRoot string) (map[string]storedAccount, error) {
 		if strings.HasPrefix(entry.Name(), ".") || !entry.Type().IsRegular() {
 			continue
 		}
-		body, err := os.ReadFile(filepath.Join(directory, entry.Name()))
+		body, err := readStoredRecordFile(filepath.Join(directory, entry.Name()))
 		if err != nil {
 			return nil, fmt.Errorf("read node-persist record %s: %w", entry.Name(), err)
 		}
@@ -310,6 +311,31 @@ func (account storedAccount) clone() storedAccount {
 	return storedAccount{fields: fields}
 }
 
+// readStoredRecordFile reads one node-persist record, retrying the bounded Windows sharing violation
+// another request causes when it replaces the same record with atomicReplace (temp file + rename).
+//
+// WHY THIS EXISTS. fsretry's package doc names this exact failure: "a request that read the user record
+// at the moment another request replaced it failed with 'The process cannot access the file because it
+// is being used by another process'". The write side already used the bounded retry for its rename; the
+// READ side did not, so a concurrent replace could surface as an error from an authenticated request.
+// The Go 1.27.3 toolchain move (this lane's release-blocking follow-up) made the window observable:
+// TestStoredAccountCacheUnderConcurrentReadersAndWriter failed 2/10 local runs on windows/arm64 with
+// that message after the move, and passed 10/10 before it. The retry is bounded (~200 ms, then the last
+// error is returned), Windows-only in effect -- isTransient is always false elsewhere, so Unix
+// behaviour is unchanged and the test's no-error property holds for the right reason.
+func readStoredRecordFile(path string) ([]byte, error) {
+	var body []byte
+	err := fsretry.Do(func() error {
+		readBody, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		body = readBody
+		return nil
+	})
+	return body, err
+}
+
 func loadStoredAccount(dataRoot, handle string) (storedAccount, bool, error) {
 	if dataRoot == "" {
 		return storedAccount{}, false, nil
@@ -330,7 +356,7 @@ func loadStoredAccount(dataRoot, handle string) (storedAccount, bool, error) {
 	if entry, ok := cachedStoredAccount(recordPath, info); ok {
 		return entry.account.clone(), entry.found, nil
 	}
-	body, err := os.ReadFile(recordPath)
+	body, err := readStoredRecordFile(recordPath)
 	if errors.Is(err, os.ErrNotExist) {
 		forgetStoredAccount(recordPath)
 		return storedAccount{}, false, nil
