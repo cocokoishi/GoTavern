@@ -1130,7 +1130,7 @@
       "citedByMatrix": 67
     },
     "browserArtefacts": {
-      "inTree": 38,
+      "inTree": 39,
       "citedByMatrix": 9
     },
     "goTestFunctions": {
@@ -1138,8 +1138,8 @@
       "citedByMatrix": 92
     },
     "workflows": {
-      "inTree": 10,
-      "jobsInTree": 35
+      "inTree": 11,
+      "jobsInTree": 37
     },
     "rows": {
       "total": 22,
