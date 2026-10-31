@@ -156,10 +156,22 @@ function unlockSharedPaths(before) {
 // and failed in CI with ERR_MODULE_NOT_FOUND: the helper was in the repository, but the harness
 // materializes probe FILES and never their siblings. Copying is idempotent, so every probe can ask
 // for it without the harness needing to know which probes import what.
+//
+// ONE COPY PER ROOT, BEFORE ANY PROBE RUNS. Re-copying the whole directory for EVERY probe was a real
+// source of nondeterministic ESM failures: prepareProbeScript is called while already-scheduled probes are
+// RUNNING as child processes, so a child that started during a later cpSync could import a half-written
+// `lib/pinned-outbound.mjs` and die with "does not provide an export named X" for an export that is
+// demonstrably present in the source (measured: GoTavern CI full dispatch run 41210999203 at candidate
+// 0985be42, `google voices` failed that way while every other probe passed). The first call happens before
+// the first spawn, so guarding on a per-root set removes the window entirely; a root is used by one run, so
+// the set cannot go stale inside a run.
+const materializedLibRoots = new Set();
 function materializeProbeLib(root) {
+    if (materializedLibRoots.has(root)) return;
     const source = path.join(repositoryRoot, 'tools', 'lib');
     if (!existsSync(source)) return;
     cpSync(source, path.join(root, 'lib'), { recursive: true, force: true });
+    materializedLibRoots.add(root);
 }
 
 // Copies the probe (and the shared helpers it may import) into the root it will run against, and returns the
