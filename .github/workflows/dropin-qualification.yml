@@ -414,8 +414,16 @@ jobs:
           tree="$work/tree"
           rm -rf "$tree"; mkdir -p "$tree"
           failures=0
+          # EXPORTED, NOT COMMAND-SCOPED, AND THAT WAS MEASURED THE EXPENSIVE WAY. The pinned half does not only
+          # READ the tree: its direction (a) boots GoTavern over it again (`bootGotavernOver`), so the
+          # run-against-pinned CHILD process must inherit GOTAVERN_BINARY too. The first dispatch (run
+          # 41205692600) scoped `GOTAVERN_BINARY=... node q21-data-handback.mjs` to the FIRST command only; the
+          # pinned leg then failed at row 11 with "GOTAVERN_BINARY is required to hand the tree BACK to GoTavern"
+          # after rows 1-10 had passed -- the judge correctly refused the claim (`unreached`) instead of reporting
+          # a partial as a pass.
+          export GOTAVERN_BINARY="$work/binary/gotavern"
           started=$(date +%s)
-          if GOTAVERN_BINARY="$work/binary/gotavern" node tests/browser/q21-data-handback.mjs \
+          if node tests/browser/q21-data-handback.mjs \
               --data-root "$tree" --report "$work/legs/q21-gotavern.json"; then
             echo "the GoTavern half wrote its tree with the packaged binary in $(( $(date +%s) - started ))s"
           else
