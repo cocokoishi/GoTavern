@@ -239,6 +239,34 @@ CI gate can run the same tests with the race detector:
 go test -race -count=1 ./internal/startup ./internal/server -run '^(TestAtomicReplace|TestChatSave|TestSettingsSave|TestWorldInfo|TestPresetSave|TestImageUpload|TestSecretValue|TestCopyDirectory)'
 ```
 
+### 7.1 Windows read/write race surfaced by the Go 1.27.3 move (fixed here)
+
+The release-blocking toolchain move (§8.2) made a real, pre-existing Windows-only defect observable:
+`TestStoredAccountCacheUnderConcurrentReadersAndWriter` (existing test; readers call
+`loadStoredAccount` while a writer replaces the same node-persist record) began failing on
+windows/arm64. Measured, in a scratch worktree at the pre-move commit with only
+`GOTOOLCHAIN=go1.27.3` forced: **2/10 runs FAILED**, 6 occurrences of
+
+```
+concurrent read: read node-persist record user:cache-concurrent: open ...\_storage\<hash>:
+The process cannot access the file because it is being used by another process.
+```
+
+The same commit under Go 1.27.0 passed 10/10, so the defect was latent in the timing, not created by
+the bump. Cause: the write side replaces the record with `atomicReplace` (temp file + rename) and the
+rename side retried a transient Windows sharing violation (`fsretry`), but the READ side
+(`loadStoredAccount`, `loadStoredAccounts`) used a bare `os.ReadFile`, so an authenticated request that
+read a record while another request replaced it could fail with that error. `fsretry`'s own package
+documentation names this exact scenario. Fix: `readStoredRecordFile` retries the bounded (~200 ms)
+sharing violation on the read side; `isTransient` is false off Windows, so Linux behaviour is
+unchanged. Measured: `-count=20` green after the fix (was 2/10 red before). No HTTP contract change;
+only the transient-error path improves.
+
+This class is not audited beyond the account-read path in this lane; two other node-persist reads
+(`startup.updateNodePersistRecord`'s read-before-write and `NodePersistKeys`) are still bare
+`os.ReadFile` and could see the same window when a DIFFERENT process replaces a record — recorded as
+residual risk (§9), not fixed here because they are not on the request read path this test exercises.
+
 ## 8. Security baseline (measured)
 
 ### 8.1 `go vet`
@@ -427,6 +455,12 @@ Review of `install.sh` (sh), `install.ps1`, `start.sh`, `Start.cmd` from source:
    container build must be exercised by the release/docker workflow. The Go 1.27.3 toolchain was
    fetched by `GOTOOLCHAIN=auto` (32 s), so CI with `go-version-file: go.mod` will fetch the same
    version.
+9. **Two node-persist reads outside the account request path are still bare `os.ReadFile`**
+   (`startup.UpdateNodePersistRecord`'s read-before-write and `startup.NodePersistKeys`, both in
+   `internal/startup/storage.go`). On Windows a DIFFERENT process replacing the same record can make
+   those fail with the same sharing violation §7.1 fixed for the account read path; the rename side is
+   retried, these reads are not. Not fixed here: neither is on the authenticated-request read path, and
+   changing them needs its own failure reproducer.
 
 ## 10. Command log (this lane)
 
@@ -466,6 +500,19 @@ go test ./internal/server     -count=1   573 s: ONE failure, TestOpenAIGenerateV
                                          not a finding here (docs/local-red-triage.md triage applied:
                                          isolated re-run discriminates a host/timing artefact from a defect).
 
+# Windows read-side race surfaced by the 1.27.3 move (§7.1)
+# pre-fix evidence: scratch worktree at 2e87cc1 (pre-move go.mod 1.23.0/old modules), GOTOOLCHAIN=go1.27.3:
+go test ./internal/server -run '^TestStoredAccountCacheUnderConcurrentReadersAndWriter$' -count=10
+                                         -> 2/10 FAIL, 6x "concurrent read: ... The process cannot access
+                                            the file because it is being used by another process."
+                                         (same commit on Go 1.27.0: 10/10 PASS)
+# after the fsretry read fix:
+go test ./internal/server -run '^TestStoredAccountCacheUnderConcurrentReadersAndWriter$' -count=20   PASS
+go build ./...  exit 0; go vet ./internal/server exit 0; gofmt clean (LF-normalised copy)
+
+# full suite on the new toolchain + modules + read fix (go test ./... -count=1)
+full-suite-after-readfix exit=0, 331 s, every package ok (internal/server 241 s)
+
 # security baseline
 go vet ./...                                    exit 0, no diagnostics
 golang.org/x/vuln/cmd/govulncheck@v1.9.0         installed to .tmp-artifacts/bin (built with go1.27.3,
@@ -504,4 +551,5 @@ go test ./internal/configinit -count=1           exit 0 (11 s)
 * `021173c` fix(configinit): repair an empty or whitespace-only config.yaml instead of failing boot
 * `8794f42` test(hardening): fuzz targets, secret-leak sweep, traversal probes, docs/data-safety.md
 * `2e87cc1` docs(data-safety): full-package runs and triage of the one local red
-* (the toolchain/module move commit: `go.mod`, `go.sum`, `Dockerfile` and the §8.2/§9 update)
+* `258b88d` build: move to Go 1.27.3 and patched x/image/x/text/x/crypto; govulncheck reachable 15 -> 0
+* `bc092ab` fix(server): retry the Windows sharing violation when reading a node-persist record (surfaced by the 1.27.3 move, §7.1)
