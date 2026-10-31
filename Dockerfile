@@ -3,7 +3,7 @@
 # Build stage. The Go toolchain is a BUILD-TIME dependency only: the runtime
 # image contains no Go, no Node and no npm, per the distribution rules in
 # ARCHITECTURE.md section 5.
-FROM golang:1.23-alpine AS build
+FROM golang:1.27.3-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download

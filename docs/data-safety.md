@@ -250,16 +250,18 @@ exit 0, no diagnostics (`vet-exit=0`, empty log; 133 s cold incl. build).
 
 ### 8.2 `govulncheck`
 
-Installed to a scratch `GOBIN` (not the repo): `golang.org/x/vuln/cmd/govulncheck@latest` ->
-`govulncheck v1.9.0`, scanner Go 1.27.0, vulnerability DB updated 2026-10-27T21:16:18Z.
+Tool: installed to a scratch `GOBIN` (not the repo):
+`golang.org/x/vuln/cmd/govulncheck@v1.9.0`, built with **go1.27.3**, vulnerability DB
+`2026-10-27T21:16:18Z`. This section records the BEFORE measurement (the release-blocking state this
+lane found) and the AFTER measurement once the toolchain/module move below was applied.
+
+BEFORE — `go.mod go 1.23.0`, `Dockerfile golang:1.23-alpine` (scan built by the then-installed
+go1.27.0): exit 3, **15 reachable vulnerabilities**:
 
 ```
 govulncheck ./...
 => "Your code is affected by 15 vulnerabilities from 2 modules and the Go standard library."
-   exit 3 (findings)
 ```
-
-Reachable findings, all with `govulncheck`-reported call traces:
 
 | id | package | fixed in | reachable via |
 |---|---|---|---|
@@ -270,21 +272,46 @@ Reachable findings, all with `govulncheck`-reported call traces:
 | GO-2026-6222, 5061, 5031, 4961 | `golang.org/x/image@v0.24.0` | v0.42.0 / v0.43.0 / v0.45.0 | `server.reencodeImage` -> `image.Decode` -> `webp.Decode` (`characters_write.go:93`); `generateImageMetadata` -> `webp.DecodeConfig` (`image_metadata_generate.go:40`) — user-uploaded images |
 | GO-2026-5970 | `golang.org/x/text@v0.22.0` | v0.39.0 | collation/`language` package use in the images list path |
 
-Remediation, reported not silently applied:
+Root cause: the release/CI toolchain was **Go 1.23, which is out of support**, so no stdlib patch
+release reached a shipped build; and every fixed `x/image`/`x/text` release declares
+`GoVersion: 1.25.0`, so the module bump was blocked on the same toolchain move.
 
-1. **Stdlib CVEs are a toolchain decision.** The scan used the local Go 1.27.0, but the project's
-   `go.mod` declares `go 1.23.0` and `.github/workflows/*.yml` use `go-version-file: go.mod` with
-   `Dockerfile: golang:1.23-alpine`. **Go 1.23 is out of support**, so the shipped release builds do
-   not receive these stdlib fixes. Recommended: move the release/CI toolchain to a supported patched
-   Go (>= 1.27.3 for this DB); that is a build/release-lane change (`.github/`, `Dockerfile`), outside
-   this lane's write scope and reported here as the fix.
-2. **The two module findings cannot be fixed without the same toolchain move.** Every fixed
-   `golang.org/x/image` (>= v0.42.0) and `golang.org/x/text` (>= v0.39.0) release declares
-   `GoVersion: 1.25.0` (`go list -m -json`), which `go 1.23.0` refuses. So the dependency bump is
-   blocked on the Go-version bump, and both are reported rather than half-applied.
-3. `govulncheck` also found 29 further vulnerabilities in required modules and 3 in imported packages
-   that it could not trace a call to ("your code doesn't appear to call these"); not counted as
-   reachable.
+REMEDIATION APPLIED (the rest of this section is the post-fix record; see the commit log in §11):
+
+* `go.mod` `go 1.23.0` -> **`go 1.27.3`** (the newest patch this DB lists with the stdlib fixes), and
+  `Dockerfile` `FROM golang:1.23-alpine` -> **`FROM golang:1.27.3-alpine`**. The `1.27.3-alpine` tag
+  was verified against the Docker Hub registry API (`last_updated 2026-10-27T01:23:40Z`). CI workflows
+  use `go-version-file: go.mod`, so they follow the directive; none were edited.
+* `golang.org/x/image v0.24.0 -> v0.45.0` (carries all four image fixes; v0.45.0 requires
+  `x/text >= v0.41.0`, which is why the minimal v0.39.0 was not resolvable alongside it).
+* `golang.org/x/text v0.22.0 -> v0.41.0`; `golang.org/x/sys v0.30.0 -> v0.47.0` (transitive of
+  x/image).
+* `golang.org/x/crypto v0.33.0 -> v0.56.0` (extra, same class: it removed 21 module-level advisories
+  that govulncheck reported in required-but-uncalled packages; `accounts.go` uses only
+  `scrypt`/`sha3`, whose APIs are unchanged).
+
+```
+go version                        -> go1.27.3 windows/arm64   (GOTOOLCHAIN=auto fetched it: 32 s)
+go mod tidy                       -> exit 0
+go build ./...                    -> exit 0 (19 s after cache warm)
+go vet ./...                      -> exit 0 (18 s)
+govulncheck ./...                 -> exit 0
+```
+
+AFTER — `govulncheck ./...` exit 0: **"No vulnerabilities found." "Your code is affected by 0
+vulnerabilities."** 0 in imported packages, **0 reachable** (was 15), and exactly **1** advisory
+remaining in a required module, non-reachable and with **no fixed version**:
+`GO-2026-5932 golang.org/x/crypto/openpgp@v0.56.0` — "package unmaintained/unsafe by design, fixed
+in N/A". This module does not import `openpgp` (it imports `scrypt` and `sha3` only), and the
+govulncheck trace for it contains no package/symbol frames; it cannot be removed without removing
+`golang.org/x/crypto`, which the password hashing path requires. Named residual, non-reachable.
+
+Pinned-parity impact: **none expected and none observed** — a toolchain and module version move only.
+No HTTP route, response body, disk layout, filename or provider-wire byte was changed; the image
+affects are inside a decoder whose contract is the decoded OBSERVABLE (dimensions/MIME/decodability),
+not Jimp byte equality (the recorded `/thumbnail` + avatar decisions, ARCHITECTURE §35.2). The
+image/card/thumbnail/`x/text`-collation tests and the account/scrypt/sha3 tests were re-run green
+(§10).
 
 
 ### 8.3 Path traversal
@@ -390,11 +417,16 @@ Review of `install.sh` (sh), `install.ps1`, `start.sh`, `Start.cmd` from source:
    replace only if the name collides (it cannot: unique token); disk leak bounded by crash count.
 7. `go test -race` is unavailable on windows/arm64; concurrency tests are race-detector-clean by design
    and must be run on the Linux CI gate (§7).
-8. **Release toolchain is Go 1.23, which is out of support** (`go.mod: go 1.23.0`,
-   `Dockerfile: golang:1.23-alpine`, workflows use `go-version-file: go.mod`), so the stdlib
-   vulnerabilities govulncheck reports for the current Go are not patched in the shipped release, and
-   the `x/image`/`x/text` fixes are blocked on a Go >= 1.25 move (§8.2). Highest-value follow-up for
-   the release lane.
+8. **FIXED in this lane (toolchain + module move, §8.2).** The release toolchain was Go 1.23 (out of
+   support) and govulncheck found 15 reachable vulnerabilities. Now: `go.mod go 1.27.3`,
+   `Dockerfile golang:1.27.3-alpine`, `x/image v0.45.0`, `x/text v0.41.0`, `x/sys v0.47.0`,
+   `x/crypto v0.56.0`; `govulncheck ./...` is exit 0 with **0 reachable**. The only remaining advisory
+   is `GO-2026-5932` in `golang.org/x/crypto/openpgp` (no fixed version; the module is not imported —
+   only `scrypt`/`sha3` are). Residual: the Docker image itself was not built locally (no
+   docker/podman on this host); the tag exists and the build stage is a one-line `FROM` change, so the
+   container build must be exercised by the release/docker workflow. The Go 1.27.3 toolchain was
+   fetched by `GOTOOLCHAIN=auto` (32 s), so CI with `go-version-file: go.mod` will fetch the same
+   version.
 
 ## 10. Command log (this lane)
 
@@ -435,20 +467,41 @@ go test ./internal/server     -count=1   573 s: ONE failure, TestOpenAIGenerateV
                                          isolated re-run discriminates a host/timing artefact from a defect).
 
 # security baseline
-go vet ./...                                    see §8.1 / §10 table below
-golang.org/x/vuln/cmd/govulncheck@latest         installed to .tmp-artifacts/bin (govulncheck v1.9.0, DB 2026-10-27)
-govulncheck ./...                               see below
+go vet ./...                                    exit 0, no diagnostics
+golang.org/x/vuln/cmd/govulncheck@v1.9.0         installed to .tmp-artifacts/bin (built with go1.27.3,
+                                                 DB 2026-10-27T21:16:18Z)
+govulncheck ./...                               BEFORE: exit 3, 15 reachable
+govulncheck ./...                               AFTER:  exit 0, "No vulnerabilities found", 0 reachable
+
+# toolchain + module move (release-blocking follow-up; §8.2)
+GOTOOLCHAIN=auto go version                     -> go1.27.3 windows/arm64 (downloaded in 32 s)
+go get golang.org/x/image@v0.45.0 golang.org/x/text@v0.41.0   -> upgraded (+ x/sys v0.47.0)
+go get golang.org/x/crypto@v0.56.0               -> upgraded (clears 21 non-reachable module advisories)
+go mod tidy                                     exit 0
+go build ./...                                  exit 0 (19 s)
+go vet ./...                                    exit 0 (18 s)
+go test ./internal/server -run 'Test(PinnedNodeAccounts|Accounts|Account|Login|Session|Csrf|Password|Recovery)' -count=1  exit 0 (25 s)
+# affected image / card / thumbnail / x-text-collation subset + startup + configinit, on go1.27.3:
+go test ./internal/server -run 'Test(Characters|PngCard|Avatar|Thumbnail|Images|ImageMetadata|Backgrounds|UserAvatar|Sprite|CharactersRead|CharactersWrite|CharactersImport|CharactersFormat|CharactersReplay|CharactersProjection)' -count=1  exit 0 (128 s)
+go test ./internal/startup -count=1              exit 0 (35 s)
+go test ./internal/configinit -count=1           exit 0 (11 s)
+# environment note: the C: volume was down to 307 MB free and `go build ./...` first failed with
+# "resize output file failed ... not enough space"; `go clean -cache` freed the 5.96 GB Go build cache
+# (safe, disposable), after which the build passed. No repository file was involved.
 ```
 
 | command | observed |
 |---|---|
-| `go vet ./...` | exit 0, no diagnostics (133 s cold) |
-| `govulncheck ./...` | exit 3; 15 reachable vulnerabilities: stdlib (go1.27.0) fixed in Go 1.27.2/1.27.3, plus `golang.org/x/image@v0.24.0` and `golang.org/x/text@v0.22.0` (§8.2); module fixes require a Go >= 1.25 toolchain move |
-| `govulncheck -version` | govulncheck v1.9.0, scanner go1.27.0, DB 2026-10-27T21:16:18Z |
+| `go vet ./...` | exit 0, no diagnostics (133 s cold; 18 s warm on go1.27.3) |
+| `govulncheck ./...` BEFORE | exit 3; 15 reachable: stdlib go1.27.0 (fixed in Go 1.27.2/1.27.3) + `x/image@v0.24.0` + `x/text@v0.22.0` (§8.2) |
+| `govulncheck ./...` AFTER | exit 0; "No vulnerabilities found", 0 affected, 0 reachable; 1 non-reachable module advisory (`GO-2026-5932`, `x/crypto/openpgp`, no fix, not imported) |
+| `govulncheck -version` | govulncheck v1.9.0, built with go1.27.3, DB 2026-10-27T21:16:18Z |
 
 ## 11. Commits
 
 * `64bc56e` fix(server): publish a character's copied chats directory atomically
 * `f584570` fix(startup,server): survive a killed process / full disk on user-data writes, and stop tearing image overwrites
 * `021173c` fix(configinit): repair an empty or whitespace-only config.yaml instead of failing boot
-* (this document and the fuzz targets)
+* `8794f42` test(hardening): fuzz targets, secret-leak sweep, traversal probes, docs/data-safety.md
+* `2e87cc1` docs(data-safety): full-package runs and triage of the one local red
+* (the toolchain/module move commit: `go.mod`, `go.sum`, `Dockerfile` and the §8.2/§9 update)
