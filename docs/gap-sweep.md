@@ -1,258 +1,198 @@
-# Gap sweep: missing / stub / silent-degradation, frontend→route reverse mapping, CLI+startup parity
+# Gap sweep at the Alpha.9 release candidate
 
-Measured on GoTavern `292905f` against the pinned reference
-`C:\Users\koishi\Desktop\GoTavern\SillyTavern` verified at
+Measured on GoTavern `42b7c4d` (the candidate base; this lane's regenerated matrix is the commit carrying
+this file) against the pinned reference SillyTavern `1.19.0`, commit
 `06bde939fb1e9c4c8d8641d810f0a916b5bce127` (read-only; never written).
 
-Method: `git ls-files` / `git grep -I` over the tracked tree, `Select-String` and regex extraction over
-`internal/**`, `cmd/**` and the pinned `src/**` + `public/**`, plus the pinned `node_modules/yargs`
-source for the yargs defaults. No Go toolchain, npm, Playwright or probe was run. Every claim below
-cites file:line on both sides. Anything not citable is listed under **Uncertainty**, not as a finding.
+This file replaces the 2026-10-25 sweep that was measured on `292905f`. Most of that sweep's findings are
+now closed; the dispositions in section 4 are re-verified against the tree at HEAD rather than carried
+forward. The ranked list in section 2 is ordered by one question only:
 
-`HEAD` is clean of my writes; my only write scope is this file. Nothing under `.private-fixtures/` was
-read, listed, hashed or summarised, and no search was issued against it.
+> **Could this stop a real user from safely using GoTavern as a SillyTavern backend replacement?**
 
----
+It is deliberately NOT ordered by how easy a test would be to write. A gap that is cheap to close but
+cannot hurt a user ranks below one that is hard to close and changes the model's context.
 
-## Findings, ranked by user impact
+## 0. Verdict, and the release condition
 
-### G-01 — Automatic browser launch is unimplemented, and it is ON by default on a fresh install
+Release condition: **`FAIL = 0`; `PARTIAL > 0` is allowed when every partial row is understood, documented,
+classified and non-blocking.**
 
-| field | value |
-| --- | --- |
-| surface | startup / post-listener action, CLI+config |
-| reference action | `default/config.yaml:20-34` (`browserLaunch:` / `enabled: true` at `:22` / `browser: 'default'` at `:27`); `src/command-line.js:68-71` (parser defaults), `:142-160` (flags), `:247-265` (deprecated `autorun*` aliases), `:311-314` (CLI → config precedence), `:343-368` (hostname + URL construction); `src/server-main.js:362-395` (`postSetupTasks`: reads `browserLaunch.browser` at `:365`, logs `Launching in a browser: <app>...` at `:390`, `await open(url, opts)` at `:391`, non-fatal catch at `:392-394`) |
-| GoTavern action | `cmd/gotavern/main.go:218-225` — builds the URL, prints it, then at `:223-225` prints `Warning: automatic browser launch is not implemented; open the URL above manually` and does nothing. Option parsing exists: `internal/commandline/options.go:27-30` (fields), `:141-144` + `:162-165` (flags incl. deprecated aliases), `:187` (defaults), `:221-224` (precedence). URL derivation exists: `internal/commandline/urls.go:53-82` |
-| reference observable | the OS default browser (or the app named by `browserLaunch.browser`) opens the resolved launch URL; stdout gets `Launching in a browser: default...`; a failure prints `Failed to launch the browser. Open the URL manually.` and the server keeps running |
-| GoTavern observable | nothing is opened; a one-line warning on **stderr**; the URL is printed on stdout |
-| difference | pinned opens a browser on every fresh install because the shipped `default/config.yaml` sets `enabled: true`; GoTavern ships the same file (`upstream/default/config.yaml:20`) and therefore resolves `BrowserLaunchEnabled == true` — and then declines. The `browserLaunch.browser` key is never read anywhere in the Go tree (`git grep -I browserLaunch.browser` → no hits), so the app-selection half is absent too |
-| reachable by a user? | **yes — the default path.** No configuration needed: a fresh install of pinned opens a browser, a fresh install of GoTavern does not |
-| class | **product bug**, documented as an open item rather than a boundary (`docs/compat-matrix.md:15`, `:16`, `:50`; `docs/startup-inventory.md:35`, `:37`). The task's own question — boundary or "we never got to it" — resolves to the latter: there is no architectural obstacle, the URL and hostname logic is already implemented and oracle-tested (`internal/commandline/paths_test.go:364-369`), and pinned's failure mode is non-fatal |
-| proposed minimal fix | in `runServer`, when `BrowserLaunchEnabled` is truthy: read `browserLaunch.browser` through the command-line layer, print `Launching in a browser: <app>...` to stdout, then exec the platform opener (Windows `rundll32 url.dll,FileProtocolHandler <url>`, darwin `open`, linux `xdg-open`; the four named apps only when `browser` names one), and on error print pinned's message and continue. Never fail startup. Do **not** put this behind a new flag: pinned's gate is the existing key |
-| test that locks it | a unit test with an injected opener recording argv, asserting (a) one invocation with the resolved URL, (b) the URL matches `ResolveBrowserLaunchHostname` + `BrowserLaunchURL` for the four protocol combinations, (c) `enabled: false` → zero invocations, (d) opener error → server still serves and the pinned message is emitted. Differential: run pinned with `browserLaunch.enabled: true` and a PATH-shadowed recorder binary to capture the exact argv/streams |
+At this candidate the machine matrix is `PASS 1 / PARTIAL 19 / FAIL 1 / NOT_APPLICABLE 1`, so the condition
+is **NOT MET**. The single FAIL is `whole-session-e2e`, and it is a P0 for the tag (section 2, rank 1). The
+19 PARTIAL rows are classified in section 3: **P0 0 / P1 9 / P2 10**. No PARTIAL row hides a second P0.
 
-### G-02 — `DATA_ROOT/access.log` is never written, and `logging.enableAccessLog` is never read
+What this lane did and did not run: it re-derived the matrix mechanically (`node
+tools/compat-matrix/render.mjs --emit`), ran `node tools/compat-matrix/check.mjs` green, re-resolved every
+citation with an independent resolver that does not import `render.mjs`, audited every historical status
+transition, and read the tree for each closure in section 4. It ran **no Go test, no browser probe and no CI
+workflow**; freshness of every run-cited claim is the Lead's re-run at the frozen candidate SHA (section 5).
 
-| field | value |
-| --- | --- |
-| surface | startup middleware / per-connection log + startup output |
-| reference action | `src/middleware/accessLogWriter.js:6` (`enableAccessLog`, default true), `:10` (`getAccessLogPath` = `DATA_ROOT/access.log`), `:33-58` (middleware: on the first request from an IP, console-log `New connection from <ip>; User Agent: <ua>` and append `<iso> <ip> <ua>\n`), mounted at `src/server-main.js:153`; `default/config.yaml:187` sets `enableAccessLog: true`; the `listen: true` hint that names the file is `src/server-main.js:439-443` |
-| GoTavern action | `internal/startup/access_log_migration.go:20-91` only **moves** a legacy `serverDir/access.log` into the data root, invoked at `internal/startup/data_startup.go:134`. There is no writer: `git grep -I` finds no `knownIPs`, no `New connection from`, no append to `access.log` in `internal/**` or `cmd/**`. `logging.enableAccessLog` is never read (`git grep -I` → zero hits) |
-| reference observable | a first request from a new IP creates/appends `DATA_ROOT/access.log` with one timestamped line; `listen: true` also prints the two-line hint block naming that file |
-| GoTavern observable | the file is never created by serving; the hint block is not printed (`cmd/gotavern/main.go:201-225` prints only the listener lines and the URL) |
-| difference | an operator following pinned's own instruction ("Check the access.log file in the data directory to inspect incoming connections") finds a file that only exists if it was migrated from an old install, and that never grows |
-| reachable by a user? | **yes, for every operator who enables network listening — but NOT default-on, and this row originally said it was.** CORRECTED 2026-10-29 by the lane that implemented it: the middleware is mounted only when `cliArgs.listen` is true (`src/server-main.js:152-154`), and the fresh-install config ships `listen: false` (`upstream/default/config.yaml:6`). The `listen: true` hint block at `:439-443` carries the same gate. The GoTavern implementation reproduces pinned's gate rather than the "default-on" reading this row first gave, and the severity above is stated accordingly. The `default/config.yaml:187` value (`enableAccessLog: true`) is the second gate, not the only one |
-| class | **product bug**; the writer is not recorded as a gap. `docs/data-layout.md:56` describes the file only as the migration target, `docs/startup-inventory.md:30` admits "startup logging … incomplete" without naming the per-connection log, and `docs/compatibility-matrix.json:805` carries only the migration fixture |
-| proposed minimal fix | add a middleware in the pinned position that keeps a `knownIPs` set, and on a new IP prints the console line and appends to `<dataRoot>/access.log`, gated by `logging.enableAccessLog` (default true); a write failure logs and is non-fatal. Add the `listen` hint block to the startup output |
-| test that locks it | fixture-free unit test: two requests from one IP → one line; a second distinct IP → two lines; `enableAccessLog: false` → no file; unwritable data root → the request is still served 200 and the failure is logged. Assert the exact line shape against a pinned capture (timestamp/IP/UA) |
+## 1. Severity classes
 
-### G-03 — The Azure TTS routes (`/api/azure/list`, `/api/azure/generate`) do not exist and no document says so
+| class | meaning | tag effect |
+| --- | --- | --- |
+| **P0** | data loss/corruption, startup failure, a broken core browser workflow, an existing stock tree that cannot start, installer data destruction, or a materially wrong provider request | blocks the tag |
+| **P1** | important but bounded: a real capability is unproven or a secondary feature is materially incomplete, with no observed corruption and a documented workaround/limitation | ships only with an accepted, written residual |
+| **P2** | acceptable evidence debt: the mechanism is implemented and gated, the missing piece is an observer, a platform, an extreme edge or a production-only observation | ships, with the evidence gap recorded |
 
-| field | value |
-| --- | --- |
-| surface | route coverage / TTS provider |
-| reference action | `src/endpoints/azure.js:8` (`POST /list`), `:46` (`POST /generate`, SSML construction and escaping at `:62-64`, `X-Microsoft-OutputFormat` at `:71`, `audio/ogg` at `:82`); mounted at `src/server-startup.js:182` |
-| GoTavern action | no `/api/azure` registration exists (`git grep -I "api/azure"` over `internal/**` and `cmd/**` → zero hits; the full route-prefix diff against the 45 pinned mounts yields only `/api/azure` and `/api/volcengine` unexplained) |
-| reference observable | `POST /api/azure/list` with a stored `azure_tts` secret and a `region` returns the provider's voice JSON; `POST /api/azure/generate` returns `audio/ogg` bytes |
-| GoTavern observable | the generic 404 (no route registered) |
-| difference | the Azure TTS provider is selectable in the stock frontend — `public/scripts/extensions/tts/azure.js:143` (`/api/azure/list`) and `:191` (`/api/azure/generate`) — and 404s on GoTavern while pinned answers |
-| reachable by a user? | **yes** — pick "Azure TTS" in the TTS extension and press a read-aloud button |
-| class | **product bug / undocumented missing route.** It is *not* one of the recorded boundaries: the wire format lives in the pinned server's own source (not in a dependency), the upstream is ordinary outbound HTTPS, and no local ONNX pipeline is involved. A grep for `azure` across `docs/` returns only `azure_openai` (the chat-completion source: `docs/generated/coverage-matrix.json:11`, `docs/surface-coverage.md:42`) — the TTS routes are unmentioned |
-| proposed minimal fix | implement both handlers from `azure.js` (secret `azure_tts`, `region` required, SSML with the pinned `&`/`<`/`>` escaping, the three pinned headers, `audio/ogg`), and add a controlled-peer probe scenario |
-| test that locks it | probe with a stub peer asserting the exact URL (`https://<region>.tts.speech.microsoft.com/...`), method, header set, SSML body bytes and the 403/400/500 branches; plus a route-presence assertion against the pinned mount list so a future mount cannot be added silently |
+Classes of cause used in section 3: **deliberate architectural boundary** (decided and recorded, e.g. the
+Jimp codec divergence, local ONNX), **evidence debt** (the mechanism exists and is gated, the observer is
+missing), **production limitation** (the behaviour is genuinely not implemented/qualified), **observer
+coverage** (the tests watch HTTP but not the browser, or a mock but not the network), **release-artifact
+evidence missing** (source green, shipped archive not exercised for this surface).
 
-### G-04 — `/api/volcengine/generate-voice` does not exist, while its secrets ARE configurable
+## 2. Open gaps, ranked by real-user impact
 
-| field | value |
-| --- | --- |
-| surface | route coverage / TTS provider |
-| reference action | `src/endpoints/volcengine.js:9` (`POST /generate-voice`), default endpoint `:14`, 403 on missing credentials `:20-23`, 400 on missing `resource_id`/`text`/`voice_speaker` `:29-32`, the `X-Api-*` header set `:36-40` and the `req_params` body `:42-60`; mounted at `src/server-startup.js:183` |
-| GoTavern action | no route (`git grep -I "api/volcengine"` over `internal/**`/`cmd/**` → zero hits). The two credential keys **are** declared: `internal/startup/secrets_state.go:105-106` (`volcengine_app_id`, `volcengine_access_key`) |
-| reference observable | the route proxies to `openspeech.bytedance.com` (or a caller-supplied `provider_endpoint`) and streams the audio back |
-| GoTavern observable | the generic 404 |
-| difference | the user can save Volcengine credentials in GoTavern's own secrets UI and then every synthesis request 404s. `volcengine` appears **nowhere** in `docs/` (`git grep -I` over `docs/` → zero hits) and the frontend calls it at `public/scripts/extensions/tts/volcengine.js:297` |
-| reachable by a user? | **yes** — select Volcengine TTS; the credentials path is fully wired |
-| class | **product bug / undocumented missing route** (same reasoning as G-03: pinned-owned wire format, ordinary outbound HTTPS) |
-| proposed minimal fix | implement the route with the pinned default endpoint, the 403/400 guards, the `X-Api-*` headers and the `req_params` body; add a probe |
-| test that locks it | probe asserting the default endpoint literal, the header set, the body member order, and the 403/400 branches; plus the route-presence assertion described in G-03 |
+This is the same ranked list as `docs/compatibility-matrix.json`'s `gaps` (regenerated into
+`docs/compatibility-matrix.md`), where each entry also names the row and the evidence.
 
-### G-05 — `cacheBuster.*` is accepted and ignored, so `Clear-Site-Data` is never emitted
+| # | gap (row) | would it stop a real user? | cause class | severity |
+| --- | --- | --- | --- | --- |
+| 1 | The whole-session differential is RED for a real FIRST-TURN provider-context difference (`whole-session-e2e`) | **yes** - the model is given different context on the first turn after a page load than pinned Node gives it; this is the product promise | product parity defect | **P0** |
+| 2 | An existing user's tree is qualified through a DERIVED stock tree, and hand-back after GoTavern has written the tree is not in the packaged drop-in gate (`packaging-release`) | **yes for the target audience** - an existing SillyTavern user, until the stock tree is recorded and one round trip returns the tree to pinned Node | release-artifact evidence missing / production-vs-derived limitation | **P1** |
+| 3 | World-info slot ORDERING (before/after/atDepth) into the provider request is not asserted for a stock preset (`world-info`) | no, but it silently changes what the model is told | evidence debt | **P1** |
+| 4 | Preset features outside the measured contract are unasserted: instruct/context templates, secondary world-info keys, recursion/probability/outlets, group-chat presets (`presets-and-ui-content`) | no for an ordinary preset; a complex preset can diverge with no gate | evidence debt | **P1** |
+| 5 | Chat JSONL atomicity is asserted per route but not at a crash-or-kill boundary; the browser save->reload leg belongs to the red whole-session gate (`chats`) | yes if a kill lands mid-write - the conversation is the product - but no failure observed | evidence debt / extreme edge untested | **P1** |
+| 6 | CharX, BYAF and RisuAI imports are unimplemented; avatar crop/resize is unprobed; no browser create/read-back (`characters`) | yes for a user arriving with one of those card formats; ordinary PNG/JSON/YAML use is unaffected | production limitation + deliberate codec divergence | **P1** |
+| 7 | Every REMOTE embedding provider answers 500; only webllm/koboldcpp and caller-supplied vectors work (`embeddings-vector`) | yes for a user enabling vector storage with a remote provider; not the default chat journey | production limitation | **P1** |
+| 8 | Every provider differential runs against this repository's own recording peer; a real provider through a real proxy is exercised by the user and nothing here (`providers-transport`) | no for a user with a working provider, but the corpus cannot prove the real path | production-vs-mock limitation / evidence debt | **P1** |
+| 9 | 酒馆助手 render path, DOM URLs and variable persistence remain unproven; the ordinary asset-serving path is now executed (`extensions`) | no for a normal extension install; a workflow depending on persisted variables or rendered URLs stays unproven | secondary feature evidence gap / observer coverage | **P1** |
+| 10 | With no tokenizer tree an inexact count cannot be told apart from an exact one; resolution is unproven beside a user's data (`tokenization`) | no for a fresh install, but AGENTS.md 9 makes exact tokenization mandatory where marked compatible | deliberate inherited weakness / evidence debt | **P2** |
+| 11 | Media re-encoding is a DECIDED codec divergence; no browser posts a real multipart upload (`files-and-media`) | no - the observable transformation is gated; Jimp byte equality is explicitly not claimed | deliberate architectural boundary / evidence debt | **P2** |
+| 12 | Two users writing the same world/preset tree concurrently is untested; per-user locks are asserted per route (`accounts-multi-user`) | no for a single-user install; yes for a multi-user deployment under contention | evidence debt / extreme edge untested | **P2** |
+| 13 | No sweep asserts a stored secret is never printed on ANY error path, only on the probed routes (`secrets`) | no, but a leaked key is unrecoverable for the user | evidence debt | **P2** |
+| 14 | Server plugins and local ONNX embeddings are excluded, and the exclusion is only as visible as the last document that mentioned it (`server-plugins`) | for the small set of users who rely on them, yes; they must learn it before installing | deliberate architectural boundary | **P2** |
 
-| field | value |
-| --- | --- |
-| surface | middleware / cache invalidation after an upgrade |
-| reference action | `src/middleware/cacheBuster.js:28` (`cacheBuster.enabled`, default **false**), `:29` (`cacheBuster.userAgentPattern`), `:45-66` (`shouldBust`), `:72-85` (once per `handle` + sha256(user-agent)), `:101-105` (`Clear-Site-Data: "cache"`) |
-| GoTavern action | no `Clear-Site-Data` header anywhere; `internal/server/avatars_upload.go:94-96` is a comment *describing* the pinned behaviour, not an implementation; neither key is read (`git grep -I cacheBuster.userAgentPattern` → zero hits; `cacheBuster.enabled` appears only inside comments) |
-| reference observable | with `cacheBuster.enabled: true`, the first response per (user, user-agent) carries `Clear-Site-Data: "cache"` |
-| GoTavern observable | no such header, ever |
-| difference | the operator who enabled the buster to force clients off stale frontend assets after an update gets no invalidation on GoTavern. Default-off, so this is opt-in only |
-| reachable by a user? | yes, when `cacheBuster.enabled: true` is set |
-| class | **product bug** (config parsed-but-ignored), undocumented: neither key appears in any compat row |
-| proposed minimal fix | a middleware keyed on `handle` + sha256(`user-agent`), gated by `cacheBuster.enabled`, with `cacheBuster.userAgentPattern` compiled as a case-insensitive regex (`''`/absent → bust for all); set the header before the response is written |
-| test that locks it | table over (enabled, pattern, UA) × (first request, repeat request) asserting presence, value `"cache"` and exactly-once; plus `enabled: false` → header absent |
+Rows 10-14 are correctly below the user-blocking ones: each is a decided boundary, a narrow edge, or a
+secondary surface. None of them can corrupt data or stop a fresh install from starting.
 
-### G-06 — `sso.*` is accepted and ignored: SSO auto-login silently degrades to the login page
+## 3. Release disposition for every PARTIAL row, plus the FAIL row
 
-| field | value |
-| --- | --- |
-| surface | authentication / login flow |
-| reference action | `src/users.js:30` (`sso.autheliaAuth`, default false), `:31` (`sso.authentikAuth`, default false), `:34` (`sso.trustedProxies`, default `['127.0.0.1','::1']`), `:761-765` (inside the login flow: `if (AUTHELIA_AUTH && await autheliaUserLogin(request))` / the Authentik equivalent), `:826` and `:832` (operator warnings for a non-array / accept-all trustedProxies); defaults at `default/config.yaml:116-135` |
-| GoTavern action | the three keys are only migrated from their legacy names (`internal/configinit/config.go:70-71`); nothing reads `sso.*` anywhere in the Go tree |
-| reference observable | a request arriving through the configured reverse proxy with the SSO header establishes a session without the login form |
-| GoTavern observable | the login page, with no indication that the setting was ignored |
-| difference | an operator who enabled SSO gets a working-looking but different deployment: users must log in manually. Default-off, so opt-in |
-| reachable by a user? | yes, when `sso.autheliaAuth`/`sso.authentikAuth` is true |
-| class | **product bug** (config parsed-but-ignored). `docs/config-inventory.md:53-55` lists the keys and their pinned defaults but no compat row states that GoTavern ignores them |
-| proposed minimal fix | implement the SSO login path (or, as an interim that is honest rather than silent, warn loudly at startup when any `sso.*` key is truthy). Rule 18 forbids the silent version |
-| test that locks it | a request carrying the Authelia header with the key true → session established; with the key false → login page; and an assertion that a truthy unhandled key produces a startup warning |
+Columns: the exact capability that is not proven; whether the DEFAULT user journey is affected; the cause
+class; the severity; and the one-sentence release disposition.
 
-### G-07 — `privateAddressWhitelist.*` is accepted and ignored: an enabled SSRF filter is silently off
+| row | why not PASS (the exact unproven capability) | default journey? | cause class | sev | release disposition |
+| --- | --- | --- | --- | --- | --- |
+| `core-http-static` | No release-artifact result for a stock tree, and no gate compares the SERVED frontend bytes against the committed per-file manifest end to end. | yes (every page asset), but this is the most mature area | evidence debt / release-artifact evidence missing | P2 | Safe to ship because route parity and the static contract are fixture- and manifest-pinned and the frontend is served from the pinned embedded bytes; the end-to-end served-bytes gate and the stock-tree artifact result are post-tag evidence work. |
+| `auth-session-csrf` | No browser-level session test through the pinned frontend's own client, and no release-artifact result; every assertion is HTTP-level. | yes when basic or per-user auth is enabled; fresh installs ship auth off | observer coverage / evidence debt | P2 | Safe to ship because the session/CSRF contract is recorded against pinned (including the disabled-CSRF variant) and every state-changing browser leg already carries a real CSRF token; a cookie-only browser defect on an auth-enabled deployment is unobserved, not suspected. |
+| `settings` | No stock-tree settings save/reload round trip; fixtures write fresh runtime roots, so a real user's settings.json with unknown/legacy keys has never round-tripped. | yes (settings save) | evidence debt / production-vs-fixture | P2 | Safe to ship because serialisation and aggregation are pinned and unknown-field preservation is a hard rule exercised elsewhere; the unproven input is a real user's file, which is evidence work rather than a known defect. |
+| `secrets` | No sweep proves a stored secret is never printed on ANY error path; only the probed routes assert it. | yes when a secret is stored | evidence debt (security sweep) | P2 | Safe to ship because every probed route and the shipped-binary error payload are asserted to carry no credential, and this is an incomplete observer rather than an observed leak. |
+| `characters` | CharX/BYAF/RisuAI imports unimplemented (honest pinned error shape); uploaded-avatar crop is source-implemented but not Jimp-identical and unprobed; no browser create-in-frontend/read-back E2E. | no for ordinary PNG/JSON/YAML cards; yes for those three formats | production limitation + deliberate codec divergence | P1 | Ships with a named limitation: ordinary card flows are byte-recorded and parity-tested and a CharX/BYAF/Risu import returns the pinned error rather than corrupting data, so the missing formats are a documented capability gap, not a data hazard. |
+| `chats` | No crash-or-kill boundary test for JSONL append/rewrite; the one-session save/reload/continue assertion belongs to `whole-session-e2e`, which is red. | yes (chat save/load is the product) | evidence debt / dependency on the FAIL row | P1 | Ships only once `whole-session-e2e` is green at the candidate SHA (that run is the save/reload proof); the crash-atomicity boundary stays a documented post-tag evidence item because writes are already locked and atomic per route. |
+| `groups` | No generation test: a group chat's multi-character turn order reaches the provider through a path no fixture covers, and group activation has no browser E2E. | no for single-character chat; yes for group chats | observer coverage | P1 | Ships with a named limitation: group route and metadata-migration parity is fixture-pinned, while the multi-character prompt assembly is unproven and cannot corrupt stored data. |
+| `world-info` | No gate asserts that all three slot positions (before/after/atDepth) reach the provider IN PINNED ORDER for a stock preset; activation itself is proven by the preset and Author's-Note differentials. | yes (world info is common) | evidence debt | P1 | Ships with a named limitation: an entry can be stored and activated correctly yet inserted in the wrong position, which changes the model's context silently; this is exactly the class AGENTS.md 8's request-equality promise exists for, so it must be closed or explicitly accepted. |
+| `presets-and-ui-content` | Preset features outside the measured contract are unasserted (instruct/context templates, secondary world-info keys, recursion/probability/outlets, group chats); the NAME_MAX host difference is a recorded known difference. | yes (presets are core) | evidence debt | P1 | Ships because the complex-preset keep/drop pair is measured (`keepContext 4260 / dropContext 4259`, 24 vs 26 messages, `providerRequestEqual true`) and both halves of AGENTS.md 48 hold inside that contract; features outside it are documented as unmeasured, not claimed. |
+| `providers-transport` | No real-network/provider evidence: every differential runs against this repository's recording peer, and the credential-gated live canaries are not in the default suite. | yes (provider transport is core), but the production transport is the runtime path and internet-shaped failures are gated | production-vs-mock limitation | P1 | Safe to ship because the production transport (TLS/system roots, proxy, bounded timeouts, decompression, redirects, cancellation) is the path users execute, four internet-shaped failure peers plus a shipped-binary test assert the causal taxonomy, and the additive `message` member is a declared superset; a credentialed live-provider run remains the documented evidence gap. |
+| `providers-per-source-wire` | Request bytes are compared against a mock peer, so they prove shaping rather than delivery; no per-source evidence from the shipped artifact; the ai21 `requestFraming` block had no producer until it was rebuilt. | yes for the affected provider | production-vs-mock limitation / evidence debt | P2 | Safe to ship because the 15 catalogued sources' request bytes are byte-compared and the delivery half is owned by `providers-transport`; per-source production observation is evidence work, not a known divergence. |
+| `streaming-and-cancel` | Nothing open: the row is the matrix's only PASS, with committed browser artefacts and transport-level frame-order/truncation tests. | yes | n/a (PASS) | none | Never compare rows to a PASS row's evidence standard: this row is the standard. Its browser artefact must be covered by the full browser differential at the candidate SHA. |
+| `tokenization` | Resolution of a tokenizer tree is proven for a fresh and a migrated root, not for a stock tree whose `src/tokenizers` sits beside user data; with no tree, pinned's guesstimate count is reproduced and cannot be told apart from an exact one. | indirectly yes (context boundaries) | deliberate inherited weakness + evidence debt | P2 | Safe to ship because the boundary gate REFUSES a guesstimating server, the exact-count anchor fixture is gated, and the archive ships `src/tokenizers` with release qualification booting it; the stock-tree layout is the unproven input and is documented. |
+| `files-and-media` | Jimp byte equality is not claimed (decided codec divergence); no multipart upload through a real browser; the browser painting a thumbnail itself is a recorded exclusion. | yes for avatars/backgrounds, but the observable is gated | deliberate architectural boundary / evidence debt | P2 | Safe to ship because both routes serve a real pure-Go re-encode and the gate asserts the observable (status, MIME from the original filename, decodability, exact dimensions, the pinned 512x768 box, cover-not-stretch, PNG output, cache behaviour); bytes matching Jimp is explicitly not a product claim. |
+| `extensions` | 酒馆助手 render path/DOM URLs and variable persistence remain unproven (Q10 red on both subjects), plus Q12/Q19/Q20 declarations in the artefact; the ordinary asset-serving path IS now executed. | yes for extension users; the plain "files load" half is gated | secondary feature evidence gap / observer coverage | P1 | Ships with a named limitation: the iframe/bridge/generation path, a byte-identical `generateRaw` request and the plain asset-serving surface are proven, while persisted variables and rendered URLs stay unproven and are declared in the artefact. |
+| `server-plugins` | Decided exclusion (AGENTS.md 16): arbitrary Node server plugins are not emulated, and `TestPluginsAreReportedAndNeverCopied` asserts the honest negative. | no for users who do not use them; yes for those who do | deliberate architectural boundary / NOT_APPLICABLE | P2 | Ships as an explicitly declared exclusion the operator can see before installing; it is not a partial implementation and no fake endpoint exists. |
+| `embeddings-vector` | Every remote embedding source answers 500 at HEAD (openai, togetherai, mistral, cohere, ollama, llamacpp, vllm, vertexai, palm); the local in-process sources are a decided ONNX exclusion. | no default; yes for users who enable vector storage | production limitation (remote) + deliberate boundary (local) | P1 | Ships only with the remote 500s named in the release notes as a known unimplemented surface; it answers honestly (no fake vectors) and does not touch stored chats, but a user selecting a remote embedding source gets an unimplemented status, so advertising vector storage without that sentence would be a documentation defect. |
+| `accounts-multi-user` | No contention test for two users writing one world/preset tree; no stock-tree multi-user migration result. | no single-user; yes multi-user | evidence debt / extreme edge untested | P2 | Safe to ship for the single-user product; multi-user operators should be told that concurrent same-tree writes are not gated, and per-user isolation is asserted per route. |
+| `import-export-backups` | REQUEST hand-back to Node is absent by design (no proxying, no upstream selector); the DATA hand-back driver and judge exist and passed in Browser differential run 40977195387 (`match`, both directions), but not in the packaged drop-in gate. | yes when importing/backing up | recorded absence + evidence placement | P2 | Safe to ship because restore is proven end to end, the five provider import branches and the UUID classifier are gated to answer 501/404 with zero outbound, and request hand-back is a recorded absence rather than a silent failure; data hand-back belongs in the drop-in gate before the next tag. |
+| `startup` | Startup-differential fixtures still start from fresh/migrated roots, not a populated stock tree. The egress half is CLOSED: a runtime recording-resolver gate plus an AST second opinion both exist and are cited. | yes (every boot), but bounded-boot and egress are gated | evidence debt / fixture coverage | P2 | Safe to ship because boot is bounded and local-only with a recording-resolver gate (`TestStartupMakesNoEgressOnAFreshBoot` and the docker-hostname cases), the AST scan covers the shapes the resolver cannot see, and a populated tree is booted by the long-lived e2e and packaged drop-in gates; the startup-differential corpus should add a populated tree post-tag. |
+| `packaging-release` | The stock tree is DERIVED from the pinned source rather than recorded from a pinned Node run; data hand-back after GoTavern has run is absent from the packaged drop-in gate; quoted `releaseArtifact` is a workflow step, not a recorded run id. | yes for an existing SillyTavern user, the entire target audience | release-artifact evidence missing / production-vs-derived limitation | P1 | Must be explicitly accepted before the tag: the Linux and Windows amd64 archives are unpacked and booted against a stock tree in both layouts and both config modes, but that tree is a derivation, and a DERIVED tree is one step away from the real migration input this release claims; either record a pinned-generated stock tree and one hand-back in the drop-in gate, or the Lead records this residual in the release notes. |
+| `whole-session-e2e` | **The FAIL.** Run 41015209900 (GoTavern whole-session differential) recorded 25 drive + 12 restart steps on both subjects with 37/39 guards green; `completion-1-equal` and `completion-2-equal` differ in ONE system message on the FIRST turn only (pinned 3191 bytes vs GoTavern 2477; pinned sends four example pairs, GoTavern the same pairs minus the first; requests 3-5, after the reload, are byte-identical). | **yes** - the first turn is the cheapest path a new user takes | product parity defect | **P0** | **Must be closed before the tag:** a fresh green whole-session run at the exact candidate SHA, with the comparator verdict and guard list, is the only thing that promotes this row; the release condition `FAIL = 0` cannot be met without it. |
 
-| field | value |
-| --- | --- |
-| surface | outbound transport policy (SSRF) |
-| reference action | `src/server-main.js:337-348` (all five options: `enabled` default false `:340`, `allowedRanges` default `['127.0.0.0/8','::1/128']` `:341`, `log.blockedRequests` default true `:342`, `log.allowedRequests` default false `:343`, `allowUnresolvedHosts` default false `:344`), implemented in `src/private-request-filter.js` (DNS-resolved private-range blocking with per-hop redirect validation) |
-| GoTavern action | none of the five keys is read (`git grep -I privateAddress` → one comment at `internal/server/search.go:15`); the only trace is the pinned-derived table at `docs/config-inventory.md:59-63` |
-| reference observable | with `enabled: true`, an outbound request resolving into a private range is blocked and logged per `log.blockedRequests` |
-| GoTavern observable | the request goes out |
-| difference | a security control the operator explicitly turned on does nothing, with no warning |
-| reachable by a user? | yes, when `privateAddressWhitelist.enabled: true` is set. Default-off |
-| class | **documented-open product gap with a silent-ignore failure mode.** The whole startup step is recorded as `not implemented` at `docs/startup-inventory.md:32`, and `docs/api-inventory.md:232` / `docs/compat-matrix.md:77` explain why `/api/search/visit` is absent for lack of a shared policy. What is *not* recorded is that the setting is accepted and silently ignored — which is the part that misleads an operator |
-| proposed minimal fix | implement the filter inside `internal/outbound` (the single outbound policy — a route-local dial policy would be strictly less safe, as `docs/api-inventory.md:232` already argues). If it stays deferred, make startup refuse to be silent: warn by name when a truthy `privateAddressWhitelist.*` key is present |
-| test that locks it | with `enabled: true` and a controlled peer on a loopback address: zero outbound requests and the pinned log line; with `enabled: false`: the request proceeds. Assert the request COUNT, not just the status (rule 17) |
+## 4. Disposition of the 2026-10-25 sweep's findings (G-01 to G-12)
 
-### G-08 — `--help` writes to stderr and documents none of the 31 server options
+Every one is re-verified against the tree at HEAD, not carried forward from the old document.
 
-| field | value |
-| --- | --- |
-| surface | CLI help output, stdout/stderr split |
-| reference action | pinned parses with `yargs` (`src/command-line.js:110-267`, usage string at `:111`, 31 `.option(...)` blocks with `describe` text at `:112-266`). The yargs factory enables both built-ins unconditionally — `node_modules/yargs/build/index.cjs` (`Yargs: (…) => { … i.help(), i.version(), … }`) — and the run path calls `this.showHelp("log")` / `showVersion("log")` then `this.exit(0)`, i.e. **stdout**, exit 0 |
-| GoTavern action | `cmd/gotavern/main.go:45-48` routes `help`/`--help`/`-h` to `printUsage()` at `:241-250`, whose every line is `fmt.Fprintln(os.Stderr, …)`; the text lists only the subcommands |
-| reference observable | `node server.js --help` prints usage plus all 31 options with types and descriptions to stdout, exit 0 |
-| GoTavern observable | `gotavern --help` prints five usage lines to **stderr**, exit 0, and names no option |
-| difference | two divergences on one surface: the stream (a redirected/piped help output is empty) and the content (no option is discoverable from `--help`; `--port`, `--dataRoot`, `--configPath` etc. are invisible) |
-| reachable by a user? | yes, trivially |
-| class | **product bug** (UX/discoverability + stream split). No doc claims otherwise |
-| proposed minimal fix | print to stdout; generate the option list from `cliOptionKinds` (`internal/commandline/options.go:134-166`) with the pinned `describe` strings, so a new option cannot be added without appearing in help |
-| test that locks it | a test that captures both streams: help text is on stdout, stderr is empty, and every key of `cliOptionKinds` appears in the output (this is the "gate with teeth" form — adding an option to the map without a description fails it) |
+| old id | finding | disposition at HEAD | evidence |
+| --- | --- | --- | --- |
+| G-01 | automatic browser launch unimplemented yet ON by default | **CLOSED** | `cmd/gotavern/main.go:254-259` calls `launchBrowser` gated on `browserLaunch.enabled` and never fails the boot; `cmd/gotavern/browser.go` + `browser_test.go`; pinned ordering preserved |
+| G-02 | `DATA_ROOT/access.log` never written | **CLOSED** | `internal/server/access_log.go` writes `New connection from <ip>; User Agent: <ua>` and appends the timestamped line, gated as pinned is (middleware mounted only when `listen`, plus `logging.enableAccessLog`); `internal/commandline/options.go:354`; `access_log_test.go` |
+| G-03 | Azure TTS routes absent | **CLOSED** | `internal/server/azure_tts.go` serves `POST /api/azure/{list,generate}` (SSML escaping, headers, `audio/ogg`); tests beside it |
+| G-04 | Volcengine `generate-voice` absent while its secrets were configurable | **CLOSED** | `internal/server/volcengine.go:77` registers `/api/volcengine/generate-voice` with the pinned guards/default endpoint; tests |
+| G-05 | `cacheBuster.*` accepted and ignored | **CLOSED** | `internal/commandline/cachebuster.go` reads both keys and `internal/server/cache_buster.go` emits `Clear-Site-Data: "cache"` with the pinned quoted value; tests |
+| G-06 | `sso.*` accepted and ignored | **CLOSED as a SILENT-IGNORE finding** | still not implemented, but `internal/commandline/unimplemented_config.go` plus `cmd/gotavern/config_warning_test.go` make a truthy `sso.autheliaAuth`/`sso.authentikAuth` a loud startup warning, so the failure mode the finding named is gone and the exclusion is visible |
+| G-07 | `privateAddressWhitelist.*` accepted and ignored | **CLOSED** | `internal/outbound/privatefilter.go` implements the filter; a warning is printed when `listen` is enabled and the filter is off; `privatefilter_test.go` |
+| G-08 | `--help` on stderr and documents no options | **CLOSED** | `cmd/gotavern/main.go:85,155,315` prints usage to the provided stdout writer and the option list is generated from the command-line option map; `startup_test.go` asserts the stream |
+| G-09 | stale `DEFERRED`/`not implemented` comments contradict the tree | **CLOSED** | `backends.go`, `backends_kobold.go`, `backends_textgen.go`, `openai_media.go`, `novelai.go`, `horde.go` were corrected on 2026-10-29; the remaining `DEFERRED` strings (`assets.go`, `backups.go`, `content.go`, `nanogpt.go`, `vector.go`) name real recorded gaps |
+| G-10 | AGENTS.md boundary 3 presents `/thumbnail` as an undecided codec question | **STILL OPEN, OUTSIDE THIS LANE** | the bullets now record both decisions, but the boundary's INTRO sentence still says "for one of the two routes the decision is MADE, for the other it is still OPEN", which contradicts its own second bullet (`/api/avatars/upload`: DECIDED 2026-10-29). `AGENTS.md` is not `docs/` and is outside this lane's write scope; flagged to the Lead in the lane report |
+| G-11 | `docs/frontend-startup-calls.md` reports three absences that no longer exist | **CLOSED** | each negative row is marked `RE-MEASURED 2026-10-29` with the corrected value and the blocking-candidate summary is explicitly `WITHDRAWN`; the header now says it is an observation, not an inventory |
+| G-12 | `/api/horde/text-workers` re-serialised with sorted keys and HTML escaping | **CLOSED** | `internal/server/horde.go` now reproduces pinned's `JSON.stringify` order and non-escaping (`6e7ba5a`), with the discriminating fixture in `horde_test.go` |
 
-### G-09 — Stale "DEFERRED / not implemented" comments in eight Go files now contradict the tree
+Two further stale statements were corrected by this lane directly in the machine matrix:
 
-| field | value |
-| --- | --- |
-| surface | code documentation / boundary audit |
-| reference action | n/a (this is GoTavern-internal) |
-| GoTavern action | comments claiming absence, each contradicted by a registered route: `internal/server/backends.go:14-18` ("DEFERRED … still `not implemented`: `/chat-completions/status`, `/kobold/generate`, `/text-completions/generate`, `/kobold/transcribe-audio`") — all four are registered (`internal/server/backends_status.go`, `backends_kobold_deferred.go:58`, `backends_textgen_generate.go:59`, and the `/api/backends/kobold/transcribe-audio` registration); `internal/server/backends_kobold.go:8-9` (same two routes); `internal/server/backends_textgen.go:13-14` (same generate route); `internal/server/openai_media.go:11-16` ("DEFERRED … `/caption-image`, `/generate-video`, the four transcribe-audio routes … and the entire `/api/google` domain") — all registered (`openai_caption.go:88`, `openai_generate_video.go:82`, `openai_transcribe.go`, `openai_chutes_transcribe.go:46`, `google_*.go`); `internal/server/sd.go:18-19` and `internal/server/sd_generate.go:13` ("the 19 `*/generate*` routes … remain `not implemented`") — `docs/compat-matrix.md:72` states all 19 are implemented; `internal/server/novelai.go:13-18` (`/api/novelai/generate`, `/api/novelai/generate-image`) — both registered; `internal/server/horde.go:5-9` ("SCOPE: two routes … The rest of the Horde domain … is not implemented here") — eleven `/api/horde/*` routes are registered and `horde_generation.go` implements the generation family |
-| reference observable | n/a |
-| GoTavern observable | a reader of any of these files concludes a capability is absent |
-| difference | these are the exact markers a missing/stub sweep is told to collect; taken at face value they manufacture eight phantom boundaries and hide eight implemented capabilities. They also understate the product in the direction opposite to the usual failure, which is why the project's "documentation may not claim ahead of evidence" rule does not catch them |
-| reachable by a user? | no (documentation only) — but it misleads every future lane and every reviewer |
-| class | **documentation bug (stale).** None of these is a real gap |
-| proposed minimal fix | rewrite each header comment to state what the file implements plus the residue that is genuinely open (e.g. `openai_media.go` should keep only what `openai_transcribe.go` really does not cover), and delete the "DEFERRED" lists that a later wave superseded |
-| test that locks it | a cheap gate: for every `not implemented` / `DEFERRED` phrase in `internal/**`/`cmd/**` non-test files, require an accompanying route string that is *absent* from the registrations, or an explicit `docs/compat-matrix.md` row — otherwise fail. (Stated as a proposed gate, not as an existing one) |
+- the `startup` row still claimed "NO GATE ASSERTS THAT STARTUP MAKES NO NON-ESSENTIAL NETWORK ACCESS"
+  although `internal/app/startup_egress_test.go` and `startup_egress_source_test.go` exist and are green;
+  the closure is now recorded in that row's notes and the tests are cited;
+- the ranked-gap list still said the whole-session differential did not exist, that only the Linux archive
+  is executed, that the extension ordinary asset-serving path is unproven and that tokenization has no
+  boundary-pair gate; all four contradicted their own rows and the tree, and are rewritten in the matrix.
 
-### G-10 — AGENTS.md architecture boundary 3 still presents `/thumbnail` as an undecided codec question
+## 5. Freshness: which rows depend on which run, and what must be re-run at the frozen SHA
 
-| field | value |
-| --- | --- |
-| surface | project documentation / boundary list |
-| reference action | n/a |
-| GoTavern action | `AGENTS.md:346-353` says `/api/avatars/upload` and `/thumbnail` are both a codec decision that cannot be claimed `partial`, and `:354-357` says the two startup-differential `/thumbnail` 404s "are THIS BOUNDARY rather than missing work". Both statements are contradicted by the tree and by a later section of the same file: `ARCHITECTURE.md:1395-1406` explicitly **reverses** the boundary for `/thumbnail`; `internal/server/thumbnails.go:8-38` implements it and states the decision; `internal/server/avatars_upload.go` implements the re-encode; `docs/compatibility-matrix.md:351` records the observable-based gate. `AGENTS.md:550-554` (rule 45) then says the boundary reading was wrong and that the user-visible consequence had gone unrecorded |
-| reference observable | n/a |
-| GoTavern observable | a reader of the boundary list re-derives an implemented P0 as a closed boundary |
-| difference | the file asserts a boundary that its own rule 45 and ARCHITECTURE.md 35.2 refute, and that the code has moved past |
-| reachable by a user? | no (documentation only) |
-| class | **documentation bug (stale/self-contradictory boundary)** |
-| proposed minimal fix | rewrite boundary 3 to state the decision — pure-Go codec for `/thumbnail`, pure-Go re-encode for `/api/avatars/upload`, no byte equality with Jimp, observable-based gates — and keep only the genuine residue (`docs/compatibility-matrix.md:160`'s unprobed crop/resize). Remove the claim that the startup-differential 404s are a boundary |
-| test that locks it | a doc check that a boundary entry naming a route must not also be described as implemented by a compat row — cheap, but it is the only thing that would have caught this |
+**What a green push run does NOT cover.** `ci.yml#oracle` is NARROWED on a push: a `changes` job computes
+the probe set from the changed files, so a probe that did not run leaves its fixture byte-identical and the
+zero-diff gate cannot see it. The full oracle is only the nightly schedule or a `workflow_dispatch` with an
+empty `probes` input (i.e. every probe). `browser-differential.yml` narrows a push to the asset/helper
+surfaces; the FULL sweep is only a `workflow_dispatch` with `mode: all` or the nightly schedule. A green
+narrowed run therefore cannot be cited for a row whose evidence is the full sweep.
 
-### G-11 — `docs/frontend-startup-calls.md` reports three absences that no longer exist
+| evidence gate | rows that depend on it | freshness requirement at the frozen candidate SHA |
+| --- | --- | --- |
+| `ci.yml#verify` (`go test ./...`, vet, build, gofmt, assets verify, compat-matrix, doc-facts, coverage-matrix, classifier table, six cross-compiles) | every row's Go evidence ultimately runs here | a green `GoTavern CI` run whose head SHA IS the candidate, with all jobs green |
+| `ci.yml#oracle` | core-http-static, auth-session-csrf, settings, secrets, characters, chats, groups, world-info, presets, providers-transport, providers-per-source-wire, streaming, tokenization, files-and-media, extensions, server-plugins, embeddings, accounts, import-export, startup, whole-session (indirectly) | the FULL oracle (dispatch with empty `probes`, or the nightly run) at the candidate; the narrowed push run is not this evidence |
+| `ci.yml#browser-evidence` | every row carrying a committed browser artefact | green at the candidate; it recomputes the committed artefacts' claims and reports their freshness, it does not re-record them |
+| `browser-differential.yml#differential` (`mode: all`) | world-info, presets-and-ui-content, providers-per-source-wire, streaming-and-cancel, extensions | a FULL browser differential at the candidate; a push-narrowed assets/helper run is NOT sufficient |
+| `whole-session.yml#whole-session` | whole-session-e2e, and the save/reload leg inside chats | a fresh dispatch at the EXACT candidate SHA; the row may only cite that run id |
+| `dropin-qualification.yml#dropin-current-head` / `windows-inputs` / `dropin-windows` | packaging-release; it is also the only packaged-artifact boot for an existing stock tree | a run at the candidate (it runs on `main`/`lane/**` pushes; a tag-time run must be dispatched if the candidate is not a branch head) |
+| `release-qualification.yml#qualify-linux-amd64` | tokenization, startup, packaging-release | **COLD** - the workflow triggers only on a `v*` tag or dispatch; dispatch it at the candidate |
+| `release-qualification.yml#qualify-windows-amd64`, `#qualify-upgrade-rollback`, `#qualify-dropin-linux` | packaging-release | **COLD** - same tag/dispatch trigger; dispatch at the candidate |
+| `release-install-smoke.yml#smoke-published-linux-amd64` | packaging-release | **DOWNSTREAM** - it smokes the PUBLISHED release, so its evidence can only exist after publishing; its weekly/dispatch run is the post-publish smoke, not a pre-tag proof |
+| `docker.yml#docker` | packaging-release (Docker path and publish) | **COLD** - task tags/paths/schedule/dispatch; dispatch at the candidate |
+| `smoke-metrics.yml#measure-linux-amd64` / `#paired-linux-amd64` | no matrix row cites it; release-checklist item 13 | **COLD** - weekly schedule/dispatch, no push; dispatch at the candidate and attach the artefact |
 
-| field | value |
-| --- | --- |
-| surface | committed inventory (frontend page-load observation) |
-| reference action | n/a |
-| GoTavern action | the doc's own header says `Requests observed during page load: 229. Page errors: 0.` and its closing section says `Blocking candidates: 1 missing` naming `POST /api/horde/text-workers` (`:12`, `:242-244`); it also records `GET /thumbnail?type=persona&file=user-default.png` → 404 (`:56`) and `GET /css/user.css` → `no response` (`:46`). All three are now served: `/api/horde/text-workers` is registered at `internal/server/horde.go:118` and implemented at `:227-255`; `/thumbnail` is registered at `internal/server/thumbnails.go:134`; `/css/user.css` at `internal/server/frontend_assets.go:109` |
-| reference observable | n/a |
-| GoTavern observable | the doc's negative claims are false |
-| difference | the artifact a lane would consult to answer "which frontend calls are missing" answers with a list that is wrong in three places, one of them labelled *blocking* |
-| reachable by a user? | no (documentation only) |
-| class | **documentation staleness.** Separately: the doc is a *page-load* observation, not the rule-43 oracle-derived inventory — it only contains the URLs one load happened to request, so its silence about a route is not evidence of absence either |
-| proposed minimal fix | mark it with the commit and build it was measured against, and regenerate it in the same change as any route work; or fold it into the route-inventory gate so it cannot drift. State in the header that it is an observation, not an inventory |
-| test that locks it | assert the doc's `missing` rows against the live registration set (the same assertion G-03/G-04 propose for mounts) |
+**Committed-artefact freshness at this candidate.** `node tools/verify-browser-comparisons.mjs`
+(`ci.yml#browser-evidence`) passes, but it also prints freshness facts that must not be smoothed over into
+"the browser evidence is current": `streaming-openai-comparison.json` is reported **STALE** (`does not carry
+the documentation fields peerKeying that the current recorder emits`), and `helper-comparison.json`,
+`helper-generation-comparison.json` and `streaming-framing-comparison.json` are **NOT-RECORDED** in this run
+(their surfaces did not run; they are CI-produced rather than committed, which the extensions row states). A
+stale committed artefact is still checked against its own claims, but only the FULL browser differential
+re-records it against the candidate's code, and a stale artefact must not be cited as a candidate-run
+measurement.
 
-### G-12 — `/api/horde/text-workers` re-serialises the upstream body, so the response bytes differ from pinned
+**Rows whose evidence can newly FAIL at freeze because it is cold (not because the tree changed):**
 
-| field | value |
-| --- | --- |
-| surface | browser-facing response bytes |
-| reference action | `src/endpoints/horde.js:67-74`: `fetch(...)` → `await fetchResult.json()` → `response.send(data)`, i.e. Express `JSON.stringify`, which preserves the parsed member order and does **not** escape `<`, `>`, `&` |
-| GoTavern action | `internal/server/horde.go:243-252`: `json.Unmarshal` into `any` → `json.Marshal` → the same bytes are then served by `respondJSONBytes` (`internal/server/secrets.go:366-372`). Go marshals maps with sorted keys and escapes `<`, `>`, `&` as `\u003c`/`\u003e`/`\u0026` |
-| reference observable | member order as the provider sent it; HTML characters literal |
-| GoTavern observable | alphabetically sorted members; HTML characters escaped (and the weak ETag at `secrets.go:369` computed over those different bytes) |
-| difference | the JSON *semantics* are equal, so no user-visible effect is proven; the bytes are not. This is reported as a low-severity wire-shape divergence, not as a broken feature |
-| reachable by a user? | not demonstrably |
-| class | **product bug (minor) / user impact uncertain.** The existing test cannot see either difference: `internal/server/horde_test.go:259-281` asserts `strings.Contains(body, "worker-a")` on a fixture with a single member (`[{"name":"worker-a"}]` at `:263`) and no HTML characters — rule 15's question ("what input would make this assertion fail?") has no answer in that fixture |
-| proposed minimal fix | serve the upstream body bytes verbatim (as the route's own `/status` contract already implies) or route the value through the existing `orderedNodeJSON` machinery; if the re-marshal is kept deliberately, record why |
-| test that locks it | a fixture whose worker object has ≥2 members in a known non-alphabetical order and a value containing `<`, `&` and a non-BMP character, asserting byte equality with a pinned capture. Note that `/text-models` legitimately re-serialises (the metadata merge at `horde.js:86-94`), so its expected order is the pinned spread order, not the upstream order |
+- `whole-session-e2e` - its only run evidence is run 41015209900 at head `d01de1d`, not the candidate; the
+  row is honest as FAIL today, and only a fresh candidate run can flip it.
+- `packaging-release` - five release-pipeline jobs, three of which are tag/dispatch-only; a green at an
+  older SHA does not move with the candidate.
+- `tokenization` and `startup` - the only shipped-artifact evidence they cite is
+  `release-qualification.yml#qualify-linux-amd64`, which has not run at the candidate unless dispatched.
+- rows whose committed browser artefacts predate the candidate: `world-info`, `presets-and-ui-content`,
+  `providers-per-source-wire`, `streaming-and-cancel`, `extensions`. `ci.yml#browser-evidence` recomputes
+  their claims, but only a full browser differential re-records them against the candidate's code.
 
----
+**Build-only evidence, stated explicitly rather than smoothed over.** `release.yml#build` produces six
+canonical archives (linux amd64/arm64, darwin amd64/arm64, windows amd64/arm64) and `ci.yml#verify` performs
+six cross-compiles. Runtime execution exists only for **linux/amd64** (`release-qualification.yml` plus the
+drop-in jobs) and **windows/amd64** (`dropin-windows` + `qualify-windows-amd64`). **linux/arm64,
+darwin/amd64, darwin/arm64 and windows/arm64 are BUILD-ONLY**: nothing in this repository executes them, so
+no matrix row may be read as runtime-qualified on those targets. `packaging-release` carries that
+distinction; the release notes must repeat it (`docs/release-checklist.md` item 19).
 
-## Items checked and found CORRECT (coverage, not hits)
+## 6. Documents that still state an outdated status
 
-These were examined with the same method and produced no finding. Listed so the sweep's coverage is
-auditable rather than implied by its hit list.
+| document | stale statement | disposition |
+| --- | --- | --- |
+| `AGENTS.md` boundary 3, intro sentence | "for one of the two routes the decision is MADE, for the other it is still OPEN" - the same entry's second bullet records `/api/avatars/upload` as DECIDED 2026-10-29 | **OPEN, outside this lane's scope** (`docs/` only). Flagged to the Lead; it is a one-sentence fix in the same change that touches this boundary |
+| `docs/compatibility-matrix.md` | regenerated from the JSON by this lane; a committed copy whose derived count or Markdown disagrees is refused by `tools/compat-matrix/check.mjs` | **CURRENT after this lane's commit**; the 736 -> 740 test-function drift at the base commit is the reason it had to be regenerated |
+| `docs/frontend-startup-calls.md` | negative rows and the blocking-candidate summary | **CURRENT** (RE-MEASURED / WITHDRAWN), see G-11 |
+| `HANDOFF.md:58` | "docs/compatibility-matrix.md is generated and current" | true only after the regenerated matrix is in the candidate; if HANDOFF is cited as evidence, it must point at this lane's commit |
+| `docs/release-notes-v0.1.0-alpha.9.md` | line 154 still says "A mid-stream TLS close is not observed by any gate", but `streaming-and-cancel` is PASS and its evidence includes `TestProductionTransportTreatsAGracefulTLSShutdownMidStreamAsTruncation` (graceful TLS shutdown mid-frame) plus the frame-order and cancelled-prefix properties; the notes also still carry 21 unmeasured `UPPER-CASE` placeholders | **OPEN, owned by the release-channel lane** (its carrier); the TLS-close sentence must be corrected or removed and every placeholder measured on the candidate run before publish (`docs/release-checklist.md` item 26) |
+| this file | measured on `292905f`, ranked findings that are mostly closed | **REPLACED by this rewrite** |
 
-**CLI / startup**
+## 7. Not claimed
 
-1. **The CLI option set is identical to pinned's.** Extraction of `.option('…')` from `src/command-line.js` yields 31 names; `internal/commandline/options.go:134-166` lists exactly the same 31. Set difference is empty in both directions. The four deprecated `autorun*`/`avoidLocalhost` aliases are present and mapped (`:162-165`, `:221-224`).
-2. **Unknown CLI options are silently accepted — and that is pinned's behaviour.** `internal/commandline/options.go:341-344` does `if !known { continue }`. Pinned uses `yargs` (`src/command-line.js:110`) with no `.strict()`, `.strictCommands()` or `.strictOptions()` anywhere in the file, so yargs performs no unknown-argument validation either. I had initially assumed commander's error-on-unknown and checked the source before writing it up; the assumption was wrong.
-3. **`--version` reaches the SillyTavern baseline, and `/version` is not hijacked.** `cmd/gotavern/main.go:49-51`, `:57-72`; `internal/server/http.go:660-667` answers `pkgVersion`/`gitRevision`/`gitBranch`/`commitDate`/`agent` from the pinned constants. Rule 17 holds.
-4. **Signal handling and shutdown.** Pinned installs `SIGINT`/`SIGTERM` handlers (`src/server-main.js:330-331`); GoTavern does the same and closes with a bounded 10 s context (`cmd/gotavern/main.go:227-238`). Rule 24's "every wait has a bound" is satisfied on this path.
-5. **Environment-variable precedence.** `SILLYTAVERN_<KEY_WITH_UNDERSCORES>` wins over the file, including when set to the empty string, in `internal/commandline/options.go:431-448` and again in the chat-converter path `internal/server/pinned_chat_config.go:78-87`. This matches the pinned `getConfigValue` shape the code cites.
-6. **`gemini.apiVersion` is read** (`internal/server/google_config.go`), not hardcoded — and where pinned hardcodes, GoTavern reproduces the hardcode deliberately: `personGeneration: 'allow_all'` in the video route (`src/endpoints/google.js:522`) is reproduced at `internal/server/google_video.go:18-19` while the image route's config read (`google.js:442`) is kept separate. A "reasonable" unification here would have been the divergence.
-
-**Routes / frontend reverse mapping**
-
-7. **All seven pinned user-data static mounts are served.** `src/users.js:1213-1219` (7 mounts) versus `internal/server/frontend_assets.go:83-90` (6, executed with planted-byte markers by `internal/server/frontend_asset_contract_test.go:57-91`) plus `/scripts/extensions/third-party/{rest...}` at `internal/server/extensions_static.go:77`. The historical `/characters/<file>.png` class is closed.
-8. **The extensions static mount keeps the pinned feature guard.** `src/users.js:1219` wraps the mount in `extensionsEnabledFeatureGuard` (`src/endpoints/extensions.js:72-79`, 404 when `extensions.enabled` is false); GoTavern applies the same guard in `internal/server/extensions.go:214-217`, reached from the static route at `extensions_static.go:93`, and the pinned static-middleware precedence is reproduced at `extensions_static.go:89-92`.
-9. **Every pinned `app.use` mount has a Go counterpart except the two in G-03/G-04.** Diffing the 45 mounts in `src/server-startup.js:141-187` against the registered route strings leaves only `/api/extra/classify` and `/api/extra/caption` (explicit boundary 2 — local ONNX), `/api/azure` (G-03) and `/api/volcengine` (G-04).
-10. **`/api/sd/comfy/*` and `/api/sd/comfyrunpod/*` are complete.** `src/endpoints/stable-diffusion.js:385-635` (two sub-routers, mounted `:2199-2200`) versus the ten `comfy` routes and two `comfyrunpod` routes in Go; the frontend's `/api/sd/comfy` and `/api/sd/comfyrunpod` literals are base URLs for concatenation, not routes of their own.
-11. **All 19 `/api/sd/*/generate*` routes are implemented**, matching `docs/compat-matrix.md:72` — the in-code comments that deny this are G-09.
-12. **`/api/image/*`, `/api/classify`, `/api/classify/labels`, `/api/summarize`, `/api/caption`, `/api/tts` are not SillyTavern routes at all.** The frontend builds them on `getApiUrl()`, which is `extension_settings.apiUrl` (`public/scripts/extensions.js:48`) — the separately-hosted "Extras" API. Their absence from the Go route table is correct, and this whole class was excluded from the findings after that check.
-13. **`/api/edge-tts/*` is absent from both.** `public/scripts/extensions/tts/edge.js:215,233` requests it, but `edge-tts` appears nowhere in pinned's `src/` or `default/`, so pinned 404s it too. Not a divergence.
-14. **`/api/plugins/*`, `/api/plugins/edge-tts/*`, `/api/plugins/fandom/*`, `/api/plugins/office/*`, `/api/modules`** — the Node server-plugin loader, hard rule 16's explicit exclusion. Not emulated, not faked.
-15. **`/api/search/visit`, `/api/translate/{google,bing}`, `/api/google/generate-voice`** — declared boundaries with their reasons recorded (`docs/api-inventory.md:232`, `docs/compat-matrix.md:77`, `internal/server/google_voice.go:13-27`, `AGENTS.md:358-365`). I re-read each and they remain architecturally sound: the wire format is owned by an imported package, or the route needs a policy that does not exist. These are boundaries, not backlog.
-16. **501 is used for "not written yet" and kept distinct from a refusal.** `internal/server/backends_status.go:205-220` (a known source with no ported arm → 501; an unknown source → pinned's own refusal text, *before* the 501 block), `content.go:169-172`, `content_uuid.go:147-149`, `chat_completions.go:377-388`. Rule 17's distinction is preserved and the ordering is commented where it was previously got wrong.
-17. **`/api/extra/{caption,classify,classify/labels}` absent with the local-ONNX reason** — `internal/server/speech.go:15-23`, `internal/server/novelai.go:17-18`, `AGENTS.md:336-345`. Boundary 2 holds; no fake fixture exists for them.
-18. **`/api/avatars/upload` and `/thumbnail` are implemented with the decision recorded** — see G-10 for the stale AGENTS text; the code and `ARCHITECTURE.md:1395-1406` are consistent with each other.
-
-**Sweep-1 marker triage**
-
-19. **`panic(` in non-test Go code is confined to registry construction.** `internal/server/chat_completions_registry.go:257` and `:260`, both fail-fast guards on a table that cannot be built with an empty name or a nil behaviour. No handler panics.
-20. **501 sites are all deliberate and documented** (see item 16).
-21. **Discarded errors are idiomatic, not swallowed logic.** Every `_ = …` in `internal/**`/`cmd/**` non-test code is a `Close()`, a `Sync()`, a `fmt.Fprintf` return or a response-body `Write` (e.g. `internal/app/heartbeat.go:119-139`, `internal/configinit/config.go:195-215`, `internal/outbound/transport.go:207`, `internal/server/accounts.go:465`). No branch discards an error whose loss would change an observable.
-22. **The chat-backup gap is recorded, and the pointer resolves.** `internal/server/chats.go:16-21` says "See docs/compat-matrix.md for the recorded gap"; `docs/compat-matrix.md:31` and `:32` record the throttled backup and the `chat_metadata.integrity` check as not reproduced, including the consequence ("the backups directory is not written and an integrity mismatch is not rejected").
-23. **`openai.randomizeUserId` is still open and still recorded as open.** `src/endpoints/backends/chat-completions.js:2296-2298` (a `uuidv4()` `user` member when the key is true) versus no read in Go; `docs/compat-matrix.md:52` lists it under "Open:". A real provider-wire divergence for that operator, but not an undocumented one.
-24. **`extensions.models.autoDownload` belongs to boundary 2.** `src/transformers.js:136` gates a local model download; the local-inference exclusion covers it. `internal/configinit/config.go` carries only the legacy-key migration.
-25. **`requestOverrides` is recorded as a known gap.** `src/additional-headers.js:203-204` applies config-driven header overrides to outbound requests; GoTavern records it at `internal/server/search.go:321-322` and `docs/compat-matrix.md:77`. Documented.
-26. **The `extensions.autoUpdate` / `enableServerPlugins*` divergence is a recorded product decision, not a silent one.** `internal/commandline/options.go:464-472` deliberately does not read the inherited keys and says why; `internal/commandline/autoupdate.go` carries the resolution. Rule 26's OFF-by-default override is visible in the code.
-
----
-
-## Uncertainty (not findings — no citable oracle, or no observable consequence established)
-
-1. **`logging.minLogLevel` is never read.** Pinned reads it at `src/util.js:1137` to set console verbosity; GoTavern only migrates the legacy `minLogLevel` key (`internal/configinit/config.go`). Effect is confined to console output volume; I could not establish a user-visible consequence and did not test the output. Not reported as a finding.
-2. **`performance.memoryCacheCapacity` is never read.** Pinned uses it as a `MemoryLimitedMap` bound for the character cache (`src/endpoints/characters.js:30-31`). A Go implementation with an unbounded cache differs in memory profile, not in any observable I can cite. Uncertain.
-3. **`uncaughtException` semantics differ.** Pinned installs a handler that calls `exitProcess()` (`src/server-main.js:332-335`); Go's `net/http` recovers a handler panic per connection and keeps serving. Whether any user depends on the pinned crash-and-exit behaviour is unknown to me, and the "inherited weakness" rule (AGENTS boundary 5) cuts both ways here. Reported as uncertain rather than as a divergence.
-4. **`browserLaunch.enabled` default ambiguity in the inventory.** `docs/config-inventory.md:20` records the key's default as `true` while citing `src/command-line.js:311`; the *parser* default is `false` (`src/command-line.js:68`) and the *effective fresh-install* value is `true` from `default/config.yaml:22`. G-01's severity rests on the latter. The inventory line is imprecise but not wrong for a fresh install; I did not raise it as a separate finding.
-5. **The frontend URL extraction is regex-based.** It covered 309 pinned `public/**` files and 333 `/api/...` literals; a URL assembled from fragments in a way my patterns miss would not appear. Every *negative* claim above was therefore re-checked individually against pinned `src/` (items 12-15) rather than being drawn from the extraction, per rule 11. A systematic static enumeration of every URL the pinned frontend builds does not exist in this repository, which is itself the reason G-11 matters.
-6. **I did not run anything.** No probe, no browser, no Go test. Every "GoTavern observable" above is a source reading of a handler's response path, not a measured response. The observables are stated at the level the source determines (status, header, body construction, file write) and none of my findings depends on a timing or race behaviour.
-
-## Not claimed
-
-This sweep does not claim the project is complete, and it does not claim any route or behaviour absent
-from the lists above is at parity. The three sweeps were bounded by the marker set in the brief, the
-pinned mount list, the pinned frontend's literal URL set and the pinned CLI/config surface. Storage,
-tokenization, streaming/cancellation, preset semantics and the browser-observable surfaces were not
-audited here.
+This sweep does not claim the product is complete. It makes no claim about a route or behaviour that is not
+named above. It ran no probe, no browser, no Go test and no CI workflow: every observation is either a
+mechanical re-derivation of the tree or a source reading, and every run-cited claim is subject to the
+freshness table in section 5. The authoritative machine view is `docs/compatibility-matrix.json`, gated by
+`tools/compat-matrix/check.mjs`; this document is the human ranking and disposition layer over it.
