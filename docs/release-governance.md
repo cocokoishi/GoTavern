@@ -24,6 +24,14 @@ The only durable fix is a machine that reads the runs.
   asks the Actions API for every run whose `head_sha` is the tag's target commit, matches the required workflow
   names, and accepts only a run that is `completed` **and** `success` at that SHA. A green run on any other commit
   is counted, reported, and refused.
+- **A narrowed run is not the gate.** Each manifest entry carries `requiredEvent`
+  (`workflow_dispatch` for every required gate at Beta 1). This closed a hole measured while qualifying Beta 1:
+  `ci.yml` on a **push** selects its oracle probes from the changed paths, so push run `41210334467` at the Beta
+  candidate concluded `success` with its `oracle` job **skipped**. The original gate asked only "is there a
+  successful run at this SHA?" and would have published on that narrowed evidence. A gate whose required event
+  does not match the run is now `missing`, and its refusal names the event it found ("$n run(s) ... prove a
+  narrowed selection, not the release gate"). The dispatch run is the one whose selection is the full one, and the
+  row in the published evidence table names it.
 - The gate fails closed: a missing run, an in-progress run, a cancelled run, a failed run, or a different-SHA run
   exits non-zero and the release is not published. Every row of its table (workflow, run id, event, conclusion) is
   written to the run summary, and the published body carries the same table: `scripts/assemble-release-body.mjs`

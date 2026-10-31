@@ -47,6 +47,9 @@ export function validateManifest(manifest) {
         if (typeof entry.why !== 'string' || entry.why.trim() === '') {
             problems.push(`requiredGates[${index}].why is required so the gate records what it is buying`);
         }
+        if (entry.requiredEvent !== undefined && (typeof entry.requiredEvent !== 'string' || entry.requiredEvent.trim() === '')) {
+            problems.push(`requiredGates[${index}].requiredEvent, when present, must be a non-empty event name (for example "workflow_dispatch")`);
+        }
     }
     return problems;
 }
@@ -86,7 +89,14 @@ export function evaluateGates({ manifest, runs, sha }) {
 
     for (const entry of manifest.requiredGates) {
         const candidates = byName.get(entry.workflow) ?? [];
-        const atSha = candidates.filter((run) => run.head_sha === sha);
+        // A NARROWED RUN IS NOT THE RELEASE GATE. `ci.yml` on a push selects its oracle probes from the changed
+        // paths, so a push run at the candidate SHA can be green having executed a SUBSET (measured: run
+        // 41210334467 at 0985be42 skipped the oracle entirely and still concluded success). A release therefore
+        // needs a DELIBERATELY DISPATCHED run, whose selection is the full one; the manifest names the required
+        // event per gate, and a run of another event is not evidence for that requirement.
+        const atShaAll = candidates.filter((run) => run.head_sha === sha);
+        const wrongEvent = entry.requiredEvent ? atShaAll.filter((run) => run.event !== entry.requiredEvent) : [];
+        const atSha = entry.requiredEvent ? atShaAll.filter((run) => run.event === entry.requiredEvent) : atShaAll;
         const elsewhere = candidates.length - atSha.length;
         const completedSuccess = atSha.filter((run) => run.status === 'completed' && run.conclusion === 'success');
         const newest = (list) => [...list].sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))[0] ?? null;
@@ -95,19 +105,21 @@ export function evaluateGates({ manifest, runs, sha }) {
             rows.push({
                 ...recordOf(newest(completedSuccess)),
                 verdict: 'success',
-                detail: `${completedSuccess.length} completed success run(s) at the target SHA`,
+                detail: `${completedSuccess.length} completed success run(s) at the target SHA with event ${entry.requiredEvent ?? 'any'}`,
             });
             continue;
         }
 
         if (atSha.length === 0) {
             rows.push({
-                ...recordOf(null),
+                ...recordOf(wrongEvent[0] ?? null),
                 workflow: entry.workflow,
                 verdict: 'missing',
-                detail: elsewhere === 0
-                    ? 'no run of this workflow exists; the gate cannot be satisfied by a claim'
-                    : `no run at the target SHA (${elsewhere} run(s) exist at other SHAs, which is exactly the mismatch this gate refuses)`,
+                detail: wrongEvent.length > 0
+                    ? `no ${entry.requiredEvent} run at the target SHA (${wrongEvent.length} run(s) of the same workflow exist there with event(s) ${[...new Set(wrongEvent.map((run) => run.event))].join(', ')}, which prove a narrowed selection, not the release gate)`
+                    : elsewhere === 0
+                        ? 'no run of this workflow exists; the gate cannot be satisfied by a claim'
+                        : `no run at the target SHA (${elsewhere} run(s) exist at other SHAs, which is exactly the mismatch this gate refuses)`,
             });
             continue;
         }

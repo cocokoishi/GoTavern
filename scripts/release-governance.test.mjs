@@ -61,6 +61,36 @@ test('gates: a required workflow with no run at all fails closed', () => {
     assert.ok(verdict.problems.some((problem) => /Workflow B: missing/.test(problem)), JSON.stringify(verdict.problems));
 });
 
+test('gates: a push-triggered success at the SHA does NOT satisfy a gate that requires a dispatched run', () => {
+    // MEASURED FAILURE THIS TEST PINS: run 41210334467 was a push run of GoTavern CI at the Beta candidate and
+    // concluded success while its `oracle` job was SKIPPED -- the push trigger narrows the probe selection by
+    // changed paths. It satisfied the old gate, which only asked "is there a successful run at this SHA?". A
+    // release gate must ask for the run a release manager DISPATCHED, whose selection is the full one.
+    const dispatched = {
+        schemaVersion: 1,
+        sameShaRequired: true,
+        requiredGates: [{ workflow: 'Workflow A', why: 'because the gate test says so', requiredEvent: 'workflow_dispatch' }],
+    };
+    const narrowed = evaluateGates({
+        manifest: dispatched,
+        sha: SHA,
+        runs: [run('Workflow A', { event: 'push', id: 21 })],
+    });
+    assert.equal(narrowed.ok, false, 'a push run must not satisfy a dispatch-required gate');
+    assert.ok(
+        narrowed.problems.some((problem) => /Workflow A: missing/.test(problem) && /narrowed selection/.test(problem)),
+        JSON.stringify(narrowed.problems),
+    );
+
+    const full = evaluateGates({
+        manifest: dispatched,
+        sha: SHA,
+        runs: [run('Workflow A', { event: 'push', id: 21 }), run('Workflow A', { event: 'workflow_dispatch', id: 22, createdAt: '2026-10-31T01:00:00Z' })],
+    });
+    assert.equal(full.ok, true, JSON.stringify(full.problems));
+    assert.equal(full.rows[0].runId, 22, 'the evidence row must name the dispatched run, not the narrowed push run');
+});
+
 test('gates: a green run on a DIFFERENT commit is refused, not counted', () => {
     const verdict = evaluateGates({
         manifest: manifest(),
