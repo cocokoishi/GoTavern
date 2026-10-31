@@ -1,7 +1,7 @@
 # GoTavern
 
 [![GoTavern CI](https://github.com/cocokoishi/GoTavern/actions/workflows/ci.yml/badge.svg)](https://github.com/cocokoishi/GoTavern/actions/workflows/ci.yml)
-[![Latest release](https://img.shields.io/github/v/release/cocokoishi/GoTavern?include_prereleases&label=release)](https://github.com/cocokoishi/GoTavern/releases)
+[![Latest release](https://img.shields.io/github/v/release/cocokoishi/GoTavern?label=release)](https://github.com/cocokoishi/GoTavern/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
 **SillyTavern's backend, rewritten in Go. One binary. Same frontend, same data folder.**
@@ -11,13 +11,16 @@
 - **What it is:** a drop-in replacement for the SillyTavern 1.19.0 server. It serves the unmodified upstream frontend over the same routes, the same `config.yaml` and the same on-disk layout. Your characters, chats, groups, world info, presets, Quick Replies, secrets, themes and frontend extensions keep working. No conversion, no private database.
 - **What you need:** nothing. No Node.js, no npm, no compiler. Download, unpack, run.
 - **Why bother:** it starts in milliseconds and uses a fraction of the memory (table below).
-- **Status:** `v0.1.0-alpha.8` plus an unreleased round. **This is an alpha.** Back up any data directory you can't afford to lose.
+- **Status:** `v0.1.0-alpha.9` is GoTavern's **first official stable-channel release**. The tag keeps the
+  historical `-alpha.9` spelling on purpose — what graduated is the channel, not the name: GitHub publishes it as
+  a normal (non-prerelease) release, `releases/latest` resolves to it, Docker `:latest` points at it, and a bare
+  installer with no version argument installs it. Back up any data directory you can't afford to lose.
 - **What doesn't work:** arbitrary Node server plugins, and SillyTavern's local in-process ML (captioning, classification, speech). Full list in [What won't work](#what-wont-work).
 
 | | SillyTavern (Node) | GoTavern |
 |---|---|---|
-| Cold start to first `/version` 200 | 12,985 ms | **136 ms** |
-| Steady-state memory (RSS) | 926 MB | **37 MB** |
+| Cold start to first `/version` 200 | 9,941 ms | **32 ms** |
+| Steady-state memory (RSS) | 1,199 MB | **37.5 MB** |
 | `GET /version` latency (median) | 34.05 ms | **0.42 ms** |
 | `GET /` latency (median) | 12.18 ms | **1.67 ms** |
 
@@ -27,9 +30,12 @@ One GitHub runner, both servers from the same checkout. Details and caveats in [
 
 Everything below downloads a **prebuilt archive**. Nothing compiles on your machine.
 
-> **Pass the version explicitly.** The newest release is a prerelease, and GitHub's `releases/latest` only points at stable releases, so an unpinned install 404s. That's deliberate: an alpha should never be what a bare `curl | sh` hands a stranger. Once a stable tag exists, the flag becomes optional.
+> **No version argument needed.** An unpinned install resolves `releases/latest`, which now points at this release.
+> Pin a version (`--version` / `-Version`) when you need a reproducible deployment or a rollback target.
 
-> **Both installers install into the current directory.** Create a folder, `cd` into it, run the installer. `--dir` / `-InstallDir` exist as an advanced override. The script comes from `main` because that is where the current-directory default lives; `--version v0.1.0-alpha.8` still pins the release that is downloaded.
+> **Both installers install into the current directory.** Create a folder, `cd` into it, run the installer. `--dir` /
+> `-InstallDir` exist as an advanced override. The script comes from `main` because that is where the
+> current-directory default lives.
 
 **Linux / macOS**
 
@@ -37,9 +43,11 @@ Everything below downloads a **prebuilt archive**. Nothing compiles on your mach
 mkdir GoTavern
 cd GoTavern
 
-curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.sh | sh -s -- --version v0.1.0-alpha.8
+curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.sh | sh
 ./start.sh
 ```
+
+To pin a release: `sh install.sh --version v0.1.0-alpha.9`.
 
 **Windows (PowerShell)**
 
@@ -48,23 +56,33 @@ mkdir GoTavern
 cd GoTavern
 
 irm https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.ps1 -OutFile install.ps1
-.\install.ps1 -Version v0.1.0-alpha.8
+.\install.ps1
 .\Start.cmd
 ```
 
-To install somewhere else: `.\install.ps1 -Version v0.1.0-alpha.8 -InstallDir "D:\Servers\GoTavern"`. `Start.cmd` finds its own location, so you can launch it from any shell.
+To pin a release: `.\install.ps1 -Version v0.1.0-alpha.9`. To install somewhere else:
+`.\install.ps1 -InstallDir "D:\Servers\GoTavern"`. `Start.cmd` finds its own location, so you can launch it from any
+shell.
 
 **Docker**
 
 ```bash
-docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.8
+docker pull ghcr.io/cocokoishi/gotavern:latest
 ```
 
-`:latest` lags on purpose. It only moves when a **stable** tag is published, so it can't silently upgrade you onto an alpha.
+`ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.9` is the same image addressed by tag; pin it when you need a
+reproducible deployment. `:latest` only moves when a **stable** tag is published, so a prerelease can never
+silently become what a bare `docker pull` gets. The image is linux/amd64.
 
 **Manual:** download `gotavern-<os>-<arch>.tar.gz` (`.zip` on Windows) from the [releases page](https://github.com/cocokoishi/GoTavern/releases), check it against `checksums.txt`, unpack anywhere writable, run `./start.sh` / `Start.cmd`.
 
-**Requirements:** a 64-bit Linux, macOS or Windows machine. The frontend, default content and tokenizer manifest are embedded in the binary. The tokenizer *data* ships in `src/tokenizers/` (the same path upstream uses), because token counts have to be exact rather than estimated.
+**Requirements:** a 64-bit Linux, macOS or Windows machine. Six prebuilt archives are published: linux and
+darwin (amd64 and arm64) and Windows (amd64 and arm64). **Runtime qualification is complete for linux/amd64 and
+windows/amd64** — those are the archives extracted, launched and booted against a stock tree in CI. The linux/arm64,
+darwin/amd64, darwin/arm64 and windows/arm64 archives are **built and structurally inspected, but never executed**
+in CI, because this project has no runner of those architectures. The frontend, default content and tokenizer
+manifest are embedded in the binary. The tokenizer *data* ships in `src/tokenizers/` (the same path upstream uses),
+because token counts have to be exact rather than estimated.
 
 ### Updating and rolling back
 
@@ -80,12 +98,12 @@ Point GoTavern at your existing directory and start it. Auto-update resolves to 
 
 | Metric | Pinned Node SillyTavern | GoTavern | How it was measured |
 |---|---|---|---|
-| Cold start to first `/version` 200 | 12,985 ms | **136 ms** | median of 3 rounds, fresh data root each round, no `config.yaml` |
-| Steady-state RSS (`VmRSS` from `/proc`) | 926 MB | **37 MB** | median of 6 samples, after readiness and 30 requests per round |
-| `GET /version` latency | 34.05 ms | **0.42 ms** | median of 90 sequential requests (p95: 41.67 / 0.72) |
-| `GET /` latency (HTML shell) | 12.18 ms | **1.67 ms** | median of 90 sequential requests |
+| Cold start to first `/version` 200 | 9,941 ms | **32 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
+| Steady-state RSS (`VmRSS` from `/proc`) | 1,199 MB | **37.5 MB** | median of 6 samples, after readiness and 30 requests per round |
+| `GET /version` latency | 28.77 ms | **0.32 ms** | median of 90 sequential requests (p95: 30.01 / 0.63) |
+| `GET /` latency (HTML shell) | 10.22 ms | **1.52 ms** | median of 90 sequential requests |
 
-**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `40898332226` (success) on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit.
+**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `41171857944` (success) on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -1.4 MB, p95 drift -0.06 ms). A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit.
 
 ### A profile-driven fix
 
@@ -112,18 +130,19 @@ This table states only what a fresh run on the current commit shows. The reposit
 
 | Question | State | Evidence |
 |---|---|---|
-| Does a long-lived SillyTavern directory start directly? | **verified** | packaged archive over a stock tree (`GoTavern drop-in qualification` 40903954848, success); a synthesised long-lived tree asserted file-identical after boot (`tests/e2e/longlived_test.go`) |
+| Does a long-lived SillyTavern directory start directly? | **verified** | packaged archive over a stock tree (`GoTavern drop-in qualification` 41171613198, success); a synthesised long-lived tree asserted file-identical after boot (`tests/e2e/longlived_test.go`, `GoTavern CI` 41171613196) |
 | Are my data and extensions left alone? | **verified** | auto-update resolves OFF for every ambiguous input; the long-lived leg hashes the extension tree before and after boot |
-| Do avatars, card images, in-chat avatars, personas and thumbnails show up? | **verified** | `Browser differential` 40925514681: every image decoded on both subjects, no failed request, no console load failure. `/thumbnail` serves real thumbnails at pinned paths and dimensions from a pure-Go codec. **Byte equality with Jimp is not claimed.** |
+| Do avatars, card images, in-chat avatars, personas and thumbnails show up? | **verified** | `Browser differential` 41171855911: every image decoded on both subjects, no failed request, no console load failure. `/thumbnail` serves real thumbnails at pinned paths and dimensions from a pure-Go codec. **Byte equality with Jimp is not claimed.** |
 | Do backgrounds display as in the original? | **partially verified** | the gallery renders and stages tiles on both subjects, and 40 UI elements are reachable identically across four viewport sizes. **Paint/behaviour is not measured:** the pinned frontend's own binding is absent on both subjects, so the differential is silent rather than negative. |
-| Does 酒馆助手 / JS-Slash-Runner work? | **verified** | the same run's helper, helper-generation, helper-variable and REAL-preset legs: the iframe boots, the bridge reaches host modules, `generateRaw` is byte-identical on both subjects, a variable's resolved value reaches the final request and survives a restart, and a preset mutated in `in_use` changes the next request identically |
+| Does 酒馆助手 / JS-Slash-Runner work? | **verified** | the same `Browser differential` run 41171855911 (helper, helper-generation, helper-variable and REAL-preset legs): the iframe boots, the bridge reaches host modules, `generateRaw` is byte-identical on both subjects, a variable's resolved value reaches the final request and survives a restart, and a preset mutated in `in_use` changes the next request identically |
 | Does *every* feature of that extension work? | **partially verified** | only the interactions above are proven. Its own UI, script editor and anything implemented purely inside the iframe aren't covered. |
-| Does a complex preset change the model context exactly as upstream does? | **verified** | `Node(A) == Go(A)`, `Node(B) == Go(B)`, and A ≠ B within one implementation: the three conditions that make a preset differential mean something |
-| World info, Author's Note depth, token truncation? | **verified** (truncation: at the measured boundary) | provider-wire replay for world info; the Q17 sweep for Author's Note; both subjects keep and drop the same turns in the same order. Truncation is **not** proven in general: upstream's total message count isn't monotone in `openai_max_context`. |
-| Streaming and cancellation? | **partially verified** | request bytes and frame terminators across a real TCP middle, and a mid-stream cut releases the same partial text on both subjects. A mid-stream **TLS** close is unobserved, and no gate asserts the frame-ordering property itself. |
-| Reload, swipe, regenerate, continue? | **verified** | `Browser differential` 40977195387 (success). Four verbs, each with its own comparator. The save/reload/swipe leg proves the two subjects were fed *different* bytes at a position neither compared request carries (in a separate sweep, run 40903953724, cancelled at its own timeout budget after that step had already passed). The continue request is selected by the product's own nudge marker, not by position. |
-| Can I hand a GoTavern-written tree back to Node, and back again? | **verified** | `Browser differential` 40977195387: the external judge printed **hand-back verdict: match** in both directions with every count non-zero (GoTavern leg 5/5, pinned leg 17/17). One earlier execution of the same judge failed with `pinnedContinued` red (`answerPersisted: false` at a 60 s wait while the continue request had reached the provider) and passed on the next run. That was a persistence-window flake in the pinned frontend, not a product difference. The probe now records the page and chat-file tails when a timeout fires. **Limit:** the fixture is a synthetic derivation, so its own chunk relations are unproven. |
-| Is it cheaper to run than Node? | **verified** | `GoTavern smoke metrics` 40898332226, see [Performance](#performance) |
+| Does a complex preset change the model context exactly as upstream does? | **verified** | `Browser differential` 41171855911 (`mode: all`): `Node(A) == Go(A)`, `Node(B) == Go(B)`, and A ≠ B within one implementation -- the three conditions that make a preset differential mean something |
+| World info, Author's Note depth, token truncation? | **verified** (truncation: at the measured boundary) | provider-wire replay for world info; the Q17 sweep for Author's Note; both subjects keep and drop the same turns in the same order. A dedicated differential asserts that the `before`, `after` and `atDepth` world-info slots reach the FINAL provider request in pinned's order (`GoTavern world-info slot ordering` 41171073703, 21/21 guards). Truncation is **not** proven in general: upstream's total message count isn't monotone in `openai_max_context`. |
+| Streaming and cancellation? | **verified** | request bytes and frame terminators across a real TCP middle (`Browser differential` 41171855911), and a mid-stream cut releases the same partial text on both subjects. The transport properties have their own tests: frame ORDER, a graceful TLS shutdown mid-frame reaching the caller as a truncation error, and a cancelled stream arriving as an ordered prefix (`GoTavern CI` 41171613196). |
+| Reload, swipe, regenerate, continue? | **verified** | `Browser differential` 41171855911 (`mode: all`, success). Four verbs, each with its own comparator. The save/reload/swipe leg proves the two subjects were fed *different* bytes at a position neither compared request carries; the continue request is selected by the product's own nudge marker, not by position. |
+| One real session rather than eight experiments? | **verified** | `GoTavern whole-session differential` 41171620691 (success): one stock tree per subject, one page lineage, and one journey -- load, settings read/change/save, characters, open chat, send, stream, save, reload, swipe, regenerate, continue, restart the server on the same tree, keep working -- with browser state, provider bytes and disk state all compared (39/39 guards) and eleven mutations proving the gate red. |
+| Can I hand a GoTavern-written tree back to Node, and back again? | **verified** | `Browser differential` 41171855911: the external judge printed **hand-back verdict: match** in both directions with every count non-zero (GoTavern leg 5/5, pinned leg 17/17). **Limit:** the fixture is a synthetic derivation, so its own chunk relations are unproven. |
+| Is it cheaper to run than Node? | **verified** | `GoTavern smoke metrics` 41171857944 (success), see [Performance](#performance) |
 
 ### Coverage numbers
 

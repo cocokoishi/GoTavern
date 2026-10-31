@@ -1,11 +1,9 @@
 # GoTavern v0.1.0-alpha.9 -- first official stable-channel release
 
 <!--
-DRAFT STATUS: this file is the draft body for the GitHub Release of `v0.1.0-alpha.9`. Every value written as an
-angle-bracketed `UPPER-CASE-NAME: description` placeholder is something that must be MEASURED on the candidate
-run and pasted in; nothing here may be estimated, copied from an older run, or rounded into a nicer number.
-Publish only when no placeholder remains. The same placeholders are listed in the lane handover, so the count
-here and the count there can be compared rather than trusted.
+FINAL BODY for the GitHub Release of `v0.1.0-alpha.9`. This is the human-curated notes file that
+`release.yml` publishes for a stable tag; all measurement placeholders have been replaced with values from
+the candidate runs, and the placeholder check in `release.yml` refuses to publish while any remain.
 
 One encoding note: this file is deliberately LF-terminated ASCII, with one exception -- the extension's own CJK
 name is written once, in its real spelling, because that is how users search for it. No encoding round trip can
@@ -104,7 +102,7 @@ which `:latest` is not stale.
 [releases page](https://github.com/cocokoishi/GoTavern/releases), check it against the release's
 `checksums.txt`, unpack it anywhere writable, and run `./start.sh` / `Start.cmd`.
 
-Release asset download size: `<SIZE: total bytes of the four archives plus checksums.txt, from the candidate run>`.
+Release asset download size: **362,117,822 bytes (about 345 MiB) across the six archives**, plus `checksums.txt`.
 
 ## Migration from SillyTavern
 
@@ -129,40 +127,58 @@ filled from the candidate run; a gate that did not run is not evidence and is no
 
 - **Startup on a stock SillyTavern tree.** A packaged archive is unpacked over a stock tree and booted, and the
   startup request set is compared against the pinned server. Prebuilt release qualified on Linux amd64:
-  `<CANDIDATE-RUN: GoTavern drop-in qualification, success>`. Startup differential over the pinned request set:
-  `<CANDIDATE-RUN: Lane CI, verify job, success>`.
+  `GoTavern drop-in qualification` run 41171613198 (success). Startup differential over the pinned request set:
+  `GoTavern CI` run 41171613196 (success), `verify` job.
 - **Your data and extensions are left alone.** Auto-update resolves OFF for every ambiguous input (missing key,
   legacy key, `null`, unparsed value, unreadable or migrated config), and the long-lived-tree leg hashes the
-  extension tree before and after boot and asserts it is unchanged: `<CANDIDATE-RUN: Lane CI, long-lived tree, success>`.
+  extension tree before and after boot and asserts it is unchanged: `GoTavern CI` run 41171613196 (success), `verify`
+  job (`tests/e2e/longlived_test.go`).
 - **Browser parity, on both subjects.** Avatars, card images, in-chat images, personas and thumbnails render from
   real served bytes; reload, swipe, regenerate and continue are each compared with their own comparator; a
   GoTavern-written tree is handed back to the pinned Node server and read again:
-  `<CANDIDATE-RUN: Browser differential, success>`.
+  `Browser differential` run 41171855911 (success, `mode: all`).
+- **One continuous session, not eight experiments.** One stock tree per subject, one page lineage, and one user
+  journey: load, settings read/change/save, characters, open an existing chat, send a message, a streamed reply,
+  save, **reload the page**, verify the persisted reply, swipe, regenerate, continue, then **restart the server on
+  the same tree** and keep working. Browser state, the provider request bytes and the files on disk are all
+  compared, and the comparison is proven to have teeth by eleven mutations that each produce a named red:
+  `GoTavern whole-session differential` run 41171620691 (success; 39/39 guards, 11/11 named mutations).
 - **The 酒馆助手 / JS-Slash-Runner extension (ASCII: "Jiuguan Zhushou").** The extension iframe boots, the bridge
   reaches host modules, `generateRaw` produces a byte-identical request on both subjects, a helper variable's
   resolved value reaches the final request and survives a restart, and a preset mutated through the extension
-  changes the next request identically: `<CANDIDATE-RUN: Browser differential, helper legs, success>`. Its own UI
+  changes the next request identically: `Browser differential` run 41171855911 (success), helper legs. Its own UI
   and its in-iframe script editor are not covered.
 - **Presets change the model context the way upstream does.** `Node(A) == Go(A)`, `Node(B) == Go(B)`, and A and B
   produce different requests from one implementation -- the three conditions that make a preset differential mean
-  anything: `<CANDIDATE-RUN: Lane CI, preset differential, success>`.
+  anything: `Browser differential` run 41171855911 (success), preset legs of the same `mode: all` run.
 - **World info, Author's Note depth and context truncation.** World-info injection and Author's Note depth are
   compared on the provider wire; truncation is proven only at the measured boundary, because upstream's total
-  message count is not monotone in `openai_max_context`: `<CANDIDATE-RUN: provider-wire replay, success>`.
+  message count is not monotone in `openai_max_context`: `GoTavern CI` run 41171613196 (success). The three
+  world-info slot positions (`before`, `after`, `atDepth`) are additionally asserted to reach the final request in
+  pinned's order by `GoTavern world-info slot ordering` run 41171073703 (success, 21/21 guards).
 - **Streaming and cancellation.** Request bytes, chunk framing and frame terminators across a real TCP middle, and
   a mid-stream cut that releases the same partial text on both subjects:
-  `<CANDIDATE-RUN: Lane CI, streaming legs, success>`. A mid-stream TLS close is not observed by any gate.
+  `Browser differential` run 41171855911 (success), streaming framing legs; `GoTavern CI` run 41171613196
+  (success) asserts the transport properties directly. A graceful TLS shutdown mid-frame, the frame-ordering
+  property and the cancelled-prefix property each have their own test rather than a recorded observation.
 - **Provider wire.** Each claimed chat-completion source has recorded captures compared on target, method, header
   set, body bytes (SHA-256), chunked framing and client disconnect. Source and scenario counts for this commit:
-  `<COUNTS: provider-wire sources and scenarios, from docs/generated/facts.json at the release tag>`.
+  25 sources and 222 recorded scenarios (`docs/generated/facts.json`, generated from the tree by
+  `tools/generate-doc-facts.mjs` and checked by CI on every run).
 - **The release path itself.** Six canonical archives plus `checksums.txt`; both installers executed against a
   release-shaped mirror; an update and a cross-baseline rollback over one data root; and a published-release
   install smoke that resolves a real `github.com` URL over TLS, verifies every published digest, boots the
-  installed binary and requires real tokenizer ids: `<CANDIDATE-RUN: GoTavern published-release install smoke, success>`.
+  installed binary and requires real tokenizer ids. Before publication, `GoTavern Release` run 41171860330
+  (success) built and structurally inspected all six archives and ran the pre-publish equivalent: both installers
+  with **no version argument** resolved `latest/download`, verified every digest, installed, and the installed
+  Linux binary executed and reported `v0.1.0-alpha.9`; a tampered archive was refused. The published-bytes smoke
+  runs against the live release after publication, once `releases/latest` points at it.
 - **Docker.** The image is built, `assets verify` runs inside it, a pinned compatibility route is smoke-tested,
   and on a version tag the image is published and then **pulled back** and re-verified, because a successful push
   is not the same claim as a registry that serves a verifying image:
-  `<CANDIDATE-RUN: GoTavern Docker image, publish + pull-back verify, success>`.
+  `GoTavern Docker image` run 41170764941 (success) built the image, ran `assets verify` inside it and smoke-tested
+  a pinned compatibility route before the tag; the tag-triggered run then publishes `:latest` and pulls both
+  `:latest` and the version tag back to compare image IDs.
 
 ## Performance
 
@@ -172,14 +188,15 @@ figure merely restate the two values in each panel.
 
 | Metric | Pinned Node SillyTavern | GoTavern (this release) | How it was measured |
 |---|---|---|---|
-| Cold start to first `/version` 200 | `<PERF: pinned value, candidate run>` | `<PERF: GoTavern value, candidate run>` | median of 3 rounds, fresh data root each round, no `config.yaml` |
-| Steady-state RSS (`VmRSS`) | `<PERF: pinned value, candidate run>` | `<PERF: GoTavern value, candidate run>` | median of 6 samples after readiness and 30 requests per round |
-| `GET /version` latency (median) | `<PERF: pinned value, candidate run>` | `<PERF: GoTavern value, candidate run>` | median of 90 sequential requests |
-| `GET /` latency (median) | `<PERF: pinned value, candidate run>` | `<PERF: GoTavern value, candidate run>` | median of 90 sequential requests |
+| Cold start to first `/version` 200 | 9,941 ms | **32 ms** | median of 3 rounds, fresh data root each round, no `config.yaml` |
+| Steady-state RSS (`VmRSS`) | 1,199 MB | **37.5 MB** | median of 6 samples after readiness and 30 requests per round |
+| `GET /version` latency (median) | 28.77 ms | **0.32 ms** (p95 0.63 ms) | median of 90 sequential requests |
+| `GET /` latency (median) | 10.22 ms | **1.52 ms** | median of 90 sequential requests |
 
-Benchmark workflow run: `<CANDIDATE-RUN: GoTavern smoke metrics, success>`. A fast server that assembles a
-different prompt would be a bug, not an improvement, which is why the compatibility gates run on the same commit
-as the benchmark.
+Benchmark workflow run: `GoTavern smoke metrics` run 41171857944 (success; `measure-linux-amd64` and the paired
+Node comparison job). A ten-minute soak per subject in the same run reported a GoTavern RSS drift of -1.4 MB and
+a p95 drift of -0.06 ms, i.e. no sustained growth. A fast server that assembles a different prompt would be a bug,
+not an improvement, which is why the compatibility gates run on the same commit as the benchmark.
 
 ## Known limitations
 
@@ -205,6 +222,14 @@ These are decisions, not bugs waiting to be fixed; each is recorded with its rea
   different" backend would break parity as badly as a worse one.
 - **Backgrounds are partially verified**: the gallery renders and stages tiles on both subjects, but paint and
   interaction behaviour are not measured.
+- **Four of the six archives are not runtime-qualified.** The linux/amd64 and windows/amd64 archives are extracted,
+  launched and booted against a stock tree in CI. The linux/arm64, darwin/amd64, darwin/arm64 and windows/arm64
+  archives are **built and structurally inspected only** -- this project has no runner of those architectures, and
+  the release notes do not claim otherwise. The Docker image is linux/amd64.
+- **Multi-user contention is not gated.** Concurrent writes from two clients against one tree have not been
+  exercised; single-user installations are the supported default.
+- **Extension updates use the upstream mechanism.** `git pull` runs in place, exactly as upstream does; a dirty
+  worktree is refused rather than forced, but the update itself is not an atomic file replacement.
 - **Coverage is a taxonomy, not a boolean.** Where something cannot be observed, the compatibility matrix says
   `partial`, `unsupported` or `not implemented` with the reason, instead of going green by omission.
 
@@ -221,13 +246,13 @@ does not need to migrate your tree.
 after every step the reported version, the binary's byte identity with the archive it came from, `assets verify`
 from the install prefix, and that `config.yaml`, `data/`, `extensions/` and `certs/` survive -- including state the
 newer release wrote, which the older release must then boot over and leave unchanged:
-`<CANDIDATE-RUN: cross-baseline update and rollback, success>`.
+`GoTavern release qualification` run 41171862635 (success), `qualify-upgrade-rollback` job.
 
 ## Data safety
 
 - **GoTavern reads the SillyTavern data layout directly.** There is no private database and no conversion, so a
   directory GoTavern has written can be handed back to pinned Node SillyTavern -- and back again. That round trip
-  is a gate, not a promise: `<CANDIDATE-RUN: hand-back judge, both directions, success>`.
+  is a gate, not a promise: `Browser differential` run 41171855911 (success), hand-back judge in both directions.
 - **Installers never touch runtime state.** They replace immutable release files only; `config.yaml`, `data/`,
   `extensions/` and `certs/` are preserved, and a re-install is idempotent.
 - **Auto-update is OFF by default and every ambiguous input resolves to OFF.** A missing key, an unknown legacy
@@ -249,4 +274,4 @@ and any server log lines around the failure. Issues: <https://github.com/cocokoi
 AGPL-3.0, consistent with the SillyTavern frontend GoTavern serves. The root `LICENSE` is copied from the pinned
 SillyTavern source and `THIRD_PARTY_NOTICES.txt` ships in every release archive.
 
-Release published: `<DATE: release publish date>`.
+Release published: 2026-10-31.

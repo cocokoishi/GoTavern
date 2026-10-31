@@ -38,3 +38,8 @@ oracle-rerecord.patch
 # READ-ONLY; nothing under this path is ever committed, staged or printed in full. Only opaque results
 # (categories, counts, field names) may leave it. See docs/local-preflight.md for the read-back rule.
 /.private-fixtures/
+
+# Local qualification scratch: private tree copies, downloaded CI artefacts and probe reports. Never committed,
+# never uploaded, and never printed. The pin gate and the markdown walk both skip gitignored directories.
+/.tmp-artifacts/
+/tests/browser/.tmp-artifacts/

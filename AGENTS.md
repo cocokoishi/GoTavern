@@ -344,9 +344,10 @@ exists because its inverse has already produced a passing test that proved nothi
    it is a product decision that must be made explicitly and recorded here — never absorbed silently
    into a `partial` row. FAKE FIXTURES FOR THESE ARE FORBIDDEN: a recorded "response" would be
    evidence for a behaviour that was never executed.
-3. **Image re-encoding is a codec decision, not a test gap — and for one of the two routes the decision is
-   MADE, for the other it is still OPEN. Read this entry with `internal/server/thumbnails.go:1-38` and
-   `ARCHITECTURE.md` §35.2, which is where the decision is recorded.**
+3. **Image re-encoding is a codec decision, not a test gap — and BOTH of the two routes now have a recorded
+   decision; the second one was still OPEN when this entry was first written, and the decision that closed it is
+   in the bullet below. Read this entry with `internal/server/thumbnails.go:1-38` and `ARCHITECTURE.md` §35.2,
+   which is where the decisions are recorded.**
    - **`/thumbnail/<computed>`: IMPLEMENTED, and it was a P0 rather than a boundary.** This entry used to
      present it as an undecided codec question whose 404s were *"THIS BOUNDARY rather than missing work"*, and
      that second half was wrong in a way a user could see. `public/script.js`'s `getThumbnailUrl` is what
