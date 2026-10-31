@@ -110,7 +110,8 @@ fail() {
         fi
     fi
     for log in installer-update.log installer-rollback.log server-1.log server-2.log server-3.log mirror.log \
-        published-installer-alpha.log published-installer-update.log published-alpha-server.log \
+        published-installer-alpha.log published-installer-update.log published-installer-fresh.log \
+        published-alpha-server.log published-fresh-server.log published-dropin-server.log \
         published-beta-server-1.log published-beta-server-2.log published-restore-server.log published-mirror.log; do
         if [ -f "$WORK_ROOT/$log" ]; then
             echo "--- $log (tail) ---" >&2
@@ -466,6 +467,52 @@ PY
     SERVER_PID=""
     ok "the pre-update backup was RESTORED into a fresh prefix, booted $ALPHA_TAG over it, and served the pre-upgrade chat (backup path exercised)"
 
+    # ---- 9b. FRESH INSTALL and a SillyTavern-DATA-COPY DROP-IN over the SAME corpus ----------
+    #
+    # The upgrade path is not the only way a user arrives: a new user installs Beta 1 fresh and brings an existing
+    # SillyTavern tree, and a returning user drops the release archive into a directory that already holds their
+    # data. Both are executed over the SAME generated corpus, so all three arrival paths are measured on one input.
+    FRESH_PREFIX="$WORK_ROOT/published-fresh"
+    DROPIN_PREFIX="$WORK_ROOT/published-dropin"
+    rm -rf "$FRESH_PREFIX" "$DROPIN_PREFIX"
+    mkdir -p "$FRESH_PREFIX"
+    if ! sh "$INSTALLER" --dir "$FRESH_PREFIX" --version latest >"$WORK_ROOT/published-installer-fresh.log" 2>&1; then
+        fail "install.sh failed for a FRESH candidate install"
+    fi
+    [ "$(tag_of_binary "$FRESH_PREFIX/gotavern")" = "$CANDIDATE_TAG" ] || fail "the fresh install does not report $CANDIDATE_TAG"
+    cp -R "$CORPUS/default-user" "$FRESH_PREFIX/data/default-user"
+    cp "$CORPUS/config.yaml" "$FRESH_PREFIX/config.yaml"
+    [ -s "$CORPUS/content.log" ] && cp "$CORPUS/content.log" "$FRESH_PREFIX/data/content.log"
+    boot_prefix_server "$FRESH_PREFIX" "$WORK_ROOT/published-fresh-server.log" fresh || fail "the FRESH candidate install did not boot over the corpus tree"
+    TOKEN=$(curl -fsS -c "$JAR" -b "$JAR" "$BASE/csrf-token" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+    api_post /api/chats/get "$WORK_ROOT/chat-get-request.json" > "$WORK_ROOT/chat-fresh.json" || fail "the fresh install could not read the corpus chat"
+    FRESH_MESSAGES=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' "$WORK_ROOT/chat-fresh.json")
+    [ "$FRESH_MESSAGES" -ge "$PLANTED_MESSAGES" ] || fail "the fresh install served $FRESH_MESSAGES of the $PLANTED_MESSAGES planted messages"
+    kill "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
+    SERVER_PID=""
+    ok "FRESH Beta 1 install over the same corpus boots and serves the existing chat ($FRESH_MESSAGES messages)"
+
+    mkdir -p "$DROPIN_PREFIX"
+    cp -R "$WORK_ROOT/stage-candidate/." "$DROPIN_PREFIX/"
+    cp -R "$CORPUS/default-user" "$DROPIN_PREFIX/data/default-user"
+    cp "$CORPUS/config.yaml" "$DROPIN_PREFIX/config.yaml"
+    [ -s "$CORPUS/content.log" ] && cp "$CORPUS/content.log" "$DROPIN_PREFIX/data/content.log"
+    if [ -d "$DROPIN_PREFIX/src/tokenizers" ] && [ ! -d "$DROPIN_PREFIX/tokenizers" ]; then
+        cp -R "$DROPIN_PREFIX/src/tokenizers" "$DROPIN_PREFIX/tokenizers"
+    fi
+    boot_prefix_server "$DROPIN_PREFIX" "$WORK_ROOT/published-dropin-server.log" dropin || fail "the SillyTavern-data-copy drop-in did not boot over the corpus tree"
+    TOKEN=$(curl -fsS -c "$JAR" -b "$JAR" "$BASE/csrf-token" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+    api_post /api/chats/get "$WORK_ROOT/chat-get-request.json" > "$WORK_ROOT/chat-dropin.json" || fail "the drop-in could not read the corpus chat"
+    DROPIN_MESSAGES=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' "$WORK_ROOT/chat-dropin.json")
+    [ "$DROPIN_MESSAGES" -ge "$PLANTED_MESSAGES" ] || fail "the drop-in served $DROPIN_MESSAGES of the $PLANTED_MESSAGES planted messages"
+    DROPIN_CODE=$(api_get_code "/characters/$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$PRIMARY_AVATAR")")
+    [ "$DROPIN_CODE" = "200" ] || fail "the drop-in answered $DROPIN_CODE for the corpus character image"
+    kill "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
+    SERVER_PID=""
+    ok "SillyTavern-DATA-COPY drop-in over the same corpus boots, serves the existing chat ($DROPIN_MESSAGES messages) and the character image (200)"
+
     # ---- 10. WHAT BETA 1 WROTE, classified ----------------------------------------------------
     snapshot_runtime "$PREFIX" > "$WORK_ROOT/published-runtime-after-journey.txt"
     awk 'NF < 2 { next }
@@ -511,6 +558,7 @@ json.dump({
     "candidate": {"tag": candidate_tag},
     "corpus": {"treeSha256": corpus_tree, "character": character, "plantedMessages": int(planted), "servedMessages": int(served), "worldEntries": int(world_entries)},
     "journey": {"resumedExistingChat": True, "savedContinuation": True, "restartReadBack": True, "assets": True, "settingsUnknownKeysPreserved": True, "worldBookServed": True},
+    "arrivalPaths": {"publishedUpgrade": True, "freshInstallOverCorpus": True, "sillytavernDataCopyDropin": True},
     "backup": {"preUpdateBackupExercised": True, "restoredPrefixBooted": True},
     "migration": {"manualStepsRequired": 0, "writesClassified": True},
 }, open(os.path.join(report_dir, "published-alpha9-verdict.json"), "w"), indent=2)
