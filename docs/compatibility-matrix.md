@@ -41,7 +41,7 @@ A row is `PASS` only when every one of these holds:
 
 | # | Capability area | Status | Evidence present | Evidence gap |
 |---|---|---|---|---|
-| 1 | Core HTTP surface, pinned frontend and static assets | **PARTIAL** | 4 oracle fixture(s), upstream assets, Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
+| 1 | Core HTTP surface, pinned frontend and static assets | **PARTIAL** | 4 oracle fixture(s), upstream assets, Go implementation, 3 named test(s), CI job(s) | 3 item(s) |
 | 2 | Basic auth, per-user auth, sessions, CSRF and cookies | **PARTIAL** | 6 oracle fixture(s), Go implementation, 4 named test(s), CI job(s) | 2 item(s) |
 | 3 | Settings aggregation, save, snapshots and backups-of-settings | **PARTIAL** | 5 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
 | 4 | Secrets: read, write, active source, per-provider slots | **PARTIAL** | 3 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
@@ -72,7 +72,7 @@ Row id: `core-http-static`
 
 - Oracle fixtures: `tests/oracle/sillytavern-1.19.0-frontend-static.json`, `tests/oracle/sillytavern-1.19.0-custom-404.json`, `tests/oracle/sillytavern-1.19.0-server-protocols.json`, `tests/oracle/sillytavern-1.19.0-cors-middleware.json`
 - Upstream assets: `upstream/SILLYTAVERN_COMMIT`, `upstream/manifests`
-- Go implementation: `internal/server`, `internal/app`
+- Go implementation: `internal/server`, `internal/app`, `tools/compat-matrix/surface-coverage.mjs`
 - Named tests: `TestPinnedNodeFrontendStaticMiddleware`, `TestPinnedHostWhitelistPatternMatching`, `TestPinnedNodeCORSMiddleware`
 - Browser artefacts: _none_
 - CI jobs: `ci.yml#oracle`, `ci.yml#verify`
@@ -82,8 +82,9 @@ Row id: `core-http-static`
 
 - no release-artifact result for a stock tree (AGENTS.md 23/34)
 - the pinned public/** byte identity is recorded per file by upstream/manifests, but no gate compares the SERVED bytes against that manifest end to end
+- the frontend-derived surface drift gate now exists and PASSES on this tree (`tools/compat-matrix/surface-coverage.mjs`, run by `tools/compat-matrix/check.mjs` in `ci.yml#verify`): 573 frontend surfaces classified with 0 unknown, 384 Go registrations, 50 pinned redirect aliases and 342 pinned routes reconciled. It also PROVES two open surface gaps rather than leaving them unobserved: 37 of the pinned 50 legacy redirect aliases have no Go registration (gap id SURFACE-REDIRECT-ALIASES; the pinned frontend builds none of them, so the browser journey is unaffected, but a legacy client following e.g. /getcharacters or /savechat gets the catch-all 404 instead of pinned 308), and POST /api/tokenizers/remote/textgenerationwebui/encode is built by the pinned frontend and is not registered while its inventory status column claims a route-level replay (gap id SURFACE-TOKENIZER-REMOTE; internal/server/tokenizers_remote.go:7-10 records it as not implemented). Neither is a silent absence: both are in docs/generated/surface-coverage.json and the generated surface.drift block.
 
-Route-level HTTP parity is the most mature area in this tree. The counts this note used to carry BY HAND ("118 oracle recordings, 512 Go test functions") had already drifted to 119 and 689; they are deleted here rather than corrected, because the generated "Counts measured from this tree" section is now the only place a count lives. Maturity of the fixtures is exactly why the three P0 defects shipped, so this row is not PASS for that reason alone.
+Route-level HTTP parity is the most mature area in this tree. The counts this note used to carry BY HAND ("118 oracle recordings, 512 Go test functions") had already drifted to 119 and 689; they are deleted here rather than corrected, because the generated "Counts measured from this tree" section is now the only place a count lives. Maturity of the fixtures is exactly why the three P0 defects shipped, so this row is not PASS for that reason alone. FRONTEND-DERIVED SURFACE DRIFT GATE (added Beta 1): the rule-43 inventory is now derived from the oracle's own lists -- pinned routes from docs/api-inventory.md, the actual mux.HandleFunc registrations in internal/server/*.go, and every URL the vendored pinned frontend builds -- and every surface must be classified implemented / intentionally-passthrough / not-applicable / unsupported-with-reason with a reason and a source line. It is executed by `tools/compat-matrix/check.mjs` in `ci.yml#verify`, and its teeth are a committed mutation selftest (`node tools/compat-matrix/surface-coverage.mjs --selftest`, 13/13 on COPIED fixture trees). It found the two recorded surface gaps quoted in evidenceGap and nothing else unclassified.
 
 ### Basic auth, per-user auth, sessions, CSRF and cookies — `PARTIAL`
 
@@ -472,7 +473,7 @@ Row id: `packaging-release`
 
 - the stock-tree qualification executes the LINUX archive on every push (dropin-qualification.yml#dropin-current-head) and the WINDOWS archive on windows-latest (dropin-qualification.yml runs-on windows-latest: a Start.cmd run, a pristine-config run, a trimmed-config run and an exe-direct scenario) -- the older clause saying the Windows archive is never executed was stale and is removed
 - the stock tree the Linux job boots is DERIVED from the pinned source rather than recorded from a pinned Node run, so AGENTS.md 38's "the real migration path" is covered by a derivation, not by a captured tree
-- no qualification result for handing the data back to pinned Node AFTER GoTavern has run over it (AGENTS.md 38)
+- no qualification result for handing the data back to pinned Node AFTER GoTavern has run over it (AGENTS.md 38). The driver and its judge EXIST and PASSED in the browser-differential job (run 40977195387, hand-back verdict match, both directions, GoTavern 5/5 and pinned 17/17), so the capability is proven; what is missing is its PLACEMENT in the packaged drop-in gate. Moving it there is blocked on two concrete things, both named rather than implied: (a) the probe's spawn sites (tests/browser/q21-data-handback.mjs:637 and :917) do not pass `--browserLaunchEnabled false`, so a local run of it asks the product to open the operator's default browser, and the probe re-seeds its own config so a workflow-level pre-seed would be overwritten -- a probe-owner change; (b) dropin-qualification.yml would need the pinned checkout, the browser harness (`npm ci` in tests/browser), Playwright and `GOTAVERN_BINARY` wired into `dropin-current-head`; the exact proposed diff is in the Beta 1 compat lane report, not applied because `.github/workflows/**` is outside that lane.
 - quoted releaseArtifact here is a workflow step, not a recorded run id; the run id belongs in docs/goal-scorecard.md Q1/Q21
 
 Blocked by: `startup`
@@ -538,6 +539,7 @@ Forbidden: dropping whole response bodies; sorting arrays whose order is the con
 | 10 | Two users writing the same world/preset tree concurrently is not tested; the per-user lock is asserted per route, not under contention | `accounts-multi-user` | no for a single-user install, yes for a multi-user deployment the route set already supports | the accounts-multi-user row: account creation/admin/recovery/reset and the private per-user data roots have broad fixture coverage, but there is no contention test and no stock-tree multi-user migration result |
 | 11 | No sweep asserts that a stored secret is never printed on ANY error path, only on the routes that were probed | `secrets` | no, but a leaked key is unrecoverable for the user, so the unprobed paths matter | the secrets row: AGENTS.md 35 is asserted per probed route (storage, active source, per-provider slots), and the unprobed error paths are not covered by a sweep |
 | 12 | Server plugins and local in-process embeddings are excluded, and the exclusion is only as visible as the last document that mentioned it | `server-plugins` | for the small set of users who rely on them, yes; they should learn it before installing | AGENTS.md 16 and ARCHITECTURE.md boundary 2: arbitrary Node server plugins and local ONNX inference are decided exclusions with no emulation and no fake fixture; TestPluginsAreReportedAndNeverCopied asserts the honest negative so the boundary is visible to an operator |
+| 13 | Two frontend-derived backend surfaces are absent from this tree even though the pinned server serves them: 37 of the 50 legacy redirect aliases and one remote tokenizer route | `core-http-static` | no for the browser journey -- the pinned frontend builds none of the 37 aliases and the modern /api paths are served -- but a legacy client or bookmark following an old alias gets the catch-all 404 instead of pinned's 308, and a remote text-generation tokenizer reading is unavailable (no supported workaround); the default chat journey is unaffected | core-http-static row: `node tools/compat-matrix/surface-coverage.mjs --check` reconciles 573 frontend surfaces, 384 Go registrations, 342 pinned routes and 50 pinned redirect aliases with 0 unknown, and names the two gaps (SURFACE-REDIRECT-ALIASES: 37 unregistered aliases; SURFACE-TOKENIZER-REMOTE: POST /api/tokenizers/remote/textgenerationwebui/encode absent while docs/api-inventory.md claims a route-level replay). Both are recorded in tools/compat-matrix/surface-classifications.json with user impact and evidence and rendered into the generated block in docs/surface-coverage.md; a NEW gap of either class fails the gate. |
 
 ## Counts measured from this tree
 
@@ -551,6 +553,6 @@ with `TestMain` excluded because it is a package's test entry point rather than 
 | Oracle fixtures | 119 | 67 |
 | Browser artefacts | 39 | 10 |
 | Go test functions | 756 | 92 |
-| Workflow jobs | 41 in 11 workflow(s) | _n/a_ |
+| Workflow jobs | 27 in 11 workflow(s) | _n/a_ |
 | Rows | 22 | PASS 3, PARTIAL 18, FAIL 0, NOT_APPLICABLE 1 |
 | Session steps | 8 | 7 with a probe, 1 without, 0 sharing a runtime |

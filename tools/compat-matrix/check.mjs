@@ -27,6 +27,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 import { loadMatrix, render, computeDerived, goTestFunctions, repoRoot, markdownPath } from './render.mjs';
+import { checkSurfaceCoverage } from './surface-coverage.mjs';
 
 const STATUSES = new Set(['PASS', 'PARTIAL', 'FAIL', 'NOT_APPLICABLE']);
 const EVIDENCE_SLOTS = ['oracleFixtures', 'upstreamAssets', 'implementation', 'tests', 'browserArtifacts', 'ci'];
@@ -255,6 +256,14 @@ if (expected !== committed) {
     fail('docs/compatibility-matrix.md', `differs from the generator output at line ${first + 1}: committed ${JSON.stringify(committedLines[first] ?? '(end)')} vs generated ${JSON.stringify(expectedLines[first] ?? '(end)')}. Run node tools/compat-matrix/render.mjs`);
 }
 
+// THE FRONTEND-DERIVED SURFACE INVENTORY (AGENTS.md 42/43/44). Separate from the capability rows because it
+// answers a different question: not "how far is this capability" but "does every backend surface the pinned
+// frontend builds, and every route this tree registers, have a classification, and does every reachable pinned
+// route have a registration". A finding here is a missing or unclassified SURFACE, which is the shape of the
+// two shipped P0s ("/thumbnail" and the three user-data mounts) that no capability row could see.
+const surface = checkSurfaceCoverage(repoRoot);
+for (const problem of surface.problems) fail('surface coverage', problem);
+
 if (failures.length > 0) {
     process.stderr.write(`compatibility matrix: ${failures.length} problem(s)\n`);
     for (const failure of failures) process.stderr.write(`  - ${failure}\n`);
@@ -266,4 +275,7 @@ if (!process.argv.includes('--quiet')) {
     for (const row of matrix.rows) counts[row.status] = (counts[row.status] || 0) + 1;
     const summary = ['PASS', 'PARTIAL', 'FAIL', 'NOT_APPLICABLE'].map(status => `${status} ${counts[status] || 0}`).join(' | ');
     process.stdout.write(`compatibility matrix: ${matrix.rows.length} rows (${summary}), ${(matrix.gaps ?? []).length} gaps, ${matrix.session?.steps?.length ?? 0} session steps — every citation resolves\n`);
+    const surfaces = surface.report.classificationCounts;
+    const aliases = surface.report.redirectAliasCounts;
+    process.stdout.write(`surface coverage: ${surfaces.surfaces} frontend surface(s) (implemented ${surfaces.implemented}, intentionally-passthrough ${surfaces['intentionally-passthrough']}, not-applicable ${surfaces['not-applicable']}, unsupported-with-reason ${surfaces['unsupported-with-reason']}; 0 unknown), ${surface.report.goClassificationCounts.routes} Go registration(s), ${aliases.registered}/${aliases.aliases} redirect alias(es) registered, ${surface.report.missingReachablePinnedRoutes.length} recorded open missing route(s) — drift gate green\n`);
 }
