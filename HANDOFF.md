@@ -447,7 +447,7 @@ push. The lane was then merged from `lane/q19-judge` instead (`a319cd4`), leavin
 owner and force-pushing nothing.
 
 ---
-## Latest checkpoint - 2026-10-27: `v0.1.0-alpha.7` SHIPPED -- ACTIVE ALPHA7 DEVELOPMENT CLOSED
+## HISTORY - 2026-10-27: `v0.1.0-alpha.7` SHIPPED -- ACTIVE ALPHA7 DEVELOPMENT CLOSED
 
 > **`ACTIVE ALPHA7 DEVELOPMENT CLOSED`.** `v0.1.0-alpha.7` is published. Nothing in this file is an
 > instruction to continue: the remaining items are accepted limits recorded for the next round, not work in
