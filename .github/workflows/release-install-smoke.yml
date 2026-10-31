@@ -515,6 +515,36 @@ jobs:
           }
 
       # ---- 5. BOOT IT AND MAKE THE ROUTES PROVE THE TREE ---------------------------------------
+      # THE BARE INSTALL IS THE RELEASE'S CENTRAL PROMISE: with NO version argument the installer resolves
+      # `releases/latest`, so a stable tag must be what an unpinned install receives. Before the tag this was
+      # proven against a labelled loopback stand-in (release.yml's prepublish-qualification); after publication
+      # it is proven here, over TLS, against the real pointer. A release whose latest pointer did not move would
+      # install the OLDER release and fail on the version comparison below.
+      - name: Install the published release with install.sh and NO version argument
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -eu
+          prefix="${PWD}/install-prefix-bare"
+          rm -rf "${prefix}"
+          sh ./install.sh --dir "${prefix}" 2>&1 | tee installer-bare.log
+          grep -q '^Checksum verified\.$' installer-bare.log || {
+            echo "::error::the bare installer did not report a verified checksum" >&2
+            exit 1
+          }
+          grep -q "release: ${VERSION}" installer-bare.log || {
+            echo "::error::install.sh with no --version did not resolve releases/latest to ${VERSION}; an unpinned install would hand a user a different release" >&2
+            exit 1
+          }
+          [ -x "${prefix}/gotavern" ] || { echo "::error::the bare install has no executable gotavern" >&2; exit 1; }
+          [ -d "${prefix}/src/tokenizers" ] || { echo "::error::the bare install has no src/tokenizers/" >&2; exit 1; }
+          "${prefix}/gotavern" version | tee version-bare.txt
+          grep -q "${VERSION}" version-bare.txt || {
+            echo "::error::the bare-installed binary does not report ${VERSION}" >&2
+            exit 1
+          }
+          echo "ok: bare install.sh resolved releases/latest to ${VERSION}, verified its checksum and installed that build"
+
       - name: Boot the installed binary and require /version
         run: |
           set -eu
