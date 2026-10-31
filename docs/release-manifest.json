@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "sameShaRequired": true,
+  "comment": "The required gates for a GoTavern release. scripts/verify-release-gates.mjs runs inside the publish job BEFORE gh release create and fails closed unless every workflow named here has a completed successful run whose head_sha is the commit the release tag points at. This file is hand-maintained on purpose (it is the release policy); the gate that consumes it is machine-enforced. GoTavern Release itself is NOT listed: a workflow cannot be its own precondition. The publishing run supplies its own build + prepublish qualification at the same tag commit, and the prepublish job executes the bare installers against the archives this very run built.",
+  "requiredGates": [
+    {
+      "workflow": "GoTavern CI",
+      "why": "verify (gofmt, generated facts, compatibility matrix, classifier table, Go suite, vet, build, assets verify), race, browser evidence and the oracle sweep"
+    },
+    {
+      "workflow": "GoTavern whole-session differential",
+      "why": "one stock tree per subject, one browser lineage, restart on the same tree, and the 39-guard judgement"
+    },
+    {
+      "workflow": "GoTavern world-info slot ordering",
+      "why": "before/after/atDepth world-info slots reach the final provider request in pinned's order"
+    },
+    {
+      "workflow": "GoTavern drop-in qualification",
+      "why": "the packaged archive boots against a stock SillyTavern tree on Linux and Windows"
+    },
+    {
+      "workflow": "Browser differential",
+      "why": "the pinned frontend's real journeys against a real browser, including the Q21 hand-back judge"
+    },
+    {
+      "workflow": "GoTavern release qualification",
+      "why": "fresh install, idempotence, update/rollback and cross-baseline data survival from the extracted archive"
+    },
+    {
+      "workflow": "GoTavern smoke metrics",
+      "why": "the paired performance record and the soak"
+    },
+    {
+      "workflow": "GoTavern Docker image",
+      "why": "the container image builds, verifies its tokenizer assets and smokes a pinned route"
+    }
+  ]
+}

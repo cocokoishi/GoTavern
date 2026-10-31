@@ -72,11 +72,16 @@ fi
 #     second answer that drifts, and the drift is invisible until it has already shipped a channel to users.
 #
 # ARGUING WITH IT: this is a deliberate single-tag decision, defensible exactly once. The next release must be
-# named for the channel it is on (`v0.1.0` or later), and then this constant should be deleted in the change
-# that publishes that release -- with its test cases moved to "prerelease" in the same commit, so the exception
-# cannot silently become a permanent widening. Until then, deleting or neutering this constant is what makes
-# `v0.1.0-alpha.9` a prerelease again, which is exactly the mutation
-# `scripts/test-classify-version-tag.sh`'s `historical-alpha-graduation` case exists to catch.
+# named for the channel it is on -- `v0.1.0-beta.1` is classified by the SHAPE rule above (prerelease), not by a
+# second exception, so `releases/latest`, both bare installers and Docker `:latest` keep serving the stable
+# `v0.1.0-alpha.9` release until a stable tag supersedes it.
+#
+# WHY THE CONSTANT STAYS EVEN THOUGH THE ORIGINAL NOTE SAID TO DELETE IT. Deleting it would reclassify
+# `v0.1.0-alpha.9` from `stable` to `prerelease`, which is a CHANNEL SEMANTIC CHANGE for an already-published
+# release: a re-run of that tag's release job would ask for `--prerelease --latest=false` on a release GitHub
+# already serves as `latest`. The constant is an equality test on a published historical fact, so it cannot widen;
+# the Beta release needed no change to it, and the beta cases in `scripts/test-classify-version-tag.sh` pin that.
+# It should be removed only together with a deliberate, documented decision to change what the alpha.9 tag means.
 # =============================================================================================================
 HISTORY_GRADUATION_TAG='v0.1.0-alpha.9'
 

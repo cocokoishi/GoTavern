@@ -62,6 +62,10 @@ on:
 
 permissions:
   contents: write
+  # THE SAME-SHA GATE READS THE RUNS API, so this workflow needs `actions: read`. It is not a convenience: without it
+  # `gh api .../actions/runs` answers 403 and the publish step would fail for a permission reason rather than a gate
+  # reason. `actions: write` is granted per-job only where the post-release CI re-dispatch needs it.
+  actions: read
 
 jobs:
   # CHECKSUM PROVENANCE: the six canonical names in docs/INSTALLATION.md are what install.sh and
@@ -329,6 +333,25 @@ jobs:
         # release does not ship, which is the whole failure this job exists to rule out.
         run: bash scripts/release-assemble-checksums.sh dist
 
+      - name: Validate the candidate's curated release notes, if it has any
+        # A DRY RUN PUBLISHES NOTHING, so this is the only place the notes validation can run before the tag: a
+        # stable release is REQUIRED to carry curated notes, and a prerelease that has them gets them checked too.
+        # Doing it here means the placeholder refusal happens an hour before the tag, on the candidate SHA, rather
+        # than inside the publish job after the six archives have already been built twice.
+        if: ${{ inputs.candidate_version != '' }}
+        run: |
+          set -eu
+          version="${{ inputs.candidate_version }}"
+          notes_file=''
+          for candidate in "docs/releases/${version}.md" "docs/release-notes-${version}.md"; do
+            if [ -s "$candidate" ]; then notes_file="$candidate"; break; fi
+          done
+          if [ -z "${notes_file}" ]; then
+            echo "no curated notes file for ${version} yet; allowed on the prerelease channel, refused on the stable one at publish time" >&2
+            exit 0
+          fi
+          node scripts/verify-release-notes.mjs "${notes_file}" "${version}" --checksums dist/checksums.txt
+
       - name: Feed the candidate's own six archives and checksums into the bare installers
         # scripts/qualify-prepublish.sh asserts, in order: the canonical classifier calls CANDIDATE_TAG
         # stable; the six archives and every checksum entry are the release's own; BUILD-INFO and the
@@ -390,6 +413,50 @@ jobs:
         # `awk '$2 == asset ...'`, so `sha256sum ./*.tar.gz` would write "./name" and parse to no entry.
         run: bash scripts/release-assemble-checksums.sh dist
 
+      - name: Verify every required gate is green at THIS tag's commit (fail closed)
+        # THE MISSING MACHINE GATE FROM THE ALPHA.9 RELEASE. Alpha.9's gates were all green, but nothing asserted that
+        # the green runs belonged to the commit the tag points at; the checklist said "same SHA" and a human checked
+        # it. This step is that check: docs/release-manifest.json names the required workflows, and the runner asks the
+        # Actions API for each one's runs whose head_sha is the tag's target commit. A missing run, an in-progress run,
+        # a failed run, or a green run on a DIFFERENT commit fails the publish. The teeth are in
+        # scripts/release-governance.test.mjs (a different-SHA green set is the case that matters).
+        if: github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          target="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
+          echo "release tag ${GITHUB_REF_NAME} points at commit ${target}"
+          node scripts/verify-release-gates.mjs --sha "${target}" --manifest docs/release-manifest.json
+
+      - name: Choose and validate the release body (fail closed)
+        # BOTH CHANNELS CAN CARRY A HUMAN-CURATED BODY, and when one exists it is used and validated. The stable
+        # channel REQUIRES one. The prerelease channel may fall back to generated notes, which is a documented channel
+        # difference rather than a silent one. The validator refuses drafting words, angle-bracket placeholders, fake
+        # short run ids and example checksums (`scripts/release-governance/notes.mjs` has the rules and why each
+        # exists); alpha.9's pipeline grepped one placeholder shape on the stable path only.
+        id: notes
+        if: github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -eu
+          channel="$(bash scripts/classify-version-tag.sh "${GITHUB_REF_NAME}")"
+          notes_file=''
+          for candidate in "docs/releases/${GITHUB_REF_NAME}.md" "docs/release-notes-${GITHUB_REF_NAME}.md"; do
+            if [ -s "$candidate" ]; then notes_file="$candidate"; break; fi
+          done
+          if [ -n "${notes_file}" ]; then
+            node scripts/verify-release-notes.mjs "${notes_file}" "${GITHUB_REF_NAME}" --checksums dist/checksums.txt
+            echo "body=curated" >> "$GITHUB_OUTPUT"
+            echo "file=${notes_file}" >> "$GITHUB_OUTPUT"
+            echo "release body: ${notes_file} (curated, validated against this run's checksums.txt)"
+          elif [ "${channel}" = "stable" ]; then
+            echo "::error::a STABLE release requires a human-curated notes file at docs/releases/${GITHUB_REF_NAME}.md or docs/release-notes-${GITHUB_REF_NAME}.md; refusing to publish generated notes for the stable channel." >&2
+            exit 1
+          else
+            echo "body=generated" >> "$GITHUB_OUTPUT"
+            echo "prerelease ${GITHUB_REF_NAME} has no curated notes file; publishing generated notes (documented channel behaviour)" >&2
+          fi
+
       - name: Publish the release
         # A DISPATCH NEVER PUBLISHES. The workflow can be run manually on ANY candidate SHA; only a push
         # of a version TAG can create a release, and this condition is that gate (not a step that could be
@@ -399,54 +466,92 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
-          # AN ALPHA MUST NOT BECOME THE REPOSITORY'S "LATEST RELEASE". `install.sh` and `install.ps1` both
+          # AN ALPHA/BETA MUST NOT BECOME THE REPOSITORY'S "LATEST RELEASE". `install.sh` and `install.ps1` both
           # fetch `releases/latest/download/...`, and `releases/latest` is whatever GitHub marks as the latest
-          # non-prerelease release -- so an alpha published as an ordinary release hands every fresh install an
-          # alpha, and would keep doing it until a stable tag replaced it. `--prerelease` marks the channel
-          # honestly; `--latest=false` is passed explicitly because it is the flag that actually pins `latest`
-          # to the newest STABLE tag rather than relying on GitHub's automatic choice.
+          # non-prerelease release -- so a prerelease published as an ordinary release hands every fresh install a
+          # prerelease. `--prerelease` marks the channel honestly; `--latest=false` is passed explicitly because it is
+          # the flag that actually pins `latest` to the newest STABLE tag rather than relying on GitHub's automatic
+          # choice.
           #
           # The decision itself lives in scripts/classify-version-tag.sh, shared with docker.yml and covered by
           # scripts/test-classify-version-tag.sh in the `verify` job: two copies of this rule would drift.
           channel="$(bash scripts/classify-version-tag.sh "${GITHUB_REF_NAME}")"
           echo "tag ${GITHUB_REF_NAME} is a ${channel} channel tag"
+          args=(--repo "${GITHUB_REPOSITORY}" --title "GoTavern ${GITHUB_REF_NAME}")
           if [ "${channel}" = "prerelease" ]; then
-            gh release create "${GITHUB_REF_NAME}" \
-              --repo "${GITHUB_REPOSITORY}" \
-              --title "GoTavern ${GITHUB_REF_NAME}" \
-              --generate-notes \
-              --prerelease \
-              --latest=false \
-              dist/*.tar.gz dist/*.zip dist/checksums.txt
+            args+=(--prerelease --latest=false)
           else
-            # THE STABLE CHANNEL PUBLISHES A HUMAN-CURATED BODY, AND REFUSES TO FALL BACK TO GENERATED
-            # NOTES. `--generate-notes` reads commit titles; for GoTavern's first official release the body
-            # is a claim document whose run ids and measurements must be the candidate run's (see the draft
-            # at docs/release-notes-v0.1.0-alpha.9.md), and auto-generated notes would publish placeholders'
-            # *absence* as if it were the evidence. So: a stable release REQUIRES one of the two
-            # conventional curated paths, and refuses to proceed while a measurement placeholder remains.
-            notes_file=''
-            for candidate in "docs/releases/${GITHUB_REF_NAME}.md" "docs/release-notes-${GITHUB_REF_NAME}.md"; do
-              if [ -s "$candidate" ]; then notes_file="$candidate"; break; fi
-            done
-            if [ -z "${notes_file}" ]; then
-              echo "::error::a STABLE release requires a human-curated notes file at docs/releases/${GITHUB_REF_NAME}.md or docs/release-notes-${GITHUB_REF_NAME}.md; refusing to publish generated notes for the stable channel." >&2
-              exit 1
-            fi
-            if grep -nE '<[A-Z][A-Z0-9_-]*:' "${notes_file}" > notes-placeholders.txt; then
-              echo "::error::${notes_file} still contains unfilled measurement placeholders; the release notes of a stable channel release must carry the candidate run's measured values, not the draft's placeholders:" >&2
-              cat notes-placeholders.txt >&2
-              exit 1
-            fi
-            echo "release body: ${notes_file} (human-curated, no placeholders remaining)"
-            # `--latest` is passed EXPLICITLY on the stable path. It is GitHub's default for a release
-            # created without --prerelease, but the channel is the product decision this whole workflow is
-            # about: it is asserted here so a future edit cannot move `latest` by accident, and so the log
-            # names the decision rather than inheriting it.
-            gh release create "${GITHUB_REF_NAME}" \
-              --repo "${GITHUB_REPOSITORY}" \
-              --title "GoTavern ${GITHUB_REF_NAME}" \
-              --notes-file "${notes_file}" \
-              --latest \
-              dist/*.tar.gz dist/*.zip dist/checksums.txt
+            # `--latest` is passed EXPLICITLY on the stable path. It is GitHub's default for a release created
+            # without --prerelease, but the channel is the product decision this whole workflow is about: it is
+            # asserted here so a future edit cannot move `latest` by accident.
+            args+=(--latest)
           fi
+          if [ "${{ steps.notes.outputs.body }}" = "curated" ]; then
+            args+=(--notes-file "${{ steps.notes.outputs.file }}")
+          else
+            args+=(--generate-notes)
+          fi
+          gh release create "${GITHUB_REF_NAME}" "${args[@]}" dist/*.tar.gz dist/*.zip dist/checksums.txt
+
+  post-release-facts:
+    # THE GENERATED-FACTS LIFECYCLE, AUTOMATED. docs/generated/facts.json carries the list of version tags, so creating
+    # a tag makes the committed facts stale ON THE COMMIT THE TAG POINTS AT -- which is main's tip. Alpha.9 hit this as
+    # "main verify is red after every release" and the fix was a hand-run regeneration commit (`d5464eb`). A release
+    # event must not depend on someone remembering a manual step, so this job runs after publish, regenerates the
+    # facts on main, commits them with an explicit file list, pushes, and DISPATCHES CI at the post-release commit
+    # (a push made with GITHUB_TOKEN does not trigger workflows, so an explicit dispatch is what makes "main is green"
+    # an observable fact rather than an assumption).
+    needs: [publish]
+    if: github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    # Regeneration + one commit + one dispatch. Anything longer is a wedged runner or a blocked push.
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Regenerate the release-derived facts on main and dispatch a green CI run at that commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          target="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
+          main_sha="$(git rev-parse HEAD)"
+          echo "tag target ${target}; main ${main_sha}"
+          if [ "${main_sha}" != "${target}" ]; then
+            # FAIL CLOSED. If main has advanced, a generated commit would be a merge decision, not a mechanical one.
+            # A human reconciles; this job does not guess.
+            echo "::error::main (${main_sha}) is not the released commit (${target}); refusing to commit generated facts onto a moved main." >&2
+            exit 1
+          fi
+          node tools/generate-doc-facts.mjs
+          node tools/generate-doc-facts.mjs --check
+          if git diff --quiet -- docs/generated/facts.json README.md HANDOFF.md docs/compat-matrix.md docs/surface-coverage.md; then
+            echo "no generated diff after the tag: nothing to commit"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            # EXPLICIT FILE LIST, never `git add -A`: this repository has already had a mutation commit absorb other
+            # lanes' in-flight files through `git add -A`, and a release job runs against main.
+            git add docs/generated/facts.json README.md HANDOFF.md docs/compat-matrix.md docs/surface-coverage.md
+            git commit -m "chore(docs): regenerate the generated facts for the published ${GITHUB_REF_NAME} tag"
+            git push origin main
+            echo "committed the post-release generated facts"
+          fi
+          # A GITHUB_TOKEN PUSH DOES NOT CREATE A WORKFLOW RUN, so dispatch it. The run id is printed for the release
+          # record: "main verify green after the release" must cite a run, not an intention.
+          gh workflow run ci.yml --ref main
+          for _ in 1 2 3 4 5 6; do
+            sleep 5
+            line="$(gh run list --workflow ci.yml --branch main --limit 1 --json databaseId,headSha,url,status --jq '.[0] | "\(.databaseId) \(.headSha) \(.status) \(.url)"')"
+            echo "post-release CI: ${line}"
+            if [ -n "${line}" ]; then break; fi
+          done
+

@@ -510,6 +510,15 @@ jobs:
         # done experimentally on a release repository -- so the rule is a script with a table test, and this step
         # is what makes the table actually run.
         run: bash scripts/test-classify-version-tag.sh
+      - name: Prove the release governance gates can refuse
+        # TWO FAIL-CLOSED STEPS NOW STAND BETWEEN A CANDIDATE AND A PUBLISHED RELEASE: the same-SHA gate (every
+        # required workflow green at the tag's target commit) and the curated-notes validator. A refusal that was
+        # never exercised is indistinguishable from a step that cannot refuse, so this test drives both with
+        # synthetic inputs and requires each refusal by name -- including the case that motivates the same-SHA gate:
+        # a perfect set of green runs that belongs to ANOTHER commit must fail. It also cross-checks
+        # docs/release-manifest.json against the workflow names that exist, so a typo is a red here rather than a
+        # confusing "missing run" at publish time.
+        run: node --test scripts/release-governance.test.mjs
       - name: Verify Go formatting
         # AGENTS.md requires gofmt on every change, and until this step nothing in CI enforced it:
         # `go build` and `go vet` both accept an unformatted file, so a formatting defect could land

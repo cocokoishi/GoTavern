@@ -165,6 +165,14 @@ check_one_word_on_stdout 'plain-three-component-one-word' 'v0.1.0' stable
 # ---- prerelease: every other version-shaped spelling -------------------------------------------------------------
 check 'alpha-one' 'v0.1.0-alpha.1' prerelease 0
 check 'alpha-bare' 'v0.1.0-alpha' prerelease 0
+# BETA 1 AND THE BETA SERIES. `v0.1.0-beta.1` is the first Beta release. It is a PRERELEASE by shape: the channel is
+# decided by the tag's name, not by our opinion of the product's maturity, so a bare `install.sh` (releases/latest) and
+# a bare `docker pull ...:latest` keep serving the stable release, and installing a Beta is an explicit `--version`
+# decision. These cases exist so that a future edit which "promotes" beta by widening a rule breaks a NAMED case.
+check 'beta-1-prerelease-channel' 'v0.1.0-beta.1' prerelease 0
+check_one_word_on_stdout 'beta-1-one-word' 'v0.1.0-beta.1' prerelease
+check 'next-minor-beta-1' 'v0.2.0-beta.1' prerelease 0
+check 'beta-1-with-build-metadata' 'v0.1.0-beta.1+build.4' prerelease 0
 check 'beta-suffix' 'v0.1.0-beta.2' prerelease 0
 check 'rc-suffix' 'v1.0.0-rc.1' prerelease 0
 check 'rc-no-dot' 'v1.0.0-rc1' prerelease 0
