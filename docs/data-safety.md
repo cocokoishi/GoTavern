@@ -423,6 +423,17 @@ go test ./internal/server     -run '^$' -fuzz '^FuzzDecodeOrderedNodeJSON$' -fuz
 # race detector
 go test -race ./internal/startup ...   -> "-race is not supported on windows/arm64" (host limitation)
 
+# full packages touched by this lane (not only the new tests)
+go test ./internal/configinit -count=1   PASS  (14.7 s)
+go test ./internal/startup    -count=1   PASS  (64 s)
+go test ./internal/server     -count=1   573 s: ONE failure, TestOpenAIGenerateVideoTimeoutIsAnImplementationTest
+                                         ("the handler wrote \"Video generation aborted by client\" after the
+                                         caller left; pinned writes nothing"). That test passes 5/5 in
+                                         isolation (2.1 s); it is a cancellation-timing implementation test
+                                         unrelated to this lane's files and is a load-dependent local red,
+                                         not a finding here (docs/local-red-triage.md triage applied:
+                                         isolated re-run discriminates a host/timing artefact from a defect).
+
 # security baseline
 go vet ./...                                    see §8.1 / §10 table below
 golang.org/x/vuln/cmd/govulncheck@latest         installed to .tmp-artifacts/bin (govulncheck v1.9.0, DB 2026-10-27)
