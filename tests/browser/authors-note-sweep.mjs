@@ -179,7 +179,7 @@ const artifact = {
     schemaVersion: 1,
     surface: 'authors-note',
     question: 'Q17: is Author\'s Note depth the same -- does the note land at the position the pinned frontend puts it, relative to history, world info and the other injections?',
-    pinnedBaseline: expectations?.pinnedBaseline ?? 'SillyTavern 1.19.0, commit 06bde939fb1e9c4c8d8641d810f0a9165bce127',
+    pinnedBaseline: expectations?.pinnedBaseline ?? 'SillyTavern 1.19.0, commit 06bde939fb1e9c4c8d8641d810f0a916b5bce127',
     measuredBy: expectations?.measuredBy ?? null,
     method: 'the expectation is the pinned leg\'s own provider request (prepare-authors-note.mjs -> run-against-pinned.mjs generation-probe.mjs PROBE_MODE=preset); the compared legs are the same program with the same arguments; the request is compared byte-for-byte and the note\'s layout is compared field by field',
     // WHAT THIS ARTEFACT DOES NOT ESTABLISH, carried WITH the evidence because a reader who opens the

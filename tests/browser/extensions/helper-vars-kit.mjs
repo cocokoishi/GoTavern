@@ -37,7 +37,7 @@ export const repoRoot = path.resolve(here, '..', '..', '..');
 
 export const PINNED_HELPER_COMMIT = PINNED_EXTENSIONS['tavern-helper'].commit;
 export const PINNED_HELPER_VERSION = '4.11.3';
-export const PINNED_BASELINE_COMMIT = '06bde939fb1e9c4c8d8641d810f0a9165b5ce127';
+export const PINNED_BASELINE_COMMIT = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 
 export const READY_PROBE_NAME = 'ready-probe';
 export const TARGET_PRESET_NAME = 'probe-preset';

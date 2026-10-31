@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "surface": "authors-note",
   "question": "Q17: is Author's Note depth the same -- does the note land at the position the pinned frontend puts it, relative to history, world info and the other injections?",
-  "pinnedBaseline": "SillyTavern 1.19.0, commit 06bde939fb1e9c4c8d8641d810f0a9165bce127",
+  "pinnedBaseline": "SillyTavern 1.19.0, commit 06bde939fb1e9c4c8d8641d810f0a916b5bce127",
   "measuredBy": "pinned-leg",
   "method": "the expectation is the pinned leg's own provider request (prepare-authors-note.mjs -> run-against-pinned.mjs generation-probe.mjs PROBE_MODE=preset); the compared legs are the same program with the same arguments; the request is compared byte-for-byte and the note's layout is compared field by field",
   "doesNotEstablish": "server-side prompt handling: the `custom` source is a server-side passthrough (pinned chat-completions.js:2394-2421 never reads `messages`), so these legs compare the pinned frontend against two servers, not two backends. A claim about a server-side transform needs a source whose pinned branch DOES read `messages` (the MINIMAX fold, custom_prompt_post_processing, or a provider that re-encodes roles)",

@@ -454,7 +454,7 @@ const artefact = {
     generatedBy: 'tests/browser/compare-helper-vars-generate-legs.mjs',
     vehicle: on.gotavern?.vehicle ?? on.pinned?.vehicle ?? null,
     uiVehicleRedRuns: on.gotavern?.uiVehicleRedRuns ?? on.pinned?.uiVehicleRedRuns ?? null,
-    subject: 'tavern-helper@837a6288135cde61522a9279173b98020f08807e (manifest 4.11.3), host SillyTavern 06bde939fb1e9c4c8d8641d810f0a9165b5ce127',
+    subject: 'tavern-helper@837a6288135cde61522a9279173b98020f08807e (manifest 4.11.3), host SillyTavern 06bde939fb1e9c4c8d8641d810f0a916b5bce127',
     surface: 'variables through the host macro engine (Q10), narrow vehicle',
     verdict: failedGuards.length === 0 && asymmetries.length === 0 ? 'PASS' : 'FAIL',
     guards,

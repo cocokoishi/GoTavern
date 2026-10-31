@@ -4,7 +4,7 @@
   "question": "At which position RELATIVE to the history turns, the world-info entries and the other injections does the pinned frontend put the Author's Note, for each (position, depth, role, enabled) the UI offers?",
   "measuredBy": "pinned-leg",
   "method": "every case is driven by run-against-pinned.mjs generation-probe.mjs with PROBE_MODE=preset PROBE_AUTHORS_NOTE_CASE=<id> (the same program, arguments and clean state as the compared pinned leg); the observation is the provider REQUEST that drive produced",
-  "pinnedBaseline": "SillyTavern 1.19.0, commit 06bde939fb1e9c4c8d8641d810f0a9165bce127",
+  "pinnedBaseline": "SillyTavern 1.19.0, commit 06bde939fb1e9c4c8d8641d810f0a916b5bce127",
   "context": {
     "keepContext": 4260,
     "note": "the context preset-boundary-search.mjs measured; the legs and this sweep must run at the SAME budget or the note and the trimmer compete for it"

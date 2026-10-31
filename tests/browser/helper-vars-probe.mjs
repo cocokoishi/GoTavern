@@ -8,7 +8,7 @@
 //
 // =====================================================================================================================
 // THE PINNED SEMANTICS, READ FROM SOURCE. Extension N0VI028/JS-Slash-Runner@837a6288135cde61522a9279173b98020f08807e
-// (manifest 4.11.3, read from the installed tree); host page SillyTavern 06bde939fb1e9c4c8d8641d810f0a9165b5ce127.
+// (manifest 4.11.3, read from the installed tree); host page SillyTavern 06bde939fb1e9c4c8d8641d810f0a916b5bce127.
 //
 // SCOPES (src/function/variables.ts:39-54, reader :56-94, writer :128-191):
 //   chat      chat_metadata.variables          :72-74 / :151-155 -> saveMetadataDebounced :153

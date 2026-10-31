@@ -7,7 +7,7 @@
 // FINAL PROVIDER REQUEST, and nothing else.
 //
 // =====================================================================================================================
-// THE PINNED SEMANTICS, READ FROM SOURCE (SillyTavern 1.19.0 @ 06bde939fb1e9c4c8d8641d810f0a9165b5ce127). Every guard
+// THE PINNED SEMANTICS, READ FROM SOURCE (SillyTavern 1.19.0 @ 06bde939fb1e9c4c8d8641d810f0a916b5bce127). Every guard
 // in the comparator cites one of these; `PINNED_FACTS` below is the single place they live so a reader can check the
 // code against the pin instead of against this paragraph.
 //
@@ -61,7 +61,7 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-export const PINNED_BASELINE = 'SillyTavern 1.19.0 @ 06bde939fb1e9c4c8d8641d810f0a9165b5ce127';
+export const PINNED_BASELINE = 'SillyTavern 1.19.0 @ 06bde939fb1e9c4c8d8641d810f0a916b5bce127';
 
 /** Every guard in the comparator names one of these by `id`; the comparator refuses to judge a guard with no fact. */
 export const PINNED_FACTS = {

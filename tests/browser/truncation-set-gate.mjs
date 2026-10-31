@@ -380,7 +380,7 @@ const main = () => {
         schemaVersion: 1,
         surface: 'truncation',
         question: 'Q18: is token truncation the same -- do Node and Go keep and drop the same history turns at the measured context boundary?',
-        pinnedBaseline: fixture?.provenance?.pinnedBaseline ?? 'SillyTavern 1.19.0, commit 06bde939fb1e9c4c8d8641d810f0a9165bce127',
+        pinnedBaseline: fixture?.provenance?.pinnedBaseline ?? 'SillyTavern 1.19.0, commit 06bde939fb1e9c4c8d8641d810f0a916b5bce127',
         method: 'the boundary pair is the one preset-boundary-search.mjs measured by driving run-against-pinned.mjs generation-probe.mjs (the same program and arguments as the compared legs); this gate asks the set question of the four legs the workflow already recorded at that pair, and measures nothing itself',
         // WHAT THIS ARTEFACT DOES NOT ESTABLISH, carried WITH the evidence. The inherited legs drive the
         // `custom` chat-completion source, whose pinned branch is a SERVER-SIDE PASSTHROUGH

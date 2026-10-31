@@ -403,7 +403,7 @@ const artefact = {
     schemaVersion: 1,
     question: 'Does a 酒馆助手 variable change the FINAL provider request through host macro substitution AND survive on disk (fresh page, new process), does an injection land at the index pinned produces, and do both behave identically on GoTavern and pinned Node?',
     generatedBy: 'tests/browser/compare-helper-vars-legs.mjs',
-    subject: 'tavern-helper@837a6288135cde61522a9279173b98020f08807e (manifest 4.11.3), host SillyTavern 06bde939fb1e9c4c8d8641d810f0a9165b5ce127',
+    subject: 'tavern-helper@837a6288135cde61522a9279173b98020f08807e (manifest 4.11.3), host SillyTavern 06bde939fb1e9c4c8d8641d810f0a916b5bce127',
     surface: 'variables + injection (Q10, Q11)',
     verdict: failedGuards.length === 0 && asymmetries.length === 0 ? 'PASS' : 'FAIL',
     guards,

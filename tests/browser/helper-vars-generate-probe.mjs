@@ -18,7 +18,7 @@
 // The UI vehicle is KEPT as the SECOND probe for the `preset` scope only (a preset-scoped variable has no meaning
 // without a preset), and its header says it is the harder vehicle for the narrower purpose.
 //
-// THE MECHANISM, read from pinned source (SillyTavern 06bde939fb1e9c4c8d8641d810f0a9165b5ce127), because this leg
+// THE MECHANISM, read from pinned source (SillyTavern 06bde939fb1e9c4c8d8641d810f0a916b5bce127), because this leg
 // exercises it rather than assuming it:
 //   `TavernHelper.generateRaw({ ordered_prompts: [{role, content}], user_input, max_chat_history: 0 })`
 //     (extension N0VI028/JS-Slash-Runner@837a6288 src/function/generate/index.ts:407, GenerateRawConfig
@@ -439,7 +439,7 @@ try {
     //
     // MEASURED IN 40878005589: no PINNED leg recorded `provenance.serverPid` (the pinned server is booted by
     // run-against-pinned.mjs, not by this probe), so the comparator's `restartIsNewProcess` was
-    // `Boolean(undefined) && â€¦` = FALSE on the pinned subject for every recording -- a structural asymmetry no product
+    // `Boolean(undefined) && …` = FALSE on the pinned subject for every recording -- a structural asymmetry no product
     // behaviour could clear, and half of the reason `survivesRestart` came out true on one subject and false on the
     // other. The probe cannot see that pid (the wrapper does not pass it), so it records the one identity it CAN see:
     // every invocation is served by its own server -- this probe allocates a port and spawns the binary for a GoTavern
@@ -628,7 +628,7 @@ try {
         // got that wrong in the most expensive way available: it ran the SAME `writesVariables` list, so its
         // `chat-alpha` RE-WROTE `hv_preset` before generating and `survivesRestart` came out true because the leg had
         // just written the value, not because the tree carried it. MEASURED in 40878005589: every restart case's
-        // sha256 EQUALS the on-leg's (`chat-alpha` b82308a7â€¦, `chat-beta` 52ba205dâ€¦, â€¦) -- the same drive, twice.
+        // sha256 EQUALS the on-leg's (`chat-alpha` b82308a7…, `chat-beta` 52ba205d…, …) -- the same drive, twice.
         // A guard satisfied by the leg's own write is a green that cannot fail (AGENTS.md 7). So a restart leg is ONE
         // read-only generation whose prompt is the preset's own, and the only value it can resolve is the one the NEW
         // PROCESS reads off the disk the previous process left.
@@ -909,7 +909,7 @@ try {
 // artefact, which is uploaded as a zip. The red was undiagnosable from the run that produced it, which is the same
 // rule-40 mistake as a green `card-opened` nobody could attribute. The per-case mechanism triple and a bounded slice
 // of the body are therefore printed here, so the next verdict is readable without downloading anything.
-const bounded = (value, limit = 400) => (typeof value === 'string' && value.length > limit ? `${value.slice(0, limit)}â€¦(${value.length} chars)` : value ?? null);
+const bounded = (value, limit = 400) => (typeof value === 'string' && value.length > limit ? `${value.slice(0, limit)}…(${value.length} chars)` : value ?? null);
 console.log(JSON.stringify({
     subject: report.subject,
     variant: report.variant,

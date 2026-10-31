@@ -98,6 +98,100 @@ func allWorkflowFiles(root string) ([]string, error) {
 	return out, nil
 }
 
+// allHarnessEvidenceFiles walks tests/browser for the two carriers a mistyped pin can hide in: the harness
+// SOURCES (*.mjs) and the COMMITTED COMPARISON ARTEFACTS (*.json). They are scanned by the same pin gate as the
+// documents and the workflows, because they are evidence carriers: a probe constant names the baseline it was
+// recorded against, and the artefact repeats that name into the committed record.
+//
+// WHY THIS EXISTS (measured 2026-10-31). A hand-transcribed pin in `.github/workflows/worldinfo-slots.yml` cost a
+// diagnosis that only a byte comparison settled. The same transcription error was already in FOUR harness constants
+// and FOUR committed artefacts from earlier lanes:
+//
+//	tests/browser/extensions/helper-vars-kit.mjs          ...a9165b5bce127
+//	tests/browser/helper-vars-*.mjs, helper-variables-*.json
+//	tests/browser/authors-note-sweep.mjs, prepare-authors-note.mjs, truncation-set-gate.mjs,
+//	tests/browser/authors-note-comparison.json, fixtures/authors-note-pinned.json   ...a9165bce127 (39 chars)
+//
+// None of them failed a gate, because the cached predecessor only read markdown and workflow VALUE positions. An
+// artefact naming a commit that does not exist is evidence for a baseline nobody can resolve, and the failure mode
+// is silent: the comparison still passes, because the wrong label is not compared with anything.
+//
+// The scan is prefix-bounded (`06bde…`), not a general 38-44 hex search, because this tree legitimately contains
+// 40-hex content hashes (fixture digests, object ids in prose); a general window produced the phantom-defect shape
+// AGENTS.md rule 18 records. A pin-family typo always keeps the head of the pin, so the prefix is the discriminator
+// and a dropped/repeated digit in the tail is still visible.
+func allHarnessEvidenceFiles(root string) ([]string, error) {
+	base := filepath.Join(root, "tests", "browser")
+	ignored := gitIgnoredDirectories(root)
+	var out []string
+	err := filepath.Walk(base, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			switch info.Name() {
+			case ".git", "node_modules", ".reference", "legs":
+				return filepath.SkipDir
+			}
+			if rel, relErr := filepath.Rel(root, path); relErr == nil && rel != "." && ignored[filepath.ToSlash(rel)] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		name := info.Name()
+		if !strings.HasSuffix(name, ".mjs") && !strings.HasSuffix(name, ".json") {
+			return nil
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		out = append(out, filepath.ToSlash(rel))
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("walk %s: %w", base, err)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+// pinFamilyPattern finds a pin-family object id anywhere in a line, in either spelling (quoted, bare, or embedded in
+// a JSON string). The family is recognised by the pin's own head rather than by length, so a truncated tail is still
+// caught; the value is 8..44 hex characters after the family prefix.
+var pinFamilyPattern = regexp.MustCompile(`(?:^|[^0-9a-f])(06bde[0-9a-f]{2,38})(?:$|[^0-9a-f])`)
+
+// pinFamilyMismatches returns every pin-family string in one carrier that is not the pin. It is deliberately narrower
+// than pinnedCommitMatches: it only reports values that BEGIN with the pin's own leading hex, which is what a
+// transcription error preserves and what no fixture digest or unrelated object id does.
+func pinFamilyMismatches(doc documentFile, pin string) []pinMismatch {
+	head := pin[:5]
+	var out []pinMismatch
+	for i, line := range strings.Split(doc.text, "\n") {
+		for _, m := range pinFamilyPattern.FindAllStringSubmatch(line, -1) {
+			value := m[1]
+			if value == pin || !strings.HasPrefix(value, head) {
+				continue
+			}
+			// A TRUNCATED SPELLING IS NOT A WRONG ONE. A short display prefix (`06bde939`, a cache-key label, a
+			// snapshot name) resolves unambiguously to the pin and is common in this tree; flagging it would be the
+			// phantom-defect shape rule 18 records. A mistyped copy is not a prefix, because the error is in the tail.
+			if strings.HasPrefix(pin, value) {
+				continue
+			}
+			if _, declared := declaredOtherPins[value]; declared {
+				continue
+			}
+			reason := "not the pinned commit and not a declared other pin"
+			if len(value) != len(pin) {
+				reason = fmt.Sprintf("%d characters, but the pin is %d: this is the typo shape -- a digit repeated or dropped in a copy of the pin", len(value), len(pin))
+			}
+			out = append(out, pinMismatch{rel: doc.rel, value: value, line: i + 1, reason: reason})
+		}
+	}
+	return out
+}
+
 // contractDocumentFiles is the closed list the consistency gate reads. It is a list and not a glob
 // because a NEW contract document that is not listed is a document nothing checks: TestDocumentGateCoversTheContract
 // requires every markdown file that names the pin to be in this slice, so adding a document that
@@ -525,6 +619,26 @@ func checkPinnedCommitStrings(root, mode string) (int, error) {
 			findings = append(findings, fmt.Sprintf("%s line %d: %q is %s; the pinned commit is %q (a workflow literal is EXECUTED -- this one feeds a checkout ref and/or a cache key, so a drift here pins work to the wrong tree)", mismatch.rel, mismatch.line, mismatch.value, mismatch.reason, pin))
 		}
 	}
+	// THE HARNESS AND ITS COMMITTED ARTEFACTS ARE EVIDENCE CARRIERS, so the same rule applies to them. A probe
+	// constant is the baseline a recording names, and a comparison artefact REPEATS that name into the record a
+	// reader will cite; a typo there passes every comparison, because the label is compared with nothing. It is the
+	// same class the workflow scan above closes, one carrier further out.
+	harnessFiles, harnessErr := allHarnessEvidenceFiles(root)
+	if harnessErr != nil {
+		return 0, harnessErr
+	}
+	if len(harnessFiles) == 0 {
+		return 0, fmt.Errorf("no harness evidence files found under tests/browser; the pin gate would silently check no harness constant and no committed artefact (rule 19)")
+	}
+	for _, rel := range harnessFiles {
+		doc, readErr := readStrictDocument(root, rel)
+		if readErr != nil {
+			return 0, readErr
+		}
+		for _, mismatch := range pinFamilyMismatches(doc, pin) {
+			findings = append(findings, fmt.Sprintf("%s line %d: %q is %s; the pinned commit is %q (a harness constant or committed artefact names the baseline it was recorded against -- a wrong spelling here cites a commit nobody can resolve)", mismatch.rel, mismatch.line, mismatch.value, mismatch.reason, pin))
+		}
+	}
 	// EVERY markdown file is scanned for a mismatched pin, listed or not. The closed list decides where
 	// the SHAPE of the baseline is asserted and where a corrupt-bytes refusal is fatal on its own; it does
 	// NOT decide where a wrong spelling can hide. The generated inventories (`docs/api-inventory.md` and
@@ -641,6 +755,22 @@ func TestDocumentsConsistencyGateCanGoRed(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), badPin) {
 		t.Fatalf("refused, but the message does not quote the offending literal: %v", err)
+	}
+
+	// THE HARNESS CARRIER IS SEPARATE TOO: a tree whose documents and workflows are all correct but whose probe
+	// constant carries the bad spelling must be refused, because that constant is the baseline the recording names
+	// and the committed artefact repeats. Measured defect this closes: four harness constants and four committed
+	// artefacts carried a transposed pin through a green suite (2026-10-31).
+	tree = t.TempDir()
+	writeScratchTree(t, tree, pin, pin)
+	harnessPath := filepath.Join(tree, filepath.FromSlash(filepath.Join("tests", "browser", "scratch-probe.mjs")))
+	if err := os.WriteFile(harnessPath, []byte("export const PINNED_BASELINE_COMMIT = '"+badPin+"';\n"), 0o644); err != nil {
+		t.Fatalf("plant the harness spelling: %v", err)
+	}
+	if _, err := checkPinnedCommitStrings(tree, treePinnedCommitMode); err == nil {
+		t.Fatalf("the gate ACCEPTED a harness constant carrying %q while every document and workflow was correct: a mistyped baseline in a probe constant is invisible to every comparison, because the label is compared with nothing", badPin)
+	} else if !strings.Contains(err.Error(), "scratch-probe.mjs") || !strings.Contains(err.Error(), badPin) {
+		t.Fatalf("refused, but the message does not name the harness file and quote the literal: %v", err)
 	}
 }
 
@@ -818,6 +948,10 @@ func writeScratchTree(t *testing.T, tree, pin, spelling string) {
 	// One workflow, spelling the pin the way browser-differential.yml does: a bare env literal that is
 	// read into a checkout ref and into a cache key. A gate that scans documents only cannot see it.
 	must(filepath.Join(".github", "workflows", "scratch.yml"), fmt.Sprintf("env:\n  PINNED_BASELINE_COMMIT: %s\n", spelling))
+	// One harness constant, spelling the pin the way tests/browser/extensions/helper-vars-kit.mjs holds it: the label a
+	// committed comparison artefact repeats as its baseline. The harness half of the gate would be vacuous on a scratch
+	// tree that carried no harness file at all (allHarnessEvidenceFiles refuses an empty set).
+	must(filepath.Join("tests", "browser", "scratch-probe.mjs"), fmt.Sprintf("export const PINNED_BASELINE_COMMIT = '%s';\n", spelling))
 	// The pin authority is written LAST and always holds the REAL pin, even when a document is planted
 	// with the bad one: if the planted spelling could reach this file the gate would compare the defect
 	// with itself and agree, which is the shared-expectation failure the differential doctrine forbids.

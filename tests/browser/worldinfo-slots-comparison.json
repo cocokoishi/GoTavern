@@ -3,7 +3,7 @@
   "surface": "worldinfo-slots",
   "question": "Do a `before`, an `after` and an `atDepth` world-info entry reach the FINAL provider request at the positions and in the order pinned produces?",
   "generatedBy": "tests/browser/compare-worldinfo-slots-legs.mjs",
-  "pinnedBaseline": "SillyTavern 1.19.0 @ 06bde939fb1e9c4c8d8641d810f0a9165b5ce127",
+  "pinnedBaseline": "SillyTavern 1.19.0 @ 06bde939fb1e9c4c8d8641d810f0a916b5bce127",
   "pinnedFacts": {
     "F1": {
       "id": "F1",
