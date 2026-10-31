@@ -689,6 +689,12 @@ function pinnedMatch(pinnedRows, surface, method) {
 function goMatches(goRoutes, surface) {
     for (const route of goRoutes) {
         const { pattern } = normalizeGoPattern(route.literal);
+        // THE CATCH-ALL IS NOT A MATCH FOR ANY PATH. `mux.HandleFunc("/", serveStatic)` serves every
+        // unmatched request, so treating it as a prefix would make every surface "reach a registration" and
+        // turn the drift gate green on a surface nothing serves. Measured while demonstrating the gate's
+        // teeth: an appended `fetch('/api/surface-drift-canary-frontend')` was classified implemented with
+        // evidence internal/server/http.go:534, the catch-all. A bare "/" is never evidence.
+        if (pattern === '/' || pattern === '') continue;
         const goVariants = pinnedPathVariants(pattern);
         for (const variant of pinnedPathVariants(surface)) {
             for (const goVariant of goVariants) {
@@ -1022,21 +1028,32 @@ export function writeSurfaceCoverage(root = repoRoot) {
         for (const problem of report.problems) process.stderr.write(`  - ${problem}\n`);
         throw new Error('refusing to write a surface report while the gate has findings');
     }
-    mkdirSync(path.dirname(reportPath), { recursive: true });
-    writeFileSync(reportPath, renderReport(report), 'utf8');
+    // The emit path WRITES UNDER THE ROOT IT DERIVED FROM, not the checkout: `--root` exists for the
+    // mutation self-test and for copying the real tree's bytes into a scratch tree, and an emit that silently
+    // wrote into the real checkout instead would make a mutation run look green against the wrong file.
+    const reportTarget = path.join(root, 'docs', 'generated', 'surface-coverage.json');
+    const documentTarget = path.join(root, 'docs', 'surface-coverage.md');
+    mkdirSync(path.dirname(reportTarget), { recursive: true });
+    writeFileSync(reportTarget, renderReport(report), 'utf8');
     const original = read(root, 'docs/surface-coverage.md');
     const marker = new RegExp(`<!-- BEGIN GENERATED: ${BLOCK_NAME.replaceAll('.', '\\.')} -->([\\s\\S]*?)<!-- END GENERATED: ${BLOCK_NAME.replaceAll('.', '\\.')} -->`);
     if (!marker.test(original)) throw new Error(`docs/surface-coverage.md: missing ${BLOCK_NAME} marker`);
     const newline = original.includes('\r\n') ? '\r\n' : '\n';
     const block = renderBlock(report).replace(/\r?\n/g, newline);
-    writeFileSync(surfaceDocumentPath, original.replace(marker, `<!-- BEGIN GENERATED: ${BLOCK_NAME} -->${block}<!-- END GENERATED: ${BLOCK_NAME} -->`), 'utf8');
+    writeFileSync(documentTarget, original.replace(marker, `<!-- BEGIN GENERATED: ${BLOCK_NAME} -->${block}<!-- END GENERATED: ${BLOCK_NAME} -->`), 'utf8');
     return report;
 }
 
 export function checkSurfaceCoverage(root = repoRoot) {
     const problems = [];
-    const { report } = deriveSurfaceCoverage(root);
-    problems.push(...report.problems);
+    // THE DERIVED FINDINGS MUST PROPAGATE. `deriveSurfaceCoverage` returns them SEPARATELY from the report
+    // (the report is what gets written; findings are not data), and an earlier version read `report.problems`,
+    // which is always empty -- so the CLI and `tools/compat-matrix/check.mjs` would have reported green while
+    // a whole derivation run was red. Found by the copied-tree teeth demo: an appended
+    // `fetch('/api/surface-drift-canary-frontend')` was named by `deriveSurfaceCoverage` and NOT by `--check`.
+    // That is the rule-7 shape ("a green that cannot fail"), and this is the fix.
+    const { report, problems: findings } = deriveSurfaceCoverage(root);
+    problems.push(...findings);
     if (exists(root, 'docs/generated/surface-coverage.json')) {
         const committed = read(root, 'docs/generated/surface-coverage.json');
         if (committed !== renderReport(report)) {
@@ -1168,14 +1185,23 @@ export function selftestSurfaceCoverage(root = repoRoot) {
         expectFinding('an unresolved registration idiom is a named red', 'Go registration site internal/server/selftest.go:');
         restore('internal/server/selftest.go');
         expectGreen('the unresolved idiom removed by file copy -> green again');
+
+        // MUTATION 7: THE CATCH-ALL IS NOT A MATCH. A new frontend request shape plus the server's
+        // `mux.HandleFunc("/", ...)` catch-all must still be RED: treating "/" as a prefix made every
+        // surface "reach a registration" once (measured on the real tree, where /script.js and the remote
+        // tokenizer route were both classified implemented against internal/server/http.go:534).
+        copyIn('internal/server/selftest.go', pristine.get('internal/server/selftest.go')
+            .replace('\tpost("/api/selftest/known", accounts.serveSelftest)', '\tpost("/api/selftest/known", accounts.serveSelftest)\n\tmux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {})'));
+        copyIn('upstream/public/scripts/selftest.js', "export async function f() { return fetch('/api/selftest/known'); }\nexport async function g() { return fetch('/api/selftest/catch-all-canary'); }\n");
+        expectFinding('the catch-all does not make an unclassified frontend surface reach a registration', 'frontend surface /api/selftest/catch-all-canary');
+        restore('internal/server/selftest.go');
+        restore('upstream/public/scripts/selftest.js');
+        expectGreen('the catch-all scenario removed by file copy -> green again');
     } finally {
         rmSync(scratch, { recursive: true, force: true });
     }
     return results;
 }
-// The selftest writes a scratch copy under os.tmpdir(); the REAL classification file is only temporarily
-// rewritten when a scenario needs it, and is restored by the caller. Those two writes are the only ones and
-// they are to the tool's own data file, never to the tree under test.
 function main() {
     const mode = process.argv.includes('--check') ? 'check'
         : process.argv.includes('--emit') ? 'emit'

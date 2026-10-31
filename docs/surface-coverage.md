@@ -32,17 +32,24 @@ frontend surface in the vendored pinned tree (`upstream/public/**/*.js`, in requ
 route with no classification, or a new unregistered pinned redirect alias fails it, and the classification
 data lives in `tools/compat-matrix/surface-classifications.json` (every entry must name a live surface, so an
 exception cannot outlive the behaviour it excused). Teeth are demonstrated by
-`node tools/compat-matrix/surface-coverage.mjs --selftest`: six mutations on COPIED fixture trees, each
-required to produce a named failure and then green after the copy is restored.
+`node tools/compat-matrix/surface-coverage.mjs --selftest`: seven mutations on COPIED fixture trees, each
+required to produce a named failure and then green after the copy is restored. The same demonstration is also
+run on a COPY of this tree's real bytes (`--root=<copied tree>`): a new frontend request shape and a new Go
+route each go red naming themselves, and a file copy restores green. That demonstration found two gate defects
+before this commit landed: the catch-all `mux.HandleFunc("/")` was being treated as a prefix match for every
+surface (so `/script.js` and the absent remote tokenizer route were classified "implemented" against the
+catch-all), and `checkSurfaceCoverage` propagated `report.problems` instead of the derived findings, so the CLI
+and `check.mjs` could report green on a red derivation. Both are fixed and both have their own selftest
+scenario.
 
-<!-- BEGIN GENERATED: surface.drift -->Frontend-derived backend surfaces: **573** classified (implemented 309, intentionally-passthrough 229, not-applicable 17, unsupported-with-reason 18); **0 unknown**. Go registrations: **384** classified (implemented 376, intentionally-passthrough 8, not-applicable 0, unsupported-with-reason 0). Pinned redirect aliases: **13** registered, **37** open gap(s). Inputs: 68 pinned frontend module(s), 229 observed startup request(s), 17 extension-dependency row(s), 342 pinned route(s), 384 Go registration(s) in 176 file(s). A new frontend route/request shape, a new Go route with no classification, or a new unregistered pinned redirect alias fails `node tools/compat-matrix/surface-coverage.mjs --check` (run by `tools/compat-matrix/check.mjs` in `ci.yml#verify`), which is the drift gate rule 43 requires.
+<!-- BEGIN GENERATED: surface.drift -->Frontend-derived backend surfaces: **573** classified (implemented 307, intentionally-passthrough 230, not-applicable 17, unsupported-with-reason 19); **0 unknown**. Go registrations: **384** classified (implemented 376, intentionally-passthrough 8, not-applicable 0, unsupported-with-reason 0). Pinned redirect aliases: **13** registered, **37** open gap(s). Inputs: 68 pinned frontend module(s), 229 observed startup request(s), 17 extension-dependency row(s), 342 pinned route(s), 384 Go registration(s) in 176 file(s). A new frontend route/request shape, a new Go route with no classification, or a new unregistered pinned redirect alias fails `node tools/compat-matrix/surface-coverage.mjs --check` (run by `tools/compat-matrix/check.mjs` in `ci.yml#verify`), which is the drift gate rule 43 requires.
 
 | Classification | Frontend surfaces | Go registrations |
 |---|---|---|
-| implemented | 309 | 376 |
-| intentionally-passthrough | 229 | 8 |
+| implemented | 307 | 376 |
+| intentionally-passthrough | 230 | 8 |
 | not-applicable | 17 | 0 |
-| unsupported-with-reason | 18 | 0 |
+| unsupported-with-reason | 19 | 0 |
 | **unknown** | **0** | **0** |
 
 **Pinned redirect aliases with no Go registration (OPEN gaps, recorded rather than absent):**
