@@ -10,7 +10,18 @@ RUN go mod download
 COPY . .
 # CGO_ENABLED=0 keeps the binary statically linked, so a minimal production
 # machine needs no extra runtime.
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags='-s -w' -o /out/gotavern ./cmd/gotavern
+#
+# BUILD IDENTITY IS PART OF THE CHANNEL. `:latest` is moved only for a tag the
+# canonical classifier calls `stable`, and the alias is only honest if the image
+# is THIS release's build. The version is therefore a build argument that
+# docker.yml fills with the tag on a tag push (and the commit SHA elsewhere), so
+# `docker run --rm <image> version` names the release the release page names.
+# An unset argument keeps the development default, which is what a local
+# `docker build .` gets -- it must never be mistaken for a published tag.
+ARG GOTAVERN_VERSION=0.0.0-dev
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
+      -ldflags="-s -w -X main.version=${GOTAVERN_VERSION}" \
+      -o /out/gotavern ./cmd/gotavern
 
 # Runtime stage: minimal, non-root.
 FROM alpine:3.20

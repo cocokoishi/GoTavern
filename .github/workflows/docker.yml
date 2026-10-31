@@ -13,6 +13,18 @@ name: GoTavern Docker image
 # that were pushed; and a `Verify the pulled reference` step re-checks the registry copy, because
 # "docker push succeeded" is not the same claim as "the registry now serves an image that verifies".
 #
+# BUILD IDENTITY IS CHANNEL BEHAVIOUR. `:latest` is only moved for a tag the canonical classifier
+# (scripts/classify-version-tag.sh) calls `stable`, and the alias is only honest if the image really is
+# THIS release's build. The image is therefore built with `--build-arg GOTAVERN_VERSION=<tag>`, the binary
+# inside the local image is required to report it, and after publishing BOTH `:<tag>` and `:latest` are
+# pulled back and compared by image ID with their reported version -- so the two tags cannot name
+# different builds and neither can silently ship `0.0.0-dev`.
+#
+# A `v*` TAG PUSH ALWAYS RUNS THIS WORKFLOW. The `paths` filter on the push trigger applies to branch
+# pushes; GitHub does not evaluate path filters for tag pushes, so a release tag triggers the image build
+# even when its commit only touched files outside these paths. (Without that, the tag would move
+# releases/latest while Docker `:latest` stayed on an older image.)
+#
 # The assertion that matters is `docker run --rm <image> assets verify`: `tokenizers/` is a directory
 # beside the binary rather than an embedded asset, so a container that forgot it answers tokenizer
 # routes from the pinned fallback while still looking healthy. The smoke test after it exercises a
@@ -71,8 +83,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build the release image
-        run: docker build --tag gotavern:ci .
+      - name: Build the release image stamped with this ref's build identity
+        env:
+          # THE IMAGE MUST BE THE SAME BUILD AS THE ARCHIVES AND THE GITHUB RELEASE, so the version is a
+          # build argument rather than the Dockerfile's `0.0.0-dev` default. On a version tag this is the
+          # tag name itself (`v0.1.0-alpha.9`), which is what makes `gotavern version` INSIDE the image
+          # name the release the `:latest` alias is being moved onto. A dispatch or branch build gets the
+          # commit SHA, so the identity claim is still exact without impersonating a release tag.
+          BUILD_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
+        run: |
+          set -eu
+          docker build --build-arg GOTAVERN_VERSION="${BUILD_VERSION}" --tag gotavern:ci .
+          echo "image build version: ${BUILD_VERSION}"
+
+      - name: Assert the image's binary reports this build's identity
+        # "The image is built from the right commit" is not observable from a docker build exit code. This
+        # step runs the binary IN the image and requires `gotavern version` / `version --json` to report the
+        # tag on a tag push (or the commit SHA elsewhere), so the image cannot silently ship 0.0.0-dev while
+        # the release and the archives name v0.1.0-alpha.9.
+        env:
+          EXPECTED_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
+        shell: bash
+        run: |
+          set -eu
+          docker run --rm gotavern:ci version | tee image-version.txt
+          grep -qF "GoTavern ${EXPECTED_VERSION}" image-version.txt || {
+            echo "::error::the image's binary does not report 'GoTavern ${EXPECTED_VERSION}'; it is not the archive/release build identity" >&2
+            exit 1
+          }
+          docker run --rm gotavern:ci version --json | tee image-version.json
+          grep -qF "\"gotavern_version\": \"${EXPECTED_VERSION}\"" image-version.json || {
+            echo "::error::version --json does not report gotavern_version=${EXPECTED_VERSION}" >&2
+            exit 1
+          }
+          echo "ok: the image's binary reports ${EXPECTED_VERSION}"
 
       - name: Verify embedded assets and the installed tokenizers tree
         run: docker run --rm gotavern:ci assets verify
@@ -227,6 +271,12 @@ jobs:
         # the local image, pulls the pushed reference back and runs the asset assertion inside it, so
         # a digest that lost tokenizers/ cannot be reported as published.
         #
+        # IT ALSO PROVES THE TWO TAGS ARE THE SAME BUILD. On a stable tag the push step moved
+        # `:latest`; here BOTH registry references are pulled back and compared by image ID, and the
+        # version inside each must name the release. That is the assertion behind "Docker :latest points
+        # at the same build as the GitHub release": `:latest` is only ever moved by the stable branch of
+        # the classifier, and this step refuses to report a published image if the two aliases disagree.
+        #
         # `id` is load-bearing: the summary step below asks for THIS step's outcome, because a push
         # that landed in a registry nobody verified is neither "published" nor "nothing happened".
         id: verify
@@ -234,13 +284,40 @@ jobs:
         shell: bash
         env:
           REFERENCE: ${{ steps.push.outputs.reference }}
+          EXPECTED_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
+          MOVE_LATEST: ${{ steps.publishable.outputs.latest }}
         run: |
           set -eu
           docker image rm --force gotavern:ci
           docker pull "${REFERENCE}"
           docker run --rm "${REFERENCE}" assets verify
+          docker run --rm "${REFERENCE}" version --json > pulled-version.json
+          grep -qF "\"gotavern_version\": \"${EXPECTED_VERSION}\"" pulled-version.json || {
+            echo "::error::the PULLED image does not report gotavern_version=${EXPECTED_VERSION}:" >&2
+            cat pulled-version.json >&2
+            exit 1
+          }
           digest="$(docker inspect --format '{{index .RepoDigests 0}}' "${REFERENCE}" 2>/dev/null || true)"
           echo "pulled and verified: ${digest:-<no RepoDigest reported>}"
+          if [ "${MOVE_LATEST}" = "true" ]; then
+            repository="$(printf '%s' "${IMAGE_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+            latest_reference="${repository}:latest"
+            docker pull "${latest_reference}"
+            docker run --rm "${latest_reference}" assets verify
+            docker run --rm "${latest_reference}" version --json > pulled-latest-version.json
+            grep -qF "\"gotavern_version\": \"${EXPECTED_VERSION}\"" pulled-latest-version.json || {
+              echo "::error:::latest does not report gotavern_version=${EXPECTED_VERSION}:" >&2
+              cat pulled-latest-version.json >&2
+              exit 1
+            }
+            tag_id="$(docker image inspect --format '{{.Id}}' "${REFERENCE}")"
+            latest_id="$(docker image inspect --format '{{.Id}}' "${latest_reference}")"
+            if [ "${tag_id}" != "${latest_id}" ]; then
+              echo "::error:::latest (${latest_id}) and ${REFERENCE} (${tag_id}) are DIFFERENT images; the stable alias must point at the same build" >&2
+              exit 1
+            fi
+            echo "ok: ${latest_reference} and ${REFERENCE} are the same image (${tag_id}), both report ${EXPECTED_VERSION}"
+          fi
 
       - name: Report what was published
         # THE ONLY PLACE THIS WORKFLOW CLAIMS AN IMAGE EXISTS.

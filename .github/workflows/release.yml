@@ -8,6 +8,43 @@ name: GoTavern Release
 # Triggered by a version tag or manually. It is deliberately separate from ci.yml: CI answers "is HEAD
 # correct", this answers "may this artefact be published", and conflating them would let a release be
 # cut from a commit whose gates never ran.
+#
+# =====================================================================================================
+# THE CHANNEL IS ONE DECISION, READ FROM ONE PLACE.
+#
+# `v0.1.0-alpha.9` is GoTavern's first STABLE-CHANNEL release although its name keeps the historical
+# alpha spelling. The channel is not derived from the name anywhere in this file: it is asked of
+# `scripts/classify-version-tag.sh`, whose one documented HISTORY_GRADUATION_TAG equality test answers
+# `stable` for exactly that tag (and only that tag -- the widening cases are its own table test, run by
+# ci.yml's `verify` job). `docker.yml` asks the same script the same question for the same tag, so the
+# GitHub Release and the container image cannot disagree about what the tag means.
+#
+# What each channel does, stated so it can be checked against the steps below:
+#   stable      -> `gh release create` WITHOUT --prerelease and WITH --latest, so releases/latest (what a
+#                  bare install.sh / install.ps1 fetch) serves it; the release body is a HUMAN-CURATED
+#                  notes file (assertion below), not generated notes.
+#   prerelease  -> `--prerelease --latest=false`, so releases/latest keeps pointing at the newest stable
+#                  release and a bare installer can never hand a stranger an alpha. Auto-generated notes
+#                  are acceptable there.
+#   anything else -> scripts/classify-version-tag.sh exits 2 and the publish step fails rather than
+#                  guessing a channel for a name it does not understand.
+#
+# A DISPATCH NEVER PUBLISHES. The publish step is gated on the ref being a `refs/tags/v*` TAG, so a
+# `workflow_dispatch` dry run on a candidate SHA builds and qualifies the six archives, then reports that
+# it published nothing. That is the pre-tag rehearsal; the prepublish-qualification job below is what
+# makes it prove the bare-install path too.
+#
+# WHAT EACH OF THE SIX ASSETS GETS, PER PLATFORM -- BUILT is not EXECUTED, and cross-compiled is not
+# runtime-qualified. This matrix feeds the `execution:` field printed by every build, so the claim travels
+# with the evidence instead of living in this comment:
+#   linux/amd64    BUILD + ARCHIVE-INSPECTED here; EXECUTED, launcher-tested and stock-tree-tested by
+#                  release-qualification.yml, release-install-smoke.yml and dropin-qualification.yml.
+#   windows/amd64  BUILD + ARCHIVE-INSPECTED here; EXECUTED, launcher-tested (Start.cmd via cmd.exe) and
+#                  stock-tree-tested on a Windows runner by release-qualification.yml's qualify-windows-amd64
+#                  and dropin-qualification.yml's dropin-windows, against archives those jobs build.
+#   linux/arm64, darwin/amd64, darwin/arm64, windows/arm64
+#                  BUILD + ARCHIVE-INSPECTED only. This repository has no darwin or arm64 runner, so these
+#                  four are NEVER executed and are not labelled runtime-qualified anywhere.
 
 on:
   push:
@@ -18,6 +55,10 @@ on:
         description: 'Commit, branch or tag to build (default: the triggering ref)'
         required: false
         type: string
+      candidate_version:
+        description: 'Release tag this candidate will be published as. Required for a dry-run: the prepublish qualification classifies it and the archives are stamped with it instead of the branch name.'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -25,8 +66,10 @@ permissions:
 jobs:
   # CHECKSUM PROVENANCE: the six canonical names in docs/INSTALLATION.md are what install.sh and
   # install.ps1 request, and both verify against `checksums.txt` in sha256sum format. A duplicated or
-  # renamed asset breaks the installer at the user's machine rather than here, so the names are
-  # derived from one matrix and never typed twice.
+  # renamed asset breaks the installer at the user's machine rather than here, so the names are derived
+  # from this one matrix; scripts/release-assemble-checksums.sh validates the produced set against the
+  # matrix's own shape and is the single command that writes checksums.txt for both the publish job and
+  # the prepublish qualification (so the qualification parses the file the release actually ships).
   build:
     runs-on: ubuntu-latest
     # A build that cannot finish must fail as a job rather than hold a runner for GitHub's six-hour default.
@@ -40,31 +83,37 @@ jobs:
             archive: gotavern-linux-amd64.tar.gz
             kind: tar
             launcher: start.sh
+            execution: 'EXECUTED + LAUNCHER-TESTED + STOCK-TREE-TESTED on linux/amd64 by release-qualification.yml (qualify-linux-amd64, qualify-dropin-linux), release-install-smoke.yml and dropin-qualification.yml'
           - goos: linux
             goarch: arm64
             archive: gotavern-linux-arm64.tar.gz
             kind: tar
             launcher: start.sh
+            execution: 'NOT EXECUTED: no arm64 runner in this repository; BUILT + ARCHIVE-INSPECTED only, NOT runtime-qualified'
           - goos: darwin
             goarch: amd64
             archive: gotavern-darwin-amd64.tar.gz
             kind: tar
             launcher: start.sh
+            execution: 'NOT EXECUTED: no darwin runner in this repository; BUILT + ARCHIVE-INSPECTED only, NOT runtime-qualified'
           - goos: darwin
             goarch: arm64
             archive: gotavern-darwin-arm64.tar.gz
             kind: tar
             launcher: start.sh
+            execution: 'NOT EXECUTED: no darwin runner in this repository; BUILT + ARCHIVE-INSPECTED only, NOT runtime-qualified'
           - goos: windows
             goarch: amd64
             archive: gotavern-windows-amd64.zip
             kind: zip
             launcher: Start.cmd
+            execution: 'EXECUTED + LAUNCHER-TESTED (Start.cmd via cmd.exe) + STOCK-TREE-TESTED on windows/amd64 by release-qualification.yml (qualify-windows-amd64) and dropin-qualification.yml (dropin-windows)'
           - goos: windows
             goarch: arm64
             archive: gotavern-windows-arm64.zip
             kind: zip
             launcher: Start.cmd
+            execution: 'NOT EXECUTED: the Windows runner is x64; BUILT + ARCHIVE-INSPECTED only, NOT runtime-qualified'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -79,7 +128,12 @@ jobs:
           CGO_ENABLED: '0'
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          VERSION: ${{ github.ref_name }}
+          # ON A TAG THIS IS THE TAG; ON A PRE-PUBLISH DRY RUN IT IS THE CANDIDATE TAG. A dispatch whose
+          # checkout ref is a branch would otherwise stamp `main` into the binary and BUILD-INFO.txt, and
+          # the prepublish qualification would be installing an artefact identified as something other
+          # than the tag that will publish it. With this, a dispatch build is byte-for-byte the artefact
+          # the tag build produces.
+          VERSION: ${{ inputs.candidate_version || github.ref_name }}
         shell: bash
         run: |
           set -eu
@@ -93,6 +147,7 @@ jobs:
         env:
           GOOS: ${{ matrix.goos }}
           LAUNCHER: ${{ matrix.launcher }}
+          VERSION: ${{ inputs.candidate_version || github.ref_name }}
         shell: bash
         run: |
           set -eu
@@ -111,9 +166,13 @@ jobs:
           mkdir -p "stage/src"
           cp -R upstream/tokenizers "stage/src/tokenizers"
           {
-            echo "GoTavern release ${GITHUB_REF_NAME}"
+            echo "GoTavern release ${VERSION}"
             echo "target ${GOOS}"
             echo
+            # `./stage/gotavern* version` runs ONLY on the linux/amd64 row: the other five binaries are
+            # cross-compiled and cannot execute on this runner, so their BUILD-INFO.txt names the release
+            # from ${VERSION} and their body line is absent. That is why the archive inspector below
+            # asserts the version STRING in the binary bytes as well.
             ./stage/gotavern* version || true
           } > "stage/BUILD-INFO.txt"
           # The archive must not carry live state: no config.yaml, no data/, no extensions.
@@ -138,14 +197,172 @@ jobs:
           test -s "${ARCHIVE}"
           ls -l "${ARCHIVE}"
 
+      - name: Inspect the archive against the release contract (every one of the six)
+        env:
+          ARCHIVE: ${{ matrix.archive }}
+          KIND: ${{ matrix.kind }}
+          LAUNCHER: ${{ matrix.launcher }}
+          VERSION: ${{ inputs.candidate_version || github.ref_name }}
+          EXECUTION: ${{ matrix.execution }}
+        shell: bash
+        run: |
+          set -eu
+          # ARCHIVE-INSPECTED, for EVERY target, in the run that BUILT it -- before upload, so a broken
+          # archive cannot reach the publish job and cannot reach a user. This is the structural gate for
+          # the four cross-compiled assets (linux-arm64, darwin-amd64, darwin-arm64, windows-arm64) that
+          # no job in this repository executes: without this step "cross-compiled" would mean only that
+          # `tar`/`zip` exited 0. It is NOT a runtime claim, and the execution tier is printed with the
+          # result so the two cannot be confused.
+          root="$(mktemp -d)"
+          trap 'rm -rf "$root"' EXIT
+          if [ "$KIND" = "tar" ]; then
+            tar -xzf "$ARCHIVE" -C "$root"
+            binary="gotavern"
+          else
+            unzip -q "$ARCHIVE" -d "$root"
+            binary="gotavern.exe"
+          fi
+          fail() { echo "::error::${ARCHIVE}: $1" >&2; exit 1; }
+
+          [ -s "$root/$binary" ] || fail "missing or empty binary $binary"
+          [ -s "$root/$LAUNCHER" ] || fail "missing or empty launcher $LAUNCHER"
+          for required in LICENSE THIRD_PARTY_NOTICES.txt BUILD-INFO.txt; do
+            [ -s "$root/$required" ] || fail "missing or empty $required"
+          done
+
+          # THE ARCHIVE MUST NAME THE RELEASE. On a well-formed build this is true because the assembly
+          # step wrote ${VERSION}; the prepublish qualification asserts the same string again over the
+          # downloaded archetypes, so the candidate it installs is the candidate this build names.
+          grep -q "GoTavern release ${VERSION}" "$root/BUILD-INFO.txt" || {
+            echo "::error::${ARCHIVE}: BUILD-INFO.txt does not name the release version '${VERSION}':" >&2
+            cat "$root/BUILD-INFO.txt" >&2
+            exit 1
+          }
+
+          # THE STAMPED VERSION MUST BE IN THE SHIPPED BINARY'S BYTES. `-X main.version=${VERSION}` puts
+          # this string in the data section; a build that dropped the linker flag (or stamped the branch
+          # name) fails here on every target, including the five this runner cannot execute. It is an
+          # identity check on bytes -- ARCHIVE-INSPECTED -- and only linux/amd64's is additionally
+          # confirmed by running the binary (release-qualification.yml / release-install-smoke.yml).
+          grep -qF "$VERSION" "$root/$binary" || fail "the binary does not carry the release version string '${VERSION}'; -X main.version was not applied"
+
+          # src/tokenizers/ IS DISK STATE THE RUNTIME READS, not an embedded asset. An empty or missing tree
+          # makes every tokenizer route answer the pinned guesstimate while still returning HTTP 200, which
+          # is how the installer once shipped without it and every prompt was counted ~25% high.
+          [ -d "$root/src/tokenizers" ] || fail "missing src/tokenizers/"
+          files="$(find "$root/src/tokenizers" -type f | wc -l)"
+          empties="$(find "$root/src/tokenizers" -type f -empty | wc -l)"
+          [ "$files" -gt 0 ] || fail "src/tokenizers/ holds no files"
+          [ "$empties" -eq 0 ] || fail "src/tokenizers/ holds ${empties} empty file(s)"
+          model_bytes="$(stat -c%s "$root/src/tokenizers/llama.model" 2>/dev/null || echo 0)"
+          [ "$model_bytes" -gt 100000 ] || fail "src/tokenizers/llama.model is missing or implausibly small"
+          # The duplicate-layout trap: one archive must not ship both layouts, because the runtime would
+          # then be free to read a stale tree.
+          [ ! -e "$root/tokenizers" ] || fail "carries a duplicate tokenizers/ tree at the archive root"
+
+          # NO RUNTIME STATE. config.yaml and data/ are also asserted on the staging tree; extensions/,
+          # certs/, _storage/, cookie-secret.txt and secrets.json are the same class, and a packaging
+          # change that started copying a working directory would carry them.
+          for forbidden in config.yaml data extensions certs _storage cookie-secret.txt secrets.json; do
+            [ ! -e "$root/$forbidden" ] || fail "the archive carries $forbidden, which must never ship"
+          done
+
+          # MODES ARE A TAR CONTRACT ONLY: a zip carries Unix permission bits as metadata and a zip opened
+          # on Windows has no executable bit at all, so asserting -x on the Windows payload would encode
+          # this runner's behaviour rather than the contract.
+          if [ "$KIND" = "tar" ]; then
+            [ -x "$root/$binary" ] || fail "$binary is not executable"
+            [ -x "$root/$LAUNCHER" ] || fail "$LAUNCHER is not executable"
+          fi
+
+          echo "ok: ${ARCHIVE} is BUILT + ARCHIVE-INSPECTED (${files} tokenizer files, ${model_bytes} B llama.model)"
+          echo "    execution tier: ${EXECUTION}"
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.archive }}
           path: ${{ matrix.archive }}
           if-no-files-found: error
 
-  publish:
+  # ===================================================================================================
+  # PRE-PUBLISH QUALIFICATION: THE BARE-INSTALL PATH, BEFORE THE TAG EXISTS.
+  #
+  # `install.sh` / `install.ps1` with no version argument fetch `releases/latest/download/...`, and that
+  # URL only exists AFTER the release is published. So the ONE release-path claim no post-publication job
+  # can make is "the candidate, as the six archives this run just built plus their own checksums.txt,
+  # resolves and installs through the BARE installer" -- release-install-smoke.yml can only judge a
+  # release that already exists, and scripts/qualify-install.sh proves the parsing over a synthetic
+  # two-archive mirror.
+  #
+  # This job closes that: it feeds THE JUST-BUILT six archives and THE publish job's own checksums.txt
+  # into both installers' latest resolver over a loopback mirror (GOTAVERN_RELEASES_BASE_URL), after
+  # asking the canonical classifier whether the candidate tag is `stable`. It does not pretend GitHub's
+  # `latest` exists: the mirror's `<base>/latest/download/` is an explicitly-labelled stand-in for the
+  # pointer the tag will create, and the script says so in its log.
+  #
+  # IT RUNS ON A TAG PUSH AS WELL, AND THE PUBLISH JOB NEEDS IT: a tag whose bare-install path does not
+  # work cannot become `latest`. On a dispatch without `candidate_version` there is no tag to classify, so
+  # the job is skipped -- and the dispatch cannot publish anyway.
+  # ===================================================================================================
+  prepublish-qualification:
     needs: build
+    if: ${{ github.ref_type == 'tag' || inputs.candidate_version != '' }}
+    runs-on: ubuntu-latest
+    # Sized from the work: no compiler on the critical path (the archives already exist), two loopback
+    # installer runs, one boot and a couple of ~60 MB downloads from the local mirror.
+    timeout-minutes: 20
+    env:
+      # ON A TAG THIS IS THE TAG; ON A DRY RUN IT IS THE CANDIDATE INPUT. Never inferred from the branch.
+      CANDIDATE_TAG: ${{ inputs.candidate_version || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Assemble checksums.txt exactly as the publish job does
+        # THE SAME SCRIPT THE PUBLISH JOB CALLS. A second inline `sha256sum` here would qualify a file the
+        # release does not ship, which is the whole failure this job exists to rule out.
+        run: bash scripts/release-assemble-checksums.sh dist
+
+      - name: Feed the candidate's own six archives and checksums into the bare installers
+        # scripts/qualify-prepublish.sh asserts, in order: the canonical classifier calls CANDIDATE_TAG
+        # stable; the six archives and every checksum entry are the release's own; BUILD-INFO and the
+        # binary bytes name the candidate; the mirror serves <base>/<tag>/ and the labelled
+        # <base>/latest/download/ stand-in; `install.sh --dir` and `install.ps1 -InstallDir` with NO version
+        # resolve that stand-in, verify the checksum, install, and (for linux) the installed binary is
+        # byte-identical to the archive's and reports the candidate tag and boots; a tampered archive is
+        # refused. Read its header for the exact list and for what it does NOT prove.
+        run: bash scripts/qualify-prepublish.sh dist "${CANDIDATE_TAG}"
+
+      - name: Write the summary
+        if: always()
+        run: |
+          set -eu
+          {
+            echo "## Pre-publish channel qualification"
+            echo
+            echo "| fact | value |"
+            echo "|---|---|"
+            echo "| candidate tag | \`${CANDIDATE_TAG}\` |"
+            echo "| channel (\`scripts/classify-version-tag.sh\`) | \`$(bash scripts/classify-version-tag.sh "${CANDIDATE_TAG}")\` |"
+            echo "| bare \`install.sh\` | \`--dir\`, NO \`--version\` (releases/latest form) |"
+            echo "| bare \`install.ps1\` | \`-InstallDir\`, NO \`-Version\` (releases/latest form) |"
+            echo "| archives | the six canonical assets this run built, through their own \`checksums.txt\` entries |"
+            echo
+            echo "GitHub's \`releases/latest\` does not exist for \`${CANDIDATE_TAG}\` yet and is NOT consulted in"
+            echo "this run: the loopback mirror's \`<base>/latest/download/\` is a labelled stand-in for the"
+            echo "pointer the stable channel will create, populated only because the canonical classifier calls"
+            echo "this tag \`stable\`. The post-publication positive direction (latest really serves these bytes)"
+            echo "is asserted by \`GoTavern published-release install smoke\` after the tag is published."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: [build, prepublish-qualification]
     runs-on: ubuntu-latest
     # Publishing is a few API calls; anything longer is a wedged runner.
     timeout-minutes: 15
@@ -165,36 +382,19 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Generate checksums.txt in sha256sum format
-        working-directory: dist
-        run: |
-          set -eu
-          # install.sh and install.ps1 both parse "<hash>  <asset>" from this file, so the format is
-          # part of the installer contract rather than a convenience.
-          #
-          # THE FILENAME MUST NOT CARRY A "./" PREFIX. `sha256sum ./*.tar.gz` writes
-          # "./gotavern-linux-amd64.tar.gz", and install.sh matches with
-          # `awk '$2 == asset || $2 == "*" asset'`, so the prefixed form parses to no entry and the
-          # installer aborts on the user's machine with "checksums.txt does not contain an entry".
-          # Passing bare names keeps $2 equal to the asset name the installer requests.
-          sha256sum *.tar.gz *.zip > checksums.txt
-          cat checksums.txt
-
-      - name: Fail if a canonical asset name is missing
-        working-directory: dist
-        run: |
-          set -eu
-          for asset in \
-            gotavern-linux-amd64.tar.gz gotavern-linux-arm64.tar.gz \
-            gotavern-darwin-amd64.tar.gz gotavern-darwin-arm64.tar.gz \
-            gotavern-windows-amd64.zip gotavern-windows-arm64.zip
-          do
-            test -s "$asset" || { echo "missing canonical asset: $asset" >&2; exit 1; }
-            grep -q " $asset$" checksums.txt || { echo "checksums.txt has no entry for $asset" >&2; exit 1; }
-          done
+      - name: Generate checksums.txt in sha256sum format and refuse a non-canonical asset set
+        # ONE command, shared with the prepublish qualification, so both hand the installers the same file.
+        # The script asserts the six canonical archives are present, that no seventh/spelled-wrong archive
+        # slipped in, that every digest recomputes, and that the installer's own parser resolves exactly
+        # one entry per name. The filename must NOT carry a "./" prefix: install.sh matches
+        # `awk '$2 == asset ...'`, so `sha256sum ./*.tar.gz` would write "./name" and parse to no entry.
+        run: bash scripts/release-assemble-checksums.sh dist
 
       - name: Publish the release
-        if: startsWith(github.ref, 'refs/tags/v')
+        # A DISPATCH NEVER PUBLISHES. The workflow can be run manually on ANY candidate SHA; only a push
+        # of a version TAG can create a release, and this condition is that gate (not a step that could be
+        # reordered). The channel below decides prerelease/latest, but it never decides WHETHER to publish.
+        if: github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -219,9 +419,34 @@ jobs:
               --latest=false \
               dist/*.tar.gz dist/*.zip dist/checksums.txt
           else
+            # THE STABLE CHANNEL PUBLISHES A HUMAN-CURATED BODY, AND REFUSES TO FALL BACK TO GENERATED
+            # NOTES. `--generate-notes` reads commit titles; for GoTavern's first official release the body
+            # is a claim document whose run ids and measurements must be the candidate run's (see the draft
+            # at docs/release-notes-v0.1.0-alpha.9.md), and auto-generated notes would publish placeholders'
+            # *absence* as if it were the evidence. So: a stable release REQUIRES one of the two
+            # conventional curated paths, and refuses to proceed while a measurement placeholder remains.
+            notes_file=''
+            for candidate in "docs/releases/${GITHUB_REF_NAME}.md" "docs/release-notes-${GITHUB_REF_NAME}.md"; do
+              if [ -s "$candidate" ]; then notes_file="$candidate"; break; fi
+            done
+            if [ -z "${notes_file}" ]; then
+              echo "::error::a STABLE release requires a human-curated notes file at docs/releases/${GITHUB_REF_NAME}.md or docs/release-notes-${GITHUB_REF_NAME}.md; refusing to publish generated notes for the stable channel." >&2
+              exit 1
+            fi
+            if grep -nE '<[A-Z][A-Z0-9_-]*:' "${notes_file}" > notes-placeholders.txt; then
+              echo "::error::${notes_file} still contains unfilled measurement placeholders; the release notes of a stable channel release must carry the candidate run's measured values, not the draft's placeholders:" >&2
+              cat notes-placeholders.txt >&2
+              exit 1
+            fi
+            echo "release body: ${notes_file} (human-curated, no placeholders remaining)"
+            # `--latest` is passed EXPLICITLY on the stable path. It is GitHub's default for a release
+            # created without --prerelease, but the channel is the product decision this whole workflow is
+            # about: it is asserted here so a future edit cannot move `latest` by accident, and so the log
+            # names the decision rather than inheriting it.
             gh release create "${GITHUB_REF_NAME}" \
               --repo "${GITHUB_REPOSITORY}" \
               --title "GoTavern ${GITHUB_REF_NAME}" \
-              --generate-notes \
+              --notes-file "${notes_file}" \
+              --latest \
               dist/*.tar.gz dist/*.zip dist/checksums.txt
           fi
