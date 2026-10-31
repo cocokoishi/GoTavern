@@ -48,7 +48,13 @@ type dataSafetyHarness struct {
 
 func newDataSafetyHarness(t *testing.T) *dataSafetyHarness {
 	t.Helper()
-	dataRoot := t.TempDir()
+	return newDataSafetyHarnessAt(t, t.TempDir())
+}
+
+// newDataSafetyHarnessAt builds the authenticated in-process handler against a caller-chosen data
+// root, so a probe can place the tree under a root it also walks (path-traversal containment tests).
+func newDataSafetyHarnessAt(t *testing.T, dataRoot string) *dataSafetyHarness {
+	t.Helper()
 	installRoot := t.TempDir()
 	accountJSON, err := marshalNodeJSON(struct {
 		Handle   string `json:"handle"`
