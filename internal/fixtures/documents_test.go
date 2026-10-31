@@ -560,6 +560,10 @@ var declaredOtherPins = map[string]string{
 	// whose claims were made on that measurement, and deleting a declared pin another document cites makes the gate
 	// red on a document that is correct.
 	"f19ac8b76cfa7d209bac1b3de8270ac0999a79d1": "Beta 1 paired-benchmark measurement (GoTavern smoke metrics run 41207221610) — README Performance, docs/assets/benchmark.svg.provenance.md and scorecard Q22. The release commit adds documentation only, so the runtime code is this tree's",
+	// THE BETA 1 RELEASE COMMIT. HANDOFF.md's current checkpoint names the SHA the release was cut from, because
+	// a checkpoint that cannot name its release cannot be used to check one. Declared by value AND named for the
+	// reason the previous release-SHA entries carry: an allowlist entry with no reason is where a mistyped pin hides.
+	"ffa6e5494fdcd1061f8da80a8f5a561c94bac26e": "v0.1.0-beta.1 release commit - HANDOFF.md current checkpoint (and the SHA every required release gate ran at)",
 	// A RELEASE'S OWN COMMIT. The HANDOFF checkpoint must name the SHA a release was cut from, or the
 	// document cannot be used to check the release. That SHA is an IDENTITY, not a baseline claim, and
 	// it is not the SillyTavern pin. Declared by value AND named for the same reason as the entry above:
