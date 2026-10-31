@@ -547,10 +547,12 @@ var declaredOtherPins = map[string]string{
 	"798bcd823dfd04227a79b487e1cf29e6de9aaece": "pinned SillyTavern-Tokenizers data commit — docs/tokenizer-parity-plan.md",
 	"d00d99b87fc2fbd1ffd218c5ce160d07f27c47ef": "release-qualification.yml BASELINE_REF default — the commit that added the release workflow, not the SillyTavern pin",
 	// The commit a PAIRED BENCHMARK measured. A provenance record must name the exact tree its numbers
-	// came from, and that tree is a lane commit rather than the pinned upstream, so the value is a
-	// MEASUREMENT ANCHOR and not a baseline claim. Declared by value AND named, because an allowlist
-	// entry with no reason is exactly where a mistyped pin would hide.
-	"a8d594501bf1223511f77acefa0cc5f2715a9211": "commit measured by the paired benchmark run 40898332226 — docs/assets/benchmark.svg.provenance.md and scorecard Q22. Replaces a3c2f5340, whose commit the 2026-10-29 history rewrite orphaned: the figure is regenerated from a run this tree can ancestry-check",
+	// came from, and that tree is a commit on this repository rather than the pinned upstream, so the value
+	// is a MEASUREMENT ANCHOR and not a baseline claim. Declared by value AND named, because an allowlist
+	// entry with no reason is exactly where a mistyped pin would hide. The entry moves with the figure: the
+	// 2026-10-31 redraw was regenerated from run 41171857944, which measured 91e1e15, and the previous
+	// anchor (a8d5945, run 40898332226) is no longer cited by any document, so it is not kept here.
+	"91e1e15283cdfe90ca9fd8c0fc40c794612c6b43": "commit measured by the paired benchmark run 41171857944 — docs/assets/benchmark.svg.provenance.md and scorecard Q22. The v0.1.0-alpha.9 tag adds documentation on top of this commit, so the release quotes these medians",
 	// A RELEASE'S OWN COMMIT. The HANDOFF checkpoint must name the SHA a release was cut from, or the
 	// document cannot be used to check the release. That SHA is an IDENTITY, not a baseline claim, and
 	// it is not the SillyTavern pin. Declared by value AND named for the same reason as the entry above:

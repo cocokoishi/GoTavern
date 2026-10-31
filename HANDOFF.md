@@ -82,6 +82,23 @@ Compatibility matrix after the two re-derivations: **PASS 3 / PARTIAL 18 / FAIL 
 | GoTavern release qualification (tag) | `41184498026` | success |
 | GoTavern published-release install smoke (`releases/latest`, real TLS) | `41185229172` | success; explicit `--version` install over TLS, then a bare install with NO version argument (`release: latest stable`, `Checksum verified.`, installed binary reports `v0.1.0-alpha.9`), boot to `/version`, real-tokenizer routes, and the `releases/latest` API assertion (`v0.1.0-alpha.9`, `prerelease=false`) |
 
+### Post-release documentation, and the redrawn benchmark figure
+
+The README figure (`docs/assets/benchmark.svg`) was **redrawn on 2026-10-31** and regenerated from this release's
+own recording, `GoTavern smoke metrics` run `41171857944` (commit `91e1e15`): startup 9,941 ms -> 32 ms (310.7x),
+RSS 1,199 MB -> 37.5 MB (31.96x), `/version` 28.77 ms -> 0.316 ms (91.02x), `/` 10.22 ms -> 1.52 ms (6.74x). The
+2026-10-27 sketch style was replaced with a precision-instrument layout; the honesty properties survive it
+(zero-based axis per metric with the maximum printed, raw value plus the derived ratio, a stated 5 px visibility
+floor, per-metric verdict words, `role="img"`/`<title>`/`<desc>`, no external references, deterministic bytes).
+`tools/benchmark-svg.mjs` now also REFUSES to render without `--commit`: the previous revision hard-coded a stale
+short SHA into its footer, which looked like provenance while naming a tree the figure had not measured. Provenance
+and citations were updated in the same change (`docs/assets/benchmark.svg.provenance.md`, scorecard Q22,
+`internal/fixtures` declared measurement anchor).
+
+Post-release documentation commits (they do not move the tag or the release assets): `48f09f4` live bare-install
+assertion, `887848a` assertion correction, `c0e1940` release record + published asset sizes, `d5464eb` regenerated
+facts for the new tag, and this figure/record change.
+
 ### Accepted risks and open items, stated rather than smoothed over
 
 1. **Private offline qualification is NOT the full item.** The maintainer's real long-lived tree and real preset

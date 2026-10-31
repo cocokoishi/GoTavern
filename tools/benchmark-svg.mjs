@@ -1,26 +1,36 @@
 #!/usr/bin/env node
 // Generate docs/assets/benchmark.svg from the RECORDED Q22 paired-benchmark artefact.
 //
-// THIS IS A GENERATOR, NOT A PROBE. It computes nothing about the product: every number it draws is read out of
-// the JSON artefact that the benchmark workflow uploaded, and the script refuses to render when the artefact it is
+// THIS IS A GENERATOR, NOT A PROBE. It computes nothing about the product: every number it draws is read out of the
+// JSON artefact that the benchmark workflow uploaded, and the script refuses to render when the artefact it is
 // pointed at does not carry the shape it expects. A generator that could invent a value would defeat the point of
 // publishing one, so the values are DATA and the layout is the only thing this file decides.
 //
 // Usage:
-//   node tools/benchmark-svg.mjs --report <q22-paired-benchmark.json> --out docs/assets/benchmark.svg
+//   node tools/benchmark-svg.mjs --report <q22-paired-benchmark.json> --out docs/assets/benchmark.svg \
+//       --run-id 41171857944 --commit 91e1e15
 //
 // WHY THE CHART IS SHAPED THIS WAY (release constraint: never hide a raw value behind a ratio, never truncate an
 // axis to exaggerate):
-//   * Every bar is drawn in a panel whose axis starts at ZERO and whose maximum is that METRIC'S OWN maximum, and
-//     the axis maximum is printed on the panel. A 235x difference cannot share a linear axis with 0.43 ms without
-//     making the small bar invisible, so each metric gets its own zero-based panel rather than one shared axis.
+//   * Every bar is drawn in a row whose axis starts at ZERO and whose maximum is a ROUNDED UP "nice" number that is
+//     printed on the row. A 310x difference cannot share a linear axis with 0.32 ms without making the small bar
+//     invisible, so each metric gets its own zero-based axis rather than one shared axis.
 //   * Both the raw value AND the ratio are printed. The ratio is labelled as derived from the printed values, and
 //     it is computed here from the raw numbers rather than typed in, so a reader can check it with the values shown.
-//   * RSS and startup use DECIMAL megabytes (1e6 bytes), stated on the panel, because that is the unit the byte
+//   * RSS and startup use DECIMAL megabytes (1e6 bytes), stated on the row, because that is the unit the byte
 //     counts round to; the exact byte count is printed too, so no reader has to trust the rounding.
-//   * "Lower is better" is stated once, and the direction is not re-encoded in colour.
+//   * "Lower is better" is stated once, and the direction is not re-encoded in colour. The verdict word is
+//     PER METRIC: "faster" on the timing rows, "lighter" on memory, because a resident-set size is not fast or slow.
 //   * The figure carries its own background and uses colours that hold contrast on both GitHub themes; it has no
 //     external references, no fonts it does not ship as a generic family, and no JavaScript.
+//
+// THE VISUAL LANGUAGE IS PRECISION-INSTRUMENT RATHER THAN SKETCH. The earlier revision imitated a whiteboard marker
+// (wobbly rectangles, hand-drawn frames, sketch ticks). It read as deliberate but it kept fighting its own data:
+// wobble next to a 310x difference invites "hand-drawn therefore approximate", and the frames competed with the
+// bars. This revision draws the opposite: hairline rules, tabular figures, a violet-to-cyan gradient that exists
+// only on the verdicts that are derived numbers, and a dark page lit by two soft auroras. Nothing is decorative
+// that does not carry information: every rule separates something, every colour marks a subject, every glow marks
+// the product's bar.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -36,11 +46,24 @@ const reportPath = argumentValue('--report');
 const outPath = argumentValue('--out');
 // THE RUN ID IS NOT IN THE ARTEFACT. It is workflow context, so it is passed in explicitly rather than derived,
 // and it is REQUIRED: a figure that names no run is a number with no provenance, which the release constraint
-// forbids. This is the one value this script accepts on trust from its caller, and the caller is a release step
-// that can (and does) verify it against the run that produced the file.
+// forbids. This is one of the two values this script accepts on trust from its caller, and the caller is a release
+// step that can (and does) verify it against the run that produced the file.
 const runId = argumentValue('--run-id');
-if (!reportPath || !outPath || !runId) {
-    console.error('usage: node tools/benchmark-svg.mjs --report <q22-paired-benchmark.json> --out <benchmark.svg> --run-id <actions run id>');
+// THE MEASURED COMMIT IS ALSO NOT IN THE ARTEFACT (the artefact records the runner, not a git revision), so the
+// caller names it too. It is printed, never inferred, and the previous revision of this file got it wrong by
+// HARD-CODING a stale short SHA into the footer -- a number that looked like provenance while naming a tree the
+// figure had not measured. Requiring it and refusing to render without it is the fix.
+const commit = argumentValue('--commit');
+if (!reportPath || !outPath || !runId || !commit) {
+    console.error('usage: node tools/benchmark-svg.mjs --report <q22-paired-benchmark.json> --out <benchmark.svg> --run-id <actions run id> --commit <measured commit>');
+    process.exit(2);
+}
+if (!/^[0-9]+$/.test(runId)) {
+    console.error(`--run-id must be a GitHub Actions run id, got ${runId}`);
+    process.exit(2);
+}
+if (!/^[0-9a-f]{7,40}$/.test(commit)) {
+    console.error(`--commit must be a hexadecimal commit id of 7-40 characters, got ${commit}`);
     process.exit(2);
 }
 
@@ -61,109 +84,108 @@ const rounds = requireField(report, 'rounds', 'report');
 const requestsPerRound = requireField(report, 'requestsPerRound', 'report');
 
 const BYTES_PER_MEGABYTE = 1e6;
-
-// THE VERDICT WORD IS PER-METRIC DATA, NOT A GLOBAL BANNER, AND THAT IS A CORRECTNESS DECISION RATHER THAN A STYLE
-// ONE. "Faster" is true of the three TIMING panels and FALSE of memory: a resident-set size is not fast or slow, it
-// is large or small. Printing "faster" over a memory bar would put an inaccurate claim on a release surface, which is
-// the single thing this project does not do. So timing panels say "faster", the RSS panel says "lighter", and the
-// headline carries the punch across all four without misdescribing any of them.
 const VERDICT_FASTER = 'faster';
 const VERDICT_LIGHTER = 'lighter';
+
+const groupedInteger = value => Math.round(value).toLocaleString('en-US');
+
+// THE AXIS FORMATTER IS NOT THE VALUE FORMATTER. A value keeps its measured precision (0.316 ms); a tick is a
+// SCALE label, and "15.00 ms" on a 0..30 axis implies a precision the tick does not have. Ticks are rounded to one
+// decimal at most and lose a trailing .0, so the axis reads 0 / 15 ms / 30 ms while the bar still prints 28.77 ms.
+function formatAxisTick(value, unit) {
+    const rounded = Math.round(value * 10) / 10;
+    const body = Number.isInteger(rounded) ? groupedInteger(rounded) : rounded.toFixed(1);
+    return `${body} ${unit}`;
+}
 
 const metrics = [
     {
         key: 'startup',
+        index: '01',
         label: 'Cold start to first /version 200',
         unit: 'ms',
         verdict: VERDICT_FASTER,
         pinnedValue: requireField(pinned, 'bootMsMedian', 'summary.pinned'),
         goValue: requireField(gotavern, 'bootMsMedian', 'summary.gotavern'),
-        format: value => `${value.toLocaleString('en-US')} ms`,
-        note: 'median of 3 rounds; empty data root, no config.yaml',
+        format: value => `${groupedInteger(value)} ms`,
+        subLabel: value => `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })} ms`,
+        note: ['median of 3 alternating rounds;', 'empty data root, no config.yaml'],
     },
     {
         key: 'rss',
+        index: '02',
         label: 'Steady-state memory (RSS)',
         unit: 'MB',
         verdict: VERDICT_LIGHTER,
         pinnedValue: requireField(pinned, 'rssBytesMedian', 'summary.pinned') / BYTES_PER_MEGABYTE,
         goValue: requireField(gotavern, 'rssBytesMedian', 'summary.gotavern') / BYTES_PER_MEGABYTE,
-        format: value => `${value.toFixed(1)} MB`,
+        format: value => (value >= 100 ? `${groupedInteger(value)} MB` : `${value.toFixed(1)} MB`),
+        subLabel: value => (value >= 100 ? `${groupedInteger(value)} MB` : `${value.toFixed(1)} MB`),
         exact: {
             pinned: requireField(pinned, 'rssBytesMedian', 'summary.pinned'),
             go: requireField(gotavern, 'rssBytesMedian', 'summary.gotavern'),
         },
-        note: 'VmRSS from /proc, sampled after readiness and after 60 requests; median of 6',
+        note: ['VmRSS from /proc, after readiness', 'and 30 requests; median of 6 samples'],
     },
     {
         key: 'version',
+        index: '03',
         label: 'GET /version latency',
         unit: 'ms',
         verdict: VERDICT_FASTER,
         pinnedValue: requireField(pinned, 'versionMedianMs', 'summary.pinned'),
         goValue: requireField(gotavern, 'versionMedianMs', 'summary.gotavern'),
         format: value => `${value.toFixed(value < 10 ? 3 : 2)} ms`,
-        // MEASURED, NOT PARAPHRASED FROM ANOTHER HARNESS. `timeRequests` issues `count` SEQUENTIAL requests with
-        // Node's global fetch (undici) and rejects any non-2xx. It does not configure an Agent, so reuse comes from
-        // undici's default pooling rather than from a stated keep-alive policy -- and the smoke-metrics workflow's
-        // "keep-alive connection" wording describes a DIFFERENT harness, so it is not borrowed here.
-        note: `median of ${pinned.samples?.version ?? 90} sequential requests, same client both subjects`,
+        subLabel: value => `${value.toFixed(value < 10 ? 3 : 2)} ms`,
+        note: [`median of ${pinned.samples?.version ?? 90} sequential requests,`, 'same client for both subjects'],
     },
     {
         key: 'root',
+        index: '04',
         label: 'GET / latency (HTML shell)',
         unit: 'ms',
         verdict: VERDICT_FASTER,
         pinnedValue: requireField(pinned, 'rootMedianMs', 'summary.pinned'),
         goValue: requireField(gotavern, 'rootMedianMs', 'summary.gotavern'),
         format: value => `${value.toFixed(2)} ms`,
-        note: `median of ${pinned.samples?.root ?? 90} sequential requests, body fully consumed`,
+        subLabel: value => `${value.toFixed(2)} ms`,
+        note: [`median of ${pinned.samples?.root ?? 90} sequential requests,`, 'body fully consumed'],
     },
 ];
 
 // ---------------------------------------------------------------------------------------------------------------
-// LAYOUT. One panel per metric, stacked vertically. Each panel is self-contained: its own zero-based axis, its own
-// axis maximum printed, both raw values, and the ratio derived from those two values.
+// GEOMETRY. All of it is derived from what is drawn; nothing is positioned by magic numbers that the content then
+// silently overflows. The row height is the tallest row (a pinned bar, a GoTavern bar, the axis and its labels).
 // ---------------------------------------------------------------------------------------------------------------
+const WIDTH = 1000;
+const MARGIN = 64;
+const CONTENT_RIGHT = WIDTH - MARGIN;
+const ROW_START = 320;
+const ROW_HEIGHT = 176;
+const BAR_X = 336;
+const BAR_WIDTH = 420;
+const BAR_HEIGHT = 13;
+const BAR_RADIUS = 6.5;
+// THE MINIMUM VISIBLE WIDTH IS A LEGIBILITY FLOOR FOR THE RECTANGLE ONLY. At 32 ms against a 10,000 ms axis the
+// honest fraction is 0.32%, which renders as a sub-pixel line -- the figure would obey "never truncate" while
+// failing "shows both subjects". The floor widens the RECTANGLE; it never changes the printed value, the axis,
+// or the ratio, all of which are computed from the raw numbers. A reader comparing bar LENGTHS with the floor in
+// play would understate the difference, which is the safe direction to be wrong in. The floor is stated in the
+// figure's own footer so the reader is not left to discover it by measuring.
+const MIN_VISIBLE_BAR = 5;
 
-const WIDTH = 900;
-const MARGIN_X = 30;
-const PANEL_LABEL_WIDTH = 232;
-const CHART_WIDTH = WIDTH - MARGIN_X * 2 - PANEL_LABEL_WIDTH;
-// THE HEIGHT IS DERIVED FROM WHAT IS DRAWN, not chosen. An early version hard-coded 96 and the note text overflowed
-// the panel and ran underneath the bars -- which the XML validity check could not see and only a render did.
-// THE PANEL HEIGHT IS DERIVED FROM THE TALLEST PANEL, not chosen. The worst case is the memory panel, which carries
-// three label lines: 18 (metric name) + 3x16 (name/note/exact) for the bar offset, then 2x(22+13) for the two bar
-// rows, then 6 for the axis and 15 for the axis labels = 157, plus 12 of bottom padding. An earlier fixed 132 was
-// 25 px short and the RSS panel's axis labels would have been clipped by the panel below it.
-const PANEL_HEIGHT = 169;
-const PANEL_GAP = 30;
-const HEADER_HEIGHT = 168;
-const FOOTER_HEIGHT = 128;
-const BAR_HEIGHT = 22;
-
-// ---------------------------------------------------------------------------------------------------------------
-// THE PALETTE. #66ccff is the requested identity colour and is used for the figure's frame, the GoTavern bars, the
-// headline accent and the sketch hatching. It is a LIGHT colour, so it works as an INK on a dark surface and it must
-// never be used for small text on a dark ink.
-//
-// THE BACKGROUND IS A DEEP NAVY PAGE RATHER THAN PAPER. A whiteboard look is the obvious reading of "hand-drawn", but
-// a white or paper surface forces dark ink, and #66ccff on white is 2.2:1 -- unreadable as text and invisible as a
-// stroke. A deep navy keeps the requested colour as the bright accent it is, keeps every text pair past AA, and still
-// reads as a sketched board rather than a dashboard.
-const BACKGROUND = '#0a1a2f';
-const PANEL_FILL = '#0f233d';
-const TEXT_PRIMARY = '#eaf4ff';
-const TEXT_SECONDARY = '#a8c0d8';
-const NODE_FILL = '#e8a33d';     // warm counterpart to the cool identity colour
-const GO_FILL = '#66ccff';       // THE requested colour, used for the product being advocated
-const IDENTITY = '#66ccff';
-// THE STROKE COLOURS ARE BRIGHTER THAN A DARK-AXIS DEFAULT ON PURPOSE. A first render used a muted #4a6b8a for the
-// axes and frames and at 1.3 px on #0f233d they read as NO STROKE AT ALL -- the panels flattened into plain navy
-// cards and the sketch disappeared. Sketch lines have to be visible to look drawn, so the axis/frame ink is a light
-// desaturated blue and the bars are outlined in their own saturated colour.
-const AXIS = '#6f93b5';
-const FRAME_INK = '#3f6b93';
+// A "nice" axis maximum: the first value in a coarse ladder at or above the data, so the axis label is a number a
+// reader can hold in their head (10,000 rather than 9,941) while the printed value stays exact. The axis is still
+// zero-based and its maximum is still printed, so this rounds the SCALE, never the data.
+function niceAxisMax(value) {
+    if (!(value > 0)) return 1;
+    const exponent = Math.floor(Math.log10(value));
+    const base = Math.pow(10, exponent);
+    for (const step of [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) {
+        if (value <= step * base) return step * base;
+    }
+    return 10 * base;
+}
 
 const escapeXml = value => String(value)
     .replace(/&/g, '&amp;')
@@ -171,261 +193,265 @@ const escapeXml = value => String(value)
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-// A bar is drawn as a fraction of the panel's own maximum, so the axis is zero-based and nothing is truncated.
-//
-// THE MINIMUM VISIBLE WIDTH IS A LEGIBILITY FLOOR FOR THE RECTANGLE ONLY. At 61 ms against a 14,355 ms panel
-// maximum the honest fraction is 0.42%, which renders as a sub-pixel line -- the figure would obey "never truncate"
-// while failing "shows both subjects". The floor widens the RECTANGLE; it never changes the printed value, the axis,
-// or the ratio, all of which are computed from the raw numbers. A reader comparing bar LENGTHS with the floor in play
-// would understate the difference, which is the safe direction to be wrong in.
-const MIN_VISIBLE_BAR = 5;
+const ratioOf = metric => (metric.goValue === 0 ? null : metric.pinnedValue / metric.goValue);
+function formatRatio(ratio) {
+    if (ratio === null) return 'n/a';
+    return `${ratio >= 100 ? ratio.toFixed(1) : ratio.toFixed(2)}\u00d7`;
+}
+const verdictWord = metric => metric.verdict.toUpperCase();
 
 // ---------------------------------------------------------------------------------------------------------------
-// THE SKETCH IS A PURE FUNCTION OF ITS ARGUMENTS. No Math.random, no Date, no counter that depends on execution
-// order: two runs of this generator must produce identical bytes, because the provenance file promises the SVG is
-// regenerable from the recorded artefact. A wobbly hand-drawn look and a reproducible artefact are not in tension;
-// what they forbid is randomness.
-//
-// `sketchNoise(n)` is a small integer hash of n, mapped to [-1, 1). It is the classic xorshift-multiply mix, chosen
-// because it is short, has no state, and is identical in every JavaScript engine (it stays inside 32-bit integer
-// arithmetic before the final divide).
-// ---------------------------------------------------------------------------------------------------------------
-function sketchNoise(n) {
-    let x = (n | 0) * 2654435761;
-    x = (x ^ (x >>> 15)) >>> 0;
-    x = (x * 2246822519) >>> 0;
-    x = (x ^ (x >>> 13)) >>> 0;
-    return ((x >>> 0) / 4294967296) * 2 - 1;
-}
-
-/**
- * A hand-drawn straight-ish line: the two endpoints plus a few interior points displaced perpendicular to the line.
- * `seed` selects a distinct wobble so two lines that share a path do not wobble identically.
- */
-function sketchLine(x1, y1, x2, y2, seed, amplitude = 2.4, segments = 7) {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const length = Math.hypot(dx, dy) || 1;
-    // Perpendicular unit vector, so the wobble is across the line rather than along it.
-    const nx = -dy / length;
-    const ny = dx / length;
-    const points = [];
-    for (let index = 0; index <= segments; index += 1) {
-        const t = index / segments;
-        // Zero displacement at both ends keeps the line attached to what it connects.
-        const taper = Math.sin(Math.PI * t);
-        const offset = sketchNoise(seed * 101 + index * 17) * amplitude * taper;
-        points.push([x1 + dx * t + nx * offset, y1 + dy * t + ny * offset]);
-    }
-    return points;
-}
-
-const toPath = points => points
-    .map(([x, y], index) => `${index === 0 ? 'M' : 'L'}${x.toFixed(2)} ${y.toFixed(2)}`)
-    .join(' ');
-
-/**
- * A sketchy rectangle: four wobbling edges joined into ONE CLOSED SUBPATH.
- *
- * THE SUBPATHS MUST NOT BE SEPARATE. A first version emitted `M...L... M...L... M... M...Z` -- four independent
- * subpaths with a single trailing `Z` -- and SVG closes only the LAST subpath, so the filled area collapsed to a
- * degenerate sliver and every bar rendered as a hollow outline. The render showed it immediately (bars looked like
- * empty boxes); XML validity did not, because the markup was well-formed and simply meant something else. So the
- * four edges are emitted as one continuous ring: `M` once, then the interior points of all four edges, then `Z`.
- */
-function sketchRect(x, y, width, height, seed, amplitude = 0.9) {
-    const visibleWidth = Math.max(width, MIN_VISIBLE_BAR);
-    const top = sketchLine(x, y, x + visibleWidth, y, seed + 1, amplitude);
-    const right = sketchLine(x + visibleWidth, y, x + visibleWidth, y + height, seed + 2, amplitude * 0.9);
-    const bottom = sketchLine(x + visibleWidth, y + height, x, y + height, seed + 3, amplitude);
-    const left = sketchLine(x, y + height, x, y, seed + 4, amplitude * 0.9);
-    // Drop each edge's first point: it duplicates the previous edge's last point, and repeating it would end the
-    // subpath. Keeping the ring continuous is what makes the interior fillable.
-    const rings = [top, right, bottom, left];
-    const points = [];
-    rings.forEach((edge, index) => {
-        const edgePoints = index === 0 ? edge : edge.slice(1);
-        for (const point of edgePoints) points.push(point);
-    });
-    return `${toPath(points)} Z`;
-}
+// THE PALETTE. "Midnight ink" page, warm amber for the pinned Node server, cyan for GoTavern, and a violet-to-cyan
+// gradient used ONLY for derived numbers (the ratios and the second headline line) so colour marks "computed from
+// the two values beside it" rather than decorating. Contrast on #070b14: primary #eef3ff 17.6:1, secondary
+// #a7b6cd 9.9:1, muted #6b7d9c 4.9:1, cyan #7fe9ff 12.7:1, amber #f6b545 10.9:1. The hairline #94a3b8 at 0.16 is
+// decoration only and carries no meaning; every meaning-bearing mark is also labelled in text.
+const PAGE_TOP = '#070b14';
+const PAGE_BOTTOM = '#0b1322';
+const INK = '#eef3ff';
+const INK_SOFT = '#a7b6cd';
+const MUTED = '#7488a7';
+const HAIRLINE = '#94a3b8';
+const AMBER = '#f6b545';
+const AMBER_DEEP = '#e2912b';
+const CYAN = '#7fe9ff';
+const CYAN_DEEP = '#229ed9';
 
 const style = `
   <style>
-    .headline { font: 700 23px Georgia, "Times New Roman", serif; fill: ${TEXT_PRIMARY}; }
-    .headline-accent { font: 700 23px Georgia, "Times New Roman", serif; fill: ${IDENTITY}; }
-    .subtitle { font: 400 12.5px Georgia, "Times New Roman", serif; fill: ${TEXT_SECONDARY}; }
-    .panel-label { font: 700 14px Georgia, "Times New Roman", serif; fill: ${TEXT_PRIMARY}; }
-    .panel-note { font: 400 11px Georgia, "Times New Roman", serif; fill: ${TEXT_SECONDARY}; }
-    .value { font: 700 13px Georgia, "Times New Roman", serif; fill: ${TEXT_PRIMARY}; }
-    .exact { font: 400 10px Georgia, "Times New Roman", serif; fill: ${TEXT_SECONDARY}; }
-    .axis-label { font: 400 10px Georgia, "Times New Roman", serif; fill: ${TEXT_SECONDARY}; }
-    .legend { font: 600 12.5px Georgia, "Times New Roman", serif; fill: ${TEXT_PRIMARY}; }
-    .ratio { font: 700 12.5px Georgia, "Times New Roman", serif; fill: ${IDENTITY}; }
-    .footer { font: 400 10.5px Georgia, "Times New Roman", serif; fill: ${TEXT_SECONDARY}; }
-    .stroke-ink { fill: none; stroke: ${TEXT_PRIMARY}; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-    .stroke-identity { fill: none; stroke: ${IDENTITY}; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-    .stroke-axis { fill: none; stroke: ${AXIS}; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-    .stroke-frame { fill: none; stroke: ${FRAME_INK}; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+    .serif { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif; }
+    .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .mono { font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Consolas, "Liberation Mono", monospace; }
+    .micro { font: 400 9.5px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; letter-spacing: 2.2px; fill: ${MUTED}; }
+    .title { font: 400 50px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; fill: ${INK}; }
+    .title-accent { font: 400 50px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; }
+    .intro { font: 400 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; fill: ${INK_SOFT}; }
+    .spec-label { font: 400 8.5px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; letter-spacing: 1.9px; fill: ${MUTED}; }
+    .spec-value { font: 500 11.5px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; fill: ${INK}; }
+    .legend { font: 500 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; fill: ${INK_SOFT}; }
+    .legend-note { font: 400 9px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; letter-spacing: 1.8px; fill: ${MUTED}; }
+    .row-index { font: 400 10px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; letter-spacing: 1.5px; fill: ${MUTED}; }
+    .row-label { font: 600 15.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; fill: ${INK}; }
+    .row-note { font: 400 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; fill: ${INK_SOFT}; }
+    .row-exact { font: 400 9.5px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; fill: ${MUTED}; }
+    .value { font: 600 11px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; }
+    .axis { font: 400 9px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; fill: ${MUTED}; }
+    .ratio { font: 600 30px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; }
+    .ratio-factor { font-size: 19px; }
+    .verdict { font: 400 9.5px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; letter-spacing: 2.1px; fill: ${MUTED}; }
+    .footer { font: 400 9.5px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; fill: ${MUTED}; }
+    .footer-label { fill: #93a5c2; letter-spacing: 1.4px; }
   </style>`;
 
 const parts = [];
-const totalHeight = HEADER_HEIGHT + metrics.length * (PANEL_HEIGHT + PANEL_GAP) + FOOTER_HEIGHT;
+const totalHeight = ROW_START + metrics.length * ROW_HEIGHT + 156;
+
+const defs = `
+  <defs>
+    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${PAGE_TOP}"/>
+      <stop offset="1" stop-color="${PAGE_BOTTOM}"/>
+    </linearGradient>
+    <radialGradient id="auroraCyan" cx="82%" cy="-6%" r="62%">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.17"/>
+      <stop offset="0.55" stop-color="#22d3ee" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="auroraViolet" cx="8%" cy="106%" r="58%">
+      <stop offset="0" stop-color="#7c6cf0" stop-opacity="0.16"/>
+      <stop offset="0.6" stop-color="#7c6cf0" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#7c6cf0" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="dotgrid" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="${HAIRLINE}" opacity="0.07"/>
+    </pattern>
+    <linearGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#a5f3fc"/>
+      <stop offset="0.55" stop-color="#66ccff"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="ratioGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#eaf9ff"/>
+      <stop offset="1" stop-color="#7fe9ff"/>
+    </linearGradient>
+    <linearGradient id="amberBar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd08a"/>
+      <stop offset="0.55" stop-color="${AMBER}"/>
+      <stop offset="1" stop-color="${AMBER_DEEP}"/>
+    </linearGradient>
+    <linearGradient id="cyanBar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c8f7ff"/>
+      <stop offset="0.45" stop-color="${CYAN}"/>
+      <stop offset="1" stop-color="${CYAN_DEEP}"/>
+    </linearGradient>
+    <linearGradient id="hairlineFade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="${HAIRLINE}" stop-opacity="0"/>
+      <stop offset="0.12" stop-color="${HAIRLINE}" stop-opacity="0.26"/>
+      <stop offset="0.88" stop-color="${HAIRLINE}" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="${HAIRLINE}" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="cardSheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="topRule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.7"/>
+      <stop offset="0.5" stop-color="#66ccff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#a78bfa" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="barShadow" x="-10%" y="-40%" width="120%" height="220%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+    <filter id="goGlow" x="-60%" y="-120%" width="220%" height="340%">
+      <feGaussianBlur stdDeviation="4.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+      </feMerge>
+    </filter>
+  </defs>`;
 
 parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${totalHeight}" viewBox="0 0 ${WIDTH} ${totalHeight}" role="img" aria-labelledby="benchmarkTitle benchmarkDesc">`);
 parts.push(`<title id="benchmarkTitle">GoTavern vs SillyTavern (Node) - paired benchmark, ${escapeXml(runnerImage)}</title>`);
-// THE DESCRIPTION CARRIES THE SAME VERDICT WORDS AS THE PANELS, per metric, because a screen-reader user gets this
+// THE DESCRIPTION CARRIES THE SAME VERDICT WORDS AS THE ROWS, per metric, because a screen-reader user gets this
 // text instead of the picture and must not be told "faster" about a memory figure any more than a sighted reader is.
-parts.push(`<desc id="benchmarkDesc">${escapeXml(metrics.map(m => `${m.label}: SillyTavern ${m.format(m.pinnedValue)}, GoTavern ${m.format(m.goValue)} (${(m.pinnedValue / m.goValue).toFixed(2)}x ${m.verdict})`).join('; '))}. For timing panels a lower value is faster; for memory a lower value is lighter. Degree of improvement is per panel, each drawn against its own zero-based axis. Methodology and provenance are stated in the README section below the figure.</desc>`);
+parts.push(`<desc id="benchmarkDesc">${escapeXml(metrics.map(m => `${m.label}: SillyTavern ${m.format(m.pinnedValue)}, GoTavern ${m.format(m.goValue)} (${formatRatio(ratioOf(m)).replace('\u00d7', '-fold')} ${m.verdict})`).join('; '))}. For timing rows a lower value is faster; for memory a lower value is lighter. Degree of improvement is per row, each drawn against its own zero-based axis whose maximum is printed on the row. Methodology and provenance are stated in the README section below the figure and in docs/assets/benchmark.svg.provenance.md.</desc>`);
+parts.push(defs);
 parts.push(style);
-// THE CANVAS IS PAINTED FIRST, and it is a full-bleed rect with no rounding: the figure owns its own background so
-// it is identical on GitHub's light and dark themes, and a rounded corner would let the page colour peek through at
-// the edge on one theme only.
-parts.push(`<rect width="${WIDTH}" height="${totalHeight}" fill="${BACKGROUND}"/>`);
+parts.push(`<rect width="${WIDTH}" height="${totalHeight}" fill="url(#page)"/>`);
+parts.push(`<rect width="${WIDTH}" height="${totalHeight}" fill="url(#auroraCyan)"/>`);
+parts.push(`<rect width="${WIDTH}" height="${totalHeight}" fill="url(#auroraViolet)"/>`);
+parts.push(`<rect width="${WIDTH}" height="${totalHeight}" fill="url(#dotgrid)"/>`);
+
+// ---- top micro line and rule ---------------------------------------------------------------------------------
+parts.push(`<text class="micro" x="${MARGIN}" y="40">GOTAVERN / PERFORMANCE</text>`);
+parts.push(`<text class="micro" x="${CONTENT_RIGHT}" y="40" text-anchor="end">${escapeXml(`PAIRED BENCHMARK \u00b7 ${rounds} ROUNDS \u00b7 RUN ${runId}`)}</text>`);
+parts.push(`<rect x="${MARGIN}" y="56" width="${CONTENT_RIGHT - MARGIN}" height="1" fill="url(#topRule)"/>`);
 
 // ---- header --------------------------------------------------------------------------------------------------
-// The headline delivers the punch the request asked for, using "faster" ONLY where it is true of the whole set:
-// the three timing panels plus the memory panel are covered by "Faster. Lighter." as two separate claims, not one
-// claim stretched over a metric it does not describe.
-parts.push(`<text x="${MARGIN_X}" y="52"><tspan class="headline">Same SillyTavern. </tspan><tspan class="headline-accent">Faster. Lighter.</tspan></text>`);
-// A hand-drawn underline beneath the accent, in the identity colour: two passes so it looks drawn rather than ruled.
-parts.push(`<path class="stroke-identity" opacity="0.75" d="${toPath(sketchLine(WIDTH - MARGIN_X - 214, 62, WIDTH - MARGIN_X - 6, 62, 91, 1.6, 9))}"/>`);
-parts.push(`<path class="stroke-identity" opacity="0.35" d="${toPath(sketchLine(WIDTH - MARGIN_X - 210, 65, WIDTH - MARGIN_X - 10, 65, 92, 1.9, 9))}"/>`);
+parts.push(`<text class="title serif" x="${MARGIN}" y="126">Same SillyTavern.</text>`);
+parts.push(`<text class="title-accent serif" x="${MARGIN}" y="182" fill="url(#titleGrad)">Faster. Lighter.</text>`);
+parts.push(`<text class="intro sans" x="${MARGIN}" y="222">One GitHub runner. The same pinned checkout, the same seeding, the same workload.</text>`);
+parts.push(`<text class="intro sans" x="${MARGIN}" y="242">Three alternating rounds, medians shown. Every bar is linear and starts at zero.</text>`);
 
-parts.push(`<text class="subtitle" x="${MARGIN_X}" y="86">Measured against pinned SillyTavern on the same machine, in the same run, in alternating rounds.</text>`);
-parts.push(`<text class="subtitle" x="${MARGIN_X}" y="104">${escapeXml(`Runner ${runnerImage} - ${rounds} rounds x ${requestsPerRound} sequential requests per path - medians shown`)}</text>`);
+// ---- spec card: the provenance a reader needs before trusting a single bar ------------------------------------
+const cardX = 676;
+const cardY = 74;
+const cardW = CONTENT_RIGHT - cardX;
+const cardH = 180;
+parts.push(`<rect x="${cardX}" y="${cardY}" width="${cardW}" height="${cardH}" rx="14" fill="#0c1424" fill-opacity="0.72" stroke="${HAIRLINE}" stroke-opacity="0.18"/>`);
+parts.push(`<rect x="${cardX}" y="${cardY}" width="${cardW}" height="${cardH}" rx="14" fill="url(#cardSheen)"/>`);
+parts.push(`<rect x="${cardX + 1}" y="${cardY + 1}" width="${cardW - 2}" height="2" rx="1" fill="url(#topRule)" opacity="0.8"/>`);
+const specRows = [
+    ['RUN', runId],
+    ['RUNNER', runnerImage],
+    ['ROUNDS', `${rounds} \u00d7 ${requestsPerRound} req/path`],
+    ['SOAK', '10 min \u00d7 2 subjects'],
+    ['PINNED', '1.19.0 @ 06bde939'],
+];
+specRows.forEach(([label, value], index) => {
+    const y = cardY + 34 + index * 30;
+    parts.push(`<text class="spec-label mono" x="${cardX + 20}" y="${y}">${escapeXml(label)}</text>`);
+    parts.push(`<text class="spec-value mono" x="${cardX + cardW - 20}" y="${y}" text-anchor="end">${escapeXml(value)}</text>`);
+    if (index < specRows.length - 1) {
+        parts.push(`<rect x="${cardX + 20}" y="${y + 11}" width="${cardW - 40}" height="1" fill="${HAIRLINE}" fill-opacity="0.10"/>`);
+    }
+});
 
-// legend: swatches drawn as small sketchy boxes so the legend matches the bars it explains.
-const legendY = 130;
-parts.push(`<path d="${sketchRect(MARGIN_X, legendY - 11, 15, 15, 301)}" fill="${NODE_FILL}" stroke="${NODE_FILL}" stroke-width="1.1" stroke-linejoin="round"/>`);
-parts.push(`<text class="legend" x="${MARGIN_X + 23}" y="${legendY}">SillyTavern (Node)</text>`);
-parts.push(`<path d="${sketchRect(MARGIN_X + 178, legendY - 11, 15, 15, 302)}" fill="${GO_FILL}" stroke="${GO_FILL}" stroke-width="1.1" stroke-linejoin="round"/>`);
-parts.push(`<text class="legend" x="${MARGIN_X + 201}" y="${legendY}">GoTavern</text>`);
-// The per-panel verdict vocabulary is explained ONCE, at the legend, rather than repeated four times: "faster" for
-// the timing rows and "lighter" for memory, each panel printing its own word.
-parts.push(`<text class="panel-note" x="${MARGIN_X + 330}" y="${legendY}">Each panel says what the difference means: faster for timing, lighter for memory.</text>`);
+// ---- legend --------------------------------------------------------------------------------------------------
+const legendY = 292;
+parts.push(`<rect x="${MARGIN}" y="${legendY - 8}" width="17" height="9" rx="4.5" fill="url(#amberBar)"/>`);
+parts.push(`<text class="legend sans" x="${MARGIN + 26}" y="${legendY}">SillyTavern 1.19.0 (Node)</text>`);
+parts.push(`<rect x="${MARGIN + 252}" y="${legendY - 8}" width="17" height="9" rx="4.5" fill="url(#cyanBar)"/>`);
+parts.push(`<text class="legend sans" x="${MARGIN + 278}" y="${legendY}">GoTavern</text>`);
+parts.push(`<text class="legend-note mono" x="${CONTENT_RIGHT}" y="${legendY}" text-anchor="end">LINEAR AXES - ZERO-BASED - MEDIANS</text>`);
 
-// ---- panels --------------------------------------------------------------------------------------------------
-let y = HEADER_HEIGHT;
-let panelIndex = 0;
+// ---- metric rows ---------------------------------------------------------------------------------------------
+let rowTop = ROW_START;
 for (const metric of metrics) {
-    panelIndex += 1;
-    const panelMax = Math.max(metric.pinnedValue, metric.goValue);
-    const axisLabel = metric.format(panelMax);
+    const axisMax = niceAxisMax(Math.max(metric.pinnedValue, metric.goValue));
+    const ratio = ratioOf(metric);
+    const pinnedWidth = Math.max(MIN_VISIBLE_BAR, (metric.pinnedValue / axisMax) * BAR_WIDTH);
+    const goWidth = Math.max(MIN_VISIBLE_BAR, (metric.goValue / axisMax) * BAR_WIDTH);
+    const pinnedBarY = rowTop + 34;
+    const goBarY = rowTop + 66;
+    const axisY = rowTop + 96;
 
-    // A hand-drawn frame for the panel: the flat card first, then a sketchy outline around it, then a SECOND faint
-    // pass offset by a pixel or two -- which is what a marker does when a hand goes round a box twice. The outline
-    // uses sketchRect so it is a single closed ring; drawing the four edges as four separate subpaths (an earlier
-    // version) makes them stroke correctly but leaves the shape unclosed at the corners.
-    const frameX = MARGIN_X - 12;
-    const frameY = y - 20;
-    const frameW = WIDTH - (MARGIN_X - 12) * 2;
-    parts.push(`<rect x="${frameX}" y="${frameY}" width="${frameW}" height="${PANEL_HEIGHT}" rx="7" fill="${PANEL_FILL}"/>`);
-    parts.push(`<path class="stroke-frame" d="${sketchRect(frameX, frameY, frameW, PANEL_HEIGHT, 400 + panelIndex * 7, 3.0)}"/>`);
-    parts.push(`<path class="stroke-frame" opacity="0.45" d="${sketchRect(frameX + 2.5, frameY + 2.5, frameW - 5, PANEL_HEIGHT - 5, 430 + panelIndex * 7, 3.6)}"/>`);
-
-    // label block: the metric name, its sampling note, and the literal byte counts for the memory panel.
-    parts.push(`<text class="panel-label" x="${MARGIN_X}" y="${y + 2}">${escapeXml(metric.label)}</text>`);
-    parts.push(`<text class="panel-note" x="${MARGIN_X}" y="${y + 19}">${escapeXml(metric.note)}</text>`);
+    parts.push(`<text class="row-index mono" x="${MARGIN}" y="${rowTop + 24}">${escapeXml(metric.index)}</text>`);
+    parts.push(`<text class="row-label sans" x="${MARGIN}" y="${rowTop + 50}">${escapeXml(metric.label)}</text>`);
+    metric.note.forEach((line, index) => {
+        parts.push(`<text class="row-note sans" x="${MARGIN}" y="${rowTop + 72 + index * 16}">${escapeXml(line)}</text>`);
+    });
     if (metric.exact) {
-        parts.push(`<text class="exact" x="${MARGIN_X}" y="${y + 34}">exact: ${metric.exact.pinned.toLocaleString('en-US')} B / ${metric.exact.go.toLocaleString('en-US')} B</text>`);
+        parts.push(`<text class="row-exact mono" x="${MARGIN}" y="${rowTop + 118}">${escapeXml(`${groupedInteger(metric.exact.pinned)} B / ${groupedInteger(metric.exact.go)} B`)}</text>`);
     }
 
-    const chartX = MARGIN_X + PANEL_LABEL_WIDTH;
-    const barRows = [
-        { value: metric.pinnedValue, fill: NODE_FILL, name: 'SillyTavern (Node)', ink: '#1a1206' },
-        { value: metric.goValue, fill: GO_FILL, name: 'GoTavern', ink: '#062334' },
-    ];
-
-    // THE THREE LABEL LINES (metric name, note, exact bytes) NEED REAL VERTICAL ROOM, and the bar offset is derived
-    // from how many of them a panel actually has. A fixed offset of 40 put the bars 6 px under a 10 px text line and
-    // the render showed "exact: 912,199,680 B" overprinted by the note above it.
-    const labelLines = metric.exact ? 3 : 2;
-    const barTop = y + 18 + labelLines * 16;
-
-    barRows.forEach((row, index) => {
-        // THE BARS START BELOW THE LABEL BLOCK, so a note can never run behind them.
-        const barY = barTop + index * (BAR_HEIGHT + 13);
-        const fraction = panelMax === 0 ? 0 : row.value / panelMax;
-        const barWidth = Math.max(MIN_VISIBLE_BAR, fraction * CHART_WIDTH);
-        const seedBase = 500 + panelIndex * 20 + index * 5;
-
-        // A sketchy filled bar: the wobbly outline carries the fill, and a second faint pass sits just inside it so
-        // the edge reads as drawn twice. The wobble is seeded from the panel and row index, so it is identical on
-        // every run.
-        parts.push(`<path d="${sketchRect(chartX, barY, barWidth, BAR_HEIGHT, seedBase, 2.2)}" fill="${row.fill}" stroke="${row.fill}" stroke-width="1.4" stroke-linejoin="round"/>`);
-        parts.push(`<path d="${sketchRect(chartX + 1.5, barY + 1.5, barWidth - 3, BAR_HEIGHT - 3, seedBase + 40)}" fill="none" stroke="${row.fill}" stroke-width="1" opacity="0.45" stroke-linejoin="round"/>`);
-
-        // THE VALUE GOES INSIDE THE BAR WHEN THE BAR IS LONG ENOUGH, OUTSIDE OTHERWISE.
-        //
-        // Measured on an earlier render: the pinned bar fills the panel, so a label placed AFTER it ran off the right
-        // edge of the figure and read "14,3..." -- the number for the subject the figure exists to report. Placing it
-        // inside a full-width bar cannot overflow; placing it outside a short bar has room by construction.
-        const label = metric.format(row.value);
-        const estimatedLabelWidth = label.length * 7.6 + 14;
-        // The threshold includes the wobble allowance on both sides, so a bar is only "inside" when the label has room
-        // for its own padding AND the edge wander. Otherwise the label goes outside, where the margin is real.
-        const placeInside = barWidth > estimatedLabelWidth + 12 + 2 * 5;
-        // THE PADDING ACCOUNTS FOR THE WOBBLE, not just the glyph width. A bar's right edge now wanders up to ~2 px
-        // either side of its nominal x, so a label at the old 10 px inset could touch the drawn edge on a panel whose
-        // seed pushed that edge inward -- visible in a render as "61 ms" grazing its own stroke. The inset is the
-        // glyph padding PLUS the maximum wobble, and the outside case gets the same allowance.
-        const WOBBLE_ALLOWANCE = 5;
-        const textX = placeInside ? chartX + barWidth - 10 - WOBBLE_ALLOWANCE : chartX + barWidth + 11 + WOBBLE_ALLOWANCE;
-        const anchor = placeInside ? 'end' : 'start';
-        const ink = placeInside ? row.ink : TEXT_PRIMARY;
-        // THE BASELINE SITS MID-BAR RATHER THAN 16 px DOWN. A 22 px bar with a 13 px face has its visual centre at
-        // about barY + 15.5, and 16 was close, but the bar's TOP EDGE now wobbles by up to ~2 px -- on the GET /
-        // panel the seed pushed that edge down far enough that the top of "14.17 ms" met the stroke, which the render
-        // showed as text sitting ON the outline. Nudging to 15.5 keeps the glyphs inside the straight body of the bar
-        // where the wobble is tapered away.
-        parts.push(`<text class="value" x="${textX.toFixed(2)}" y="${(barY + 15.5).toFixed(1)}" text-anchor="${anchor}" fill="${ink}">${escapeXml(label)}</text>`);
+    // grid: quarter lines behind the bars, then the zero baseline. The grid is drawn UNDER the bars so a full-width
+    // bar is not sliced by a line it covers anyway; the baseline is drawn OVER the bars' left edge start only.
+    [0.25, 0.5, 0.75].forEach(fraction => {
+        parts.push(`<rect x="${(BAR_X + BAR_WIDTH * fraction).toFixed(2)}" y="${pinnedBarY - 8}" width="1" height="${axisY - pinnedBarY + 8}" fill="${HAIRLINE}" fill-opacity="0.09"/>`);
     });
 
-    // axis: a zero-based baseline, drawn by hand, with sketchy tick marks and the maximum printed at the right end so
-    // the panel states its own scale. Ticks are drawn rather than a ruled line because a ruled line is the one thing
-    // that makes a sketch look like a chart library.
-    const axisY = barTop + 2 * (BAR_HEIGHT + 13) + 6;
-    parts.push(`<path class="stroke-axis" d="${toPath(sketchLine(chartX, axisY, chartX + CHART_WIDTH, axisY, 700 + panelIndex, 2.0, 11))}"/>`);
-    [0, 0.25, 0.5, 0.75, 1].forEach((tick, tickIndex) => {
-        const tickX = chartX + CHART_WIDTH * tick;
-        const tickTop = axisY - (tickIndex % 2 === 0 ? 6 : 4);
-        // A drawn tick is a SHORT wobbling stroke, so it gets its own sketchLine from the axis up to tickTop. An
-        // earlier draft passed the same y twice, which is a zero-length line -- it would have drawn nothing while
-        // looking like it drew a tick.
-        parts.push(`<path class="stroke-axis" opacity="0.8" d="${toPath(sketchLine(tickX, axisY, tickX, tickTop, 710 + panelIndex * 9 + tickIndex, 0.6, 3))}"/>`);
-    });
-    parts.push(`<text class="axis-label" x="${chartX}" y="${axisY + 15}">0</text>`);
-    parts.push(`<text class="axis-label" x="${chartX + CHART_WIDTH}" y="${axisY + 15}" text-anchor="end">panel max ${escapeXml(axisLabel)}</text>`);
+    // PINNED BAR. The drop shadow separates it from the page without changing its length; the sheen is clipped to
+    // the bar's own top half so the fill reads as a solid material rather than a flat rectangle.
+    parts.push(`<rect x="${BAR_X}" y="${pinnedBarY}" width="${pinnedWidth.toFixed(2)}" height="${BAR_HEIGHT}" rx="${BAR_RADIUS}" fill="url(#amberBar)" filter="url(#barShadow)"/>`);
+    parts.push(`<rect x="${BAR_X}" y="${pinnedBarY}" width="${pinnedWidth.toFixed(2)}" height="${BAR_HEIGHT / 2}" rx="${BAR_RADIUS}" fill="#ffffff" fill-opacity="0.10"/>`);
+    parts.push(`<text class="value mono" x="${(BAR_X + pinnedWidth - 12).toFixed(2)}" y="${(pinnedBarY + 10.5).toFixed(1)}" text-anchor="end" fill="#1b1206">${escapeXml(metric.format(metric.pinnedValue))}</text>`);
 
-    const ratio = metric.goValue === 0 ? null : metric.pinnedValue / metric.goValue;
+    // GOTAVERN BAR. A blurred copy underneath is the glow; the crisp copy is drawn again on top so the bar stays a
+    // solid, measurable length instead of a soft smear. THE GLOW IS DECORATION AND IS NOT THE ONLY MARKER: the exact
+    // value is printed beside the bar and the ratio is printed at the row's right edge.
+    parts.push(`<rect x="${BAR_X}" y="${goBarY}" width="${goWidth.toFixed(2)}" height="${BAR_HEIGHT}" rx="${BAR_RADIUS}" fill="${CYAN}" opacity="0.55" filter="url(#goGlow)"/>`);
+    parts.push(`<rect x="${BAR_X}" y="${goBarY}" width="${goWidth.toFixed(2)}" height="${BAR_HEIGHT}" rx="${BAR_RADIUS}" fill="url(#cyanBar)"/>`);
+    parts.push(`<rect x="${BAR_X}" y="${goBarY}" width="${goWidth.toFixed(2)}" height="${BAR_HEIGHT / 2}" rx="${BAR_RADIUS}" fill="#ffffff" fill-opacity="0.14"/>`);
+    parts.push(`<text class="value mono" x="${(BAR_X + goWidth + 11).toFixed(2)}" y="${(goBarY + 10.5).toFixed(1)}" fill="#a9f1ff">${escapeXml(metric.format(metric.goValue))}</text>`);
+
+    // AXIS: zero-based, maximum printed, with the mid tick labelled. Ticks are 3 px strokes; the labels are the only
+    // place the scale is stated in words, so the panel never has to be guessed from bar lengths.
+    parts.push(`<rect x="${BAR_X}" y="${axisY}" width="${BAR_WIDTH}" height="1" fill="${HAIRLINE}" fill-opacity="0.30"/>`);
+    [0, 0.5, 1].forEach(fraction => {
+        const x = BAR_X + BAR_WIDTH * fraction;
+        parts.push(`<rect x="${x.toFixed(2)}" y="${axisY}" width="1" height="4" fill="${HAIRLINE}" fill-opacity="0.45"/>`);
+    });
+    parts.push(`<text class="axis mono" x="${BAR_X}" y="${axisY + 18}">0 ${escapeXml(metric.unit)}</text>`);
+    parts.push(`<text class="axis mono" x="${BAR_X + BAR_WIDTH / 2}" y="${axisY + 18}" text-anchor="middle">${escapeXml(formatAxisTick(axisMax / 2, metric.unit))}</text>`);
+    parts.push(`<text class="axis mono" x="${BAR_X + BAR_WIDTH}" y="${axisY + 18}" text-anchor="end">${escapeXml(formatAxisTick(axisMax, metric.unit))}</text>`);
+
+    // RATIO: the row's punch line, derived from the two values on the same row and printed in the only gradient type
+    // in the figure. The verdict word sits under it so "lighter" can never be read as "faster".
     if (ratio !== null) {
-        // THREE SIGNIFICANT FIGURES where the ratio is large, so 24.48 does not print as "24x". The ratio is a
-        // restatement of the two values beside it rather than a headline.
-        const ratioText = ratio >= 100 ? ratio.toFixed(1) : ratio.toFixed(2);
-        // THE WORD COMES FROM THE METRIC, so memory can never be called "faster". Drawn in the identity colour, which
-        // is the only place small type uses it.
-        parts.push(`<text class="ratio" x="${chartX + CHART_WIDTH}" y="${y + 2}" text-anchor="end">${escapeXml(`${ratioText}x ${metric.verdict}`)}</text>`);
+        parts.push(`<text class="ratio mono" x="${CONTENT_RIGHT}" y="${rowTop + 58}" text-anchor="end" fill="url(#ratioGrad)"><tspan>${escapeXml(formatRatio(ratio).slice(0, -1))}</tspan><tspan class="ratio-factor" dx="1">\u00d7</tspan></text>`);
+        parts.push(`<text class="verdict mono" x="${CONTENT_RIGHT}" y="${rowTop + 78}" text-anchor="end">${escapeXml(verdictWord(metric).split('').join(' '))}</text>`);
     }
 
-    y += PANEL_HEIGHT + PANEL_GAP;
+    if (metric !== metrics[metrics.length - 1]) {
+        parts.push(`<rect x="${MARGIN}" y="${rowTop + ROW_HEIGHT - 10}" width="${CONTENT_RIGHT - MARGIN}" height="1" fill="url(#hairlineFade)"/>`);
+    }
+    rowTop += ROW_HEIGHT;
 }
 
 // ---- footer --------------------------------------------------------------------------------------------------
-const footerY = y + 6;
-parts.push(`<path class="stroke-axis" opacity="0.8" d="${toPath(sketchLine(MARGIN_X - 12, footerY - 18, WIDTH - MARGIN_X + 12, footerY - 18, 880, 1.5, 14))}"/>`);
-parts.push(`<text class="footer" x="${MARGIN_X - 12}" y="${footerY}">Every bar is drawn against its own panel's zero-based axis, whose maximum is printed on the panel. No axis is truncated and no ratio replaces a value.</text>`);
-parts.push(`<text class="footer" x="${MARGIN_X - 12}" y="${footerY + 16}">Ratios are computed from the two printed values in each panel; they are a restatement, not a separate measurement.</text>`);
-parts.push(`<text class="footer" x="${MARGIN_X - 12}" y="${footerY + 32}">SillyTavern 1.19.0 (pinned commit 06bde939) vs GoTavern at a3c2f53 - same checkout, same data-root seeding, same port allocator.</text>`);
-parts.push(`<text class="footer" x="${MARGIN_X - 12}" y="${footerY + 48}">Workflow: GoTavern smoke metrics, run ${escapeXml(runId)} - shared GitHub runner, so these are runner-dependent numbers, not a budget.</text>`);
-parts.push(`<text class="footer" x="${MARGIN_X - 12}" y="${footerY + 64}">Full methodology and provenance: README, "Performance" section.</text>`);
+const footerRuleY = rowTop + 6;
+const footerLine1 = footerRuleY + 26;
+parts.push(`<rect x="${MARGIN}" y="${footerRuleY}" width="${CONTENT_RIGHT - MARGIN}" height="1" fill="url(#hairlineFade)"/>`);
+const footerLines = [
+    ['VALUES', `GoTavern smoke metrics \u00b7 run ${runId} \u00b7 ${runnerImage} shared runner \u00b7 ${rounds} alternating rounds \u00d7 ${requestsPerRound} sequential requests per path \u00b7 medians shown`],
+    ['SUBJECTS', `SillyTavern 1.19.0 @ pinned 06bde939   vs   GoTavern @ ${commit}   (the commit this run measured; the v0.1.0-alpha.9 tag adds documentation only)`],
+    ['HONESTY', 'every bar sits on its own zero-based axis whose maximum is printed at the axis end, so no axis is truncated and no ratio replaces a value.'],
+    ['', 'a 5 px floor keeps a near-zero bar visible; it never changes a printed value, the axis maximum or the ratio. Ratios restate the two printed values.'],
+];
+footerLines.forEach(([label, line], index) => {
+    const y = footerLine1 + index * 17;
+    parts.push(`<text class="footer mono" x="${MARGIN}" y="${y}">${label ? `<tspan class="footer-label">${escapeXml(label)}</tspan>` : ''}<tspan dx="${label ? 10 : 0}">${escapeXml(line)}</tspan></text>`);
+});
+parts.push(`<text class="footer mono" x="${MARGIN}" y="${footerLine1 + footerLines.length * 17 + 8}">generated by tools/benchmark-svg.mjs from the recorded artefact - never hand-edited</text>`);
+parts.push(`<text class="footer mono" x="${CONTENT_RIGHT}" y="${footerLine1 + footerLines.length * 17 + 8}" text-anchor="end">github.com/cocokoishi/GoTavern</text>`);
 
 parts.push('</svg>');
 
 fs.mkdirSync(path.dirname(path.resolve(outPath)), { recursive: true });
 fs.writeFileSync(path.resolve(outPath), parts.join('\n') + '\n');
-console.log(`wrote ${outPath} (${parts.join('\n').length} bytes)`);
+console.log(`wrote ${outPath} (${parts.join('\n').length} bytes, ${totalHeight} px tall)`);
 for (const metric of metrics) {
-    const ratio = metric.pinnedValue / metric.goValue;
-    console.log(`  ${metric.key.padEnd(8)} pinned=${metric.format(metric.pinnedValue).padStart(12)}  gotavern=${metric.format(metric.goValue).padStart(12)}  ${ratio.toFixed(2)}x ${metric.verdict}`);
+    console.log(`  ${metric.key.padEnd(8)} pinned=${metric.format(metric.pinnedValue).padStart(12)}  gotavern=${metric.format(metric.goValue).padStart(12)}  ${formatRatio(ratioOf(metric))} ${metric.verdict}`);
 }

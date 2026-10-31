@@ -1,120 +1,229 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1092" viewBox="0 0 900 1092" role="img" aria-labelledby="benchmarkTitle benchmarkDesc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1180" viewBox="0 0 1000 1180" role="img" aria-labelledby="benchmarkTitle benchmarkDesc">
 <title id="benchmarkTitle">GoTavern vs SillyTavern (Node) - paired benchmark, ubuntu26</title>
-<desc id="benchmarkDesc">Cold start to first /version 200: SillyTavern 12,985 ms, GoTavern 136 ms (95.48x faster); Steady-state memory (RSS): SillyTavern 925.8 MB, GoTavern 37.0 MB (25.04x lighter); GET /version latency: SillyTavern 34.05 ms, GoTavern 0.422 ms (80.61x faster); GET / latency (HTML shell): SillyTavern 12.18 ms, GoTavern 1.67 ms (7.29x faster). For timing panels a lower value is faster; for memory a lower value is lighter. Degree of improvement is per panel, each drawn against its own zero-based axis. Methodology and provenance are stated in the README section below the figure.</desc>
+<desc id="benchmarkDesc">Cold start to first /version 200: SillyTavern 9,941 ms, GoTavern 32 ms (310.7-fold faster); Steady-state memory (RSS): SillyTavern 1,199 MB, GoTavern 37.5 MB (31.96-fold lighter); GET /version latency: SillyTavern 28.77 ms, GoTavern 0.316 ms (91.02-fold faster); GET / latency (HTML shell): SillyTavern 10.22 ms, GoTavern 1.52 ms (6.74-fold faster). For timing rows a lower value is faster; for memory a lower value is lighter. Degree of improvement is per row, each drawn against its own zero-based axis whose maximum is printed on the row. Methodology and provenance are stated in the README section below the figure and in docs/assets/benchmark.svg.provenance.md.</desc>
+
+  <defs>
+    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#070b14"/>
+      <stop offset="1" stop-color="#0b1322"/>
+    </linearGradient>
+    <radialGradient id="auroraCyan" cx="82%" cy="-6%" r="62%">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.17"/>
+      <stop offset="0.55" stop-color="#22d3ee" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="auroraViolet" cx="8%" cy="106%" r="58%">
+      <stop offset="0" stop-color="#7c6cf0" stop-opacity="0.16"/>
+      <stop offset="0.6" stop-color="#7c6cf0" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#7c6cf0" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="dotgrid" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#94a3b8" opacity="0.07"/>
+    </pattern>
+    <linearGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#a5f3fc"/>
+      <stop offset="0.55" stop-color="#66ccff"/>
+      <stop offset="1" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="ratioGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#eaf9ff"/>
+      <stop offset="1" stop-color="#7fe9ff"/>
+    </linearGradient>
+    <linearGradient id="amberBar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd08a"/>
+      <stop offset="0.55" stop-color="#f6b545"/>
+      <stop offset="1" stop-color="#e2912b"/>
+    </linearGradient>
+    <linearGradient id="cyanBar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c8f7ff"/>
+      <stop offset="0.45" stop-color="#7fe9ff"/>
+      <stop offset="1" stop-color="#229ed9"/>
+    </linearGradient>
+    <linearGradient id="hairlineFade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#94a3b8" stop-opacity="0"/>
+      <stop offset="0.12" stop-color="#94a3b8" stop-opacity="0.26"/>
+      <stop offset="0.88" stop-color="#94a3b8" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#94a3b8" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="cardSheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="topRule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.7"/>
+      <stop offset="0.5" stop-color="#66ccff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#a78bfa" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="barShadow" x="-10%" y="-40%" width="120%" height="220%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+    <filter id="goGlow" x="-60%" y="-120%" width="220%" height="340%">
+      <feGaussianBlur stdDeviation="4.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+      </feMerge>
+    </filter>
+  </defs>
 
   <style>
-    .headline { font: 700 23px Georgia, "Times New Roman", serif; fill: #eaf4ff; }
-    .headline-accent { font: 700 23px Georgia, "Times New Roman", serif; fill: #66ccff; }
-    .subtitle { font: 400 12.5px Georgia, "Times New Roman", serif; fill: #a8c0d8; }
-    .panel-label { font: 700 14px Georgia, "Times New Roman", serif; fill: #eaf4ff; }
-    .panel-note { font: 400 11px Georgia, "Times New Roman", serif; fill: #a8c0d8; }
-    .value { font: 700 13px Georgia, "Times New Roman", serif; fill: #eaf4ff; }
-    .exact { font: 400 10px Georgia, "Times New Roman", serif; fill: #a8c0d8; }
-    .axis-label { font: 400 10px Georgia, "Times New Roman", serif; fill: #a8c0d8; }
-    .legend { font: 600 12.5px Georgia, "Times New Roman", serif; fill: #eaf4ff; }
-    .ratio { font: 700 12.5px Georgia, "Times New Roman", serif; fill: #66ccff; }
-    .footer { font: 400 10.5px Georgia, "Times New Roman", serif; fill: #a8c0d8; }
-    .stroke-ink { fill: none; stroke: #eaf4ff; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
-    .stroke-identity { fill: none; stroke: #66ccff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-    .stroke-axis { fill: none; stroke: #6f93b5; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-    .stroke-frame { fill: none; stroke: #3f6b93; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+    .serif { font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif; }
+    .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .mono { font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Consolas, "Liberation Mono", monospace; }
+    .micro { font: 400 9.5px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; letter-spacing: 2.2px; fill: #7488a7; }
+    .title { font: 400 50px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; fill: #eef3ff; }
+    .title-accent { font: 400 50px "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; }
+    .intro { font: 400 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; fill: #a7b6cd; }
+    .spec-label { font: 400 8.5px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; letter-spacing: 1.9px; fill: #7488a7; }
+    .spec-value { font: 500 11.5px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; fill: #eef3ff; }
+    .legend { font: 500 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; fill: #a7b6cd; }
+    .legend-note { font: 400 9px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; letter-spacing: 1.8px; fill: #7488a7; }
+    .row-index { font: 400 10px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; letter-spacing: 1.5px; fill: #7488a7; }
+    .row-label { font: 600 15.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; fill: #eef3ff; }
+    .row-note { font: 400 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; fill: #a7b6cd; }
+    .row-exact { font: 400 9.5px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; fill: #7488a7; }
+    .value { font: 600 11px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; }
+    .axis { font: 400 9px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; fill: #7488a7; }
+    .ratio { font: 600 30px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; }
+    .ratio-factor { font-size: 19px; }
+    .verdict { font: 400 9.5px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; letter-spacing: 2.1px; fill: #7488a7; }
+    .footer { font: 400 9.5px ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; fill: #7488a7; }
+    .footer-label { fill: #93a5c2; letter-spacing: 1.4px; }
   </style>
-<rect width="900" height="1092" fill="#0a1a2f"/>
-<text x="30" y="52"><tspan class="headline">Same SillyTavern. </tspan><tspan class="headline-accent">Faster. Lighter.</tspan></text>
-<path class="stroke-identity" opacity="0.75" d="M656.00 62.00 L679.11 61.89 L702.22 62.03 L725.33 61.31 L748.44 63.01 L771.56 60.93 L794.67 60.81 L817.78 62.41 L840.89 61.69 L864.00 62.00"/>
-<path class="stroke-identity" opacity="0.35" d="M660.00 65.00 L682.22 65.55 L704.44 65.36 L726.67 64.22 L748.89 66.55 L771.11 65.69 L793.33 65.82 L815.56 64.26 L837.78 64.91 L860.00 65.00"/>
-<text class="subtitle" x="30" y="86">Measured against pinned SillyTavern on the same machine, in the same run, in alternating rounds.</text>
-<text class="subtitle" x="30" y="104">Runner ubuntu26 - 3 rounds x 30 sequential requests per path - medians shown</text>
-<path d="M30.00 119.00 L32.14 119.33 L34.29 119.28 L36.43 118.98 L38.57 118.49 L40.71 119.56 L42.86 119.38 L45.00 119.00 L45.02 121.14 L44.92 123.29 L44.85 125.43 L44.41 127.57 L45.00 129.71 L44.67 131.86 L45.00 134.00 L42.86 134.09 L40.71 133.83 L38.57 133.57 L36.43 133.20 L34.29 133.65 L32.14 133.88 L30.00 134.00 L29.90 131.86 L30.22 129.71 L30.19 127.57 L30.36 125.43 L29.42 123.29 L30.10 121.14 L30.00 119.00 Z" fill="#e8a33d" stroke="#e8a33d" stroke-width="1.1" stroke-linejoin="round"/>
-<text class="legend" x="53" y="130">SillyTavern (Node)</text>
-<path d="M208.00 119.00 L210.14 118.98 L212.29 119.09 L214.43 119.16 L216.57 119.65 L218.71 119.00 L220.86 119.36 L223.00 119.00 L223.08 121.14 L222.85 123.29 L222.61 125.43 L222.28 127.57 L222.68 129.71 L222.89 131.86 L223.00 134.00 L220.86 134.11 L218.71 133.76 L216.57 133.79 L214.43 133.61 L212.29 134.65 L210.14 133.89 L208.00 134.00 L208.21 131.86 L208.02 129.71 L207.40 127.57 L208.10 125.43 L207.62 123.29 L207.78 121.14 L208.00 119.00 Z" fill="#66ccff" stroke="#66ccff" stroke-width="1.1" stroke-linejoin="round"/>
-<text class="legend" x="231" y="130">GoTavern</text>
-<text class="panel-note" x="360" y="130">Each panel says what the difference means: faster for timing, lighter for memory.</text>
-<rect x="18" y="148" width="864" height="169" rx="7" fill="#0f233d"/>
-<path class="stroke-frame" d="M18.00 148.00 L141.43 148.14 L264.86 149.95 L388.29 146.15 L511.71 148.43 L635.14 148.74 L758.57 147.78 L882.00 148.00 L881.97 172.14 L881.28 196.29 L882.84 220.43 L880.07 244.57 L879.95 268.71 L881.78 292.86 L882.00 317.00 L758.57 316.68 L635.14 318.73 L511.71 314.17 L388.29 318.74 L264.86 315.40 L141.43 315.90 L18.00 317.00 L17.16 292.86 L18.29 268.71 L20.34 244.57 L15.66 220.43 L17.82 196.29 L17.83 172.14 L18.00 148.00 Z"/>
-<path class="stroke-frame" opacity="0.45" d="M20.50 150.50 L143.21 150.22 L265.93 147.73 L388.64 149.27 L511.36 152.12 L634.07 148.56 L756.79 150.94 L879.50 150.50 L879.52 173.93 L877.20 197.36 L877.11 220.79 L879.96 244.21 L877.05 267.64 L878.23 291.07 L879.50 314.50 L756.79 314.50 L634.07 313.38 L511.36 314.71 L388.64 311.62 L265.93 316.89 L143.21 313.30 L20.50 314.50 L21.17 291.07 L19.31 267.64 L21.24 244.21 L17.84 220.79 L19.76 197.36 L20.87 173.93 L20.50 150.50 Z"/>
-<text class="panel-label" x="30" y="170">Cold start to first /version 200</text>
-<text class="panel-note" x="30" y="187">median of 3 rounds; empty data root, no config.yaml</text>
-<path d="M262.00 218.00 L348.86 218.08 L435.71 219.67 L522.57 219.44 L609.43 218.78 L696.29 218.43 L783.14 217.09 L870.00 218.00 L870.36 221.14 L871.39 224.29 L870.09 227.43 L871.64 230.57 L870.50 233.71 L870.40 236.86 L870.00 240.00 L783.14 240.24 L696.29 239.86 L609.43 238.95 L522.57 240.64 L435.71 238.52 L348.86 240.24 L262.00 240.00 L262.60 236.86 L262.99 233.71 L263.43 230.57 L262.53 227.43 L263.42 224.29 L262.67 221.14 L262.00 218.00 Z" fill="#e8a33d" stroke="#e8a33d" stroke-width="1.4" stroke-linejoin="round"/>
-<path d="M263.50 219.50 L349.93 219.30 L436.36 219.28 L522.79 219.54 L609.21 219.44 L695.64 219.28 L782.07 219.38 L868.50 219.50 L868.68 222.21 L868.87 224.93 L868.06 227.64 L867.91 230.36 L868.63 233.07 L868.45 235.79 L868.50 238.50 L782.07 238.44 L695.64 238.17 L609.21 237.92 L522.79 239.26 L436.36 238.99 L349.93 238.15 L263.50 238.50 L263.55 235.79 L263.79 233.07 L264.27 230.36 L262.97 227.64 L263.15 224.93 L263.26 222.21 L263.50 219.50 Z" fill="none" stroke="#e8a33d" stroke-width="1" opacity="0.45" stroke-linejoin="round"/>
-<text class="value" x="855.00" y="233.5" text-anchor="end" fill="#1a1206">12,985 ms</text>
-<path d="M262.00 253.00 L262.91 253.01 L263.82 252.59 L264.73 255.02 L265.64 251.64 L266.55 253.59 L267.46 252.17 L268.37 253.00 L269.06 256.14 L268.66 259.29 L268.55 262.43 L270.13 265.57 L266.97 268.71 L267.65 271.86 L268.37 275.00 L267.46 275.18 L266.55 276.06 L265.64 274.55 L264.73 275.30 L263.82 275.27 L262.91 274.88 L262.00 275.00 L262.54 271.86 L261.66 268.71 L260.72 265.57 L261.58 262.43 L262.03 259.29 L261.50 256.14 L262.00 253.00 Z" fill="#66ccff" stroke="#66ccff" stroke-width="1.4" stroke-linejoin="round"/>
-<path d="M263.50 254.50 L264.21 254.67 L264.93 255.15 L265.64 254.30 L266.36 254.66 L267.07 254.71 L267.79 254.20 L268.50 254.50 L268.45 257.21 L268.75 259.93 L269.12 262.64 L268.96 265.36 L268.58 268.07 L268.55 270.79 L268.50 273.50 L267.79 273.46 L267.07 273.72 L266.36 272.92 L265.64 273.38 L264.93 273.09 L264.21 273.85 L263.50 273.50 L263.64 270.79 L263.15 268.07 L263.89 265.36 L263.59 262.64 L263.50 259.93 L263.66 257.21 L263.50 254.50 Z" fill="none" stroke="#66ccff" stroke-width="1" opacity="0.45" stroke-linejoin="round"/>
-<text class="value" x="284.37" y="268.5" text-anchor="start" fill="#eaf4ff">136 ms</text>
-<path class="stroke-axis" d="M262.00 294.00 L317.27 294.55 L372.55 293.04 L427.82 294.44 L483.09 293.79 L538.36 294.43 L593.64 293.72 L648.91 294.26 L704.18 293.03 L759.45 293.32 L814.73 293.45 L870.00 294.00"/>
-<path class="stroke-axis" opacity="0.8" d="M262.00 294.00 L262.12 292.00 L261.87 290.00 L262.00 288.00"/>
-<path class="stroke-axis" opacity="0.8" d="M414.00 294.00 L413.73 292.67 L414.33 291.33 L414.00 290.00"/>
-<path class="stroke-axis" opacity="0.8" d="M566.00 294.00 L565.92 292.00 L565.73 290.00 L566.00 288.00"/>
-<path class="stroke-axis" opacity="0.8" d="M718.00 294.00 L718.42 292.67 L717.60 291.33 L718.00 290.00"/>
-<path class="stroke-axis" opacity="0.8" d="M870.00 294.00 L870.19 292.00 L870.03 290.00 L870.00 288.00"/>
-<text class="axis-label" x="262" y="309">0</text>
-<text class="axis-label" x="870" y="309" text-anchor="end">panel max 12,985 ms</text>
-<text class="ratio" x="870" y="170" text-anchor="end">95.48x faster</text>
-<rect x="18" y="347" width="864" height="169" rx="7" fill="#0f233d"/>
-<path class="stroke-frame" d="M18.00 347.00 L141.43 348.23 L264.86 347.28 L388.29 345.05 L511.71 345.89 L635.14 346.11 L758.57 347.62 L882.00 347.00 L881.31 371.14 L883.27 395.29 L880.92 419.43 L881.43 443.57 L880.32 467.71 L881.58 491.86 L882.00 516.00 L758.57 515.83 L635.14 515.61 L511.71 514.32 L388.29 518.20 L264.86 517.00 L141.43 515.21 L18.00 516.00 L17.37 491.86 L20.05 467.71 L16.03 443.57 L18.05 419.43 L19.12 395.29 L18.08 371.14 L18.00 347.00 Z"/>
-<path class="stroke-frame" opacity="0.45" d="M20.50 349.50 L143.21 348.05 L265.93 349.01 L388.64 351.42 L511.36 346.31 L634.07 348.08 L756.79 348.82 L879.50 349.50 L878.93 372.93 L878.65 396.36 L880.22 419.79 L877.44 443.21 L880.20 466.64 L880.65 490.07 L879.50 513.50 L756.79 514.12 L634.07 512.17 L511.36 513.02 L388.64 511.63 L265.93 512.23 L143.21 512.09 L20.50 513.50 L20.44 490.07 L22.14 466.64 L19.94 443.21 L18.98 419.79 L17.99 396.36 L20.26 372.93 L20.50 349.50 Z"/>
-<text class="panel-label" x="30" y="369">Steady-state memory (RSS)</text>
-<text class="panel-note" x="30" y="386">VmRSS from /proc, sampled after readiness and after 60 requests; median of 6</text>
-<text class="exact" x="30" y="401">exact: 925,816,832 B / 36,978,688 B</text>
-<path d="M262.00 433.00 L348.86 433.54 L435.71 433.43 L522.57 431.62 L609.43 431.05 L696.29 433.98 L783.14 432.38 L870.00 433.00 L869.46 436.14 L870.24 439.29 L871.63 442.43 L869.29 445.57 L870.73 448.71 L869.68 451.86 L870.00 455.00 L783.14 454.60 L696.29 453.84 L609.43 453.92 L522.57 454.70 L435.71 453.46 L348.86 455.19 L262.00 455.00 L262.37 451.86 L263.53 448.71 L260.75 445.57 L261.82 442.43 L263.08 439.29 L261.26 436.14 L262.00 433.00 Z" fill="#e8a33d" stroke="#e8a33d" stroke-width="1.4" stroke-linejoin="round"/>
-<path d="M263.50 434.50 L349.93 434.26 L436.36 434.31 L522.79 433.88 L609.21 433.87 L695.64 435.06 L782.07 434.62 L868.50 434.50 L868.28 437.21 L867.96 439.93 L869.15 442.64 L867.99 445.36 L868.86 448.07 L868.18 450.79 L868.50 453.50 L782.07 453.14 L695.64 453.93 L609.21 453.62 L522.79 452.97 L436.36 452.96 L349.93 453.57 L263.50 453.50 L263.47 450.79 L263.23 448.07 L262.98 445.36 L264.08 442.64 L262.99 439.93 L263.52 437.21 L263.50 434.50 Z" fill="none" stroke="#e8a33d" stroke-width="1" opacity="0.45" stroke-linejoin="round"/>
-<text class="value" x="855.00" y="448.5" text-anchor="end" fill="#1a1206">925.8 MB</text>
-<path d="M262.00 468.00 L265.47 467.38 L268.94 469.67 L272.41 467.07 L275.88 469.30 L279.35 469.23 L282.82 467.97 L286.28 468.00 L286.29 471.14 L285.97 474.29 L284.36 477.43 L284.47 480.57 L287.35 483.71 L285.56 486.86 L286.28 490.00 L282.82 489.79 L279.35 490.89 L275.88 488.68 L272.41 488.40 L268.94 490.03 L265.47 490.85 L262.00 490.00 L262.61 486.86 L263.28 483.71 L262.10 480.57 L262.43 477.43 L261.31 474.29 L261.45 471.14 L262.00 468.00 Z" fill="#66ccff" stroke="#66ccff" stroke-width="1.4" stroke-linejoin="round"/>
-<path d="M263.50 469.50 L266.54 469.62 L269.58 469.00 L272.62 470.21 L275.66 468.81 L278.70 469.71 L281.74 469.79 L284.78 469.50 L284.85 472.21 L284.53 474.93 L285.00 477.64 L284.45 480.36 L284.84 483.07 L284.76 485.79 L284.78 488.50 L281.74 488.59 L278.70 488.68 L275.66 488.62 L272.62 488.67 L269.58 488.23 L266.54 488.23 L263.50 488.50 L263.39 485.79 L264.04 483.07 L264.28 480.36 L262.93 477.64 L263.09 474.93 L263.82 472.21 L263.50 469.50 Z" fill="none" stroke="#66ccff" stroke-width="1" opacity="0.45" stroke-linejoin="round"/>
-<text class="value" x="302.28" y="483.5" text-anchor="start" fill="#eaf4ff">37.0 MB</text>
-<path class="stroke-axis" d="M262.00 509.00 L317.27 508.98 L372.55 509.37 L427.82 510.10 L483.09 509.01 L538.36 507.47 L593.64 509.07 L648.91 509.37 L704.18 509.49 L759.45 508.62 L814.73 508.95 L870.00 509.00"/>
-<path class="stroke-axis" opacity="0.8" d="M262.00 509.00 L261.86 507.00 L261.67 505.00 L262.00 503.00"/>
-<path class="stroke-axis" opacity="0.8" d="M414.00 509.00 L413.78 507.67 L413.89 506.33 L414.00 505.00"/>
-<path class="stroke-axis" opacity="0.8" d="M566.00 509.00 L565.98 507.00 L566.39 505.00 L566.00 503.00"/>
-<path class="stroke-axis" opacity="0.8" d="M718.00 509.00 L718.40 507.67 L718.49 506.33 L718.00 505.00"/>
-<path class="stroke-axis" opacity="0.8" d="M870.00 509.00 L869.49 507.00 L869.89 505.00 L870.00 503.00"/>
-<text class="axis-label" x="262" y="524">0</text>
-<text class="axis-label" x="870" y="524" text-anchor="end">panel max 925.8 MB</text>
-<text class="ratio" x="870" y="369" text-anchor="end">25.04x lighter</text>
-<rect x="18" y="546" width="864" height="169" rx="7" fill="#0f233d"/>
-<path class="stroke-frame" d="M18.00 546.00 L141.43 547.30 L264.86 545.98 L388.29 548.85 L511.71 544.20 L635.14 545.78 L758.57 546.11 L882.00 546.00 L882.86 570.14 L881.35 594.29 L881.07 618.43 L882.06 642.57 L882.89 666.71 L881.04 690.86 L882.00 715.00 L758.57 716.18 L635.14 713.90 L511.71 713.18 L388.29 713.05 L264.86 713.95 L141.43 716.16 L18.00 715.00 L19.04 690.86 L16.09 666.71 L19.25 642.57 L20.27 618.43 L19.48 594.29 L18.43 570.14 L18.00 546.00 Z"/>
-<path class="stroke-frame" opacity="0.45" d="M20.50 548.50 L143.21 547.33 L265.93 547.20 L388.64 546.11 L511.36 545.22 L634.07 547.91 L756.79 547.54 L879.50 548.50 L879.01 571.93 L878.00 595.36 L881.55 618.79 L880.80 642.21 L878.80 665.64 L880.44 689.07 L879.50 712.50 L756.79 712.87 L634.07 715.12 L511.36 715.62 L388.64 712.72 L265.93 711.08 L143.21 713.72 L20.50 712.50 L19.56 689.07 L19.45 665.64 L21.48 642.21 L20.46 618.79 L18.95 595.36 L20.74 571.93 L20.50 548.50 Z"/>
-<text class="panel-label" x="30" y="568">GET /version latency</text>
-<text class="panel-note" x="30" y="585">median of 90 sequential requests, same client both subjects</text>
-<path d="M262.00 616.00 L348.86 615.52 L435.71 615.46 L522.57 616.09 L609.43 615.84 L696.29 615.47 L783.14 615.71 L870.00 616.00 L870.45 619.14 L870.91 622.29 L868.92 625.43 L868.55 628.57 L870.31 631.71 L869.88 634.86 L870.00 638.00 L783.14 637.85 L696.29 637.19 L609.43 636.58 L522.57 639.86 L435.71 639.19 L348.86 637.14 L262.00 638.00 L262.11 634.86 L262.72 631.71 L263.87 628.57 L260.69 625.43 L261.15 622.29 L261.42 619.14 L262.00 616.00 Z" fill="#e8a33d" stroke="#e8a33d" stroke-width="1.4" stroke-linejoin="round"/>
-<path d="M263.50 617.50 L349.93 617.37 L436.36 617.76 L522.79 616.86 L609.21 618.20 L695.64 617.07 L782.07 617.69 L868.50 617.50 L868.75 620.21 L869.03 622.93 L868.57 625.64 L869.24 628.36 L868.25 631.07 L868.24 633.79 L868.50 636.50 L782.07 636.32 L695.64 636.23 L609.21 636.38 L522.79 636.16 L436.36 637.15 L349.93 636.52 L263.50 636.50 L263.70 633.79 L263.86 631.07 L263.17 628.36 L263.34 625.64 L263.88 622.93 L263.43 620.21 L263.50 617.50 Z" fill="none" stroke="#e8a33d" stroke-width="1" opacity="0.45" stroke-linejoin="round"/>
-<text class="value" x="855.00" y="631.5" text-anchor="end" fill="#1a1206">34.05 ms</text>
-<path d="M262.00 651.00 L263.08 651.42 L264.16 652.59 L265.23 650.51 L266.31 651.39 L267.39 651.51 L268.47 650.27 L269.54 651.00 L269.42 654.14 L270.16 657.29 L271.06 660.43 L270.66 663.57 L269.75 666.71 L269.66 669.86 L269.54 673.00 L268.47 672.91 L267.39 673.53 L266.31 671.59 L265.23 672.71 L264.16 672.00 L263.08 673.85 L262.00 673.00 L262.34 669.86 L261.15 666.71 L262.96 663.57 L262.22 660.43 L262.00 657.29 L262.39 654.14 L262.00 651.00 Z" fill="#66ccff" stroke="#66ccff" stroke-width="1.4" stroke-linejoin="round"/>
-<path d="M263.50 652.50 L264.21 652.68 L264.93 652.46 L265.64 652.19 L266.36 652.59 L267.07 651.87 L267.79 652.25 L268.50 652.50 L268.39 655.21 L268.53 657.93 L269.28 660.64 L269.27 663.36 L268.93 666.07 L268.60 668.79 L268.50 671.50 L267.79 671.23 L267.07 671.19 L266.36 670.81 L265.64 671.95 L264.93 671.81 L264.21 671.18 L263.50 671.50 L263.62 668.79 L263.34 666.07 L263.48 663.36 L264.13 660.64 L262.97 657.93 L263.51 655.21 L263.50 652.50 Z" fill="none" stroke="#66ccff" stroke-width="1" opacity="0.45" stroke-linejoin="round"/>
-<text class="value" x="285.54" y="666.5" text-anchor="start" fill="#eaf4ff">0.422 ms</text>
-<path class="stroke-axis" d="M262.00 692.00 L317.27 691.57 L372.55 692.59 L427.82 690.90 L483.09 690.82 L538.36 690.20 L593.64 693.59 L648.91 693.18 L704.18 691.35 L759.45 691.13 L814.73 691.98 L870.00 692.00"/>
-<path class="stroke-axis" opacity="0.8" d="M262.00 692.00 L262.29 690.00 L261.73 688.00 L262.00 686.00"/>
-<path class="stroke-axis" opacity="0.8" d="M414.00 692.00 L414.06 690.67 L414.30 689.33 L414.00 688.00"/>
-<path class="stroke-axis" opacity="0.8" d="M566.00 692.00 L566.48 690.00 L566.36 688.00 L566.00 686.00"/>
-<path class="stroke-axis" opacity="0.8" d="M718.00 692.00 L717.76 690.67 L717.67 689.33 L718.00 688.00"/>
-<path class="stroke-axis" opacity="0.8" d="M870.00 692.00 L870.17 690.00 L869.64 688.00 L870.00 686.00"/>
-<text class="axis-label" x="262" y="707">0</text>
-<text class="axis-label" x="870" y="707" text-anchor="end">panel max 34.05 ms</text>
-<text class="ratio" x="870" y="568" text-anchor="end">80.61x faster</text>
-<rect x="18" y="745" width="864" height="169" rx="7" fill="#0f233d"/>
-<path class="stroke-frame" d="M18.00 745.00 L141.43 744.26 L264.86 746.77 L388.29 746.80 L511.71 742.49 L635.14 747.31 L758.57 745.67 L882.00 745.00 L881.96 769.14 L882.37 793.29 L884.30 817.43 L882.53 841.57 L882.89 865.71 L883.01 889.86 L882.00 914.00 L758.57 913.60 L635.14 913.31 L511.71 913.14 L388.29 915.40 L264.86 913.87 L141.43 912.79 L18.00 914.00 L18.25 889.86 L19.37 865.71 L16.09 841.57 L16.09 817.43 L19.86 793.29 L18.60 769.14 L18.00 745.00 Z"/>
-<path class="stroke-frame" opacity="0.45" d="M20.50 747.50 L143.21 748.58 L265.93 747.39 L388.64 750.13 L511.36 746.63 L634.07 748.57 L756.79 746.38 L879.50 747.50 L879.90 770.93 L881.82 794.36 L880.40 817.79 L880.31 841.21 L876.97 864.64 L880.65 888.07 L879.50 911.50 L756.79 910.34 L634.07 912.02 L511.36 909.71 L388.64 912.42 L265.93 910.89 L143.21 911.77 L20.50 911.50 L21.57 888.07 L21.82 864.64 L21.48 841.21 L20.57 817.79 L19.25 794.36 L20.64 770.93 L20.50 747.50 Z"/>
-<text class="panel-label" x="30" y="767">GET / latency (HTML shell)</text>
-<text class="panel-note" x="30" y="784">median of 90 sequential requests, body fully consumed</text>
-<path d="M262.00 815.00 L348.86 814.40 L435.71 814.53 L522.57 813.49 L609.43 813.46 L696.29 816.37 L783.14 815.30 L870.00 815.00 L869.45 818.14 L868.67 821.29 L871.60 824.43 L868.75 827.57 L870.87 830.71 L869.22 833.86 L870.00 837.00 L783.14 836.13 L696.29 838.06 L609.43 837.29 L522.57 835.71 L435.71 835.69 L348.86 837.18 L262.00 837.00 L261.93 833.86 L261.34 830.71 L260.74 827.57 L263.41 824.43 L260.75 821.29 L262.04 818.14 L262.00 815.00 Z" fill="#e8a33d" stroke="#e8a33d" stroke-width="1.4" stroke-linejoin="round"/>
-<path d="M263.50 816.50 L349.93 816.21 L436.36 816.00 L522.79 816.63 L609.21 817.37 L695.64 816.62 L782.07 816.32 L868.50 816.50 L868.71 819.21 L868.51 821.93 L868.33 824.64 L867.76 827.36 L868.83 830.07 L868.43 832.79 L868.50 835.50 L782.07 835.75 L695.64 835.31 L609.21 835.59 L522.79 836.27 L436.36 835.29 L349.93 835.58 L263.50 835.50 L263.77 832.79 L262.99 830.07 L263.27 827.36 L264.08 824.64 L263.15 821.93 L263.66 819.21 L263.50 816.50 Z" fill="none" stroke="#e8a33d" stroke-width="1" opacity="0.45" stroke-linejoin="round"/>
-<text class="value" x="855.00" y="830.5" text-anchor="end" fill="#1a1206">12.18 ms</text>
-<path d="M262.00 850.00 L273.91 850.30 L285.81 848.78 L297.72 851.74 L309.63 848.31 L321.54 850.52 L333.44 850.72 L345.35 850.00 L345.52 853.14 L344.74 856.29 L345.87 859.43 L344.53 862.57 L345.48 865.71 L345.28 868.86 L345.35 872.00 L333.44 872.21 L321.54 872.44 L309.63 872.30 L297.72 872.42 L285.81 871.34 L273.91 871.33 L262.00 872.00 L261.72 868.86 L263.33 865.71 L263.91 862.57 L260.61 859.43 L261.01 856.29 L262.79 853.14 L262.00 850.00 Z" fill="#66ccff" stroke="#66ccff" stroke-width="1.4" stroke-linejoin="round"/>
-<path d="M263.50 851.50 L274.98 851.17 L286.46 852.16 L297.94 851.89 L309.41 852.20 L320.89 851.50 L332.37 851.29 L343.85 851.50 L343.89 854.21 L343.50 856.93 L343.54 859.64 L343.89 862.36 L343.59 865.07 L344.03 867.79 L343.85 870.50 L332.37 870.69 L320.89 870.85 L309.41 870.18 L297.94 870.56 L286.46 870.54 L274.98 870.26 L263.50 870.50 L263.16 867.79 L264.00 865.07 L263.57 862.36 L264.13 859.64 L263.73 856.93 L263.37 854.21 L263.50 851.50 Z" fill="none" stroke="#66ccff" stroke-width="1" opacity="0.45" stroke-linejoin="round"/>
-<text class="value" x="361.35" y="865.5" text-anchor="start" fill="#eaf4ff">1.67 ms</text>
-<path class="stroke-axis" d="M262.00 891.00 L317.27 891.46 L372.55 891.94 L427.82 891.10 L483.09 891.87 L538.36 890.19 L593.64 892.26 L648.91 892.56 L704.18 891.25 L759.45 890.62 L814.73 890.83 L870.00 891.00"/>
-<path class="stroke-axis" opacity="0.8" d="M262.00 891.00 L261.59 889.00 L261.87 887.00 L262.00 885.00"/>
-<path class="stroke-axis" opacity="0.8" d="M414.00 891.00 L414.18 889.67 L413.53 888.33 L414.00 887.00"/>
-<path class="stroke-axis" opacity="0.8" d="M566.00 891.00 L565.86 889.00 L565.52 887.00 L566.00 885.00"/>
-<path class="stroke-axis" opacity="0.8" d="M718.00 891.00 L717.51 889.67 L717.56 888.33 L718.00 887.00"/>
-<path class="stroke-axis" opacity="0.8" d="M870.00 891.00 L870.50 889.00 L869.67 887.00 L870.00 885.00"/>
-<text class="axis-label" x="262" y="906">0</text>
-<text class="axis-label" x="870" y="906" text-anchor="end">panel max 12.18 ms</text>
-<text class="ratio" x="870" y="767" text-anchor="end">7.29x faster</text>
-<path class="stroke-axis" opacity="0.8" d="M18.00 952.00 L79.71 952.12 L141.43 951.49 L203.14 952.44 L264.86 951.76 L326.57 951.33 L388.29 951.59 L450.00 951.29 L511.71 952.93 L573.43 951.61 L635.14 951.04 L696.86 951.37 L758.57 951.73 L820.29 952.19 L882.00 952.00"/>
-<text class="footer" x="18" y="970">Every bar is drawn against its own panel's zero-based axis, whose maximum is printed on the panel. No axis is truncated and no ratio replaces a value.</text>
-<text class="footer" x="18" y="986">Ratios are computed from the two printed values in each panel; they are a restatement, not a separate measurement.</text>
-<text class="footer" x="18" y="1002">SillyTavern 1.19.0 (pinned commit 06bde939) vs GoTavern at a3c2f53 - same checkout, same data-root seeding, same port allocator.</text>
-<text class="footer" x="18" y="1018">Workflow: GoTavern smoke metrics, run 40898332226 - shared GitHub runner, so these are runner-dependent numbers, not a budget.</text>
-<text class="footer" x="18" y="1034">Full methodology and provenance: README, "Performance" section.</text>
+<rect width="1000" height="1180" fill="url(#page)"/>
+<rect width="1000" height="1180" fill="url(#auroraCyan)"/>
+<rect width="1000" height="1180" fill="url(#auroraViolet)"/>
+<rect width="1000" height="1180" fill="url(#dotgrid)"/>
+<text class="micro" x="64" y="40">GOTAVERN / PERFORMANCE</text>
+<text class="micro" x="936" y="40" text-anchor="end">PAIRED BENCHMARK · 3 ROUNDS · RUN 41171857944</text>
+<rect x="64" y="56" width="872" height="1" fill="url(#topRule)"/>
+<text class="title serif" x="64" y="126">Same SillyTavern.</text>
+<text class="title-accent serif" x="64" y="182" fill="url(#titleGrad)">Faster. Lighter.</text>
+<text class="intro sans" x="64" y="222">One GitHub runner. The same pinned checkout, the same seeding, the same workload.</text>
+<text class="intro sans" x="64" y="242">Three alternating rounds, medians shown. Every bar is linear and starts at zero.</text>
+<rect x="676" y="74" width="260" height="180" rx="14" fill="#0c1424" fill-opacity="0.72" stroke="#94a3b8" stroke-opacity="0.18"/>
+<rect x="676" y="74" width="260" height="180" rx="14" fill="url(#cardSheen)"/>
+<rect x="677" y="75" width="258" height="2" rx="1" fill="url(#topRule)" opacity="0.8"/>
+<text class="spec-label mono" x="696" y="108">RUN</text>
+<text class="spec-value mono" x="916" y="108" text-anchor="end">41171857944</text>
+<rect x="696" y="119" width="220" height="1" fill="#94a3b8" fill-opacity="0.10"/>
+<text class="spec-label mono" x="696" y="138">RUNNER</text>
+<text class="spec-value mono" x="916" y="138" text-anchor="end">ubuntu26</text>
+<rect x="696" y="149" width="220" height="1" fill="#94a3b8" fill-opacity="0.10"/>
+<text class="spec-label mono" x="696" y="168">ROUNDS</text>
+<text class="spec-value mono" x="916" y="168" text-anchor="end">3 × 30 req/path</text>
+<rect x="696" y="179" width="220" height="1" fill="#94a3b8" fill-opacity="0.10"/>
+<text class="spec-label mono" x="696" y="198">SOAK</text>
+<text class="spec-value mono" x="916" y="198" text-anchor="end">10 min × 2 subjects</text>
+<rect x="696" y="209" width="220" height="1" fill="#94a3b8" fill-opacity="0.10"/>
+<text class="spec-label mono" x="696" y="228">PINNED</text>
+<text class="spec-value mono" x="916" y="228" text-anchor="end">1.19.0 @ 06bde939</text>
+<rect x="64" y="284" width="17" height="9" rx="4.5" fill="url(#amberBar)"/>
+<text class="legend sans" x="90" y="292">SillyTavern 1.19.0 (Node)</text>
+<rect x="316" y="284" width="17" height="9" rx="4.5" fill="url(#cyanBar)"/>
+<text class="legend sans" x="342" y="292">GoTavern</text>
+<text class="legend-note mono" x="936" y="292" text-anchor="end">LINEAR AXES - ZERO-BASED - MEDIANS</text>
+<text class="row-index mono" x="64" y="344">01</text>
+<text class="row-label sans" x="64" y="370">Cold start to first /version 200</text>
+<text class="row-note sans" x="64" y="392">median of 3 alternating rounds;</text>
+<text class="row-note sans" x="64" y="408">empty data root, no config.yaml</text>
+<rect x="441.00" y="346" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
+<rect x="546.00" y="346" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
+<rect x="651.00" y="346" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
+<rect x="336" y="354" width="417.52" height="13" rx="6.5" fill="url(#amberBar)" filter="url(#barShadow)"/>
+<rect x="336" y="354" width="417.52" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.10"/>
+<text class="value mono" x="741.52" y="364.5" text-anchor="end" fill="#1b1206">9,941 ms</text>
+<rect x="336" y="386" width="5.00" height="13" rx="6.5" fill="#7fe9ff" opacity="0.55" filter="url(#goGlow)"/>
+<rect x="336" y="386" width="5.00" height="13" rx="6.5" fill="url(#cyanBar)"/>
+<rect x="336" y="386" width="5.00" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.14"/>
+<text class="value mono" x="352.00" y="396.5" fill="#a9f1ff">32 ms</text>
+<rect x="336" y="416" width="420" height="1" fill="#94a3b8" fill-opacity="0.30"/>
+<rect x="336.00" y="416" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
+<rect x="546.00" y="416" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
+<rect x="756.00" y="416" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
+<text class="axis mono" x="336" y="434">0 ms</text>
+<text class="axis mono" x="546" y="434" text-anchor="middle">5,000 ms</text>
+<text class="axis mono" x="756" y="434" text-anchor="end">10,000 ms</text>
+<text class="ratio mono" x="936" y="378" text-anchor="end" fill="url(#ratioGrad)"><tspan>310.7</tspan><tspan class="ratio-factor" dx="1">×</tspan></text>
+<text class="verdict mono" x="936" y="398" text-anchor="end">F A S T E R</text>
+<rect x="64" y="486" width="872" height="1" fill="url(#hairlineFade)"/>
+<text class="row-index mono" x="64" y="520">02</text>
+<text class="row-label sans" x="64" y="546">Steady-state memory (RSS)</text>
+<text class="row-note sans" x="64" y="568">VmRSS from /proc, after readiness</text>
+<text class="row-note sans" x="64" y="584">and 30 requests; median of 6 samples</text>
+<text class="row-exact mono" x="64" y="614">1,199,456,256 B / 37,533,696 B</text>
+<rect x="441.00" y="522" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
+<rect x="546.00" y="522" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
+<rect x="651.00" y="522" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
+<rect x="336" y="530" width="419.81" height="13" rx="6.5" fill="url(#amberBar)" filter="url(#barShadow)"/>
+<rect x="336" y="530" width="419.81" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.10"/>
+<text class="value mono" x="743.81" y="540.5" text-anchor="end" fill="#1b1206">1,199 MB</text>
+<rect x="336" y="562" width="13.14" height="13" rx="6.5" fill="#7fe9ff" opacity="0.55" filter="url(#goGlow)"/>
+<rect x="336" y="562" width="13.14" height="13" rx="6.5" fill="url(#cyanBar)"/>
+<rect x="336" y="562" width="13.14" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.14"/>
+<text class="value mono" x="360.14" y="572.5" fill="#a9f1ff">37.5 MB</text>
+<rect x="336" y="592" width="420" height="1" fill="#94a3b8" fill-opacity="0.30"/>
+<rect x="336.00" y="592" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
+<rect x="546.00" y="592" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
+<rect x="756.00" y="592" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
+<text class="axis mono" x="336" y="610">0 MB</text>
+<text class="axis mono" x="546" y="610" text-anchor="middle">600 MB</text>
+<text class="axis mono" x="756" y="610" text-anchor="end">1,200 MB</text>
+<text class="ratio mono" x="936" y="554" text-anchor="end" fill="url(#ratioGrad)"><tspan>31.96</tspan><tspan class="ratio-factor" dx="1">×</tspan></text>
+<text class="verdict mono" x="936" y="574" text-anchor="end">L I G H T E R</text>
+<rect x="64" y="662" width="872" height="1" fill="url(#hairlineFade)"/>
+<text class="row-index mono" x="64" y="696">03</text>
+<text class="row-label sans" x="64" y="722">GET /version latency</text>
+<text class="row-note sans" x="64" y="744">median of 90 sequential requests,</text>
+<text class="row-note sans" x="64" y="760">same client for both subjects</text>
+<rect x="441.00" y="698" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
+<rect x="546.00" y="698" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
+<rect x="651.00" y="698" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
+<rect x="336" y="706" width="402.74" height="13" rx="6.5" fill="url(#amberBar)" filter="url(#barShadow)"/>
+<rect x="336" y="706" width="402.74" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.10"/>
+<text class="value mono" x="726.74" y="716.5" text-anchor="end" fill="#1b1206">28.77 ms</text>
+<rect x="336" y="738" width="5.00" height="13" rx="6.5" fill="#7fe9ff" opacity="0.55" filter="url(#goGlow)"/>
+<rect x="336" y="738" width="5.00" height="13" rx="6.5" fill="url(#cyanBar)"/>
+<rect x="336" y="738" width="5.00" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.14"/>
+<text class="value mono" x="352.00" y="748.5" fill="#a9f1ff">0.316 ms</text>
+<rect x="336" y="768" width="420" height="1" fill="#94a3b8" fill-opacity="0.30"/>
+<rect x="336.00" y="768" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
+<rect x="546.00" y="768" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
+<rect x="756.00" y="768" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
+<text class="axis mono" x="336" y="786">0 ms</text>
+<text class="axis mono" x="546" y="786" text-anchor="middle">15 ms</text>
+<text class="axis mono" x="756" y="786" text-anchor="end">30 ms</text>
+<text class="ratio mono" x="936" y="730" text-anchor="end" fill="url(#ratioGrad)"><tspan>91.02</tspan><tspan class="ratio-factor" dx="1">×</tspan></text>
+<text class="verdict mono" x="936" y="750" text-anchor="end">F A S T E R</text>
+<rect x="64" y="838" width="872" height="1" fill="url(#hairlineFade)"/>
+<text class="row-index mono" x="64" y="872">04</text>
+<text class="row-label sans" x="64" y="898">GET / latency (HTML shell)</text>
+<text class="row-note sans" x="64" y="920">median of 90 sequential requests,</text>
+<text class="row-note sans" x="64" y="936">body fully consumed</text>
+<rect x="441.00" y="874" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
+<rect x="546.00" y="874" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
+<rect x="651.00" y="874" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
+<rect x="336" y="882" width="357.63" height="13" rx="6.5" fill="url(#amberBar)" filter="url(#barShadow)"/>
+<rect x="336" y="882" width="357.63" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.10"/>
+<text class="value mono" x="681.63" y="892.5" text-anchor="end" fill="#1b1206">10.22 ms</text>
+<rect x="336" y="914" width="53.07" height="13" rx="6.5" fill="#7fe9ff" opacity="0.55" filter="url(#goGlow)"/>
+<rect x="336" y="914" width="53.07" height="13" rx="6.5" fill="url(#cyanBar)"/>
+<rect x="336" y="914" width="53.07" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.14"/>
+<text class="value mono" x="400.07" y="924.5" fill="#a9f1ff">1.52 ms</text>
+<rect x="336" y="944" width="420" height="1" fill="#94a3b8" fill-opacity="0.30"/>
+<rect x="336.00" y="944" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
+<rect x="546.00" y="944" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
+<rect x="756.00" y="944" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
+<text class="axis mono" x="336" y="962">0 ms</text>
+<text class="axis mono" x="546" y="962" text-anchor="middle">6 ms</text>
+<text class="axis mono" x="756" y="962" text-anchor="end">12 ms</text>
+<text class="ratio mono" x="936" y="906" text-anchor="end" fill="url(#ratioGrad)"><tspan>6.74</tspan><tspan class="ratio-factor" dx="1">×</tspan></text>
+<text class="verdict mono" x="936" y="926" text-anchor="end">F A S T E R</text>
+<rect x="64" y="1030" width="872" height="1" fill="url(#hairlineFade)"/>
+<text class="footer mono" x="64" y="1056"><tspan class="footer-label">VALUES</tspan><tspan dx="10">GoTavern smoke metrics · run 41171857944 · ubuntu26 shared runner · 3 alternating rounds × 30 sequential requests per path · medians shown</tspan></text>
+<text class="footer mono" x="64" y="1073"><tspan class="footer-label">SUBJECTS</tspan><tspan dx="10">SillyTavern 1.19.0 @ pinned 06bde939   vs   GoTavern @ 91e1e15   (the commit this run measured; the v0.1.0-alpha.9 tag adds documentation only)</tspan></text>
+<text class="footer mono" x="64" y="1090"><tspan class="footer-label">HONESTY</tspan><tspan dx="10">every bar sits on its own zero-based axis whose maximum is printed at the axis end, so no axis is truncated and no ratio replaces a value.</tspan></text>
+<text class="footer mono" x="64" y="1107"><tspan dx="0">a 5 px floor keeps a near-zero bar visible; it never changes a printed value, the axis maximum or the ratio. Ratios restate the two printed values.</tspan></text>
+<text class="footer mono" x="64" y="1132">generated by tools/benchmark-svg.mjs from the recorded artefact - never hand-edited</text>
+<text class="footer mono" x="936" y="1132" text-anchor="end">github.com/cocokoishi/GoTavern</text>
 </svg>
