@@ -138,6 +138,19 @@ func removeFileExtensionToken(filename string) string {
 	return filename
 }
 
+// writeUserImageFile stores one uploaded image through the same atomic replacement used by every
+// other binary user asset (avatars, thumbnails, stats).
+//
+// WHY THIS IS NOT os.WriteFile. An upload with an existing target name overwrites a user's image,
+// and pinned's fs.writeFileSync truncates the target before writing it. A crash, a full disk or a
+// killed process in that window leaves the PREVIOUS image destroyed rather than replaced; and a
+// concurrent reader (the /api/images/list + static path this product serves) can observe a
+// truncated file. A temp file + fsync + rename makes the target either the old image or the new
+// one, never a prefix of either. The visible end state on success is unchanged.
+func writeUserImageFile(target string, content []byte) error {
+	return startup.WriteFileAtomic(target, content)
+}
+
 // serveImagesUpload stores a base64 image in the user images tree.
 func (runtime *accountRuntime) serveImagesUpload(w http.ResponseWriter, request *http.Request) {
 	directories, images, ok := runtime.imagesDirectories(w, request)
@@ -204,7 +217,7 @@ func (runtime *accountRuntime) serveImagesUpload(w http.ResponseWriter, request 
 		imagesJSONError(w, http.StatusInternalServerError, "Failed to save the image")
 		return
 	}
-	if err := os.WriteFile(target, content, 0o644); err != nil {
+	if err := writeUserImageFile(target, content); err != nil {
 		imagesJSONError(w, http.StatusInternalServerError, "Failed to save the image")
 		return
 	}

@@ -313,6 +313,14 @@ func duplicateKeyError(document *yaml.Node, input []byte) error {
 }
 
 func parseMapping(input []byte) (*yaml.Node, error) {
+	if configHasNoYAMLContent(input) {
+		// Pinned's yaml parser returns null for a document made only of whitespace and comments,
+		// and addMissingConfigValues then applies the defaults and writes them. yaml.v3 accepts
+		// comments and blank lines but REJECTS a tab in otherwise-blank content ("found character
+		// that cannot start any token"), which would make such a config a boot failure instead of
+		// a repair. Measured with the pinned yaml package: yaml.parse("  \n\t\n\n") === null.
+		return &yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{mappingNode()}}, nil
+	}
 	var document yaml.Node
 	if err := yaml.Unmarshal(input, &document); err != nil {
 		return nil, &ParseError{Message: err.Error(), Cause: err}
@@ -321,13 +329,32 @@ func parseMapping(input []byte) (*yaml.Node, error) {
 		return nil, duplicate
 	}
 	if len(document.Content) == 0 || document.Content[0].Kind == 0 || document.Content[0].Tag == "!!null" {
-		document.Content = []*yaml.Node{mappingNode()}
+		// An empty (or whitespace/comment-only) config.yaml must behave like pinned's, which
+		// parses it as null, runs defaultsDeep(config, defaultConfig) and WRITES the full default
+		// config. yaml.Unmarshal leaves a zero-value node for an empty document: replacing only
+		// Content produced a document whose Kind is 0, which stringifyConfig refused to encode
+		// ("cannot encode node with unknown kind 0"), so a crash-truncated 0-byte config made
+		// boot fail instead of being repaired. Measure: the empty file reaches this branch.
+		document = yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{mappingNode()}}
 	}
 	root := document.Content[0]
 	if root.Kind != yaml.MappingNode {
 		return nil, errors.New("configuration root must be a YAML mapping")
 	}
 	return &document, nil
+}
+
+// configHasNoYAMLContent reports whether the document holds no nodes: every line is blank or a
+// comment. Such an input is the empty document (pinned: null), whatever its whitespace looks like.
+func configHasNoYAMLContent(input []byte) bool {
+	for _, line := range strings.Split(string(input), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func mappingNode() *yaml.Node {
