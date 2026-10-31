@@ -18,15 +18,17 @@ cannot hurt a user ranks below one that is hard to close and changes the model's
 Release condition: **`FAIL = 0`; `PARTIAL > 0` is allowed when every partial row is understood, documented,
 classified and non-blocking.**
 
-At this candidate the machine matrix is `PASS 1 / PARTIAL 19 / FAIL 1 / NOT_APPLICABLE 1`, so the condition
-is **NOT MET**. The single FAIL is `whole-session-e2e`, and it is a P0 for the tag (section 2, rank 1). The
-19 PARTIAL rows are classified in section 3: **P0 0 / P1 9 / P2 10**. No PARTIAL row hides a second P0.
+At this candidate the machine matrix is `PASS 2 / PARTIAL 18 / FAIL 1 / NOT_APPLICABLE 1`: `world-info` is
+now PASS (its slot-order gate went green in CI at `8de82c2`; see section 4), 18 rows remain PARTIAL, and the
+single FAIL is `whole-session-e2e`, a P0 for the tag (section 2, rank 1). The 18 PARTIAL rows are classified
+in section 3: **P0 0 / P1 8 / P2 10**. No PARTIAL row hides a P0.
 
 What this lane did and did not run: it re-derived the matrix mechanically (`node
 tools/compat-matrix/render.mjs --emit`), ran `node tools/compat-matrix/check.mjs` green, re-resolved every
 citation with an independent resolver that does not import `render.mjs`, audited every historical status
-transition, and read the tree for each closure in section 4. It ran **no Go test, no browser probe and no CI
-workflow**; freshness of every run-cited claim is the Lead's re-run at the frozen candidate SHA (section 5).
+transition, and read the tree for each closure in section 4. It ran the local document gates (`tools/compat-matrix/check.mjs`,
+`tools/generate-doc-facts.mjs --check`, `go test ./internal/fixtures -count=1`) but **no browser probe and no
+CI workflow**; freshness of every run-cited claim is the Lead's re-run at the frozen candidate SHA (section 5).
 
 ## 1. Severity classes
 
@@ -51,20 +53,19 @@ This is the same ranked list as `docs/compatibility-matrix.json`'s `gaps` (regen
 | --- | --- | --- | --- | --- |
 | 1 | The whole-session differential is RED for a real FIRST-TURN provider-context difference (`whole-session-e2e`) | **yes** - the model is given different context on the first turn after a page load than pinned Node gives it; this is the product promise | product parity defect | **P0** |
 | 2 | An existing user's tree is qualified through a DERIVED stock tree, and hand-back after GoTavern has written the tree is not in the packaged drop-in gate (`packaging-release`) | **yes for the target audience** - an existing SillyTavern user, until the stock tree is recorded and one round trip returns the tree to pinned Node | release-artifact evidence missing / production-vs-derived limitation | **P1** |
-| 3 | World-info slot ORDERING (before/after/atDepth) into the provider request is not asserted for a stock preset (`world-info`) | no, but it silently changes what the model is told | evidence debt | **P1** |
-| 4 | Preset features outside the measured contract are unasserted: instruct/context templates, secondary world-info keys, recursion/probability/outlets, group-chat presets (`presets-and-ui-content`) | no for an ordinary preset; a complex preset can diverge with no gate | evidence debt | **P1** |
-| 5 | Chat JSONL atomicity is asserted per route but not at a crash-or-kill boundary; the browser save->reload leg belongs to the red whole-session gate (`chats`) | yes if a kill lands mid-write - the conversation is the product - but no failure observed | evidence debt / extreme edge untested | **P1** |
-| 6 | CharX, BYAF and RisuAI imports are unimplemented; avatar crop/resize is unprobed; no browser create/read-back (`characters`) | yes for a user arriving with one of those card formats; ordinary PNG/JSON/YAML use is unaffected | production limitation + deliberate codec divergence | **P1** |
-| 7 | Every REMOTE embedding provider answers 500; only webllm/koboldcpp and caller-supplied vectors work (`embeddings-vector`) | yes for a user enabling vector storage with a remote provider; not the default chat journey | production limitation | **P1** |
-| 8 | Every provider differential runs against this repository's own recording peer; a real provider through a real proxy is exercised by the user and nothing here (`providers-transport`) | no for a user with a working provider, but the corpus cannot prove the real path | production-vs-mock limitation / evidence debt | **P1** |
-| 9 | 酒馆助手 render path, DOM URLs and variable persistence remain unproven; the ordinary asset-serving path is now executed (`extensions`) | no for a normal extension install; a workflow depending on persisted variables or rendered URLs stays unproven | secondary feature evidence gap / observer coverage | **P1** |
-| 10 | With no tokenizer tree an inexact count cannot be told apart from an exact one; resolution is unproven beside a user's data (`tokenization`) | no for a fresh install, but AGENTS.md 9 makes exact tokenization mandatory where marked compatible | deliberate inherited weakness / evidence debt | **P2** |
-| 11 | Media re-encoding is a DECIDED codec divergence; no browser posts a real multipart upload (`files-and-media`) | no - the observable transformation is gated; Jimp byte equality is explicitly not claimed | deliberate architectural boundary / evidence debt | **P2** |
-| 12 | Two users writing the same world/preset tree concurrently is untested; per-user locks are asserted per route (`accounts-multi-user`) | no for a single-user install; yes for a multi-user deployment under contention | evidence debt / extreme edge untested | **P2** |
-| 13 | No sweep asserts a stored secret is never printed on ANY error path, only on the probed routes (`secrets`) | no, but a leaked key is unrecoverable for the user | evidence debt | **P2** |
-| 14 | Server plugins and local ONNX embeddings are excluded, and the exclusion is only as visible as the last document that mentioned it (`server-plugins`) | for the small set of users who rely on them, yes; they must learn it before installing | deliberate architectural boundary | **P2** |
+| 3 | Preset features outside the measured contract are unasserted: instruct/context templates, secondary world-info keys, recursion/probability/outlets, group-chat presets (`presets-and-ui-content`) | no for an ordinary preset; a complex preset can diverge with no gate | evidence debt | **P1** |
+| 4 | Chat JSONL atomicity is asserted per route but not at a crash-or-kill boundary; the browser save->reload leg belongs to the red whole-session gate (`chats`) | yes if a kill lands mid-write - the conversation is the product - but no failure observed | evidence debt / extreme edge untested | **P1** |
+| 5 | CharX, BYAF and RisuAI imports are unimplemented; avatar crop/resize is unprobed; no browser create/read-back (`characters`) | yes for a user arriving with one of those card formats; ordinary PNG/JSON/YAML use is unaffected | production limitation + deliberate codec divergence | **P1** |
+| 6 | Every REMOTE embedding provider answers 500; only webllm/koboldcpp and caller-supplied vectors work (`embeddings-vector`) | yes for a user enabling vector storage with a remote provider; not the default chat journey | production limitation | **P1** |
+| 7 | Every provider differential runs against this repository's own recording peer; a real provider through a real proxy is exercised by the user and nothing here (`providers-transport`) | no for a user with a working provider, but the corpus cannot prove the real path | production-vs-mock limitation / evidence debt | **P1** |
+| 8 | 酒馆助手 render path, DOM URLs and variable persistence remain unproven; the ordinary asset-serving path is now executed (`extensions`) | no for a normal extension install; a workflow depending on persisted variables or rendered URLs stays unproven | secondary feature evidence gap / observer coverage | **P1** |
+| 9 | With no tokenizer tree an inexact count cannot be told apart from an exact one; resolution is unproven beside a user's data (`tokenization`) | no for a fresh install, but AGENTS.md 9 makes exact tokenization mandatory where marked compatible | deliberate inherited weakness / evidence debt | **P2** |
+| 10 | Media re-encoding is a DECIDED codec divergence; no browser posts a real multipart upload (`files-and-media`) | no - the observable transformation is gated; Jimp byte equality is explicitly not claimed | deliberate architectural boundary / evidence debt | **P2** |
+| 11 | Two users writing the same world/preset tree concurrently is untested; per-user locks are asserted per route (`accounts-multi-user`) | no for a single-user install; yes for a multi-user deployment under contention | evidence debt / extreme edge untested | **P2** |
+| 12 | No sweep asserts a stored secret is never printed on ANY error path, only on the probed routes (`secrets`) | no, but a leaked key is unrecoverable for the user | evidence debt | **P2** |
+| 13 | Server plugins and local ONNX embeddings are excluded, and the exclusion is only as visible as the last document that mentioned it (`server-plugins`) | for the small set of users who rely on them, yes; they must learn it before installing | deliberate architectural boundary | **P2** |
 
-Rows 10-14 are correctly below the user-blocking ones: each is a decided boundary, a narrow edge, or a
+The P2 rows are correctly below the user-blocking ones: each is a decided boundary, a narrow edge, or a
 secondary surface. None of them can corrupt data or stop a fresh install from starting.
 
 ## 3. Release disposition for every PARTIAL row, plus the FAIL row
@@ -81,7 +82,6 @@ class; the severity; and the one-sentence release disposition.
 | `characters` | CharX/BYAF/RisuAI imports unimplemented (honest pinned error shape); uploaded-avatar crop is source-implemented but not Jimp-identical and unprobed; no browser create-in-frontend/read-back E2E. | no for ordinary PNG/JSON/YAML cards; yes for those three formats | production limitation + deliberate codec divergence | P1 | Ships with a named limitation: ordinary card flows are byte-recorded and parity-tested and a CharX/BYAF/Risu import returns the pinned error rather than corrupting data, so the missing formats are a documented capability gap, not a data hazard. |
 | `chats` | No crash-or-kill boundary test for JSONL append/rewrite; the one-session save/reload/continue assertion belongs to `whole-session-e2e`, which is red. | yes (chat save/load is the product) | evidence debt / dependency on the FAIL row | P1 | Ships only once `whole-session-e2e` is green at the candidate SHA (that run is the save/reload proof); the crash-atomicity boundary stays a documented post-tag evidence item because writes are already locked and atomic per route. |
 | `groups` | No generation test: a group chat's multi-character turn order reaches the provider through a path no fixture covers, and group activation has no browser E2E. | no for single-character chat; yes for group chats | observer coverage | P1 | Ships with a named limitation: group route and metadata-migration parity is fixture-pinned, while the multi-character prompt assembly is unproven and cannot corrupt stored data. |
-| `world-info` | No gate asserts that all three slot positions (before/after/atDepth) reach the provider IN PINNED ORDER for a stock preset; activation itself is proven by the preset and Author's-Note differentials. | yes (world info is common) | evidence debt | P1 | Ships with a named limitation: an entry can be stored and activated correctly yet inserted in the wrong position, which changes the model's context silently; this is exactly the class AGENTS.md 8's request-equality promise exists for, so it must be closed or explicitly accepted. |
 | `presets-and-ui-content` | Preset features outside the measured contract are unasserted (instruct/context templates, secondary world-info keys, recursion/probability/outlets, group chats); the NAME_MAX host difference is a recorded known difference. | yes (presets are core) | evidence debt | P1 | Ships because the complex-preset keep/drop pair is measured (`keepContext 4260 / dropContext 4259`, 24 vs 26 messages, `providerRequestEqual true`) and both halves of AGENTS.md 48 hold inside that contract; features outside it are documented as unmeasured, not claimed. |
 | `providers-transport` | No real-network/provider evidence: every differential runs against this repository's recording peer, and the credential-gated live canaries are not in the default suite. | yes (provider transport is core), but the production transport is the runtime path and internet-shaped failures are gated | production-vs-mock limitation | P1 | Safe to ship because the production transport (TLS/system roots, proxy, bounded timeouts, decompression, redirects, cancellation) is the path users execute, four internet-shaped failure peers plus a shipped-binary test assert the causal taxonomy, and the additive `message` member is a declared superset; a credentialed live-provider run remains the documented evidence gap. |
 | `providers-per-source-wire` | Request bytes are compared against a mock peer, so they prove shaping rather than delivery; no per-source evidence from the shipped artifact; the ai21 `requestFraming` block had no producer until it was rebuilt. | yes for the affected provider | production-vs-mock limitation / evidence debt | P2 | Safe to ship because the 15 catalogued sources' request bytes are byte-compared and the delivery half is owned by `providers-transport`; per-source production observation is evidence work, not a known divergence. |
@@ -125,6 +125,20 @@ Two further stale statements were corrected by this lane directly in the machine
   is executed, that the extension ordinary asset-serving path is unproven and that tokenization has no
   boundary-pair gate; all four contradicted their own rows and the tree, and are rewritten in the matrix.
 
+**Closed while this lane was open: world-info slot ORDER.** The ranked gap #3 this sweep started with ("the
+before/after/atDepth slots are not asserted to reach the final provider request in pinned's order") was
+closed by the lane that built the surface. `tests/browser/worldinfo-slots-comparison.json` records the SAME
+486-byte body on both subjects (sha256 `0422801bd299fe5115c264d20f748abec68a714c2b220e80082a37b2e0bd4bcb`),
+21/21 guards, slot order [1,2,4] (before@1 system, after@2 system, depth@4 user at 1 from the end), and the
+self-test names the specific guard behind each of five mutations; `worldinfo-slots.yml#worldinfo-slots`
+re-runs the surface and refuses to finish unless the fresh artefact reproduces the committed one byte for
+byte (run 41171073703 at `8de82c2`, success). The two defects the surface found first were FIXTURE defects,
+not product defects: a settings write staged before boot suppressed first-run onboarding on the GoTavern
+subject, and a user-name step read `#your_name` while the assembled prompt resolves the persona BINDING the
+onboarding handler writes; once the fixture was faithful, the product's onboarding path was identical on both
+subjects. The matrix row is re-derived PARTIAL -> PASS with the ordering evidenceGap emptied, ranked gap #3
+is removed, and the ranks are renumbered.
+
 ## 5. Freshness: which rows depend on which run, and what must be re-run at the frozen SHA
 
 **What a green push run does NOT cover.** `ci.yml#oracle` is NARROWED on a push: a `changes` job computes
@@ -148,6 +162,7 @@ evidence for any row below, is a harness failure rather than a red product gate,
 | `ci.yml#oracle` | core-http-static, auth-session-csrf, settings, secrets, characters, chats, groups, world-info, presets, providers-transport, providers-per-source-wire, streaming, tokenization, files-and-media, extensions, server-plugins, embeddings, accounts, import-export, startup, whole-session (indirectly) | the FULL oracle (dispatch with empty `probes`, or the nightly run) at the candidate; the narrowed push run is not this evidence |
 | `ci.yml#browser-evidence` | every row carrying a committed browser artefact | green at the candidate; it recomputes the committed artefacts' claims and reports their freshness, it does not re-record them |
 | `browser-differential.yml#differential` (`mode: all`) | world-info, presets-and-ui-content, providers-per-source-wire, streaming-and-cancel, extensions | a FULL browser differential at the candidate; a push-narrowed assets/helper run is NOT sufficient |
+| `worldinfo-slots.yml#worldinfo-slots` | world-info (now PASS) | dispatch at the candidate; it re-runs both legs, requires 21/21 guards, and REFUSES unless the fresh artefact reproduces the committed one byte for byte |
 | `whole-session.yml#whole-session` | whole-session-e2e, and the save/reload leg inside chats | a fresh dispatch at the EXACT candidate SHA; the row may only cite that run id |
 | `dropin-qualification.yml#dropin-current-head` / `windows-inputs` / `dropin-windows` | packaging-release; it is also the only packaged-artifact boot for an existing stock tree | a run at the candidate (it runs on `main`/`lane/**` pushes; a tag-time run must be dispatched if the candidate is not a branch head) |
 | `release-qualification.yml#qualify-linux-amd64` | tokenization, startup, packaging-release | **COLD** - the workflow triggers only on a `v*` tag or dispatch; dispatch it at the candidate |
@@ -174,7 +189,10 @@ measurement.
   older SHA does not move with the candidate.
 - `tokenization` and `startup` - the only shipped-artifact evidence they cite is
   `release-qualification.yml#qualify-linux-amd64`, which has not run at the candidate unless dispatched.
-- rows whose committed browser artefacts predate the candidate: `world-info`, `presets-and-ui-content`,
+- `world-info` - its PASS rests on run 41171073703 at `8de82c2`; the release-gate freshness run at the
+  candidate is `worldinfo-slots.yml#worldinfo-slots`, which also refuses a committed artefact it cannot
+  reproduce byte for byte.
+- rows whose committed browser artefacts predate the candidate: `presets-and-ui-content`,
   `providers-per-source-wire`, `streaming-and-cancel`, `extensions`. `ci.yml#browser-evidence` recomputes
   their claims, but only a full browser differential re-records them against the candidate's code.
 
