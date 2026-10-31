@@ -103,12 +103,12 @@ Point GoTavern at your existing directory and start it. Auto-update resolves to 
 
 | Metric | Pinned Node SillyTavern | GoTavern | How it was measured |
 |---|---|---|---|
-| Cold start to first `/version` 200 | 9,941 ms | **32 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
-| Steady-state RSS (`VmRSS` from `/proc`) | 1,199 MB | **37.5 MB** | median of 6 samples, after readiness and 30 requests per round |
-| `GET /version` latency | 28.77 ms | **0.32 ms** | median of 90 sequential requests (p95: 30.01 / 0.63) |
-| `GET /` latency (HTML shell) | 10.22 ms | **1.52 ms** | median of 90 sequential requests |
+| Cold start to first `/version` 200 | 9,878 ms | **189 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
+| Steady-state RSS (`VmRSS` from `/proc`) | 1,245 MB | **38.6 MB** | median of 6 samples, after readiness and 30 requests per round |
+| `GET /version` latency | 63.67 ms | **0.250 ms** | median of 90 sequential requests (p95: 74.73 / 0.86) |
+| `GET /` latency (HTML shell) | 9.06 ms | **1.26 ms** | median of 90 sequential requests |
 
-**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `41171857944` (success) on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -1.4 MB, p95 drift -0.06 ms). A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit.
+**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `41207221610` (success) on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -1.8 MB, p95 drift +0.42 ms); pinned only settled downward from its startup peak. A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The Beta qualification re-runs this gate at the released commit; the published release body appends the run-id table so the numbers in this table and the gate that re-measured them are both checkable.
 
 ### A profile-driven fix
 

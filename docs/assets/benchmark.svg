@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1180" viewBox="0 0 1000 1180" role="img" aria-labelledby="benchmarkTitle benchmarkDesc">
 <title id="benchmarkTitle">GoTavern vs SillyTavern (Node) - paired benchmark, ubuntu26</title>
-<desc id="benchmarkDesc">Cold start to first /version 200: SillyTavern 9,941 ms, GoTavern 32 ms (310.7-fold faster); Steady-state memory (RSS): SillyTavern 1,199 MB, GoTavern 37.5 MB (31.96-fold lighter); GET /version latency: SillyTavern 28.77 ms, GoTavern 0.316 ms (91.02-fold faster); GET / latency (HTML shell): SillyTavern 10.22 ms, GoTavern 1.52 ms (6.74-fold faster). For timing rows a lower value is faster; for memory a lower value is lighter. Degree of improvement is per row, each drawn against its own zero-based axis whose maximum is printed on the row. Methodology and provenance are stated in the README section below the figure and in docs/assets/benchmark.svg.provenance.md.</desc>
+<desc id="benchmarkDesc">Cold start to first /version 200: SillyTavern 9,878 ms, GoTavern 189 ms (52.26-fold faster); Steady-state memory (RSS): SillyTavern 1,245 MB, GoTavern 38.6 MB (32.23-fold lighter); GET /version latency: SillyTavern 63.67 ms, GoTavern 0.250 ms (254.5-fold faster); GET / latency (HTML shell): SillyTavern 9.06 ms, GoTavern 1.26 ms (7.20-fold faster). For timing rows a lower value is faster; for memory a lower value is lighter. Degree of improvement is per row, each drawn against its own zero-based axis whose maximum is printed on the row. Methodology and provenance are stated in the README section below the figure and in docs/assets/benchmark.svg.provenance.md.</desc>
 
   <defs>
     <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
@@ -95,7 +95,7 @@
 <rect width="1000" height="1180" fill="url(#auroraViolet)"/>
 <rect width="1000" height="1180" fill="url(#dotgrid)"/>
 <text class="micro" x="64" y="40">GOTAVERN / PERFORMANCE</text>
-<text class="micro" x="936" y="40" text-anchor="end">PAIRED BENCHMARK · 3 ROUNDS · RUN 41171857944</text>
+<text class="micro" x="936" y="40" text-anchor="end">PAIRED BENCHMARK · 3 ROUNDS · RUN 41207221610</text>
 <rect x="64" y="56" width="872" height="1" fill="url(#topRule)"/>
 <text class="title serif" x="64" y="126">Same SillyTavern.</text>
 <text class="title-accent serif" x="64" y="182" fill="url(#titleGrad)">Faster. Lighter.</text>
@@ -105,7 +105,7 @@
 <rect x="676" y="74" width="260" height="180" rx="14" fill="url(#cardSheen)"/>
 <rect x="677" y="75" width="258" height="2" rx="1" fill="url(#topRule)" opacity="0.8"/>
 <text class="spec-label mono" x="696" y="108">RUN</text>
-<text class="spec-value mono" x="916" y="108" text-anchor="end">41171857944</text>
+<text class="spec-value mono" x="916" y="108" text-anchor="end">41207221610</text>
 <rect x="696" y="119" width="220" height="1" fill="#94a3b8" fill-opacity="0.10"/>
 <text class="spec-label mono" x="696" y="138">RUNNER</text>
 <text class="spec-value mono" x="916" y="138" text-anchor="end">ubuntu26</text>
@@ -130,13 +130,13 @@
 <rect x="441.00" y="346" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
 <rect x="546.00" y="346" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
 <rect x="651.00" y="346" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
-<rect x="336" y="354" width="417.52" height="13" rx="6.5" fill="url(#amberBar)" filter="url(#barShadow)"/>
-<rect x="336" y="354" width="417.52" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.10"/>
-<text class="value mono" x="741.52" y="364.5" text-anchor="end" fill="#1b1206">9,941 ms</text>
-<rect x="336" y="386" width="5.00" height="13" rx="6.5" fill="#7fe9ff" opacity="0.55" filter="url(#goGlow)"/>
-<rect x="336" y="386" width="5.00" height="13" rx="6.5" fill="url(#cyanBar)"/>
-<rect x="336" y="386" width="5.00" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.14"/>
-<text class="value mono" x="352.00" y="396.5" fill="#a9f1ff">32 ms</text>
+<rect x="336" y="354" width="414.88" height="13" rx="6.5" fill="url(#amberBar)" filter="url(#barShadow)"/>
+<rect x="336" y="354" width="414.88" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.10"/>
+<text class="value mono" x="738.88" y="364.5" text-anchor="end" fill="#1b1206">9,878 ms</text>
+<rect x="336" y="386" width="7.94" height="13" rx="6.5" fill="#7fe9ff" opacity="0.55" filter="url(#goGlow)"/>
+<rect x="336" y="386" width="7.94" height="13" rx="6.5" fill="url(#cyanBar)"/>
+<rect x="336" y="386" width="7.94" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.14"/>
+<text class="value mono" x="354.94" y="396.5" fill="#a9f1ff">189 ms</text>
 <rect x="336" y="416" width="420" height="1" fill="#94a3b8" fill-opacity="0.30"/>
 <rect x="336.00" y="416" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
 <rect x="546.00" y="416" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
@@ -144,32 +144,32 @@
 <text class="axis mono" x="336" y="434">0 ms</text>
 <text class="axis mono" x="546" y="434" text-anchor="middle">5,000 ms</text>
 <text class="axis mono" x="756" y="434" text-anchor="end">10,000 ms</text>
-<text class="ratio mono" x="936" y="378" text-anchor="end" fill="url(#ratioGrad)"><tspan>310.7</tspan><tspan class="ratio-factor" dx="1">×</tspan></text>
+<text class="ratio mono" x="936" y="378" text-anchor="end" fill="url(#ratioGrad)"><tspan>52.26</tspan><tspan class="ratio-factor" dx="1">×</tspan></text>
 <text class="verdict mono" x="936" y="398" text-anchor="end">F A S T E R</text>
 <rect x="64" y="486" width="872" height="1" fill="url(#hairlineFade)"/>
 <text class="row-index mono" x="64" y="520">02</text>
 <text class="row-label sans" x="64" y="546">Steady-state memory (RSS)</text>
 <text class="row-note sans" x="64" y="568">VmRSS from /proc, after readiness</text>
 <text class="row-note sans" x="64" y="584">and 30 requests; median of 6 samples</text>
-<text class="row-exact mono" x="64" y="614">1,199,456,256 B / 37,533,696 B</text>
+<text class="row-exact mono" x="64" y="614">1,245,378,560 B / 38,637,568 B</text>
 <rect x="441.00" y="522" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
 <rect x="546.00" y="522" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
 <rect x="651.00" y="522" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
-<rect x="336" y="530" width="419.81" height="13" rx="6.5" fill="url(#amberBar)" filter="url(#barShadow)"/>
-<rect x="336" y="530" width="419.81" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.10"/>
-<text class="value mono" x="743.81" y="540.5" text-anchor="end" fill="#1b1206">1,199 MB</text>
-<rect x="336" y="562" width="13.14" height="13" rx="6.5" fill="#7fe9ff" opacity="0.55" filter="url(#goGlow)"/>
-<rect x="336" y="562" width="13.14" height="13" rx="6.5" fill="url(#cyanBar)"/>
-<rect x="336" y="562" width="13.14" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.14"/>
-<text class="value mono" x="360.14" y="572.5" fill="#a9f1ff">37.5 MB</text>
+<rect x="336" y="530" width="348.71" height="13" rx="6.5" fill="url(#amberBar)" filter="url(#barShadow)"/>
+<rect x="336" y="530" width="348.71" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.10"/>
+<text class="value mono" x="672.71" y="540.5" text-anchor="end" fill="#1b1206">1,245 MB</text>
+<rect x="336" y="562" width="10.82" height="13" rx="6.5" fill="#7fe9ff" opacity="0.55" filter="url(#goGlow)"/>
+<rect x="336" y="562" width="10.82" height="13" rx="6.5" fill="url(#cyanBar)"/>
+<rect x="336" y="562" width="10.82" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.14"/>
+<text class="value mono" x="357.82" y="572.5" fill="#a9f1ff">38.6 MB</text>
 <rect x="336" y="592" width="420" height="1" fill="#94a3b8" fill-opacity="0.30"/>
 <rect x="336.00" y="592" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
 <rect x="546.00" y="592" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
 <rect x="756.00" y="592" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
 <text class="axis mono" x="336" y="610">0 MB</text>
-<text class="axis mono" x="546" y="610" text-anchor="middle">600 MB</text>
-<text class="axis mono" x="756" y="610" text-anchor="end">1,200 MB</text>
-<text class="ratio mono" x="936" y="554" text-anchor="end" fill="url(#ratioGrad)"><tspan>31.96</tspan><tspan class="ratio-factor" dx="1">×</tspan></text>
+<text class="axis mono" x="546" y="610" text-anchor="middle">750 MB</text>
+<text class="axis mono" x="756" y="610" text-anchor="end">1,500 MB</text>
+<text class="ratio mono" x="936" y="554" text-anchor="end" fill="url(#ratioGrad)"><tspan>32.23</tspan><tspan class="ratio-factor" dx="1">×</tspan></text>
 <text class="verdict mono" x="936" y="574" text-anchor="end">L I G H T E R</text>
 <rect x="64" y="662" width="872" height="1" fill="url(#hairlineFade)"/>
 <text class="row-index mono" x="64" y="696">03</text>
@@ -179,21 +179,21 @@
 <rect x="441.00" y="698" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
 <rect x="546.00" y="698" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
 <rect x="651.00" y="698" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
-<rect x="336" y="706" width="402.74" height="13" rx="6.5" fill="url(#amberBar)" filter="url(#barShadow)"/>
-<rect x="336" y="706" width="402.74" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.10"/>
-<text class="value mono" x="726.74" y="716.5" text-anchor="end" fill="#1b1206">28.77 ms</text>
+<rect x="336" y="706" width="334.29" height="13" rx="6.5" fill="url(#amberBar)" filter="url(#barShadow)"/>
+<rect x="336" y="706" width="334.29" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.10"/>
+<text class="value mono" x="658.29" y="716.5" text-anchor="end" fill="#1b1206">63.67 ms</text>
 <rect x="336" y="738" width="5.00" height="13" rx="6.5" fill="#7fe9ff" opacity="0.55" filter="url(#goGlow)"/>
 <rect x="336" y="738" width="5.00" height="13" rx="6.5" fill="url(#cyanBar)"/>
 <rect x="336" y="738" width="5.00" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.14"/>
-<text class="value mono" x="352.00" y="748.5" fill="#a9f1ff">0.316 ms</text>
+<text class="value mono" x="352.00" y="748.5" fill="#a9f1ff">0.250 ms</text>
 <rect x="336" y="768" width="420" height="1" fill="#94a3b8" fill-opacity="0.30"/>
 <rect x="336.00" y="768" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
 <rect x="546.00" y="768" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
 <rect x="756.00" y="768" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
 <text class="axis mono" x="336" y="786">0 ms</text>
-<text class="axis mono" x="546" y="786" text-anchor="middle">15 ms</text>
-<text class="axis mono" x="756" y="786" text-anchor="end">30 ms</text>
-<text class="ratio mono" x="936" y="730" text-anchor="end" fill="url(#ratioGrad)"><tspan>91.02</tspan><tspan class="ratio-factor" dx="1">×</tspan></text>
+<text class="axis mono" x="546" y="786" text-anchor="middle">40 ms</text>
+<text class="axis mono" x="756" y="786" text-anchor="end">80 ms</text>
+<text class="ratio mono" x="936" y="730" text-anchor="end" fill="url(#ratioGrad)"><tspan>254.5</tspan><tspan class="ratio-factor" dx="1">×</tspan></text>
 <text class="verdict mono" x="936" y="750" text-anchor="end">F A S T E R</text>
 <rect x="64" y="838" width="872" height="1" fill="url(#hairlineFade)"/>
 <text class="row-index mono" x="64" y="872">04</text>
@@ -203,25 +203,25 @@
 <rect x="441.00" y="874" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
 <rect x="546.00" y="874" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
 <rect x="651.00" y="874" width="1" height="70" fill="#94a3b8" fill-opacity="0.09"/>
-<rect x="336" y="882" width="357.63" height="13" rx="6.5" fill="url(#amberBar)" filter="url(#barShadow)"/>
-<rect x="336" y="882" width="357.63" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.10"/>
-<text class="value mono" x="681.63" y="892.5" text-anchor="end" fill="#1b1206">10.22 ms</text>
-<rect x="336" y="914" width="53.07" height="13" rx="6.5" fill="#7fe9ff" opacity="0.55" filter="url(#goGlow)"/>
-<rect x="336" y="914" width="53.07" height="13" rx="6.5" fill="url(#cyanBar)"/>
-<rect x="336" y="914" width="53.07" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.14"/>
-<text class="value mono" x="400.07" y="924.5" fill="#a9f1ff">1.52 ms</text>
+<rect x="336" y="882" width="380.66" height="13" rx="6.5" fill="url(#amberBar)" filter="url(#barShadow)"/>
+<rect x="336" y="882" width="380.66" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.10"/>
+<text class="value mono" x="704.66" y="892.5" text-anchor="end" fill="#1b1206">9.06 ms</text>
+<rect x="336" y="914" width="52.89" height="13" rx="6.5" fill="#7fe9ff" opacity="0.55" filter="url(#goGlow)"/>
+<rect x="336" y="914" width="52.89" height="13" rx="6.5" fill="url(#cyanBar)"/>
+<rect x="336" y="914" width="52.89" height="6.5" rx="6.5" fill="#ffffff" fill-opacity="0.14"/>
+<text class="value mono" x="399.89" y="924.5" fill="#a9f1ff">1.26 ms</text>
 <rect x="336" y="944" width="420" height="1" fill="#94a3b8" fill-opacity="0.30"/>
 <rect x="336.00" y="944" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
 <rect x="546.00" y="944" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
 <rect x="756.00" y="944" width="1" height="4" fill="#94a3b8" fill-opacity="0.45"/>
 <text class="axis mono" x="336" y="962">0 ms</text>
-<text class="axis mono" x="546" y="962" text-anchor="middle">6 ms</text>
-<text class="axis mono" x="756" y="962" text-anchor="end">12 ms</text>
-<text class="ratio mono" x="936" y="906" text-anchor="end" fill="url(#ratioGrad)"><tspan>6.74</tspan><tspan class="ratio-factor" dx="1">×</tspan></text>
+<text class="axis mono" x="546" y="962" text-anchor="middle">5 ms</text>
+<text class="axis mono" x="756" y="962" text-anchor="end">10 ms</text>
+<text class="ratio mono" x="936" y="906" text-anchor="end" fill="url(#ratioGrad)"><tspan>7.20</tspan><tspan class="ratio-factor" dx="1">×</tspan></text>
 <text class="verdict mono" x="936" y="926" text-anchor="end">F A S T E R</text>
 <rect x="64" y="1030" width="872" height="1" fill="url(#hairlineFade)"/>
-<text class="footer mono" x="64" y="1056"><tspan class="footer-label">VALUES</tspan><tspan dx="10">GoTavern smoke metrics · run 41171857944 · ubuntu26 shared runner · 3 alternating rounds × 30 sequential requests per path · medians shown</tspan></text>
-<text class="footer mono" x="64" y="1073"><tspan class="footer-label">SUBJECTS</tspan><tspan dx="10">SillyTavern 1.19.0 @ pinned 06bde939   vs   GoTavern @ 91e1e15   (the commit this run measured; the v0.1.0-alpha.9 tag adds documentation only)</tspan></text>
+<text class="footer mono" x="64" y="1056"><tspan class="footer-label">VALUES</tspan><tspan dx="10">GoTavern smoke metrics · run 41207221610 · ubuntu26 shared runner · 3 alternating rounds × 30 sequential requests per path · medians shown</tspan></text>
+<text class="footer mono" x="64" y="1073"><tspan class="footer-label">SUBJECTS</tspan><tspan dx="10">SillyTavern 1.19.0 @ pinned 06bde939   vs   GoTavern @ f19ac8b   (the commit this run measured; the v0.1.0-alpha.9 tag adds documentation only)</tspan></text>
 <text class="footer mono" x="64" y="1090"><tspan class="footer-label">HONESTY</tspan><tspan dx="10">every bar sits on its own zero-based axis whose maximum is printed at the axis end, so no axis is truncated and no ratio replaces a value.</tspan></text>
 <text class="footer mono" x="64" y="1107"><tspan dx="0">a 5 px floor keeps a near-zero bar visible; it never changes a printed value, the axis maximum or the ratio. Ratios restate the two printed values.</tspan></text>
 <text class="footer mono" x="64" y="1132">generated by tools/benchmark-svg.mjs from the recorded artefact - never hand-edited</text>
