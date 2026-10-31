@@ -142,6 +142,41 @@ try {
     step('page-loaded', bootState?.settingsReady === true, 'script.js settingsReady');
     phase('page-loaded');
 
+    // (2b) THE USER'S NAME IS PART OF THE COMPARED PROVIDER BODY, so it must be the SAME on both subjects and it must be
+    // ASSERTED rather than assumed.
+    //
+    // MEASURED (run 41169260297, the first CI run of this surface): GoTavern's request carried the user name
+    // "[Unnamed Persona]" (495 B) and pinned's carried "WI Probe" (486 B), and that name was the ONLY difference between
+    // the two bodies -- every slot guard (before/after/atDepth presence, order, role, depth) was true, so the slot-order
+    // claim was intact and the byte-equality guard failed on a FIXTURE asymmetry. The mechanism is the first-run
+    // onboarding popup this probe dismisses inside the settings-ready loop (as the q20 journey does): on that run the
+    // typed name did not land on one subject, and the persona placeholder was left in the prompt.
+    //
+    // A real user chooses a name through the persona control, so the faithful fixture drives the same function the
+    // onboarding's OK button calls (`setUserName`, public/script.js:7872) and READS IT BACK from the product's own bound
+    // element (`#your_name`, public/script.js:7878). A leg where the name does not take REFUSES here instead of recording
+    // a body whose user name nobody chose.
+    const userName = await page.evaluate(async wanted => {
+        const script = await import('./script.js');
+        const read = () => String(document.querySelector('#your_name')?.textContent ?? '').trim();
+        const landed = () => read() === wanted;
+        const alreadyLanded = landed();
+        if (!alreadyLanded && typeof script.setUserName === 'function') {
+            script.setUserName(wanted);
+        }
+        const deadline = Date.now() + 10000;
+        while (Date.now() < deadline && !landed()) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        return {
+            wanted,
+            boundName: read(),
+            method: alreadyLanded ? 'onboarding already set it; read back #your_name' : 'setUserName (the onboarding OK path) + read back #your_name',
+        };
+    }, 'WI Probe');
+    report.provenance.userName = userName;
+    step('user-name-set', userName?.boundName === 'WI Probe', JSON.stringify(userName));
+
     // (3) SELECT THE WORLD, THEN READ THE EFFECT BACK THROUGH THE PRODUCT'S OWN BINDING.
     //
     // MEASURED ON THIS PAIR, and it changed the mechanism: writing `settings.world_info.globalSelect` on disk is enough
