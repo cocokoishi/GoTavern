@@ -327,6 +327,13 @@ func renameIntoPlace(temporary, target string) error {
 	return fsretry.Do(func() error { return os.Rename(temporary, target) })
 }
 
+// atomicTempWrite performs the temporary file's write step. It is a variable only so a test can
+// inject the bounded write failure a full disk produces; production code never replaces it.
+var atomicTempWrite = func(temporary *os.File, body []byte) error {
+	_, err := temporary.Write(body)
+	return err
+}
+
 func atomicReplace(target string, body []byte) error {
 	directory := filepath.Dir(target)
 	mode := fs.FileMode(0o666)
@@ -363,7 +370,7 @@ func atomicReplace(target string, body []byte) error {
 			return err
 		}
 	}
-	if _, err := temporary.Write(body); err != nil {
+	if err := atomicTempWrite(temporary, body); err != nil {
 		_ = temporary.Close()
 		return err
 	}
