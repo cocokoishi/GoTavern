@@ -6,6 +6,7 @@ package server
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"image"
 	"image/draw"
 	"image/png"
@@ -326,7 +327,9 @@ func (runtime *accountRuntime) serveCharactersRename(w http.ResponseWriter, requ
 
 	if _, err := os.Stat(oldChatsPath); err == nil {
 		if _, destErr := os.Stat(newChatsPath); destErr != nil {
-			if err := copyDirectoryRecursive(oldChatsPath, newChatsPath); err != nil {
+			// Atomic on purpose: a partial tree here is not merely untidy, it makes the next
+			// rename attempt skip the copy and delete the complete original (see the function).
+			if err := copyDirectoryAtomically(oldChatsPath, newChatsPath); err != nil {
 				serveStatusText(w, http.StatusInternalServerError)
 				return
 			}
@@ -1076,6 +1079,20 @@ func mutateJsonString(jsonString string, mutation func(*orderedNodeJSON)) string
 	return string(encoded)
 }
 
+// copyTreeFile is the per-file step of a directory copy. It is a variable only so a test can
+// inject a failure at a precise point: the all-or-nothing property below is about a copy that
+// fails halfway, and a test cannot produce that with a read-only file when it runs as root in CI.
+var copyTreeFile = func(source, destination string, mode os.FileMode) error {
+	body, err := os.ReadFile(source)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(destination, body, mode)
+}
+
+// copyDirectoryRecursive copies source below destination. It must only be used with a
+// destination that is not published yet (see copyDirectoryAtomically): a failure here leaves a
+// partial tree, and that is only safe while the partial tree is a staging directory.
 func copyDirectoryRecursive(source, destination string) error {
 	return filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -1087,14 +1104,61 @@ func copyDirectoryRecursive(source, destination string) error {
 		}
 		target := filepath.Join(destination, relative)
 		if info.IsDir() {
-			return os.MkdirAll(target, info.Mode().Perm())
+			if err := os.MkdirAll(target, info.Mode().Perm()); err != nil {
+				return err
+			}
+			return os.Chmod(target, info.Mode().Perm())
 		}
-		body, err := os.ReadFile(path)
-		if err != nil {
-			return err
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("unsupported copy source type at %s: %s", path, info.Mode().Type())
 		}
-		return os.WriteFile(target, body, info.Mode().Perm())
+		return copyTreeFile(path, target, info.Mode().Perm())
 	})
+}
+
+// copyDirectoryAtomically copies source to destination through a staging directory in the
+// destination's parent and publishes it with one rename.
+//
+// WHY THIS EXISTS. The pinned character-rename route copies a character's whole chats directory
+// and then deletes the original. A direct recursive copy leaves a PARTIAL tree under the new
+// name when it is interrupted (crash, full disk, a file that cannot be read). The handler then
+// answers 500 and keeps the original -- but the partial destination remains, and the next rename
+// attempt sees the destination already exists, SKIPS the copy, and deletes the complete original:
+// the user's chat history is replaced by the surviving prefix. The staging directory removes the
+// hazard rather than managing it: the destination is either absent or complete, so a retry copies
+// again instead of trusting a half-written tree.
+func copyDirectoryAtomically(source, destination string) error {
+	if _, err := os.Lstat(destination); err == nil {
+		return fmt.Errorf("copy destination already exists: %s", destination)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	sourceInfo, err := os.Stat(source)
+	if err != nil {
+		return err
+	}
+	if !sourceInfo.IsDir() {
+		return fmt.Errorf("copy source is not a directory: %s", source)
+	}
+	parent := filepath.Dir(destination)
+	if err := os.MkdirAll(parent, 0o777); err != nil {
+		return err
+	}
+	stage, err := os.MkdirTemp(parent, ".gotavern-copy-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(stage)
+	if err := os.Chmod(stage, sourceInfo.Mode().Perm()); err != nil {
+		return err
+	}
+	if err := copyDirectoryRecursive(source, stage); err != nil {
+		return err
+	}
+	if err := os.Rename(stage, destination); err != nil {
+		return err
+	}
+	return nil
 }
 
 // marshalCharacterJSONIndent mirrors JSON.stringify(value, null, 4).
