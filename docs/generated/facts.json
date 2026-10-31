@@ -28,7 +28,7 @@
   },
   "schemaVersion": 1,
   "scm": {
-    "commitsSinceCrossBaseline": 897,
+    "commitsSinceCrossBaseline": 1047,
     "crossBaselineCommit": "d00d99b87fc2fbd1ffd218c5ce160d07f27c47ef",
     "versionTags": [
       "v0.1.0-alpha.1",
@@ -38,7 +38,8 @@
       "v0.1.0-alpha.5",
       "v0.1.0-alpha.6",
       "v0.1.0-alpha.7",
-      "v0.1.0-alpha.8"
+      "v0.1.0-alpha.8",
+      "v0.1.0-alpha.9"
     ]
   },
   "sdGenerate": {
