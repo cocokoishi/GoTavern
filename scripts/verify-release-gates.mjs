@@ -22,7 +22,7 @@
 // names the exact run ids the tag is resting on instead of implying them.
 
 import { readFileSync, appendFileSync, existsSync, writeFileSync } from 'node:fs';
-import { evaluateGates, renderEvidence, validateManifest, validateManifestAgainstWorkflowNames } from './release-governance/gates.mjs';
+import { evaluateGates, fetchRunsFromApi, renderEvidence, validateManifest, validateManifestAgainstWorkflowNames } from './release-governance/gates.mjs';
 
 const args = process.argv.slice(2);
 function valueOf(flag, fallback = null) {
@@ -84,30 +84,12 @@ async function fetchRuns() {
         const fixture = JSON.parse(readFileSync(runsJsonPath, 'utf8'));
         return Array.isArray(fixture) ? fixture : fixture.workflow_runs ?? [];
     }
-    if (token === '' || repo === '') {
-        fail('live mode needs GITHUB_TOKEN (or GH_TOKEN) and GITHUB_REPOSITORY; refusing to guess');
+    try {
+        return await fetchRunsFromApi({ sha, repo, token });
+    } catch (error) {
+        fail(error.message);
         process.exit(1);
     }
-    const headers = {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'User-Agent': 'gotavern-release-gate',
-    };
-    const runs = [];
-    for (let page = 1; page <= 10; page += 1) {
-        const url = `https://api.github.com/repos/${repo}/actions/runs?head_sha=${sha}&per_page=100&page=${page}`;
-        const response = await fetch(url, { headers });
-        if (!response.ok) {
-            fail(`GitHub API answered ${response.status} for the runs of ${sha}: ${(await response.text()).slice(0, 400)}`);
-            process.exit(1);
-        }
-        const payload = await response.json();
-        const pageRuns = payload.workflow_runs ?? [];
-        runs.push(...pageRuns);
-        if (pageRuns.length < 100) break;
-    }
-    return runs;
 }
 
 const runs = await fetchRuns();

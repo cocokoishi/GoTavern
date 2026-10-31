@@ -461,17 +461,21 @@ jobs:
             exit 1
           fi
           if [ -n "${notes_file}" ]; then
-            node scripts/verify-release-notes.mjs "${notes_file}" "${GITHUB_REF_NAME}" --checksums dist/checksums.txt
-          else
-            echo "prerelease ${GITHUB_REF_NAME} has no curated notes file; publishing generated notes (documented channel behaviour)" >&2
-          fi
-          node scripts/verify-release-gates.mjs --sha "${target}" --manifest docs/release-manifest.json --evidence-out "${RUNNER_TEMP}/gate-evidence.md"
-          if [ -n "${notes_file}" ]; then
-            cat "${notes_file}" "${RUNNER_TEMP}/gate-evidence.md" > "${RUNNER_TEMP}/release-body.md"
+            # THE ASSEMBLY IS A TESTED PROGRAM, not inline shell: it validates the note against THIS run's
+            # checksums.txt, runs the same-SHA gate and appends the live evidence table to the published body.
+            # scripts/release-governance.test.mjs exercises its decisions offline with synthetic runs, so the only
+            # thing the tag adds is the real API call.
+            node scripts/assemble-release-body.mjs \
+              --tag "${GITHUB_REF_NAME}" --sha "${target}" \
+              --notes "${notes_file}" --checksums dist/checksums.txt \
+              --manifest docs/release-manifest.json --out "${RUNNER_TEMP}/release-body.md"
             echo "body=curated" >> "$GITHUB_OUTPUT"
             echo "file=${RUNNER_TEMP}/release-body.md" >> "$GITHUB_OUTPUT"
             echo "release body: curated notes plus the same-SHA qualification evidence table"
           else
+            # No curated note: the generated body cannot carry an evidence table, but the same-SHA gate still gates
+            # the publication -- a prerelease is not exempt from proving that its runs judged its own commit.
+            node scripts/verify-release-gates.mjs --sha "${target}" --manifest docs/release-manifest.json
             echo "body=generated" >> "$GITHUB_OUTPUT"
           fi
 

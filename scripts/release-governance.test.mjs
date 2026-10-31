@@ -14,7 +14,8 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { evaluateGates, renderEvidence, validateManifest, validateManifestAgainstWorkflowNames } from './release-governance/gates.mjs';
+import { evaluateGates, fetchRunsFromApi, renderEvidence, validateManifest, validateManifestAgainstWorkflowNames } from './release-governance/gates.mjs';
+import { assembleReleaseBody } from './assemble-release-body.mjs';
 import { validateReleaseNotes } from './release-governance/notes.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -158,6 +159,108 @@ test('gates: the published evidence section carries every run id and the target 
     assert.match(evidence, /actions\/runs\/12/);
     assert.ok(evidence.includes(SHA), 'the evidence section must name the commit every run judged');
     assert.match(evidence, /Target commit: `a{40}`/);
+});
+
+test('body: a curated note plus green same-SHA runs assembles a publishable body with the evidence table', () => {
+    const result = assembleReleaseBody({
+        notesText: noteBody(),
+        tag: 'v0.1.0-beta.1',
+        checksumsText: CHECKSUMS,
+        runs: [run('Workflow A', { id: 21 }), run('Workflow B', { id: 22 })],
+        manifest: manifest(),
+        sha: SHA,
+        repo: 'owner/repo',
+    });
+    assert.equal(result.ok, true, JSON.stringify(result.problems));
+    assert.match(result.body, /## Qualification evidence/);
+    assert.match(result.body, /actions\/runs\/21/);
+    assert.ok(result.body.startsWith('# GoTavern Beta 1'), 'the curated note must remain the body lead, evidence appended');
+    assert.ok(result.body.includes(SHA));
+});
+
+test('body: a curated note with a missing same-SHA run is NOT publishable, and no body is produced', () => {
+    const result = assembleReleaseBody({
+        notesText: noteBody(),
+        tag: 'v0.1.0-beta.1',
+        checksumsText: CHECKSUMS,
+        runs: [run('Workflow A', { id: 21 })],
+        manifest: manifest(),
+        sha: SHA,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.body, null, 'a failing gate must not produce a body that could be published');
+    assert.ok(result.problems.some((problem) => /Workflow B: missing/.test(problem)), JSON.stringify(result.problems));
+});
+
+test('body: a curated note whose checksums do not match this run is NOT publishable', () => {
+    const wrongChecksums = `${'d'.repeat(64)}  gotavern-linux-amd64.tar.gz`;
+    const result = assembleReleaseBody({
+        notesText: noteBody(),
+        tag: 'v0.1.0-beta.1',
+        checksumsText: wrongChecksums,
+        runs: [run('Workflow A', { id: 21 }), run('Workflow B', { id: 22 })],
+        manifest: manifest(),
+        sha: SHA,
+    });
+    assert.equal(result.ok, false);
+    assert.ok(result.problems.some((problem) => /not in checksums|matches no asset|not its checksum/.test(problem)), JSON.stringify(result.problems));
+});
+
+test('body: no curated note means generated notes, but the same-SHA gate still has to pass', () => {
+    const red = assembleReleaseBody({
+        notesText: null,
+        tag: 'v0.1.0-beta.1',
+        runs: [run('Workflow A', { id: 21 })],
+        manifest: manifest(),
+        sha: SHA,
+    });
+    assert.equal(red.ok, false, 'a prerelease without a curated body is not exempt from the same-SHA gate');
+    assert.equal(red.body, null);
+    const green = assembleReleaseBody({
+        notesText: null,
+        tag: 'v0.1.0-beta.1',
+        runs: [run('Workflow A', { id: 21 }), run('Workflow B', { id: 22 })],
+        manifest: manifest(),
+        sha: SHA,
+    });
+    assert.equal(green.ok, true);
+    assert.equal(green.body, null, 'the caller falls back to gh --generate-notes when there is no curated body');
+});
+
+test('gates: the API query paginates and refuses a non-200 instead of treating it as no runs', async () => {
+    const seen = [];
+    const fetchImpl = async (url) => {
+        seen.push(url);
+        if (seen.length === 1) {
+            return {
+                ok: true,
+                json: async () => ({ workflow_runs: Array.from({ length: 100 }, (_, index) => run('Workflow A', { id: index + 1 })) }),
+                text: async () => '',
+            };
+        }
+        return {
+            ok: true,
+            json: async () => ({ workflow_runs: [run('Workflow B', { id: 201 })] }),
+            text: async () => '',
+        };
+    };
+    const runs = await fetchRunsFromApi({ sha: SHA, repo: 'owner/repo', token: 'x', fetchImpl });
+    assert.equal(runs.length, 101, 'a full first page must be followed by a second request');
+    assert.match(seen[0], /head_sha=/);
+    assert.match(seen[1], /page=2/);
+
+    let deniedError = null;
+    try {
+        await fetchRunsFromApi({
+            sha: SHA,
+            repo: 'owner/repo',
+            token: 'x',
+            fetchImpl: async () => ({ ok: false, status: 403, text: async () => 'forbidden' }),
+        });
+    } catch (error) {
+        deniedError = error;
+    }
+    assert.ok(deniedError && /403/.test(deniedError.message), 'a permission failure must be a named error, not an empty run list');
 });
 
 function noteBody(extra = '') {    const filler = 'GoTavern Beta 1 is a long-lived test release. '.repeat(40);

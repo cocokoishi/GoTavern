@@ -26,7 +26,9 @@ The only durable fix is a machine that reads the runs.
   is counted, reported, and refused.
 - The gate fails closed: a missing run, an in-progress run, a cancelled run, a failed run, or a different-SHA run
   exits non-zero and the release is not published. Every row of its table (workflow, run id, event, conclusion) is
-  written to the run summary, and the release body cites those run ids.
+  written to the run summary, and the published body carries the same table: `scripts/assemble-release-body.mjs`
+  appends it to the curated note at publish time, so the run ids appear in the release without a self-referential
+  commit (see section 2).
 - `GoTavern Release` is not in its own manifest: a workflow cannot be its own precondition. The publishing run
   supplies its own build and `prepublish-qualification` at the tag commit, and that job executes the bare
   installers against the archives this very run built.
@@ -47,6 +49,10 @@ otherwise from `main` -- and `main` must contain the released commit. That is no
 release **metadata**, and a note that cites the ids or measurements of runs is necessarily written *after* those
 runs, so editing it into the tagged commit would change the commit the runs judged. Keeping it on `main` and
 reading it at publish time is what lets the note be both current and true about the tag.
+
+In the publish path the three decisions are one tested program: `scripts/assemble-release-body.mjs` validates the
+note against this run's `checksums.txt`, runs the same-SHA gate, and appends the evidence table only if BOTH are
+clean. `scripts/verify-release-notes.mjs` remains the standalone note check used by the dispatch rehearsal.
 
 The rules are:
 
