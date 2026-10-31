@@ -528,11 +528,25 @@ jobs:
       # proven against a labelled loopback stand-in (release.yml's prepublish-qualification); after publication
       # it is proven here, over TLS, against the real pointer. A release whose latest pointer did not move would
       # install the OLDER release and fail on the version comparison below.
+      #
+      # CHANNEL-AWARE (measured 2026-10-31, published Beta 1 smoke run 41234738092): for a PRERELEASE target the
+      # bare installer must NOT install the tag under test -- it must install the latest STABLE release, because
+      # that is what the prerelease channel means. The first Beta smoke asserted the bare install reports the
+      # Beta and went red while the installer had behaved correctly; that was a harness defect, and the loopback
+      # rehearsal already asserted the correct thing ("both bare installers are REFUSED for a prerelease"). This
+      # step now derives the expectation from the channel classifier and the real releases/latest pointer, so a
+      # broken channel or a bare install that takes a prerelease still fails.
       - name: Install the published release with install.sh and NO version argument
         env:
           VERSION: ${{ steps.release.outputs.version }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
+          channel=$(sh scripts/classify-version-tag.sh "${VERSION}") || {
+            echo "::error::the release channel classifier refused ${VERSION}" >&2
+            exit 1
+          }
           prefix="${PWD}/install-prefix-bare"
           rm -rf "${prefix}"
           sh ./install.sh --dir "${prefix}" 2>&1 | tee installer-bare.log
@@ -550,11 +564,26 @@ jobs:
           [ -x "${prefix}/gotavern" ] || { echo "::error::the bare install has no executable gotavern" >&2; exit 1; }
           [ -d "${prefix}/src/tokenizers" ] || { echo "::error::the bare install has no src/tokenizers/" >&2; exit 1; }
           "${prefix}/gotavern" version | tee version-bare.txt
-          grep -q "${VERSION}" version-bare.txt || {
-            echo "::error::the bare-installed binary does not report ${VERSION}" >&2
-            exit 1
-          }
-          echo "ok: bare install.sh resolved releases/latest to ${VERSION}, verified its checksum and installed that build"
+          if [ "${channel}" = "prerelease" ]; then
+            # The pointer's OWN answer, not a guess: this is the release a user with no --version receives.
+            expected=$(gh api "repos/${REPO}/releases/latest" --jq .tag_name)
+            [ -n "${expected}" ] || { echo "::error::releases/latest answered no tag" >&2; exit 1; }
+            [ "${expected}" != "${VERSION}" ] || {
+              echo "::error::${VERSION} is a prerelease but it IS releases/latest, so the channel separation is broken" >&2
+              exit 1
+            }
+            grep -q "${expected}" version-bare.txt || {
+              echo "::error::the bare-installed binary does not report the stable ${expected} that releases/latest serves" >&2
+              exit 1
+            }
+            echo "ok: bare install.sh resolved releases/latest to the STABLE ${expected} while the smoke target was the prerelease ${VERSION} -- the channel direction holds"
+          else
+            grep -q "${VERSION}" version-bare.txt || {
+              echo "::error::the bare-installed binary does not report ${VERSION}" >&2
+              exit 1
+            }
+            echo "ok: bare install.sh resolved releases/latest to ${VERSION}, verified its checksum and installed that build"
+          fi
 
       - name: Boot the installed binary and require /version
         run: |
