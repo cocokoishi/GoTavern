@@ -1,0 +1,306 @@
+{
+  "schemaVersion": 1,
+  "surface": "worldinfo-slots",
+  "question": "Do a `before`, an `after` and an `atDepth` world-info entry reach the FINAL provider request at the positions and in the order pinned produces?",
+  "generatedBy": "tests/browser/compare-worldinfo-slots-legs.mjs",
+  "pinnedBaseline": "SillyTavern 1.19.0 @ 06bde939fb1e9c4c8d8641d810f0a9165b5ce127",
+  "pinnedFacts": {
+    "F1": {
+      "id": "F1",
+      "file": "public/scripts/world-info.js",
+      "lines": "855-864",
+      "what": "world_info_position = { before: 0, after: 1, ANTop: 2, ANBottom: 3, atDepth: 4, EMTop: 5, EMBottom: 6, outlet: 7 }"
+    },
+    "F2": {
+      "id": "F2",
+      "file": "public/scripts/world-info.js",
+      "lines": "5281 (grouping at 5236-5242)",
+      "what": "getWorldInfoPrompt returns { worldInfoBefore, worldInfoAfter, WIDepthEntries, ... }; WIDepthEntries is grouped by {depth, role}"
+    },
+    "F3": {
+      "id": "F3",
+      "file": "public/scripts/openai.js",
+      "lines": "1376-1377 (added at 1212/1214, wrapped by 789-800)",
+      "what": "worldInfoBefore and worldInfoAfter become role 'system' messages, in that order, before the chat history"
+    },
+    "F4": {
+      "id": "F4",
+      "file": "public/script.js",
+      "lines": "4635, 4668-4672 -> public/scripts/openai.js:819-875",
+      "what": "an atDepth entry becomes an IN_CHAT extension prompt at its own depth and role, spliced into the history so depth N is N positions from the end"
+    },
+    "F5": {
+      "id": "F5",
+      "file": "public/scripts/openai.js",
+      "lines": "1212, 1214 (composition) + 819-875 (splice)",
+      "what": "the wire order is index(before) < index(after) < first history message <= index(depth entry)"
+    }
+  },
+  "pinnedDepthOffset": {
+    "requestedDepth": 2,
+    "offsetFromEnd": 1,
+    "measuredBy": "the pinned leg of this surface (run-against-pinned.mjs worldinfo-slots-probe.mjs), 2026-10-29, request sha256 0422801bd299fe5115c264d20f748abec68a714c2b220e80082a37b2e0bd4bcb",
+    "what": "a world-info entry with position atDepth (4) and depth 2 lands ONE position from the end of messages[] on the chat-completion path",
+    "whyNotDepthMinusOne": "depth 2 -> offset 1 was MEASURED, not derived; deriving offset === depth called a correct layout a defect on the first recording"
+  },
+  "method": "one ordinary browser turn per subject against an in-process capture peer; the FINAL provider request bytes are compared byte-for-byte, and the same request's messages array is read for the three markers' positions. The expected order is the pinned source's (F1..F5) AND the pinned leg's own capture.",
+  "doesNotEstablish": "server-side prompt handling: both legs drive the `custom` chat-completion source, whose pinned branch is a SERVER-SIDE PASSTHROUGH (src/endpoints/backends/chat-completions.js:2394-2421 never reads `messages`), so this compares the pinned FRONTEND assembling a prompt against two servers",
+  "fixture": {
+    "world": "worlds/wi-slots-probe.json",
+    "markers": {
+      "before": "WI-SLOT-BEFORE-a41c",
+      "after": "WI-SLOT-AFTER-b72e",
+      "depth": "WI-SLOT-DEPTH-c93f"
+    },
+    "input": "WI_SLOTS_INPUT",
+    "depth": 2,
+    "depthRole": "user",
+    "entries": [
+      {
+        "slot": "before",
+        "marker": "WI-SLOT-BEFORE-a41c"
+      },
+      {
+        "slot": "after",
+        "marker": "WI-SLOT-AFTER-b72e"
+      },
+      {
+        "slot": "depth",
+        "marker": "WI-SLOT-DEPTH-c93f"
+      }
+    ],
+    "requestedDepthPerSubject": [
+      2,
+      2
+    ],
+    "measuredOffsetFromEndPerSubject": [
+      1,
+      1
+    ],
+    "depthRelationship": "the requested depth is NOT equal to the distance from the end (measured on this host: depth 2 -> offset 1), so the offset is asserted as PARITY with the pinned leg rather than derived"
+  },
+  "verdict": "PASS",
+  "guards": {
+    "beforeSlotPresent": true,
+    "fact:beforeSlotPresent": "F5 public/scripts/openai.js:1212, 1214 (composition) + 819-875 (splice)",
+    "afterSlotPresent": true,
+    "fact:afterSlotPresent": "F5 public/scripts/openai.js:1212, 1214 (composition) + 819-875 (splice)",
+    "depthSlotPresent": true,
+    "fact:depthSlotPresent": "F5 public/scripts/openai.js:1212, 1214 (composition) + 819-875 (splice)",
+    "beforeSlotPrecedesAfterSlot": true,
+    "fact:beforeSlotPrecedesAfterSlot": "F3 public/scripts/openai.js:1376-1377 (added at 1212/1214, wrapped by 789-800)",
+    "systemSlotsPrecedeHistory": true,
+    "fact:systemSlotsPrecedeHistory": "F5 public/scripts/openai.js:1212, 1214 (composition) + 819-875 (splice)",
+    "depthSlotLandsInsideHistory": true,
+    "fact:depthSlotLandsInsideHistory": "F4 public/script.js:4635, 4668-4672 -> public/scripts/openai.js:819-875",
+    "depthSlotKeepsItsRole": true,
+    "fact:depthSlotKeepsItsRole": "F4 public/script.js:4635, 4668-4672 -> public/scripts/openai.js:819-875",
+    "slotOrderEqualsPinned": true,
+    "depthOffsetEqualsPinned": true,
+    "depthOffsetMatchesThePinnedMeasurement": true,
+    "requestedDepthMatchesOnBothSubjects": true,
+    "nodeEqualsGo": true,
+    "subjectsAreDistinguishable": true,
+    "driveCompleted": true
+  },
+  "failedGuards": [],
+  "asymmetries": [],
+  "mismatches": [],
+  "driveStepFailures": [],
+  "subjects": {
+    "gotavern": {
+      "legPresent": true,
+      "bakedSubject": "gotavern",
+      "peerReplyPrefix": "GOTAVERN_",
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "sha256": "0422801bd299fe5115c264d20f748abec68a714c2b220e80082a37b2e0bd4bcb",
+        "byteLength": 486
+      },
+      "wire": {
+        "parsable": true,
+        "messages": 6,
+        "roles": [
+          "system",
+          "system",
+          "system",
+          "system",
+          "user",
+          "user"
+        ],
+        "historyInputIndex": 5,
+        "firstHistoryIndex": 4,
+        "positions": {
+          "before": {
+            "index": 1,
+            "role": "system",
+            "fromEnd": 4,
+            "occurrences": 1
+          },
+          "after": {
+            "index": 2,
+            "role": "system",
+            "fromEnd": 3,
+            "occurrences": 1
+          },
+          "depth": {
+            "index": 4,
+            "role": "user",
+            "fromEnd": 1,
+            "occurrences": 1
+          }
+        },
+        "slotOrder": [
+          1,
+          2,
+          4
+        ],
+        "slotsPresent": 3,
+        "depthOffsetFromEnd": 1
+      },
+      "requestedDepth": 2,
+      "requestedDepthRole": 1,
+      "slots": {
+        "beforePresent": true,
+        "afterPresent": true,
+        "depthPresent": true,
+        "beforePrecedesAfter": true,
+        "slotsPrecedeHistory": true,
+        "depthInsideHistory": true,
+        "depthRoleRecorded": true
+      },
+      "driveSteps": [
+        {
+          "name": "subject-booted",
+          "ok": true
+        },
+        {
+          "name": "page-loaded",
+          "ok": true
+        },
+        {
+          "name": "world-selected",
+          "ok": true
+        },
+        {
+          "name": "connection-configured",
+          "ok": true
+        },
+        {
+          "name": "provider-request-arrived",
+          "ok": true
+        },
+        {
+          "name": "turn-completed",
+          "ok": true
+        },
+        {
+          "name": "drive-completed",
+          "ok": true
+        }
+      ]
+    },
+    "pinned": {
+      "legPresent": true,
+      "bakedSubject": "pinned",
+      "peerReplyPrefix": "PINNED_",
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "sha256": "0422801bd299fe5115c264d20f748abec68a714c2b220e80082a37b2e0bd4bcb",
+        "byteLength": 486
+      },
+      "wire": {
+        "parsable": true,
+        "messages": 6,
+        "roles": [
+          "system",
+          "system",
+          "system",
+          "system",
+          "user",
+          "user"
+        ],
+        "historyInputIndex": 5,
+        "firstHistoryIndex": 4,
+        "positions": {
+          "before": {
+            "index": 1,
+            "role": "system",
+            "fromEnd": 4,
+            "occurrences": 1
+          },
+          "after": {
+            "index": 2,
+            "role": "system",
+            "fromEnd": 3,
+            "occurrences": 1
+          },
+          "depth": {
+            "index": 4,
+            "role": "user",
+            "fromEnd": 1,
+            "occurrences": 1
+          }
+        },
+        "slotOrder": [
+          1,
+          2,
+          4
+        ],
+        "slotsPresent": 3,
+        "depthOffsetFromEnd": 1
+      },
+      "requestedDepth": 2,
+      "requestedDepthRole": 1,
+      "slots": {
+        "beforePresent": true,
+        "afterPresent": true,
+        "depthPresent": true,
+        "beforePrecedesAfter": true,
+        "slotsPrecedeHistory": true,
+        "depthInsideHistory": true,
+        "depthRoleRecorded": true
+      },
+      "driveSteps": [
+        {
+          "name": "subject-booted",
+          "ok": true
+        },
+        {
+          "name": "page-loaded",
+          "ok": true
+        },
+        {
+          "name": "world-selected",
+          "ok": true
+        },
+        {
+          "name": "connection-configured",
+          "ok": true
+        },
+        {
+          "name": "provider-request-arrived",
+          "ok": true
+        },
+        {
+          "name": "turn-completed",
+          "ok": true
+        },
+        {
+          "name": "drive-completed",
+          "ok": true
+        }
+      ]
+    }
+  },
+  "unproven": [],
+  "answers": {
+    "does every slot reach the wire": "guards.beforeSlotPresent + afterSlotPresent + depthSlotPresent",
+    "is the order pinned's": "guards.beforeSlotPrecedesAfterSlot + systemSlotsPrecedeHistory + depthSlotLandsInsideHistory + slotOrderEqualsPinned",
+    "is the depth position pinned's": "guards.depthOffsetEqualsPinned + depthSlotKeepsItsRole + requestedDepthMatchesOnBothSubjects (the offset is pinned-measured, not derived)",
+    "are the two subjects the same bytes": "guards.nodeEqualsGo",
+    "can the harness tell the subjects apart": "guards.subjectsAreDistinguishable (peer reply prefix, which cannot enter the compared body)"
+  }
+}
