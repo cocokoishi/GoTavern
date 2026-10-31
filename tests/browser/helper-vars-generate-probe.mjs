@@ -422,7 +422,7 @@ try {
         if (!(await fs.stat(tokenizers).then(() => true, () => false))) throw new Error(`tokenizer data missing at ${tokenizers}`);
         await fs.cp(tokenizers, path.join(dataRoot, 'tokenizers'), { recursive: true });
         legConfig = await seedLegConfig(dataRoot);
-        server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+        server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
         server.stdout.on('data', () => {});
         server.stderr.on('data', () => {});
         report.provenance.serverPid = server.pid ?? null;
@@ -451,7 +451,7 @@ try {
     phase('server-ready');
     report.provenance.serverVersion = await fetch(`${baseURL}/version`).then(response => response.json(), () => null);
 
-    browser = await chromium.launch();
+    browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
     page.on('console', message => report.console.push({ type: message.type(), text: String(message.text()).slice(0, 400) }));

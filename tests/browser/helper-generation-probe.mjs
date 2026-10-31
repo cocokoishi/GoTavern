@@ -206,7 +206,7 @@ if (!external) {
     await fs.cp(tokenizerSource, path.join(dataRoot, 'tokenizers'), { recursive: true });
     stagedLayout = { installRootIsDataRoot: true, stagedTokenizers: true, stagedPublic: false, source: binarySetting ? 'GOTAVERN_BINARY' : 'go build ./cmd/gotavern' };
     legConfig = await seedLegConfig(dataRoot);
-    server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
     server.stdout.on('data', () => {});
     server.stderr.on('data', () => {});
 }
@@ -263,7 +263,7 @@ let browser;
 let wroteReport = false;
 try {
     await waitForServer(`${baseURL}/version`);
-    browser = await chromium.launch();
+    browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
     page.on('console', message => report.console.push({ type: message.type(), text: String(message.text()).slice(0, 400) }));

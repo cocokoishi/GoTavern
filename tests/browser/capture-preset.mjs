@@ -73,7 +73,7 @@ if (process.argv.includes('--self-check')) {
     process.exit(0);
 }
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
 // THE RECORDING PEER. It exists so the boundary can be measured from a REAL SEND: the pinned server
 // POSTs the assembled request here and this process records the bytes. It answers with a minimal

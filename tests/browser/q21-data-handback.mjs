@@ -112,9 +112,18 @@ async function waitForVersion(baseURL, deadlineMs = 120000) {
 // request body would put conversation text into a report. So the peer answers three booleans per request -- did this
 // body carry each hand-back marker -- plus the generation `type` and the message count. Those are the only facts the
 // capture leg asserts on, and each of them can be false.
-function startCapturePeer() {
+//
+// THE REPLY TEXT CARRIES THE LEG'S PHASE, AND THAT IS A BUG FIX, NOT A COSMETIC CHANGE. Both legs' peers used to
+// answer `Q21_REPLY_<ordinal>`, so the FIRST pinned reply was byte-identical to the reply GoTavern's leg had already
+// persisted into the handed-back tree. The pinned half's "did the send's reply land?" wait matched that STALE
+// message in the chat file, let the CONTINUE press happen while the send was still streaming, and pinned's own
+// `is_send_press == false` guard swallowed the press -- run 41171855911's `pinnedContinued` red with
+// `continueRequests: 0`. Two peers answering the same string is a fixture that cannot distinguish "this leg's
+// reply" from "the other runtime's reply"; `Q21_GOTAVERN_REPLY_n` / `Q21_PINNED_REPLY_n` restores the distinction.
+function startCapturePeer({ replyTag = 'Q21' } = {}) {
     const requests = [];
     let reply = 0;
+    const replyTextFor = ordinal => `${replyTag}_REPLY_${ordinal}`;
     const server = http.createServer((request, response) => {
         const chunks = [];
         request.on('data', chunk => chunks.push(chunk));
@@ -148,7 +157,7 @@ function startCapturePeer() {
                 stream: parsed?.stream === true,
                 messageCount: messages === null ? null : messages.length,
                 lastRole: messages === null || messages.length === 0 ? null : (messages[messages.length - 1]?.role ?? null),
-                answersWith: `Q21_REPLY_${reply + 1}`,
+                answersWith: replyTextFor(reply + 1),
             });
             const headers = { 'content-type': 'application/json', 'access-control-allow-origin': '*' };
             if (request.method === 'GET' && /models/.test(request.url ?? '')) {
@@ -173,7 +182,7 @@ function startCapturePeer() {
                 });
                 const frame = payload => `data: ${JSON.stringify(payload)}\n\n`;
                 response.write(frame({ ...base, choices: [{ index: 0, delta: { role: 'assistant' }, finish_reason: null }] }));
-                response.write(frame({ ...base, choices: [{ index: 0, delta: { content: `Q21_REPLY_${reply + 1}` }, finish_reason: null }] }));
+                response.write(frame({ ...base, choices: [{ index: 0, delta: { content: replyTextFor(reply + 1) }, finish_reason: null }] }));
                 response.write(frame({ ...base, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] }));
                 response.write('data: [DONE]\n\n');
                 response.end();
@@ -187,7 +196,7 @@ function startCapturePeer() {
                 object: 'chat.completion',
                 created: 1730000000,
                 model: 'probe-model',
-                choices: [{ index: 0, message: { role: 'assistant', content: `Q21_REPLY_${reply}` }, finish_reason: 'stop' }],
+                choices: [{ index: 0, message: { role: 'assistant', content: replyTextFor(reply) }, finish_reason: 'stop' }],
                 usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
             }));
         });
@@ -422,6 +431,11 @@ const report = {
     dataRoot,
     markers: MARKERS,
     steps: [],
+    // EVERY WAIT THIS LEG PERFORMS, AS A NAMED CONDITION WITH WHAT IT OBSERVED. This is what makes a red row
+    // diagnosable: "waited for the page's chat model to hold the send's reply, observed lastText=\"…\"" says
+    // which wait failed, where the old report's `continueRequests: 0` only said a count was zero. A failure
+    // throws with the condition's own `waitedFor`/`observed`, and the in-file judge names every failed one.
+    conditions: [],
     pageErrors: [],
     failure: null,
 };
@@ -438,6 +452,66 @@ function step(name, ok, detail = null) {
         report.failure = `${name}: ${detail == null ? 'failed' : rendered}`;
     }
     return ok;
+}
+
+// A WAIT IS A NAMED CONDITION, NOT A DURATION.
+//
+// Every fixed sleep this probe used to contain hid the same question: what was actually being waited for?
+// `waitForTimeout(3000)` before hashing the tree meant "maybe GoTavern has saved by now"; a poll for a reply
+// TEXT meant "maybe that string is in the file" -- and both can be satisfied by a stale state, which is exactly
+// how run 41171855911 produced `pinnedContinued` red with `continueRequests: 0` (the file already held the
+// same reply string from the OTHER runtime).
+//
+// So each wait names (a) the condition in the subject's own state, (b) its deadline, and (c) the observation
+// that was on the wire when it gave up. The condition is recorded in `report.conditions` whether it holds or
+// not, and callers THROW with the condition's `waitedFor`/`observed` so a failure names the wait.
+async function waitForCondition(name, { waitedFor, deadlineMs = 60000, intervalMs = 250, produce, accept, snapshot = value => value }) {
+    const started = Date.now();
+    let observed = null;
+    let polls = 0;
+    while (Date.now() - started < deadlineMs) {
+        observed = await produce();
+        polls += 1;
+        if (accept(observed)) {
+            const condition = { name, ok: true, waitedFor, deadlineMs, elapsedMs: Date.now() - started, polls, observed: snapshot(observed) };
+            report.conditions.push(condition);
+            return { ok: true, value: observed, condition };
+        }
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+    const condition = { name, ok: false, waitedFor, deadlineMs, elapsedMs: Date.now() - started, polls, observed: snapshot(observed) };
+    report.conditions.push(condition);
+    return { ok: false, value: observed, condition };
+}
+
+// A TREE IS SNAPSHOTTED WHEN IT STOPS MOVING, NOT WHEN A SLEEP ENDS.
+//
+// Replacing the GoTavern half's `waitForTimeout(3000)` with a save condition exposed a second, smaller race:
+// `hashTree` could catch a file mid-write. Measured on this host: `default-user/.gotavern-content-log-<hash>.tmp`
+// was present in the tree the product wrote and gone by the time pinned read the same directory, so
+// `noDataLossOnHandBack` reported a REMOVAL of a file the product itself had already replaced with `content.log`.
+// The condition is filesystem quiescence: two consecutive scans byte-identical over every path and digest. It is
+// a real condition (not a wider timeout), and the returned hash is the settled snapshot.
+async function waitForTreeQuiescence(name, { intervalMs = 750, maxMs = 30000 } = {}) {
+    const started = Date.now();
+    let previous = await hashTree(dataRoot);
+    let scans = 1;
+    while (Date.now() - started < maxMs) {
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+        const current = await hashTree(dataRoot);
+        scans += 1;
+        const changed = Object.keys(current).filter(file => !(file in previous) || previous[file] !== current[file]);
+        const removed = Object.keys(previous).filter(file => !(file in current));
+        if (changed.length === 0 && removed.length === 0) {
+            const condition = { name, ok: true, waitedFor: 'two consecutive whole-tree scans are byte-identical (no file added, removed or rewritten between them)', deadlineMs: maxMs, elapsedMs: Date.now() - started, polls: scans, observed: { files: Object.keys(current).length, filesAddedOrChanged: [], filesRemoved: [] } };
+            report.conditions.push(condition);
+            return { ok: true, value: current, condition };
+        }
+        previous = current;
+    }
+    const condition = { name, ok: false, waitedFor: 'two consecutive whole-tree scans are byte-identical', deadlineMs: maxMs, elapsedMs: Date.now() - started, polls: scans, observed: { files: Object.keys(previous).length, note: 'the tree was still changing when the quiescence budget expired' } };
+    report.conditions.push(condition);
+    return { ok: false, value: previous, condition };
 }
 
 // ------------------------------------------------------------------------------------------------ the GoTavern half
@@ -634,10 +708,16 @@ async function gotavernWrites() {
     report.stagedCard = await stageCharacterCard(dataRoot);
     await seedLegConfig(dataRoot);
     const port = await freePort();
-    const server = spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    // `--browserLaunchEnabled false` IS NOT OPTIONAL, AND THIS LEG WAS MISSING IT. The seeded config is the
+    // PINNED default, whose `browserLaunch.enabled` is TRUE (`upstream/default/config.yaml`), so a server that
+    // honours it opens the OPERATOR'S DEFAULT BROWSER at boot. A local stability campaign therefore opened real
+    // tabs on the developer's desktop -- measured and reported by the operator -- which is exactly the hazard
+    // `run-against-pinned.mjs` and `q20-leg-runtime.mjs` already record for the same flag. The override keeps the
+    // pinned config bytes untouched (rule 14) while making a probe boot a headless server.
+    const server = spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
     server.stdout.on('data', () => {});
     server.stderr.on('data', () => {});
-    const peer = await startCapturePeer();
+    const peer = await startCapturePeer({ replyTag: 'Q21_GOTAVERN' });
     let browser;
     try {
         await waitForVersion(`http://127.0.0.1:${port}`);
@@ -664,7 +744,10 @@ async function gotavernWrites() {
         if (!starter.ok || !starter.names.includes(stagedName)) {
             throw new Error(`the staged card "${stagedName}" is not listed by the server: ${JSON.stringify(starter).slice(0, 300)}`);
         }
-        browser = await chromium.launch();
+        // HEADLESS IS EXPLICIT, NOT IMPLIED. Playwright's default is headless today, but a browser window on the
+        // operator's desktop is not a failure mode worth leaving to a default: the probe measures page state and
+        // never needs a visible surface.
+        browser = await chromium.launch({ headless: true });
         const page = await browser.newPage();
         page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
         await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
@@ -727,8 +810,58 @@ async function gotavernWrites() {
             return { clicked: true, timedOut: true };
         }, MARKERS.first);
         report.gotavernSend = sent;
-        await page.waitForTimeout(3000);
-        report.writtenTree = await hashTree(dataRoot);
+        // THE WRITE IS WAITED ON, NOT SLEPT THROUGH. The old `waitForTimeout(3000)` before hashing the tree was
+        // exactly the shape AGENTS rule 33 forbids: a fixed sleep standing in for "the save has happened". It made
+        // the tree handed to pinned a TIMING SAMPLE -- a fast host handed over a chat whose reply was persisted, a
+        // slow one handed over a chat with only the user turn -- and the pinned half's own persistence check was
+        // then the first thing to notice. Both conditions below are the subject's own state: a request left the
+        // GoTavern frontend, and a chat file under the STAGED CARD carries the user turn followed by that request's
+        // reply.
+        const goSendRequest = await waitForCondition('gotavern-send-request-reached-peer', {
+            waitedFor: `the capture peer records a chat-completions request carrying "${MARKERS.first}" (a request left the GoTavern frontend)`,
+            deadlineMs: 60000,
+            produce: async () => peer.requests.filter(entry => entry.carriesMarkers.first === true),
+            accept: list => list.length > 0,
+            snapshot: () => peer.requests.map(entry => ({ markers: entry.carriesMarkers, answersWith: entry.answersWith, stream: entry.stream, messageCount: entry.messageCount })),
+        });
+        report.gotavernSendRequest = { ok: goSendRequest.ok, condition: goSendRequest.condition };
+        if (!goSendRequest.ok) {
+            throw new Error(`gotavern-send-request-reached-peer: waited for ${goSendRequest.condition.waitedFor}; observed ${JSON.stringify(goSendRequest.condition.observed).slice(0, 900)}`);
+        }
+        const goReply = goSendRequest.value[goSendRequest.value.length - 1]?.answersWith ?? null;
+        const goPersisted = await waitForCondition('gotavern-send-committed-to-disk', {
+            waitedFor: `a chat file under chats/${CARD_FILE_NAME}/ holds the user turn "${MARKERS.first}" followed by an assistant turn whose text is "${goReply}"`,
+            deadlineMs: 60000,
+            produce: async () => {
+                const files = await savedChatFiles();
+                const reads = [];
+                for (const file of files) {
+                    reads.push({ file, chat: await readChatFile(file.replace(/\.jsonl$/, '')) });
+                }
+                return reads;
+            },
+            accept: reads => reads.some(({ chat }) => {
+                if (!Array.isArray(chat)) return false;
+                const userIndex = chat.findIndex(entry => String(entry?.mes ?? '').includes(MARKERS.first));
+                return userIndex >= 0 && chat.slice(userIndex + 1).some(entry => entry?.is_user === false && String(entry?.mes ?? '') === goReply);
+            }),
+            snapshot: reads => reads.map(({ file, chat }) => ({
+                file,
+                messages: Array.isArray(chat) ? chat.length : null,
+                tail: Array.isArray(chat) ? chat.slice(-2).map(entry => ({ role: entry?.is_user ? 'user' : entry?.is_system ? 'system' : 'assistant', bytes: String(entry?.mes ?? '').length, tail: String(entry?.mes ?? '').slice(-40) })) : null,
+            })),
+        });
+        report.gotavernSendPersistence = goPersisted.condition;
+        if (!goPersisted.ok) {
+            throw new Error(`gotavern-send-committed-to-disk: waited for ${goPersisted.condition.waitedFor}; observed ${JSON.stringify(goPersisted.condition.observed).slice(0, 900)}`);
+        }
+        step('gotavernSendReplyPersisted', true, JSON.stringify({ reply: goReply, condition: goPersisted.condition.name, elapsedMs: goPersisted.condition.elapsedMs }));
+        const goTreeQuiescent = await waitForTreeQuiescence('gotavern-tree-quiescent');
+        report.gotavernTreeQuiescence = goTreeQuiescent.condition;
+        if (!goTreeQuiescent.ok) {
+            throw new Error(`gotavern-tree-quiescent: waited for ${goTreeQuiescent.condition.waitedFor}; observed ${JSON.stringify(goTreeQuiescent.condition.observed).slice(0, 900)}`);
+        }
+        report.writtenTree = goTreeQuiescent.value;
         const chats = Object.keys(report.writtenTree).filter(file => file.endsWith('.jsonl'));
         report.chatFiles = chats;
         // A SAVED CHAT IS NOT THE CLAIM; A SAVED CHAT WITH THE CHARACTER IT OPENED IS. Run 40422280023 reported
@@ -914,7 +1047,9 @@ async function bootGotavernOver(root) {
     const binarySetting = process.env.GOTAVERN_BINARY;
     if (!binarySetting) throw new Error('GOTAVERN_BINARY is required to hand the tree BACK to GoTavern; without it this direction cannot run and must not be reported as passed');
     const port = await freePort();
-    const child = spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', root, '--configPath', path.join(root, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    // SAME FLAG AS THE OTHER BOOT SITE: this second GoTavern process (over the tree pinned just wrote) must not
+    // open a desktop browser either. The flag is passed at every boot rather than relying on the caller.
+    const child = spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', root, '--configPath', path.join(root, 'config.yaml'), '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
     const tail = [];
     child.stdout.on('data', chunk => tail.push(chunk.toString()));
     child.stderr.on('data', chunk => tail.push(chunk.toString()));
@@ -930,7 +1065,7 @@ async function bootGotavernOver(root) {
 async function pinnedReads() {
     const baseURL = process.env.PROBE_BASE_URL;
     const avatarFile = `${CARD_FILE_NAME}.png`;
-    const peer = await startCapturePeer();
+    const peer = await startCapturePeer({ replyTag: 'Q21_PINNED' });
     let browser;
     let gotavern = null;
     try {
@@ -945,7 +1080,10 @@ async function pinnedReads() {
         }
         report.savedChatName = savedChatName;
 
-        browser = await chromium.launch();
+        // HEADLESS IS EXPLICIT, NOT IMPLIED. Playwright's default is headless today, but a browser window on the
+        // operator's desktop is not a failure mode worth leaving to a default: the probe measures page state and
+        // never needs a visible surface.
+        browser = await chromium.launch({ headless: true });
         const page = await browser.newPage();
         page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
         await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
@@ -1019,6 +1157,11 @@ async function pinnedReads() {
         step('pinnedChatIdMatches', read.chatId === savedChatName,
             `pinned context chatId=${JSON.stringify(read.chatId)} the file's own name=${JSON.stringify(savedChatName)}`);
 
+        // THE BASELINE IS THE TREE AS PINNED LEFT IT. No quiescence wait here: the pinned server's own startup writes
+        // (config.yaml key insertion, settings migration, `_webpack`/`_cache` warm-up) are exactly the runtime-state
+        // class the comparison below classifies, and the tree the product wrote was already snapshotted only after
+        // ITS quiescence condition above. A quiescence wait on this side would add a second moving-tree detector for
+        // files whose movement the claim deliberately ignores.
         const before = await hashTree(dataRoot);
         report.treeBeforePinnedWrote = before;
         // WHAT "NO LOSS" CAN AND CANNOT MEAN HERE. Whole-tree byte identity is not the claim: the pinned server writes
@@ -1026,19 +1169,55 @@ async function pinnedReads() {
         // and the frontend saves `settings.json` as it migrates on load -- so a byte-equality assertion fails on the
         // runtime's own startup writes and says nothing about the user's data. The claim is: nothing the product wrote
         // is MISSING, nothing under the DATA domains had its bytes moved, and the conversation still carries the marker.
-        const runtimeState = /(^|[\\/])(settings\.json|config\.yaml)$|(^|[\\/])_webpack([\\/]|$)|(^|[\\/])_cache([\\/]|$)|(^|[\\/])backups([\\/]|$)/;
+        //
+        // A RUNTIME TEMP FILE IS NOT USER DATA. Measured on this host: the product's atomic content-log write leaves
+        // `default-user/.gotavern-content-log-<hash>.tmp` for a moment and renames it to `content.log`; a snapshot
+        // taken in that window (which the quiescence wait above now prevents) would otherwise make a REMOVAL of the
+        // product's own temp file read as data loss. Runtime-state paths are therefore classified on both the
+        // MODIFIED and the REMOVED side, and any removal outside that class still fails the row.
+        const runtimeState = /(^|[\\/])(settings\.json|config\.yaml)$|(^|[\\/])_webpack([\\/]|$)|(^|[\\/])_cache([\\/]|$)|(^|[\\/])backups([\\/]|$)|(^|[\\/])\.gotavern-[^\\/]+\.tmp$/;
         const dataDomain = /(^|[\\/])(chats|characters|groups|worlds|presets|themes|QuickReplies)([\\/]|$)/;
         const removed = Object.keys(report.expectedTree ?? {}).filter(file => !(file in before));
         const modified = Object.keys(report.expectedTree ?? {}).filter(file => file in before && before[file] !== report.expectedTree[file]);
         const dataModified = modified.filter(file => dataDomain.test(file));
-        report.treeLoss = { removed, modified, dataModified, runtimeStateModified: modified.filter(file => runtimeState.test(file)), unaccountedModified: modified.filter(file => !runtimeState.test(file) && !dataDomain.test(file)) };
+        const removedRuntimeState = removed.filter(file => runtimeState.test(file));
+        const removedUnaccounted = removed.filter(file => !runtimeState.test(file));
+        report.treeLoss = { removed, removedRuntimeState, removedUnaccounted, modified, dataModified, runtimeStateModified: modified.filter(file => runtimeState.test(file)), unaccountedModified: modified.filter(file => !runtimeState.test(file) && !dataDomain.test(file)) };
         step('noDataLossOnHandBack',
-            read.carriesMarkers.first === true && report.expectedTree !== undefined && removed.length === 0 && dataModified.length === 0,
+            read.carriesMarkers.first === true && report.expectedTree !== undefined && removedUnaccounted.length === 0 && dataModified.length === 0,
             report.expectedTree === undefined ? 'no expected tree was supplied, so nothing can be said about loss'
                 : JSON.stringify(report.treeLoss));
 
         // ---- (b) PINNED MUTATES: a turn of its own, then CONTINUE, both through its own UI -------------------
         await pointAtPeer(page, peer);
+
+        // THE PAGE'S OWN STATE, READ THROUGH THE PAGE'S OWN MODULE. Every wait below is on a NAMED condition of
+        // this state (or of the peer's request log / the chat file), never on elapsed time. The failure this
+        // section was rewritten for was a wait whose condition could already be true before the action it was
+        // waiting on -- see the `pinned-send-reply-committed-in-page` comment below.
+        const readPageState = () => page.evaluate(async () => {
+            const script = await import('./script.js');
+            const context = window.SillyTavern?.getContext?.() ?? null;
+            const chat = script.chat ?? [];
+            const last = chat[chat.length - 1] ?? null;
+            return {
+                chatLength: chat.length,
+                chatId: context?.chatId ?? script.chatId ?? null,
+                // THE INPUTS PINNED'S OWN CONTINUE GUARD READS (script.js:11648-11661), recorded rather than
+                // reproduced: a press the guard refuses is a fact about the state the drive reached.
+                isSendPress: script.is_send_press === true,
+                streamingProcessor: Boolean(script.streamingProcessor),
+                thisEditMesId: script.this_edit_mes_id ?? null,
+                swipeState: script.swipeState ?? null,
+                lastIsUser: last?.is_user === true,
+                lastIsSystem: last?.is_system === true,
+                lastText: String(last?.mes ?? ''),
+                lastBytes: String(last?.mes ?? '').length,
+                domMessages: document.querySelectorAll('#chat .mes').length,
+            };
+        });
+        report.pinnedPageBeforeSend = await readPageState();
+
         const sent = await page.evaluate(async ({ marker, startLength }) => {
             const script = await import('./script.js');
             const textarea = document.querySelector('#send_textarea');
@@ -1058,109 +1237,250 @@ async function pinnedReads() {
             return { clicked: true, timedOut: true, chatLength: (script.chat ?? []).length };
         }, { marker: MARKERS.second, startLength: read.chatLength });
         report.pinnedSend = sent;
-        // THE WRITE IS PERSISTED WHEN THE FILE SAYS SO, not when the screen does: pinned saves the chat after the
-        // generation completes, and the reply is written with it.
-        const pinnedWrote = await pollUntil(() => readChatFile(savedChatName),
-            chat => Array.isArray(chat) && chatText(chat).includes(MARKERS.second), 60000);
-        // A TURN THAT PRODUCED NO REPLY IS NOT A TURN THAT KEPT RUNNING, and waiting for the reply is also what makes
-        // the CONTINUE click land on an idle page instead of being swallowed by a send still in flight (measured: the
-        // continue appended nothing and no request left the page while the send's stream was outstanding).
-        const sendRequestSeen = await pollUntil(async () => peer.requests.filter(entry => entry.carriesMarkers.second === true).pop() ?? null,
-            entry => entry !== null, 60000);
-        const sendReply = sendRequestSeen.value?.answersWith ?? null;
-        report.pinnedSendRequest = { seen: sendRequestSeen.ok, stream: sendRequestSeen.value?.stream ?? null, messageCount: sendRequestSeen.value?.messageCount ?? null };
-        const sendReplyPersisted = sendReply === null ? { ok: false, value: null } : await pollUntil(() => readChatFile(savedChatName),
-            chat => Array.isArray(chat) && chat.some(entry => String(entry?.mes ?? '') === sendReply), 60000);
-        report.pinnedSendReply = { sendReply, persisted: sendReplyPersisted.ok };
+
+        // 1. THE SEND'S REQUEST LEFT THE PAGE. The peer's record is the observation: the page cannot prove a
+        //    request left it, and nothing in the page's DOM distinguishes "the provider was asked" from
+        //    "the page is waiting".
+        const sendRequestSeen = await waitForCondition('pinned-send-request-reached-peer', {
+            waitedFor: `the capture peer records a chat-completions request carrying "${MARKERS.second}" (a request left the pinned frontend)`,
+            deadlineMs: 60000,
+            produce: async () => peer.requests.filter(entry => entry.carriesMarkers.second === true),
+            accept: list => list.length > 0,
+            snapshot: () => peer.requests.map(entry => ({ stream: entry.stream, markers: entry.carriesMarkers, lastRole: entry.lastRole, answersWith: entry.answersWith })),
+        });
+        const sendRequest = sendRequestSeen.value[sendRequestSeen.value.length - 1] ?? null;
+        const sendReply = sendRequest?.answersWith ?? null;
+        report.pinnedSendRequest = { ok: sendRequestSeen.ok, stream: sendRequest?.stream ?? null, messageCount: sendRequest?.messageCount ?? null, answersWith: sendReply, condition: sendRequestSeen.condition };
+        if (!sendRequestSeen.ok) {
+            throw new Error(`pinned-send-request-reached-peer: waited for ${sendRequestSeen.condition.waitedFor}; observed ${JSON.stringify(sendRequestSeen.condition.observed).slice(0, 900)}`);
+        }
+
+        // 2. THE PAGE COMMITTED THE SEND'S REPLY. THIS IS THE CONDITION WHOSE ABSENCE WAS THE FLAKE.
+        //
+        //    THE OLD WAIT ASKED THE FILE FOR `mes === sendReply`, and the two peers answered the same strings
+        //    (`Q21_REPLY_1`, ...): GoTavern's leg had already persisted `Q21_REPLY_1` into the tree it handed
+        //    over, so the pinned half's "did the send's reply land?" wait was satisfied by the HANDED-BACK reply
+        //    before the send's own reply existed. `pinnedWrote` then went green while the send was STILL
+        //    STREAMING; the CONTINUE press below was swallowed by pinned's own `is_send_press == false` guard
+        //    (script.js:11658); the send's reply landing afterwards moved the chat and the probe misread that as
+        //    a continuation. That is run 41171855911's `pinnedContinued` red -- `continueRequests: 0`,
+        //    `lengthGrew: true`, `lastMessageGrew: false`.
+        //
+        //    Two things make it impossible now: (a) the peer's replies carry the leg's phase
+        //    (`Q21_PINNED_REPLY_n`, see startCapturePeer), so no stale message can carry this leg's reply text;
+        //    and (b) the wait is on the PAGE's own model holding the reply as its last message AND the page being
+        //    idle -- the exact state pinned's continue guard requires before it will call Generate.
+        const pageCommittedSend = await waitForCondition('pinned-send-reply-committed-in-page', {
+            waitedFor: `the page's own chat model holds the send's reply "${sendReply}" as the last message and is idle (is_send_press false, no streaming processor)`,
+            deadlineMs: 60000,
+            produce: readPageState,
+            accept: state => sendReply !== null
+                && state.isSendPress === false
+                && state.streamingProcessor === false
+                && state.lastIsUser === false
+                && state.lastText === sendReply,
+            snapshot: state => ({
+                chatLength: state.chatLength, lastIsUser: state.lastIsUser, lastText: state.lastText.slice(0, 120),
+                isSendPress: state.isSendPress, streamingProcessor: state.streamingProcessor, domMessages: state.domMessages,
+            }),
+        });
+        report.pinnedSendCommitted = { ok: pageCommittedSend.ok, condition: pageCommittedSend.condition };
+        if (!pageCommittedSend.ok) {
+            throw new Error(`pinned-send-reply-committed-in-page: waited for ${pageCommittedSend.condition.waitedFor}; observed ${JSON.stringify(pageCommittedSend.condition.observed).slice(0, 900)}`);
+        }
+
+        // 3. THE REPLY IS PERSISTED, POSITIONALLY: the file must hold the user turn and then an ASSISTANT turn
+        //    carrying this reply after it. The phase-tagged reply text alone makes this unambiguous; the position
+        //    keeps "a stale message with the same text" impossible even if a future fixture re-used a tag.
+        const pinnedWrote = await waitForCondition('pinned-send-reply-persisted', {
+            waitedFor: `the chat file holds the user turn "${MARKERS.second}" followed by an assistant turn whose text is "${sendReply}"`,
+            deadlineMs: 60000,
+            produce: () => readChatFile(savedChatName),
+            accept: chat => {
+                if (!Array.isArray(chat)) return false;
+                const userIndex = chat.findIndex(entry => String(entry?.mes ?? '').includes(MARKERS.second));
+                return userIndex >= 0 && chat.slice(userIndex + 1).some(entry => entry?.is_user === false && String(entry?.mes ?? '') === sendReply);
+            },
+            snapshot: chat => ({
+                fileMessages: Array.isArray(chat) ? chat.length : null,
+                tail: Array.isArray(chat) ? chat.slice(-3).map(entry => ({ role: entry?.is_user ? 'user' : entry?.is_system ? 'system' : 'assistant', bytes: String(entry?.mes ?? '').length, tail: String(entry?.mes ?? '').slice(-40) })) : null,
+            }),
+        });
+        report.pinnedSendReply = { sendReply, persisted: pinnedWrote.ok, condition: pinnedWrote.condition };
+        if (!pinnedWrote.ok) {
+            throw new Error(`pinned-send-reply-persisted: waited for ${pinnedWrote.condition.waitedFor}; observed ${JSON.stringify(pinnedWrote.condition.observed).slice(0, 900)}`);
+        }
         step('pinnedWrote',
-            sent.clicked === true && sent.timedOut !== true && pinnedWrote.ok === true && sendReplyPersisted.ok === true,
+            sent.clicked === true && sent.timedOut !== true && pageCommittedSend.ok === true && pinnedWrote.ok === true,
             {
                 send: sent,
                 persisted: pinnedWrote.ok,
                 sendReply,
-                replyPersisted: sendReplyPersisted.ok,
+                replyCommittedInPage: pageCommittedSend.ok,
+                replyPersisted: pinnedWrote.ok,
                 fileMessages: Array.isArray(pinnedWrote.value) ? pinnedWrote.value.length : null,
+                conditions: { request: sendRequestSeen.condition.name, committedInPage: pageCommittedSend.condition.name, persisted: pinnedWrote.condition.name },
                 requests: peer.requests.map(entry => ({ stream: entry.stream, markers: entry.carriesMarkers, lastRole: entry.lastRole, answersWith: entry.answersWith })),
             });
 
+        // 4. THE CONTINUE PRESS LANDS ONLY ON A PAGE THE FRONTEND ITSELF CALLS CONTINUABLE. This is the
+        //    PRECONDITION check AGENTS rule 10 asks for: pinned's `#option_continue` handler refuses (SILENTLY --
+        //    no toast, no error) when `is_send_press` is true, when the message being continued is being edited, or
+        //    during a swipe edit (`public/script.js:11648-11661`). A drive that pressed while the page was busy
+        //    would be driving a state a user cannot reach, and the resulting "nothing happened" is a probe defect,
+        //    not a product finding.
+        const guardState = await waitForCondition('pinned-continue-allowed-by-frontend-guard', {
+            waitedFor: 'the page is idle and continuable: is_send_press === false, no streaming processor, no message being edited, no swipe edit',
+            deadlineMs: 60000,
+            produce: readPageState,
+            accept: state => state.isSendPress === false && state.streamingProcessor === false && state.thisEditMesId === null,
+            snapshot: state => ({ chatLength: state.chatLength, isSendPress: state.isSendPress, streamingProcessor: state.streamingProcessor, thisEditMesId: state.thisEditMesId, swipeState: state.swipeState, lastBytes: state.lastBytes }),
+        });
+        report.pinnedContinueGuard = guardState.condition;
+        if (!guardState.ok) {
+            throw new Error(`pinned-continue-allowed-by-frontend-guard: waited for ${guardState.condition.waitedFor}; observed ${JSON.stringify(guardState.condition.observed).slice(0, 900)}`);
+        }
         report.requestsBeforeContinue = peer.requests.length;
-        const continueResult = await page.evaluate(async ({ startLength }) => {
+        const continuePreState = await readPageState();
+        report.pinnedContinueBefore = continuePreState;
+        const continueResult = await page.evaluate(async () => {
             const script = await import('./script.js');
-            const start = (script.chat ?? []).length;
-            const lastTextBefore = String((script.chat ?? [])[start - 1]?.mes ?? '');
+            const chatBefore = script.chat ?? [];
+            const before = {
+                chatLength: chatBefore.length,
+                lastText: String(chatBefore[chatBefore.length - 1]?.mes ?? ''),
+                lastIsUser: chatBefore[chatBefore.length - 1]?.is_user === true,
+                isSendPress: script.is_send_press === true,
+                streamingProcessor: Boolean(script.streamingProcessor),
+                thisEditMesId: script.this_edit_mes_id ?? null,
+                swipeState: script.swipeState ?? null,
+            };
             const button = document.querySelector('#option_continue');
-            if (!button) return { clicked: false, reason: 'no #option_continue' };
+            if (!button) return { clicked: false, accepted: false, before, settled: null, reason: 'no #option_continue in the page' };
             button.click();
-            // PINNED'S CONTINUE EXTENDS THE LAST MESSAGE, IT DOES NOT PUSH A NEW ONE (measured: the last message became
-            // "Q21_REPLY_1 Q21_REPLY_2" and the chat length did not move), so waiting for a length increase waited for
-            // something that never happens. The observable is the last message's TEXT growing.
+            // THE ACCEPTANCE IS READ SYNCHRONOUSLY, IN THE SAME TASK AS THE CLICK. Pinned's handler sets
+            // `is_send_press = true` BEFORE calling Generate (script.js:11658-11660), so a press its guard REFUSED
+            // is observable here -- it must not be inferred later from a chat change, because a chat change after
+            // the press can belong to whatever ELSE was running. This is the check that turns the old silent
+            // swallow into a named refusal instead of a misleading `continueRequests: 0`.
+            const accepted = script.is_send_press === true || Boolean(script.streamingProcessor);
             const deadline = Date.now() + 60000;
+            let settled = null;
             while (Date.now() < deadline) {
                 const chat = script.chat ?? [];
-                const lastTextNow = String(chat[start - 1]?.mes ?? '');
-                if (chat.length > start || lastTextNow !== lastTextBefore) {
-                    return {
-                        clicked: true, startedAt: start, chatLength: chat.length,
-                        lengthGrew: chat.length > start,
-                        lastMessageGrew: lastTextNow !== lastTextBefore,
-                        lastMessageBytes: lastTextNow.length,
-                    };
-                }
+                const last = chat[chat.length - 1] ?? null;
+                settled = {
+                    chatLength: chat.length,
+                    lastText: String(last?.mes ?? ''),
+                    lastIsUser: last?.is_user === true,
+                    isSendPress: script.is_send_press === true,
+                    streamingProcessor: Boolean(script.streamingProcessor),
+                    domLastText: String(document.querySelector(`#chat .mes[mesid="${chat.length - 1}"] .mes_text`)?.textContent ?? '').slice(0, 200),
+                };
+                const changed = settled.chatLength !== before.chatLength || settled.lastText !== before.lastText;
+                if (accepted !== true) break;
+                if (settled.isSendPress === false && settled.streamingProcessor === false && changed) break;
                 await new Promise(resolve => setTimeout(resolve, 250));
             }
-            // A TIMEOUT MUST CARRY THE STATE IT SAW. The first CI run of this row failed with
-            // `timedOut: true` and nothing else, so the difference between "pinned never appended the
-            // answer", "pinned appended it somewhere else" and "the click did not start a generation"
-            // could not be told apart without another run. The snapshot below is the page's own chat
-            // after the wait, which is what a reader needs to classify the failure.
-            const snapshot = (script.chat ?? []).slice(-3).map(entry => ({
-                role: entry?.is_user ? 'user' : entry?.is_system ? 'system' : 'assistant',
-                chars: String(entry?.mes ?? '').length,
-                tail: String(entry?.mes ?? '').slice(-40),
-            }));
             return {
-                clicked: true, startedAt: start, timedOut: true,
-                chatLength: (script.chat ?? []).length,
-                messagesAtTimeout: snapshot,
+                clicked: true,
+                accepted,
+                before,
+                settled,
+                lengthGrew: settled !== null && settled.chatLength > before.chatLength,
+                lastMessageGrew: settled !== null && settled.lastText !== before.lastText,
+                timedOut: settled === null ? true : (settled.isSendPress === true || settled.streamingProcessor === true),
             };
-        }, { startLength: pinnedWrote.value?.length ?? read.chatLength });
+        });
         report.pinnedContinue = continueResult;
-        // THE TWO HALVES OF "KEEP RUNNING", EACH ABLE TO FAIL SEPARATELY:
-        //   1. the CONTINUE request REACHED THE PROVIDER and carried the handed-back turns (captured by the peer);
-        //   2. the answer the provider gave was PERSISTED into the chat file.
-        // THE REQUEST BODY CARRIES NO GENERATION TYPE (measured: `type: null` on the send that DID reach the peer), so
-        // the continue is identified by WHEN it arrives: everything recorded before the click belongs to the send, and
-        // a request that appears after it can only be the continue, because nothing else runs in that window.
-        const continueRequests = peer.requests.slice(report.requestsBeforeContinue ?? 0);
-        const continueRequest = continueRequests[continueRequests.length - 1] ?? null;
+        if (continueResult.clicked !== true) {
+            throw new Error(`continue-control-missing: ${continueResult.reason}`);
+        }
+        if (continueResult.accepted !== true) {
+            // THE EXACT FAILURE THE OLD PROBE COULD NOT NAME: the frontend refused the press. Throw with the state
+            // its guard read, so "the control was pressed and nothing was asked" is never read as a product defect.
+            throw new Error(`continue-press-not-accepted: the pinned frontend DID NOT start a generation for the continue press (its own guard refused it); pre-click state=${JSON.stringify(continueResult.before)}; observed=${JSON.stringify(continueResult.settled)}`);
+        }
+
+        // 5. THE CONTINUE'S REQUEST REACHED THE PROVIDER. Everything recorded before the press belongs to the
+        //    send; a request that appears after it can only be the continue, because nothing else runs in that
+        //    window. This is the observation `continueRequests: 0` was about.
+        const continueRequestSeen = await waitForCondition('continue-request-reached-provider', {
+            waitedFor: 'the capture peer records at least one NEW chat-completions request after the continue press',
+            deadlineMs: 60000,
+            produce: async () => ({ requests: peer.requests.slice(report.requestsBeforeContinue ?? 0), page: await readPageState() }),
+            accept: value => value.requests.length > 0,
+            snapshot: value => ({
+                newRequests: value.requests.map(entry => ({ markers: entry.carriesMarkers, messageCount: entry.messageCount, lastRole: entry.lastRole, answersWith: entry.answersWith, stream: entry.stream })),
+                page: { chatLength: value.page.chatLength, lastBytes: value.page.lastBytes, isSendPress: value.page.isSendPress, streamingProcessor: value.page.streamingProcessor, domMessages: value.page.domMessages },
+            }),
+        });
+        const continueRequests = continueRequestSeen.value.requests;
         report.continueRequestsObserved = continueRequests.length;
+        const continueRequest = continueRequests[continueRequests.length - 1] ?? null;
+        if (!continueRequestSeen.ok) {
+            // A page that ACCEPTED the press and then issued no request is the harness-faithfulness alarm the
+            // differential doctrine names: it is recorded, not guessed at.
+            throw new Error(`continue-request-reached-provider: waited for ${continueRequestSeen.condition.waitedFor}; the press WAS accepted by the page (is_send_press became true) yet no request left it; observed ${JSON.stringify(continueRequestSeen.condition.observed).slice(0, 1200)}`);
+        }
+
+        // 6. THE PAGE FINISHED THE CONTINUATION, and 7. the answer it produced was persisted. Each is a separate
+        //    observation and neither is inferred from the request having arrived.
+        const pageSettledContinue = await waitForCondition('continue-completed-in-page', {
+            waitedFor: `the page is idle again and the continuation moved the chat: the last message's text grew/changed or the chat gained a message (pre-press: ${JSON.stringify({ chatLength: continuePreState.chatLength, lastBytes: continuePreState.lastBytes })})`,
+            deadlineMs: 60000,
+            produce: readPageState,
+            accept: state => state.isSendPress === false && state.streamingProcessor === false
+                && (state.chatLength !== continuePreState.chatLength || state.lastText !== continuePreState.lastText),
+            snapshot: state => ({ chatLength: state.chatLength, lastBytes: state.lastBytes, lastText: state.lastText.slice(0, 160), isSendPress: state.isSendPress, streamingProcessor: state.streamingProcessor, domMessages: state.domMessages }),
+        });
+        report.pinnedContinueSettled = pageSettledContinue.condition;
+        const continueReply = continueRequest?.answersWith ?? null;
+        const continuedInFile = await waitForCondition('continue-answer-persisted', {
+            waitedFor: `a chat file holds the continue's answer "${continueReply}"`,
+            deadlineMs: 60000,
+            produce: () => readChatFile(savedChatName),
+            // THE ANSWER MAY BE A SUFFIX, NOT A WHOLE MESSAGE. Pinned's continuation appends to the LAST
+            // message in place (`public/script.js:6719-6737`, measured: "Q21_PINNED_REPLY_1
+            // Q21_PINNED_REPLY_2" in one entry), so equality would fail for the exact behaviour the row is
+            // meant to prove. The reply text is phase- and ordinal-tagged (`Q21_PINNED_REPLY_2`), so
+            // `.includes()` cannot be satisfied by any other request of this leg.
+            accept: chat => continueReply !== null && Array.isArray(chat) && chat.some(entry => String(entry?.mes ?? '').includes(continueReply)),
+            snapshot: chat => ({
+                fileMessages: Array.isArray(chat) ? chat.length : null,
+                tail: Array.isArray(chat) ? chat.slice(-4).map(entry => ({ role: entry?.is_user ? 'user' : entry?.is_system ? 'system' : 'assistant', bytes: String(entry?.mes ?? '').length, tail: String(entry?.mes ?? '').slice(-40) })) : null,
+            }),
+        });
+        // THE FILE'S OWN TAIL, RECORDED ONLY WHEN THE WAIT FAILED. It answers the question the row cannot answer
+        // from `answerPersisted:false` alone: did pinned write NOTHING, write the continuation without its answer,
+        // or write the answer under a name the probe is not polling?
+        const fileTail = continuedInFile.ok ? null : continuedInFile.condition.observed;
         // THE HANDED-BACK REPLY IS THE SEND'S ANSWER -- the turn pinned produced FROM the GoTavern context, which is
         // what GoTavern must be able to read back. The continue's own answer is recorded in its row.
         const replyText = sendReply;
-        const continueReply = continueRequest?.answersWith ?? null;
-        const continuedInFile = await pollUntil(() => readChatFile(savedChatName),
-            chat => continueReply !== null && Array.isArray(chat) && chat.some(entry => String(entry?.mes ?? '').includes(continueReply)), 60000);
-        // THE FILE'S OWN TAIL, RECORDED ONLY WHEN THE POLL FAILED. It answers the question the row cannot
-        // answer from `answerPersisted:false` alone: did pinned write NOTHING, write the nudge without an
-        // answer, or write the answer under a name the probe is not polling?
-        const fileTail = continuedInFile.ok ? null : await readChatFile(savedChatName).then(chat => (Array.isArray(chat) ? chat.slice(-3).map(entry => ({
-            role: entry?.is_user ? 'user' : entry?.is_system ? 'system' : 'assistant',
-            chars: String(entry?.mes ?? '').length,
-            tail: String(entry?.mes ?? '').slice(-40),
-        })) : chat)).catch(error => `unreadable: ${String(error?.message ?? error).slice(0, 120)}`);
         step('pinnedContinued',
             continueRequest !== null
                 && continueRequest.carriesMarkers.first === true
                 && continueRequest.carriesMarkers.second === true
+                && pageSettledContinue.ok === true
                 && continuedInFile.ok === true,
             {
                 click: continueResult,
-                continueRequests: continueRequests.length,
+                continueRequests: report.continueRequestsObserved,
                 carriedMarkers: continueRequest?.carriesMarkers ?? null,
                 messageCount: continueRequest?.messageCount ?? null,
                 answerPersisted: continuedInFile.ok,
                 answersWith: continueReply,
                 chatFileTail: fileTail,
+                conditions: {
+                    guard: guardState.condition.name,
+                    request: continueRequestSeen.condition.name,
+                    settled: pageSettledContinue.condition.name,
+                    persisted: continuedInFile.condition.name,
+                    failed: report.conditions.filter(entry => entry.ok !== true).map(entry => entry.name),
+                },
+                pageBefore: continuePreState,
+                pageAfter: pageSettledContinue.value ?? null,
                 allRequests: peer.requests.map(entry => ({ type: entry.generationType, markers: entry.carriesMarkers, answersWith: entry.answersWith })),
             });
 
@@ -1409,8 +1729,15 @@ function judgeHandback(state) {
         ? counts.chatFilesUnderCard > 0 && counts.treeFilesWritten > 0 && counts.cardChunks >= 2
         : counts.savedChats > 0 && counts.rosterRows > 0 && counts.chatFilesAssociated > 0
             && counts.markersInFinalChat >= 3 && counts.continueRequests >= 1;
+    // A FAILED WAIT IS A NAMED CONDITION, NOT ONLY A RED ROW. `failed` says WHICH row; `failedConditions` says
+    // WHICH wait did not hold and WHAT it observed, which is the difference between "pinnedContinued is red" and
+    // "the page never committed the send's reply; it was still streaming with lastText='…'". A row that failed
+    // without a failed condition is still red -- the verdict does not depend on this list, it only explains it.
+    const failedConditions = (state.conditions ?? []).filter(entry => entry.ok !== true).map(entry => ({
+        name: entry.name, waitedFor: entry.waitedFor, elapsedMs: entry.elapsedMs, observed: entry.observed,
+    }));
     const verdict = missing.length > 0 ? 'unreached' : (failed.length > 0 || nonZero === false ? 'mismatch' : 'match');
-    return { executed: true, phase: state.phase, verdict, required: required.length, missing, failed, countsAreNonZero: nonZero, counts };
+    return { executed: true, phase: state.phase, verdict, required: required.length, missing, failed, failedConditions, countsAreNonZero: nonZero, counts };
 }
 
 try {
@@ -1428,10 +1755,12 @@ try {
     // reaching the judge, which is the one outcome this file must make impossible to mistake for success.
     report.judge = judgeHandback(report);
     if (report.judge.verdict !== 'match') {
-        report.failure = report.failure ?? `hand-back judge ${report.judge.verdict}: failed=[${report.judge.failed.join(', ')}] missing=[${report.judge.missing.join(', ')}] counts=${JSON.stringify(report.judge.counts)}`;
+        const namedConditions = (report.judge.failedConditions ?? []).map(entry => `${entry.name} (waited for ${entry.waitedFor}; observed ${JSON.stringify(entry.observed).slice(0, 600)})`);
+        report.failure = report.failure ?? `hand-back judge ${report.judge.verdict}: failed=[${report.judge.failed.join(', ')}] missing=[${report.judge.missing.join(', ')}] counts=${JSON.stringify(report.judge.counts)}${namedConditions.length > 0 ? `; failed conditions: ${namedConditions.join(' | ')}` : ''}`;
     }
     await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
     console.log(`${phase} leg: ${report.steps.map(entry => `${entry.ok ? 'ok' : 'FAIL'} ${entry.name}`).join(', ')}`);
+    console.log(`${phase} conditions: ${report.conditions.map(entry => `${entry.ok ? 'ok' : 'FAIL'} ${entry.name}`).join(', ')}`);
     console.log(`${phase} judge: ${report.judge.verdict} -- ${report.judge.counts.ok}/${report.judge.counts.steps} step(s) green, ${report.judge.required} required row(s), ${report.judge.missing.length} missing, counts non-zero=${report.judge.countsAreNonZero}`);
     console.log(`${phase} judge counts: ${JSON.stringify(report.judge.counts)}`);
     console.log(`report: ${reportPath}`);

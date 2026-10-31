@@ -279,7 +279,10 @@ if (!external) {
     if (!binarySetting) throw new Error('GOTAVERN_BINARY is required for the GoTavern leg');
     await fs.cp(path.join(repoRoot, 'upstream', 'tokenizers'), path.join(dataRoot, 'tokenizers'), { recursive: true });
     await seedLegConfig(dataRoot);
-    server = spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    // The seeded config is the pinned default with `browserLaunch.enabled: TRUE`, so the flag is what keeps this
+    // probe's server from opening the operator's default browser at boot (the same reason q20-leg-runtime and
+    // run-against-pinned pass it).
+    server = spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
     // KEPT, but bounded: a server that answers /version and then refuses a save is otherwise unattributable.
     const collect = chunk => {
         if (serverLog.length < 200) serverLog.push(String(chunk).slice(0, 400));
@@ -361,7 +364,9 @@ try {
     // mode -- so the channel bought nothing and would have quietly made this leg drive a different browser from
     // every other leg in the workflow. Back to the default, with the recorder replaced by one that does not need a
     // scriptable Location.
-    browser = await chromium.launch();
+    // HEADLESS IS EXPLICIT: Playwright's default is headless today, but a desktop window is never part of a
+    // measurement, and this probe is run from a developer's desktop as well as from CI.
+    browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
     page.on('console', message => report.console.push({ type: message.type(), text: String(message.text()).slice(0, 400) }));

@@ -66,14 +66,14 @@ if (!binarySetting) {
     }
 }
 
-const server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+const server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
 let origin = `http://127.0.0.1:${port}`;
 const observed = [];
 const pageErrors = [];
 let browser;
 try {
     await waitFor(`${origin}/version`);
-    browser = await chromium.launch();
+    browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     page.on('pageerror', error => pageErrors.push(String(error.message ?? error).slice(0, 300)));
     page.on('request', request => {

@@ -271,6 +271,7 @@ async function bootProduct() {
         '--port', String(port),
         '--dataRoot', dataRoot,
         '--configPath', path.join(dataRoot, 'config.yaml'),
+        '--browserLaunchEnabled', 'false',
     ], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
     // THE OUTPUT IS DRAINED AND KEPT, NOT DISCARDED: a product that fails to start must be diagnosable from
     // the run, and a silent pipe is how a startup defect becomes "the leg failed to drive".
@@ -346,7 +347,7 @@ async function main() {
         if (subject === 'gotavern') await seedLegConfig(dataRoot);
         await waitForServer(baseURL);
 
-        browser = await chromium.launch();
+        browser = await chromium.launch({ headless: true });
         const page = await browser.newPage({ viewport: { width: VIEWPORTS[0].width, height: VIEWPORTS[0].height } });
         page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
         page.on('console', message => {

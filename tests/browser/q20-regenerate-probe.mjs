@@ -214,7 +214,7 @@ let browser;
 try {
     if (boot.bootRefusal) throw new Error(boot.bootRefusal);
     await waitForServer(`${baseURL}/version`);
-    browser = await chromium.launch();
+    browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
     page.on('console', message => {

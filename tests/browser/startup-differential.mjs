@@ -102,7 +102,7 @@ if (!external) {
     const extensionTarget = path.join(dataRoot, 'public', 'scripts', 'extensions');
     if (await fs.stat(extensionSource).then(() => true, () => false)) {
         await fs.cp(extensionSource, extensionTarget, { recursive: true });
-    }    server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    }    server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
 const report = {
@@ -120,7 +120,7 @@ const report = {
 let browser;
 try {
     await waitForServer(`${origin}/version`);
-    browser = await chromium.launch();
+    browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error.message ?? error).slice(0, 300)));
     page.on('console', message => {

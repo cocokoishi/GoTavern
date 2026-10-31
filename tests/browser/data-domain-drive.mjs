@@ -105,7 +105,7 @@ if (!external) {
     const configSource = path.join(repoRoot, 'upstream', 'default', 'config.yaml');
     const configPath = path.join(dataRoot, 'config.yaml');
     await fs.cp(configSource, configPath);
-    server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', configPath], { cwd: dataRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', configPath, '--browserLaunchEnabled', 'false'], { cwd: dataRoot, stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
 const report = {
@@ -134,7 +134,7 @@ try {
     await waitForServer(`${origin}/version`);
     const version = await (await fetch(`${origin}/version`)).json();
     report.provenance.frontendVersion = { version: version.version, pkgVersion: version.pkgVersion, gitRevision: version.gitRevision };
-    browser = await chromium.launch();
+    browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error.message ?? error).slice(0, 300)));
     page.on('console', message => {

@@ -41,7 +41,7 @@ const outPath = path.resolve(argument('--out', path.join(here, 'fixtures', 'cust
 const CUSTOM_URL = process.env.CAPTURE_CUSTOM_URL ?? 'http://127.0.0.1:1';
 const CUSTOM_MODEL = process.env.CAPTURE_CUSTOM_MODEL ?? 'probe-model';
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
 const consoleErrors = [];
 page.on('pageerror', error => consoleErrors.push(String(error.message ?? error).slice(0, 200)));

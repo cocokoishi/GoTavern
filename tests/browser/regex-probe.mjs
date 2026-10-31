@@ -295,14 +295,14 @@ try {
         // against. Absent it the frontend answers a Guesstimate and assembly still proceeds.
         await fs.cp(path.join(repoRoot, 'upstream', 'tokenizers'), path.join(dataRoot, 'tokenizers'), { recursive: true }).catch(() => {});
         await seedLegConfig(dataRoot);
-        server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+        server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
         server.stdout.on('data', () => {});
         server.stderr.on('data', () => {});
     }
     const baseURL = process.env.PROBE_BASE_URL ?? `http://127.0.0.1:${port}`;
     await waitForServer(`${baseURL}/version`);
 
-    browser = await chromium.launch();
+    browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 400)));
     page.on('console', message => report.console.push({ type: message.type(), text: String(message.text()).slice(0, 400) }));
