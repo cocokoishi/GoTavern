@@ -208,6 +208,7 @@ func contractDocumentFiles() []string {
 		filepath.Join("docs", "dropin-qualification.md"),
 		filepath.Join("docs", "gate-blindspots.md"),
 		filepath.Join("docs", "real-user-input-audit.md"),
+		filepath.Join("docs", "browser-stability.md"),
 	}
 }
 
@@ -562,6 +563,12 @@ var declaredOtherPins = map[string]string{
 	"0dddeac181dad9681d9c9eb720a1be66f1126573": "v0.1.0-alpha.6 release commit - HANDOFF.md current checkpoint",
 	"b114ab113d3954bef1e47651d2695f67e2708a2e": "v0.1.0-alpha.7 release commit - HANDOFF.md current checkpoint",
 	"dd6f2ac5a13d7f2683125afcf96f6de32dd0e56d": "v0.1.0-alpha.8 release commit - HANDOFF.md current checkpoint",
+	// A HARNESS ARTEFACT'S IDENTITY, NOT A BASELINE. docs/browser-stability.md names the git blob id of the
+	// Q21 hand-back probe the 20/20 repeated-stability campaign measured, because "the evidence measures the
+	// shipped hand-back code" is only checkable if the blob is named. A blob id is a 40-hex value that the
+	// commit-string gate cannot distinguish from a mistyped pin, so it is declared here with its reason rather
+	// than left in the document as an unexplained object id.
+	"2ca705561899a0893a4003641008f0a6f21a14da": "git blob id of tests/browser/q21-data-handback.mjs at the 20/20 repeated-stability campaign - docs/browser-stability.md",
 }
 
 // checkPinnedCommitStrings is the gate body, extracted so the red-path test can drive it against a
