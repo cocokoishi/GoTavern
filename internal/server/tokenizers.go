@@ -55,8 +55,22 @@ var tokenizerWebModels = []string{"claude", "llama3", "qwen2", "command-r", "com
 var tokenizerExternalAssetModels = []string{"qwen2", "command-r", "command-a", "nemo", "deepseek"}
 
 func registerTokenizerRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
+	// THE FALLBACK IS ANNOUNCED ONCE, HERE, AND ON EVERY RESPONSE (see the exactness section
+	// below). Construction time is where an operator's log has room for a full sentence; the
+	// per-request header is what a gate can assert. Both are computed by tokenizerExactnessStatus,
+	// the SAME function, so they cannot disagree about what "exact" means: the line below records
+	// the state at boot, the header records the state of the request it is attached to.
+	status := tokenizerExactnessStatus(options)
+	if !status.Exact {
+		consoleWarnf(tokenizerConsoleWriter(options), "GoTavern: %s: no tokenizer tree under %q (tried %s); /api/tokenizers answers estimated counts, so a context boundary measured against this server is not exact\n",
+			tokenizerGuesstimateMarker, options.InstallRoot, strings.Join(tokenizerAssetCandidates(options), ", "))
+	}
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
+			// Re-resolved per request, not captured from the line above: the header must describe
+			// the tree THIS request will read, and openTokenizerSet resolves it per request too.
+			// A boot-time copy of the status could disagree with the behaviour it describes.
+			tokenizerExactnessStatus(options).annotate(w)
 			if r.Method != http.MethodPost {
 				serveStatic(w, r, notFoundPage, options)
 				return
@@ -136,6 +150,98 @@ func tokenizerAssets(options HTTPHandlerOptions) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// tokenizerLayout names the discovery level a resolved tree came from, derived from the resolved
+// path so the label and the precedence cannot drift apart: the order lives in
+// tokenizerAssetCandidates and nowhere else.
+func tokenizerLayout(options HTTPHandlerOptions, assets string) string {
+	if assets == "" {
+		return tokenizerLayoutNone
+	}
+	relative, err := filepath.Rel(options.InstallRoot, assets)
+	if err != nil {
+		return filepath.ToSlash(assets)
+	}
+	return filepath.ToSlash(relative)
+}
+
+// --- exactness: an inexact count must be distinguishable from an exact one -----------------
+//
+// THE GAP THIS CLOSES. With no tokenizer tree the routes answer with the pinned Guesstimate
+// fallback (tokenizers.Guesstimate, from src/endpoints/tokenizers.js:68-72, used at :373, :551
+// and :1032), and the response carries exactly the same fields as an exact one: a `count`
+// number. Nothing in the body says whether that number came from a tokenizer or from
+// ceil(bytes/3.35), so a client cannot tell, and neither can a test.
+//
+// IT CANNOT BE CLOSED IN THE BODY. The tokenizer response body is compared key-for-key AND
+// order-for-order against the pinned recording (tokenizers_test.go:192 asserts
+// `ids,count,chunks`), so a body field would have to either appear on every response -- and
+// diverge from every pinned capture for a fact that is true of the pinned server's own layout --
+// or appear only on the guesstimate path, which is the input a client can least afford to
+// special-case. The marker is therefore a response HEADER pair, which is additive for clients
+// that ignore it and leaves the pinned body byte-identical:
+//
+//	X-GoTavern-Tokenizer-Exact:  "true" | "false"
+//	X-GoTavern-Tokenizer-Layout: "src/tokenizers" | "tokenizers" | "upstream/tokenizers" | "none"
+//
+// Both are always present on every /api/tokenizers route, including its 400 and its GET
+// fall-through, so ABSENCE IS NEVER SILENTLY EXACT: a gate that finds no header refuses rather
+// than assuming. The layout value is what makes the release claim checkable from the outside --
+// the archive promises src/tokenizers/, so a tree resolving from `tokenizers/` or `none` is
+// visible as the packaging difference it is instead of being folded into "exact".
+//
+// AND ONCE IN THE LOG, with a stable marker, so an operator who is not reading HTTP headers sees
+// why a context boundary on this server is not exact.
+
+const (
+	// tokenizerExactHeader reports whether this server can tokenize exactly.
+	tokenizerExactHeader = "X-GoTavern-Tokenizer-Exact"
+	// tokenizerLayoutHeader reports WHICH discovery level answered, or "none".
+	tokenizerLayoutHeader = "X-GoTavern-Tokenizer-Layout"
+	// tokenizerLayoutNone is the layout value when no tree resolved.
+	tokenizerLayoutNone = "none"
+	// tokenizerGuesstimateMarker is the stable substring of the operator log line, greppable and
+	// asserted by tests rather than described in prose.
+	tokenizerGuesstimateMarker = "tokenizer-guesstimate"
+)
+
+// tokenizerStatus is what a client, a gate or an operator needs to know about this server's
+// tokenizer data: whether counts are exact, and which layout answered.
+type tokenizerStatus struct {
+	Exact  bool
+	Layout string
+}
+
+// tokenizerExactnessStatus resolves the tree and reports it. It calls the SAME resolver the
+// routes use, so "reports exact" and "reads a tree" cannot diverge.
+func tokenizerExactnessStatus(options HTTPHandlerOptions) tokenizerStatus {
+	assets, ok := tokenizerAssets(options)
+	if !ok {
+		return tokenizerStatus{Exact: false, Layout: tokenizerLayoutNone}
+	}
+	return tokenizerStatus{Exact: true, Layout: tokenizerLayout(options, assets)}
+}
+
+// annotate stamps the exactness observable onto a response. Called before the handler runs, so
+// the headers are present whatever status the handler answers with.
+func (status tokenizerStatus) annotate(w http.ResponseWriter) {
+	exact := "false"
+	if status.Exact {
+		exact = "true"
+	}
+	w.Header().Set(tokenizerExactHeader, exact)
+	w.Header().Set(tokenizerLayoutHeader, status.Layout)
+}
+
+// tokenizerConsoleWriter is where the guesstimate warning goes. Nil means os.Stderr, which is
+// what the shipped binary uses; tests substitute a buffer so the marker's exact bytes are
+// assertable rather than assumed.
+func tokenizerConsoleWriter(options HTTPHandlerOptions) io.Writer {
+	if options.tokenizerConsole != nil {
+		return options.tokenizerConsole
+	}
+	return os.Stderr
 }
 
 // tokenizerCacheKey identifies one loaded set, so two handlers over the same roots share the

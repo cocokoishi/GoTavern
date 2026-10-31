@@ -122,6 +122,10 @@ type HTTPHandlerOptions struct {
 	// substitute buffers so they can assert the console line's exact shape.
 	accessLogConsole io.Writer
 	accessLogErrors  io.Writer
+	// tokenizerConsole receives the GoTavern tokenizer-tree warning line (SEE tokenizers.go,
+	// "exactness"). Nil means os.Stderr; tests substitute a buffer to assert the stable
+	// `tokenizer-guesstimate` marker instead of trusting that it was printed.
+	tokenizerConsole io.Writer
 	// accessLogNow supplies the timestamp the pinned middleware writes
 	// (`new Date().toISOString()`, accessLogWriter.js:46). Nil means time.Now; tests inject a fixed
 	// clock so the exact line bytes are assertable.
