@@ -102,7 +102,7 @@ which `:latest` is not stale.
 [releases page](https://github.com/cocokoishi/GoTavern/releases), check it against the release's
 `checksums.txt`, unpack it anywhere writable, and run `./start.sh` / `Start.cmd`.
 
-Release asset download size: **362,117,822 bytes (about 345 MiB) across the six archives**, plus `checksums.txt`.
+Release asset download size: **362,649,008 bytes across the six archives**, plus `checksums.txt` (564 bytes).
 
 ## Migration from SillyTavern
 

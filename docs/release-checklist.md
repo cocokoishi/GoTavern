@@ -101,3 +101,38 @@ release record. After the freeze, the only permitted changes are the release-not
 and the README update (item 27); both must leave the tree byte-identical to the tagged CANDIDATE_SHA except for
 documentation, and the final commit must be pushed before the tag is cut (item 1: an unpushed commit is not
 durable and CI has never seen it).
+
+## G. The alpha.9 release record (filled after the tag)
+
+This is the record the items above point at instead of putting a run id inside a matrix row.
+
+| field | value |
+| --- | --- |
+| tag | `v0.1.0-alpha.9` (annotated; the tag message names the channel decision) |
+| tagged commit | `5be679b` (the full 40-hex SHA is in every run record and in the release API) |
+| GitHub Release | id `429810798`, name `GoTavern v0.1.0-alpha.9`, draft `false`, prerelease **`false`** |
+| `releases/latest` | resolves to `v0.1.0-alpha.9` (asserted through the API by the fast check AND by the published-release smoke) |
+| release body | `docs/release-notes-v0.1.0-alpha.9.md`, human-curated, no measurement placeholders |
+| Docker | `ghcr.io/cocokoishi/gotavern:latest` and `:v0.1.0-alpha.9` are the same image `sha256:4c317071552464b39140371d086522276176cc472e2d72140a63de9393d563b5`; the image's binary reports `v0.1.0-alpha.9` |
+| `checksums.txt` | sha256 `3a0abd8dee1931962369dad81da86ec8a8ff92225f3e6bb2ff56b4e368632991` |
+
+| published asset | bytes |
+| --- | --- |
+| `checksums.txt` | 564 |
+| six canonical archives (total) | 362,649,008 |
+
+| gate | run | verdict |
+| --- | --- | --- |
+| GoTavern CI, full dispatch (verify, race, browser-evidence, full oracle) | `41173508011` | success |
+| GoTavern whole-session differential | `41173510167` (candidate) and `41184498052` (tag) | success |
+| GoTavern world-info slot ordering | `41173512234` (candidate) and `41184497924` (tag) | success |
+| GoTavern drop-in qualification | `41173503755` | success |
+| GoTavern Release, dispatch dry run (six archives + prepublish bare-installer qualification) | `41173518215` | success; publish step skipped |
+| GoTavern Docker image, build + verify | `41173520249` | success |
+| GoTavern release qualification | `41176353048` (candidate) and `41184498026` (tag) | success |
+| GoTavern smoke metrics (paired benchmark + soak) | `41171857944` | success |
+| Browser differential, `mode: all` | `41171855911` | every leg green except the hand-back judge (known pinned-frontend persistence flake) |
+| Browser differential, `mode: preset` (Q20/Q21 re-judgence at the candidate) | `41179659240` | success |
+| GoTavern Release, tag (publish) | `41184497944` | success; `prerelease=false`, `--latest`, 7 assets |
+| GoTavern Docker image, tag (publish + pull-back identity) | `41184497964` | success |
+| GoTavern published-release install smoke (explicit AND bare install over TLS) | `41185229172` | success; the bare installer resolved `releases/latest` to `v0.1.0-alpha.9` |

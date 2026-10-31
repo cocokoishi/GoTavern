@@ -10,7 +10,100 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-10-29: the evidence chain was rebuilt after a history rewrite
+## Latest checkpoint - 2026-10-31: `v0.1.0-alpha.9` SHIPPED -- THE FIRST OFFICIAL STABLE-CHANNEL RELEASE
+
+**The long-term goal changed with this tag.** The alpha series is closed: `v0.1.0-alpha.9` is the final
+release of this development line and the first one published on the **stable** channel. The tag keeps the
+historical `-alpha.9` spelling deliberately -- what graduated is the channel, not the name -- and the single
+canonical classifier (`scripts/classify-version-tag.sh`, 33/33 table cases in CI) is the only place that
+decision lives.
+
+### Release identity
+
+| field | value |
+|---|---|
+| tag | `v0.1.0-alpha.9` (annotated) |
+| commit | `5be679b` |
+| GitHub Release id | `429810798` |
+| draft / prerelease | false / **false** |
+| `releases/latest` | resolves to `v0.1.0-alpha.9` (verified through the API, not inferred) |
+| Docker | `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.9` and `:latest` (same image, verified by pull-back and image-id comparison) |
+| bare installers | `install.sh` / `install.ps1` with **no version argument** install this release |
+| published assets | 6 archives = 362,649,008 bytes, plus `checksums.txt` (564 bytes) |
+
+### Candidate qualification (all at `5be679b` unless noted)
+
+| gate | run | verdict |
+|---|---|---|
+| GoTavern CI (full dispatch: verify, race, browser-evidence, full oracle) | `41173508011` | success |
+| GoTavern whole-session differential (release-gate re-run) | `41173510167` | success -- `match`, 39/39 guards, teeth 11/11 |
+| GoTavern world-info slot ordering (release-gate re-run) | `41173512234` | success -- 21/21 guards, committed artefact reproduced |
+| GoTavern drop-in qualification | `41173503755` | success |
+| GoTavern Release (dispatch dry run: six archives built + inspected, prepublish bare-installer qualification) | `41173518215` | success; publish step **skipped** (not a tag), `gh release list` unchanged |
+| GoTavern Docker image (build + verify, no push) | `41173520249` | success |
+| GoTavern release qualification (archives, boot, update/rollback, installers, cross-baseline) | `41171862635` | success |
+| GoTavern smoke metrics (paired benchmark + ten-minute soak) | `41171857944` | success |
+| Browser differential, `mode: all` (drives, streaming framing, assets, UI, helper, presets, Q17/Q18/Q20) | `41171855911` | every leg above **green**; the run's `Judge the hand-back` step was RED |
+| Browser differential, `mode: preset` (Q20/Q21 re-judgence at the candidate after that red) | `41179659240` | success -- Q20 legs and the Q21 hand-back judge both green |
+| Browser differential, `mode: assets` at the tag (bonus push run) | `41184498156` | success |
+
+### The Q21 hand-back red: a known pinned-frontend persistence flake, re-judged green at the candidate
+
+The full browser run red-lined ONE step: `Judge the hand-back`, with the pinned leg's own judge reporting
+`pinnedContinued` red because `count continueRequests` was 0 -- the page appended the continuation marker and a
+reply, but no provider request left the pinned frontend. Every other leg in that run (15-source drives,
+streaming framing, assets, UI layout, helper and helper-generation and helper-variable legs, preset capture
+and boundary, REAL-preset legs, Q17/Q18, all three Q20 legs) was green. This is the persistence/continue
+window flake this row has recorded before (the same class as the earlier `answerPersisted:false` occurrence);
+a `mode: preset` run at the candidate `41179659240` re-judged Q20 and Q21 GREEN, so the tag carries fresh
+hand-back evidence. It is stated as a flake with the mechanism named, not smoothed into a clean run.
+
+### The only matrix FAIL is closed, and it was a HARNESS defect
+
+`whole-session-e2e` was the last FAIL. Its root cause was measured, not inferred: the GoTavern leg had been
+booted from a scratch build directory with no `src/tokenizers` beside the binary, so every tokenizer count took
+the pinned Guesstimate fallback (measured 755 vs 589 and 971 vs 749, ~25% high); the world-info scan spends its
+budget in tokens, so the `power` entry was dropped and the first request was 6682 B against pinned's 7404 B. A
+release archive ships `src/tokenizers` and `assets verify` refuses an install without it, so the fixture had been
+comparing an unsupported install shape against a supported one. The harness now installs the release layout and
+asserts `subject-tokenizes-exactly` on both subjects; both subjects send the same 7404 B body
+(`b0935add...`). Fix `712f5f0`, green run `41171620691`, mutation proof in that commit message.
+
+Compatibility matrix after the two re-derivations: **PASS 3 / PARTIAL 18 / FAIL 0 / NOT_APPLICABLE 1**
+(`streaming-and-cancel`, `world-info`, `whole-session-e2e` are PASS). Every remaining PARTIAL is classified
+(P0 0 / P1 8 / P2 10) with a release disposition in `docs/gap-sweep.md` §3.
+
+### Post-release verification (after the tag)
+
+| workflow | run | verdict |
+|---|---|---|
+| GoTavern Release (publish, prerelease=false, latest=true) | `41184497944` | success; `prerelease=false`, `--latest`, curated notes, 7 assets published |
+| GoTavern Docker image (publish, :latest moved, pull-back identity) | `41184497964` | success; `:latest` and `:v0.1.0-alpha.9` are the same image `sha256:4c317071552464b39140371d086522276176cc472e2d72140a63de9393d563b5`, and its binary reports `v0.1.0-alpha.9` |
+| GoTavern release qualification (tag) | `41184498026` | success |
+| GoTavern published-release install smoke (`releases/latest`, real TLS) | `41185229172` | success; explicit `--version` install over TLS, then a bare install with NO version argument (`release: latest stable`, `Checksum verified.`, installed binary reports `v0.1.0-alpha.9`), boot to `/version`, real-tokenizer routes, and the `releases/latest` API assertion (`v0.1.0-alpha.9`, `prerelease=false`) |
+
+### Accepted risks and open items, stated rather than smoothed over
+
+1. **Private offline qualification is NOT the full item.** The maintainer's real long-lived tree and real preset
+   were not present in this session. What was executed offline and locally on the candidate build: the
+   private-shaped tree kept in the gitignored qualification area was booted with the release tokenizer layout and
+   driven through the whole-session journey (drive 27/27 steps ok; restart restored the chat history and swipe
+   state and took another turn). One assertion is recorded OPEN: the post-restart resumed turn's captured
+   completion was a single-system-message request that did not carry the restored history markers, so it is not
+   claimed as a product PASS. The real-tree qualification remains the maintainer's action (checklist item 28).
+2. **Four of the six archives are build-only.** linux/arm64, darwin/amd64, darwin/arm64 and windows/arm64 are
+   built and structurally inspected, never executed. Runtime-qualified: linux/amd64 and windows/amd64.
+3. **Multi-user contention is not gated**, and extension updates use upstream's in-place `git pull` mechanism
+   (dirty worktrees are refused), both stated in the release notes.
+4. **Process findings recorded as gates in this cycle**: a hand-transcribed pin cost a diagnosis and is now
+   caught by `.github/actions/checkout-pinned` plus a harness-wide pin gate (`internal/fixtures`); the tokenizer
+   install-shape defect is now asserted by `subject-tokenizes-exactly`; the compat checker's
+   `wouldGoRedIfWrong` now accepts a committed `.mjs` harness for browser-only rows with three observed
+   teeth cases.
+
+---
+
+## HISTORY checkpoint - 2026-10-29: the evidence chain was rebuilt after a history rewrite
 
 **The repository's history was rewritten on 2026-10-29** to normalise commit identities (the rewrite is
 itself gated by `scripts/check-commit-identity.sh` in `GoTavern CI`). Changing a commit changes its
