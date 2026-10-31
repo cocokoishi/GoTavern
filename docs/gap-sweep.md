@@ -134,6 +134,14 @@ empty `probes` input (i.e. every probe). `browser-differential.yml` narrows a pu
 surfaces; the FULL sweep is only a `workflow_dispatch` with `mode: all` or the nightly schedule. A green
 narrowed run therefore cannot be cited for a row whose evidence is the full sweep.
 
+**Pinned-oracle fetch is part of freshness.** Every oracle/browser/whole-session job fetches the pinned
+SillyTavern tree through `.github/actions/checkout-pinned` (landed in `7fbd7bf`, used by `ci.yml`,
+`browser-differential.yml`, `whole-session.yml`, `worldinfo-slots.yml` and `smoke-metrics.yml`). The action
+refuses a caller pin that disagrees with `upstream/SILLYTAVERN_COMMIT`, fetches `refs/heads/release`, and
+asserts `git rev-parse HEAD` == the pin before any recording, so a hand-transcribed pin or a moved ref is named
+at the pin instead of being recorded as a different baseline. A run that fails inside checkout has no fresh
+evidence for any row below, is a harness failure rather than a red product gate, and must be re-run.
+
 | evidence gate | rows that depend on it | freshness requirement at the frozen candidate SHA |
 | --- | --- | --- |
 | `ci.yml#verify` (`go test ./...`, vet, build, gofmt, assets verify, compat-matrix, doc-facts, coverage-matrix, classifier table, six cross-compiles) | every row's Go evidence ultimately runs here | a green `GoTavern CI` run whose head SHA IS the candidate, with all jobs green |
