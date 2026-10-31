@@ -57,12 +57,9 @@ jobs:
 
       # THE PINNED REFERENCE IS THE ORACLE, at the baseline commit AGENTS.md names — the same commit the oracle
       # job, the browser differential and the whole-session workflow use, so no surface drifts onto another baseline.
-      - uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout-pinned
         with:
-          repository: SillyTavern/SillyTavern
-          ref: ${{ env.PINNED_BASELINE_COMMIT }}
-          path: .reference/SillyTavern
-          persist-credentials: false
+          commit: ${{ env.PINNED_BASELINE_COMMIT }}
 
       - uses: actions/setup-node@v4
         with:

@@ -150,12 +150,9 @@ jobs:
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout-pinned
         with:
-          repository: SillyTavern/SillyTavern
-          ref: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
-          path: .reference/SillyTavern
-          persist-credentials: false
+          commit: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
       - uses: actions/setup-node@v4
         with:
           node-version: 24.19.0

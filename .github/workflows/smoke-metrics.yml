@@ -147,11 +147,9 @@ jobs:
 
       # The pinned checkout both sides need: GoTavern serves the frontend from it in this harness, and the
       # benchmark boots pinned Node from the same tree so the frontend is not a variable.
-      - uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout-pinned
         with:
-          repository: SillyTavern/SillyTavern
-          ref: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
-          path: .reference/SillyTavern
+          commit: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
 
       - uses: actions/setup-node@v4
         with:
