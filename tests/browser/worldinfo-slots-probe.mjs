@@ -90,11 +90,10 @@ const phase = label => {
 
 try {
     await fs.mkdir(dataRoot, { recursive: true });
-    // (1) THE FIXTURE GOES DOWN BEFORE ANY PAGE EXISTS. The world list is fetched at page load, so a world staged after
-    // that is invisible -- the same defect the helper legs measured for character cards (Browser differential
+    // (1) THE WORLD BOOK GOES DOWN BEFORE ANY PAGE EXISTS. The world list is fetched at page load, so a world staged
+    // after that is invisible -- the same defect the helper legs measured for character cards (Browser differential
     // 40445034876), and it presents as "the entry did not activate" rather than as "the file was late".
     report.fixture = await stageWorldBook(dataRoot);
-    report.fixture.selection = await stageSelection(dataRoot);
 
     peer = await startCapturePeer({ replyText, replyPrefix });
     const port = await freePort();
@@ -105,6 +104,23 @@ try {
     report.provenance.serverPid = server?.pid ?? (process.env.PROBE_SERVER_PID ? Number(process.env.PROBE_SERVER_PID) : null);
     await waitForServer(`${boot.baseURL}/version`);
     phase('server-ready');
+
+    // (1b) THE WORLD SELECTION IS STAGED *AFTER* THE SERVER HAS SEEDED ITS OWN SETTINGS, and the order is a MEASURED
+    // fixture requirement rather than a convenience.
+    //
+    // This call used to run before `bootSubject`. On a fresh tree there is no settings.json yet, so it created one
+    // holding ONLY `world_info.globalSelect` -- dropping the product's fresh-install members (`firstRun: true`,
+    // `username`) that the server would have seeded. The GoTavern subject serves `/api/settings/get` from that file, so
+    // its page never saw `firstRun`, never ran the onboarding that binds a persona, and its first provider request
+    // carried the placeholder user name "[Unnamed Persona]" (495 B) against pinned's "WI Probe" (486 B) -- measured in
+    // runs 41169260297 and 41169641147, where every slot/order/role/depth guard was true and byte equality failed on
+    // this fixture artefact alone.
+    //
+    // After the server is ready its own fresh-install settings exist; writing the selection into THAT document is the
+    // state a user's own save produces, and the pinned subject still ignores the write (it booted before this probe, the
+    // documented asymmetry the selection step below records), so neither subject is being fed a settings file the other
+    // could not have had.
+    report.fixture.selection = await stageSelection(dataRoot);
 
     const playwrightModule = await import('@playwright/test');
     const chromium = playwrightModule.chromium ?? playwrightModule.default?.chromium;
@@ -141,41 +157,6 @@ try {
     });
     step('page-loaded', bootState?.settingsReady === true, 'script.js settingsReady');
     phase('page-loaded');
-
-    // (2b) THE USER'S NAME IS PART OF THE COMPARED PROVIDER BODY, so it must be the SAME on both subjects and it must be
-    // ASSERTED rather than assumed.
-    //
-    // MEASURED (run 41169260297, the first CI run of this surface): GoTavern's request carried the user name
-    // "[Unnamed Persona]" (495 B) and pinned's carried "WI Probe" (486 B), and that name was the ONLY difference between
-    // the two bodies -- every slot guard (before/after/atDepth presence, order, role, depth) was true, so the slot-order
-    // claim was intact and the byte-equality guard failed on a FIXTURE asymmetry. The mechanism is the first-run
-    // onboarding popup this probe dismisses inside the settings-ready loop (as the q20 journey does): on that run the
-    // typed name did not land on one subject, and the persona placeholder was left in the prompt.
-    //
-    // A real user chooses a name through the persona control, so the faithful fixture drives the same function the
-    // onboarding's OK button calls (`setUserName`, public/script.js:7872) and READS IT BACK from the product's own bound
-    // element (`#your_name`, public/script.js:7878). A leg where the name does not take REFUSES here instead of recording
-    // a body whose user name nobody chose.
-    const userName = await page.evaluate(async wanted => {
-        const script = await import('./script.js');
-        const read = () => String(document.querySelector('#your_name')?.textContent ?? '').trim();
-        const landed = () => read() === wanted;
-        const alreadyLanded = landed();
-        if (!alreadyLanded && typeof script.setUserName === 'function') {
-            script.setUserName(wanted);
-        }
-        const deadline = Date.now() + 10000;
-        while (Date.now() < deadline && !landed()) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        return {
-            wanted,
-            boundName: read(),
-            method: alreadyLanded ? 'onboarding already set it; read back #your_name' : 'setUserName (the onboarding OK path) + read back #your_name',
-        };
-    }, 'WI Probe');
-    report.provenance.userName = userName;
-    step('user-name-set', userName?.boundName === 'WI Probe', JSON.stringify(userName));
 
     // (3) SELECT THE WORLD, THEN READ THE EFFECT BACK THROUGH THE PRODUCT'S OWN BINDING.
     //
@@ -285,6 +266,62 @@ try {
     }, `http://127.0.0.1:${peer.port}/v1`);
     report.provenance.connection = connection;
     step('connection-configured', connection?.source === 'custom' && connection?.urlSet === true && connection?.streamOpenai === false, JSON.stringify(connection));
+
+    // (4b) THE USER'S NAME IS PART OF THE COMPARED PROVIDER BODY, and it must be reached the SAME way on both subjects.
+    //
+    // MEASURED, twice, and the second measurement is why this step does what it does:
+    //   * run 41169260297 recorded GoTavern's body with the user name "[Unnamed Persona]" (495 B) and pinned's with
+    //     "WI Probe" (486 B) -- the ONLY difference between the two bodies. Every slot guard (before/after/atDepth
+    //     presence, order, role, depth) was TRUE, so the slot-order claim was intact and the byte-equality guard failed
+    //     on a FIXTURE asymmetry: the first-run onboarding popup this probe dismisses inside the settings-ready loop did
+    //     not land the typed name on one subject;
+    //   * run 41169641147 then asserted `setUserName` plus a read-back of the product's bound element `#your_name`,
+    //     which read "WI Probe" on BOTH subjects -- and GoTavern's request STILL carried "[Unnamed Persona]". That
+    //     measured the second fact: the assembled prompt resolves the persona BINDING
+    //     (`power_user.personas[user_avatar]`), not the `name1` that `#your_name` renders.
+    //
+    // A real user reaches this state by typing a name into the onboarding popup, whose handler does exactly
+    // `setUserName(name)` and `power_user.personas[avatarId] = name` (public/script.js:7885-7903). The fixture therefore
+    // does what that handler does, and does it IMMEDIATELY BEFORE the send so a late persona refresh cannot clobber the
+    // name between the write and the request. A leg whose `name1` or persona binding did not end up as the wanted name
+    // REFUSES here (`user-name-set` red) instead of recording a body whose user name nobody chose.
+    const userName = await page.evaluate(async wanted => {
+        const script = await import('./script.js');
+        const powerUser = await import('./scripts/power-user.js');
+        const personas = await import('./scripts/personas.js');
+        const avatar = String(personas.user_avatar ?? '');
+        const before = {
+            name1: String(script.name1 ?? ''),
+            personaBinding: String(powerUser.power_user.personas?.[avatar] ?? ''),
+            userAvatar: avatar,
+        };
+        if (avatar) {
+            powerUser.power_user.personas = powerUser.power_user.personas ?? {};
+            powerUser.power_user.personas[avatar] = wanted;
+            powerUser.power_user.persona_descriptions = powerUser.power_user.persona_descriptions ?? {};
+            powerUser.power_user.persona_descriptions[avatar] = {
+                description: '',
+                position: personas.persona_description_positions.IN_PROMPT,
+            };
+        }
+        script.setUserName(wanted);
+        script.saveSettingsDebounced();
+        const deadline = Date.now() + 10000;
+        while (Date.now() < deadline && String(script.name1 ?? '') !== wanted) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        return {
+            wanted,
+            before,
+            after: {
+                name1: String(script.name1 ?? ''),
+                boundName: String(document.querySelector('#your_name')?.textContent ?? '').trim(),
+                personaBinding: String(powerUser.power_user.personas?.[avatar] ?? ''),
+            },
+        };
+    }, 'WI Probe');
+    report.provenance.userName = userName;
+    step('user-name-set', userName?.after?.name1 === 'WI Probe' && userName?.after?.personaBinding === 'WI Probe', JSON.stringify(userName));
 
     // (5) ONE ORDINARY TURN, through the send button.
     const before = peer.requests.length;
