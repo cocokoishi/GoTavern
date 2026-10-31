@@ -439,3 +439,35 @@ themselves rather than a remark in a document.
   **slow-stage** report, so a stalled stage names itself only once another stage completes or the tracer's
   `Close` prints the open stage -- the harnesses read whatever the binary prints and have no way to make it
   print more.
+
+## The packaged Q21 hand-back (Beta 1)
+
+The drop-in gate above proves the product READS a user's tree. AGENTS.md 38 also requires the other direction:
+after GoTavern has written the tree, the ORIGINAL pinned server must open it and keep the conversation going.
+That round trip existed as a browser-differential experiment (run 40977195387, verdict match); Beta 1 moves it
+into THIS gate, over the SAME packaged archive the four scenarios test.
+
+dropin-current-head now extracts steps.package.outputs.archive, asserts the binary and src/tokenizers are
+inside it, exports GOTAVERN_BINARY to the extracted binary, drives 	ests/browser/q21-data-handback.mjs
+(GoTavern half) and un-against-pinned.mjs over the SAME data root (pinned half), and gates on
+	ests/oracle/q21/judge-handback.mjs in its own if: always() step. A leg that cannot be driven and evidence
+that refuses the claim are reported differently, so "no verdict" cannot pass as "match". The job needs the
+pinned checkout, Node, the browser harness and Playwright; it reuses Browser differential's three caches, and
+	ests/browser/browser-launch-gate.mjs runs here too, so a probe that could open a desktop browser fails this
+packaged gate in seconds.
+
+Evidence:
+
+- **GoTavern drop-in qualification run 41205692600** (workflow_dispatch, head 6026dd8): RED at the judge.
+  GoTavern half wrote the tree and pinned rows 1-10 passed, then direction (a) failed because GOTAVERN_BINARY
+  was command-scoped rather than exported; the judge refused it as unreached instead of passing a partial.
+  That is the gate's teeth observed on its first execution.
+- **GoTavern drop-in qualification run 41205962399** (head 53469ce): SUCCESS. dropin-current-head 122 s total;
+  hand-back step 57 s (GoTavern half 6 s with the packaged binary, pinned half 50 s including the direction-(a)
+  re-boot of the archive's binary); judge 0 s; hand-back verdict: match; GoTavern 6/6 rows, pinned 17/17 rows
+  including pinnedContinued. Windows jobs unchanged and green.
+
+Cost: the job was 15 minutes and is now 25 (measured: ~2.4x wall time, ~60 s recurring hand-back plus cached
+setup; a cold cache is absorbed by the bound). Limits: the archive is the packaged candidate build, not a
+published release; the pinned tree is the oracle checkout at the pinned commit; and the stock tree's INPUT is
+still a derivation (see docs/gap-sweep.md), which this section does not change.

@@ -348,7 +348,7 @@ ok "assets verify passes from the installed prefix (src/tokenizers/ shipped)"
 PORT=$(free_port)
 [ -n "$PORT" ] || fail "could not allocate a port for the installed server"
 mkdir -p "$WORK_ROOT/data"
-( cd "$PREFIX" && exec "./gotavern" start --port "$PORT" --dataRoot "$WORK_ROOT/data" ) > "$WORK_ROOT/server.log" 2>&1 &
+( cd "$PREFIX" && exec "./gotavern" start --port "$PORT" --dataRoot "$WORK_ROOT/data" --browserLaunchEnabled false ) > "$WORK_ROOT/server.log" 2>&1 &
 SERVER_PID=$!
 SERVER_READY=0
 attempt=0

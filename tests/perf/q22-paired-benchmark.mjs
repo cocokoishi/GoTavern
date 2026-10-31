@@ -125,7 +125,7 @@ async function measureRound(subject, reference) {
     const port = await freePort();
     const startedAt = Date.now();
     const child = subject === 'gotavern'
-        ? spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] })
+        ? spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] })
         : spawn(process.execPath, ['server.js', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], { cwd: reference, stdio: ['ignore', 'pipe', 'pipe'], env: process.env });
     child.stdout.on('data', () => {});
     child.stderr.on('data', () => {});
@@ -162,7 +162,7 @@ async function soak(subject, reference, { windowMs, sampleEveryMs, requestsPerSa
     const port = await freePort();
     const startedAt = Date.now();
     const child = subject === 'gotavern'
-        ? spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] })
+        ? spawn(path.resolve(binarySetting), ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] })
         : spawn(process.execPath, ['server.js', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], { cwd: reference, stdio: ['ignore', 'pipe', 'pipe'], env: process.env });
     child.stdout.on('data', () => {});
     child.stderr.on('data', () => {});

@@ -275,7 +275,7 @@ with socketserver.TCPServer(("127.0.0.1", 0), handler) as httpd:
     $serverPort = ([System.Net.IPEndPoint]$listener.LocalEndpoint).Port
     $listener.Stop()
     $serverLog = Join-Path $WorkRoot 'server.log'
-    $script:ServerProcess = Start-Process -FilePath $installedExe -ArgumentList @('start', '--port', "$serverPort", '--dataRoot', $dataRoot) -PassThru -RedirectStandardOutput $serverLog -RedirectStandardError (Join-Path $WorkRoot 'server.err') -WorkingDirectory $installDir -WindowStyle Hidden
+    $script:ServerProcess = Start-Process -FilePath $installedExe -ArgumentList @('start', '--port', "$serverPort", '--dataRoot', $dataRoot, '--browserLaunchEnabled', 'false') -PassThru -RedirectStandardOutput $serverLog -RedirectStandardError (Join-Path $WorkRoot 'server.err') -WorkingDirectory $installDir -WindowStyle Hidden
     $answered = $false
     for ($attempt = 0; $attempt -lt 60; $attempt++) {
         if ($script:ServerProcess.HasExited) { Fail "the installed server exited before answering /version (exit $($script:ServerProcess.ExitCode))" @($serverLog) }

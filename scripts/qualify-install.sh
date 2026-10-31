@@ -354,7 +354,7 @@ fi
 
 START_PORT=$(free_port)
 [ -n "$START_PORT" ] || fail "could not allocate a port for the installed server"
-( cd "$PREFIX" && exec "./$LAUNCHED_THROUGH" start --port "$START_PORT" --dataRoot "$DATA_ROOT" ) \
+( cd "$PREFIX" && exec "./$LAUNCHED_THROUGH" start --port "$START_PORT" --dataRoot "$DATA_ROOT" --browserLaunchEnabled false ) \
     > "$WORK_ROOT/server.log" 2>&1 &
 SERVER_PID=$!
 SERVER_READY=0

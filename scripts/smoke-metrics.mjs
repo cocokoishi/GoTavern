@@ -214,7 +214,7 @@ async function boot({ port, logName, label, ceilingMs, asserted }) {
     const chunks = [];
     const startedAt = process.hrtime.bigint();
     const elapsedMs = () => Number(process.hrtime.bigint() - startedAt) / 1e6;
-    const child = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot], {
+    const child = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--browserLaunchEnabled', 'false'], {
         cwd: installDir,
         stdio: ['ignore', 'pipe', 'pipe'],
     });

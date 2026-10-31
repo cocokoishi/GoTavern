@@ -236,7 +236,12 @@ start_server() {
     # (docs/startup-state-machine.md section 5.2). Setting the variable turns printing ON and changes nothing
     # else; the count of stage lines is then REPORTED on every run, so the trace's presence is measured rather
     # than assumed, and a red run can quote the last stage that opened.
-    ( cd "$RUN_DIR" && export GOTAVERN_STARTUP_TRACE=1 && exec "$BIN" start --port "$PORT" ) >> "$LOG" 2>&1 &
+    # NEVER LAUNCH A DESKTOP BROWSER FROM A QUALIFICATION BOOT. The stock tree this script plants carries the
+    # pinned fresh-install config, whose `browserLaunch.enabled` is true, so a boot without this flag asks the
+    # product to open the developer's default browser. CI is headless and cannot see the window, which is exactly
+    # why the flag has to be explicit here rather than left to the environment (the same class of defect the
+    # operator reported from a probe run; tests/browser/browser-launch-gate.mjs now polices the JS probes).
+    ( cd "$RUN_DIR" && export GOTAVERN_STARTUP_TRACE=1 && exec "$BIN" start --port "$PORT" --browserLaunchEnabled false ) >> "$LOG" 2>&1 &
     server_pid=$!
     echo "$server_pid" > "$WORK/server.pid"
 }

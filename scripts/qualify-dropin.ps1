@@ -706,7 +706,7 @@ try {
     if ($Layout -eq 'start-cmd') {
         Start-Server -RunDirectory $runDirectory -Executable $installedLauncher -Arguments @() -Label 'Start.cmd'
     } else {
-        Start-Server -RunDirectory $runDirectory -Executable $serverExe -Arguments @('start', '--port', "$Port") -Label 'gotavern.exe start'
+        Start-Server -RunDirectory $runDirectory -Executable $serverExe -Arguments @('start', '--port', "$Port", '--browserLaunchEnabled', 'false') -Label 'gotavern.exe start'
     }
     $ready = Wait-Ready
     if ($ready.Status -eq 1) {
@@ -814,7 +814,7 @@ try {
     if ($Layout -eq 'start-cmd') {
         Start-Server -RunDirectory $runDirectory -Executable $installedLauncher -Arguments @() -Label 'Start.cmd'
     } else {
-        Start-Server -RunDirectory $runDirectory -Executable $serverExe -Arguments @('start', '--port', "$Port") -Label 'gotavern.exe start'
+        Start-Server -RunDirectory $runDirectory -Executable $serverExe -Arguments @('start', '--port', "$Port", '--browserLaunchEnabled', 'false') -Label 'gotavern.exe start'
     }
     $ready2 = Wait-Ready
     if ($ready2.Status -ne 0) {
