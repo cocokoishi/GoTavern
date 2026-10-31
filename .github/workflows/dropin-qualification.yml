@@ -121,7 +121,27 @@ jobs:
     # fails at the harness's own 30 s readiness poll, which is never widened, and red run 40174700084 shows
     # it doing exactly that with a goroutine dump naming the blocked frames (AGENTS 33). A wedged step fails
     # this job instead of holding a runner for GitHub's 6-hour default.
-    timeout-minutes: 15
+    #
+    # RAISED 15 -> 25 BY THE Q21 PACKAGED HAND-BACK, and the size is measured rather than guessed. This job's
+    # own four scenarios are ~49 s door to door (run 40173675219, quoted above). The hand-back adds ONE
+    # driver, measured twice:
+    #   * LOCAL DRY RUN against a release-shaped archive on a contended Windows host (the slowest environment
+    #     this step will ever run in): GoTavern half 41.9 s, name/tree extraction 1.1 s, pinned half 139.7 s,
+    #     judge 1.1 s = 183.8 s for the new steps, verdict `match`;
+    #   * CI on ubuntu, the same driver: 63-65 s per iteration over 20 iterations (Browser differential run
+    #     41201570520).
+    # The one-off setup it needs -- pinned checkout, node, cached npm installs, Playwright apt packages on a
+    # cache hit -- is Browser differential's own setup, measured there at well under a minute when its three
+    # caches hit. The hand-back's cost is dominated by pinned's cold frontend compile, whose budget is the
+    # probe's own PINNED_READY_MS=300000 (a real readiness poll, never a sleep). 25 = the 15 min this job was
+    # sized at plus the LOCAL measured upper bound plus cold-cache/variance headroom; a wedged leg still fails
+    # at the probe's own deadlines, not at this bound.
+    timeout-minutes: 25
+    env:
+      # THE PIN IS THE AUTHORITY FILE'S VALUE, named once for the cache keys and the pinned checkout exactly
+      # as browser-differential.yml names it. The composite action ASSERTS the value it is given against
+      # upstream/SILLYTAVERN_COMMIT, so a transcription error fails there instead of measuring another oracle.
+      PINNED_BASELINE_COMMIT: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
     steps:
       - uses: actions/checkout@v4
 
@@ -129,6 +149,89 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+
+      # =============================================================================================
+      # Q21 HAND-BACK INPUTS.
+      #
+      # THE HAND-BACK BOOTS THE ORIGINAL PINNED NODE SERVER over a tree the ARCHIVE's binary wrote, so this
+      # job needs what the four drop-in scenarios do not: the pinned checkout, its node_modules, the browser
+      # harness and a Playwright browser. They are added HERE rather than in a separate workflow so the
+      # archive, the pinned tree and the hand-back all come from ONE commit and ONE build.
+      #
+      # NONE OF THIS BOOTS A SERVER, and every server the hand-back does boot disables the desktop launch:
+      # tests/browser/q21-data-handback.mjs passes `--browserLaunchEnabled false` at both of its GoTavern
+      # spawn sites, run-against-pinned.mjs passes it to the pinned server, and the repository's source gate
+      # (tests/browser/browser-launch-gate.mjs) fails if either stops doing so.
+      # =============================================================================================
+      - uses: ./.github/actions/checkout-pinned
+        with:
+          commit: ${{ env.PINNED_BASELINE_COMMIT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+
+      # THE SAME THREE CACHES AS Browser differential, with the same keys, so this job reuses the installs
+      # that workflow already proved rather than resolving a second dependency graph.
+      - name: Cache the pinned server's node_modules for the hand-back
+        id: q21-cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+
+      - name: Cache the browser harness for the hand-back
+        id: q21-cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Cache the Playwright browser for the hand-back
+        id: q21-cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Install the pinned server's dependencies for the hand-back
+        # A CACHE HIT SKIPS THE INSTALL, and the log says which branch ran so the persistence is visible
+        # rather than implied (AGENTS.md "Persist expensive CI work").
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.q21-cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "pinned node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            echo "pinned node_modules: cache MISS -- installing from the pinned checkout's own manifest"
+            cd .reference/SillyTavern
+            if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          fi
+
+      - name: Install the browser harness for the hand-back
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.q21-cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            echo "tests/browser/node_modules: cache MISS -- npm ci"
+            ( cd tests/browser && npm ci --no-audit --no-fund )
+          fi
+          if [ "${{ steps.q21-cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            # THE BROWSER BUNDLE IS NOT THE OS PACKAGES: `install --with-deps` is download + apt, and a cache
+            # hit covers only the download, so the apt half still runs (browser-differential records why).
+            echo "playwright chromium: CACHE HIT -- download SKIPPED, OS packages still ensured"
+            ( cd tests/browser && npx playwright install-deps chromium )
+          else
+            echo "playwright chromium: cache MISS -- downloading the browser and its OS packages"
+            ( cd tests/browser && npx playwright install --with-deps chromium )
+          fi
+
+      - name: Prove the hand-back harness cannot open a desktop browser (source gate)
+        # THE GATE THE OPERATOR'S DESKTOP WINDOW PRODUCED. It scans tests/browser/**/*.mjs and fails if any
+        # GoTavern/pinned server spawn omits `--browserLaunchEnabled false` or any Playwright launch omits an
+        # explicit `headless: true`. It needs no browser and no server, so it runs here BEFORE anything is
+        # built or booted: a harness regression fails this packaged gate in seconds, not after the archive.
+        run: node tests/browser/browser-launch-gate.mjs
 
       - name: Assemble the release-shaped archive from THIS commit
         id: package
@@ -279,6 +382,110 @@ jobs:
             --layout foreign-cwd --config minimal --port 8800
           echo "scenario foreign-cwd/minimal passed in $(( $(date +%s) - start ))s"
 
+      - name: 'Hand the PACKAGED tree back to pinned Node (Q21) -- AGENTS.md 38'
+        id: q21
+        # THE CLAIM THE OTHER SCENARIOS CANNOT MAKE. They boot the archive over a planted tree and assert the
+        # product READS a user's data; none asks whether the ORIGINAL server opens a tree THE PRODUCT WROTE and
+        # keeps the same conversation running. This runs the SAME committed driver the Browser differential
+        # runs (tests/browser/q21-data-handback.mjs; judge tests/oracle/q21/judge-handback.mjs), with
+        # GOTAVERN_BINARY pointed at the binary INSIDE THE ARCHIVE THIS JOB BUILT, and the pinned half booted by
+        # run-against-pinned.mjs over the SAME data root.
+        #
+        # THE ARCHIVE IS THE INPUT, NOT THE WORKING TREE: tar-extracting it and running `<archive>/gotavern`
+        # makes the step exercise the release-shaped layout -- including `src/tokenizers` beside the binary,
+        # which is where the runtime resolves exact tokenization from -- rather than a `go build` output that a
+        # real user never has.
+        #
+        # NO SLEEP READINESS: both halves poll their server's own `/version` (bounded), and the probe's waits
+        # are the named conditions recorded in `report.conditions`. No desktop browser can be launched: the
+        # probe passes `--browserLaunchEnabled false` at both GoTavern boots and run-against-pinned passes it to
+        # pinned, so this step is also what keeps tests/browser/browser-launch-gate.mjs satisfied.
+        #
+        # THE STEP ALWAYS EXITS 0 AND RECORDS $failures; the judge step below is the gate. That keeps the two
+        # failure classes apart -- "a leg could not be driven" (counter) and "the evidence refuses the claim"
+        # (judge) -- instead of losing the judge when the first leg crashes.
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/dropin-q21"
+          rm -rf "$work"; mkdir -p "$work/legs" "$work/binary"
+          tar -xzf "${{ steps.package.outputs.archive }}" -C "$work/binary"
+          test -x "$work/binary/gotavern" || { echo "::error::the packaged archive has no executable gotavern"; exit 1; }
+          test -d "$work/binary/src/tokenizers" || { echo "::error::the packaged archive has no src/tokenizers beside the binary"; exit 1; }
+          tree="$work/tree"
+          rm -rf "$tree"; mkdir -p "$tree"
+          failures=0
+          # EXPORTED, NOT COMMAND-SCOPED, AND THAT WAS MEASURED THE EXPENSIVE WAY. The pinned half does not only
+          # READ the tree: its direction (a) boots GoTavern over it again (`bootGotavernOver`), so the
+          # run-against-pinned CHILD process must inherit GOTAVERN_BINARY too. The first dispatch (run
+          # 41205692600) scoped `GOTAVERN_BINARY=... node q21-data-handback.mjs` to the FIRST command only; the
+          # pinned leg then failed at row 11 with "GOTAVERN_BINARY is required to hand the tree BACK to GoTavern"
+          # after rows 1-10 had passed -- the judge correctly refused the claim (`unreached`) instead of reporting
+          # a partial as a pass.
+          export GOTAVERN_BINARY="$work/binary/gotavern"
+          started=$(date +%s)
+          if node tests/browser/q21-data-handback.mjs \
+              --data-root "$tree" --report "$work/legs/q21-gotavern.json"; then
+            echo "the GoTavern half wrote its tree with the packaged binary in $(( $(date +%s) - started ))s"
+          else
+            echo "::error::the GoTavern half of the packaged hand-back failed"
+            failures=$((failures + 1))
+          fi
+          node --input-type=commonjs -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); fs.writeFileSync(process.argv[2], JSON.stringify(r.writtenTree ?? {}))" "$work/legs/q21-gotavern.json" "$work/legs/q21-tree.json"
+          Q21_NAME=$(node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); process.stdout.write(r.stagedCard?.ownName ?? '')" "$work/legs/q21-gotavern.json")
+          started=$(date +%s)
+          # PINNED_READY_MS is raised from a measurement, not for comfort: a cold pinned boot on a fresh runner
+          # spends its readiness budget compiling the frontend, and the 90 s default expires while the process is
+          # healthy (the Browser differential records the same measurement on the same code path).
+          if PINNED_READY_MS="${PINNED_READY_MS:-300000}" Q21_CHARACTER_NAME="$Q21_NAME" Q21_EXPECTED_TREE="$work/legs/q21-tree.json" \
+              node tests/browser/run-against-pinned.mjs q21-data-handback.mjs -- --data-root "$tree" --report "$work/legs/q21-pinned.json"; then
+            echo "pinned Node opened and continued the tree the packaged binary wrote ($Q21_NAME) in $(( $(date +%s) - started ))s"
+          else
+            echo "::error::pinned Node could not continue the tree the packaged binary wrote"
+            failures=$((failures + 1))
+          fi
+          echo "q21_failures=$failures" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Judge the packaged hand-back
+        # A LEG THAT PRODUCED NO REPORT CANNOT SUPPORT A CLAIM, and a leg that judged zero rows is not a match:
+        # judge-handback.mjs names the rows each direction requires, refuses `match` on an all-zero count and
+        # exits 2 when a report is missing. Both directions are required (Go-writes -> pinned reads -> pinned
+        # writes -> Go reads, and pinned-writes -> Go reads -> Go writes -> pinned reads).
+        #
+        # `always()`: the hand-back step always exits 0, but an EARLIER scenario failure (or a crash before the
+        # reports are written) must still produce a red HERE rather than a skipped step that reads as "not
+        # judged". The failed condition, if any, is printed by name with what it observed.
+        if: always()
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/dropin-q21"
+          status=0
+          if [ "${{ steps.q21.outcome }}" != "success" ]; then
+            echo "::error::the hand-back step did not complete (outcome=${{ steps.q21.outcome }}), so nothing is claimed about the packaged hand-back"
+            status=1
+          elif [ "${{ steps.q21.outputs.q21_failures }}" != "0" ]; then
+            echo "::error::a packaged hand-back leg failed to complete; the reports are judged below"
+            status=1
+          fi
+          for leg in gotavern pinned; do
+            report="$work/legs/q21-$leg.json"
+            if [ ! -f "$report" ]; then
+              echo "::error::the $leg half produced no report, so nothing is claimed about the hand-back"
+              status=1
+              continue
+            fi
+            node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); const leg=process.argv[2]; console.log(leg+': '+(r.steps||[]).map(s=>(s.ok?'ok ':'FAIL ')+s.name).join(', ')); const bad=(r.conditions||[]).filter(c=>c.ok!==true); for (const c of bad) console.error(leg+': CONDITION FAILED '+c.name+' -- waited for '+c.waitedFor+'; observed '+JSON.stringify(c.observed).slice(0,900)); if (r.failure) { console.error(leg+': '+r.failure); process.exit(1) }" "$report" "$leg" || status=1
+          done
+          if [ -f "$work/legs/q21-gotavern.json" ] && [ -f "$work/legs/q21-pinned.json" ]; then
+            node tests/oracle/q21/judge-handback.mjs \
+              "$work/legs/q21-gotavern.json" "$work/legs/q21-pinned.json" \
+              --out "$work/legs/q21-verdict.json" || { echo "::error::the packaged hand-back judge refused or found a mismatch"; status=1; }
+          else
+            echo "::error::the hand-back judge cannot run without both leg reports"
+            status=1
+          fi
+          exit "$status"
+
       - name: Report failure context
         # The harness prints its own server log and goroutine dump; what it cannot show is the tree it
         # built and which scenario left what behind, which is what a reader needs when the FIXTURE is
@@ -315,6 +522,7 @@ jobs:
             .dropin-work/*/*.diff
             .dropin-work/*/*.before
             .dropin-work/*/*.after
+            ${{ runner.temp }}/dropin-q21/**
           if-no-files-found: warn
           retention-days: 7
 

@@ -386,6 +386,8 @@ rather than an unexplained count).
 | `747fd9d` | workflow: `stability_runs` input + `handback-stability` job (per-iteration verdicts, machine-readable summary, artifact, fail-on-any-red) + judge step prints failed conditions |
 | `5501298` | safety: both GoTavern boots in the Q21 probe pass `--browserLaunchEnabled false`; both Playwright launches explicit `headless: true` (the window the operator saw) |
 | `441f0f4` | safety sweep: 13 more server spawns and 17 more launches in `tests/browser/`; new `tests/browser/browser-launch-gate.mjs` enforcing both rules in CI |
+| `6026dd8` | packaged-gate placement: `dropin-current-head` now hands the tree the ARCHIVE's binary wrote back to pinned Node (browser-differential driver + judge; pinned/harness/Playwright inputs; 15 -> 25 min bound sized from measurement) |
+| `53469ce` | packaged-gate fix measured by the first dispatch: export `GOTAVERN_BINARY` to the pinned half too, because its direction (a) boots GoTavern over the tree again |
 
 Evidence: run **41201570520** (`Browser differential`, ref `beta/browser`, head `5501298`,
 `mode=preset`, `stability_runs=20`) — 20/20 `match`, `stable`, artifact
@@ -393,3 +395,18 @@ Evidence: run **41201570520** (`Browser differential`, ref `beta/browser`, head 
 (`2ca705561899a0893a4003641008f0a6f21a14da`), so the campaign measures the shipped hand-back code.
 The retired disposition: this flake is **not** an "occasionally red" pinned-frontend persistence
 flavour; it was a harness reply-text collision that let a CONTINUE press land on a busy page.
+
+Packaged-gate evidence: run **41205962399** — workflow **GoTavern drop-in qualification**,
+`workflow_dispatch`, ref `beta/browser`, head `53469ce`, conclusion **success**. `dropin-current-head`
+ran 122 s, of which the packaged hand-back was 57 s (GoTavern half 6 s with the binary extracted from
+`dist-dropin/gotavern-linux-amd64-dropin.tar.gz`, pinned half 50 s including pinned's boot and the
+second GoTavern boot) and the judge 0 s; `hand-back verdict: match`, GoTavern 6/6 rows, pinned 17/17
+rows, every other drop-in scenario and the Windows jobs unchanged and green. The FIRST dispatch of this
+placement (**41205692600**) is why the fix exists: rows 1-10 of the pinned leg passed, then its
+direction (a) failed with "GOTAVERN_BINARY is required to hand the tree BACK to GoTavern" because the
+variable was command-scoped to the first node invocation; the judge refused the claim as `unreached`
+rather than passing a partial. **Measured cost:** local dry run of the new steps against a
+release-shaped archive on a contended Windows host = 41.9 s GoTavern half + 139.7 s pinned half +
+2.2 s extraction/judge = 183.8 s; CI ubuntu = 57 s. The 25-minute job bound is ~8x the CI cost and
+above the local upper bound; no readiness sleep was added (the probes' bounded `/version` polls and
+named conditions are the only waits).
