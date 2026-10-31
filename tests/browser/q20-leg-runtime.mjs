@@ -216,6 +216,50 @@ export function startCapturePeer({ replyText = ordinal => `Q20_REPLY_${ordinal}`
     });
 }
 
+// THE THREE LAYOUTS THE RUNTIME RESOLVES, in the runtime's own precedence order. Kept here as a list of PATHS ONLY:
+// the harness does not decide which one a subject uses, it only refuses to hand a subject a directory where none of
+// them exists (see installTokenizersBesideBinary).
+const subjectTokenizerLayouts = [
+    installRoot => path.join(installRoot, 'src', 'tokenizers'),
+    installRoot => path.join(installRoot, 'tokenizers'),
+    installRoot => path.join(installRoot, 'upstream', 'tokenizers'),
+];
+
+/**
+ * Make the subject's INSTALL ROOT the shape of a supported installation.
+ *
+ * A binary built into a scratch directory has no tokenizer tree beside it, so the server falls back to estimated token
+ * counts. That is a property of the HARNESS's build directory, not of the product: the release archive ships
+ * `<root>/src/tokenizers` and `gotavern assets verify` refuses an install without it. This function installs the same
+ * bytes (the repository's `upstream/tokenizers`, which IS the archive's source) at the same path, and does nothing
+ * when the binary already sits in a complete layout.
+ *
+ * It reports what it found instead of assuming: `layout` is the path that answers, `copied` says whether this call
+ * created it, and `error` is the named reason a subject cannot be made faithful (the caller turns that into a
+ * bootRefusal so the leg says "the subject was not installed" rather than comparing two prompts that are not
+ * comparable).
+ */
+async function installTokenizersBesideBinary(binary) {
+    const installRoot = path.dirname(binary);
+    for (const candidate of subjectTokenizerLayouts) {
+        const tree = candidate(installRoot);
+        try {
+            const info = await fs.stat(path.join(tree, 'tiktoken', 'model_to_encoding.json'));
+            if (info.isFile()) return { binary, installRoot, layout: tree, copied: false, error: null };
+        } catch {
+            // not this layout; try the next one
+        }
+    }
+    const target = subjectTokenizerLayouts[0](installRoot);
+    try {
+        await fs.mkdir(path.dirname(target), { recursive: true });
+        await fs.cp(path.join(repoRoot, 'upstream', 'tokenizers'), target, { recursive: true });
+    } catch (error) {
+        return { binary, installRoot, layout: null, copied: false, error: `could not install the tokenizer tree at ${target}: ${error?.message ?? error}` };
+    }
+    return { binary, installRoot, layout: target, copied: true, error: null };
+}
+
 /**
  * Boot the GoTavern binary for a leg that owns its server, or return the pinned base URL a caller supplied.
  *
@@ -225,14 +269,40 @@ export function startCapturePeer({ replyText = ordinal => `Q20_REPLY_${ordinal}`
  */
 export async function bootSubject({ argv, dataRoot, port, external }) {
     if (external) {
-        return { external: true, baseURL: process.env.PROBE_BASE_URL, server: null, serverLog: [], bootRefusal: null };
+        return { external: true, baseURL: process.env.PROBE_BASE_URL, server: null, serverLog: [], bootRefusal: null, tokenizers: null };
     }
     const binarySetting = process.env.GOTAVERN_BINARY ?? '';
     if (!binarySetting) {
         return { external: false, baseURL: `http://127.0.0.1:${port}`, server: null, serverLog: [], bootRefusal: 'GOTAVERN_BINARY is required for the GoTavern leg' };
     }
     const { seedLegConfig } = await import('./seed-leg-config.mjs');
-    await fs.cp(path.join(repoRoot, 'upstream', 'tokenizers'), path.join(dataRoot, 'tokenizers'), { recursive: true });
+    // THE SUBJECT IS AN INSTALLATION, NOT A BARE BINARY, AND GETTING THAT WRONG WAS A REAL RED.
+    //
+    // The runtime resolves its tokenizer data from beside the EXECUTABLE (`<installRoot>/src/tokenizers`, then
+    // `<installRoot>/tokenizers`, then `<installRoot>/upstream/tokenizers` — internal/server/tokenizers.go,
+    // `tokenizerAssetCandidates`). The release archive ships the tree at `<root>/src/tokenizers` precisely so that a
+    // real user's server counts tokens exactly (`.github/workflows/release.yml`, "Assemble the archive contents"), and
+    // `gotavern assets verify` REFUSES an install without it. A leg whose binary is built into a scratch directory
+    // (`.browser-bin/gotavern`, which this workflow and several others do) therefore boots a server that is NOT a
+    // supported installation: every tokenizer route takes the pinned Guesstimate fallback (`ceil(bytes/3.35)`).
+    //
+    // MEASURED, not assumed, in the whole-session differential (run 41015209900): the GoTavern leg's `/api/tokenizers/
+    // openai/count` answered 755 for a request body the pinned server answered 589 for, and 971 against 749 — the
+    // signed ~25%-high signature `main.go` and `release.yml` both already record for this fallback. The world-info scan
+    // spends its budget in TOKENS (`public/scripts/world-info.js:4736` budget = 25% of context, :5061 the overflow
+    // check), so its third activated entry (`power`) was dropped by the inflated count while pinned kept it: request 1
+    // was 6682 bytes against pinned's 7404, and the comparator's `completion-1-equal`/`completion-2-equal` guards were
+    // red for a reason no product code could fix — the harness had booted the subject from a directory a real install
+    // never is.
+    //
+    // THE OLD COPY WENT TO THE WRONG PLACE: the tree used to be copied into `<dataRoot>/tokenizers`, and NOTHING in the
+    // runtime reads that path (the only resolver is the install-root list above). The harness looked like it supplied
+    // tokenizer data and in fact supplied none. This installs the SAME bytes the release pipeline installs, at the path
+    // the release pipeline installs them at.
+    const tokenizers = await installTokenizersBesideBinary(path.resolve(binarySetting));
+    if (tokenizers.error) {
+        return { external: false, baseURL: `http://127.0.0.1:${port}`, server: null, serverLog: [], bootRefusal: `the subject binary at ${tokenizers.binary} cannot tokenize exactly: ${tokenizers.error}`, tokenizers };
+    }
     await seedLegConfig(dataRoot);
     // `--browserLaunchEnabled false` IS NOT OPTIONAL, AND THIS LEG LEARNED IT THE EXPENSIVE WAY. The config every leg is
     // seeded with is derived from the PINNED default tree, whose `browserLaunch.enabled` is TRUE, and a server that
@@ -249,7 +319,7 @@ export async function bootSubject({ argv, dataRoot, port, external }) {
     server.stdout.on('data', collect);
     server.stderr.on('data', collect);
     void argv;
-    return { external: false, baseURL: `http://127.0.0.1:${port}`, server, serverLog, bootRefusal: null };
+    return { external: false, baseURL: `http://127.0.0.1:${port}`, server, serverLog, bootRefusal: null, tokenizers };
 }
 
 export { freePort };

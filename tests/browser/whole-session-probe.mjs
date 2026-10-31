@@ -126,6 +126,10 @@ const stripPrefix = value => (replyPrefix === ''
 // recorded request 4 and the page showed the new reply `WS_REPLY_4`). One `#` per ordinal makes the tail length a
 // function of the reply, so a replaced reply is visibly replaced.
 let stampOrdinal = null;
+// WHAT THE SUBJECT'S TOKENIZER ROUTES SAID ABOUT THEMSELVES, collected from the page's own responses by the handler
+// installed below and judged by the `subject-tokenizes-exactly` step. Module scope because the handler is installed in
+// the leg's outer block while the step lives in `drivePhase`.
+const tokenizerResponses = [];
 const replyText = ordinal => `${stampOrdinal !== null && ordinal === stampOrdinal ? replyPrefix : ''}WS_REPLY_${ordinal}${'#'.repeat(ordinal)}`;
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -251,6 +255,9 @@ const boot = await bootSubject({ argv: process.argv.slice(2), dataRoot, port, ex
 const baseURL = boot.baseURL;
 report.server.baseURL = baseURL;
 report.server.bootRefusal = boot.bootRefusal ?? null;
+// WHICH INSTALL ROOT THE SUBJECT RAN FROM, recorded rather than inferred: the tokenizer tree's resolved path (or null
+// for the pinned subject, which is booted by run-against-pinned.mjs and reads its own checkout).
+report.server.tokenizers = boot.tokenizers ?? null;
 const peerBase = `http://127.0.0.1:${peer.port}/v1`;
 const completions = () => peer.requests.filter(entry => /chat\/completions/.test(entry.path ?? ''));
 
@@ -269,6 +276,34 @@ try {
 
     browser = await chromium.launch();
     const page = await browser.newPage();
+    // ======================== IS THE SUBJECT AN INSTALLATION? =====================================================
+    // EVERY CONTEXT-SENSITIVE REQUEST THIS JOURNEY COMPARES IS BUILT FROM TOKEN COUNTS: the world-info scan spends a
+    // budget in tokens (public/scripts/world-info.js:4736, :5061) and the prompt manager decides what fits from the
+    // same counts. The GoTavern server can answer those counts EXACTLY only when its tokenizer tree has been installed
+    // beside the executable (the release archive ships it at `<root>/src/tokenizers`; `gotavern assets verify` refuses
+    // an installation without it). When it cannot, /api/tokenizers answers the pinned Guesstimate fallback and every
+    // route still returns 200 with a plausible number -- so the degradation is invisible in the requests themselves
+    // and surfaces, if at all, as a mysterious one-message difference in the provider body.
+    //
+    // MEASURED IN RUN 41015209900: exactly that. The GoTavern leg answered `/api/tokenizers/openai/count` with 755
+    // where pinned answered 589, and 971 where pinned answered 749 (~25% high, the fallback's measured signature); the
+    // world-info budget then dropped the `power` example entry and request 1 was 6682 bytes against pinned's 7404.
+    // The comparator's `completion-1-equal`/`completion-2-equal` guards were the red, and no product code could have
+    // made them green: the leg's binary had been built into a scratch directory with no tokenizer tree beside it.
+    //
+    // SO THE LEG RECORDS THE SUBJECT'S EXACTNESS and asserts it as a named step, for BOTH subjects (symmetry is what
+    // keeps the assertion non-vacuous: the pinned server, which has no such header, must carry NONE, while the GoTavern
+    // server must answer `exact: true` on EVERY tokenizer response). `q20-leg-runtime.mjs bootSubject` is what
+    // installs the tree; this is the assertion that notices if it stops doing so.
+    page.on('response', response => {
+        if (!/\/api\/tokenizers\//.test(response.url())) return;
+        const headers = response.headers();
+        tokenizerResponses.push({
+            path: new URL(response.url()).pathname,
+            exact: headers['x-gotavern-tokenizer-exact'] ?? null,
+            layout: headers['x-gotavern-tokenizer-layout'] ?? null,
+        });
+    });
     page.on('pageerror', error => {
         report.browser.pageErrors = report.browser.pageErrors ?? [];
         if (report.browser.pageErrors.length < 40) report.browser.pageErrors.push(String(error?.message ?? error).slice(0, 300));
@@ -468,6 +503,17 @@ async function drivePhase({ page, recorder, openPage, connect, readPageState, pa
         JSON.stringify({ wanted: cardName, opened: characterOpen?.opened ?? null, reason: characterOpen?.reason ?? null }));
 
     // ---- 3. SEND + STREAM: THE FIRST TURN, WHOSE REPLY CARRIES THE DISCRIMINATOR ---------------------------
+    // THE CARD'S CHAT IS LOADED BY THE SAME ASYNCHRONOUS PATH A RELOAD USES, so the first turn waits for it with the
+    // same bound. WITHOUT THIS, THE FIRST SEND RACES THE GREETING and the wait that follows mistakes the greeting's
+    // arrival for the reply: measured locally twice out of five runs while another lane was driving its own server —
+    // the click landed at `chatLength: 0`, the greeting then arrived, and `waitForReply` returned `ok` after 11 ms on
+    // `{chatLength: 1, lastIsUser: false, lastTextLength: 785}` — the greeting, not a reply. The leg then read the
+    // swipe precondition on a page that had not generated anything (`swipeAllowed: false, isSendPress: true`) and the
+    // journey collapsed into five red steps that were all one race. A real user sees the greeting before they type;
+    // this is the probe refusing to drive a state a user cannot reach (AGENTS rule 10).
+    const firstChatLoaded = await waitForChatLoaded({ minimum: 1, timeoutMs: 45000 });
+    report.browser.firstChatLoaded = firstChatLoaded.state;
+    step('first-chat-loaded', firstChatLoaded.ok === true, JSON.stringify(firstChatLoaded.state));
     // ARMED BEFORE THE CLICK, from the peer's own count, because the click issues the request.
     stampOrdinal = completions().length + 1;
     const beforeFirstTurn = await readPageState();
@@ -492,6 +538,18 @@ async function drivePhase({ page, recorder, openPage, connect, readPageState, pa
         : { requestedStream: firstCompletion.requestedStream, served: firstCompletion.served };
     step('first-turn-streamed', firstCompletion?.requestedStream === true && firstCompletion?.served?.wire === 'sse',
         JSON.stringify(report.browser.firstTurn.completion));
+    // THE SUBJECT'S TOKEN EXACTNESS, judged from the responses the PAGE received (see the recorder above). The first
+    // turn is where the tokenizer routes are first asked, so by here the answer exists for both subjects.
+    report.browser.tokenizers = {
+        subject,
+        responses: tokenizerResponses.length,
+        exactValues: [...new Set(tokenizerResponses.map(entry => entry.exact))],
+        layouts: [...new Set(tokenizerResponses.map(entry => entry.layout))],
+    };
+    step('subject-tokenizes-exactly', tokenizerResponses.length > 0 && (subject === 'gotavern'
+        ? tokenizerResponses.every(entry => entry.exact === 'true')
+        : tokenizerResponses.every(entry => entry.exact === null)),
+    JSON.stringify(report.browser.tokenizers));
     const afterFirst = await readPageState();
     report.browser.afterFirstTurn = afterFirst;
     step('first-turn-rendered-the-reply', afterFirst.sequence.some(entry => replyPattern.test(entry.text)),
