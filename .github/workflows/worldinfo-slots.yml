@@ -44,7 +44,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PINNED_BASELINE_COMMIT: 06bde939fb1e9c4c8d8641d810f0a9165b5ce127
+  PINNED_BASELINE_COMMIT: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
 
 jobs:
   worldinfo-slots:

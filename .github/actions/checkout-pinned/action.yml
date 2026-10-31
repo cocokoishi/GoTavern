@@ -1,22 +1,24 @@
 # THE PINNED ORACLE CHECKOUT, in ONE place, because a pin that is fetched differently in five workflows is five
 # different baselines waiting to disagree.
 #
-# WHY THIS IS NOT `actions/checkout` WITH `ref: <sha>`. Measured on 2026-10-30/31: the pinned commit
-# 06bde939fb1e9c4c8d8641d810f0a9165b5ce127 was advertised by `git ls-remote` as the upstream repository's HEAD and
-# `refs/heads/release`, and it was still the commit the GitHub API listed as the release branch's tip -- but
-# `actions/checkout` (which fetches `--depth=1 origin <sha>`) failed three times per job with
+# WHY THIS EXISTS. During this release cycle a NEW surface carried a hand-transcribed pin whose last ten characters
+# were transposed. Every oracle-backed job for that surface then failed inside `actions/checkout` with
 #
-#     fatal: remote error: upload-pack: not our ref 06bde939fb1e9c4c8d8641d810f0a9165b5ce127
+#     fatal: remote error: upload-pack: not our ref <sha>
 #
-# while `git fetch --depth=1 origin release` returned that exact commit. A direct fetch of an unadvertised commit
-# SHA is not a guarantee the server provides, and the whole oracle must not depend on one. So the commit is
-# fetched by its upstream REF and then ASSERTED against the pin: the assertion is what makes the ref merely a
-# transport, and a moved or rewritten upstream ref fails this step with a named error instead of silently
-# recording against a different SillyTavern.
+# which reads like an upstream repository problem, and it was diagnosed as one for a while: the SHA really was
+# missing from upstream when queried, because the queried SHA was the transcription. A byte comparison against
+# `upstream/SILLYTAVERN_COMMIT` settled it. Two things follow, and this action is both of them:
+#
+#   1. the pin is fetched by its advertised REF and then ASSERTED against the commit, so the ref is only a
+#      transport and the SHA is the identity. A moved or rewritten upstream ref, a server that will not serve a
+#      raw commit SHA, and a mistranscribed pin all fail HERE with an error that names the mismatch, instead of
+#      somewhere downstream or -- worse -- against a tree that is not the pin;
+#   2. the pin is fetched in exactly one place, so the five workflows cannot drift onto different baselines.
 #
 # WHAT THIS DOES NOT WEAKEN. The oracle identity is the COMMIT SHA, and the last step refuses to hand back a tree
 # whose `git rev-parse HEAD` is anything else. `upstream/SILLYTAVERN_COMMIT` and every recording still name the
-# same 06bde939... baseline; nothing here re-derives, re-records or tolerates a different tree.
+# same baseline; nothing here re-derives, re-records or tolerates a different tree.
 
 name: Checkout the pinned SillyTavern oracle
 description: Fetch the pinned SillyTavern commit (by ref, asserted by SHA) into a worktree path.
@@ -46,6 +48,14 @@ runs:
           exit 1
         fi
 
+        # The authoritative pin, written by the repository rather than by this workflow, so a transcription
+        # error in a caller is caught here rather than diagnosed upstream.
+        AUTHORITATIVE="$(tr -d '[:space:]' < upstream/SILLYTAVERN_COMMIT)"
+        if [ "${PINNED_COMMIT}" != "${AUTHORITATIVE}" ]; then
+          echo "::error::checkout-pinned was asked for ${PINNED_COMMIT} but upstream/SILLYTAVERN_COMMIT names ${AUTHORITATIVE}; refusing to fetch a baseline this repository does not pin"
+          exit 1
+        fi
+
         fetch_into() {
           rm -rf "$DEST"
           mkdir -p "$DEST"
@@ -56,8 +66,7 @@ runs:
 
         fetch_into
         fetched=""
-        # 1) THE ADVERTISED REF. This is the shape that works when a raw-SHA fetch does not, and it is the
-        # reason this action exists.
+        # 1) THE ADVERTISED REF. A transport that works even when the server will not serve a raw SHA.
         if git fetch --quiet --depth=1 origin refs/heads/release:refs/remotes/origin/release 2>/dev/null; then
           fetched="$(git rev-parse refs/remotes/origin/release)"
           echo "oracle: upstream refs/heads/release -> ${fetched}"
