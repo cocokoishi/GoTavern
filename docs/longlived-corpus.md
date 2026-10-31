@@ -49,13 +49,13 @@ It emits a directory that is BOTH a SillyTavern data root and the shape the harn
   Go gate requires that flag to have reported `identical: true`, and `tools/longlived/verify.mjs --rebuild` does the
   same check independently.
 
-Measured locally (Windows, Node 24.19.0):
+Measured locally (Windows, Node 24.19.0, seed `corpus-v1`):
 
-| size | files | bytes | deterministic rebuild |
-|---|---|---|---|
-| small | 69 | 3,337,355 (3.18 MiB) | BYTE-IDENTICAL |
-| medium | 174 | 51,663,539 (~49 MiB) | BYTE-IDENTICAL |
-| large | 248 | 115,975,443 (~110 MiB) | generation only (nightly job asserts the rebuild) |
+| size | files | bytes | tree sha256 (prefix) | deterministic rebuild |
+|---|---|---|---|---|
+| small | 69 | 3,337,391 (3.18 MiB) | `2c175dd35554` | BYTE-IDENTICAL |
+| medium | 176 | 51,669,193 (49.3 MiB; 30,264 messages) | `d3a6cf4646ce` | BYTE-IDENTICAL |
+| large | 250 | 115,981,097 (110.6 MiB; 62,424 messages) | `d792a5be2d2b` | generation only here (the nightly job runs `--verify-deterministic`) |
 
 The tree digest is sha256 over sorted `<sha256>  <path>` lines, excluding `manifest.json` itself (it contains the
 digest, so including it would make the identity self-referential).
