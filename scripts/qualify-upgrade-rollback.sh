@@ -881,6 +881,17 @@ if ! diff -u "$WORK_ROOT/runtime-after-newer-write.txt" "$WORK_ROOT/runtime-afte
 fi
 ok "the rollback preserved every runtime file the newer release wrote, byte for byte"
 
+# CAPTURE THE ONE FILE AN OLDER BOOT IS ALLOWED TO EXTEND. `data/access.log` is an append-only runtime log:
+# both releases write request lines into it, so booting the older binary over a prefix the newer release
+# used necessarily extends it. A hash comparison cannot demand "unchanged", and simply ignoring the path
+# would let a release that TRUNCATED or REWROTE the newer release's log pass. The bytes are therefore
+# captured here and the assertion below requires them to be an exact PREFIX of the file after the boot.
+ACCESS_LOG_PRESENT=0
+if [ -f "$PREFIX/data/access.log" ]; then
+    cp "$PREFIX/data/access.log" "$WORK_ROOT/access-log-before-rollback-boot.txt"
+    ACCESS_LOG_PRESENT=1
+fi
+
 boot_server rollback "$OLDER_TAG" "$WORK_ROOT/server-3.log" || fail "the OLDER release $OLDER_TAG could not boot over the state the NEWER release $NEWER_TAG wrote"
 ok "the OLDER release boots over state the NEWER release wrote and answers /version (cross-baseline read)"
 stop_server
@@ -908,8 +919,20 @@ awk 'NF < 2 { next }
     | LC_ALL=C sort > "$WORK_ROOT/runtime-classified-changes.txt"
 
 if grep -q '^changed ' "$WORK_ROOT/runtime-classified-changes.txt"; then
-    grep '^changed ' "$WORK_ROOT/runtime-classified-changes.txt" >&2
-    fail "the older release's startup MODIFIED runtime state written by the newer release (paths above)"
+    NON_LOG_CHANGES=$(grep '^changed ' "$WORK_ROOT/runtime-classified-changes.txt" | grep -v '^changed ./data/access\.log$' || true)
+    if [ -n "$NON_LOG_CHANGES" ]; then
+        printf '%s\n' "$NON_LOG_CHANGES" >&2
+        fail "the older release's startup MODIFIED runtime state written by the newer release (paths above)"
+    fi
+    # The only permitted modification is the append-only access log, and it is CHECKED, not excused: the
+    # older boot must have added bytes to the newer release's file without changing any that were already
+    # there. A truncating or rewriting log implementation fails here and names the path.
+    [ "$ACCESS_LOG_PRESENT" = "1" ] \
+        || fail "the older release's startup created data/access.log although the newer release left none, so the change is not an append"
+    ACCESS_LOG_BEFORE_SIZE=$(wc -c < "$WORK_ROOT/access-log-before-rollback-boot.txt")
+    head -c "$ACCESS_LOG_BEFORE_SIZE" "$PREFIX/data/access.log" | cmp -s - "$WORK_ROOT/access-log-before-rollback-boot.txt" \
+        || fail "the older release's startup REWROTE data/access.log instead of appending to it (the newer release's bytes are not a prefix of the file)"
+    ok "the older release appended to data/access.log and preserved every byte the newer release wrote (append-only log, checked as a byte prefix)"
 fi
 if grep -q '^removed ' "$WORK_ROOT/runtime-classified-changes.txt"; then
     grep '^removed ' "$WORK_ROOT/runtime-classified-changes.txt" >&2
