@@ -604,7 +604,7 @@ if (external && redirectFile && source.probe.redirectFrom.length > 0) {
     await fs.writeFile(redirectFile, JSON.stringify(source.probe.redirectFrom.map(origin => ({ from: origin, to: `http://${mockAddress}` }))));
 }
 
-const server = external ? null : spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+const server = external ? null : spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
 const serverLog = [];
 if (server) {
     server.stdout.on('data', chunk => serverLog.push(chunk.toString()));
@@ -630,7 +630,7 @@ let browser;
 const baseURL = process.env.PROBE_BASE_URL ?? `http://127.0.0.1:${port}`;
 try {
     await waitFor(`${baseURL}/version`, 'server');
-    browser = await chromium.launch();
+    browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error.message ?? error).slice(0, 300)));
     // EVERY console message, not just errors. The frontend reports several generation problems with

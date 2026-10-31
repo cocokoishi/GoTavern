@@ -274,7 +274,7 @@ try {
     step('subject-process-identified', typeof report.server.pid === 'number' && report.server.pid > 0,
         `pid=${report.server.pid} (from ${boot.external ? 'PROBE_SERVER_PID, the runner that owns the pinned process' : 'the child this leg spawned'})`);
 
-    browser = await chromium.launch();
+    browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     // ======================== IS THE SUBJECT AN INSTALLATION? =====================================================
     // EVERY CONTEXT-SENSITIVE REQUEST THIS JOURNEY COMPARES IS BUILT FROM TOKEN COUNTS: the world-info scan spends a

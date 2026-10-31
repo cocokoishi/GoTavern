@@ -124,7 +124,7 @@ try {
 
     const playwrightModule = await import('@playwright/test');
     const chromium = playwrightModule.chromium ?? playwrightModule.default?.chromium;
-    browser = await chromium.launch();
+    browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     const pageErrors = [];
     page.on('pageerror', error => pageErrors.push(String(error?.message ?? error).slice(0, 300)));

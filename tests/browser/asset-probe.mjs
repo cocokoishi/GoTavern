@@ -293,7 +293,7 @@ if (!external) {
     const tokenizerSource = path.join(repoRoot, 'upstream', 'tokenizers');
     await fs.cp(tokenizerSource, path.join(dataRoot, 'tokenizers'), { recursive: true });
     legConfig = await seedLegConfig(dataRoot);
-    server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
     server.stdout.on('data', () => {});
     server.stderr.on('data', () => {});
 }
@@ -374,7 +374,7 @@ let browser;
 try {
     await waitForServer(`${baseURL}/version`);
 
-    browser = await chromium.launch();
+    browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     page.on('console', message => {
         const text = String(message.text()).slice(0, 400);

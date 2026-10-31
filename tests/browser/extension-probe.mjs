@@ -235,7 +235,7 @@ if (!external) {
     // server resolves config.yaml against its own working directory, which is this checkout for
     // GoTavern and the pinned checkout for pinned — two different files deciding accounts on/off.
     legConfig = await seedLegConfig(dataRoot);
-    server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml')], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+    server = spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--configPath', path.join(dataRoot, 'config.yaml'), '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
     server.stdout.on('data', () => {});
     server.stderr.on('data', () => {});
 }
@@ -294,7 +294,7 @@ let discoveredExtensions = null;
 let browser;
 try {
     await waitForServer(`${baseURL}/version`);
-    browser = await chromium.launch();
+    browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error.message ?? error).slice(0, 300)));
     page.on('console', message => {

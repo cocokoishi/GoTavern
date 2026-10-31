@@ -121,6 +121,10 @@ on:
       - 'tests/browser/verifier-guards-gate-selftest.mjs'
       # AND THE TOKENIZER COMPARISON'S, whose positional pairing produced a wrong diagnosis in committed evidence.
       - 'tests/browser/tokenizer-comparator-selftest.mjs'
+      # THE BROWSER-LAUNCH SOURCE GATE: a probe boot without `--browserLaunchEnabled false` opens the operator's
+      # default browser on a developer host, and CI can never see that because CI has no desktop. Measured
+      # 2026-10-31: the Q21 hand-back probe and twelve other boot sites had the omission.
+      - 'tests/browser/browser-launch-gate.mjs'
       - 'tests/browser/compare-preset-legs.mjs'
       # THE WORKFLOW ITSELF. Measured: commit 555cbdc fixed the asset step's missing directory and started
       # NO browser run, because only the four files above were listed -- so the fix to this gate went
@@ -167,6 +171,10 @@ on:
       - 'tests/browser/verifier-guards-gate-selftest.mjs'
       # AND THE TOKENIZER COMPARISON'S, whose positional pairing produced a wrong diagnosis in committed evidence.
       - 'tests/browser/tokenizer-comparator-selftest.mjs'
+      # THE BROWSER-LAUNCH SOURCE GATE: a probe boot without `--browserLaunchEnabled false` opens the operator's
+      # default browser on a developer host, and CI can never see that because CI has no desktop. Measured
+      # 2026-10-31: the Q21 hand-back probe and twelve other boot sites had the omission.
+      - 'tests/browser/browser-launch-gate.mjs'
       - 'tests/browser/compare-preset-legs.mjs'
       - 'tests/browser/q20-continue-probe.mjs'
       - 'tests/browser/run-against-pinned.mjs'
@@ -1803,6 +1811,20 @@ jobs:
           set -euo pipefail
           node tests/browser/tokenizer-comparator-selftest.mjs
 
+      - name: Prove no probe can open a desktop browser (source gate, no browser, no server)
+        # THIS GATE EXISTS BECAUSE THE FAILURE IT PREVENTS IS NORMALLY INVISIBLE. Measured on the operator's
+        # desktop 2026-10-31: the Q21 hand-back probe booted GoTavern without `--browserLaunchEnabled false`, the
+        # seeded config is the pinned default with `browserLaunch.enabled: true`, and every local run opened a real
+        # browser window. CI has no desktop, so no run could ever have gone red for it; the complaint came from a
+        # person. The gate reads tests/browser/**/*.mjs and refuses (a) a GoTavern/pinned server spawn whose argv
+        # does not disable the launch and (b) a Playwright launch that does not say `headless: true` explicitly.
+        #
+        # NO MODE GATE: it costs milliseconds and a mode-gated safety check is skipped by the exact push run that
+        # would otherwise prove it.
+        run: |
+          set -euo pipefail
+          node tests/browser/browser-launch-gate.mjs
+
       - name: Compare the Q20 continue legs
         if: ${{ ((github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'preset' || (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all') && steps.q20-continue.outputs.q20_continue_failures == '0' }}
         run: |
@@ -2335,6 +2357,11 @@ jobs:
           go build -trimpath -o .browser-bin/gotavern ./cmd/gotavern
           echo "GOTAVERN_BINARY=${PWD}/.browser-bin/gotavern" >> "$GITHUB_ENV"
           echo "GOTAVERN_REFERENCE=${PWD}/.reference/SillyTavern" >> "$GITHUB_ENV"
+
+      # THE SAFETY GATE RUNS BEFORE THE CAMPAIGN, because every iteration of it boots servers on this job's
+      # runner and a probe regression here is exactly the class that opens a desktop window on a developer host.
+      - name: Prove no probe can open a desktop browser (source gate)
+        run: node tests/browser/browser-launch-gate.mjs
 
       - name: Repeat the Q21 hand-back leg
         id: stability
