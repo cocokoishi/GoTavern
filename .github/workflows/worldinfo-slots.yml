@@ -1,0 +1,200 @@
+# THE WORLD-INFO SLOT-ORDER DIFFERENTIAL — the surface `docs/compatibility-matrix.json`'s world-info row cites
+# for "the before/after/atDepth slots reach the FINAL provider request in pinned's order".
+#
+# WHAT IT RUNS. One synthetic world book with three DISTINGUISHABLE constant entries, one per slot
+# (`before` = position 0, `after` = position 1, `atDepth` = position 4/depth 2/role user), selected the way the
+# frontend persists a world selection. The SAME probe drives both subjects: GoTavern boots itself, pinned boots
+# through `run-against-pinned.mjs`. `compare-worldinfo-slots-legs.mjs` then requires the final provider request to
+# carry all three slots, in pinned's order, at pinned's positions, byte-identically on both subjects, and
+# `worldinfo-slots-gate-selftest.mjs` mutates the recorded pair to prove the judge has teeth.
+#
+# WHY THIS IS ITS OWN WORKFLOW. The surface was written as a pair of legs + comparator + self-test with a single
+# fail-closed runner (`worldinfo-slots-sweep.mjs`). Wiring it into `browser-differential.yml` would mean editing a
+# 2,200-line, mode-gated job in eight places for a five-minute surface; a dedicated job keeps the diagnosis
+# ("this surface" vs "some provider source") and the cost (~5 min) separate. The same reasoning the whole-session
+# workflow records applies, and the cost is one workflow file.
+#
+# THE COMMITTED ARTEFACT IS CHECKED AGAINST THIS RUN. `tests/browser/worldinfo-slots-comparison.json` is committed
+# evidence. After the judge writes a fresh artefact from THIS run's legs, it is copied over the committed path and
+# `git diff --exit-code` must find no difference: a committed comparison that a fresh run cannot reproduce is
+# evidence for a tree that no longer exists, which is what the tree's zero-diff discipline exists to catch.
+
+name: GoTavern world-info slot ordering
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'tests/browser/worldinfo-slots-probe.mjs'
+      - 'tests/browser/worldinfo-slots-kit.mjs'
+      - 'tests/browser/worldinfo-slots-sweep.mjs'
+      - 'tests/browser/compare-worldinfo-slots-legs.mjs'
+      - 'tests/browser/worldinfo-slots-gate-selftest.mjs'
+      - 'tests/browser/worldinfo-slots-comparison.json'
+      - 'tests/browser/q20-leg-runtime.mjs'
+      - 'tests/browser/run-against-pinned.mjs'
+      - 'tests/browser/seed-leg-config.mjs'
+      - '.github/workflows/worldinfo-slots.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worldinfo-slots-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PINNED_BASELINE_COMMIT: 06bde939fb1e9c4c8d8641d810f0a9165b5ce127
+
+jobs:
+  worldinfo-slots:
+    runs-on: ubuntu-latest
+    # SIZED FROM THE DRIVE: two browser boots (pinned Node ~40 s), two page loads, two recorded generations, the
+    # comparator and the teeth proof. The probe's own deadlines bound each wait; this is the backstop.
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      # THE PINNED REFERENCE IS THE ORACLE, at the baseline commit AGENTS.md names — the same commit the oracle
+      # job, the browser differential and the whole-session workflow use, so no surface drifts onto another baseline.
+      - uses: actions/checkout@v4
+        with:
+          repository: SillyTavern/SillyTavern
+          ref: ${{ env.PINNED_BASELINE_COMMIT }}
+          path: .reference/SillyTavern
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Cache the pinned server's node_modules
+        id: cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Install the pinned server's dependencies
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "pinned server node_modules: CACHE HIT for ${{ env.PINNED_BASELINE_COMMIT }} -- install SKIPPED"
+          else
+            echo "pinned server node_modules: cache MISS -- installing from the pinned checkout's own manifest"
+            cd .reference/SillyTavern
+            if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          fi
+
+      - name: Install the browser harness
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            echo "tests/browser/node_modules: cache MISS -- npm ci"
+            (cd tests/browser && npm ci --no-audit --no-fund)
+          fi
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            echo "playwright chromium: CACHE HIT -- browser download SKIPPED, OS packages still ensured"
+            (cd tests/browser && npx playwright install-deps chromium)
+          else
+            echo "playwright chromium: cache MISS -- downloading the browser and its OS packages"
+            (cd tests/browser && npx playwright install --with-deps chromium)
+          fi
+
+      - name: Which setup branches this run took
+        run: |
+          echo "pinned server node_modules cache-hit: ${{ steps.cache-pinned-modules.outputs.cache-hit }}"
+          echo "harness node_modules cache-hit:       ${{ steps.cache-harness-modules.outputs.cache-hit }}"
+          echo "playwright browsers cache-hit:        ${{ steps.cache-playwright.outputs.cache-hit }}"
+          echo "(true = the install above was skipped; false or empty = it ran)"
+
+      - name: Build the subject binary
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          mkdir -p .browser-bin
+          go build -trimpath -o .browser-bin/gotavern ./cmd/gotavern
+          echo "GOTAVERN_BINARY=${PWD}/.browser-bin/gotavern" >> "$GITHUB_ENV"
+          echo "GOTAVERN_REFERENCE=${PWD}/.reference/SillyTavern" >> "$GITHUB_ENV"
+
+      # A RUNNER THAT DIES AFTER TWO BOOTS TO LEARN THAT A PATH WAS MISSING HAS WASTED THE EXPENSIVE PART.
+      - name: Self-check every path and precondition
+        run: node tests/browser/worldinfo-slots-sweep.mjs --self-check --out-dir "$RUNNER_TEMP/worldinfo-slots"
+
+      # BOTH LEGS. The runner exits non-zero if either drive failed, and the judge REFUSES when a leg is absent —
+      # "no evidence" can never read as PASS.
+      - name: Record the slot-order legs (both subjects)
+        id: legs
+        run: node tests/browser/worldinfo-slots-sweep.mjs --phase legs --out-dir "$RUNNER_TEMP/worldinfo-slots"
+
+      - name: Judge the pair
+        id: judge
+        if: ${{ steps.legs.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          node tests/browser/worldinfo-slots-sweep.mjs --phase judge --out-dir "$RUNNER_TEMP/worldinfo-slots"
+          echo "verdict: $(node -e "console.log(JSON.parse(require('fs').readFileSync('$RUNNER_TEMP/worldinfo-slots/worldinfo-slots-comparison.json','utf8')).verdict)")"
+
+      # DOES THE GATE HAVE TEETH? Mutations of THIS RUN's own pair, each required to produce its NAMED red on top
+      # of a green baseline, plus the restore half that proves the pair is still green afterwards.
+      - name: Prove the slot-order gate has teeth
+        if: ${{ steps.judge.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          node tests/browser/worldinfo-slots-gate-selftest.mjs \
+            --gotavern "$RUNNER_TEMP/worldinfo-slots/worldinfo-slots-gotavern.json" \
+            --pinned "$RUNNER_TEMP/worldinfo-slots/worldinfo-slots-pinned.json" \
+            --out-dir "$RUNNER_TEMP/worldinfo-slots/gate-selftest"
+
+      # THE COMMITTED EVIDENCE MUST BE THE EVIDENCE THIS RUN PRODUCED. A fresh artefact that differs from the
+      # committed one means the committed file describes a different tree; the diff is printed so it can be read.
+      - name: The committed artefact must match this run
+        if: ${{ steps.judge.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          cp "$RUNNER_TEMP/worldinfo-slots/worldinfo-slots-comparison.json" tests/browser/worldinfo-slots-comparison.json
+          if ! git diff --exit-code -- tests/browser/worldinfo-slots-comparison.json; then
+            echo "::error::the committed world-info slot comparison is NOT what this run produced; the diff above names what moved. Re-record only if the OBSERVATION legitimately changed (AGENTS differential rule 9), and say why."
+            exit 1
+          fi
+          echo "the committed world-info slot comparison is reproducible by this run, byte for byte"
+
+      - name: Fail the job if any leg or the judge did not run
+        if: ${{ always() && (steps.legs.outcome != 'success' || steps.judge.outcome != 'success') }}
+        run: |
+          echo "::error::a world-info slot leg or the judge did not complete; see the step output above."
+          echo "legs outcome:  ${{ steps.legs.outcome }}"
+          echo "judge outcome: ${{ steps.judge.outcome }}"
+          exit 1
+
+      - name: Upload the legs, the verdict, the teeth report and any artefact diff
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: worldinfo-slots-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/worldinfo-slots/**
+            tests/browser/worldinfo-slots-comparison.json
+          retention-days: 14
+          if-no-files-found: warn
