@@ -49,6 +49,46 @@ const finalChat = leg => leg?.disk?.final?.chat ?? null;
 const finalState = leg => leg?.browser?.final ?? null;
 const restartState = leg => leg?.browser?.reopened ?? null;
 
+// ----------------------------------------------------------------------------------------------------------------
+// THE RESUMED TURN'S ATTRIBUTION AND ITS PROMPT-ORDER CLASSIFICATION.
+//
+// THE OPEN ITEM THIS CLOSES. A manual run over a private tree recorded the post-restart resumed turn's request as a
+// single-system-message request with no restored history, and the probe at the time selected `completions().at(-1)` --
+// "the last completion when I looked", not "the completion my send produced". The probe now arms the peer ordinal
+// immediately before the click and records the request at that ordinal; these guards judge THAT request, require the
+// classification to be derivable from the frontend's own prompt order, and require byte equality with pinned.
+//
+// THE CLASSIFICATION RULE IS PINNED'S, NOT THIS FILE'S TASTE. `populateChatHistory` returns immediately when the
+// prompt collection has no `chatHistory` (`public/scripts/openai.js:885-888`), and the collection is built by walking
+// the prompt-order row for the active character (`PromptManager.js:1516-1541`). Under the global prompt-order strategy
+// the active character is `{ id: dummyId }` with dummyId 100001 (`openai.js:696-699`; `PromptManager.js:438,1131`).
+// So the runtime row is the one whose `character_id` is 100001, and whether it ENABLES chatHistory is exactly whether
+// the request must carry history. The rule is recomputed here from the leg's recorded observation: the probe's own
+// verdict is an observation, never the judge.
+const resumedRequest = leg => leg?.browser?.resumedTurn?.request ?? null;
+const resumedArmedOrdinal = leg => Number(leg?.browser?.resumedTurn?.armedOrdinal ?? -1);
+const promptObservation = leg => leg?.promptOrder?.restart ?? null;
+const promptClassification = leg => leg?.promptOrder?.restartClassification ?? null;
+
+function classifyPromptOrder(observation) {
+    if (!observation || observation.chatHistoryEntry === null || observation.chatHistoryEntry === undefined) {
+        return { historyExpected: null, reason: 'prompt-order-observation-missing' };
+    }
+    const entry = observation.chatHistoryEntry;
+    if (entry.present !== true) return { historyExpected: false, reason: 'prompt-order-row-omits-chatHistory' };
+    if (entry.enabled !== true) return { historyExpected: false, reason: 'prompt-order-row-disables-chatHistory' };
+    return { historyExpected: true, reason: 'prompt-order-row-enables-chatHistory' };
+}
+
+/** The peers' completion list, and the one request a leg's send produced (by ordinal). */
+const completionAtOrdinal = (leg, ordinal) => (leg?.wire?.completions ?? [])[Number(ordinal) - 1] ?? null;
+const restartOrdinal = leg => resumedArmedOrdinal(leg);
+const restartRequestAtOrdinal = leg => completionAtOrdinal(leg, restartOrdinal(leg));
+
+/** The request a helper-style quiet completion produced, if this leg injected one. */
+const helperObservation = leg => leg?.helperRequest ?? null;
+const helperRequest = leg => (helperObservation(leg)?.injected === true ? helperObservation(leg)?.request ?? null : null);
+
 /**
  * The prefix a leg stamped, recovered from its own artefact rather than passed in: `replyPrefix` is what the workflow
  * gave it, and `discriminator.stampedText` is what actually reached the page. A leg that reports a prefix it never
@@ -186,15 +226,125 @@ export function compare(legs) {
     guard('continue-request-ordinal-equal',
         Number(goDrive?.browser?.continue?.request?.index ?? -1) === Number(pinnedDrive?.browser?.continue?.request?.index ?? -2),
         { gotavern: goDrive?.browser?.continue?.request?.index ?? null, pinned: pinnedDrive?.browser?.continue?.request?.index ?? null });
-    guard('restart-turn-carried-the-restored-history',
-        [goRestart, pinnedRestart].every(leg => {
-            const request = leg?.browser?.resumedTurn?.request;
-            return request !== null && request !== undefined
-                && request.carriesFirstTurnMarker === true
-                && request.carriesSecondTurnMarker === true
-                && request.carriesRestoredReplies === true;
+    // ---- THE RESUMED TURN: ATTRIBUTION, CLASSIFICATION, AND THE TWO ASSERTIONS IT SPLITS INTO -----------------
+    //
+    // ONE GUARD, TWO ARMS, AND THE ARM IS DERIVED FROM THE LEG'S OWN RECORDED PROMPT ORDER -- never passed in as a
+    // journey label, which would let the harness decide the answer. A required-history leg that dropped history and an
+    // omission leg that carried it are both red, by name; neither can be a silent pass.
+    const resumedLegs = [goRestart, pinnedRestart];
+    const resumedAttribution = leg => {
+        const requested = resumedRequest(leg);
+        const atOrdinal = restartRequestAtOrdinal(leg);
+        return {
+            armedOrdinal: resumedArmedOrdinal(leg),
+            requestOrdinal: Number(requested?.ordinal ?? -1),
+            requestFoundAtOrdinal: atOrdinal !== null,
+            shaMatchesTheRequestAtThatOrdinal: requested !== null && atOrdinal !== null && requested.bodySha256 === atOrdinal.sha256,
+            clicked: leg?.browser?.resumedTurn?.sent?.clicked === true,
+            settled: leg?.browser?.resumedTurn?.settled?.ok === true,
+            peerCompletionsAfterTheSettle: Number(leg?.browser?.resumedTurn?.peerCompletionsAfterTheClick ?? 0),
+            promptClassification: promptClassification(leg),
+            observation: promptObservation(leg),
+            recomputedClassification: classifyPromptOrder(promptObservation(leg)),
+        };
+    };
+    const attributions = { gotavern: resumedAttribution(goRestart), pinned: resumedAttribution(pinnedRestart) };
+    // 1. IS THE REQUEST THE SEND'S? The ordinal was armed from the peer's count immediately before the click, so the
+    // request at that ordinal is the one the click produced. A later helper/title request cannot satisfy this guard.
+    guard('resumed-request-attributed-to-the-send',
+        resumedLegs.every(leg => {
+            const requested = resumedRequest(leg);
+            const atOrdinal = restartRequestAtOrdinal(leg);
+            return leg?.browser?.resumedTurn?.sent?.clicked === true
+                && leg?.browser?.resumedTurn?.settled?.ok === true
+                && requested !== null && atOrdinal !== null
+                && Number(requested.ordinal) === resumedArmedOrdinal(leg)
+                && requested.bodySha256 === atOrdinal.sha256;
         }),
-        [goRestart, pinnedRestart].map(leg => leg?.browser?.resumedTurn?.request ?? null));
+        attributions);
+    // 2. THE CLASSIFICATION MUST FOLLOW FROM THE OBSERVED PROMPT ORDER, not merely be asserted by the leg: the
+    // classification recorded beside the request must equal the rule's answer for this leg's own observation.
+    guard('resumed-classification-follows-the-prompt-order',
+        resumedLegs.every(leg => {
+            const recorded = promptClassification(leg);
+            const recomputed = classifyPromptOrder(promptObservation(leg));
+            return recorded !== null && recorded.historyExpected !== null
+                && recorded.historyExpected === recomputed.historyExpected
+                && recorded.reason === recomputed.reason;
+        }),
+        Object.fromEntries(Object.entries(attributions).map(([subject, entry]) => [subject, { recorded: entry.promptClassification, recomputed: entry.recomputedClassification, observation: entry.observation ?? null }])));
+    // 3. THE GUARD THE OPEN ITEM IS ABOUT. Where the structure requires history, the request at the send's ordinal MUST
+    // carry it -- both user turns, every restored reply, and the typed resumed turn itself. Where the structure omits
+    // it, the SAME guard requires the absence of the RESTORED HISTORY plus the structural reason, so a missing marker
+    // can never pass by being absent. MEASURED on the derived control: the typed user turn can still reach the model
+    // through another enabled preset prompt, so `carriesResumedUserMarker` is recorded but not asserted in this arm;
+    // what the omission removes is the restored conversation. Byte equality with pinned is guard `restart-completion-equal`,
+    // which applies to both arms.
+    guard('restart-turn-carried-the-restored-history',
+        resumedLegs.every(leg => {
+            const request = resumedRequest(leg);
+            const classification = promptClassification(leg);
+            if (request === null || classification === null || classification.historyExpected === null) return false;
+            if (classification.historyExpected === true) {
+                return request.carriesFirstTurnMarker === true
+                    && request.carriesSecondTurnMarker === true
+                    && request.carriesRestoredReplies === true
+                    && request.carriesResumedUserMarker === true;
+            }
+            return request.carriesFirstTurnMarker === false
+                && request.carriesSecondTurnMarker === false
+                && request.carriesRestoredReplies === false
+                && (classification.reason === 'prompt-order-row-omits-chatHistory'
+                    || classification.reason === 'prompt-order-row-disables-chatHistory');
+        }),
+        resumedLegs.map(leg => ({ classification: promptClassification(leg), request: resumedRequest(leg) })));
+    // 4. THE OMISSION HAS TO BE THE PRESET'S, NOT THE PRODUCT'S. This guard is red for an omission leg whose recorded
+    // prompt order does NOT explain the omission (a row that ENABLES chatHistory), and for an omission leg whose
+    // request nonetheless carries restored history. It is the "never a silent pass" half of the classification taxonomy.
+    guard('restart-history-omission-is-preset-attributable',
+        resumedLegs.every(leg => {
+            const classification = promptClassification(leg);
+            if (classification === null || classification.historyExpected !== false) return true; // the other arm is guard 3's
+            const request = resumedRequest(leg);
+            const observation = promptObservation(leg);
+            const structural = observation !== null && observation.chatHistoryEntry !== null
+                && (observation.chatHistoryEntry.present !== true || observation.chatHistoryEntry.enabled !== true);
+            return structural
+                && request !== null
+                && request.carriesFirstTurnMarker === false
+                && request.carriesSecondTurnMarker === false
+                && request.carriesRestoredReplies === false;
+        }),
+        resumedLegs.map(leg => ({ classification: promptClassification(leg), observation: promptObservation(leg), request: resumedRequest(leg) })));
+    // 5. THE ORDINAL ITSELF EQUALS PINNED'S: a leg that took one extra request before the click would still satisfy
+    // guard 1, but the two subjects would not have been driven the same way, and their byte equality would be between
+    // different turns.
+    guard('resumed-request-ordinal-equal',
+        resumedArmedOrdinal(goRestart) > 0 && resumedArmedOrdinal(goRestart) === resumedArmedOrdinal(pinnedRestart),
+        { gotavern: resumedArmedOrdinal(goRestart), pinned: resumedArmedOrdinal(pinnedRestart) });
+    // 6. THE PRESET THE NEW PROCESS READ BACK. When the drive leg selected a preset, the restart leg must observe the
+    // same one and the same structure WITHOUT selecting anything, and the two subjects must agree on it.
+    const presetObserved = leg => ({
+        name: leg?.preset?.name ?? null,
+        mode: leg?.preset?.mode ?? null,
+        selected: leg?.promptOrder?.restart?.presetSelected ?? null,
+        prompts: leg?.promptOrder?.restart?.promptsCount ?? null,
+        rows: leg?.promptOrder?.restart?.orderLength ?? null,
+        enabled: leg?.promptOrder?.restart?.enabledCount ?? null,
+    });
+    const presetRestored = leg => {
+        const requested = presetObserved(leg);
+        if (requested.name === null) return requested.selected === null || requested.selected === 'Default' || typeof requested.selected === 'string';
+        const structure = leg?.preset?.structure ?? {};
+        const expectedEnabled = Number(structure.runtimeEnabledRows);
+        return requested.selected === requested.name
+            && Number(requested.prompts) === Number(structure.prompts)
+            && Number(requested.rows) === Number(structure.runtimeRows)
+            && Number(requested.enabled) === expectedEnabled;
+    };
+    guard('restart-preset-restored-without-selection',
+        resumedLegs.every(presetRestored) && presetObserved(goRestart).name === presetObserved(pinnedRestart).name,
+        { gotavern: presetObserved(goRestart), pinned: presetObserved(pinnedRestart), gotavernPreset: goRestart?.preset ?? null, pinnedPreset: pinnedRestart?.preset ?? null });
 
     // ---- 1a. BROWSER OBSERVABLE EQUALITY ---------------------------------------------------------------------
     guard('chat-id-equal',
@@ -257,17 +407,59 @@ export function compare(legs) {
                 pinned: { method: pinned?.method ?? null, path: pinned?.path ?? null, byteLength: pinned?.byteLength ?? null, sha256: pinned?.sha256 ?? null },
             });
     }
-    // AND THE RESTART-PHASE REQUEST, whose body must carry the restored history identically on both subjects.
-    const goResumed = goRestart?.wire?.completions ?? [];
-    const pinnedResumed = pinnedRestart?.wire?.completions ?? [];
+    // AND THE RESTART-PHASE REQUEST, AT THE SEND'S ORDINAL. This used to compare `at(-1)` on both legs, which is the
+    // same selection defect the probe had: with a helper completion in the wire, `.at(-1)` compares the helper's request
+    // and calls it parity. The compared unit is the request the click produced.
+    const goResumed = restartRequestAtOrdinal(goRestart);
+    const pinnedResumedAt = restartRequestAtOrdinal(pinnedRestart);
     guard('restart-completion-equal',
-        goResumed.length > 0 && pinnedResumed.length > 0
-        && goResumed.at(-1)?.sha256 === pinnedResumed.at(-1)?.sha256
-        && Number(goResumed.at(-1)?.byteLength) === Number(pinnedResumed.at(-1)?.byteLength),
+        goResumed !== null && pinnedResumedAt !== null
+        && goResumed.method === pinnedResumedAt.method && goResumed.path === pinnedResumedAt.path
+        && goResumed.sha256 === pinnedResumedAt.sha256
+        && Number(goResumed.byteLength) === Number(pinnedResumedAt.byteLength),
         {
-            gotavern: { sha256: goResumed.at(-1)?.sha256 ?? null, byteLength: goResumed.at(-1)?.byteLength ?? null },
-            pinned: { sha256: pinnedResumed.at(-1)?.sha256 ?? null, byteLength: pinnedResumed.at(-1)?.byteLength ?? null },
+            gotavern: goResumed === null ? null : { ordinal: resumedArmedOrdinal(goRestart), method: goResumed.method, path: goResumed.path, sha256: goResumed.sha256, byteLength: goResumed.byteLength },
+            pinned: pinnedResumedAt === null ? null : { ordinal: resumedArmedOrdinal(pinnedRestart), method: pinnedResumedAt.method, path: pinnedResumedAt.path, sha256: pinnedResumedAt.sha256, byteLength: pinnedResumedAt.byteLength },
         });
+    // THE RESTART WIRE IS THE SAME LENGTH ON BOTH SUBJECTS: one resumed send, plus the helper completion when the
+    // journey injected one. A leg that issued an extra request before the send would break the ordinal equality above;
+    // a leg that issued one after it must issue the same shape, and the helper completion's bytes must also be equal.
+    const restartCompletions = leg => leg?.wire?.completions ?? [];
+    guard('restart-completion-count-equal',
+        restartCompletions(goRestart).length === restartCompletions(pinnedRestart).length
+        && restartCompletions(goRestart).length >= 1,
+        { gotavern: restartCompletions(goRestart).length, pinned: restartCompletions(pinnedRestart).length });
+    const helperLegs = [goRestart, pinnedRestart].filter(leg => helperObservation(leg)?.injected === true);
+    guard('restart-helper-completion-equal',
+        helperLegs.length === 0
+        || (helperLegs.length === 2
+            && [goRestart, pinnedRestart].every(leg => helperRequest(leg) !== null)
+            && completionAtOrdinal(goRestart, helperRequest(goRestart)?.ordinal)?.sha256
+                === completionAtOrdinal(pinnedRestart, helperRequest(pinnedRestart)?.ordinal)?.sha256
+            && Number(completionAtOrdinal(goRestart, helperRequest(goRestart)?.ordinal)?.byteLength)
+                === Number(completionAtOrdinal(pinnedRestart, helperRequest(pinnedRestart)?.ordinal)?.byteLength)),
+        {
+            gotavern: helperRequest(goRestart) ?? null,
+            pinned: helperRequest(pinnedRestart) ?? null,
+            gotavernSha: completionAtOrdinal(goRestart, helperRequest(goRestart)?.ordinal)?.sha256 ?? null,
+            pinnedSha: completionAtOrdinal(pinnedRestart, helperRequest(pinnedRestart)?.ordinal)?.sha256 ?? null,
+        });
+    // THE HELPER REQUEST IS THE SHAPE THE OPEN OBSERVATION RECORDED, and it is NOT the send's request. The first half
+    // makes the reproduction discriminating (a fixture that is not single-system proves nothing about single-system
+    // captures); the second half is the mechanism the ordinal attribution exists to refuse.
+    guard('helper-completion-was-not-the-resumed-request',
+        helperLegs.length === 0
+        || [goRestart, pinnedRestart].every(leg => {
+            const helper = helperRequest(leg);
+            const resumed = resumedRequest(leg);
+            return helper !== null && resumed !== null
+                && helper.isSingleSystemMessage === true
+                && helper.carriesHelperMarker === true
+                && helper.carriesRestoredMarkers === false
+                && helper.ordinal !== resumed.ordinal
+                && helper.bodySha256 !== resumed.bodySha256;
+        }),
+        [goRestart, pinnedRestart].map(leg => ({ helper: helperRequest(leg), resumed: resumedRequest(leg) })));
 
     // ---- 1c. DISK STATE EQUALITY -----------------------------------------------------------------------------
     guard('disk-chat-file-equal',

@@ -26,10 +26,22 @@
 //   G  harness-cannot-tell-subjects-apart   the two subjects' artefacts became indistinguishable
 //   H  settings-reset-on-both          the user's setting did not survive (symmetrically, so equality still holds)
 //   I  wire-journey-shortened-on-both  a verb produced no request at all (symmetrically)
+//   J  resumed-request-attributed-to-the-last-request   the OLD `.at(-1)` selection: the helper completion that arrives
+//                                      after the send is treated as the resumed turn (needs a helper-injected run)
+//   K  resumed-history-dropped-despite-the-structure   the send's request lost the restored history where the prompt
+//                                      order REQUIRES it
+//   L  omission-claimed-without-a-structural-cause      the leg claims the preset omits chatHistory while the observed
+//                                      row enables it and the request still carries history
+//   M  resumed-request-differs-from-pinned             the attributed request is not byte-identical to pinned's
+//   N  restart-preset-not-read-back                    the new process did not restore the preset the drive leg wrote
+//   O  helper-completion-captured-as-the-send          the helper request was recorded as the send's own request
+//   P  restart-completion-count-drops                  a leg issued fewer restart completions than its counterpart
 //
-// EXIT CODES: 0 = the baseline is a match AND every mutation produced its named red; 1 = at least one mutation survived
-// or fired the wrong guard; 2 = REFUSAL (an input cannot be read, or the baseline is not a match, in which case there
-// is nothing to mutate and this program says so instead of reporting a vacuous success).
+// EXIT CODES: 0 = the baseline is a match AND every APPLICABLE mutation produced its named red; 1 = at least one
+// mutation survived or fired the wrong guard; 2 = REFUSAL (an input cannot be read, or the baseline is not a match, in
+// which case there is nothing to mutate and this program says so instead of reporting a vacuous success). A mutation
+// whose precondition this run's artefacts do not carry (a preset, an injected helper completion) is reported
+// `not-applicable` and is never counted as caught: an unrun mutation is not evidence.
 
 import fs from 'node:fs/promises';
 import { compare } from './compare-whole-session-legs.mjs';
@@ -159,11 +171,118 @@ const MUTATIONS = [
             }
         },
     },
+    {
+        // THE OLD SELECTION, reproduced as a mutation. The peer's last completion is the helper's quiet one-system
+        // request; a leg that armed its ordinal instead of the send's would attribute THAT to the send.
+        name: 'J resumed-request-attributed-to-the-last-request',
+        expected: 'resumed-request-attributed-to-the-send',
+        requires: 'helper',
+        apply: draft => {
+            const helper = draft.goRestart.helperRequest;
+            if (!helper?.injected) throw new Error('mutation fixture defect: this run injected no helper completion');
+            draft.goRestart.browser.resumedTurn.armedOrdinal = helper.armedOrdinal;
+        },
+    },
+    {
+        name: 'K resumed-history-dropped-despite-the-structure',
+        expected: 'restart-turn-carried-the-restored-history',
+        // ONLY APPLICABLE WHERE THE STRUCTURE REQUIRES HISTORY: on an omission-control baseline the marker is already
+        // absent by design, so dropping it changes nothing. The omission arm's own teeth are mutation Q.
+        requires: 'history-required',
+        apply: draft => {
+            const request = draft.goRestart.browser.resumedTurn.request;
+            if (!request) throw new Error('mutation fixture defect: no attributed resumed request');
+            request.carriesFirstTurnMarker = false;
+        },
+    },
+    {
+        // The leg CLAIMS the preset omits chatHistory while its own observation says the row enables it and its own
+        // request still carries the history. Both the classification guard and the omission-attribution guard must
+        // refuse the claim; the named red is the one this mutation exists to demonstrate.
+        name: 'L omission-claimed-without-a-structural-cause',
+        expected: 'restart-history-omission-is-preset-attributable',
+        requires: 'history-required',
+        apply: draft => {
+            const leg = draft.goRestart;
+            if (!leg.promptOrder?.restartClassification) throw new Error('mutation fixture defect: no recorded classification');
+            leg.promptOrder.restartClassification = { historyExpected: false, reason: 'prompt-order-row-disables-chatHistory' };
+        },
+    },
+    {
+        name: 'M resumed-request-differs-from-pinned',
+        expected: 'restart-completion-equal',
+        apply: draft => {
+            const ordinal = Number(draft.goRestart.browser.resumedTurn.armedOrdinal);
+            const completion = draft.goRestart.wire.completions[ordinal - 1];
+            if (!completion) throw new Error('mutation fixture defect: no completion at the armed ordinal');
+            completion.sha256 = completion.sha256.split('').reverse().join('');
+        },
+    },
+    {
+        name: 'N restart-preset-not-read-back',
+        expected: 'restart-preset-restored-without-selection',
+        requires: 'preset',
+        apply: draft => {
+            if (!draft.goRestart.preset?.name) throw new Error('mutation fixture defect: this run selected no preset');
+            draft.goRestart.promptOrder.restart.presetSelected = 'Default';
+        },
+    },
+    {
+        name: 'O helper-completion-captured-as-the-send',
+        expected: 'helper-completion-was-not-the-resumed-request',
+        requires: 'helper',
+        apply: draft => {
+            const helper = draft.goRestart.helperRequest;
+            const resumed = draft.goRestart.browser.resumedTurn.request;
+            if (!helper?.request || !resumed) throw new Error('mutation fixture defect: no helper/resumed request pair');
+            helper.request.bodySha256 = resumed.bodySha256;
+            helper.request.ordinal = resumed.ordinal;
+        },
+    },
+    {
+        name: 'P restart-completion-count-drops',
+        expected: 'restart-completion-count-equal',
+        requires: 'helper',
+        apply: draft => {
+            if (!draft.goRestart.helperRequest?.injected) throw new Error('mutation fixture defect: no helper completion to drop');
+            draft.goRestart.wire.completions = draft.goRestart.wire.completions.filter((_, index) => index !== Number(draft.goRestart.helperRequest.armedOrdinal) - 1);
+        },
+    },
+    {
+        // THE OMISSION ARM'S OWN TEETH: a control whose request does carry the restored history must be red. Without
+        // this, "the history is absent" could pass by claiming the preset omitted it while the request was judged by
+        // nothing at all.
+        name: 'Q omission-leg-request-carries-restored-history',
+        expected: 'restart-turn-carried-the-restored-history',
+        requires: 'history-omitted',
+        apply: draft => {
+            const request = draft.goRestart.browser.resumedTurn.request;
+            if (!request) throw new Error('mutation fixture defect: no attributed resumed request');
+            request.carriesFirstTurnMarker = true;
+            request.carriesSecondTurnMarker = true;
+            request.carriesRestoredReplies = true;
+        },
+    },
 ];
 
 let failures = 0;
 const observed = [];
+// WHICH PRE-CONDITIONS THIS RUN'S ARTEFACTS ACTUALLY CARRY. A mutation is only evidence if it RAN: an unrun mutation
+// is reported as `not-applicable` and never as caught (the same rule as a `-run` filter that matches no test).
+const baselineCarries = {
+    helper: [legs.goRestart, legs.pinnedRestart].every(leg => leg?.helperRequest?.injected === true),
+    preset: Boolean(legs.goRestart?.preset?.name) && Boolean(legs.pinnedRestart?.preset?.name),
+    // WHICH ARM OF THE CONDITIONAL GUARD THIS BASELINE IS: the resumed-history mutations are only meaningful on the
+    // arm they exercise. Both subjects must be on the same arm or the baseline would not have been a match.
+    'history-required': [legs.goRestart, legs.pinnedRestart].every(leg => leg?.promptOrder?.restartClassification?.historyExpected === true),
+    'history-omitted': [legs.goRestart, legs.pinnedRestart].every(leg => leg?.promptOrder?.restartClassification?.historyExpected === false),
+};
 for (const mutation of MUTATIONS) {
+    if (mutation.requires && baselineCarries[mutation.requires] !== true) {
+        console.log(`skip  ${mutation.name} -> needs ${mutation.requires}, which this run's artefacts do not carry`);
+        observed.push({ name: mutation.name, expected: mutation.expected, verdict: 'not-applicable', requires: mutation.requires, caught: false, failedGuards: [] });
+        continue;
+    }
     const draft = clone();
     try {
         mutation.apply(draft);
@@ -197,18 +316,23 @@ if (recheck.verdict !== 'match') {
     failures += 1;
 }
 
+const applicable = observed.filter(entry => entry.verdict !== 'not-applicable');
+const notApplicable = observed.filter(entry => entry.verdict === 'not-applicable').map(entry => entry.name);
 const report = {
     surface: 'whole-session',
     kind: 'gate-teeth',
     baselineVerdict: baseline.verdict,
     baselineGuards: baseline.guardCount,
+    baselineCarries,
+    applicableMutations: applicable.length,
+    notApplicable,
     mutations: observed,
-    allCaught: failures === 0,
+    allCaught: failures === 0 && applicable.length > 0,
 };
 const out = option('--out', null);
 if (out) await fs.writeFile(out, `${JSON.stringify(report, null, 2)}\n`);
 console.log(JSON.stringify(report, null, 2));
 console.error(failures === 0
-    ? `whole-session gate teeth: ${observed.length}/${observed.length} mutations produced their NAMED red, baseline green`
+    ? `whole-session gate teeth: ${applicable.length}/${applicable.length} applicable mutations produced their NAMED red, baseline green${notApplicable.length > 0 ? `, ${notApplicable.length} not applicable` : ''}`
     : `whole-session gate teeth: ${failures} failure(s)`);
-process.exit(failures === 0 ? 0 : 1);
+process.exit(failures === 0 && applicable.length > 0 ? 0 : 1);
