@@ -230,7 +230,10 @@ release**:
    the world book and the settings (including the unknown keys), then **restarts** and reads the continuation back;
 7. exercises the **backup path** for real: restores the pre-update backup into a fresh prefix, boots alpha.9 over it,
    and requires the restored tree to serve the pre-upgrade chat and NOT contain the Beta 1 continuation;
-8. classifies **every** runtime path Beta 1 changed/added/removed during boot + journey and fails on anything that is
+8. covers the OTHER TWO ARRIVAL PATHS over the same corpus: a **fresh Beta 1 install** through the installer (boots,
+   serves the existing corpus chat) and a **SillyTavern-data-copy drop-in** (the release archive laid over a tree that
+   already holds the corpus; boots, serves the existing chat and the character image);
+9. classifies **every** runtime path Beta 1 changed/added/removed during boot + journey and fails on anything that is
    not an enumerated artefact shape. That classification is the measurement behind "no undocumented manual
    migration": the tree boots as-is, the chat opens, the continuation saves and survives a restart, and the writes
    are listed — not merely presumed harmless.

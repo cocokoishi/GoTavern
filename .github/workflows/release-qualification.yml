@@ -524,7 +524,8 @@ jobs:
     # checksums.txt, installs it through install.sh, seeds the generated long-lived corpus into it, boots it, backs the
     # runtime tree up, updates to the candidate archive, and then drives Beta 1 over the corpus: resume the existing
     # chat, save a continuation, require assets/settings/world book, restart and read the continuation back, restore
-    # the backup into a fresh prefix and boot alpha.9 over it, and classify every runtime path Beta 1 wrote.
+    # the backup into a fresh prefix and boot alpha.9 over it, exercise a FRESH Beta 1 install and a
+    # SillyTavern-data-copy DROP-IN over the SAME corpus, and classify every runtime path Beta 1 wrote.
     #
     # A green here means "a published-alpha.9 user can move to this build and continue working without an undocumented
     # manual migration", which is a different claim from "an update does not corrupt files".
