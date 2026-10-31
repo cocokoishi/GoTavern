@@ -532,8 +532,11 @@ jobs:
             echo "::error::the bare installer did not report a verified checksum" >&2
             exit 1
           }
-          grep -q "release: ${VERSION}" installer-bare.log || {
-            echo "::error::install.sh with no --version did not resolve releases/latest to ${VERSION}; an unpinned install would hand a user a different release" >&2
+          # install.sh prints `release: latest stable` in this mode -- it resolves the tag from the redirect it
+          # followed, not from a flag -- so the resolved RELEASE is proven by the binary's own version below, and
+          # this line proves the bare resolution path was taken at all.
+          grep -q '^  release: latest stable$' installer-bare.log || {
+            echo "::error::install.sh with no --version did not take the latest-stable resolution path" >&2
             exit 1
           }
           [ -x "${prefix}/gotavern" ] || { echo "::error::the bare install has no executable gotavern" >&2; exit 1; }
