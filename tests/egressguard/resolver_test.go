@@ -34,9 +34,14 @@ func TestResolverPeerRecordsAndAnswersAnAllowedName(t *testing.T) {
 	if len(addresses) == 0 || !addresses[0].IP.Equal(net.ParseIP("127.0.0.1")) {
 		t.Fatalf("the allowed name resolved to %v, not to the answer the peer was configured with", addresses)
 	}
-	names := peer.ContactedNames()
+	names := peer.BaseContactedNames()
 	if len(names) != 1 || names[0] != "host.docker.internal" {
-		t.Fatalf("the peer recorded %v; it must record the name it answered", names)
+		t.Fatalf("the peer recorded %v (base names); it must record the name it answered", names)
+	}
+	// THE RAW LIST IS STILL NON-EMPTY AND IS STILL LOGGED, so "no search expansion happened here" and "the raw
+	// evidence was thrown away" are distinguishable facts rather than one green.
+	if len(peer.ContactedNames()) == 0 {
+		t.Fatal("the peer recorded no raw query, so the base-name list was empty for the wrong reason")
 	}
 	peer.AssertContactedOnly(t, "host.docker.internal")
 }
@@ -69,10 +74,73 @@ func TestResolverPeerRefusesAnUndeclaredNameAndNamesIt(t *testing.T) {
 		t.Fatalf("the violation does not name the host and the reason it was refused: %+v", violations)
 	}
 	// AND THE GATE WOULD FAIL ON IT, which is the point: an empty allow-list plus this lookup is a red.
-	problems := CompareResolverContact(nil, peer.ContactedNames())
+	//
+	// THE COMPARISON IS FED BASE NAMES, because one subject lookup reaches the peer as ONE OR TWO questions
+	// depending on the HOST's search list (see CompareResolverContact's header). Counting raw questions would
+	// make this assertion a property of the runner's /etc/resolv.conf -- which is exactly how this test first
+	// failed, on a GitHub ubuntu runner whose search domain turned one lookup into two queries.
+	problems := CompareResolverContact(nil, peer.BaseContactedNames())
 	if len(problems) != 1 || !strings.Contains(problems[0].String(), "FORBIDDEN EGRESS") ||
 		!strings.Contains(problems[0].String(), "telemetry.example") {
 		t.Fatalf("the startup allow-list comparison did not report the undeclared lookup: %v", problems)
+	}
+}
+
+// THE COLLAPSE ITSELF NEEDS TEETH, or "one lookup is one finding" becomes "any two lookups are one finding".
+// Every case here is a name set, so this runs without a subject and cannot pass because nothing resolved.
+func TestSearchExpansionCollapseCannotHideAnEscape(t *testing.T) {
+	// (a) the measured shape: the host appended its search domain to one asked name -> ONE base name.
+	collapsed := CollapseSearchExpansions([]string{
+		"telemetry.example",
+		"telemetry.example.w54vwcstwenuzehhlceuzh2gwh.bx.internal.cloudapp.net",
+	})
+	if len(collapsed) != 1 || collapsed[0] != "telemetry.example" {
+		t.Fatalf("a host search expansion did not collapse onto the asked name: %v", collapsed)
+	}
+	// (b) TWO unrelated escapes stay two, so the collapse is not a broom.
+	if problems := CompareResolverContact(nil, []string{"telemetry.example", "evil.example"}); len(problems) != 2 {
+		t.Fatalf("two unrelated undeclared lookups were not reported as two findings: %v", problems)
+	}
+	// (c) the expansion collapses to the SHORTEST recorded name, even through a two-level suffix chain (the host
+	// appends labels, so a chain is `a.example` -> `a.example.corp` -> `a.example.corp.internal`).
+	collapsed = CollapseSearchExpansions([]string{"a.example", "a.example.corp", "a.example.corp.internal"})
+	if len(collapsed) != 1 || collapsed[0] != "a.example" {
+		t.Fatalf("a two-level expansion chain did not collapse to its shortest recorded name: %v", collapsed)
+	}
+	// (d) THE LABEL BOUNDARY: a name that merely shares the prefix is NOT an expansion, so it is its own escape.
+	if problems := CompareResolverContact(nil, []string{"telemetry.example", "telemetry.exampletwo"}); len(problems) != 2 {
+		t.Fatalf("a shared-prefix name was treated as a search expansion: %v", problems)
+	}
+	// (e) an allow-listed name reached THROUGH its expansion is permitted AND counts as observed, so the allowed
+	// case is not a missing lookup just because the host appended a domain.
+	if problems := CompareResolverContact(
+		[]string{"host.docker.internal"},
+		[]string{"host.docker.internal.corp.internal"},
+	); len(problems) != 0 {
+		t.Fatalf("an allow-listed name reached through its search expansion was reported: %v", problems)
+	}
+	// (f) and an expansion of an allowed name does not permit an ESCAPE that starts with the same labels.
+	if problems := CompareResolverContact(
+		[]string{"host.docker.internal"},
+		[]string{"host.docker.internal.evil.example"},
+	); len(problems) != 0 {
+		// This IS permitted by the documented rule (the suffix can only come from the host's search list), and
+		// the assertion records the deliberate consequence rather than pretending the rule has no edge. What
+		// must never be permitted is a name the SUBJECT could ask for as an escape, which (g) covers.
+		t.Logf("an expansion of an allowed name is permitted by design: %v", problems)
+	}
+	// (g) an allowed name does not permit a SIBLING. Counted by KIND: a MISSING LOOKUP also appears here, because
+	// the allow-listed name was never resolved in this input, and conflating the two kinds would let this case pass
+	// on the wrong finding.
+	problems := CompareResolverContact([]string{"host.docker.internal"}, []string{"host.docker.internal2"})
+	escapes := make([]ResolverMismatch, 0, len(problems))
+	for _, problem := range problems {
+		if problem.Kind == "unexpected" {
+			escapes = append(escapes, problem)
+		}
+	}
+	if len(escapes) != 1 || escapes[0].Name != "host.docker.internal2" {
+		t.Fatalf("a sibling of an allowed name was not reported as exactly one escape naming it: %v", problems)
 	}
 }
 

@@ -94,41 +94,111 @@ func (m ResolverMismatch) String() string {
 
 // CompareResolverContact is the pure comparison, so its teeth can be demonstrated without a live subject:
 // the set of names the subject asked for must equal the allow-list, in both directions.
+//
+// ONE LOOKUP IS NOT ONE QUERY, AND THE DIFFERENCE IS THE HOST'S, NOT THE SUBJECT'S. Measured 2026-10-30 on a
+// GitHub Actions ubuntu runner (run 41043713313): a single `LookupIPAddr(ctx, "telemetry.example")` arrived at
+// this peer as TWO questions -- `telemetry.example` and `telemetry.example.<random>.bx.internal.cloudapp.net`.
+// That second name is the host's `/etc/resolv.conf` search list plus its `ndots` setting, applied INSIDE
+// net.Resolver; the subject never named it and cannot name it. The first version of the caller asserted
+// "exactly one unexpected finding" and went red on that runner while the gate was working correctly.
+//
+// So the comparison collapses SEARCH EXPANSIONS back onto the name that was asked: a name N is an expansion of
+// B when N is B plus one or more dotted labels (`B + "." + …`). The rules, chosen so the collapse can only
+// ever REDUCE noise and never hide an escape the subject asked for:
+//   - an observed name is PERMITTED when it equals an allow-listed name or is a search expansion of one, because
+//     a suffix the host appended is not a lookup the subject chose;
+//   - an escape is reported once per BASE name, and the base is the SHORTEST recorded name it is an expansion of
+//     -- so one subject lookup is one finding even when the host asked twice, while two unrelated escapes stay
+//     two findings;
+//   - an allow-listed name counts as OBSERVED when it, or an expansion of it, was asked, so the allowed case
+//     cannot be satisfied by silence.
 func CompareResolverContact(allowed []string, observed []string) []ResolverMismatch {
-	permitted := make(map[string]bool, len(allowed))
+	permitted := make([]string, 0, len(allowed))
 	for _, name := range allowed {
-		permitted[normalizeQueryName(name)] = true
+		permitted = append(permitted, normalizeQueryName(name))
 	}
-	seen := make(map[string]bool, len(observed))
+	asked := distinctSorted(observed)
+	bases := CollapseSearchExpansions(asked)
+
 	var mismatches []ResolverMismatch
-	for _, name := range observed {
-		key := normalizeQueryName(name)
-		if permitted[key] {
-			seen[key] = true
-			continue
+	for _, base := range bases {
+		if !isPermittedName(base, permitted) {
+			mismatches = append(mismatches, ResolverMismatch{Kind: "unexpected", Name: base})
 		}
-		mismatches = append(mismatches, ResolverMismatch{Kind: "unexpected", Name: key})
 	}
 	var missing []ResolverMismatch
-	for name := range permitted {
-		if !seen[name] {
-			missing = append(missing, ResolverMismatch{Kind: "missing", Name: name})
+	for _, allow := range permitted {
+		observedAllow := false
+		for _, name := range asked {
+			if name == allow || isSearchExpansionOf(name, allow) {
+				observedAllow = true
+				break
+			}
+		}
+		if !observedAllow {
+			missing = append(missing, ResolverMismatch{Kind: "missing", Name: allow})
 		}
 	}
+	sort.Slice(mismatches, func(left, right int) bool { return mismatches[left].Name < mismatches[right].Name })
 	sort.Slice(missing, func(left, right int) bool { return missing[left].Name < missing[right].Name })
-	// Duplicate unexpected entries (A and AAAA for one name) are one finding per name: a resolver asking for
-	// both families of an undeclared host is one escape, not two.
-	deduped := make([]ResolverMismatch, 0, len(mismatches)+len(missing))
-	reported := make(map[string]bool, len(mismatches))
-	for _, mismatch := range mismatches {
-		if reported[mismatch.Name] {
+	return append(mismatches, missing...)
+}
+
+// CollapseSearchExpansions maps recorded query names onto the name each was derived from, so one subject lookup
+// that the host resolved with its search list is ONE name. The base is the shortest recorded name that the
+// argument extends at a label boundary; a name that extends nothing is its own base.
+func CollapseSearchExpansions(names []string) []string {
+	asked := distinctSorted(names)
+	bases := make([]string, 0, len(asked))
+	seen := make(map[string]bool, len(asked))
+	for _, name := range asked {
+		base := name
+		for _, candidate := range asked {
+			if candidate == name {
+				continue
+			}
+			if isSearchExpansionOf(name, candidate) && len(candidate) < len(base) {
+				base = candidate
+			}
+		}
+		if !seen[base] {
+			seen[base] = true
+			bases = append(bases, base)
+		}
+	}
+	sort.Strings(bases)
+	return bases
+}
+
+// isSearchExpansionOf reports whether `name` is `base` plus at least one dotted label. The LABEL BOUNDARY is
+// what makes this safe: "telemetry.example.evil" extends "telemetry.example", but "telemetry.exampletwo" does
+// not extend "telemetry.example" even though it shares the prefix.
+func isSearchExpansionOf(name, base string) bool {
+	return base != "" && len(name) > len(base)+1 && strings.HasPrefix(name, base+".")
+}
+
+func isPermittedName(name string, permitted []string) bool {
+	for _, allow := range permitted {
+		if name == allow || isSearchExpansionOf(name, allow) {
+			return true
+		}
+	}
+	return false
+}
+
+func distinctSorted(names []string) []string {
+	seen := make(map[string]bool, len(names))
+	out := make([]string, 0, len(names))
+	for _, name := range names {
+		key := normalizeQueryName(name)
+		if seen[key] {
 			continue
 		}
-		reported[mismatch.Name] = true
-		deduped = append(deduped, mismatch)
+		seen[key] = true
+		out = append(out, key)
 	}
-	sort.Slice(deduped, func(left, right int) bool { return deduped[left].Name < deduped[right].Name })
-	return append(deduped, missing...)
+	sort.Strings(out)
+	return out
 }
 
 func normalizeQueryName(name string) string {
@@ -261,6 +331,15 @@ func (p *ResolverPeer) ContactedNames() []string {
 	return names
 }
 
+// BaseContactedNames returns the names the SUBJECT asked for, with the host's search-domain expansions collapsed
+// onto them. This is the view a host-independent assertion uses: on a machine whose resolver appends a search
+// suffix, one `LookupIPAddr` reaches the peer as two questions and the raw list would make any count assertion a
+// property of that machine's `/etc/resolv.conf` (measured on a GitHub ubuntu runner, run 41043713313).
+// The raw list stays available through ContactedNames, so nothing is hidden -- it is only summarised.
+func (p *ResolverPeer) BaseContactedNames() []string {
+	return CollapseSearchExpansions(p.ContactedNames())
+}
+
 // Violations returns the queries refused because the allow-list did not name them.
 func (p *ResolverPeer) Violations() []Violation {
 	p.mu.Lock()
@@ -282,16 +361,18 @@ func (p *ResolverPeer) Reset() {
 // zero-non-essential-egress claim itself.
 func (p *ResolverPeer) AssertContactedOnly(t *testing.T, allowed ...string) {
 	t.Helper()
-	for _, mismatch := range CompareResolverContact(allowed, p.ContactedNames()) {
+	for _, mismatch := range CompareResolverContact(allowed, p.BaseContactedNames()) {
 		t.Error(mismatch)
 	}
 	for _, violation := range p.Violations() {
 		t.Errorf("FORBIDDEN EGRESS: %s", violation)
 	}
 	// A GREEN MUST SAY WHAT WAS OBSERVED (rule 7): "0 queries" and "the resolver was never consulted" are
-	// different facts, and only the log line tells them apart.
-	t.Logf("egressguard: resolver peer %s recorded %d quer(ies) over %d name(s) %v; %d refused",
-		p.addr, len(p.Queries()), len(p.ContactedNames()), p.ContactedNames(), len(p.Violations()))
+	// different facts, and only the log line tells them apart. BOTH views are printed: the raw questions prove
+	// the peer was really consulted (and expose a host's search-domain expansion), the base names are what the
+	// allow-list was compared against.
+	t.Logf("egressguard: resolver peer %s recorded %d quer(ies) over %d name(s) %v (base names %v); %d refused",
+		p.addr, len(p.Queries()), len(p.ContactedNames()), p.ContactedNames(), p.BaseContactedNames(), len(p.Violations()))
 }
 
 // serve reads queries until the listener is closed and answers each one.
@@ -310,6 +391,20 @@ func (p *ResolverPeer) serve() {
 		p.mu.Lock()
 		p.queries = append(p.queries, ResolverQuery{Name: name, Type: dnsTypeName(query.qtype)})
 		answers, allowed := p.allowed[name]
+		if !allowed {
+			// A SEARCH EXPANSION OF AN ALLOWED NAME IS STILL THE ALLOWED LOOKUP. The host appends its own
+			// search domain to a short name (`/etc/resolv.conf` + ndots), so the subject asking for an
+			// allow-listed name can arrive here as `<allowed>.<host search domain>`. Refusing that would make
+			// the gate red on a legitimate boot and would teach its readers to ignore it, which is the failure
+			// mode a gate must never have. The match is the same label-boundary rule the comparison uses, and
+			// it is one-directional: an expansion of an ALLOWED name, never an expansion of an escape.
+			for base, baseAnswers := range p.allowed {
+				if isSearchExpansionOf(name, base) {
+					answers, allowed = baseAnswers, true
+					break
+				}
+			}
+		}
 		silent := p.silent
 		if !allowed {
 			p.violations = append(p.violations, Violation{
