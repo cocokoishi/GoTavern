@@ -42,7 +42,13 @@ stable path. The rule existed nowhere a test could execute it, and a prerelease 
 published -- was never checked at all.
 
 **The mechanism.** `scripts/verify-release-notes.mjs` (rules in `scripts/release-governance/notes.mjs`) runs
-before `gh release create` for **any** curated body:
+before `gh release create` for **any** curated body. The body is read from the tag's tree when it is there, and
+otherwise from `main` -- and `main` must contain the released commit. That is not a loophole: a release note is
+release **metadata**, and a note that cites the ids or measurements of runs is necessarily written *after* those
+runs, so editing it into the tagged commit would change the commit the runs judged. Keeping it on `main` and
+reading it at publish time is what lets the note be both current and true about the tag.
+
+The rules are:
 
 | rule | why |
 | --- | --- |
@@ -71,8 +77,8 @@ release event making `main` red is a process defect, not a test defect.
 
 **The mechanism.** `release.yml` has a `post-release-facts` job after `publish`:
 
-1. check out `main` with full history and assert that `main` is still the tagged commit; if `main` has advanced,
-   fail closed (a merge decision is not mechanical);
+1. check out `main` with full history and require the released commit to be an ancestor of it (`main` may be ahead
+   by the curated release note, which is metadata written after qualification, never by unrelated history);
 2. run `node tools/generate-doc-facts.mjs`, re-run its `--check`, and commit with an **explicit file list** --
    never `git add -A`, because this repository has already had a mutation commit absorb other lanes' in-flight
    files that way;

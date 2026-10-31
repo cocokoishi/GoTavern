@@ -413,13 +413,19 @@ jobs:
         # `awk '$2 == asset ...'`, so `sha256sum ./*.tar.gz` would write "./name" and parse to no entry.
         run: bash scripts/release-assemble-checksums.sh dist
 
-      - name: Verify every required gate is green at THIS tag's commit (fail closed)
-        # THE MISSING MACHINE GATE FROM THE ALPHA.9 RELEASE. Alpha.9's gates were all green, but nothing asserted that
-        # the green runs belonged to the commit the tag points at; the checklist said "same SHA" and a human checked
-        # it. This step is that check: docs/release-manifest.json names the required workflows, and the runner asks the
-        # Actions API for each one's runs whose head_sha is the tag's target commit. A missing run, an in-progress run,
-        # a failed run, or a green run on a DIFFERENT commit fails the publish. The teeth are in
-        # scripts/release-governance.test.mjs (a different-SHA green set is the case that matters).
+      - name: Verify the same-SHA required gates and assemble the release body (fail closed)
+        # TWO FAIL-CLOSED CHECKS AND THE BODY ASSEMBLY, IN ONE STEP SO THEY CANNOT DISAGREE.
+        #
+        # 1. THE SAME-SHA GATE (the missing machine gate from the alpha.9 release). docs/release-manifest.json names
+        #    the required workflows; the runner asks the Actions API for each one's runs whose head_sha is the tag's
+        #    target commit and accepts only a completed success AT THAT SHA. A missing, failed, in-progress, cancelled
+        #    or wrong-SHA run fails the publish. The teeth are in scripts/release-governance.test.mjs.
+        # 2. THE CURATED BODY. The note is read from the tag's tree when it is there, otherwise from `main` (the body
+        #    is release metadata; see docs/release-governance.md for why the note must NOT be edited into the tagged
+        #    commit after qualification -- doing so would change the commit the runs judged). The note is validated
+        #    against this run's checksums.txt, and the same-SHA evidence table is appended to the published body, so
+        #    the ids of runs that could not have existed when the note was written still appear in the release.
+        id: body
         if: github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -427,34 +433,46 @@ jobs:
           set -eu
           target="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
           echo "release tag ${GITHUB_REF_NAME} points at commit ${target}"
-          node scripts/verify-release-gates.mjs --sha "${target}" --manifest docs/release-manifest.json
-
-      - name: Choose and validate the release body (fail closed)
-        # BOTH CHANNELS CAN CARRY A HUMAN-CURATED BODY, and when one exists it is used and validated. The stable
-        # channel REQUIRES one. The prerelease channel may fall back to generated notes, which is a documented channel
-        # difference rather than a silent one. The validator refuses drafting words, angle-bracket placeholders, fake
-        # short run ids and example checksums (`scripts/release-governance/notes.mjs` has the rules and why each
-        # exists); alpha.9's pipeline grepped one placeholder shape on the stable path only.
-        id: notes
-        if: github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')
-        run: |
-          set -eu
+          # The body may live on main; it must be a descendant of the released commit, or `main` is not the history
+          # this tag belongs to and reading a note from it would attach another branch's text to this release.
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "${target}" origin/main; then
+            echo "::error::${target} is not an ancestor of origin/main; refusing to read the release body from a history that does not contain the tag" >&2
+            exit 1
+          fi
           channel="$(bash scripts/classify-version-tag.sh "${GITHUB_REF_NAME}")"
+          echo "tag ${GITHUB_REF_NAME} is a ${channel} channel tag"
           notes_file=''
           for candidate in "docs/releases/${GITHUB_REF_NAME}.md" "docs/release-notes-${GITHUB_REF_NAME}.md"; do
             if [ -s "$candidate" ]; then notes_file="$candidate"; break; fi
           done
-          if [ -n "${notes_file}" ]; then
-            node scripts/verify-release-notes.mjs "${notes_file}" "${GITHUB_REF_NAME}" --checksums dist/checksums.txt
-            echo "body=curated" >> "$GITHUB_OUTPUT"
-            echo "file=${notes_file}" >> "$GITHUB_OUTPUT"
-            echo "release body: ${notes_file} (curated, validated against this run's checksums.txt)"
-          elif [ "${channel}" = "stable" ]; then
+          if [ -z "${notes_file}" ]; then
+            for candidate in "docs/releases/${GITHUB_REF_NAME}.md" "docs/release-notes-${GITHUB_REF_NAME}.md"; do
+              if git cat-file -e "origin/main:${candidate}" 2>/dev/null; then
+                git show "origin/main:${candidate}" > "${RUNNER_TEMP}/curated-notes.md"
+                notes_file="${RUNNER_TEMP}/curated-notes.md"
+                echo "release body read from origin/main:${candidate} (the tag's tree does not carry it)"
+                break
+              fi
+            done
+          fi
+          if [ -z "${notes_file}" ] && [ "${channel}" = "stable" ]; then
             echo "::error::a STABLE release requires a human-curated notes file at docs/releases/${GITHUB_REF_NAME}.md or docs/release-notes-${GITHUB_REF_NAME}.md; refusing to publish generated notes for the stable channel." >&2
             exit 1
+          fi
+          if [ -n "${notes_file}" ]; then
+            node scripts/verify-release-notes.mjs "${notes_file}" "${GITHUB_REF_NAME}" --checksums dist/checksums.txt
+          else
+            echo "prerelease ${GITHUB_REF_NAME} has no curated notes file; publishing generated notes (documented channel behaviour)" >&2
+          fi
+          node scripts/verify-release-gates.mjs --sha "${target}" --manifest docs/release-manifest.json --evidence-out "${RUNNER_TEMP}/gate-evidence.md"
+          if [ -n "${notes_file}" ]; then
+            cat "${notes_file}" "${RUNNER_TEMP}/gate-evidence.md" > "${RUNNER_TEMP}/release-body.md"
+            echo "body=curated" >> "$GITHUB_OUTPUT"
+            echo "file=${RUNNER_TEMP}/release-body.md" >> "$GITHUB_OUTPUT"
+            echo "release body: curated notes plus the same-SHA qualification evidence table"
           else
             echo "body=generated" >> "$GITHUB_OUTPUT"
-            echo "prerelease ${GITHUB_REF_NAME} has no curated notes file; publishing generated notes (documented channel behaviour)" >&2
           fi
 
       - name: Publish the release
@@ -486,8 +504,8 @@ jobs:
             # asserted here so a future edit cannot move `latest` by accident.
             args+=(--latest)
           fi
-          if [ "${{ steps.notes.outputs.body }}" = "curated" ]; then
-            args+=(--notes-file "${{ steps.notes.outputs.file }}")
+          if [ "${{ steps.body.outputs.body }}" = "curated" ]; then
+            args+=(--notes-file "${{ steps.body.outputs.file }}")
           else
             args+=(--generate-notes)
           fi
@@ -525,10 +543,12 @@ jobs:
           target="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
           main_sha="$(git rev-parse HEAD)"
           echo "tag target ${target}; main ${main_sha}"
-          if [ "${main_sha}" != "${target}" ]; then
-            # FAIL CLOSED. If main has advanced, a generated commit would be a merge decision, not a mechanical one.
-            # A human reconciles; this job does not guess.
-            echo "::error::main (${main_sha}) is not the released commit (${target}); refusing to commit generated facts onto a moved main." >&2
+          # THE RELEASED COMMIT MUST BE IN MAIN'S HISTORY, and main may legitimately be AHEAD of it: the curated
+          # release body is a docs commit that lands after qualification (see docs/release-governance.md -- editing
+          # the body into the tagged commit would change the commit whose runs were judged). What must never happen is
+          # generating facts on a history that does not contain the release at all.
+          if ! git merge-base --is-ancestor "${target}" "${main_sha}"; then
+            echo "::error::the released commit ${target} is not an ancestor of main (${main_sha}); refusing to commit generated facts onto a history that does not contain the release." >&2
             exit 1
           fi
           node tools/generate-doc-facts.mjs

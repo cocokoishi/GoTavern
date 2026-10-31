@@ -5,6 +5,14 @@
 // Usage:
 //   node scripts/verify-release-gates.mjs --sha <40-hex commit> [--manifest docs/release-manifest.json]
 //   node scripts/verify-release-gates.mjs --sha <sha> --runs-json <file>     # offline fixture / self-test
+//   node scripts/verify-release-gates.mjs --sha <sha> --evidence-out <file>  # also write the publishable evidence table
+//
+// THE EVIDENCE TABLE IS THE POINT OF THE WHOLE CHECK. The release notes cannot cite the ids of runs that had not
+// happened when the notes were written -- a note is part of the commit it describes, so filling in run ids changes the
+// commit under judgement. Instead the committed note describes WHAT was qualified, and the publish step appends this
+// evidence section, generated from the same-SHA query that gates the publication, to the body that goes live. The
+// published body therefore carries the exact run ids and their target SHA, and the tag's tree does not have to contain
+// a value that could not have existed when it was written.
 //
 // Environment (live mode): GITHUB_TOKEN or GH_TOKEN, GITHUB_REPOSITORY (owner/repo). The workflow itself passes
 // GITHUB_TOKEN, which is scoped to this repository; no other credential is required.
@@ -13,8 +21,8 @@
 // evidence, and it is also written to GITHUB_STEP_SUMMARY when that file is set, so the release run's own summary
 // names the exact run ids the tag is resting on instead of implying them.
 
-import { readFileSync, appendFileSync, existsSync } from 'node:fs';
-import { evaluateGates, validateManifest, validateManifestAgainstWorkflowNames } from './release-governance/gates.mjs';
+import { readFileSync, appendFileSync, existsSync, writeFileSync } from 'node:fs';
+import { evaluateGates, renderEvidence, validateManifest, validateManifestAgainstWorkflowNames } from './release-governance/gates.mjs';
 
 const args = process.argv.slice(2);
 function valueOf(flag, fallback = null) {
@@ -26,6 +34,7 @@ function valueOf(flag, fallback = null) {
 const sha = valueOf('--sha');
 const manifestPath = valueOf('--manifest', 'docs/release-manifest.json');
 const runsJsonPath = valueOf('--runs-json');
+const evidenceOut = valueOf('--evidence-out');
 const repo = process.env.GITHUB_REPOSITORY ?? '';
 const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? '';
 
@@ -125,7 +134,17 @@ const summary = `${lines.join('\n')}\n`;
 process.stdout.write(summary);
 if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
 
+// WRITE THE PUBLISHABLE EVIDENCE SECTION. Only a passing verdict may be appended to a release body; a failing verdict
+// writes nothing, because a body that mentions a failed gate must never be publishable, and a release body is written
+// by `gh release create` only after this exits 0 anyway.
+if (verdict.ok && evidenceOut) {
+    const evidence = renderEvidence({ rows: verdict.rows, sha, repo: repo || 'cocokoishi/GoTavern' });
+    writeFileSync(evidenceOut, evidence, 'utf8');
+    console.log(`wrote same-SHA qualification evidence to ${evidenceOut}`);
+}
+
 if (!verdict.ok) {
     for (const problem of verdict.problems) console.error(`::error::${problem}`);
     process.exitCode = 1;
 }
+

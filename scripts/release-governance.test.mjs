@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { evaluateGates, validateManifest, validateManifestAgainstWorkflowNames } from './release-governance/gates.mjs';
+import { evaluateGates, renderEvidence, validateManifest, validateManifestAgainstWorkflowNames } from './release-governance/gates.mjs';
 import { validateReleaseNotes } from './release-governance/notes.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -144,8 +144,23 @@ test('gates: a manifest entry that names no existing workflow is refused', () =>
     assert.deepEqual(validateManifest(committed), []);
 });
 
-function noteBody(extra = '') {
-    const filler = 'GoTavern Beta 1 is a long-lived test release. '.repeat(40);
+test('gates: the published evidence section carries every run id and the target SHA', () => {
+    const verdict = evaluateGates({
+        manifest: manifest(['Workflow A', 'Workflow B']),
+        sha: SHA,
+        runs: [run('Workflow A', { id: 11 }), run('Workflow B', { id: 12 })],
+    });
+    assert.equal(verdict.ok, true);
+    const evidence = renderEvidence({ rows: verdict.rows, sha: SHA, repo: 'owner/repo' });
+    // A release body without the run ids would be a claim, not evidence; this is the text users can check.
+    assert.match(evidence, /## Qualification evidence/);
+    assert.match(evidence, /actions\/runs\/11/);
+    assert.match(evidence, /actions\/runs\/12/);
+    assert.ok(evidence.includes(SHA), 'the evidence section must name the commit every run judged');
+    assert.match(evidence, /Target commit: `a{40}`/);
+});
+
+function noteBody(extra = '') {    const filler = 'GoTavern Beta 1 is a long-lived test release. '.repeat(40);
     return `# GoTavern Beta 1 (v0.1.0-beta.1)
 
 ${filler}
