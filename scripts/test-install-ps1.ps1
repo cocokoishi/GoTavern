@@ -44,6 +44,8 @@ $Installer = Join-Path $RepoRoot 'install.ps1'
 $PowerShellExe = (Get-Process -Id $PID).Path
 if (-not (Test-Path -LiteralPath $Installer -PathType Leaf)) { Write-Host "FAIL: no installer at $Installer" -ForegroundColor Red; exit 1 }
 
+
+
 $WorkRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('gotavern-install-location-' + [Guid]::NewGuid().ToString('N'))
 $MirrorProcess = $null
 $Tag = 'v9.9.9-test'
@@ -71,6 +73,27 @@ function Stop-Mirror {
     }
     $script:MirrorProcess = $null
 }
+
+# THE DOWNLOAD-PATH GUARD, asserted BEFORE any case runs because it is a property of the SCRIPT, not of a run.
+# Windows PowerShell 5.1 (the default Windows shell) renders a progress bar for Invoke-WebRequest, and on this
+# repository's 57.8 MB archive that turned a 2.3 s download into an install that had written no bytes after five
+# minutes (measured 2026-10-31; the numbers are in install.ps1's own comment). The fix is one line, and a line of
+# PowerShell is invisible to every behavioural case here because the test's own mirror serves small fake archives --
+# so the guard reads the source and requires the preference to be set BEFORE the first download call. That is a
+# STATIC assertion by necessity (the cost only exists at ~60 MB over the real network), and it is a guard rather
+# than a proof of the fix; the executable proof is the published-release Windows smoke on a real tag.
+$installerText = Get-Content -LiteralPath $Installer -Raw
+$progressMarker = "`$ProgressPreference = 'SilentlyContinue'"
+if (-not $installerText.Contains($progressMarker)) {
+    Fail 'install.ps1 does not set $ProgressPreference to SilentlyContinue, so a Windows PowerShell 5.1 user downloading a ~60 MB archive can wait indefinitely on the progress bar (measured: 2.3 s vs >5 min with no bytes written)'
+}
+$progressIndex = $installerText.IndexOf($progressMarker)
+$firstDownloadIndex = $installerText.IndexOf('Invoke-WebRequest')
+if ($firstDownloadIndex -lt 0) { Fail 'install.ps1 has no Invoke-WebRequest call, so the progress guard cannot be anchored to a download' }
+if ($progressIndex -gt $firstDownloadIndex) {
+    Fail "install.ps1 sets `$ProgressPreference AFTER its first download (positions: preference $progressIndex, download $firstDownloadIndex); the first download still pays the progress-bar cost"
+}
+Ok 'install.ps1 disables the progress bar before its first download (Windows PowerShell 5.1 ~60 MB download guard)'
 
 # The asset name the installer will ask for, derived the same way it derives it. A test that hardcoded
 # `gotavern-windows-amd64.zip` would pass on an x64 runner and fail on an arm64 one for a reason that has

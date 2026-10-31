@@ -19,6 +19,16 @@ param(
 $ErrorActionPreference = 'Stop'
 $Repo = 'cocokoishi/GoTavern'
 
+# WINDOWS POWERSHELL 5.1 MAKES A LARGE DOWNLOAD PATHOLOGICALLY SLOW WHEN THE PROGRESS BAR IS ENABLED, and 5.1 is the
+# default shell on Windows 10/11 -- the path a normal user takes. Measured on this repository's Windows host on
+# 2026-10-31: the 57.8 MB windows/amd64 archive downloads in 2.3 s with `$ProgressPreference='SilentlyContinue'`, and
+# an install attempt with the default progress rendering was still making no visible progress after more than five
+# minutes (it wrote zero bytes of the archive). PowerShell 7, which the CI runners default to, does not show the same
+# cost, which is why the published-release smoke now runs this installer under `powershell.exe` explicitly instead of
+# trusting the runner's default shell. Script scope only: the caller's preference is not modified after the script
+# returns, because a normal script invocation runs in its own scope.
+$ProgressPreference = 'SilentlyContinue'
+
 # NORMALISE THE INSTALL DIRECTORY, because three inputs are legal and only one of them is already a full
 # path: a defaulted or empty value (the current directory, or `-InstallDir ''`), a relative one
 # (`-InstallDir .\games\tavern`), and an absolute one. GetFullPath resolves all three against the process

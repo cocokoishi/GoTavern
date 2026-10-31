@@ -32,7 +32,14 @@ name: GoTavern published-release install smoke
 #   6. the channel is asserted in BOTH directions. A prerelease tag never becomes `releases/latest`, so an
 #      alpha cannot reach a user who installed without pinning a version -- and a STABLE tag (including the
 #      documented `v0.1.0-alpha.9` historical graduation) IS what `releases/latest` serves, with its own
-#      `checksums.txt` bytes, so an unpinned install receives the release that was just published.
+#      `checksums.txt` bytes, so an unpinned install receives the release that was just published;
+#   7. the WINDOWS job does the same with the published windows/amd64 archive: `install.ps1 -Version <tag>`
+#      over real TLS under Windows PowerShell 5.1 (the default Windows shell), checksum verified, installed
+#      binary reports the tag, `assets verify` names the `src/tokenizers` layout, the installed binary boots,
+#      `/version` answers, and the tokenizer routes return real ids. It is the only job that runs the published
+#      installer a Windows user actually downloads, and it is the executable regression for the 5.1 download
+#      stall (progress bar enabled: >5 min with zero bytes; fixed: whole install 13.9 s -- measured on this
+#      project's Windows host, 2026-10-31).
 #
 # WHY THE TOKENIZER CLAIM IS ROUTE-LEVEL, AND WHY IT CANNOT BE A STATUS CODE. `gotavern assets verify`
 # hashes the tree on disk against the embedded manifest, which proves the FILES are correct. It does not
@@ -45,10 +52,13 @@ name: GoTavern published-release install smoke
 # models, so it can only pass when a real model file was loaded.
 #
 # WHAT A GREEN HERE DOES NOT COVER, stated so nobody reads it as more:
-#   - `install.ps1`, `Start.cmd`, Windows separators and replacing a RUNNING `gotavern.exe` are NOT
-#     executed: this runner is Linux. Those live in `release-qualification.yml`'s qualify-windows-amd64
-#     job (windows-latest) -- but against IN-RUN archives, so the published WINDOWS INSTALLER remains
-#     unexecuted by any job. The windows ZIP here is opened and content-asserted, never installed.
+#   - the linux job does not run `install.ps1`. That is now the WINDOWS job below: it runs the published
+#     `windows/amd64` archive through `install.ps1` over real TLS under Windows PowerShell 5.1 (the default
+#     Windows shell), boots the installed binary and requires real tokenizer ids. `Start.cmd` and replacing a
+#     RUNNING `gotavern.exe` still live in `release-qualification.yml`'s qualify-windows-amd64 job.
+#   - the archives are booted on linux/amd64 and windows/amd64. darwin and linux-arm64 are opened, not run; a
+#     runner of each architecture is the only thing that could change that. The windows/arm64 archive is never
+#     executed because the Windows runner is x64.
 #   - `releases/latest/download/...` is asserted NOT to serve a prerelease for a prerelease tag. For a STABLE
 #     tag this job resolves itself (the scheduled shape) the positive direction is now asserted too: the file
 #     must be this release's own `checksums.txt` and `releases/latest`'s `tag_name` must be this tag. That
@@ -56,8 +66,6 @@ name: GoTavern published-release install smoke
 #     exception in scripts/classify-version-tag.sh); before it, no stable release existed and asserting the
 #     positive direction would have been a promise the repository could not keep. A DISPATCHED older stable
 #     tag keeps the weaker flag-only claim, because an older release is legitimately not `latest`.
-#   - the archives are booted on one platform only (linux-amd64). darwin and linux-arm64 are opened, not
-#     run; a runner of each architecture is the only thing that could change that.
 #
 # IT RUNS ON A SCHEDULE AND ON DEMAND, never per push: it downloads ~360 MB of release assets and boots
 # a server. It reads only the `main` tree, so it needs no build cache -- and therefore carries NO
@@ -787,3 +795,182 @@ jobs:
           if [ -f dist/checksums.txt ]; then cat dist/checksums.txt; else echo "(no checksums.txt)"; fi
           if [ -f assets.diff ]; then cat assets.diff; fi
           echo "::endgroup::"
+
+  smoke-published-windows-amd64:
+    # THE PUBLISHED WINDOWS INSTALLER, EXECUTED UNDER WINDOWS POWERSHELL 5.1, OVER THE REAL NETWORK.
+    #
+    # The linux job above opens the windows ZIP and content-asserts it, and release-qualification.yml runs
+    # install.ps1 on windows-latest -- but against archives built in that same run, never against the published
+    # release over TLS. So every claim about "install the release on Windows" rested on in-run bytes. This job is
+    # the missing arm: it runs the checkout's install.ps1 with -Version <published tag>, which downloads from
+    # github.com over TLS, verifies the published checksum, installs, and then boots the installed binary and
+    # makes the tokenizer ROUTES prove the release layout is usable.
+    #
+    # IT RUNS UNDER `shell: powershell`, i.e. WINDOWS POWERSHELL 5.1, on purpose. 5.1 is the default shell on
+    # Windows 10/11 -- the one a normal user opens -- and it is where a ~60 MB Invoke-WebRequest was measured to
+    # stall for more than five minutes with the progress bar enabled (install.ps1 now suppresses it; the numbers
+    # are in that file's comment). pwsh 7 is what CI defaults to and does not show the cost, so testing only under
+    # pwsh would have missed the user's path.
+    runs-on: windows-latest
+    # Also downloads ~60 MB and boots a server. 20 minutes is generous; a run past it is stuck.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the release tag and require an existing published release
+        id: release
+        shell: bash
+        env:
+          REQUESTED: ${{ inputs.version }}
+        run: |
+          set -eu
+          for tool in gh curl git; do
+            command -v "$tool" >/dev/null 2>&1 || { echo "::error::required tool missing from the runner: $tool" >&2; exit 2; }
+          done
+          if [ -n "${REQUESTED:-}" ]; then
+            VERSION="${REQUESTED}"
+            echo "tag source: workflow_dispatch input"
+          else
+            git fetch --tags --force --quiet origin
+            VERSION="$(git for-each-ref --sort=-v:refname --format='%(refname:short)' 'refs/tags/v*' | sed -n '1p')"
+            [ -n "${VERSION}" ] || { echo "::error::no v* tag exists" >&2; exit 2; }
+            echo "tag source: newest v* tag"
+          fi
+          channel="$(bash scripts/classify-version-tag.sh "${VERSION}")"
+          echo "release tag: ${VERSION} (channel per scripts/classify-version-tag.sh: ${channel})"
+          gh release view "${VERSION}" --repo "${GITHUB_REPOSITORY}" --json tagName,isDraft,isPrerelease > release.json
+          draft="$(gh release view "${VERSION}" --repo "${GITHUB_REPOSITORY}" --json isDraft --jq .isDraft)"
+          [ "${draft}" = "false" ] || { echo "::error::${VERSION} is still a DRAFT release; a draft has no public download path" >&2; exit 2; }
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "channel=${channel}" >> "$GITHUB_OUTPUT"
+
+      - name: Install the published release with install.ps1 under Windows PowerShell 5.1 over real TLS
+        shell: powershell
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $prefix = Join-Path $env:RUNNER_TEMP 'gotavern-windows-prefix'
+          if (Test-Path -LiteralPath $prefix) { Remove-Item -LiteralPath $prefix -Recurse -Force }
+          $log = Join-Path $env:RUNNER_TEMP 'installer-windows.log'
+          $watch = [System.Diagnostics.Stopwatch]::StartNew()
+          & "$PWD\install.ps1" -Version $env:VERSION -InstallDir $prefix *>&1 | Tee-Object -FilePath $log
+          $watch.Stop()
+          $seconds = [math]::Round($watch.Elapsed.TotalSeconds, 1)
+          Write-Host "install.ps1 wall time under Windows PowerShell $($PSVersionTable.PSVersion): ${seconds} s"
+          if (-not (Select-String -LiteralPath $log -Pattern '^Checksum verified\.$' -Quiet)) {
+            throw 'install.ps1 did not report a verified checksum; the published asset was not checked'
+          }
+          $exe = Join-Path $prefix 'gotavern.exe'
+          if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw "install.ps1 installed no gotavern.exe (prefix $prefix)" }
+          if (-not (Test-Path -LiteralPath (Join-Path $prefix 'src\tokenizers') -PathType Container)) {
+            throw 'the installed prefix has no src\tokenizers\; the runtime would silently guesstimate every token count'
+          }
+          $reported = (& $exe version --json) | Out-String
+          Write-Host $reported
+          if ($reported -notmatch [regex]::Escape('"' + $env:VERSION + '"')) {
+            throw "the installed binary does not report $($env:VERSION); it is not the published build"
+          }
+          & $exe assets verify | Tee-Object -FilePath (Join-Path $env:RUNNER_TEMP 'assets-verify.log')
+          if ($LASTEXITCODE -ne 0) { throw 'assets verify failed on the installed Windows prefix' }
+          if (-not (Select-String -LiteralPath (Join-Path $env:RUNNER_TEMP 'assets-verify.log') -Pattern 'src[\\/]tokenizers' -Quiet)) {
+            throw 'assets verify did not name the src/tokenizers layout'
+          }
+          # The installer must have cleaned up its own temp tree (the linux qualification asserts this too).
+          if (Get-ChildItem -Path $env:TEMP -Directory -Filter 'gotavern-install-*' -ErrorAction SilentlyContinue) {
+            throw 'install.ps1 left a temporary download/extract directory behind'
+          }
+          Write-Host "ok: install.ps1 installed $($env:VERSION) from the published release in ${seconds} s"
+
+      - name: Boot the installed binary and require /version plus REAL tokenizer ids
+        shell: powershell
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $prefix = Join-Path $env:RUNNER_TEMP 'gotavern-windows-prefix'
+          $work = Join-Path $env:RUNNER_TEMP 'gotavern-windows-work'
+          if (Test-Path -LiteralPath $work) { Remove-Item -LiteralPath $work -Recurse -Force }
+          New-Item -ItemType Directory -Path (Join-Path $work 'data') -Force | Out-Null
+          $port = 8898
+          $base = "http://127.0.0.1:$port"
+          $log = Join-Path $work 'server.log'
+          $err = Join-Path $work 'server.err.log'
+          # CWD IS THE INSTALL PREFIX, because config.yaml resolves against the working directory. Browser launch is
+          # disabled explicitly: a probe must NEVER open the operator's desktop browser, and this server seeds the
+          # pinned config whose browserLaunch.enabled is true.
+          $process = Start-Process -FilePath (Join-Path $prefix 'gotavern.exe') -WorkingDirectory $prefix -ArgumentList @('start', '--port', "$port", '--browserLaunchEnabled', 'false', '--dataRoot', (Join-Path $work 'data')) -RedirectStandardOutput $log -RedirectStandardError $err -PassThru -NoNewWindow
+          try {
+            $ready = $false
+            for ($attempt = 1; $attempt -le 60; $attempt++) {
+              if ($process.HasExited) { throw "the installed binary exited before answering /version:`n$(Get-Content -LiteralPath $log -ErrorAction SilentlyContinue -Tail 40 | Out-String)`n$(Get-Content -LiteralPath $err -ErrorAction SilentlyContinue -Tail 40 | Out-String)" }
+              try {
+                $versionResponse = Invoke-WebRequest -UseBasicParsing -Uri "$base/version" -TimeoutSec 2
+                if ($versionResponse.StatusCode -eq 200) { $ready = $true; break }
+              } catch { }
+              Start-Sleep -Seconds 1
+            }
+            if (-not $ready) { throw "the installed binary never answered /version within 60 s:`n$(Get-Content -LiteralPath $log -Tail 40 | Out-String)" }
+            Write-Host "GET /version: $($versionResponse.Content)"
+
+            $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+            $csrf = Invoke-RestMethod -Uri "$base/csrf-token" -WebSession $session -TimeoutSec 10
+            if (-not $csrf.token) { throw 'GET /csrf-token returned no token, so the tokenizer assertion cannot run' }
+            $text = 'Hello, world! This is the GoTavern published Windows release smoke test, tokenized for real.'
+            # TWO ENGINES. A wrong layout answers ids:[] with a guesstimate count under HTTP 200, so `ids` non-empty is
+            # the ONLY observable that distinguishes a loaded model from the pinned fallback.
+            foreach ($model in @('llama', 'gpt2')) {
+              $body = @{ text = $text } | ConvertTo-Json -Compress
+              $response = Invoke-RestMethod -Method Post -Uri "$base/api/tokenizers/$model/encode" -WebSession $session -Headers @{ 'X-CSRF-Token' = $csrf.token } -ContentType 'application/json' -Body $body -TimeoutSec 30
+              $ids = @($response.ids).Count
+              Write-Host ("POST /api/tokenizers/{0}/encode -> ids={1} count={2}" -f $model, $ids, $response.count)
+              if ($ids -eq 0) { throw "the tokenizer route for $model returned ids:[] -- the running server is using the pinned guesstimate fallback, so src/tokenizers is not being read" }
+              if ([int]$response.count -ne $ids) { throw "the tokenizer route for $model returned count=$($response.count) but $ids ids" }
+            }
+            Write-Host 'ok: the installed Windows release boots and its tokenizer routes load REAL models'
+          }
+          finally {
+            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
+          }
+
+      - name: Assert the channel direction (a prerelease must not be releases/latest)
+        shell: bash
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          CHANNEL: ${{ steps.release.outputs.channel }}
+        run: |
+          set -eu
+          if [ "${CHANNEL}" = "prerelease" ]; then
+            latest_tag="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name 2>/dev/null || true)"
+            echo "releases/latest is '${latest_tag}', this release is the prerelease '${VERSION}'"
+            if [ "${latest_tag}" = "${VERSION}" ]; then
+              echo "::error::${VERSION} is a PRERELEASE but releases/latest serves it; every unpinned install would receive a prerelease" >&2
+              exit 1
+            fi
+            echo "ok: the prerelease is NOT what releases/latest serves"
+          else
+            latest_tag="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name)"
+            if [ "${latest_tag}" != "${VERSION}" ]; then
+              echo "::error::${VERSION} is stable but releases/latest is ${latest_tag}" >&2
+              exit 1
+            fi
+            echo "ok: releases/latest serves the stable ${VERSION}"
+          fi
+
+      - name: Write the summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Published-release install smoke (windows/amd64, Windows PowerShell 5.1)"
+            echo
+            echo "| fact | value |"
+            echo "|---|---|"
+            echo "| release tag | \`${{ steps.release.outputs.version }}\` |"
+            echo "| channel (classifier) | \`${{ steps.release.outputs.channel }}\` |"
+            echo "| installer | \`install.ps1\` at \`${{ github.sha }}\`, \`-Version\` (tag-addressed, real github.com over TLS), run under Windows PowerShell 5.1 |"
+            echo "| runner | \`${{ runner.os }}\` \`${{ runner.arch }}\` |"
+            echo
+            echo "The published Windows archive was downloaded, checksum-verified, installed, booted, and its tokenizer"
+            echo "routes returned real ids from \`src/tokenizers\` (the fallback answers \`ids:[]\`)."
+          } >> "$GITHUB_STEP_SUMMARY"
