@@ -71,10 +71,20 @@ export function computeDerived(matrix) {
 
     const workflowDir = path.join(repoRoot, '.github', 'workflows');
     const workflows = readdirSync(workflowDir).filter(name => name.endsWith('.yml'));
+    // A JOB is a key under the workflow's `jobs:` block. The count this replaces matched every empty-valued
+    // two-space key in the file, which also counts TRIGGER keys (`on.workflow_dispatch:` with no value is a
+    // two-space key) -- so the number labelled "workflow jobs" moved when a lane added a dispatch trigger and
+    // did not move when a job was added. Measured 2026-10-31: the old definition reported 39 where the tree
+    // has 36 jobs, and a derived-count drift on `main` came entirely from trigger keys.
     let ciJobs = 0;
     for (const workflow of workflows) {
-        const source = readFileSync(path.join(workflowDir, workflow), 'utf8');
-        ciJobs += [...source.matchAll(/^ {2}[a-z0-9-]+:\s*$/gm)].length;
+        const lines = readFileSync(path.join(workflowDir, workflow), 'utf8').split(/\r?\n/);
+        const jobsIndex = lines.findIndex(line => /^jobs:\s*$/.test(line));
+        if (jobsIndex < 0) continue;
+        for (const line of lines.slice(jobsIndex + 1)) {
+            if (/^\S/.test(line)) break; // the next top-level key ends the block
+            if (/^ {2}[A-Za-z0-9_-]+:\s*$/.test(line)) ciJobs++;
+        }
     }
 
     const cited = slot => new Set(matrix.rows.flatMap(row => (row.evidence?.[slot] ?? []).map(entry => String(entry).replace(/^\.\//, ''))));

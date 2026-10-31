@@ -1,22 +1,32 @@
 # THE WHOLE-SESSION DIFFERENTIAL — the surface `docs/compatibility-matrix.json`'s `whole-session-e2e` row names.
 #
-# WHAT IT RUNS. One stock tree per subject. On each subject, the SAME browser journey over that one tree — boot, page
-# load, settings read/change/save, characters, open the card, a streamed turn, a swipe, save, a page RELOAD, a second
-# turn, regenerate, continue — and then a SECOND process over the SAME tree that reopens the chat and takes another
-# turn. Then `compare-whole-session-legs.mjs` judges the three fact classes (browser observable, provider wire, disk
-# state) and `whole-session-gate-selftest.mjs` proves the judge has teeth by mutating the run's own artefacts.
+# WHAT IT RUNS. THREE journeys per subject, each over its own stock tree, then ONE comparator per journey:
 #
-# WHY IT IS ITS OWN WORKFLOW INSTEAD OF A SURFACE INSIDE `browser-differential.yml`. Two measured reasons:
-#   * every existing surface there is an EXPERIMENT on its own runtime; this one exists precisely because eight of
-#     those exist and none of them shares a session. Mixing it in would put the one stateful journey behind the same
-#     trigger and the same 150-minute budget as eighteen stateless ones, and a red could no longer say which shape
-#     failed without reading the log;
-#   * iteration cost. This surface had to be developed against CI (a browser must not be launched on the developer's
-#     host), and a standalone job is ~10 minutes to a verdict instead of an hour. The cost is one more workflow file,
-#     which is cheaper than a debugging loop that pays for fifteen unrelated sources on every attempt.
+#   1. `default` -- the fresh install. A browser journey over one tree -- boot, page load, settings read/change/save,
+#      characters, open the card, a streamed turn, a swipe, save, a page RELOAD, a second turn, regenerate, continue --
+#      then a SECOND process over the SAME tree that reopens the chat and takes another turn. Its resumed turn's prompt
+#      order ENABLES chatHistory, so the resumed request is REQUIRED to carry the restored history.
+#   2. `preset` -- the same journey with the committed DERIVATION of a real complex preset selected through the
+#      frontend's own control (105 prompts / 109 order rows; AGENTS rule 56: the user's file is never committed, the
+#      derivation is). The restart leg must read it back from the tree without selecting anything. This is the
+#      configuration the OPEN Beta-1 item was observed under.
+#   3. `preset-omit` -- a STRUCTURAL CONTROL generated at run time from the same committed bytes: the runtime prompt
+#      order row's `chatHistory.enabled` is set false (the one field a user can toggle), which is the only branch in
+#      which a history-free resumed request is CORRECT. Its verdict must then be `resumed-history-omitted-by-preset`
+#      plus byte equality with pinned -- never a weakened assertion and never a silent pass.
+#
+# The resumed turn's request is attributed BY THE PEER ORDINAL ARMED IMMEDIATELY BEFORE THE CLICK in all three
+# journeys (never `completions().at(-1)`), and journeys 2 and 3 also inject ONE helper-style quiet completion after the
+# send: the single-system-message request the old selection would have captured. That makes the recorded failure
+# mechanism reproducible and demonstrates it is not attributable to the send. docs/persistence-resume.md is the record.
+#
+# WHY IT IS ITS OWN WORKFLOW INSTEAD OF A SURFACE INSIDE `browser-differential.yml`. Every existing surface there is an
+# EXPERIMENT on its own runtime; this one exists precisely because eight of those exist and none of them shares a
+# session. Mixing it in would put the one stateful journey behind the same trigger and the same 150-minute budget as
+# eighteen stateless ones, and a red could no longer say which shape failed without reading the log.
 #
 # WHAT A GREEN RUN DOES NOT PROVE, stated here because the matrix row will quote it: a real provider (the peer answers
-# with markers), group chats, branches/checkpoints, multi-user, or a real user's data. The tree is a fresh install the
+# with markers), group chats, branches/checkpoints, multi-user, or a real user's data. The trees are fresh installs the
 # server seeds itself, and the model is a recording peer.
 
 name: GoTavern whole-session differential
@@ -28,6 +38,9 @@ on:
       - 'tests/browser/whole-session-probe.mjs'
       - 'tests/browser/compare-whole-session-legs.mjs'
       - 'tests/browser/whole-session-gate-selftest.mjs'
+      - 'tests/browser/fixtures/real/preset-a.json'
+      - 'tests/browser/fixtures/real/preset-b.json'
+      - 'tests/browser/fixtures/real/real-fixture-manifest.json'
       - 'tests/browser/q20-persistence-drive.mjs'
       - 'tests/browser/q20-leg-runtime.mjs'
       - 'tests/browser/url-recorder.mjs'
@@ -38,8 +51,8 @@ on:
 permissions:
   contents: read
 
-# ONE RUN AT A TIME PER BRANCH, and a new push supersedes an older one: this job costs browser minutes, and a superseded
-# run cannot change what ships.
+# ONE RUN AT A TIME PER BRANCH, and a new push supersedes an older one: this job costs browser minutes, and a
+# superseded run cannot change what ships.
 concurrency:
   group: whole-session-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -50,11 +63,12 @@ env:
 jobs:
   whole-session:
     runs-on: ubuntu-latest
-    # SIZED FROM THE DRIVES, not from a round number: four browser journeys (two subjects x drive + restart), two of
-    # which boot pinned Node (~40 s each) and all of which load the unmodified frontend, plus the comparator and the
-    # teeth proof. The probe's own deadlines (120 s server, 90 s reply, 45 s chat load) are the first line of defence;
-    # this is the backstop that bounds a wedged browser instead of holding a runner for the service maximum.
-    timeout-minutes: 60
+    # SIZED FROM THE DRIVES, not from a round number: TWELVE browser legs (three journeys x two subjects x drive +
+    # restart), four of which boot pinned Node (~40 s each) and all of which load the unmodified frontend, plus three
+    # comparator invocations and two teeth proofs. The probe's own deadlines (120 s server, 90 s reply, 45 s chat load)
+    # are the first line of defence; this is the backstop that bounds a wedged browser instead of holding a runner for
+    # the service maximum.
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
 
@@ -142,13 +156,13 @@ jobs:
           echo "GOTAVERN_BINARY=${PWD}/.browser-bin/gotavern" >> "$GITHUB_ENV"
           echo "GOTAVERN_REFERENCE=${PWD}/.reference/SillyTavern" >> "$GITHUB_ENV"
 
-      # THE FOUR LEGS. The loop is SEQUENTIAL ON PURPOSE: the restart leg of a subject must run after that subject's
-      # drive leg, over the same tree, or "the new process read what the old one wrote" is not what was measured.
+      # THE LEGS. Three journeys, each with its own trees, and each journey's restart leg runs AFTER its drive leg over
+      # the same tree -- "the new process read what the old one wrote" is only what was measured if that order holds.
       #
       # THE COUNTER IS WRITTEN ON EVERY FAILURE, not once at the end: a shell that dies mid-loop would otherwise leave
-      # `failures=0` standing as a claim that four legs were recorded (the defect `browser-differential.yml` records for
+      # `failures=0` standing as a claim that every leg was recorded (the defect `browser-differential.yml` records for
       # run 40445569175, where six failed legs still produced a green step).
-      - name: Record the four legs (drive and restart, on both subjects)
+      - name: Record the legs (fresh install, complex preset, and the history-omitting control)
         id: legs
         run: |
           set -uo pipefail
@@ -159,86 +173,133 @@ jobs:
             echo "::error::$1"
             echo "failures=1" >> "$GITHUB_OUTPUT"
           }
-          for subject in gotavern pinned; do
-            tree="$work/tree-$subject"
-            rm -rf "$tree"; mkdir -p "$tree"
-            # THE PER-SUBJECT DISCRIMINATOR (AGENTS rule 50). Each subject's first reply carries a different prefix, so
-            # the comparator can require the two artefacts to DIFFER where the fixture put a difference instead of
-            # proving parity between two runs the harness made identical.
-            if [ "$subject" = "gotavern" ]; then prefix="WSG_"; else prefix="WSP_"; fi
-            for phase in drive restart; do
-              report="$work/legs/whole-session-$phase-$subject.json"
-              # A FAILING LEG MUST NOT ABORT THE STEP. GitHub runs `run:` blocks under `bash -e`, so the call is
-              # WRAPPED rather than merely followed by `status=$?`: measured in this workflow's first run
-              # (41014268160), where the GoTavern drive leg's red ended the step and the other THREE legs never ran --
-              # the pinned half of the differential was never recorded, and the step's own `failures` counter still
-              # read 0 because the shell died before reaching `record_failure`. A loop that reports four legs must
-              # attempt four legs.
-              if [ "$subject" = "gotavern" ]; then
-                if node tests/browser/whole-session-probe.mjs --phase "$phase" --data-root "$tree" \
-                    --reply-prefix "$prefix" --report "$report"; then status=0; else status=$?; fi
-              else
-                # `run-against-pinned.mjs` boots pinned Node over the SAME tree and owns its process; it supplies
-                # PROBE_BASE_URL and PROBE_SERVER_PID, which is how the restart leg's pid can differ from the drive
-                # leg's without this workflow ever touching a process it did not spawn.
-                if node tests/browser/run-against-pinned.mjs whole-session-probe.mjs -- --phase "$phase" \
-                    --data-root "$tree" --reply-prefix "$prefix" --report "$report"; then status=0; else status=$?; fi
-              fi
-              if [ "$status" -eq 0 ]; then
-                echo "recorded the $subject/$phase leg"
-              else
-                record_failure "the $subject/$phase leg failed to drive"
-              fi
-              # A LEG THAT WROTE NO REPORT IS THE ABSENCE OF EVIDENCE, and the comparator refuses rather than passing.
-              if [ ! -s "$report" ]; then
-                record_failure "the $subject/$phase leg wrote no report at $report"
-              fi
+          # Each journey is a name plus the probe arguments that define it. The preset file is the committed DERIVATION
+          # (`tests/browser/fixtures/real/preset-a.json`); `--preset-chat-history omit` derives its structural control
+          # inside the leg and records the one rewritten field with its before/after values.
+          record_journey() {
+            journey="$1"; shift
+            for subject in gotavern pinned; do
+              tree="$work/tree-$journey-$subject"
+              rm -rf "$tree"; mkdir -p "$tree"
+              # THE PER-SUBJECT DISCRIMINATOR (AGENTS rule 50). Each subject's first reply carries a different prefix,
+              # so the comparator can require the two artefacts to DIFFER where the fixture put a difference instead of
+              # proving parity between two runs the harness made identical.
+              if [ "$subject" = "gotavern" ]; then prefix="WSG_"; else prefix="WSP_"; fi
+              for phase in drive restart; do
+                report="$work/legs/whole-session-$journey-$phase-$subject.json"
+                # A FAILING LEG MUST NOT ABORT THE STEP. GitHub runs `run:` blocks under `bash -e`, so the call is
+                # WRAPPED rather than merely followed by `status=$?`: measured in this workflow's first run
+                # (41014268160), where the GoTavern drive leg's red ended the step and the other THREE legs never ran --
+                # the pinned half of the differential was never recorded, and the step's own `failures` counter still
+                # read 0 because the shell died before reaching `record_failure`. A loop that reports legs must attempt
+                # every leg.
+                if [ "$subject" = "gotavern" ]; then
+                  if node tests/browser/whole-session-probe.mjs --phase "$phase" --data-root "$tree" \
+                      --reply-prefix "$prefix" --report "$report" "$@"; then status=0; else status=$?; fi
+                else
+                  # `run-against-pinned.mjs` boots pinned Node over the SAME tree and owns its process; it supplies
+                  # PROBE_BASE_URL and PROBE_SERVER_PID, which is how the restart leg's pid can differ from the drive
+                  # leg's without this workflow ever touching a process it did not spawn.
+                  if node tests/browser/run-against-pinned.mjs whole-session-probe.mjs -- --phase "$phase" \
+                      --data-root "$tree" --reply-prefix "$prefix" --report "$report" "$@"; then status=0; else status=$?; fi
+                fi
+                if [ "$status" -eq 0 ]; then
+                  echo "recorded the $journey/$subject/$phase leg"
+                else
+                  record_failure "the $journey/$subject/$phase leg failed to drive"
+                fi
+                # A LEG THAT WROTE NO REPORT IS THE ABSENCE OF EVIDENCE, and the comparator refuses rather than passing.
+                if [ ! -s "$report" ]; then
+                  record_failure "the $journey/$subject/$phase leg wrote no report at $report"
+                fi
+              done
             done
-          done
+          }
+          record_journey default
+          record_journey preset \
+            --preset tests/browser/fixtures/real/preset-a.json --preset-name preset-a \
+            --helper-request-after-send
+          record_journey preset-omit \
+            --preset tests/browser/fixtures/real/preset-a.json --preset-name preset-a-no-chat-history \
+            --preset-chat-history omit --helper-request-after-send
           exit 0
 
-      - name: Compare the four legs
+      # ONE COMPARATOR INVOCATION PER JOURNEY, over that journey's own four artefacts. The comparator derives the
+      # history requirement from each leg's recorded prompt order, so the same program judges a required-history journey
+      # and an omission control without being told which is which.
+      - name: Compare the legs of each journey
         id: compare
         if: ${{ steps.legs.outputs.failures == '0' }}
         run: |
           set -uo pipefail
           work="$RUNNER_TEMP/whole-session"
-          missing=0
-          for name in drive-gotavern drive-pinned restart-gotavern restart-pinned; do
-            if [ ! -s "$work/legs/whole-session-$name.json" ]; then
-              echo "::error::the $name leg produced no report, so nothing can be claimed about it"
-              missing=$((missing + 1))
+          compare_journey() {
+            journey="$1"; out="$2"
+            missing=0
+            for name in drive-gotavern drive-pinned restart-gotavern restart-pinned; do
+              if [ ! -s "$work/legs/whole-session-$journey-$name.json" ]; then
+                echo "::error::the $journey/$name leg produced no report, so nothing can be claimed about it"
+                missing=$((missing + 1))
+              fi
+            done
+            if [ "$missing" -ne 0 ]; then
+              echo "::error::$missing leg report(s) missing for $journey; the comparator is not run against absent evidence"
+              return 1
             fi
-          done
-          if [ "$missing" -ne 0 ]; then
-            echo "::error::$missing leg report(s) missing; the comparator is not run against absent evidence"
-            exit 1
-          fi
-          node tests/browser/compare-whole-session-legs.mjs \
-            --drive-go      "$work/legs/whole-session-drive-gotavern.json" \
-            --drive-pinned  "$work/legs/whole-session-drive-pinned.json" \
-            --restart-go    "$work/legs/whole-session-restart-gotavern.json" \
-            --restart-pinned "$work/legs/whole-session-restart-pinned.json" \
-            --out tests/browser/whole-session-comparison.json
+            node tests/browser/compare-whole-session-legs.mjs \
+              --drive-go      "$work/legs/whole-session-$journey-drive-gotavern.json" \
+              --drive-pinned  "$work/legs/whole-session-$journey-drive-pinned.json" \
+              --restart-go    "$work/legs/whole-session-$journey-restart-gotavern.json" \
+              --restart-pinned "$work/legs/whole-session-$journey-restart-pinned.json" \
+              --out "$out"
+          }
+          compare_journey default     tests/browser/whole-session-comparison.json || exit 1
+          compare_journey preset      "$work/whole-session-preset-comparison.json" || exit 1
+          compare_journey preset-omit "$work/whole-session-preset-omission-comparison.json" || exit 1
 
-      # DOES THE GATE HAVE TEETH? Eleven mutations of THIS RUN's own artefacts, each required to produce its NAMED red
-      # on top of a green baseline. It needs no browser and no server, so it costs a fraction of a second after the
-      # drives have been paid for — and running it against the same artefacts the gate judged is the only way the
-      # baseline is the pair the run actually produced.
-      - name: Prove the whole-session gate has teeth
+      # DOES THE GATE HAVE TEETH? Mutations of THIS RUN's own artefacts, each required to produce its NAMED red on top of
+      # a green baseline. Two runs, because the mutation set has two families: the preset journey's artefacts carry the
+      # preset and the injected helper completion, so the resumed-turn mutations (J, M, N, O, P) are applicable there;
+      # the default journey's artefacts prove the same guards on the fresh-install branch. A mutation whose
+      # precondition a run does not carry is reported `not-applicable`, never counted as caught.
+      - name: Prove the whole-session gate has teeth (preset journey)
         if: ${{ steps.legs.outputs.failures == '0' && steps.compare.outcome == 'success' }}
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/whole-session"
           node tests/browser/whole-session-gate-selftest.mjs \
-            --drive-go      "$work/legs/whole-session-drive-gotavern.json" \
-            --drive-pinned  "$work/legs/whole-session-drive-pinned.json" \
-            --restart-go    "$work/legs/whole-session-restart-gotavern.json" \
-            --restart-pinned "$work/legs/whole-session-restart-pinned.json" \
-            --out "$RUNNER_TEMP/whole-session/whole-session-teeth.json"
+            --drive-go      "$work/legs/whole-session-preset-drive-gotavern.json" \
+            --drive-pinned  "$work/legs/whole-session-preset-drive-pinned.json" \
+            --restart-go    "$work/legs/whole-session-preset-restart-gotavern.json" \
+            --restart-pinned "$work/legs/whole-session-preset-restart-pinned.json" \
+            --out "$work/whole-session-teeth-preset.json"
+
+      - name: Prove the whole-session gate has teeth (fresh-install journey)
+        if: ${{ steps.legs.outputs.failures == '0' && steps.compare.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/whole-session"
+          node tests/browser/whole-session-gate-selftest.mjs \
+            --drive-go      "$work/legs/whole-session-default-drive-gotavern.json" \
+            --drive-pinned  "$work/legs/whole-session-default-drive-pinned.json" \
+            --restart-go    "$work/legs/whole-session-default-restart-gotavern.json" \
+            --restart-pinned "$work/legs/whole-session-default-restart-pinned.json" \
+            --out "$work/whole-session-teeth-default.json"
+
+      - name: Prove the whole-session gate has teeth (history-omitting control journey)
+        if: ${{ steps.legs.outputs.failures == '0' && steps.compare.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/whole-session"
+          node tests/browser/whole-session-gate-selftest.mjs \
+            --drive-go      "$work/legs/whole-session-preset-omit-drive-gotavern.json" \
+            --drive-pinned  "$work/legs/whole-session-preset-omit-drive-pinned.json" \
+            --restart-go    "$work/legs/whole-session-preset-omit-restart-gotavern.json" \
+            --restart-pinned "$work/legs/whole-session-preset-omit-restart-pinned.json" \
+            --out "$work/whole-session-teeth-preset-omit.json"
 
       # A DRIVE THAT COULD NOT BE RECORDED OR JUDGED MUST FAIL THE JOB. Every other step above is gated on
-      # `failures == '0'`, so a failed drive SKIPS the compare and nothing else would be red: that shape has shipped a
+      # `failures == '0'`, so a failed drive SKIPS the compares and nothing else would be red: that shape has shipped a
       # green run of a surface whose legs all died, twice in this repository's history.
       - name: Fail if a drive could not be recorded or judged
         if: ${{ always() && (steps.legs.outputs.failures != '0' || steps.compare.outcome == 'skipped' || steps.compare.outcome == 'failure') }}
@@ -248,7 +309,7 @@ jobs:
           echo "compare outcome:    ${{ steps.compare.outcome }}"
           exit 1
 
-      - name: Upload the legs, the verdict and the teeth report
+      - name: Upload the legs, the verdicts and the teeth reports
         if: always()
         uses: actions/upload-artifact@v4
         with:

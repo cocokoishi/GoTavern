@@ -1,0 +1,262 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Committed decisions for tools/compat-matrix/surface-coverage.mjs. The gate derives the pinned routes (docs/api-inventory.md), the Go registrations (internal/server/*.go) and the frontend surfaces (upstream/public/**/*.js + the startup and extension observations) and requires EVERY surface to be classified as implemented / intentionally-passthrough / not-applicable / unsupported-with-reason. An entry here is the human decision a derived surface cannot make for itself. Every entry must still name a live surface: the gate fails a stale one, so an exception cannot outlive the behaviour it excused.",
+  "staticMounts": [
+    {
+      "prefix": "/backgrounds",
+      "reason": "pinned user-data static mount: router.use('/backgrounds/*', ...) in src/users.js:1213, served from the user's backgrounds directory with pinned createRouteHandler/send semantics",
+      "evidence": "SillyTavern@06bde939 src/users.js:1213; internal/server/frontend_assets.go"
+    },
+    {
+      "prefix": "/characters",
+      "reason": "pinned user-data static mount: router.use('/characters/*', ...) in src/users.js:1214 -- this is the mount an avatar's full-size image, sprites and live2d are fetched through, and its absence was a shipped P0",
+      "evidence": "SillyTavern@06bde939 src/users.js:1214; AGENTS.md 42/44; internal/server/frontend_assets.go"
+    },
+    {
+      "prefix": "/User%20Avatars",
+      "reason": "pinned user-data static mount: router.use('/User%20Avatars/*', ...) in src/users.js:1215, registered with the escaped spelling because net/http treats a literal space as a method separator",
+      "evidence": "SillyTavern@06bde939 src/users.js:1215; internal/server/frontend_assets.go"
+    },
+    {
+      "prefix": "/assets",
+      "reason": "pinned user-data static mount: router.use('/assets/*', ...) in src/users.js:1216",
+      "evidence": "SillyTavern@06bde939 src/users.js:1216; internal/server/frontend_assets.go"
+    },
+    {
+      "prefix": "/user/images",
+      "reason": "pinned user-data static mount: router.use('/user/images/*', ...) in src/users.js:1217",
+      "evidence": "SillyTavern@06bde939 src/users.js:1217; internal/server/frontend_assets.go"
+    },
+    {
+      "prefix": "/user/files",
+      "reason": "pinned user-data static mount: router.use('/user/files/*', ...) in src/users.js:1218 -- the tree LittleWhiteBox writes through /api/files/upload and reads back",
+      "evidence": "SillyTavern@06bde939 src/users.js:1218; internal/server/frontend_assets.go"
+    },
+    {
+      "prefix": "/scripts/extensions/third-party",
+      "reason": "pinned extension static mount: router.use('/scripts/extensions/third-party/*', ...) in src/users.js:1219, served per-user then globally",
+      "evidence": "SillyTavern@06bde939 src/users.js:1219; internal/server/extensions_static.go"
+    },
+    {
+      "prefix": "/css/user.css",
+      "reason": "the pinned user.css override: a user-supplied stylesheet served in place of public/css/user.css, not a backend route",
+      "evidence": "SillyTavern@06bde939 src/server-main.js:242 (express.static(public) order); internal/server/frontend_assets.go:109"
+    }
+  ],
+  "goExceptions": [
+    {
+      "pattern": "/api/avatars/upload",
+      "classification": "implemented",
+      "reason": "AGENTS.md boundary 3, DECIDED 2026-10-29: the pinned route stores a Jimp output file, and GoTavern serves the OBSERVABLE contract from a pure-Go codec -- status, MIME/original-name behaviour, decodability, exact dimensions, the pinned 512x768 want_resize box, cover-not-stretch geometry, PNG output whatever was uploaded, and cache behaviour. Byte equality with Jimp is explicitly not claimed. The inventory row still says 'not implemented: boundary 3', which predates the decision; the explicit decision outranks it, which is exactly what this exception is for.",
+      "evidence": "AGENTS.md boundary 3; internal/server/avatars_upload.go; TestPersonaAvatarUploadWantResizeProducesThePinnedAvatarBox, TestPersonaAvatarUploadCoversInsteadOfStretching, TestPersonaAvatarUploadStoresAPNGWhateverWasUploaded"
+    }
+  ],
+  "frontendExceptions": [
+    {
+      "surface": "/api/caption",
+      "classification": "not-applicable",
+      "reason": "the pinned built-in caption extension assembles this path on the EXTRAS server base URL (getApiUrl() + url.pathname = '/api/caption', then doExtrasFetch); it is a separate SillyTavern-extras process, not a route of this server, and docs/api-inventory.md registers none",
+      "evidence": "upstream/public/scripts/extensions/caption/index.js:258"
+    },
+    {
+      "surface": "/api/classify",
+      "classification": "not-applicable",
+      "reason": "the pinned expressions extension sends this to the EXTRAS server via getApiUrl()/doExtrasFetch; the SillyTavern server itself registers /api/extra/classify, which the gate classifies separately as an ONNX boundary 2 exclusion",
+      "evidence": "upstream/public/scripts/extensions/expressions/index.js:1170"
+    },
+    {
+      "surface": "/api/classify/labels",
+      "classification": "not-applicable",
+      "reason": "the pinned expressions extension sends this to the EXTRAS server via getApiUrl()/doExtrasFetch; the server-side equivalent is /api/extra/classify/labels (boundary 2)",
+      "evidence": "upstream/public/scripts/extensions/expressions/index.js:1487"
+    },
+    {
+      "surface": "/api/edge-tts/generate",
+      "classification": "not-applicable",
+      "reason": "the pinned edge-tts extension builds this on the EXTRAS base URL and calls doExtrasFetch; docs/api-inventory.md registers no such server route",
+      "evidence": "upstream/public/scripts/extensions/tts/edge.js:214"
+    },
+    {
+      "surface": "/api/edge-tts/list",
+      "classification": "not-applicable",
+      "reason": "as above: an EXTRAS-server voice listing, not a route of this server",
+      "evidence": "upstream/public/scripts/extensions/tts/edge.js:232"
+    },
+    {
+      "surface": "/api/image",
+      "classification": "not-applicable",
+      "reason": "the pinned stable-diffusion extension's EXTRAS image API base; the SillyTavern server exposes /api/sd/* and /api/horde/* routes instead, and the inventory registers no /api/image route",
+      "evidence": "upstream/public/scripts/extensions/stable-diffusion/index.js:1660"
+    },
+    {
+      "surface": "/api/image/model",
+      "classification": "not-applicable",
+      "reason": "EXTRAS image API (getApiUrl()/doExtrasFetch); the server-side SD routes are /api/sd/*, which the gate classifies from the pinned inventory",
+      "evidence": "upstream/public/scripts/extensions/stable-diffusion/index.js:1783"
+    },
+    {
+      "surface": "/api/image/models",
+      "classification": "not-applicable",
+      "reason": "EXTRAS image API (getApiUrl()/doExtrasFetch); no pinned server route exists for it",
+      "evidence": "upstream/public/scripts/extensions/stable-diffusion/index.js:2285"
+    },
+    {
+      "surface": "/api/image/samplers",
+      "classification": "not-applicable",
+      "reason": "EXTRAS image API (getApiUrl()/doExtrasFetch); no pinned server route exists for it",
+      "evidence": "upstream/public/scripts/extensions/stable-diffusion/index.js:3525"
+    },
+    {
+      "surface": "/api/modules",
+      "classification": "not-applicable",
+      "reason": "connectToApi(baseUrl) in the pinned extensions module sets url.pathname = '/api/modules' on the EXTRAS API base and calls doExtrasFetch; it is a separate server's module list",
+      "evidence": "upstream/public/scripts/extensions.js:745"
+    },
+    {
+      "surface": "/api/plugins/edge-tts/generate",
+      "classification": "unsupported-with-reason",
+      "reason": "AGENTS.md boundary 16: arbitrary Node server plugins are the sole explicit ecosystem exclusion and their endpoints are never emulated. /api/plugins/<id>/... is the pinned server's plugin host, served only when that plugin is installed in the pinned process; it is not a first-party route",
+      "evidence": "AGENTS.md 16; docs/extension-route-coverage.md (plugin-excluded); upstream/public/scripts/extensions/tts/edge.js"
+    },
+    {
+      "surface": "/api/plugins/edge-tts/list",
+      "classification": "unsupported-with-reason",
+      "reason": "AGENTS.md boundary 16: a Node server plugin endpoint, an explicit exclusion rather than a missing route",
+      "evidence": "AGENTS.md 16; docs/extension-route-coverage.md"
+    },
+    {
+      "surface": "/api/plugins/edge-tts/probe",
+      "classification": "unsupported-with-reason",
+      "reason": "AGENTS.md boundary 16: a Node server plugin endpoint, an explicit exclusion rather than a missing route",
+      "evidence": "AGENTS.md 16; docs/extension-route-coverage.md"
+    },
+    {
+      "surface": "/api/plugins/fandom/probe",
+      "classification": "unsupported-with-reason",
+      "reason": "AGENTS.md boundary 16: a Node server plugin endpoint (the fandom plugin host), an explicit exclusion rather than a missing route",
+      "evidence": "AGENTS.md 16; upstream/public/scripts/scrapers.js:353"
+    },
+    {
+      "surface": "/api/plugins/fandom/probe-mediawiki",
+      "classification": "unsupported-with-reason",
+      "reason": "AGENTS.md boundary 16: a Node server plugin endpoint (the fandom plugin host), an explicit exclusion rather than a missing route",
+      "evidence": "AGENTS.md 16; upstream/public/scripts/scrapers.js:260"
+    },
+    {
+      "surface": "/api/plugins/fandom/scrape",
+      "classification": "unsupported-with-reason",
+      "reason": "AGENTS.md boundary 16: a Node server plugin endpoint (the fandom plugin host), an explicit exclusion rather than a missing route",
+      "evidence": "AGENTS.md 16; upstream/public/scripts/scrapers.js:408"
+    },
+    {
+      "surface": "/api/plugins/fandom/scrape-mediawiki",
+      "classification": "unsupported-with-reason",
+      "reason": "AGENTS.md boundary 16: a Node server plugin endpoint (the fandom plugin host), an explicit exclusion rather than a missing route",
+      "evidence": "AGENTS.md 16; upstream/public/scripts/scrapers.js:301"
+    },
+    {
+      "surface": "/api/plugins/office/parse",
+      "classification": "unsupported-with-reason",
+      "reason": "AGENTS.md boundary 16: a Node server plugin endpoint (the office plugin host), an explicit exclusion rather than a missing route",
+      "evidence": "AGENTS.md 16; upstream/public/scripts/utils.js:2124"
+    },
+    {
+      "surface": "/api/plugins/office/probe",
+      "classification": "unsupported-with-reason",
+      "reason": "AGENTS.md boundary 16: a Node server plugin endpoint (the office plugin host), an explicit exclusion rather than a missing route",
+      "evidence": "AGENTS.md 16; upstream/public/scripts/utils.js:2105"
+    },
+    {
+      "surface": "/api/summarize",
+      "classification": "not-applicable",
+      "reason": "the pinned memory and vectors extensions send this to the EXTRAS server via getApiUrl()/doExtrasFetch; docs/api-inventory.md registers no such server route",
+      "evidence": "upstream/public/scripts/extensions/memory/index.js:901; upstream/public/scripts/extensions/vectors/index.js:323"
+    },
+    {
+      "surface": "/api/text-to-speech/coqui/coqui-api/check-model-state",
+      "classification": "not-applicable",
+      "reason": "the pinned coqui TTS extension talks to a user-configured Coqui TTS server built on getApiUrl(); no pinned SillyTavern-server route exists for it",
+      "evidence": "upstream/public/scripts/extensions/tts/coqui.js:594"
+    },
+    {
+      "surface": "/api/text-to-speech/coqui/coqui-api/install-model",
+      "classification": "not-applicable",
+      "reason": "a user-configured Coqui TTS server endpoint assembled from getApiUrl(); not this server's route",
+      "evidence": "upstream/public/scripts/extensions/tts/coqui.js:618"
+    },
+    {
+      "surface": "/api/text-to-speech/coqui/generate-tts",
+      "classification": "not-applicable",
+      "reason": "a user-configured Coqui TTS server endpoint assembled from getApiUrl(); not this server's route",
+      "evidence": "upstream/public/scripts/extensions/tts/coqui.js:646"
+    },
+    {
+      "surface": "/api/text-to-speech/coqui/local/get-models",
+      "classification": "not-applicable",
+      "reason": "a user-configured Coqui TTS server endpoint assembled from getApiUrl(); not this server's route",
+      "evidence": "upstream/public/scripts/extensions/tts/coqui.js:678"
+    },
+    {
+      "surface": "/api/tts",
+      "classification": "not-applicable",
+      "reason": "the pinned silero/xtts TTS extensions compose this path on the EXTRAS server base URL (getApiUrl()) for provider discovery; docs/api-inventory.md registers no such server route",
+      "evidence": "upstream/public/scripts/extensions/tts/silerotts.js:58; upstream/public/scripts/extensions/tts/xtts.js:169"
+    },
+    {
+      "surface": "/api/backends/koboldhorde/generate",
+      "classification": "not-applicable",
+      "reason": "a stale frontend URL builder: script.js:6177 returns it for the retired `koboldhorde` main_api value, and the pinned server registers no such route (docs/api-inventory.md has no /api/backends/koboldhorde/* row; pinned's horde generation route is /api/horde/generate-text). Pinned itself would answer its own 404, so this is a dead client path rather than a backend surface",
+      "evidence": "upstream/public/script.js:6177; docs/api-inventory.md"
+    }
+  ],
+  "redirectAliases": [
+    { "source": "/createcharacter", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "the Go server registers only 13 of the pinned 50 legacy aliases; this one has no registration, so a client following it gets the catch-all 404 instead of pinned's method-preserving 308 to /api/characters/create", "userImpact": "a legacy client or bookmark that uses the old URL fails; the pinned frontend itself builds the modern /api/... path, so the browser journey is unaffected" },
+    { "source": "/renamecharacter", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/rename", "userImpact": "legacy client/bookmark only" },
+    { "source": "/editcharacter", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/edit", "userImpact": "legacy client/bookmark only" },
+    { "source": "/editcharacterattribute", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/edit-attribute", "userImpact": "legacy client/bookmark only" },
+    { "source": "/v2/editcharacterattribute", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/merge-attributes", "userImpact": "legacy client/bookmark only" },
+    { "source": "/deletecharacter", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/delete", "userImpact": "legacy client/bookmark only" },
+    { "source": "/getcharacters", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/all", "userImpact": "legacy client/bookmark only" },
+    { "source": "/getonecharacter", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/get", "userImpact": "legacy client/bookmark only" },
+    { "source": "/getallchatsofcharacter", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/chats", "userImpact": "legacy client/bookmark only" },
+    { "source": "/importcharacter", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/import", "userImpact": "legacy client/bookmark only" },
+    { "source": "/dupecharacter", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/duplicate", "userImpact": "legacy client/bookmark only" },
+    { "source": "/exportcharacter", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/export", "userImpact": "legacy client/bookmark only" },
+    { "source": "/savechat", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/save", "userImpact": "legacy client/bookmark only" },
+    { "source": "/getchat", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/get", "userImpact": "legacy client/bookmark only" },
+    { "source": "/renamechat", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/rename", "userImpact": "legacy client/bookmark only" },
+    { "source": "/delchat", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/delete", "userImpact": "legacy client/bookmark only" },
+    { "source": "/exportchat", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/export", "userImpact": "legacy client/bookmark only" },
+    { "source": "/importgroupchat", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/group/import", "userImpact": "legacy client/bookmark only" },
+    { "source": "/importchat", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/import", "userImpact": "legacy client/bookmark only" },
+    { "source": "/getgroupchat", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/group/get", "userImpact": "legacy client/bookmark only" },
+    { "source": "/deletegroupchat", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/group/delete", "userImpact": "legacy client/bookmark only" },
+    { "source": "/savegroupchat", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/group/save", "userImpact": "legacy client/bookmark only" },
+    { "source": "/getgroups", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/groups/all", "userImpact": "legacy client/bookmark only" },
+    { "source": "/creategroup", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/groups/create", "userImpact": "legacy client/bookmark only" },
+    { "source": "/editgroup", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/groups/edit", "userImpact": "legacy client/bookmark only" },
+    { "source": "/deletegroup", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/groups/delete", "userImpact": "legacy client/bookmark only" },
+    { "source": "/getbackgrounds", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/backgrounds/all", "userImpact": "legacy client/bookmark only" },
+    { "source": "/delbackground", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/backgrounds/delete", "userImpact": "legacy client/bookmark only" },
+    { "source": "/renamebackground", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/backgrounds/rename", "userImpact": "legacy client/bookmark only" },
+    { "source": "/downloadbackground", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/backgrounds/upload", "userImpact": "legacy client/bookmark only" },
+    { "source": "/uploaduseravatar", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/avatars/upload", "userImpact": "legacy client/bookmark only" },
+    { "source": "/uploadimage", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/images/upload", "userImpact": "legacy client/bookmark only" },
+    { "source": "/listimgfiles/:folder", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/images/list/:folder", "userImpact": "legacy client/bookmark only" },
+    { "source": "/api/content/import", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/content/importURL", "userImpact": "legacy client/bookmark only; the pinned frontend calls importURL/importUUID directly" },
+    { "source": "/api/serpapi/search", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/search/serpapi", "userImpact": "legacy client/bookmark only" },
+    { "source": "/api/serpapi/visit", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/search/visit", "userImpact": "legacy client/bookmark only" },
+    { "source": "/api/serpapi/transcript", "status": "open", "gapId": "SURFACE-REDIRECT-ALIASES", "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/search/transcript", "userImpact": "legacy client/bookmark only" }
+  ],
+  "missingPinnedRoutes": [
+    {
+      "method": "POST",
+      "path": "/api/tokenizers/remote/textgenerationwebui/encode",
+      "status": "open",
+      "gapId": "SURFACE-TOKENIZER-REMOTE",
+      "reason": "internal/server/tokenizers_remote.go:7-10 records this pinned route as not implemented pending the proxy/SSRF domain, while docs/api-inventory.md's status column for the row claims a route-level replay. One of the two is wrong: the tree registers no handler for the path, so the route is absent",
+      "userImpact": "the pinned frontend calls this path for a remote text-generation tokenizer count/encode; against this tree the catch-all answers instead of pinned's {count, ids} projection, so a remote textgen tokenizer reading is silently unavailable (the neighbouring /remote/kobold/count route IS implemented)"
+    }
+  ],
+  "unresolvedSites": []
+}

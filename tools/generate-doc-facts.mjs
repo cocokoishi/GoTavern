@@ -261,7 +261,10 @@ function deriveFacts(fallback = null) {
 
 // Blocks owned by another generator. This one leaves their contents untouched; the owning tool and
 // its own --check verify them, so a single document can carry both kinds of generated content.
-const EXTERNAL_BLOCKS = new Set(['coverage.matrix']);
+// `surface.drift` is owned by tools/compat-matrix/surface-coverage.mjs (the frontend-derived backend surface
+// drift gate, AGENTS.md 42/43/44), which is run by tools/compat-matrix/check.mjs in ci.yml#verify and verifies
+// both the block and docs/generated/surface-coverage.json against the tree.
+const EXTERNAL_BLOCKS = new Set(['coverage.matrix', 'surface.drift']);
 
 const BLOCKS = {
     'routes.accounting': (facts) => `\`${facts.routes.total}\` inventoried routes; \`${facts.routes.bareNotImplemented}\` bare \`not implemented\`; \`${facts.routes.reasonedExclusions}\` reasoned exclusions; \`${facts.routes.reachableCeiling}\` reachable.`,

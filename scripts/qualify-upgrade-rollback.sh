@@ -61,6 +61,16 @@
 #   OLDER_ARCHIVE   the archive treated as the older release (default: $DIST_DIR/gotavern-older.tar.gz)
 #   NEWER_ARCHIVE   the archive treated as the newer release (default: $DIST_DIR/gotavern-newer.tar.gz)
 #
+#   scripts/qualify-upgrade-rollback.sh --published-alpha9 <candidate.tar.gz>
+#     The RELEASE-BLOCKING Beta 1 mode: installs the PUBLISHED v0.1.0-alpha.9 linux-amd64 release (downloaded from
+#     the public GitHub release and verified against its PUBLISHED checksums.txt), seeds the generated long-lived
+#     corpus into that install, boots alpha.9 over it, backs up the runtime tree, updates to the candidate archive
+#     through the same installer, then USES Beta 1 over the corpus (open the existing chat, save a continuation,
+#     assets, settings/world book), restarts it and reads the continuation back, restores the pre-update backup
+#     into a fresh prefix and boots alpha.9 over it, and classifies every runtime path Beta 1 wrote. Needs node
+#     (the corpus generator is the qualification input) in addition to the requirements below. Network: the public
+#     GitHub release only (gh or curl), no other live egress.
+#
 # Requirements: sh, tar, python3 (the mirror), curl (the readiness probe), sha256sum.
 
 set -eu
@@ -76,7 +86,33 @@ INSTALLER="$REPO_ROOT/install.sh"
 
 fail() {
     echo "FAIL: $*" >&2
-    for log in installer-update.log installer-rollback.log server-1.log server-2.log server-3.log mirror.log; do
+    # MACHINE-READABLE VERDICT: a CI job must be able to upload a verdict, not only a log. QUALIFY_REPORT_DIR is
+    # set by the workflow; when it is absent the report would live in WORK_ROOT and be deleted by cleanup, so the
+    # absence is not a silent no-op -- the failure path prints where a report WOULD have gone.
+    if [ -n "${QUALIFY_REPORT_DIR:-}" ]; then
+        mkdir -p "$QUALIFY_REPORT_DIR"
+        python3 -c 'import json,os,sys; json.dump({"schema":"gotavern-published-upgrade-verdict","schemaVersion":1,"ok":False,"failure":sys.argv[1]}, open(os.path.join(sys.argv[2], "published-alpha9-verdict.json"), "w"), indent=2)' \
+            "$*" "$QUALIFY_REPORT_DIR" 2>/dev/null \
+            || echo "FAIL: could not write the machine-readable verdict into $QUALIFY_REPORT_DIR" >&2
+    fi
+    # FAILURE HANDLING FOR THE PUBLISHED-BASELINE MODE: a failed upgrade is restored from the pre-update backup into
+    # the SAME prefix, and the restore is announced with its evidence. This is the difference between a qualification
+    # that reports a failure and one that leaves the operator a tree they can retry from.
+    if [ -n "${FAILURE_BACKUP:-}" ] && [ -d "${FAILURE_BACKUP:-}" ] && [ -n "${FAILURE_PREFIX:-}" ]; then
+        echo "failure handling: restoring the pre-update backup into $FAILURE_PREFIX ..." >&2
+        rm -rf "$FAILURE_PREFIX"
+        mkdir -p "$FAILURE_PREFIX"
+        cp -R "$FAILURE_BACKUP/." "$FAILURE_PREFIX/" 2>/dev/null || true
+        if [ -d "$FAILURE_PREFIX/data/default-user" ]; then
+            echo "failure handling: restored $(find "$FAILURE_PREFIX" -type f | wc -l) file(s) from the backup" >&2
+        else
+            echo "failure handling: THE BACKUP RESTORE DID NOT PRODUCE A USER TREE" >&2
+        fi
+    fi
+    for log in installer-update.log installer-rollback.log server-1.log server-2.log server-3.log mirror.log \
+        published-installer-alpha.log published-installer-update.log published-installer-fresh.log \
+        published-alpha-server.log published-fresh-server.log published-dropin-server.log \
+        published-beta-server-1.log published-beta-server-2.log published-restore-server.log published-mirror.log; do
         if [ -f "$WORK_ROOT/$log" ]; then
             echo "--- $log (tail) ---" >&2
             tail -60 "$WORK_ROOT/$log" >&2 || true
@@ -118,9 +154,436 @@ snapshot_runtime() {
           done )
 }
 
+# ---- THE PUBLISHED-BASELINE MODE: alpha.9 -> Beta 1, with real downloads and a usable journey ---------
+#
+# WHY THIS MODE EXISTS. The mode above compares two archives built from two commits in ONE run; it never touches
+# a PUBLISHED release. Beta 1's release-blocking question is different: a user is ON the published
+# v0.1.0-alpha.9 (real artifact, real checksum), has a long-lived tree, and updates to Beta 1. Does Beta 1 start
+# over that tree and let them CONTINUE using it -- open an existing chat, take another turn, restart the server,
+# read the same chat back, fetch assets -- with no undocumented manual migration?
+#
+# WHAT IT DOES, in order:
+#   1. downloads the PUBLISHED alpha.9 `gotavern-linux-amd64.tar.gz` and `checksums.txt` from the GitHub release
+#      (gh, or curl against the public release URL) and verifies the sha256 AGAINST THE PUBLISHED CHECKSUMS;
+#   2. derives each archive's tag from the binary inside it, builds a loopback mirror for BOTH releases in the
+#      canonical layout, and INSTALLS alpha.9 through the real `install.sh` seam;
+#   3. seeds the generated long-lived corpus (tools/build-longlived-corpus.mjs) into the installed prefix, boots
+#      alpha.9 over it, and asserts the published release itself opens the corpus chat -- the baseline is measured,
+#      not assumed;
+#   4. BACKS UP the runtime tree (config.yaml, data/, extensions/, certs/) before the update, then updates to the
+#      candidate Beta 1 archive through the SAME installer and asserts the installed release moved and the user
+#      tree is byte-identical across the update;
+#   5. boots Beta 1 over the corpus and USES it over HTTP the way a user does: CSRF session, card list, open the
+#      existing long chat, save a continuation, assets/thumbnail, settings/world book, then RESTART and read the
+#      continuation back from disk;
+#   6. exercises the BACKUP PATH for real: restores the pre-update backup into a fresh prefix, boots alpha.9 over
+#      it, and asserts the restored tree is usable and does not contain the Beta 1 continuation (a clean rollback);
+#   7. classifies EVERY runtime path Beta 1 changed/added/removed during the boot+journey and fails on anything
+#      that is not a known artefact shape, so "no undocumented manual migration" is a measurement: the boot needs
+#      no manual step, the chat opens, and the only writes are enumerated.
+#
+# Requirements: node (the corpus generator is the qualification INPUT and must not be a hand-written fallback),
+# plus tar, python3, curl, sha256sum. Network: gh/curl to the public GitHub release only (AGENTS egress rules).
+
+stage_archive() {
+    # $1 destination, $2 archive. A tar.gz in the canonical release layout.
+    rm -rf "$1"
+    mkdir -p "$1"
+    tar -xzf "$2" -C "$1"
+}
+
+# Boot the installed release from a prefix WITH the desktop-browser launch disabled: a qualification job must
+# never open a window on an operator's desktop (the flag is what the installer-era gate also passes).
+boot_prefix_server() {
+    # $1 prefix, $2 log file, $3 label. Sets SERVER_PID and PORT; fails when /version never answers.
+    PORT=$(free_port)
+    ( cd "$1" && exec ./gotavern start --port "$PORT" --browserLaunchEnabled false --heartbeatInterval 0 ) >"$2" 2>&1 &
+    SERVER_PID=$!
+    BOOT_DEADLINE=$(( $(date +%s) + 120 ))
+    while [ "$(date +%s)" -lt "$BOOT_DEADLINE" ]; do
+        if curl -fsS "http://127.0.0.1:$PORT/version" > "$WORK_ROOT/version-$3.json" 2>/dev/null; then
+            BASE="http://127.0.0.1:$PORT"
+            return 0
+        fi
+        if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+            echo "the $3 server exited before answering /version:" >&2
+            tail -40 "$2" >&2 || true
+            return 1
+        fi
+        sleep 1
+    done
+    echo "the $3 server never answered /version within 120 s:" >&2
+    tail -40 "$2" >&2 || true
+    return 1
+}
+
+qualify_published_alpha9() {
+    CANDIDATE_ARCHIVE=$1
+    ALPHA_TAG="v0.1.0-alpha.9"
+    REPO_SLUG="cocokoishi/GoTavern"
+    # THE PUBLISHED ASSET IS A LINUX BINARY. This mode installs and BOOTS the real published archive, so it can only
+    # run where that archive runs; on a non-Linux host it must refuse by name instead of downloading 60 MB and then
+    # failing with "cannot execute binary file".
+    [ "$(uname -s)" = "Linux" ] || fail "the published-baseline mode boots the published linux-amd64 archive, so it requires Linux (this host is $(uname -s)); run it in .github/workflows/release-qualification.yml's ubuntu job"
+    PUBLISHED_DIR="$WORK_ROOT/published"
+    MIRROR="$WORK_ROOT/published-mirror"
+    PREFIX="$WORK_ROOT/published-install"
+    BACKUP="$WORK_ROOT/published-backup"
+    RESTORE_PREFIX="$WORK_ROOT/published-restore"
+    CORPUS="$WORK_ROOT/corpus"
+    JAR="$WORK_ROOT/cookies.txt"
+    rm -rf "$PUBLISHED_DIR" "$MIRROR" "$PREFIX" "$BACKUP" "$RESTORE_PREFIX" "$CORPUS"
+    mkdir -p "$PUBLISHED_DIR" "$MIRROR" "$PREFIX" "$BACKUP" "$RESTORE_PREFIX"
+
+    command -v node >/dev/null 2>&1 || fail "node is required: the long-lived corpus is the qualification input and is generated, never hand-written"
+    command -v python3 >/dev/null 2>&1 || fail "python3 is required for the mirror, the JSON parsing and the checksum comparison"
+
+    # ---- 1. the PUBLISHED artefact: real download, real checksums -------------------------------
+    if command -v gh >/dev/null 2>&1; then
+        ( cd "$PUBLISHED_DIR" && gh release download "$ALPHA_TAG" --repo "$REPO_SLUG" \
+            --pattern "$ASSET_NAME" --pattern checksums.txt --clobber ) \
+            || fail "gh could not download the published $ALPHA_TAG assets ($ASSET_NAME and checksums.txt)"
+    else
+        ( cd "$PUBLISHED_DIR" && curl -fsSL -O "https://github.com/$REPO_SLUG/releases/download/$ALPHA_TAG/$ASSET_NAME" \
+            -O "https://github.com/$REPO_SLUG/releases/download/$ALPHA_TAG/checksums.txt" ) \
+            || fail "curl could not download the published $ALPHA_TAG assets"
+    fi
+    [ -s "$PUBLISHED_DIR/$ASSET_NAME" ] || fail "the published $ALPHA_TAG archive is missing or empty"
+    [ -s "$PUBLISHED_DIR/checksums.txt" ] || fail "the published $ALPHA_TAG checksums.txt is missing or empty"
+    PUBLISHED_EXPECTED=$(awk -v asset="$ASSET_NAME" '$2 == asset || $2 == "*" asset { print $1; exit }' "$PUBLISHED_DIR/checksums.txt")
+    [ -n "$PUBLISHED_EXPECTED" ] || fail "the published checksums.txt does not list $ASSET_NAME"
+    PUBLISHED_ACTUAL=$(sha256_of "$PUBLISHED_DIR/$ASSET_NAME")
+    [ "$PUBLISHED_ACTUAL" = "$PUBLISHED_EXPECTED" ] \
+        || fail "the downloaded published alpha.9 archive does not match its PUBLISHED checksum (expected $PUBLISHED_EXPECTED, got $PUBLISHED_ACTUAL)"
+    ok "downloaded the PUBLISHED $ALPHA_TAG $ASSET_NAME ($(wc -c < "$PUBLISHED_DIR/$ASSET_NAME") bytes) and verified it against the published checksums.txt"
+
+    # ---- 2. tags from the binaries inside the archives, and a loopback mirror for both ----------
+    stage_archive "$WORK_ROOT/stage-alpha" "$PUBLISHED_DIR/$ASSET_NAME"
+    ALPHA_TAG_FROM_BINARY=$(tag_of_binary "$WORK_ROOT/stage-alpha/gotavern") || fail "cannot read the version from the published alpha.9 binary"
+    [ "$ALPHA_TAG_FROM_BINARY" = "$ALPHA_TAG" ] || fail "the published archive reports $ALPHA_TAG_FROM_BINARY, expected $ALPHA_TAG"
+    stage_archive "$WORK_ROOT/stage-candidate" "$CANDIDATE_ARCHIVE"
+    CANDIDATE_TAG=$(tag_of_binary "$WORK_ROOT/stage-candidate/gotavern") || fail "cannot read the version from the candidate binary"
+    [ "$CANDIDATE_TAG" != "$ALPHA_TAG" ] || fail "the candidate archive reports the alpha.9 tag; this is not an upgrade"
+    CANDIDATE_BINARY_HASH=$(sha256_of "$WORK_ROOT/stage-candidate/gotavern")
+    ok "candidate archive is $CANDIDATE_TAG (binary $(printf '%s' "$CANDIDATE_BINARY_HASH" | cut -c1-12)...), a different release from $ALPHA_TAG"
+
+    mkdir -p "$MIRROR/$ALPHA_TAG" "$MIRROR/$CANDIDATE_TAG" "$MIRROR/latest/download"
+    cp "$PUBLISHED_DIR/$ASSET_NAME" "$MIRROR/$ALPHA_TAG/$ASSET_NAME"
+    cp "$CANDIDATE_ARCHIVE" "$MIRROR/$CANDIDATE_TAG/$ASSET_NAME"
+    cp "$CANDIDATE_ARCHIVE" "$MIRROR/latest/download/$ASSET_NAME"
+    ( cd "$MIRROR/$ALPHA_TAG" && sha256sum "$ASSET_NAME" > checksums.txt )
+    ( cd "$MIRROR/$CANDIDATE_TAG" && sha256sum "$ASSET_NAME" > checksums.txt )
+    cp "$MIRROR/$CANDIDATE_TAG/checksums.txt" "$MIRROR/latest/download/checksums.txt"
+    MIRROR_PORT=$(free_port)
+    ( cd "$MIRROR" && exec python3 -m http.server "$MIRROR_PORT" --bind 127.0.0.1 ) >"$WORK_ROOT/published-mirror.log" 2>&1 &
+    MIRROR_PID=$!
+    MIRROR_READY=$(( $(date +%s) + 30 ))
+    while [ "$(date +%s)" -lt "$MIRROR_READY" ]; do
+        if curl -fsS "http://127.0.0.1:$MIRROR_PORT/$ALPHA_TAG/checksums.txt" >/dev/null 2>&1; then break; fi
+        sleep 1
+    done
+    export GOTAVERN_RELEASES_BASE_URL="http://127.0.0.1:$MIRROR_PORT"
+    ok "built the loopback release mirror for $ALPHA_TAG and $CANDIDATE_TAG (latest -> $CANDIDATE_TAG)"
+
+    # ---- 3. install the PUBLISHED release through the real installer ---------------------------
+    if ! sh "$INSTALLER" --dir "$PREFIX" --version "$ALPHA_TAG" >"$WORK_ROOT/published-installer-alpha.log" 2>&1; then
+        fail "install.sh failed for the published $ALPHA_TAG"
+    fi
+    INSTALLED="$PREFIX/gotavern"
+    [ -x "$INSTALLED" ] || fail "the installer did not install an executable at $INSTALLED"
+    INSTALLED_TAG=$(tag_of_binary "$INSTALLED")
+    [ "$INSTALLED_TAG" = "$ALPHA_TAG" ] || fail "the installed binary reports $INSTALLED_TAG, expected the published $ALPHA_TAG"
+    [ "$(sha256_of "$INSTALLED")" = "$(sha256_of "$WORK_ROOT/stage-alpha/gotavern")" ] \
+        || fail "the installed alpha.9 binary is not byte-identical to the published archive's binary"
+    ok "installed the PUBLISHED $ALPHA_TAG through install.sh and the mirror seam (binary verified byte-identical)"
+
+    # THE OLDER BINARY'S TOKENIZER LAYOUT, the same measured accommodation the cross-commit mode documents: this
+    # repository's installer installs the CURRENT `src/tokenizers` tier, while the published alpha.9 looks at
+    # `<prefix>/tokenizers` and `<prefix>/upstream/tokenizers`. The SAME bytes are mirrored to the legacy path so the
+    # published release can count tokens exactly; the candidate keeps using src/tokenizers.
+    if [ -d "$PREFIX/src/tokenizers" ] && [ ! -d "$PREFIX/tokenizers" ]; then
+        cp -R "$PREFIX/src/tokenizers" "$PREFIX/tokenizers"
+        ok "mirrored src/tokenizers to the legacy root path so the published $ALPHA_TAG can tokenize exactly"
+    fi
+
+    # ---- 4. seed the long-lived corpus into the installed prefix -------------------------------
+    node "$REPO_ROOT/tools/build-longlived-corpus.mjs" --size small --out "$CORPUS" \
+        --seed beta1-published-upgrade --force --quiet >"$WORK_ROOT/corpus-generation.json" 2>"$WORK_ROOT/corpus-generation.log" \
+        || fail "the long-lived corpus generator failed"
+    [ -s "$CORPUS/manifest.json" ] || fail "the generated corpus has no manifest.json"
+    node "$REPO_ROOT/tools/longlived/verify.mjs" --corpus "$CORPUS" >/dev/null 2>"$WORK_ROOT/corpus-verify.log" \
+        || fail "the generated corpus was refused by tools/longlived/verify.mjs"
+    # THE INSTALLED PREFIX HAS NO data/ UNTIL A SERVER BOOTS, so copying the corpus into it needs the directory
+    # created first. This branch is Linux-only (it boots the published linux-amd64 asset) and was therefore never
+    # executed on the Windows development host -- CI run 41205015776 is the record: `cp: cannot create directory
+    # .../published-install/data/default-user: No such file or directory`. The failure was in the harness, not the
+    # product, and the qualification produced no verdict.
+    mkdir -p "$PREFIX/data"
+    cp -R "$CORPUS/default-user" "$PREFIX/data/default-user"
+    cp "$CORPUS/config.yaml" "$PREFIX/config.yaml"
+    [ -s "$CORPUS/content.log" ] && cp "$CORPUS/content.log" "$PREFIX/data/content.log"
+    CORPUS_TREE=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["tree"]["sha256"])' "$CORPUS/manifest.json")
+    PRIMARY_AVATAR=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["surfaces"]["characters"][0]["avatar"].split("/")[-1])' "$CORPUS/manifest.json")
+    PRIMARY_NAME=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["surfaces"]["characters"][0]["name"])' "$CORPUS/manifest.json")
+    LONG_CHAT_FILE=$(python3 -c 'import json,sys,os; c=[x for x in json.load(open(sys.argv[1]))["surfaces"]["chats"] if x.get("long")][0]; print(os.path.basename(c["file"]).replace(".jsonl",""))' "$CORPUS/manifest.json")
+    PLANTED_MESSAGES=$(python3 -c 'import json,sys; c=[x for x in json.load(open(sys.argv[1]))["surfaces"]["chats"] if x.get("long")][0]; print(c["messages"])' "$CORPUS/manifest.json")
+    WORLD_NAME=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["surfaces"]["worlds"][0]["name"])' "$CORPUS/manifest.json")
+    WORLD_ENTRIES=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["surfaces"]["worlds"][0]["entries"])' "$CORPUS/manifest.json")
+    PRESET_NAME=$(python3 -c 'import json,sys; m=json.load(open(sys.argv[1])); print([p["name"] for p in m["surfaces"]["presets"] if p.get("structurePreserving")][0])' "$CORPUS/manifest.json")
+    ok "seeded the generated long-lived corpus (tree $CORPUS_TREE): $PRIMARY_NAME's $PLANTED_MESSAGES-message chat, world $WORLD_NAME ($WORLD_ENTRIES entries), preset $PRESET_NAME"
+
+    # ---- 5. the PUBLISHED release boots over the corpus and can read it -----------------------
+    boot_prefix_server "$PREFIX" "$WORK_ROOT/published-alpha-server.log" alpha || fail "the published $ALPHA_TAG did not boot over the corpus tree"
+    ALPHA_VERSION=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["pkgVersion"])' "$WORK_ROOT/version-alpha.json")
+    [ -n "$ALPHA_VERSION" ] || fail "the published alpha.9 answered /version without a pkgVersion"
+    ok "the published $ALPHA_TAG boots over the long-lived corpus and answers /version (pkgVersion $ALPHA_VERSION)"
+    kill "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
+    SERVER_PID=""
+
+    # ---- 6. BACK UP the pre-update runtime tree, then update to the candidate ------------------
+    mkdir -p "$BACKUP"
+    for item in config.yaml data extensions certs; do
+        [ -e "$PREFIX/$item" ] && cp -R "$PREFIX/$item" "$BACKUP/$item"
+    done
+    [ -d "$BACKUP/data/default-user" ] || fail "the pre-update backup does not hold the user tree"
+    snapshot_runtime "$PREFIX" > "$WORK_ROOT/published-runtime-before-update.txt"
+    FAILURE_PREFIX="$PREFIX"
+    FAILURE_BACKUP="$BACKUP"
+    if ! sh "$INSTALLER" --dir "$PREFIX" --version latest >"$WORK_ROOT/published-installer-update.log" 2>&1; then
+        fail "install.sh failed while updating the published $ALPHA_TAG tree to $CANDIDATE_TAG"
+    fi
+    UPDATED_TAG=$(tag_of_binary "$INSTALLED")
+    [ "$UPDATED_TAG" = "$CANDIDATE_TAG" ] || fail "after the update the installed binary reports $UPDATED_TAG, expected $CANDIDATE_TAG"
+    [ "$(sha256_of "$INSTALLED")" = "$CANDIDATE_BINARY_HASH" ] || fail "the updated binary is not byte-identical to the candidate archive's binary"
+    snapshot_runtime "$PREFIX" > "$WORK_ROOT/published-runtime-after-update.txt"
+    if ! diff -u "$WORK_ROOT/published-runtime-before-update.txt" "$WORK_ROOT/published-runtime-after-update.txt" >"$WORK_ROOT/published-runtime-diff-update.txt" 2>&1; then
+        cat "$WORK_ROOT/published-runtime-diff-update.txt" >&2
+        fail "the update changed the user's runtime tree file by file, which no update may do"
+    fi
+    ok "updated $ALPHA_TAG -> $CANDIDATE_TAG through install.sh: binary moved and every config/data/extension/cert file survived byte for byte"
+
+    # ---- 7. boot Beta 1 over the corpus and USE it --------------------------------------------
+    boot_prefix_server "$PREFIX" "$WORK_ROOT/published-beta-server-1.log" beta || fail "the candidate $CANDIDATE_TAG did not boot over the published alpha.9's long-lived tree"
+    BETA_VERSION=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["pkgVersion"])' "$WORK_ROOT/version-beta.json")
+    [ -n "$BETA_VERSION" ] || fail "the candidate answered /version without a pkgVersion"
+
+    TOKEN=$(curl -fsS -c "$JAR" -b "$JAR" "$BASE/csrf-token" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+    [ -n "$TOKEN" ] || fail "the candidate answered /csrf-token without a token"
+    api_post() {
+        curl -fsS -b "$JAR" -c "$JAR" -H "X-CSRF-Token: $TOKEN" -H 'Content-Type: application/json' \
+            --data-binary @"$2" "$BASE$1"
+    }
+    api_get_code() {
+        curl -sS -o /dev/null -w '%{http_code}' -b "$JAR" -c "$JAR" "$BASE$1"
+    }
+
+    printf '{}' > "$WORK_ROOT/chars-request.json"
+    api_post /api/characters/all "$WORK_ROOT/chars-request.json" > "$WORK_ROOT/characters.json" || fail "the candidate's /api/characters/all failed over the corpus tree"
+    grep -qF "$PRIMARY_AVATAR" "$WORK_ROOT/characters.json" \
+        || fail "the candidate does not list the corpus character $PRIMARY_AVATAR, so the user's card is invisible after the upgrade"
+    ok "the candidate lists the corpus cards after the upgrade (e.g. $PRIMARY_AVATAR)"
+
+    python3 -c 'import json,sys; json.dump({"avatar_url": sys.argv[1], "file_name": sys.argv[2]}, open(sys.argv[3], "w"))' \
+        "$PRIMARY_AVATAR" "$LONG_CHAT_FILE" "$WORK_ROOT/chat-get-request.json"
+    api_post /api/chats/get "$WORK_ROOT/chat-get-request.json" > "$WORK_ROOT/chat-before.json" || fail "the candidate's /api/chats/get failed for the existing corpus chat"
+    SERVED_MESSAGES=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(len(d))' "$WORK_ROOT/chat-before.json")
+    [ "$SERVED_MESSAGES" -ge "$PLANTED_MESSAGES" ] \
+        || fail "the candidate served $SERVED_MESSAGES of the $PLANTED_MESSAGES planted messages: the user's history is truncated after the upgrade"
+    ok "the candidate RESUMED the existing chat $LONG_CHAT_FILE: $SERVED_MESSAGES of $PLANTED_MESSAGES planted messages served"
+
+    # A continuation, saved through the product's own route, is the "keep using it" observable. The record is
+    # appended to what the server SERVED (never hand-written into the file) so the save path is the one exercised.
+    python3 - "$WORK_ROOT/chat-before.json" "$PRIMARY_AVATAR" "$LONG_CHAT_FILE" "$PRIMARY_NAME" "$WORK_ROOT/chat-save-request.json" <<'PY'
+import json, sys
+source, avatar, chat_name, character_name, target = sys.argv[1:6]
+records = json.load(open(source))
+records.append({"name": character_name, "is_user": False, "is_system": False,
+                "send_date": "2026-10-31T00:00:00.000Z", "mes": "BETA1_UPGRADE_CONTINUE_MARKER", "extra": {}})
+json.dump({"avatar_url": avatar, "file_name": chat_name, "chat": records, "force": True}, open(target, "w"))
+PY
+    api_post /api/chats/save "$WORK_ROOT/chat-save-request.json" > "$WORK_ROOT/chat-save-response.json" \
+        || fail "the candidate's /api/chats/save failed for the resumed chat after the upgrade"
+    grep -q '"ok"' "$WORK_ROOT/chat-save-response.json" || fail "the candidate's /api/chats/save did not answer ok: $(cat "$WORK_ROOT/chat-save-response.json")"
+    ok "the candidate SAVED a continuation into the user's existing chat after the upgrade"
+
+    CHARACTER_CODE=$(api_get_code "/characters/$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$PRIMARY_AVATAR")")
+    [ "$CHARACTER_CODE" = "200" ] || fail "the candidate answers $CHARACTER_CODE for the corpus character image after the upgrade"
+    THUMBNAIL_CODE=$(api_get_code "/thumbnail?type=avatar&file=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$PRIMARY_AVATAR")")
+    [ "$THUMBNAIL_CODE" = "200" ] || fail "the candidate answers $THUMBNAIL_CODE for the corpus character thumbnail after the upgrade"
+    ok "the candidate serves the user's character image and thumbnail after the upgrade (200/200)"
+
+    printf '{"name": "%s"}' "$WORLD_NAME" > "$WORK_ROOT/world-request.json"
+    api_post /api/worldinfo/get "$WORK_ROOT/world-request.json" > "$WORK_ROOT/world.json" || fail "the candidate's /api/worldinfo/get failed for $WORLD_NAME"
+    SERVED_ENTRIES=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1])).get("entries", {})))' "$WORK_ROOT/world.json")
+    [ "$SERVED_ENTRIES" = "$WORLD_ENTRIES" ] || fail "the candidate served $SERVED_ENTRIES of the $WORLD_ENTRIES world-book entries after the upgrade"
+    printf '{}' > "$WORK_ROOT/settings-request.json"
+    api_post /api/settings/get "$WORK_ROOT/settings-request.json" > "$WORK_ROOT/settings.json" || fail "the candidate's /api/settings/get failed"
+    python3 - "$WORK_ROOT/settings.json" "$PRESET_NAME" <<'PY' || fail "the upgrade changed what the settings route reports (unknown key or preset missing); the user would need a manual migration"
+import json, sys
+payload = json.load(open(sys.argv[1]))
+settings = json.loads(payload["settings"])
+assert "longlived_legacy_state" in settings, "the unknown top-level settings key was dropped"
+assert "longlived_legacy_extension" in settings.get("extension_settings", {}), "the unknown extension-settings carrier was dropped"
+assert sys.argv[2] in payload["settings"], f"the preset {sys.argv[2]} is not in the served settings text"
+assert len(payload.get("world_names", [])) >= 2, "the world list is empty after the upgrade"
+PY
+    ok "the candidate serves the user's settings unknown keys and preset $PRESET_NAME after the upgrade (no manual migration needed)"
+
+    # ---- 8. RESTART the candidate and read the saved continuation back ------------------------
+    kill "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
+    SERVER_PID=""
+    boot_prefix_server "$PREFIX" "$WORK_ROOT/published-beta-server-2.log" beta-restart || fail "the candidate $CANDIDATE_TAG did not restart over the tree it had just written"
+    TOKEN=$(curl -fsS -c "$JAR" -b "$JAR" "$BASE/csrf-token" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+    api_post /api/chats/get "$WORK_ROOT/chat-get-request.json" > "$WORK_ROOT/chat-after-restart.json" || fail "the restarted candidate could not read the resumed chat"
+    python3 - "$WORK_ROOT/chat-after-restart.json" <<'PY' || fail "the restarted candidate did not serve the continuation it saved (the session did not survive a restart, or the chat file was not read back)"
+import json, sys
+records = json.load(open(sys.argv[1]))
+texts = [str(record.get("mes", "")) for record in records]
+assert "BETA1_UPGRADE_CONTINUE_MARKER" in texts, "the saved continuation is missing after the restart"
+assert len(records) >= 100, "the restarted server served a truncated history"
+PY
+    ok "the restarted candidate READ BACK the continuation and the full history it had saved (restart -> resume -> continue)"
+
+    # ---- 9. THE BACKUP PATH, exercised for real -----------------------------------------------
+    cp -R "$BACKUP/data" "$RESTORE_PREFIX/data"
+    [ -e "$BACKUP/config.yaml" ] && cp "$BACKUP/config.yaml" "$RESTORE_PREFIX/config.yaml"
+    cp -R "$WORK_ROOT/stage-alpha/." "$RESTORE_PREFIX/"
+    if [ -d "$RESTORE_PREFIX/src/tokenizers" ] && [ ! -d "$RESTORE_PREFIX/tokenizers" ]; then
+        cp -R "$RESTORE_PREFIX/src/tokenizers" "$RESTORE_PREFIX/tokenizers"
+    fi
+    kill "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
+    SERVER_PID=""
+    boot_prefix_server "$RESTORE_PREFIX" "$WORK_ROOT/published-restore-server.log" restore || fail "the pre-update backup could not boot the published alpha.9 over it"
+    RESTORED_TAG=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["pkgVersion"])' "$WORK_ROOT/version-restore.json")
+    [ -n "$RESTORED_TAG" ] || fail "the restored prefix answered /version without a pkgVersion"
+    TOKEN=$(curl -fsS -c "$JAR" -b "$JAR" "$BASE/csrf-token" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+    api_post /api/chats/get "$WORK_ROOT/chat-get-request.json" > "$WORK_ROOT/chat-restored.json" || fail "the restored prefix could not read the chat"
+    python3 - "$WORK_ROOT/chat-restored.json" <<'PY' || fail "the restored backup is not the pre-upgrade state: it already contains the Beta 1 continuation or lost the history"
+import json, sys
+records = json.load(open(sys.argv[1]))
+texts = [str(record.get("mes", "")) for record in records]
+assert "BETA1_UPGRADE_CONTINUE_MARKER" not in texts, "the restored backup contains the Beta 1 continuation"
+assert len(records) >= 100, "the restored backup lost the user's history"
+PY
+    kill "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
+    SERVER_PID=""
+    ok "the pre-update backup was RESTORED into a fresh prefix, booted $ALPHA_TAG over it, and served the pre-upgrade chat (backup path exercised)"
+
+    # ---- 9b. FRESH INSTALL and a SillyTavern-DATA-COPY DROP-IN over the SAME corpus ----------
+    #
+    # The upgrade path is not the only way a user arrives: a new user installs Beta 1 fresh and brings an existing
+    # SillyTavern tree, and a returning user drops the release archive into a directory that already holds their
+    # data. Both are executed over the SAME generated corpus, so all three arrival paths are measured on one input.
+    FRESH_PREFIX="$WORK_ROOT/published-fresh"
+    DROPIN_PREFIX="$WORK_ROOT/published-dropin"
+    rm -rf "$FRESH_PREFIX" "$DROPIN_PREFIX"
+    mkdir -p "$FRESH_PREFIX"
+    if ! sh "$INSTALLER" --dir "$FRESH_PREFIX" --version latest >"$WORK_ROOT/published-installer-fresh.log" 2>&1; then
+        fail "install.sh failed for a FRESH candidate install"
+    fi
+    [ "$(tag_of_binary "$FRESH_PREFIX/gotavern")" = "$CANDIDATE_TAG" ] || fail "the fresh install does not report $CANDIDATE_TAG"
+    mkdir -p "$FRESH_PREFIX/data"
+    cp -R "$CORPUS/default-user" "$FRESH_PREFIX/data/default-user"
+    cp "$CORPUS/config.yaml" "$FRESH_PREFIX/config.yaml"
+    [ -s "$CORPUS/content.log" ] && cp "$CORPUS/content.log" "$FRESH_PREFIX/data/content.log"
+    boot_prefix_server "$FRESH_PREFIX" "$WORK_ROOT/published-fresh-server.log" fresh || fail "the FRESH candidate install did not boot over the corpus tree"
+    TOKEN=$(curl -fsS -c "$JAR" -b "$JAR" "$BASE/csrf-token" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+    api_post /api/chats/get "$WORK_ROOT/chat-get-request.json" > "$WORK_ROOT/chat-fresh.json" || fail "the fresh install could not read the corpus chat"
+    FRESH_MESSAGES=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' "$WORK_ROOT/chat-fresh.json")
+    [ "$FRESH_MESSAGES" -ge "$PLANTED_MESSAGES" ] || fail "the fresh install served $FRESH_MESSAGES of the $PLANTED_MESSAGES planted messages"
+    kill "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
+    SERVER_PID=""
+    ok "FRESH Beta 1 install over the same corpus boots and serves the existing chat ($FRESH_MESSAGES messages)"
+
+    mkdir -p "$DROPIN_PREFIX"
+    cp -R "$WORK_ROOT/stage-candidate/." "$DROPIN_PREFIX/"
+    mkdir -p "$DROPIN_PREFIX/data"
+    cp -R "$CORPUS/default-user" "$DROPIN_PREFIX/data/default-user"
+    cp "$CORPUS/config.yaml" "$DROPIN_PREFIX/config.yaml"
+    [ -s "$CORPUS/content.log" ] && cp "$CORPUS/content.log" "$DROPIN_PREFIX/data/content.log"
+    if [ -d "$DROPIN_PREFIX/src/tokenizers" ] && [ ! -d "$DROPIN_PREFIX/tokenizers" ]; then
+        cp -R "$DROPIN_PREFIX/src/tokenizers" "$DROPIN_PREFIX/tokenizers"
+    fi
+    boot_prefix_server "$DROPIN_PREFIX" "$WORK_ROOT/published-dropin-server.log" dropin || fail "the SillyTavern-data-copy drop-in did not boot over the corpus tree"
+    TOKEN=$(curl -fsS -c "$JAR" -b "$JAR" "$BASE/csrf-token" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+    api_post /api/chats/get "$WORK_ROOT/chat-get-request.json" > "$WORK_ROOT/chat-dropin.json" || fail "the drop-in could not read the corpus chat"
+    DROPIN_MESSAGES=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' "$WORK_ROOT/chat-dropin.json")
+    [ "$DROPIN_MESSAGES" -ge "$PLANTED_MESSAGES" ] || fail "the drop-in served $DROPIN_MESSAGES of the $PLANTED_MESSAGES planted messages"
+    DROPIN_CODE=$(api_get_code "/characters/$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$PRIMARY_AVATAR")")
+    [ "$DROPIN_CODE" = "200" ] || fail "the drop-in answered $DROPIN_CODE for the corpus character image"
+    kill "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
+    SERVER_PID=""
+    ok "SillyTavern-DATA-COPY drop-in over the same corpus boots, serves the existing chat ($DROPIN_MESSAGES messages) and the character image (200)"
+
+    # ---- 10. WHAT BETA 1 WROTE, classified ----------------------------------------------------
+    snapshot_runtime "$PREFIX" > "$WORK_ROOT/published-runtime-after-journey.txt"
+    awk 'NF < 2 { next }
+         NR == FNR { hash = $1; sub(/^[^ ]+ +/, ""); known[$0] = hash; next }
+         { hash = $1; sub(/^[^ ]+ +/, ""); path = $0
+           if (!(path in known)) { print "added " path }
+           else { if (known[path] != hash) print "changed " path; seen[path] = 1 } }
+         END { for (path in known) if (!(path in seen)) print "removed " path }' \
+        "$WORK_ROOT/published-runtime-before-update.txt" "$WORK_ROOT/published-runtime-after-journey.txt" \
+        | LC_ALL=C sort > "$WORK_ROOT/published-runtime-classified.txt"
+    if grep -q '^removed ' "$WORK_ROOT/published-runtime-classified.txt"; then
+        grep '^removed ' "$WORK_ROOT/published-runtime-classified.txt" >&2
+        fail "Beta 1 REMOVED user runtime state (paths above)"
+    fi
+    CHANGED_UNEXPECTED=$(grep '^changed ' "$WORK_ROOT/published-runtime-classified.txt" \
+        | grep -v -e 'data/default-user/chats/' -e 'data/default-user/settings.json' -e 'data/default-user/stats.json' -e 'config.yaml' || true)
+    if [ -n "$CHANGED_UNEXPECTED" ]; then
+        printf '%s\n' "$CHANGED_UNEXPECTED" >&2
+        fail "Beta 1 modified runtime state outside the chat/settings/config it was driven to change (paths above): an undocumented migration would look like this"
+    fi
+    ADDED_UNEXPECTED=$(grep '^added ' "$WORK_ROOT/published-runtime-classified.txt" \
+        | grep -v -e 'data/default-user/backups/' -e 'data/default-user/thumbnails/' -e 'data/default-user/_cache' -e 'data/_cache' \
+                 -e 'cookie-secret.txt' -e 'data/_storage/' -e 'data/default-user/secrets.json' -e 'data/default-user/image-metadata.json' \
+                 -e 'data/default-user/sysprompt/.migrated' -e 'data/default-user/content.log' -e 'data/content.log' || true)
+    if [ -n "$ADDED_UNEXPECTED" ]; then
+        printf '%s\n' "$ADDED_UNEXPECTED" >&2
+        fail "Beta 1 added runtime file(s) that are not an enumerated artefact shape (paths above): 'no undocumented migration' is a measurement, and this is a FAIL"
+    fi
+    ok "Beta 1's writes were classified: $(grep -c '^changed ' "$WORK_ROOT/published-runtime-classified.txt" || true) changed path(s) inside the chat/settings/config it was driven to change, $(grep -c '^added ' "$WORK_ROOT/published-runtime-classified.txt" || true) added path(s) all of known artefact shapes, 0 removed"
+
+    FAILURE_PREFIX=""
+    FAILURE_BACKUP=""
+    if [ -n "${QUALIFY_REPORT_DIR:-}" ]; then
+        mkdir -p "$QUALIFY_REPORT_DIR"
+        python3 - "$QUALIFY_REPORT_DIR" "$ALPHA_TAG" "$CANDIDATE_TAG" "$CORPUS_TREE" "$PUBLISHED_ACTUAL" "$PRIMARY_NAME" "$PLANTED_MESSAGES" "$SERVED_MESSAGES" "$SERVED_ENTRIES" <<'PY'
+import json, os, sys
+report_dir, alpha_tag, candidate_tag, corpus_tree, published_sha256, character, planted, served, world_entries = sys.argv[1:10]
+json.dump({
+    "schema": "gotavern-published-upgrade-verdict",
+    "schemaVersion": 1,
+    "ok": True,
+    "baseline": {"publishedTag": alpha_tag, "source": "github-release", "assetSha256": published_sha256, "checksumVerified": True},
+    "candidate": {"tag": candidate_tag},
+    "corpus": {"treeSha256": corpus_tree, "character": character, "plantedMessages": int(planted), "servedMessages": int(served), "worldEntries": int(world_entries)},
+    "journey": {"resumedExistingChat": True, "savedContinuation": True, "restartReadBack": True, "assets": True, "settingsUnknownKeysPreserved": True, "worldBookServed": True},
+    "arrivalPaths": {"publishedUpgrade": True, "freshInstallOverCorpus": True, "sillytavernDataCopyDropin": True},
+    "backup": {"preUpdateBackupExercised": True, "restoredPrefixBooted": True},
+    "migration": {"manualStepsRequired": 0, "writesClassified": True},
+}, open(os.path.join(report_dir, "published-alpha9-verdict.json"), "w"), indent=2)
+PY
+        ok "wrote the machine-readable verdict to $QUALIFY_REPORT_DIR/published-alpha9-verdict.json"
+    fi
+    echo
+    echo "ok: published $ALPHA_TAG -> candidate $CANDIDATE_TAG upgrade qualification passed (real artifacts, checksum-verified; chat resumed, continued, restarted and read back; backup restore exercised; migration writes classified)"
+    exit 0
+}
+
+
 WORK_ROOT=$(mktemp -d 2>/dev/null || mktemp -d -t gotavern-upgrade)
 SERVER_PID=""
 MIRROR_PID=""
+FAILURE_PREFIX=""
+FAILURE_BACKUP=""
 cleanup() {
     for pid in "$SERVER_PID" "$MIRROR_PID"; do
         if [ -n "$pid" ]; then kill "$pid" 2>/dev/null || true; fi
@@ -128,6 +591,17 @@ cleanup() {
     rm -rf "$WORK_ROOT"
 }
 trap cleanup EXIT HUP INT TERM
+
+# ---- PUBLISHED-BASELINE DISPATCH ------------------------------------------------------------------
+# `--published-alpha9 <candidate-archive>` qualifies the PUBLISHED v0.1.0-alpha.9 -> candidate upgrade with real
+# downloads and a usable journey (see qualify_published_alpha9 above). The default invocation keeps the original
+# two-archive cross-commit qualification, unchanged.
+if [ "${1:-}" = "--published-alpha9" ]; then
+    shift
+    [ "$#" -ge 1 ] || fail "usage: $0 --published-alpha9 <candidate-archive>"
+    [ -s "$1" ] || fail "candidate archive $1 is missing or empty"
+    qualify_published_alpha9 "$1"
+fi
 
 [ -f "$INSTALLER" ] || fail "install.sh not found at $INSTALLER"
 [ -s "$OLDER_ARCHIVE" ] || fail "older archive $OLDER_ARCHIVE is missing or empty"
@@ -298,8 +772,12 @@ ok "seeded runtime state and snapshotted it: $(wc -l < "$WORK_ROOT/runtime-seede
 boot_server() {
     # $1 label suffix, $2 expected tag, $3 log file. Runs in the prefix WITHOUT --dataRoot, so startup
     # resolves the data root from config.yaml the way a real install does.
+    #
+    # `--browserLaunchEnabled false` IS NOT OPTIONAL: the pinned default config enables browser launch, and a
+    # qualification that opens a window on an operator's desktop is a defect in the gate (the same flag the
+    # browser harness passes to every boot it makes).
     PORT=$(free_port)
-    ( cd "$PREFIX" && exec "./gotavern" start --port "$PORT" ) >"$3" 2>&1 &
+    ( cd "$PREFIX" && exec "./gotavern" start --port "$PORT" --browserLaunchEnabled false --heartbeatInterval 0 ) >"$3" 2>&1 &
     SERVER_PID=$!
     for _ in $(seq 1 60); do
         if curl -fsS "http://127.0.0.1:$PORT/version" > "$WORK_ROOT/version-$1.json" 2>/dev/null; then

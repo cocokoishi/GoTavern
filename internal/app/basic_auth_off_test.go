@@ -97,10 +97,10 @@ func startWithBasicAuthFlags(t *testing.T, listen, basicAuthMode bool) string {
 func TestBasicAuthIsOffWhenTheConfigurationDidNotEnableIt(t *testing.T) {
 	client := &http.Client{Transport: &http.Transport{Proxy: nil}, Timeout: 20 * time.Second}
 	cases := []struct {
-		name           string
-		listen         bool
-		basicAuthMode  bool
-		description    string
+		name          string
+		listen        bool
+		basicAuthMode bool
+		description   string
 	}{
 		{
 			name:          "default-config-no-basic-auth",
