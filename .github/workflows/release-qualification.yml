@@ -517,6 +517,123 @@ jobs:
           done
           echo "::endgroup::"
 
+  qualify-published-alpha9-upgrade:
+    # THE RELEASE-BLOCKING BETA 1 LEG: upgrade a user WHO IS ON THE PUBLISHED v0.1.0-alpha.9 to this commit's build,
+    # and then KEEP USING the tree. The job below this one builds both archives from the same source; this one starts
+    # from the PUBLISHED release downloaded from the GitHub release page, verifies it against the PUBLISHED
+    # checksums.txt, installs it through install.sh, seeds the generated long-lived corpus into it, boots it, backs the
+    # runtime tree up, updates to the candidate archive, and then drives Beta 1 over the corpus: resume the existing
+    # chat, save a continuation, require assets/settings/world book, restart and read the continuation back, restore
+    # the backup into a fresh prefix and boot alpha.9 over it, and classify every runtime path Beta 1 wrote.
+    #
+    # A green here means "a published-alpha.9 user can move to this build and continue working without an undocumented
+    # manual migration", which is a different claim from "an update does not corrupt files".
+    runs-on: ubuntu-latest
+    # Download (60 MB) + three installs/boots + the journey. The script bounds every wait; this is the job backstop.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+
+      - name: Build the candidate release archive from this commit
+        shell: bash
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          candidate_tag="beta1-candidate-$(git rev-parse --short=12 HEAD)"
+          stage="$RUNNER_TEMP/stage-candidate"
+          rm -rf "$stage"; mkdir -p "$stage/src"
+          go build -trimpath -ldflags="-s -w -X main.version=${candidate_tag}" -o "$stage/gotavern" ./cmd/gotavern
+          cp LICENSE THIRD_PARTY_NOTICES.txt start.sh "$stage/"
+          cp -R upstream/tokenizers "$stage/src/tokenizers"
+          {
+            echo "GoTavern release ${candidate_tag}"
+            echo "candidate $(git rev-parse HEAD)"
+            echo
+            "$stage/gotavern" version || true
+          } > "$stage/BUILD-INFO.txt"
+          chmod +x "$stage/gotavern" "$stage/start.sh"
+          tar -czf dist/gotavern-candidate.tar.gz -C "$stage" .
+          test -s dist/gotavern-candidate.tar.gz
+          echo "candidate=$candidate_tag commit=$(git rev-parse HEAD)"
+
+      - name: Qualify the PUBLISHED alpha.9 -> candidate upgrade against the long-lived corpus
+        env:
+          QUALIFY_REPORT_DIR: ${{ github.workspace }}/dist/reports
+        run: |
+          set -euo pipefail
+          bash scripts/qualify-upgrade-rollback.sh --published-alpha9 dist/gotavern-candidate.tar.gz
+
+      - name: Publish the verdict on the job summary
+        if: always()
+        run: |
+          set -uo pipefail
+          verdict="dist/reports/published-alpha9-verdict.json"
+          if [ -s "$verdict" ]; then
+            python3 - "$verdict" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json, sys
+          v = json.load(open(sys.argv[1]))
+          print(f"### published alpha.9 -> candidate upgrade: {'PASS' if v.get('ok') else 'FAIL'}")
+          print(f"- baseline: `{v.get('baseline', {}).get('publishedTag')}` checksumVerified={v.get('baseline', {}).get('checksumVerified')}")
+          print(f"- candidate: `{v.get('candidate', {}).get('tag')}`")
+          print(f"- corpus: `{json.dumps(v.get('corpus'))}`")
+          print(f"- journey: `{json.dumps(v.get('journey'))}`")
+          print(f"- backup: `{json.dumps(v.get('backup'))}`")
+          print(f"- migration: `{json.dumps(v.get('migration'))}`")
+          print(f"- failure: `{v.get('failure', '')}`")
+          PY
+          else
+            echo "::error::no published-alpha9-verdict.json was written, so there is no machine-readable verdict"
+          fi
+
+      - name: Report failure context
+        if: failure()
+        shell: bash
+        run: |
+          echo "::group::published-alpha.9 qualification logs"
+          for log in "$RUNNER_TEMP"/gotavern-upgrade-*/published-*.log; do
+            if [ -f "$log" ]; then
+              echo "--- $log ---"
+              tail -120 "$log"
+            fi
+          done
+          echo "::endgroup::"
+          if [ -s dist/reports/published-alpha9-verdict.json ]; then
+            echo "::group::published-alpha.9 verdict"
+            cat dist/reports/published-alpha9-verdict.json
+            echo "::endgroup::"
+          fi
+
+      - name: Upload the machine-readable verdict
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-alpha9-upgrade-${{ github.run_id }}
+          path: dist/reports/**
+          retention-days: 30
+          if-no-files-found: warn
+
+      # A JOB THAT PRODUCED NO VERDICT MUST NOT BE GREEN: the step above warns when the file is absent, and this one
+      # turns that absence into the job's verdict.
+      - name: Fail if the published upgrade produced no passing verdict
+        if: always()
+        run: |
+          set -euo pipefail
+          verdict="dist/reports/published-alpha9-verdict.json"
+          if [ ! -s "$verdict" ]; then
+            echo "::error::the published alpha.9 -> candidate upgrade wrote no verdict; the qualification did not run to a verdict"
+            exit 1
+          fi
+          python3 -c 'import json,sys; v=json.load(open(sys.argv[1])); print("verdict ok:", v.get("ok")); sys.exit(0 if v.get("ok") else 1)' "$verdict"
+
   qualify-dropin-linux:
     # THE USER'S OWN PATH, EXECUTED: a stock SillyTavern tree, the packaged archive, and the binary
     # started inside it.

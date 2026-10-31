@@ -1,0 +1,359 @@
+# THE LONG-LIVED CORPUS QUALIFICATION — Beta 1's answer to "it works on a fresh install".
+#
+# WHAT IT RUNS. `tools/build-longlived-corpus.mjs` builds a deterministic, synthetic, NO-PRIVATE-DATA SillyTavern
+# tree (AGENTS 51/56) at one of three sizes, `tools/longlived/verify.mjs` re-walks it and asserts its surfaces by
+# name, and `tests/browser/longlived-qualify.mjs` boots the CANDIDATE GoTavern binary and the PINNED Node
+# SillyTavern over two COPIES of that tree, drives the long-lived journey (resume an existing chat -> send -> swipe
+# -> switch preset/world/temperature/character -> reload repeatedly -> save -> restart -> resume -> continue), then
+# judges browser-observable state, provider request BYTES and persisted disk state, and proves the judge has teeth
+# by mutating the run's own artefacts. The Go half (`tests/e2e/longlived_corpus_test.go`) runs in the same job:
+# generation determinism, the loader's named refusal of a drifted tree, and a boot of the shipped binary over a
+# corpus copy.
+#
+# WHY IT IS ITS OWN WORKFLOW. `whole-session.yml` proves a fresh-install journey; this one exists because Beta 1 must
+# qualify LONG-LIVED session data. Mixing it into the fresh-install surface would make a red unable to say which
+# shape failed, and the sizes want different budgets.
+#
+# SIZES:
+#   small   (<5 MB)   push and the default dispatch: fast CI, both browser subjects, full comparator + teeth.
+#   medium  (~50 MB)  dispatch only: the full qualification over long histories (2400-message chats).
+#   large   (>100 MB) nightly schedule or dispatch only: generator determinism (byte-identical rebuild) + the
+#                     loader + the Go boot gate. A browser drive over 5000-message chats would spend an hour loading
+#                     history without adding an assertion; that is declared here, not implied.
+#
+# WHAT A GREEN RUN DOES NOT PROVE, stated so the matrix can quote it: the provider is a recording peer, not a real
+# provider (AGENTS 22); real user data is never present (the corpus is synthetic); the large size is not
+# browser-driven; and the pinned leg needs the pinned checkout with its node_modules (a machine without it records
+# the pinned legs as not-observed and the verdict is NOT a pass).
+
+name: GoTavern long-lived corpus qualification
+
+on:
+  workflow_dispatch:
+    inputs:
+      size:
+        description: 'Corpus size to qualify'
+        type: choice
+        options: [small, medium, large]
+        default: small
+  push:
+    paths:
+      - 'tools/build-longlived-corpus.mjs'
+      - 'tools/longlived/**'
+      - 'tests/browser/longlived-*.mjs'
+      - 'tests/e2e/longlived_corpus_test.go'
+      - '.github/workflows/longlived.yml'
+  schedule:
+    # Nightly at 05:23 UTC: the large-corpus generator/loader/Go gate. A scheduled run is the only routine run whose
+    # green covers the large size.
+    - cron: '23 5 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: longlived-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PINNED_BASELINE_COMMIT: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
+
+jobs:
+  # ---------------------------------------------------------------------------------------------------------------
+  # SMALL: the fast gate. Both browser subjects, the comparator, the teeth proof, and the Go corpus gate.
+  # ---------------------------------------------------------------------------------------------------------------
+  small-corpus:
+    if: ${{ github.event_name != 'schedule' && (github.event_name != 'workflow_dispatch' || inputs.size == 'small') }}
+    runs-on: ubuntu-latest
+    # SIZED FROM THE DRIVES, not a round number: two corpus generations (small, with a determinism rebuild), the Go
+    # gate, two pinned boots (the pinned server compiles its frontend libraries on a cold checkout), and four
+    # browser legs. The probe's own deadlines (120 s server, 90 s reply, 60 s chat resume) are the first line of
+    # defence; this bounds a wedged browser instead of holding a runner for the service maximum.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/checkout-pinned
+        with:
+          commit: ${{ env.PINNED_BASELINE_COMMIT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # THE SAME THREE CACHES, KEYED THE SAME WAY, as `whole-session.yml`: a hit SKIPS an install, so the key has to
+      # PROVE the identity of what it restores (pinned commit plus its lockfile, the harness lockfile, the Playwright
+      # download). No `restore-keys`: a partial restore reports cache-hit=false while handing back an older tree.
+      - name: Cache the pinned server's node_modules
+        id: cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Install the pinned server's dependencies
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "pinned server node_modules: CACHE HIT for ${{ env.PINNED_BASELINE_COMMIT }} -- install SKIPPED"
+          else
+            echo "pinned server node_modules: cache MISS -- installing from the pinned checkout's own manifest"
+            cd .reference/SillyTavern
+            if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          fi
+
+      - name: Install the browser harness
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            echo "tests/browser/node_modules: cache MISS -- npm ci"
+            (cd tests/browser && npm ci --no-audit --no-fund)
+          fi
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            echo "playwright chromium: CACHE HIT -- browser download SKIPPED, OS packages still ensured"
+            (cd tests/browser && npx playwright install-deps chromium)
+          else
+            echo "playwright chromium: cache MISS -- downloading the browser and its OS packages"
+            (cd tests/browser && npx playwright install --with-deps chromium)
+          fi
+
+      - name: Which setup branches this run took
+        run: |
+          echo "pinned server node_modules cache-hit: ${{ steps.cache-pinned-modules.outputs.cache-hit }}"
+          echo "harness node_modules cache-hit:       ${{ steps.cache-harness-modules.outputs.cache-hit }}"
+          echo "playwright browsers cache-hit:        ${{ steps.cache-playwright.outputs.cache-hit }}"
+          echo "(true = the install above was skipped; false or empty = it ran)"
+
+      - name: Build the candidate binary
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          mkdir -p .browser-bin
+          go build -trimpath -o .browser-bin/gotavern ./cmd/gotavern
+          echo "GOTAVERN_BINARY=${PWD}/.browser-bin/gotavern" >> "$GITHUB_ENV"
+          echo "GOTAVERN_REFERENCE=${PWD}/.reference/SillyTavern" >> "$GITHUB_ENV"
+
+      # THE CORPUS IS GENERATED ONCE and shared by the Go gate and the browser driver: generating it twice would pay
+      # for the same bytes twice, and the determinism rebuild inside the generator is the assertion that they are the
+      # same bytes.
+      - name: Generate the small corpus (deterministic rebuild asserted in-run)
+        run: |
+          set -euo pipefail
+          corpus="$RUNNER_TEMP/longlived-corpus-small"
+          node tools/build-longlived-corpus.mjs --size small --out "$corpus" --seed corpus-ci --force --verify-deterministic
+          echo "GOTAVERN_LONGLIVED_CORPUS=$corpus" >> "$GITHUB_ENV"
+          echo "GOTAVERN_LONGLIVED_SIZE=small" >> "$GITHUB_ENV"
+
+      - name: Loader gate (the corpus matches its manifest and every surface is present)
+        run: |
+          set -euo pipefail
+          node tools/longlived/verify.mjs --corpus "$GOTAVERN_LONGLIVED_CORPUS" > "$RUNNER_TEMP/longlived-verify.json"
+          cat "$RUNNER_TEMP/longlived-verify.json" | python3 -c 'import json,sys; v=json.load(sys.stdin); print("loader ok:", v["ok"], "checks:", len(v["checks"])); sys.exit(0 if v["ok"] else 1)'
+
+      - name: Go gate (boot the shipped binary over the corpus copy and preserve it)
+        run: |
+          set -euo pipefail
+          go test ./tests/e2e -run '^TestLongLivedCorpus$' -count=1 -v
+
+      - name: Drive the long-lived journey on both subjects and judge it
+        env:
+          PINNED_READY_MS: '180000'
+        run: |
+          set -euo pipefail
+          node tests/browser/longlived-qualify.mjs --size small --corpus "$GOTAVERN_LONGLIVED_CORPUS" \
+            --out-dir "$RUNNER_TEMP/longlived-small"
+
+      - name: Publish the verdict on the job summary
+        if: always()
+        run: |
+          set -uo pipefail
+          verdict="$RUNNER_TEMP/longlived-small/longlived-verdict.json"
+          if [ ! -s "$verdict" ]; then
+            echo "::error::the driver produced no longlived-verdict.json, so there is no machine-readable verdict"
+            exit 1
+          fi
+          status=0
+          node tools/longlived/summarise-verdict.mjs --verdict "$verdict" --label "long-lived corpus (small)" >> "$GITHUB_STEP_SUMMARY" || status=$?
+          exit "$status"
+
+      - name: Upload the legs, verdict, comparison and teeth
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: longlived-small-${{ github.run_id }}
+          path: ${{ runner.temp }}/longlived-small/**
+          retention-days: 14
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------------------------------------------
+  # MEDIUM: dispatch only. The full qualification over long histories (~50 MB, 2400-message chats).
+  # ---------------------------------------------------------------------------------------------------------------
+  medium-corpus:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.size == 'medium' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout-pinned
+        with:
+          commit: ${{ env.PINNED_BASELINE_COMMIT }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Cache the pinned server's node_modules
+        id: cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Install the pinned server's dependencies
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then echo "pinned node_modules: CACHE HIT"; else
+            cd .reference/SillyTavern
+            if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          fi
+      - name: Install the browser harness
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then echo "harness node_modules: CACHE HIT"; else (cd tests/browser && npm ci --no-audit --no-fund); fi
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then (cd tests/browser && npx playwright install-deps chromium); else (cd tests/browser && npx playwright install --with-deps chromium); fi
+      - name: Build the candidate binary
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          mkdir -p .browser-bin
+          go build -trimpath -o .browser-bin/gotavern ./cmd/gotavern
+          echo "GOTAVERN_BINARY=${PWD}/.browser-bin/gotavern" >> "$GITHUB_ENV"
+          echo "GOTAVERN_REFERENCE=${PWD}/.reference/SillyTavern" >> "$GITHUB_ENV"
+      - name: Generate the medium corpus (deterministic rebuild asserted in-run)
+        run: |
+          set -euo pipefail
+          corpus="$RUNNER_TEMP/longlived-corpus-medium"
+          node tools/build-longlived-corpus.mjs --size medium --out "$corpus" --seed corpus-ci --force --verify-deterministic
+          echo "GOTAVERN_LONGLIVED_CORPUS=$corpus" >> "$GITHUB_ENV"
+          echo "GOTAVERN_LONGLIVED_SIZE=medium" >> "$GITHUB_ENV"
+      - name: Loader gate
+        run: |
+          set -euo pipefail
+          node tools/longlived/verify.mjs --corpus "$GOTAVERN_LONGLIVED_CORPUS"
+      - name: Go gate over the medium corpus
+        run: |
+          set -euo pipefail
+          go test ./tests/e2e -run '^TestLongLivedCorpus$' -count=1 -v
+      - name: Drive the long-lived journey on both subjects and judge it
+        env:
+          PINNED_READY_MS: '240000'
+        run: |
+          set -euo pipefail
+          node tests/browser/longlived-qualify.mjs --size medium --corpus "$GOTAVERN_LONGLIVED_CORPUS" \
+            --out-dir "$RUNNER_TEMP/longlived-medium"
+      - name: Publish the verdict on the job summary
+        if: always()
+        run: |
+          set -uo pipefail
+          verdict="$RUNNER_TEMP/longlived-medium/longlived-verdict.json"
+          if [ ! -s "$verdict" ]; then
+            echo "::error::the driver produced no longlived-verdict.json"; exit 1
+          fi
+          status=0
+          node tools/longlived/summarise-verdict.mjs --verdict "$verdict" --label "long-lived corpus (medium)" >> "$GITHUB_STEP_SUMMARY" || status=$?
+          exit "$status"
+      - name: Upload the legs, verdict, comparison and teeth
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: longlived-medium-${{ github.run_id }}
+          path: ${{ runner.temp }}/longlived-medium/**
+          retention-days: 14
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------------------------------------------
+  # LARGE: nightly schedule or dispatch only. Generator determinism + loader + the Go boot gate; NOT a browser drive,
+  # declared rather than implied.
+  # ---------------------------------------------------------------------------------------------------------------
+  large-corpus:
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.size == 'large') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Generate the large corpus (byte-identical rebuild asserted)
+        run: |
+          set -euo pipefail
+          corpus="$RUNNER_TEMP/longlived-corpus-large"
+          node tools/build-longlived-corpus.mjs --size large --out "$corpus" --seed corpus-ci --force --verify-deterministic
+          echo "GOTAVERN_LONGLIVED_CORPUS=$corpus" >> "$GITHUB_ENV"
+          echo "GOTAVERN_LONGLIVED_SIZE=large" >> "$GITHUB_ENV"
+      - name: Loader gate (the large tree matches its manifest, size class measured)
+        run: |
+          set -euo pipefail
+          node tools/longlived/verify.mjs --corpus "$GOTAVERN_LONGLIVED_CORPUS" | tee "$RUNNER_TEMP/longlived-large-verify.json"
+      - name: Go gate (boot the shipped binary over the large corpus copy)
+        run: |
+          set -euo pipefail
+          go test ./tests/e2e -run '^TestLongLivedCorpus$' -count=1 -v
+      - name: Publish the measurement on the job summary
+        if: always()
+        run: |
+          set -uo pipefail
+          verdict="$RUNNER_TEMP/longlived-large-verify.json"
+          if [ ! -s "$verdict" ]; then
+            echo "::error::the large-corpus loader produced no verdict"; exit 1
+          fi
+          status=0
+          node tools/longlived/summarise-verdict.mjs --verdict "$verdict" --label "long-lived corpus (large)" >> "$GITHUB_STEP_SUMMARY" || status=$?
+          exit "$status"
+      - name: Upload the large-corpus measurement
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: longlived-large-${{ github.run_id }}
+          path: ${{ runner.temp }}/longlived-large-*.json
+          retention-days: 14
+          if-no-files-found: warn
