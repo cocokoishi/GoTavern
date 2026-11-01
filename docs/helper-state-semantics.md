@@ -111,3 +111,22 @@ node tests/browser/helper-state-gate-selftest.mjs go.json pinned.json
 
 The workflow passes `--nonce ${GITHUB_RUN_ID}`-derived value to BOTH legs: without a shared nonce the two subjects'
 bodies legitimately differ by the marker text and `nodeEqualsGo` would be red for a harness reason.
+
+
+### The CI job: new, portability-fixed twice, still RED (named residual, 2026-11-01)
+
+The capability evidence above is Layer A (Windows host). The bounded ubuntu workflow
+[`.github/workflows/helper-state.yml`](../.github/workflows/helper-state.yml) exists to make it a Linux gate, and its
+first runs failed for reasons that were all job portability, not the differential:
+
+- `41281023252`: `Chart` -- actions/checkout refused `path: ../SillyTavern` ("not under the workspace"); the pinned
+  oracle now checks out to `.reference/SillyTavern`, which `run-against-pinned.mjs` already resolves first.
+- `41282119167`: `Install Playwright chromium` failed with "Playwright does not support chromium on ubuntu26.04-x64";
+  the Playwright workflows are pinned to `ubuntu-24.04` rather than relying on a warm browser cache.
+- `41283416152` and `41293935148`: the Go leg runs green (23/23 steps), but the pinned leg fails at
+  `character-opened` with "no roster card with that name" -- the synthetic probe card is staged into the Go data root
+  but is not visible in the pinned leg's data root on Linux. That is the remaining defect in the JOB (the local
+  two-subject run and the comparator pass), not evidence of a product difference.
+
+Until that is fixed the helper row stays PARTIAL and the release notes/HANDOFF say the helper evidence is Layer A
+only. The workflow is NOT part of `docs/release-manifest.json`.

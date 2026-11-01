@@ -1,6 +1,6 @@
 # The evidence ledger: one row per user question, and the run that proves it
 
-Describes: commit `5be679b` (`main`, 2026-10-31, the `v0.1.0-alpha.9` release commit). Every run cited below
+Describes: commit `5be679b` (`main`, 2026-10-31, the `v0.1.0-alpha.9` release commit). **The ledger has not been re-anchored since; the current release is `v0.1.0-alpha.11` at `81ca5ad` (2026-11-01), whose same-SHA gate table is appended to its published release body and whose checkpoint is the latest section of `HANDOFF.md`. Until this file is re-anchored, treat its release-state rows as describing the alpha.9 line and read the alpha.11 evidence from HANDOFF and the release body.** Every run cited below
 judged a commit that is an ancestor of it -- most of them `913e3c5` or `1255b29` itself. **The window between
 `1255b29` and the release is NOT documentation-only** (measured: `git diff --name-only 1255b29..5be679b` touches
 83 files, 24 of them Go, including `cmd/gotavern/main.go`, `internal/app/server.go` and

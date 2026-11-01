@@ -10,7 +10,84 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-11-01: `v0.1.0-alpha.10` SHIPPED -- THE FIRST PRERELEASE AFTER THE STABLE GRADUATION
+## Latest checkpoint - 2026-11-01: `v0.1.0-alpha.11` SHIPPED -- THE ALPHA-LINE PRERELEASE THAT TURNED THE REMAINING P1 EVIDENCE INTO MEASURED CAPABILITIES
+
+`v0.1.0-alpha.11` is a **prerelease on the alpha line** (release id `430586286`, tag object `a5a04e6`, commit
+`81ca5ad`). `v0.1.0-alpha.9` keeps the stable channel: `releases/latest`, a bare `install.sh`/`install.ps1` and
+Docker `:latest` still serve alpha.9. The channel decision remains one script, `scripts/classify-version-tag.sh`.
+
+### Release identity and assets
+
+| fact | value |
+|---|---|
+| GitHub Release | `430586286` (`v0.1.0-alpha.11`, prerelease=true, draft=false, published 2026-11-01T12:58:02Z) |
+| tag object -> commit | `a5a04e6` -> `81ca5ad1ca4b56736dae9815f7bad9bfdbf1c0c3` |
+| assets | 7 files, 366,157,334 bytes (`checksums.txt` + six canonical archives) |
+| Docker | `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11` digest `sha256:3c1e05880d381da4966c0c4de2e06a95c58150543e05573e192c219bc389522b` (run `41309725704`) |
+| published-release smoke | `41309728118` success (linux-amd64 + windows-amd64 over the PUBLIC assets and checksums) |
+| reachability | `/releases/latest` is still STABLE `v0.1.0-alpha.9`; the prerelease is reachable by tag only |
+
+### Same-SHA required gates (all `workflow_dispatch`, all at `81ca5ad`)
+
+| gate | run |
+|---|---|
+| GoTavern CI (verify, race, browser-evidence, FULL oracle sweep) | `41293914442` success |
+| whole-session differential | `41293916333` success |
+| world-info slot ordering | `41293918682` success |
+| drop-in qualification | `41293920641` success |
+| Browser differential (mode=all) | `41293922702` success |
+| release qualification (published alpha.10 upgrade + rollback) | `41293924758` success |
+| smoke metrics (paired benchmark + 10-minute soak) | `41293926892` success |
+| Docker image (no-push build) | `41293928867` success |
+
+Additional evidence gates at the same commit: Node stock tree round trip `41293930996` success, Group-chat
+differential `41293933137` success, live provider/proxy canary (default skip, no credential) `41293937134` success.
+The release body appends this table from the API, so the ids are checkable against the published release.
+
+### Performance measured at the released commit
+
+`smoke-metrics` `41293926892`: cold start to `/version` 200 = 280.8 ms, warm 31.0 ms, `/version` median 0.932 ms
+(p95 2.930), `/` median 1.783 ms (p95 5.530), cold RSS 38.5 MB, fresh install 203 files / 16.2 MB. Paired benchmark
+(`q22-paired-benchmark` artifact of the same run): boot 212 vs 12,075 ms, RSS 39.1 MB vs 1,141 MB, `/version`
+median 0.345 vs 32.61 ms, `/` median 1.82 vs 12.72 ms; Go soak RSS drift -1.6 MB, p95 +0.34 ms. Absolute numbers
+move with the runner; the compatibility gates run on the same commit, so "faster" cannot mean a different prompt.
+
+### What alpha.11 actually moved (each with its gate)
+
+The Node-originated stock tree (pinned server creates it through 23 of its own API calls; Node->Go->Node->Go round
+trip, 194 assertions) and the multipart accumulate defect it found and fixed; the group-chat provider-request
+differential (15 scenarios + restart, 240 guards, teeth proven); the 18-knob preset A/B differential and the 46-row
+preset inventory; the 酒馆助手 second-order state differential (scopes, preset mutation, events, iframe->bridge
+closure, 30 guards, 5 mutations); the live provider/proxy canary plus the remote-embeddings **declared exclusion**
+(HTTP 501 naming the reason); CharX/BYAF/RisuAI imports implemented against a whole-user-tree oracle with the
+avatar-crop probe and a browser create/read-back; crash-atomic chat rename, Windows node-persist read retries and
+bounded upload memory (552.0 MB -> 37.7 MB peak on a 200 MiB upload); the 37 legacy redirect aliases (50/50) with
+the 308 correction, the tgwebui tokenizer route and the 116-key configuration-parity inventory. The new gates also
+found and fixed four of their own defects on first Linux runs (group fixture checkout identity, node-stock report
+path, determinism volatile-count masking, provider-wire fixture key-order).
+
+### Residuals, recorded rather than hidden
+
+- **Combination journey (DoD) is NOT built**: no single browser journey composes character x preset x helper x world
+  info x variables x regex x quick replies x streaming x save/reload/swipe/regenerate/continue/restart. The pieces
+  are measured individually (domain, provider-wire, group, helper, whole-session) but the composed journey is a
+  remaining P1.
+- **Helper-state CI job is RED and is a named residual**: `41293935148` (earlier `41281023252`, `41282119167`,
+  `41283416152`) failed after two portability fixes (pinned checkout inside the workspace, runner pinned to
+  ubuntu-24.04); the remaining failure is the pinned leg's `character-opened` step reporting "no roster card" because
+  the synthetic probe card is not staged in the pinned leg's data root on Linux. The helper capability evidence is
+  Layer A (Windows) only; the workflow is not in the release manifest, and the release claim says so.
+- Crash-atomicity evidence is Windows CI only (no Linux `-tags gotavern_faults` job); chat backup remains
+  unimplemented. The packaged drop-in gate still boots a DERIVED stock tree (the Node-originated tree is proven by
+  its own gate but not wired into the packaged/release path). The live canary has no credentialed run. AVIF/APNG
+  avatar re-encoding is a pure-Go decoder boundary; world-info long tail and preset-varying group chats remain
+  unmeasured; preset/helper/imports evidence is Layer A or narrow-run; non-amd64/non-x64 runtimes are built and
+  inspected, not executed. Matrix: PASS 3 / PARTIAL 18 / FAIL 0 / N/A 1; P0 0; the P1s are enumerated in
+  `docs/gap-sweep.md` and the matrix evidenceGap fields.
+
+---
+
+## HISTORY - 2026-11-01: `v0.1.0-alpha.10` SHIPPED -- THE FIRST PRERELEASE AFTER THE STABLE GRADUATION
 
 `v0.1.0-alpha.10` is a **prerelease on the alpha line**. `v0.1.0-alpha.9` keeps the stable channel (it graduated;
 see HISTORY), so `releases/latest`, a bare `install.sh`/`install.ps1` and Docker `:latest` still serve alpha.9, and

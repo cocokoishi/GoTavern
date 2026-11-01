@@ -22,10 +22,10 @@
 
 | | SillyTavern (Node) | GoTavern |
 |---|---|---|
-| Cold start to first `/version` 200 | 9,637 ms | **397 ms** |
-| Steady-state memory (RSS) | 1,253 MB | **38.7 MB** |
-| `GET /version` latency (median) | 58.93 ms | **0.257 ms** |
-| `GET /` latency (median) | 8.83 ms | **1.15 ms** |
+| Cold start to first `/version` 200 | 12,075 ms | **212 ms** |
+| Steady-state memory (RSS) | 1,141 MB | **39.1 MB** |
+| `GET /version` latency (median) | 32.61 ms | **0.345 ms** |
+| `GET /` latency (median) | 12.72 ms | **1.82 ms** |
 
 One GitHub runner, both servers from the same checkout. Details and caveats in [Performance](#performance).
 
@@ -103,12 +103,12 @@ Point GoTavern at your existing directory and start it. Auto-update resolves to 
 
 | Metric | Pinned Node SillyTavern | GoTavern | How it was measured |
 |---|---|---|---|
-| Cold start to first `/version` 200 | 9,637 ms | **397 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
-| Steady-state RSS (`VmRSS` from `/proc`) | 1,253 MB | **38.7 MB** | median of 6 samples, after readiness and 30 requests per round |
-| `GET /version` latency | 58.93 ms | **0.257 ms** | median of 90 sequential requests (p95: 64.58 / 0.46) |
-| `GET /` latency (HTML shell) | 8.83 ms | **1.15 ms** | median of 90 sequential requests |
+| Cold start to first `/version` 200 | 12,075 ms | **212 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
+| Steady-state RSS (`VmRSS` from `/proc`) | 1,141 MB | **39.1 MB** | median of 6 samples, after readiness and 30 requests per round |
+| `GET /version` latency | 32.61 ms | **0.345 ms** | median of 90 sequential requests (p95: 35.31 / 0.64) |
+| `GET /` latency (HTML shell) | 12.72 ms | **1.82 ms** | median of 90 sequential requests |
 
-**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `41221152084` (success), the released commit `ffa6e54`, on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -1.6 MB, p95 drift +0.32 ms); pinned only settled downward from its startup peak. A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The published release body appends the same-SHA run-id table, so the numbers above and the gate run that produced them are checkable together.
+**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `41293926892` (success), the released commit `81ca5ad` (v0.1.0-alpha.11), on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -1.6 MB, p95 drift +0.34 ms); pinned only settled downward from its startup peak. A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The published release body appends the same-SHA run-id table, so the numbers above and the gate run that produced them are checkable together.
 
 ### A profile-driven fix
 
@@ -151,7 +151,7 @@ This table states only what a fresh run on the current commit shows. The reposit
 | After a restart, does a resumed turn carry the restored conversation history? | **verified** | `GoTavern whole-session differential`: the resumed SEND's own request is selected by the provider peer's ordinal, carries the turn-one/turn-two markers and the restored replies, and is byte-identical between GoTavern and pinned. A commit that makes the preset's prompt order omit the chat history is classified as a preset property, must still be byte-identical, and cannot pass silently. The alpha.9 "OPEN" observation was a probe measurement defect (it read *the last completion* rather than *the send's*); the root cause and evidence are in [`docs/persistence-resume.md`](docs/persistence-resume.md) |
 | Was the Q21 hand-back flake fixed rather than tolerated? | **verified** | the flake was a harness race: the pinned leg's "reply landed" wait matched a *colliding reply text* from the GoTavern-handback tree, so the CONTINUE click was refused by the frontend's own guard and the send's late reply was misread as a continuation. The hand-back probe now waits on nine named conditions, tags each subject's replies, reads the press acceptance synchronously and refuses a non-accepted press. A repeated-stability campaign ran the hand-back leg **20/20 green** on one commit (per-iteration conditions + continue-request counts in [`docs/browser-stability.md`](docs/browser-stability.md)) |
 | Does a long-lived, messy user tree keep working? | **verified** | a new deterministic synthetic corpus (unicode/CJK/emoji cards, long chats with swipes/edits/branches, groups, multiple worlds, the committed complex-preset derivation, themes/assets/Quick Replies, legacy keys) is qualified at three sizes by `GoTavern long-lived corpus qualification`: fresh install, long-lived browser journey, restart + resume, published `alpha.9 -> alpha.11` upgrade, fresh-install-over-corpus and SillyTavern-data-copy drop-in |
-| Can I upgrade from alpha.9 and keep my data? | **verified** | the release qualification downloads the **published** `v0.1.0-alpha.9` linux-amd64 archive, verifies its published checksum, installs it, seeds the corpus, boots it, upgrades the same tree to alpha.11 through the installer, continues the same chat (save + restart + read-back), restores the pre-upgrade backup and boots alpha.9 over it again. No undocumented manual migration; every runtime path alpha.11 writes is classified |
+| Can I upgrade from alpha.10 and keep my data? | **verified** | the release qualification downloads the **published** `v0.1.0-alpha.10` linux-amd64 archive, verifies its published checksum, installs it, seeds the corpus, boots it, upgrades the same tree to alpha.11 through the installer, continues the same chat (save + restart + read-back), restores the pre-upgrade backup and boots alpha.10 over it again. No undocumented manual migration; every runtime path alpha.11 writes is classified |
 | Is the backend surface coverage still complete? | **verified** | `docs/surface-coverage.md` is derived from the oracle's own lists: every URL the pinned frontend builds, every pinned route and redirect alias, and every Go registration is classified implemented / intentionally-passthrough / not-applicable / unsupported-with-reason -- 573 frontend surfaces, 384 Go registrations, **0 unknown** -- and a drift gate fails CI when a new frontend request shape or Go route appears without a classification |
 | Does the published Windows install work on a normal Windows shell? | **verified** | `GoTavern published-release install smoke` runs the checkout's `install.ps1 -Version <tag>` over real TLS under **Windows PowerShell 5.1** (the default Windows shell), verifies the published checksum, boots the installed `gotavern.exe`, requires `/version` and real tokenizer ids from `src/tokenizers`. That job also catches the 5.1 download stall (`$ProgressPreference`; >5 min with zero bytes before the fix, 3.9 s for the whole install in CI afterwards) |
 
