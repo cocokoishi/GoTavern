@@ -190,22 +190,21 @@ checker's browser-harness citation rule added in the same change (a citation-voc
 evidence relaxation: the harness must exist, be listed in the row's evidence.tests, and be executed by a
 workflow the row's evidence.ci names). The row does NOT cite a final-candidate run: the release gate
 
-**Combination journey (alpha11 Lane H): BUILT AND PARTIALLY MEASURED, still OPEN.** GOAL §9's highest-priority
-combination (`real character × real complex preset × 酒馆助手 × world book × existing chat history ×
-preset/chat/character variables × regex × Quick Replies × streaming`) now has ONE single-session harness on BOTH
-subjects (`tests/browser/combination-journey-probe.mjs`), a comparator and a five-mutation teeth proof, and a
-bounded ubuntu-24.04 workflow (`.github/workflows/combination-journey.yml`) that runs the drive legs, restart legs
-over the same trees and a pinned hand-back over the GoTavern tree; the full record is
-`docs/combination-journey.md`. Layer A (Windows) measured both drive legs at 51 steps each: the armed-turn facts
-(preset pieces, three variable scopes, QR injection, author's note, regex rewrite), the second-turn history,
-branch creation, the group turn, the durable chat and the helper bridge closure were green on BOTH subjects, and
-the teeth produced 5/5 named reds. The journey is NOT closed: the preset/WI knob-off control turns could not be
-driven (the page wedges "busy" after a mid-session preset switch on BOTH subjects — a harness-faithfulness alarm,
-AGENTS 10), the post-reload request did not carry history/preset/variables, pinned's turn-1 world-info staging was
-overwritten by its boot, and the restart pair and the pinned hand-back were not run on this host; the comparator
-therefore reports those claims as NOT-OBSERVED/red by name and its local verdict is `mismatch`. Preset A-vs-B and
-WI on-vs-off discrimination is consequently NOT PROVEN, and the release notes must keep the combination journey
-listed as measured-but-open until the workflow's ubuntu run is green and cited.
+**Combination journey (alpha11 Lane H): PRE-SEND PRECONDITIONS ASSERTED AND GREEN, ONE HARNESS ANOMALY REMAINS, still OPEN.**
+The composed journey now runs the full five-leg matrix locally: GoTavern drive 63 steps / 6 red, pinned drive 63 / 6
+(identical red names), GoTavern restart 18 / 6, pinned restart 18 / 6 (identical), pinned hand-back over the
+GoTavern-written tree 12 / 1; comparator 81 guards / 17 failed / 0 asymmetries / 0 mismatched common captures;
+teeth 5/5 named reds. Every page PRECONDITION is asserted before the surviving turn and green on both: the saved chat
+is reopened as the character's own chat and held stable (active id, 9 messages, regex-rewritten tail, 1.5 s), the
+prompt manager's own `getPromptCollection("normal")` holds the character collection (56 prompts incl.
+chatHistory/main/worldInfoBefore, stable 2.5 s), `world_info.globalSelect` is persisted, the helper prompt and QR
+injection are active, and the persona is re-asserted after the character open (the two control arms are now
+byte-equal). STILL OPEN: after reload/restart/hand-back BOTH subjects send a generation whose provider request is the
+deterministic 11864-byte four-message skeleton (chatHistory rendered `[Start new chat]`, no history/WI/AN/variables/QR,
+sha256 `01c99711bc87ec8a486512dd8855d63d4cb4c326c66bfa1863b80422e2e97920`) while a dry run 1.3 s later assembles
+39 messages on the same page; the group/final turns inherit it. Identical under pinned Node, so it is a
+harness-faithfulness alarm (AGENTS 10), not a product divergence; the combination-coverage claim stays out of the
+matrix row until the ubuntu workflow is green and cited. Full record: `docs/combination-journey.md`.
 
 re-runs this workflow at the frozen candidate SHA and THAT run is cited in the release record, not here.
 
