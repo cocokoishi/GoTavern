@@ -1208,6 +1208,33 @@ async function main() {
                             thisChid: script.this_chid ?? null,
                             at: Date.now(),
                         });
+                        // A CHAT-LENGTH TIMELINE ACROSS THE GENERATION. The assembly happens ~1.7 s after
+                        // GENERATION_STARTED; if the global chat array is swapped or emptied in that window, the
+                        // assembled prompt would be a 4-message skeleton while every event still reports 9 messages.
+                        // Sampling 25 ms gives the transition time and the chat id/character at each sample.
+                        try {
+                            if (event !== 'GENERATION_ENDED') {
+                                if (!window.__combChatTimeline) window.__combChatTimeline = [];
+                                if (!window.__combChatTimer) {
+                                    window.__combChatTimer = setInterval(async () => {
+                                        try {
+                                            const script2 = await import('./script.js');
+                                            const ctx2 = window.SillyTavern?.getContext ? window.SillyTavern.getContext() : null;
+                                            window.__combChatTimeline.push({
+                                                at: Date.now(),
+                                                len: (script2.chat ?? []).length,
+                                                chatId: ctx2?.chatId ?? null,
+                                                chid: script2.this_chid ?? null,
+                                                sendPress: script2.is_send_press === true,
+                                            });
+                                        } catch (error) { /* sampling must never break the page */ }
+                                    }, 25);
+                                }
+                            } else if (window.__combChatTimer) {
+                                clearInterval(window.__combChatTimer);
+                                window.__combChatTimer = null;
+                            }
+                        } catch (error) { /* recorder must never break the page */ }
                     } catch (error) { window.__combGenLog.push({ event, error: String(error?.message ?? error) }); }
                 };
                 events.eventSource.on(events.event_types.GENERATION_STARTED, (...args) => record('GENERATION_STARTED', args));
@@ -1227,6 +1254,11 @@ async function main() {
                             promptLength: typeof data?.prompt === 'string' ? data.prompt.length : null,
                             promptArrayLength: Array.isArray(data?.prompt) ? data.prompt.length : null,
                             promptRoles: Array.isArray(data?.prompt) ? data.prompt.map(entry => entry?.role ?? null).slice(0, 20) : null,
+                            // WHAT THE MESSAGES ACTUALLY ARE, not only their roles: the four-message real assembly is
+                            // the object this anomaly is about, and a role list cannot tell a dummy prompt order from a
+                            // truncated history. Content is clipped to 160 chars.
+                            promptHeads: Array.isArray(data?.prompt) ? data.prompt.slice(0, 8).map(entry => ({ role: entry?.role ?? null, name: entry?.name ?? null, head: String(entry?.content ?? '').slice(0, 160) })) : null,
+                            messageCounts: Array.isArray(data?.prompt) ? data.prompt.length : null,
                             messagesLength: Array.isArray(data?.messages) ? data.messages.length : null,
                             finalMesSendLength: Array.isArray(data?.finalMesSend) ? data.finalMesSend.length : null,
                             at: Date.now(),
@@ -1264,6 +1296,19 @@ async function main() {
                 turnReload = await turn(page, 'COMB_TURN_AFTER_RELOAD', 'turn-after-reload');
                 report.browser.reloadTurn = { matched: turnReload.requests.length, noGenerationRequest: turnReload.noGenerationRequest === true, seen: turnReload.seen ?? null, recovered: turnReload.recovered ?? null, baseline: turnReload.baseline ?? null, sent: turnReload.sent ?? null, after: turnReload.after ?? null };
                 report.browser.reloadGenLog = await page.evaluate(() => window.__combGenLog ?? null);
+                report.browser.reloadChatTimeline = await page.evaluate(() => (window.__combChatTimeline ?? []).slice(0, 400));
+                report.browser.reloadPromptError = await page.evaluate(async () => {
+                    try {
+                        const openai = await import('./scripts/openai.js');
+                        return {
+                            error: openai.promptManager?.error ?? null,
+                            context: openai.oai_settings?.openai_max_context ?? null,
+                            maxTokens: openai.oai_settings?.openai_max_tokens ?? null,
+                            squash: openai.oai_settings?.squash_system_messages ?? null,
+                            tokenizer: openai.oai_settings?.tokenizer ?? null,
+                        };
+                    } catch (error) { return { threw: String(error?.message ?? error) }; }
+                });
                 report.browser.reloadFetchLog = await page.evaluate(() => window.__combFetchLog ?? null);
             }
             const reloadTurnCaptured = turnReload !== null && turnReload.requests.length >= 1;

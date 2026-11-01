@@ -114,6 +114,19 @@ bound), compares with `--restart` + `--handback`, runs the teeth, and uploads th
 
 ## The post-reload assembly anomaly: what the instrumented event log now proves (2026-11-01)
 
+A second instrumentation pass captured the CONTENT of the assembled messages, and it moves the diagnosis one
+layer: the four-message real assembly is **four preset prompts only** -- system (one preset prompt), user (a preset
+prompt), system (two preset prompts concatenated), assistant (a preset prompt) -- with NO chatHistory entry at all.
+That is the DUMMY prompt order, not a truncated history: the page's global chat array was sampled every 25 ms across
+the generation and never changed (10 messages, same chat id, same character, then 11 after the reply), and the prompt
+collection measured 56 at every event. So the real call reads the dummy prompt order while the dry run 1.3 s later
+reads the armed character collection, on the same page with the same chat. The anomaly is therefore in WHICH prompt
+order the real generation resolves (preset/prompt-order state at the real call), not in history collection, token
+budget or the composer; it is identical under pinned Node and remains an AGENTS-10 harness-faithfulness alarm. The
+next attempt should read `promptManager.serviceSettings.prompt_order` and the selected preset name inside the
+`GENERATION_STARTED`/`GENERATE_AFTER_DATA` handlers themselves, rather than a second later, because the dry run
+proves the armed state arrives only after the real call.
+
 The generation-entry anomaly was re-measured with event-time instrumentation (prompt-collection length and the active
 character at each event, plus the assembled array length). On BOTH subjects, for the post-reload turn:
 
