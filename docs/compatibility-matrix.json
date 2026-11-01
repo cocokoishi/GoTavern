@@ -275,7 +275,8 @@
       "evidence": {
         "oracleFixtures": [
           "tests/oracle/sillytavern-1.19.0-groups.json",
-          "tests/oracle/sillytavern-1.19.0-group-metadata-migration.json"
+          "tests/oracle/sillytavern-1.19.0-group-metadata-migration.json",
+          "tests/browser/fixtures/group-chat/pinned-oracle.json"
         ],
         "upstreamAssets": [],
         "implementation": [
@@ -284,26 +285,35 @@
         ],
         "tests": [
           "TestPinnedNodeGroups",
-          "TestMigrateGroupChatsMetadataFormatMatchesPinnedNode"
+          "TestMigrateGroupChatsMetadataFormatMatchesPinnedNode",
+          "tests/browser/group-chat-fixture.mjs",
+          "tests/browser/group-chat-probe.mjs",
+          "tests/browser/compare-group-chat-legs.mjs",
+          "tests/browser/group-chat-record-fixture.mjs",
+          "tests/browser/group-chat-comparator-selftest.mjs"
         ],
-        "browserArtifacts": [],
+        "browserArtifacts": [
+          "tests/browser/group-chat-comparison.json"
+        ],
         "ci": [
-          "ci.yml#oracle"
+          "ci.yml#oracle",
+          "group-chat-differential.yml#group-chat"
         ],
         "releaseArtifact": null
       },
       "wouldGoRedIfWrong": {
-        "test": "TestPinnedNodeGroups",
-        "explanation": "the row's claims about groups and group chats, including the metadata migration rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+        "test": "tests/browser/compare-group-chat-legs.mjs",
+        "explanation": "the row's multi-character generation claim rests on this judge: it compares the pinned Node and GoTavern provider-request bytes for 15 group-chat scenarios (byte sha256/length, method, raw target), asserts the discriminating half (2 vs 3 members, disabled member excluded, forced order, world info/Author's Note/samplers reaching the wire, truncation dropping history, continue/swipe/regenerate/impersonate batches) and fails itself as HARNESS NON-DISCRIMINATING when a knob stops changing the request. group-chat-comparator-selftest.mjs proves it can fail by name (swap generation order, drop a character's prompt, change a message role, remove a case), and group-chat-differential.yml runs both in CI."
       },
       "evidenceGap": [
-        "no generation test: a group chat's multi-character turn order reaches the provider through a path no fixture covers",
-        "no browser E2E of group activation"
+        "the group-chat differential runs against the repository recording peer on the custom OpenAI-compatible source only (AGENTS.md 22): streaming, tools/tool_choice, reasoning fields and the other provider-specific group transforms are not exercised for group turns; the single-character provider-wire fixtures own those",
+        "group turns are driven through the frontend functions the UI handlers call (open, send, auto mode, forced /trigger, continue, swipe, regenerate, impersonate) rather than by clicking every control; the handler-level functions are the same call path the buttons use, but a UI-only regression in a button binding would not be seen here",
+        "the scenario set is fixed at the fixture tree (three synthetic cards, one chat per scenario); a real user group with more members, alternate greetings or group-card overrides is not recorded"
       ],
       "blockedBy": [
         "whole-session-e2e"
       ],
-      "notes": "Group chat is where several characters' prompts are concatenated; prompt assembly for that path is unverified."
+      "notes": "Group chat is where several characters' prompts are concatenated. The multi-character turn is now measured end to end: group-chat-probe.mjs drives the unmodified pinned frontend against a recording peer on BOTH subjects (pinned Node via run-against-pinned.mjs, GoTavern via its own binary) over the same deterministic tree, and compare-group-chat-legs.mjs compares the exact provider request bytes. Scenarios: 2 and 3 characters, a disabled member, natural/list/manual activation, auto mode, previous-speaker ban, group greeting from card first messages, character-bound + chat-bound + global world info, Author's Note at depth, non-default samplers/stops, user turn, continue, swipe, regenerate, impersonate, context truncation, and a server restart that reloads the same tree before continuing. The committed oracle fixture is the pinned recording (tests/browser/fixtures/group-chat/pinned-oracle.json), re-recorded on every run and refused if it differs."
     },
     {
       "id": "world-info",
@@ -1123,16 +1133,16 @@
       "citedByMatrix": 67
     },
     "browserArtefacts": {
-      "inTree": 39,
-      "citedByMatrix": 10
+      "inTree": 40,
+      "citedByMatrix": 11
     },
     "goTestFunctions": {
       "inTree": 757,
       "citedByMatrix": 92
     },
     "workflows": {
-      "inTree": 12,
-      "jobsInTree": 31
+      "inTree": 13,
+      "jobsInTree": 32
     },
     "rows": {
       "total": 22,

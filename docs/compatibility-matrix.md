@@ -47,7 +47,7 @@ A row is `PASS` only when every one of these holds:
 | 4 | Secrets: read, write, active source, per-provider slots | **PARTIAL** | 3 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
 | 5 | Characters: read, write, import, avatar replacement, disk cache | **PARTIAL** | 4 oracle fixture(s), upstream assets, Go implementation, 4 named test(s), CI job(s) | 3 item(s) |
 | 6 | Chats: save, get, search, recent, import, mutations | **PARTIAL** | 4 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 1 item(s) |
-| 7 | Groups and group chats, including the metadata migration | **PARTIAL** | 2 oracle fixture(s), Go implementation, 2 named test(s), CI job(s) | 2 item(s) |
+| 7 | Groups and group chats, including the metadata migration | **PARTIAL** | 3 oracle fixture(s), Go implementation, 7 named test(s), 1 browser artefact(s), CI job(s) | 3 item(s) |
 | 8 | World info: books, entries, activation, positions | **PASS** | 1 oracle fixture(s), Go implementation, 6 named test(s), 2 browser artefact(s), CI job(s) | _none_ |
 | 9 | Presets, quick replies, themes, moving UI, system prompts | **PARTIAL** | 5 oracle fixture(s), Go implementation, 3 named test(s), 1 browser artefact(s), CI job(s) | 2 item(s) |
 | 10 | Provider transport on the real internet (TLS, proxy, timeouts, decompression, redirects) | **PARTIAL** | Go implementation, 9 named test(s), CI job(s) | 2 item(s) |
@@ -187,22 +187,23 @@ Chat JSONL is the surface where a partial write loses a user's conversation, so 
 
 Row id: `groups`
 
-- Oracle fixtures: `tests/oracle/sillytavern-1.19.0-groups.json`, `tests/oracle/sillytavern-1.19.0-group-metadata-migration.json`
+- Oracle fixtures: `tests/oracle/sillytavern-1.19.0-groups.json`, `tests/oracle/sillytavern-1.19.0-group-metadata-migration.json`, `tests/browser/fixtures/group-chat/pinned-oracle.json`
 - Upstream assets: _none_
 - Go implementation: `internal/server`, `internal/migrate`
-- Named tests: `TestPinnedNodeGroups`, `TestMigrateGroupChatsMetadataFormatMatchesPinnedNode`
-- Browser artefacts: _none_
-- CI jobs: `ci.yml#oracle`
+- Named tests: `TestPinnedNodeGroups`, `TestMigrateGroupChatsMetadataFormatMatchesPinnedNode`, `tests/browser/group-chat-fixture.mjs`, `tests/browser/group-chat-probe.mjs`, `tests/browser/compare-group-chat-legs.mjs`, `tests/browser/group-chat-record-fixture.mjs`, `tests/browser/group-chat-comparator-selftest.mjs`
+- Browser artefacts: `tests/browser/group-chat-comparison.json`
+- CI jobs: `ci.yml#oracle`, `group-chat-differential.yml#group-chat`
 - Release artifact: _none_
 
 **Evidence gap**
 
-- no generation test: a group chat's multi-character turn order reaches the provider through a path no fixture covers
-- no browser E2E of group activation
+- the group-chat differential runs against the repository recording peer on the custom OpenAI-compatible source only (AGENTS.md 22): streaming, tools/tool_choice, reasoning fields and the other provider-specific group transforms are not exercised for group turns; the single-character provider-wire fixtures own those
+- group turns are driven through the frontend functions the UI handlers call (open, send, auto mode, forced /trigger, continue, swipe, regenerate, impersonate) rather than by clicking every control; the handler-level functions are the same call path the buttons use, but a UI-only regression in a button binding would not be seen here
+- the scenario set is fixed at the fixture tree (three synthetic cards, one chat per scenario); a real user group with more members, alternate greetings or group-card overrides is not recorded
 
 Blocked by: `whole-session-e2e`
 
-Group chat is where several characters' prompts are concatenated; prompt assembly for that path is unverified.
+Group chat is where several characters' prompts are concatenated. The multi-character turn is now measured end to end: group-chat-probe.mjs drives the unmodified pinned frontend against a recording peer on BOTH subjects (pinned Node via run-against-pinned.mjs, GoTavern via its own binary) over the same deterministic tree, and compare-group-chat-legs.mjs compares the exact provider request bytes. Scenarios: 2 and 3 characters, a disabled member, natural/list/manual activation, auto mode, previous-speaker ban, group greeting from card first messages, character-bound + chat-bound + global world info, Author's Note at depth, non-default samplers/stops, user turn, continue, swipe, regenerate, impersonate, context truncation, and a server restart that reloads the same tree before continuing. The committed oracle fixture is the pinned recording (tests/browser/fixtures/group-chat/pinned-oracle.json), re-recorded on every run and refused if it differs.
 
 ### World info: books, entries, activation, positions — `PASS`
 
@@ -551,8 +552,8 @@ with `TestMain` excluded because it is a package's test entry point rather than 
 | Measure | In the tree | Cited by this matrix |
 |---|---|---|
 | Oracle fixtures | 119 | 67 |
-| Browser artefacts | 39 | 10 |
+| Browser artefacts | 40 | 11 |
 | Go test functions | 757 | 92 |
-| Workflow jobs | 31 in 12 workflow(s) | _n/a_ |
+| Workflow jobs | 32 in 13 workflow(s) | _n/a_ |
 | Rows | 22 | PASS 3, PARTIAL 18, FAIL 0, NOT_APPLICABLE 1 |
 | Session steps | 8 | 7 with a probe, 1 without, 0 sharing a runtime |
