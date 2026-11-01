@@ -161,7 +161,7 @@ These are computed from the tree by `tools/generate-doc-facts.mjs` on every CI r
 
 | Area | State |
 |---|---|
-| Chat-completion providers | Every implemented pinned source except COMETAPI has recorded provider-wire captures (pinned itself refuses COMETAPI before sending any request). <!-- BEGIN GENERATED: provider-wire.summary -->`25` sources with recorded provider-wire captures; `222` recorded scenarios.<!-- END GENERATED: provider-wire.summary --> |
+| Chat-completion providers | Every implemented pinned source except COMETAPI has recorded provider-wire captures (pinned itself refuses COMETAPI before sending any request). <!-- BEGIN GENERATED: provider-wire.summary -->`25` sources with recorded provider-wire captures; `258` recorded scenarios.<!-- END GENERATED: provider-wire.summary --> |
 | Provider wire | Each claimed source is compared against captures: target, method, header set, body bytes (SHA-256), chunked framing, client disconnect. A control test fails if a source is claimed without a capture. |
 | Browser legs | **<!-- BEGIN GENERATED: browser.sources -->`15`<!-- END GENERATED: browser.sources --> sources** carry both a generation and a streaming comparison artefact, enforced by `tools/verify-browser-comparisons.mjs`. |
 | Startup | Differential over <!-- BEGIN GENERATED: startup.requests -->`353`<!-- END GENERATED: startup.requests --> requests. Characters, chats, groups, world info, settings and secrets have replay fixtures. |
