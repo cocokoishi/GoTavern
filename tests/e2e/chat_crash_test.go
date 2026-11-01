@@ -232,7 +232,7 @@ func (tree *crashTree) killDuringSave(t *testing.T, client *crashClient, iterati
 			return true
 		}
 		if existingFile == "" {
-			if _, present := tree.chatFiles(t)[fileName+".jsonl"]; present {
+			if _, present := tree.chatEntries(t)[fileName+".jsonl"]; present {
 				return true
 			}
 		}
@@ -349,7 +349,7 @@ func TestChatRenameRandomisedKills(t *testing.T) {
 			_, _, _ = client.post("/api/chats/rename", renameBody)
 		}()
 		crashed := tree.killWhenProgress(t, client, iteration, done, func() bool {
-			_, present := tree.chatFiles(t)[newName]
+			_, present := tree.chatEntries(t)[newName]
 			return present
 		})
 		<-done
@@ -430,7 +430,7 @@ func TestChatDeleteRandomisedKills(t *testing.T) {
 			_, _, _ = client.post("/api/chats/delete", deleteBody)
 		}()
 		_ = tree.killWhenProgress(t, client, iteration, done, func() bool {
-			_, present := tree.chatFiles(t)[fileName]
+			_, present := tree.chatEntries(t)[fileName]
 			return !present
 		})
 		<-done
@@ -487,7 +487,7 @@ func TestChatImportRandomisedKills(t *testing.T) {
 			_, _, _ = client.postMultipart("/api/chats/import", contentType, importedBody)
 		}()
 		_ = tree.killWhenProgress(t, client, iteration, done, func() bool {
-			return len(tree.chatFiles(t)) > 0 || progressIn(t, tree.chatDir)
+			return len(tree.chatEntries(t)) > 0 || progressIn(t, tree.chatDir)
 		})
 		<-done
 		lastState = verifyImportState(t, tree)

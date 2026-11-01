@@ -247,6 +247,29 @@ func (tree *crashTree) chatFiles(t *testing.T) map[string][]byte {
 	return files
 }
 
+// chatEntries is the PROGRESS poll: names and sizes only, no file contents. A poll runs while the server is
+// still writing, and reading the contents of a file being renamed/deleted is a legitimate transient Windows
+// sharing/not-found race in the TEST process (measured: "read chat file chat.jsonl: ... cannot find the file
+// specified" / "Access is denied" while a rename or delete was in flight). Assertions about bytes are made
+// only after the process is dead.
+func (tree *crashTree) chatEntries(t *testing.T) map[string]int64 {
+	t.Helper()
+	entriesByName := map[string]int64{}
+	entries, err := os.ReadDir(tree.chatDir)
+	if err != nil {
+		return entriesByName
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || strings.HasPrefix(name, ".") || !strings.HasSuffix(name, ".jsonl") {
+			continue
+		}
+		if info, infoErr := entry.Info(); infoErr == nil {
+			entriesByName[name] = info.Size()
+		}
+	}
+	return entriesByName
+}
 func truncateForCrash(value string) string {
 	if len(value) <= 160 {
 		return value
