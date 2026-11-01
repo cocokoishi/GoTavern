@@ -528,6 +528,17 @@ async function setJourneyUserName(page, name) {
         const script = await import('./script.js');
         const powerUser = await import('./scripts/power-user.js');
         if (typeof script.setUserName === 'function') script.setUserName(wanted, { toastPersonaNameChange: false });
+        // THE PAGE CAN RE-ASSERT THE PERSONA AFTER A LATE BOOT STEP: personas.js's selectCurrentPersona() copies
+        // power_user.personas[user_avatar] back into name1 -- and addMissingPersonas() has already created that
+        // entry as '[Unnamed Persona]' for the seeded avatar. On Linux the boot ordering let that run AFTER this
+        // setter (the ubuntu CI capture carried [Unnamed Persona] where pinned carried Probe User, +7 bytes on
+        // every capture), while Windows happened to run it first. Setting the map entry too is what a user does
+        // when they name their persona, and it makes the value survive the re-assert on both hosts.
+        const personaAvatar = script.user_avatar ?? null;
+        if (personaAvatar) {
+            powerUser.power_user.personas = powerUser.power_user.personas ?? {};
+            powerUser.power_user.personas[personaAvatar] = wanted;
+        }
         // The history prefix a user message carries is governed by this setting. Both subjects must agree on it or the
         // request bodies differ by "Name: " on every history turn (measured: Go "Probe User: COMB_TURN_1" vs pinned
         // "COMB_TURN_1").
@@ -1506,7 +1517,16 @@ async function main() {
             const carrying = chatCarrying(chats, 'COMB_');
             report.browser.carryingChats = carrying;
             step('restart-found-the-journey-chat', carrying.length > 0, { carrying });
-            const chatId = carrying[0] ? path.basename(carrying[0], '.jsonl') : null;
+            // THE CHAT IS CHOSEN DETERMINISTICALLY. The group chat's file also carries COMB_ markers, and on Linux the
+            // directory order put 'Alice - ...' first, so carrying[0] selected the GROUP chat while the character opened
+            // was the journey card -- the reopen then reported the saved chat active with one message. Prefer the
+            // card's own chat directory, and among those the one with the most messages.
+            const restartCardCarrying = carrying.filter(name => name.includes(CARD.chatDirectory));
+            const restartPick = (restartCardCarrying.length > 0 ? restartCardCarrying : carrying)
+                .slice()
+                .sort((left, right) => (chats[right]?.messages?.length ?? 0) - (chats[left]?.messages?.length ?? 0));
+            report.browser.pickedChat = restartPick[0] ?? null;
+            const chatId = restartPick[0] ? path.basename(restartPick[0], '.jsonl') : null;
             await openCharacter(page, CARD.name);
             await waitChatLoaded();
             const handbackWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
@@ -1571,7 +1591,12 @@ async function main() {
             const carrying = chatCarrying(chats, 'COMB_');
             report.browser.carryingChats = carrying;
             step('handback-tree-has-the-journey-chat', carrying.length > 0, { carrying });
-            const chatId = carrying[0] ? path.basename(carrying[0], '.jsonl') : null;
+            const handbackCardCarrying = carrying.filter(name => name.includes(CARD.chatDirectory));
+            const handbackPick = (handbackCardCarrying.length > 0 ? handbackCardCarrying : carrying)
+                .slice()
+                .sort((left, right) => (chats[right]?.messages?.length ?? 0) - (chats[left]?.messages?.length ?? 0));
+            report.browser.handbackPickedChat = handbackPick[0] ?? null;
+            const chatId = handbackPick[0] ? path.basename(handbackPick[0], '.jsonl') : null;
             await openCharacter(page, CARD.name);
             await waitChatLoaded();
             const handbackWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);

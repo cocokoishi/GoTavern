@@ -70,6 +70,24 @@ Verdict of that run: `mismatch` -- failed guards `no-page-errors`, `nodeEqualsGo
 The matrix row's note therefore does NOT cite a green ubuntu run; it records Layer A match plus this red and the two
 named next steps.
 
+Both findings were then addressed at the source, not by moving the guards:
+
+- **Persona re-assert.** `setJourneyUserName` now writes the name into `power_user.personas[user_avatar]` as well as
+  `name1`. The page's own boot path (`selectCurrentPersona`) copies the persona-map value back into `name1`, and
+  `addMissingPersonas` has already created that entry as `[Unnamed Persona]` for the seeded avatar — on Linux that
+  boot step ran AFTER the journey's setter, which is exactly the +7-byte difference; on Windows it happened to run
+  first. Setting the map entry is what a user does when naming their persona, so the value now survives the re-assert
+  on both hosts.
+- **Deterministic saved-chat choice.** The restart and hand-back phases picked `carrying[0]` from the COMB_-carrying
+  chat files. The GROUP chat's file also carries COMB_ markers, and Linux directory order put `Alice - …` first, so
+  the probe selected the group chat while the character opened was the journey card; the reopen then saw the saved id
+  active with ONE message. Both phases now prefer the card's own chat directory and, among those, the chat with the
+  most messages, and record the pick (`pickedChat`/`handbackPickedChat`).
+
+A fresh five-leg run at the resulting probe state is green again on Windows Layer A (same 64/64, 64/64, 20/20, 20/20,
+13/13 and verdict `match`, 81 guards, 0 failed); the ubuntu workflow at the commit that carries these two fixes is
+the run that must be green before the matrix note cites CI.
+
 ## What was wrong with the PROBE (and why the earlier red was never a product finding)
 
 The journey failed for several rounds with a system-only four-message assembly and no chat history, first attributed
