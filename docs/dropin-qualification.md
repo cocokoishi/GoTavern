@@ -493,9 +493,12 @@ Two things are stated rather than implied:
   called a correctly booted, parity-matching server "not ready" in run `41331924291`) and the scenario passes
   `--skip-api-smoke`, which PRINTS the reason instead of pretending the smoke ran. The account-enabled API surface
   has its own differential (`accounts-multi-user`).
-- **A candidate product finding is recorded, not swallowed.** During the attempt to run the smoke on that tree, a
-  default-user login answered 200 and the next `POST /api/settings/get` answered **500** in CI (run
-  `41334132591`), with a clean server log. The same request could not be reproduced locally with the current binary
-  (login answered 400 instead), so it is not classified as a product bug yet; it is listed here as a candidate that
-  must be reproduced against a known account-enabled tree before it is either fixed or closed. Do not read the
-  green scenario 5/5 as covering that path.
+- **The account-enabled `/api/settings/get` 500 is PINNED PARITY, not a product finding.** During the attempt to run
+  the smoke on that tree, a default-user login answered 200 and the next `POST /api/settings/get` answered **500**
+  in CI (run `41334132591`). Reproduced locally against the same tree (login 200, settings/get 500) and then checked
+  against the oracle: pinned's own handler is `src/endpoints/settings.js:219-228`, which reads
+  `request.user.directories.root/settings.json` inside a try/catch and returns `sendStatus(500)` when the file is
+  absent. The Node-originated tree's `default-user` has never written a settings.json (only `node-origin` has one),
+  so a 500 here IS the pinned behaviour and GoTavern reproduces it. What was wrong was the HARNESS assumption that an
+  account-enabled tree answers settings/get with 200; the anonymous smoke is therefore skipped for this scenario,
+  and no product defect is recorded.
