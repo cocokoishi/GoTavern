@@ -1095,9 +1095,9 @@
     {
       "rank": 1,
       "row": "packaging-release",
-      "title": "An existing SillyTavern user’s tree is qualified through a DERIVED stock tree; the hand-back after GoTavern has written the tree IS now part of the packaged drop-in gate",
-      "wouldStopARealUser": "yes for an existing SillyTavern user, which is the entire target audience, until the stock tree is recorded from a pinned Node run; the round trip back to pinned Node is now executed in the packaged gate, so what remains is the shape of the INPUT tree, not the hand-back",
-      "evidence": "row packaging-release: dropin-qualification.yml#dropin-current-head boots the Linux archive against a stock tree on every push, #windows-inputs + #dropin-windows execute the WINDOWS archive on windows-latest (a Start.cmd run, a pristine-config run, a trimmed-config run and an exe-direct scenario), and since alpha.10 the SAME packaged archive is handed back to pinned Node inside dropin-current-head (hand-back verdict match, GoTavern 6/6 and pinned 17/17, run 41205962399). What remains: scripts/build-stock-tree.sh DERIVES that tree from upstream/** rather than recording it from a pinned Node run, so the INPUT tree is a derivation even though the round trip is now a packaged-gate execution"
+      "title": "The packaged drop-in gate still boots a DERIVED stock tree; a Node-originated tree is now generated and round-tripped by its own gate (node-stock-tree.yml) but is not yet wired into the packaged/release path",
+      "wouldStopARealUser": "yes for an existing SillyTavern user only insofar as the RELEASE gate still uses a derived input tree; the Node-originated tree now exists and survives Node->Go->Node->Go, so the remaining work is wiring it into the packaged path",
+      "evidence": "row packaging-release: the packaged gate (dropin-qualification.yml#dropin-current-head) still boots the archive against scripts/build-stock-tree.sh, which DERIVES the tree from upstream/**; the new tools/build-node-stock-tree.mjs + tools/qualify-node-stock-tree.mjs + node-stock-tree.yml generate a tree through the pinned server's own API (23 operations; only 3 labelled seeds) and prove Node writes -> Go reads/mutates/restarts -> pinned Node reads/mutates -> Go reads again (194 assertions, 0 failed, tree preservation) plus deterministic rebuild (normalised digests equal, declared volatile set masked and reported). What remains is placement in the packaged/release gate, not the capability."
     },
     {
       "rank": 2,
@@ -1109,16 +1109,16 @@
     {
       "rank": 3,
       "row": "chats",
-      "title": "Chat JSONL atomicity is asserted per route but not at a crash-or-kill boundary, and the browser save->reload leg is owned by the red whole-session gate",
-      "wouldStopARealUser": "yes if a crash or a kill lands mid-write — the user’s conversation is the product — but no such failure has been observed",
-      "evidence": "the chats row: save/get/search/recent/import/mutations are route-differential-tested against the pinned server, and writes are locked and atomic through the shared user-content helper; what is missing is a crash-or-kill boundary test, plus the one-session save/reload assertion that lives in the whole-session row and is now RED for a different reason"
+      "title": "Chat writes are now crash-atomic at 9 named fault points plus 115 seeded random kills (Windows Layer A), but no Linux CI job runs the -tags gotavern_faults gate, and chat backup remains unimplemented",
+      "wouldStopARealUser": "no observed corruption after the chat-rename fix; the residual is platform coverage of the crash gate plus the unimplemented backup feature",
+      "evidence": "row chats: docs/data-safety.md section 7.3 records the crash matrix; the /api/chats/rename copy-then-unlink hole (a kill left BOTH chat files) is fixed to one os.Rename under the user-content lock with the mtime refresh /api/chats/recent needs; deterministic fault points and 115 seeded random kills all left only a complete old or new state, re-asserted after restart and parsed through the API, with the pre-fix defect reproduced as a mutation; the browser save->reload leg is covered by the green whole-session-e2e. What remains: the fault-tag gate runs only in local Windows CI (Layer A), and chat backup is unimplemented (pinned throttled-backup gap)."
     },
     {
       "rank": 4,
       "row": "characters",
-      "title": "CharX, BYAF and RisuAI card/sprite imports are unimplemented; the uploaded-avatar crop is source-implemented but unprobed, and no browser creates a character and reads it back",
-      "wouldStopARealUser": "yes for a user arriving with a CharX, BYAF or RisuAI card, which returns the pinned error shape rather than importing; ordinary PNG/JSON card use is unaffected",
-      "evidence": "the characters row: read/write/import/avatar routes carry byte-recorded response text, but CharX, BYAF and RisuAI import shapes are not implemented and answer the pinned `{ error: true }`; uploaded-image crop/resize is not Jimp-identical (ARCHITECTURE.md boundary 3) so the crop is unprobed; and the create-in-the-frontend/read-back-through-GoTavern path has no browser E2E"
+      "title": "CharX, BYAF and RisuAI imports ARE implemented and oracle-replayed (whole stored user tree); remaining: AVIF/APNG avatar re-encoding is a pure-Go decoder boundary, Jimp-exact pixels are not claimed, and the browser create/read-back probe is not yet in a CI workflow",
+      "wouldStopARealUser": "no for the three formats; only users whose avatars are AVIF/APNG lose pinned's re-encode, and that boundary is documented",
+      "evidence": "row characters: internal/server/characters_import_formats.go implements CharX (card.json suffix extraction, asset URIs, aux mapping), BYAF (manifest/scenarios/images, v2 conversion, chats/bgs/alt icons, JSONL swipes) and RisuAI (JSON+PNG branches, sprite writes then array deletion); the refreshed pinned oracle records response bytes AND the whole stored user tree for 19 scenarios including malformed/truncated/wrong-bytes/oversized, replayed by TestPinnedNodeCharactersImport (34 subtests). Avatar crop is probed (512x768 want_resize cover-not-stretch by sampled geometry; 4x4 no-resize exact; malformed query recorded; Jimp pixels are the documented codec boundary). A browser New Character -> stored PNG -> /api/characters/export read-back probe exists with tamper teeth (5/5, caught:true) but is not yet wired into a CI workflow. Residual: AVIF/APNG re-encode, Jimp-exact pixels, CI placement."
     },
     {
       "rank": 5,
