@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cocokoishi/gotavern/internal/fsretry"
 	"github.com/cocokoishi/gotavern/internal/lockacquire"
 	"github.com/gofrs/flock"
 )
@@ -183,7 +184,7 @@ func UpdateNodePersistRecord(dataRoot, key string, update func(json.RawMessage) 
 	defer lock.Close()
 
 	target := filepath.Join(storageDir, storeFilename(key))
-	body, err := os.ReadFile(target)
+	body, err := fsretry.ReadFile(target)
 	if err != nil {
 		return fmt.Errorf("read node-persist record %s: %w", key, err)
 	}
@@ -405,7 +406,7 @@ func readStoreEntries(directory string) ([]storeEntry, error) {
 		if strings.HasPrefix(file.Name(), ".") {
 			continue
 		}
-		body, err := os.ReadFile(filepath.Join(directory, file.Name()))
+		body, err := fsretry.ReadFile(filepath.Join(directory, file.Name()))
 		if err != nil {
 			return nil, fmt.Errorf("read node-persist record %s: %w", file.Name(), err)
 		}

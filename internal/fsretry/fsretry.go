@@ -16,7 +16,10 @@
 // turn a lock problem into a silent stall.
 package fsretry
 
-import "time"
+import (
+	"os"
+	"time"
+)
 
 const (
 	// attempts and delay bound the total tolerance at about 200 ms: long enough for a reader to finish a
@@ -35,4 +38,28 @@ func Do(operation func() error) error {
 		err = operation()
 	}
 	return err
+}
+
+// ReadFile is os.ReadFile with the same bounded tolerance for a transient sharing/lock violation that Do
+// gives a write. It exists because the READ side of a replace needs the tolerance too: the package comment
+// above describes a request that read a user record at the moment another request replaced it and failed
+// with "The process cannot access the file because it is being used by another process" -- the rename
+// already retried, the read did not.
+//
+// WHERE IT MUST NOT BE USED: nowhere off Windows needs it, and it is not a replacement for the user-state
+// locks. It belongs on a read of one small file that another request may be replacing atomically.
+func ReadFile(path string) ([]byte, error) {
+	var body []byte
+	err := Do(func() error {
+		read, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		body = read
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
 }
