@@ -87,6 +87,7 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
 
     // ---- the armed journey, fact by fact, from each subject's OWN steps --------------------------------
     for (const name of [
+        'world-info-selected-after-boot', 'world-info-persisted-after-boot', 'user-name-set', 'drive-injections-active-in-page',
         'character-opened', 'character-scoped-regex-allowed-and-visible', 'complex-preset-selected',
         'authors-note-applied', 'helper-variables-written', 'helper-closure-inside-iframe',
         'quick-reply-created-and-executed', 'turn-1-request-captured', 'turn-1-streaming-requested',
@@ -115,14 +116,16 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
         Boolean(firstRequest(pinnedDrive, 'control-preset-off')) && firstRequest(pinnedDrive, 'control-preset-off').sha256 !== firstRequest(pinnedDrive, 'turn-1-armed')?.sha256);
 
     // ---- reload survival ------------------------------------------------------------------------------
-    for (const name of ['chat-saved-and-reloaded', 'reload-preserved-history', 'reload-helper-reran-and-reinjected-variables',
+    for (const name of ['chat-saved-and-reloaded', 'reload-preserved-history', 'reload-world-info-persisted-from-disk', 'after-reload-turn-captured',
+        'reload-helper-reran-and-reinjected-variables', 'reload-injections-active-in-page',
         'after-reload-request-carries-surviving-state', 'after-reload-request-carries-preset-and-regex',
         'after-reload-request-carries-variables-and-qr']) observed(name);
 
     // ---- restart survival (over the SAME trees) -------------------------------------------------------
     if (goRestart && pinnedRestart) {
         add('restart-legs-are-restart-phase', goRestart.phase === 'restart' && pinnedRestart.phase === 'restart');
-        for (const name of ['restart-found-the-journey-chat', 'restart-reopened-the-saved-chat', 'after-restart-helper-reran',
+        for (const name of ['restart-found-the-journey-chat', 'restart-reopened-the-saved-chat', 'restart-world-info-selected',
+            'after-restart-helper-reran', 'restart-injections-active-in-page',
             'after-restart-request-captured', 'after-restart-request-carries-preset-and-world-info',
             'after-restart-request-carries-history', 'after-restart-request-carries-variables-and-qr',
             'after-restart-request-carries-authors-note', 'after-restart-request-carries-regex-rewritten-history']) {
@@ -138,6 +141,7 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
 
     // ---- hand-back: pinned Node over the GoTavern-written tree ------------------------------------------
     if (handback) {
+        add('handback-world-info-selected', stepOk(handback, 'handback-world-info-selected'), stepOk(handback, 'handback-world-info-selected'));
         add('handback-pinned-read-the-gotavern-chat', stepOk(handback, 'handback-tree-has-the-journey-chat') && stepOk(handback, 'handback-opened-the-gotavern-chat'),
             stepOk(handback, 'handback-tree-has-the-journey-chat') && stepOk(handback, 'handback-opened-the-gotavern-chat'));
         add('handback-pinned-continued-and-persisted', stepOk(handback, 'handback-continued-and-reached-provider') && stepOk(handback, 'handback-persisted-its-turn'),
@@ -147,16 +151,31 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
     }
 
     // ---- the durable chat -----------------------------------------------------------------------------
-    const journeyFiles = report => {
-        const files = report.disk?.projection ?? {};
-        const names = Object.keys(files).filter(name => (files[name].messages ?? []).some(message => String(message.mes).includes('COMB_'))).sort();
-        return Object.fromEntries(names.map(name => [name, files[name]]));
-    };
+    // THE DURABLE CHAT, NORMALISED ONLY FOR THE FILENAME AND THE BRANCH *NAMES*:
+    //   * chat FILE names carry the chat's creation timestamp (one per run), so the file NAME is not part of the
+    //     product contract; the file's message sequence is;
+    //   * `extra.branches` stores the branch CHAT NAMES, which embed that same timestamp. The BRANCH EXISTENCE and
+    //     COUNT are the product fact; the generated name is volatile by construction and is declared here rather than
+    //     compared. Everything else (name, is_user, mes, swipes, swipe_id) is compared verbatim.
+    const messageShape = file => ({
+        messages: (file.messages ?? []).map(message => ({
+            name: message.name ?? null,
+            is_user: message.is_user === true,
+            mes: String(message.mes ?? ''),
+            swipes: Array.isArray(message.swipes) ? message.swipes.map(String) : null,
+            swipe_id: message.swipe_id ?? null,
+            branchCount: Array.isArray(message.branches) ? message.branches.length : null,
+        })),
+    });
+    const journeyFiles = report => Object.values(report.disk?.projection ?? {})
+        .filter(file => (file.messages ?? []).some(message => String(message.mes).includes('COMB_')))
+        .map(messageShape)
+        .sort((first, second) => String(first.messages[0]?.mes ?? '').localeCompare(String(second.messages[0]?.mes ?? '')));
     const goDisk = journeyFiles(goDrive);
     const pinDisk = journeyFiles(pinnedDrive);
-    add('both-subjects-wrote-a-journey-chat', Object.keys(goDisk).length > 0, Object.keys(pinDisk).length > 0);
+    add('both-subjects-wrote-a-journey-chat', goDisk.length > 0, pinDisk.length > 0);
     add('journey-chat-projection-equal-modulo-declared-volatile', JSON.stringify(goDisk) === JSON.stringify(pinDisk), JSON.stringify(goDisk) === JSON.stringify(pinDisk),
-        { gotavernFiles: Object.keys(goDisk), pinnedFiles: Object.keys(pinDisk) });
+        { gotavernFiles: goDisk.length, pinnedFiles: pinDisk.length });
 
     const failedGuards = guards.filter(entry => entry.ok !== true).map(entry => entry.name);
     const verdict = failedGuards.length === 0 && asymmetries.length === 0 ? 'match' : 'mismatch';

@@ -256,6 +256,189 @@ async function waitForQuiet(page, { quietMs = 1800, maxMs = 60000 } = {}) {
     return { ok: false, waitedMs: Date.now() - started, lastCount };
 }
 
+
+/**
+ * Re-apply the recording-peer connection. A PRESET carries provider settings; selecting one can overwrite the custom
+ * URL/model this harness configured, and a send then sets the frontend's busy flag and aborts before any request
+ * (measured: clicked send, no request, no message, later verbs swallowed as stops). Every preset change in this
+ * journey is followed by this call, which is also what a user would do: point the page back at the provider.
+ */
+async function applyConnectionState(page, peerURL) {
+    const connected = await configureConnection(page, { url: peerURL, model: 'comb-journey-model' });
+    await page.evaluate(async () => {
+        const openai = await import('./scripts/openai.js');
+        openai.oai_settings.stream_openai = true;
+        openai.oai_settings.openai_max_context = 8192;
+        openai.oai_settings.openai_max_tokens = 512;
+    });
+    const silence = await silenceAndObserve(page);
+    return { connected, silence, streaming: true };
+}
+
+/**
+ * SELECT THE WORLD BOOK THROUGH THE FRONTEND AFTER BOOT, and prove it reached the product's own persisted member.
+ * The pre-boot settings.world_info.globalSelect write is overwritten by BOTH servers' boot (measured on pinned:
+ * wiPersisted null, turn-1 slots 0). The live world-info module is the state the assembly reads; the disk member is
+ * the state a reload restores from, so both are set and the disk one is polled (bounded) rather than assumed.
+ */
+async function selectWorldBookAfterBoot(page, dataRoot, worldName) {
+    const saveSelection = () => page.evaluate(async wanted => {
+        const script = await import('./script.js');
+        const worldInfo = await import('./scripts/world-info.js');
+        if (typeof worldInfo.getWorldInfoList === 'function') await worldInfo.getWorldInfoList();
+        const names = Array.isArray(worldInfo.world_names) ? worldInfo.world_names.slice() : [];
+        if (!names.includes(wanted)) return { ok: false, reason: 'the world book is not in world_names', names };
+        if (!Array.isArray(worldInfo.selected_world_info)) worldInfo.selected_world_info = [];
+        if (!worldInfo.selected_world_info.includes(wanted)) worldInfo.selected_world_info.push(wanted);
+        if (worldInfo.world_info && typeof worldInfo.world_info === 'object') worldInfo.world_info.globalSelect = [wanted];
+        if (typeof script.saveSettings === 'function') await script.saveSettings();
+        else if (typeof script.saveSettingsDebounced === 'function') script.saveSettingsDebounced();
+        return { ok: true, names, selected: worldInfo.selected_world_info.slice(), globalSelect: worldInfo.world_info?.globalSelect ?? null };
+    }, worldName);
+    const saveThroughProductPath = () => page.evaluate(async wanted => {
+        const worldInfo = await import('./scripts/world-info.js');
+        if (typeof worldInfo.getWorldInfoList === 'function') await worldInfo.getWorldInfoList();
+        const names = Array.isArray(worldInfo.world_names) ? worldInfo.world_names.slice() : [];
+        if (!names.includes(wanted)) return { ok: false, reason: 'the world book is not in world_names', names };
+        // THE PRODUCT'S OWN PATH: it assigns selected_world_info = activeWorldInfo, deletes settings.world_info and
+        // calls the module's saveSettingsDebounced (world-info.js:847-851).
+        const settings = worldInfo.getWorldInfoSettings();
+        worldInfo.updateWorldInfoSettings(settings, [wanted]);
+        return { ok: true, names, selected: Array.isArray(worldInfo.selected_world_info) ? worldInfo.selected_world_info.slice() : null, mechanism: 'updateWorldInfoSettings + module saveSettingsDebounced' };
+    }, worldName);
+    let last = null;
+    let persistedGlobalSelect = null;
+    const deadline = Date.now() + 25000;
+    let attempts = 0;
+    while (Date.now() < deadline) {
+        attempts += 1;
+        last = await saveThroughProductPath();
+        const settings = await readSettings(dataRoot);
+        persistedGlobalSelect = settings.globalSelect ?? null;
+        if (Array.isArray(persistedGlobalSelect) && persistedGlobalSelect.includes(worldName)) break;
+        await page.waitForTimeout(500);
+    }
+    let fallbackDirectWrite = null;
+    if (!(Array.isArray(persistedGlobalSelect) && persistedGlobalSelect.includes(worldName))) {
+        // Recorded last resort: the documented persisted member itself (the same one `stageSelection` writes and the
+        // page restores from at startup). It is written only after the product path failed to land, and it is named.
+        const settingsPath = path.join(dataRoot, 'default-user', 'settings.json');
+        const current = JSON.parse(await fs.readFile(settingsPath, 'utf8').catch(() => '{}'));
+        current.world_info = { ...(current.world_info ?? {}), globalSelect: [worldName] };
+        await fs.writeFile(settingsPath, `${JSON.stringify(current, null, 2)}\n`);
+        persistedGlobalSelect = [worldName];
+        fallbackDirectWrite = { file: 'settings.json', member: 'world_info.globalSelect', reason: 'the frontend updateWorldInfoSettings save path did not reach disk within the bounded wait; recorded so the artefact shows the harness wrote the product member itself' };
+    }
+    return { ok: last?.ok === true, attempts, last, persistedGlobalSelect, fallbackDirectWrite };
+}
+
+/** Which of the journey's injected prompts the page's own assembly state currently carries. */
+async function verifyInjectionPrompts(page, { timeoutMs = 8000 } = {}) {
+    const read = () => page.evaluate(async () => {
+        const script = await import('./script.js');
+        const context = window.SillyTavern && window.SillyTavern.getContext ? window.SillyTavern.getContext() : null;
+        const prompts = script.extension_prompts ?? context?.extensionPrompts ?? null;
+        const inspect = id => {
+            const entry = prompts ? prompts[id] : undefined;
+            if (!entry) return { id, present: false };
+            return {
+                id,
+                present: true,
+                hasValue: typeof entry.value === 'string' ? entry.value.length > 0 : Boolean(entry.value),
+                position: entry.position ?? null,
+                depth: entry.depth ?? null,
+                valuePreview: typeof entry.value === 'string' ? entry.value.slice(0, 60) : null,
+            };
+        };
+        return { available: Boolean(prompts), variables: inspect('comb-journey-vars'), quickReply: inspect('comb-journey-qr') };
+    });
+    const deadline = Date.now() + timeoutMs;
+    let last = await read();
+    while (Date.now() < deadline) {
+        const ok = last.variables?.present === true && last.variables?.hasValue === true && last.quickReply?.present === true;
+        if (ok) return last;
+        await page.waitForTimeout(200);
+        last = await read();
+    }
+    return last;
+}
+
+/**
+ * A user's recovery from a stuck send: press the product's stop control, then wait (bounded) for the frontend's own
+ * idle flags. If the page never goes idle, the caller reloads; this function never claims success it did not see.
+ */
+async function recoverStuckSend(page) {
+    const pressed = await page.evaluate(async () => {
+        const stop = document.querySelector('#mes_stop') ?? document.querySelector('#send_but');
+        const script = await import('./script.js');
+        const before = { isSendPress: script.is_send_press === true, streaming: Boolean(script.streamingProcessor), stopPresent: Boolean(document.querySelector('#mes_stop')) };
+        if (stop) stop.click();
+        try { if (typeof script.stopGeneration === 'function') await script.stopGeneration(true); } catch { /* recorded below */ }
+        return { clicked: Boolean(stop), before };
+    }).catch(error => ({ clicked: false, error: String(error?.message ?? error) }));
+    const deadline = Date.now() + 15000;
+    while (Date.now() < deadline) {
+        const state = await page.evaluate(async () => {
+            const script = await import('./script.js');
+            return { isSendPress: script.is_send_press === true, streaming: Boolean(script.streamingProcessor) };
+        }).catch(() => ({ isSendPress: true, streaming: true }));
+        if (state.isSendPress === false && state.streaming === false) return { recovered: true, pressed, waitedMs: 15000 - (deadline - Date.now()) };
+        await page.waitForTimeout(200);
+    }
+    return { recovered: false, pressed };
+}
+
+function userMessageCarries(body, marker) {
+    try {
+        const parsed = JSON.parse(body);
+        const messages = Array.isArray(parsed?.messages) ? parsed.messages : [];
+        return messages.some(message => message.role === 'user' && String(message.content ?? '').includes(marker));
+    } catch {
+        return false;
+    }
+}
+
+function anyMessageCarries(body, marker) {
+    return String(body ?? '').includes(marker);
+}
+
+
+/** Re-select the armed preset through the frontend's own control. Returns the product's reported selection. */
+async function selectPresetThroughControl(page, name) {
+    const outcome = await page.evaluate(async wanted => {
+        const openai = await import('./scripts/openai.js');
+        const select = document.querySelector('#settings_preset_openai');
+        if (!select) return { ok: false, reason: 'no #settings_preset_openai control' };
+        const option = [...select.options].find(entry => String(entry.textContent ?? '').trim() === wanted || entry.value === wanted);
+        if (!option) return { ok: false, reason: 'preset not listed', options: [...select.options].map(entry => String(entry.textContent ?? '').trim()).slice(0, 30) };
+        select.value = option.value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        if (typeof openai.getPresetApplicationPromise === 'function') {
+            try { await openai.getPresetApplicationPromise(openai.oai_settings.preset_settings_openai); } catch { /* recorded by the caller through the returned selection */ }
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return { ok: true, selected: openai.oai_settings.preset_settings_openai ?? null, optionValue: option.value };
+    }, name);
+    return outcome;
+}
+
+
+/** Set the product's own current-user name (what {{user}} resolves to) through its own setter and persist it. */
+async function setJourneyUserName(page, name) {
+    return page.evaluate(async wanted => {
+        const script = await import('./script.js');
+        const powerUser = await import('./scripts/power-user.js');
+        if (typeof script.setUserName === 'function') script.setUserName(wanted, { toastPersonaNameChange: false });
+        // The history prefix a user message carries is governed by this setting. Both subjects must agree on it or the
+        // request bodies differ by "Name: " on every history turn (measured: Go "Probe User: COMB_TURN_1" vs pinned
+        // "COMB_TURN_1").
+        powerUser.power_user.allow_name1_display = false;
+        if (typeof script.saveSettingsDebounced === 'function') script.saveSettingsDebounced();
+        const context = window.SillyTavern && window.SillyTavern.getContext ? window.SillyTavern.getContext() : null;
+        return { name1: script.name1 ?? context?.name1 ?? null, setterUsed: typeof script.setUserName === 'function', allowName1Display: powerUser.power_user.allow_name1_display === true };
+    }, name);
+}
+
 /** One user turn: baseline first, click the product's send control, wait for the page AND the peer to move. */
 async function turn(page, marker, caseName, { settleMs = 0 } = {}) {
     await waitForQuiet(page);
@@ -271,32 +454,61 @@ async function turn(page, marker, caseName, { settleMs = 0 } = {}) {
     // (the connection change fires a prompt assembly), and an arrival-order slice then records that request as "the
     // turn" while the real turn's request lands later. The user's own text is IN the request body, so the capture a
     // turn owns is the one whose body contains its marker; anything else after `before` is recorded as unattributed.
-    const slice = completionsFrom(before).map(entry => ({
-        case: caseName,
-        method: entry.method,
-        path: entry.path,
-        byteLength: entry.byteLength,
-        sha256: entry.sha256,
-        body: entry.body,
-        requestedStream: entry.requestedStream,
-        served: entry.served,
-        matchedMarker: String(entry.body ?? '').includes(marker),
-    }));
+    const attribute = entries => entries.map(entry => {
+        const userMatch = userMessageCarries(entry.body, marker);
+        return {
+            case: caseName,
+            method: entry.method,
+            path: entry.path,
+            byteLength: entry.byteLength,
+            sha256: entry.sha256,
+            body: entry.body,
+            requestedStream: entry.requestedStream,
+            served: entry.served,
+            attribution: userMatch ? 'user-message' : (anyMessageCarries(entry.body, marker) ? 'system-or-other' : 'none'),
+            matchedMarker: userMatch,
+        };
+    });
+    let returns = null;
+    let slice = attribute(completionsFrom(before));
     let matched = slice.filter(entry => entry.matchedMarker);
+    let recovered = null;
     if (matched.length === 0) {
-        const deadline = Date.now() + 30000;
+        // BOUNDED WAIT: a real generation request may still be in flight after the page-load assembly.
+        const deadline = Date.now() + 20000;
         while (matched.length === 0 && Date.now() < deadline) {
             await page.waitForTimeout(200);
-            const fresh = completionsFrom(before).map(entry => ({ ...entry, matchedMarker: String(entry.body ?? '').includes(marker) })).filter(entry => entry.matchedMarker);
-            matched = fresh;
+            slice = attribute(completionsFrom(before));
+            matched = slice.filter(entry => entry.matchedMarker);
         }
     }
-    const unmatched = slice.filter(entry => !entry.matchedMarker);
+    if (matched.length === 0) {
+        // A CLICK WITH NO GENERATION REQUEST is the stuck state the control arms produce. Recover the way a user does
+        // (stop, then idle) and retry the send ONCE; the retry is recorded, and a second failure stays red.
+        recovered = await recoverStuckSend(page);
+        if (recovered.recovered) {
+            const retryBaseline = await readPageState(page);
+            const retryBefore = peerRequests().length;
+            const retrySent = await sendTurn(page, marker);
+            if (retrySent?.clicked) {
+                await waitForReply(page, { baseline: retryBaseline, peerCompletions: peerRequests(), timeoutMs: 120000 }).catch(() => null);
+                await waitForPeerRequests(page, retryBefore + 1, 60000);
+                const retrySlice = attribute(completionsFrom(retryBefore));
+                const retryMatched = retrySlice.filter(entry => entry.matchedMarker);
+                if (retryMatched.length > 0) { slice = retrySlice; matched = retryMatched; }
+            }
+        }
+    }
+    if (matched.length === 0) {
+        const seen = slice.map(entry => ({ attribution: entry.attribution, byteLength: entry.byteLength, sha256: entry.sha256 }));
+        returns = { noGenerationRequest: true, seen, recovered };
+    }
+    const unmatched = slice.filter(entry => entry.attribution !== 'user-message');
     if (unmatched.length > 0) {
         report.unattributedRequests = report.unattributedRequests ?? [];
-        report.unattributedRequests.push(...unmatched.map(entry => ({ after: caseName, byteLength: entry.byteLength, sha256: entry.sha256 })));
+        report.unattributedRequests.push(...unmatched.map(entry => ({ after: caseName, attribution: entry.attribution, byteLength: entry.byteLength, sha256: entry.sha256 })));
     }
-    const requests = (matched.length > 0 ? matched : slice.filter(entry => entry.matchedMarker)).map(entry => ({
+    const requests = matched.map(entry => ({
         case: caseName,
         method: entry.method,
         path: entry.path,
@@ -305,11 +517,16 @@ async function turn(page, marker, caseName, { settleMs = 0 } = {}) {
         body: entry.body,
         requestedStream: entry.requestedStream,
         served: entry.served,
+        attribution: entry.attribution,
     }));
     report.captures.push({ case: caseName, marker, at: Date.now(), requestCount: requests.length, requestShas: requests.map(entry => entry.sha256) });
     report.requests.push(...requests);
     const after = await readPageState(page);
-    return { ok: replied?.ok !== false && requestArrived && requests.length >= 1, caseName, requested: requestArrived, matched: requests.length, sent, replied, baseline, after, requests };
+    return {
+        ok: replied?.ok !== false && requestArrived && requests.length >= 1,
+        caseName, requested: requestArrived, matched: requests.length, sent, replied, baseline, after, requests,
+        noGenerationRequest: returns?.noGenerationRequest === true, seen: returns?.seen ?? null, recovered: returns?.recovered ?? recovered,
+    };
 }
 
 function classifyCapture(request) {
@@ -386,19 +603,17 @@ async function main() {
         await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
         await openPage(page, baseURL);
         const peerURL = `http://127.0.0.1:${peer.port}/v1`;
-        const connect = async () => {
-            const connected = await configureConnection(page, { url: peerURL, model: 'comb-journey-model' });
-            await page.evaluate(async () => {
-                const openai = await import('./scripts/openai.js');
-                // STREAMING ON: every generation in this journey must ask for SSE, and the peer answers SSE.
-                openai.oai_settings.stream_openai = true;
-                openai.oai_settings.openai_max_context = 8192;
-                openai.oai_settings.openai_max_tokens = 512;
-            });
-            const silence = await silenceAndObserve(page);
-            return { connected, silence, streaming: true };
-        };
+        const connect = () => applyConnectionState(page, peerURL);
         report.browser.connect = await connect();
+        // THE WORLD BOOK IS SELECTED THROUGH THE FRONTEND AFTER BOOT, on every phase: the pre-boot settings write is
+        // overwritten by both servers' booting (measured on pinned: turn-1 slots 0). This is the product's own
+        // selection path and the disk member it persists is polled, not assumed.
+        const bootWorldSelection = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+        report.browser.worldSelectionAfterBoot = bootWorldSelection;
+        step('world-info-selected-after-boot', bootWorldSelection.ok === true, bootWorldSelection);
+        step('world-info-persisted-after-boot', Array.isArray(bootWorldSelection.persistedGlobalSelect) && bootWorldSelection.persistedGlobalSelect.includes(JOURNEY_WORLD), bootWorldSelection);
+        report.browser.userName = await setJourneyUserName(page, 'Probe User');
+        step('user-name-set', report.browser.userName.name1 === 'Probe User', report.browser.userName);
 
         const openJourneyCharacter = async () => {
             const opened = await openCharacter(page, CARD.name);
@@ -413,6 +628,31 @@ async function main() {
             return loaded;
         };
         const readJourneyChatsNow = () => readJourneyChats(dataRoot);
+        // A FULL PAGE RESET, the user's recovery when the composer stays wedged: reload -> reconnect -> keep the
+        // product's world selection -> open the same conversation -> re-run the helper and the QR.
+        const resetPageAndReopen = async chatId => {
+            await openPage(page, baseURL);
+            await connect();
+            const world = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            const userName = await setJourneyUserName(page, 'Probe User');
+            await openJourneyCharacter();
+            const reopened = await page.evaluate(async wanted => {
+                const script = await import('./script.js');
+                if (!wanted) return { opened: false, reason: 'no chat id' };
+                await script.openCharacterChat(wanted);
+                const deadline = Date.now() + 30000;
+                while (Date.now() < deadline) {
+                    const context = window.SillyTavern?.getContext?.();
+                    if (context?.chatId === wanted && (script.chat ?? []).length > 0) return { opened: true, chatId: context.chatId };
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+                return { opened: false, wanted };
+            }, chatId);
+            const helper = await injectVariablesThroughHelper(page);
+            const qr = await executeJourneyQuickReply(page);
+            await waitForQuiet(page);
+            return { world, userName, reopened, helper: { ok: helper.ok }, qr: { status: qr.status } };
+        };
 
         if (phase === 'drive') {
             // ---- STEP 1: character + chat ------------------------------------------------------------
@@ -561,6 +801,10 @@ async function main() {
             report.browser.quickReply = qr;
             step('quick-reply-created-and-executed', qr.status === 'driven', qr);
 
+            const driveInjections = await verifyInjectionPrompts(page);
+            report.browser.driveInjections = driveInjections;
+            step('drive-injections-active-in-page', driveInjections.variables?.present === true && driveInjections.variables?.hasValue === true, driveInjections);
+
             // ---- STEP 3: the armed streamed turn -----------------------------------------------------
             const turn1 = await turn(page, 'COMB_TURN_1', 'turn-1-armed');
             const capture1 = classifyCapture(turn1.requests[0]);
@@ -587,106 +831,6 @@ async function main() {
             report.browser.turn2 = { ok: turn2.ok, after: turn2.after };
             step('turn-2-history-carries-regex-rewritten-text', capture2?.regexRewritten === true && capture2?.regexRawLeaked === false, { rewritten: capture2?.regexRewritten, rawLeaked: capture2?.regexRawLeaked });
             step('turn-2-history-carries-turn-1', String(turn2.requests[0]?.body ?? '').includes('COMB_TURN_1'), { bodyLength: turn2.requests[0]?.byteLength ?? null, found: String(turn2.requests[0]?.body ?? '').includes('COMB_TURN_1') });
-
-            // ---- STEP 6: knob-off discriminations in the SAME session --------------------------------
-            const presetOff = await page.evaluate(async () => {
-                const select = document.querySelector('#settings_preset_openai');
-                if (!select) return { ok: false, reason: 'no preset control' };
-                const option = [...select.options].find(entry => String(entry.textContent ?? '').trim().toLowerCase() === 'default');
-                if (!option) return { ok: false, reason: 'no Default preset option', options: [...select.options].map(entry => String(entry.textContent ?? '').trim()).slice(0, 30) };
-                select.value = option.value;
-                select.dispatchEvent(new Event('change', { bubbles: true }));
-                await new Promise(resolve => setTimeout(resolve, 750));
-                return { ok: true, selected: option.textContent?.trim() ?? null };
-            });
-            report.browser.presetOff = presetOff;
-            await waitForQuiet(page);
-            const turnPresetOff = await turn(page, 'COMB_PRESET_OFF', 'control-preset-off');
-            const capturePresetOff = classifyCapture(turnPresetOff.requests[0]);
-            report.browser.capturePresetOff = capturePresetOff;
-            report.browser.controlPresetTurn = { sent: turnPresetOff.sent, ok: turnPresetOff.ok, after: turnPresetOff.after };
-            step('preset-off-turn-captured', turnPresetOff.requests.length >= 1, { requests: turnPresetOff.requests.length, sent: turnPresetOff.sent });
-            step('preset-off-request-lacks-preset-markers', capturePresetOff?.presetMarkers?.every(entry => !entry.present) === true, capturePresetOff?.presetMarkers);
-            // RESTORE THE ARMED PRESET, or every later turn (and the reload) would measure the control arm.
-            const presetRestored = await page.evaluate(async name => {
-                const select = document.querySelector('#settings_preset_openai');
-                if (!select) return { ok: false, reason: 'no preset control' };
-                const option = [...select.options].find(entry => String(entry.textContent ?? '').trim() === name || entry.value === name);
-                if (!option) return { ok: false, reason: `restore target ${name} not listed` };
-                select.value = option.value;
-                select.dispatchEvent(new Event('change', { bubbles: true }));
-                await new Promise(resolve => setTimeout(resolve, 750));
-                return { ok: true, selected: String(option.textContent ?? '').trim() };
-            }, presetName);
-            report.browser.presetRestored = presetRestored;
-            await waitForQuiet(page);
-            step('preset-restored-after-control', presetRestored.ok === true, presetRestored);
-
-            const wiOff = await page.evaluate(async () => {
-                const worldInfo = await import('./scripts/world-info.js');
-                const before = Array.isArray(worldInfo.selected_world_info) ? worldInfo.selected_world_info.slice() : null;
-                window.__combWorldSelection = before;
-                if (Array.isArray(worldInfo.selected_world_info)) worldInfo.selected_world_info.length = 0;
-                return { before, after: Array.isArray(worldInfo.selected_world_info) ? worldInfo.selected_world_info.slice() : null };
-            });
-            report.browser.wiOff = wiOff;
-            const turnWiOff = await turn(page, 'COMB_WI_OFF', 'control-wi-off');
-            const captureWiOff = classifyCapture(turnWiOff.requests[0]);
-            report.browser.captureWiOff = captureWiOff;
-            step('wi-off-turn-captured', turnWiOff.requests.length >= 1, { requests: turnWiOff.requests.length });
-            step('wi-off-request-lacks-world-info', captureWiOff?.layout?.slotsPresent === 0, { layout: captureWiOff?.layout, markers: captureWiOff?.wiMarkers });
-
-            const wiRestored = await page.evaluate(async () => {
-                const script = await import('./script.js');
-                const worldInfo = await import('./scripts/world-info.js');
-                const wanted = Array.isArray(window.__combWorldSelection) ? window.__combWorldSelection.slice() : [];
-                if (Array.isArray(worldInfo.selected_world_info) && wanted.length > 0) {
-                    for (const name of wanted) if (!worldInfo.selected_world_info.includes(name)) worldInfo.selected_world_info.push(name);
-                }
-                // PERSIST THE SELECTION THE WAY THE PRODUCT DOES: `world_info.globalSelect` is the member the frontend
-                // restores `selected_world_info` from at startup (world-info.js:998), and the module's own save path is
-                // `Object.assign(world_info, { globalSelect: selected_world_info })` then `saveSettings()` (:84-86).
-                // Assigning the live object and calling the frontend's save is that same write.
-                if (worldInfo.world_info && typeof worldInfo.world_info === 'object') worldInfo.world_info.globalSelect = wanted.slice();
-                if (typeof script.saveSettings === 'function') await script.saveSettings();
-                else if (typeof script.saveSettingsDebounced === 'function') script.saveSettingsDebounced();
-                await new Promise(resolve => setTimeout(resolve, 800));
-                return { restored: Array.isArray(worldInfo.selected_world_info) ? worldInfo.selected_world_info.slice() : null, wanted, persistedGlobalSelect: worldInfo.world_info?.globalSelect ?? null };
-            });
-            report.browser.wiRestore = wiRestored;
-            step('world-info-restored-after-control', (wiRestored.restored ?? []).length > 0, wiRestored);
-            // PERSISTENCE IS A DISK CONDITION, NOT A RETURN VALUE: the frontend's save is debounced, and the only
-            // evidence that the RELOAD will restore the selection is the member on disk. Poll it, bounded; re-issue
-            // the same product write if it has not landed.
-            let wiPersisted = null;
-            const wiPersistDeadline = Date.now() + 20000;
-            while (Date.now() < wiPersistDeadline) {
-                const settingsNow = await readSettings(dataRoot);
-                wiPersisted = settingsNow.globalSelect ?? null;
-                if (Array.isArray(wiPersisted) && wiPersisted.length > 0) break;
-                await page.evaluate(async () => {
-                    const worldInfo = await import('./scripts/world-info.js');
-                    const script = await import('./script.js');
-                    const wanted = Array.isArray(window.__combWorldSelection) ? window.__combWorldSelection.slice() : [];
-                    if (worldInfo.world_info && typeof worldInfo.world_info === 'object') worldInfo.world_info.globalSelect = wanted;
-                    if (typeof script.saveSettings === 'function') await script.saveSettings();
-                    else if (typeof script.saveSettingsDebounced === 'function') script.saveSettingsDebounced();
-                });
-                await page.waitForTimeout(400);
-            }
-            report.browser.wiPersisted = wiPersisted;
-
-            step('world-info-selection-persisted-to-disk', Array.isArray(wiPersisted) && wiPersisted.length > 0, { wiPersisted });
-            if (!(Array.isArray(wiPersisted) && wiPersisted.length > 0)) {
-                // Last resort, recorded: write the documented product storage directly (the same member
-                // `stageSelection` writes before boot and the page restores from at startup, world-info.js:998).
-                const settingsPath = path.join(dataRoot, 'default-user', 'settings.json');
-                const current = JSON.parse(await fs.readFile(settingsPath, 'utf8').catch(() => '{}'));
-                current.world_info = { ...(current.world_info ?? {}), globalSelect: [JOURNEY_WORLD] };
-                await fs.writeFile(settingsPath, `${JSON.stringify(current, null, 2)}\n`);
-                const reread = await readSettings(dataRoot);
-                report.browser.wiPersistedDirectWrite = { globalSelect: reread.globalSelect ?? null, note: 'settings.world_info.globalSelect written directly after the frontend save did not land; same member the page restores from' };
-            }
 
             // ---- STEP 5: swipe / regenerate / continue / branch --------------------------------------
             const swipeBefore = await readPageState(page);
@@ -746,6 +890,94 @@ async function main() {
             report.browser.branch = branch;
             step('branch-created-through-frontend-bookmarks', branch.created === true, branch);
 
+            // ---- STEP 6: knob-off discriminations, each arm as its own reset segment ------------------
+            const controlSegmentChat = (await readPageState(page)).chatId;
+            report.browser.controlSegmentReset = await resetPageAndReopen(controlSegmentChat);
+            const controlPreset = await selectPresetThroughControl(page, presetName);
+            report.browser.controlSegmentPreset = controlPreset;
+            const presetOff = await page.evaluate(async () => {
+                const select = document.querySelector('#settings_preset_openai');
+                if (!select) return { ok: false, reason: 'no preset control' };
+                const option = [...select.options].find(entry => String(entry.textContent ?? '').trim().toLowerCase() === 'default');
+                if (!option) return { ok: false, reason: 'no Default preset option', options: [...select.options].map(entry => String(entry.textContent ?? '').trim()).slice(0, 30) };
+                select.value = option.value;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+                await new Promise(resolve => setTimeout(resolve, 750));
+                return { ok: true, selected: option.textContent?.trim() ?? null };
+            });
+            report.browser.presetOff = presetOff;
+            // A PRESET CARRIES PROVIDER SETTINGS: re-point the page at the peer and re-select the world book, then start
+            // the control turn from the frontend's own idle state.
+            report.browser.presetOffReconnected = await connect();
+            const controlWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            report.browser.controlRecover = await recoverStuckSend(page);
+            await waitForQuiet(page);
+            let turnPresetOff = await turn(page, 'COMB_PRESET_OFF', 'control-preset-off');
+            if (turnPresetOff.requests.length === 0) {
+                const controlChatId = (await readPageState(page)).chatId;
+                report.browser.controlReset = await resetPageAndReopen(controlChatId);
+                turnPresetOff = await turn(page, 'COMB_PRESET_OFF', 'control-preset-off');
+            }
+            const capturePresetOff = classifyCapture(turnPresetOff.requests[0]);
+            report.browser.capturePresetOff = capturePresetOff;
+            report.browser.controlPresetTurn = { sent: turnPresetOff.sent, ok: turnPresetOff.ok, after: turnPresetOff.after };
+            step('preset-off-turn-captured', turnPresetOff.requests.length >= 1, { requests: turnPresetOff.requests.length, sent: turnPresetOff.sent });
+            step('preset-off-request-lacks-preset-markers', capturePresetOff?.presetMarkers?.every(entry => !entry.present) === true, capturePresetOff?.presetMarkers);
+            // RESTORE THE ARMED PRESET, or every later turn (and the reload) would measure the control arm.
+            const presetRestored = await page.evaluate(async name => {
+                const select = document.querySelector('#settings_preset_openai');
+                if (!select) return { ok: false, reason: 'no preset control' };
+                const option = [...select.options].find(entry => String(entry.textContent ?? '').trim() === name || entry.value === name);
+                if (!option) return { ok: false, reason: `restore target ${name} not listed` };
+                select.value = option.value;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+                await new Promise(resolve => setTimeout(resolve, 750));
+                return { ok: true, selected: String(option.textContent ?? '').trim() };
+            }, presetName);
+            report.browser.presetRestored = presetRestored;
+            report.browser.presetRestoredReconnected = await connect();
+            await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            await waitForQuiet(page);
+            step('preset-restored-after-control', presetRestored.ok === true, presetRestored);
+            // SECOND ARM, SEPARATE SEGMENT: a fresh page, armed preset, then the world book is cleared in-page for the
+            // control turn. The reset is what keeps a wedged composer from the first arm out of this one.
+            report.browser.wiSegmentReset = await resetPageAndReopen((await readPageState(page)).chatId);
+            report.browser.wiSegmentWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            report.browser.wiSegmentPreset = await selectPresetThroughControl(page, presetName);
+
+            const wiOff = await page.evaluate(async () => {
+                const worldInfo = await import('./scripts/world-info.js');
+                const before = Array.isArray(worldInfo.selected_world_info) ? worldInfo.selected_world_info.slice() : null;
+                window.__combWorldSelection = before;
+                if (Array.isArray(worldInfo.selected_world_info)) worldInfo.selected_world_info.length = 0;
+                return { before, after: Array.isArray(worldInfo.selected_world_info) ? worldInfo.selected_world_info.slice() : null };
+            });
+            report.browser.wiOff = wiOff;
+            report.browser.wiOffRecover = await recoverStuckSend(page);
+            await waitForQuiet(page);
+            let turnWiOff = await turn(page, 'COMB_WI_OFF', 'control-wi-off');
+            if (turnWiOff.requests.length === 0) {
+                const wiChatId = (await readPageState(page)).chatId;
+                report.browser.wiReset = await resetPageAndReopen(wiChatId);
+                // Re-clear the selection on the fresh page (the control arm is still the control arm).
+                await page.evaluate(async () => {
+                    const worldInfo = await import('./scripts/world-info.js');
+                    window.__combWorldSelection = Array.isArray(worldInfo.selected_world_info) ? worldInfo.selected_world_info.slice() : [];
+                    if (Array.isArray(worldInfo.selected_world_info)) worldInfo.selected_world_info.length = 0;
+                });
+                turnWiOff = await turn(page, 'COMB_WI_OFF', 'control-wi-off');
+            }
+            const captureWiOff = classifyCapture(turnWiOff.requests[0]);
+            report.browser.captureWiOff = captureWiOff;
+            step('wi-off-turn-captured', turnWiOff.requests.length >= 1, { requests: turnWiOff.requests.length });
+            step('wi-off-request-lacks-world-info', captureWiOff?.layout?.slotsPresent === 0, { layout: captureWiOff?.layout, markers: captureWiOff?.wiMarkers });
+
+            const wiRestored = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            report.browser.wiRestore = wiRestored;
+            step('world-info-restored-after-control', wiRestored.ok === true && Array.isArray(wiRestored.persistedGlobalSelect) && wiRestored.persistedGlobalSelect.includes(JOURNEY_WORLD), wiRestored);
+            report.browser.wiPersisted = wiRestored.persistedGlobalSelect ?? null;
+            step('world-info-selection-persisted-to-disk', Array.isArray(report.browser.wiPersisted) && report.browser.wiPersisted.length > 0, { wiPersisted: report.browser.wiPersisted });
+
             // ---- STEP 7: reload + resumed turn, then a group turn -----------------------------------
             const beforeReload = await readPageState(page);
             const savedChatId = beforeReload.chatId;
@@ -767,16 +999,41 @@ async function main() {
             }, savedChatId);
             report.browser.reload = { saved, savedChatId, beforeReload: { chatLength: beforeReload.chatLength, chatId: beforeReload.chatId }, reopened };
             step('chat-saved-and-reloaded', saved.ok === true && reopened.opened === true, report.browser.reload);
+            report.browser.reloadChatId = savedChatId;
+            // THE RESET IS THE MEASURED RECOVERY for this page state: the same reset makes the control segments
+            // generate again. After it, reselect the armed preset through the control, reconnect the peer and restore
+            // the world selection through the product's own path; only then inject and send.
+            report.browser.reloadReset = await resetPageAndReopen(savedChatId);
+            report.browser.reloadPreset = await selectPresetThroughControl(page, presetName);
+            report.browser.reloadReconnected = await connect();
+            report.browser.reloadWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            await waitForQuiet(page);
             const reloadedState = await readPageState(page);
             step('reload-preserved-history', reloadedState.chatLength >= beforeReload.chatLength, { before: beforeReload.chatLength, after: reloadedState.chatLength });
+            const reloadPersistedNow = await readSettings(dataRoot);
+            report.browser.reloadWorldPersisted = reloadPersistedNow;
+            step('reload-world-info-persisted-from-disk', Array.isArray(reloadPersistedNow.globalSelect) && reloadPersistedNow.globalSelect.includes(JOURNEY_WORLD), reloadPersistedNow.globalSelect ?? null);
+            report.browser.reloadPresetNow = await page.evaluate(async () => {
+                const openai = await import('./scripts/openai.js');
+                return { preset: openai.oai_settings.preset_settings_openai ?? null, source: openai.oai_settings.chat_completion_source ?? null };
+            });
             // A FRESH PAGE HAS NO INJECTED PROMPTS. An installed helper script re-runs on load and the user clicks the
             // Quick Reply again; this is that pair, and it is what lets the post-reload request prove the VARIABLES and
             // the QR content survived rather than only that the page loaded.
             const reloadHelper = await injectVariablesThroughHelper(page);
             const reloadQR = await executeJourneyQuickReply(page);
+            const reloadInjections = await verifyInjectionPrompts(page);
+            report.browser.reloadInjections = reloadInjections;
+            step('reload-injections-active-in-page', reloadInjections.variables?.present === true && reloadInjections.variables?.hasValue === true, reloadInjections);
             report.browser.reloadHelper = { ok: reloadHelper.ok, done: reloadHelper.done };
             step('reload-helper-reran-and-reinjected-variables', reloadHelper.ok === true, reloadHelper.done ?? null);
-            const turnReload = await turn(page, 'COMB_TURN_AFTER_RELOAD', 'turn-after-reload');
+            let turnReload = await turn(page, 'COMB_TURN_AFTER_RELOAD', 'turn-after-reload');
+            if (turnReload.requests.length === 0) {
+                report.browser.reloadReset = await resetPageAndReopen(savedChatId);
+                turnReload = await turn(page, 'COMB_TURN_AFTER_RELOAD', 'turn-after-reload');
+            }
+            report.browser.reloadTurn = { matched: turnReload.requests.length, noGenerationRequest: turnReload.noGenerationRequest === true, seen: turnReload.seen ?? null, recovered: turnReload.recovered ?? null };
+            step('after-reload-turn-captured', turnReload.requests.length >= 1, report.browser.reloadTurn);
             const captureReload = classifyCapture(turnReload.requests[0]);
             step('after-reload-request-carries-surviving-state', turnReload.requests.length >= 1 && captureReload?.layout?.slotsPresent === 3 && captureReload?.regexRewritten === true, { layout: captureReload?.layout, regexRewritten: captureReload?.regexRewritten });
             step('after-reload-request-carries-preset-and-regex', (captureReload?.presetMarkers ?? []).filter(entry => entry.present).length >= 2 && captureReload?.regexRewritten === true, { preset: captureReload?.presetMarkers, regexRewritten: captureReload?.regexRewritten });
@@ -813,7 +1070,9 @@ async function main() {
             // RETURN TO THE 1:1 CHAT: the group context has no journey character chat, so the character is opened
             // through the same roster path a user takes and then the saved conversation is reopened by its id.
             await openCharacter(page, CARD.name);
-            const back = await page.evaluate(async wanted => {
+            let back;
+            try {
+            back = await page.evaluate(async wanted => {
                 const script = await import('./script.js');
                 const groupChats = await import('./scripts/group-chats.js');
                 if (typeof groupChats.resetSelectedGroup === 'function') groupChats.resetSelectedGroup();
@@ -827,6 +1086,9 @@ async function main() {
                 }
                 return { opened: false, wanted, chatId: window.SillyTavern?.getContext?.()?.chatId ?? null };
             }, savedChatId);
+            } catch (error) {
+                back = { opened: false, reason: String(error?.message ?? error).slice(0, 300), threw: true };
+            }
             step('returned-to-journey-chat', back.opened === true, back);
             const finalHelper = await injectVariablesThroughHelper(page);
             const finalQR = await executeJourneyQuickReply(page);
@@ -858,6 +1120,12 @@ async function main() {
             const chatId = carrying[0] ? path.basename(carrying[0], '.jsonl') : null;
             await openCharacter(page, CARD.name);
             await waitChatLoaded();
+            const handbackWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            report.browser.handbackWorldSelection = handbackWorld;
+            step('handback-world-info-selected', handbackWorld.ok === true, handbackWorld);
+            report.browser.handbackPreset = await selectPresetThroughControl(page, presetName);
+            report.browser.handbackReconnected = await connect();
+            await waitForQuiet(page);
             const reopened = await page.evaluate(async wanted => {
                 const script = await import('./script.js');
                 await script.openCharacterChat(wanted);
@@ -874,8 +1142,16 @@ async function main() {
             // A NEW PROCESS HAS NO IN-MEMORY INJECTIONS EITHER: the installed helper re-runs and the user re-clicks
             // the QR. What must survive is the VARIABLES themselves, the preset selection, the world-info selection,
             // the author's note (chat metadata) and the banked history.
+            const restartWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            report.browser.restartWorldSelection = restartWorld;
+            step('restart-world-info-selected', restartWorld.ok === true, restartWorld);
+            report.browser.restartPreset = await selectPresetThroughControl(page, presetName);
+            report.browser.restartReconnected = await connect();
             const restartHelper = await injectVariablesThroughHelper(page);
             const restartQR = await executeJourneyQuickReply(page);
+            const restartInjections = await verifyInjectionPrompts(page);
+            report.browser.restartInjections = restartInjections;
+            step('restart-injections-active-in-page', restartInjections.variables?.present === true && restartInjections.variables?.hasValue === true, restartInjections);
             report.browser.restartHelper = { ok: restartHelper.ok, payload: restartHelper.payload, done: restartHelper.done };
             step('after-restart-helper-reran', restartHelper.ok === true, restartHelper.done ?? null);
             const resumed = await turn(page, 'COMB_TURN_AFTER_RESTART', 'turn-after-restart');
