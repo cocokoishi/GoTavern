@@ -66,7 +66,7 @@ func (runtime *accountRuntime) serveOpenAIChutesTranscribe(w http.ResponseWriter
 		serveStatusText(w, http.StatusBadRequest)
 		return
 	}
-	fileBytes, fields, _, ok := readTranscribeUpload(request)
+	fileBytes, fields, _, ok := readTranscribeUpload(runtime.options.DataRoot, request)
 	if !ok {
 		serveStatusText(w, http.StatusBadRequest)
 		return

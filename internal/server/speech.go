@@ -604,7 +604,7 @@ func (runtime *accountRuntime) serveElevenLabsRecognize(w http.ResponseWriter, r
 	if !ok {
 		return
 	}
-	fileBytes, model, found := readSpeechUpload(request)
+	fileBytes, model, found := readSpeechUpload(runtime.options.DataRoot, request)
 	if !found {
 		serveStatusText(w, http.StatusBadRequest)
 		return
@@ -641,8 +641,12 @@ func (runtime *accountRuntime) serveElevenLabsRecognize(w http.ResponseWriter, r
 }
 
 // readSpeechUpload reads the multipart upload the pinned global `multer().single('avatar')` would
-// have parsed, plus the `model` text field.
-func readSpeechUpload(request *http.Request) ([]byte, string, bool) {
+// have parsed, plus the `model` text field. The FILE part is bounded and spooled on disk
+// (multipart_upload.go) instead of `io.ReadAll`, which was an unbounded memory buffer an authenticated
+// upload could grow until the process died; >maxBufferedMultipartUploadBytes is rejected, recorded as a
+// security boundary (docs/data-safety.md 8.4) because pinned streams the part to disk and then to the
+// provider.
+func readSpeechUpload(dataRoot string, request *http.Request) ([]byte, string, bool) {
 	reader, err := request.MultipartReader()
 	if err != nil {
 		return nil, "", false
@@ -658,19 +662,25 @@ func readSpeechUpload(request *http.Request) ([]byte, string, bool) {
 		if err != nil {
 			return nil, "", false
 		}
-		content, err := io.ReadAll(part)
-		if err != nil {
-			_ = part.Close()
-			return nil, "", false
-		}
 		name := part.FormName()
-		if name == elevenLabsRecognizeFormKey {
+		if name == elevenLabsRecognizeFormKey || part.FileName() != "" {
+			content, readErr := readBufferedMultipartPart(dataRoot, part)
+			_ = part.Close()
+			if readErr != nil {
+				return nil, "", false
+			}
 			fileBytes = content
 			found = true
-		} else if name == "model" {
-			model = string(content)
+			continue
 		}
+		value, readErr := io.ReadAll(io.LimitReader(part, pinnedUploadFieldSizeLimit+1))
 		_ = part.Close()
+		if readErr != nil || int64(len(value)) > pinnedUploadFieldSizeLimit {
+			return nil, "", false
+		}
+		if name == "model" {
+			model = string(value)
+		}
 	}
 	return fileBytes, model, found
 }

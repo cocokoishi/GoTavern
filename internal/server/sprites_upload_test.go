@@ -81,6 +81,11 @@ func TestPinnedNodeSpritesUpload(t *testing.T) {
 	verifySpritesDiscriminating(t, fixture)
 
 	dataRoot := t.TempDir()
+	// The sprite file part is now STAGED on disk like multer's (multipart_upload.go): a real install creates
+	// <dataRoot>/_uploads at startup, so the handler fixture does too.
+	if err := os.MkdirAll(filepath.Join(dataRoot, "_uploads"), 0o777); err != nil {
+		t.Fatal(err)
+	}
 	handler, sessionCookie, token := newSDRouteHandler(t, dataRoot, t.TempDir(), fixture.Inputs.CookieSecret, fixture.Inputs.Account)
 	userRoot := userRootPath(dataRoot)
 	seedSpritesTree(t, userRoot)
