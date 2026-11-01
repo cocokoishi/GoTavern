@@ -1,0 +1,1933 @@
+{
+  "schemaVersion": 1,
+  "question": "What provider request does pinned Node send for each group-chat scenario?",
+  "baseline": {
+    "name": "SillyTavern",
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "recordedFrom": "pinned Node via run-against-pinned.mjs + group-chat-probe.mjs",
+  "legs": {
+    "full": {
+      "subject": "pinned",
+      "phase": "full",
+      "prngSeed": 1592594996,
+      "seedDigest": "b584010b43cf0242a0533f53c70840ff5bb0cc5aa926a3265b43028aeef52766",
+      "serverVersion": "{\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"gitRevision\":\"06bde939f\",\"gitBranch\":\"release\",\"commitDate\":\"2026-09-14 21:01:34 +0200\",\"isLatest\":true}",
+      "tokenizerRoot": {
+        "layout": "external",
+        "source": "pinned checkout src/tokenizers",
+        "entries": null
+      },
+      "setup": {
+        "ready": true,
+        "onlineStatus": "Status check bypassed",
+        "characters": [
+          "Alice",
+          "Bob",
+          "Carol",
+          "Seraphina"
+        ],
+        "groups": [
+          "Auto Mode",
+          "Continue Group",
+          "Disabled Member",
+          "Greeting Group",
+          "Impersonate Group",
+          "List Three",
+          "Manual Activation",
+          "Natural Two",
+          "Natural Three",
+          "Previous Speaker",
+          "Regenerate Group",
+          "Restart Group",
+          "Swipe Group",
+          "Truncation Group",
+          "World Info Group"
+        ],
+        "chatCompletionSource": "custom",
+        "stream": false,
+        "mainApi": "openai"
+      },
+      "cases": [
+        {
+          "name": "group-greeting",
+          "groupId": "g-group-greeting",
+          "notes": "opening a group with no chat file builds the greeting from every member first_mes (group-chats.js:283-304); no provider request is made",
+          "steps": [
+            {
+              "step": "open",
+              "selectedGroup": "g-group-greeting",
+              "chatLength": 2,
+              "chatId": "chat-group-greeting",
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                }
+              ],
+              "idle": {
+                "ok": true,
+                "chatLength": 2
+              }
+            },
+            {
+              "step": "observe",
+              "chatLength": 2,
+              "chatId": "chat-group-greeting",
+              "lastMessage": {
+                "name": "Bob",
+                "isUser": false,
+                "text": "Bob checks the map and disagrees with everyone."
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                }
+              ],
+              "generating": false
+            }
+          ],
+          "requests": []
+        },
+        {
+          "name": "user-message-natural-2",
+          "groupId": "g-natural-2",
+          "notes": "2 characters, NATURAL activation, a user message; every enabled member has talkativeness 1 so the set is All",
+          "steps": [
+            {
+              "step": "open",
+              "selectedGroup": "g-natural-2",
+              "chatLength": 2,
+              "chatId": "chat-natural-2",
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                }
+              ],
+              "idle": {
+                "ok": true,
+                "chatLength": 2
+              }
+            },
+            {
+              "step": "send",
+              "typed": "GROUP_USER_INPUT_MARKER",
+              "idle": {
+                "ok": true,
+                "chatLength": 5,
+                "wrapperFinished": 1,
+                "wrapperDelta": 1
+              },
+              "chatLength": 5
+            },
+            {
+              "step": "observe",
+              "chatLength": 5,
+              "chatId": "chat-natural-2",
+              "lastMessage": {
+                "name": "Bob",
+                "isUser": false,
+                "text": "GROUP_REPLY:user-message-natural-2:send:2"
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                },
+                {
+                  "name": "Group Probe User",
+                  "isUser": true,
+                  "text": "GROUP_USER_INPUT_MARKER"
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:user-message-natural-2:send:1"
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:user-message-natural-2:send:2"
+                }
+              ],
+              "generating": false
+            }
+          ],
+          "requests": [
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "2bf50a2dddcd0bf4d40adcdb6848ee34f397a5de834349aecac43c73f1cf3518",
+              "bodyLength": 847,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"system\",\"content\":\"CHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "2bc5d9b67ff4e7f5bdd1d2d8874a6cd3ee4ba94254ff9484c5a1081885c72a26",
+              "bodyLength": 855,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:user-message-natural-2:send:1\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            }
+          ]
+        },
+        {
+          "name": "user-message-natural-3",
+          "groupId": "g-natural-3",
+          "notes": "3 characters, NATURAL activation, a user message",
+          "steps": [
+            {
+              "step": "open",
+              "selectedGroup": "g-natural-3",
+              "chatLength": 3,
+              "chatId": "chat-natural-3",
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "isSystem": false
+                }
+              ],
+              "idle": {
+                "ok": true,
+                "chatLength": 3
+              }
+            },
+            {
+              "step": "send",
+              "typed": "GROUP_USER_INPUT_MARKER",
+              "idle": {
+                "ok": true,
+                "chatLength": 7,
+                "wrapperFinished": 2,
+                "wrapperDelta": 1
+              },
+              "chatLength": 7
+            },
+            {
+              "step": "observe",
+              "chatLength": 7,
+              "chatId": "chat-natural-3",
+              "lastMessage": {
+                "name": "Bob",
+                "isUser": false,
+                "text": "GROUP_REPLY:user-message-natural-3:send:5"
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "text": "Carol opens the ledger and starts counting the supplies."
+                },
+                {
+                  "name": "Group Probe User",
+                  "isUser": true,
+                  "text": "GROUP_USER_INPUT_MARKER"
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:user-message-natural-3:send:3"
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:user-message-natural-3:send:4"
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:user-message-natural-3:send:5"
+                }
+              ],
+              "generating": false
+            }
+          ],
+          "requests": [
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "a5f985981068e7eb63c58f95c20effb4f9aa8d8bc3faa0f86fe2d9b1e1355f69",
+              "bodyLength": 951,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"system\",\"content\":\"CHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "fde27949f20784c67e269b32625c32af8efc2f36f7b0312de299f80e2e5ec213",
+              "bodyLength": 963,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Carol's next reply in a fictional chat between Carol and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Carol counts the supplies and keeps the ledger.\"},{\"role\":\"system\",\"content\":\"Patient, methodical, dry.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:user-message-natural-3:send:3\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Carol.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "3b7c3f8de9f70b68688907a94290464aa9f42b94accfd67d69d42b0a43a019d2",
+              "bodyLength": 1041,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:user-message-natural-3:send:3\"},{\"role\":\"assistant\",\"content\":\"Carol: GROUP_REPLY:user-message-natural-3:send:4\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            }
+          ]
+        },
+        {
+          "name": "user-message-list-3",
+          "groupId": "g-list-3",
+          "notes": "3 characters, LIST activation: all enabled members in member order",
+          "steps": [
+            {
+              "step": "open",
+              "selectedGroup": "g-list-3",
+              "chatLength": 3,
+              "chatId": "chat-list-3",
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "isSystem": false
+                }
+              ],
+              "idle": {
+                "ok": true,
+                "chatLength": 3
+              }
+            },
+            {
+              "step": "send",
+              "typed": "GROUP_USER_INPUT_MARKER",
+              "idle": {
+                "ok": true,
+                "chatLength": 7,
+                "wrapperFinished": 3,
+                "wrapperDelta": 1
+              },
+              "chatLength": 7
+            },
+            {
+              "step": "observe",
+              "chatLength": 7,
+              "chatId": "chat-list-3",
+              "lastMessage": {
+                "name": "Carol",
+                "isUser": false,
+                "text": "GROUP_REPLY:user-message-list-3:send:8"
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "text": "Carol opens the ledger and starts counting the supplies."
+                },
+                {
+                  "name": "Group Probe User",
+                  "isUser": true,
+                  "text": "GROUP_USER_INPUT_MARKER"
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:user-message-list-3:send:6"
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:user-message-list-3:send:7"
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:user-message-list-3:send:8"
+                }
+              ],
+              "generating": false
+            }
+          ],
+          "requests": [
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "a5f985981068e7eb63c58f95c20effb4f9aa8d8bc3faa0f86fe2d9b1e1355f69",
+              "bodyLength": 951,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"system\",\"content\":\"CHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "1f2539d23212a20619c746851e3428a57a3116057a106f3c73eee2b4ef7f82c4",
+              "bodyLength": 956,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:user-message-list-3:send:6\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "ad57e2b7cd67c6ccb15ea4a1419a86fd27e1a8743b4c6feab30d209adb623677",
+              "bodyLength": 1037,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Carol's next reply in a fictional chat between Carol and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Carol counts the supplies and keeps the ledger.\"},{\"role\":\"system\",\"content\":\"Patient, methodical, dry.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:user-message-list-3:send:6\"},{\"role\":\"assistant\",\"content\":\"Bob: GROUP_REPLY:user-message-list-3:send:7\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Carol.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            }
+          ]
+        },
+        {
+          "name": "disabled-member",
+          "groupId": "g-disabled",
+          "notes": "Carol is in disabled_members; a LIST-order turn must never produce a request for her",
+          "steps": [
+            {
+              "step": "open",
+              "selectedGroup": "g-disabled",
+              "chatLength": 3,
+              "chatId": "chat-disabled",
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "isSystem": false
+                }
+              ],
+              "idle": {
+                "ok": true,
+                "chatLength": 3
+              }
+            },
+            {
+              "step": "send",
+              "typed": "GROUP_USER_INPUT_MARKER",
+              "idle": {
+                "ok": true,
+                "chatLength": 6,
+                "wrapperFinished": 4,
+                "wrapperDelta": 1
+              },
+              "chatLength": 6
+            },
+            {
+              "step": "observe",
+              "chatLength": 6,
+              "chatId": "chat-disabled",
+              "lastMessage": {
+                "name": "Bob",
+                "isUser": false,
+                "text": "GROUP_REPLY:disabled-member:send:10"
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "text": "Carol opens the ledger and starts counting the supplies."
+                },
+                {
+                  "name": "Group Probe User",
+                  "isUser": true,
+                  "text": "GROUP_USER_INPUT_MARKER"
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:disabled-member:send:9"
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:disabled-member:send:10"
+                }
+              ],
+              "generating": false
+            }
+          ],
+          "requests": [
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "a5f985981068e7eb63c58f95c20effb4f9aa8d8bc3faa0f86fe2d9b1e1355f69",
+              "bodyLength": 951,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"system\",\"content\":\"CHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "a102b17d5a47c9de00b3efed47f028819d3e0c89671673e4bc35f59a1aaa5f6d",
+              "bodyLength": 952,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:disabled-member:send:9\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            }
+          ]
+        },
+        {
+          "name": "auto-mode-list",
+          "groupId": "g-auto",
+          "notes": "auto mode drives generateGroupWrapper(true, \"auto\") (group-chats.js:1398-1414) with no user message",
+          "steps": [
+            {
+              "step": "open",
+              "selectedGroup": "g-auto",
+              "chatLength": 3,
+              "chatId": "chat-auto",
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "isSystem": false
+                }
+              ],
+              "idle": {
+                "ok": true,
+                "chatLength": 3
+              }
+            },
+            {
+              "step": "auto",
+              "idle": {
+                "ok": true,
+                "chatLength": 6
+              },
+              "chatLength": 6
+            },
+            {
+              "step": "observe",
+              "chatLength": 6,
+              "chatId": "chat-auto",
+              "lastMessage": {
+                "name": "Carol",
+                "isUser": false,
+                "text": "GROUP_REPLY:auto-mode-list:auto:13"
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "text": "Carol opens the ledger and starts counting the supplies."
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:auto-mode-list:auto:11"
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:auto-mode-list:auto:12"
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:auto-mode-list:auto:13"
+                }
+              ],
+              "generating": false
+            }
+          ],
+          "requests": [
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "auto",
+              "bodySha256": "6af79ccf5a0b829ebe8b29f609cac266aae1dc10feea16e4de89359cb60ef85b",
+              "bodyLength": 899,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"system\",\"content\":\"CHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "auto",
+              "bodySha256": "08cbf1e2031cb8a2db306db43643eeb52fae9b13872cd50b65e592bb546fca02",
+              "bodyLength": 900,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:auto-mode-list:auto:11\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "auto",
+              "bodySha256": "7f14546f1e62ad341622763a6df549fddd87cdf45c36d2eb53062bf28c551f27",
+              "bodyLength": 977,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Carol's next reply in a fictional chat between Carol and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Carol counts the supplies and keeps the ledger.\"},{\"role\":\"system\",\"content\":\"Patient, methodical, dry.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:auto-mode-list:auto:11\"},{\"role\":\"assistant\",\"content\":\"Bob: GROUP_REPLY:auto-mode-list:auto:12\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Carol.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            }
+          ]
+        },
+        {
+          "name": "manual-activation",
+          "groupId": "g-manual",
+          "notes": "manual mode: the user (or /trigger) forces one member at a time, in a chosen order (slash-commands.js:4987-5023)",
+          "steps": [
+            {
+              "step": "open",
+              "selectedGroup": "g-manual",
+              "chatLength": 3,
+              "chatId": "chat-manual",
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "isSystem": false
+                }
+              ],
+              "idle": {
+                "ok": true,
+                "chatLength": 3
+              }
+            },
+            {
+              "step": "force",
+              "member": "Bob",
+              "idle": {
+                "ok": true,
+                "chatLength": 4,
+                "wrapperFinished": 6,
+                "wrapperDelta": 1
+              },
+              "chatLength": 4
+            },
+            {
+              "step": "force",
+              "member": "Alice",
+              "idle": {
+                "ok": true,
+                "chatLength": 5,
+                "wrapperFinished": 7,
+                "wrapperDelta": 1
+              },
+              "chatLength": 5
+            },
+            {
+              "step": "observe",
+              "chatLength": 5,
+              "chatId": "chat-manual",
+              "lastMessage": {
+                "name": "Alice",
+                "isUser": false,
+                "text": "GROUP_REPLY:manual-activation:force:15"
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "text": "Carol opens the ledger and starts counting the supplies."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:manual-activation:force:14"
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:manual-activation:force:15"
+                }
+              ],
+              "generating": false
+            }
+          ],
+          "requests": [
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "force",
+              "bodySha256": "d4150c864ed476fe7b83c2eddca1c8db0d2fc16b1a81bad6d96ddf387251db5b",
+              "bodyLength": 825,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "force",
+              "bodySha256": "8549f9ee6cbe67b7c7c92a4195a95f37a66db4ee813939b9a4f47faaef0ea14a",
+              "bodyLength": 976,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"system\",\"content\":\"CHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"assistant\",\"content\":\"Bob: GROUP_REPLY:manual-activation:force:14\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            }
+          ]
+        },
+        {
+          "name": "previous-speaker",
+          "groupId": "g-previous-speaker",
+          "notes": "a trigger with no user input after a character spoke: NATURAL activation bans the previous speaker (group-chats.js:1246-1251)",
+          "steps": [
+            {
+              "step": "open",
+              "selectedGroup": "g-previous-speaker",
+              "chatLength": 3,
+              "chatId": "chat-previous-speaker",
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "isSystem": false
+                }
+              ],
+              "idle": {
+                "ok": true,
+                "chatLength": 3
+              }
+            },
+            {
+              "step": "send",
+              "typed": "GROUP_USER_INPUT_MARKER",
+              "idle": {
+                "ok": true,
+                "chatLength": 7,
+                "wrapperFinished": 8,
+                "wrapperDelta": 1
+              },
+              "chatLength": 7
+            },
+            {
+              "step": "trigger",
+              "idle": {
+                "ok": true,
+                "chatLength": 9,
+                "wrapperFinished": 9,
+                "wrapperDelta": 1
+              },
+              "chatLength": 9
+            },
+            {
+              "step": "observe",
+              "chatLength": 9,
+              "chatId": "chat-previous-speaker",
+              "lastMessage": {
+                "name": "Carol",
+                "isUser": false,
+                "text": "GROUP_REPLY:previous-speaker:trigger:20"
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "text": "Carol opens the ledger and starts counting the supplies."
+                },
+                {
+                  "name": "Group Probe User",
+                  "isUser": true,
+                  "text": "GROUP_USER_INPUT_MARKER"
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:previous-speaker:send:16"
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:previous-speaker:send:17"
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:previous-speaker:send:18"
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:previous-speaker:trigger:19"
+                },
+                {
+                  "name": "Carol",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:previous-speaker:trigger:20"
+                }
+              ],
+              "generating": false
+            }
+          ],
+          "requests": [
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "a5f985981068e7eb63c58f95c20effb4f9aa8d8bc3faa0f86fe2d9b1e1355f69",
+              "bodyLength": 951,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"system\",\"content\":\"CHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "609c0b5da58ee0aebcc51c1eae47ebdf3ed5a5d55e0933900004a3e5719626b7",
+              "bodyLength": 958,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Carol's next reply in a fictional chat between Carol and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Carol counts the supplies and keeps the ledger.\"},{\"role\":\"system\",\"content\":\"Patient, methodical, dry.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:previous-speaker:send:16\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Carol.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "e871a37070d05da322e1b0219ad476d19a085455012a094a13fdf1ac8d2588ee",
+              "bodyLength": 1031,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:previous-speaker:send:16\"},{\"role\":\"assistant\",\"content\":\"Carol: GROUP_REPLY:previous-speaker:send:17\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "trigger",
+              "bodySha256": "16863ae087892f0a4e947b7752aa38646d29aafaf5e3c21fe2158d3ccf1e609d",
+              "bodyLength": 1180,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:previous-speaker:send:16\"},{\"role\":\"system\",\"content\":\"CHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Carol: GROUP_REPLY:previous-speaker:send:17\"},{\"role\":\"assistant\",\"content\":\"Bob: GROUP_REPLY:previous-speaker:send:18\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "trigger",
+              "bodySha256": "8f3a0180158268b638c9b3755c5ae12e49ad2eab57df0787949242585691abb8",
+              "bodyLength": 1190,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Carol's next reply in a fictional chat between Carol and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Carol counts the supplies and keeps the ledger.\"},{\"role\":\"system\",\"content\":\"Patient, methodical, dry.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob, Carol]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"assistant\",\"content\":\"Carol: Carol opens the ledger and starts counting the supplies.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:previous-speaker:send:16\"},{\"role\":\"assistant\",\"content\":\"Carol: GROUP_REPLY:previous-speaker:send:17\"},{\"role\":\"assistant\",\"content\":\"Bob: GROUP_REPLY:previous-speaker:send:18\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:previous-speaker:trigger:19\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Carol.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1}"
+            }
+          ]
+        },
+        {
+          "name": "world-info-and-note",
+          "groupId": "g-world-info",
+          "notes": "character-bound WI (Alice's card world), the chat/group-bound world book (chat_metadata.world_info), the globally selected book, Author's Note at depth, and non-default samplers/stops in one turn",
+          "steps": [
+            {
+              "step": "open",
+              "selectedGroup": "g-world-info",
+              "chatLength": 2,
+              "chatId": "chat-world-info",
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                }
+              ],
+              "idle": {
+                "ok": true,
+                "chatLength": 2
+              }
+            },
+            {
+              "step": "configureWorldInfo",
+              "selectedWorldInfo": [
+                "GlobalLore"
+              ],
+              "chatWorldInfo": "ChatLore"
+            },
+            {
+              "step": "configureAuthorsNote",
+              "note": "AN_GROUP_DEPTH_MARKER",
+              "interval": 1,
+              "depth": 2,
+              "position": 1
+            },
+            {
+              "step": "configureSamplers",
+              "temperature": 0.91,
+              "topP": 0.77,
+              "frequencyPenalty": 0.11,
+              "presencePenalty": 0.22,
+              "maxTokens": 77,
+              "stop": "[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]"
+            },
+            {
+              "step": "send",
+              "typed": "GROUP_USER_INPUT_MARKER — the lantern, the orchard and the map.",
+              "idle": {
+                "ok": true,
+                "chatLength": 5,
+                "wrapperFinished": 10,
+                "wrapperDelta": 1
+              },
+              "chatLength": 5
+            },
+            {
+              "step": "observe",
+              "chatLength": 5,
+              "chatId": "chat-world-info",
+              "lastMessage": {
+                "name": "Bob",
+                "isUser": false,
+                "text": "GROUP_REPLY:world-info-and-note:send:22"
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                },
+                {
+                  "name": "Group Probe User",
+                  "isUser": true,
+                  "text": "GROUP_USER_INPUT_MARKER — the lantern, the orchard and the map."
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:world-info-and-note:send:21"
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:world-info-and-note:send:22"
+                }
+              ],
+              "generating": false
+            }
+          ],
+          "requests": [
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "466a33578f1bfc899f439d12906e37ad405326d70df031e6269892b923178715",
+              "bodyLength": 1188,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"WI_GLOBAL_ORCHARD_MARKER: the global book knows this orchard.\\nWI_ALICE_LANTERN_MARKER: Alice's lantern lights the orchard path.\\nWI_CHAT_GROUPBOOK_MARKER: the group chat's own book notes the map.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"system\",\"content\":\"AN_GROUP_DEPTH_MARKER\\nCHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER — the lantern, the orchard and the map.\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":77,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "df21d489ca283ade3b7800c887c3c9b94618493dd87cd4888ada67a2d02b7607",
+              "bodyLength": 1156,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"WI_GLOBAL_ORCHARD_MARKER: the global book knows this orchard.\\nWI_CHAT_GROUPBOOK_MARKER: the group chat's own book notes the map.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"system\",\"content\":\"AN_GROUP_DEPTH_MARKER\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER — the lantern, the orchard and the map.\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:world-info-and-note:send:21\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":77,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            }
+          ]
+        },
+        {
+          "name": "continue",
+          "groupId": "g-continue",
+          "notes": "user turn (2 members) then the Continue button: activateSwipe picks the last speaker only (group-chats.js:1014-1020)",
+          "steps": [
+            {
+              "step": "open",
+              "selectedGroup": "g-continue",
+              "chatLength": 2,
+              "chatId": "chat-continue",
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                }
+              ],
+              "idle": {
+                "ok": true,
+                "chatLength": 2
+              }
+            },
+            {
+              "step": "send",
+              "typed": "GROUP_USER_INPUT_MARKER",
+              "idle": {
+                "ok": true,
+                "chatLength": 5,
+                "wrapperFinished": 11,
+                "wrapperDelta": 1
+              },
+              "chatLength": 5
+            },
+            {
+              "step": "continue",
+              "idle": {
+                "ok": true,
+                "chatLength": 5,
+                "wrapperFinished": 12,
+                "wrapperDelta": 1
+              },
+              "chatLength": 5
+            },
+            {
+              "step": "observe",
+              "chatLength": 5,
+              "chatId": "chat-continue",
+              "lastMessage": {
+                "name": "Bob",
+                "isUser": false,
+                "text": "GROUP_REPLY:continue:send:24 GROUP_REPLY:continue:continue:25"
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                },
+                {
+                  "name": "Group Probe User",
+                  "isUser": true,
+                  "text": "GROUP_USER_INPUT_MARKER"
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:continue:send:23"
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:continue:send:24 GROUP_REPLY:continue:continue:25"
+                }
+              ],
+              "generating": false
+            }
+          ],
+          "requests": [
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "d2dcdb7b9046107022ebaaeb5022a33dcc80cf853216e5b7b2d61c18481093bb",
+              "bodyLength": 896,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"system\",\"content\":\"CHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":77,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "86762409cbb61e6a03a6b5a745f4510ca5271e49af51bfe6a88cc540640b316e",
+              "bodyLength": 891,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:continue:send:23\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":77,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "continue",
+              "bodySha256": "33755becd4fa1ed3a0255bcfcfce69ad77bf2234e6c7e5dee89cbde6293f476e",
+              "bodyLength": 1057,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:continue:send:23\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"},{\"role\":\"assistant\",\"content\":\"Bob: GROUP_REPLY:continue:send:24\"},{\"role\":\"system\",\"content\":\"[Continue your last message without repeating its original content.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":77,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            }
+          ]
+        },
+        {
+          "name": "swipe",
+          "groupId": "g-swipe",
+          "notes": "user turn then the Swipe button",
+          "steps": [
+            {
+              "step": "open",
+              "selectedGroup": "g-swipe",
+              "chatLength": 2,
+              "chatId": "chat-swipe",
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                }
+              ],
+              "idle": {
+                "ok": true,
+                "chatLength": 2
+              }
+            },
+            {
+              "step": "send",
+              "typed": "GROUP_USER_INPUT_MARKER",
+              "idle": {
+                "ok": true,
+                "chatLength": 5,
+                "wrapperFinished": 13,
+                "wrapperDelta": 1
+              },
+              "chatLength": 5
+            },
+            {
+              "step": "swipe",
+              "idle": {
+                "ok": true,
+                "chatLength": 5,
+                "wrapperFinished": 14,
+                "wrapperDelta": 1
+              },
+              "chatLength": 5
+            },
+            {
+              "step": "observe",
+              "chatLength": 5,
+              "chatId": "chat-swipe",
+              "lastMessage": {
+                "name": "Bob",
+                "isUser": false,
+                "text": "GROUP_REPLY:swipe:swipe:28"
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                },
+                {
+                  "name": "Group Probe User",
+                  "isUser": true,
+                  "text": "GROUP_USER_INPUT_MARKER"
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:swipe:send:26"
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:swipe:swipe:28"
+                }
+              ],
+              "generating": false
+            }
+          ],
+          "requests": [
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "d2dcdb7b9046107022ebaaeb5022a33dcc80cf853216e5b7b2d61c18481093bb",
+              "bodyLength": 896,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"system\",\"content\":\"CHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":77,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "c417ab48aa5f1f379486dd7b08d4f36db8844eef47abdae2b2646c2aaeee5d0d",
+              "bodyLength": 888,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:swipe:send:26\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":77,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "swipe",
+              "bodySha256": "c417ab48aa5f1f379486dd7b08d4f36db8844eef47abdae2b2646c2aaeee5d0d",
+              "bodyLength": 888,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:swipe:send:26\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":77,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            }
+          ]
+        },
+        {
+          "name": "regenerate",
+          "groupId": "g-regenerate",
+          "notes": "user turn then the Regenerate button (script.js option_regenerate -> regenerateGroup)",
+          "steps": [
+            {
+              "step": "open",
+              "selectedGroup": "g-regenerate",
+              "chatLength": 2,
+              "chatId": "chat-regenerate",
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                }
+              ],
+              "idle": {
+                "ok": true,
+                "chatLength": 2
+              }
+            },
+            {
+              "step": "send",
+              "typed": "GROUP_USER_INPUT_MARKER",
+              "idle": {
+                "ok": true,
+                "chatLength": 5,
+                "wrapperFinished": 15,
+                "wrapperDelta": 1
+              },
+              "chatLength": 5
+            },
+            {
+              "step": "regenerate",
+              "idle": {
+                "ok": true,
+                "chatLength": 5,
+                "wrapperFinished": 16,
+                "wrapperDelta": 1
+              },
+              "chatLength": 5
+            },
+            {
+              "step": "observe",
+              "chatLength": 5,
+              "chatId": "chat-regenerate",
+              "lastMessage": {
+                "name": "Bob",
+                "isUser": false,
+                "text": "GROUP_REPLY:regenerate:regenerate:32"
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                },
+                {
+                  "name": "Group Probe User",
+                  "isUser": true,
+                  "text": "GROUP_USER_INPUT_MARKER"
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:regenerate:regenerate:31"
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:regenerate:regenerate:32"
+                }
+              ],
+              "generating": false
+            }
+          ],
+          "requests": [
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "d2dcdb7b9046107022ebaaeb5022a33dcc80cf853216e5b7b2d61c18481093bb",
+              "bodyLength": 896,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"system\",\"content\":\"CHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":77,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "46c9962d42cb095fbe980d28ab803fe96141aec1608aa65da947a82d679ff39c",
+              "bodyLength": 893,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:regenerate:send:29\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":77,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "regenerate",
+              "bodySha256": "d2dcdb7b9046107022ebaaeb5022a33dcc80cf853216e5b7b2d61c18481093bb",
+              "bodyLength": 896,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"system\",\"content\":\"CHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":77,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "regenerate",
+              "bodySha256": "5e9a394de6029b7ca119402b16bb0622331a4fbd13927a2e7c699202ce302eb3",
+              "bodyLength": 899,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:regenerate:regenerate:31\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":77,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            }
+          ]
+        },
+        {
+          "name": "impersonate",
+          "groupId": "g-impersonate",
+          "notes": "the Impersonate button: activateImpersonate picks one member with Math.random (group-chats.js:1114-1121), deterministic under the seeded PRNG",
+          "steps": [
+            {
+              "step": "open",
+              "selectedGroup": "g-impersonate",
+              "chatLength": 2,
+              "chatId": "chat-impersonate",
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                }
+              ],
+              "idle": {
+                "ok": true,
+                "chatLength": 2
+              }
+            },
+            {
+              "step": "impersonate",
+              "idle": {
+                "ok": true,
+                "chatLength": 2,
+                "wrapperFinished": 17,
+                "wrapperDelta": 1
+              },
+              "chatLength": 2
+            },
+            {
+              "step": "observe",
+              "chatLength": 2,
+              "chatId": "chat-impersonate",
+              "lastMessage": {
+                "name": "Bob",
+                "isUser": false,
+                "text": "Bob checks the map and disagrees with everyone."
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                }
+              ],
+              "generating": false
+            }
+          ],
+          "requests": [
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "impersonate",
+              "bodySha256": "cf1dc1a33d8ccfea6acf86c425c86945f1e8a7a3cb0986e40f48a9bb2944ddd1",
+              "bodyLength": 1084,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"WI_GLOBAL_ORCHARD_MARKER: the global book knows this orchard.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"system\",\"content\":\"[Write your next reply from the point of view of Group Probe User, using the chat history so far as a guideline for the writing style of Group Probe User. Write 1 reply only in internet RP style. Don't write as Bob or system. Don't describe actions of Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":77,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            }
+          ]
+        },
+        {
+          "name": "truncation",
+          "groupId": "g-truncation",
+          "notes": "the context budget is small enough that the pinned trimmer drops old history: message ORDER and the KEPT SUBSET are the observable",
+          "steps": [
+            {
+              "step": "open",
+              "selectedGroup": "g-truncation",
+              "chatLength": 2,
+              "chatId": "chat-truncation",
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                }
+              ],
+              "idle": {
+                "ok": true,
+                "chatLength": 2
+              }
+            },
+            {
+              "step": "configureSmallContext",
+              "openaiMaxContext": 160,
+              "openaiMaxTokens": 32
+            },
+            {
+              "step": "send",
+              "typed": "GROUP_USER_INPUT_MARKER one",
+              "idle": {
+                "ok": true,
+                "chatLength": 5,
+                "wrapperFinished": 18,
+                "wrapperDelta": 1
+              },
+              "chatLength": 5
+            },
+            {
+              "step": "send",
+              "typed": "GROUP_USER_INPUT_MARKER two",
+              "idle": {
+                "ok": true,
+                "chatLength": 8,
+                "wrapperFinished": 19,
+                "wrapperDelta": 1
+              },
+              "chatLength": 8
+            },
+            {
+              "step": "send",
+              "typed": "GROUP_USER_INPUT_MARKER three",
+              "idle": {
+                "ok": true,
+                "chatLength": 11,
+                "wrapperFinished": 20,
+                "wrapperDelta": 1
+              },
+              "chatLength": 11
+            },
+            {
+              "step": "observe",
+              "chatLength": 11,
+              "chatId": "chat-truncation",
+              "lastMessage": {
+                "name": "Bob",
+                "isUser": false,
+                "text": "GROUP_REPLY:truncation:send:39"
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                },
+                {
+                  "name": "Group Probe User",
+                  "isUser": true,
+                  "text": "GROUP_USER_INPUT_MARKER one"
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:truncation:send:34"
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:truncation:send:35"
+                },
+                {
+                  "name": "Group Probe User",
+                  "isUser": true,
+                  "text": "GROUP_USER_INPUT_MARKER two"
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:truncation:send:36"
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:truncation:send:37"
+                },
+                {
+                  "name": "Group Probe User",
+                  "isUser": true,
+                  "text": "GROUP_USER_INPUT_MARKER three"
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:truncation:send:38"
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:truncation:send:39"
+                }
+              ],
+              "generating": false
+            }
+          ],
+          "requests": [
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "540f42ba0016e2cb598e66aaf1f7968c67f8cf967c20308acf64e620562fa2a2",
+              "bodyLength": 800,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"system\",\"content\":\"CHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER one\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":32,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "def4c65e55ff15f0e3d8303d894790947b0f493107030da8806d5274ed3c89f6",
+              "bodyLength": 797,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER one\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:truncation:send:34\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":32,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "84360b90d60ee0817c8d814b3aabbe1c4b6cdcff7e2e4aff72fd2d047d48c8cc",
+              "bodyLength": 783,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"system\",\"content\":\"CHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Bob: GROUP_REPLY:truncation:send:35\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER two\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":32,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "09e5eeecc6acfce54c6ba01376a70fd7e524f0e0e6ecb05b3ec2f774c45977ab",
+              "bodyLength": 780,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Bob: GROUP_REPLY:truncation:send:35\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER two\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:truncation:send:36\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":32,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "2fcd08f0a9442da64548146fd83cc2ec837759dc037ae9dec33532f89f9078bd",
+              "bodyLength": 785,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"system\",\"content\":\"CHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Bob: GROUP_REPLY:truncation:send:37\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER three\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":32,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "81efab9db55b43f509d6a012429fe79d602e0c4573eca5bd1f0b9e3441adbd50",
+              "bodyLength": 782,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Bob: GROUP_REPLY:truncation:send:37\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER three\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:truncation:send:38\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":32,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            }
+          ]
+        },
+        {
+          "name": "restart-reload",
+          "groupId": "g-restart",
+          "notes": "the server is restarted over the SAME tree, the group chat is reloaded from disk, then Continue: the request must carry the reloaded history",
+          "steps": [
+            {
+              "step": "open",
+              "selectedGroup": "g-restart",
+              "chatLength": 2,
+              "chatId": "chat-restart",
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                }
+              ],
+              "idle": {
+                "ok": true,
+                "chatLength": 2
+              }
+            },
+            {
+              "step": "send",
+              "typed": "GROUP_USER_INPUT_MARKER restart",
+              "idle": {
+                "ok": true,
+                "chatLength": 5,
+                "wrapperFinished": 21,
+                "wrapperDelta": 1
+              },
+              "chatLength": 5
+            },
+            {
+              "step": "observe",
+              "chatLength": 5,
+              "chatId": "chat-restart",
+              "lastMessage": {
+                "name": "Bob",
+                "isUser": false,
+                "text": "GROUP_REPLY:restart-reload:send:41"
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                },
+                {
+                  "name": "Group Probe User",
+                  "isUser": true,
+                  "text": "GROUP_USER_INPUT_MARKER restart"
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:restart-reload:send:40"
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:restart-reload:send:41"
+                }
+              ],
+              "generating": false
+            }
+          ],
+          "requests": [
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "97e2f836e213eb2e3be328ee8e0663cbc5fc0b354a301c7f0392cca53d65f98d",
+              "bodyLength": 804,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Alice's next reply in a fictional chat between Alice and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Alice keeps the lantern and knows the way through the orchard.\"},{\"role\":\"system\",\"content\":\"Quiet, observant, precise.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"system\",\"content\":\"CHAR_ALICE_DEPTH_MARKER\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER restart\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Alice.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":32,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            },
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "send",
+              "bodySha256": "d59fdd0b130f6557dfb8963159db36f946d8e8095c85766ddebd7d8aa0c08edb",
+              "bodyLength": 805,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER restart\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:restart-reload:send:40\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.91,\"max_tokens\":32,\"stream\":false,\"presence_penalty\":0.22,\"frequency_penalty\":0.11,\"top_p\":0.77,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            }
+          ]
+        }
+      ]
+    },
+    "restart": {
+      "subject": "pinned",
+      "phase": "restart",
+      "prngSeed": 1592594996,
+      "seedDigest": "b584010b43cf0242a0533f53c70840ff5bb0cc5aa926a3265b43028aeef52766",
+      "serverVersion": "{\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"gitRevision\":\"06bde939f\",\"gitBranch\":\"release\",\"commitDate\":\"2026-09-14 21:01:34 +0200\",\"isLatest\":true}",
+      "tokenizerRoot": {
+        "layout": "external",
+        "source": "pinned checkout src/tokenizers",
+        "entries": null
+      },
+      "setup": {
+        "ready": true,
+        "onlineStatus": "Status check bypassed",
+        "characters": [
+          "Alice",
+          "Bob",
+          "Carol",
+          "Seraphina"
+        ],
+        "groups": [
+          "Auto Mode",
+          "Continue Group",
+          "Disabled Member",
+          "Greeting Group",
+          "Impersonate Group",
+          "List Three",
+          "Manual Activation",
+          "Natural Two",
+          "Natural Three",
+          "Previous Speaker",
+          "Regenerate Group",
+          "Restart Group",
+          "Swipe Group",
+          "Truncation Group",
+          "World Info Group"
+        ],
+        "chatCompletionSource": "custom",
+        "stream": false,
+        "mainApi": "openai"
+      },
+      "cases": [
+        {
+          "name": "restart-reload",
+          "groupId": "g-restart",
+          "notes": "the server is restarted over the SAME tree, the group chat is reloaded from disk, then Continue: the request must carry the reloaded history",
+          "steps": [
+            {
+              "step": "openExisting",
+              "selectedGroup": "g-restart",
+              "chatLength": 5,
+              "chatId": "chat-restart",
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Group Probe User",
+                  "isUser": true,
+                  "isSystem": false
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "isSystem": false
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "isSystem": false
+                }
+              ],
+              "idle": {
+                "ok": true,
+                "chatLength": 5
+              }
+            },
+            {
+              "step": "observe",
+              "chatLength": 5,
+              "chatId": "chat-restart",
+              "lastMessage": {
+                "name": "Bob",
+                "isUser": false,
+                "text": "GROUP_REPLY:restart-reload:send:41"
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                },
+                {
+                  "name": "Group Probe User",
+                  "isUser": true,
+                  "text": "GROUP_USER_INPUT_MARKER restart"
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:restart-reload:send:40"
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:restart-reload:send:41"
+                }
+              ],
+              "generating": false
+            },
+            {
+              "step": "continue",
+              "idle": {
+                "ok": true,
+                "chatLength": 5,
+                "wrapperFinished": 1,
+                "wrapperDelta": 1
+              },
+              "chatLength": 5
+            },
+            {
+              "step": "observe",
+              "chatLength": 5,
+              "chatId": "chat-restart",
+              "lastMessage": {
+                "name": "Bob",
+                "isUser": false,
+                "text": "GROUP_REPLY:restart-reload:send:41 GROUP_REPLY:restart-reload:continue:1"
+              },
+              "messages": [
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "Alice raises the lantern and says: the orchard is this way."
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "Bob checks the map and disagrees with everyone."
+                },
+                {
+                  "name": "Group Probe User",
+                  "isUser": true,
+                  "text": "GROUP_USER_INPUT_MARKER restart"
+                },
+                {
+                  "name": "Alice",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:restart-reload:send:40"
+                },
+                {
+                  "name": "Bob",
+                  "isUser": false,
+                  "text": "GROUP_REPLY:restart-reload:send:41 GROUP_REPLY:restart-reload:continue:1"
+                }
+              ],
+              "generating": false
+            }
+          ],
+          "requests": [
+            {
+              "method": "POST",
+              "target": "/chat/completions",
+              "batch": "continue",
+              "bodySha256": "088fb2f9a2a81f98894da92a21b8180ccb6507eeddb545a766a820fbfe6903c5",
+              "bodyLength": 1067,
+              "bodyText": "{\"messages\":[{\"role\":\"system\",\"content\":\"Write Bob's next reply in a fictional chat between Bob and Group Probe User.\"},{\"role\":\"system\",\"content\":\"Bob argues about maps and rarely agrees with anyone.\"},{\"role\":\"system\",\"content\":\"Loud, contrary, loyal.\"},{\"role\":\"system\",\"content\":\"[Start a new group chat. Group members: Alice, Bob]\"},{\"role\":\"assistant\",\"content\":\"Alice: Alice raises the lantern and says: the orchard is this way.\"},{\"role\":\"assistant\",\"content\":\"Bob: Bob checks the map and disagrees with everyone.\"},{\"role\":\"user\",\"content\":\"GROUP_USER_INPUT_MARKER restart\"},{\"role\":\"assistant\",\"content\":\"Alice: GROUP_REPLY:restart-reload:send:40\"},{\"role\":\"system\",\"content\":\"[Write the next reply only as Bob.]\"},{\"role\":\"assistant\",\"content\":\"Bob: GROUP_REPLY:restart-reload:send:41\"},{\"role\":\"system\",\"content\":\"[Continue your last message without repeating its original content.]\"}],\"model\":\"group-probe-model\",\"temperature\":0.5,\"max_tokens\":64,\"stream\":false,\"presence_penalty\":0,\"frequency_penalty\":0,\"top_p\":1,\"stop\":[\"GROUP_STOP_A\",\"GROUP_STOP_B\"]}"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,227 @@
+# THE GROUP-CHAT PROVIDER-REQUEST DIFFERENTIAL.
+#
+# WHAT IT PROVES. A multi-character group chat driven through the PINNED FRONTEND sends the same
+# final provider request under pinned Node and under GoTavern, for every scenario in
+# tests/browser/group-chat-probe.mjs: 2 and 3 members, a disabled member, natural/list/manual
+# activation, auto mode, the previous-speaker ban, the group greeting, character-bound + chat-bound +
+# global world info, Author's Note at depth, samplers/stops, a user turn, continue, swipe,
+# regenerate, impersonate, context truncation, and a server restart over the same tree.
+#
+# WHY THIS IS A SEPARATE WORKFLOW RATHER THAN A STEP IN `Browser differential`. That workflow is a
+# 30-60 minute multi-surface sweep with a `MODE` narrowing; a group-chat gate that is only meaningful
+# on `mode: all` would be skipped by every push run it schedules, which is the omission its own
+# comments record for other surfaces. This workflow is small, self-contained and runs on every push
+# that touches its files.
+#
+# THE COMPARISON IS BYTE-ORIENTED. method, raw request target, body sha256 and body length are
+# compared exactly; no canonicalisation, no re-marshalling. `compare-group-chat-legs.mjs` also asserts
+# the DISCRIMINATING half (a 2-member turn is not a 3-member one, a disabled member produces no
+# request, a forced order is that order, world info / Author's Note / samplers reach the wire,
+# truncation drops history) and fails itself as HARNESS NON-DISCRIMINATING when those knobs stop
+# mattering.
+#
+# THE ORACLE FIXTURE IS PINNED NODE'S OWN OBSERVATION. `tests/browser/fixtures/group-chat/pinned-oracle.json`
+# is packaged from a pinned recording by `group-chat-record-fixture.mjs`; this workflow re-records the
+# pinned legs on every run and REFUSES if the fresh recording differs from the committed fixture,
+# naming the first differing field. A fixture that re-records byte-identically is the check that it
+# describes behaviour rather than one moment (AGENTS.md differential doctrine 9).
+#
+# THE COMPARATOR HAS TEETH, CHEAPLY. `group-chat-comparator-selftest.mjs` needs no browser and no
+# server: it mutates a synthetic GoTavern pair (swap two characters' generation order, drop one
+# character's prompt, change a message role, remove a case) and requires each mutation to be killed
+# by a NAMED guard. It runs before the expensive drives.
+#
+# TIMEOUTS ARE SUMMED FROM MEASUREMENTS ON THIS LANE (2026-10-31, Windows dev host, cold): Go full leg
+# 150 s, Go restart leg 45 s, pinned full leg 150 s (plus a cold pinned boot that compiles its frontend
+# libraries), pinned restart leg 55 s, comparator + fixture check < 10 s. A 15-minute job cap bounds
+# those with room for a slower runner while still failing a wedged drive instead of consuming one.
+
+name: Group-chat differential
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/group-chat-differential.yml'
+      - 'tests/browser/group-chat-probe.mjs'
+      - 'tests/browser/group-chat-fixture.mjs'
+      - 'tests/browser/compare-group-chat-legs.mjs'
+      - 'tests/browser/group-chat-record-fixture.mjs'
+      - 'tests/browser/group-chat-comparator-selftest.mjs'
+      - 'tests/browser/fixtures/group-chat/**'
+      - 'tests/browser/run-against-pinned.mjs'
+      - 'tests/browser/seed-leg-config.mjs'
+      - 'upstream/tokenizers/**'
+      - 'upstream/default/config.yaml'
+
+env:
+  PINNED_BASELINE_COMMIT: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
+
+jobs:
+  group-chat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/checkout-pinned
+        with:
+          commit: ${{ env.PINNED_BASELINE_COMMIT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Cache the pinned server's node_modules
+        id: cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Install the pinned server's dependencies
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "pinned server node_modules: CACHE HIT for ${{ env.PINNED_BASELINE_COMMIT }} -- install SKIPPED"
+          else
+            echo "pinned server node_modules: cache MISS -- installing from the pinned checkout's own manifest"
+            cd .reference/SillyTavern
+            if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          fi
+
+      - name: Install the browser harness
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            echo "tests/browser/node_modules: cache MISS -- npm ci"
+            (cd tests/browser && npm ci --no-audit --no-fund)
+          fi
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            echo "playwright chromium: CACHE HIT -- browser download SKIPPED, OS packages still ensured"
+            (cd tests/browser && npx playwright install-deps chromium)
+          else
+            echo "playwright chromium: cache MISS -- downloading the browser and its OS packages"
+            (cd tests/browser && npx playwright install --with-deps chromium)
+          fi
+
+      - name: Build the GoTavern binary the Go legs run
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/group-chat"
+          mkdir -p "$work/bin"
+          go build -trimpath -o "$work/bin/gotavern" ./cmd/gotavern
+          echo "GOTAVERN_BINARY=$work/bin/gotavern" >> "$GITHUB_ENV"
+          echo "GOTAVERN_REFERENCE=$PWD/.reference/SillyTavern" >> "$GITHUB_ENV"
+          echo "GROUP_CHAT_WORK=$work" >> "$GITHUB_ENV"
+
+      # CHEAP AND FATAL. A comparator that cannot be made to fail is not evidence for the equality it
+      # prints, and this needs no browser and no server, so it runs before the expensive drives.
+      - name: Prove the comparator has teeth (no browser, no server)
+        run: node tests/browser/group-chat-comparator-selftest.mjs
+
+      - name: Seed both legs from the same deterministic tree
+        run: |
+          set -euo pipefail
+          work="$GROUP_CHAT_WORK"
+          rm -rf "$work/go-tree" "$work/pinned-tree"
+          node tests/browser/group-chat-probe.mjs --seed-only "$work/go-tree"
+          node tests/browser/group-chat-probe.mjs --seed-only "$work/pinned-tree"
+
+      - name: Record the GoTavern leg
+        run: |
+          set -euo pipefail
+          work="$GROUP_CHAT_WORK"
+          node tests/browser/group-chat-probe.mjs --data-root "$work/go-tree" \
+            --report "$work/gotavern-full.json"
+          node tests/browser/group-chat-probe.mjs --data-root "$work/go-tree" --phase restart \
+            --report "$work/gotavern-restart.json"
+
+      - name: Record the pinned Node leg (the oracle)
+        env:
+          PINNED_READY_MS: '300000'
+        run: |
+          set -euo pipefail
+          work="$GROUP_CHAT_WORK"
+          node tests/browser/run-against-pinned.mjs group-chat-probe.mjs -- \
+            --data-root "$work/pinned-tree" --report "$work/pinned-full.json"
+          node tests/browser/run-against-pinned.mjs group-chat-probe.mjs -- \
+            --data-root "$work/pinned-tree" --phase restart --report "$work/pinned-restart.json"
+
+      # THE FIXTURE IS AN ORACLE, SO IT MUST DESCRIBE THE SAME BEHAVIOUR ON EVERY RECORDING. A stale
+      # fixture is a red here, naming the first differing field, rather than a silent comparison
+      # against an older observation.
+      - name: Check the pinned oracle fixture is still what pinned Node records
+        run: |
+          set -euo pipefail
+          work="$GROUP_CHAT_WORK"
+          node tests/browser/group-chat-record-fixture.mjs \
+            --check tests/browser/fixtures/group-chat/pinned-oracle.json \
+            --full "$work/pinned-full.json" --restart "$work/pinned-restart.json"
+
+      - name: Compare the legs
+        run: |
+          set -euo pipefail
+          work="$GROUP_CHAT_WORK"
+          node tests/browser/compare-group-chat-legs.mjs \
+            --pinned-full "$work/pinned-full.json" \
+            --gotavern-full "$work/gotavern-full.json" \
+            --pinned-restart "$work/pinned-restart.json" \
+            --gotavern-restart "$work/gotavern-restart.json" \
+            --out tests/browser/group-chat-comparison.json
+          cat tests/browser/group-chat-comparison.json
+
+      # A leg that is absent must fail the job BY NAME. Every recording step above is `set -e`, so this
+      # is the second opinion for a step that was skipped by an edit to this workflow.
+      - name: Judge that every leg and the comparison exist
+        if: always()
+        run: |
+          set -uo pipefail
+          work="$GROUP_CHAT_WORK"
+          status=0
+          for file in "$work/gotavern-full.json" "$work/gotavern-restart.json" "$work/pinned-full.json" "$work/pinned-restart.json"; do
+            if [ ! -f "$file" ]; then
+              echo "::error::the leg $(basename "$file") was never recorded; nothing is claimed"
+              status=1
+            fi
+          done
+          if [ ! -f tests/browser/group-chat-comparison.json ]; then
+            echo "::error::no group-chat comparison was produced"
+            status=1
+          else
+            node --input-type=commonjs -e "const c=require('./tests/browser/group-chat-comparison.json'); if (c.verdict!=='match') { console.error('group-chat verdict '+c.verdict+'; failed guards: '+(c.failedGuards||[]).join(', ')); process.exit(1) } console.log('group-chat: '+Object.keys(c.guards||{}).length+' guard(s) held; '+Object.keys(c.discriminating||{}).length+' discriminating check(s) held')" || status=1
+          fi
+          exit "$status"
+
+      - name: Upload the recorded legs and the verdict
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: group-chat-differential-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/group-chat/*.json
+            tests/browser/group-chat-comparison.json
+          retention-days: 14
+          if-no-files-found: warn

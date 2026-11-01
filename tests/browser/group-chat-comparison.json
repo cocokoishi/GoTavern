@@ -1,0 +1,1043 @@
+{
+  "schemaVersion": 1,
+  "question": "Does a multi-character group chat driven through the pinned frontend send the same final provider request under pinned Node and GoTavern?",
+  "scope": "Group chats only: 2 and 3 members, disabled member, natural/list/manual activation, auto mode, previous-speaker ban, group greeting, character/chat/global world info, Author's Note at depth, samplers and stops, user turn, continue, swipe, regenerate, impersonate, truncation and a server restart over the same tree. Not claimed: providers other than the custom OpenAI-compatible source, streaming, tool calls, extension/helper group generation.",
+  "guards": {
+    "restart.subject": {
+      "ok": true
+    },
+    "restart.oracleSubject": {
+      "ok": true
+    },
+    "restart.phase": {
+      "ok": true
+    },
+    "full.subject": {
+      "ok": true
+    },
+    "full.oracleSubject": {
+      "ok": true
+    },
+    "full.phase": {
+      "ok": true
+    },
+    "full.seedDigest": {
+      "ok": true
+    },
+    "full.pinnedRecorded": {
+      "ok": true
+    },
+    "full.gotavernRecorded": {
+      "ok": true
+    },
+    "full.noPageErrorsOnPinned": {
+      "ok": true,
+      "detail": []
+    },
+    "full.noPageErrorsOnGotavern": {
+      "ok": true,
+      "detail": []
+    },
+    "full.caseUniverse": {
+      "ok": true
+    },
+    "full.case.group-greeting.requestCount": {
+      "ok": true
+    },
+    "full.case.group-greeting.chatLength": {
+      "ok": true
+    },
+    "full.case.group-greeting.messageNames": {
+      "ok": true
+    },
+    "full.case.user-message-natural-2.requestCount": {
+      "ok": true
+    },
+    "full.case.user-message-natural-2.request[0].method": {
+      "ok": true
+    },
+    "full.case.user-message-natural-2.request[0].target": {
+      "ok": true
+    },
+    "full.case.user-message-natural-2.request[0].bodyLength": {
+      "ok": true
+    },
+    "full.case.user-message-natural-2.request[0].bodySha256": {
+      "ok": true
+    },
+    "full.case.user-message-natural-2.request[1].method": {
+      "ok": true
+    },
+    "full.case.user-message-natural-2.request[1].target": {
+      "ok": true
+    },
+    "full.case.user-message-natural-2.request[1].bodyLength": {
+      "ok": true
+    },
+    "full.case.user-message-natural-2.request[1].bodySha256": {
+      "ok": true
+    },
+    "full.case.user-message-natural-2.chatLength": {
+      "ok": true
+    },
+    "full.case.user-message-natural-2.messageNames": {
+      "ok": true
+    },
+    "full.case.user-message-natural-3.requestCount": {
+      "ok": true
+    },
+    "full.case.user-message-natural-3.request[0].method": {
+      "ok": true
+    },
+    "full.case.user-message-natural-3.request[0].target": {
+      "ok": true
+    },
+    "full.case.user-message-natural-3.request[0].bodyLength": {
+      "ok": true
+    },
+    "full.case.user-message-natural-3.request[0].bodySha256": {
+      "ok": true
+    },
+    "full.case.user-message-natural-3.request[1].method": {
+      "ok": true
+    },
+    "full.case.user-message-natural-3.request[1].target": {
+      "ok": true
+    },
+    "full.case.user-message-natural-3.request[1].bodyLength": {
+      "ok": true
+    },
+    "full.case.user-message-natural-3.request[1].bodySha256": {
+      "ok": true
+    },
+    "full.case.user-message-natural-3.request[2].method": {
+      "ok": true
+    },
+    "full.case.user-message-natural-3.request[2].target": {
+      "ok": true
+    },
+    "full.case.user-message-natural-3.request[2].bodyLength": {
+      "ok": true
+    },
+    "full.case.user-message-natural-3.request[2].bodySha256": {
+      "ok": true
+    },
+    "full.case.user-message-natural-3.chatLength": {
+      "ok": true
+    },
+    "full.case.user-message-natural-3.messageNames": {
+      "ok": true
+    },
+    "full.case.user-message-list-3.requestCount": {
+      "ok": true
+    },
+    "full.case.user-message-list-3.request[0].method": {
+      "ok": true
+    },
+    "full.case.user-message-list-3.request[0].target": {
+      "ok": true
+    },
+    "full.case.user-message-list-3.request[0].bodyLength": {
+      "ok": true
+    },
+    "full.case.user-message-list-3.request[0].bodySha256": {
+      "ok": true
+    },
+    "full.case.user-message-list-3.request[1].method": {
+      "ok": true
+    },
+    "full.case.user-message-list-3.request[1].target": {
+      "ok": true
+    },
+    "full.case.user-message-list-3.request[1].bodyLength": {
+      "ok": true
+    },
+    "full.case.user-message-list-3.request[1].bodySha256": {
+      "ok": true
+    },
+    "full.case.user-message-list-3.request[2].method": {
+      "ok": true
+    },
+    "full.case.user-message-list-3.request[2].target": {
+      "ok": true
+    },
+    "full.case.user-message-list-3.request[2].bodyLength": {
+      "ok": true
+    },
+    "full.case.user-message-list-3.request[2].bodySha256": {
+      "ok": true
+    },
+    "full.case.user-message-list-3.chatLength": {
+      "ok": true
+    },
+    "full.case.user-message-list-3.messageNames": {
+      "ok": true
+    },
+    "full.case.disabled-member.requestCount": {
+      "ok": true
+    },
+    "full.case.disabled-member.request[0].method": {
+      "ok": true
+    },
+    "full.case.disabled-member.request[0].target": {
+      "ok": true
+    },
+    "full.case.disabled-member.request[0].bodyLength": {
+      "ok": true
+    },
+    "full.case.disabled-member.request[0].bodySha256": {
+      "ok": true
+    },
+    "full.case.disabled-member.request[1].method": {
+      "ok": true
+    },
+    "full.case.disabled-member.request[1].target": {
+      "ok": true
+    },
+    "full.case.disabled-member.request[1].bodyLength": {
+      "ok": true
+    },
+    "full.case.disabled-member.request[1].bodySha256": {
+      "ok": true
+    },
+    "full.case.disabled-member.chatLength": {
+      "ok": true
+    },
+    "full.case.disabled-member.messageNames": {
+      "ok": true
+    },
+    "full.case.auto-mode-list.requestCount": {
+      "ok": true
+    },
+    "full.case.auto-mode-list.request[0].method": {
+      "ok": true
+    },
+    "full.case.auto-mode-list.request[0].target": {
+      "ok": true
+    },
+    "full.case.auto-mode-list.request[0].bodyLength": {
+      "ok": true
+    },
+    "full.case.auto-mode-list.request[0].bodySha256": {
+      "ok": true
+    },
+    "full.case.auto-mode-list.request[1].method": {
+      "ok": true
+    },
+    "full.case.auto-mode-list.request[1].target": {
+      "ok": true
+    },
+    "full.case.auto-mode-list.request[1].bodyLength": {
+      "ok": true
+    },
+    "full.case.auto-mode-list.request[1].bodySha256": {
+      "ok": true
+    },
+    "full.case.auto-mode-list.request[2].method": {
+      "ok": true
+    },
+    "full.case.auto-mode-list.request[2].target": {
+      "ok": true
+    },
+    "full.case.auto-mode-list.request[2].bodyLength": {
+      "ok": true
+    },
+    "full.case.auto-mode-list.request[2].bodySha256": {
+      "ok": true
+    },
+    "full.case.auto-mode-list.chatLength": {
+      "ok": true
+    },
+    "full.case.auto-mode-list.messageNames": {
+      "ok": true
+    },
+    "full.case.manual-activation.requestCount": {
+      "ok": true
+    },
+    "full.case.manual-activation.request[0].method": {
+      "ok": true
+    },
+    "full.case.manual-activation.request[0].target": {
+      "ok": true
+    },
+    "full.case.manual-activation.request[0].bodyLength": {
+      "ok": true
+    },
+    "full.case.manual-activation.request[0].bodySha256": {
+      "ok": true
+    },
+    "full.case.manual-activation.request[1].method": {
+      "ok": true
+    },
+    "full.case.manual-activation.request[1].target": {
+      "ok": true
+    },
+    "full.case.manual-activation.request[1].bodyLength": {
+      "ok": true
+    },
+    "full.case.manual-activation.request[1].bodySha256": {
+      "ok": true
+    },
+    "full.case.manual-activation.chatLength": {
+      "ok": true
+    },
+    "full.case.manual-activation.messageNames": {
+      "ok": true
+    },
+    "full.case.previous-speaker.requestCount": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[0].method": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[0].target": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[0].bodyLength": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[0].bodySha256": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[1].method": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[1].target": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[1].bodyLength": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[1].bodySha256": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[2].method": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[2].target": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[2].bodyLength": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[2].bodySha256": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[3].method": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[3].target": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[3].bodyLength": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[3].bodySha256": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[4].method": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[4].target": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[4].bodyLength": {
+      "ok": true
+    },
+    "full.case.previous-speaker.request[4].bodySha256": {
+      "ok": true
+    },
+    "full.case.previous-speaker.chatLength": {
+      "ok": true
+    },
+    "full.case.previous-speaker.messageNames": {
+      "ok": true
+    },
+    "full.case.world-info-and-note.requestCount": {
+      "ok": true
+    },
+    "full.case.world-info-and-note.request[0].method": {
+      "ok": true
+    },
+    "full.case.world-info-and-note.request[0].target": {
+      "ok": true
+    },
+    "full.case.world-info-and-note.request[0].bodyLength": {
+      "ok": true
+    },
+    "full.case.world-info-and-note.request[0].bodySha256": {
+      "ok": true
+    },
+    "full.case.world-info-and-note.request[1].method": {
+      "ok": true
+    },
+    "full.case.world-info-and-note.request[1].target": {
+      "ok": true
+    },
+    "full.case.world-info-and-note.request[1].bodyLength": {
+      "ok": true
+    },
+    "full.case.world-info-and-note.request[1].bodySha256": {
+      "ok": true
+    },
+    "full.case.world-info-and-note.chatLength": {
+      "ok": true
+    },
+    "full.case.world-info-and-note.messageNames": {
+      "ok": true
+    },
+    "full.case.continue.requestCount": {
+      "ok": true
+    },
+    "full.case.continue.request[0].method": {
+      "ok": true
+    },
+    "full.case.continue.request[0].target": {
+      "ok": true
+    },
+    "full.case.continue.request[0].bodyLength": {
+      "ok": true
+    },
+    "full.case.continue.request[0].bodySha256": {
+      "ok": true
+    },
+    "full.case.continue.request[1].method": {
+      "ok": true
+    },
+    "full.case.continue.request[1].target": {
+      "ok": true
+    },
+    "full.case.continue.request[1].bodyLength": {
+      "ok": true
+    },
+    "full.case.continue.request[1].bodySha256": {
+      "ok": true
+    },
+    "full.case.continue.request[2].method": {
+      "ok": true
+    },
+    "full.case.continue.request[2].target": {
+      "ok": true
+    },
+    "full.case.continue.request[2].bodyLength": {
+      "ok": true
+    },
+    "full.case.continue.request[2].bodySha256": {
+      "ok": true
+    },
+    "full.case.continue.chatLength": {
+      "ok": true
+    },
+    "full.case.continue.messageNames": {
+      "ok": true
+    },
+    "full.case.swipe.requestCount": {
+      "ok": true
+    },
+    "full.case.swipe.request[0].method": {
+      "ok": true
+    },
+    "full.case.swipe.request[0].target": {
+      "ok": true
+    },
+    "full.case.swipe.request[0].bodyLength": {
+      "ok": true
+    },
+    "full.case.swipe.request[0].bodySha256": {
+      "ok": true
+    },
+    "full.case.swipe.request[1].method": {
+      "ok": true
+    },
+    "full.case.swipe.request[1].target": {
+      "ok": true
+    },
+    "full.case.swipe.request[1].bodyLength": {
+      "ok": true
+    },
+    "full.case.swipe.request[1].bodySha256": {
+      "ok": true
+    },
+    "full.case.swipe.request[2].method": {
+      "ok": true
+    },
+    "full.case.swipe.request[2].target": {
+      "ok": true
+    },
+    "full.case.swipe.request[2].bodyLength": {
+      "ok": true
+    },
+    "full.case.swipe.request[2].bodySha256": {
+      "ok": true
+    },
+    "full.case.swipe.chatLength": {
+      "ok": true
+    },
+    "full.case.swipe.messageNames": {
+      "ok": true
+    },
+    "full.case.regenerate.requestCount": {
+      "ok": true
+    },
+    "full.case.regenerate.request[0].method": {
+      "ok": true
+    },
+    "full.case.regenerate.request[0].target": {
+      "ok": true
+    },
+    "full.case.regenerate.request[0].bodyLength": {
+      "ok": true
+    },
+    "full.case.regenerate.request[0].bodySha256": {
+      "ok": true
+    },
+    "full.case.regenerate.request[1].method": {
+      "ok": true
+    },
+    "full.case.regenerate.request[1].target": {
+      "ok": true
+    },
+    "full.case.regenerate.request[1].bodyLength": {
+      "ok": true
+    },
+    "full.case.regenerate.request[1].bodySha256": {
+      "ok": true
+    },
+    "full.case.regenerate.request[2].method": {
+      "ok": true
+    },
+    "full.case.regenerate.request[2].target": {
+      "ok": true
+    },
+    "full.case.regenerate.request[2].bodyLength": {
+      "ok": true
+    },
+    "full.case.regenerate.request[2].bodySha256": {
+      "ok": true
+    },
+    "full.case.regenerate.request[3].method": {
+      "ok": true
+    },
+    "full.case.regenerate.request[3].target": {
+      "ok": true
+    },
+    "full.case.regenerate.request[3].bodyLength": {
+      "ok": true
+    },
+    "full.case.regenerate.request[3].bodySha256": {
+      "ok": true
+    },
+    "full.case.regenerate.chatLength": {
+      "ok": true
+    },
+    "full.case.regenerate.messageNames": {
+      "ok": true
+    },
+    "full.case.impersonate.requestCount": {
+      "ok": true
+    },
+    "full.case.impersonate.request[0].method": {
+      "ok": true
+    },
+    "full.case.impersonate.request[0].target": {
+      "ok": true
+    },
+    "full.case.impersonate.request[0].bodyLength": {
+      "ok": true
+    },
+    "full.case.impersonate.request[0].bodySha256": {
+      "ok": true
+    },
+    "full.case.impersonate.chatLength": {
+      "ok": true
+    },
+    "full.case.impersonate.messageNames": {
+      "ok": true
+    },
+    "full.case.truncation.requestCount": {
+      "ok": true
+    },
+    "full.case.truncation.request[0].method": {
+      "ok": true
+    },
+    "full.case.truncation.request[0].target": {
+      "ok": true
+    },
+    "full.case.truncation.request[0].bodyLength": {
+      "ok": true
+    },
+    "full.case.truncation.request[0].bodySha256": {
+      "ok": true
+    },
+    "full.case.truncation.request[1].method": {
+      "ok": true
+    },
+    "full.case.truncation.request[1].target": {
+      "ok": true
+    },
+    "full.case.truncation.request[1].bodyLength": {
+      "ok": true
+    },
+    "full.case.truncation.request[1].bodySha256": {
+      "ok": true
+    },
+    "full.case.truncation.request[2].method": {
+      "ok": true
+    },
+    "full.case.truncation.request[2].target": {
+      "ok": true
+    },
+    "full.case.truncation.request[2].bodyLength": {
+      "ok": true
+    },
+    "full.case.truncation.request[2].bodySha256": {
+      "ok": true
+    },
+    "full.case.truncation.request[3].method": {
+      "ok": true
+    },
+    "full.case.truncation.request[3].target": {
+      "ok": true
+    },
+    "full.case.truncation.request[3].bodyLength": {
+      "ok": true
+    },
+    "full.case.truncation.request[3].bodySha256": {
+      "ok": true
+    },
+    "full.case.truncation.request[4].method": {
+      "ok": true
+    },
+    "full.case.truncation.request[4].target": {
+      "ok": true
+    },
+    "full.case.truncation.request[4].bodyLength": {
+      "ok": true
+    },
+    "full.case.truncation.request[4].bodySha256": {
+      "ok": true
+    },
+    "full.case.truncation.request[5].method": {
+      "ok": true
+    },
+    "full.case.truncation.request[5].target": {
+      "ok": true
+    },
+    "full.case.truncation.request[5].bodyLength": {
+      "ok": true
+    },
+    "full.case.truncation.request[5].bodySha256": {
+      "ok": true
+    },
+    "full.case.truncation.chatLength": {
+      "ok": true
+    },
+    "full.case.truncation.messageNames": {
+      "ok": true
+    },
+    "full.case.restart-reload.requestCount": {
+      "ok": true
+    },
+    "full.case.restart-reload.request[0].method": {
+      "ok": true
+    },
+    "full.case.restart-reload.request[0].target": {
+      "ok": true
+    },
+    "full.case.restart-reload.request[0].bodyLength": {
+      "ok": true
+    },
+    "full.case.restart-reload.request[0].bodySha256": {
+      "ok": true
+    },
+    "full.case.restart-reload.request[1].method": {
+      "ok": true
+    },
+    "full.case.restart-reload.request[1].target": {
+      "ok": true
+    },
+    "full.case.restart-reload.request[1].bodyLength": {
+      "ok": true
+    },
+    "full.case.restart-reload.request[1].bodySha256": {
+      "ok": true
+    },
+    "full.case.restart-reload.chatLength": {
+      "ok": true
+    },
+    "full.case.restart-reload.messageNames": {
+      "ok": true
+    },
+    "restart.seedDigest": {
+      "ok": true
+    },
+    "restart.pinnedRecorded": {
+      "ok": true
+    },
+    "restart.gotavernRecorded": {
+      "ok": true
+    },
+    "restart.noPageErrorsOnPinned": {
+      "ok": true,
+      "detail": []
+    },
+    "restart.noPageErrorsOnGotavern": {
+      "ok": true,
+      "detail": []
+    },
+    "restart.caseUniverse": {
+      "ok": true
+    },
+    "restart.case.restart-reload.requestCount": {
+      "ok": true
+    },
+    "restart.case.restart-reload.request[0].method": {
+      "ok": true
+    },
+    "restart.case.restart-reload.request[0].target": {
+      "ok": true
+    },
+    "restart.case.restart-reload.request[0].bodyLength": {
+      "ok": true
+    },
+    "restart.case.restart-reload.request[0].bodySha256": {
+      "ok": true
+    },
+    "restart.case.restart-reload.chatLength": {
+      "ok": true
+    },
+    "restart.case.restart-reload.messageNames": {
+      "ok": true
+    },
+    "restart.chatLengthReloaded": {
+      "ok": true
+    },
+    "restart.chatIdReloaded": {
+      "ok": true
+    },
+    "restart.messageNamesReloaded": {
+      "ok": true
+    },
+    "restart.request.bodySha256": {
+      "ok": true
+    },
+    "restart.request.bodyLength": {
+      "ok": true
+    },
+    "restart.request.carriesReloadedHistory": {
+      "ok": true,
+      "detail": "the continuation after the restart must carry the pre-restart user turn"
+    }
+  },
+  "failedGuards": [],
+  "cases": {
+    "full/group-greeting": {
+      "requests": 0,
+      "bodySha256": []
+    },
+    "full/user-message-natural-2": {
+      "requests": 2,
+      "bodySha256": [
+        "2bf50a2dddcd0bf4d40adcdb6848ee34f397a5de834349aecac43c73f1cf3518",
+        "2bc5d9b67ff4e7f5bdd1d2d8874a6cd3ee4ba94254ff9484c5a1081885c72a26"
+      ]
+    },
+    "full/user-message-natural-3": {
+      "requests": 3,
+      "bodySha256": [
+        "a5f985981068e7eb63c58f95c20effb4f9aa8d8bc3faa0f86fe2d9b1e1355f69",
+        "fde27949f20784c67e269b32625c32af8efc2f36f7b0312de299f80e2e5ec213",
+        "3b7c3f8de9f70b68688907a94290464aa9f42b94accfd67d69d42b0a43a019d2"
+      ]
+    },
+    "full/user-message-list-3": {
+      "requests": 3,
+      "bodySha256": [
+        "a5f985981068e7eb63c58f95c20effb4f9aa8d8bc3faa0f86fe2d9b1e1355f69",
+        "1f2539d23212a20619c746851e3428a57a3116057a106f3c73eee2b4ef7f82c4",
+        "ad57e2b7cd67c6ccb15ea4a1419a86fd27e1a8743b4c6feab30d209adb623677"
+      ]
+    },
+    "full/disabled-member": {
+      "requests": 2,
+      "bodySha256": [
+        "a5f985981068e7eb63c58f95c20effb4f9aa8d8bc3faa0f86fe2d9b1e1355f69",
+        "a102b17d5a47c9de00b3efed47f028819d3e0c89671673e4bc35f59a1aaa5f6d"
+      ]
+    },
+    "full/auto-mode-list": {
+      "requests": 3,
+      "bodySha256": [
+        "6af79ccf5a0b829ebe8b29f609cac266aae1dc10feea16e4de89359cb60ef85b",
+        "08cbf1e2031cb8a2db306db43643eeb52fae9b13872cd50b65e592bb546fca02",
+        "7f14546f1e62ad341622763a6df549fddd87cdf45c36d2eb53062bf28c551f27"
+      ]
+    },
+    "full/manual-activation": {
+      "requests": 2,
+      "bodySha256": [
+        "d4150c864ed476fe7b83c2eddca1c8db0d2fc16b1a81bad6d96ddf387251db5b",
+        "8549f9ee6cbe67b7c7c92a4195a95f37a66db4ee813939b9a4f47faaef0ea14a"
+      ]
+    },
+    "full/previous-speaker": {
+      "requests": 5,
+      "bodySha256": [
+        "a5f985981068e7eb63c58f95c20effb4f9aa8d8bc3faa0f86fe2d9b1e1355f69",
+        "609c0b5da58ee0aebcc51c1eae47ebdf3ed5a5d55e0933900004a3e5719626b7",
+        "e871a37070d05da322e1b0219ad476d19a085455012a094a13fdf1ac8d2588ee",
+        "16863ae087892f0a4e947b7752aa38646d29aafaf5e3c21fe2158d3ccf1e609d",
+        "8f3a0180158268b638c9b3755c5ae12e49ad2eab57df0787949242585691abb8"
+      ]
+    },
+    "full/world-info-and-note": {
+      "requests": 2,
+      "bodySha256": [
+        "466a33578f1bfc899f439d12906e37ad405326d70df031e6269892b923178715",
+        "df21d489ca283ade3b7800c887c3c9b94618493dd87cd4888ada67a2d02b7607"
+      ]
+    },
+    "full/continue": {
+      "requests": 3,
+      "bodySha256": [
+        "d2dcdb7b9046107022ebaaeb5022a33dcc80cf853216e5b7b2d61c18481093bb",
+        "86762409cbb61e6a03a6b5a745f4510ca5271e49af51bfe6a88cc540640b316e",
+        "33755becd4fa1ed3a0255bcfcfce69ad77bf2234e6c7e5dee89cbde6293f476e"
+      ]
+    },
+    "full/swipe": {
+      "requests": 3,
+      "bodySha256": [
+        "d2dcdb7b9046107022ebaaeb5022a33dcc80cf853216e5b7b2d61c18481093bb",
+        "c417ab48aa5f1f379486dd7b08d4f36db8844eef47abdae2b2646c2aaeee5d0d",
+        "c417ab48aa5f1f379486dd7b08d4f36db8844eef47abdae2b2646c2aaeee5d0d"
+      ]
+    },
+    "full/regenerate": {
+      "requests": 4,
+      "bodySha256": [
+        "d2dcdb7b9046107022ebaaeb5022a33dcc80cf853216e5b7b2d61c18481093bb",
+        "46c9962d42cb095fbe980d28ab803fe96141aec1608aa65da947a82d679ff39c",
+        "d2dcdb7b9046107022ebaaeb5022a33dcc80cf853216e5b7b2d61c18481093bb",
+        "5e9a394de6029b7ca119402b16bb0622331a4fbd13927a2e7c699202ce302eb3"
+      ]
+    },
+    "full/impersonate": {
+      "requests": 1,
+      "bodySha256": [
+        "cf1dc1a33d8ccfea6acf86c425c86945f1e8a7a3cb0986e40f48a9bb2944ddd1"
+      ]
+    },
+    "full/truncation": {
+      "requests": 6,
+      "bodySha256": [
+        "540f42ba0016e2cb598e66aaf1f7968c67f8cf967c20308acf64e620562fa2a2",
+        "def4c65e55ff15f0e3d8303d894790947b0f493107030da8806d5274ed3c89f6",
+        "84360b90d60ee0817c8d814b3aabbe1c4b6cdcff7e2e4aff72fd2d047d48c8cc",
+        "09e5eeecc6acfce54c6ba01376a70fd7e524f0e0e6ecb05b3ec2f774c45977ab",
+        "2fcd08f0a9442da64548146fd83cc2ec837759dc037ae9dec33532f89f9078bd",
+        "81efab9db55b43f509d6a012429fe79d602e0c4573eca5bd1f0b9e3441adbd50"
+      ]
+    },
+    "full/restart-reload": {
+      "requests": 2,
+      "bodySha256": [
+        "97e2f836e213eb2e3be328ee8e0663cbc5fc0b354a301c7f0392cca53d65f98d",
+        "d59fdd0b130f6557dfb8963159db36f946d8e8095c85766ddebd7d8aa0c08edb"
+      ]
+    },
+    "restart/restart-reload": {
+      "requests": 1,
+      "bodySha256": [
+        "088fb2f9a2a81f98894da92a21b8180ccb6507eeddb545a766a820fbfe6903c5"
+      ]
+    }
+  },
+  "discriminating": {
+    "two-vs-three-members": {
+      "ok": true,
+      "detail": {
+        "two": 2,
+        "three": 3
+      }
+    },
+    "list-order-targets": {
+      "ok": true,
+      "detail": [
+        "Alice",
+        "Bob",
+        "Carol"
+      ]
+    },
+    "disabled-member-excluded": {
+      "ok": true,
+      "detail": [
+        "Alice",
+        "Bob"
+      ]
+    },
+    "auto-mode-no-user-role": {
+      "ok": true,
+      "detail": {
+        "requests": 3
+      }
+    },
+    "manual-activation-order": {
+      "ok": true,
+      "detail": [
+        "Bob",
+        "Alice"
+      ]
+    },
+    "previous-speaker-ban": {
+      "ok": true,
+      "detail": {
+        "lastSpeaker": "Bob",
+        "triggerTargets": [
+          "Alice",
+          "Carol"
+        ]
+      }
+    },
+    "continue-batch": {
+      "ok": true,
+      "detail": {
+        "count": 1
+      }
+    },
+    "swipe-batch": {
+      "ok": true,
+      "detail": {
+        "count": 1
+      }
+    },
+    "regenerate-batch": {
+      "ok": true,
+      "detail": {
+        "count": 2
+      }
+    },
+    "impersonate-batch": {
+      "ok": true,
+      "detail": {
+        "count": 1
+      }
+    },
+    "continue-targets-last-speaker": {
+      "ok": true,
+      "detail": [
+        "Bob"
+      ]
+    },
+    "world-info-and-note-reached": {
+      "ok": true,
+      "detail": [
+        "WI_ALICE_LANTERN_MARKER",
+        "WI_GLOBAL_ORCHARD_MARKER",
+        "WI_CHAT_GROUPBOOK_MARKER",
+        "AN_GROUP_DEPTH_MARKER"
+      ]
+    },
+    "authors-note-depth-placement": {
+      "ok": true,
+      "detail": {
+        "noteIndex": 6,
+        "total": 10
+      }
+    },
+    "samplers-and-stops-reached": {
+      "ok": true,
+      "detail": {
+        "temperature": 0.91,
+        "topP": 0.77,
+        "frequencyPenalty": 0.11,
+        "presencePenalty": 0.22,
+        "maxTokens": 77,
+        "stop": [
+          "GROUP_STOP_A",
+          "GROUP_STOP_B"
+        ]
+      }
+    },
+    "truncation-drops-old-history": {
+      "ok": true,
+      "detail": {
+        "firstTurnReached": true,
+        "lastTurnReached": true,
+        "oldHistoryDropped": true,
+        "lastMessages": 8
+      }
+    },
+    "group-greeting-from-cards": {
+      "ok": true,
+      "detail": [
+        "Alice",
+        "Bob"
+      ]
+    },
+    "roles-and-attribution": {
+      "ok": true,
+      "detail": true
+    },
+    "final-depth-instruction-names-member": {
+      "ok": true,
+      "detail": true
+    },
+    "pair.two-vs-three-shapes": {
+      "ok": true,
+      "detail": {
+        "left": "2bf50a2dddcd0bf4d40adcdb6848ee34f397a5de834349aecac43c73f1cf3518",
+        "right": "a5f985981068e7eb63c58f95c20effb4f9aa8d8bc3faa0f86fe2d9b1e1355f69"
+      }
+    },
+    "pair.manual-targets-differ": {
+      "ok": true,
+      "detail": {
+        "left": "d4150c864ed476fe7b83c2eddca1c8db0d2fc16b1a81bad6d96ddf387251db5b",
+        "right": "8549f9ee6cbe67b7c7c92a4195a95f37a66db4ee813939b9a4f47faaef0ea14a"
+      }
+    },
+    "pair.world-info-vs-plain-shape": {
+      "ok": true,
+      "detail": {
+        "left": "466a33578f1bfc899f439d12906e37ad405326d70df031e6269892b923178715",
+        "right": "a5f985981068e7eb63c58f95c20effb4f9aa8d8bc3faa0f86fe2d9b1e1355f69"
+      }
+    },
+    "pair.auto-vs-user-shape": {
+      "ok": true,
+      "detail": {
+        "left": "6af79ccf5a0b829ebe8b29f609cac266aae1dc10feea16e4de89359cb60ef85b",
+        "right": "a5f985981068e7eb63c58f95c20effb4f9aa8d8bc3faa0f86fe2d9b1e1355f69"
+      }
+    },
+    "pair.manual-vs-list-shape": {
+      "ok": true,
+      "detail": {
+        "left": "d4150c864ed476fe7b83c2eddca1c8db0d2fc16b1a81bad6d96ddf387251db5b",
+        "right": "a5f985981068e7eb63c58f95c20effb4f9aa8d8bc3faa0f86fe2d9b1e1355f69"
+      }
+    },
+    "pair.truncated-vs-full-shape": {
+      "ok": true,
+      "detail": {
+        "left": "81efab9db55b43f509d6a012429fe79d602e0c4573eca5bd1f0b9e3441adbd50",
+        "right": "ad57e2b7cd67c6ccb15ea4a1419a86fd27e1a8743b4c6feab30d209adb623677"
+      }
+    },
+    "list3-requests-differ-by-member": {
+      "ok": true,
+      "detail": {
+        "distinct": 3
+      }
+    },
+    "oracle-side-knobs": {
+      "ok": true,
+      "detail": {
+        "list3": 3,
+        "disabled": 2
+      }
+    }
+  },
+  "verdict": "match"
+}
