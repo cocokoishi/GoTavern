@@ -599,6 +599,29 @@ jobs:
           done
           echo "all six release platforms compile"
 
+  # THE LINUX CRASH-ATOMICITY GATE. The chat crash matrix was Windows-only because no CI job built the
+  # `gotavern_faults` tag; the row's evidenceGap says exactly that (gap rank 3). This job is the same suite on the
+  # gate host: the named fault points inject an exit(137) at a recorded phase, kill a real server, and require the
+  # on-disk chat to be a COMPLETE old or new state -- never a partial or both^{-names} state -- then restart over it.
+  # The measured Windows time was 66 s for the deterministic points and 300 s for the seeded randomised kills; the
+  # bound is 25 minutes so a cold module cache fits and a wedged kill fails here rather than on the 6-hour default.
+  crash-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build with the fault-injection seam and run every chat crash test
+        # ONLY the fault seam distinguishes these tests; production builds carry no hook (internal/faultinject has
+        # the build tag). -count=1 because a cached pass would defeat the point of a kill test.
+        run: |
+          set -euo pipefail
+          go test ./tests/e2e -tags gotavern_faults -count=1 -timeout 20m \
+            -run 'TestChat(WriteCrashAtomicityRandomised|RenameDeterministicCrashPoints|RenameRandomisedKills|DeleteDeterministicCrashPoint|DeleteRandomisedKills|ImportDeterministicCrashPoint|ImportRandomisedKills|SaveDeterministicPoints|GroupSaveCrashAtomicity)'
+
   race:
     runs-on: ubuntu-latest
     # WHY THIS JOB EXISTS, AND WHY IT DID NOT UNTIL NOW. The product's most damaging recent defects were
