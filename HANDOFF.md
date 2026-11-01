@@ -79,8 +79,9 @@ path, determinism volatile-count masking, provider-wire fixture key-order).
   commits `7bf90dd`, `ae11502`, `ca802e8`; the workflow is now GREEN (`41317217569` success, 8 min) and is in
   `docs/release-manifest.json`, so the next release cannot publish without it. The local pair was re-verified
   before dispatch: 23/23 + 9/9 on each subject, comparator PASS (30/30 guards), teeth 6/6.
-- Crash-atomicity evidence is Windows CI only (no Linux `-tags gotavern_faults` job); chat backup remains
-  unimplemented. The packaged drop-in gate still boots a DERIVED stock tree (the Node-originated tree is proven by
+- Crash-atomicity evidence is now gated on BOTH hosts: the Linux `GoTavern CI` job `crash-gate`
+  (`-tags gotavern_faults`, `-count=1`, every chat crash test; run `41321305750`, job success) sits beside the
+  Windows Layer A measurements. Chat backup remains unimplemented. The packaged drop-in gate still boots a DERIVED stock tree (the Node-originated tree is proven by
   its own gate but not wired into the packaged/release path). The live canary has no credentialed run. AVIF/APNG
   avatar re-encoding is a pure-Go decoder boundary; world-info long tail and preset-varying group chats remain
   unmeasured; preset/helper/imports evidence is Layer A or narrow-run; non-amd64/non-x64 runtimes are built and
