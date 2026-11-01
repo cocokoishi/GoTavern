@@ -59,7 +59,7 @@ jobs:
         with:
           repository: SillyTavern/SillyTavern
           ref: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
-          path: ../SillyTavern
+          path: .reference/SillyTavern
           persist-credentials: false
 
       - name: Set up Go
@@ -77,8 +77,8 @@ jobs:
         id: pinned-modules
         uses: actions/cache@v4
         with:
-          path: ../SillyTavern/node_modules
-          key: pinned-06bde939-node24-${{ hashFiles('../SillyTavern/package-lock.json') }}
+          path: .reference/SillyTavern/node_modules
+          key: pinned-06bde939-node24-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
 
       - name: Cache browser harness node_modules
         id: harness-modules
@@ -89,7 +89,7 @@ jobs:
 
       - name: Install pinned dependencies
         if: steps.pinned-modules.outputs.cache-hit != 'true'
-        working-directory: ../SillyTavern
+        working-directory: .reference/SillyTavern
         run: npm ci --no-audit --no-fund
 
       - name: Install browser harness dependencies
