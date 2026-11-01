@@ -42,8 +42,33 @@ variables dropped, a subject misses a turn, the durable chat is emptied), with t
 mutation.
 
 This is Layer A evidence. The CI gate is the same five legs on `ubuntu-24.04` in
-`.github/workflows/combination-journey.yml`; a local green is not the CI verdict (AGENTS rules 23/61), so the matrix
-row's note carries a run id only after that workflow is green.
+`.github/workflows/combination-journey.yml`.
+
+## The ubuntu run at the fix commit: RED, with two concrete findings
+
+`Combination journey differential` run **41359695483** (push at `b16bf80`) is **failure**, and the report is richer
+than the Layer A run it succeeds: the DRIVE legs are green on both subjects (64/64 steps, 10 provider requests) and
+the comparator's structural guards pass, but two things fail and neither is papered over:
+
+1. **A real per-capture difference on Linux: `{{user}}` resolves to `[Unnamed Persona]` on GoTavern and to
+   `Probe User` on pinned Node.** Every GoTavern capture is exactly 7 bytes longer than pinned's, and the first
+   differing bytes are `[Unnamed Persona]` (17 bytes) where pinned carries `Probe User` (10). The page-level
+   `user-name-set` guard passes on both subjects, so this is not the journey forgetting to set the name; it is a
+   platform-specific difference in how the persona name reaches prompt substitution. That is a PRODUCT finding until
+   proven otherwise (AGENTS 10 inverse: a named byte difference is not a harness excuse), and the next step is to diff
+   the settings/personas endpoints and the saved settings.json between subjects on Linux, not to normalise the
+   comparator.
+2. **The restart legs fail on BOTH subjects with the same precondition: the saved chat never became the active chat
+   (`opened: false`, `chatLength: 1`).** Identical on pinned Node means the harness's reopen path is what needs
+   investigation on ubuntu (the drive legs' reload phase works there; the restart phase differs in that the chat list
+   is re-populated after a process boot). This is the same class as the earlier probe-faithfulness failures and must be
+   fixed by making the restart reopen reach the state a user reaches, not by relaxing the guard.
+
+Verdict of that run: `mismatch` -- failed guards `no-page-errors`, `nodeEqualsGo-per-capture`,
+`restart-reopened-the-saved-chat`, `restart-chat-ready`, `after-restart-request-carries-authors-note`,
+`after-restart-request-carries-regex-rewritten-history`, `journey-chat-projection-equal-modulo-declared-volatile`.
+The matrix row's note therefore does NOT cite a green ubuntu run; it records Layer A match plus this red and the two
+named next steps.
 
 ## What was wrong with the PROBE (and why the earlier red was never a product finding)
 

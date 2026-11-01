@@ -76,8 +76,12 @@ path, determinism volatile-count masking, provider-wire fixture key-order).
   defects, not a product divergence: an 8192-token context cap against a committed preset whose CJK-marker
   derivation tokenizes to ~25k tokens (the budget throw produced the four-prompt 11864-byte skeleton on both
   subjects), restart-phase ordering (preset/world/connection must be re-asserted after the helper re-run and QR),
-  and preset signatures computed only on the drive phase. The probe fixes are in `tests/browser/`; the workflow run
-  at the commit that pushes them is the CI evidence the matrix note cites once green.
+  and preset signatures computed only on the drive phase. The probe fixes are in `tests/browser/`; the ubuntu run at the fix commit
+  (`41359695483`, failure) is RED and is recorded as such, not cited: its drive legs pass on both subjects (64/64)
+  but (a) every GoTavern capture is 7 bytes longer because `{{user}}` resolves to `[Unnamed Persona]` on GoTavern
+  and `Probe User` on pinned -- a real per-capture difference to diagnose -- and (b) the restart legs fail on BOTH
+  subjects at `restart-reopened-the-saved-chat` (saved chat never became active, chatLength 1), a probe-faithfulness
+  failure to fix before the run can be green.
 - **Helper-state CI was RED AT THIS RELEASE, and is GREEN after it.** The alpha.11 release correctly claimed
   Layer A only. Four job defects were found and fixed after the tag: pinned checkout inside the workspace; runner
   pinned to ubuntu-24.04 for Playwright; one data root (the wrapper and the child resolved different roots, plus

@@ -190,7 +190,7 @@ checker's browser-harness citation rule added in the same change (a citation-voc
 evidence relaxation: the harness must exist, be listed in the row's evidence.tests, and be executed by a
 workflow the row's evidence.ci names). The row does NOT cite a final-candidate run: the release gate
 
-**Combination journey (alpha11 Lane H): CLOSED ON LAYER A -- verdict `match`, 0 asymmetries; the ubuntu workflow is the remaining citation.**
+**Combination journey (alpha11 Lane H): LAYER A IS `match`, THE UBUNTU RUN AT THE FIX COMMIT IS RED -- still OPEN for the CI verdict, with two concrete next findings.**
 The composed five-leg matrix now runs green locally: GoTavern drive 64 steps / 0 red / 11 provider requests, pinned
 drive 64 / 0 / 11, GoTavern restart 20 / 0 / 1, pinned restart 20 / 0 / 1, pinned hand-back over the GoTavern-written
 tree 13 / 0 / 1; comparator **81 guards / 0 failed / 0 asymmetries**, including every common capture byte-equal
@@ -202,8 +202,11 @@ now uses the preset's own 2000000 frame; (2) the restart leg set the preset/worl
 and QR instead of last; (3) the classifier computed the preset signatures only on the drive phase, so restart captures
 reported no preset markers even when the wire carried them. Full record, including what the captures carry and what
 stays OPEN (streaming variants, helper API beyond the driven calls, group fan-out count, real provider): 
-`docs/combination-journey.md`. The matrix row's note carries the ubuntu workflow run id once this probe change is
-pushed and that workflow is green; a local green is Layer A evidence, not the CI verdict.
+`docs/combination-journey.md`. The ubuntu run at that commit (41359695483, failure) is NOT cited as green: the drive legs pass there
+(64/64 both), but (a) every GoTavern capture is 7 bytes longer because `{{user}}` resolves to `[Unnamed Persona]`
+on GoTavern and `Probe User` on pinned -- a real per-capture difference to diagnose, not to normalise -- and (b) the
+restart legs fail on BOTH subjects at `restart-reopened-the-saved-chat` (saved chat never became active,
+chatLength 1), a probe-faithfulness failure to fix before the run can be green.
 
 re-runs this workflow at the frozen candidate SHA and THAT run is cited in the release record, not here.
 
