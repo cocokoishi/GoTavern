@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 
 import { loadMatrix, render, computeDerived, goTestFunctions, repoRoot, markdownPath } from './render.mjs';
 import { checkSurfaceCoverage } from './surface-coverage.mjs';
+import { buildReport as buildConfigParityReport, render as renderConfigParity } from '../generate-config-parity.mjs';
 
 const STATUSES = new Set(['PASS', 'PARTIAL', 'FAIL', 'NOT_APPLICABLE']);
 const EVIDENCE_SLOTS = ['oracleFixtures', 'upstreamAssets', 'implementation', 'tests', 'browserArtifacts', 'ci'];
@@ -263,6 +264,17 @@ if (expected !== committed) {
 // two shipped P0s ("/thumbnail" and the three user-data mounts) that no capability row could see.
 const surface = checkSurfaceCoverage(repoRoot);
 for (const problem of surface.problems) fail('surface coverage', problem);
+
+// CONFIGURATION PARITY (docs/config-parity.md) is generated for the same reason the matrix is: a document
+// that classifies every pinned config key may not drift from its data, and its warned-key rows must agree
+// with the honesty channel (internal/commandline/unimplemented_config.go) in BOTH directions. The generator
+// itself fails on a cited Go test that does not exist, so a phantom test cannot make this check green.
+const configParity = buildConfigParityReport();
+for (const problem of configParity.problems) fail('config parity', problem);
+const expectedConfigParity = `${renderConfigParity(configParity)}\n`;
+if (readFileSync(path.join(repoRoot, 'docs', 'config-parity.md'), 'utf8').replaceAll('\r\n', '\n') !== expectedConfigParity) {
+    fail('docs/config-parity.md', 'differs from the generator output. Run node tools/generate-config-parity.mjs --emit');
+}
 
 if (failures.length > 0) {
     process.stderr.write(`compatibility matrix: ${failures.length} problem(s)\n`);
