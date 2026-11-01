@@ -119,13 +119,16 @@ layer: the four-message real assembly is **four preset prompts only** -- system 
 prompt), system (two preset prompts concatenated), assistant (a preset prompt) -- with NO chatHistory entry at all.
 That is the DUMMY prompt order, not a truncated history: the page's global chat array was sampled every 25 ms across
 the generation and never changed (10 messages, same chat id, same character, then 11 after the reply), and the prompt
-collection measured 56 at every event. So the real call reads the dummy prompt order while the dry run 1.3 s later
-reads the armed character collection, on the same page with the same chat. The anomaly is therefore in WHICH prompt
-order the real generation resolves (preset/prompt-order state at the real call), not in history collection, token
-budget or the composer; it is identical under pinned Node and remains an AGENTS-10 harness-faithfulness alarm. The
-next attempt should read `promptManager.serviceSettings.prompt_order` and the selected preset name inside the
-`GENERATION_STARTED`/`GENERATE_AFTER_DATA` handlers themselves, rather than a second later, because the dry run
-proves the armed state arrives only after the real call.
+collection measured 56 at every event. That was measured again INSIDE the generation handlers, with the preset name, `oai_settings.preset_settings_openai`,
+the dummy prompt-order length, the service prompts length, the active character and a tokenizer-readiness precondition
+all recorded at the real call: preset `comb-journey-complex-preset`, 98-entry dummy order, **105 service prompts**, a
+56-prompt collection, `activeCharacter` 100001 and a nine-message chat -- every input AGREES with the dry run, and
+the tokenizer answers in ~29 ms before the send. The four-prompt real assembly therefore is not a stale prompt order,
+a missing prompts list or a tokenizer failure: the difference is inside `prepareOpenAIMessages`/
+`populateChatCompletion` between `dryRun=false` and `dryRun=true` on identical inputs. The next attempt must wrap or
+breakpoint `populateChatCompletion` (the only code that adds prompts and stops) instead of measuring more state
+around it. Identical under pinned Node, so it remains an AGENTS-10 harness-faithfulness alarm, not a product
+divergence; the comparator stays `mismatch`, the workflow stays expected RED, and no coverage is claimed.
 
 The generation-entry anomaly was re-measured with event-time instrumentation (prompt-collection length and the active
 character at each event, plus the assembled array length). On BOTH subjects, for the post-reload turn:
