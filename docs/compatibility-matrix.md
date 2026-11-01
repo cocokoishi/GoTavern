@@ -49,7 +49,7 @@ A row is `PASS` only when every one of these holds:
 | 6 | Chats: save, get, search, recent, import, mutations | **PARTIAL** | 4 oracle fixture(s), Go implementation, 4 named test(s), CI job(s) | 2 item(s) |
 | 7 | Groups and group chats, including the metadata migration | **PARTIAL** | 3 oracle fixture(s), Go implementation, 8 named test(s), 1 browser artefact(s), CI job(s) | 3 item(s) |
 | 8 | World info: books, entries, activation, positions | **PASS** | 1 oracle fixture(s), Go implementation, 7 named test(s), 2 browser artefact(s), CI job(s) | _none_ |
-| 9 | Presets, quick replies, themes, moving UI, system prompts | **PARTIAL** | 5 oracle fixture(s), Go implementation, 4 named test(s), 1 browser artefact(s), CI job(s) | 3 item(s) |
+| 9 | Presets, quick replies, themes, moving UI, system prompts | **PARTIAL** | 6 oracle fixture(s), Go implementation, 7 named test(s), 4 browser artefact(s), CI job(s) | 3 item(s) |
 | 10 | Provider transport on the real internet (TLS, proxy, timeouts, decompression, redirects) | **PARTIAL** | Go implementation, 9 named test(s), CI job(s) | 2 item(s) |
 | 11 | Per-source provider-wire request bytes (15 catalogued sources) | **PARTIAL** | 1 oracle fixture(s), Go implementation, 3 named test(s), 3 browser artefact(s), CI job(s) | 3 item(s) |
 | 12 | Streaming SSE framing, incremental render and cancellation | **PASS** | 2 oracle fixture(s), Go implementation, 11 named test(s), 3 browser artefact(s), CI job(s) | _none_ |
@@ -229,19 +229,19 @@ A world entry that is stored correctly and inserted in the wrong place is invisi
 
 Row id: `presets-and-ui-content`
 
-- Oracle fixtures: `tests/oracle/sillytavern-1.19.0-presets-routes.json`, `tests/oracle/sillytavern-1.19.0-quick-replies.json`, `tests/oracle/sillytavern-1.19.0-themes.json`, `tests/oracle/sillytavern-1.19.0-moving-ui.json`, `tests/oracle/sillytavern-1.19.0-system-prompt-migration.json`
+- Oracle fixtures: `tests/oracle/sillytavern-1.19.0-presets-routes.json`, `tests/oracle/sillytavern-1.19.0-quick-replies.json`, `tests/oracle/sillytavern-1.19.0-themes.json`, `tests/oracle/sillytavern-1.19.0-moving-ui.json`, `tests/oracle/sillytavern-1.19.0-system-prompt-migration.json`, `tests/oracle/sillytavern-1.19.0-provider-wire.json`
 - Upstream assets: _none_
 - Go implementation: `internal/server`
-- Named tests: `TestPinnedNodePresetRoutes`, `TestPinnedNodeThemesSaveAndDelete`, `TestPinnedNodeMovingUISave`, `tools/qualify-node-stock-tree.mjs`
-- Browser artefacts: `tests/browser/preset-complex-comparison.json`
+- Named tests: `TestPinnedNodePresetRoutes`, `TestPinnedNodeThemesSaveAndDelete`, `TestPinnedNodeMovingUISave`, `tools/qualify-node-stock-tree.mjs`, `tests/provider-wire/preset-knobs.test.mjs`, `tools/generate-preset-knob-scenarios.mjs`, `tools/probe-provider-wire.mjs`
+- Browser artefacts: `tests/browser/preset-complex-comparison.json`, `tests/browser/worldinfo-slots-comparison.json`, `tests/browser/authors-note-comparison.json`, `tests/browser/group-chat-comparison.json`
 - CI jobs: `ci.yml#oracle`, `browser-differential.yml#differential`, `node-stock-tree.yml#node-stock-tree`
 - Release artifact: _none_
 
 **Evidence gap**
 
-- the complex-preset differential now RECORDS a passing keep/drop pair in tests/browser/preset-complex-comparison.json (keepContext 4260 / dropContext 4259, 24 vs 26 messages, providerRequestEqual true, verdict match), so the older clause saying no passing pair existed was stale and is removed; what the artefact does not cover is preset features outside its measured contract (instruct/context templates are set but not asserted, secondary world-info keys, recursion/probability/outlets, group chats)
-- the NAME_MAX host-dependent difference is recorded as an unresolved known difference rather than parity
-- the preset DOCUMENT round trip NOW EXISTS (node-stock-tree.yml#node-stock-tree): a 40-prompt complex preset recorded by pinned Node is read through GoTavern settings/get, survives a GoTavern settings save, and is read again by pinned Node; prompt ASSEMBLY and features outside the measured contract remain unasserted
+- the SERVER half of a preset is now MEASURED per field, not only through the one complex request: tests/provider-wire/preset-knobs.mjs declares 18 knob pairs (14 discriminating + 4 measured-noop) and 36 provider-wire scenarios; tools/probe-provider-wire.mjs proves Node(A)==Go(A) and Node(B)==Go(B) byte for byte, tests/provider-wire/preset-knobs.test.mjs proves Node(A)!=Node(B) from the committed pinned captures (a colliding pair fails as HARNESS NON-DISCRIMINATING) and refuses a measured-noop whose pair moved; the inventory and the remaining gaps are recorded in docs/preset-semantics.md
+- the FRONTEND half is covered by committed browser differentials for the fields they vary (preset-complex-comparison.json for system prompt/jailbreak/character fields/examples/history/boundary, worldinfo-slots-comparison.json for world-info position/depth/role, authors-note-comparison.json for Author's Note position/depth/role/interval, group-chat-comparison.json for the group turn); features those kits never vary remain UNMEASURED: world-info secondary keys/recursion/probability/outlets/scan depth/budget, instruct/context template consumption on text-completion APIs, and preset-varying group chats (gap-sweep rank 2, docs/preset-semantics.md section 7)
+- the complex-preset keep/drop pair is still RECORDED (keepContext 4260 / dropContext 4259, 24 vs 26 messages, providerRequestEqual true, verdict match) and the preset DOCUMENT round trip still EXISTS (node-stock-tree.yml#node-stock-tree); the NAME_MAX host-dependent difference remains a recorded known difference rather than parity
 
 Blocked by: `whole-session-e2e`
 
@@ -556,7 +556,7 @@ with `TestMain` excluded because it is a package's test entry point rather than 
 | Measure | In the tree | Cited by this matrix |
 |---|---|---|
 | Oracle fixtures | 121 | 69 |
-| Browser artefacts | 40 | 11 |
+| Browser artefacts | 40 | 12 |
 | Go test functions | 786 | 100 |
 | Workflow jobs | 33 in 14 workflow(s) | _n/a_ |
 | Rows | 22 | PASS 3, PARTIAL 18, FAIL 0, NOT_APPLICABLE 1 |

@@ -152,15 +152,22 @@ job remains the only run whose green covers the fixture, and it re-records all 2
 
 ## 5. Teeth
 
-The gates are shown to be able to fail by mutating the Go implementation (restored from file copies, then re-run
-green):
+The gates are shown to be able to fail by mutating the Go implementation in an isolated worktree
+(`gotavern-alpha11-preset-mutations`, detached at the measurement commit), restoring each file from a copy, and
+re-running the same filtered test green. Every red is the oracle replay comparing the exact provider bytes
+(`chat_completions_oracle_test.go:214`, `provider request 0 body digest`), and every named subtest is the knob
+pair the mutation targets:
 
 | mutation | named red |
 |---|---|
-| ordering: move `seed` before `temperature` in the fixed provider-member order | `TestChatCompletionGenerateMatchesProviderWireCapture/preset-knob-seed-*` and the temperature pair fail on `body digest` |
-| stop: delete the `stop` member from the fixed provider body | `TestChatCompletionGenerateMatchesProviderWireCapture/preset-knob-stop-*` fails on `body digest` |
-| role mapping: change the `response_format.json_schema.strict` default | `.../preset-knob-json-schema-*` fails on `body digest` |
-| reasoning mapping: change the reasoning-effort table | `.../preset-knob-reasoning-effort-*` fails on `body digest` |
+| ordering: swap `temperature`/`max_tokens` in `pinnedChatCompletionRequestBodyMemberOrder` | `.../preset-knob-temperature-a` (length 193, sha differs), plus `-b` |
+| stop: change the copied stop value (`bodyParams.setMember("stop", …)`) | `.../preset-knob-stop-a` and `-b` (213/224 captured vs 215 measured) |
+| response format: flip the `strict` default in `pinnedChatCompletionResponseFormat` | `.../preset-knob-json-schema-a` (354 measured vs 353 captured) and `-b` |
+| reasoning: disable the `reasoning_effort` forwarding arm | `.../preset-knob-reasoning-effort-a` (187 measured vs 212 captured) and `-b` |
+
+After each restore the filtered test printed `--- PASS` for the same `preset-knob-*` subtests. The mutation
+worktree was removed afterwards; no mutation is part of the branch.
+
 
 ## 6. What this does NOT establish
 
