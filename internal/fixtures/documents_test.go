@@ -554,16 +554,12 @@ var declaredOtherPins = map[string]string{
 	// 2026-10-31 redraw was regenerated from run 41171857944, which measured 91e1e15, and the previous
 	// anchor (a8d5945, run 40898332226) is no longer cited by any document, so it is not kept here.
 	"91e1e15283cdfe90ca9fd8c0fc40c794612c6b43": "commit measured by the paired benchmark run 41171857944 — cited by the compatibility matrix, gap sweep and browser-stability document for the alpha.9 measurements those claims were made on",
-	// THE BETA 1 MEASUREMENT ANCHOR. Q22's citation, the README Performance table and the figure's provenance moved
-	// to the Beta 1 line, and a provenance record must name the exact tree its numbers came from. Declared by value
-	// AND named for the same reason as the entry above. The alpha.9 anchor STAYS: it is still cited by documents
-	// whose claims were made on that measurement, and deleting a declared pin another document cites makes the gate
-	// red on a document that is correct.
-	"f19ac8b76cfa7d209bac1b3de8270ac0999a79d1": "Beta 1 paired-benchmark measurement (GoTavern smoke metrics run 41207221610) — README Performance, docs/assets/benchmark.svg.provenance.md and scorecard Q22. The release commit adds documentation only, so the runtime code is this tree's",
-	// THE BETA 1 RELEASE COMMIT. HANDOFF.md's current checkpoint names the SHA the release was cut from, because
+	// THE alpha.10 RELEASE COMMIT. HANDOFF.md's current checkpoint names the SHA the release was cut from, because
 	// a checkpoint that cannot name its release cannot be used to check one. Declared by value AND named for the
 	// reason the previous release-SHA entries carry: an allowlist entry with no reason is where a mistyped pin hides.
-	"ffa6e5494fdcd1061f8da80a8f5a561c94bac26e": "v0.1.0-beta.1 release commit - HANDOFF.md current checkpoint (and the SHA every required release gate ran at)",
+	// The same commit was briefly published under the retracted v0.1.0-beta.1 identifier (operator reissue), which
+	// is why this SHA is the anchor for both the release and its benchmark provenance.
+	"ffa6e5494fdcd1061f8da80a8f5a561c94bac26e": "v0.1.0-alpha.10 release commit - HANDOFF.md current checkpoint, the SHA every required release gate ran at, and the benchmark provenance anchor",
 	// A RELEASE'S OWN COMMIT. The HANDOFF checkpoint must name the SHA a release was cut from, or the
 	// document cannot be used to check the release. That SHA is an IDENTITY, not a baseline claim, and
 	// it is not the SillyTavern pin. Declared by value AND named for the same reason as the entry above:
