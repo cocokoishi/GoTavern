@@ -1,0 +1,162 @@
+name: Helper state differential
+
+# SECOND-ORDER HELPER STATE (GOAL Q9/Q10/Q11/Q12/Q19, AGENTS 15/47/48/49/50).
+#
+# Bounded browser differential for 酒馆助手 / JS-Slash-Runner second-order state: scoped variables
+# (chat/global/character/preset/message/script) read back, persisted, and re-read from a NEW iframe after a
+# reload, a server restart and chat/character/preset switches; an in-use PRESET MUTATION that must reach the
+# NEXT provider request and be removed again by the restore; lifecycle EVENTS and their order; and the
+# iframe -> bridge -> host -> disk -> provider closure (the script is installed through the helper's own
+# replaceScriptTrees, so "the iframe loaded" is never the claim).
+#
+# The subject is GoTavern built from this tree; the oracle is pinned SillyTavern at the baseline commit, booted
+# through the repo's own run-against-pinned.mjs with --browserLaunchEnabled false. The provider is a simulated
+# capture peer in-process (rule 22: every wire measurement here is unverified for PRODUCTION).
+#
+# `timeout-minutes` is sized to measured reality: on this host each leg is 4-7 minutes (two browser boots and
+# ~14 helper generations), the comparator is seconds. 45 minutes leaves room for a cold npm install and fails a
+# wedged browser instead of consuming a runner.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'internal/server/characters*.go'
+      - 'internal/server/chats*.go'
+      - 'internal/server/presets*.go'
+      - 'internal/server/settings*.go'
+      - 'internal/server/prompt*.go'
+      - 'tests/browser/helper-state-*'
+      - 'tests/browser/extensions/helper-state-*'
+      - 'tests/browser/extensions/helper-vars-kit.mjs'
+      - 'tests/browser/run-against-pinned.mjs'
+      - 'tests/browser/install-pinned-extension.mjs'
+      - 'tests/browser/pinned-extensions.mjs'
+      - '.github/workflows/helper-state.yml'
+
+concurrency:
+  group: helper-state-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  helper-state:
+    name: helper state differential (ubuntu, bounded)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GOTAVERN_BINARY: ${{ github.workspace }}/.browser-bin/gotavern
+      GOTAVERN_EXTENSION_SEED_ROOT: ''
+      # ONE NONCE FOR BOTH LEGS: the marker text is inside every captured body, so two different nonces make the
+      # subjects' bodies differ for a HARNESS reason and nodeEqualsGo would be red without a product finding.
+      HSE_NONCE: hse-${{ github.run_id }}
+    steps:
+      - name: Checkout GoTavern
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned SillyTavern oracle
+        uses: actions/checkout@v4
+        with:
+          repository: SillyTavern/SillyTavern
+          ref: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
+          path: ../SillyTavern
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+
+      - name: Cache pinned node_modules
+        id: pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: ../SillyTavern/node_modules
+          key: pinned-06bde939-node24-${{ hashFiles('../SillyTavern/package-lock.json') }}
+
+      - name: Cache browser harness node_modules
+        id: harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: harness-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Install pinned dependencies
+        if: steps.pinned-modules.outputs.cache-hit != 'true'
+        working-directory: ../SillyTavern
+        run: npm ci --no-audit --no-fund
+
+      - name: Install browser harness dependencies
+        if: steps.harness-modules.outputs.cache-hit != 'true'
+        working-directory: tests/browser
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Playwright chromium
+        working-directory: tests/browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Build GoTavern
+        run: |
+          mkdir -p .browser-bin
+          go build -trimpath -o "$GOTAVERN_BINARY" ./cmd/gotavern
+          "$GOTAVERN_BINARY" version
+
+      - name: Run GoTavern leg (on)
+        run: |
+          rm -rf .tmp-artifacts/helper-state-go-on
+          mkdir -p .tmp-artifacts/helper-state-go-on
+          node tests/browser/helper-state-probe.mjs \
+            --data-root .tmp-artifacts/helper-state-go-on \
+            --report .tmp-artifacts/helper-state-go-on.json --variant on --nonce "$HSE_NONCE"
+
+      - name: Run pinned leg (on)
+        run: |
+          rm -rf .tmp-artifacts/helper-state-pinned-on
+          mkdir -p .tmp-artifacts/helper-state-pinned-on
+          node tests/browser/run-against-pinned.mjs helper-state-probe.mjs -- \
+            --data-root .tmp-artifacts/helper-state-pinned-on \
+            --report .tmp-artifacts/helper-state-pinned-on.json --variant on --nonce "$HSE_NONCE"
+
+      - name: Run GoTavern leg (restart, same tree)
+        run: |
+          node tests/browser/helper-state-probe.mjs \
+            --data-root .tmp-artifacts/helper-state-go-on \
+            --report .tmp-artifacts/helper-state-go-on-restart.json --variant on --after-restart --nonce "$HSE_NONCE"
+
+      - name: Run pinned leg (restart, same tree)
+        run: |
+          node tests/browser/run-against-pinned.mjs helper-state-probe.mjs -- \
+            --data-root .tmp-artifacts/helper-state-pinned-on \
+            --report .tmp-artifacts/helper-state-pinned-on-restart.json --variant on --after-restart --nonce "$HSE_NONCE"
+
+      - name: Compare the subjects
+        run: |
+          node tests/browser/compare-helper-state-legs.mjs \
+            .tmp-artifacts/helper-state-go-on.json \
+            .tmp-artifacts/helper-state-pinned-on.json \
+            --restart .tmp-artifacts/helper-state-go-on-restart.json .tmp-artifacts/helper-state-pinned-on-restart.json \
+            --out .tmp-artifacts/helper-state-comparison.json 2>&1 | tee .tmp-artifacts/compare.log
+
+      - name: Prove the gate has teeth
+        run: |
+          node tests/browser/helper-state-gate-selftest.mjs \
+            .tmp-artifacts/helper-state-go-on.json \
+            .tmp-artifacts/helper-state-pinned-on.json 2>&1 | tee .tmp-artifacts/selftest.log
+
+      - name: Upload reports and comparison
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: helper-state-differential
+          path: |
+            .tmp-artifacts/helper-state-*.json
+            .tmp-artifacts/compare.log
+            .tmp-artifacts/selftest.log
+          if-no-files-found: warn
+          retention-days: 14
