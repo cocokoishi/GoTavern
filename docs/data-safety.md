@@ -610,7 +610,7 @@ Review of `install.sh` (sh), `install.ps1`, `start.sh`, `Start.cmd` from source:
     with its evidence path, not fixed.
 11. The remaining bare reads on REQUEST paths (`chats.go` get, `chats_search_recent.go`,
     `characters_read.go`, `characters_write.go`, `worldinfo.go`, `settings_get.go`,
-    `image_metadata_index.go`, `vector.go`, `static.go`; 96 non-test `os.ReadFile` sites in total, sampled
+    `image_metadata_index.go`, `vector.go`, `static.go`; 95 non-test `os.ReadFile` sites in total, sampled
     in this audit) return the error to the caller or a route-specific default: a transient sharing
     violation costs one request, and none of the sampled sites bases a WRITE on the failed read. Kept as
     is; the write-side RMW paths are the ones that mattered and are covered by §7.1/§7.2.
@@ -710,6 +710,13 @@ go test ./internal/server -run '^(TestReadBufferedMultipartPart|TestSpritesUploa
 # before/after binaries built from `6a870f6` (HEAD archive) and this change, same 200 MiB body:
 #   BEFORE: status 200, peak working set 552.0 MB, 6.43 s, stored 209715200 bytes, _uploads 0
 #   AFTER:  status 200, peak working set  37.7 MB, 2.67 s, stored 209715200 bytes, _uploads 0
+
+# full suite after the lane's fixes (go test ./... -count=1 -timeout 30m), 465 s, exit 0, every package ok
+# The two earlier full-suite runs are part of the evidence because each found a REAL lane defect:
+#   1. the transcribe/speech handler fixtures lacked <dataRoot>/_uploads (the spooled part needs what
+#      startup creates) -> three oracle suites answered 400 where pinned answers 200/500; fixed in aedbc15.
+#   2. internal/fsretry/fsretry_test.go had MIXED line endings from a shell append (40 CRLF, 58 LF),
+#      caught by TestCommittedGoSourcesAreWellFormedUTF8; the working file was normalised to LF.
 ```
 
 | command | observed |
@@ -732,3 +739,4 @@ go test ./internal/server -run '^(TestReadBufferedMultipartPart|TestSpritesUploa
 * `baad4d5` fix(server,startup,tests): make a killed chat write leave only a complete old or new state (§7.3)
 * `db7b12c` fix(server): bound multipart upload memory on every route that buffers a file part (§8.4, §8.4.1)
 * `6d0ab35` test(e2e): poll chat-write progress by directory entries, not file contents (§7.3)
+* `aedbc15` test(server): give the transcribe/speech handler fixtures the `_uploads` directory a real install has (§8.4)
