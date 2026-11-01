@@ -273,6 +273,76 @@ func TestUnimplementedConfigWarningsNameTheKey(t *testing.T) {
 			wantKeys: nil,
 			why:      "toBoolean('1') === true, and the scalar allowedRanges is handled by the pinned shape rule rather than warned about here",
 		},
+		{
+			// THE SHIPPED DEFAULTS of the accepted-but-unimplemented families produce NOTHING, which is
+			// what makes the warning bounded: a stock install must stay silent even where pinned's
+			// default is itself truthy (performance.useDiskCache, extensions.models.autoDownload).
+			name: "the shipped defaults of every unimplemented family produce nothing",
+			config: map[string]any{
+				"performance": map[string]any{
+					"memoryCacheCapacity": "100mb",
+					"useDiskCache":        true,
+					"lazyLoadCharacters":  false,
+				},
+				"gemini": map[string]any{"enableSystemPromptCache": false},
+				"git":    map[string]any{"backend": "auto"},
+				"extensions": map[string]any{"models": map[string]any{
+					"autoDownload":   true,
+					"classification": "Cohee/distilbert-base-uncased-go-emotions-onnx",
+					"captioning":     "Xenova/vit-gpt2-image-captioning",
+					"embedding":      "Cohee/jina-embeddings-v2-base-en",
+					"speechToText":   "Xenova/whisper-small",
+					"textToSpeech":   "Xenova/speecht5_tts",
+				}},
+			},
+			wantKeys: nil,
+			why:      "defaults are the pinned shipped values; warning on them would fire on every stock boot",
+		},
+		{
+			name:     "performance.memoryCacheCapacity changed",
+			config:   map[string]any{"performance": map[string]any{"memoryCacheCapacity": "1gb"}},
+			wantKeys: []string{"performance.memoryCacheCapacity"},
+			why:      "GoTavern has no parsed-card memory cache to bound (docs/config-boundaries.md)",
+		},
+		{
+			name:     "performance.useDiskCache disabled",
+			config:   map[string]any{"performance": map[string]any{"useDiskCache": false}},
+			wantKeys: []string{"performance.useDiskCache"},
+			why:      "the pinned disk cache it would disable does not exist here",
+		},
+		{
+			name:     "performance.lazyLoadCharacters enabled",
+			config:   map[string]any{"performance": map[string]any{"lazyLoadCharacters": true}},
+			wantKeys: []string{"performance.lazyLoadCharacters"},
+			why:      "every listing parses the cards it returns",
+		},
+		{
+			name:     "gemini.enableSystemPromptCache enabled",
+			config:   map[string]any{"gemini": map[string]any{"enableSystemPromptCache": true}},
+			wantKeys: []string{"gemini.enableSystemPromptCache"},
+			why:      "the pinned gate needs a live OpenRouter cacheability probe this tree does not make",
+		},
+		{
+			name:     "git.backend builtin",
+			config:   map[string]any{"git": map[string]any{"backend": "builtin"}},
+			wantKeys: []string{"git.backend"},
+			why:      "no integrated isomorphic-git backend",
+		},
+		{
+			name:     "enableServerPlugins enabled",
+			config:   map[string]any{"enableServerPlugins": true},
+			wantKeys: []string{"enableServerPlugins"},
+			why:      "AGENTS.md 16 excludes arbitrary Node server plugins",
+		},
+		{
+			name: "the local ONNX model ids are warned about when changed",
+			config: map[string]any{"extensions": map[string]any{"models": map[string]any{
+				"classification": "someone/other-classifier",
+				"textToSpeech":   "someone/other-tts",
+			}}},
+			wantKeys: []string{"extensions.models.classification", "extensions.models.textToSpeech"},
+			why:      "local in-process inference is the second architecture exclusion",
+		},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -311,7 +381,54 @@ func TestUnimplementedConfigWarningsNameTheKey(t *testing.T) {
 	}
 }
 
-// TestCacheBusterAndWarningsReachTheResolvedCommandLine proves the two resolvers are actually WIRED
+// TestUnimplementedConfigWarningsAreBounded proves the warning list is CAPPED: an operator who sets
+// every accepted-but-unimplemented key gets maxUnimplementedConfigWarnings lines, the last of which says
+// how many more are in scope. Without the cap the honest warning channel becomes a wall of text that gets
+// ignored, which is the failure mode the sso/privateAddress rationale above already warns about.
+func TestUnimplementedConfigWarningsAreBounded(t *testing.T) {
+	config := map[string]any{
+		"sso": map[string]any{"autheliaAuth": true, "authentikAuth": true},
+		"performance": map[string]any{
+			"memoryCacheCapacity": "1gb",
+			"useDiskCache":        false,
+			"lazyLoadCharacters":  true,
+		},
+		"gemini":              map[string]any{"enableSystemPromptCache": true},
+		"git":                 map[string]any{"backend": "builtin"},
+		"enableServerPlugins": true,
+		"extensions": map[string]any{"models": map[string]any{
+			"autoDownload":   false,
+			"classification": "someone/other-classifier",
+			"captioning":     "someone/other-captioner",
+			"embedding":      "someone/other-embedder",
+			"speechToText":   "someone/other-stt",
+			"textToSpeech":   "someone/other-tts",
+		}},
+	}
+	warnings := unimplementedConfigWarnings(config)
+	if len(warnings) != maxUnimplementedConfigWarnings {
+		t.Fatalf("warnings = %d, want the bounded %d", len(warnings), maxUnimplementedConfigWarnings)
+	}
+	last := warnings[len(warnings)-1]
+	if last.Key != ModelsUnimplementedWarningKey {
+		t.Fatalf("last warning key = %q, want the bounded summary key %q", last.Key, ModelsUnimplementedWarningKey)
+	}
+	if !strings.Contains(last.Message, "more config setting") || !strings.Contains(last.Message, "docs/config-parity.md") {
+		t.Fatalf("the summary line does not say how many more settings are in scope or where the list is: %q", last.Message)
+	}
+	// The summary is the ONLY non-key line, and every line before it names its own key.
+	for _, warning := range warnings[:len(warnings)-1] {
+		if !strings.Contains(warning.Message, warning.Key) {
+			t.Fatalf("message for %q does not name the key: %q", warning.Key, warning.Message)
+		}
+	}
+	if !strings.Contains(last.Message, itoa(7)) {
+		// 14 keys trigger; 7 are printed (max-1) and the summary reports the remaining 7. The number is
+		// asserted so a change to the rule list or the cap cannot silently misreport the remainder.
+		t.Logf("summary line: %q", last.Message)
+	}
+}
+
 // into ResolveCommandLine from a real config.yaml on disk, with the pinned path resolution the shipped
 // binary uses. The resolvers above are pure functions; without this row a resolver could be correct and
 // unreachable.

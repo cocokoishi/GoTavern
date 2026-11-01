@@ -1,0 +1,568 @@
+{
+    "schemaVersion": 1,
+    "purpose": "Classification of every EFFECTIVE pinned config.yaml leaf key (upstream/default/config.yaml, 116 keys) and every CLI option GoTavern parses. This file is the source of truth for docs/config-parity.md, which tools/generate-config-parity.mjs emits. A key absent from every rule falls to the documented `inherited` default, so the table is a total function over the pinned key set and a new upstream key cannot appear without changing the generated document.",
+    "categories": {
+        "implemented": "GoTavern reads the key on the same code path as the pinned server AND a named Go test fails if the behaviour is removed.",
+        "explicit-no-op-with-startup-warning": "GoTavern parses and preserves the key but does not implement its behaviour; an operator who sets a NON-DEFAULT value gets a named startup warning from internal/commandline/unimplemented_config.go (bounded, deterministic order).",
+        "explicit-unsupported": "GoTavern parses and preserves the key, the pinned behaviour is deliberately NOT ported, and the reason is recorded in docs/config-boundaries.md / the architecture boundary list. No warning is emitted because the shipped default is inert in pinned too or the warning would fire on every stock boot.",
+        "inherited": "The key is carried by the config pipeline (read, inserted, migrated or preserved) but this lane has NO dedicated key-level behaviour evidence for it. This row claims value/wiring parity only, never behaviour; it is the explicit work list, and the default for an unclassified key rather than a silent pass.",
+        "not-applicable": "The key configures a pinned subsystem that GoTavern deliberately does not implement (documented architecture boundary), so there is no behaviour to reproduce."
+    },
+    "rules": [
+        {
+            "match": [
+                "cacheBuster.enabled",
+                "cacheBuster.userAgentPattern"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/cache_buster.go",
+                "internal/commandline/cachebuster.go"
+            ],
+            "tests": [
+                "TestCacheBusterSettingsFollowThePinnedConstructor",
+                "TestCacheBusterAndWarningsReachTheResolvedCommandLine"
+            ],
+            "note": "middleware mounted where pinned mounts it; the pinned truthiness quirk and the once-per-key set order are reproduced"
+        },
+        {
+            "match": [
+                "privateAddressWhitelist.*"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/outbound/privatefilter.go",
+                "internal/commandline/privateaddress.go"
+            ],
+            "tests": [
+                "TestPrivateAddressFilterSettingsFollowThePinnedReads",
+                "TestTheBootedServerEnforcesTheConfiguredPrivateAddressFilter",
+                "TestPrivateAddressFilterTreatsAV4MappedV6AddressAsItsV4Address"
+            ],
+            "note": "the filter blocks on the DNS-resolved address, validates redirect hops and reproduces the pinned ip-matching grammar; one recorded STRICTER divergence for v4-mapped-v6"
+        },
+        {
+            "match": [
+                "requestOverrides"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/request_overrides.go"
+            ],
+            "tests": [
+                "TestRequestOverridesReachTheProviderAndWin",
+                "TestTokenizerRemoteTextgenEncodeMatchesLoopbackOracle"
+            ],
+            "note": "first matching entry wins, headers assigned LAST so they override Content-Type/Authorization; the tokenizer route differential records the override on the provider wire"
+        },
+        {
+            "match": [
+                "openai.randomizeUserId"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/openai_chat.go",
+                "internal/server/uuid.go"
+            ],
+            "tests": [
+                "TestOpenAIRandomizeUserIdSendsAPinnedUUIDv4Member"
+            ],
+            "note": "a fresh lowercase RFC 4122 v4 UUID as the body's LAST member, OPENAI source only"
+        },
+        {
+            "match": [
+                "logging.minLogLevel"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/console.go"
+            ],
+            "tests": [
+                "TestConsoleMinLogLevelGatesTheAccessLogConsoleLineOnly",
+                "TestConsoleMinLogLevelResolvesLikeSetupLogLevel"
+            ],
+            "note": "the pinned floating-point level gate, installed before the first request; startup lines are deliberately not gated"
+        },
+        {
+            "match": [
+                "logging.enableAccessLog"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/access_log.go",
+                "internal/commandline/options.go"
+            ],
+            "tests": [
+                "TestAccessLogWritesOneLinePerNewClientIP",
+                "TestAccessLogEnabledResolvesLikeThePinnedMiddleware"
+            ],
+            "note": "mounted only in listen mode, exactly as pinned mounts it"
+        },
+        {
+            "match": [
+                "enableKeepAlive"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/outbound/transport.go"
+            ],
+            "tests": [
+                "TestProductionTransportKeepAliveFollowsTheConfigKey"
+            ],
+            "note": "DisableKeepAlives = !enableKeepAlive on the PRODUCTION transport; the byte-exact oracle client is untouched"
+        },
+        {
+            "match": [
+                "dnsPreferIPv6"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/outbound/dnsorder.go"
+            ],
+            "tests": [
+                "TestProductionTransportDNSOrderPrefersTheConfiguredFamily"
+            ],
+            "note": "resolve once and dial in the preferred family order; Go has no dialer knob for it"
+        },
+        {
+            "match": [
+                "requestProxy.enabled",
+                "requestProxy.url",
+                "requestProxy.bypass"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/outbound/transport.go",
+                "internal/outbound/proxy_config_test.go"
+            ],
+            "tests": [
+                "TestProviderProxyUsesTheConfiguredProxyAndHonoursBypass",
+                "TestConfigureRequestProxyValidatesItsInput"
+            ],
+            "note": "proxy URL and bypass list applied to the production transport, asserted against a real local proxy"
+        },
+        {
+            "match": [
+                "thumbnails.enabled",
+                "thumbnails.format",
+                "thumbnails.quality",
+                "thumbnails.dimensions.*"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/thumbnails.go"
+            ],
+            "tests": [
+                "TestPinnedThumbnailServesTheObservableContract",
+                "TestResolveCommandLineMarksExplicitNullThumbnailDimensionsAsConfigured"
+            ],
+            "note": "dimensions drive a real pure-Go codec; byte equality with Jimp is a declared divergence, the observable is gated"
+        },
+        {
+            "match": [
+                "whitelistImportDomains"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/content.go",
+                "internal/commandline/options.go"
+            ],
+            "tests": [
+                "TestImportDomainsWhitelistHonoursAnOperatorOverride",
+                "TestContentImportURLProviderBranchesAnswer501WithNoOutbound"
+            ],
+            "note": "exact membership for the generic import branch, with the inherited substring provider classification reproduced"
+        },
+        {
+            "match": [
+                "allowKeysExposure"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/secrets.go"
+            ],
+            "tests": [
+                "TestSecretsSettingsMatchesPinnedFlag"
+            ],
+            "note": "gates the secret-value exposure the pinned routes perform"
+        },
+        {
+            "match": [
+                "skipContentCheck"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/startup/storage.go"
+            ],
+            "tests": [
+                "TestSeedDefaultContentSkipAndExistingSettings"
+            ],
+            "note": "controls the fresh-install content seeding the way pinned does"
+        },
+        {
+            "match": [
+                "extensions.enabled",
+                "extensions.autoUpdate"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/commandline/autoupdate.go",
+                "internal/server/extensions.go"
+            ],
+            "tests": [
+                "TestResolveAutoUpdateIsStrictAndDefaultsOff",
+                "TestStockConfigSayingAutoUpdateTrueResolvesOff"
+            ],
+            "note": "autoUpdate resolves OFF for every ambiguous input, a recorded product decision that overrides the pinned default"
+        },
+        {
+            "match": [
+                "whitelistMode",
+                "whitelist",
+                "enableForwardedWhitelist",
+                "whitelistDockerHosts"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/http.go",
+                "internal/app/server.go"
+            ],
+            "tests": [
+                "TestStartHostWhitelistMatchesPinnedNodeHTTPResponses",
+                "TestStartupDockerBranchResolvesExactlyTheAllowedHostnames"
+            ],
+            "note": "IP whitelist middleware plus the bounded docker-hostname resolution"
+        },
+        {
+            "match": [
+                "basicAuthMode",
+                "basicAuthUser.username",
+                "basicAuthUser.password",
+                "perUserBasicAuth",
+                "enableDiscreetLogin",
+                "enableUserAccounts"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/accounts.go",
+                "internal/server/basic_auth.go"
+            ],
+            "tests": [
+                "TestStartGlobalBasicAuthMatchesPinnedNodeResponses",
+                "TestStartPerUserBasicAuthMatchesPinnedNode",
+                "TestPinnedNodeAccountsEnabledLoginAndSessionContract"
+            ],
+            "note": "global and per-user basic auth, account mode, discreet login; session/CSRF behaviour is differentially pinned"
+        },
+        {
+            "match": [
+                "cors.enabled",
+                "cors.origin",
+                "cors.methods",
+                "cors.allowedHeaders",
+                "cors.exposedHeaders",
+                "cors.credentials",
+                "cors.maxAge",
+                "enableCorsProxy"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/cors.go",
+                "internal/server/http.go"
+            ],
+            "tests": [
+                "TestPinnedNodeCORSMiddleware"
+            ],
+            "note": "the pinned cors option block plus the /proxy/:url(*) passthrough"
+        },
+        {
+            "match": [
+                "hostWhitelist.enabled",
+                "hostWhitelist.scan",
+                "hostWhitelist.hosts"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/host_whitelist.go"
+            ],
+            "tests": [
+                "TestStartHostWhitelistMatchesPinnedNodeHTTPResponses",
+                "TestPinnedHostWhitelistPatternMatching"
+            ],
+            "note": "the pinned wildcard pattern matcher and the scan warning are reproduced"
+        },
+        {
+            "match": [
+                "dataRoot",
+                "port",
+                "listen",
+                "listenAddress.ipv4",
+                "listenAddress.ipv6",
+                "protocol.ipv4",
+                "protocol.ipv6",
+                "heartbeatInterval"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/commandline/paths.go",
+                "internal/commandline/options.go",
+                "internal/app/server.go"
+            ],
+            "tests": [
+                "TestStartFreshServerMatchesPinnedNodeHTTPResponses",
+                "TestStartHeartbeatMatchesPinnedNodeLifecycle",
+                "TestRelativeDataRootCreatesOnlyTheDirectoryItUses"
+            ],
+            "note": "listener, path resolution and heartbeat lifecycle"
+        },
+        {
+            "match": [
+                "sessionTimeout",
+                "disableCsrfProtection",
+                "securityOverride"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/accounts.go",
+                "internal/startup/security_settings.go"
+            ],
+            "tests": [
+                "TestPinnedNodeAccountsEnabledLoginAndSessionContract",
+                "TestVerifySecuritySettingsMatchesPinnedNode"
+            ],
+            "note": "session cookie lifetime, CSRF switch and the security-settings verification"
+        },
+        {
+            "match": [
+                "rateLimiting.*"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/accounts.go",
+                "internal/server/basic_auth.go"
+            ],
+            "tests": [
+                "TestStartGlobalBasicAuthMatchesPinnedNodeResponses",
+                "TestPinnedNodeAccountsEnabledLoginAndSessionContract"
+            ],
+            "note": "login/recover/reset attempts and the real-IP preference"
+        },
+        {
+            "match": [
+                "forwardedHeaders.*"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/http.go"
+            ],
+            "tests": [
+                "TestStartGlobalBasicAuthMatchesPinnedNodeResponses",
+                "TestStartPerUserBasicAuthMatchesPinnedNode"
+            ],
+            "note": "client-IP derivation headers used by the whitelist and rate limits"
+        },
+        {
+            "match": [
+                "backups.allowFullDataBackup",
+                "backups.common.numberOfBackups"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/account_backup.go",
+                "internal/startup/settings_backup.go"
+            ],
+            "tests": [
+                "TestPinnedNodeAccountBackupContract"
+            ],
+            "note": "full-data backup permission and the settings backup retention"
+        },
+        {
+            "match": [
+                "gemini.apiVersion",
+                "gemini.image.personGeneration",
+                "gemini.thoughtSignatures"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/google_media.go",
+                "internal/server/makersuite_chat.go",
+                "internal/server/openrouter_media.go"
+            ],
+            "tests": [
+                "TestGeminiMakerSuiteURLShapes",
+                "TestGoogleConfigValueResolvesLikePinned",
+                "TestPinnedThoughtSignaturesResolution"
+            ],
+            "note": "endpoint version, imagemagick generation policy and the thought-signature gate"
+        },
+        {
+            "match": [
+                "openai.captionSystemPrompt"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/openai_caption.go"
+            ],
+            "tests": [
+                "TestOpenAICaptionMatchesPinnedOracle"
+            ],
+            "note": "the caption system prompt, captured in the openai caption differential"
+        },
+        {
+            "match": [
+                "deepl.formality"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/translate.go"
+            ],
+            "tests": [
+                "TestTranslateRoutesMatchPinnedOracle"
+            ],
+            "note": "DeepL formality is applied only for its supported languages, as pinned does"
+        },
+        {
+            "match": [
+                "enableDownloadableTokenizers"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/tokenizers.go",
+                "internal/server/tokenizers_remote.go"
+            ],
+            "tests": [
+                "TestPinnedNodeTokenizerOracleCoverage"
+            ],
+            "note": "gates the external-tokenizer download path; the vendored bytes are served when downloads are disabled"
+        },
+        {
+            "match": [
+                "sso.autheliaAuth",
+                "sso.authentikAuth"
+            ],
+            "classification": "explicit-no-op-with-startup-warning",
+            "implementation": [
+                "internal/commandline/unimplemented_config.go"
+            ],
+            "tests": [
+                "TestUnimplementedConfigWarningsNameTheKey"
+            ],
+            "note": "SSO auto-login is not implemented; a truthy switch prints a named warning that says so"
+        },
+        {
+            "match": [
+                "sso.trustedProxies"
+            ],
+            "classification": "explicit-unsupported",
+            "implementation": [
+                "internal/commandline/unimplemented_config.go"
+            ],
+            "tests": [
+                "TestUnimplementedConfigWarningsNameTheKey"
+            ],
+            "note": "consulted only by the unimplemented SSO login methods, so it is inert in pinned too unless one is enabled; warning on it would fire on every stock boot"
+        },
+        {
+            "match": [
+                "performance.memoryCacheCapacity",
+                "performance.useDiskCache",
+                "performance.lazyLoadCharacters"
+            ],
+            "classification": "explicit-no-op-with-startup-warning",
+            "implementation": [
+                "internal/commandline/unimplemented_config.go"
+            ],
+            "tests": [
+                "TestUnimplementedConfigWarningsNameTheKey"
+            ],
+            "note": "GoTavern has no character-card memory/disk cache (docs/config-boundaries.md); a NON-DEFAULT value now warns instead of being silently ignored"
+        },
+        {
+            "match": [
+                "gemini.enableSystemPromptCache"
+            ],
+            "classification": "explicit-no-op-with-startup-warning",
+            "implementation": [
+                "internal/commandline/unimplemented_config.go"
+            ],
+            "tests": [
+                "TestUnimplementedConfigWarningsNameTheKey"
+            ],
+            "note": "needs the isOpenRouterModelCacheable network probe (docs/config-boundaries.md); the flag alone must not be applied"
+        },
+        {
+            "match": [
+                "git.backend"
+            ],
+            "classification": "explicit-no-op-with-startup-warning",
+            "implementation": [
+                "internal/commandline/unimplemented_config.go"
+            ],
+            "tests": [
+                "TestUnimplementedConfigWarningsNameTheKey"
+            ],
+            "note": "auto (system git) works; the integrated isomorphic-git backend does not exist, so `builtin` warns"
+        },
+        {
+            "match": [
+                "enableServerPlugins"
+            ],
+            "classification": "explicit-no-op-with-startup-warning",
+            "implementation": [
+                "internal/commandline/unimplemented_config.go"
+            ],
+            "tests": [
+                "TestUnimplementedConfigWarningsNameTheKey"
+            ],
+            "note": "arbitrary Node server plugins are the project's sole ecosystem exclusion (AGENTS.md 16); enabling them warns"
+        },
+        {
+            "match": [
+                "enableServerPluginsAutoUpdate"
+            ],
+            "classification": "explicit-unsupported",
+            "implementation": [
+                "internal/commandline/unimplemented_config.go"
+            ],
+            "tests": [
+                "TestUnimplementedConfigWarningsNameTheKey"
+            ],
+            "note": "same exclusion; the shipped default is true and inert without the plugin system, so no warning is emitted for it"
+        },
+        {
+            "match": [
+                "extensions.models.autoDownload",
+                "extensions.models.classification",
+                "extensions.models.captioning",
+                "extensions.models.embedding",
+                "extensions.models.speechToText",
+                "extensions.models.textToSpeech"
+            ],
+            "classification": "explicit-no-op-with-startup-warning",
+            "implementation": [
+                "internal/commandline/unimplemented_config.go"
+            ],
+            "tests": [
+                "TestUnimplementedConfigWarningsNameTheKey"
+            ],
+            "note": "local in-process ONNX inference is the second explicit architecture exclusion (getPipeline in src/transformers.js); GoTavern carries the key and warns when the effective value differs from the pinned shipped model id"
+        }
+    ],
+    "default": {
+        "classification": "inherited",
+        "note": "carried by the config pipeline (inserted/migrated/preserved and read at startup); this lane has no dedicated key-level behaviour evidence, so this row is the explicit work list rather than a parity claim"
+    },
+    "cliOptions": {
+        "source": "internal/commandline/options.go (the cliOptionKinds table and ResolveCommandLine)",
+        "evidence": [
+            "TestCacheBusterAndWarningsReachTheResolvedCommandLine",
+            "TestP0BLegacyKeysBootBounded"
+        ],
+        "note": "every CLI option in the Go parser is enumerated from that table and resolved through ResolveCommandLine; the pinned command-line differential fixture is tests/oracle/sillytavern-1.19.0-commandline-paths.json",
+        "overrides": {
+            "requestProxyBypass": "resolved as an array and applied by the outbound proxy (implemented)",
+            "enableKeepAlive": "applied to the production transport (implemented, see the enableKeepAlive config row)",
+            "dnsPreferIPv6": "applied to the resolver order (implemented, see the dnsPreferIPv6 config row)"
+        }
+    }
+}
