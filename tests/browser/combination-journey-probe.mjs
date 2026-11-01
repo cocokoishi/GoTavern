@@ -1201,6 +1201,11 @@ async function main() {
                             chatId: context?.chatId ?? null,
                             mainApi: context?.mainApi ?? null,
                             isSendPress: script.is_send_press === true,
+                            // THE PROMPT COLLECTION LENGTH AT EVENT TIME. GENERATE_AFTER_DATA reported 4 dummy prompts on
+                            // both subjects while a dry run 1.3 s later assembled 39; this field says whether the manager
+                            // was already disarmed BEFORE the event or only by the time the messages were built.
+                            promptCount,
+                            thisChid: script.this_chid ?? null,
                             at: Date.now(),
                         });
                     } catch (error) { window.__combGenLog.push({ event, error: String(error?.message ?? error) }); }
@@ -1208,10 +1213,16 @@ async function main() {
                 events.eventSource.on(events.event_types.GENERATION_STARTED, (...args) => record('GENERATION_STARTED', args));
                 events.eventSource.on(events.event_types.GENERATION_AFTER_COMMANDS, (...args) => record('GENERATION_AFTER_COMMANDS', args));
                 events.eventSource.on(events.event_types.GENERATION_ENDED, (...args) => record('GENERATION_ENDED', args));
-                events.eventSource.on(events.event_types.GENERATE_AFTER_DATA, (data, dryRun) => {
+                events.eventSource.on(events.event_types.GENERATE_AFTER_DATA, async (data, dryRun) => {
                     try {
+                        let promptCountNow = null;
+                        try {
+                            const openai = await import('./scripts/openai.js');
+                            const collection = openai.promptManager?.getPromptCollection('normal');
+                            promptCountNow = Array.isArray(collection?.collection) ? collection.collection.length : null;
+                        } catch (error) { promptCountNow = 'threw'; }
                         window.__combGenLog.push({
-                            event: 'GENERATE_AFTER_DATA', dryRun,
+                            event: 'GENERATE_AFTER_DATA', dryRun, promptCount: promptCountNow, thisChid: null,
                             keys: Object.keys(data ?? {}),
                             promptLength: typeof data?.prompt === 'string' ? data.prompt.length : null,
                             promptArrayLength: Array.isArray(data?.prompt) ? data.prompt.length : null,

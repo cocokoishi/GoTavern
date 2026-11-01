@@ -110,3 +110,26 @@ node tests/browser/combination-journey-gate-selftest.mjs go.json pinned.json
 
 The workflow `.github/workflows/combination-journey.yml` runs these same five legs on `ubuntu-24.04` (60-minute
 bound), compares with `--restart` + `--handback`, runs the teeth, and uploads the `combination-journey` artefact.
+
+
+## The post-reload assembly anomaly: what the instrumented event log now proves (2026-11-01)
+
+The generation-entry anomaly was re-measured with event-time instrumentation (prompt-collection length and the active
+character at each event, plus the assembled array length). On BOTH subjects, for the post-reload turn:
+
+| event | chatLength | promptCount | this_chid | assembled prompt |
+|---|---|---|---|---|
+| GENERATION_STARTED (real) | 9 | 56 | 3 | - |
+| GENERATION_AFTER_COMMANDS (real) | 9 | 56 | 3 | - |
+| GENERATE_AFTER_DATA (real) | - | 56 | - | **4 messages**, roles system/user/system/assistant |
+| GENERATE_AFTER_DATA (dry run, +1.3 s) | 11 | 56 | - | **39 messages** |
+
+That rules out the prompt manager (it is armed at 56 prompts, with the character selected, at every event) and rules
+out a stale chat (the page reports the correct chat id and nine messages). The four-message real assembly is what
+pinned produces when the OPENAI message list handed to `prepareOpenAIMessages` is empty except for the new user turn,
+while the dry run 1.3 s later assembles the full history. The remaining hypothesis is therefore in the real
+generation's OpenAI message list (`setOpenAIMessages(coreChat)` in `public/script.js:4834`), not in the prompt
+collection; it is IDENTICAL under pinned Node, so it is a harness-faithfulness alarm until a read of that list at
+assembly time identifies the trigger. The comparator stays `mismatch` and the combination-coverage claim stays out of
+the matrix; the workflow (`.github/workflows/combination-journey.yml`) runs the same five legs and is expected RED
+until this is resolved. No product difference is claimed.
