@@ -189,6 +189,24 @@ renumbered, and its `wouldGoRedIfWrong` cites the committed `whole-session-gate-
 checker's browser-harness citation rule added in the same change (a citation-vocabulary extension, not an
 evidence relaxation: the harness must exist, be listed in the row's evidence.tests, and be executed by a
 workflow the row's evidence.ci names). The row does NOT cite a final-candidate run: the release gate
+
+**Combination journey (alpha11 Lane H): BUILT AND PARTIALLY MEASURED, still OPEN.** GOAL §9's highest-priority
+combination (`real character × real complex preset × 酒馆助手 × world book × existing chat history ×
+preset/chat/character variables × regex × Quick Replies × streaming`) now has ONE single-session harness on BOTH
+subjects (`tests/browser/combination-journey-probe.mjs`), a comparator and a five-mutation teeth proof, and a
+bounded ubuntu-24.04 workflow (`.github/workflows/combination-journey.yml`) that runs the drive legs, restart legs
+over the same trees and a pinned hand-back over the GoTavern tree; the full record is
+`docs/combination-journey.md`. Layer A (Windows) measured both drive legs at 51 steps each: the armed-turn facts
+(preset pieces, three variable scopes, QR injection, author's note, regex rewrite), the second-turn history,
+branch creation, the group turn, the durable chat and the helper bridge closure were green on BOTH subjects, and
+the teeth produced 5/5 named reds. The journey is NOT closed: the preset/WI knob-off control turns could not be
+driven (the page wedges "busy" after a mid-session preset switch on BOTH subjects — a harness-faithfulness alarm,
+AGENTS 10), the post-reload request did not carry history/preset/variables, pinned's turn-1 world-info staging was
+overwritten by its boot, and the restart pair and the pinned hand-back were not run on this host; the comparator
+therefore reports those claims as NOT-OBSERVED/red by name and its local verdict is `mismatch`. Preset A-vs-B and
+WI on-vs-off discrimination is consequently NOT PROVEN, and the release notes must keep the combination journey
+listed as measured-but-open until the workflow's ubuntu run is green and cited.
+
 re-runs this workflow at the frozen candidate SHA and THAT run is cited in the release record, not here.
 
 ## 5. Freshness: which rows depend on which run, and what must be re-run at the frozen SHA
