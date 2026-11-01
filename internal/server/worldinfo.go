@@ -10,7 +10,9 @@ package server
 //
 // The deprecated aliases /getworldinfo, /deleteworldinfo, /importworldinfo and
 // /editworldinfo are the method-preserving 308 redirects registered by
-// src/server-startup.js:110-113.
+// src/server-startup.js:110-113. They are rows of the single pinned alias table in
+// internal/server/redirect_aliases.go, which registers all fifty aliases; this file used to keep its own
+// copy of these four.
 //
 // Known gaps, recorded in docs/compat-matrix.md:
 //
@@ -71,17 +73,6 @@ func registerWorldInfoRoutes(mux *http.ServeMux, accounts *accountRuntime, notFo
 	post("/api/worldinfo/delete", accounts.serveWorldInfoDelete)
 	post("/api/worldinfo/import", accounts.serveWorldInfoImport)
 	post("/api/worldinfo/edit", accounts.serveWorldInfoEdit)
-
-	// res.redirect(308, destination) preserves the request method.
-	redirect := func(source, destination string) {
-		mux.HandleFunc(source, func(w http.ResponseWriter, r *http.Request) {
-			serveRedirect(w, r, http.StatusPermanentRedirect, destination)
-		})
-	}
-	redirect("/getworldinfo", "/api/worldinfo/get")
-	redirect("/deleteworldinfo", "/api/worldinfo/delete")
-	redirect("/importworldinfo", "/api/worldinfo/import")
-	redirect("/editworldinfo", "/api/worldinfo/edit")
 }
 
 // readPinnedJSONBody reproduces the pinned express.json() middleware for these

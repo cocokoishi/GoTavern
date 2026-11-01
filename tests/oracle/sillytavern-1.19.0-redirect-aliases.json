@@ -1,0 +1,3815 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned deprecated redirect aliases (src/server-startup.js redirectDeprecatedEndpoints): status, Location, body, method preservation, prefix-mount semantics and the deprecation console.warn line",
+  "normalizations": [
+    "The alias mapping is parsed from the pinned source at record time; it is the oracle for the table, not a retyped copy.",
+    "Transport headers (connection, date, keep-alive) and the session cookie are excluded: they belong to the recording host or are request inputs.",
+    "Each scenario asserts ZERO outbound requests through the recording-peer seam, because a redirect must not fetch anything.",
+    "The warning is matched by the pinned sentence fragment \"is deprecated; use \", so a Node console write that lands after the response is still waited for (2 s bound) instead of being silently dropped.",
+    "Request paths substitute a concrete segment for a parameterised alias source (`/listimgfiles/:folder` -> `/listimgfiles/alpha`); the recorded mapping keeps the pinned spelling."
+  ],
+  "aliases": [
+    {
+      "source": "/createcharacter",
+      "destination": "/api/characters/create",
+      "line": 84
+    },
+    {
+      "source": "/renamecharacter",
+      "destination": "/api/characters/rename",
+      "line": 85
+    },
+    {
+      "source": "/editcharacter",
+      "destination": "/api/characters/edit",
+      "line": 86
+    },
+    {
+      "source": "/editcharacterattribute",
+      "destination": "/api/characters/edit-attribute",
+      "line": 87
+    },
+    {
+      "source": "/v2/editcharacterattribute",
+      "destination": "/api/characters/merge-attributes",
+      "line": 88
+    },
+    {
+      "source": "/deletecharacter",
+      "destination": "/api/characters/delete",
+      "line": 89
+    },
+    {
+      "source": "/getcharacters",
+      "destination": "/api/characters/all",
+      "line": 90
+    },
+    {
+      "source": "/getonecharacter",
+      "destination": "/api/characters/get",
+      "line": 91
+    },
+    {
+      "source": "/getallchatsofcharacter",
+      "destination": "/api/characters/chats",
+      "line": 92
+    },
+    {
+      "source": "/importcharacter",
+      "destination": "/api/characters/import",
+      "line": 93
+    },
+    {
+      "source": "/dupecharacter",
+      "destination": "/api/characters/duplicate",
+      "line": 94
+    },
+    {
+      "source": "/exportcharacter",
+      "destination": "/api/characters/export",
+      "line": 95
+    },
+    {
+      "source": "/savechat",
+      "destination": "/api/chats/save",
+      "line": 96
+    },
+    {
+      "source": "/getchat",
+      "destination": "/api/chats/get",
+      "line": 97
+    },
+    {
+      "source": "/renamechat",
+      "destination": "/api/chats/rename",
+      "line": 98
+    },
+    {
+      "source": "/delchat",
+      "destination": "/api/chats/delete",
+      "line": 99
+    },
+    {
+      "source": "/exportchat",
+      "destination": "/api/chats/export",
+      "line": 100
+    },
+    {
+      "source": "/importgroupchat",
+      "destination": "/api/chats/group/import",
+      "line": 101
+    },
+    {
+      "source": "/importchat",
+      "destination": "/api/chats/import",
+      "line": 102
+    },
+    {
+      "source": "/getgroupchat",
+      "destination": "/api/chats/group/get",
+      "line": 103
+    },
+    {
+      "source": "/deletegroupchat",
+      "destination": "/api/chats/group/delete",
+      "line": 104
+    },
+    {
+      "source": "/savegroupchat",
+      "destination": "/api/chats/group/save",
+      "line": 105
+    },
+    {
+      "source": "/getgroups",
+      "destination": "/api/groups/all",
+      "line": 106
+    },
+    {
+      "source": "/creategroup",
+      "destination": "/api/groups/create",
+      "line": 107
+    },
+    {
+      "source": "/editgroup",
+      "destination": "/api/groups/edit",
+      "line": 108
+    },
+    {
+      "source": "/deletegroup",
+      "destination": "/api/groups/delete",
+      "line": 109
+    },
+    {
+      "source": "/getworldinfo",
+      "destination": "/api/worldinfo/get",
+      "line": 110
+    },
+    {
+      "source": "/deleteworldinfo",
+      "destination": "/api/worldinfo/delete",
+      "line": 111
+    },
+    {
+      "source": "/importworldinfo",
+      "destination": "/api/worldinfo/import",
+      "line": 112
+    },
+    {
+      "source": "/editworldinfo",
+      "destination": "/api/worldinfo/edit",
+      "line": 113
+    },
+    {
+      "source": "/getstats",
+      "destination": "/api/stats/get",
+      "line": 114
+    },
+    {
+      "source": "/recreatestats",
+      "destination": "/api/stats/recreate",
+      "line": 115
+    },
+    {
+      "source": "/updatestats",
+      "destination": "/api/stats/update",
+      "line": 116
+    },
+    {
+      "source": "/getbackgrounds",
+      "destination": "/api/backgrounds/all",
+      "line": 117
+    },
+    {
+      "source": "/delbackground",
+      "destination": "/api/backgrounds/delete",
+      "line": 118
+    },
+    {
+      "source": "/renamebackground",
+      "destination": "/api/backgrounds/rename",
+      "line": 119
+    },
+    {
+      "source": "/downloadbackground",
+      "destination": "/api/backgrounds/upload",
+      "line": 120
+    },
+    {
+      "source": "/savetheme",
+      "destination": "/api/themes/save",
+      "line": 121
+    },
+    {
+      "source": "/getuseravatars",
+      "destination": "/api/avatars/get",
+      "line": 122
+    },
+    {
+      "source": "/deleteuseravatar",
+      "destination": "/api/avatars/delete",
+      "line": 123
+    },
+    {
+      "source": "/uploaduseravatar",
+      "destination": "/api/avatars/upload",
+      "line": 124
+    },
+    {
+      "source": "/deletequickreply",
+      "destination": "/api/quick-replies/delete",
+      "line": 125
+    },
+    {
+      "source": "/savequickreply",
+      "destination": "/api/quick-replies/save",
+      "line": 126
+    },
+    {
+      "source": "/uploadimage",
+      "destination": "/api/images/upload",
+      "line": 127
+    },
+    {
+      "source": "/listimgfiles/:folder",
+      "destination": "/api/images/list/:folder",
+      "line": 128
+    },
+    {
+      "source": "/api/content/import",
+      "destination": "/api/content/importURL",
+      "line": 129
+    },
+    {
+      "source": "/savemovingui",
+      "destination": "/api/moving-ui/save",
+      "line": 130
+    },
+    {
+      "source": "/api/serpapi/search",
+      "destination": "/api/search/serpapi",
+      "line": 131
+    },
+    {
+      "source": "/api/serpapi/visit",
+      "destination": "/api/search/visit",
+      "line": 132
+    },
+    {
+      "source": "/api/serpapi/transcript",
+      "destination": "/api/search/transcript",
+      "line": 133
+    }
+  ],
+  "cases": [
+    {
+      "name": "alias#/createcharacter#GET",
+      "request": {
+        "method": "GET",
+        "path": "/createcharacter",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/create",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/create",
+      "bodySha256": "3125cefdc2188de99881c120880ba73f3844cda2d208a1f58e94c20cb38543e4",
+      "warnings": [
+        "API endpoint /createcharacter is deprecated; use /api/characters/create instead"
+      ]
+    },
+    {
+      "name": "alias#/createcharacter#POST",
+      "request": {
+        "method": "POST",
+        "path": "/createcharacter",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/create",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/create",
+      "bodySha256": "3125cefdc2188de99881c120880ba73f3844cda2d208a1f58e94c20cb38543e4",
+      "warnings": [
+        "API endpoint /createcharacter is deprecated; use /api/characters/create instead"
+      ]
+    },
+    {
+      "name": "alias#/renamecharacter#GET",
+      "request": {
+        "method": "GET",
+        "path": "/renamecharacter",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/rename",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/rename",
+      "bodySha256": "51a9f8403f7864e33f9dcdbd18a2c42678d24ebd182a578f261f610ff938135d",
+      "warnings": [
+        "API endpoint /renamecharacter is deprecated; use /api/characters/rename instead"
+      ]
+    },
+    {
+      "name": "alias#/renamecharacter#POST",
+      "request": {
+        "method": "POST",
+        "path": "/renamecharacter",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/rename",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/rename",
+      "bodySha256": "51a9f8403f7864e33f9dcdbd18a2c42678d24ebd182a578f261f610ff938135d",
+      "warnings": [
+        "API endpoint /renamecharacter is deprecated; use /api/characters/rename instead"
+      ]
+    },
+    {
+      "name": "alias#/editcharacter#GET",
+      "request": {
+        "method": "GET",
+        "path": "/editcharacter",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "55",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/edit",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/edit",
+      "bodySha256": "0ea6178d0c0357b2d9bcb5c1bc7eb73368143ee706c5cfc90793b2808c18cac2",
+      "warnings": [
+        "API endpoint /editcharacter is deprecated; use /api/characters/edit instead"
+      ]
+    },
+    {
+      "name": "alias#/editcharacter#POST",
+      "request": {
+        "method": "POST",
+        "path": "/editcharacter",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "55",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/edit",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/edit",
+      "bodySha256": "0ea6178d0c0357b2d9bcb5c1bc7eb73368143ee706c5cfc90793b2808c18cac2",
+      "warnings": [
+        "API endpoint /editcharacter is deprecated; use /api/characters/edit instead"
+      ]
+    },
+    {
+      "name": "alias#/editcharacterattribute#GET",
+      "request": {
+        "method": "GET",
+        "path": "/editcharacterattribute",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "65",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/edit-attribute",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/edit-attribute",
+      "bodySha256": "9a03430d254723264ce9964e33d1ecfc55c07240e309ebaadd527b9de2397a90",
+      "warnings": [
+        "API endpoint /editcharacterattribute is deprecated; use /api/characters/edit-attribute instead"
+      ]
+    },
+    {
+      "name": "alias#/editcharacterattribute#POST",
+      "request": {
+        "method": "POST",
+        "path": "/editcharacterattribute",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "65",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/edit-attribute",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/edit-attribute",
+      "bodySha256": "9a03430d254723264ce9964e33d1ecfc55c07240e309ebaadd527b9de2397a90",
+      "warnings": [
+        "API endpoint /editcharacterattribute is deprecated; use /api/characters/edit-attribute instead"
+      ]
+    },
+    {
+      "name": "alias#/v2/editcharacterattribute#GET",
+      "request": {
+        "method": "GET",
+        "path": "/v2/editcharacterattribute",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "67",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/merge-attributes",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/merge-attributes",
+      "bodySha256": "85d882da2c1508c6d9b1a551e74973b0fbb19e0d1bd910942c987622a844a913",
+      "warnings": [
+        "API endpoint /v2/editcharacterattribute is deprecated; use /api/characters/merge-attributes instead"
+      ]
+    },
+    {
+      "name": "alias#/v2/editcharacterattribute#POST",
+      "request": {
+        "method": "POST",
+        "path": "/v2/editcharacterattribute",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "67",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/merge-attributes",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/merge-attributes",
+      "bodySha256": "85d882da2c1508c6d9b1a551e74973b0fbb19e0d1bd910942c987622a844a913",
+      "warnings": [
+        "API endpoint /v2/editcharacterattribute is deprecated; use /api/characters/merge-attributes instead"
+      ]
+    },
+    {
+      "name": "alias#/deletecharacter#GET",
+      "request": {
+        "method": "GET",
+        "path": "/deletecharacter",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/delete",
+      "bodySha256": "b47669768a203d31e6491e01ec0ef16fa7b2e3d42c75d5caa5003226003c02ed",
+      "warnings": [
+        "API endpoint /deletecharacter is deprecated; use /api/characters/delete instead"
+      ]
+    },
+    {
+      "name": "alias#/deletecharacter#POST",
+      "request": {
+        "method": "POST",
+        "path": "/deletecharacter",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/delete",
+      "bodySha256": "b47669768a203d31e6491e01ec0ef16fa7b2e3d42c75d5caa5003226003c02ed",
+      "warnings": [
+        "API endpoint /deletecharacter is deprecated; use /api/characters/delete instead"
+      ]
+    },
+    {
+      "name": "alias#/getcharacters#GET",
+      "request": {
+        "method": "GET",
+        "path": "/getcharacters",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/all",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/all",
+      "bodySha256": "ee428778ff89fb8f6eb772677807717480111d23c8b69717b08ce7231f51e32d",
+      "warnings": [
+        "API endpoint /getcharacters is deprecated; use /api/characters/all instead"
+      ]
+    },
+    {
+      "name": "alias#/getcharacters#POST",
+      "request": {
+        "method": "POST",
+        "path": "/getcharacters",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/all",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/all",
+      "bodySha256": "ee428778ff89fb8f6eb772677807717480111d23c8b69717b08ce7231f51e32d",
+      "warnings": [
+        "API endpoint /getcharacters is deprecated; use /api/characters/all instead"
+      ]
+    },
+    {
+      "name": "alias#/getonecharacter#GET",
+      "request": {
+        "method": "GET",
+        "path": "/getonecharacter",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/get",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/get",
+      "bodySha256": "98f77b8d3a0c8268255f8b732cc118d0cf13158a2fb5536cf17626c54acd1ff0",
+      "warnings": [
+        "API endpoint /getonecharacter is deprecated; use /api/characters/get instead"
+      ]
+    },
+    {
+      "name": "alias#/getonecharacter#POST",
+      "request": {
+        "method": "POST",
+        "path": "/getonecharacter",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/get",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/get",
+      "bodySha256": "98f77b8d3a0c8268255f8b732cc118d0cf13158a2fb5536cf17626c54acd1ff0",
+      "warnings": [
+        "API endpoint /getonecharacter is deprecated; use /api/characters/get instead"
+      ]
+    },
+    {
+      "name": "alias#/getallchatsofcharacter#GET",
+      "request": {
+        "method": "GET",
+        "path": "/getallchatsofcharacter",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "56",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/chats",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/chats",
+      "bodySha256": "2f40771cb37efda15ea54f14d34123f58f629625920fb10fa8752faf701fb8b3",
+      "warnings": [
+        "API endpoint /getallchatsofcharacter is deprecated; use /api/characters/chats instead"
+      ]
+    },
+    {
+      "name": "alias#/getallchatsofcharacter#POST",
+      "request": {
+        "method": "POST",
+        "path": "/getallchatsofcharacter",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "56",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/chats",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/chats",
+      "bodySha256": "2f40771cb37efda15ea54f14d34123f58f629625920fb10fa8752faf701fb8b3",
+      "warnings": [
+        "API endpoint /getallchatsofcharacter is deprecated; use /api/characters/chats instead"
+      ]
+    },
+    {
+      "name": "alias#/importcharacter#GET",
+      "request": {
+        "method": "GET",
+        "path": "/importcharacter",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/import",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/import",
+      "bodySha256": "6d110dca76604be1a470b850572a96fe0f3042c49e302b5e12070bdf5a8059c9",
+      "warnings": [
+        "API endpoint /importcharacter is deprecated; use /api/characters/import instead"
+      ]
+    },
+    {
+      "name": "alias#/importcharacter#POST",
+      "request": {
+        "method": "POST",
+        "path": "/importcharacter",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/import",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/import",
+      "bodySha256": "6d110dca76604be1a470b850572a96fe0f3042c49e302b5e12070bdf5a8059c9",
+      "warnings": [
+        "API endpoint /importcharacter is deprecated; use /api/characters/import instead"
+      ]
+    },
+    {
+      "name": "alias#/dupecharacter#GET",
+      "request": {
+        "method": "GET",
+        "path": "/dupecharacter",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "60",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/duplicate",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/duplicate",
+      "bodySha256": "401d809f0c6f0038ada5a7e37ac7ea494b925b78485f740c88f94e8bce2bbceb",
+      "warnings": [
+        "API endpoint /dupecharacter is deprecated; use /api/characters/duplicate instead"
+      ]
+    },
+    {
+      "name": "alias#/dupecharacter#POST",
+      "request": {
+        "method": "POST",
+        "path": "/dupecharacter",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "60",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/duplicate",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/duplicate",
+      "bodySha256": "401d809f0c6f0038ada5a7e37ac7ea494b925b78485f740c88f94e8bce2bbceb",
+      "warnings": [
+        "API endpoint /dupecharacter is deprecated; use /api/characters/duplicate instead"
+      ]
+    },
+    {
+      "name": "alias#/exportcharacter#GET",
+      "request": {
+        "method": "GET",
+        "path": "/exportcharacter",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/export",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/export",
+      "bodySha256": "006ac22c702f89d237d0e85e8aeec65db536876abd0c0261dab3b10c5127e417",
+      "warnings": [
+        "API endpoint /exportcharacter is deprecated; use /api/characters/export instead"
+      ]
+    },
+    {
+      "name": "alias#/exportcharacter#POST",
+      "request": {
+        "method": "POST",
+        "path": "/exportcharacter",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/export",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/export",
+      "bodySha256": "006ac22c702f89d237d0e85e8aeec65db536876abd0c0261dab3b10c5127e417",
+      "warnings": [
+        "API endpoint /exportcharacter is deprecated; use /api/characters/export instead"
+      ]
+    },
+    {
+      "name": "alias#/savechat#GET",
+      "request": {
+        "method": "GET",
+        "path": "/savechat",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "50",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/save",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/save",
+      "bodySha256": "2fd7572dce10c3525fcc8585f50a84ae0b439c8bdf6a5621d18dd22271912bf8",
+      "warnings": [
+        "API endpoint /savechat is deprecated; use /api/chats/save instead"
+      ]
+    },
+    {
+      "name": "alias#/savechat#POST",
+      "request": {
+        "method": "POST",
+        "path": "/savechat",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "50",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/save",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/save",
+      "bodySha256": "2fd7572dce10c3525fcc8585f50a84ae0b439c8bdf6a5621d18dd22271912bf8",
+      "warnings": [
+        "API endpoint /savechat is deprecated; use /api/chats/save instead"
+      ]
+    },
+    {
+      "name": "alias#/getchat#GET",
+      "request": {
+        "method": "GET",
+        "path": "/getchat",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "49",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/get",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/get",
+      "bodySha256": "48690b3afb0971cb443db16c14a4a31627bde458b4659d0c7a543ae66b7b4f91",
+      "warnings": [
+        "API endpoint /getchat is deprecated; use /api/chats/get instead"
+      ]
+    },
+    {
+      "name": "alias#/getchat#POST",
+      "request": {
+        "method": "POST",
+        "path": "/getchat",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "49",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/get",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/get",
+      "bodySha256": "48690b3afb0971cb443db16c14a4a31627bde458b4659d0c7a543ae66b7b4f91",
+      "warnings": [
+        "API endpoint /getchat is deprecated; use /api/chats/get instead"
+      ]
+    },
+    {
+      "name": "alias#/renamechat#GET",
+      "request": {
+        "method": "GET",
+        "path": "/renamechat",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "52",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/rename",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/rename",
+      "bodySha256": "3528eb44f7cdf801ec83e9538057410c213192429e43ac24d762deb7534abfe4",
+      "warnings": [
+        "API endpoint /renamechat is deprecated; use /api/chats/rename instead"
+      ]
+    },
+    {
+      "name": "alias#/renamechat#POST",
+      "request": {
+        "method": "POST",
+        "path": "/renamechat",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "52",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/rename",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/rename",
+      "bodySha256": "3528eb44f7cdf801ec83e9538057410c213192429e43ac24d762deb7534abfe4",
+      "warnings": [
+        "API endpoint /renamechat is deprecated; use /api/chats/rename instead"
+      ]
+    },
+    {
+      "name": "alias#/delchat#GET",
+      "request": {
+        "method": "GET",
+        "path": "/delchat",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "52",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/delete",
+      "bodySha256": "01770d0d9354033f089d88f2e6e4cc89823fca9c076a1286a635bf48ab55c279",
+      "warnings": [
+        "API endpoint /delchat is deprecated; use /api/chats/delete instead"
+      ]
+    },
+    {
+      "name": "alias#/delchat#POST",
+      "request": {
+        "method": "POST",
+        "path": "/delchat",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "52",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/delete",
+      "bodySha256": "01770d0d9354033f089d88f2e6e4cc89823fca9c076a1286a635bf48ab55c279",
+      "warnings": [
+        "API endpoint /delchat is deprecated; use /api/chats/delete instead"
+      ]
+    },
+    {
+      "name": "alias#/exportchat#GET",
+      "request": {
+        "method": "GET",
+        "path": "/exportchat",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "52",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/export",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/export",
+      "bodySha256": "bbad4876df31a1d76352e56fc6dedc277ef97b5f80dc374194e913560c0356dd",
+      "warnings": [
+        "API endpoint /exportchat is deprecated; use /api/chats/export instead"
+      ]
+    },
+    {
+      "name": "alias#/exportchat#POST",
+      "request": {
+        "method": "POST",
+        "path": "/exportchat",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "52",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/export",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/export",
+      "bodySha256": "bbad4876df31a1d76352e56fc6dedc277ef97b5f80dc374194e913560c0356dd",
+      "warnings": [
+        "API endpoint /exportchat is deprecated; use /api/chats/export instead"
+      ]
+    },
+    {
+      "name": "alias#/importgroupchat#GET",
+      "request": {
+        "method": "GET",
+        "path": "/importgroupchat",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "58",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/group/import",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/group/import",
+      "bodySha256": "97767c9056db0089f810a5f90a874c8376126900ecc43f13dcc1b87ececc0b21",
+      "warnings": [
+        "API endpoint /importgroupchat is deprecated; use /api/chats/group/import instead"
+      ]
+    },
+    {
+      "name": "alias#/importgroupchat#POST",
+      "request": {
+        "method": "POST",
+        "path": "/importgroupchat",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "58",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/group/import",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/group/import",
+      "bodySha256": "97767c9056db0089f810a5f90a874c8376126900ecc43f13dcc1b87ececc0b21",
+      "warnings": [
+        "API endpoint /importgroupchat is deprecated; use /api/chats/group/import instead"
+      ]
+    },
+    {
+      "name": "alias#/importchat#GET",
+      "request": {
+        "method": "GET",
+        "path": "/importchat",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "52",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/import",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/import",
+      "bodySha256": "505e495d05aa1c1d3abd293917735b609da33c7dfad330ae1516ce3f7085c8fd",
+      "warnings": [
+        "API endpoint /importchat is deprecated; use /api/chats/import instead"
+      ]
+    },
+    {
+      "name": "alias#/importchat#POST",
+      "request": {
+        "method": "POST",
+        "path": "/importchat",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "52",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/import",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/import",
+      "bodySha256": "505e495d05aa1c1d3abd293917735b609da33c7dfad330ae1516ce3f7085c8fd",
+      "warnings": [
+        "API endpoint /importchat is deprecated; use /api/chats/import instead"
+      ]
+    },
+    {
+      "name": "alias#/getgroupchat#GET",
+      "request": {
+        "method": "GET",
+        "path": "/getgroupchat",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "55",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/group/get",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/group/get",
+      "bodySha256": "a0b3d60ecc87fb72a9cb267f02cb8b9a2a5ed1da8090059f32e3c2b432517fac",
+      "warnings": [
+        "API endpoint /getgroupchat is deprecated; use /api/chats/group/get instead"
+      ]
+    },
+    {
+      "name": "alias#/getgroupchat#POST",
+      "request": {
+        "method": "POST",
+        "path": "/getgroupchat",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "55",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/group/get",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/group/get",
+      "bodySha256": "a0b3d60ecc87fb72a9cb267f02cb8b9a2a5ed1da8090059f32e3c2b432517fac",
+      "warnings": [
+        "API endpoint /getgroupchat is deprecated; use /api/chats/group/get instead"
+      ]
+    },
+    {
+      "name": "alias#/deletegroupchat#GET",
+      "request": {
+        "method": "GET",
+        "path": "/deletegroupchat",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "58",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/group/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/group/delete",
+      "bodySha256": "3abd21fe87e9b8bd25ab9a27a51e4c4f6842b58f106cdcd88927437bdf68fca2",
+      "warnings": [
+        "API endpoint /deletegroupchat is deprecated; use /api/chats/group/delete instead"
+      ]
+    },
+    {
+      "name": "alias#/deletegroupchat#POST",
+      "request": {
+        "method": "POST",
+        "path": "/deletegroupchat",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "58",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/group/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/group/delete",
+      "bodySha256": "3abd21fe87e9b8bd25ab9a27a51e4c4f6842b58f106cdcd88927437bdf68fca2",
+      "warnings": [
+        "API endpoint /deletegroupchat is deprecated; use /api/chats/group/delete instead"
+      ]
+    },
+    {
+      "name": "alias#/savegroupchat#GET",
+      "request": {
+        "method": "GET",
+        "path": "/savegroupchat",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "56",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/group/save",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/group/save",
+      "bodySha256": "86379b6c85e92eec43a3a8d26a0e6a6cf5c0182f195ca01ac3b1390420f65ce2",
+      "warnings": [
+        "API endpoint /savegroupchat is deprecated; use /api/chats/group/save instead"
+      ]
+    },
+    {
+      "name": "alias#/savegroupchat#POST",
+      "request": {
+        "method": "POST",
+        "path": "/savegroupchat",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "56",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/chats/group/save",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/chats/group/save",
+      "bodySha256": "86379b6c85e92eec43a3a8d26a0e6a6cf5c0182f195ca01ac3b1390420f65ce2",
+      "warnings": [
+        "API endpoint /savegroupchat is deprecated; use /api/chats/group/save instead"
+      ]
+    },
+    {
+      "name": "alias#/getgroups#GET",
+      "request": {
+        "method": "GET",
+        "path": "/getgroups",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "50",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/groups/all",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/groups/all",
+      "bodySha256": "7b50c3ba6802d4f77c867ca4b00636cf53bb689d4021df1217f4eb36a9cef150",
+      "warnings": [
+        "API endpoint /getgroups is deprecated; use /api/groups/all instead"
+      ]
+    },
+    {
+      "name": "alias#/getgroups#POST",
+      "request": {
+        "method": "POST",
+        "path": "/getgroups",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "50",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/groups/all",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/groups/all",
+      "bodySha256": "7b50c3ba6802d4f77c867ca4b00636cf53bb689d4021df1217f4eb36a9cef150",
+      "warnings": [
+        "API endpoint /getgroups is deprecated; use /api/groups/all instead"
+      ]
+    },
+    {
+      "name": "alias#/creategroup#GET",
+      "request": {
+        "method": "GET",
+        "path": "/creategroup",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "53",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/groups/create",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/groups/create",
+      "bodySha256": "6e28a380ab682c2b47de44565a682b51d61ffbfe25adeca49e95a9372fa9ca01",
+      "warnings": [
+        "API endpoint /creategroup is deprecated; use /api/groups/create instead"
+      ]
+    },
+    {
+      "name": "alias#/creategroup#POST",
+      "request": {
+        "method": "POST",
+        "path": "/creategroup",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "53",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/groups/create",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/groups/create",
+      "bodySha256": "6e28a380ab682c2b47de44565a682b51d61ffbfe25adeca49e95a9372fa9ca01",
+      "warnings": [
+        "API endpoint /creategroup is deprecated; use /api/groups/create instead"
+      ]
+    },
+    {
+      "name": "alias#/editgroup#GET",
+      "request": {
+        "method": "GET",
+        "path": "/editgroup",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "51",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/groups/edit",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/groups/edit",
+      "bodySha256": "210b2b114b1ad62e96d0a4c9e11d22b8936531ae9ce15bfeae137873950bfad1",
+      "warnings": [
+        "API endpoint /editgroup is deprecated; use /api/groups/edit instead"
+      ]
+    },
+    {
+      "name": "alias#/editgroup#POST",
+      "request": {
+        "method": "POST",
+        "path": "/editgroup",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "51",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/groups/edit",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/groups/edit",
+      "bodySha256": "210b2b114b1ad62e96d0a4c9e11d22b8936531ae9ce15bfeae137873950bfad1",
+      "warnings": [
+        "API endpoint /editgroup is deprecated; use /api/groups/edit instead"
+      ]
+    },
+    {
+      "name": "alias#/deletegroup#GET",
+      "request": {
+        "method": "GET",
+        "path": "/deletegroup",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "53",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/groups/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/groups/delete",
+      "bodySha256": "4bd794bfc93f524873a0e63dbe6e53ab7f6616b469025d55647bcd9729e1e81c",
+      "warnings": [
+        "API endpoint /deletegroup is deprecated; use /api/groups/delete instead"
+      ]
+    },
+    {
+      "name": "alias#/deletegroup#POST",
+      "request": {
+        "method": "POST",
+        "path": "/deletegroup",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "53",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/groups/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/groups/delete",
+      "bodySha256": "4bd794bfc93f524873a0e63dbe6e53ab7f6616b469025d55647bcd9729e1e81c",
+      "warnings": [
+        "API endpoint /deletegroup is deprecated; use /api/groups/delete instead"
+      ]
+    },
+    {
+      "name": "alias#/getworldinfo#GET",
+      "request": {
+        "method": "GET",
+        "path": "/getworldinfo",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "53",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/worldinfo/get",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/worldinfo/get",
+      "bodySha256": "fbc08063a891fec345e12d5121fe6fbb15e6238d1c4a089fcf5283052da68211",
+      "warnings": [
+        "API endpoint /getworldinfo is deprecated; use /api/worldinfo/get instead"
+      ]
+    },
+    {
+      "name": "alias#/getworldinfo#POST",
+      "request": {
+        "method": "POST",
+        "path": "/getworldinfo",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "53",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/worldinfo/get",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/worldinfo/get",
+      "bodySha256": "fbc08063a891fec345e12d5121fe6fbb15e6238d1c4a089fcf5283052da68211",
+      "warnings": [
+        "API endpoint /getworldinfo is deprecated; use /api/worldinfo/get instead"
+      ]
+    },
+    {
+      "name": "alias#/deleteworldinfo#GET",
+      "request": {
+        "method": "GET",
+        "path": "/deleteworldinfo",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "56",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/worldinfo/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/worldinfo/delete",
+      "bodySha256": "deadfee18a51aee08af6272358470edba5df3a6d3acc19c3589fd2a3fa41807c",
+      "warnings": [
+        "API endpoint /deleteworldinfo is deprecated; use /api/worldinfo/delete instead"
+      ]
+    },
+    {
+      "name": "alias#/deleteworldinfo#POST",
+      "request": {
+        "method": "POST",
+        "path": "/deleteworldinfo",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "56",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/worldinfo/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/worldinfo/delete",
+      "bodySha256": "deadfee18a51aee08af6272358470edba5df3a6d3acc19c3589fd2a3fa41807c",
+      "warnings": [
+        "API endpoint /deleteworldinfo is deprecated; use /api/worldinfo/delete instead"
+      ]
+    },
+    {
+      "name": "alias#/importworldinfo#GET",
+      "request": {
+        "method": "GET",
+        "path": "/importworldinfo",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "56",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/worldinfo/import",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/worldinfo/import",
+      "bodySha256": "0812365fa6a1002481f2274db20c1902f79a2ded7da32ecebcd32e13aeefa8fa",
+      "warnings": [
+        "API endpoint /importworldinfo is deprecated; use /api/worldinfo/import instead"
+      ]
+    },
+    {
+      "name": "alias#/importworldinfo#POST",
+      "request": {
+        "method": "POST",
+        "path": "/importworldinfo",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "56",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/worldinfo/import",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/worldinfo/import",
+      "bodySha256": "0812365fa6a1002481f2274db20c1902f79a2ded7da32ecebcd32e13aeefa8fa",
+      "warnings": [
+        "API endpoint /importworldinfo is deprecated; use /api/worldinfo/import instead"
+      ]
+    },
+    {
+      "name": "alias#/editworldinfo#GET",
+      "request": {
+        "method": "GET",
+        "path": "/editworldinfo",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/worldinfo/edit",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/worldinfo/edit",
+      "bodySha256": "a741735d259da6c864e48a8ae9298b3df5ec045e8320928bc53f1122110e55f7",
+      "warnings": [
+        "API endpoint /editworldinfo is deprecated; use /api/worldinfo/edit instead"
+      ]
+    },
+    {
+      "name": "alias#/editworldinfo#POST",
+      "request": {
+        "method": "POST",
+        "path": "/editworldinfo",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/worldinfo/edit",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/worldinfo/edit",
+      "bodySha256": "a741735d259da6c864e48a8ae9298b3df5ec045e8320928bc53f1122110e55f7",
+      "warnings": [
+        "API endpoint /editworldinfo is deprecated; use /api/worldinfo/edit instead"
+      ]
+    },
+    {
+      "name": "alias#/getstats#GET",
+      "request": {
+        "method": "GET",
+        "path": "/getstats",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "49",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/stats/get",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/stats/get",
+      "bodySha256": "08fb7598ca3e2625444fc1cb6f1e94ef4c2130e2faa8852378a02aca07de0b97",
+      "warnings": [
+        "API endpoint /getstats is deprecated; use /api/stats/get instead"
+      ]
+    },
+    {
+      "name": "alias#/getstats#POST",
+      "request": {
+        "method": "POST",
+        "path": "/getstats",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "49",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/stats/get",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/stats/get",
+      "bodySha256": "08fb7598ca3e2625444fc1cb6f1e94ef4c2130e2faa8852378a02aca07de0b97",
+      "warnings": [
+        "API endpoint /getstats is deprecated; use /api/stats/get instead"
+      ]
+    },
+    {
+      "name": "alias#/recreatestats#GET",
+      "request": {
+        "method": "GET",
+        "path": "/recreatestats",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/stats/recreate",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/stats/recreate",
+      "bodySha256": "330dcac7a33b4c2c9a454b2dacd9ef6cffe3e8f4e54923a37ea8d3ba4e8d51c0",
+      "warnings": [
+        "API endpoint /recreatestats is deprecated; use /api/stats/recreate instead"
+      ]
+    },
+    {
+      "name": "alias#/recreatestats#POST",
+      "request": {
+        "method": "POST",
+        "path": "/recreatestats",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/stats/recreate",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/stats/recreate",
+      "bodySha256": "330dcac7a33b4c2c9a454b2dacd9ef6cffe3e8f4e54923a37ea8d3ba4e8d51c0",
+      "warnings": [
+        "API endpoint /recreatestats is deprecated; use /api/stats/recreate instead"
+      ]
+    },
+    {
+      "name": "alias#/updatestats#GET",
+      "request": {
+        "method": "GET",
+        "path": "/updatestats",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "52",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/stats/update",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/stats/update",
+      "bodySha256": "273c371774f98eb032863115883941fb80dc593f68033aa6110ff43b17ed81ab",
+      "warnings": [
+        "API endpoint /updatestats is deprecated; use /api/stats/update instead"
+      ]
+    },
+    {
+      "name": "alias#/updatestats#POST",
+      "request": {
+        "method": "POST",
+        "path": "/updatestats",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "52",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/stats/update",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/stats/update",
+      "bodySha256": "273c371774f98eb032863115883941fb80dc593f68033aa6110ff43b17ed81ab",
+      "warnings": [
+        "API endpoint /updatestats is deprecated; use /api/stats/update instead"
+      ]
+    },
+    {
+      "name": "alias#/getbackgrounds#GET",
+      "request": {
+        "method": "GET",
+        "path": "/getbackgrounds",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "55",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/backgrounds/all",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/backgrounds/all",
+      "bodySha256": "fac6f33f011d3a94958deda0add4d3cea1991979f21e593abb2d4a086aa2db79",
+      "warnings": [
+        "API endpoint /getbackgrounds is deprecated; use /api/backgrounds/all instead"
+      ]
+    },
+    {
+      "name": "alias#/getbackgrounds#POST",
+      "request": {
+        "method": "POST",
+        "path": "/getbackgrounds",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "55",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/backgrounds/all",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/backgrounds/all",
+      "bodySha256": "fac6f33f011d3a94958deda0add4d3cea1991979f21e593abb2d4a086aa2db79",
+      "warnings": [
+        "API endpoint /getbackgrounds is deprecated; use /api/backgrounds/all instead"
+      ]
+    },
+    {
+      "name": "alias#/delbackground#GET",
+      "request": {
+        "method": "GET",
+        "path": "/delbackground",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "58",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/backgrounds/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/backgrounds/delete",
+      "bodySha256": "cf008f4945a540ecc7010ee7b4c793ede25dcaa0b80545686d56bd9d4db42ca9",
+      "warnings": [
+        "API endpoint /delbackground is deprecated; use /api/backgrounds/delete instead"
+      ]
+    },
+    {
+      "name": "alias#/delbackground#POST",
+      "request": {
+        "method": "POST",
+        "path": "/delbackground",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "58",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/backgrounds/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/backgrounds/delete",
+      "bodySha256": "cf008f4945a540ecc7010ee7b4c793ede25dcaa0b80545686d56bd9d4db42ca9",
+      "warnings": [
+        "API endpoint /delbackground is deprecated; use /api/backgrounds/delete instead"
+      ]
+    },
+    {
+      "name": "alias#/renamebackground#GET",
+      "request": {
+        "method": "GET",
+        "path": "/renamebackground",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "58",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/backgrounds/rename",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/backgrounds/rename",
+      "bodySha256": "873cd99a71551397d591bcfdb9d87fbbc4554000aeafb1d67f9fe2bc7cc60b76",
+      "warnings": [
+        "API endpoint /renamebackground is deprecated; use /api/backgrounds/rename instead"
+      ]
+    },
+    {
+      "name": "alias#/renamebackground#POST",
+      "request": {
+        "method": "POST",
+        "path": "/renamebackground",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "58",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/backgrounds/rename",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/backgrounds/rename",
+      "bodySha256": "873cd99a71551397d591bcfdb9d87fbbc4554000aeafb1d67f9fe2bc7cc60b76",
+      "warnings": [
+        "API endpoint /renamebackground is deprecated; use /api/backgrounds/rename instead"
+      ]
+    },
+    {
+      "name": "alias#/downloadbackground#GET",
+      "request": {
+        "method": "GET",
+        "path": "/downloadbackground",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "58",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/backgrounds/upload",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/backgrounds/upload",
+      "bodySha256": "6ae259303111ce295ac9fc5ffcc42f62d507422e55ae3569336843907fff8dec",
+      "warnings": [
+        "API endpoint /downloadbackground is deprecated; use /api/backgrounds/upload instead"
+      ]
+    },
+    {
+      "name": "alias#/downloadbackground#POST",
+      "request": {
+        "method": "POST",
+        "path": "/downloadbackground",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "58",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/backgrounds/upload",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/backgrounds/upload",
+      "bodySha256": "6ae259303111ce295ac9fc5ffcc42f62d507422e55ae3569336843907fff8dec",
+      "warnings": [
+        "API endpoint /downloadbackground is deprecated; use /api/backgrounds/upload instead"
+      ]
+    },
+    {
+      "name": "alias#/savetheme#GET",
+      "request": {
+        "method": "GET",
+        "path": "/savetheme",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "51",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/themes/save",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/themes/save",
+      "bodySha256": "075101ec3b565b7cc94704df31ae68cd5322545dae135ddd990e121276492d18",
+      "warnings": [
+        "API endpoint /savetheme is deprecated; use /api/themes/save instead"
+      ]
+    },
+    {
+      "name": "alias#/savetheme#POST",
+      "request": {
+        "method": "POST",
+        "path": "/savetheme",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "51",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/themes/save",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/themes/save",
+      "bodySha256": "075101ec3b565b7cc94704df31ae68cd5322545dae135ddd990e121276492d18",
+      "warnings": [
+        "API endpoint /savetheme is deprecated; use /api/themes/save instead"
+      ]
+    },
+    {
+      "name": "alias#/getuseravatars#GET",
+      "request": {
+        "method": "GET",
+        "path": "/getuseravatars",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "51",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/avatars/get",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/avatars/get",
+      "bodySha256": "6ea33032a8bc7a1ead78124afd7f7c6b4992c03fbcc6d935094865e7de47d342",
+      "warnings": [
+        "API endpoint /getuseravatars is deprecated; use /api/avatars/get instead"
+      ]
+    },
+    {
+      "name": "alias#/getuseravatars#POST",
+      "request": {
+        "method": "POST",
+        "path": "/getuseravatars",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "51",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/avatars/get",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/avatars/get",
+      "bodySha256": "6ea33032a8bc7a1ead78124afd7f7c6b4992c03fbcc6d935094865e7de47d342",
+      "warnings": [
+        "API endpoint /getuseravatars is deprecated; use /api/avatars/get instead"
+      ]
+    },
+    {
+      "name": "alias#/deleteuseravatar#GET",
+      "request": {
+        "method": "GET",
+        "path": "/deleteuseravatar",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/avatars/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/avatars/delete",
+      "bodySha256": "3489140ecc23b7589fee93fdc87d3a5583e445406e9aeea453aec1429c2e2ba1",
+      "warnings": [
+        "API endpoint /deleteuseravatar is deprecated; use /api/avatars/delete instead"
+      ]
+    },
+    {
+      "name": "alias#/deleteuseravatar#POST",
+      "request": {
+        "method": "POST",
+        "path": "/deleteuseravatar",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/avatars/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/avatars/delete",
+      "bodySha256": "3489140ecc23b7589fee93fdc87d3a5583e445406e9aeea453aec1429c2e2ba1",
+      "warnings": [
+        "API endpoint /deleteuseravatar is deprecated; use /api/avatars/delete instead"
+      ]
+    },
+    {
+      "name": "alias#/uploaduseravatar#GET",
+      "request": {
+        "method": "GET",
+        "path": "/uploaduseravatar",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/avatars/upload",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/avatars/upload",
+      "bodySha256": "22b7d7c339aa685689d8c3036381b9072c5e14c5c7574feafd192cf8648e0928",
+      "warnings": [
+        "API endpoint /uploaduseravatar is deprecated; use /api/avatars/upload instead"
+      ]
+    },
+    {
+      "name": "alias#/uploaduseravatar#POST",
+      "request": {
+        "method": "POST",
+        "path": "/uploaduseravatar",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/avatars/upload",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/avatars/upload",
+      "bodySha256": "22b7d7c339aa685689d8c3036381b9072c5e14c5c7574feafd192cf8648e0928",
+      "warnings": [
+        "API endpoint /uploaduseravatar is deprecated; use /api/avatars/upload instead"
+      ]
+    },
+    {
+      "name": "alias#/deletequickreply#GET",
+      "request": {
+        "method": "GET",
+        "path": "/deletequickreply",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "60",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/quick-replies/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/quick-replies/delete",
+      "bodySha256": "b42ada1f887c9f84c72dfe1e2c0f7d2643ed63f767f7dd0cdf376b1d154079ff",
+      "warnings": [
+        "API endpoint /deletequickreply is deprecated; use /api/quick-replies/delete instead"
+      ]
+    },
+    {
+      "name": "alias#/deletequickreply#POST",
+      "request": {
+        "method": "POST",
+        "path": "/deletequickreply",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "60",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/quick-replies/delete",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/quick-replies/delete",
+      "bodySha256": "b42ada1f887c9f84c72dfe1e2c0f7d2643ed63f767f7dd0cdf376b1d154079ff",
+      "warnings": [
+        "API endpoint /deletequickreply is deprecated; use /api/quick-replies/delete instead"
+      ]
+    },
+    {
+      "name": "alias#/savequickreply#GET",
+      "request": {
+        "method": "GET",
+        "path": "/savequickreply",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "58",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/quick-replies/save",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/quick-replies/save",
+      "bodySha256": "8058e60d0b9546fb47bed1c7bd72fdec552d9743312544262e5ab6a60708f2ae",
+      "warnings": [
+        "API endpoint /savequickreply is deprecated; use /api/quick-replies/save instead"
+      ]
+    },
+    {
+      "name": "alias#/savequickreply#POST",
+      "request": {
+        "method": "POST",
+        "path": "/savequickreply",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "58",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/quick-replies/save",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/quick-replies/save",
+      "bodySha256": "8058e60d0b9546fb47bed1c7bd72fdec552d9743312544262e5ab6a60708f2ae",
+      "warnings": [
+        "API endpoint /savequickreply is deprecated; use /api/quick-replies/save instead"
+      ]
+    },
+    {
+      "name": "alias#/uploadimage#GET",
+      "request": {
+        "method": "GET",
+        "path": "/uploadimage",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "53",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/images/upload",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/images/upload",
+      "bodySha256": "eae3b1875356d1bd8fa5fcd5618f265d170ef31eb22cdb40e45df84d94fa16a6",
+      "warnings": [
+        "API endpoint /uploadimage is deprecated; use /api/images/upload instead"
+      ]
+    },
+    {
+      "name": "alias#/uploadimage#POST",
+      "request": {
+        "method": "POST",
+        "path": "/uploadimage",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "53",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/images/upload",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/images/upload",
+      "bodySha256": "eae3b1875356d1bd8fa5fcd5618f265d170ef31eb22cdb40e45df84d94fa16a6",
+      "warnings": [
+        "API endpoint /uploadimage is deprecated; use /api/images/upload instead"
+      ]
+    },
+    {
+      "name": "alias#/listimgfiles/:folder#GET",
+      "request": {
+        "method": "GET",
+        "path": "/listimgfiles/alpha",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "59",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/images/list/:folder",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/images/list/:folder",
+      "bodySha256": "8b35b5adfb512ef0b98b68cb5607405738e3262db1485617ad35f7dd2ec5455b",
+      "warnings": [
+        "API endpoint /listimgfiles/:folder is deprecated; use /api/images/list/:folder instead"
+      ]
+    },
+    {
+      "name": "alias#/listimgfiles/:folder#POST",
+      "request": {
+        "method": "POST",
+        "path": "/listimgfiles/alpha",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "59",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/images/list/:folder",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/images/list/:folder",
+      "bodySha256": "8b35b5adfb512ef0b98b68cb5607405738e3262db1485617ad35f7dd2ec5455b",
+      "warnings": [
+        "API endpoint /listimgfiles/:folder is deprecated; use /api/images/list/:folder instead"
+      ]
+    },
+    {
+      "name": "alias#/api/content/import#GET",
+      "request": {
+        "method": "GET",
+        "path": "/api/content/import",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/content/importURL",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/content/importURL",
+      "bodySha256": "53d61c58716d7a471bcecba9cb967c93d843fcb7dccfec9e7456500d5f4ea70e",
+      "warnings": [
+        "API endpoint /api/content/import is deprecated; use /api/content/importURL instead"
+      ]
+    },
+    {
+      "name": "alias#/api/content/import#POST",
+      "request": {
+        "method": "POST",
+        "path": "/api/content/import",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/content/importURL",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/content/importURL",
+      "bodySha256": "53d61c58716d7a471bcecba9cb967c93d843fcb7dccfec9e7456500d5f4ea70e",
+      "warnings": [
+        "API endpoint /api/content/import is deprecated; use /api/content/importURL instead"
+      ]
+    },
+    {
+      "name": "alias#/savemovingui#GET",
+      "request": {
+        "method": "GET",
+        "path": "/savemovingui",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/moving-ui/save",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/moving-ui/save",
+      "bodySha256": "9a1cec4a6ac73e6d868ee0b028cc0371240ef959bae65a706358bed2e9a84788",
+      "warnings": [
+        "API endpoint /savemovingui is deprecated; use /api/moving-ui/save instead"
+      ]
+    },
+    {
+      "name": "alias#/savemovingui#POST",
+      "request": {
+        "method": "POST",
+        "path": "/savemovingui",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/moving-ui/save",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/moving-ui/save",
+      "bodySha256": "9a1cec4a6ac73e6d868ee0b028cc0371240ef959bae65a706358bed2e9a84788",
+      "warnings": [
+        "API endpoint /savemovingui is deprecated; use /api/moving-ui/save instead"
+      ]
+    },
+    {
+      "name": "alias#/api/serpapi/search#GET",
+      "request": {
+        "method": "GET",
+        "path": "/api/serpapi/search",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/search/serpapi",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/search/serpapi",
+      "bodySha256": "d755136590e9b9dfb5fe16406fc6df713955c528461f748623f13807d27c9c64",
+      "warnings": [
+        "API endpoint /api/serpapi/search is deprecated; use /api/search/serpapi instead"
+      ]
+    },
+    {
+      "name": "alias#/api/serpapi/search#POST",
+      "request": {
+        "method": "POST",
+        "path": "/api/serpapi/search",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "54",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/search/serpapi",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/search/serpapi",
+      "bodySha256": "d755136590e9b9dfb5fe16406fc6df713955c528461f748623f13807d27c9c64",
+      "warnings": [
+        "API endpoint /api/serpapi/search is deprecated; use /api/search/serpapi instead"
+      ]
+    },
+    {
+      "name": "alias#/api/serpapi/visit#GET",
+      "request": {
+        "method": "GET",
+        "path": "/api/serpapi/visit",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "52",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/search/visit",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/search/visit",
+      "bodySha256": "4a167a41dd6564cd623c1d923f62918ae661031e2649556eb844720b255c8575",
+      "warnings": [
+        "API endpoint /api/serpapi/visit is deprecated; use /api/search/visit instead"
+      ]
+    },
+    {
+      "name": "alias#/api/serpapi/visit#POST",
+      "request": {
+        "method": "POST",
+        "path": "/api/serpapi/visit",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "52",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/search/visit",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/search/visit",
+      "bodySha256": "4a167a41dd6564cd623c1d923f62918ae661031e2649556eb844720b255c8575",
+      "warnings": [
+        "API endpoint /api/serpapi/visit is deprecated; use /api/search/visit instead"
+      ]
+    },
+    {
+      "name": "alias#/api/serpapi/transcript#GET",
+      "request": {
+        "method": "GET",
+        "path": "/api/serpapi/transcript",
+        "query": "probe=1",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/search/transcript",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/search/transcript",
+      "bodySha256": "47a4535d4e78c26a51eb5e7160575c8b86b7667fa2a68b18b7551dbd9840970e",
+      "warnings": [
+        "API endpoint /api/serpapi/transcript is deprecated; use /api/search/transcript instead"
+      ]
+    },
+    {
+      "name": "alias#/api/serpapi/transcript#POST",
+      "request": {
+        "method": "POST",
+        "path": "/api/serpapi/transcript",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/search/transcript",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/search/transcript",
+      "bodySha256": "47a4535d4e78c26a51eb5e7160575c8b86b7667fa2a68b18b7551dbd9840970e",
+      "warnings": [
+        "API endpoint /api/serpapi/transcript is deprecated; use /api/search/transcript instead"
+      ]
+    },
+    {
+      "name": "mount#subpath",
+      "request": {
+        "method": "GET",
+        "path": "/createcharacter/extra",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/create",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/create",
+      "bodySha256": "3125cefdc2188de99881c120880ba73f3844cda2d208a1f58e94c20cb38543e4",
+      "warnings": [
+        "API endpoint /createcharacter is deprecated; use /api/characters/create instead"
+      ]
+    },
+    {
+      "name": "mount#trailing_slash",
+      "request": {
+        "method": "GET",
+        "path": "/createcharacter/",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/create",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/create",
+      "bodySha256": "3125cefdc2188de99881c120880ba73f3844cda2d208a1f58e94c20cb38543e4",
+      "warnings": [
+        "API endpoint /createcharacter is deprecated; use /api/characters/create instead"
+      ]
+    },
+    {
+      "name": "mount#nonmatching_prefix",
+      "request": {
+        "method": "GET",
+        "path": "/createcharacterx",
+        "query": null,
+        "accept": null
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "warnings": []
+    },
+    {
+      "name": "mount#accept_html",
+      "request": {
+        "method": "GET",
+        "path": "/createcharacter",
+        "query": null,
+        "accept": "text/html"
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "64",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/create",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "<p>Permanent Redirect. Redirecting to /api/characters/create</p>",
+      "bodySha256": "0d2047d34767be1d48d0ba152b983945a42a7eff8217b01788cf8e0f5d57a461",
+      "warnings": [
+        "API endpoint /createcharacter is deprecated; use /api/characters/create instead"
+      ]
+    },
+    {
+      "name": "mount#accept_json",
+      "request": {
+        "method": "GET",
+        "path": "/createcharacter",
+        "query": null,
+        "accept": "application/json"
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "0",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/create",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "warnings": [
+        "API endpoint /createcharacter is deprecated; use /api/characters/create instead"
+      ]
+    },
+    {
+      "name": "mount#head",
+      "request": {
+        "method": "HEAD",
+        "path": "/createcharacter",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/create",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "warnings": [
+        "API endpoint /createcharacter is deprecated; use /api/characters/create instead"
+      ]
+    },
+    {
+      "name": "mount#query_with_reserved",
+      "request": {
+        "method": "GET",
+        "path": "/createcharacter",
+        "query": "a=1&b=two%20words&c=%2F",
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "57",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/characters/create",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/characters/create",
+      "bodySha256": "3125cefdc2188de99881c120880ba73f3844cda2d208a1f58e94c20cb38543e4",
+      "warnings": [
+        "API endpoint /createcharacter is deprecated; use /api/characters/create instead"
+      ]
+    },
+    {
+      "name": "param#folder",
+      "request": {
+        "method": "GET",
+        "path": "/listimgfiles/alpha",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "59",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/images/list/:folder",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/images/list/:folder",
+      "bodySha256": "8b35b5adfb512ef0b98b68cb5607405738e3262db1485617ad35f7dd2ec5455b",
+      "warnings": [
+        "API endpoint /listimgfiles/:folder is deprecated; use /api/images/list/:folder instead"
+      ]
+    },
+    {
+      "name": "param#folder_nested",
+      "request": {
+        "method": "GET",
+        "path": "/listimgfiles/alpha/beta",
+        "query": null,
+        "accept": null
+      },
+      "status": 308,
+      "headers": {
+        "content-length": "59",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "location": "/api/images/list/:folder",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Permanent Redirect. Redirecting to /api/images/list/:folder",
+      "bodySha256": "8b35b5adfb512ef0b98b68cb5607405738e3262db1485617ad35f7dd2ec5455b",
+      "warnings": [
+        "API endpoint /listimgfiles/:folder is deprecated; use /api/images/list/:folder instead"
+      ]
+    },
+    {
+      "name": "param#missing_folder",
+      "request": {
+        "method": "GET",
+        "path": "/listimgfiles",
+        "query": null,
+        "accept": null
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "warnings": []
+    },
+    {
+      "name": "param#empty_folder",
+      "request": {
+        "method": "GET",
+        "path": "/listimgfiles/",
+        "query": null,
+        "accept": null
+      },
+      "status": 404,
+      "headers": {
+        "content-length": "0",
+        "content-type": "text/html; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": null,
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "warnings": []
+    }
+  ],
+  "bootOutbound": []
+}

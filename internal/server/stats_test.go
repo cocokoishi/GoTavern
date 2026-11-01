@@ -102,6 +102,11 @@ func TestStatsUpdatePersistsWithRefreshedTimestamp(t *testing.T) {
 	}
 }
 
+// TestStatsAliasesRedirectToTheCanonicalRoutes used to assert `302`, which was the Go implementation's
+// `http.Redirect(..., StatusFound)` — NOT the pinned behaviour. src/server-startup.js:80 is
+// `res.redirect(308, destination)` and the pinned capture records 308 with a `Permanent Redirect` body
+// (tests/oracle/sillytavern-1.19.0-redirect-aliases.json, case alias#/getstats#GET); the alias now lives in
+// the shared table, and this test pins the status the pinned server actually sends.
 func TestStatsAliasesRedirectToTheCanonicalRoutes(t *testing.T) {
 	handler := statsRouteHandler(t, "")
 	for source, destination := range map[string]string{
@@ -112,8 +117,8 @@ func TestStatsAliasesRedirectToTheCanonicalRoutes(t *testing.T) {
 		response := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodPost, source, strings.NewReader("{}"))
 		handler.ServeHTTP(response, request)
-		if response.Code != http.StatusFound {
-			t.Fatalf("%s: status = %d, want 302", source, response.Code)
+		if response.Code != http.StatusPermanentRedirect {
+			t.Fatalf("%s: status = %d, want 308", source, response.Code)
 		}
 		if location := response.Header().Get("Location"); location != destination {
 			t.Fatalf("%s: Location = %q, want %q", source, location, destination)
