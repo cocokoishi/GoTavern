@@ -319,8 +319,17 @@ wait_ready() {
         # A boot is ready when the port answers. The stage lines are kept for DIAGNOSIS -- stage_line_count and
         # diagnose_hang read them -- because a boot that never answers is exactly when a reader needs to know how
         # far it got.
-        if curl -fsS -m 2 "$BASE/version" -o "$WORK/version.json" 2>/dev/null; then
-            READY_SIGNAL="/version answered"
+        # READINESS IS "THE PORT ANSWERS", NOT "THE RESPONSE IS 200". A tree with user accounts enabled (the
+        # Node-originated tree the packaged gate now qualifies carries TWO accounts and therefore
+        # enableUserAccounts: true) answers /version with 403 until a login, identically on pinned and GoTavern.
+        # A -f poll therefore called a CORRECTLY BOOTED, PARITY-MATCHING server "not ready" after 30 s (measured:
+        # dropin-qualification run 41331924291, scenario 5/5, stage trace showed startup.ready at 60 ms while the
+        # poll timed out). Any numeric status below 500 means the listener accepted and the HTTP stack answered,
+        # which is what readiness means; the API smoke below logs in when it sees 401/403.
+        code=$(curl -sS -m 2 -o "$WORK/version.json" -w '%{http_code}' "$BASE/version" 2>/dev/null || echo 000)
+        if [ "$code" != "000" ] && [ "$code" -lt 500 ]; then
+            READY_CODE="$code"
+            READY_SIGNAL="/version answered HTTP $code"
             return 0
         fi
         if ! kill -0 "$server_pid" 2>/dev/null; then
@@ -351,7 +360,7 @@ case "$ready_status" in
         fail "the drop-in binary did NOT become ready within ${READINESS_BOUND}s (layout $LAYOUT). Not retried with a longer bound: rule 33."
         ;;
 esac
-cat "$WORK/version.json"
+cat "$WORK/version.json" 2>/dev/null || true
 
 # REPORTED, NOT ASSERTED, and the reason is stated rather than left implicit: the drop-in contract is that a
 # stock tree boots and serves, not that the binary narrates its startup. Printing the count on every run is
@@ -368,10 +377,26 @@ TOKEN=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("tok
 [ -n "$TOKEN" ] || fail "GET /csrf-token returned no token"
 ok "csrf handshake (/csrf-token 200, token ${#TOKEN} chars)"
 
+
 post_json() { # $1 route, $2 body, $3 out file -> prints http status
     curl -sS -c "$COOKIES" -b "$COOKIES" -H "X-CSRF-Token: $TOKEN" -H 'Content-Type: application/json' \
          -d "$2" -o "$3" -w '%{http_code}' "$BASE$1"
 }
+
+# LOG IN WHEN THE TREE HAS ACCOUNTS. A tree whose config.yaml carries enableUserAccounts: true guards the API;
+# the Node-originated tree is exactly that shape (two accounts). The pinned server creates its default account
+# with an empty password (the generator logs in as default-user with ''), so the drop-in smoke logs in through
+# the same /api/users/login route the frontend uses. When the tree has no accounts (the four derived-tree
+# scenarios) /version already answered 200 and this block is skipped.
+if [ "${READY_CODE:-200}" != "200" ]; then
+    login_status=$(post_json /api/users/login '{"handle":"default-user","password":""}' "$WORK/login.json")
+    if [ "$login_status" = "200" ]; then
+        ok "logged in as default-user (tree has user accounts enabled; /version answered ${READY_CODE})"
+    else
+        dump_context
+        fail "the tree requires a login (/version answered ${READY_CODE}) but POST /api/users/login as default-user returned $login_status"
+    fi
+fi
 
 status=$(post_json /api/settings/get '{}' "$WORK/settings.json")
 [ "$status" = "200" ] || { dump_context; fail "POST /api/settings/get = $status"; }
