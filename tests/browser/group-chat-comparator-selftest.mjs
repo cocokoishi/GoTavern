@@ -72,14 +72,15 @@ function writeLegs(name, legs) {
     return { fullPath, restartPath };
 }
 
-function runComparator(name, legs) {
+function runComparator(name, legs, pinnedLegs = null) {
     const paths = writeLegs(name, legs);
+    const pinned = pinnedLegs ? writeLegs(`${name}-pinned`, pinnedLegs) : pinnedPaths;
     const outPath = path.join(scratch, `${name}-verdict.json`);
     const result = spawnSync(process.execPath, [
         comparator,
-        '--pinned-full', pinnedPaths.fullPath,
+        '--pinned-full', pinned.fullPath,
         '--gotavern-full', paths.fullPath,
-        '--pinned-restart', pinnedPaths.restartPath,
+        '--pinned-restart', pinned.restartPath,
         '--gotavern-restart', paths.restartPath,
         '--out', outPath,
     ], { encoding: 'utf8' });
@@ -166,6 +167,36 @@ function record(name, expectedGuard, outcome) {
         record('mutation-3-change-message-role', 'full.case.user-message-list-3.request[0].bodySha256', runComparator('role-change', legs));
         record('mutation-3-change-message-role-attribution', 'discriminating.roles-and-attribution', runComparator('role-change-2', legs));
     }
+}
+
+// --- mutation 5: a knob stops changing the request on BOTH subjects -------------------------
+// This is the AGENTS.md rule 50 case: the equality half still holds (both subjects changed
+// identically), but the scenario no longer distinguishes a disabled member from an enabled one, so
+// the verdict must be HARNESS NON-DISCRIMINATING rather than match.
+{
+    const oracleLegs = { full: clone(fixture.legs.full), restart: clone(fixture.legs.restart) };
+    const goLegs = syntheticLegs();
+    for (const legs of [oracleLegs, goLegs]) {
+        const list = legs.full.cases.find(entry => entry.name === 'user-message-list-3');
+        const disabled = legs.full.cases.find(entry => entry.name === 'disabled-member');
+        if (!list || !disabled) continue;
+        // Keep the case NAME (the universe guard must still pass) but give it the enabled group's
+        // requests and observations, on both sides.
+        disabled.requests = clone(list.requests);
+        disabled.steps = clone(list.steps);
+    }
+    const outcome = runComparator('non-discriminating', goLegs, oracleLegs);
+    const ok = outcome.status !== 0
+        && outcome.verdict?.verdict === 'harness-non-discriminating'
+        && (outcome.verdict.failedGuards ?? []).includes('discriminating.disabled-member-excluded');
+    rows.push({
+        name: 'mutation-5-non-discriminating-verdict',
+        expectedGuard: 'discriminating.disabled-member-excluded',
+        red: ok,
+        failedGuards: outcome.verdict?.failedGuards ?? null,
+        verdict: outcome.verdict?.verdict ?? null,
+    });
+    if (!ok) failures.push(`mutation 5: expected verdict harness-non-discriminating with discriminating.disabled-member-excluded red, got ${outcome.verdict?.verdict} ${JSON.stringify(outcome.verdict?.failedGuards ?? null)}`);
 }
 
 // --- mutation 4: remove a case entirely (the absence class) ---------------------------------
