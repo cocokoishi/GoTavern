@@ -1006,6 +1006,18 @@ for (const { file, definition } of selectedScenarios) {
     });
 }
 
+
+// ONE CANONICAL KEY ORDER FOR BOTH WRITE PATHS: SORTED BY SCENARIO NAME.
+//
+// A full run captures in SCENARIO-FILE order (`readdirSync(...).sort()`), which is not the same order as sorting by
+// scenario name, so writing `captures` directly produced a different byte order from the narrowed merge path, which
+// sorts by name. The first full Linux re-record after a narrowed capture was therefore reported as a fixture change:
+// 256 hunks that were all pure moves -- the scenarios and their captures were byte-identical once compared as sets,
+// and the committed file (written by the narrowed path) was already name-sorted. Zero-diff must mean "the
+// observation did not change", never "the writer used the other order", so BOTH paths emit name-sorted order.
+// Sorting by name is chosen because the scenario name is the stable identity; the file name can be renamed without
+// changing what was captured.
+const orderedScenarioNames = Object.keys(captures).sort();
 const fixture = {
     schemaVersion: 1,
     baseline: { version: PINNED_VERSION, commit: PINNED_COMMIT },
@@ -1019,13 +1031,12 @@ const fixture = {
         .map(({ definition }) => JSON.stringify([definition.goSeam.environmentVariable, definition.goSeam.pinnedLiteral])))]
         .map(entry => JSON.parse(entry))
         .map(([environmentVariable, pinnedLiteral]) => [environmentVariable, { pinnedLiteral }])),
-    scenarios: captures,
+    scenarios: Object.fromEntries(orderedScenarioNames.map(name => [name, captures[name]])),
 };
 const outputFile = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-provider-wire.json');
 mkdirSync(path.dirname(outputFile), { recursive: true });
-// A NARROWED RUN MERGES. A full run replaces the file exactly as before. Merged keys are emitted in the SAME sorted
-// order a full run produces, so the committed bytes a narrowed capture writes are the bytes a full re-record would
-// write for those scenarios -- the zero-diff gate is not given a reshuffled file to explain.
+// A NARROWED RUN MERGES, and both paths must emit the same bytes: the merged keys are re-sorted by name for exactly
+// the reason the full run is, so a narrowed capture followed by a full re-record cannot show a reshuffled file.
 let fixtureToWrite = fixture;
 if (scenarioFilter !== null) {
     const existing = JSON.parse(readFileSync(outputFile, 'utf8'));
