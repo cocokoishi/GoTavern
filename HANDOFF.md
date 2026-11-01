@@ -72,11 +72,13 @@ path, determinism volatile-count masking, provider-wire fixture key-order).
   info x variables x regex x quick replies x streaming x save/reload/swipe/regenerate/continue/restart. The pieces
   are measured individually (domain, provider-wire, group, helper, whole-session) but the composed journey is a
   remaining P1.
-- **Helper-state CI job is RED and is a named residual**: `41293935148` (earlier `41281023252`, `41282119167`,
-  `41283416152`) failed after two portability fixes (pinned checkout inside the workspace, runner pinned to
-  ubuntu-24.04); the remaining failure is the pinned leg's `character-opened` step reporting "no roster card" because
-  the synthetic probe card is not staged in the pinned leg's data root on Linux. The helper capability evidence is
-  Layer A (Windows) only; the workflow is not in the release manifest, and the release claim says so.
+- **Helper-state CI was RED AT THIS RELEASE, and is GREEN after it.** The alpha.11 release correctly claimed
+  Layer A only. Four job defects were found and fixed after the tag: pinned checkout inside the workspace; runner
+  pinned to ubuntu-24.04 for Playwright; one data root (the wrapper and the child resolved different roots, plus
+  absolute child `--data-root`/`--report`); and a reload-time rewire of the ephemeral peer port. Post-release
+  commits `7bf90dd`, `ae11502`, `ca802e8`; the workflow is now GREEN (`41317217569` success, 8 min) and is in
+  `docs/release-manifest.json`, so the next release cannot publish without it. The local pair was re-verified
+  before dispatch: 23/23 + 9/9 on each subject, comparator PASS (30/30 guards), teeth 6/6.
 - Crash-atomicity evidence is Windows CI only (no Linux `-tags gotavern_faults` job); chat backup remains
   unimplemented. The packaged drop-in gate still boots a DERIVED stock tree (the Node-originated tree is proven by
   its own gate but not wired into the packaged/release path). The live canary has no credentialed run. AVIF/APNG

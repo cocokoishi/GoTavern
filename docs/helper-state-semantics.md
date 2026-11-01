@@ -113,7 +113,7 @@ The workflow passes `--nonce ${GITHUB_RUN_ID}`-derived value to BOTH legs: witho
 bodies legitimately differ by the marker text and `nodeEqualsGo` would be red for a harness reason.
 
 
-### The CI job: new, portability-fixed twice, still RED (named residual, 2026-11-01)
+### The CI job: REWRITTEN FOUR TIMES, THEN GREEN (2026-11-01)
 
 The capability evidence above is Layer A (Windows host). The bounded ubuntu workflow
 [`.github/workflows/helper-state.yml`](../.github/workflows/helper-state.yml) exists to make it a Linux gate, and its
@@ -128,5 +128,21 @@ first runs failed for reasons that were all job portability, not the differentia
   but is not visible in the pinned leg's data root on Linux. That is the remaining defect in the JOB (the local
   two-subject run and the comparator pass), not evidence of a product difference.
 
-Until that is fixed the helper row stays PARTIAL and the release notes/HANDOFF say the helper evidence is Layer A
-only. The workflow is NOT part of `docs/release-manifest.json`.
+All four failures were job defects, and all four are fixed:
+
+1. pinned checkout path (`../SillyTavern` is outside the workspace): check out to `.reference/SillyTavern`;
+2. the runner image moved to ubuntu-26.04, where Playwright cannot install chromium: pin the Playwright workflows to
+   `ubuntu-24.04` (a warm browser cache was hiding the problem for some jobs);
+3. the pinned server and the probe resolved DIFFERENT data roots (the wrapper boots the server from ITS OWN
+   `--data-root`; the child resolves its own against cwd=tests/browser): pass the root to both and pass the child
+   ABSOLUTE `--data-root`/`--report` paths;
+4. the reload phase pointed the page at the WRITER run's ephemeral peer port (HTTP 502 before any state under test):
+   re-point the page at THIS run's peer immediately before the reload read; persisting the URL through the
+   frontend's debounced settings save was tried and rejected because it delayed the helper's own metadata flush.
+
+GREEN RUN: **`41317217569` success** (workflow_dispatch, 8 minutes, ubuntu-24.04). The same local pair used by the
+job was re-verified end to end before the dispatch: Go on 23/23, Go restart 9/9, pinned on 23/23, pinned restart
+9/9, comparator `verdict: PASS` (30/30 guards), teeth selftest 6/6. The workflow is now listed in
+`docs/release-manifest.json`, so the NEXT release cannot publish without it green at the tag commit; the
+already-published v0.1.0-alpha.11 body correctly says the alpha.11 claim was Layer A because the job was fixed
+after that release.

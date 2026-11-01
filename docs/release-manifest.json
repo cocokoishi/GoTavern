@@ -42,6 +42,11 @@
       "workflow": "GoTavern Docker image",
       "why": "the container image builds, verifies its tokenizer assets and smokes a pinned route",
       "requiredEvent": "workflow_dispatch"
+    },
+    {
+      "workflow": "Helper state differential",
+      "why": "the pinned Tavern Helper's second-order state (scoped variables, in-use preset mutation, lifecycle events, iframe->bridge->disk->next-request closure) on both subjects with a 30-guard judge and teeth",
+      "requiredEvent": "workflow_dispatch"
     }
   ]
 }
