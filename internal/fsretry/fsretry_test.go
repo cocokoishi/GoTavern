@@ -2,6 +2,8 @@ package fsretry
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -33,5 +35,24 @@ func TestDoDoesNotRetryAnOrdinaryError(t *testing.T) {
 	}
 	if calls != 1 {
 		t.Fatalf("an ordinary error was retried %d times; only a transient sharing violation may be", calls)
+	}
+}
+
+// ReadFile must be os.ReadFile on this platform: no retry, same bytes, same error identity. The
+// Windows-only half (a real sharing violation) lives in fsretry_windows_test.go.
+func TestReadFileReturnsTheBytesAndPreservesErrorIdentity(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "record.json")
+	if err := os.WriteFile(path, []byte(`{"v":1}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	body, err := ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile(%s): %v", path, err)
+	}
+	if string(body) != `{"v":1}` {
+		t.Fatalf("ReadFile returned %q, want the file's bytes", body)
+	}
+	if _, err := ReadFile(filepath.Join(t.TempDir(), "missing")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("ReadFile on a missing file = %v, want an os.ErrNotExist error (a missing file is not a transient violation)", err)
 	}
 }

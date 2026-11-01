@@ -8,7 +8,7 @@
   "sources": {
     "pinnedInventoryRows": 342,
     "pinnedRedirectAliases": 50,
-    "goRegistrationFiles": 177,
+    "goRegistrationFiles": 178,
     "goRegistrations": 422,
     "frontendFiles": 68,
     "startupObservedRequests": 229,
@@ -7395,7 +7395,7 @@
       "path": "/api/chats/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats.go:37"
+      "evidence": "internal/server/chats.go:38"
     },
     {
       "pattern": "/api/chats/group/delete",
@@ -7467,7 +7467,7 @@
       "path": "/api/chats/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats.go:30"
+      "evidence": "internal/server/chats.go:31"
     },
     {
       "pattern": "/api/chats/search",
@@ -8771,7 +8771,7 @@
       "path": "/api/sprites/upload",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sprites_upload.go:38"
+      "evidence": "internal/server/sprites_upload.go:39"
     },
     {
       "pattern": "/api/sprites/upload-zip",
@@ -8779,7 +8779,7 @@
       "path": "/api/sprites/upload-zip",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sprites_upload.go:38"
+      "evidence": "internal/server/sprites_upload.go:39"
     },
     {
       "pattern": "/api/stats/get",

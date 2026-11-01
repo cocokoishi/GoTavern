@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/cocokoishi/gotavern/internal/faultinject"
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
@@ -227,10 +228,14 @@ func (runtime *accountRuntime) serveChatsSave(w http.ResponseWriter, request *ht
 			map[string]string{"error": "An error has occurred, see the console logs for more information."})
 		return
 	}
+	faultinject.Hit("chats.save.before-write")
 	err = startup.UpdateUserContentFile(runtime.options.DataRoot, account.string("handle"), relativePath,
 		func([]byte) ([]byte, error) {
 			return []byte(strings.Join(lines, "\n")), nil
 		})
+	if err == nil {
+		faultinject.Hit("chats.save.after-write")
+	}
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError,
 			map[string]string{"error": "An error has occurred, see the console logs for more information."})

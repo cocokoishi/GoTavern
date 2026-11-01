@@ -79,7 +79,13 @@ func registerOpenAITranscribeRoutes(mux *http.ServeMux, accounts *accountRuntime
 // readTranscribeUpload reproduces what multer leaves behind for `upload.single('avatar')`: the file bytes
 // and the plain fields, with presence distinguished from emptiness so an ABSENT `model` can be reproduced
 // as the string "undefined" the way `formData.append('model', undefined)` does.
-func readTranscribeUpload(request *http.Request) ([]byte, map[string]string, map[string]bool, bool) {
+//
+// THE FILE PART IS BOUNDED (multipart_upload.go): it used to be `io.ReadAll(part)`, i.e. an unbounded
+// buffer an authenticated client could grow until the process died, while pinned streams the part to disk
+// and then streams it to the provider. It is spooled to <dataRoot>/_uploads under
+// maxBufferedMultipartUploadBytes and rejected beyond it (recorded security boundary, docs/data-safety.md
+// 8.4). Text fields keep pinned multer's 500MB fieldSize limit.
+func readTranscribeUpload(dataRoot string, request *http.Request) ([]byte, map[string]string, map[string]bool, bool) {
 	reader, err := request.MultipartReader()
 	if err != nil {
 		return nil, nil, nil, false
@@ -96,17 +102,23 @@ func readTranscribeUpload(request *http.Request) ([]byte, map[string]string, map
 		if err != nil {
 			return nil, nil, nil, false
 		}
-		content, readErr := io.ReadAll(part)
-		if readErr != nil {
-			return nil, nil, nil, false
-		}
 		name := part.FormName()
 		if part.FileName() != "" && name == transcribeUploadField {
+			content, readErr := readBufferedMultipartPart(dataRoot, part)
+			_ = part.Close()
+			if readErr != nil {
+				return nil, nil, nil, false
+			}
 			fileBytes = content
 			sawFile = true
 			continue
 		}
-		fields[name] = string(content)
+		fieldBytes, readErr := io.ReadAll(io.LimitReader(part, pinnedUploadFieldSizeLimit+1))
+		closeErr := part.Close()
+		if readErr != nil || closeErr != nil || int64(len(fieldBytes)) > pinnedUploadFieldSizeLimit {
+			return nil, nil, nil, false
+		}
+		fields[name] = string(fieldBytes)
 		present[name] = true
 	}
 	if !sawFile {
@@ -129,7 +141,7 @@ func (runtime *accountRuntime) serveOpenAITranscribe(w http.ResponseWriter, requ
 		serveStatusText(w, http.StatusBadRequest)
 		return
 	}
-	fileBytes, fields, present, ok := readTranscribeUpload(request)
+	fileBytes, fields, present, ok := readTranscribeUpload(runtime.options.DataRoot, request)
 	if !ok {
 		serveStatusText(w, http.StatusBadRequest)
 		return

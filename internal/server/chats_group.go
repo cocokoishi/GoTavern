@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cocokoishi/gotavern/internal/faultinject"
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
@@ -193,6 +194,7 @@ func (runtime *accountRuntime) serveChatsGroupSave(w http.ResponseWriter, reques
 		serveGroupSaveError(w, http.StatusInternalServerError)
 		return
 	}
+	faultinject.Hit("chats.group.save.after-write")
 	_ = id
 	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
@@ -240,6 +242,7 @@ func (runtime *accountRuntime) serveChatsGroupImport(w http.ResponseWriter, requ
 		return
 	}
 	removeStagedCharacterUpload(parsed.stagedPath)
+	faultinject.Hit("chats.group.import.after-write")
 	respondCharacterJSON(w, http.StatusOK, func() orderedNodeJSON {
 		response := nodeObject()
 		response.setMember("res", nodeString(chatName))

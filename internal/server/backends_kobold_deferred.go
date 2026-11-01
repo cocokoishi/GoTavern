@@ -392,6 +392,15 @@ type pinnedKoboldUpload struct {
 // random name, and a file part with any other name is an error the route never sees.
 func pinnedKoboldStageUpload(dataRoot string, request *http.Request) (pinnedKoboldUpload, error) {
 	upload := pinnedKoboldUpload{fields: map[string]string{}}
+	// A staged file is only deleted by the handler on its success path (pinned leaves it behind on a
+	// refusal), so every parse error AFTER staging must remove it here or a malformed/aborted upload leaks
+	// a file in <dataRoot>/_uploads for every attempt.
+	discard := func() {
+		if upload.path != "" {
+			_ = os.Remove(upload.path)
+			upload.path = ""
+		}
+	}
 	reader, err := request.MultipartReader()
 	if err != nil {
 		// Not a multipart request: multer is a no-op and `request.file` stays undefined.
@@ -403,12 +412,14 @@ func pinnedKoboldStageUpload(dataRoot string, request *http.Request) (pinnedKobo
 			return upload, nil
 		}
 		if partErr != nil {
+			discard()
 			return upload, partErr
 		}
 		if part.FileName() == "" {
 			value, readErr := io.ReadAll(io.LimitReader(part, 500<<20))
 			_ = part.Close()
 			if readErr != nil {
+				discard()
 				return upload, readErr
 			}
 			if _, seen := upload.fields[part.FormName()]; !seen {
@@ -437,6 +448,7 @@ func pinnedKoboldStageUpload(dataRoot string, request *http.Request) (pinnedKobo
 		}
 		if closeErr := staged.Close(); closeErr != nil {
 			_ = part.Close()
+			_ = os.Remove(staged.Name())
 			return upload, closeErr
 		}
 		upload.path = staged.Name()

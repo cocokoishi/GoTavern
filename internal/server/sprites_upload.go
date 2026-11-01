@@ -17,7 +17,7 @@ package server
 
 import (
 	"archive/zip"
-	"bytes"
+	"errors"
 	"io"
 	"mime"
 	"net/http"
@@ -27,6 +27,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/cocokoishi/gotavern/internal/fsretry"
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
@@ -62,19 +63,37 @@ func spritesNodeParse(filename string) (string, string) {
 
 // spritesMultipart is the parsed multipart request: the "avatar" file part (in order) and the text
 // fields, which are read by name regardless of order like multer does.
+//
+// THE FILE PART IS ON DISK, NOT IN MEMORY. Pinned's multer streams the file part to <uploads>/ and
+// getImageBuffers then reads from that path; the first version of this parser did `io.ReadAll(part)`,
+// i.e. up to 500MB of heap per authenticated upload. It is staged through CreateUploadStagingFile and
+// the handlers move it (single upload) or read it as a zip archive (upload-zip) without buffering the
+// whole body.
 type spritesMultipart struct {
 	filename    string
-	fileBytes   []byte
+	stagedPath  string
+	fileSize    int64
 	hasFile     bool
 	fields      map[string]string
 	parseFailed bool
 }
 
-func spritesParseMultipart(request *http.Request) spritesMultipart {
+// cleanup removes the staged upload; safe to call after a successful move (the rename removed it).
+func (parsed *spritesMultipart) cleanup() {
+	removeStagedCharacterUpload(parsed.stagedPath)
+	parsed.stagedPath = ""
+}
+
+func spritesParseMultipart(request *http.Request, dataRoot string) spritesMultipart {
 	result := spritesMultipart{fields: map[string]string{}}
 	reader, err := request.MultipartReader()
 	if err != nil {
 		result.parseFailed = true
+		return result
+	}
+	fail := func() spritesMultipart {
+		result.parseFailed = true
+		result.cleanup()
 		return result
 	}
 	for {
@@ -83,27 +102,35 @@ func spritesParseMultipart(request *http.Request) spritesMultipart {
 			break
 		}
 		if partErr != nil {
-			result.parseFailed = true
-			return result
+			return fail()
 		}
 		formName := part.FormName()
 		if part.FileName() != "" {
 			if formName == "avatar" && !result.hasFile {
-				content, readErr := io.ReadAll(io.LimitReader(part, 500<<20))
-				if readErr != nil {
-					result.parseFailed = true
-					return result
+				staged, createErr := startup.CreateUploadStagingFile(dataRoot)
+				if createErr != nil {
+					_ = part.Close()
+					return fail()
 				}
+				result.stagedPath = staged.Name()
 				result.hasFile = true
 				result.filename = part.FileName()
-				result.fileBytes = content
+				written, copyErr := io.Copy(staged, part)
+				closeErr := staged.Close()
+				_ = part.Close()
+				if copyErr != nil || closeErr != nil {
+					return fail()
+				}
+				result.fileSize = written
+			} else {
+				_ = part.Close()
 			}
 			continue
 		}
-		value, readErr := io.ReadAll(io.LimitReader(part, 500<<20))
-		if readErr != nil {
-			result.parseFailed = true
-			return result
+		value, readErr := io.ReadAll(io.LimitReader(part, pinnedUploadFieldSizeLimit+1))
+		_ = part.Close()
+		if readErr != nil || int64(len(value)) > pinnedUploadFieldSizeLimit {
+			return fail()
 		}
 		if utf8.Valid(value) {
 			result.fields[formName] = string(value)
@@ -193,7 +220,8 @@ func (runtime *accountRuntime) serveSpritesUpload(w http.ResponseWriter, request
 	if !ok {
 		return
 	}
-	parsed := spritesParseMultipart(request)
+	parsed := spritesParseMultipart(request, runtime.options.DataRoot)
+	defer parsed.cleanup()
 	if parsed.parseFailed {
 		backendsStatus(w, http.StatusInternalServerError)
 		return
@@ -244,7 +272,7 @@ func (runtime *accountRuntime) serveSpritesUpload(w http.ResponseWriter, request
 				}
 			}
 		}
-		return spritesAtomicWrite(filepath.Join(spritesPath, filename), parsed.fileBytes)
+		return spritesAtomicMove(parsed.stagedPath, filepath.Join(spritesPath, filename))
 	})
 	if writeErr == errSpritesNotDirectory {
 		backendsStatus(w, http.StatusNotFound)
@@ -264,13 +292,30 @@ type spritesNotDirectoryError struct{}
 func (*spritesNotDirectoryError) Error() string { return "sprites path is not a directory" }
 
 // spritesZipImages is getImageBuffers: image entries in archive order, __MACOSX skipped, names cut
-// to their basename.
-func spritesZipImages(content []byte) ([][2][]byte, error) {
-	reader, err := zip.NewReader(bytes.NewReader(content), int64(len(content)))
+// to their basename. It reads the staged archive from DISK (zip.Reader on the file) instead of a
+// whole-body buffer, and each entry and the archive total are bounded: an uploaded zip is
+// attacker-controlled and a single entry can expand far beyond the archive it arrived in.
+var (
+	maxSpriteArchiveEntryBytes int64 = 32 << 20
+	maxSpriteArchiveBytes      int64 = 128 << 20
+)
+
+func spritesZipImagesFromFile(archivePath string) ([][2][]byte, error) {
+	file, err := os.Open(archivePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	reader, err := zip.NewReader(file, info.Size())
 	if err != nil {
 		return nil, err
 	}
 	images := make([][2][]byte, 0, len(reader.File))
+	var total int64
 	for _, entry := range reader.File {
 		if strings.HasPrefix(entry.Name, "__MACOSX") {
 			continue
@@ -283,14 +328,44 @@ func spritesZipImages(content []byte) ([][2][]byte, error) {
 		if openErr != nil {
 			return nil, openErr
 		}
-		data, readErr := io.ReadAll(stream)
+		data, readErr := io.ReadAll(io.LimitReader(stream, maxSpriteArchiveEntryBytes+1))
 		stream.Close()
 		if readErr != nil {
 			return nil, readErr
 		}
+		if int64(len(data)) > maxSpriteArchiveEntryBytes {
+			return nil, errors.New("sprite archive entry exceeds the per-entry limit")
+		}
+		total += int64(len(data))
+		if total > maxSpriteArchiveBytes {
+			return nil, errors.New("sprite archive exceeds the total extracted limit")
+		}
 		images = append(images, [2][]byte{[]byte(path.Base(entry.Name)), data})
 	}
 	return images, nil
+}
+
+// spritesAtomicMove publishes a staged upload as the target file with one rename, so a crash leaves the
+// old file or the complete new one (and the upload is never copied through the heap).
+func spritesAtomicMove(source, target string) error {
+	info, err := os.Stat(source)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(target), 0o777); err != nil {
+		return err
+	}
+	if err := os.Chmod(source, info.Mode().Perm()); err != nil {
+		return err
+	}
+	if err := fsretry.Do(func() error { return os.Rename(source, target) }); err != nil {
+		return err
+	}
+	if directoryFile, err := os.Open(filepath.Dir(target)); err == nil {
+		_ = directoryFile.Sync()
+		_ = directoryFile.Close()
+	}
+	return nil
 }
 
 // serveSpritesUploadZip is sprites.js:186.
@@ -299,7 +374,8 @@ func (runtime *accountRuntime) serveSpritesUploadZip(w http.ResponseWriter, requ
 	if !ok {
 		return
 	}
-	parsed := spritesParseMultipart(request)
+	parsed := spritesParseMultipart(request, runtime.options.DataRoot)
+	defer parsed.cleanup()
 	if parsed.parseFailed {
 		backendsStatus(w, http.StatusInternalServerError)
 		return
@@ -317,7 +393,7 @@ func (runtime *accountRuntime) serveSpritesUploadZip(w http.ResponseWriter, requ
 		backendsStatus(w, http.StatusBadRequest)
 		return
 	}
-	images, zipErr := spritesZipImages(parsed.fileBytes)
+	images, zipErr := spritesZipImagesFromFile(parsed.stagedPath)
 	if zipErr != nil {
 		backendsStatus(w, http.StatusInternalServerError)
 		return

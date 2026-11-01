@@ -210,6 +210,12 @@ func TestSpeechRoutesMatchPinnedOracle(t *testing.T) {
 				seam = "GOTAVERN_POLLINATIONS_API_URL"
 			}
 			dataRoot := t.TempDir()
+			// A real install creates <dataRoot>/_uploads during startup's data-startup step, and the
+			// recognize upload is now spooled there under a bounded limit (multipart_upload.go) instead of
+			// buffered in memory; the handler fixture must have it like an installed tree does.
+			if err := os.MkdirAll(filepath.Join(dataRoot, "_uploads"), 0o777); err != nil {
+				t.Fatal(err)
+			}
 			userRoot := filepath.Join(dataRoot, "default-user")
 			if err := os.MkdirAll(filepath.Join(userRoot, "backups"), 0o755); err != nil {
 				t.Fatal(err)
