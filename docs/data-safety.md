@@ -262,10 +262,116 @@ sharing violation on the read side; `isTransient` is false off Windows, so Linux
 unchanged. Measured: `-count=20` green after the fix (was 2/10 red before). No HTTP contract change;
 only the transient-error path improves.
 
-This class is not audited beyond the account-read path in this lane; two other node-persist reads
-(`startup.updateNodePersistRecord`'s read-before-write and `NodePersistKeys`) are still bare
-`os.ReadFile` and could see the same window when a DIFFERENT process replaces a record — recorded as
-residual risk (§9), not fixed here because they are not on the request read path this test exercises.
+This class was then audited beyond the account-read path and extended to the two remaining bare
+node-persist reads in a follow-up (`6a870f6`, §7.2). The audit also found and REPORTED (not changed) one
+same-family read: `startup/user_content_file.go:51` maps ANY `os.ReadFile` error to "file absent" and
+hands the RMW callback `nil`. A transient Windows sharing violation there would base a derived-index write
+(the `image-metadata.json` family) on the default document; the pinned index-fallback parity makes the
+CONSEQUENCE a legitimate pinned behaviour (§5), so the fix is a product decision about when to refuse,
+recorded in §9 item 9. Everything else the audit sampled (`chats.go` get, `chats_search_recent.go`,
+`characters_read.go`, `worldinfo.go`, `settings_get.go`, `image_metadata_index.go`, `vector.go`,
+`static.go`) returns the read error to the client or a default response on a READ path, so a failed read
+costs one request rather than rewriting data.
+
+### 7.2 Windows read retry for the last two bare node-persist reads (`6a870f6`)
+
+`startup.UpdateNodePersistRecord` read the current record with a bare `os.ReadFile` before the atomic
+replace, and `NodePersistKeys` (through `readStoreEntries`) enumerated records the same way. On Windows a
+DIFFERENT process replacing one of those records makes the read fail with `ERROR_ACCESS_DENIED` /
+`ERROR_SHARING_VIOLATION` for the duration of the rename window — the same class §7.1 fixed on the account
+read path.
+
+Fix: `fsretry.ReadFile`, a narrow extension of the existing bounded retry (20 attempts × 10 ms, transient
+sharing/replacement predicates only, `isTransient` is false off Windows, so Linux behaviour is byte-for-byte
+unchanged). No route, response, file layout or timing contract changed; only the transient-error path
+recovers instead of failing the request.
+
+Evidence (Layer A, windows/arm64):
+* `internal/fsretry/fsretry_read_windows_test.go` — holds a REAL exclusive handle on the record file and
+  first requires plain `os.ReadFile` to FAIL with the sharing violation (the discrimination step), then
+  releases it after 30 ms and requires `fsretry.ReadFile` to succeed.
+* `internal/startup/storage_read_retry_windows_test.go` — the same real-exclusive-handle setup through
+  `UpdateNodePersistRecord` (write-before-read, then asserts the record became `"new"`) and through
+  `NodePersistKeys` (the key must appear in the listing).
+* MUTATION PROOF (`-count=1`; `fsretry.ReadFile` body replaced by `return os.ReadFile(path)`, restored from
+  a file copy): all three Windows tests went RED, naming the failure — `ReadFile did not absorb the sharing
+  violation a concurrent replace produces: open ... The process cannot access the file because it is being
+  used by another process.`, `UpdateNodePersistRecord did not absorb the transient sharing violation: read
+  node-persist record user:retry-update: ...`, `NodePersistKeys did not absorb the transient sharing
+  violation: read node-persist record ...`. Restored: green.
+
+### 7.3 Chat write crash atomicity (measured; killed process at named and random points)
+
+Row 3 of `docs/gap-sweep.md` recorded that chat JSONL atomicity was asserted per route but never at a
+crash-or-kill boundary. This section closes it, and it found one REAL hole in the product.
+
+**The hole: `/api/chats/rename` left BOTH names after a kill.** GoTavern reproduced pinned's
+`fs.copyFileSync(pathToOriginalFile, pathToRenamedFile); fs.unlinkSync(pathToOriginalFile)`
+(`src/endpoints/chats.js:644-645`) as an atomic write of the new name followed by a delete of the old one.
+A kill between those two steps leaves `chat.jsonl` AND `chat-renamed.jsonl`, each complete: after restart
+the user sees the chat twice. Fix: `startup.RenameUserContentFile` performs ONE `os.Rename` under the
+shared user-content lock (`fsretry.Do` for the Windows sharing window) and then refreshes the destination
+mtime, because `copyFileSync` creates a new file and `/api/chats/recent` orders by mtime; the success path,
+the response and the bytes are unchanged. A crash between the rename and the mtime refresh leaves a
+complete file under the new name with the source mtime — still a complete state.
+
+**Fault models (both are needed).**
+* Deterministic: a binary built with `-tags gotavern_faults` installs a named crash seam
+  (`internal/faultinject`); a production build contains no hook at all. The test arms the hook only AFTER
+  readiness (a marker file), so a boot-time atomic write cannot trigger it. The child exits 137 (128+SIGKILL)
+  at the exact step, with no deferred cleanup, exactly like a hard kill.
+* Randomised: a normal `Process.Kill` at a seeded point (seed `20261031`) once write progress is
+  observable (a `.gotavern-content-log-*` scratch file appears, the target size changes, or the renamed
+  destination appears), jittered 0..8 ms. Every crash state and every restart is then asserted.
+
+**Allowed state per operation (asserted by exact bytes, and again after a restart).**
+
+| operation | deterministic points and the state each implies | randomised kills |
+|---|---|---|
+| save-new-chat | — | 10 |
+| append-message | `chats.save.before-write`, `atomicReplace.after-temp-write`, `atomicReplace.after-temp-sync` → OLD bytes; `atomicReplace.after-rename`, `chats.save.after-write` → NEW bytes | 20 |
+| swipe | — | 10 |
+| regenerate-write | — | 10 |
+| branch (source chat untouched) | — | 10 |
+| chat-metadata-mutation | — | 10 |
+| rename-chat | `chats.rename.before-rename` → old name ONLY; `chats.rename.after-rename` → new name ONLY | 15 (the window is one syscall wide: 3 of 15 landed inside it in the final run and 12 completed before the kill; the deterministic labels carry this proof) |
+| import (single file) | `chats.import.after-write` → ONE complete imported chat | 10 |
+| delete | `chats.delete.after-remove` → file ABSENT | 10 |
+| group-save | — | 10 |
+
+**Final complete randomised run (`crash-random6`, 300 s, exit 0):** save-new 10/10, append 20/20, swipe
+10/10, regenerate 10/10, branch 10/10, metadata 10/10, delete 10, import 10, group-save 10 all landed
+inside the write; rename 3/15 landed inside its one-syscall window and 12 completed before the kill. Every
+iteration asserted a complete old or new state, and every restart re-asserted it.
+
+The progress poll reads only directory ENTRIES (names and sizes) and never file contents, because the poll
+runs while the server is still writing: reading a file being renamed/deleted from the test process is a
+legitimate transient Windows race, measured as `read chat file chat.jsonl: ... cannot find the file
+specified` / `Access is denied`. Byte assertions run only after the process is dead. That distinction was
+itself a defect the first draft of this harness had, and it is fixed in the tests that accompany this
+section.
+Every observation required one of the complete states above; the assertion rejects a zero-byte file, a
+non-JSON line, a partial line, a chat that disappeared, a chat that appeared twice, a rename with both
+names, and metadata/branch state pointing at a missing body. Restart validation additionally requires the
+boot not to CHANGE the crashed bytes and `GET /api/chats/get` to answer a parseable array for the file.
+
+**Mutation proof for the rename fix.** The pre-fix shape was reintroduced (read source → `os.WriteFile` to
+the new name → `os.Remove` the source) with a label placed in the window between the write and the remove,
+and a throwaway probe (not committed; mutation runs never are) crashed there. Observed:
+`MUTATION REPRODUCED: a kill between copy and unlink leaves BOTH chat.jsonl and chat-renamed.jsonl`.
+Restored from the file copy: the deterministic rename points are green again (28.5 s). The committed tests
+cannot express that window for the FIXED code because a single `os.Rename` has no step between its two
+labels — which is the property the fix buys.
+
+**NOT DONE: chat backup.** The pinned `/api/chats/save` throttled-backup scheduler is not implemented
+(recorded gap, `internal/server/chats.go:14-21`), so there is no product write to crash and the matrix
+deliberately has no backup row. This is a parity gap, not a data-safety claim.
+
+**Scope of the evidence: Layer A, windows/arm64.** The kill matrix runs against the real binary as a
+subprocess (no `-race` on this host). The Linux CI gate does not run these tests; the fault seam is
+tag-gated and absent from normal builds, so this remains Windows-specific crash evidence until a CI job
+runs `-tags gotavern_faults` on Linux.
+
 
 ## 8. Security baseline (measured)
 
@@ -366,9 +472,34 @@ containment), `chats_mutations_test.go` (avatar/chat path containment), `assets_
 |---|---|---|
 | JSON and urlencoded bodies (body-parser equivalents) | 500 MB (`500<<20`) | pinned `src/server-main.js:110-111` — parity; enforced in `readAccountRequestBody`, `readFilesUploadBody`, `readPinnedJSONBody`, every route's `io.LimitReader` |
 | settings/save | 500 MB | `settings_save.go:12` (same bound) |
-| multer field size | 500 MB | pinned `src/server-main.js:269` `limits: { fieldSize: 500 * 1024 * 1024 }`; GoTavern reads multipart fields with bounded readers in `characters.go`, `avatars_upload.go`, `sprites_upload.go` |
-| multipart FILE parts | **unbounded in memory** in `readTranscribeUpload` (`openai_transcribe.go:83-103`), `readSpeechUpload` (`speech.go:646-670`) and `novelaiExtractPNG` (`novelai_generate.go:763`) | **residual risk / pinned divergence**: pinned's multer streams file parts to disk with no size limit, so an arbitrarily large upload is accepted there without unbounded RSS; GoTavern buffers it. Authenticated route, but a memory-exhaustion path. Fixing it means spooling or a cap, which changes the accepted-upload contract — reported, not made. |
+| multer field size | 500 MB | pinned `src/server-main.js:269` `limits: { fieldSize: 500 * 1024 * 1024 }`; enforced with bounded readers in `characters.go`, `avatars_upload.go`, `sprites_upload.go`, `openai_transcribe.go`, `speech.go`, `backends_kobold_deferred.go` |
+| multipart FILE parts — streaming routes | no size cap (pinned parity: multer streams to disk unbounded); spooled to `<dataRoot>/_uploads`, removed on success and on every error/abort path | `characters.go`, `avatars_upload.go`, `backgrounds_upload.go`, `backends_kobold_deferred.go`, and now `sprites_upload.go` (single upload moves the staged file with one rename; upload-zip reads the archive from disk) |
+| multipart FILE parts — routes that must buffer (outbound body is `[]byte`) | **100 MiB** (`maxBufferedMultipartUploadBytes`), spooled to disk first, rejected beyond the cap | `openai_transcribe.go` / `openai_chutes_transcribe.go` / `speech.go` via `internal/server/multipart_upload.go`. **RECORDED SECURITY BOUNDARY (§8.4.1):** pinned streams an arbitrary-size part from disk to the provider; GoTavern answers the route's existing error status for an upload above 100 MiB. This is a bounded, documented divergence, not an unbounded memory path. |
+| sprite ZIP entries | 32 MiB per image entry and 128 MiB total extracted | `sprites_upload.go` `spritesZipImagesFromFile`. **RECORDED SECURITY BOUNDARY:** pinned buffers every image entry with no cap; a zip whose entries exceed these caps answers the route's 500 instead of running the process out of memory. |
 | outbound response bodies | buffered without a cap (`outbound/transport.go`, provider handlers) | inherited from pinned's `fetch` (also buffers); residual risk, not changed. |
+
+### 8.4.1 Multipart/upload memory: before/after measurements (measured 2026-10-31)
+
+Method: the same 200 MiB `multipart/form-data` body posted to `POST /api/sprites/upload` (the largest
+buffered parser before this change) against a fresh release-shaped tree with the HEAD binary
+(`gotavern-before`, built from `6a870f6`) and the fixed binary (`gotavern-after`, this lane). Peak working
+set read from the server process after the request; stored bytes compared. Layer A, windows/arm64.
+
+| measurement | BEFORE (`6a870f6`) | AFTER (this lane) |
+|---|---|---|
+| upload | 200 MiB | 200 MiB |
+| HTTP status | 200 | 200 |
+| peak working set | **552.0 MB** | **37.7 MB** |
+| wall time | 6.43 s | 2.67 s |
+| stored sprite bytes | 209715200 | 209715200 |
+| `_uploads` files left | 0 | 0 |
+
+That is a **14.6×** reduction in peak RSS for the same accepted input, with byte-identical stored output.
+The transcribe/speech paths are not measured end-to-end through RSS because they need a provider; the same
+`readBufferedMultipartPart` helper is covered by
+`TestReadBufferedMultipartPartRejectsAnOversizePartAndRemovesTheStagingFile` (4 KB part against a lowered
+1 KB cap) and by the truncated-body test that asserts the staging file is removed on a malformed upload.
+
 
 ### 8.5 Malformed JSON and unsafe overwrite
 
@@ -428,8 +559,15 @@ Review of `install.sh` (sh), `install.ps1`, `start.sh`, `Start.cmd` from source:
 
 ## 9. Residual risks (explicit)
 
-1. Multipart file parts are buffered in memory without a bound on three routes (§8.4) while pinned
-   spools to disk — authenticated memory-exhaustion path, contract change required to fix.
+1. **FIXED in this lane (`6a870f6`, §7.2).** Multipart file parts were buffered in memory without a
+   bound on `readTranscribeUpload`, `readSpeechUpload` (both `io.ReadAll`) and the sprite parser
+   (`io.ReadAll` up to 500 MB) while pinned spools to disk. Now: transcribe/speech spool to
+   `<dataRoot>/_uploads` and are capped at 100 MiB; the sprite single upload moves the staged file with
+   one rename and upload-zip reads the archive from disk (32 MiB per entry, 128 MiB total). Measured
+   before/after: **552.0 MB -> 37.7 MB peak working set** for a 200 MiB sprite upload, byte-identical
+   stored output (§8.4.1). The 100 MiB buffered cap and the zip-extraction caps are **recorded security
+   boundaries**: pinned accepts larger input (and streams it), so an operator above those sizes gets the
+   route's error status where pinned would accept. Named user-visible effect, not a silent divergence.
 2. `image-metadata.json` recovery overwrites a corrupted index (§5) — pinned parity, product decision
    needed.
 3. Trailing dot/space after 255-byte truncation in sanitized filenames (§6.1) — pinned parity,
@@ -439,12 +577,15 @@ Review of `install.sh` (sh), `install.ps1`, `start.sh`, `Start.cmd` from source:
    destination is a fresh tree and a re-run moves destination conflicts to a backup before recopying,
    so the window is recoverable rather than corrupting user data; not fixed in this lane.
 5. Chat backups are not implemented (recorded gap in `server/chats.go:14-21`), so a chat corruption has
-   no product-created rolling backup.
+   no product-created rolling backup; this is why §7.3 has no backup crash row.
 6. A process killed during `atomicReplace` leaves a `.gotavern-content-log-*.tmp` scratch file next to
    the target (the target itself is intact). Harmless, never read, removed on a later successful
    replace only if the name collides (it cannot: unique token); disk leak bounded by crash count.
+   The crash matrix treats these scratch files as NOT state (non-dot `.jsonl` files are the assertion),
+   so an orphaned temp file cannot make a crash state look new or hide a partial write.
 7. `go test -race` is unavailable on windows/arm64; concurrency tests are race-detector-clean by design
-   and must be run on the Linux CI gate (§7).
+   and must be run on the Linux CI gate (§7). The §7.3 crash matrix is windows-only evidence (Layer A):
+   no CI job runs `-tags gotavern_faults` on Linux, so Linux crash behaviour is not measured by it.
 8. **FIXED in this lane (toolchain + module move, §8.2).** The release toolchain was Go 1.23 (out of
    support) and govulncheck found 15 reachable vulnerabilities. Now: `go.mod go 1.27.3`,
    `Dockerfile golang:1.27.3-alpine`, `x/image v0.45.0`, `x/text v0.41.0`, `x/sys v0.47.0`,
@@ -455,12 +596,25 @@ Review of `install.sh` (sh), `install.ps1`, `start.sh`, `Start.cmd` from source:
    container build must be exercised by the release/docker workflow. The Go 1.27.3 toolchain was
    fetched by `GOTOOLCHAIN=auto` (32 s), so CI with `go-version-file: go.mod` will fetch the same
    version.
-9. **Two node-persist reads outside the account request path are still bare `os.ReadFile`**
-   (`startup.UpdateNodePersistRecord`'s read-before-write and `startup.NodePersistKeys`, both in
-   `internal/startup/storage.go`). On Windows a DIFFERENT process replacing the same record can make
-   those fail with the same sharing violation §7.1 fixed for the account read path; the rename side is
-   retried, these reads are not. Not fixed here: neither is on the authenticated-request read path, and
-   changing them needs its own failure reproducer.
+9. **FIXED in this lane (`6a870f6`, §7.2).** The two node-persist reads outside the account request path
+   (`startup.UpdateNodePersistRecord`'s read-before-write and `startup.NodePersistKeys`) are now
+   `fsretry.ReadFile` with the bounded 20 x 10 ms transient-sharing retry. Windows discrimination tests
+   hold a real exclusive handle and require the bare read to fail first; the mutation (retry disabled)
+   went red with the sharing-violation message, restored green.
+10. **Audited, NOT changed: `startup/user_content_file.go:51` treats ANY read error as "file absent"**
+    and calls the RMW callback with `nil`. On Windows a transient sharing violation there would base a
+    derived-index write (the `image-metadata.json` family) on the default document, i.e. the §5
+    corrupted-index consequence, triggered by a transient error rather than by malformed bytes. Pinned's
+    index-fallback parity makes the consequence a legitimate pinned behaviour; refusing the write instead
+    is a product decision with its own failure mode (a read error would fail a user action). Reported
+    with its evidence path, not fixed.
+11. The remaining bare reads on REQUEST paths (`chats.go` get, `chats_search_recent.go`,
+    `characters_read.go`, `characters_write.go`, `worldinfo.go`, `settings_get.go`,
+    `image_metadata_index.go`, `vector.go`, `static.go`; 96 non-test `os.ReadFile` sites in total, sampled
+    in this audit) return the error to the caller or a route-specific default: a transient sharing
+    violation costs one request, and none of the sampled sites bases a WRITE on the failed read. Kept as
+    is; the write-side RMW paths are the ones that mattered and are covered by §7.1/§7.2.
+
 
 ## 10. Command log (this lane)
 
@@ -535,6 +689,27 @@ go test ./internal/configinit -count=1           exit 0 (11 s)
 # environment note: the C: volume was down to 307 MB free and `go build ./...` first failed with
 # "resize output file failed ... not enough space"; `go clean -cache` freed the 5.96 GB Go build cache
 # (safe, disposable), after which the build passed. No repository file was involved.
+
+# chat write crash atomicity (§7.3; Layer A windows/arm64; every run with -count=1)
+go build ./...                                                                  exit 0
+go test ./internal/startup -run '^(TestRenameUserContentFile)' -count=1          ok (2.9 s; bytes/mtime/missing-source/containment)
+go test ./internal/server -run '^(TestPinnedNodeChatsMutations|TestPinnedNodeChatsSaveGet|TestPinnedNodeChatsImport|TestChatSaveNeverPublishesATornJSONL)' -count=1  ok (3.8 s; route parity after the rename change)
+go test ./tests/e2e -run '^(TestChatSaveDeterministicPoints|TestChatRenameDeterministicCrashPoints|TestChatDeleteDeterministicCrashPoint|TestChatImportDeterministicCrashPoint)$' -count=1
+                                          ok (84.8 s; 9 named crash points, each state asserted and re-asserted after restart)
+go test ./tests/e2e -run '^(TestChatWriteCrashAtomicityRandomised|TestChatRenameRandomisedKills|TestChatDeleteRandomisedKills|TestChatImportRandomisedKills|TestChatGroupSaveCrashAtomicity)$' -count=1 -timeout 40m
+                                          ok (300 s; seed 20261031; 115 iterations, every crash state old-or-new; rename 3/15 landed inside its window)
+# mutation: the rename fix reverted to the pre-fix copy-then-delete shape + a label inside the window
+go test ./tests/e2e -run '^TestMutationProbeRenameCopyThenDeleteLeavesBothNames$' -count=1
+                                          observed: "MUTATION REPRODUCED: a kill between copy and unlink leaves BOTH
+                                          chat.jsonl and chat-renamed.jsonl" (throwaway probe, not committed)
+# restore from the file copy:
+go test ./tests/e2e -run '^TestChatRenameDeterministicCrashPoints$' -count=1     ok (28.5 s)
+
+# multipart/upload memory (§8.4, §8.4.1)
+go test ./internal/server -run '^(TestReadBufferedMultipartPart|TestSpritesUpload|TestPinnedNodeSpritesUpload)' -count=1  ok (3.4 s)
+# before/after binaries built from `6a870f6` (HEAD archive) and this change, same 200 MiB body:
+#   BEFORE: status 200, peak working set 552.0 MB, 6.43 s, stored 209715200 bytes, _uploads 0
+#   AFTER:  status 200, peak working set  37.7 MB, 2.67 s, stored 209715200 bytes, _uploads 0
 ```
 
 | command | observed |
@@ -553,3 +728,7 @@ go test ./internal/configinit -count=1           exit 0 (11 s)
 * `2e87cc1` docs(data-safety): full-package runs and triage of the one local red
 * `258b88d` build: move to Go 1.27.3 and patched x/image/x/text/x/crypto; govulncheck reachable 15 -> 0
 * `bc092ab` fix(server): retry the Windows sharing violation when reading a node-persist record (surfaced by the 1.27.3 move, §7.1)
+* `6a870f6` fix(startup,fsretry): retry the transient sharing violation on the last two bare node-persist reads (§7.2)
+* `baad4d5` fix(server,startup,tests): make a killed chat write leave only a complete old or new state (§7.3)
+* `db7b12c` fix(server): bound multipart upload memory on every route that buffers a file part (§8.4, §8.4.1)
+* `6d0ab35` test(e2e): poll chat-write progress by directory entries, not file contents (§7.3)
