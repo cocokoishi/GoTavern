@@ -43,3 +43,6 @@ oracle-rerecord.patch
 # never uploaded, and never printed. The pin gate and the markdown walk both skip gitignored directories.
 /.tmp-artifacts/
 /tests/browser/.tmp-artifacts/
+
+# scratch files created by the lead/agents during a session (never part of the product)
+.tmp-artifacts*
