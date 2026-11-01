@@ -1,0 +1,205 @@
+name: Combination journey differential
+
+# THE COMBINATION JOURNEY (GOAL §9's highest-priority scenario; GOAL §12's "character x preset x helper passes as
+# a combination").
+#
+# ONE deterministic browser journey per subject, in ONE continuous session over ONE generated tree, composes:
+#   staged Spec-V3 card -> opened through the roster -> committed complex preset planted pre-boot and SELECTED
+#   through the frontend control -> complex world book (before/after/depth slots) selected through the persisted
+#   settings path -> author's note through the authors-note module -> chat/global/character variables written
+#   through the pinned 酒馆助手 bridge and injected -> a Quick Reply created through the extension's published API
+#   and EXECUTED -> a CHARACTER-SCOPED regex stored in the card and ALLOWED through the regex extension's own
+#   state -> a STREAMED turn through a recording peer -> a second turn proving the rewritten reply is history ->
+#   preset/WI knob-off CONTROL turns (the harness must move when its knobs move, AGENTS 50) -> swipe / regenerate
+#   / continue / branch -> page RELOAD with a resumed turn -> a GROUP turn and back -> a final turn -> disk state.
+# A second invocation over the SAME tree (`--after-restart`) is a NEW process reading what the first wrote. A third
+# (`--handback`, under run-against-pinned.mjs) is PINNED NODE over the GoTavern-written tree, which must read the
+# journey's chat and continue it.
+#
+# Judge: tests/browser/compare-combination-journey.mjs (byte-oriented per-capture equality; two-subject asymmetry
+# fails even when each leg's own steps are green; absent restart/handback legs are NOT-OBSERVED and REFUSED, never
+# passed). Teeth: tests/browser/combination-journey-gate-selftest.mjs (five mutations, each required to fire a NAMED
+# guard, with the target guard proved green in the unmutated pair first).
+#
+# WHAT A GREEN RUN WOULD NOT PROVE: a real provider (the peer is an in-process recording backend, AGENTS 22);
+# multi-user; a real user's card/preset prose (committed derivations only, AGENTS 56); text-completion
+# instruct/context templates are not on a chat-completion wire; the group fan-out is recorded, not asserted to a
+# number.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'tests/browser/combination-journey-*'
+      - 'tests/browser/extensions/combination-journey-kit.mjs'
+      - 'tests/browser/compare-combination-journey.mjs'
+      - 'tests/browser/combination-journey-gate-selftest.mjs'
+      - 'tests/browser/fixtures/real/preset-a.json'
+      - 'tests/browser/preset-kit.mjs'
+      - 'tests/browser/worldinfo-slots-kit.mjs'
+      - 'tests/browser/regex-kit.mjs'
+      - 'tests/browser/group-chat-fixture.mjs'
+      - 'tests/browser/q20-leg-runtime.mjs'
+      - 'tests/browser/q20-persistence-drive.mjs'
+      - 'tests/browser/run-against-pinned.mjs'
+      - '.github/workflows/combination-journey.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: combination-journey-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PINNED_BASELINE_COMMIT: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
+
+jobs:
+  combination-journey:
+    # ubuntu-24.04, NOT 22.04: the browser workflows pin this image because the Playwright chromium build the harness
+    # downloads is validated against its glibc; the other long browser jobs in this repository use the same label.
+    runs-on: ubuntu-24.04
+    # SIZED FROM THE LEGS: five browser runs (two drives, two restart legs, one pinned hand-back) at ~5-7 minutes each
+    # on the measured local shape, plus one comparator and one teeth proof. 60 minutes is the backstop that fails a
+    # wedged browser instead of holding the runner; the probe's own per-step deadlines are the first line.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/checkout-pinned
+        with:
+          commit: ${{ env.PINNED_BASELINE_COMMIT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Cache the pinned server's node_modules
+        id: cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Install the pinned server's dependencies
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "pinned server node_modules: CACHE HIT for ${{ env.PINNED_BASELINE_COMMIT }} -- install SKIPPED"
+          else
+            echo "pinned server node_modules: cache MISS -- npm ci from the pinned checkout"
+            (cd .reference/SillyTavern && npm ci --no-audit --no-fund)
+          fi
+
+      - name: Install the browser harness
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            (cd tests/browser && npm ci --no-audit --no-fund)
+          fi
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            (cd tests/browser && npx playwright install-deps chromium)
+          else
+            (cd tests/browser && npx playwright install --with-deps chromium)
+          fi
+
+      - name: Build the subject binary
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          mkdir -p .browser-bin
+          go build -trimpath -o .browser-bin/gotavern ./cmd/gotavern
+          echo "GOTAVERN_BINARY=${PWD}/.browser-bin/gotavern" >> "$GITHUB_ENV"
+
+      - name: Record the five legs
+        id: legs
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/combination-journey"
+          mkdir -p "$work/legs"
+          echo "failures=0" >> "$GITHUB_OUTPUT"
+          record_failure() {
+            echo "::error::$1"
+            echo "failures=1" >> "$GITHUB_OUTPUT"
+          }
+          run_leg() {
+            label="$1"; shift
+            if "$@"; then
+              echo "recorded the $label leg"
+            else
+              record_failure "the $label leg failed to drive"
+            fi
+          }
+          # THE ORDER IS THE CLAIM: a restart leg runs over the tree its drive leg wrote, and the hand-back leg
+          # reads the GoTavern tree after the GoTavern restart leg has continued it.
+          go_tree="$work/tree-gotavern"
+          pinned_tree="$work/tree-pinned"
+          rm -rf "$go_tree" "$pinned_tree"
+          mkdir -p "$go_tree" "$pinned_tree"
+
+          run_leg gotavern-drive node tests/browser/combination-journey-probe.mjs \
+            --data-root "$go_tree" --report "$work/legs/go-drive.json" --nonce "cj-${GITHUB_RUN_ID:-local}"
+          run_leg pinned-drive node tests/browser/run-against-pinned.mjs combination-journey-probe.mjs -- \
+            --data-root "$pinned_tree" --report "$work/legs/pinned-drive.json" --nonce "cj-${GITHUB_RUN_ID:-local}"
+          run_leg gotavern-restart node tests/browser/combination-journey-probe.mjs \
+            --data-root "$go_tree" --report "$work/legs/go-restart.json" --nonce "cj-${GITHUB_RUN_ID:-local}" --after-restart
+          run_leg pinned-restart node tests/browser/run-against-pinned.mjs combination-journey-probe.mjs -- \
+            --data-root "$pinned_tree" --report "$work/legs/pinned-restart.json" --nonce "cj-${GITHUB_RUN_ID:-local}" --after-restart
+          run_leg pinned-handback node tests/browser/run-against-pinned.mjs combination-journey-probe.mjs -- \
+            --data-root "$go_tree" --report "$work/legs/pinned-handback.json" --nonce "cj-${GITHUB_RUN_ID:-local}" --handback
+          for report in go-drive pinned-drive go-restart pinned-restart pinned-handback; do
+            if [ ! -s "$work/legs/$report.json" ]; then
+              record_failure "the $report leg wrote no report"
+            fi
+          done
+          echo "artefacts at $work/legs"
+
+      - name: Compare the subjects
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/combination-journey"
+          node tests/browser/compare-combination-journey.mjs \
+            "$work/legs/go-drive.json" "$work/legs/pinned-drive.json" \
+            --restart "$work/legs/go-restart.json" "$work/legs/pinned-restart.json" \
+            --handback "$work/legs/pinned-handback.json" \
+            --out "$work/legs/comparison.json" 2>&1 | tee "$work/legs/compare.log"
+
+      - name: Prove the gate has teeth
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/combination-journey"
+          node tests/browser/combination-journey-gate-selftest.mjs \
+            "$work/legs/go-drive.json" "$work/legs/pinned-drive.json" 2>&1 | tee "$work/legs/selftest.log"
+
+      - name: Upload reports, comparison and teeth log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: combination-journey
+          path: |
+            ${{ runner.temp }}/combination-journey/legs/*.json
+            ${{ runner.temp }}/combination-journey/legs/*.log
+          if-no-files-found: warn
+          retention-days: 14
