@@ -31,6 +31,7 @@ usage: scripts/qualify-node-stock-tree.sh [options]
   --pinned DIR            pinned SillyTavern checkout (default: ../SillyTavern)
   --tree DIR              qualify an EXISTING generated tree instead of generating one
   --manifest FILE         the tree's recorded manifest (required with --tree)
+  --tree-report FILE      the generator's report for --tree (default: <tree>.report.json)
   --gotavern BIN          use an existing binary instead of `go build ./cmd/gotavern`
   --work DIR              scratch directory (default: .tmp-artifacts/node-stock-tree-qualify)
   --report FILE           JSON report path (default: <work>/node-stock-tree-roundtrip.report.json)
@@ -51,6 +52,7 @@ MANIFEST=""
 GOTAVERN_BIN=""
 WORK="$REPO_ROOT/.tmp-artifacts/node-stock-tree-qualify"
 REPORT=""
+TREE_REPORT=""
 VERIFY=0
 KEEP=0
 QUIET=0
@@ -60,6 +62,7 @@ while [ "$#" -gt 0 ]; do
         --pinned) [ "$#" -ge 2 ] || usage; PINNED="$2"; shift 2 ;;
         --tree) [ "$#" -ge 2 ] || usage; TREE="$2"; shift 2 ;;
         --manifest) [ "$#" -ge 2 ] || usage; MANIFEST="$2"; shift 2 ;;
+        --tree-report) [ "$#" -ge 2 ] || usage; TREE_REPORT="$2"; shift 2 ;;
         --gotavern) [ "$#" -ge 2 ] || usage; GOTAVERN_BIN="$2"; shift 2 ;;
         --work) [ "$#" -ge 2 ] || usage; WORK="$2"; shift 2 ;;
         --report) [ "$#" -ge 2 ] || usage; REPORT="$2"; shift 2 ;;
@@ -129,6 +132,7 @@ fi
 set -- --pinned "$PINNED" --work "$WORK/roundtrip" --report "$REPORT"
 if [ -n "$TREE" ]; then
     set -- "$@" --tree "$TREE" --manifest "$MANIFEST"
+    if [ -n "$TREE_REPORT" ]; then set -- "$@" --tree-report "$TREE_REPORT"; fi
 fi
 if [ -n "$GOTAVERN_BIN" ]; then
     set -- "$@" --gotavern "$GOTAVERN_BIN"

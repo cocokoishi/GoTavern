@@ -116,6 +116,7 @@ function parseArguments(argv) {
         pinned: value('--pinned'),
         tree: value('--tree'),
         manifest: value('--manifest'),
+        treeReport: value('--tree-report'),
         report: value('--report'),
         work: value('--work'),
         gotavern: value('--gotavern'),
@@ -983,7 +984,11 @@ async function main() {
             const manifest = await readJSON(path.resolve(options.manifest ?? `${treeRoot}.manifest.json`));
             const { entries } = await walkTreeDetailed(treeRoot);
             report.assert('tree.matchesItsManifest', treeDigest(entries) === manifest.tree.sha256, { tree: treeDigest(entries), manifest: manifest.tree.sha256 });
-            ctx.generatorReport = await readJSON(path.resolve(`${treeRoot}.report.json`));
+            // An explicitly named generator report, or the documented sibling convention. The convention is
+    // implicit, so a caller that stores the report elsewhere (the CI workflow does) must be able to say so:
+    // the first Linux run of this workflow failed here because it wrote `generated/report.json` beside
+    // `generated/tree`, so the qualifier looked for a sibling report that never existed.
+    ctx.generatorReport = await readJSON(path.resolve(options.treeReport ?? `${treeRoot}.report.json`));
             ctx.pristineEntries = manifest.entries;
             ctx.sourceTree = treeRoot;
         } else {

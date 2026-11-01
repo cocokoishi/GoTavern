@@ -131,6 +131,7 @@ jobs:
             --pinned .reference/SillyTavern \
             --tree "$work/generated/tree" \
             --manifest "$work/generated/manifest.json" \
+            --tree-report "$work/generated/report.json" \
             --work "$work/roundtrip" \
             --report "$work/roundtrip/report.json" \
             --keep
