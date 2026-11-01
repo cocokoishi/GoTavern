@@ -303,7 +303,16 @@ async function applyConnectionState(page, peerURL) {
     await page.evaluate(async () => {
         const openai = await import('./scripts/openai.js');
         openai.oai_settings.stream_openai = true;
-        openai.oai_settings.openai_max_context = 8192;
+        // THE CONTEXT MUST HOLD THE DERIVED PRESET. This used to be 8192 context / 512 completion, which is
+        // SMALLER than the committed complex preset's prompt mass: the derivation preserves byte length by
+        // replacing prose with CJK markers, and the GPT tokenizer charges a CJK character roughly two tokens, so
+        // the 105 prompts are ~25k tokens. With a 7680-token budget the assembly throws inside
+        // populateChatCompletion and the catch leaves only the four prompts added before the throw -- the
+        // 11864-byte four-prompt skeleton with no chatHistory, on BOTH subjects. The real preset declares
+        // openai_max_context 2000000, so the cap now matches the fixture's own frame rather than truncating it,
+        // and the journey can measure the FULL assembly it exists to compare.
+        const journeyPresetContext = 2000000;
+        openai.oai_settings.openai_max_context = journeyPresetContext;
         openai.oai_settings.openai_max_tokens = 512;
     });
     const silence = await silenceAndObserve(page);
@@ -578,17 +587,23 @@ async function waitForArmedPromptManager(page, { minimum = 8, timeoutMs = 30000 
             if (!pm) return { available: false };
             let count = null;
             let identifiers = null;
+            let markerCount = 0;
             try {
                 const collection = pm.getPromptCollection('normal');
                 const prompts = Array.isArray(collection?.collection) ? collection.collection : [];
                 count = prompts.length;
                 identifiers = prompts.map(prompt => prompt?.identifier ?? null);
+                // THE COMPLEX PRESET IS WHAT MAKES THE FINAL REQUEST WHAT IT IS. The default prompt order also has
+                // chatHistory/worldInfoBefore/main, so the three required identifiers could not tell an armed complex
+                // preset from a freshly booted default one -- and the restart capture carried world-info slots but no
+                // preset markers while this check was green. Count the preset's MARK_ prompts and require them.
+                markerCount = prompts.filter(prompt => String(prompt?.content ?? '').includes('MARK_')).length;
             } catch (error) { return { available: true, error: String(error?.message ?? error) }; }
-            return { available: true, promptCount: count, identifiers, activeCharacter: pm.activeCharacter ?? null, chid: script.this_chid ?? null };
+            return { available: true, promptCount: count, identifiers, markerCount, activeCharacter: pm.activeCharacter ?? null, chid: script.this_chid ?? null };
         });
         const identifiers = last?.identifiers ?? [];
         const required = ['chatHistory', 'worldInfoBefore', 'main'];
-        const armed = last?.available === true && Number(last?.promptCount) >= minimum && required.every(identifier => identifiers.includes(identifier));
+        const armed = last?.available === true && Number(last?.promptCount) >= minimum && Number(last?.markerCount) >= 5 && required.every(identifier => identifiers.includes(identifier));
         if (armed) {
             // STABILITY WINDOW: keep sampling for 2.5 s; a later sample that is not armed restarts the window.
             const stableSince = Date.now();
@@ -599,9 +614,9 @@ async function waitForArmedPromptManager(page, { minimum = 8, timeoutMs = 30000 
                     const openai = await import('./scripts/openai.js');
                     const collection = openai.promptManager?.getPromptCollection('normal');
                     const prompts = Array.isArray(collection?.collection) ? collection.collection : [];
-                    return { count: prompts.length, identifiers: prompts.map(prompt => prompt?.identifier ?? null) };
+                    return { count: prompts.length, identifiers: prompts.map(prompt => prompt?.identifier ?? null), markerCount: prompts.filter(prompt => String(prompt?.content ?? '').includes('MARK_')).length };
                 });
-                const stillArmed = Number(again?.count) >= minimum && required.every(identifier => (again?.identifiers ?? []).includes(identifier));
+                const stillArmed = Number(again?.count) >= minimum && Number(again?.markerCount) >= 5 && required.every(identifier => (again?.identifiers ?? []).includes(identifier));
                 if (!stillArmed) { stable = false; break; }
             }
             if (stable) return { ...last, armed: true, stableForMs: Date.now() - started, waitedMs: Date.now() - started };
@@ -1216,6 +1231,32 @@ async function main() {
                 const events = await import('./scripts/events.js');
                 window.__combGenLog = [];
                 window.__combOpenAI = await import('./scripts/openai.js');
+
+                // THE TOKEN COUNTS THE BUDGET IS COMPUTED FROM. countAsync is the only thing between a prompt and
+                // its token cost; a null/undefined returning here turns the budget arithmetic into NaN and the add
+                // loop stops after the prompts whose counts were sane. Record every call and any error.
+                window.__combTokLog = [];
+                try {
+                    const tokenHandler = window.__combOpenAI?.promptManager?.tokenHandler;
+                    if (tokenHandler && !tokenHandler.__combWrapped) {
+                        tokenHandler.__combWrapped = true;
+                        const originalCount = tokenHandler.countAsync.bind(tokenHandler);
+                        tokenHandler.countAsync = async function (message) {
+                            const record = { contentLength: String(message?.content ?? '').length, at: Date.now() };
+                            try {
+                                const result = await originalCount(message);
+                                record.count = result;
+                                record.finite = Number.isFinite(result);
+                                window.__combTokLog.push(record);
+                                return result;
+                            } catch (error) {
+                                record.error = String(error?.message ?? error).slice(0, 240);
+                                window.__combTokLog.push(record);
+                                throw error;
+                            }
+                        };
+                    }
+                } catch (error) { /* recorder must never break the page */ }
                 const record = async (event, args) => {
                     try {
                         const context = window.SillyTavern && window.SillyTavern.getContext ? window.SillyTavern.getContext() : null;
@@ -1344,6 +1385,7 @@ async function main() {
                 report.browser.reloadTurn = { matched: turnReload.requests.length, noGenerationRequest: turnReload.noGenerationRequest === true, seen: turnReload.seen ?? null, recovered: turnReload.recovered ?? null, baseline: turnReload.baseline ?? null, sent: turnReload.sent ?? null, after: turnReload.after ?? null };
                 report.browser.reloadGenLog = await page.evaluate(() => window.__combGenLog ?? null);
                 report.browser.reloadChatTimeline = await page.evaluate(() => (window.__combChatTimeline ?? []).slice(0, 400));
+                report.browser.reloadTokenCountLog = await page.evaluate(() => (window.__combTokLog ?? []).slice(0, 200));
                 report.browser.reloadPromptError = await page.evaluate(async () => {
                     try {
                         const openai = await import('./scripts/openai.js');
@@ -1438,6 +1480,25 @@ async function main() {
             report.disk.projection = chatProjection(report.disk.chats);
         }
 
+        // THE PRESET SIGNATURES ARE CLASSIFIER INPUT, NOT DRIVE-ONLY DATA. They were computed inside the drive
+        // branch, so on the restart and hand-back phases classifyCapture returned an EMPTY presetMarkers list no
+        // matter what was on the wire -- the after-restart capture carried MARK_ prompts and satisfied every other
+        // guard while "preset markers present" was false on both subjects. The preset file is in the tree, so read it
+        // back on the phases that did not plant it.
+        if (presetSignatures.length === 0) {
+            try {
+                const presetPath = path.join(dataRoot, 'default-user', 'OpenAI Settings', 'comb-journey-complex-preset.json');
+                const lateDocument = JSON.parse((await fs.readFile(presetPath)).toString('utf8'));
+                presetSignatures = (lateDocument.prompts ?? [])
+                    .map(entry => String(entry?.content ?? ''))
+                    .filter(content => /MARK_[0-9A-Za-z]{4,}/.test(content))
+                    .map(content => (content.match(/MARK_[0-9A-Za-z_]+/) ?? [null])[0])
+                    .filter(Boolean)
+                    .slice(0, 3);
+                report.browser.presetSignatures = presetSignatures;
+            } catch (error) { report.browser.presetSignaturesError = String(error?.message ?? error); }
+        }
+
         if (phase === 'restart') {
             // ---- STEP 8: a NEW process over the SAME tree reads and continues the journey ----------
             const chats = await readJourneyChats(dataRoot);
@@ -1477,7 +1538,19 @@ async function main() {
             report.browser.restartHelper = { ok: restartHelper.ok, payload: restartHelper.payload, done: restartHelper.done };
             step('after-restart-helper-reran', restartHelper.ok === true, restartHelper.done ?? null);
             const restartTokenizer = await waitForTokenizerReady(page);
-        step('restart-tokenizer-ready', restartTokenizer.ok === true, restartTokenizer);
+            step('restart-tokenizer-ready', restartTokenizer.ok === true, restartTokenizer);
+            // THE RELOAD PHASE SAID THIS ORDER MATTERS AND THE RESTART PHASE DID NOT DO IT: the last thing before a
+            // send must be the preset/world selection and the connection, because the helper re-run and the QR
+            // execute page code that can leave the prompt manager on the default order. restart-prompt-manager-armed
+            // was measured BEFORE the injections, and the capture then carried world-info slots but no preset
+            // markers at all (both subjects identically). Re-assert here, last, and assert the armed state again.
+            report.browser.restartWorldFinal = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            report.browser.restartPresetFinal = await selectPresetThroughControl(page, presetName);
+            report.browser.restartReconnectedFinal = await connect();
+            await waitForQuiet(page);
+            report.browser.restartPromptArmedFinal = await waitForArmedPromptManager(page);
+            step('restart-ready-to-send', report.browser.restartPromptArmedFinal.armed === true
+                && report.browser.restartPresetFinal.ok === true, { armed: report.browser.restartPromptArmedFinal, preset: report.browser.restartPresetFinal, world: report.browser.restartWorldFinal });
         const resumed = await turn(page, 'COMB_TURN_AFTER_RESTART', 'turn-after-restart');
             const captureResumed = classifyCapture(resumed.requests[0]);
             report.browser.resumed = { requests: resumed.requests.length, after: resumed.after };

@@ -1,151 +1,115 @@
-# The combination journey
+# The combination journey: one session, five legs, byte-equal captures
 
-**Lane:** alpha11 Lane H (GOAL §9's highest-priority combination; GOAL §12's "character × preset × helper passes as
-a combination"). **Subject:** GoTavern. **Oracle:** pinned SillyTavern `1.19.0` @
+**Lane:** alpha11 Lane H (GOAL §9's highest-priority combination; GOAL §12's "character × preset × helper passes as a
+combination"). **Subject:** GoTavern. **Oracle:** pinned SillyTavern `1.19.0` @
 `06bde939fb1e9c4c8d8641d810f0a916b5bce127` via `tests/browser/run-against-pinned.mjs`. **Extension:** pinned 酒馆助手 /
 JS-Slash-Runner `837a6288…`, used only through its own `replaceScriptTrees` iframe and `window.TavernHelper` bridge.
 
-**Verdict of this round: the reload phase is now measured against the preconditions a user has (active saved chat,
-its history, the character's prompt collection, the persisted world selection, the injected prompts), and those
-preconditions are GREEN on both subjects — but the send that follows them still produces a generation request with
-NO chat history on BOTH subjects, so the comparator verdict remains `mismatch`.** The remaining red is named and
-evidenced (§"The remaining anomaly"), it is identical on GoTavern and pinned Node, and it is a harness-faithfulness
-alarm (AGENTS 10), not a product divergence. The combination-coverage claim stays OUT of the matrix row.
+**Verdict of this round: `match`.** The five-leg matrix is green on both subjects and the comparator reports 81 guards,
+0 failed, 0 asymmetries. The earlier red was never a product divergence: it was three defects in the probe itself,
+named and fixed below. The matrix row's note cites the CI run that judges the same five legs on `ubuntu-24.04` once it
+is green; this document is Layer A (Windows) evidence.
 
-## What this round fixed
+## The five legs, in order
 
-1. **Reload phase order, asserted instead of assumed.** After the reload the journey now: re-selects the armed preset
-   through the frontend control, restores the world book through `updateWorldInfoSettings` and polls the persisted
-   `world_info.globalSelect`, opens the character, lets the CHARACTER OPEN ITS OWN CHAT (the saved journey chat is the
-   character's last chat; an explicit `openCharacterChat` is only used when the active chat is a different one), waits
-   for a 1.5 s stability window on the active chat id + history + last regex-rewritten assistant message, re-asserts the
-   persona binding AFTER the character open (opening a character clears it — the 31-byte control-arm mismatch), and
-   re-applies the connection LAST. All of these are recorded as steps: `reload-chat-reopened`, `reload-preserved-history`,
-   `reload-world-info-persisted-from-disk`, `reload-ready-to-send` are green on both.
-2. **Prompt-manager armed precondition.** The normal post-reload send was assembling the DUMMY prompt order (4 prompts)
-   while a dry run 1.3 s later assembled 39 on the same page. The journey now waits (bounded, with a 2.5 s stability
-   window) until the prompt manager's own `getPromptCollection('normal')` holds the character's collection
-   (`chatHistory`, `worldInfoBefore`, `main` present; measured 56 prompts) before it clicks send:
-   `reload-prompt-manager-armed` is green on both, and the same precondition is applied to the restart and hand-back
-   turns (`restart-prompt-manager-armed`, `handback-prompt-manager-armed`).
-3. **Persona/history-prefix byte equality.** The user name is set through the product's own `setUserName` (a namespace
-   assignment silently no-ops) and `power_user.allow_name1_display` is set on both; the name is re-asserted after every
-   character open. Measured: the comparator's per-capture byte comparison now has **zero mismatched common cases** —
-   armed turn 1, turn 2, swipe, regenerate, continue and both control arms are byte-identical between subjects.
-4. **Helper page error.** The installed helper script tree re-runs on every page load; without an injection payload it
-   threw `Cannot read properties of undefined (reading 'runId')`, which the harness recorded as a page error. The tree
-   now records the auto-run and returns without touching state; the restart and hand-back legs (which loaded the
-   guarded tree) report **zero page errors**.
-5. **Restart-phase comparator guard** passed both subjects explicitly, so it no longer manufactures a false asymmetry.
-6. **Auto-run guard and page-error fix** are harness-side; they change no assertion.
+The order IS the claim: a restart leg runs over the tree its drive leg wrote, and the hand-back leg reads the
+GoTavern tree after the GoTavern restart leg continued it.
 
-## Measured state (Windows host, Layer A; branch not pushed)
+| # | leg | subject | tree |
+|---|---|---|---|
+| 1 | drive | GoTavern binary | new tree |
+| 2 | drive | pinned Node | new tree |
+| 3 | restart | GoTavern binary | leg 1's tree |
+| 4 | restart | pinned Node | leg 2's tree |
+| 5 | hand-back | pinned Node | leg 1's tree, after leg 3 |
 
-| leg | steps | failed steps |
-|---|---|---|
-| GoTavern drive | 63 | 6 |
-| pinned drive | 63 | 6 |
-| GoTavern restart (same tree) | 18 | 6 |
-| pinned restart (same tree) | 18 | 6 |
-| pinned hand-back (over the GoTavern tree) | 12 | 1 |
+## Measured state (Windows host, Layer A, 2026-11-01, clean run)
 
-The failed steps are the SAME names on both subjects:
-`after-reload-turn-captured`, `after-reload-request-carries-surviving-state`,
-`after-reload-request-carries-preset-and-regex`, `after-reload-request-carries-variables-and-qr`,
-`group-turn-produced-request`, `final-turn-earned-request`; the restart legs add the six `after-restart-*` steps and
-the hand-back leg adds `handback-continued-and-reached-provider`. Every step that asserts a page PRECONDITION
-(chat reopened and stable, world selection persisted, prompt manager armed, injections active, history on disk) is
-green on both.
+| leg | steps | failed | provider requests |
+|---|---|---|---|
+| GoTavern drive | 64 | **0** | 11 |
+| pinned drive | 64 | **0** | 11 |
+| GoTavern restart | 20 | **0** | 1 |
+| pinned restart | 20 | **0** | 1 |
+| pinned hand-back | 13 | **0** | 1 |
 
-**Comparator (81 guards): verdict `mismatch`, 17 failed guards, 0 asymmetries, 0 mismatched common capture cases.**
-Teeth: **5/5 mutations produced their named red** (QR injection dropped, preset pieces dropped, variable scopes
-dropped, one subject missing a turn, durable chat emptied), each with its target guard proved green first.
+Comparator (`tests/browser/compare-combination-journey.mjs`) over those five reports: **verdict `match`, 81 guards,
+0 failed, 0 asymmetries**, including `nodeEqualsGo-per-capture` (every common capture byte-equal),
+`restart-capture-equality`, `both-subjects-captured-the-same-turns`, `both-legs-have-no-failed-step`,
+`journey-chat-projection-equal-modulo-declared-volatile` and `no-page-errors`. Teeth:
+`combination-journey-gate-selftest.mjs` **5/5 named reds** (Quick Reply injection dropped, preset pieces dropped,
+variables dropped, a subject misses a turn, the durable chat is emptied), with the target guard green before each
+mutation.
 
-## The remaining anomaly (named, with evidence)
+This is Layer A evidence. The CI gate is the same five legs on `ubuntu-24.04` in
+`.github/workflows/combination-journey.yml`; a local green is not the CI verdict (AGENTS rules 23/61), so the matrix
+row's note carries a run id only after that workflow is green.
 
-After the reload/restart/hand-back **both subjects** send a generation whose provider request contains only FOUR
-messages — a system prompt, one preset user prompt, the chat-history prompt rendered as `[Start new chat]`, and the
-jailbreak prompt — with **no chat history, no world-info slots, no author's note, no helper variables and no QR
-injection**. The exact assembly is 11864 bytes, sha256
-`01c99711bc87ec8a486512dd8855d63d4cb4c326c66bfa1863b80422e2e97920`, attribution `system-or-other` (no user message
-carries the turn marker), and it is byte-identical across both subjects, both reload attempts, and the restart legs.
-At the moment of the click the page reports the opposite state, all asserted green immediately before the send:
+## What was wrong with the PROBE (and why the earlier red was never a product finding)
 
-* the saved chat is active (`chatId` equal to the saved id, `chatLength: 9`, last message the regex-rewritten
-  assistant reply) and stayed stable for 1.5 s;
-* the prompt manager's `getPromptCollection('normal')` held 56 prompts including `chatHistory`, `worldInfoBefore`,
-  `main`, stably for 2.5 s;
-* `settings.world_info.globalSelect` held the journey book on disk;
-* the helper prompt and the QR-injected prompt were present in the page's extension prompts.
+The journey failed for several rounds with a system-only four-message assembly and no chat history, first attributed
+to the product and later to a named "generation-entry anomaly". The measured cause was in the harness, in three
+places:
 
-A dry-run generation (`promptManager.tryGenerate()` -> `Generate('normal', {}, true)`) that fires ~1.3 s after the
-same click assembles **39** messages on the same page — so the frontend can build the full assembly; the normal send
-path used the four-prompt skeleton. The generation events confirm a real `GENERATION_STARTED` with `chatLength: 9`,
-and the chat grows by user+assistant after it, i.e. this is not a missing click and not an empty page. This is a
-frontend state inconsistency in the generation entry path triggered by opening an existing chat and immediately
-sending; it reproduces identically under pinned Node, so it is a HARNESS-FAITHFULNESS ALARM and the named red stays.
+1. **The harness capped the context far below the committed preset's own frame.** `configureConnection` set
+   `openai_max_context = 8192` / `openai_max_tokens = 512`. The committed complex preset is a byte-length-preserving
+   derivation whose prose is replaced by CJK markers, and the GPT tokenizer charges a CJK character roughly two
+   tokens: its 105 prompts are ~25k tokens. With a 7680-token budget the assembly throws inside
+   `populateChatCompletion`, the catch in `prepareOpenAIMessages` leaves only the prompts added before the throw, and
+   the wire carries a 11864-byte four-prompt skeleton with `[Start new chat]` and no history — **on BOTH subjects**,
+   because the budget arithmetic is frontend code. A dry run 1.3 s later assembled 39 messages, which is what made it
+   look like a generation-entry/order anomaly rather than a budget one. The probe now uses the preset's own
+   declaration (`openai_max_context = 2000000`, completion 512), and every turn assembles the full context.
+2. **The restart leg set the preset/world/connection too early.** The helper re-run and the Quick Reply execute page
+   code that can leave the prompt manager on the default order, so the last thing before the restart send must be the
+   preset re-selection, world selection and connection — exactly the order the reload phase already used. Measured:
+   the restart capture carried world-info slots and history but **no preset markers at all**, on both subjects.
+3. **The classifier's preset signatures were computed only on the drive phase.** On the restart and hand-back phases
+   `presetSignatures` stayed empty, so `presetMarkers` was `[]` no matter what the wire carried (the body DID contain
+   the preset's `MARK_` prompts). The other phases now read the planted preset back from the tree.
 
-## What is still OPEN (explicit)
+Two smaller probe corrections landed with them: the prompt-manager "armed" check now also requires the complex
+preset's own `MARK_` prompts (the default order also contains `chatHistory`/`worldInfoBefore`/`main`, so the three
+required identifiers alone could not distinguish an armed preset from a freshly booted default), and the tokenizer
+readiness precondition imports `scripts/tokenizers.js` — `script.js` imports `getTokenCountAsync` without
+re-exporting it, so the first version of that check measured a 30-second "not a function" error rather than readiness.
 
-- The post-reload/restart/hand-back generation entry anomaly above; until it is understood, the comparator cannot
-  reach `match` and the combination coverage claim stays out of the matrix row.
-- Streaming: only the honour-wire SSE path with `stream_openai=true` is exercised; other streaming variants are not.
-- Helper scope: only the `replaceScriptTrees` script-tree path plus `insertOrAssignVariables` / `getVariables` /
-  `injectPrompts` are driven; the rest of the TavernHelper API surface is not.
-- The group turn's fan-out count is recorded, not asserted.
-- No real provider (recording peer; AGENTS 22), no multi-user, no real user card/preset prose (derivations only,
-  AGENTS 56).
+## What the journey exercises on the wire
 
-## Commands (Layer A)
+Every common capture is byte-equal between subjects, and the captures carry: the preset's own literal pieces in
+order; world info in three slots (before / after / depth); the author's note at depth 7; 酒馆助手 chat/global/character
+variables; the Quick Reply injection; history carrying the previous turn's regex-REWRITTEN text (and not the raw
+pre-regex text); a branch created through the frontend's bookmarks; a group turn; a reload turn over the saved chat;
+a restart turn over the same tree; and a pinned hand-back turn over the GoTavern-written chat, whose reply is
+persisted and read back. Streaming is requested and served on every capture (`requestedStream` and `servedWire`
+agree).
 
-```bash
-node tests/browser/combination-journey-probe.mjs --data-root <go-tree> --report go.json --nonce cke
-node tests/browser/run-against-pinned.mjs combination-journey-probe.mjs -- --data-root <pinned-tree> --report pinned.json --nonce cke
-node tests/browser/combination-journey-probe.mjs --data-root <go-tree> --report go-restart.json --nonce cke --after-restart
-node tests/browser/run-against-pinned.mjs combination-journey-probe.mjs -- --data-root <pinned-tree> --report pinned-restart.json --nonce cke --after-restart
-node tests/browser/run-against-pinned.mjs combination-journey-probe.mjs -- --data-root <go-tree> --report handback.json --nonce cke --handback
-node tests/browser/compare-combination-journey.mjs go.json pinned.json --restart go-restart.json pinned-restart.json --handback handback.json --out comparison.json
-node tests/browser/combination-journey-gate-selftest.mjs go.json pinned.json
+## What is still OPEN, explicitly
+
+- Streaming variants other than honour-SSE with `stream_openai=true` (the captures are `honour-sse`).
+- Helper API surface beyond the calls the journey drives (`replaceScriptTrees`, variables, `injectPrompts`); the
+  swept surface is recorded by `helper-state-probe.mjs` — this journey is not a helper-API differential.
+- The group fan-out count is recorded, not asserted.
+- No real provider, multi-user deployment or real card/preset prose is exercised (AGENTS rules 22 and 56): the
+  preset and card are committed derivations and the provider is the recording peer.
+- The workflow run at the commit that changes this probe: pending at the time of writing, and the matrix note must
+  cite it once green.
+
+## Commands (reproduce the five legs)
+
+```sh
+node tests/browser/combination-journey-probe.mjs --data-root <go-tree> --report go-drive.json --nonce <id>
+node tests/browser/run-against-pinned.mjs combination-journey-probe.mjs -- \
+  --data-root <pinned-tree> --report pinned-drive.json --nonce <id>
+node tests/browser/combination-journey-probe.mjs --data-root <go-tree> --report go-restart.json --after-restart --nonce <id>
+node tests/browser/run-against-pinned.mjs combination-journey-probe.mjs -- \
+  --data-root <pinned-tree> --report pinned-restart.json --after-restart --nonce <id>
+node tests/browser/run-against-pinned.mjs combination-journey-probe.mjs -- \
+  --data-root <go-tree> --report pinned-handback.json --handback --nonce <id>
+node tests/browser/compare-combination-journey.mjs go-drive.json pinned-drive.json \
+  --restart go-restart.json pinned-restart.json --handback pinned-handback.json --out comparison.json
+node tests/browser/combination-journey-gate-selftest.mjs go-drive.json pinned-drive.json
 ```
 
-The workflow `.github/workflows/combination-journey.yml` runs these same five legs on `ubuntu-24.04` (60-minute
-bound), compares with `--restart` + `--handback`, runs the teeth, and uploads the `combination-journey` artefact.
-
-
-## The post-reload assembly anomaly: what the instrumented event log now proves (2026-11-01)
-
-A second instrumentation pass captured the CONTENT of the assembled messages, and it moves the diagnosis one
-layer: the four-message real assembly is **four preset prompts only** -- system (one preset prompt), user (a preset
-prompt), system (two preset prompts concatenated), assistant (a preset prompt) -- with NO chatHistory entry at all.
-That is the DUMMY prompt order, not a truncated history: the page's global chat array was sampled every 25 ms across
-the generation and never changed (10 messages, same chat id, same character, then 11 after the reply), and the prompt
-collection measured 56 at every event. That was measured again INSIDE the generation handlers, with the preset name, `oai_settings.preset_settings_openai`,
-the dummy prompt-order length, the service prompts length, the active character and a tokenizer-readiness precondition
-all recorded at the real call: preset `comb-journey-complex-preset`, 98-entry dummy order, **105 service prompts**, a
-56-prompt collection, `activeCharacter` 100001 and a nine-message chat -- every input AGREES with the dry run, and
-the tokenizer answers in ~29 ms before the send. The four-prompt real assembly therefore is not a stale prompt order,
-a missing prompts list or a tokenizer failure: the difference is inside `prepareOpenAIMessages`/
-`populateChatCompletion` between `dryRun=false` and `dryRun=true` on identical inputs. The next attempt must wrap or
-breakpoint `populateChatCompletion` (the only code that adds prompts and stops) instead of measuring more state
-around it. Identical under pinned Node, so it remains an AGENTS-10 harness-faithfulness alarm, not a product
-divergence; the comparator stays `mismatch`, the workflow stays expected RED, and no coverage is claimed.
-
-The generation-entry anomaly was re-measured with event-time instrumentation (prompt-collection length and the active
-character at each event, plus the assembled array length). On BOTH subjects, for the post-reload turn:
-
-| event | chatLength | promptCount | this_chid | assembled prompt |
-|---|---|---|---|---|
-| GENERATION_STARTED (real) | 9 | 56 | 3 | - |
-| GENERATION_AFTER_COMMANDS (real) | 9 | 56 | 3 | - |
-| GENERATE_AFTER_DATA (real) | - | 56 | - | **4 messages**, roles system/user/system/assistant |
-| GENERATE_AFTER_DATA (dry run, +1.3 s) | 11 | 56 | - | **39 messages** |
-
-That rules out the prompt manager (it is armed at 56 prompts, with the character selected, at every event) and rules
-out a stale chat (the page reports the correct chat id and nine messages). The four-message real assembly is what
-pinned produces when the OPENAI message list handed to `prepareOpenAIMessages` is empty except for the new user turn,
-while the dry run 1.3 s later assembles the full history. The remaining hypothesis is therefore in the real
-generation's OpenAI message list (`setOpenAIMessages(coreChat)` in `public/script.js:4834`), not in the prompt
-collection; it is IDENTICAL under pinned Node, so it is a harness-faithfulness alarm until a read of that list at
-assembly time identifies the trigger. The comparator stays `mismatch` and the combination-coverage claim stays out of
-the matrix; the workflow (`.github/workflows/combination-journey.yml`) runs the same five legs and is expected RED
-until this is resolved. No product difference is claimed.
+`GOTAVERN_BINARY` must point at the Go binary under test. Each leg boots its own subject and the recording peer, and
+the browser is headless with `--browserLaunchEnabled false` on both subjects.

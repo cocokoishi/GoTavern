@@ -68,10 +68,16 @@ path, determinism volatile-count masking, provider-wire fixture key-order).
 
 ### Residuals, recorded rather than hidden
 
-- **Combination journey (DoD) is NOT built**: no single browser journey composes character x preset x helper x world
-  info x variables x regex x quick replies x streaming x save/reload/swipe/regenerate/continue/restart. The pieces
-  are measured individually (domain, provider-wire, group, helper, whole-session) but the composed journey is a
-  remaining P1.
+- **Combination journey (DoD): CLOSED ON LAYER A after this release, and the ubuntu workflow is the remaining
+  citation.** A single browser journey now composes character x preset x helper x world info x variables x regex x
+  quick replies x streaming x save/reload/swipe/regenerate/continue/group/restart/hand-back. The five-leg matrix is
+  green locally on Windows (GoTavern drive 64/64, pinned drive 64/64, both restarts 20/20, pinned hand-back 13/13;
+  comparator verdict `match`, 81 guards, 0 failed, 0 asymmetries; teeth 5/5). The earlier red was three PROBE
+  defects, not a product divergence: an 8192-token context cap against a committed preset whose CJK-marker
+  derivation tokenizes to ~25k tokens (the budget throw produced the four-prompt 11864-byte skeleton on both
+  subjects), restart-phase ordering (preset/world/connection must be re-asserted after the helper re-run and QR),
+  and preset signatures computed only on the drive phase. The probe fixes are in `tests/browser/`; the workflow run
+  at the commit that pushes them is the CI evidence the matrix note cites once green.
 - **Helper-state CI was RED AT THIS RELEASE, and is GREEN after it.** The alpha.11 release correctly claimed
   Layer A only. Four job defects were found and fixed after the tag: pinned checkout inside the workspace; runner
   pinned to ubuntu-24.04 for Playwright; one data root (the wrapper and the child resolved different roots, plus

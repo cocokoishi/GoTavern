@@ -190,21 +190,20 @@ checker's browser-harness citation rule added in the same change (a citation-voc
 evidence relaxation: the harness must exist, be listed in the row's evidence.tests, and be executed by a
 workflow the row's evidence.ci names). The row does NOT cite a final-candidate run: the release gate
 
-**Combination journey (alpha11 Lane H): PRE-SEND PRECONDITIONS ASSERTED AND GREEN, ONE HARNESS ANOMALY REMAINS, still OPEN.**
-The composed journey now runs the full five-leg matrix locally: GoTavern drive 63 steps / 6 red, pinned drive 63 / 6
-(identical red names), GoTavern restart 18 / 6, pinned restart 18 / 6 (identical), pinned hand-back over the
-GoTavern-written tree 12 / 1; comparator 81 guards / 17 failed / 0 asymmetries / 0 mismatched common captures;
-teeth 5/5 named reds. Every page PRECONDITION is asserted before the surviving turn and green on both: the saved chat
-is reopened as the character's own chat and held stable (active id, 9 messages, regex-rewritten tail, 1.5 s), the
-prompt manager's own `getPromptCollection("normal")` holds the character collection (56 prompts incl.
-chatHistory/main/worldInfoBefore, stable 2.5 s), `world_info.globalSelect` is persisted, the helper prompt and QR
-injection are active, and the persona is re-asserted after the character open (the two control arms are now
-byte-equal). STILL OPEN: after reload/restart/hand-back BOTH subjects send a generation whose provider request is the
-deterministic 11864-byte four-message skeleton (chatHistory rendered `[Start new chat]`, no history/WI/AN/variables/QR,
-sha256 `01c99711bc87ec8a486512dd8855d63d4cb4c326c66bfa1863b80422e2e97920`) while a dry run 1.3 s later assembles
-39 messages on the same page; the group/final turns inherit it. Identical under pinned Node, so it is a
-harness-faithfulness alarm (AGENTS 10), not a product divergence; the combination-coverage claim stays out of the
-matrix row until the ubuntu workflow is green and cited. Full record: `docs/combination-journey.md`.
+**Combination journey (alpha11 Lane H): CLOSED ON LAYER A -- verdict `match`, 0 asymmetries; the ubuntu workflow is the remaining citation.**
+The composed five-leg matrix now runs green locally: GoTavern drive 64 steps / 0 red / 11 provider requests, pinned
+drive 64 / 0 / 11, GoTavern restart 20 / 0 / 1, pinned restart 20 / 0 / 1, pinned hand-back over the GoTavern-written
+tree 13 / 0 / 1; comparator **81 guards / 0 failed / 0 asymmetries**, including every common capture byte-equal
+(`nodeEqualsGo-per-capture`), `restart-capture-equality` and the projection guard; teeth **5/5 named reds**. The
+earlier "generation-entry anomaly" was three probe defects, not a product divergence: (1) the harness capped
+`openai_max_context` at 8192 against a committed preset whose CJK-marker derivation tokenizes to ~25k tokens, so
+`populateChatCompletion` threw and the catch sent the four-prompt 11864-byte skeleton on BOTH subjects -- the probe
+now uses the preset's own 2000000 frame; (2) the restart leg set the preset/world/connection before the helper re-run
+and QR instead of last; (3) the classifier computed the preset signatures only on the drive phase, so restart captures
+reported no preset markers even when the wire carried them. Full record, including what the captures carry and what
+stays OPEN (streaming variants, helper API beyond the driven calls, group fan-out count, real provider): 
+`docs/combination-journey.md`. The matrix row's note carries the ubuntu workflow run id once this probe change is
+pushed and that workflow is green; a local green is Layer A evidence, not the CI verdict.
 
 re-runs this workflow at the frozen candidate SHA and THAT run is cited in the release record, not here.
 
