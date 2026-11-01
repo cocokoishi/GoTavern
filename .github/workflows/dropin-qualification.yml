@@ -382,6 +382,33 @@ jobs:
             --layout foreign-cwd --config minimal --port 8800
           echo "scenario foreign-cwd/minimal passed in $(( $(date +%s) - start ))s"
 
+      - name: 'Drop-in qualification 5/5 -- a NODE-ORIGINATED stock tree, not the derived one'
+        # THE SHAPE GAP THIS CLOSES (gap rank 1): scenarios 1-4 boot the archive over a tree DERIVED from the
+        # vendored pinned baseline by scripts/build-stock-tree.sh. The user's tree is not that derivation -- it
+        # is what the pinned server itself writes when it is driven through its own API. tools/build-node-stock-tree
+        # boots the pinned server and creates a second user, non-default settings with unknown keys, characters
+        # with real PNG avatars and alternate greetings, chats with swipes and chat variables, a group and group
+        # chat, a world book, a complex preset, Quick Replies, a theme, a persona avatar, a background and
+        # thumbnails (only three items are labelled seeds because pinned's API cannot express them). This step
+        # generates that tree once and runs the SAME packaged qualification over it through qualify-dropin.sh's
+        # --tree input: drop-in boot, URL/API smoke, no-mutation-of-user-files assertions, restart and chat read.
+        run: |
+          set -eu
+          tree="${RUNNER_TEMP}/node-stock-tree"
+          rm -rf "$tree"
+          start=$(date +%s)
+          node tools/build-node-stock-tree.mjs \
+            --pinned .reference/SillyTavern \
+            --out "$tree" \
+            --report "${RUNNER_TEMP}/node-stock-tree.report.json" \
+            --manifest "${RUNNER_TEMP}/node-stock-tree.manifest.json" \
+            --quiet
+          echo "node-originated tree generated in $(( $(date +%s) - start ))s"
+          start=$(date +%s)
+          sh scripts/qualify-dropin.sh --archive "${{ steps.package.outputs.archive }}" \
+            --layout cwd-root --config full --port 8801 --tree "$tree"
+          echo "scenario cwd-root/node-originated passed in $(( $(date +%s) - start ))s"
+
       - name: 'Hand the PACKAGED tree back to pinned Node (Q21) -- AGENTS.md 38'
         id: q21
         # THE CLAIM THE OTHER SCENARIOS CANNOT MAKE. They boot the archive over a planted tree and assert the

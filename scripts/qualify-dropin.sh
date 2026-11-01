@@ -50,7 +50,7 @@
 #     `src/tokenizers`, and whether that is the archive's tree or the stock tree is a packaging question
 #     this script REPORTS (see the layout report) rather than asserts.
 #
-# Usage: scripts/qualify-dropin.sh --archive <path> --layout cwd-root|foreign-cwd [--port N] [--keep]
+# Usage: scripts/qualify-dropin.sh --archive <path> --layout cwd-root|foreign-cwd [--port N] [--tree DIR] [--keep]
 # Requirements: sh, python3 (index parse), curl, jq, git, find, sha256sum, ss (optional).
 
 set -eu
@@ -60,6 +60,7 @@ REPO_ROOT=$(CDPATH='' cd -- "$SCRIPT_DIR/.." && pwd -P)
 
 ARCHIVE=""
 LAYOUT=""
+TREE_INPUT=""
 PORT="${PORT:-8797}"
 KEEP=0
 READINESS_BOUND=30
@@ -72,13 +73,14 @@ while [ "$#" -gt 0 ]; do
         --layout)  [ "$#" -ge 2 ] || { echo "error: --layout needs a value" >&2; exit 2; }; LAYOUT=$2; shift 2 ;;
         --port)    [ "$#" -ge 2 ] || { echo "error: --port needs a value" >&2; exit 2; }; PORT=$2; shift 2 ;;
         --config)  [ "$#" -ge 2 ] || { echo "error: --config needs full or minimal" >&2; exit 2; }; CONFIG_MODE=$2; shift 2 ;;
+        --tree)    [ "$#" -ge 2 ] || { echo "error: --tree needs a path" >&2; exit 2; }; TREE_INPUT=$2; shift 2 ;;
         --keep)    KEEP=1; shift ;;
         *) echo "error: unknown argument: $1" >&2; exit 2 ;;
     esac
 done
 
 if [ -z "$ARCHIVE" ] || [ -z "$LAYOUT" ]; then
-    echo "usage: $0 --archive <path> --layout cwd-root|foreign-cwd [--config full|minimal] [--port N] [--keep]" >&2
+    echo "usage: $0 --archive <path> --layout cwd-root|foreign-cwd [--config full|minimal] [--port N] [--tree DIR] [--keep]" >&2
     exit 2
 fi
 case "$CONFIG_MODE" in
@@ -111,7 +113,17 @@ echo "=== layout: $LAYOUT ==="
 rm -rf "$WORK"
 mkdir -p "$WORK"
 TREE="$WORK/tree"
-sh "$SCRIPT_DIR/build-stock-tree.sh" "$TREE" | sed 's/^/  /'
+if [ -n "$TREE_INPUT" ]; then
+    # A TREE THE CALLER BUILT. The default scenarios use the DERIVED tree from scripts/build-stock-tree.sh,
+    # a useful approximation but not the shape a real pinned server writes. A caller that can produce a
+    # Node-originated tree (tools/build-node-stock-tree.mjs boots the pinned server and drives its own
+    # endpoints) passes it here and gets the SAME packaged-archive qualification over that tree.
+    [ -d "$TREE_INPUT" ] || fail "--tree is not a directory: $TREE_INPUT"
+    cp -a "$TREE_INPUT/." "$TREE/"
+    echo "tree: copied from $TREE_INPUT ($(find "$TREE" -type f | wc -l) files)"
+else
+    sh "$SCRIPT_DIR/build-stock-tree.sh" "$TREE" | sed 's/^/  /'
+fi
 
 # --- 1b. the config VARIANT ----------------------------------------------------------------
 # `full` (default) is the pristine pinned default: every key present, which is what SillyTavern's
