@@ -563,6 +563,12 @@ async function main() {
         const reloadBoot = await openPage();
         const reopened = await openCharacterByName(PROBE_CARD.dataName);
         await openSavedChat('HS Primary Chat');
+        // REWIRE THE HARNESS PEER, NOT PRODUCT STATE. The capture peer listens on a per-run ephemeral port; after a
+        // reload the settings on disk still name the port the WRITER run used, so the generation would answer 502
+        // "connection refused" before it reached any state under test (measured: run 41313285166, restart leg
+        // reload-read-captured with captured=[]). Re-point the page at THIS run's peer; the variables, preset and
+        // chat state this phase proves are still read from disk and are untouched by the rewire.
+        await connect(`http://127.0.0.1:${peer.port}`);
         const readReload = await runPhase('read', { caseName: 'hs-read-reload', cases: ['hs-read-reload'] });
         report.phases.readReload = { reloadBoot, reopened, readReload };
         step('reload-read-captured', readReload.requests.some(entry => entry.case === 'hs-read-reload'), { settingsReady: reloadBoot.settingsReady, captured: readReload.requests.map(entry => entry.case ?? '(unmatched)') });
