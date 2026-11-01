@@ -50,7 +50,7 @@
 #     `src/tokenizers`, and whether that is the archive's tree or the stock tree is a packaging question
 #     this script REPORTS (see the layout report) rather than asserts.
 #
-# Usage: scripts/qualify-dropin.sh --archive <path> --layout cwd-root|foreign-cwd [--port N] [--tree DIR] [--keep]
+# Usage: scripts/qualify-dropin.sh --archive <path> --layout cwd-root|foreign-cwd [--port N] [--tree DIR] [--skip-api-smoke] [--keep]
 # Requirements: sh, python3 (index parse), curl, jq, git, find, sha256sum, ss (optional).
 
 set -eu
@@ -66,6 +66,7 @@ KEEP=0
 READINESS_BOUND=30
 SHUTDOWN_BOUND=20
 CONFIG_MODE="full"
+SKIP_API_SMOKE=0
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -74,6 +75,7 @@ while [ "$#" -gt 0 ]; do
         --port)    [ "$#" -ge 2 ] || { echo "error: --port needs a value" >&2; exit 2; }; PORT=$2; shift 2 ;;
         --config)  [ "$#" -ge 2 ] || { echo "error: --config needs full or minimal" >&2; exit 2; }; CONFIG_MODE=$2; shift 2 ;;
         --tree)    [ "$#" -ge 2 ] || { echo "error: --tree needs a path" >&2; exit 2; }; TREE_INPUT=$2; shift 2 ;;
+        --skip-api-smoke) SKIP_API_SMOKE=1; shift ;;
         --keep)    KEEP=1; shift ;;
         *) echo "error: unknown argument: $1" >&2; exit 2 ;;
     esac
@@ -374,6 +376,14 @@ boot1_stage_lines=$(stage_line_count "$LOG")
 echo "startup stage lines in the boot-1 log: ${boot1_stage_lines:-0} (requested with GOTAVERN_STARTUP_TRACE=1; the tracer prints only stages slower than 200 ms by default)"
 
 # --- 6. API smoke, through the browser's real CSRF handshake --------------------------------
+if [ "$SKIP_API_SMOKE" = "1" ]; then
+    # A NAMED, NARROWER SCENARIO. The Node-originated tree has user accounts enabled, so the anonymous API smoke
+    # this script runs against the derived trees does not apply; the scenario still asserts the packaged binary
+    # BOOTS the real tree, stays ready, creates nothing undeclared and survives a restart. The account-enabled
+    # API surface has its own differential (accounts-multi-user); this flag must not be used to hide an API
+    # regression on a tree where the smoke DOES apply.
+    echo "API smoke: SKIPPED by --skip-api-smoke (account-enabled Node-originated tree; boot/readiness/data-preservation/restart still asserted)"
+else
 COOKIES="$WORK/cookies.txt"
 csrf_status=$(curl -sS -c "$COOKIES" -b "$COOKIES" -o "$WORK/csrf.json" -w '%{http_code}' "$BASE/csrf-token")
 [ "$csrf_status" = "200" ] || fail "GET /csrf-token returned $csrf_status, so no authenticated smoke could run"
@@ -419,6 +429,7 @@ status=$(post_json /api/chats/get '{"avatar_url":"default_Seraphina.png","file_n
 chat_lines=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(len(d) if isinstance(d,list) else -1)' "$WORK/chat.json")
 [ "$chat_lines" -eq 3 ] || { dump_context; fail "/api/chats/get returned $chat_lines line(s), expected 3 (1 header + 2 messages)"; }
 ok "chat readable ($chat_lines lines, the seeded synthetic chat)"
+fi
 
 # --- 7. boot must not mutate what it does not own ------------------------------------------
 ext_git_status > "$WORK/extstatus.after"
@@ -460,6 +471,9 @@ if [ "$ready_status" -ne 0 ]; then
 fi
 ok "restart became ready via ${READY_SIGNAL}"
 
+if [ "$SKIP_API_SMOKE" = "1" ]; then
+    echo "restart chat read: SKIPPED by --skip-api-smoke (same reason as the API smoke)"
+else
 curl -sS -c "$COOKIES" -b "$COOKIES" -o "$WORK/csrf2.json" "$BASE/csrf-token" >/dev/null 2>&1 || true
 TOKEN=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("token",""))' "$WORK/csrf2.json")
 [ -n "$TOKEN" ] || fail "the restarted server served no CSRF token"
@@ -468,6 +482,7 @@ status=$(post_json /api/chats/get '{"avatar_url":"default_Seraphina.png","file_n
 chat_lines=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(len(d) if isinstance(d,list) else -1)' "$WORK/chat2.json")
 [ "$chat_lines" -eq 3 ] || { dump_context; fail "after restart the chat has $chat_lines line(s), expected 3: persistence did not survive"; }
 ok "chat survived the restart ($chat_lines lines)"
+fi
 
 kill -TERM "$server_pid" 2>/dev/null || true
 i=0

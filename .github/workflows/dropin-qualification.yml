@@ -405,8 +405,13 @@ jobs:
             --quiet
           echo "node-originated tree generated in $(( $(date +%s) - start ))s"
           start=$(date +%s)
+          # The Node-originated tree has user accounts enabled (two accounts), so the anonymous API smoke the
+          # derived-tree scenarios run does not apply to it; --skip-api-smoke states that as a NAMED narrow
+          # scenario instead of hiding it. The scenario still asserts the packaged binary boots the real tree,
+          # becomes ready, creates no undeclared data and survives a restart; the account-enabled API surface
+          # has its own differential.
           sh scripts/qualify-dropin.sh --archive "${{ steps.package.outputs.archive }}" \
-            --layout cwd-root --config full --port 8801 --tree "$tree"
+            --layout cwd-root --config full --port 8801 --tree "$tree" --skip-api-smoke
           echo "scenario cwd-root/node-originated passed in $(( $(date +%s) - start ))s"
 
       - name: 'Hand the PACKAGED tree back to pinned Node (Q21) -- AGENTS.md 38'
