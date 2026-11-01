@@ -300,3 +300,14 @@ The following remain outside the product, and saying so is part of the contract:
 server plugins (never emulated), in-process ONNX inference, image re-encoding that depends on a
 Jimp-compatible codec where byte equality is claimed, and wire formats that live inside third-party
 npm packages. A row that is partial says partial with its reason; a row that is not covered says so.
+
+**Remote embedding production is a declared exclusion (alpha.11 decision, `docs/remote-embeddings-decision.md`).**
+GoTavern implements vector storage, the persisted vectra index format and the two sources whose vectors
+arrive precomputed in the request body (`webllm`, `koboldcpp`). It does not call a provider to produce
+embeddings: every provider-backed source (`openai`, `togetherai`, `mistral`, `electronhub`,
+`openrouter`, `chutes`, `nanogpt`, `siliconflow`, `workers_ai`, `cohere`, `nomicai`, `extras`, `palm`,
+`vertexai`, `ollama`, `llamacpp`, `vllm`) answers an explicit HTTP 501 naming the source and the
+decision document, never a generic 500 and never a fake vector. This is a product decision for this
+release and it is reversible by a user requirement (the scoped reversal plan is in the decision
+document). The compatibility promise for vector storage is therefore: **storage and body-supplied
+vectors are compatible; provider-produced embeddings are excluded and say so.**

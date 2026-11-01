@@ -454,7 +454,9 @@ func vectorEmbeddingFor(settings vectorSourceSettings, text orderedNodeJSON) ord
 // because it changes which vector each item receives.
 func vectorGetVectors(source string, settings vectorSourceSettings, texts []orderedNodeJSON) ([]orderedNodeJSON, error) {
 	if source != "webllm" && source != "koboldcpp" {
-		return nil, errVectorUnsupportedSource
+		// KNOWN-BUT-EXCLUDED sources get a typed error answered 501 with a reason; an UNKNOWN source keeps
+		// pinned's 500. See vector_embeddings_excluded.go and docs/remote-embeddings-decision.md.
+		return nil, vectorEmbeddingProductionError(source)
 	}
 	if len(texts) == 0 {
 		return nil, nil
@@ -647,10 +649,11 @@ func (runtime *accountRuntime) vectorHandleError(w http.ResponseWriter, request 
 			}
 		}
 	}
-	if err != nil && !errors.Is(err, errVectorCorruptIndex) && !errors.Is(err, errVectorUnsupportedSource) {
-		// Every other failure is the pinned catch's plain 500 as well; the distinction is kept
-		// only so the code above reads clearly.
-		_ = err
+	if excluded, isExcluded := vectorEmbeddingErrorAs(err); isExcluded {
+		// THE DECLARED EXCLUSION IS ANSWERED EXPLICITLY. A bare 500 would be indistinguishable from a failed
+		// provider call (AGENTS.md 17); this names the source, the reason and the decision document.
+		vectorEmbeddingUnsupportedResponse(w, excluded)
+		return
 	}
 	vectorStatus(w, http.StatusInternalServerError)
 }

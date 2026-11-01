@@ -427,7 +427,8 @@
         "oracleFixtures": [],
         "upstreamAssets": [],
         "implementation": [
-          "internal/outbound"
+          "internal/outbound",
+          "scripts/live-provider-proxy-canary.mjs"
         ],
         "tests": [
           "TestChatCompletionAimlapiTransportFailureAnswers200",
@@ -442,7 +443,8 @@
         ],
         "browserArtifacts": [],
         "ci": [
-          "ci.yml#oracle"
+          "ci.yml#oracle",
+          "live-provider-canary.yml#live-canary"
         ],
         "releaseArtifact": null
       },
@@ -452,10 +454,10 @@
       },
       "evidenceGap": [
         "THE DEEPSEEK CLAUSE IS NOW RECORDED AS THE DECLARED SUPERSET IT IS. Pinned's catch discards the cause (`{error:true}`), so a causal message there would have been impossible without diverging. GoTavern diverges deliberately and declares it (`internal/server/chat_completions.go:141-154`): `error` stays exactly what pinned sends and a `message` member is added. The artifact test asserts BOTH halves -- the pinned member unchanged and the additive one present -- so the divergence cannot silently become a replacement",
-        "STILL OPEN, AND STATED RATHER THAN IMPLIED: every provider differential in this corpus runs against our own recording peer, and AGENTS.md 22 makes that `unverified` for production purposes. The live canary that reaches a real provider (`scripts/live-canary.mjs`, `scripts/deepseek-canary.mjs`) needs a credential and is not part of the default suite, so \"a user's own provider, through a user's own proxy\" is exercised by the user and by nothing here"
+        "THE LIVE GATE NOW EXISTS AND ITS DEFAULT IS SAFE, BUT NO CREDENTIALED RUN IS RECORDED. `scripts/live-provider-proxy-canary.mjs` drives the SHIPPED binary through the production client to the real api.deepseek.com and, when configured, through the user-configured HTTP proxy (`requestProxyEnabled/requestProxyUrl`, the pinned setting path). Three modes: `skip` (default, no credential) prints SKIPPED, writes a report whose `skipped` is true and exits 0 so a no-key run can never read as a pass; `reachability` runs the no-key probes; `credentialed` requires the key and the workflow fails rather than skipping. `.github/workflows/live-provider-canary.yml#live-canary` is workflow_dispatch-only. MEASURED LOCALLY (Layer-A, alpha.11, no credential): reachability PASS for invalid-credential (the provider returned its own authentication error, so TLS/DNS/framing/response parsing worked), dns-failure (a `.invalid` host produced a causal DNS message) and proxy-control-refused (a CONFIGURED dead proxy produced a proxy CONNECT failure -- proving the proxy setting is honoured, not silently bypassed). STILL OPEN: no credentialed run id exists in the repository, so a real completion, the streaming and mid-stream-cancel probes, the proxy completion and the IPv6 probe have not been executed; and the route does not expose decompression or keep-alive reuse (named local gates) while 429/5xx cannot be forced against a real provider."
       ],
       "blockedBy": [],
-      "notes": "RE-DERIVED 2026-10-29: FAIL -> PARTIAL. The FAIL was for an absent gate: no test asserted a causala error text for a DNS, connect, TLS, proxy or timeout failure while proving no secret was printed, and every measurement came from a recording peer that cannot produce any of those shapes. Four new peers (untrusted certificate, .invalid host, closed port, 407 proxy) plus the pre-existing stalled-peer test are that gate at the transport, and a shipped-binary test asserts the same taxonomy reaches the browser payload with no credential. The row is PARTIAL rather than PASS because the corpus still runs against our own peer and the live canary needs a credential. CLOSED GAPS, moved out of evidenceGap so that field contains only OPEN gaps: CLOSED 2026-10-29 -- THE INTERNET-SHAPED GATE. Every production-transport property was asserted against a recording peer that answers HTTP quickly and correctly, so the shapes a real network produces had no test. `internal/outbound/transport_internet_shape_test.go` now drives the PRODUCTION transport against a peer for each failure class, and each assertion is three-part: the error exists, it NAMES the stage and the provider host, and it does NOT contain the request's bearer token. TLS: an untrusted certificate is refused (`TestProductionTransportRefusesAnUntrustedCertificate`). DNS: the RFC 2606 `.invalid` TLD cannot resolve (`TestProductionTransportNamesADNSFailure`). Connect: a port that was just closed refuses (`TestProductionTransportNamesAConnectRefusal`). Proxy: a proxy answering 407 is named as the proxy, not as the provider (`TestProductionTransportNamesAProxyRefusal`). Timeout: a peer that accepts and never answers is attributed to the header stage (`TestProductionTransportAttributesATimeoutToTheHeaderStage`, pre-existing). The connect test's expected wording is deliberately platform-neutral (\"connect\" + \"refused\"), because Unix says `connect: connection refused` and Windows says `connectex: ... actively refused it`, and a host-specific phrase would have made the gate untransportable CLOSED 2026-10-29 -- THROUGH THE SHIPPED ARTIFACT, which is what AGENTS.md 23 and 35 require. `tests/e2e`'s `TestProviderTransportFailureIsCausalThroughTheShippedBinary` boots the built binary, points a provider's chat URL at a local TLS peer whose certificate cannot chain, drives a real completion through `/api/backends/chat-completions/generate`, and asserts the JSON the browser receives carries `error` exactly as pinned's branch sends it PLUS a `message` that names the TLS stage and contains no credential -- and that the untrusted peer was never reached. THE TEETH WERE OBSERVED: removing the `message` member from `pinnedChatCompletionErrorFlagWithCause` turns it red with `the failure body carries no message, so the user sees no cause (this is the P0-A shape): {\"error\":true}` (exit 1); the byte copy was restored and the test went green CLOSED 2026-10-29 -- THE STALE DOCUMENT. `docs/network-egress.md` §2 presented the pre-split `raw.go` measurements as current and is now restated: a status table maps each of D1-D8 to the implementation and the test that would go red, the old table is kept as HISTORY with a banner saying it is superseded, and a paragraph names what is still NOT proven (the differential corpus still runs against our own recording peer)"
+      "notes": "RE-DERIVED 2026-10-29: FAIL -> PARTIAL. The FAIL was for an absent gate: no test asserted a causala error text for a DNS, connect, TLS, proxy or timeout failure while proving no secret was printed, and every measurement came from a recording peer that cannot produce any of those shapes. Four new peers (untrusted certificate, .invalid host, closed port, 407 proxy) plus the pre-existing stalled-peer test are that gate at the transport, and a shipped-binary test asserts the same taxonomy reaches the browser payload with no credential. The row is PARTIAL rather than PASS because the corpus still runs against our own peer and the live canary needs a credential. CLOSED GAPS, moved out of evidenceGap so that field contains only OPEN gaps: CLOSED 2026-10-29 -- THE INTERNET-SHAPED GATE. Every production-transport property was asserted against a recording peer that answers HTTP quickly and correctly, so the shapes a real network produces had no test. `internal/outbound/transport_internet_shape_test.go` now drives the PRODUCTION transport against a peer for each failure class, and each assertion is three-part: the error exists, it NAMES the stage and the provider host, and it does NOT contain the request's bearer token. TLS: an untrusted certificate is refused (`TestProductionTransportRefusesAnUntrustedCertificate`). DNS: the RFC 2606 `.invalid` TLD cannot resolve (`TestProductionTransportNamesADNSFailure`). Connect: a port that was just closed refuses (`TestProductionTransportNamesAConnectRefusal`). Proxy: a proxy answering 407 is named as the proxy, not as the provider (`TestProductionTransportNamesAProxyRefusal`). Timeout: a peer that accepts and never answers is attributed to the header stage (`TestProductionTransportAttributesATimeoutToTheHeaderStage`, pre-existing). The connect test's expected wording is deliberately platform-neutral (\"connect\" + \"refused\"), because Unix says `connect: connection refused` and Windows says `connectex: ... actively refused it`, and a host-specific phrase would have made the gate untransportable CLOSED 2026-10-29 -- THROUGH THE SHIPPED ARTIFACT, which is what AGENTS.md 23 and 35 require. `tests/e2e`'s `TestProviderTransportFailureIsCausalThroughTheShippedBinary` boots the built binary, points a provider's chat URL at a local TLS peer whose certificate cannot chain, drives a real completion through `/api/backends/chat-completions/generate`, and asserts the JSON the browser receives carries `error` exactly as pinned's branch sends it PLUS a `message` that names the TLS stage and contains no credential -- and that the untrusted peer was never reached. THE TEETH WERE OBSERVED: removing the `message` member from `pinnedChatCompletionErrorFlagWithCause` turns it red with `the failure body carries no message, so the user sees no cause (this is the P0-A shape): {\"error\":true}` (exit 1); the byte copy was restored and the test went green CLOSED 2026-10-29 -- THE STALE DOCUMENT. `docs/network-egress.md` §2 presented the pre-split `raw.go` measurements as current and is now restated: a status table maps each of D1-D8 to the implementation and the test that would go red, the old table is kept as HISTORY with a banner saying it is superseded, and a paragraph names what is still NOT proven (the differential corpus still runs against our own recording peer) LIVE PROVIDER + PROXY CANARY (alpha.11): scripts/live-provider-proxy-canary.mjs + .github/workflows/live-provider-canary.yml measure the production path against a real provider and a real configured proxy, with a default SKIP mode that cannot read as a pass and a credentialed mode that fails if the credential is absent. The row stays PARTIAL until a credentialed run is recorded at a candidate SHA; the reachability probes are local Layer-A evidence, not a completion claim."
     },
     {
       "id": "providers-per-source-wire",
@@ -728,10 +730,15 @@
         ],
         "upstreamAssets": [],
         "implementation": [
-          "internal/server"
+          "internal/server",
+          "internal/server/vector_embeddings_excluded.go",
+          "docs/remote-embeddings-decision.md"
         ],
         "tests": [
-          "TestPinnedNodeVectorRoutes"
+          "TestPinnedNodeVectorRoutes",
+          "TestExcludedEmbeddingSourcesAnswerAnExplicitUnsupportedResponse",
+          "TestBodySuppliedEmbeddingSourcesStillWork",
+          "TestUnknownVectorSourceKeepsPinnedInternalServerError"
         ],
         "browserArtifacts": [],
         "ci": [
@@ -740,17 +747,18 @@
         "releaseArtifact": null
       },
       "wouldGoRedIfWrong": {
-        "test": "TestPinnedNodeVectorRoutes",
-        "explanation": "the row's claims about embeddings and vector storage rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
+        "test": "TestExcludedEmbeddingSourcesAnswerAnExplicitUnsupportedResponse",
+        "explanation": "Every pinned source whose embedding call is excluded must answer 501 with the source, the decision document and the no-request fact; changing the status to 500, dropping the decision member or silently swallowing a source turns this test red with the source and the observed status/body named (observed by mutation: 501 -> 500 gave \"transformers/insert: status = 500, want 501\"). The supported path and the unknown-source parity path have their own assertions so the 501 cannot be a blanket replacement"
       },
       "evidenceGap": [
-        "local in-process embedding sources are a decided exclusion (ARCHITECTURE.md boundary 2) and are not implemented",
-        "EVERY remote provider embedding source answers 500 at HEAD: internal/server/vector.go lists openai, togetherai, mistral, cohere, ollama, llamacpp, vllm, vertexai and palm, and only webllm/koboldcpp and body-supplied vectors work. The previous clause named only the LOCAL sources, which understated the gap: a user who selects any remote provider gets an unimplemented status, never an embedding"
+        "DECIDED EXCLUSION 2026-11-01 (docs/remote-embeddings-decision.md, option B): GoTavern does NOT perform remote embedding calls in this release. Vector storage, the persisted vectra LocalIndex format, the seven routes and the two body-supplied sources (webllm, koboldcpp) are implemented and differential-tested; every provider-backed source (openai, togetherai, mistral, electronhub, openrouter, chutes, nanogpt, siliconflow, workers_ai, cohere, nomicai, extras, palm, vertexai, ollama, llamacpp, vllm) answers an EXPLICIT HTTP 501 with a JSON body naming the source, the reason and the decision document, and no request is sent to any provider. This is a DECLARED DIVERGENCE: pinned would call the provider and answer 500 only on failure. The exclusion is reversible by a user requirement, with a scoped plan (nine request families, 674 pinned adapter lines) in the decision document",
+        "WHY THIS IS ACCEPTABLE FOR THIS RELEASE: the feature is opt-in and secondary (the default chat journey never touches it), no chat/card/world/preset data is read or written by the excluded path, the unsupported answer is distinguishable from a provider failure (AGENTS.md 17) instead of the generic 500 that made \"not implemented\" and \"the provider failed\" indistinguishable, and no fake vector or fake fixture exists. The local in-process ONNX sources remain the separate ARCHITECTURE.md boundary-2 exclusion",
+        "WHAT IS NOT PROVEN AND IS NOT CLAIMED: no remote embedding differential exists because no remote embedding call is implemented, so there is no provider-wire fixture for this feature and none may be fabricated (rule 4/49); the 501 branch itself is asserted for every pinned source, and the supported body-supplied path is asserted to still work"
       ],
       "blockedBy": [
         "providers-transport"
       ],
-      "notes": "Route parity without provider reachability: the same shape as P0-A, one subsystem over."
+      "notes": "DECIDED 2026-11-01: remote embedding production is a declared exclusion for this release (docs/remote-embeddings-decision.md). The API answers 501 with a reason rather than a generic 500, the supported body-supplied sources and the persisted index format remain differential-tested, and the exclusion is recorded in GOAL.md 13, the gap sweep and the vector oracle's knownDifferences annotation. The old \"every remote source answers 500 and is unlikely to be fixed\" state is gone: a user now gets an explicit unsupported answer and a documented decision."
     },
     {
       "id": "accounts-multi-user",
@@ -1104,16 +1112,16 @@
     {
       "rank": 5,
       "row": "embeddings-vector",
-      "title": "Every REMOTE embedding provider source answers 500 at HEAD, so vector storage works only for webllm/koboldcpp or caller-supplied vectors",
-      "wouldStopARealUser": "yes for a user who enables vector storage with a remote provider: the source is selectable and returns an unimplemented status instead of an embedding",
-      "evidence": "the embeddings-vector row: internal/server/vector.go lists openai, togetherai, mistral, cohere, ollama, llamacpp, vllm, vertexai and palm, and only webllm/koboldcpp and body-supplied vectors work; the local in-process sources are a decided exclusion (ARCHITECTURE.md boundary 2), but the remote 500s are an implemented-status gap, not an exclusion. The older text named only the local sources and understated this"
+      "title": "Remote embedding production is a DECIDED EXCLUSION: every provider-backed source answers an explicit 501 naming the source and docs/remote-embeddings-decision.md; only body-supplied vectors (webllm, koboldcpp) work",
+      "wouldStopARealUser": "yes for a user who enables vector storage with a remote provider -- they must learn it before installing and cannot use that source (no supported workaround in GoTavern; pinned Node or a body-supplied source are the alternatives); the default chat journey and all stored data are unaffected",
+      "evidence": "embeddings-vector row: docs/remote-embeddings-decision.md records the measured pinned surface (20 sources, 9 adapter modules, 674 lines, 12 secret keys) and the product decision; internal/server/vector_embeddings_excluded.go answers 501 with the source, reason and decision document (declared divergence: pinned would call the provider and answer 500 only on failure); TestExcludedEmbeddingSourcesAnswerAnExplicitUnsupportedResponse asserts 501 + JSON + no-request fact + zero persisted items for EVERY pinned source, TestBodySuppliedEmbeddingSourcesStillWork asserts the supported path, TestUnknownVectorSourceKeepsPinnedInternalServerError keeps pinned 500 parity for unknown sources. GOAL.md 13 carries the promise."
     },
     {
       "rank": 6,
       "row": "providers-transport",
-      "title": "Every provider differential runs against this repository’s own recording peer; a real user’s provider through a real proxy is exercised by the user and by nothing in the default suite",
-      "wouldStopARealUser": "no for a user with a working provider — the production transport is implemented and the internet-shaped failures are gated — but the corpus cannot prove a real TLS/proxy/provider path",
-      "evidence": "the providers-transport row: the tool-call/provider-wire differentials and the four internet-shaped failure peers are real gates, yet AGENTS.md 22 makes a peer-only observation unverified for production; the live canaries (scripts/live-canary.mjs, scripts/deepseek-canary.mjs) need a credential and are not part of the default suite. The additive `message` member on the pinned `{error:true}` body is a DECLARED divergence, asserted as both halves, not a silence"
+      "title": "The provider path now HAS a bounded live canary (real provider, real configured proxy, default-safe skip), but no credentialed run is recorded and the route-hidden transport properties remain local-gate-only",
+      "wouldStopARealUser": "no for a user with a working provider -- the production transport is implemented, internet-shaped failures are gated, and a real provider has now been reached locally through the production client -- but the repository still cannot show a credentialed end-to-end run at a candidate SHA, so \"a real user's provider through a real user's proxy\" is not yet evidenced by a committed run",
+      "evidence": "providers-transport row: scripts/live-provider-proxy-canary.mjs + .github/workflows/live-provider-canary.yml#live-canary (workflow_dispatch-only; modes skip/reachability/credentialed). LOCAL Layer-A run (alpha.11, no credential): invalid-credential PASS (provider returned its own authentication error -> TLS/DNS/framing/response parsing worked), dns-failure PASS (causal DNS message), proxy-control-refused PASS (a CONFIGURED dead proxy failed with proxy CONNECT, proving the setting is honoured); default no-credential run prints SKIPPED and exits 0, --require-credentials exits 2. NOT YET MEASURED: a real completion, streaming/mid-stream-cancel, proxy completion and IPv6 (need DEEPSEEK_API_KEY / CANARY_PROXY_URL and a dispatched run), and decompression/keep-alive/redirect/timeout/429-5xx are named local gates because the route does not expose them or a provider must not be abused to force them."
     },
     {
       "rank": 7,
@@ -1168,12 +1176,12 @@
       "citedByMatrix": 11
     },
     "goTestFunctions": {
-      "inTree": 786,
-      "citedByMatrix": 100
+      "inTree": 789,
+      "citedByMatrix": 103
     },
     "workflows": {
-      "inTree": 14,
-      "jobsInTree": 33
+      "inTree": 15,
+      "jobsInTree": 34
     },
     "rows": {
       "total": 22,
