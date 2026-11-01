@@ -125,9 +125,12 @@ jobs:
         run: |
           rm -rf .tmp-artifacts/helper-state-pinned-on
           mkdir -p .tmp-artifacts/helper-state-pinned-on
-          node tests/browser/run-against-pinned.mjs \
-            --data-root "$PWD/.tmp-artifacts/helper-state-pinned-on" \
-            helper-state-probe.mjs -- \
+          # THE SCRIPT MUST BE THE FIRST POSITIONAL ARGUMENT: run-against-pinned picks the child as the first
+          # argument that does not start with '-', and on Linux an absolute path like /home/runner/... does not, so
+          # putting --data-root <abs> first made it treat the DATA ROOT as the child module (measured: run
+          # 41312324214, "Cannot find module '/home/runner/work/GoTavern/GoTavern/.tmp-artifacts/...").
+          node tests/browser/run-against-pinned.mjs helper-state-probe.mjs \
+            --data-root "$PWD/.tmp-artifacts/helper-state-pinned-on" -- \
             --data-root "$PWD/.tmp-artifacts/helper-state-pinned-on" \
             --report "$PWD/.tmp-artifacts/helper-state-pinned-on.json" --variant on --nonce "$HSE_NONCE"
 
@@ -139,9 +142,12 @@ jobs:
 
       - name: Run pinned leg (restart, same tree)
         run: |
-          node tests/browser/run-against-pinned.mjs \
-            --data-root "$PWD/.tmp-artifacts/helper-state-pinned-on" \
-            helper-state-probe.mjs -- \
+          # THE SCRIPT MUST BE THE FIRST POSITIONAL ARGUMENT: run-against-pinned picks the child as the first
+          # argument that does not start with '-', and on Linux an absolute path like /home/runner/... does not, so
+          # putting --data-root <abs> first made it treat the DATA ROOT as the child module (measured: run
+          # 41312324214, "Cannot find module '/home/runner/work/GoTavern/GoTavern/.tmp-artifacts/...").
+          node tests/browser/run-against-pinned.mjs helper-state-probe.mjs \
+            --data-root "$PWD/.tmp-artifacts/helper-state-pinned-on" -- \
             --data-root "$PWD/.tmp-artifacts/helper-state-pinned-on" \
             --report "$PWD/.tmp-artifacts/helper-state-pinned-on-restart.json" --variant on --after-restart --nonce "$HSE_NONCE"
 
