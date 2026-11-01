@@ -1,0 +1,149 @@
+name: GoTavern live provider + proxy canary
+
+# THE REAL-INTERNET GATE FOR THE PROVIDER PATH (AGENTS.md 22/29, gap rank 6).
+#
+# Every provider differential in this repository runs against this repository's own recording peer, and rule 22
+# makes a peer-only observation UNVERIFIED for production purposes. This workflow is the one place where the
+# SHIPPED BINARY talks to a REAL OpenAI-compatible provider (api.deepseek.com) and, when configured, through a
+# REAL HTTP proxy -- the user's actual path. It is workflow_dispatch-only because it costs a real provider call
+# and needs credentials that must never be committed.
+#
+# THREE MODES, and the default is the SAFE one:
+#   skip          (default) No credential is used. The script prints one SKIPPED line, writes a report whose
+#                 `skipped` is true and exits 0. This proves the default-safe contract on CI: the job is green
+#                 and the log says it measured NOTHING, so nobody can read it as a pass.
+#   reachability  No provider credential needed. Runs the no-key probes that still measure the production
+#                 transport: invalid-credential (the provider itself rejects the request, so DNS/TCP/TLS/framing
+#                 worked), dns-failure (a `.invalid` host through the binary), and proxy-control-refused (a
+#                 CONFIGURED proxy pointed at a dead port must fail with a proxy/connect cause -- the control
+#                 that proves the proxy setting is honoured at all). NO completion is claimed.
+#   credentialed  Requires the DEEPSEEK_API_KEY secret (the job FAILS if it is absent rather than skipping).
+#                 Runs direct completion, invalid-credential, streaming, mid-stream cancel, dns failure,
+#                 proxy-control, proxy completion when CANARY_PROXY_URL is present, and IPv6 when the provider
+#                 publishes AAAA. Bounded: at most ~6 provider calls, max_tokens 8.
+#
+# SECRETS: `DEEPSEEK_API_KEY` and `CANARY_PROXY_URL` (an HTTP proxy URL, optionally http://user:pass@host:port).
+# The script redacts both (and the proxy password) from every line and refuses to write a report containing
+# them; GitHub additionally masks repository secrets in logs. The temporary install root that holds the stored
+# secret is removed in the script's `finally`.
+#
+# HOW A MAINTAINER RUNS THE CREDENTIALED VERSION:
+#   1. gh secret set DEEPSEEK_API_KEY        # paste a key with a small quota
+#   2. gh secret set CANARY_PROXY_URL        # optional: http://user:pass@proxy-host:port
+#   3. gh workflow run live-provider-canary.yml -f mode=credentialed
+#   4. gh run watch <run-id> && gh run download <run-id> -n live-provider-canary-report
+# The uploaded report is the evidence: it names each probe, its verdict, status, latency and (for failures) the
+# causal message. A `not-observed` probe names the deterministic local gate that covers it instead.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'skip (default, no credential) | reachability (no-key live probes) | credentialed (needs DEEPSEEK_API_KEY)'
+        required: true
+        default: skip
+        type: choice
+        options:
+          - skip
+          - reachability
+          - credentialed
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-provider-canary-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Repository secrets, never echoed. An absent secret resolves to the empty string and the script treats that
+  # as "no credential" (skip) unless the mode is `credentialed`, where a guard step fails the job.
+  DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+  GOTAVERN_CANARY_PROXY_URL: ${{ secrets.CANARY_PROXY_URL }}
+
+jobs:
+  live-canary:
+    runs-on: ubuntu-latest
+    # Sized from the probes, not from comfort: one Go build (~20 s), up to three server boots (each bounded by
+    # the script's 120 s readiness deadline), one completion, one stream, one cancel, one proxy completion, one
+    # invalid-key call, one DNS-failure call, one proxy-control call and one IPv6 call. Fifteen minutes is ~4x
+    # the measured worst case; every individual wait has its own bound, so a wedged provider fails inside the
+    # job instead of holding a runner.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+
+      - name: Require the provider credential for a credentialed run
+        # A `credentialed` dispatch with no secret must FAIL, not silently degrade to the skip path: a maintainer
+        # who asked for proof must never receive a green that measured nothing.
+        if: ${{ inputs.mode == 'credentialed' }}
+        run: |
+          if [ -z "${DEEPSEEK_API_KEY}" ]; then
+            echo "::error::mode=credentialed but the DEEPSEEK_API_KEY secret is empty; set it (gh secret set DEEPSEEK_API_KEY) and dispatch again"
+            exit 1
+          fi
+          echo "DEEPSEEK_API_KEY is present (value never printed)"
+
+      - name: Build the binary under test
+        # The canary drives the SHIPPED binary shape, not `go run`: the install root is derived from the
+        # executable's directory, and the production transport is what is measured.
+        run: |
+          set -euo pipefail
+          go build -trimpath -o "$RUNNER_TEMP/gotavern" ./cmd/gotavern
+          test -x "$RUNNER_TEMP/gotavern"
+          "$RUNNER_TEMP/gotavern" version
+
+      - name: Run the live provider + proxy canary
+        # No `set -x`: a traced environment would print the secrets GitHub masks, and the script's own redaction
+        # is the second line of defence, not the first.
+        env:
+          GOTAVERN_BINARY: ${{ runner.temp }}/gotavern
+        run: |
+          set -uo pipefail
+          args=(--report "$RUNNER_TEMP/live-provider-canary-report.json")
+          case "${{ inputs.mode }}" in
+            skip) ;;
+            reachability) args+=(--reachability) ;;
+            credentialed) args+=(--require-credentials) ;;
+            *) echo "::error::unknown mode '${{ inputs.mode }}'"; exit 2 ;;
+          esac
+          echo "live canary mode: ${{ inputs.mode }}"
+          node scripts/live-provider-proxy-canary.mjs "${args[@]}"
+          echo "::notice::live canary mode=${{ inputs.mode }} finished; the uploaded report carries the per-probe verdicts (skipped/not-observed probes name the local gate that covers them)"
+
+      - name: Upload the redacted report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-provider-canary-report
+          path: ${{ runner.temp }}/live-provider-canary-report.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Fail a credentialed run that produced no measured probe
+        # Defence against the "green that measured nothing" shape: a credentialed run whose report says
+        # `skipped` or has no measured probe is a failed qualification even though the script exited 0.
+        if: ${{ always() && inputs.mode == 'credentialed' }}
+        run: |
+          report="$RUNNER_TEMP/live-provider-canary-report.json"
+          if [ ! -f "$report" ]; then
+            echo "::error::a credentialed run produced no report"
+            exit 1
+          fi
+          node -e '
+            const fs = require("fs");
+            const report = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+            const measured = (report.probes || []).filter(p => p.verdict === "ok" || String(p.verdict).startsWith("provider-")).length;
+            if (report.skipped) { console.error("::error::credentialed run reports skipped"); process.exit(1); }
+            if (measured === 0) { console.error("::error::credentialed run measured zero probes"); process.exit(1); }
+            console.log("credentialed run measured " + measured + " probe(s)");
+          ' "$report"

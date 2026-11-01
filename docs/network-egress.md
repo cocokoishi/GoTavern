@@ -85,9 +85,14 @@ teeth were observed: removing the `message` member from `pinnedChatCompletionErr
 `the failure body carries no message, so the user sees no cause (this is the P0-A shape): {"error":true}`.
 
 **WHAT IS STILL NOT PROVEN, so this section does not claim it.** The differential corpus still runs against our own
-recording peer, and AGENTS.md 22 makes that `unverified` for production purposes: the live canary that reaches a
-real provider (`scripts/live-canary.mjs`, `scripts/deepseek-canary.mjs`) needs a credential and is not part of the
-default suite. A user's own provider, through a user's own proxy, is exercised by the user and by nothing here.
+recording peer, and AGENTS.md 22 makes that `unverified` for production purposes. alpha.11 adds the bounded
+**live provider + proxy canary** (`scripts/live-provider-proxy-canary.mjs`, workflow
+`.github/workflows/live-provider-canary.yml`) described in §2.2 below: it measures the production client against a
+real provider and a real configured proxy, and its default (no-credential) mode SKIPS rather than passes. What
+remains unproven is the credentialed run itself — the repository still has no committed run id for a run that
+carried a provider key — and, within that run, the properties the route does not expose (decompression and
+keep-alive reuse) or a provider condition that must not be forced (429/5xx). Those name their deterministic local
+gate instead of pretending.
 
 ### 2.1 HISTORY — the table that was current before the split
 
@@ -190,6 +195,41 @@ meant "nothing measurable".
 
 It **cannot prove**: which stage failed when the request does not arrive at all, streaming/cancellation/preset
 equivalence, or parity with pinned Node (the run has no pinned subject).
+
+### 2.2 The live provider + proxy canary (alpha.11)
+
+`scripts/live-provider-proxy-canary.mjs` is the bounded real-internet gate for the WHOLE production path, and it
+is the first gate in this repository that exercises the user-configured HTTP proxy. It boots the SHIPPED binary
+(install root derived from the executable, `--browserLaunchEnabled false`, `GOTAVERN_OUTBOUND_WIRE_EXACT` removed
+from the child environment so the production client is what runs), stores the key through the real
+`/api/secrets/write` route, takes the real CSRF handshake, and calls the real `api.deepseek.com` through
+`/api/backends/chat-completions/generate`.
+
+Three modes, and the DEFAULT IS THE SAFE ONE:
+
+| mode | credential | what it measures | how it can fail |
+|---|---|---|---|
+| `skip` (default) | none | nothing. One `SKIPPED: no credential …` line, a report whose `skipped` is true, exit 0 | it cannot: it claims nothing. `--require-credentials` turns the skip into exit 2 so a maintainer who intended a credentialed run cannot be fooled |
+| `reachability` | none | invalid-credential (the provider itself rejects the request, so DNS/TCP/TLS/framing/response parsing worked), dns-failure (a `.invalid` host through the binary), proxy-control-refused (a CONFIGURED `requestProxy` pointed at a dead port must fail with a proxy/connect cause — the control that proves the proxy setting is honoured at all, not silently bypassed) | a transport-shaped failure, an unclassified answer, or a proxy setting that is ignored |
+| `credentialed` | `DEEPSEEK_API_KEY` (+ optional `CANARY_PROXY_URL`) | direct completion, invalid-credential, streaming frames + `[DONE]`, mid-stream cancellation + server responsiveness, dns failure, proxy control, proxy completion, IPv6 when the provider publishes AAAA | any transport-shaped failure; the workflow also fails a credentialed run whose report says `skipped` or measured zero probes |
+
+Cost and bounds: at most ~6 provider calls, `max_tokens` 8, per-request timeouts, a 120 s readiness deadline per
+boot, and a 15-minute job bound. The verdict is about TRANSPORT (status, frames, error cause), never model
+intelligence. Secrets (provider key, proxy URL, proxy password) are redacted from every line, the report is
+refused if any secret would appear in it, and the temporary install root holding `secrets.json` is removed in
+`finally`; `--selftest` exercises the redaction and the cause classifier without the network.
+
+**MEASURED LOCALLY (Layer-A evidence, alpha.11, no credential present).**
+`node scripts/live-provider-proxy-canary.mjs --reachability` on this host: `invalid-credential` PASS — the
+provider returned its own `Authentication Fails, Your api key: ****0000 is invalid` body, which proves the
+request reached it over TLS; `dns-failure` PASS — `dial tcp: lookup
+gotavern-canary-does-not-exist.invalid: no such host`; `proxy-control-refused` PASS — a configured dead proxy
+produced `proxy CONNECT for provider api.deepseek.com failed: proxyconnect tcp: dial tcp 127.0.0.1:…: connectex:
+No connection could be made because the target machine actively refused it`. The default run with no credential
+prints `SKIPPED` and exits 0, and `--require-credentials` exits 2. What is NOT yet measured: a real completion,
+the streaming/cancellation probes, and a real proxy completion — they need `DEEPSEEK_API_KEY` (and
+`CANARY_PROXY_URL`), and the workflow dispatch that carries them is recorded in the matrix row only when a run
+id exists.
 
 **The cause the pinned body discarded, and the DECLARED divergence that fixes it (2026-10-25).** The DEEPSEEK
 source answers a fetch that threw with `response.send({ error: true })` — no status, no message (`upstream`

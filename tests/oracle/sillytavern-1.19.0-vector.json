@@ -2282,7 +2282,7 @@
     {
       "area": "provider-backed vector sources",
       "status": "not implemented",
-      "reason": "the pinned domain can embed text through 20 sources; this round implements the two sources whose vectors are supplied in the request body (webllm, koboldcpp) plus the unknown-source error path. Every provider-backed source (transformers, openai, togetherai, mistral, electronhub, openrouter, chutes, nanogpt, siliconflow, workers_ai, cohere, nomicai, extras, palm, vertexai, ollama, llamacpp, vllm) needs its own provider-wire oracle and adapter; until then those sources answer 500 like any other failed vector lookup instead of silently succeeding."
+      "reason": "the pinned domain can embed text through 20 sources; this round implements the two sources whose vectors are supplied in the request body (webllm, koboldcpp) plus the unknown-source error path. Every provider-backed source (transformers, openai, togetherai, mistral, electronhub, openrouter, chutes, nanogpt, siliconflow, workers_ai, cohere, nomicai, extras, palm, vertexai, ollama, llamacpp, vllm) needs its own provider-wire oracle and adapter; GoTavern answers an explicit HTTP 501 naming the source, the reason and docs/remote-embeddings-decision.md, instead of the generic 500 a failed provider call produces (a declared divergence: pinned would call the provider and answer 500 only on failure); the supported body-supplied sources are unaffected."
     },
     {
       "area": "request-body source default",
