@@ -326,7 +326,11 @@ wait_ready() {
         # dropin-qualification run 41331924291, scenario 5/5, stage trace showed startup.ready at 60 ms while the
         # poll timed out). Any numeric status below 500 means the listener accepted and the HTTP stack answered,
         # which is what readiness means; the API smoke below logs in when it sees 401/403.
-        code=$(curl -sS -m 2 -o "$WORK/version.json" -w '%{http_code}' "$BASE/version" 2>/dev/null || echo 000)
+        # NO '|| echo 000' HERE: curl's -w ALREADY prints 000 on a connection failure, so appending another
+        # 000 made the code "000000", which is numeric and below 500 and therefore reported a not-yet-listening
+        # server as ready (measured: run 41333247151, scenario 1/4 "became ready ... HTTP 000000" followed by
+        # curl exit 7 on the next request). On failure the substitution's status is non-zero, so set 000 once.
+        code=$(curl -sS -m 2 -o "$WORK/version.json" -w '%{http_code}' "$BASE/version" 2>/dev/null) || code=000
         if [ "$code" != "000" ] && [ "$code" -lt 500 ]; then
             READY_CODE="$code"
             READY_SIGNAL="/version answered HTTP $code"
