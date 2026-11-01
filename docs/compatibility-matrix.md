@@ -43,13 +43,13 @@ A row is `PASS` only when every one of these holds:
 |---|---|---|---|---|
 | 1 | Core HTTP surface, pinned frontend and static assets | **PARTIAL** | 6 oracle fixture(s), upstream assets, Go implementation, 6 named test(s), CI job(s) | 3 item(s) |
 | 2 | Basic auth, per-user auth, sessions, CSRF and cookies | **PARTIAL** | 6 oracle fixture(s), Go implementation, 4 named test(s), CI job(s) | 2 item(s) |
-| 3 | Settings aggregation, save, snapshots and backups-of-settings | **PARTIAL** | 5 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
+| 3 | Settings aggregation, save, snapshots and backups-of-settings | **PARTIAL** | 5 oracle fixture(s), Go implementation, 4 named test(s), CI job(s) | 2 item(s) |
 | 4 | Secrets: read, write, active source, per-provider slots | **PARTIAL** | 3 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
-| 5 | Characters: read, write, import, avatar replacement, disk cache | **PARTIAL** | 4 oracle fixture(s), upstream assets, Go implementation, 4 named test(s), CI job(s) | 3 item(s) |
-| 6 | Chats: save, get, search, recent, import, mutations | **PARTIAL** | 4 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 1 item(s) |
-| 7 | Groups and group chats, including the metadata migration | **PARTIAL** | 3 oracle fixture(s), Go implementation, 7 named test(s), 1 browser artefact(s), CI job(s) | 3 item(s) |
-| 8 | World info: books, entries, activation, positions | **PASS** | 1 oracle fixture(s), Go implementation, 6 named test(s), 2 browser artefact(s), CI job(s) | _none_ |
-| 9 | Presets, quick replies, themes, moving UI, system prompts | **PARTIAL** | 5 oracle fixture(s), Go implementation, 3 named test(s), 1 browser artefact(s), CI job(s) | 2 item(s) |
+| 5 | Characters: read, write, import, avatar replacement, disk cache | **PARTIAL** | 4 oracle fixture(s), upstream assets, Go implementation, 5 named test(s), CI job(s) | 4 item(s) |
+| 6 | Chats: save, get, search, recent, import, mutations | **PARTIAL** | 4 oracle fixture(s), Go implementation, 4 named test(s), CI job(s) | 2 item(s) |
+| 7 | Groups and group chats, including the metadata migration | **PARTIAL** | 3 oracle fixture(s), Go implementation, 8 named test(s), 1 browser artefact(s), CI job(s) | 3 item(s) |
+| 8 | World info: books, entries, activation, positions | **PASS** | 1 oracle fixture(s), Go implementation, 7 named test(s), 2 browser artefact(s), CI job(s) | _none_ |
+| 9 | Presets, quick replies, themes, moving UI, system prompts | **PARTIAL** | 5 oracle fixture(s), Go implementation, 4 named test(s), 1 browser artefact(s), CI job(s) | 3 item(s) |
 | 10 | Provider transport on the real internet (TLS, proxy, timeouts, decompression, redirects) | **PARTIAL** | Go implementation, 9 named test(s), CI job(s) | 2 item(s) |
 | 11 | Per-source provider-wire request bytes (15 catalogued sources) | **PARTIAL** | 1 oracle fixture(s), Go implementation, 3 named test(s), 3 browser artefact(s), CI job(s) | 3 item(s) |
 | 12 | Streaming SSE framing, incremental render and cancellation | **PASS** | 2 oracle fixture(s), Go implementation, 11 named test(s), 3 browser artefact(s), CI job(s) | _none_ |
@@ -58,10 +58,10 @@ A row is `PASS` only when every one of these holds:
 | 15 | Extensions: discovery, static serving, install, update, switch, delete, and the Tavern Helper / LittleWhiteBox canaries | **PARTIAL** | 3 oracle fixture(s), Go implementation, 7 named test(s), 2 browser artefact(s), CI job(s) | 1 item(s) |
 | 16 | Arbitrary Node server plugins | **NOT_APPLICABLE** | 3 named test(s), CI job(s) | _none_ |
 | 17 | Embeddings and vector storage | **PARTIAL** | 1 oracle fixture(s), Go implementation, 1 named test(s), CI job(s) | 2 item(s) |
-| 18 | Multi-user: create, admin, recovery, reset, private data, per-user data roots | **PARTIAL** | 6 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
+| 18 | Multi-user: create, admin, recovery, reset, private data, per-user data roots | **PARTIAL** | 6 oracle fixture(s), Go implementation, 4 named test(s), CI job(s) | 2 item(s) |
 | 19 | Content import, character export, chat/account backups and restore | **PARTIAL** | 5 oracle fixture(s), Go implementation, 5 named test(s), CI job(s) | 2 item(s) |
-| 20 | Startup: config creation and migration, data seeding, locking, no-hang, no egress | **PARTIAL** | 6 oracle fixture(s), upstream assets, Go implementation, 17 named test(s), CI job(s) | 2 item(s) |
-| 21 | Release artifact: archive, install, upgrade, rollback, docker, smoke | **PARTIAL** | upstream assets, Go implementation, 2 named test(s), CI job(s), release-artifact step | 4 item(s) |
+| 20 | Startup: config creation and migration, data seeding, locking, no-hang, no egress | **PARTIAL** | 6 oracle fixture(s), upstream assets, Go implementation, 18 named test(s), CI job(s) | 3 item(s) |
+| 21 | Release artifact: archive, install, upgrade, rollback, docker, smoke | **PARTIAL** | upstream assets, Go implementation, 4 named test(s), CI job(s), release-artifact step | 4 item(s) |
 | 22 | Whole-session differential in a stock tree (load, settings, characters, chat, send, stream, save, reload) | **PASS** | 1 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | _none_ |
 
 ## Evidence and gaps, per row
@@ -112,17 +112,17 @@ Row id: `settings`
 - Oracle fixtures: `tests/oracle/sillytavern-1.19.0-settings-get.json`, `tests/oracle/sillytavern-1.19.0-settings-save.json`, `tests/oracle/sillytavern-1.19.0-settings-snapshots.json`, `tests/oracle/sillytavern-1.19.0-settings-backup.json`, `tests/oracle/sillytavern-1.19.0-security-settings.json`
 - Upstream assets: _none_
 - Go implementation: `internal/server`, `internal/configinit`
-- Named tests: `TestPinnedNodeSettingsGetAggregation`, `TestPinnedNodeSettingsSave`, `TestBackupSettingsMatchesPinnedNode`
+- Named tests: `TestPinnedNodeSettingsGetAggregation`, `TestPinnedNodeSettingsSave`, `TestBackupSettingsMatchesPinnedNode`, `tools/qualify-node-stock-tree.mjs`
 - Browser artefacts: _none_
-- CI jobs: `ci.yml#oracle`
+- CI jobs: `ci.yml#oracle`, `node-stock-tree.yml#node-stock-tree`
 - Release artifact: _none_
 
 **Evidence gap**
 
-- no stock-tree save/reload: the fixtures write into a fresh runtime root, so a settings file written by a real SillyTavern user has never been round-tripped
 - no release-artifact result (AGENTS.md 23/34)
+- the stock-tree save/reload round trip NOW EXISTS (node-stock-tree.yml#node-stock-tree): GoTavern saves a Node-originated tree's settings, including a new top-level key and an EDITED nested unknown key, restarts, re-reads the document, and pinned Node then reads and saves it; what remains is aggregation over a real user's larger document and a release-artifact result
 
-Serialisation and response shape are pinned; the missing evidence is a user's own settings.json, which is where unknown-field retention and legacy keys live.
+Serialisation and response shape are pinned; the missing evidence is a user's own settings.json, which is where unknown-field retention and legacy keys live. CLOSED 2026-10-31 -- STOCK-TREE SAVE/RELOAD (moved out of evidenceGap): a Node-originated stock tree is written by GoTavern (a new top-level key plus an edited nested unknown key), restarted, re-read, and then read and re-saved by pinned Node (node-stock-tree.yml#node-stock-tree). The remaining gap is fixture aggregation over a larger real document, not the absence of a stock-tree round trip.
 
 ### Secrets: read, write, active source, per-provider slots — `PARTIAL`
 
@@ -150,9 +150,9 @@ Row id: `characters`
 - Oracle fixtures: `tests/oracle/sillytavern-1.19.0-characters-read.json`, `tests/oracle/sillytavern-1.19.0-characters-write.json`, `tests/oracle/sillytavern-1.19.0-characters-import.json`, `tests/oracle/sillytavern-1.19.0-character-disk-cache.json`
 - Upstream assets: `upstream/default`
 - Go implementation: `internal/server`
-- Named tests: `TestPinnedNodeCharactersRead`, `TestPinnedNodeCharactersWrite`, `TestPinnedNodeCharactersImport`, `TestVerifyCharacterDiskCacheMatchesPinnedNode`
+- Named tests: `TestPinnedNodeCharactersRead`, `TestPinnedNodeCharactersWrite`, `TestPinnedNodeCharactersImport`, `TestVerifyCharacterDiskCacheMatchesPinnedNode`, `tools/qualify-node-stock-tree.mjs`
 - Browser artefacts: _none_
-- CI jobs: `ci.yml#oracle`
+- CI jobs: `ci.yml#oracle`, `node-stock-tree.yml#node-stock-tree`
 - Release artifact: _none_
 
 **Evidence gap**
@@ -160,8 +160,9 @@ Row id: `characters`
 - CharX, BYAF and RisuAI import shapes are not implemented and answer the pinned { error: true }; recorded as a gap in docs/compat-matrix.md, not as parity
 - uploaded-image crop/resize is not Jimp-identical (ARCHITECTURE.md boundary 3), so a cropped avatar is source-implemented but unprobed
 - no browser E2E: creating a character in the pinned frontend and reading it back through GoTavern is not gated
+- the card edit round trip NOW EXISTS (node-stock-tree.yml#node-stock-tree): a Node-originated card with alternate greetings, scoped regex and unknown extensions is read by GoTavern, edited, read back by GoTavern with every multi-value field intact, and read again by pinned Node; the same gate FOUND AND FIXED a repeated-multipart-field defect that dropped all but the last alternate greeting (bbed7c4)
 
-Strongest per-route coverage in the tree after static, with response text recorded byte-for-byte.
+Strongest per-route coverage in the tree after static, with response text recorded byte-for-byte. CLOSED 2026-10-31 -- MULTI-VALUE CARD EDIT DEFECT, found by the new gate: GoTavern's multipart parser overwrote repeated text fields instead of accumulating them the way multer does, so /api/characters/edit kept only the last alternate greeting (pinned frontend sends one part per greeting). Fixed in bbed7c4 with a shape-discriminating unit test and node-stock-tree.yml#node-stock-tree asserts the round trip.
 
 ### Chats: save, get, search, recent, import, mutations — `PARTIAL`
 
@@ -170,18 +171,19 @@ Row id: `chats`
 - Oracle fixtures: `tests/oracle/sillytavern-1.19.0-chats-save-get.json`, `tests/oracle/sillytavern-1.19.0-chats-import.json`, `tests/oracle/sillytavern-1.19.0-chats-mutations.json`, `tests/oracle/sillytavern-1.19.0-chats-search-recent.json`
 - Upstream assets: _none_
 - Go implementation: `internal/server`
-- Named tests: `TestPinnedNodeChatsImport`, `TestPinnedNodeChatsMutations`, `TestPinnedNodeChatsSearchRecent`
+- Named tests: `TestPinnedNodeChatsImport`, `TestPinnedNodeChatsMutations`, `TestPinnedNodeChatsSearchRecent`, `tools/qualify-node-stock-tree.mjs`
 - Browser artefacts: _none_
-- CI jobs: `ci.yml#oracle`
+- CI jobs: `ci.yml#oracle`, `node-stock-tree.yml#node-stock-tree`
 - Release artifact: _none_
 
 **Evidence gap**
 
 - JSONL append/rewrite atomicity is asserted per route but not under a crash-or-kill boundary
+- the cross-runtime chat round trip NOW EXISTS (node-stock-tree.yml#node-stock-tree): a Node-originated JSONL chat is read by GoTavern, appended to and SWIPED by GoTavern, survives a GoTavern restart, is read and CONTINUED by pinned Node, and is read again by GoTavern; each phase asserts every .jsonl line parses
 
 Blocked by: `whole-session-e2e`
 
-Chat JSONL is the surface where a partial write loses a user's conversation, so the missing session test matters more here than elsewhere.  CLOSED 2026-10-31 -- THE SAVE/RELOAD/CONTINUATION LEG (moved out of evidenceGap, which now holds only open items): the green whole-session run 41171620691 at 91e1e15 carries ONE chat through save, a fresh page load, a second turn, regenerate and continue on both subjects under 39/39 guards. The row stays PARTIAL on the crash-or-kill atomicity boundary only.
+Chat JSONL is the surface where a partial write loses a user's conversation, so the missing session test matters more here than elsewhere.  CLOSED 2026-10-31 -- THE SAVE/RELOAD/CONTINUATION LEG (moved out of evidenceGap, which now holds only open items): the green whole-session run 41171620691 at 91e1e15 carries ONE chat through save, a fresh page load, a second turn, regenerate and continue on both subjects under 39/39 guards. The row stays PARTIAL on the crash-or-kill atomicity boundary only. CLOSED 2026-10-31 -- CROSS-RUNTIME CHAT ROUND TRIP (added, not a gap): Go-append + swipe + restart + pinned read/continue + Go re-read over a Node-originated chat is green in node-stock-tree.yml#node-stock-tree; crash-or-kill atomicity remains the open item.
 
 ### Groups and group chats, including the metadata migration — `PARTIAL`
 
@@ -190,9 +192,9 @@ Row id: `groups`
 - Oracle fixtures: `tests/oracle/sillytavern-1.19.0-groups.json`, `tests/oracle/sillytavern-1.19.0-group-metadata-migration.json`, `tests/browser/fixtures/group-chat/pinned-oracle.json`
 - Upstream assets: _none_
 - Go implementation: `internal/server`, `internal/migrate`
-- Named tests: `TestPinnedNodeGroups`, `TestMigrateGroupChatsMetadataFormatMatchesPinnedNode`, `tests/browser/group-chat-fixture.mjs`, `tests/browser/group-chat-probe.mjs`, `tests/browser/compare-group-chat-legs.mjs`, `tests/browser/group-chat-record-fixture.mjs`, `tests/browser/group-chat-comparator-selftest.mjs`
+- Named tests: `TestPinnedNodeGroups`, `TestMigrateGroupChatsMetadataFormatMatchesPinnedNode`, `tests/browser/group-chat-fixture.mjs`, `tests/browser/group-chat-probe.mjs`, `tests/browser/compare-group-chat-legs.mjs`, `tests/browser/group-chat-record-fixture.mjs`, `tests/browser/group-chat-comparator-selftest.mjs`, `tools/qualify-node-stock-tree.mjs`
 - Browser artefacts: `tests/browser/group-chat-comparison.json`
-- CI jobs: `ci.yml#oracle`, `group-chat-differential.yml#group-chat`
+- CI jobs: `ci.yml#oracle`, `group-chat-differential.yml#group-chat`, `node-stock-tree.yml#node-stock-tree`
 - Release artifact: _none_
 
 **Evidence gap**
@@ -212,16 +214,16 @@ Row id: `world-info`
 - Oracle fixtures: `tests/oracle/sillytavern-1.19.0-worldinfo-routes.json`
 - Upstream assets: _none_
 - Go implementation: `internal/server`
-- Named tests: `TestPinnedNodeWorldInfoRoutes`, `tests/browser/worldinfo-slots-probe.mjs`, `tests/browser/worldinfo-slots-kit.mjs`, `tests/browser/worldinfo-slots-sweep.mjs`, `tests/browser/worldinfo-slots-gate-selftest.mjs`, `tests/browser/compare-worldinfo-slots-legs.mjs`
+- Named tests: `TestPinnedNodeWorldInfoRoutes`, `tests/browser/worldinfo-slots-probe.mjs`, `tests/browser/worldinfo-slots-kit.mjs`, `tests/browser/worldinfo-slots-sweep.mjs`, `tests/browser/worldinfo-slots-gate-selftest.mjs`, `tests/browser/compare-worldinfo-slots-legs.mjs`, `tools/qualify-node-stock-tree.mjs`
 - Browser artefacts: `tests/browser/preset-complex-comparison.json`, `tests/browser/worldinfo-slots-comparison.json`
-- CI jobs: `ci.yml#oracle`, `browser-differential.yml#differential`, `worldinfo-slots.yml#worldinfo-slots`
+- CI jobs: `ci.yml#oracle`, `browser-differential.yml#differential`, `worldinfo-slots.yml#worldinfo-slots`, `node-stock-tree.yml#node-stock-tree`
 - Release artifact: _none_
 
 **Evidence gap**: none.
 
 Blocked by: `whole-session-e2e`
 
-A world entry that is stored correctly and inserted in the wrong place is invisible to every HTTP fixture; only the prompt-block comparison sees it. The assembled-prompt half is now measured, not inferred. CLOSED 2026-10-31 -- WORLD-INFO SLOT ORDER (the row's last open gap). Workflow `GoTavern world-info slot ordering`, run 41171073703 at head 8de82c2 (success), records the SAME 486-byte body on both subjects (sha256 0422801bd299fe5115c264d20f748abec68a714c2b220e80082a37b2e0bd4bcb), 21/21 guards, slot order [1,2,4] with before@1 system, after@2 system and depth@4 user at 1 from the end, and the gate self-test names the specific guard for each of five mutations; the run also performs a zero-diff check that the committed artefact tests/browser/worldinfo-slots-comparison.json is exactly what it produces. The two defects this surface found first were FIXTURE defects, not product defects: (1) a settings write staged BEFORE boot suppressed the first-run onboarding on the GoTavern subject, and (2) the user-name step read #your_name while the assembled prompt resolves the persona BINDING the onboarding handler writes - once the fixture reproduced the onboarding path faithfully, both subjects carried the same body and the product's onboarding path was identical on both. The activation half was already proven by the preset and Author's-Note differentials (preset-complex-comparison.json keepContext 4260 / dropContext 4259, providerRequestEqual true).
+A world entry that is stored correctly and inserted in the wrong place is invisible to every HTTP fixture; only the prompt-block comparison sees it. The assembled-prompt half is now measured, not inferred. CLOSED 2026-10-31 -- WORLD-INFO SLOT ORDER (the row's last open gap). Workflow `GoTavern world-info slot ordering`, run 41171073703 at head 8de82c2 (success), records the SAME 486-byte body on both subjects (sha256 0422801bd299fe5115c264d20f748abec68a714c2b220e80082a37b2e0bd4bcb), 21/21 guards, slot order [1,2,4] with before@1 system, after@2 system and depth@4 user at 1 from the end, and the gate self-test names the specific guard for each of five mutations; the run also performs a zero-diff check that the committed artefact tests/browser/worldinfo-slots-comparison.json is exactly what it produces. The two defects this surface found first were FIXTURE defects, not product defects: (1) a settings write staged BEFORE boot suppressed the first-run onboarding on the GoTavern subject, and (2) the user-name step read #your_name while the assembled prompt resolves the persona BINDING the onboarding handler writes - once the fixture reproduced the onboarding path faithfully, both subjects carried the same body and the product's onboarding path was identical on both. The activation half was already proven by the preset and Author's-Note differentials (preset-complex-comparison.json keepContext 4260 / dropContext 4259, providerRequestEqual true). ADDED 2026-10-31 -- NODE-ORIGINATED WORLD ROUND TRIP: a 10-entry world book recorded through pinned's /api/worldinfo/edit is read by GoTavern, edited by GoTavern (a new entry) and read back by both runtimes with unknown per-entry extensions and the top-level unknown member intact (node-stock-tree.yml#node-stock-tree). The row's PASS evidence is unchanged.
 
 ### Presets, quick replies, themes, moving UI, system prompts — `PARTIAL`
 
@@ -230,15 +232,16 @@ Row id: `presets-and-ui-content`
 - Oracle fixtures: `tests/oracle/sillytavern-1.19.0-presets-routes.json`, `tests/oracle/sillytavern-1.19.0-quick-replies.json`, `tests/oracle/sillytavern-1.19.0-themes.json`, `tests/oracle/sillytavern-1.19.0-moving-ui.json`, `tests/oracle/sillytavern-1.19.0-system-prompt-migration.json`
 - Upstream assets: _none_
 - Go implementation: `internal/server`
-- Named tests: `TestPinnedNodePresetRoutes`, `TestPinnedNodeThemesSaveAndDelete`, `TestPinnedNodeMovingUISave`
+- Named tests: `TestPinnedNodePresetRoutes`, `TestPinnedNodeThemesSaveAndDelete`, `TestPinnedNodeMovingUISave`, `tools/qualify-node-stock-tree.mjs`
 - Browser artefacts: `tests/browser/preset-complex-comparison.json`
-- CI jobs: `ci.yml#oracle`, `browser-differential.yml#differential`
+- CI jobs: `ci.yml#oracle`, `browser-differential.yml#differential`, `node-stock-tree.yml#node-stock-tree`
 - Release artifact: _none_
 
 **Evidence gap**
 
 - the complex-preset differential now RECORDS a passing keep/drop pair in tests/browser/preset-complex-comparison.json (keepContext 4260 / dropContext 4259, 24 vs 26 messages, providerRequestEqual true, verdict match), so the older clause saying no passing pair existed was stale and is removed; what the artefact does not cover is preset features outside its measured contract (instruct/context templates are set but not asserted, secondary world-info keys, recursion/probability/outlets, group chats)
 - the NAME_MAX host-dependent difference is recorded as an unresolved known difference rather than parity
+- the preset DOCUMENT round trip NOW EXISTS (node-stock-tree.yml#node-stock-tree): a 40-prompt complex preset recorded by pinned Node is read through GoTavern settings/get, survives a GoTavern settings save, and is read again by pinned Node; prompt ASSEMBLY and features outside the measured contract remain unasserted
 
 Blocked by: `whole-session-e2e`
 
@@ -409,15 +412,15 @@ Row id: `accounts-multi-user`
 - Oracle fixtures: `tests/oracle/sillytavern-1.19.0-account-create.json`, `tests/oracle/sillytavern-1.19.0-account-admin.json`, `tests/oracle/sillytavern-1.19.0-account-recovery.json`, `tests/oracle/sillytavern-1.19.0-account-data-reset.json`, `tests/oracle/sillytavern-1.19.0-account-private.json`, `tests/oracle/sillytavern-1.19.0-user-data-migration.json`
 - Upstream assets: _none_
 - Go implementation: `internal/server`, `internal/startup`
-- Named tests: `TestPinnedNodeAccountCreationAndSlugifyContract`, `TestPinnedNodeAccountBackupContract`, `TestPinnedNodePrivateAccountProfileAndLogoutContract`
+- Named tests: `TestPinnedNodeAccountCreationAndSlugifyContract`, `TestPinnedNodeAccountBackupContract`, `TestPinnedNodePrivateAccountProfileAndLogoutContract`, `tools/qualify-node-stock-tree.mjs`
 - Browser artefacts: _none_
-- CI jobs: `ci.yml#oracle`
+- CI jobs: `ci.yml#oracle`, `node-stock-tree.yml#node-stock-tree`
 - Release artifact: _none_
 
 **Evidence gap**
 
 - no test of two users concurrently writing the same world/preset tree; the per-user lock is asserted per route, not under contention
-- no stock-tree multi-user migration result
+- a SECOND account created through pinned's own admin API is booted and written by GoTavern (node-stock-tree.yml#node-stock-tree), so a multi-user data root is executed end to end; concurrent same-tree writes and migration from a real deployment remain untested
 
 Account machinery has broad fixture coverage; concurrency and migration from a real deployment are the gaps.
 
@@ -447,15 +450,16 @@ Row id: `startup`
 - Oracle fixtures: `tests/oracle/sillytavern-1.19.0-fresh-start.json`, `tests/oracle/sillytavern-1.19.0-config-init.json`, `tests/oracle/sillytavern-1.19.0-config-duplicate-key.json`, `tests/oracle/sillytavern-1.19.0-commandline-paths.json`, `tests/oracle/sillytavern-1.19.0-public-overrides-migration.json`, `tests/oracle/sillytavern-1.19.0-access-log-migration.json`
 - Upstream assets: `upstream/default`, `upstream/manifests`
 - Go implementation: `internal/startup`, `internal/configinit`, `internal/migrate`, `internal/app`, `internal/commandline/unimplemented_config.go`, `tools/generate-config-parity.mjs`
-- Named tests: `TestP0BStockTreeInWorkingDirectoryStarts`, `TestP0BForeignWorkingDirectoryStartsOnAFreshTree`, `TestP0BConfigLockHeldByAnotherProcessFailsWithNamedError`, `TestP0BStaleConfigLockFileDoesNotBlockBoot`, `TestP0BLegacyKeysBootBounded`, `TestP0BTwoConcurrentBootsDoNotHang`, `TestP0BParseableConfigIsNotRewrittenOnBoot`, `TestDuplicateKeyIsRejectedAsPinnedRecords`, `TestDuplicateKeyConfigExitsOneWithPinnedLines`, `TestStartupMakesNoEgressOnAFreshBoot`, `TestStartupDockerBranchResolvesExactlyTheAllowedHostnames`, `TestStartupDockerBranchWhitelistsTheAddressItResolved`, `TestStartupDockerHostnameLookupIsBounded`, `TestStartupSourcesAddNoEgressPath`, `TestEgressSourceScanHasTeeth`, `TestUnimplementedConfigWarningsNameTheKey`, `TestUnimplementedConfigWarningsAreBounded`
+- Named tests: `TestP0BStockTreeInWorkingDirectoryStarts`, `TestP0BForeignWorkingDirectoryStartsOnAFreshTree`, `TestP0BConfigLockHeldByAnotherProcessFailsWithNamedError`, `TestP0BStaleConfigLockFileDoesNotBlockBoot`, `TestP0BLegacyKeysBootBounded`, `TestP0BTwoConcurrentBootsDoNotHang`, `TestP0BParseableConfigIsNotRewrittenOnBoot`, `TestDuplicateKeyIsRejectedAsPinnedRecords`, `TestDuplicateKeyConfigExitsOneWithPinnedLines`, `TestStartupMakesNoEgressOnAFreshBoot`, `TestStartupDockerBranchResolvesExactlyTheAllowedHostnames`, `TestStartupDockerBranchWhitelistsTheAddressItResolved`, `TestStartupDockerHostnameLookupIsBounded`, `TestStartupSourcesAddNoEgressPath`, `TestEgressSourceScanHasTeeth`, `TestUnimplementedConfigWarningsNameTheKey`, `TestUnimplementedConfigWarningsAreBounded`, `tools/qualify-node-stock-tree.mjs`
 - Browser artefacts: _none_
-- CI jobs: `ci.yml#oracle`, `release-qualification.yml#qualify-linux-amd64`
+- CI jobs: `ci.yml#oracle`, `release-qualification.yml#qualify-linux-amd64`, `node-stock-tree.yml#node-stock-tree`
 - Release artifact: _none_
 
 **Evidence gap**
 
 - STARTUP-DIFFERENTIAL FIXTURES STILL START FROM FRESH OR MIGRATED RUNTIME ROOTS, never from a populated stock SillyTavern tree. A populated tree IS covered by two other gates -- `tests/e2e/longlived_test.go` synthesises one in Go and the packaged drop-in qualification boots an archive against a stock tree -- but neither is a startup-differential fixture, so the startup surface’s own corpus does not include one
 - CONFIGURATION PARITY is now enumerated and gated but only PARTLY asserted per key: docs/config-parity.md classifies all 116 effective pinned default config keys (plus the 31 CLI options parsed from the real parser table) as implemented 75 / explicit-no-op-with-startup-warning 14 / explicit-unsupported 2 / inherited 25 / not-applicable 0, generated by tools/generate-config-parity.mjs and checked by tools/compat-matrix/check.mjs. The 25 `inherited` rows are the honest residual: the key is carried by the config pipeline (read, inserted, migrated or preserved) but this lane has no dedicated key-level behaviour test for it, so those rows claim value/wiring parity only. The 14 warned keys were previously silent ignores and now emit a bounded, non-default-only startup warning (internal/commandline/unimplemented_config.go, capped at 8 lines with an overflow line pointing at the document).
+- a POPULATED Node-originated stock tree is booted three times by GoTavern and once by pinned Node in node-stock-tree.yml#node-stock-tree, with unrelated bytes preserved; the startup DIFFERENTIAL corpus itself still starts from fresh/migrated roots
 
 RE-DERIVED 2026-10-29. The row was FAIL on a premise that is false at HEAD: it said no bounded-boot gate existed, and internal/app/startup_p0b_test.go has seven such gates, all passing, all through startBounded. One gap is real and remains: the startup-differential fixtures still begin from fresh or migrated roots rather than a populated stock tree (a populated tree is covered by the longlived e2e leg and the packaged drop-in gate, not by a startup fixture). The egress half of this row is CLOSED and is recorded below. The duplicate-key divergence recorded here is closed and gated at both the config layer and the shipped binary. CLOSED 2026-10-29 -- P0-B's bounded-boot gate NOW EXISTS and passes: internal/app/startup_p0b_test.go drives a stock tree in the working directory (`TestP0BStockTreeInWorkingDirectoryStarts`), a foreign working directory on a fresh tree (`TestP0BForeignWorkingDirectoryStartsOnAFreshTree`, which also asserts nothing is left in the launch directory), a config lock held by another process (`TestP0BConfigLockHeldByAnotherProcessFailsWithNamedError`), a stale lock file (`TestP0BStaleConfigLockFileDoesNotBlockBoot`), legacy keys (`TestP0BLegacyKeysBootBounded`) and two concurrent boots (`TestP0BTwoConcurrentBootsDoNotHang`). Every one goes through `startBounded`, whose failure names the bound, the tree changes and the goroutine stacks -- so a hang goes red with the wait named, which is what this row asked for. The earlier text claiming no such gate existed was STALE and is corrected here rather than kept CLOSED 2026-10-29 -- STARTUP EGRESS (AGENTS.md 25): the clause that stood in evidenceGap saying "NO GATE ASSERTS THAT STARTUP MAKES NO NON-ESSENTIAL NETWORK ACCESS" was STALE. `internal/app/startup_egress_test.go` runs the REAL boot under a recording resolver and asserts `TestStartupMakesNoEgressOnAFreshBoot`, `TestStartupDockerBranchResolvesExactlyTheAllowedHostnames`, `TestStartupDockerBranchWhitelistsTheAddressItResolved` and `TestStartupDockerHostnameLookupIsBounded`; because a resolver peer cannot see an IP literal, a subprocess or a hand-built resolver, `internal/app/startup_egress_source_test.go` adds the AST second opinion `TestStartupSourcesAddNoEgressPath` plus `TestEgressSourceScanHasTeeth` for the scan itself. The runtime observation stays primary and the source scan is beside it, never in place of it (AGENTS.md 54), and both are cited in evidence.tests. CLOSED 2026-10-29 -- DUPLICATE-KEY CONFIG: CLOSED 2026-10-29. pinned refuses it by name and does NOT rewrite the file (measured, tests/oracle/sillytavern-1.19.0-config-duplicate-key.json: exit 1, the yaml message with code DUPLICATE_KEY, then 'FATAL: Failed to read config.yaml. Please check the file for syntax errors.', and the config's bytes and mtime IDENTICAL before and after; the control -- the same document minus the duplicate -- boots AND is migrated 25 -> 3310 bytes). GoTavern used to ACCEPT a duplicate key, a divergence in the permissive direction; it now reproduces the refusal, asserted twice: `TestDuplicateKeyIsRejectedAsPinnedRecords` replays the recording against the config layer (exact message including the trimmed source frame and the duplicate's line/column, unchanged sha256, control migrated) and `TestDuplicateKeyConfigExitsOneWithPinnedLines` runs the shipped binary and asserts exit 1, the recorded stderr ORDER, the absence of a 'gotavern:' prefix or a fake Node stack, and an untouched file
 
@@ -466,21 +470,21 @@ Row id: `packaging-release`
 - Oracle fixtures: _none_
 - Upstream assets: `upstream/tokenizers`
 - Go implementation: `cmd/gotavern`, `internal/app`
-- Named tests: `TestVerifyWithManifestRejectsAnAlteredFile`, `TestCopyVerificationCatchesAShortFile`
+- Named tests: `TestVerifyWithManifestRejectsAnAlteredFile`, `TestCopyVerificationCatchesAShortFile`, `tools/build-node-stock-tree.mjs`, `tools/qualify-node-stock-tree.mjs`
 - Browser artefacts: _none_
-- CI jobs: `release-qualification.yml#qualify-linux-amd64`, `release-qualification.yml#qualify-upgrade-rollback`, `release-install-smoke.yml#smoke-published-linux-amd64`, `dropin-qualification.yml#dropin-current-head`, `docker.yml#docker`
-- Release artifact: release-qualification.yml extracts the archive, boots it over a fresh root, boots it a second time to assert idempotence, and exercises upgrade plus rollback; release-qualification.yml#qualify-dropin-linux and dropin-qualification.yml#dropin-current-head unpack an archive into a STOCK SillyTavern tree and boot it there (both layouts and both config modes, see docs/dropin-qualification.md)
+- CI jobs: `release-qualification.yml#qualify-linux-amd64`, `release-qualification.yml#qualify-upgrade-rollback`, `release-install-smoke.yml#smoke-published-linux-amd64`, `dropin-qualification.yml#dropin-current-head`, `docker.yml#docker`, `node-stock-tree.yml#node-stock-tree`
+- Release artifact: release-qualification.yml extracts the archive, boots it over a fresh root, boots it a second time to assert idempotence, and exercises upgrade plus rollback; release-qualification.yml#qualify-dropin-linux and dropin-qualification.yml#dropin-current-head unpack an archive into a STOCK SillyTavern tree and boot it there (both layouts and both config modes, see docs/dropin-qualification.md); node-stock-tree.yml generates a tree RECORDED from a pinned Node run through the pinned server's own HTTP routes and runs the full Node -> Go -> Node round trip over it, with per-file hashes and whole-tree preservation assertions
 
 **Evidence gap**
 
 - the stock-tree qualification executes the LINUX archive on every push (dropin-qualification.yml#dropin-current-head) and the WINDOWS archive on windows-latest (dropin-qualification.yml runs-on windows-latest: a Start.cmd run, a pristine-config run, a trimmed-config run and an exe-direct scenario) -- the older clause saying the Windows archive is never executed was stale and is removed
-- the stock tree the Linux job boots is DERIVED from the pinned source rather than recorded from a pinned Node run, so AGENTS.md 38's "the real migration path" is covered by a derivation, not by a captured tree
+- the PACKAGED gate's stock tree is still DERIVED from the pinned source rather than recorded from a pinned Node run (the packaged drop-in scenarios boot scripts/build-stock-tree.sh's tree), BUT a Node-ORIGINATED tree now exists and passes the full Node -> Go -> Node round trip in its own workflow: node-stock-tree.yml#node-stock-tree records every user-data surface through the pinned server's own API and asserts read-back, mutation, restart, pinned read/continue and whole-tree preservation. What remains is that the Node-originated gate is not the packaged gate and its tree is a qualification tree, not a user's own directory
 - the data hand-back IS NOW IN THE PACKAGED DROP-IN GATE, closing the placement half of AGENTS.md 38. dropin-qualification.yml#dropin-current-head extracts the same packaged archive the four drop-in scenarios test, points GOTAVERN_BINARY at the binary inside it, drives the GoTavern half and the pinned half over the same data root, and gates on judge-handback: GoTavern drop-in qualification run 41205962399 (success) reports `hand-back verdict: match`, GoTavern 6/6 rows and pinned 17/17 rows including pinnedContinued, in a 122 s job. A first dispatch (run 41205692600) went red because GOTAVERN_BINARY was command-scoped rather than exported to the pinned half, and the judge refused it as `unreached` rather than passing a partial -- the gate's teeth observed, not argued. The probe's spawn sites now pass `--browserLaunchEnabled false` and tests/browser/browser-launch-gate.mjs polices that (and scripts/qualify-dropin.sh, which boots the archive's binary, now passes the flag too). What still remains is the derivation half: the stock tree is DERIVED from upstream/** rather than recorded from a pinned Node run; and the quoted releaseArtifact below is a workflow step, not a recorded run id.
 - quoted releaseArtifact here is a workflow step, not a recorded run id; the run id belongs in docs/goal-scorecard.md Q1/Q21
 
 Blocked by: `startup`
 
-This row is the strongest release evidence in the tree, and its shape is now split in two: the release pipeline (archive, install into a fresh prefix, upgrade, rollback, docker) is exercised by release-qualification.yml, release-install-smoke.yml and docker.yml, and the drop-in promise (a stock tree, unpacked archive, existing config and data) by qualify-dropin-linux and by dropin-qualification.yml on every push to main. What is still missing is the platform and tree half named in evidenceGap: only the Linux archive is ever executed, and the stock tree is derived from the pinned source rather than recorded from a pinned Node run.
+This row is the strongest release evidence in the tree, and its shape is now split in two: the release pipeline (archive, install into a fresh prefix, upgrade, rollback, docker) is exercised by release-qualification.yml, release-install-smoke.yml and docker.yml, and the drop-in promise (a stock tree, unpacked archive, existing config and data) by qualify-dropin-linux and by dropin-qualification.yml on every push to main. What is still missing is the platform and tree half named in evidenceGap: only the Linux archive is ever executed, and the stock tree is derived from the pinned source rather than recorded from a pinned Node run. ADDED 2026-10-31 -- NODE-ORIGINATED INPUT TREE: the derived-tree half is no longer the ONLY input evidence; node-stock-tree.yml#node-stock-tree records a tree from the pinned server and proves GoTavern reads/mutates it, pinned Node reads/continues it, and GoTavern reads the Node mutation (docs/node-stock-tree.md). The packaged gate's own input remains the derived tree, so the row stays PARTIAL.
 
 ### Whole-session differential in a stock tree (load, settings, characters, chat, send, stream, save, reload) — `PASS`
 
@@ -553,7 +557,7 @@ with `TestMain` excluded because it is a package's test entry point rather than 
 |---|---|---|
 | Oracle fixtures | 121 | 69 |
 | Browser artefacts | 40 | 11 |
-| Go test functions | 763 | 100 |
-| Workflow jobs | 32 in 13 workflow(s) | _n/a_ |
+| Go test functions | 764 | 100 |
+| Workflow jobs | 33 in 14 workflow(s) | _n/a_ |
 | Rows | 22 | PASS 3, PARTIAL 18, FAIL 0, NOT_APPLICABLE 1 |
 | Session steps | 8 | 7 with a probe, 1 without, 0 sharing a runtime |

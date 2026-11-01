@@ -1,0 +1,177 @@
+# THE NODE-ORIGINATED STOCK TREE ROUND TRIP.
+#
+# WHAT THIS PROVES, and why it is a separate workflow rather than a job in ci.yml:
+#
+#   `scripts/build-stock-tree.sh` builds the stock tree the packaged drop-in gates boot by copying upstream/**
+#   and re-implementing pinned's placement rules. That is a DERIVATION of the pinned SOURCE: it cannot show that
+#   the original Node server accepts the tree we put in front of GoTavern, nor that pinned Node accepts a tree
+#   GoTavern wrote. `docs/gap-sweep.md` rank 1 has carried that as the remaining P1 in the packaging row.
+#
+#   This workflow closes the INPUT half of that gap by RECORDING a tree from the pinned server: it boots pinned
+#   SillyTavern at the pinned commit, creates every user-data surface through the server's own routes
+#   (tools/build-node-stock-tree.mjs), hashes the result, and then runs the full round trip
+#   (tools/qualify-node-stock-tree.mjs):
+#
+#       Node writes -> GoTavern reads -> GoTavern mutates -> restart -> mutate -> pinned Node reads and continues
+#       -> GoTavern reads the Node mutation
+#
+#   assert on every read, on the whole-tree preservation of unrelated files, unknown fields, the extension tree,
+#   filename bytes, modes, empty/truncated files, and JSON/JSONL validity.
+#
+# WHY IT RUNS ON WINDOWS vs LINUX: the Go driver is cross-platform, but only POSIX can deliver SIGTERM, so the
+# GRACEFUL shutdown claim is produced here on ubuntu-latest; the Windows run of the same script records the
+# abrupt-stop limitation instead of claiming a pass. That is stated in docs/node-stock-tree.md.
+#
+# COST, BOUNDED: measured locally the pinned boot dominates (~2 min cold webpack compile on the development host,
+# faster on a runner with the cache below); the whole job is bounded at 45 minutes so a wedged probe fails rather
+# than consuming a runner. Every step that consumes time has its bound here or in the driver.
+
+name: GoTavern Node stock tree round trip
+
+on:
+  push:
+    branches:
+      - main
+      # Lanes push early so the gate can be OBSERVED RED on a mutation before it judges anything.
+      - 'lane/**'
+  workflow_dispatch:
+
+concurrency:
+  group: node-stock-tree-${{ github.ref }}
+  # A superseded push's run judges bytes nobody will ship; cancelled runs are not evidence either way, and the
+  # branch's next push produces a fresh one.
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  node-stock-tree:
+    name: node-stock-tree
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the pinned SillyTavern oracle
+        # ONE place for the pin (asserted against upstream/SILLYTAVERN_COMMIT by the action itself). A
+        # hand-transcribed SHA in five workflows is how a baseline drifts.
+        uses: ./.github/actions/checkout-pinned
+        with:
+          commit: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          # The binary this job builds is the subject under test; the module cache is only speed.
+          cache: true
+
+      - name: Compute the pinned dependency identity
+        id: pinned
+        # A cache key must PROVE what it restores. Keying on "node_modules" alone would restore a dependency
+        # graph built from a different lockfile and hand it to the oracle.
+        run: |
+          set -euo pipefail
+          commit=$(tr -d '[:space:]' < upstream/SILLYTAVERN_COMMIT)
+          echo "commit=${commit}" >> "$GITHUB_OUTPUT"
+          echo "lock_hash=$(sha256sum .reference/SillyTavern/package-lock.json | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the pinned server's dependency tree
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: pinned-node-modules-${{ runner.os }}-${{ steps.pinned.outputs.commit }}-${{ steps.pinned.outputs.lock_hash }}
+
+      - name: Install the pinned server's dependencies
+        # `npm ci` is idempotent against a restored cache; the restore only avoids the download. The lockfile is
+        # the truth, not the cache.
+        run: |
+          set -euo pipefail
+          cd .reference/SillyTavern
+          npm ci --no-audit --no-fund
+
+      - name: Generate the Node-originated stock tree (with the determinism self-check)
+        # TWO builds with the same seed. The first tree is the evidence; the second exists to prove the
+        # generator is deterministic where the pinned server allows, and that every difference it cannot control
+        # (a group id is String(Date.now()), a backup name carries generateTimestamp()) is DECLARED volatile
+        # rather than discovered later.
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/node-stock-tree"
+          mkdir -p "$work/generated"
+          node tools/build-node-stock-tree.mjs \
+            --pinned .reference/SillyTavern \
+            --out "$work/generated/tree" \
+            --report "$work/generated/report.json" \
+            --manifest "$work/generated/manifest.json" \
+            --verify-deterministic
+          node -e '
+            const report = require(process.argv[1]);
+            const manifest = require(process.argv[2]);
+            console.log("tree sha256:", report.tree.sha256);
+            console.log("tree normalised sha256:", report.tree.normalisedSha256);
+            console.log("files:", report.tree.fileCount, "bytes:", report.tree.bytes);
+            console.log("api operations:", report.operations.length, "seeded:", report.seeded.length);
+            console.log("deterministic:", report.determinism.ok, "(raw identical:", report.determinism.identicalRaw, ", undeclared differences:", report.determinism.undeclaredDifferences.length, ")");
+            console.log("manifest files:", manifest.entries.length);
+          ' "$work/generated/report.json" "$work/generated/manifest.json"
+
+      - name: Node -> Go -> Node round trip
+        # The exact script a developer runs. It builds the Go binary itself, boots it on the recorded tree,
+        # drives the mutations, hands the SAME tree to pinned Node, and boots GoTavern once more. The report it
+        # writes is the artifact this job exists to upload.
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/node-stock-tree"
+          bash scripts/qualify-node-stock-tree.sh \
+            --pinned .reference/SillyTavern \
+            --tree "$work/generated/tree" \
+            --manifest "$work/generated/manifest.json" \
+            --work "$work/roundtrip" \
+            --report "$work/roundtrip/report.json" \
+            --keep
+
+      - name: Print the tree hash and the round-trip verdict
+        if: always()
+        # A red job must be READ, not guessed at. The verdict and the failing assertion name are printed in the
+        # log even when a later step is what failed.
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/node-stock-tree"
+          for file in "$work/generated/report.json" "$work/roundtrip/report.json"; do
+            if [ -f "$file" ]; then
+              echo "::group::${file}"
+              node -e '
+                const fs = require("fs");
+                const report = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+                console.log(JSON.stringify(report.tree ?? {}, null, 2));
+                console.log("ok:", report.ok, "failure:", report.failure);
+                if (Array.isArray(report.steps)) {
+                  const failed = report.steps.filter(step => !step.ok);
+                  console.log("assertions:", report.steps.length, "failed:", failed.length);
+                  for (const step of failed.slice(0, 20)) console.log("FAILED:", step.phase, step.name, JSON.stringify(step.detail));
+                }
+              ' "$file"
+              echo "::endgroup::"
+            else
+              echo "::warning::no report at ${file}"
+            fi
+          done
+
+      - name: Upload the tree hash report and the round-trip report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-stock-tree-evidence
+          # `error` rather than `warn`: an artifact missing after a green job would mean the evidence this
+          # workflow exists to produce was never written.
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/node-stock-tree/generated/report.json
+            ${{ runner.temp }}/node-stock-tree/generated/manifest.json
+            ${{ runner.temp }}/node-stock-tree/roundtrip/report.json
+          retention-days: 30
