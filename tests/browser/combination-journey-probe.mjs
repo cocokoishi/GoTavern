@@ -262,6 +262,35 @@ async function waitForQuiet(page, { quietMs = 1800, maxMs = 60000 } = {}) {
     return { ok: false, waitedMs: Date.now() - started, lastCount };
 }
 
+/**
+ * WAIT UNTIL THE TOKENIZER ANSWERS. A page that was just reloaded has no tokenizer model in memory; the first real
+ * generation then throws inside prepareOpenAIMessages/populateChatCompletion, the catch leaves only the prompts it had
+ * already added, and the request is a four-prompt skeleton with no chatHistory -- while a dry run 1.3 s later assembles
+ * the full 39 messages on the same page (measured: reports jt1..jt5, both subjects). That is a harness precondition a
+ * real user reaches by simply not clicking within a few hundred milliseconds, so the journey WAITS and asserts it
+ * explicitly instead of sending into a cold tokenizer.
+ */
+async function waitForTokenizerReady(page, { maxMs = 30000 } = {}) {
+    const started = Date.now();
+    let last = null;
+    while (Date.now() - started < maxMs) {
+        const state = await page.evaluate(async () => {
+            try {
+                const tokenizers = await import('./scripts/tokenizers.js');
+                // script.js IMPORTS getTokenCountAsync but does not re-export it (public/script.js:234), so calling it
+                // through script.js threw "not a function" for 30 s and the step reported a cold tokenizer that was
+                // actually a wrong import path. Ask the module that owns it.
+                const count = await tokenizers.getTokenCountAsync('COMB_TOKENIZER_WARMUP');
+                return { ok: Number.isFinite(count), count };
+            } catch (error) { return { ok: false, error: String(error?.message ?? error).slice(0, 160) }; }
+        }).catch(error => ({ ok: false, error: String(error?.message ?? error).slice(0, 160) }));
+        if (state.ok) return { ok: true, waitedMs: Date.now() - started, count: state.count };
+        last = state;
+        await page.waitForTimeout(100);
+    }
+    return { ok: false, waitedMs: maxMs, last };
+}
+
 
 /**
  * Re-apply the recording-peer connection. A PRESET carries provider settings; selecting one can overwrite the custom
@@ -1186,6 +1215,7 @@ async function main() {
                 const script = await import('./script.js');
                 const events = await import('./scripts/events.js');
                 window.__combGenLog = [];
+                window.__combOpenAI = await import('./scripts/openai.js');
                 const record = async (event, args) => {
                     try {
                         const context = window.SillyTavern && window.SillyTavern.getContext ? window.SillyTavern.getContext() : null;
@@ -1206,6 +1236,20 @@ async function main() {
                             // was already disarmed BEFORE the event or only by the time the messages were built.
                             promptCount,
                             thisChid: script.this_chid ?? null,
+                            // WHICH PROMPT ORDER / PRESET THE CALL ITSELF SEES. The content capture proved the real
+                            // post-reload call resolves the dummy order while a later dry run resolves the armed one;
+                            // these fields say whether the selected preset name, the settings' prompt_order and the
+                            // manager's service settings agree at the real call (they are the three inputs that can
+                            // disagree without changing the collection count the armed check measured later).
+                            presetName: (() => { try { const pm = window.SillyTavern?.getContext?.()?.getPresetManager?.(); return pm?.getSelectedPresetName?.() ?? null; } catch (error) { return 'threw'; } })(),
+                            settingsPreset: (() => { try { return window.__combOpenAI?.oai_settings?.preset_settings_openai ?? null; } catch (error) { return 'threw'; } })(),
+                            serviceOrderLength: (() => { try { const order = window.__combOpenAI?.promptManager?.serviceSettings?.prompt_order; const dummy = Array.isArray(order) ? order.find(entry => entry?.character_id === 100001) : null; return dummy?.order?.length ?? null; } catch (error) { return 'threw'; } })(),
+                            // THE PROMPTS LIST vs THE ORDER LIST. getPromptCollection skips an order entry whose
+                            // prompt is absent, so a settings object that arrived with the 98-entry order but only the
+                            // default prompts renders a four-message skeleton while every count derived from the order
+                            // still looks right.
+                            servicePromptsLength: (() => { try { const prompts = window.__combOpenAI?.promptManager?.serviceSettings?.prompts; return Array.isArray(prompts) ? prompts.length : null; } catch (error) { return 'threw'; } })(),
+                            activeCharacterId: (() => { try { return window.__combOpenAI?.promptManager?.activeCharacter?.id ?? null; } catch (error) { return 'threw'; } })(),
                             at: Date.now(),
                         });
                         // A CHAT-LENGTH TIMELINE ACROSS THE GENERATION. The assembly happens ~1.7 s after
@@ -1293,6 +1337,9 @@ async function main() {
                 // NAMED RED, NO MALFORMED TURN: the preconditions a user needs are not met, so nothing is sent.
                 report.browser.reloadTurn = { skipped: true, reason: 'reload-chat-not-reopened', precondition: reloadReopen.precondition, reopen: reloadReopen };
             } else {
+                const reloadTokenizer = await waitForTokenizerReady(page);
+                step('reload-tokenizer-ready', reloadTokenizer.ok === true, reloadTokenizer);
+                await waitForQuiet(page);
                 turnReload = await turn(page, 'COMB_TURN_AFTER_RELOAD', 'turn-after-reload');
                 report.browser.reloadTurn = { matched: turnReload.requests.length, noGenerationRequest: turnReload.noGenerationRequest === true, seen: turnReload.seen ?? null, recovered: turnReload.recovered ?? null, baseline: turnReload.baseline ?? null, sent: turnReload.sent ?? null, after: turnReload.after ?? null };
                 report.browser.reloadGenLog = await page.evaluate(() => window.__combGenLog ?? null);
@@ -1343,6 +1390,7 @@ async function main() {
             report.browser.group = group;
             step('group-chat-opened', group.opened === true && group.contextGroup !== null, group);
             const groupBefore = peerRequests().length;
+            await waitForTokenizerReady(page);
             const groupTurn = await turn(page, 'COMB_GROUP_TURN', 'turn-group');
             report.browser.groupTurn = { requests: groupTurn.requests.length, ok: groupTurn.ok };
             step('group-turn-produced-request', groupTurn.requests.length >= 1, { requests: groupTurn.requests.length });
@@ -1373,6 +1421,7 @@ async function main() {
             const finalQR = await executeJourneyQuickReply(page);
             step('final-helper-reran-and-reinjected-variables', finalHelper.ok === true, finalHelper.done ?? null);
 
+            await waitForTokenizerReady(page);
             const finalTurn = await turn(page, 'COMB_FINAL_TURN', 'turn-final');
             const captureFinal = classifyCapture(finalTurn.requests[0]);
             report.browser.finalCapture = captureFinal;
@@ -1427,7 +1476,9 @@ async function main() {
             step('restart-injections-active-in-page', restartInjections.variables?.present === true && restartInjections.variables?.hasValue === true, restartInjections);
             report.browser.restartHelper = { ok: restartHelper.ok, payload: restartHelper.payload, done: restartHelper.done };
             step('after-restart-helper-reran', restartHelper.ok === true, restartHelper.done ?? null);
-            const resumed = await turn(page, 'COMB_TURN_AFTER_RESTART', 'turn-after-restart');
+            const restartTokenizer = await waitForTokenizerReady(page);
+        step('restart-tokenizer-ready', restartTokenizer.ok === true, restartTokenizer);
+        const resumed = await turn(page, 'COMB_TURN_AFTER_RESTART', 'turn-after-restart');
             const captureResumed = classifyCapture(resumed.requests[0]);
             report.browser.resumed = { requests: resumed.requests.length, after: resumed.after };
             step('after-restart-request-captured', resumed.requests.length >= 1, { requests: resumed.requests.length });
@@ -1465,7 +1516,9 @@ async function main() {
             const before = await readPageState(page);
             report.browser.handbackBefore = before;
             step('handback-read-gotavern-history', before.chatLength > 5 && before.lastText.includes('COMB_'), { chatLength: before.chatLength, lastText: before.lastText.slice(0, 120) });
-            const continued = await turn(page, 'COMB_HANDED_BACK_TURN', 'turn-handback');
+            const handbackTokenizer = await waitForTokenizerReady(page);
+        step('handback-tokenizer-ready', handbackTokenizer.ok === true, handbackTokenizer);
+        const continued = await turn(page, 'COMB_HANDED_BACK_TURN', 'turn-handback');
             step('handback-continued-and-reached-provider', continued.requests.length >= 1, { requests: continued.requests.length });
             await saveConditional(page);
             const after = await readJourneyChats(dataRoot);
