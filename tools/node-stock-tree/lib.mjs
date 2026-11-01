@@ -506,20 +506,29 @@ export function treeDigest(entries) {
  * `created` timestamp in the account store. Those values are DECLARED here, once, and masked from a SECOND
  * digest; the raw digest above still records every byte. Meaningful data is never rewritten.
  *
+ * THE MASK COVERS CONTENT, NAME **AND COUNT**, and that last part is measured, not assumed. A first version
+ * emitted one masked line per volatile file, which kept the volatile FILE COUNT in the digest. The first Linux
+ * CI run of this gate (GoTavern Node stock tree round trip run 41273135388) then failed the determinism check
+ * with 12 differing paths, 0 undeclared and different normalised digests: the pinned server had written TWO
+ * settings backups in the first build and ONE in the rebuild (`settings_node-origin_20261101-042732.json`,
+ * `...-042733.json` vs `...-042743.json`; a backup is named with `generateTimestamp()`, so two settings saves in
+ * the same second overwrite each other), so the masked line count itself differed while every differing path was
+ * declared volatile. A count the pinned server stamps is not a property the generator can promise, so it is
+ * masked too: all volatile entries collapse to ONE marker. The differences remain visible where they belong --
+ * `differingPaths` in the report names every volatile file, and `undeclaredDifferences` still fails the check if
+ * anything outside the declared patterns moved. Masking nothing would hide a real change; masking content and
+ * name only would keep failing on the server's own clock.
+ *
  * `normalisers` maps a path pattern to a function over the file's bytes returning a canonical replacement buffer.
  */
 export async function normalisedTreeDigest(root, entries, { pathPatterns = [], normalisers = [] } = {}) {
     const patternMatches = relative => pathPatterns.some(pattern => globMatches(relative, pattern));
     const lines = [];
+    let volatileFiles = 0;
     for (const entry of entries) {
         let body = null;
         if (patternMatches(entry.path)) {
-            // THE PATH IS PART OF THE VOLATILE VALUE, NOT MERELY THE CONTENT. A group id is `String(Date.now())`
-            // and names the file, and a settings backup name carries a timestamp; emitting the path here made
-            // the "masked" digest differ between two identical builds (measured: 11 differing paths, 0
-            // undeclared, `identicalNormalised: false`). One masked line per volatile file keeps the FILE COUNT
-            // in the digest while dropping the name, and the declaration is what grants that permission.
-            lines.push(`${'*'.repeat(64)}  *  *  <volatile>`);
+            volatileFiles += 1;
             continue;
         }
         const normaliser = normalisers.find(candidate => candidate.path instanceof RegExp ? candidate.path.test(entry.path) : candidate.path === entry.path);
@@ -531,6 +540,9 @@ export async function normalisedTreeDigest(root, entries, { pathPatterns = [], n
         }
         lines.push(`${entry.sha256}  ${entry.bytes}  ${entry.mode}  ${entry.path}`);
     }
+    // ONE marker for the whole volatile set: it proves the declared files were present without putting their
+    // server-stamped names or count into the digest.
+    if (volatileFiles > 0) lines.push(`<volatile-files-present>`);
     return sha256(lines.join('\n'));
 }
 

@@ -1193,6 +1193,11 @@ export async function verifyDeterministic({ pinned, out, seed, report }) {
     }
     const volatileMatches = relative => firstManifest.volatile.pathPatterns.some(pattern => globMatches(relative, pattern));
     const undeclared = differing.filter(entry => !volatileMatches(entry.path));
+    // A DECLARATION THAT MATCHES NOTHING IS A VACUOUS MASK. If the volatile patterns name no file in the built
+    // tree, the normalised digest is the raw digest and the "--verify-deterministic" claim silently stops
+    // covering the pinned server's stamped values. Require at least one declared file to exist.
+    const volatileEntryCount = firstManifest.entries.filter(entry => volatileMatches(entry.path)).length;
+    const declarationsUsed = firstManifest.volatile.pathPatterns.length === 0 || volatileEntryCount > 0;
     const result = {
         identicalNormalised: firstManifest.tree.normalisedSha256 === secondManifest.tree.normalisedSha256,
         identicalRaw: firstManifest.tree.sha256 === secondManifest.tree.sha256,
@@ -1200,7 +1205,9 @@ export async function verifyDeterministic({ pinned, out, seed, report }) {
         secondNormalised: secondManifest.tree.normalisedSha256,
         differingPaths: differing,
         undeclaredDifferences: undeclared,
-        ok: firstManifest.tree.normalisedSha256 === secondManifest.tree.normalisedSha256 && undeclared.length === 0,
+        volatileEntryCount,
+        declarationsUsed,
+        ok: firstManifest.tree.normalisedSha256 === secondManifest.tree.normalisedSha256 && undeclared.length === 0 && declarationsUsed,
     };
     await removeWithRetries(scratchOut);
     await removeWithRetries(`${scratchOut}.manifest.json`).catch(() => {});

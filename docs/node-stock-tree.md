@@ -76,8 +76,14 @@ relative path + sha256 + size + mode** and two digests:
 
 - `tree.sha256` — sha256 over every line `<sha256>  <bytes>  <mode>  <path>`. It records every byte and is
   therefore **different on every run** for the values the pinned server stamps itself.
-- `tree.normalisedSha256` — the same over a listing in which the DECLARED volatile paths are replaced by one
-  masked line per file (so the file COUNT survives and the name does not). It is the determinism identity.
+- `tree.normalisedSha256` — the same over a listing in which every DECLARED volatile path is replaced by **one
+  marker for the whole set**, so the volatile files' content, name **and count** are all left out. That last part
+  is measured, not assumed: a backup file is named with `generateTimestamp()`, and two settings saves in the same
+  second overwrite one another, so the pinned server's own boot can write two backups in one build and one in the
+  next. The first version kept one masked line per file (preserving the count) and the first Linux CI run of the
+  gate failed determinism with 12 differing paths, 0 undeclared and different normalised digests for exactly that
+  reason. The raw digest still covers every byte, and `differingPaths` / `undeclaredDifferences` in the report
+  still name every volatile file and still fail the check if anything outside the declared patterns moves.
 
 The declarations are data in the report (`tree.volatilePathPatterns` + reasons), not prose:
 
@@ -155,10 +161,10 @@ Measured on the Windows development host (Layer A evidence; **the Linux CI job i
 
 | measurement | value |
 |---|---|
-| tree | 1,044 files, 95,947,096 bytes |
+| tree | 1,044 files, 95,947,096 bytes (a Linux run measured 1,045 files / 95,999,064 bytes; the pinned server's own cache/uploads area varies by host) |
 | raw digest | per run (declared volatile values are real timestamps and ids) |
-| normalised digest | `06889b7c60e7ef6c63d7a4cb4b5fd11b3504d6875dc3d2b503b6518b19af5202` |
-| determinism self-check | normalised digests identical, raw differs, 11 differing paths, 0 undeclared |
+| normalised digest | Windows measurement after the count-masking fix: `0ae3033b124fefbd76066735401e120392cb7668708cbb78cb1408ced188ce91`; it is the determinism identity, not a committed fixture |
+| determinism self-check | normalised digests identical, raw differs, 12 differing paths (all declared volatile), 0 undeclared, declared patterns matched at least one file |
 | round trip | `match`, every assertion green (see the report) |
 | pinned checkout | `git status --porcelain` empty before and after generation |
 
