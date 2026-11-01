@@ -8,12 +8,12 @@ with no provenance.
 ## How it was produced
 
 ```
-gh run download 41207221610 -n q22-paired-benchmark -D ./q22
+gh run download 41221152084 -n q22-paired-benchmark -D ./q22
 node tools/benchmark-svg.mjs \
   --report ./q22/q22-paired-benchmark.json \
   --out docs/assets/benchmark.svg \
-  --run-id 41207221610 \
-  --commit f19ac8b
+  --run-id 41221152084 \
+  --commit ffa6e54
 ```
 
 ## The artefact it is drawn from
@@ -21,32 +21,32 @@ node tools/benchmark-svg.mjs \
 | field | value |
 |---|---|
 | workflow | `GoTavern smoke metrics` |
-| run id | `41207221610` (conclusion: success) |
+| run id | `41221152084` (conclusion: success) |
 | run branch / event | `main`, `workflow_dispatch` |
-| commit measured | `f19ac8b76cfa7d209bac1b3de8270ac0999a79d1` (the Beta 1 code line this measurement was taken on: Go 1.27.3, all hardening fixes; the release commit adds documentation and the release-note metadata only) |
+| commit measured | `ffa6e5494fdcd1061f8da80a8f5a561c94bac26e` (the released commit itself: Go 1.27.3, every hardening fix, and the release-governance change; the tag points at this commit, so the figure quotes the same-SHA gate run rather than an ancestor) |
 | runner image | `ubuntu26` |
 | rounds / requests | 3 alternating rounds x 30 sequential requests per path |
 | soak | 2 x 10-minute windows, one per subject, 30 s sampling (both completed) |
 
-`docs/goal-scorecard.md` row Q22 cites this run, the README's Performance table quotes its medians, and this figure
-is generated from the same artefact, so the picture, the table and the ledger restate ONE recording.
+`docs/goal-scorecard.md` row Q22 cites the alpha.9 measurement for the method and names this provenance record for
+the current figure; the README's Performance table quotes this run's medians, and this figure is generated from the
+same artefact, so the picture and the table restate ONE recording.
 
 ## Why this run and not another one
 
-- **It measured the Beta 1 code line.** The measured commit carries every runtime change the release ships (the
-  Go 1.27.3 toolchain and modules, the write-path fixes, the launch-flag sweep); the release commit adds
-  documentation and the curated release note only, so a rebuild produces the same runtime code. The required
-  same-SHA `GoTavern smoke metrics` gate re-measured the released commit, and the published release body appends
-  the run-id table.
+- **It measured the RELEASED commit.** `ffa6e54` is the tag's own target, so this is the required same-SHA
+  `GoTavern smoke metrics` gate run rather than an ancestor measurement; the documentation and the curated release
+  note live on `main` after the tag (and are read at publish), which is why the tag tree carries no run id of its
+  own. The published release body appends the same run-id table.
 - **It measured the same experiment.** Same runner image, same alternating rounds, same fresh-`mkdtemp` data root
   per round, same 30 requests per path, and the artefact asserts `everyRoundAnswered`, `sampleCountsMatch`,
   `soakCompleted` and `soakSeriesMatch`.
 - **The absolute numbers are host noise; the ratio is not.** Pinned boot has been measured at 14,355 ms, 8,777 ms,
-  12,985 ms, 9,941 ms and 9,878 ms on the same image, and GoTavern's at 136 ms, 61 ms, 32 ms, 185 ms and 189 ms.
-  That is why the figure cites ONE runner and ONE run id, and why the README calls the numbers a comparison rather
-  than a budget. The previous figure was drawn from run 41171857944 (commit 91e1e15, the alpha.9 line) and was
-  regenerated for Beta 1: quoting alpha.9 numbers as Beta performance would have been an unmeasured claim, not a
-  conservative one.
+  12,985 ms, 9,941 ms, 9,878 ms and 9,637 ms on the same image, and GoTavern's at 136 ms, 61 ms, 32 ms, 185 ms,
+  189 ms and 397 ms. That is why the figure cites ONE runner and ONE run id, and why the README calls the numbers a
+  comparison rather than a budget. The figure was regenerated from the released-commit gate run for alpha.10;
+  quoting the alpha.9 figure's numbers (run 41171857944, commit 91e1e15) as this release's performance would have
+  been an unmeasured claim, not a conservative one.
 
 ## Editing this figure
 

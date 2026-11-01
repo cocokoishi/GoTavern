@@ -1,6 +1,6 @@
-# The long-lived corpus and the Beta 1 qualification
+# The long-lived corpus and the alpha.10 qualification
 
-Beta 1's question is not "does a fresh install work" — it is "does a user who has been using SillyTavern for years
+alpha.10's question is not "does a fresh install work" — it is "does a user who has been using SillyTavern for years
 keep working after swapping the backend, and does an update from the published `v0.1.0-alpha.9` leave them able to
 continue?" This document describes the three instruments built for that question, what they measure, what they
 deliberately exclude, and the exact commands that run them.
@@ -205,7 +205,7 @@ gh workflow run longlived.yml -R cocokoishi/GoTavern --ref <ref> -f size=medium
 gh workflow run longlived.yml -R cocokoishi/GoTavern --ref <ref> -f size=large
 ```
 
-## 6. Upgrade qualification — published `v0.1.0-alpha.9` → Beta 1
+## 6. Upgrade qualification — published `v0.1.0-alpha.9` → alpha.10
 
 ```text
 bash scripts/qualify-upgrade-rollback.sh --published-alpha9 <candidate.tar.gz>
@@ -225,15 +225,15 @@ release**:
    published release itself reads the corpus chat;
 5. backs up `config.yaml`, `data/`, `extensions/`, `certs/`, updates to the candidate through the same installer,
    and requires the user tree to survive the update byte for byte;
-6. boots Beta 1 over the corpus and **uses** it: CSRF session, card list, opens the existing long chat (message count
+6. boots alpha.10 over the corpus and **uses** it: CSRF session, card list, opens the existing long chat (message count
    preserved), appends a continuation through `/api/chats/save`, serves the character image and thumbnail, serves
    the world book and the settings (including the unknown keys), then **restarts** and reads the continuation back;
 7. exercises the **backup path** for real: restores the pre-update backup into a fresh prefix, boots alpha.9 over it,
-   and requires the restored tree to serve the pre-upgrade chat and NOT contain the Beta 1 continuation;
-8. covers the OTHER TWO ARRIVAL PATHS over the same corpus: a **fresh Beta 1 install** through the installer (boots,
+   and requires the restored tree to serve the pre-upgrade chat and NOT contain the alpha.10 continuation;
+8. covers the OTHER TWO ARRIVAL PATHS over the same corpus: a **fresh alpha.10 install** through the installer (boots,
    serves the existing corpus chat) and a **SillyTavern-data-copy drop-in** (the release archive laid over a tree that
    already holds the corpus; boots, serves the existing chat and the character image);
-9. classifies **every** runtime path Beta 1 changed/added/removed during boot + journey and fails on anything that is
+9. classifies **every** runtime path alpha.10 changed/added/removed during boot + journey and fails on anything that is
    not an enumerated artefact shape. That classification is the measurement behind "no undocumented manual
    migration": the tree boots as-is, the chat opens, the continuation saves and survives a restart, and the writes
    are listed — not merely presumed harmless.
@@ -260,7 +260,7 @@ migration facts, or the failure) into `$QUALIFY_REPORT_DIR`, which the workflow 
 gh workflow run release-qualification.yml -R cocokoishi/GoTavern --ref <ref>
 ```
 
-This is the **release-blocking** gate for Beta 1: the claim it supports is "a user on the published alpha.9 updates
+This is the **release-blocking** gate for alpha.10: the claim it supports is "a user on the published alpha.9 updates
 to this build and continues working with no undocumented manual migration", with the migration writes enumerated.
 
 ## 7. What none of this proves (stated, not implied)

@@ -1,6 +1,6 @@
 # Release governance: machine gates, not a remembered checklist
 
-This document records the two process gaps Beta 1 closes, the mechanism that closes each, and the one lifecycle
+This document records the two process gaps alpha.10 closes, the mechanism that closes each, and the one lifecycle
 event that used to make `main` red after every release. Everything here is enforced by a program that runs in the
 publish path, and every refusal has a named test case.
 
@@ -25,8 +25,8 @@ The only durable fix is a machine that reads the runs.
   names, and accepts only a run that is `completed` **and** `success` at that SHA. A green run on any other commit
   is counted, reported, and refused.
 - **A narrowed run is not the gate.** Each manifest entry carries `requiredEvent`
-  (`workflow_dispatch` for every required gate at Beta 1). This closed a hole measured while qualifying Beta 1:
-  `ci.yml` on a **push** selects its oracle probes from the changed paths, so push run `41210334467` at the Beta
+  (`workflow_dispatch` for every required gate at alpha.10). This closed a hole measured while qualifying alpha.10:
+  `ci.yml` on a **push** selects its oracle probes from the changed paths, so push run `41210334467` at the alpha.10
   candidate concluded `success` with its `oracle` job **skipped**. The original gate asked only "is there a
   successful run at this SHA?" and would have published on that narrowed evidence. A gate whose required event
   does not match the run is now `missing`, and its refusal names the event it found ("$n run(s) ... prove a
@@ -66,7 +66,7 @@ The rules are:
 
 | rule | why |
 | --- | --- |
-| the body names its own tag as a version **token** (not a substring: `v0.1.0-beta.1` contains `v0.1.0`) | a body written for one release must not be publishable against another |
+| the body names its own tag as a version **token** (not a substring: `v0.1.0-alpha.10` contains `v0.1.0`) | a body written for one release must not be publishable against another |
 | no `TODO` / `TBD` / `FIXME` / `PLACEHOLDER` / `XXX` | drafting words mean the note is unfinished |
 | no `<version>` / `<date>` / `<sha>` / `<run id>` / `<checksum>` style tokens | an unfilled template is not a release note |
 | no too-short run ids (`run 123`) | real Actions run ids are 9-12 digits; a 1-7 digit value is a stand-in |

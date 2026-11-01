@@ -1,4 +1,4 @@
-# Data safety, concurrency and the security baseline (Beta 1 hardening)
+# Data safety, concurrency and the security baseline (alpha.10 hardening)
 
 Lane: `beta/hardening`, base `main` `d5464eb`. This document records what was **measured**, not what
 was intended: every claim below names the command or test that produced it, and the residual risks are

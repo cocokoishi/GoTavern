@@ -11,21 +11,21 @@
 - **What it is:** a drop-in replacement for the SillyTavern 1.19.0 server. It serves the unmodified upstream frontend over the same routes, the same `config.yaml` and the same on-disk layout. Your characters, chats, groups, world info, presets, Quick Replies, secrets, themes and frontend extensions keep working. No conversion, no private database.
 - **What you need:** nothing. No Node.js, no npm, no compiler. Download, unpack, run.
 - **Why bother:** it starts in milliseconds and uses a fraction of the memory (table below).
-- **Status:** `v0.1.0-beta.1` is GoTavern's first **Beta** release, published on the **prerelease** channel:
+- **Status:** `v0.1.0-alpha.10` is the current **prerelease**, published on the prerelease channel:
   GitHub marks it pre-release, `releases/latest` keeps serving the stable `v0.1.0-alpha.9` release, a bare
   installer with no version argument installs that stable release, and Docker `:latest` stays on the stable
-  image while `ghcr.io/cocokoishi/gotavern:v0.1.0-beta.1` names the Beta image. Install the Beta explicitly with
-  `--version v0.1.0-beta.1` (Windows: `-Version v0.1.0-beta.1`) or `docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-beta.1`.
+  image while `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.10` names the alpha.10 image. Install the alpha.10 explicitly with
+  `--version v0.1.0-alpha.10` (Windows: `-Version v0.1.0-alpha.10`) or `docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.10`.
   The channel rule is one script, [`scripts/classify-version-tag.sh`](scripts/classify-version-tag.sh), shared by
   the release workflow, the Docker workflow and both installers. Back up any data directory you can't afford to lose.
 - **What doesn't work:** arbitrary Node server plugins, and SillyTavern's local in-process ML (captioning, classification, speech). Full list in [What won't work](#what-wont-work).
 
 | | SillyTavern (Node) | GoTavern |
 |---|---|---|
-| Cold start to first `/version` 200 | 9,941 ms | **32 ms** |
-| Steady-state memory (RSS) | 1,199 MB | **37.5 MB** |
-| `GET /version` latency (median) | 34.05 ms | **0.42 ms** |
-| `GET /` latency (median) | 12.18 ms | **1.67 ms** |
+| Cold start to first `/version` 200 | 9,637 ms | **397 ms** |
+| Steady-state memory (RSS) | 1,253 MB | **38.7 MB** |
+| `GET /version` latency (median) | 58.93 ms | **0.257 ms** |
+| `GET /` latency (median) | 8.83 ms | **1.15 ms** |
 
 One GitHub runner, both servers from the same checkout. Details and caveats in [Performance](#performance).
 
@@ -34,7 +34,7 @@ One GitHub runner, both servers from the same checkout. Details and caveats in [
 Everything below downloads a **prebuilt archive**. Nothing compiles on your machine.
 
 > **No version argument needed.** An unpinned install resolves `releases/latest`, which serves the stable
-> `v0.1.0-alpha.9` release. Install the Beta explicitly with `--version v0.1.0-beta.1` (`-Version` on Windows);
+> `v0.1.0-alpha.9` release. Install the alpha.10 explicitly with `--version v0.1.0-alpha.10` (`-Version` on Windows);
 > pin any version for a reproducible deployment or a rollback target.
 
 > **Both installers install into the current directory.** Create a folder, `cd` into it, run the installer. `--dir` /
@@ -51,7 +51,7 @@ curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.sh
 ./start.sh
 ```
 
-To pin a release: `sh install.sh --version v0.1.0-beta.1` (or the stable `v0.1.0-alpha.9`).
+To pin a release: `sh install.sh --version v0.1.0-alpha.10` (or the stable `v0.1.0-alpha.9`).
 
 **Windows (PowerShell)**
 
@@ -64,7 +64,7 @@ irm https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.ps1 -OutF
 .\Start.cmd
 ```
 
-To pin a release: `.\install.ps1 -Version v0.1.0-beta.1` (or the stable `v0.1.0-alpha.9`). To install somewhere else:
+To pin a release: `.\install.ps1 -Version v0.1.0-alpha.10` (or the stable `v0.1.0-alpha.9`). To install somewhere else:
 `.\install.ps1 -InstallDir "D:\Servers\GoTavern"`. `Start.cmd` finds its own location, so you can launch it from any
 shell.
 
@@ -76,8 +76,8 @@ docker pull ghcr.io/cocokoishi/gotavern:latest
 
 `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.9` is the stable image addressed by tag; pin it when you need a
 reproducible deployment. `:latest` only moves when a **stable** tag is published, so a prerelease (including
-`v0.1.0-beta.1`) can never silently become what a bare `docker pull` gets; the Beta image is addressed explicitly as
-`ghcr.io/cocokoishi/gotavern:v0.1.0-beta.1`. The image is linux/amd64.
+`v0.1.0-alpha.10`) can never silently become what a bare `docker pull` gets; the alpha.10 image is addressed explicitly as
+`ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.10`. The image is linux/amd64.
 
 **Manual:** download `gotavern-<os>-<arch>.tar.gz` (`.zip` on Windows) from the [releases page](https://github.com/cocokoishi/GoTavern/releases), check it against `checksums.txt`, unpack anywhere writable, run `./start.sh` / `Start.cmd`.
 
@@ -103,12 +103,12 @@ Point GoTavern at your existing directory and start it. Auto-update resolves to 
 
 | Metric | Pinned Node SillyTavern | GoTavern | How it was measured |
 |---|---|---|---|
-| Cold start to first `/version` 200 | 9,878 ms | **189 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
-| Steady-state RSS (`VmRSS` from `/proc`) | 1,245 MB | **38.6 MB** | median of 6 samples, after readiness and 30 requests per round |
-| `GET /version` latency | 63.67 ms | **0.250 ms** | median of 90 sequential requests (p95: 74.73 / 0.86) |
-| `GET /` latency (HTML shell) | 9.06 ms | **1.26 ms** | median of 90 sequential requests |
+| Cold start to first `/version` 200 | 9,637 ms | **397 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
+| Steady-state RSS (`VmRSS` from `/proc`) | 1,253 MB | **38.7 MB** | median of 6 samples, after readiness and 30 requests per round |
+| `GET /version` latency | 58.93 ms | **0.257 ms** | median of 90 sequential requests (p95: 64.58 / 0.46) |
+| `GET /` latency (HTML shell) | 8.83 ms | **1.15 ms** | median of 90 sequential requests |
 
-**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `41207221610` (success) on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -1.8 MB, p95 drift +0.42 ms); pinned only settled downward from its startup peak. A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The Beta qualification re-runs this gate at the released commit; the published release body appends the run-id table so the numbers in this table and the gate that re-measured them are both checkable.
+**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `41221152084` (success), the released commit `ffa6e54`, on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -1.6 MB, p95 drift +0.32 ms); pinned only settled downward from its startup peak. A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The published release body appends the same-SHA run-id table, so the numbers above and the gate run that produced them are checkable together.
 
 ### A profile-driven fix
 
@@ -150,8 +150,8 @@ This table states only what a fresh run on the current commit shows. The reposit
 | Is it cheaper to run than Node? | **verified** | `GoTavern smoke metrics` at the released commit (success), see [Performance](#performance) |
 | After a restart, does a resumed turn carry the restored conversation history? | **verified** | `GoTavern whole-session differential`: the resumed SEND's own request is selected by the provider peer's ordinal, carries the turn-one/turn-two markers and the restored replies, and is byte-identical between GoTavern and pinned. A commit that makes the preset's prompt order omit the chat history is classified as a preset property, must still be byte-identical, and cannot pass silently. The alpha.9 "OPEN" observation was a probe measurement defect (it read *the last completion* rather than *the send's*); the root cause and evidence are in [`docs/persistence-resume.md`](docs/persistence-resume.md) |
 | Was the Q21 hand-back flake fixed rather than tolerated? | **verified** | the flake was a harness race: the pinned leg's "reply landed" wait matched a *colliding reply text* from the GoTavern-handback tree, so the CONTINUE click was refused by the frontend's own guard and the send's late reply was misread as a continuation. The hand-back probe now waits on nine named conditions, tags each subject's replies, reads the press acceptance synchronously and refuses a non-accepted press. A repeated-stability campaign ran the hand-back leg **20/20 green** on one commit (per-iteration conditions + continue-request counts in [`docs/browser-stability.md`](docs/browser-stability.md)) |
-| Does a long-lived, messy user tree keep working? | **verified** | a new deterministic synthetic corpus (unicode/CJK/emoji cards, long chats with swipes/edits/branches, groups, multiple worlds, the committed complex-preset derivation, themes/assets/Quick Replies, legacy keys) is qualified at three sizes by `GoTavern long-lived corpus qualification`: fresh install, long-lived browser journey, restart + resume, published `alpha.9 -> Beta` upgrade, fresh-install-over-corpus and SillyTavern-data-copy drop-in |
-| Can I upgrade from alpha.9 and keep my data? | **verified** | the release qualification downloads the **published** `v0.1.0-alpha.9` linux-amd64 archive, verifies its published checksum, installs it, seeds the corpus, boots it, upgrades the same tree to Beta 1 through the installer, continues the same chat (save + restart + read-back), restores the pre-upgrade backup and boots alpha.9 over it again. No undocumented manual migration; every runtime path Beta 1 writes is classified |
+| Does a long-lived, messy user tree keep working? | **verified** | a new deterministic synthetic corpus (unicode/CJK/emoji cards, long chats with swipes/edits/branches, groups, multiple worlds, the committed complex-preset derivation, themes/assets/Quick Replies, legacy keys) is qualified at three sizes by `GoTavern long-lived corpus qualification`: fresh install, long-lived browser journey, restart + resume, published `alpha.9 -> alpha.10` upgrade, fresh-install-over-corpus and SillyTavern-data-copy drop-in |
+| Can I upgrade from alpha.9 and keep my data? | **verified** | the release qualification downloads the **published** `v0.1.0-alpha.9` linux-amd64 archive, verifies its published checksum, installs it, seeds the corpus, boots it, upgrades the same tree to alpha.10 through the installer, continues the same chat (save + restart + read-back), restores the pre-upgrade backup and boots alpha.9 over it again. No undocumented manual migration; every runtime path alpha.10 writes is classified |
 | Is the backend surface coverage still complete? | **verified** | `docs/surface-coverage.md` is derived from the oracle's own lists: every URL the pinned frontend builds, every pinned route and redirect alias, and every Go registration is classified implemented / intentionally-passthrough / not-applicable / unsupported-with-reason -- 573 frontend surfaces, 384 Go registrations, **0 unknown** -- and a drift gate fails CI when a new frontend request shape or Go route appears without a classification |
 | Does the published Windows install work on a normal Windows shell? | **verified** | `GoTavern published-release install smoke` runs the checkout's `install.ps1 -Version <tag>` over real TLS under **Windows PowerShell 5.1** (the default Windows shell), verifies the published checksum, boots the installed `gotavern.exe`, requires `/version` and real tokenizer ids from `src/tokenizers`. That job also catches the 5.1 download stall (`$ProgressPreference`; >5 min with zero bytes before the fix, 3.9 s for the whole install in CI afterwards) |
 

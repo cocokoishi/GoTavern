@@ -440,11 +440,11 @@ themselves rather than a remark in a document.
   `Close` prints the open stage -- the harnesses read whatever the binary prints and have no way to make it
   print more.
 
-## The packaged Q21 hand-back (Beta 1)
+## The packaged Q21 hand-back (alpha.10)
 
 The drop-in gate above proves the product READS a user's tree. AGENTS.md 38 also requires the other direction:
 after GoTavern has written the tree, the ORIGINAL pinned server must open it and keep the conversation going.
-That round trip existed as a browser-differential experiment (run 40977195387, verdict match); Beta 1 moves it
+That round trip existed as a browser-differential experiment (run 40977195387, verdict match); alpha.10 moves it
 into THIS gate, over the SAME packaged archive the four scenarios test.
 
 dropin-current-head now extracts steps.package.outputs.archive, asserts the binary and src/tokenizers are

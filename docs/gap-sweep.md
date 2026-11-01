@@ -24,7 +24,7 @@ PARTIAL, and every remaining PARTIAL row is understood, documented and classifie
 are **P0 0 / P1 8 / P2 10**; no PARTIAL row hides a P0. The last FAIL (`whole-session-e2e`) closed as a
 measured HARNESS installation defect, not a product difference (section 4).
 
-Beta 1 adds the one gate this sweep's own ranking lacked a measurement for: the FRONTEND-DERIVED SURFACE
+alpha.10 adds the one gate this sweep's own ranking lacked a measurement for: the FRONTEND-DERIVED SURFACE
 DRIFT GATE (`tools/compat-matrix/surface-coverage.mjs`, run by `tools/compat-matrix/check.mjs` in
 `ci.yml#verify`). It reconciles the pinned routes, the actual `mux.HandleFunc` registrations and every URL the
 vendored pinned frontend builds, classifies each surface as implemented / intentionally-passthrough /
@@ -79,7 +79,7 @@ This is the same ranked list as `docs/compatibility-matrix.json`'s `gaps` (regen
 
 The P2 rows are correctly below the user-blocking ones: each is a decided boundary, a narrow edge, or a
 secondary surface. None of them can corrupt data or stop a fresh install from starting. Rank 13 is the only
-row ADDED in Beta 1, and it is added because a new gate measured it, not because the product changed: before
+row ADDED in alpha.10, and it is added because a new gate measured it, not because the product changed: before
 the frontend-derived surface gate, those two absences were not attributable to any row.
 
 ## 3. Release disposition for every PARTIAL row (the former FAIL is closed in section 4)

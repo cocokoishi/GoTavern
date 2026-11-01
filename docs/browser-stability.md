@@ -4,7 +4,7 @@
 the evidence path. Root cause, fix, proof and residual risk are below; the old disposition
 ("the pinned-frontend persistence flake, occasionally red") is retired.**
 
-This document exists because Beta 1 refuses a known-occasional red. It covers `stability_runs` in
+This document exists because alpha.10 refuses a known-occasional red. It covers `stability_runs` in
 `.github/workflows/browser-differential.yml`, the waits in `tests/browser/q21-data-handback.mjs`,
 and what the hand-back judge now guarantees.
 

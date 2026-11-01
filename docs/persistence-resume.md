@@ -1,6 +1,6 @@
 # Persistence and resume: what a resumed turn must carry, and how the harness attributes it
 
-Task: `task-1` (Beta 1, the OPEN item recorded in `HANDOFF.md` §"Accepted risks and open items" #1 and in
+Task: `task-1` (alpha.10, the OPEN item recorded in `HANDOFF.md` §"Accepted risks and open items" #1 and in
 `docs/release-checklist.md` item 28). This file answers the question with oracle-backed evidence, records the
 classification taxonomy that replaces the boolean assertion, and states what remains unproven.
 
