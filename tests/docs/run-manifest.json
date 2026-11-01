@@ -78,6 +78,7 @@
     {"runId":"40925514681","workflow":"Browser differential","headSha":"913e3c598d0e76ea5cd4cbf7ae15ff1e72635124","conclusion":"success","createdAt":"2026-10-29T17:52:50Z"},
     {"runId":"40977195387","workflow":"Browser differential","headSha":"2201aa09a7887ce91b11a7dab1b662109d99be11","conclusion":"success","createdAt":"2026-10-30T00:03:18Z"},
     {"runId":"40979974591","workflow":"Browser differential","headSha":"4d328910af956600bfaa3fbae4da2f0e872555ee","conclusion":"success","createdAt":"2026-10-30T00:29:11Z"},
-    {"runId":"41171857944","workflow":"GoTavern smoke metrics","headSha":"91e1e15283cdfe90ca9fd8c0fc40c794612c6b43","conclusion":"success","createdAt":"2026-10-31T05:15:24Z"}
+    {"runId":"41171857944","workflow":"GoTavern smoke metrics","headSha":"91e1e15283cdfe90ca9fd8c0fc40c794612c6b43","conclusion":"success","createdAt":"2026-10-31T05:15:24Z"},
+    {"runId":"41293926892","workflow":"GoTavern smoke metrics","headSha":"81ca5ad1ca4b56736dae9815f7bad9bfdbf1c0c3","conclusion":"success","createdAt":"2026-11-01T09:37:20Z"}
   ]
 }
