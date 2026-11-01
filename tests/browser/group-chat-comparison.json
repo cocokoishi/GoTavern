@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "question": "Does a multi-character group chat driven through the pinned frontend send the same final provider request under pinned Node and GoTavern?",
-  "scope": "Group chats only: 2 and 3 members, disabled member, natural/list/manual activation, auto mode, previous-speaker ban, group greeting, character/chat/global world info, Author's Note at depth, samplers and stops, user turn, continue, swipe, regenerate, impersonate, truncation and a server restart over the same tree. Not claimed: providers other than the custom OpenAI-compatible source, streaming, tool calls, extension/helper group generation.",
+  "scope": "Group chats only: 2 and 3 members, disabled member, natural/list/manual activation, auto mode, previous-speaker ban, group greeting, character/chat/global world info, Author's Note at depth, samplers and stops, user turn, continue, swipe, regenerate, impersonate, truncation and a server restart over the same tree. Compared exactly: method, raw request target, body sha256, body length. NOT compared, and why: provider HEADER bytes, because each leg's recording peer listens on its own ephemeral port (the Host header differs by construction) and transport-header parity for this source is owned by the single-character provider-wire differential; tool/tool_choice and reasoning fields, because no group scenario in this fixture emits them; and providers other than the custom OpenAI-compatible source, streaming and extension/helper group generation, which are not driven at all.",
   "guards": {
     "restart.subject": {
       "ok": true
