@@ -68,7 +68,7 @@ import { fileURLToPath } from 'node:url';
 import { encodePng } from './longlived/corpus-lib.mjs';
 import {
     MARKERS, PINNED_COMMIT, PINNED_VERSION, PinnedSession, TREE_USER,
-    cardDocument, choosePort, copyTree, fixedIso, formFromObject, normalisedTreeDigest,
+    cardDocument, choosePort, copyTree, fixedIso, formFromObject, globMatches, normalisedTreeDigest,
     pinnedCheckoutStatus, readJSON, removeWithRetries, selfCheckCardReader, startPinnedServer,
     tempRoot, treeDigest, walkTreeDetailed, writeJSON,
 } from './node-stock-tree/lib.mjs';
@@ -104,7 +104,7 @@ export const CHARACTERS = Object.freeze([
         alternateGreetings: [`${MARKERS.alternateGreeting}_THREE The index has a gap shaped like you.`],
     },
     {
-        name: 'Node Origin Lantern', role: 'lantern', avatarSeed: 41,
+        name: 'Node Origin Lantern 灯', role: 'lantern', avatarSeed: 41,
         description: 'NODE_ORIGIN_LANTERN_DESCRIPTION A third card, so the group has a real ensemble and the roster is not a single file.',
         personality: 'NODE_ORIGIN_LANTERN_PERSONALITY quiet, watchful',
         scenario: 'NODE_ORIGIN_LANTERN_SCENARIO the corridor outside the archive',
@@ -202,7 +202,7 @@ function worldBook() {
             key: [`${MARKERS.world}_KEY_${uid}`, `NODE_ORIGIN_ALT_${uid}`],
             keysecondary: uid % 4 === 0 ? [`NODE_ORIGIN_SECONDARY_${uid}`] : [],
             comment: `node-origin entry ${uid}`,
-            content: `${MARKERS.world}_ENTRY_${uid} ${'lorem '.repeat(6)}`,
+            content: `${MARKERS.world}_ENTRY_${uid} 灯 ${'lorem '.repeat(6)}`,
             constant: uid % 7 === 0,
             selective: uid % 3 !== 0,
             selectiveLogic: uid % 2 === 0 ? 0 : 3,
@@ -350,6 +350,9 @@ function chatMessages({ character, userName, marker, count, groupMembers = null 
             variables: {
                 [MARKERS.chatVariable]: JSON.stringify({ count: 3, note: 'node-origin' }),
                 node_origin_local_variable: 'kept',
+                // A non-ASCII value in a persisted JSONL field: an encoding bug in either runtime turns this into
+                // U+FFFD or a different byte sequence, and the round trip compares it.
+                node_origin_unicode_variable: '灯 🦊 ロング',
             },
             // An unknown metadata key a long-lived chat carries; both runtimes must preserve it.
             node_origin_unknown_chat_metadata: { schema: 1, preserved: true },
@@ -461,7 +464,9 @@ export async function buildNodeStockTree(options) {
         const user = new PinnedSession(runtime.origin, TREE_USER.handle);
         await user.login(TREE_USER.handle, TREE_USER.password);
         record('account', 'POST /api/users/login', { handle: TREE_USER.handle });
-        const me = await user.postJSON('/api/users/me', {}).catch(() => null);
+        // `/api/users/me` is a GET route in pinned (src/endpoints/users-private.js); a POST answers 404 on the
+        // same server, so the read is done the way the frontend does it.
+        const me = await user.getJSON('/api/users/me').catch(() => null);
         accountSurface.expected = { handle: me?.handle ?? TREE_USER.handle, name: me?.name ?? TREE_USER.name };
 
         // ---- 3. WORLD BOOK, before the characters, because a character's `data.character_book` is derived from
@@ -862,7 +867,7 @@ export async function buildNodeStockTree(options) {
         settings[MARKERS.legacySetting] = {
             schema: 2,
             migratedFrom: '1.9.0',
-            notes: ['node-origin', 'not-a-real-extension'],
+            notes: ['node-origin', 'not-a-real-extension', '灯 🦊'],
             unknown: { deep: [1, 2, 3] },
         };
         await user.post('/api/settings/save', settings);
@@ -991,6 +996,10 @@ export async function buildNodeStockTree(options) {
                 `data/${TREE_USER.handle}/group chats/*.jsonl`,
                 // Settings backups are named with generateTimestamp() (src/endpoints/settings.js backupUserSettings).
                 `data/${TREE_USER.handle}/backups/*`,
+                // Pinned's per-user statistics file carries the wall-clock collection time.
+                'data/**/stats.json',
+                // Pinned's background image-metadata index carries a wall-clock addedTimestamp per file.
+                'data/**/image-metadata.json',
                 // Pinned's regenerable caches, present only in the runtime root; recorded here so the exclusion is
                 // a declaration, not a silent omission.
                 'data/_webpack/**',
@@ -1003,6 +1012,8 @@ export async function buildNodeStockTree(options) {
                 [`data/${TREE_USER.handle}/groups/*.json`]: 'a group id is String(Date.now()) (src/endpoints/groups.js create)',
                 [`data/${TREE_USER.handle}/group chats/*.jsonl`]: 'the group-chat file is named by the same generated id',
                 [`data/${TREE_USER.handle}/backups/*`]: 'settings backups are named with generateTimestamp() (src/endpoints/settings.js)',
+                'data/**/stats.json': 'the per-user statistics file carries the wall-clock time it was collected (pinned src/endpoints/stats.js)',
+                'data/**/image-metadata.json': 'the background image-metadata index carries a wall-clock addedTimestamp (pinned src/endpoints/image-metadata.js)',
                 'data/_webpack/**': 'webpack build cache under <dataRoot>/_webpack (webpack.config.js) -- excluded from the qualified tree, listed here so the exclusion is explicit',
                 'data/_cache/**': 'pinned disk cache under <dataRoot>/_cache -- excluded from the qualified tree',
                 'data/_uploads/**': 'multer temp directory under <dataRoot>/_uploads -- kept as an empty directory',
@@ -1180,10 +1191,7 @@ export async function verifyDeterministic({ pinned, out, seed, report }) {
     for (const relative of secondEntries.keys()) {
         if (!firstEntries.has(relative)) differing.push({ path: relative, kind: 'only-in-rebuild' });
     }
-    const volatileMatches = relative => firstManifest.volatile.pathPatterns.some(pattern => {
-        const regex = new RegExp(`^${pattern.split('*').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[^/]*')}$`);
-        return regex.test(relative);
-    });
+    const volatileMatches = relative => firstManifest.volatile.pathPatterns.some(pattern => globMatches(relative, pattern));
     const undeclared = differing.filter(entry => !volatileMatches(entry.path));
     const result = {
         identicalNormalised: firstManifest.tree.normalisedSha256 === secondManifest.tree.normalisedSha256,

@@ -64,6 +64,42 @@ export function sha256(value) {
     return createHash('sha256').update(value).digest('hex');
 }
 
+/**
+ * Glob -> RegExp for the tree patterns in this pipeline.
+ *
+ * `*` matches within one path segment and `**` matches across segments (`**\/` also matches zero directories), so
+ * `data/**\/.migrated` matches `data/node-origin/sysprompt/.migrated`. A hand-rolled `split('*')` join gets this
+ * wrong for `**` and silently turns a declared exception into an assertion failure -- measured while qualifying
+ * the first Node-originated tree, where `data/**\/.migrated` produced a regex requiring `//`.
+ */
+export function globToRegExp(pattern) {
+    const text = String(pattern);
+    let out = '^';
+    for (let index = 0; index < text.length; index++) {
+        const character = text[index];
+        if (character === '*') {
+            if (text[index + 1] === '*') {
+                index += 1;
+                if (text[index + 1] === '/') {
+                    index += 1;
+                    out += '(?:.*/)?';
+                } else {
+                    out += '.*';
+                }
+            } else {
+                out += '[^/]*';
+            }
+            continue;
+        }
+        out += /[\\^$.|?+()[\]{}]/.test(character) ? `\\${character}` : character;
+    }
+    return new RegExp(`${out}$`);
+}
+
+export function globMatches(relative, pattern) {
+    return globToRegExp(pattern).test(relative);
+}
+
 export async function readJSON(file) {
     return JSON.parse(await fs.readFile(file, 'utf8'));
 }
@@ -424,7 +460,7 @@ export function selfCheckCardReader() {
 export async function walkTreeDetailed(root, { skip = [] } = {}) {
     const entries = [];
     const skipped = [];
-    const skipMatches = relative => skip.some(pattern => pattern === relative || (!pattern.includes('*') && relative.startsWith(pattern.endsWith('/') ? pattern : `${pattern}/`)) || (pattern.includes('*') && new RegExp(`^${pattern.split('*').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`).test(relative)));
+    const skipMatches = relative => skip.some(pattern => globMatches(relative, pattern) || relative.startsWith(`${pattern.replace(/\/$/, '')}/`));
     const walk = async directory => {
         const children = await fs.readdir(directory, { withFileTypes: true });
         for (const child of children) {
@@ -473,15 +509,17 @@ export function treeDigest(entries) {
  * `normalisers` maps a path pattern to a function over the file's bytes returning a canonical replacement buffer.
  */
 export async function normalisedTreeDigest(root, entries, { pathPatterns = [], normalisers = [] } = {}) {
-    const patternMatches = relative => pathPatterns.some(pattern => {
-        const regex = new RegExp(`^${pattern.split('*').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[^/]*')}$`);
-        return regex.test(relative);
-    });
+    const patternMatches = relative => pathPatterns.some(pattern => globMatches(relative, pattern));
     const lines = [];
     for (const entry of entries) {
         let body = null;
         if (patternMatches(entry.path)) {
-            lines.push(`${'*'.repeat(64)}  *  *  ${entry.path}  (volatile)`);
+            // THE PATH IS PART OF THE VOLATILE VALUE, NOT MERELY THE CONTENT. A group id is `String(Date.now())`
+            // and names the file, and a settings backup name carries a timestamp; emitting the path here made
+            // the "masked" digest differ between two identical builds (measured: 11 differing paths, 0
+            // undeclared, `identicalNormalised: false`). One masked line per volatile file keeps the FILE COUNT
+            // in the digest while dropping the name, and the declaration is what grants that permission.
+            lines.push(`${'*'.repeat(64)}  *  *  <volatile>`);
             continue;
         }
         const normaliser = normalisers.find(candidate => candidate.path instanceof RegExp ? candidate.path.test(entry.path) : candidate.path === entry.path);
