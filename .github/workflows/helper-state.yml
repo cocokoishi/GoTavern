@@ -42,7 +42,7 @@ concurrency:
 jobs:
   helper-state:
     name: helper state differential (ubuntu, bounded)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       GOTAVERN_BINARY: ${{ github.workspace }}/.browser-bin/gotavern

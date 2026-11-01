@@ -249,7 +249,7 @@ jobs:
     # claim: this job is skipped when `stability_runs` is non-zero, so the only Q21 evidence in such a run
     # is the repeated one.
     if: ${{ (inputs.stability_runs || '0') == '0' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # THE HELPER SURFACE NARROWS ITSELF THE SAME WAY THE ASSET SURFACE DOES, and it must be declared at JOB
     # level: the first version put MODE_HELPER in the record step's own env, so the helper steps' `if:`
     # (env.MODE_HELPER) read an undefined value, both helper steps ran as SKIPPED, and the run was GREEN
@@ -2277,7 +2277,7 @@ jobs:
     # Non-zero `stability_runs` selects THIS job and skips `differential`, so a stability dispatch measures the
     # hand-back and nothing else. On push/schedule `inputs` is empty, so this is false and nothing changes.
     if: ${{ (inputs.stability_runs || '0') != '0' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Measured: the whole hand-back leg (two browser drives and two server boots) took ~66 s in run
     # 41179659240. 20 iterations therefore fit in a fraction of this; the cap is a wedge bound sized so the
     # maximum accepted campaign (40) still completes at ~3x that measured cost.
@@ -2499,7 +2499,7 @@ jobs:
   publish-preset:
     needs: differential
     if: ${{ inputs.commit_artifacts && needs.differential.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: write

@@ -112,7 +112,7 @@ concurrency:
 
 jobs:
   dropin-current-head:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # SIZED FROM THE MEASURED RUN, and the measurement keeps its run id in docs/dropin-qualification.md.
     # Measured on 40173675219: 49 s door to door for the whole job -- checkout + toolchain 14 s, the archive
     # build 17 s, and the four drop-in scenarios 4 s, 3 s, 3 s and 2 s. Fifteen minutes is ~18x that. The
@@ -533,7 +533,7 @@ jobs:
     # EVERYTHING PLATFORM-DEPENDENT IS BUILT HERE, ON LINUX, EXACTLY AS release.yml BUILDS IT. The shipped
     # Windows asset is a `GOOS=windows` cross-compile produced on an ubuntu runner and zipped with `zip -qr`;
     # compiling it on the Windows runner instead would gate a build that is not the one users download.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # MEASURED on the runs recorded in docs/dropin-qualification.md: 1-2 min for the cross-compile, the
     # archive assembly, one stock-tree build (a ~1000-file copy) and the manifest. Fifteen minutes is ~8x,
     # and the variance a bound must absorb is a COLD module cache, not a slow step.
