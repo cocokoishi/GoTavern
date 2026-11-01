@@ -129,6 +129,11 @@ func TestOpenAIChutesTranscribeMatchesPinnedOracle(t *testing.T) {
 			peer := newTranscribePeer(t, scenario.Mocks)
 			t.Setenv("GOTAVERN_CHUTES_TRANSCRIBE_URL", peer.server.URL)
 			dataRoot := t.TempDir()
+			// A real install creates <dataRoot>/_uploads during startup's data-startup step, and the
+			// transcribe upload is now spooled there under a bounded limit (multipart_upload.go).
+			if err := os.MkdirAll(filepath.Join(dataRoot, "_uploads"), 0o777); err != nil {
+				t.Fatal(err)
+			}
 			handler := NewHTTPHandlerWithOptions(HTTPHandlerOptions{InstallRoot: dataRoot, DataRoot: dataRoot, DisableCSRF: true})
 			writeGoogleTTSSecrets(t, dataRoot, scenario.Secrets)
 			recorder := httptest.NewRecorder()
