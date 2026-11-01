@@ -21,7 +21,7 @@ Docker `:latest` still serve alpha.9. The channel decision remains one script, `
 | fact | value |
 |---|---|
 | GitHub Release | `430586286` (`v0.1.0-alpha.11`, prerelease=true, draft=false, published 2026-11-01T12:58:02Z) |
-| tag object -> commit | `a5a04e6` -> `81ca5ad1ca4b56736dae9815f7bad9bfdbf1c0c3` |
+| tag object -> commit | `a5a04e6` -> `81ca5ad` |
 | assets | 7 files, 366,157,334 bytes (`checksums.txt` + six canonical archives) |
 | Docker | `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11` digest `sha256:3c1e05880d381da4966c0c4de2e06a95c58150543e05573e192c219bc389522b` (run `41309725704`) |
 | published-release smoke | `41309728118` success (linux-amd64 + windows-amd64 over the PUBLIC assets and checksums) |
