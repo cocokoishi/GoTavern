@@ -1,0 +1,1366 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned /api/tokenizers/remote/textgenerationwebui/encode against a loopback text-generation backend: the six api_type wires, setAdditionalHeaders credentials, requestOverrides precedence, String() coercion, trimV1, malformed/unreachable URLs, upstream non-2xx and non-JSON answers, and the body-parser branches",
+  "normalizations": [
+    "The loopback backend origin is recorded as <mock-origin>; its port differs on every run.",
+    "Provider requests record method, path, content-type, content-length and the credential/override headers only; transport headers (host, user-agent, accept) belong to pinned node-fetch and are not route behaviour.",
+    "Express-rendered HTML error pages are recorded as status + content type only, because the page body is a V8 stack with host-absolute source paths (repo convention, see docs/api-inventory.md).",
+    "TWO BOOTS: the baseline cases come from a boot whose config has NO requestOverrides key, so their wire is exactly setAdditionalHeaders; the cases whose request.config is \"requestOverrides\" come from a second boot whose config overrides the loopback host, which is what makes the override precedence a measured difference.",
+    "No case reaches the live network: the only non-loopback URL is a deliberately malformed one, and the unreachable case targets 127.0.0.1:1."
+  ],
+  "recordingConfigs": {
+    "baseline": "enableUserAccounts: true, extensions disabled, no requestOverrides",
+    "requestOverrides": {
+      "requestOverrides": [
+        {
+          "hosts": [
+            "<mock-host>"
+          ],
+          "headers": {
+            "X-Probe-Override": "override-value",
+            "Authorization": "Bearer override-token"
+          }
+        }
+      ]
+    }
+  },
+  "cases": {
+    "valid#tabby": {
+      "status": 200,
+      "headers": {
+        "content-length": "25",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"19-ldruVk2+N4Y5uoy8aD/hhfW3rdY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 7,
+        "ids": [
+          4,
+          5,
+          6
+        ]
+      },
+      "bodySha256": "20479ee929e0a10858b8912f89091c7403853101e46d8d04f58c74749715ea78",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/v1/token/encode",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "76"
+          },
+          "body": "{\"text\":\"Hello, world!\",\"add_bos_token\":false,\"encode_special_tokens\":false}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "tabby"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "valid#koboldcpp": {
+      "status": 200,
+      "headers": {
+        "content-length": "23",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"17-bgOsybUUslvv8rbNUNAmVO+rp5E\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 9,
+        "ids": [
+          7,
+          8
+        ]
+      },
+      "bodySha256": "b7efd44c4a42d51c9c31c6c92af4261c51019a4f411dc9db6007ab17b0234879",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/api/extra/tokencount",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "42"
+          },
+          "body": "{\"prompt\":\"Hello, world!\",\"special\":false}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "koboldcpp"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "valid#llamacpp": {
+      "status": 200,
+      "headers": {
+        "content-length": "25",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"19-kZKjB+UEVuQtfZ/cFqBYW7MsroQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 2,
+        "ids": [
+          10,
+          11
+        ]
+      },
+      "bodySha256": "c4a51cadbbfd1ada0a60e95cb600ad8d26ad8ed027067b681f378be7a6283aae",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/tokenize",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "48"
+          },
+          "body": "{\"model\":\"test-model\",\"content\":\"Hello, world!\"}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "llamacpp"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "valid#vllm": {
+      "status": 200,
+      "headers": {
+        "content-length": "25",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"19-kZKjB+UEVuQtfZ/cFqBYW7MsroQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 2,
+        "ids": [
+          10,
+          11
+        ]
+      },
+      "bodySha256": "c4a51cadbbfd1ada0a60e95cb600ad8d26ad8ed027067b681f378be7a6283aae",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/tokenize",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "47"
+          },
+          "body": "{\"model\":\"test-model\",\"prompt\":\"Hello, world!\"}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "vllm"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "valid#aphrodite": {
+      "status": 200,
+      "headers": {
+        "content-length": "12",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"c-zRopiCDnC/PcpyOl4lFHkRlYKcU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          12
+        ]
+      },
+      "bodySha256": "b4e85ff96fda68d0645af881feee8fc78a03ee94050f3958ca82dd8d55ea031d",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/v1/tokenize",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "47"
+          },
+          "body": "{\"model\":\"test-model\",\"prompt\":\"Hello, world!\"}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "aphrodite"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "valid#ooba": {
+      "status": 200,
+      "headers": {
+        "content-length": "20",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"14-xfCrs7S57eev4OqRxnsOI+XHXEc\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 5,
+        "ids": []
+      },
+      "bodySha256": "ba2b618546fbe2b1b12381dc1d9d56a1a09717ba030dc3f5e7d431a16b54f131",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/v1/internal/encode",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "24"
+          },
+          "body": "{\"text\":\"Hello, world!\"}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "ooba"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "auth#tabby": {
+      "status": 200,
+      "headers": {
+        "content-length": "25",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"19-ldruVk2+N4Y5uoy8aD/hhfW3rdY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 7,
+        "ids": [
+          4,
+          5,
+          6
+        ]
+      },
+      "bodySha256": "20479ee929e0a10858b8912f89091c7403853101e46d8d04f58c74749715ea78",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/v1/token/encode",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "76",
+            "authorization": "Bearer probe-tabby-key",
+            "x-api-key": "probe-tabby-key"
+          },
+          "body": "{\"text\":\"Hello, world!\",\"add_bos_token\":false,\"encode_special_tokens\":false}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "tabby"
+        },
+        "secrets": {
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "config": "baseline"
+      }
+    },
+    "auth#aphrodite": {
+      "status": 200,
+      "headers": {
+        "content-length": "12",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"c-zRopiCDnC/PcpyOl4lFHkRlYKcU\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "ids": [
+          12
+        ]
+      },
+      "bodySha256": "b4e85ff96fda68d0645af881feee8fc78a03ee94050f3958ca82dd8d55ea031d",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/v1/tokenize",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "47",
+            "authorization": "Bearer probe-aphrodite-key",
+            "x-api-key": "probe-aphrodite-key"
+          },
+          "body": "{\"model\":\"test-model\",\"prompt\":\"Hello, world!\"}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "aphrodite"
+        },
+        "secrets": {
+          "api_key_aphrodite": "probe-aphrodite-key"
+        },
+        "config": "baseline"
+      }
+    },
+    "auth#vllm": {
+      "status": 200,
+      "headers": {
+        "content-length": "25",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"19-kZKjB+UEVuQtfZ/cFqBYW7MsroQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 2,
+        "ids": [
+          10,
+          11
+        ]
+      },
+      "bodySha256": "c4a51cadbbfd1ada0a60e95cb600ad8d26ad8ed027067b681f378be7a6283aae",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/tokenize",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "47",
+            "authorization": "Bearer probe-vllm-key"
+          },
+          "body": "{\"model\":\"test-model\",\"prompt\":\"Hello, world!\"}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "vllm"
+        },
+        "secrets": {
+          "api_key_vllm": "probe-vllm-key"
+        },
+        "config": "baseline"
+      }
+    },
+    "auth#koboldcpp": {
+      "status": 200,
+      "headers": {
+        "content-length": "23",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"17-bgOsybUUslvv8rbNUNAmVO+rp5E\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 9,
+        "ids": [
+          7,
+          8
+        ]
+      },
+      "bodySha256": "b7efd44c4a42d51c9c31c6c92af4261c51019a4f411dc9db6007ab17b0234879",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/api/extra/tokencount",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "42",
+            "authorization": "Bearer probe-koboldcpp-key"
+          },
+          "body": "{\"prompt\":\"Hello, world!\",\"special\":false}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "koboldcpp"
+        },
+        "secrets": {
+          "api_key_koboldcpp": "probe-koboldcpp-key"
+        },
+        "config": "baseline"
+      }
+    },
+    "auth#tabby#request_overrides": {
+      "status": 200,
+      "headers": {
+        "content-length": "25",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"19-ldruVk2+N4Y5uoy8aD/hhfW3rdY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 7,
+        "ids": [
+          4,
+          5,
+          6
+        ]
+      },
+      "bodySha256": "20479ee929e0a10858b8912f89091c7403853101e46d8d04f58c74749715ea78",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/v1/token/encode",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "76",
+            "authorization": "Bearer probe-tabby-key",
+            "x-api-key": "probe-tabby-key"
+          },
+          "body": "{\"text\":\"Hello, world!\",\"add_bos_token\":false,\"encode_special_tokens\":false}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "tabby"
+        },
+        "secrets": {
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "config": "baseline"
+      }
+    },
+    "coerce#text_number": {
+      "status": 200,
+      "headers": {
+        "content-length": "25",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"19-ldruVk2+N4Y5uoy8aD/hhfW3rdY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 7,
+        "ids": [
+          4,
+          5,
+          6
+        ]
+      },
+      "bodySha256": "20479ee929e0a10858b8912f89091c7403853101e46d8d04f58c74749715ea78",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/v1/token/encode",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "65"
+          },
+          "body": "{\"text\":\"42\",\"add_bos_token\":false,\"encode_special_tokens\":false}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": 42,
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "tabby"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "coerce#missing_text": {
+      "status": 200,
+      "headers": {
+        "content-length": "25",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"19-ldruVk2+N4Y5uoy8aD/hhfW3rdY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 7,
+        "ids": [
+          4,
+          5,
+          6
+        ]
+      },
+      "bodySha256": "20479ee929e0a10858b8912f89091c7403853101e46d8d04f58c74749715ea78",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/v1/token/encode",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "72"
+          },
+          "body": "{\"text\":\"undefined\",\"add_bos_token\":false,\"encode_special_tokens\":false}"
+        }
+      ],
+      "request": {
+        "body": {
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "tabby"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "coerce#missing_model": {
+      "status": 200,
+      "headers": {
+        "content-length": "25",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"19-kZKjB+UEVuQtfZ/cFqBYW7MsroQ\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 2,
+        "ids": [
+          10,
+          11
+        ]
+      },
+      "bodySha256": "c4a51cadbbfd1ada0a60e95cb600ad8d26ad8ed027067b681f378be7a6283aae",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/tokenize",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "46"
+          },
+          "body": "{\"model\":\"undefined\",\"prompt\":\"Hello, world!\"}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>",
+          "api_type": "vllm"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "url#trailing_v1": {
+      "status": 200,
+      "headers": {
+        "content-length": "25",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"19-ldruVk2+N4Y5uoy8aD/hhfW3rdY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 7,
+        "ids": [
+          4,
+          5,
+          6
+        ]
+      },
+      "bodySha256": "20479ee929e0a10858b8912f89091c7403853101e46d8d04f58c74749715ea78",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/v1/token/encode",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "76"
+          },
+          "body": "{\"text\":\"Hello, world!\",\"add_bos_token\":false,\"encode_special_tokens\":false}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>/v1",
+          "model": "test-model",
+          "api_type": "tabby"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "url#trailing_slash": {
+      "status": 200,
+      "headers": {
+        "content-length": "25",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"19-ldruVk2+N4Y5uoy8aD/hhfW3rdY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 7,
+        "ids": [
+          4,
+          5,
+          6
+        ]
+      },
+      "bodySha256": "20479ee929e0a10858b8912f89091c7403853101e46d8d04f58c74749715ea78",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/v1/token/encode",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "76"
+          },
+          "body": "{\"text\":\"Hello, world!\",\"add_bos_token\":false,\"encode_special_tokens\":false}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>/",
+          "model": "test-model",
+          "api_type": "tabby"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "error#malformed_url": {
+      "status": 200,
+      "headers": {
+        "content-length": "14",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": true
+      },
+      "bodySha256": "ac5c23aeecfb35b1b0337352dbeb040393fd4f2a4df9d0659a55e63b70acd3ab",
+      "backendRequests": [],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "not a url",
+          "model": "test-model",
+          "api_type": "tabby"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "error#unreachable": {
+      "status": 200,
+      "headers": {
+        "content-length": "14",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": true
+      },
+      "bodySha256": "ac5c23aeecfb35b1b0337352dbeb040393fd4f2a4df9d0659a55e63b70acd3ab",
+      "backendRequests": [],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "http://127.0.0.1:1",
+          "model": "test-model",
+          "api_type": "tabby"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "error#missing_url": {
+      "status": 200,
+      "headers": {
+        "content-length": "14",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": true
+      },
+      "bodySha256": "ac5c23aeecfb35b1b0337352dbeb040393fd4f2a4df9d0659a55e63b70acd3ab",
+      "backendRequests": [],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "model": "test-model",
+          "api_type": "tabby"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "error#upstream_status": {
+      "status": 200,
+      "headers": {
+        "content-length": "14",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": true
+      },
+      "bodySha256": "ac5c23aeecfb35b1b0337352dbeb040393fd4f2a4df9d0659a55e63b70acd3ab",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/fail/api/extra/tokencount",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "42"
+          },
+          "body": "{\"prompt\":\"Hello, world!\",\"special\":false}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>/fail",
+          "model": "test-model",
+          "api_type": "koboldcpp"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "error#upstream_not_json": {
+      "status": 200,
+      "headers": {
+        "content-length": "14",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"e-Tj8n9olBUMQK0x0qT7YAC46tguk\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "error": true
+      },
+      "bodySha256": "ac5c23aeecfb35b1b0337352dbeb040393fd4f2a4df9d0659a55e63b70acd3ab",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/notjson/v1/token/encode",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "76"
+          },
+          "body": "{\"text\":\"Hello, world!\",\"add_bos_token\":false,\"encode_special_tokens\":false}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>/notjson",
+          "model": "test-model",
+          "api_type": "tabby"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "no_timeout#slow_upstream": {
+      "status": 200,
+      "headers": {
+        "content-length": "25",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"19-ldruVk2+N4Y5uoy8aD/hhfW3rdY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 7,
+        "ids": [
+          4,
+          5,
+          6
+        ]
+      },
+      "bodySha256": "20479ee929e0a10858b8912f89091c7403853101e46d8d04f58c74749715ea78",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/slow/v1/token/encode",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "76"
+          },
+          "body": "{\"text\":\"Hello, world!\",\"add_bos_token\":false,\"encode_special_tokens\":false}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>/slow",
+          "model": "test-model",
+          "api_type": "tabby"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "unsupported#generic": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "backendRequests": [],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "generic"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "unsupported#unknown": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "backendRequests": [],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "not-a-type"
+        },
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "body#missing_text_and_url": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "backendRequests": [],
+      "request": {
+        "body": {},
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "body#array": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "backendRequests": [],
+      "request": {
+        "body": "[]",
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "body#no_body": {
+      "status": 400,
+      "headers": {
+        "content-length": "11",
+        "content-type": "text/plain; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"b-EFiDB1U+dmqzx9Mo2UjcZ1SJPO8\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": "Bad Request",
+      "bodySha256": "7c41b898c5da0cfa4aa049b65ef50248bce9a72d24bef4c723786431921b75aa",
+      "backendRequests": [],
+      "request": {
+        "body": null,
+        "secrets": {},
+        "config": "baseline"
+      }
+    },
+    "body#malformed_json": {
+      "request": {
+        "body": "{",
+        "secrets": {},
+        "config": "baseline"
+      },
+      "status": 400,
+      "contentType": "text/html; charset=utf-8",
+      "errorPage": true,
+      "backendRequests": []
+    },
+    "body#json_null": {
+      "request": {
+        "body": "null",
+        "secrets": {},
+        "config": "baseline"
+      },
+      "status": 400,
+      "contentType": "text/html; charset=utf-8",
+      "errorPage": true,
+      "backendRequests": []
+    },
+    "override#tabby": {
+      "status": 200,
+      "headers": {
+        "content-length": "25",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"19-ldruVk2+N4Y5uoy8aD/hhfW3rdY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 7,
+        "ids": [
+          4,
+          5,
+          6
+        ]
+      },
+      "bodySha256": "20479ee929e0a10858b8912f89091c7403853101e46d8d04f58c74749715ea78",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/v1/token/encode",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "76",
+            "authorization": "Bearer override-token",
+            "x-probe-override": "override-value"
+          },
+          "body": "{\"text\":\"Hello, world!\",\"add_bos_token\":false,\"encode_special_tokens\":false}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "tabby"
+        },
+        "secrets": {},
+        "config": "requestOverrides"
+      }
+    },
+    "override#tabby_secret": {
+      "status": 200,
+      "headers": {
+        "content-length": "25",
+        "content-type": "application/json; charset=utf-8",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-resource-policy": "same-origin",
+        "etag": "W/\"19-ldruVk2+N4Y5uoy8aD/hhfW3rdY\"",
+        "origin-agent-cluster": "?1",
+        "referrer-policy": "no-referrer",
+        "strict-transport-security": "max-age=31536000; includeSubDomains",
+        "vary": "Origin, Accept-Encoding",
+        "x-content-type-options": "nosniff",
+        "x-dns-prefetch-control": "off",
+        "x-download-options": "noopen",
+        "x-frame-options": "SAMEORIGIN",
+        "x-permitted-cross-domain-policies": "none",
+        "x-xss-protection": "0"
+      },
+      "body": {
+        "count": 7,
+        "ids": [
+          4,
+          5,
+          6
+        ]
+      },
+      "bodySha256": "20479ee929e0a10858b8912f89091c7403853101e46d8d04f58c74749715ea78",
+      "backendRequests": [
+        {
+          "method": "POST",
+          "path": "/v1/token/encode",
+          "headers": {
+            "content-type": "application/json",
+            "content-length": "76",
+            "authorization": "Bearer override-token",
+            "x-api-key": "probe-tabby-key",
+            "x-probe-override": "override-value"
+          },
+          "body": "{\"text\":\"Hello, world!\",\"add_bos_token\":false,\"encode_special_tokens\":false}"
+        }
+      ],
+      "request": {
+        "body": {
+          "text": "Hello, world!",
+          "url": "<mock-origin>",
+          "model": "test-model",
+          "api_type": "tabby"
+        },
+        "secrets": {
+          "api_key_tabby": "probe-tabby-key"
+        },
+        "config": "requestOverrides"
+      }
+    }
+  },
+  "notObservable": [
+    {
+      "scenario": "timeout",
+      "why": "the pinned handler calls fetch with no timeout and no AbortSignal (src/endpoints/tokenizers.js:1085-1088), so a never-answering provider hangs pinned and no timeout branch can be recorded; no_timeout#slow_upstream records that a 250 ms answer is accepted, which is the strongest observable form"
+    },
+    {
+      "scenario": "client-cancel",
+      "why": "the pinned handler never observes request aborts and never passes a signal to fetch, so a cancelled client produces neither a response nor a provider-side abort that a probe could capture; GoTavern cancellation is a labelled derivation test"
+    }
+  ]
+}

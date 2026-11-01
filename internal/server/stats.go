@@ -37,7 +37,6 @@ func registerStatsRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundP
 	post("/api/stats/get", accounts.serveStatsGet)
 	post("/api/stats/update", accounts.serveStatsUpdate)
 	post("/api/stats/recreate", accounts.serveStatsRecreate)
-	registerStatsAliases(mux)
 }
 
 // serveStatsGet answers the user's stats object, or `{}` when the user has none.
@@ -124,18 +123,8 @@ func (runtime *accountRuntime) serveStatsRecreate(w http.ResponseWriter, request
 	serveStatusText(w, http.StatusOK)
 }
 
-// Deprecated stats aliases, from redirectDeprecatedEndpoints (server-startup.js:114-116): they are
-// HTTP redirects to the canonical routes, not second handlers, so one implementation serves both.
-func registerStatsAliases(mux *http.ServeMux) {
-	redirects := map[string]string{
-		"/getstats":      "/api/stats/get",
-		"/updatestats":   "/api/stats/update",
-		"/recreatestats": "/api/stats/recreate",
-	}
-	for source, destination := range redirects {
-		destination := destination
-		mux.HandleFunc(source, func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, destination, http.StatusFound)
-		})
-	}
-}
+// The deprecated stats aliases /getstats, /updatestats and /recreatestats (src/server-startup.js:114-116)
+// used to be registered HERE with `http.Redirect(..., StatusFound)` — a 302, while the pinned helper sends
+// `res.redirect(308, destination)`. A pinned capture recorded the 308
+// (tests/oracle/sillytavern-1.19.0-redirect-aliases.json, path /getstats) and all three are now rows of the
+// single alias table in internal/server/redirect_aliases.go.

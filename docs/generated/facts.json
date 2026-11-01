@@ -20,7 +20,7 @@
   "routes": {
     "bareNotImplemented": 0,
     "compatible": 0,
-    "partial": 331,
+    "partial": 330,
     "reachableCeiling": 332,
     "reasonedExclusions": 10,
     "total": 342,

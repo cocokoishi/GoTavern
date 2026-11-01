@@ -8,31 +8,31 @@
   "sources": {
     "pinnedInventoryRows": 342,
     "pinnedRedirectAliases": 50,
-    "goRegistrationFiles": 176,
-    "goRegistrations": 384,
+    "goRegistrationFiles": 177,
+    "goRegistrations": 422,
     "frontendFiles": 68,
     "startupObservedRequests": 229,
     "extensionRouteRows": 17,
-    "classificationExceptions": 65
+    "classificationExceptions": 27
   },
   "classificationCounts": {
     "surfaces": 573,
-    "implemented": 307,
+    "implemented": 308,
     "intentionally-passthrough": 230,
     "not-applicable": 17,
-    "unsupported-with-reason": 19
+    "unsupported-with-reason": 18
   },
   "goClassificationCounts": {
-    "routes": 384,
-    "implemented": 376,
+    "routes": 422,
+    "implemented": 414,
     "intentionally-passthrough": 8,
     "not-applicable": 0,
     "unsupported-with-reason": 0
   },
   "redirectAliasCounts": {
     "aliases": 50,
-    "registered": 13,
-    "open": 37
+    "registered": 50,
+    "open": 0
   },
   "frontendSurfaces": [
     {
@@ -3588,13 +3588,12 @@
     },
     {
       "surface": "/api/tokenizers/remote/textgenerationwebui/encode",
-      "classification": "unsupported-with-reason",
-      "reason": "internal/server/tokenizers_remote.go:7-10 records this pinned route as not implemented pending the proxy/SSRF domain, while docs/api-inventory.md's status column for the row claims a route-level replay. One of the two is wrong: the tree registers no handler for the path, so the route is absent (gap SURFACE-TOKENIZER-REMOTE)",
+      "classification": "implemented",
+      "reason": null,
       "evidence": [
-        "src/endpoints/tokenizers.js:1072",
-        "tools/compat-matrix/surface-classifications.json"
+        "src/endpoints/tokenizers.js:1072"
       ],
-      "reachesGo": false,
+      "reachesGo": true,
       "sources": [
         "pinned-frontend"
       ]
@@ -4145,7 +4144,7 @@
       "classification": "implemented",
       "reason": null,
       "evidence": [
-        "internal/server/http.go:525"
+        "internal/server/http.go:513"
       ],
       "reachesGo": true,
       "sources": [
@@ -6948,7 +6947,7 @@
       "path": "/",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:534"
+      "evidence": "internal/server/http.go:522"
     },
     {
       "pattern": "/api/anthropic/caption-image",
@@ -7212,7 +7211,7 @@
       "path": "/api/backgrounds/all",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:395"
+      "evidence": "internal/server/http.go:399"
     },
     {
       "pattern": "/api/backgrounds/delete",
@@ -7220,7 +7219,7 @@
       "path": "/api/backgrounds/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:402"
+      "evidence": "internal/server/http.go:406"
     },
     {
       "pattern": "/api/backgrounds/folders",
@@ -7228,7 +7227,7 @@
       "path": "/api/backgrounds/folders",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:423"
+      "evidence": "internal/server/http.go:427"
     },
     {
       "pattern": "/api/backgrounds/rename",
@@ -7236,7 +7235,7 @@
       "path": "/api/backgrounds/rename",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:409"
+      "evidence": "internal/server/http.go:413"
     },
     {
       "pattern": "/api/backgrounds/upload",
@@ -7244,7 +7243,7 @@
       "path": "/api/backgrounds/upload",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:416"
+      "evidence": "internal/server/http.go:420"
     },
     {
       "pattern": "/api/backups/chat/delete",
@@ -7477,6 +7476,14 @@
       "classification": "implemented",
       "reason": null,
       "evidence": "internal/server/chats_routes.go:28"
+    },
+    {
+      "pattern": "/api/content/import",
+      "method": null,
+      "path": "/api/content/import",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/content/importURL (src/server-startup.js:129)",
+      "evidence": "internal/server/redirect_aliases.go:147"
     },
     {
       "pattern": "/api/content/importURL",
@@ -7732,7 +7739,7 @@
       "path": "/api/image-metadata",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:500"
+      "evidence": "internal/server/http.go:504"
     },
     {
       "pattern": "/api/image-metadata/{$}",
@@ -7740,7 +7747,7 @@
       "path": "/api/image-metadata/",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:501"
+      "evidence": "internal/server/http.go:505"
     },
     {
       "pattern": "/api/image-metadata/all",
@@ -7748,7 +7755,7 @@
       "path": "/api/image-metadata/all",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:437"
+      "evidence": "internal/server/http.go:441"
     },
     {
       "pattern": "/api/image-metadata/cleanup",
@@ -7756,7 +7763,7 @@
       "path": "/api/image-metadata/cleanup",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:486"
+      "evidence": "internal/server/http.go:490"
     },
     {
       "pattern": "/api/image-metadata/folders/assign",
@@ -7764,7 +7771,7 @@
       "path": "/api/image-metadata/folders/assign",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:472"
+      "evidence": "internal/server/http.go:476"
     },
     {
       "pattern": "/api/image-metadata/folders/create",
@@ -7772,7 +7779,7 @@
       "path": "/api/image-metadata/folders/create",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:444"
+      "evidence": "internal/server/http.go:448"
     },
     {
       "pattern": "/api/image-metadata/folders/delete",
@@ -7780,7 +7787,7 @@
       "path": "/api/image-metadata/folders/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:465"
+      "evidence": "internal/server/http.go:469"
     },
     {
       "pattern": "/api/image-metadata/folders/get",
@@ -7788,7 +7795,7 @@
       "path": "/api/image-metadata/folders/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:430"
+      "evidence": "internal/server/http.go:434"
     },
     {
       "pattern": "/api/image-metadata/folders/set-thumbnails",
@@ -7796,7 +7803,7 @@
       "path": "/api/image-metadata/folders/set-thumbnails",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:451"
+      "evidence": "internal/server/http.go:455"
     },
     {
       "pattern": "/api/image-metadata/folders/unassign",
@@ -7804,7 +7811,7 @@
       "path": "/api/image-metadata/folders/unassign",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:479"
+      "evidence": "internal/server/http.go:483"
     },
     {
       "pattern": "/api/image-metadata/folders/update",
@@ -7812,7 +7819,7 @@
       "path": "/api/image-metadata/folders/update",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:458"
+      "evidence": "internal/server/http.go:462"
     },
     {
       "pattern": "/api/images/delete",
@@ -8663,6 +8670,30 @@
       "evidence": "internal/server/secrets.go:59"
     },
     {
+      "pattern": "/api/serpapi/search",
+      "method": null,
+      "path": "/api/serpapi/search",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/search/serpapi (src/server-startup.js:131)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/api/serpapi/transcript",
+      "method": null,
+      "path": "/api/serpapi/transcript",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/search/transcript (src/server-startup.js:133)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/api/serpapi/visit",
+      "method": null,
+      "path": "/api/serpapi/visit",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/search/visit (src/server-startup.js:132)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
       "pattern": "/api/speech/elevenlabs/history",
       "method": null,
       "path": "/api/speech/elevenlabs/history",
@@ -9239,6 +9270,14 @@
       "evidence": "internal/server/tokenizers.go:104"
     },
     {
+      "pattern": "/api/tokenizers/remote/textgenerationwebui/encode",
+      "method": null,
+      "path": "/api/tokenizers/remote/textgenerationwebui/encode",
+      "classification": "implemented",
+      "reason": null,
+      "evidence": "internal/server/tokenizers.go:105"
+    },
+    {
       "pattern": "/api/tokenizers/yi/decode",
       "method": null,
       "path": "/api/tokenizers/yi/decode",
@@ -9388,7 +9427,7 @@
       "path": "/api/worldinfo/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/worldinfo.go:71"
+      "evidence": "internal/server/worldinfo.go:73"
     },
     {
       "pattern": "/api/worldinfo/edit",
@@ -9396,7 +9435,7 @@
       "path": "/api/worldinfo/edit",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/worldinfo.go:73"
+      "evidence": "internal/server/worldinfo.go:75"
     },
     {
       "pattern": "/api/worldinfo/get",
@@ -9404,7 +9443,7 @@
       "path": "/api/worldinfo/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/worldinfo.go:70"
+      "evidence": "internal/server/worldinfo.go:72"
     },
     {
       "pattern": "/api/worldinfo/import",
@@ -9412,7 +9451,7 @@
       "path": "/api/worldinfo/import",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/worldinfo.go:72"
+      "evidence": "internal/server/worldinfo.go:74"
     },
     {
       "pattern": "/api/worldinfo/list",
@@ -9420,7 +9459,7 @@
       "path": "/api/worldinfo/list",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/worldinfo.go:69"
+      "evidence": "internal/server/worldinfo.go:71"
     },
     {
       "pattern": "/assets/{rest...}",
@@ -9447,6 +9486,22 @@
       "evidence": "internal/server/frontend_assets.go:103"
     },
     {
+      "pattern": "/createcharacter",
+      "method": null,
+      "path": "/createcharacter",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/create (src/server-startup.js:84)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/creategroup",
+      "method": null,
+      "path": "/creategroup",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/groups/create (src/server-startup.js:107)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
       "pattern": "/css/user.css",
       "method": null,
       "path": "/css/user.css",
@@ -9455,12 +9510,52 @@
       "evidence": "internal/server/frontend_assets.go:109"
     },
     {
+      "pattern": "/delbackground",
+      "method": null,
+      "path": "/delbackground",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/backgrounds/delete (src/server-startup.js:118)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/delchat",
+      "method": null,
+      "path": "/delchat",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/delete (src/server-startup.js:99)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/deletecharacter",
+      "method": null,
+      "path": "/deletecharacter",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/delete (src/server-startup.js:89)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/deletegroup",
+      "method": null,
+      "path": "/deletegroup",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/groups/delete (src/server-startup.js:109)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/deletegroupchat",
+      "method": null,
+      "path": "/deletegroupchat",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/group/delete (src/server-startup.js:104)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
       "pattern": "/deletequickreply",
       "method": null,
       "path": "/deletequickreply",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/quick-replies/delete (src/server-startup.js:125)",
-      "evidence": "internal/server/http.go:519"
+      "evidence": "internal/server/redirect_aliases.go:147"
     },
     {
       "pattern": "/deleteuseravatar",
@@ -9468,7 +9563,7 @@
       "path": "/deleteuseravatar",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/avatars/delete (src/server-startup.js:123)",
-      "evidence": "internal/server/http.go:513"
+      "evidence": "internal/server/redirect_aliases.go:147"
     },
     {
       "pattern": "/deleteworldinfo",
@@ -9476,7 +9571,47 @@
       "path": "/deleteworldinfo",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/worldinfo/delete (src/server-startup.js:111)",
-      "evidence": "internal/server/worldinfo.go:82"
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/downloadbackground",
+      "method": null,
+      "path": "/downloadbackground",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/backgrounds/upload (src/server-startup.js:120)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/dupecharacter",
+      "method": null,
+      "path": "/dupecharacter",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/duplicate (src/server-startup.js:94)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/editcharacter",
+      "method": null,
+      "path": "/editcharacter",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/edit (src/server-startup.js:86)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/editcharacterattribute",
+      "method": null,
+      "path": "/editcharacterattribute",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/edit-attribute (src/server-startup.js:87)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/editgroup",
+      "method": null,
+      "path": "/editgroup",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/groups/edit (src/server-startup.js:108)",
+      "evidence": "internal/server/redirect_aliases.go:147"
     },
     {
       "pattern": "/editworldinfo",
@@ -9484,7 +9619,79 @@
       "path": "/editworldinfo",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/worldinfo/edit (src/server-startup.js:113)",
-      "evidence": "internal/server/worldinfo.go:84"
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/exportcharacter",
+      "method": null,
+      "path": "/exportcharacter",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/export (src/server-startup.js:95)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/exportchat",
+      "method": null,
+      "path": "/exportchat",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/export (src/server-startup.js:100)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/getallchatsofcharacter",
+      "method": null,
+      "path": "/getallchatsofcharacter",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/chats (src/server-startup.js:92)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/getbackgrounds",
+      "method": null,
+      "path": "/getbackgrounds",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/backgrounds/all (src/server-startup.js:117)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/getcharacters",
+      "method": null,
+      "path": "/getcharacters",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/all (src/server-startup.js:90)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/getchat",
+      "method": null,
+      "path": "/getchat",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/get (src/server-startup.js:97)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/getgroupchat",
+      "method": null,
+      "path": "/getgroupchat",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/group/get (src/server-startup.js:103)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/getgroups",
+      "method": null,
+      "path": "/getgroups",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/groups/all (src/server-startup.js:106)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/getonecharacter",
+      "method": null,
+      "path": "/getonecharacter",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/get (src/server-startup.js:91)",
+      "evidence": "internal/server/redirect_aliases.go:147"
     },
     {
       "pattern": "/getstats",
@@ -9492,7 +9699,7 @@
       "path": "/getstats",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/stats/get (src/server-startup.js:114)",
-      "evidence": "internal/server/stats.go:135"
+      "evidence": "internal/server/redirect_aliases.go:147"
     },
     {
       "pattern": "/getuseravatars",
@@ -9500,7 +9707,7 @@
       "path": "/getuseravatars",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/avatars/get (src/server-startup.js:122)",
-      "evidence": "internal/server/http.go:510"
+      "evidence": "internal/server/redirect_aliases.go:147"
     },
     {
       "pattern": "/getworldinfo",
@@ -9508,7 +9715,31 @@
       "path": "/getworldinfo",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/worldinfo/get (src/server-startup.js:110)",
-      "evidence": "internal/server/worldinfo.go:81"
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/importcharacter",
+      "method": null,
+      "path": "/importcharacter",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/import (src/server-startup.js:93)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/importchat",
+      "method": null,
+      "path": "/importchat",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/import (src/server-startup.js:102)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/importgroupchat",
+      "method": null,
+      "path": "/importgroupchat",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/group/import (src/server-startup.js:101)",
+      "evidence": "internal/server/redirect_aliases.go:147"
     },
     {
       "pattern": "/importworldinfo",
@@ -9516,7 +9747,15 @@
       "path": "/importworldinfo",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/worldinfo/import (src/server-startup.js:112)",
-      "evidence": "internal/server/worldinfo.go:83"
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/listimgfiles/:folder",
+      "method": null,
+      "path": "/listimgfiles/:folder",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/images/list/:folder (src/server-startup.js:128)",
+      "evidence": "internal/server/redirect_aliases.go:147"
     },
     {
       "pattern": "/recreatestats",
@@ -9524,7 +9763,47 @@
       "path": "/recreatestats",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/stats/recreate (src/server-startup.js:115)",
-      "evidence": "internal/server/stats.go:135"
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/renamebackground",
+      "method": null,
+      "path": "/renamebackground",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/backgrounds/rename (src/server-startup.js:119)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/renamecharacter",
+      "method": null,
+      "path": "/renamecharacter",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/rename (src/server-startup.js:85)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/renamechat",
+      "method": null,
+      "path": "/renamechat",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/rename (src/server-startup.js:98)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/savechat",
+      "method": null,
+      "path": "/savechat",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/save (src/server-startup.js:96)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/savegroupchat",
+      "method": null,
+      "path": "/savegroupchat",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/group/save (src/server-startup.js:105)",
+      "evidence": "internal/server/redirect_aliases.go:147"
     },
     {
       "pattern": "/savemovingui",
@@ -9532,7 +9811,7 @@
       "path": "/savemovingui",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/moving-ui/save (src/server-startup.js:130)",
-      "evidence": "internal/server/http.go:507"
+      "evidence": "internal/server/redirect_aliases.go:147"
     },
     {
       "pattern": "/savequickreply",
@@ -9540,7 +9819,7 @@
       "path": "/savequickreply",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/quick-replies/save (src/server-startup.js:126)",
-      "evidence": "internal/server/http.go:516"
+      "evidence": "internal/server/redirect_aliases.go:147"
     },
     {
       "pattern": "/savetheme",
@@ -9548,7 +9827,7 @@
       "path": "/savetheme",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/themes/save (src/server-startup.js:121)",
-      "evidence": "internal/server/http.go:504"
+      "evidence": "internal/server/redirect_aliases.go:147"
     },
     {
       "pattern": "/scripts/extensions/third-party/{rest...}",
@@ -9580,7 +9859,23 @@
       "path": "/updatestats",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/stats/update (src/server-startup.js:116)",
-      "evidence": "internal/server/stats.go:135"
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/uploadimage",
+      "method": null,
+      "path": "/uploadimage",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/images/upload (src/server-startup.js:127)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
+      "pattern": "/uploaduseravatar",
+      "method": null,
+      "path": "/uploaduseravatar",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/avatars/upload (src/server-startup.js:124)",
+      "evidence": "internal/server/redirect_aliases.go:147"
     },
     {
       "pattern": "/user/files/{rest...}",
@@ -9607,6 +9902,14 @@
       "evidence": "internal/server/frontend_assets.go:103"
     },
     {
+      "pattern": "/v2/editcharacterattribute",
+      "method": null,
+      "path": "/v2/editcharacterattribute",
+      "classification": "implemented",
+      "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/merge-attributes (src/server-startup.js:88)",
+      "evidence": "internal/server/redirect_aliases.go:147"
+    },
+    {
       "pattern": "GET /api/data-maid/view",
       "method": "GET",
       "path": "/api/data-maid/view",
@@ -9620,7 +9923,7 @@
       "path": "/api/sprites/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:502"
+      "evidence": "internal/server/http.go:506"
     },
     {
       "pattern": "GET /api/users/me",
@@ -9628,7 +9931,7 @@
       "path": "/api/users/me",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:359"
+      "evidence": "internal/server/http.go:363"
     },
     {
       "pattern": "GET /callback",
@@ -9636,7 +9939,7 @@
       "path": "/callback",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:525"
+      "evidence": "internal/server/http.go:513"
     },
     {
       "pattern": "GET /callback/",
@@ -9644,7 +9947,7 @@
       "path": "/callback/",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:528"
+      "evidence": "internal/server/http.go:516"
     },
     {
       "pattern": "GET /csrf-token",
@@ -9652,7 +9955,7 @@
       "path": "/csrf-token",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:353"
+      "evidence": "internal/server/http.go:357"
     },
     {
       "pattern": "GET /login",
@@ -9660,7 +9963,7 @@
       "path": "/login",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:350"
+      "evidence": "internal/server/http.go:354"
     },
     {
       "pattern": "GET /version",
@@ -9668,7 +9971,7 @@
       "path": "/version",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:349"
+      "evidence": "internal/server/http.go:353"
     },
     {
       "pattern": "POST /api/avatars/delete",
@@ -9676,7 +9979,7 @@
       "path": "/api/avatars/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:389"
+      "evidence": "internal/server/http.go:393"
     },
     {
       "pattern": "POST /api/avatars/get",
@@ -9684,7 +9987,7 @@
       "path": "/api/avatars/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:388"
+      "evidence": "internal/server/http.go:392"
     },
     {
       "pattern": "POST /api/avatars/upload",
@@ -9692,7 +9995,7 @@
       "path": "/api/avatars/upload",
       "classification": "implemented",
       "reason": "AGENTS.md boundary 3, DECIDED 2026-10-29: the pinned route stores a Jimp output file, and GoTavern serves the OBSERVABLE contract from a pure-Go codec -- status, MIME/original-name behaviour, decodability, exact dimensions, the pinned 512x768 want_resize box, cover-not-stretch geometry, PNG output whatever was uploaded, and cache behaviour. Byte equality with Jimp is explicitly not claimed. The inventory row still says 'not implemented: boundary 3', which predates the decision; the explicit decision outranks it, which is exactly what this exception is for.",
-      "evidence": "internal/server/http.go:390"
+      "evidence": "internal/server/http.go:394"
     },
     {
       "pattern": "POST /api/data-maid/delete",
@@ -9724,7 +10027,7 @@
       "path": "/api/files/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:393"
+      "evidence": "internal/server/http.go:397"
     },
     {
       "pattern": "POST /api/files/sanitize-filename",
@@ -9732,7 +10035,7 @@
       "path": "/api/files/sanitize-filename",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:391"
+      "evidence": "internal/server/http.go:395"
     },
     {
       "pattern": "POST /api/files/upload",
@@ -9740,7 +10043,7 @@
       "path": "/api/files/upload",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:392"
+      "evidence": "internal/server/http.go:396"
     },
     {
       "pattern": "POST /api/files/verify",
@@ -9748,7 +10051,7 @@
       "path": "/api/files/verify",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:394"
+      "evidence": "internal/server/http.go:398"
     },
     {
       "pattern": "POST /api/moving-ui/save",
@@ -9756,7 +10059,7 @@
       "path": "/api/moving-ui/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:387"
+      "evidence": "internal/server/http.go:391"
     },
     {
       "pattern": "POST /api/ping",
@@ -9764,7 +10067,7 @@
       "path": "/api/ping",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:522"
+      "evidence": "internal/server/http.go:510"
     },
     {
       "pattern": "POST /api/quick-replies/delete",
@@ -9772,7 +10075,7 @@
       "path": "/api/quick-replies/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:384"
+      "evidence": "internal/server/http.go:388"
     },
     {
       "pattern": "POST /api/quick-replies/save",
@@ -9780,7 +10083,7 @@
       "path": "/api/quick-replies/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:383"
+      "evidence": "internal/server/http.go:387"
     },
     {
       "pattern": "POST /api/settings/get",
@@ -9788,7 +10091,7 @@
       "path": "/api/settings/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:378"
+      "evidence": "internal/server/http.go:382"
     },
     {
       "pattern": "POST /api/settings/get-snapshots",
@@ -9796,7 +10099,7 @@
       "path": "/api/settings/get-snapshots",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:377"
+      "evidence": "internal/server/http.go:381"
     },
     {
       "pattern": "POST /api/settings/load-snapshot",
@@ -9804,7 +10107,7 @@
       "path": "/api/settings/load-snapshot",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:380"
+      "evidence": "internal/server/http.go:384"
     },
     {
       "pattern": "POST /api/settings/make-snapshot",
@@ -9812,7 +10115,7 @@
       "path": "/api/settings/make-snapshot",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:381"
+      "evidence": "internal/server/http.go:385"
     },
     {
       "pattern": "POST /api/settings/restore-snapshot",
@@ -9820,7 +10123,7 @@
       "path": "/api/settings/restore-snapshot",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:382"
+      "evidence": "internal/server/http.go:386"
     },
     {
       "pattern": "POST /api/settings/save",
@@ -9828,7 +10131,7 @@
       "path": "/api/settings/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:379"
+      "evidence": "internal/server/http.go:383"
     },
     {
       "pattern": "POST /api/sprites/delete",
@@ -9836,7 +10139,7 @@
       "path": "/api/sprites/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:503"
+      "evidence": "internal/server/http.go:507"
     },
     {
       "pattern": "POST /api/themes/delete",
@@ -9844,7 +10147,7 @@
       "path": "/api/themes/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:386"
+      "evidence": "internal/server/http.go:390"
     },
     {
       "pattern": "POST /api/themes/save",
@@ -9852,7 +10155,7 @@
       "path": "/api/themes/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:385"
+      "evidence": "internal/server/http.go:389"
     },
     {
       "pattern": "POST /api/users/backup",
@@ -9860,7 +10163,7 @@
       "path": "/api/users/backup",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:363"
+      "evidence": "internal/server/http.go:367"
     },
     {
       "pattern": "POST /api/users/change-avatar",
@@ -9868,7 +10171,7 @@
       "path": "/api/users/change-avatar",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:360"
+      "evidence": "internal/server/http.go:364"
     },
     {
       "pattern": "POST /api/users/change-name",
@@ -9876,7 +10179,7 @@
       "path": "/api/users/change-name",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:361"
+      "evidence": "internal/server/http.go:365"
     },
     {
       "pattern": "POST /api/users/change-password",
@@ -9884,7 +10187,7 @@
       "path": "/api/users/change-password",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:362"
+      "evidence": "internal/server/http.go:366"
     },
     {
       "pattern": "POST /api/users/create",
@@ -9892,7 +10195,7 @@
       "path": "/api/users/create",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:368"
+      "evidence": "internal/server/http.go:372"
     },
     {
       "pattern": "POST /api/users/delete",
@@ -9900,7 +10203,7 @@
       "path": "/api/users/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:374"
+      "evidence": "internal/server/http.go:378"
     },
     {
       "pattern": "POST /api/users/demote",
@@ -9908,7 +10211,7 @@
       "path": "/api/users/demote",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:373"
+      "evidence": "internal/server/http.go:377"
     },
     {
       "pattern": "POST /api/users/disable",
@@ -9916,7 +10219,7 @@
       "path": "/api/users/disable",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:370"
+      "evidence": "internal/server/http.go:374"
     },
     {
       "pattern": "POST /api/users/enable",
@@ -9924,7 +10227,7 @@
       "path": "/api/users/enable",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:371"
+      "evidence": "internal/server/http.go:375"
     },
     {
       "pattern": "POST /api/users/get",
@@ -9932,7 +10235,7 @@
       "path": "/api/users/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:367"
+      "evidence": "internal/server/http.go:371"
     },
     {
       "pattern": "POST /api/users/list",
@@ -9940,7 +10243,7 @@
       "path": "/api/users/list",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:356"
+      "evidence": "internal/server/http.go:360"
     },
     {
       "pattern": "POST /api/users/login",
@@ -9948,7 +10251,7 @@
       "path": "/api/users/login",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:357"
+      "evidence": "internal/server/http.go:361"
     },
     {
       "pattern": "POST /api/users/logout",
@@ -9956,7 +10259,7 @@
       "path": "/api/users/logout",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:358"
+      "evidence": "internal/server/http.go:362"
     },
     {
       "pattern": "POST /api/users/promote",
@@ -9964,7 +10267,7 @@
       "path": "/api/users/promote",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:372"
+      "evidence": "internal/server/http.go:376"
     },
     {
       "pattern": "POST /api/users/recover-step1",
@@ -9972,7 +10275,7 @@
       "path": "/api/users/recover-step1",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:375"
+      "evidence": "internal/server/http.go:379"
     },
     {
       "pattern": "POST /api/users/recover-step2",
@@ -9980,7 +10283,7 @@
       "path": "/api/users/recover-step2",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:376"
+      "evidence": "internal/server/http.go:380"
     },
     {
       "pattern": "POST /api/users/reset-settings",
@@ -9988,7 +10291,7 @@
       "path": "/api/users/reset-settings",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:364"
+      "evidence": "internal/server/http.go:368"
     },
     {
       "pattern": "POST /api/users/reset-step1",
@@ -9996,7 +10299,7 @@
       "path": "/api/users/reset-step1",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:365"
+      "evidence": "internal/server/http.go:369"
     },
     {
       "pattern": "POST /api/users/reset-step2",
@@ -10004,7 +10307,7 @@
       "path": "/api/users/reset-step2",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:366"
+      "evidence": "internal/server/http.go:370"
     },
     {
       "pattern": "POST /api/users/slugify",
@@ -10012,96 +10315,74 @@
       "path": "/api/users/slugify",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:369"
+      "evidence": "internal/server/http.go:373"
     }
   ],
   "redirectAliases": [
     {
       "source": "/api/content/import",
       "destination": "/api/content/importURL",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/content/importURL",
+      "status": "registered",
       "evidence": "src/server-startup.js:129"
     },
     {
       "source": "/api/serpapi/search",
       "destination": "/api/search/serpapi",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/search/serpapi",
+      "status": "registered",
       "evidence": "src/server-startup.js:131"
     },
     {
       "source": "/api/serpapi/transcript",
       "destination": "/api/search/transcript",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/search/transcript",
+      "status": "registered",
       "evidence": "src/server-startup.js:133"
     },
     {
       "source": "/api/serpapi/visit",
       "destination": "/api/search/visit",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/search/visit",
+      "status": "registered",
       "evidence": "src/server-startup.js:132"
     },
     {
       "source": "/createcharacter",
       "destination": "/api/characters/create",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "the Go server registers only 13 of the pinned 50 legacy aliases; this one has no registration, so a client following it gets the catch-all 404 instead of pinned's method-preserving 308 to /api/characters/create",
+      "status": "registered",
       "evidence": "src/server-startup.js:84"
     },
     {
       "source": "/creategroup",
       "destination": "/api/groups/create",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/groups/create",
+      "status": "registered",
       "evidence": "src/server-startup.js:107"
     },
     {
       "source": "/delbackground",
       "destination": "/api/backgrounds/delete",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/backgrounds/delete",
+      "status": "registered",
       "evidence": "src/server-startup.js:118"
     },
     {
       "source": "/delchat",
       "destination": "/api/chats/delete",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/delete",
+      "status": "registered",
       "evidence": "src/server-startup.js:99"
     },
     {
       "source": "/deletecharacter",
       "destination": "/api/characters/delete",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/delete",
+      "status": "registered",
       "evidence": "src/server-startup.js:89"
     },
     {
       "source": "/deletegroup",
       "destination": "/api/groups/delete",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/groups/delete",
+      "status": "registered",
       "evidence": "src/server-startup.js:109"
     },
     {
       "source": "/deletegroupchat",
       "destination": "/api/chats/group/delete",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/group/delete",
+      "status": "registered",
       "evidence": "src/server-startup.js:104"
     },
     {
@@ -10125,41 +10406,31 @@
     {
       "source": "/downloadbackground",
       "destination": "/api/backgrounds/upload",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/backgrounds/upload",
+      "status": "registered",
       "evidence": "src/server-startup.js:120"
     },
     {
       "source": "/dupecharacter",
       "destination": "/api/characters/duplicate",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/duplicate",
+      "status": "registered",
       "evidence": "src/server-startup.js:94"
     },
     {
       "source": "/editcharacter",
       "destination": "/api/characters/edit",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/edit",
+      "status": "registered",
       "evidence": "src/server-startup.js:86"
     },
     {
       "source": "/editcharacterattribute",
       "destination": "/api/characters/edit-attribute",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/edit-attribute",
+      "status": "registered",
       "evidence": "src/server-startup.js:87"
     },
     {
       "source": "/editgroup",
       "destination": "/api/groups/edit",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/groups/edit",
+      "status": "registered",
       "evidence": "src/server-startup.js:108"
     },
     {
@@ -10171,73 +10442,55 @@
     {
       "source": "/exportcharacter",
       "destination": "/api/characters/export",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/export",
+      "status": "registered",
       "evidence": "src/server-startup.js:95"
     },
     {
       "source": "/exportchat",
       "destination": "/api/chats/export",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/export",
+      "status": "registered",
       "evidence": "src/server-startup.js:100"
     },
     {
       "source": "/getallchatsofcharacter",
       "destination": "/api/characters/chats",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/chats",
+      "status": "registered",
       "evidence": "src/server-startup.js:92"
     },
     {
       "source": "/getbackgrounds",
       "destination": "/api/backgrounds/all",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/backgrounds/all",
+      "status": "registered",
       "evidence": "src/server-startup.js:117"
     },
     {
       "source": "/getcharacters",
       "destination": "/api/characters/all",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/all",
+      "status": "registered",
       "evidence": "src/server-startup.js:90"
     },
     {
       "source": "/getchat",
       "destination": "/api/chats/get",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/get",
+      "status": "registered",
       "evidence": "src/server-startup.js:97"
     },
     {
       "source": "/getgroupchat",
       "destination": "/api/chats/group/get",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/group/get",
+      "status": "registered",
       "evidence": "src/server-startup.js:103"
     },
     {
       "source": "/getgroups",
       "destination": "/api/groups/all",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/groups/all",
+      "status": "registered",
       "evidence": "src/server-startup.js:106"
     },
     {
       "source": "/getonecharacter",
       "destination": "/api/characters/get",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/get",
+      "status": "registered",
       "evidence": "src/server-startup.js:91"
     },
     {
@@ -10261,25 +10514,19 @@
     {
       "source": "/importcharacter",
       "destination": "/api/characters/import",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/import",
+      "status": "registered",
       "evidence": "src/server-startup.js:93"
     },
     {
       "source": "/importchat",
       "destination": "/api/chats/import",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/import",
+      "status": "registered",
       "evidence": "src/server-startup.js:102"
     },
     {
       "source": "/importgroupchat",
       "destination": "/api/chats/group/import",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/group/import",
+      "status": "registered",
       "evidence": "src/server-startup.js:101"
     },
     {
@@ -10291,9 +10538,7 @@
     {
       "source": "/listimgfiles/:folder",
       "destination": "/api/images/list/:folder",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/images/list/:folder",
+      "status": "registered",
       "evidence": "src/server-startup.js:128"
     },
     {
@@ -10305,41 +10550,31 @@
     {
       "source": "/renamebackground",
       "destination": "/api/backgrounds/rename",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/backgrounds/rename",
+      "status": "registered",
       "evidence": "src/server-startup.js:119"
     },
     {
       "source": "/renamecharacter",
       "destination": "/api/characters/rename",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/rename",
+      "status": "registered",
       "evidence": "src/server-startup.js:85"
     },
     {
       "source": "/renamechat",
       "destination": "/api/chats/rename",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/rename",
+      "status": "registered",
       "evidence": "src/server-startup.js:98"
     },
     {
       "source": "/savechat",
       "destination": "/api/chats/save",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/save",
+      "status": "registered",
       "evidence": "src/server-startup.js:96"
     },
     {
       "source": "/savegroupchat",
       "destination": "/api/chats/group/save",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/group/save",
+      "status": "registered",
       "evidence": "src/server-startup.js:105"
     },
     {
@@ -10369,39 +10604,23 @@
     {
       "source": "/uploadimage",
       "destination": "/api/images/upload",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/images/upload",
+      "status": "registered",
       "evidence": "src/server-startup.js:127"
     },
     {
       "source": "/uploaduseravatar",
       "destination": "/api/avatars/upload",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/avatars/upload",
+      "status": "registered",
       "evidence": "src/server-startup.js:124"
     },
     {
       "source": "/v2/editcharacterattribute",
       "destination": "/api/characters/merge-attributes",
-      "status": "open",
-      "gapId": "SURFACE-REDIRECT-ALIASES",
-      "reason": "unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/merge-attributes",
+      "status": "registered",
       "evidence": "src/server-startup.js:88"
     }
   ],
-  "missingReachablePinnedRoutes": [
-    {
-      "method": "POST",
-      "path": "/api/tokenizers/remote/textgenerationwebui/encode",
-      "evidence": "src/endpoints/tokenizers.js:1072",
-      "status": "open",
-      "gapId": "SURFACE-TOKENIZER-REMOTE",
-      "reason": "internal/server/tokenizers_remote.go:7-10 records this pinned route as not implemented pending the proxy/SSRF domain, while docs/api-inventory.md's status column for the row claims a route-level replay. One of the two is wrong: the tree registers no handler for the path, so the route is absent",
-      "userImpact": "the pinned frontend calls this path for a remote text-generation tokenizer count/encode; against this tree the catch-all answers instead of pinned's {count, ids} projection, so a remote textgen tokenizer reading is silently unavailable (the neighbouring /remote/kobold/count route IS implemented)"
-    }
-  ],
+  "missingReachablePinnedRoutes": [],
   "unresolvedRegistrationSites": [],
   "problems": []
 }

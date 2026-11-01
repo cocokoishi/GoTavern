@@ -42,59 +42,15 @@ catch-all), and `checkSurfaceCoverage` propagated `report.problems` instead of t
 and `check.mjs` could report green on a red derivation. Both are fixed and both have their own selftest
 scenario.
 
-<!-- BEGIN GENERATED: surface.drift -->Frontend-derived backend surfaces: **573** classified (implemented 307, intentionally-passthrough 230, not-applicable 17, unsupported-with-reason 19); **0 unknown**. Go registrations: **384** classified (implemented 376, intentionally-passthrough 8, not-applicable 0, unsupported-with-reason 0). Pinned redirect aliases: **13** registered, **37** open gap(s). Inputs: 68 pinned frontend module(s), 229 observed startup request(s), 17 extension-dependency row(s), 342 pinned route(s), 384 Go registration(s) in 176 file(s). A new frontend route/request shape, a new Go route with no classification, or a new unregistered pinned redirect alias fails `node tools/compat-matrix/surface-coverage.mjs --check` (run by `tools/compat-matrix/check.mjs` in `ci.yml#verify`), which is the drift gate rule 43 requires.
+<!-- BEGIN GENERATED: surface.drift -->Frontend-derived backend surfaces: **573** classified (implemented 308, intentionally-passthrough 230, not-applicable 17, unsupported-with-reason 18); **0 unknown**. Go registrations: **422** classified (implemented 414, intentionally-passthrough 8, not-applicable 0, unsupported-with-reason 0). Pinned redirect aliases: **50** registered, **0** open gap(s). Inputs: 68 pinned frontend module(s), 229 observed startup request(s), 17 extension-dependency row(s), 342 pinned route(s), 422 Go registration(s) in 177 file(s). A new frontend route/request shape, a new Go route with no classification, or a new unregistered pinned redirect alias fails `node tools/compat-matrix/surface-coverage.mjs --check` (run by `tools/compat-matrix/check.mjs` in `ci.yml#verify`), which is the drift gate rule 43 requires.
 
 | Classification | Frontend surfaces | Go registrations |
 |---|---|---|
-| implemented | 307 | 376 |
+| implemented | 308 | 414 |
 | intentionally-passthrough | 230 | 8 |
 | not-applicable | 17 | 0 |
-| unsupported-with-reason | 19 | 0 |
-| **unknown** | **0** | **0** |
-
-**Pinned redirect aliases with no Go registration (OPEN gaps, recorded rather than absent):**
-
-- `/api/content/import` -> `/api/content/importURL` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/content/importURL
-- `/api/serpapi/search` -> `/api/search/serpapi` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/search/serpapi
-- `/api/serpapi/transcript` -> `/api/search/transcript` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/search/transcript
-- `/api/serpapi/visit` -> `/api/search/visit` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/search/visit
-- `/createcharacter` -> `/api/characters/create` (SURFACE-REDIRECT-ALIASES) — the Go server registers only 13 of the pinned 50 legacy aliases; this one has no registration, so a client following it gets the catch-all 404 instead of pinned's method-preserving 308 to /api/characters/create
-- `/creategroup` -> `/api/groups/create` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/groups/create
-- `/delbackground` -> `/api/backgrounds/delete` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/backgrounds/delete
-- `/delchat` -> `/api/chats/delete` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/delete
-- `/deletecharacter` -> `/api/characters/delete` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/delete
-- `/deletegroup` -> `/api/groups/delete` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/groups/delete
-- `/deletegroupchat` -> `/api/chats/group/delete` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/group/delete
-- `/downloadbackground` -> `/api/backgrounds/upload` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/backgrounds/upload
-- `/dupecharacter` -> `/api/characters/duplicate` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/duplicate
-- `/editcharacter` -> `/api/characters/edit` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/edit
-- `/editcharacterattribute` -> `/api/characters/edit-attribute` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/edit-attribute
-- `/editgroup` -> `/api/groups/edit` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/groups/edit
-- `/exportcharacter` -> `/api/characters/export` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/export
-- `/exportchat` -> `/api/chats/export` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/export
-- `/getallchatsofcharacter` -> `/api/characters/chats` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/chats
-- `/getbackgrounds` -> `/api/backgrounds/all` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/backgrounds/all
-- `/getcharacters` -> `/api/characters/all` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/all
-- `/getchat` -> `/api/chats/get` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/get
-- `/getgroupchat` -> `/api/chats/group/get` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/group/get
-- `/getgroups` -> `/api/groups/all` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/groups/all
-- `/getonecharacter` -> `/api/characters/get` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/get
-- `/importcharacter` -> `/api/characters/import` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/import
-- `/importchat` -> `/api/chats/import` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/import
-- `/importgroupchat` -> `/api/chats/group/import` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/group/import
-- `/listimgfiles/:folder` -> `/api/images/list/:folder` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/images/list/:folder
-- `/renamebackground` -> `/api/backgrounds/rename` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/backgrounds/rename
-- `/renamecharacter` -> `/api/characters/rename` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/rename
-- `/renamechat` -> `/api/chats/rename` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/rename
-- `/savechat` -> `/api/chats/save` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/save
-- `/savegroupchat` -> `/api/chats/group/save` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/chats/group/save
-- `/uploadimage` -> `/api/images/upload` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/images/upload
-- `/uploaduseravatar` -> `/api/avatars/upload` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/avatars/upload
-- `/v2/editcharacterattribute` -> `/api/characters/merge-attributes` (SURFACE-REDIRECT-ALIASES) — unregistered pinned legacy alias; a client following it gets the catch-all 404 instead of pinned's 308 to /api/characters/merge-attributes
-
-**Reachable pinned routes with no Go registration (recorded gaps, not silently absent):**
-
-- `POST /api/tokenizers/remote/textgenerationwebui/encode` — undefined (src/endpoints/tokenizers.js:1072)<!-- END GENERATED: surface.drift -->
+| unsupported-with-reason | 18 | 0 |
+| **unknown** | **0** | **0** |<!-- END GENERATED: surface.drift -->
 
 ## Computed chat-completion coverage
 

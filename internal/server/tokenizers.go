@@ -102,6 +102,7 @@ func registerTokenizerRoutes(mux *http.ServeMux, accounts *accountRuntime, notFo
 	post("/api/tokenizers/openai/decode", accounts.serveOpenAITokenizerDecode)
 	post("/api/tokenizers/openai/count", accounts.serveOpenAITokenizerCount)
 	post("/api/tokenizers/remote/kobold/count", accounts.serveRemoteKoboldCount)
+	post("/api/tokenizers/remote/textgenerationwebui/encode", accounts.serveRemoteTextGenerationEncode)
 }
 
 // --- asset loading ---------------------------------------------------------------------

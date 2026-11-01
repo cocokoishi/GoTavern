@@ -126,6 +126,10 @@ type HTTPHandlerOptions struct {
 	// "exactness"). Nil means os.Stderr; tests substitute a buffer to assert the stable
 	// `tokenizer-guesstimate` marker instead of trusting that it was printed.
 	tokenizerConsole io.Writer
+	// redirectWarnings receives the pinned deprecation `console.warn` line of every legacy redirect alias
+	// (`API endpoint <src> is deprecated; use <destination> instead`, src/server-startup.js:78). Nil means
+	// os.Stderr; tests substitute a buffer. SEE redirect_aliases.go.
+	redirectWarnings io.Writer
 	// accessLogNow supplies the timestamp the pinned middleware writes
 	// (`new Date().toISOString()`, accessLogWriter.js:46). Nil means time.Now; tests inject a fixed
 	// clock so the exact line bytes are assertable.
@@ -501,24 +505,8 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("/api/image-metadata/{$}", imageMetadataRootHandler)
 	mux.HandleFunc("GET /api/sprites/get", accounts.serveSpritesGet)
 	mux.HandleFunc("POST /api/sprites/delete", accounts.serveSpritesDelete)
-	mux.HandleFunc("/savetheme", func(w http.ResponseWriter, r *http.Request) {
-		serveRedirect(w, r, http.StatusPermanentRedirect, "/api/themes/save")
-	})
-	mux.HandleFunc("/savemovingui", func(w http.ResponseWriter, r *http.Request) {
-		serveRedirect(w, r, http.StatusPermanentRedirect, "/api/moving-ui/save")
-	})
-	mux.HandleFunc("/getuseravatars", func(w http.ResponseWriter, r *http.Request) {
-		serveRedirect(w, r, http.StatusPermanentRedirect, "/api/avatars/get")
-	})
-	mux.HandleFunc("/deleteuseravatar", func(w http.ResponseWriter, r *http.Request) {
-		serveRedirect(w, r, http.StatusPermanentRedirect, "/api/avatars/delete")
-	})
-	mux.HandleFunc("/savequickreply", func(w http.ResponseWriter, r *http.Request) {
-		serveRedirect(w, r, http.StatusPermanentRedirect, "/api/quick-replies/save")
-	})
-	mux.HandleFunc("/deletequickreply", func(w http.ResponseWriter, r *http.Request) {
-		serveRedirect(w, r, http.StatusPermanentRedirect, "/api/quick-replies/delete")
-	})
+	// The pinned legacy redirect aliases live in ONE table now: internal/server/redirect_aliases.go
+	// registers all fifty through the domain registrar, the way src/server-startup.js:277 does.
 	mux.HandleFunc("POST /api/ping", func(w http.ResponseWriter, r *http.Request) {
 		servePing(w, r, options)
 	})
@@ -671,18 +659,59 @@ func serveDisabledAccountsLogin(w http.ResponseWriter, r *http.Request) {
 	serveRedirect(w, r, http.StatusFound, "/")
 }
 
+// serveRedirect is `res.redirect(status, location)` (Express 4.22.1), which is the whole body of the
+// pinned redirect helper and of the login/callback redirects:
+//
+//	res.redirect = function redirect(url) {
+//	    var address = url; var body; var status = 302;
+//	    if (arguments.length === 2) { status = arguments[0]; address = arguments[1]; }
+//	    address = this.location(address).get('Location');
+//	    this.format({
+//	        text: function(){ body = statuses.message[status] + '. Redirecting to ' + address },
+//	        html: function(){ var u = escapeHtml(address); body = '<p>' + statuses.message[status] + '. Redirecting to ' + u + '</p>' },
+//	        default: function(){ body = '' }
+//	    });
+//	    this.statusCode = status;
+//	    this.set('Content-Length', Buffer.byteLength(body));
+//	    if (this.req.method === 'HEAD') { this.end(); } else { this.end(body); }
+//	};
+//
+// Two details in that shape are NOT cosmetic and are reproduced here because a pinned capture measured
+// them (tests/oracle/sillytavern-1.19.0-redirect-aliases.json):
+//
+//   - `res.format` calls `req.accepts(['text', 'text/html'])` and, when NOTHING is acceptable (Accept:
+//     application/json), runs the `default` branch: an EMPTY body with NO Content-Type at all, not a
+//     text/plain sentence. The representation is chosen by the Accept quality ordering; on a tie the
+//     provided order wins, so `*/*` and `text/*` both select `text`.
+//   - `Vary` is "Origin, Accept" when the body is empty and "Origin, Accept, Accept-Encoding" otherwise:
+//     the compression middleware contributes Accept-Encoding only when there is a body to compress.
+//
+// The html body below is the observed pinned one: the SENTENCE inside `<p>`, with the location escaped but
+// NOT wrapped in an anchor (`escapeHtml(address)`, no `<a href>`), which is what Express 4.22.1 does and what
+// the capture contains.
 func serveRedirect(w http.ResponseWriter, r *http.Request, status int, location string) {
 	message := http.StatusText(status) + ". Redirecting to " + location
-	contentType := "text/plain; charset=utf-8"
-	body := message
-	if acceptsHTMLRedirect(r.Header.Get("Accept")) {
+	representation := pinnedRedirectRepresentation(r.Header.Get("Accept"))
+	contentType := ""
+	body := ""
+	switch representation {
+	case "text":
+		contentType = "text/plain; charset=utf-8"
+		body = message
+	case "html":
 		contentType = "text/html; charset=utf-8"
 		body = "<p>" + html.EscapeString(message) + "</p>"
 	}
 	w.Header().Set("Location", location)
-	w.Header().Set("Content-Type", contentType)
+	if contentType != "" {
+		w.Header().Set("Content-Type", contentType)
+	}
 	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
-	w.Header().Set("Vary", "Origin, Accept, Accept-Encoding")
+	if len(body) == 0 {
+		w.Header().Set("Vary", "Origin, Accept")
+	} else {
+		w.Header().Set("Vary", "Origin, Accept, Accept-Encoding")
+	}
 	w.WriteHeader(status)
 	if r.Method != http.MethodHead {
 		_, _ = w.Write([]byte(body))
@@ -695,10 +724,20 @@ func urlSearchParamEscape(value string) string {
 	return strings.ReplaceAll(encoded, "%2A", "*")
 }
 
-func acceptsHTMLRedirect(accept string) bool {
+// pinnedRedirectRepresentation is `req.accepts(['text', 'text/html'])` for the two representations
+// res.redirect's res.format offers, returned as the winning key: "text", "html", or "" for the
+// `default` branch. The provided 'text' entry is matched as `text/*` (that is what negotiator does with a
+// type that has no subtype), so a bare `Accept: text/plain` and an `Accept: */*` both select text.
+func pinnedRedirectRepresentation(accept string) string {
+	if strings.TrimSpace(accept) == "" {
+		// No Accept header: everything is acceptable, and the first provided type wins.
+		return "text"
+	}
+	best := ""
+	bestQuality := 0.0
 	for _, mediaRange := range strings.Split(accept, ",") {
 		mediaType, parameters, err := mime.ParseMediaType(strings.TrimSpace(mediaRange))
-		if err != nil || mediaType != "text/html" {
+		if err != nil {
 			continue
 		}
 		quality := 1.0
@@ -710,9 +749,20 @@ func acceptsHTMLRedirect(accept string) bool {
 				quality = parsed
 			}
 		}
-		return quality > 0
+		if quality <= 0 {
+			continue
+		}
+		// `text` as a provided type is `text/*`; `text/html` matches text/*, */* and its own spelling.
+		matchesText := mediaType == "text/plain" || mediaType == "text/*" || mediaType == "*/*"
+		matchesHTML := mediaType == "text/html" || mediaType == "text/*" || mediaType == "*/*"
+		if matchesText && quality > bestQuality {
+			best, bestQuality = "text", quality
+		}
+		if matchesHTML && quality > bestQuality {
+			best, bestQuality = "html", quality
+		}
 	}
-	return false
+	return best
 }
 
 func serveVersion(w http.ResponseWriter, r *http.Request) {
