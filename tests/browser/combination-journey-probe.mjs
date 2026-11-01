@@ -146,6 +146,12 @@ async function injectVariablesThroughHelper(page) {
     const helperScript = `
         (async () => {
             const cfg = window.parent.__comb;
+            if (!cfg) {
+                // AUTO-RUN ON PAGE LOAD: the installed tree re-runs without an injection payload. Record that fact and
+                // do nothing -- an injected payload is the only thing that may write variables or prompts.
+                window.__combDone = { runId: 'auto-run-on-load', cases: [], errors: [], closure: { insideIframe: window !== window.parent, bridge: Boolean(window.TavernHelper) }, readback: null, skipped: 'no injection payload' };
+                return;
+            }
             const out = { runId: cfg.runId, cases: [], errors: [], closure: null, readback: null };
             const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
             const done = () => { window.__combDone = out; };
@@ -423,6 +429,61 @@ async function selectPresetThroughControl(page, name) {
 }
 
 
+
+/**
+ * Reopen the saved journey chat through the product's own path and assert the preconditions a user has before they
+ * press send: the saved chat is ACTIVE, it has more than one message, and the last message is the assistant's
+ * regex-rewritten reply. Returns the observed state and a named `precondition` when it is not satisfied.
+ */
+async function reopenJourneyChat(page, chatId, { minLength = 2, expectText = null } = {}) {
+    const observed = await page.evaluate(async ({ wanted, expected, minimum }) => {
+        const script = await import('./script.js');
+        const groupChats = await import('./scripts/group-chats.js');
+        if (typeof groupChats.resetSelectedGroup === 'function') groupChats.resetSelectedGroup();
+        if (!wanted) return { opened: false, precondition: 'no saved chat id', wanted };
+        // THE CHARACTER'S OWN CHAT IS ALREADY THE SAVED ONE on the reload/restart paths; only an ACTIVE-CHAT mismatch
+        // needs the explicit open (recorded in the result either way).
+        let via = 'character-open/default-chat';
+        let beforeId = window.SillyTavern?.getContext?.()?.chatId ?? null;
+        if (beforeId !== wanted) {
+            via = 'openCharacterChat';
+            try { await script.openCharacterChat(wanted); } catch (error) { return { opened: false, precondition: 'openCharacterChat threw', wanted, threw: String(error?.message ?? error).slice(0, 300) }; }
+        }
+        const deadline = Date.now() + 30000;
+        while (Date.now() < deadline) {
+            const context = window.SillyTavern?.getContext?.();
+            const chat = script.chat ?? [];
+            if (context?.chatId === wanted && chat.length > 0) {
+                const last = chat[chat.length - 1] ?? null;
+                const lastText = String(last?.mes ?? '');
+                const ready = chat.length >= minimum && String(last?.is_user ?? false) === 'false' && (!expected || lastText.includes(expected));
+                // STABILITY WINDOW: the length must hold for a settling period before the caller may send.
+                const settleDeadline = Date.now() + 1500;
+                let stable = true;
+                while (Date.now() < settleDeadline) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    const again = window.SillyTavern?.getContext?.();
+                    const lengthNow = (script.chat ?? []).length;
+                    if (again?.chatId !== wanted || lengthNow < minimum) { stable = false; break; }
+                }
+                if (stable) {
+                    return {
+                        opened: true, chatId: context.chatId, chatLength: chat.length,
+                        lastText: lastText.slice(0, 200), lastIsUser: last?.is_user === true,
+                        regexWordPresent: lastText.includes(String(expected ?? '')), expected, stable: true, via, beforeId,
+                        satisfied: ready,
+                        precondition: ready ? null : (chat.length < minimum ? 'the reopened chat has fewer messages than the saved viewer had' : (expected && !lastText.includes(String(expected)) ? 'the last message is not the regex-rewritten assistant reply' : 'the last message is not an assistant message')),
+                    };
+                }
+                // Not stable: fall through and keep polling, the chat is still loading.
+            }
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        return { opened: false, precondition: 'the saved chat never became the active chat', wanted, chatId: window.SillyTavern?.getContext?.()?.chatId ?? null, chatLength: (script.chat ?? []).length };
+    }, { wanted: chatId, expected: expectText, minimum: minLength });
+    return observed;
+}
+
 /** Set the product's own current-user name (what {{user}} resolves to) through its own setter and persist it. */
 async function setJourneyUserName(page, name) {
     return page.evaluate(async wanted => {
@@ -437,6 +498,88 @@ async function setJourneyUserName(page, name) {
         const context = window.SillyTavern && window.SillyTavern.getContext ? window.SillyTavern.getContext() : null;
         return { name1: script.name1 ?? context?.name1 ?? null, setterUsed: typeof script.setUserName === 'function', allowName1Display: powerUser.power_user.allow_name1_display === true };
     }, name);
+}
+
+
+/** The prompt manager state that decides which prompts enter the request (compare armed vs reloaded). */
+async function readPromptManagerState(page) {
+    return page.evaluate(async () => {
+        const openai = await import('./scripts/openai.js');
+        const script = await import('./script.js');
+        const pm = openai.promptManager;
+        if (!pm) return { available: false };
+        let collection = null;
+        try {
+            const entries = pm.getPromptCollection('normal');
+            collection = entries ? [...entries.entries?.() ?? Object.entries(entries)].map(([key, value]) => ({ key, contentLength: String(value?.content ?? '').length, role: value?.role ?? null })).slice(0, 40) : null;
+        } catch (error) { collection = { error: String(error?.message ?? error) }; }
+        const order = pm.serviceSettings && pm.serviceSettings.prompt_order ? pm.serviceSettings.prompt_order : null;
+        const enabled = {};
+        const disabled = {};
+        for (const identifier of ['main', 'chatHistory', 'worldInfoBefore', 'worldInfoAfter', 'worldInfoExamples', 'jailbreak', 'nsfw']) {
+            try {
+                const entry = Array.isArray(order) ? order.flatMap(group => group.order ?? []).find(item => item.identifier === identifier) : null;
+                enabled[identifier] = entry ? entry.enabled === true : null;
+                disabled[identifier] = pm.isPromptDisabledForActiveCharacter ? pm.isPromptDisabledForActiveCharacter(identifier) : null;
+            } catch (error) { enabled[identifier] = 'threw'; }
+        }
+        return {
+            available: true,
+            activeCharacter: pm.activeCharacter ?? null,
+            promptCount: Array.isArray(pm.prompts) ? pm.prompts.length : null,
+            collection,
+            enabled,
+            disabled,
+            thisChid: script.this_chid ?? null,
+            contextChid: (window.SillyTavern?.getContext?.()?.characterId ?? null),
+        };
+    });
+}
+
+
+/** Wait (bounded) until the prompt manager's NORMAL collection is the character's, not the dummy fallback. */
+async function waitForArmedPromptManager(page, { minimum = 8, timeoutMs = 30000 } = {}) {
+    const started = Date.now();
+    let last = null;
+    while (Date.now() - started < timeoutMs) {
+        last = await page.evaluate(async () => {
+            const openai = await import('./scripts/openai.js');
+            const script = await import('./script.js');
+            const pm = openai.promptManager;
+            if (!pm) return { available: false };
+            let count = null;
+            let identifiers = null;
+            try {
+                const collection = pm.getPromptCollection('normal');
+                const prompts = Array.isArray(collection?.collection) ? collection.collection : [];
+                count = prompts.length;
+                identifiers = prompts.map(prompt => prompt?.identifier ?? null);
+            } catch (error) { return { available: true, error: String(error?.message ?? error) }; }
+            return { available: true, promptCount: count, identifiers, activeCharacter: pm.activeCharacter ?? null, chid: script.this_chid ?? null };
+        });
+        const identifiers = last?.identifiers ?? [];
+        const required = ['chatHistory', 'worldInfoBefore', 'main'];
+        const armed = last?.available === true && Number(last?.promptCount) >= minimum && required.every(identifier => identifiers.includes(identifier));
+        if (armed) {
+            // STABILITY WINDOW: keep sampling for 2.5 s; a later sample that is not armed restarts the window.
+            const stableSince = Date.now();
+            let stable = true;
+            while (Date.now() - stableSince < 2500) {
+                await page.waitForTimeout(250);
+                const again = await page.evaluate(async () => {
+                    const openai = await import('./scripts/openai.js');
+                    const collection = openai.promptManager?.getPromptCollection('normal');
+                    const prompts = Array.isArray(collection?.collection) ? collection.collection : [];
+                    return { count: prompts.length, identifiers: prompts.map(prompt => prompt?.identifier ?? null) };
+                });
+                const stillArmed = Number(again?.count) >= minimum && required.every(identifier => (again?.identifiers ?? []).includes(identifier));
+                if (!stillArmed) { stable = false; break; }
+            }
+            if (stable) return { ...last, armed: true, stableForMs: Date.now() - started, waitedMs: Date.now() - started };
+        }
+        await page.waitForTimeout(250);
+    }
+    return { ...(last ?? {}), armed: false, waitedMs: Date.now() - started };
 }
 
 /** One user turn: baseline first, click the product's send control, wait for the page AND the peer to move. */
@@ -506,7 +649,7 @@ async function turn(page, marker, caseName, { settleMs = 0 } = {}) {
     const unmatched = slice.filter(entry => entry.attribution !== 'user-message');
     if (unmatched.length > 0) {
         report.unattributedRequests = report.unattributedRequests ?? [];
-        report.unattributedRequests.push(...unmatched.map(entry => ({ after: caseName, attribution: entry.attribution, byteLength: entry.byteLength, sha256: entry.sha256 })));
+        report.unattributedRequests.push(...unmatched.slice(0, 2).map(entry => ({ after: caseName, attribution: entry.attribution, byteLength: entry.byteLength, sha256: entry.sha256, bodyHead: String(entry.body ?? '').slice(0, 5000) })));
     }
     const requests = matched.map(entry => ({
         case: caseName,
@@ -597,7 +740,7 @@ async function main() {
         step('server-ready', true, { external, baseURL: baseURL.replace(/:\d+/, ':<port>') });
         peer = await startCapturePeer({ wire: 'honour', replyText: ordinal => `${CARD.regexFind}_${ordinal}` });
         browser = await chromium.launch({ headless: true });
-        const page = await browser.newPage();
+        let page = await browser.newPage();
         report.pageErrors = [];
         page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
         await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
@@ -634,20 +777,13 @@ async function main() {
             await openPage(page, baseURL);
             await connect();
             const world = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
-            const userName = await setJourneyUserName(page, 'Probe User');
             await openJourneyCharacter();
-            const reopened = await page.evaluate(async wanted => {
-                const script = await import('./script.js');
-                if (!wanted) return { opened: false, reason: 'no chat id' };
-                await script.openCharacterChat(wanted);
-                const deadline = Date.now() + 30000;
-                while (Date.now() < deadline) {
-                    const context = window.SillyTavern?.getContext?.();
-                    if (context?.chatId === wanted && (script.chat ?? []).length > 0) return { opened: true, chatId: context.chatId };
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                }
-                return { opened: false, wanted };
-            }, chatId);
+            await waitChatLoaded();
+            const reopened = await reopenJourneyChat(page, chatId, { minLength: 2 });
+            // THE PERSONA BINDING IS CLEARED BY OPENING THE CHARACTER, so it is re-asserted AFTER the chat is open.
+            const userName = await setJourneyUserName(page, 'Probe User');
+            // ... and the peer connection is re-applied LAST, so nothing after it can replace the custom URL/model.
+            await connect();
             const helper = await injectVariablesThroughHelper(page);
             const qr = await executeJourneyQuickReply(page);
             await waitForQuiet(page);
@@ -741,6 +877,10 @@ async function main() {
             const helperScript = `
                 (async () => {
                     const cfg = window.parent.__comb;
+                    if (!cfg) {
+                        window.__combDone = { runId: 'auto-run-on-load', cases: [], errors: [], closure: { insideIframe: window !== window.parent, bridge: Boolean(window.TavernHelper) }, readback: null, skipped: 'no injection payload' };
+                        return;
+                    }
                     const out = { runId: cfg.runId, cases: [], errors: [], closure: null };
                     const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
                     const done = () => { window.__combDone = out; };
@@ -806,6 +946,7 @@ async function main() {
             step('drive-injections-active-in-page', driveInjections.variables?.present === true && driveInjections.variables?.hasValue === true, driveInjections);
 
             // ---- STEP 3: the armed streamed turn -----------------------------------------------------
+            report.browser.promptManagerArmed = await readPromptManagerState(page);
             const turn1 = await turn(page, 'COMB_TURN_1', 'turn-1-armed');
             const capture1 = classifyCapture(turn1.requests[0]);
             report.browser.turn1 = { ok: turn1.ok, replied: turn1.replied, after: turn1.after };
@@ -910,6 +1051,7 @@ async function main() {
             // the control turn from the frontend's own idle state.
             report.browser.presetOffReconnected = await connect();
             const controlWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            report.browser.controlPersona = await setJourneyUserName(page, 'Probe User');
             report.browser.controlRecover = await recoverStuckSend(page);
             await waitForQuiet(page);
             let turnPresetOff = await turn(page, 'COMB_PRESET_OFF', 'control-preset-off');
@@ -953,6 +1095,7 @@ async function main() {
                 return { before, after: Array.isArray(worldInfo.selected_world_info) ? worldInfo.selected_world_info.slice() : null };
             });
             report.browser.wiOff = wiOff;
+            report.browser.wiOffPersona = await setJourneyUserName(page, 'Probe User');
             report.browser.wiOffRecover = await recoverStuckSend(page);
             await waitForQuiet(page);
             let turnWiOff = await turn(page, 'COMB_WI_OFF', 'control-wi-off');
@@ -982,44 +1125,42 @@ async function main() {
             const beforeReload = await readPageState(page);
             const savedChatId = beforeReload.chatId;
             const saved = await saveConditional(page);
+            // CLOSE THE TAB AND OPEN A NEW ONE (the user's "close and reopen"): the reloaded turn is measured on a
+            // page that was never mid-session, so an extension/iframe residue from the previous navigation cannot be
+            // the cause of a swallowed assembly.
+            await page.close().catch(() => null);
+            page = await browser.newPage();
+            page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
+            await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
+            report.browser.reloadNewTab = true;
             await openPage(page, baseURL);
             await connect();
+            // THE ORDER A USER TAKES AFTER A RELOAD: re-select the preset, restore the world selection, open the
+            // character, REOPEN THE SAVED CHAT BY ITS ID (and prove it is active with its history), re-assert the
+            // persona binding (the character open cleared it), and re-apply the peer connection LAST. Sending before
+            // the chat is active is what produced a system-only 11864-byte assembly with no history.
+            const reloadPreset = await selectPresetThroughControl(page, presetName);
+            const reloadWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            const reloadPersisted = await readSettings(dataRoot);
             await openJourneyCharacter();
-            const reopened = await page.evaluate(async wanted => {
-                const script = await import('./script.js');
-                if (!wanted) return { opened: false, reason: 'no chat id to reopen' };
-                await script.openCharacterChat(wanted);
-                const deadline = Date.now() + 30000;
-                while (Date.now() < deadline) {
-                    const context = window.SillyTavern?.getContext?.();
-                    if (context?.chatId === wanted && (script.chat ?? []).length > 0) return { opened: true, chatId: context.chatId, chatLength: script.chat.length };
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                }
-                return { opened: false, wanted, chatId: window.SillyTavern?.getContext?.()?.chatId ?? null };
-            }, savedChatId);
-            report.browser.reload = { saved, savedChatId, beforeReload: { chatLength: beforeReload.chatLength, chatId: beforeReload.chatId }, reopened };
-            step('chat-saved-and-reloaded', saved.ok === true && reopened.opened === true, report.browser.reload);
-            report.browser.reloadChatId = savedChatId;
-            // THE RESET IS THE MEASURED RECOVERY for this page state: the same reset makes the control segments
-            // generate again. After it, reselect the armed preset through the control, reconnect the peer and restore
-            // the world selection through the product's own path; only then inject and send.
-            report.browser.reloadReset = await resetPageAndReopen(savedChatId);
-            report.browser.reloadPreset = await selectPresetThroughControl(page, presetName);
-            report.browser.reloadReconnected = await connect();
-            report.browser.reloadWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            await waitChatLoaded();
+            const reloadReopen = await reopenJourneyChat(page, savedChatId, { minLength: beforeReload.chatLength, expectText: CARD.regexReplace });
+            report.browser.reloadReopen = reloadReopen;
+            step('reload-chat-reopened', reloadReopen.satisfied === true, reloadReopen);
+            const reloadUserName = await setJourneyUserName(page, 'Probe User');
+            const reloadReconnected = await connect();
             await waitForQuiet(page);
             const reloadedState = await readPageState(page);
-            step('reload-preserved-history', reloadedState.chatLength >= beforeReload.chatLength, { before: beforeReload.chatLength, after: reloadedState.chatLength });
-            const reloadPersistedNow = await readSettings(dataRoot);
-            report.browser.reloadWorldPersisted = reloadPersistedNow;
-            step('reload-world-info-persisted-from-disk', Array.isArray(reloadPersistedNow.globalSelect) && reloadPersistedNow.globalSelect.includes(JOURNEY_WORLD), reloadPersistedNow.globalSelect ?? null);
+            report.browser.reload = { saved, savedChatId, beforeReload: { chatLength: beforeReload.chatLength, chatId: beforeReload.chatId }, reopened: reloadReopen, reloadPreset, reloadWorld, reloadPersisted: reloadPersisted.globalSelect ?? null, reloadUserName, reloadedState };
+            step('chat-saved-and-reloaded', saved.ok === true && reloadReopen.opened === true, { saved, reopened: reloadReopen });
+            step('reload-preserved-history', reloadReopen.satisfied === true && reloadReopen.chatLength >= beforeReload.chatLength, { before: beforeReload.chatLength, after: reloadReopen.chatLength, lastIsUser: reloadReopen.lastIsUser, regexWordPresent: reloadReopen.regexWordPresent });
+            step('reload-world-info-persisted-from-disk', Array.isArray(reloadPersisted.globalSelect) && reloadPersisted.globalSelect.includes(JOURNEY_WORLD), reloadPersisted.globalSelect ?? null);
             report.browser.reloadPresetNow = await page.evaluate(async () => {
                 const openai = await import('./scripts/openai.js');
                 return { preset: openai.oai_settings.preset_settings_openai ?? null, source: openai.oai_settings.chat_completion_source ?? null };
             });
-            // A FRESH PAGE HAS NO INJECTED PROMPTS. An installed helper script re-runs on load and the user clicks the
-            // Quick Reply again; this is that pair, and it is what lets the post-reload request prove the VARIABLES and
-            // the QR content survived rather than only that the page loaded.
+            // A FRESH PAGE HAS NO INJECTED PROMPTS: the helper re-runs and the user re-clicks the QR. The page-side
+            // check proves the prompts are registered BEFORE the send.
             const reloadHelper = await injectVariablesThroughHelper(page);
             const reloadQR = await executeJourneyQuickReply(page);
             const reloadInjections = await verifyInjectionPrompts(page);
@@ -1027,17 +1168,99 @@ async function main() {
             step('reload-injections-active-in-page', reloadInjections.variables?.present === true && reloadInjections.variables?.hasValue === true, reloadInjections);
             report.browser.reloadHelper = { ok: reloadHelper.ok, done: reloadHelper.done };
             step('reload-helper-reran-and-reinjected-variables', reloadHelper.ok === true, reloadHelper.done ?? null);
-            let turnReload = await turn(page, 'COMB_TURN_AFTER_RELOAD', 'turn-after-reload');
-            if (turnReload.requests.length === 0) {
-                report.browser.reloadReset = await resetPageAndReopen(savedChatId);
+            // RE-ASSERT THE ACTIVE CHAT AFTER THE INJECTIONS, immediately before the turn: the helper script and the QR
+            // execute in the page and must not be trusted to have left the saved chat active.
+            const reloadReady = await reopenJourneyChat(page, savedChatId, { minLength: beforeReload.chatLength, expectText: CARD.regexReplace });
+            const reloadPersonaFinal = await setJourneyUserName(page, 'Probe User');
+            const reloadConnectedFinal = await connect();
+            await waitForQuiet(page);
+            report.browser.reloadReady = { ...reloadReady, persona: reloadPersonaFinal, reconnected: reloadConnectedFinal };
+            step('reload-ready-to-send', reloadReady.satisfied === true, reloadReady);
+            report.browser.promptManagerReload = await readPromptManagerState(page);
+            report.browser.reloadPresetFinal = await selectPresetThroughControl(page, presetName);
+            report.browser.reloadConnectedFinal2 = await connect();
+            await waitForQuiet(page);
+            report.browser.reloadPromptArmed = await waitForArmedPromptManager(page);
+            step('reload-prompt-manager-armed', report.browser.reloadPromptArmed.armed === true, report.browser.reloadPromptArmed);
+            await page.evaluate(async () => {
+                const script = await import('./script.js');
+                const events = await import('./scripts/events.js');
+                window.__combGenLog = [];
+                const record = async (event, args) => {
+                    try {
+                        const context = window.SillyTavern && window.SillyTavern.getContext ? window.SillyTavern.getContext() : null;
+                        let promptCount = null;
+                        try {
+                            const openai = await import('./scripts/openai.js');
+                            const collection = openai.promptManager?.getPromptCollection('normal');
+                            promptCount = Array.isArray(collection?.collection) ? collection.collection.length : null;
+                        } catch (error) { promptCount = 'threw'; }
+                        window.__combGenLog.push({
+                            event, type: args?.[0] ?? null, dryRun: args?.[2] ?? null,
+                            chatLength: (script.chat ?? []).length,
+                            chatId: context?.chatId ?? null,
+                            mainApi: context?.mainApi ?? null,
+                            isSendPress: script.is_send_press === true,
+                            at: Date.now(),
+                        });
+                    } catch (error) { window.__combGenLog.push({ event, error: String(error?.message ?? error) }); }
+                };
+                events.eventSource.on(events.event_types.GENERATION_STARTED, (...args) => record('GENERATION_STARTED', args));
+                events.eventSource.on(events.event_types.GENERATION_AFTER_COMMANDS, (...args) => record('GENERATION_AFTER_COMMANDS', args));
+                events.eventSource.on(events.event_types.GENERATION_ENDED, (...args) => record('GENERATION_ENDED', args));
+                events.eventSource.on(events.event_types.GENERATE_AFTER_DATA, (data, dryRun) => {
+                    try {
+                        window.__combGenLog.push({
+                            event: 'GENERATE_AFTER_DATA', dryRun,
+                            keys: Object.keys(data ?? {}),
+                            promptLength: typeof data?.prompt === 'string' ? data.prompt.length : null,
+                            promptArrayLength: Array.isArray(data?.prompt) ? data.prompt.length : null,
+                            promptRoles: Array.isArray(data?.prompt) ? data.prompt.map(entry => entry?.role ?? null).slice(0, 20) : null,
+                            messagesLength: Array.isArray(data?.messages) ? data.messages.length : null,
+                            finalMesSendLength: Array.isArray(data?.finalMesSend) ? data.finalMesSend.length : null,
+                            at: Date.now(),
+                        });
+                    } catch (error) { window.__combGenLog.push({ event: 'GENERATE_AFTER_DATA', error: String(error?.message ?? error) }); }
+                });
+                // WRAP fetch IN THE PAGE AND IN EVERY SAME-ORIGIN IFRAME, recording the caller stack and body size for
+                // requests to the recording peer. Restore nothing: the page is a throwaway test page.
+                window.__combFetchLog = [];
+                const wrap = target => {
+                    if (!target || !target.fetch || target.__combFetchWrapped) return;
+                    target.__combFetchWrapped = true;
+                    const original = target.fetch.bind(target);
+                    target.fetch = function (input, init) {
+                        try {
+                            const url = typeof input === 'string' ? input : (input && input.url) || '';
+                            if (String(url).includes('127.0.0.1') && /\/v1\/|chat\/completions/.test(String(url))) {
+                                const body = init && init.body ? String(init.body) : '';
+                                target.parent.__combFetchLog?.push?.({ url: String(url).slice(0, 200), bodyLength: body.length, bodyHead: body.slice(0, 160), stack: String(new Error().stack ?? '').slice(0, 1200), at: Date.now() });
+                            }
+                        } catch (error) { /* recorder must never break the page */ }
+                        return original(input, init);
+                    };
+                };
+                wrap(window);
+                for (const frame of document.querySelectorAll('iframe')) {
+                    try { wrap(frame.contentWindow); } catch (error) { /* cross-origin frame */ }
+                }
+            });
+            let turnReload = null;
+            if (reloadReopen.satisfied !== true) {
+                // NAMED RED, NO MALFORMED TURN: the preconditions a user needs are not met, so nothing is sent.
+                report.browser.reloadTurn = { skipped: true, reason: 'reload-chat-not-reopened', precondition: reloadReopen.precondition, reopen: reloadReopen };
+            } else {
                 turnReload = await turn(page, 'COMB_TURN_AFTER_RELOAD', 'turn-after-reload');
+                report.browser.reloadTurn = { matched: turnReload.requests.length, noGenerationRequest: turnReload.noGenerationRequest === true, seen: turnReload.seen ?? null, recovered: turnReload.recovered ?? null, baseline: turnReload.baseline ?? null, sent: turnReload.sent ?? null, after: turnReload.after ?? null };
+                report.browser.reloadGenLog = await page.evaluate(() => window.__combGenLog ?? null);
+                report.browser.reloadFetchLog = await page.evaluate(() => window.__combFetchLog ?? null);
             }
-            report.browser.reloadTurn = { matched: turnReload.requests.length, noGenerationRequest: turnReload.noGenerationRequest === true, seen: turnReload.seen ?? null, recovered: turnReload.recovered ?? null };
-            step('after-reload-turn-captured', turnReload.requests.length >= 1, report.browser.reloadTurn);
-            const captureReload = classifyCapture(turnReload.requests[0]);
-            step('after-reload-request-carries-surviving-state', turnReload.requests.length >= 1 && captureReload?.layout?.slotsPresent === 3 && captureReload?.regexRewritten === true, { layout: captureReload?.layout, regexRewritten: captureReload?.regexRewritten });
-            step('after-reload-request-carries-preset-and-regex', (captureReload?.presetMarkers ?? []).filter(entry => entry.present).length >= 2 && captureReload?.regexRewritten === true, { preset: captureReload?.presetMarkers, regexRewritten: captureReload?.regexRewritten });
-            step('after-reload-request-carries-variables-and-qr', captureReload?.variables?.chat === true && captureReload?.qr === true, { variables: captureReload?.variables, qr: captureReload?.qr, quickReply: reloadQR.status });
+            const reloadTurnCaptured = turnReload !== null && turnReload.requests.length >= 1;
+            step('after-reload-turn-captured', reloadTurnCaptured, report.browser.reloadTurn);
+            const captureReload = classifyCapture(turnReload?.requests?.[0]);
+            step('after-reload-request-carries-surviving-state', reloadTurnCaptured && captureReload?.layout?.slotsPresent === 3 && captureReload?.regexRewritten === true, { layout: captureReload?.layout, regexRewritten: captureReload?.regexRewritten });
+            step('after-reload-request-carries-preset-and-regex', reloadTurnCaptured && (captureReload?.presetMarkers ?? []).filter(entry => entry.present).length >= 2 && captureReload?.regexRewritten === true, { preset: captureReload?.presetMarkers, regexRewritten: captureReload?.regexRewritten });
+            step('after-reload-request-carries-variables-and-qr', reloadTurnCaptured && captureReload?.variables?.chat === true && captureReload?.qr === true, { variables: captureReload?.variables, qr: captureReload?.qr, quickReply: reloadQR.status });
 
             // group turn
             await waitForQuiet(page);
@@ -1124,21 +1347,15 @@ async function main() {
             report.browser.handbackWorldSelection = handbackWorld;
             step('handback-world-info-selected', handbackWorld.ok === true, handbackWorld);
             report.browser.handbackPreset = await selectPresetThroughControl(page, presetName);
-            report.browser.handbackReconnected = await connect();
-            await waitForQuiet(page);
-            const reopened = await page.evaluate(async wanted => {
-                const script = await import('./script.js');
-                await script.openCharacterChat(wanted);
-                const deadline = Date.now() + 30000;
-                while (Date.now() < deadline) {
-                    const context = window.SillyTavern?.getContext?.();
-                    if (context?.chatId === wanted && (script.chat ?? []).length > 0) return { opened: true, chatId: context.chatId, chatLength: script.chat.length };
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                }
-                return { opened: false, wanted, chatId: window.SillyTavern?.getContext?.()?.chatId ?? null };
-            }, chatId);
+            const reopened = await reopenJourneyChat(page, chatId, { minLength: 3, expectText: 'COMB_' });
             report.browser.reopened = reopened;
             step('restart-reopened-the-saved-chat', reopened.opened === true, reopened);
+            report.browser.restartPersona = await setJourneyUserName(page, 'Probe User');
+            report.browser.handbackReconnected = await connect();
+            await waitForQuiet(page);
+            step('restart-chat-ready', reopened.satisfied === true, { satisfied: reopened.satisfied, precondition: reopened.precondition, chatLength: reopened.chatLength, lastText: reopened.lastText });
+            report.browser.restartPromptArmed = await waitForArmedPromptManager(page);
+            step('restart-prompt-manager-armed', report.browser.restartPromptArmed.armed === true, report.browser.restartPromptArmed);
             // A NEW PROCESS HAS NO IN-MEMORY INJECTIONS EITHER: the installed helper re-runs and the user re-clicks
             // the QR. What must survive is the VARIABLES themselves, the preset selection, the world-info selection,
             // the author's note (chat metadata) and the banked history.
@@ -1177,19 +1394,18 @@ async function main() {
             const chatId = carrying[0] ? path.basename(carrying[0], '.jsonl') : null;
             await openCharacter(page, CARD.name);
             await waitChatLoaded();
-            const reopened = await page.evaluate(async wanted => {
-                const script = await import('./script.js');
-                await script.openCharacterChat(wanted);
-                const deadline = Date.now() + 30000;
-                while (Date.now() < deadline) {
-                    const context = window.SillyTavern?.getContext?.();
-                    if (context?.chatId === wanted && (script.chat ?? []).length > 0) return { opened: true, chatId: context.chatId, chatLength: script.chat.length };
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                }
-                return { opened: false, wanted };
-            }, chatId);
+            const handbackWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            report.browser.handbackWorldSelection = handbackWorld;
+            step('handback-world-info-selected', handbackWorld.ok === true, handbackWorld);
+            const reopened = await reopenJourneyChat(page, chatId, { minLength: 3, expectText: 'COMB_' });
             report.browser.reopened = reopened;
             step('handback-opened-the-gotavern-chat', reopened.opened === true, reopened);
+            report.browser.handbackPersona = await setJourneyUserName(page, 'Probe User');
+            report.browser.handbackReconnected = await connect();
+            await waitForQuiet(page);
+            step('handback-chat-ready', reopened.satisfied === true, { satisfied: reopened.satisfied, precondition: reopened.precondition, chatLength: reopened.chatLength, lastText: reopened.lastText });
+            report.browser.handbackPromptArmed = await waitForArmedPromptManager(page);
+            step('handback-prompt-manager-armed', report.browser.handbackPromptArmed.armed === true, report.browser.handbackPromptArmed);
             const before = await readPageState(page);
             report.browser.handbackBefore = before;
             step('handback-read-gotavern-history', before.chatLength > 5 && before.lastText.includes('COMB_'), { chatLength: before.chatLength, lastText: before.lastText.slice(0, 120) });

@@ -116,15 +116,15 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
         Boolean(firstRequest(pinnedDrive, 'control-preset-off')) && firstRequest(pinnedDrive, 'control-preset-off').sha256 !== firstRequest(pinnedDrive, 'turn-1-armed')?.sha256);
 
     // ---- reload survival ------------------------------------------------------------------------------
-    for (const name of ['chat-saved-and-reloaded', 'reload-preserved-history', 'reload-world-info-persisted-from-disk', 'after-reload-turn-captured',
+    for (const name of ['chat-saved-and-reloaded', 'reload-chat-reopened', 'reload-preserved-history', 'reload-world-info-persisted-from-disk', 'reload-ready-to-send', 'reload-prompt-manager-armed', 'after-reload-turn-captured',
         'reload-helper-reran-and-reinjected-variables', 'reload-injections-active-in-page',
         'after-reload-request-carries-surviving-state', 'after-reload-request-carries-preset-and-regex',
         'after-reload-request-carries-variables-and-qr']) observed(name);
 
     // ---- restart survival (over the SAME trees) -------------------------------------------------------
     if (goRestart && pinnedRestart) {
-        add('restart-legs-are-restart-phase', goRestart.phase === 'restart' && pinnedRestart.phase === 'restart');
-        for (const name of ['restart-found-the-journey-chat', 'restart-reopened-the-saved-chat', 'restart-world-info-selected',
+        add('restart-legs-are-restart-phase', goRestart.phase === 'restart', pinnedRestart.phase === 'restart');
+        for (const name of ['restart-found-the-journey-chat', 'restart-reopened-the-saved-chat', 'restart-chat-ready', 'restart-prompt-manager-armed', 'restart-world-info-selected',
             'after-restart-helper-reran', 'restart-injections-active-in-page',
             'after-restart-request-captured', 'after-restart-request-carries-preset-and-world-info',
             'after-restart-request-carries-history', 'after-restart-request-carries-variables-and-qr',
@@ -142,7 +142,7 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
     // ---- hand-back: pinned Node over the GoTavern-written tree ------------------------------------------
     if (handback) {
         add('handback-world-info-selected', stepOk(handback, 'handback-world-info-selected'), stepOk(handback, 'handback-world-info-selected'));
-        add('handback-pinned-read-the-gotavern-chat', stepOk(handback, 'handback-tree-has-the-journey-chat') && stepOk(handback, 'handback-opened-the-gotavern-chat'),
+        add('handback-pinned-read-the-gotavern-chat', stepOk(handback, 'handback-tree-has-the-journey-chat') && stepOk(handback, 'handback-opened-the-gotavern-chat') && stepOk(handback, 'handback-chat-ready') && stepOk(handback, 'handback-prompt-manager-armed'),
             stepOk(handback, 'handback-tree-has-the-journey-chat') && stepOk(handback, 'handback-opened-the-gotavern-chat'));
         add('handback-pinned-continued-and-persisted', stepOk(handback, 'handback-continued-and-reached-provider') && stepOk(handback, 'handback-persisted-its-turn'),
             stepOk(handback, 'handback-continued-and-reached-provider') && stepOk(handback, 'handback-persisted-its-turn'));
