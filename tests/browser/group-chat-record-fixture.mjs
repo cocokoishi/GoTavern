@@ -44,6 +44,28 @@ function readLeg(filePath, label) {
     }
 }
 
+// THE CHECKOUT'S IDENTITY IS NOT PINNED BEHAVIOUR. `/version` answers with the *checkout's* derived
+// fields: `gitRevision` is the short hash as this clone abbreviates it (`06bde939f` here, `06bde93` on
+// a CI clone that fetched the commit by SHA) and `gitBranch` is whatever ref was checked out (`release`
+// on the oracle mirror, `HEAD` on a detached CI fetch). Neither is a property of SillyTavern 1.19.0 at
+// 06bde939fb1e9c4c8d8641d810f0a916b5bce127, and comparing them made the committed fixture fail its own
+// freshness check on the first Linux CI run (run 41270986544: `gitRevision: "06bde939f" != "06bde93"`,
+// `gitBranch: "release" != "HEAD"`). They are removed here, by name, instead of being tolerated by a
+// looser comparison: `agent` (build identity), `pkgVersion`, `commitDate` and `isLatest` stay in the
+// record and are still compared byte-for-byte.
+function normaliseServerVersion(raw) {
+    if (typeof raw !== 'string' || raw.trim() === '') return raw ?? null;
+    let parsed;
+    try {
+        parsed = JSON.parse(raw);
+    } catch {
+        return raw; // unparseable: the raw value is the observation, and a difference must stay visible
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return raw;
+    const { gitRevision, gitBranch, ...pinned } = parsed;
+    return JSON.stringify(pinned);
+}
+
 function normalise(leg) {
     // `setup.rosterAttempts` is a HARNESS diagnostic (how many times the bounded roster re-ask was
     // needed on this host) and is not evidence about pinned behaviour; a run that needed one retry
@@ -56,7 +78,7 @@ function normalise(leg) {
         phase: leg.phase,
         prngSeed: leg.prngSeed ?? null,
         seedDigest: leg.seedDigest ?? null,
-        serverVersion: leg.serverVersion ?? null,
+        serverVersion: normaliseServerVersion(leg.serverVersion ?? null),
         tokenizerRoot: leg.tokenizerRoot ?? null,
         setup,
         cases: (leg.cases ?? []).map(entry => ({
@@ -114,8 +136,44 @@ function describeDifference(left, right, prefix = '') {
 }
 
 try {
+    // --selftest proves the checkout-identity normalisation is both effective and narrow, with no
+    // browser and no pinned boot: two `/version` bodies that differ only in the clone-derived fields
+    // must compare equal, while a different pinned build identity must still compare different.
+    if (process.argv.includes('--selftest')) {
+        const base = { agent: 'SillyTavern:1.19.0:Cohee#1207', pkgVersion: '1.19.0', gitRevision: '06bde939f', gitBranch: 'release', commitDate: '2026-09-14 21:01:34 +0200', isLatest: true };
+        const onCi = { ...base, gitRevision: '06bde93', gitBranch: 'HEAD' };
+        const differentBuild = { ...base, agent: 'SillyTavern:1.19.1:Cohee#1207' };
+        const failures = [];
+        if (normaliseServerVersion(JSON.stringify(base)) !== normaliseServerVersion(JSON.stringify(onCi))) {
+            failures.push('clone-derived gitRevision/gitBranch change the normalised /version');
+        }
+        if (normaliseServerVersion(JSON.stringify(base)) === normaliseServerVersion(JSON.stringify(differentBuild))) {
+            failures.push('a DIFFERENT pinned build identity normalises equal');
+        }
+        if (normaliseServerVersion('not json') !== 'not json') {
+            failures.push('an unparseable /version body was rewritten instead of preserved');
+        }
+        const verdict = failures.length === 0 ? 'normalisation-proven' : 'normalisation-broken';
+        console.log(JSON.stringify({ schemaVersion: 1, verdict, failures }, null, 2));
+        process.exit(failures.length === 0 ? 0 : 1);
+    }
     const fullPath = argumentValue('--full');
     const restartPath = argumentValue('--restart');
+    // --migrate rewrites an existing fixture's serverVersion fields through the SAME normaliser. It is
+    // for a comparison-scope change, never for a behaviour change: the pinned observation itself is not
+    // re-recorded here, and a fixture whose other fields differ from a fresh recording still fails.
+    const migratePath = argumentValue('--migrate');
+    if (migratePath) {
+        const fixture = JSON.parse(readFileSync(path.resolve(migratePath), 'utf8'));
+        for (const leg of Object.values(fixture.legs ?? {})) {
+            if (leg && typeof leg === 'object' && 'serverVersion' in leg) {
+                leg.serverVersion = normaliseServerVersion(leg.serverVersion);
+            }
+        }
+        writeFileSync(path.resolve(migratePath), `${JSON.stringify(fixture, null, 2)}\n`);
+        console.log(JSON.stringify({ migrated: path.resolve(migratePath) }));
+        process.exit(0);
+    }
     if (!fullPath || !restartPath) {
         throw Object.assign(new Error('--full and --restart pinned legs are required'), { harness: true });
     }

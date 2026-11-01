@@ -170,6 +170,14 @@ jobs:
           node tests/browser/run-against-pinned.mjs group-chat-probe.mjs -- \
             --data-root "$work/pinned-tree" --phase restart --report "$work/pinned-restart.json"
 
+      # THE NORMALISATION ITSELF IS GATED, not assumed. `--selftest` proves (no browser, no pinned boot)
+      # that two `/version` bodies differing only in the CLONE-derived gitRevision/gitBranch compare equal,
+      # while a different pinned build identity still compares different and an unparseable body is not
+      # rewritten. Without this, a normaliser that silently erased the build identity would pass the
+      # freshness check below for the wrong reason.
+      - name: Prove the oracle-fixture normalisation is effective and narrow (no browser)
+        run: node tests/browser/group-chat-record-fixture.mjs --selftest
+
       # THE FIXTURE IS AN ORACLE, SO IT MUST DESCRIBE THE SAME BEHAVIOUR ON EVERY RECORDING. A stale
       # fixture is a red here, naming the first differing field, rather than a silent comparison
       # against an older observation.

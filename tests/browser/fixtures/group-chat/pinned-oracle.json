@@ -13,7 +13,7 @@
       "phase": "full",
       "prngSeed": 1592594996,
       "seedDigest": "b584010b43cf0242a0533f53c70840ff5bb0cc5aa926a3265b43028aeef52766",
-      "serverVersion": "{\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"gitRevision\":\"06bde939f\",\"gitBranch\":\"release\",\"commitDate\":\"2026-09-14 21:01:34 +0200\",\"isLatest\":true}",
+      "serverVersion": "{\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"commitDate\":\"2026-09-14 21:01:34 +0200\",\"isLatest\":true}",
       "tokenizerRoot": {
         "layout": "external",
         "source": "pinned checkout src/tokenizers",
@@ -1750,7 +1750,7 @@
       "phase": "restart",
       "prngSeed": 1592594996,
       "seedDigest": "b584010b43cf0242a0533f53c70840ff5bb0cc5aa926a3265b43028aeef52766",
-      "serverVersion": "{\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"gitRevision\":\"06bde939f\",\"gitBranch\":\"release\",\"commitDate\":\"2026-09-14 21:01:34 +0200\",\"isLatest\":true}",
+      "serverVersion": "{\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"commitDate\":\"2026-09-14 21:01:34 +0200\",\"isLatest\":true}",
       "tokenizerRoot": {
         "layout": "external",
         "source": "pinned checkout src/tokenizers",
