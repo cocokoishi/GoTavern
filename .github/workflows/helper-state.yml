@@ -116,12 +116,20 @@ jobs:
             --report .tmp-artifacts/helper-state-go-on.json --variant on --nonce "$HSE_NONCE"
 
       - name: Run pinned leg (on)
+        # BOTH THE SERVER AND THE PROBE MUST USE THE SAME DATA ROOT. run-against-pinned boots pinned with the
+        # root given to ITSELF; the probe stages the synthetic card and installs the pinned helper into the root
+        # given to the CHILD (after `--`). On Linux the two were different directories, so the pinned leg opened
+        # a default-seeded tree that had neither the card nor the extension and failed `character-opened` with
+        # "no roster card" after the Go leg was already green (runs 41283416152, 41293935148). Pass the root to
+        # run-against-pinned as well, so the server, the probe, and the restart leg all see one tree. The CHILD runs with cwd=tests/browser, so both args the child receives (--data-root and --report) must be ABSOLUTE, or the probe stages into tests/browser/.tmp-artifacts while the server serves $PWD/.tmp-artifacts (measured locally: report path printed C:/.../gotavern-beta-lead/tests/browser/.tmp-artifacts/...).
         run: |
           rm -rf .tmp-artifacts/helper-state-pinned-on
           mkdir -p .tmp-artifacts/helper-state-pinned-on
-          node tests/browser/run-against-pinned.mjs helper-state-probe.mjs -- \
-            --data-root .tmp-artifacts/helper-state-pinned-on \
-            --report .tmp-artifacts/helper-state-pinned-on.json --variant on --nonce "$HSE_NONCE"
+          node tests/browser/run-against-pinned.mjs \
+            --data-root "$PWD/.tmp-artifacts/helper-state-pinned-on" \
+            helper-state-probe.mjs -- \
+            --data-root "$PWD/.tmp-artifacts/helper-state-pinned-on" \
+            --report "$PWD/.tmp-artifacts/helper-state-pinned-on.json" --variant on --nonce "$HSE_NONCE"
 
       - name: Run GoTavern leg (restart, same tree)
         run: |
@@ -131,9 +139,11 @@ jobs:
 
       - name: Run pinned leg (restart, same tree)
         run: |
-          node tests/browser/run-against-pinned.mjs helper-state-probe.mjs -- \
-            --data-root .tmp-artifacts/helper-state-pinned-on \
-            --report .tmp-artifacts/helper-state-pinned-on-restart.json --variant on --after-restart --nonce "$HSE_NONCE"
+          node tests/browser/run-against-pinned.mjs \
+            --data-root "$PWD/.tmp-artifacts/helper-state-pinned-on" \
+            helper-state-probe.mjs -- \
+            --data-root "$PWD/.tmp-artifacts/helper-state-pinned-on" \
+            --report "$PWD/.tmp-artifacts/helper-state-pinned-on-restart.json" --variant on --after-restart --nonce "$HSE_NONCE"
 
       - name: Compare the subjects
         run: |
