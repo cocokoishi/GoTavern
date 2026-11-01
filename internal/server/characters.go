@@ -272,7 +272,7 @@ func parseCharactersMultipart(request *http.Request, dataRoot string) (character
 				}
 				return charactersRequest{}, errors.New("multipart field exceeds the pinned size limit")
 			}
-			result.body.setMember(fieldName, nodeString(string(fieldBytes)))
+			appendCharactersMultipartField(&result.body, fieldName, nodeString(string(fieldBytes)))
 			continue
 		}
 		if fieldName != "avatar" || result.stagedPath != "" {
@@ -311,4 +311,54 @@ func removeStagedCharacterUpload(path string) {
 		return
 	}
 	_ = os.Remove(path)
+}
+
+// appendCharactersMultipartField reproduces how multer accumulates TEXT fields on
+// request.body, because a repeated field is an ARRAY upstream and a string here.
+//
+// The pinned server mounts `multer(...).single('avatar')` globally
+// (src/server-main.js:269), and multer 2.1.1 calls append-field 1.0.0's
+// appendField for every `field` event (node_modules/multer/lib/make-middleware.js:150).
+// append-field's setLastValue turns the first occurrence into the value, the
+// second into [first, second], and pushes every further one
+// (node_modules/append-field/lib/set-value.js). The character route consumes that
+// shape: charaFormatData's getAlternateGreetings accepts an ARRAY and wraps a
+// string (src/endpoints/characters.js:584-588), and the pinned frontend appends
+// one `alternate_greetings` part per greeting (public/script.js:9786 for create,
+// :9879 for edit).
+//
+// MEASURED, NOT DERIVED: the Node->Go->Node gate sent two alternate greetings
+// through /api/characters/edit and the stored card kept ONE, because this parser
+// overwrote the field on each part. A user editing a card with alternate
+// greetings in the unmodified frontend loses all but the last one.
+//
+// The whole `req.body` is post-multipart JSON to the route, so only the plain-key
+// shapes append-field can reach from the pinned frontend are reproduced: scalar
+// first, array after. Bracketed field names (`a[b]`) would need append-field's
+// path parser, and the pinned frontend builds none (every formData.append site in
+// public/script.js uses a plain name), so they are left as literal keys rather
+// than guessing at a shape no caller sends.
+func appendCharactersMultipartField(body *orderedNodeJSON, fieldName string, value orderedNodeJSON) {
+	if fieldName == "" {
+		body.setMember(fieldName, value)
+		return
+	}
+	existing, exists := body.member(fieldName)
+	if !exists {
+		body.setMember(fieldName, value)
+		return
+	}
+	switch existing.kind {
+	case 'a':
+		existing.array = append(existing.array, value)
+		body.setMember(fieldName, existing)
+	case 'o':
+		// append-field's object branch stores the new value under the "" key
+		// (set-value.js setLastValue case 'object'). No pinned frontend field
+		// reaches this shape, but it is reproduced rather than approximated.
+		existing.setMember("", value)
+		body.setMember(fieldName, existing)
+	default:
+		body.setMember(fieldName, nodeArray(existing, value))
+	}
 }
