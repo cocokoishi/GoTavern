@@ -534,10 +534,16 @@ async function setJourneyUserName(page, name) {
         // setter (the ubuntu CI capture carried [Unnamed Persona] where pinned carried Probe User, +7 bytes on
         // every capture), while Windows happened to run it first. Setting the map entry too is what a user does
         // when they name their persona, and it makes the value survive the re-assert on both hosts.
-        const personaAvatar = script.user_avatar ?? null;
+        // user_avatar lives in scripts/personas.js, NOT in script.js: reading it from script.js gave undefined and
+        // the prior version of this fix therefore did nothing (measured in ubuntu run 41363205426: every capture was
+        // STILL 7 bytes longer, [Unnamed Persona] vs Probe User).
+        const personasModule = await import('./scripts/personas.js');
+        const personaAvatar = personasModule.user_avatar ?? '';
         if (personaAvatar) {
             powerUser.power_user.personas = powerUser.power_user.personas ?? {};
             powerUser.power_user.personas[personaAvatar] = wanted;
+            powerUser.power_user.persona_descriptions = powerUser.power_user.persona_descriptions ?? {};
+            powerUser.power_user.persona_descriptions[personaAvatar] = powerUser.power_user.persona_descriptions[personaAvatar] ?? { description: '', position: 0, depth: 4, role: 0, lorebook: '' };
         }
         // The history prefix a user message carries is governed by this setting. Both subjects must agree on it or the
         // request bodies differ by "Name: " on every history turn (measured: Go "Probe User: COMB_TURN_1" vs pinned
@@ -797,7 +803,7 @@ async function main() {
         browser = await chromium.launch({ headless: true });
         let page = await browser.newPage();
         report.pageErrors = [];
-        page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
+        page.on('pageerror', error => report.pageErrors.push(String(error?.stack ?? error?.message ?? error).slice(0, 900)));
         await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
         await openPage(page, baseURL);
         const peerURL = `http://127.0.0.1:${peer.port}/v1`;
@@ -1029,6 +1035,21 @@ async function main() {
             step('turn-2-history-carries-turn-1', String(turn2.requests[0]?.body ?? '').includes('COMB_TURN_1'), { bodyLength: turn2.requests[0]?.byteLength ?? null, found: String(turn2.requests[0]?.body ?? '').includes('COMB_TURN_1') });
 
             // ---- STEP 5: swipe / regenerate / continue / branch --------------------------------------
+            // A PAGE ERROR ON BOTH SUBJECTS IS STILL A HARNESS PRECONDITION: ubuntu run 41363205426 recorded
+            // "Cannot read properties of undefined (reading 'swipe_id')" on BOTH subjects, which means the swipe was
+            // pressed while the last message had no swipe state yet. Wait for the state a swipeable message has.
+            const swipeReady = await waitForCondition(page, async () => {
+                const script = await import('./script.js');
+                const chat = script.chat ?? [];
+                const last = chat[chat.length - 1] ?? null;
+                return {
+                    ok: chat.length > 0 && last?.is_user === false && last?.swipe_id !== undefined && script.is_send_press !== true,
+                    chatLength: chat.length,
+                    lastIsUser: last?.is_user ?? null,
+                    swipeId: last?.swipe_id ?? null,
+                };
+            }, { label: 'swipe-ready', timeoutMs: 30000 });
+            step('swipe-ready', swipeReady.ok === true, swipeReady.value ?? swipeReady);
             const swipeBefore = await readPageState(page);
             const swipe = await page.evaluate(async () => {
                 const script = await import('./script.js');
@@ -1185,7 +1206,7 @@ async function main() {
             // the cause of a swallowed assembly.
             await page.close().catch(() => null);
             page = await browser.newPage();
-            page.on('pageerror', error => report.pageErrors.push(String(error?.message ?? error).slice(0, 300)));
+            page.on('pageerror', error => report.pageErrors.push(String(error?.stack ?? error?.message ?? error).slice(0, 900)));
             await page.route('**://testingcf.jsdelivr.net/**', route => route.abort());
             report.browser.reloadNewTab = true;
             await openPage(page, baseURL);
