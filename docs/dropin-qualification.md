@@ -471,3 +471,31 @@ Cost: the job was 15 minutes and is now 25 (measured: ~2.4x wall time, ~60 s rec
 setup; a cold cache is absorbed by the bound). Limits: the archive is the packaged candidate build, not a
 published release; the pinned tree is the oracle checkout at the pinned commit; and the stock tree's INPUT is
 still a derivation (see docs/gap-sweep.md), which this section does not change.
+
+## The Node-originated tree scenario (5/5)
+
+The four scenarios above boot the packaged archive over a tree DERIVED from the vendored pinned baseline. That was
+the gap the packaging row carried: a user's tree is not a derivation, it is what the pinned server itself writes.
+Scenario 5/5 closes the boot half of it. The job runs `tools/build-node-stock-tree.mjs` (the pinned server creates a
+second account, non-default settings with unknown keys, three characters with real PNG avatars, two chats with
+swipes and chat variables, a group and group chat, a ten-entry world book, a forty-prompt preset, Quick Replies, a
+theme, a persona avatar, a background and thumbnails through 23 of its own API calls; only three items are labelled
+seeds because the pinned API cannot express them), then runs the SAME `scripts/qualify-dropin.sh` over that tree via
+`--tree`: the archive is laid over it, the server must become ready within the hard 30 s bound, the EXTENSION and
+DATA mutation checks run, it must stop gracefully and become ready again on restart. Run `41335424614` (main
+`6bc91a5`) is green on all five scenarios.
+
+Two things are stated rather than implied:
+
+- **The anonymous API smoke is SKIPPED for this scenario, by name.** The tree carries two accounts, so
+  `enableUserAccounts: true`; /version answers **403** until a login, identically on pinned and GoTavern (measured).
+  The script therefore accepts "the port answered with a numeric status below 500" as readiness (a `curl -f` poll
+  called a correctly booted, parity-matching server "not ready" in run `41331924291`) and the scenario passes
+  `--skip-api-smoke`, which PRINTS the reason instead of pretending the smoke ran. The account-enabled API surface
+  has its own differential (`accounts-multi-user`).
+- **A candidate product finding is recorded, not swallowed.** During the attempt to run the smoke on that tree, a
+  default-user login answered 200 and the next `POST /api/settings/get` answered **500** in CI (run
+  `41334132591`), with a clean server log. The same request could not be reproduced locally with the current binary
+  (login answered 400 instead), so it is not classified as a product bug yet; it is listed here as a candidate that
+  must be reproduced against a known account-enabled tree before it is either fixed or closed. Do not read the
+  green scenario 5/5 as covering that path.
