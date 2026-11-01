@@ -23,10 +23,12 @@ type charactersImportScenarioFixture struct {
 		Filename string `json:"filename"`
 		BytesHex string `json:"bytesHex"`
 	} `json:"file"`
-	JSON                *string                  `json:"json"`
-	NormalizeCreateDate bool                     `json:"normalizeCreateDate"`
-	Response            characterResponseFixture `json:"response"`
-	Characters          []characterTreeEntry     `json:"characters"`
+	JSON                *string                   `json:"json"`
+	NormalizeCreateDate bool                      `json:"normalizeCreateDate"`
+	OmitDigestFor       []string                  `json:"omitDigestFor"`
+	UserTree            []charactersUserTreeEntry `json:"userTree"`
+	Response            characterResponseFixture  `json:"response"`
+	Characters          []characterTreeEntry      `json:"characters"`
 }
 
 type charactersImportFixture struct {
@@ -96,7 +98,8 @@ func TestPinnedNodeCharactersImport(t *testing.T) {
 				env.Handler.ServeHTTP(response, request)
 			}
 			assertCharacterResponse(t, name, response, scenario.Response)
-			assertImportCharactersTree(t, name, env.Directories["characters"], scenario.NormalizeCreateDate, scenario.Characters)
+			assertImportCharactersTree(t, name, env.Directories["characters"], scenario.NormalizeCreateDate, scenario.Characters, scenario.OmitDigestFor)
+			assertImportUserTree(t, name, env, scenario.OmitDigestFor, scenario.UserTree)
 		})
 	}
 }
@@ -129,7 +132,7 @@ func buildCharactersMultipart(t *testing.T, scenario charactersImportScenarioFix
 	return buffer.Bytes(), writer.FormDataContentType()
 }
 
-func assertImportCharactersTree(t *testing.T, label, root string, normalizeCreateDate bool, want []characterTreeEntry) {
+func assertImportCharactersTree(t *testing.T, label, root string, normalizeCreateDate bool, want []characterTreeEntry, omitDigestFor []string) {
 	t.Helper()
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -172,7 +175,13 @@ func assertImportCharactersTree(t *testing.T, label, root string, normalizeCreat
 		if !matchesNullableInt(character.Width, width) || !matchesNullableInt(character.Height, height) {
 			t.Fatalf("%s %s image = %vx%v; pinned Node has %vx%v", label, character.Name, width, height, character.Width, character.Height)
 		}
-		if !matchesNullableString(character.Digest, digest) {
+		omitDigest := false
+		for _, name := range omitDigestFor {
+			if name == character.Name {
+				omitDigest = true
+			}
+		}
+		if !omitDigest && !matchesNullableString(character.Digest, digest) {
 			t.Fatalf("%s %s pixel digest = %s; pinned Node has %v", label, character.Name, digest, character.Digest)
 		}
 	}

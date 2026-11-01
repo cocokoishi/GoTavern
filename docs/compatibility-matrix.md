@@ -45,7 +45,7 @@ A row is `PASS` only when every one of these holds:
 | 2 | Basic auth, per-user auth, sessions, CSRF and cookies | **PARTIAL** | 6 oracle fixture(s), Go implementation, 4 named test(s), CI job(s) | 2 item(s) |
 | 3 | Settings aggregation, save, snapshots and backups-of-settings | **PARTIAL** | 5 oracle fixture(s), Go implementation, 4 named test(s), CI job(s) | 2 item(s) |
 | 4 | Secrets: read, write, active source, per-provider slots | **PARTIAL** | 3 oracle fixture(s), Go implementation, 3 named test(s), CI job(s) | 2 item(s) |
-| 5 | Characters: read, write, import, avatar replacement, disk cache | **PARTIAL** | 4 oracle fixture(s), upstream assets, Go implementation, 5 named test(s), CI job(s) | 4 item(s) |
+| 5 | Characters: read, write, import, avatar replacement, disk cache | **PARTIAL** | 4 oracle fixture(s), upstream assets, Go implementation, 5 named test(s), 1 browser artefact(s), CI job(s) | 4 item(s) |
 | 6 | Chats: save, get, search, recent, import, mutations | **PARTIAL** | 4 oracle fixture(s), Go implementation, 4 named test(s), CI job(s) | 2 item(s) |
 | 7 | Groups and group chats, including the metadata migration | **PARTIAL** | 3 oracle fixture(s), Go implementation, 8 named test(s), 1 browser artefact(s), CI job(s) | 3 item(s) |
 | 8 | World info: books, entries, activation, positions | **PASS** | 1 oracle fixture(s), Go implementation, 7 named test(s), 2 browser artefact(s), CI job(s) | _none_ |
@@ -151,18 +151,18 @@ Row id: `characters`
 - Upstream assets: `upstream/default`
 - Go implementation: `internal/server`
 - Named tests: `TestPinnedNodeCharactersRead`, `TestPinnedNodeCharactersWrite`, `TestPinnedNodeCharactersImport`, `TestVerifyCharacterDiskCacheMatchesPinnedNode`, `tools/qualify-node-stock-tree.mjs`
-- Browser artefacts: _none_
+- Browser artefacts: `tests/browser/character-create-probe.mjs`
 - CI jobs: `ci.yml#oracle`, `node-stock-tree.yml#node-stock-tree`
 - Release artifact: _none_
 
 **Evidence gap**
 
-- CharX, BYAF and RisuAI import shapes are not implemented and answer the pinned { error: true }; recorded as a gap in docs/compat-matrix.md, not as parity
-- uploaded-image crop/resize is not Jimp-identical (ARCHITECTURE.md boundary 3), so a cropped avatar is source-implemented but unprobed
-- no browser E2E: creating a character in the pinned frontend and reading it back through GoTavern is not gated
+- CharX, BYAF and the RisuAI sprite path are now implemented and compared against the pinned import: the oracle records the response bytes and the whole stored user tree (cards, sprite/background/alt-icon files, BYAF chats, user/images entries) for synthetic inputs, including malformed, truncated, wrong-bytes and oversized archives (34 subtests). The remaining format boundary is AVIF/APNG avatar re-encoding (pure-Go decoder gap, ARCHITECTURE.md boundary 3); Jimp-exact pixels are not claimed and the want_resize crop digest is deliberately recorded as null with the sampled-geometry observable instead.
+- uploaded-image crop/resize is now probed: the 512x768 want_resize branch is proven by sampled cover-vs-stretch colours, the 4x4 no-resize branch is compared exactly, and a malformed crop query is recorded
+- browser create/read-back: tests/browser/character-create-probe.mjs drives the unmodified New Character panel, reads the STORED PNG card back through /api/characters/export (which re-decodes the file) and has a tamper teeth mode (mutated description in both chara/ccv3 carriers read by a second process -> RED). It ran locally (Layer A) but is NOT yet wired into a CI workflow; data-domain-drive.mjs already records a create+read-back interaction on both subjects in its committed comparison artefact.
 - the card edit round trip NOW EXISTS (node-stock-tree.yml#node-stock-tree): a Node-originated card with alternate greetings, scoped regex and unknown extensions is read by GoTavern, edited, read back by GoTavern with every multi-value field intact, and read again by pinned Node; the same gate FOUND AND FIXED a repeated-multipart-field defect that dropped all but the last alternate greeting (bbed7c4)
 
-Strongest per-route coverage in the tree after static, with response text recorded byte-for-byte. CLOSED 2026-10-31 -- MULTI-VALUE CARD EDIT DEFECT, found by the new gate: GoTavern's multipart parser overwrote repeated text fields instead of accumulating them the way multer does, so /api/characters/edit kept only the last alternate greeting (pinned frontend sends one part per greeting). Fixed in bbed7c4 with a shape-discriminating unit test and node-stock-tree.yml#node-stock-tree asserts the round trip.
+Strongest per-route coverage in the tree after static, with response text recorded byte-for-byte. CLOSED 2026-10-31 -- MULTI-VALUE CARD EDIT DEFECT, found by the new gate: GoTavern's multipart parser overwrote repeated text fields instead of accumulating them the way multer does, so /api/characters/edit kept only the last alternate greeting (pinned frontend sends one part per greeting). Fixed in bbed7c4 with a shape-discriminating unit test and node-stock-tree.yml#node-stock-tree asserts the round trip. 2026-11-01 (G2 imports): CharX, BYAF and RisuAI are no longer the pinned { error: true } shape — all three are implemented in characters_import_formats.go and replayed against the refreshed pinned import oracle, together with uploaded-avatar crop geometry, at 34 green subtests.
 
 ### Chats: save, get, search, recent, import, mutations — `PARTIAL`
 

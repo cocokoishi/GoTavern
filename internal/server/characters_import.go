@@ -55,6 +55,10 @@ func (runtime *accountRuntime) serveCharactersImport(w http.ResponseWriter, requ
 		fileName, importFailed = runtime.importFromJson(parsed.stagedPath, preservedFileName, directories, account)
 	case "png":
 		fileName, importFailed = runtime.importFromPng(parsed.stagedPath, preservedFileName, directories, account)
+	case "charx":
+		fileName, importFailed = runtime.importFromCharX(parsed.stagedPath, preservedFileName, directories, account)
+	case "byaf":
+		fileName, importFailed = runtime.importFromByaf(parsed.stagedPath, preservedFileName, directories, account, nodeGet(body, "user_name"))
 	default:
 		// Unsupported or unimplemented formats take the pinned catch branch.
 		importFailed = true
@@ -148,6 +152,7 @@ func (runtime *accountRuntime) importFromJson(uploadPath, preservedFileName stri
 	}
 
 	if _, exists := jsonData.member("spec"); exists {
+		runtime.importRisuSprites(account, directories, &jsonData)
 		unsetPrivateFields(&jsonData)
 		if nameValue, hasName := jsonData.member("data"); hasName {
 			if cardName, ok := nameValue.member("name"); ok {
@@ -322,6 +327,7 @@ func (runtime *accountRuntime) importFromPng(uploadPath, preservedFileName strin
 	}
 
 	if _, exists := jsonData.member("spec"); exists {
+		runtime.importRisuSprites(account, directories, &jsonData)
 		unsetPrivateFields(&jsonData)
 		jsonData = readFromV2(jsonData)
 		nodeSet(&jsonData, []string{"create_date"}, nodeString(time.Now().UTC().Format("2006-01-02T15:04:05.000Z")))

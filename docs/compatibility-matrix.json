@@ -220,7 +220,9 @@
           "TestVerifyCharacterDiskCacheMatchesPinnedNode",
           "tools/qualify-node-stock-tree.mjs"
         ],
-        "browserArtifacts": [],
+        "browserArtifacts": [
+          "tests/browser/character-create-probe.mjs"
+        ],
         "ci": [
           "ci.yml#oracle",
           "node-stock-tree.yml#node-stock-tree"
@@ -232,13 +234,13 @@
         "explanation": "the row's claims about characters: read, write, import, avatar replacement, disk cache rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
       },
       "evidenceGap": [
-        "CharX, BYAF and RisuAI import shapes are not implemented and answer the pinned { error: true }; recorded as a gap in docs/compat-matrix.md, not as parity",
-        "uploaded-image crop/resize is not Jimp-identical (ARCHITECTURE.md boundary 3), so a cropped avatar is source-implemented but unprobed",
-        "no browser E2E: creating a character in the pinned frontend and reading it back through GoTavern is not gated",
+        "CharX, BYAF and the RisuAI sprite path are now implemented and compared against the pinned import: the oracle records the response bytes and the whole stored user tree (cards, sprite/background/alt-icon files, BYAF chats, user/images entries) for synthetic inputs, including malformed, truncated, wrong-bytes and oversized archives (34 subtests). The remaining format boundary is AVIF/APNG avatar re-encoding (pure-Go decoder gap, ARCHITECTURE.md boundary 3); Jimp-exact pixels are not claimed and the want_resize crop digest is deliberately recorded as null with the sampled-geometry observable instead.",
+        "uploaded-image crop/resize is now probed: the 512x768 want_resize branch is proven by sampled cover-vs-stretch colours, the 4x4 no-resize branch is compared exactly, and a malformed crop query is recorded",
+        "browser create/read-back: tests/browser/character-create-probe.mjs drives the unmodified New Character panel, reads the STORED PNG card back through /api/characters/export (which re-decodes the file) and has a tamper teeth mode (mutated description in both chara/ccv3 carriers read by a second process -> RED). It ran locally (Layer A) but is NOT yet wired into a CI workflow; data-domain-drive.mjs already records a create+read-back interaction on both subjects in its committed comparison artefact.",
         "the card edit round trip NOW EXISTS (node-stock-tree.yml#node-stock-tree): a Node-originated card with alternate greetings, scoped regex and unknown extensions is read by GoTavern, edited, read back by GoTavern with every multi-value field intact, and read again by pinned Node; the same gate FOUND AND FIXED a repeated-multipart-field defect that dropped all but the last alternate greeting (bbed7c4)"
       ],
       "blockedBy": [],
-      "notes": "Strongest per-route coverage in the tree after static, with response text recorded byte-for-byte. CLOSED 2026-10-31 -- MULTI-VALUE CARD EDIT DEFECT, found by the new gate: GoTavern's multipart parser overwrote repeated text fields instead of accumulating them the way multer does, so /api/characters/edit kept only the last alternate greeting (pinned frontend sends one part per greeting). Fixed in bbed7c4 with a shape-discriminating unit test and node-stock-tree.yml#node-stock-tree asserts the round trip."
+      "notes": "Strongest per-route coverage in the tree after static, with response text recorded byte-for-byte. CLOSED 2026-10-31 -- MULTI-VALUE CARD EDIT DEFECT, found by the new gate: GoTavern's multipart parser overwrote repeated text fields instead of accumulating them the way multer does, so /api/characters/edit kept only the last alternate greeting (pinned frontend sends one part per greeting). Fixed in bbed7c4 with a shape-discriminating unit test and node-stock-tree.yml#node-stock-tree asserts the round trip. 2026-11-01 (G2 imports): CharX, BYAF and RisuAI are no longer the pinned { error: true } shape — all three are implemented in characters_import_formats.go and replayed against the refreshed pinned import oracle, together with uploaded-avatar crop geometry, at 34 green subtests."
     },
     {
       "id": "chats",
