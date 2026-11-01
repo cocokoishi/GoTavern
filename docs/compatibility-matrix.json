@@ -275,7 +275,7 @@
         "explanation": "the row's claims about chats: save, get, search, recent, import, mutations rest on this test; deleting or weakening it makes the row unsupported, and the checker fails a row whose named test does not exist"
       },
       "evidenceGap": [
-        "JSONL append/rewrite atomicity is asserted per route but not under a crash-or-kill boundary",
+        "JSONL append/rewrite atomicity is asserted per route, and the crash-or-kill boundary is now gated on BOTH hosts: the Linux GoTavern CI job `crash-gate` (run 41321305750, job success) builds the gotavern_faults seam and runs every chat crash test with -count=1, alongside the Windows Layer A measurements in docs/data-safety.md section 7.3",
         "the cross-runtime chat round trip NOW EXISTS (node-stock-tree.yml#node-stock-tree): a Node-originated JSONL chat is read by GoTavern, appended to and SWIPED by GoTavern, survives a GoTavern restart, is read and CONTINUED by pinned Node, and is read again by GoTavern; each phase asserts every .jsonl line parses"
       ],
       "blockedBy": [
@@ -1110,9 +1110,9 @@
     {
       "rank": 3,
       "row": "chats",
-      "title": "Chat writes are now crash-atomic at 9 named fault points plus 115 seeded random kills (Windows Layer A), but no Linux CI job runs the -tags gotavern_faults gate, and chat backup remains unimplemented",
-      "wouldStopARealUser": "no observed corruption after the chat-rename fix; the residual is platform coverage of the crash gate plus the unimplemented backup feature",
-      "evidence": "row chats: docs/data-safety.md section 7.3 records the crash matrix; the /api/chats/rename copy-then-unlink hole (a kill left BOTH chat files) is fixed to one os.Rename under the user-content lock with the mtime refresh /api/chats/recent needs; deterministic fault points and 115 seeded random kills all left only a complete old or new state, re-asserted after restart and parsed through the API, with the pre-fix defect reproduced as a mutation; the browser save->reload leg is covered by the green whole-session-e2e. What remains: the fault-tag gate runs only in local Windows CI (Layer A), and chat backup is unimplemented (pinned throttled-backup gap)."
+      "title": "Chat writes are crash-atomic at 9 named fault points plus 115 seeded random kills, and the fault-tag suite now runs on the Linux CI gate too; chat backup remains unimplemented",
+      "wouldStopARealUser": "no observed corruption after the chat-rename fix; the remaining user-visible gap is the unimplemented chat backup feature, and the crash evidence no longer depends on one host",
+      "evidence": "row chats: docs/data-safety.md section 7.3 records the crash matrix; the /api/chats/rename copy-then-unlink hole is fixed to one os.Rename with the mtime refresh; deterministic and seeded random kills leave only a complete old or new state, re-asserted after restart and parsed through the API, with the pre-fix defect reproduced as a mutation. The boundary is now ALSO on the gate host: GoTavern CI job crash-gate (run 41321305750, job success) builds with -tags gotavern_faults and runs every chat crash test with -count=1. What remains is the unimplemented chat backup (pinned throttled-backup gap), not a crash-atomicity hole."
     },
     {
       "rank": 4,
