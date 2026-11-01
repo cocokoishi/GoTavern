@@ -49,6 +49,30 @@ const scenarios = readdirSync(scenarioDirectory)
     .map(name => ({ file: name, definition: JSON.parse(readFileSync(path.join(scenarioDirectory, name), 'utf8')) }));
 if (scenarios.length === 0) throw new Error('no provider-wire scenarios found');
 
+// NARROWED CAPTURE WITHOUT OVERWRITING THE REST OF THE SPECIFICATION.
+//
+// A full run boots each backend once per scenario, so recording a handful of NEW scenarios the same way costs the
+// whole sweep. `GOTAVERN_PROVIDER_WIRE_SCENARIOS` selects scenarios (substring/regex matched against both the file
+// name and the scenario name) and, when set, the fixture write MERGES the selected captures into the committed
+// fixture (keys sorted exactly as a full run emits them, so the zero-diff gate sees the same bytes a full re-record
+// would produce) instead of replacing it. The GoTavern comparison loop is narrowed the same way, so a narrowed run
+// still enforces Node==Go for every scenario it captured.
+//
+// It does NOT weaken the full sweep: without the variable the code path is byte-identical to before. The oracle job's
+// full re-record remains the only run whose green covers every scenario.
+const scenarioFilterText = process.env.GOTAVERN_PROVIDER_WIRE_SCENARIOS ?? '';
+const scenarioFilter = scenarioFilterText === '' ? null : new RegExp(scenarioFilterText);
+const selectedScenarios = scenarioFilter === null
+    ? scenarios
+    : scenarios.filter(({ file, definition }) => scenarioFilter.test(file) || scenarioFilter.test(definition.name));
+if (scenarioFilter !== null && selectedScenarios.length === 0) {
+    throw new Error(`GOTAVERN_PROVIDER_WIRE_SCENARIOS=${JSON.stringify(scenarioFilterText)} selected no scenario; a narrowed capture that records nothing must not report success`);
+}
+if (scenarioFilter !== null) {
+    console.log(`provider-wire narrowed capture: ${selectedScenarios.length} of ${scenarios.length} scenarios match ${JSON.stringify(scenarioFilterText)}`);
+}
+
+
 // HTTP header names are case-insensitive by spec, and the recorder keeps the WIRE spelling (`Authorization`, not
 // `authorization`). Comparing a declared lowercase name against the wire spelling failed twice in this file -- once
 // in the redaction below, where it silently left the credential UNREDACTED in a committed artefact, and once in the
@@ -976,7 +1000,7 @@ const goTavernCaptureRoot = process.env.GOTAVERN_PROVIDER_WIRE_GO_CAPTURES
 
 
 const captures = {};
-for (const { file, definition } of scenarios) {
+for (const { file, definition } of selectedScenarios) {
     captures[definition.name] = await captureScenario({
         file, definition, mockBinary, backendLabel: 'pinned Node', startBackend: startPinnedServer,
     });
@@ -999,14 +1023,24 @@ const fixture = {
 };
 const outputFile = path.join(repositoryRoot, 'tests', 'oracle', 'sillytavern-1.19.0-provider-wire.json');
 mkdirSync(path.dirname(outputFile), { recursive: true });
-writeFileSync(outputFile, JSON.stringify(fixture, null, 2) + '\n');
-console.log(`Wrote tests/oracle/sillytavern-1.19.0-provider-wire.json with ${Object.keys(captures).length} scenarios`);
+// A NARROWED RUN MERGES. A full run replaces the file exactly as before. Merged keys are emitted in the SAME sorted
+// order a full run produces, so the committed bytes a narrowed capture writes are the bytes a full re-record would
+// write for those scenarios -- the zero-diff gate is not given a reshuffled file to explain.
+let fixtureToWrite = fixture;
+if (scenarioFilter !== null) {
+    const existing = JSON.parse(readFileSync(outputFile, 'utf8'));
+    const merged = { ...(existing.scenarios ?? {}), ...captures };
+    const sortedNames = Object.keys(merged).sort();
+    fixtureToWrite = { ...existing, scenarios: Object.fromEntries(sortedNames.map(name => [name, merged[name]])) };
+}
+writeFileSync(outputFile, JSON.stringify(fixtureToWrite, null, 2) + '\n');
+console.log(`Wrote tests/oracle/sillytavern-1.19.0-provider-wire.json with ${Object.keys(fixtureToWrite.scenarios).length} scenarios (${Object.keys(captures).length} captured this run${scenarioFilter === null ? '' : ', merged'})`);
 
 // Close the differential in the same run. The pinned fixture is already on disk,
 // so a GoTavern divergence fails this job without altering the committed
 // specification.
 const goTavernCaptures = {};
-for (const { file, definition } of scenarios) {
+for (const { file, definition } of selectedScenarios) {
     goTavernCaptures[definition.name] = await captureScenario({
         file, definition, mockBinary, backendLabel: 'GoTavern',
         startBackend: (scenario, runtimeRoot, dataRoot, logs, extraEnv) => startGoTavernServer(goTavernBinary, scenario, runtimeRoot, dataRoot, logs, extraEnv),

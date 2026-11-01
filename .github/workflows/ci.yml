@@ -358,6 +358,17 @@ jobs:
         run: node tools/verify-browser-comparisons.mjs
       - name: Verify the source catalogue, its coverage and the leg-name ignore patterns
         run: node --test tests/browser/catalog.test.mjs
+      - name: Verify the preset-knob A/B differential discriminates
+        # The provider-wire probe proves Node(A)==Go(A) and Node(B)==Go(B) LIVE (oracle job). This step proves the
+        # committed pinned captures actually DIFFER for each declared knob (Node(A)!=Node(B)) and that every
+        # measured-noop knob's pair is byte-equal. A discriminating knob whose pair collides fails as HARNESS
+        # NON-DISCRIMINATING, which is the shape the differential doctrine calls out. It also refuses scenario files
+        # that drifted from the catalogue, so the pair on disk is the pair that was declared.
+        run: |
+          set -eu
+          node tools/generate-preset-knob-scenarios.mjs --check
+          node --test tests/provider-wire/preset-knobs.test.mjs
+          node tests/provider-wire/preset-knobs.test.mjs --summary
       - name: Prove the asset comparator's guards can fail (synthesised legs, no browser)
         # The three surfaces this run added to asset-comparison.json were listed as unproven for months. A guard
         # for a surface nobody could prove is worth nothing unless it is shown going RED, so every case builds two
