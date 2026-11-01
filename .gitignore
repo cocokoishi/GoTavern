@@ -46,3 +46,4 @@ oracle-rerecord.patch
 
 # scratch files created by the lead/agents during a session (never part of the product)
 .tmp-artifacts*
+.tmp-*
