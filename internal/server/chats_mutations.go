@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/cocokoishi/gotavern/internal/faultinject"
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
@@ -114,29 +115,25 @@ func (runtime *accountRuntime) serveChatsRename(w http.ResponseWriter, request *
 		return
 	}
 
-	body, err := os.ReadFile(pathToOriginalFile)
-	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, map[string]bool{"error": true})
-		return
-	}
-	relativePath, err := filepath.Rel(directories["root"], pathToRenamedFile)
-	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, map[string]bool{"error": true})
-		return
-	}
-	if err := startup.UpdateUserContentFile(runtime.options.DataRoot, account.string("handle"), relativePath, func([]byte) ([]byte, error) {
-		return body, nil
-	}); err != nil {
-		respondJSON(w, http.StatusInternalServerError, map[string]bool{"error": true})
-		return
-	}
 	originalRelative, err := filepath.Rel(directories["root"], pathToOriginalFile)
 	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]bool{"error": true})
 		return
 	}
-	if _, err := startup.DeleteUserFile(runtime.options.DataRoot, account.string("handle"), originalRelative); err != nil {
+	renamedRelative, err := filepath.Rel(directories["root"], pathToRenamedFile)
+	if err != nil {
 		respondJSON(w, http.StatusInternalServerError, map[string]bool{"error": true})
+		return
+	}
+	renamed, err := startup.RenameUserContentFile(runtime.options.DataRoot, account.string("handle"), originalRelative, renamedRelative)
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]bool{"error": true})
+		return
+	}
+	if !renamed {
+		// The source disappeared between the stat above and the rename; pinned's copyFileSync would have
+		// thrown into its catch, so this is the same 400 the stat guard produces.
+		respondJSON(w, http.StatusBadRequest, map[string]bool{"error": true})
 		return
 	}
 	response := nodeObject()
@@ -202,6 +199,9 @@ func (runtime *accountRuntime) serveChatsDelete(w http.ResponseWriter, request *
 	if err != nil {
 		serveStatusText(w, http.StatusInternalServerError)
 		return
+	}
+	if deleted {
+		faultinject.Hit("chats.delete.after-remove")
 	}
 	if !deleted {
 		serveStatusText(w, http.StatusBadRequest)

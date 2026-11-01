@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cocokoishi/gotavern/internal/faultinject"
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
@@ -93,6 +94,7 @@ func (runtime *accountRuntime) serveChatsImport(w http.ResponseWriter, request *
 				respondCharacterJSON(w, http.StatusOK, errorTrueObject())
 				return
 			}
+			faultinject.Hit("chats.import.after-write")
 		}
 		response := nodeObject()
 		response.setMember("res", nodeBool(true))
@@ -116,6 +118,7 @@ func (runtime *accountRuntime) serveChatsImport(w http.ResponseWriter, request *
 			return
 		}
 		removeStagedCharacterUpload(parsed.stagedPath)
+		faultinject.Hit("chats.import.after-write")
 		response := nodeObject()
 		response.setMember("res", nodeBool(true))
 		response.setMember("fileNames", nodeArray(nodeString(fileName)))

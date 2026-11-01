@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/cocokoishi/gotavern/internal/faultinject"
 	"github.com/cocokoishi/gotavern/internal/fsretry"
 	"github.com/cocokoishi/gotavern/internal/lockacquire"
 	"github.com/cocokoishi/gotavern/upstream"
@@ -374,16 +375,19 @@ func atomicReplace(target string, body []byte) error {
 		_ = temporary.Close()
 		return err
 	}
+	faultinject.Hit("atomicReplace.after-temp-write")
 	if err := temporary.Sync(); err != nil {
 		_ = temporary.Close()
 		return err
 	}
+	faultinject.Hit("atomicReplace.after-temp-sync")
 	if err := temporary.Close(); err != nil {
 		return err
 	}
 	if err := renameIntoPlace(tempName, target); err != nil {
 		return err
 	}
+	faultinject.Hit("atomicReplace.after-rename")
 	if directoryFile, err := os.Open(directory); err == nil {
 		_ = directoryFile.Sync()
 		_ = directoryFile.Close()
