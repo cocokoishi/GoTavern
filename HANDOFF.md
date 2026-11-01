@@ -21,7 +21,7 @@ Docker `:latest` still serve alpha.9. The channel decision remains one script, `
 | fact | value |
 |---|---|
 | GitHub Release | `430586286` (`v0.1.0-alpha.11`, prerelease=true, draft=false, published 2026-11-01T12:58:02Z) |
-| tag object -> commit | `a5a04e6` -> `81ca5ad1ca4b56736dae9815f7bad9bfdbf1c0c3` |
+| tag object -> commit | `a5a04e6` -> `81ca5ad` |
 | assets | 7 files, 366,157,334 bytes (`checksums.txt` + six canonical archives) |
 | Docker | `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11` digest `sha256:3c1e05880d381da4966c0c4de2e06a95c58150543e05573e192c219bc389522b` (run `41309725704`) |
 | published-release smoke | `41309728118` success (linux-amd64 + windows-amd64 over the PUBLIC assets and checksums) |
@@ -79,8 +79,9 @@ path, determinism volatile-count masking, provider-wire fixture key-order).
   commits `7bf90dd`, `ae11502`, `ca802e8`; the workflow is now GREEN (`41317217569` success, 8 min) and is in
   `docs/release-manifest.json`, so the next release cannot publish without it. The local pair was re-verified
   before dispatch: 23/23 + 9/9 on each subject, comparator PASS (30/30 guards), teeth 6/6.
-- Crash-atomicity evidence is Windows CI only (no Linux `-tags gotavern_faults` job); chat backup remains
-  unimplemented. The packaged drop-in gate still boots a DERIVED stock tree (the Node-originated tree is proven by
+- Crash-atomicity evidence is now gated on BOTH hosts: the Linux `GoTavern CI` job `crash-gate`
+  (`-tags gotavern_faults`, `-count=1`, every chat crash test; run `41321305750`, job success) sits beside the
+  Windows Layer A measurements. Chat backup remains unimplemented. The packaged drop-in gate still boots a DERIVED stock tree (the Node-originated tree is proven by
   its own gate but not wired into the packaged/release path). The live canary has no credentialed run. AVIF/APNG
   avatar re-encoding is a pure-Go decoder boundary; world-info long tail and preset-varying group chats remain
   unmeasured; preset/helper/imports evidence is Layer A or narrow-run; non-amd64/non-x64 runtimes are built and
