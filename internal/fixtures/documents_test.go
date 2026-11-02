@@ -575,6 +575,10 @@ var declaredOtherPins = map[string]string{
 	// commit-string gate cannot distinguish from a mistyped pin, so it is declared here with its reason rather
 	// than left in the document as an unexplained object id.
 	"2ca705561899a0893a4003641008f0a6f21a14da": "git blob id of tests/browser/q21-data-handback.mjs at the 20/20 repeated-stability campaign - docs/browser-stability.md",
+	// THE alpha.12 RELEASE COMMIT. Same duty as the release-SHA entries above: HANDOFF.md's current
+	// checkpoint must name the SHA the stable release was cut from, and the benchmark provenance record names
+	// it as the measured tree, because those numbers are only checkable against the run at this commit.
+	"a01b536315dffdb822e78fd5bbfa09a7f30b0525": "v0.1.0-alpha.12 stable release commit - HANDOFF.md current checkpoint, the SHA every required release gate ran at, and the benchmark provenance anchor (smoke metrics run 41403239135)",
 }
 
 // checkPinnedCommitStrings is the gate body, extracted so the red-path test can drive it against a
