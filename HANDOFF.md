@@ -10,7 +10,102 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-11-01: `v0.1.0-alpha.11` SHIPPED -- THE ALPHA-LINE PRERELEASE THAT TURNED THE REMAINING P1 EVIDENCE INTO MEASURED CAPABILITIES
+## Latest checkpoint - 2026-11-02: `v0.1.0-alpha.12` SHIPPED -- THE FIRST STABLE-CHANNEL RELEASE SINCE alpha.9
+
+`v0.1.0-alpha.12` is the **stable** release: GitHub publishes it with `prerelease=false`, `releases/latest`
+serves it, the bare `install.sh` / `install.ps1` install it, Docker `:latest` points at it, and
+`scripts/classify-version-tag.sh` answers `stable` for it through a two-entry equality list
+(`v0.1.0-alpha.9` historical + `v0.1.0-alpha.12`), covered by 43 named cases in
+`scripts/test-classify-version-tag.sh`. The tag keeps the historical `-alpha.12` spelling; the channel is what
+graduated.
+
+### Release identity and assets
+
+| fact | value |
+|---|---|
+| GitHub Release | `431636333` (`v0.1.0-alpha.12`, prerelease=**false**, draft=false, latest=true, published 2026-11-02T15:34:53Z) |
+| tag object -> commit | `c35c041` -> `a01b536` |
+| release workflow run | `41472591198` success -- six build jobs, four cross-platform execution jobs, `prepublish-qualification`, `publish`, `post-release-facts`; post-release facts commit `bb79fa5` |
+| assets | 7 files, 366,159,741 bytes (`checksums.txt` 564 B + six canonical archives 366,159,177 B) |
+| release body | curated note `docs/release-notes-v0.1.0-alpha.12.md` (validated by `scripts/verify-release-notes.mjs`) **plus the same-SHA required-gate table appended by the publish job** |
+| Docker | `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.12` and `:latest` both published and pulled back by `GoTavern Docker image` run `41472591486` success; push digest `sha256:d7b24f2609c3f2eb72e0e7680d206f9c46ea893a0d09c6bc780d926072144b07`; the GHCR manifests for both tags resolve to the same index manifest `sha256:d3392bc3391583b9c1b7f0440f21d76c8159771234e3e65406d98f11c0847b91` |
+| published-release install smoke | `41474161500` success (`smoke-published-linux-amd64` + `smoke-published-windows-amd64`: public assets, checksums, real TLS installers, stable/latest both directions, tokenizer routes) |
+| published-asset local check | downloaded the published `gotavern-windows-amd64.zip` (61,385,245 B) by curl, sha256 `831eeea5a4e93186d3278eb4500fcd18e929389223a9060b1ad71c038b131736` matched `checksums.txt`; archive contains `gotavern.exe`, `Start.cmd`, `src/`, `BUILD-INFO.txt`, `LICENSE`, `THIRD_PARTY_NOTICES.txt`; `gotavern version` reports `GoTavern v0.1.0-alpha.12` / SillyTavern baseline `1.19.0` @ `06bde939f`; a clean directory boot answers `GET /version` with `{"pkgVersion":"1.19.0",...}`; `gotavern migrate --dry-run` on a synthetic SillyTavern tree wrote nothing and left the source byte-identical |
+
+### Same-SHA required gates (all `workflow_dispatch`, all at `a01b536`, verified by `scripts/verify-release-gates.mjs` before publish)
+
+| gate | run |
+|---|---|
+| GoTavern CI (verify, race, crash-gate, browser-evidence, FULL oracle sweep) | `41448402199` success |
+| whole-session differential | `41403223905` success |
+| world-info slot ordering | `41403227072` success |
+| drop-in qualification | `41403229688` success |
+| Browser differential (mode=all) | `41403232535` success |
+| release qualification | `41403235694` success |
+| smoke metrics (paired benchmark + 10-minute soak) | `41403239135` success |
+| Docker image (no-push build) | `41403243212` success |
+| Helper state differential | `41403246582` success |
+| Combination journey differential | `41403249749` success |
+
+Additional evidence at the same commit: Node stock tree round trip `41422657128` success, Group-chat differential
+`41422652828` success, live provider/proxy canary `41422647978` success (anonymous mode; no credentialed provider run).
+
+### Performance measured at the released commit
+
+`smoke-metrics` `41403239135`: paired benchmark boot **162 ms vs 13,843 ms** (GoTavern vs pinned Node), steady-state
+RSS **36.9 MB vs 1,057 MB**, `GET /version` median **0.402 ms vs 55.91 ms** (p95 0.603 / 58.83), `GET /` median
+**1.76 ms vs 13.01 ms**, and a ten-minute soak with GoTavern RSS drift **-1.5 MB** / p95 **+0.15 ms** (pinned settled
+downward from its startup peak). These replaced the alpha.11 figures in `README.md` and the Q22 row of
+`docs/goal-scorecard.md`.
+
+### What this release changed versus alpha.11
+
+- **Stable-channel graduation confirmed by the gate set**: 10 required workflows at one SHA, `verify-release-gates.mjs`
+  PASS 10/10, and the publish job refuses to create a release without them. Cross-platform execution (linux/arm64
+  under QEMU; darwin/amd64 and darwin/arm64 on native macOS runners; windows/arm64 boundary asserted) is a
+  **precondition of publish**, not post-hoc evidence.
+- **The combination journey is a required gate**: one composed session across character x complex preset x
+  helper x world info x variables x regex x Quick Reply x streaming x save/reload/swipe/regenerate/continue/group/
+  restart/hand-back, green at the release commit (`41403249749`).
+- **Two harness defects were found and fixed while qualifying, not shipped around**:
+  1. **ai21 streaming/cancel false red** (`Browser differential` `41388200223` at intermediate commit `3cfc165`):
+     the probe allocated the subject port with `bind(0)`, closed it, and the in-process peer was then handed the
+     SAME port (Linux ephemeral range starts at 32768); the subject failed to bind, the peer answered `/version`
+     with 404, and the old readiness check accepted any status below 500, so the drive rendered the peer's 404
+     page. Fixed in `a01b536`: subject ports now come from 20000-29999 (below every platform's ephemeral range),
+     readiness is an identity check requiring HTTP 200 with a SillyTavern `/version` payload, and the streaming
+     comparator records each leg's own `failure` in the artefact. Local teeth: a fake 404 peer makes the probe
+     report `server did not answer at .../version with a SillyTavern /version payload: status 404`; the fixed
+     ai21 cancel leg drives with subject/peer on distinct ports and all cancellation checks true; the Browser
+     differential gate is green at `41403232535`. Residual: other probes still use `bind(0)` for their peer ports;
+     that is recorded as unmeasured rather than assumed safe.
+  2. **`files-verify` oracle double-run disagreement** (`GoTavern CI` `41425455502`): the two pinned-Node runs
+     disagreed on `/api/files/verify` (`user/files/*` all true in run 1, all false in run 2; content-length 160 vs
+     164). The re-record artifact is the only diff; a local Windows double-run of the same probe matched the
+     committed fixture byte-for-byte both times (`committed==run1==run2`), so this is recorded as an
+     **undiagnosed transient in the oracle's own environment**, not a product divergence. The full oracle was
+     re-dispatched and `41448402199` is green; `GoTavern CI` `41403220970` was cancelled at its 180-minute job
+     timeout and is also recorded rather than hidden.
+- **Release notes are curated and boundary-stated**: every known limitation the matrix carries is restated in
+  `docs/release-notes-v0.1.0-alpha.12.md` (windows/arm64 built-not-executed, remote embeddings declared exclusion,
+  local in-process ML exclusion, Node server plugins exclusion, Q7 paint half partial, no credentialed provider
+  run, helper render path unproven, preset secondary features narrowed, multi-user contention untested, inherited
+  pinned behaviour reproduced). Chat-backup routes are implemented and replay-tested; the stale
+  "not implemented" line was removed from the matrix, gap sweep and this file.
+- **Channel mechanics**: `scripts/classify-version-tag.sh` carries `GRADUATED_STABLE_TAGS` with exactly
+  `v0.1.0-alpha.9` and `v0.1.0-alpha.12`; `scripts/test-classify-version-tag.sh` has 43 named cases pinning both
+  graduations and pinning alpha.10/alpha.11/alpha.13/alpha.12+build.1/Alpha.12 as prereleases.
+
+### Open boundaries carried forward (not claims of this release)
+
+`docs/gap-sweep.md` remains the ranked P1 list: preset secondary semantics narrowed rather than closed;
+helper render path/DOM URLs unproven; crash-or-kill boundary measured per write but backup-file crash boundary
+unmeasured; remote embeddings a declared exclusion; no credentialed provider canary; local in-process ML excluded;
+multi-user contention untested. `docs/goal-scorecard.md` is re-anchored to `a01b536`; Q7 stays `partial`
+(background paint half still unproven). None of these is a regression introduced by this release, and each is
+listed in the published release body.
+
+## HISTORY - 2026-11-01: `v0.1.0-alpha.11` SHIPPED -- THE ALPHA-LINE PRERELEASE THAT TURNED THE REMAINING P1 EVIDENCE INTO MEASURED CAPABILITIES
 
 `v0.1.0-alpha.11` is a **prerelease on the alpha line** (release id `430586286`, tag object `a5a04e6`, commit
 `81ca5ad`). `v0.1.0-alpha.9` keeps the stable channel: `releases/latest`, a bare `install.sh`/`install.ps1` and

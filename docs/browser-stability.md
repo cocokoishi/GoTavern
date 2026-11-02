@@ -410,3 +410,81 @@ release-shaped archive on a contended Windows host = 41.9 s GoTavern half + 139.
 2.2 s extraction/judge = 183.8 s; CI ubuntu = 57 s. The 25-minute job bound is ~8x the CI cost and
 above the local upper bound; no readiness sleep was added (the probes' bounded `/version` polls and
 named conditions are the only waits).
+
+---
+
+## 8. The alpha.12 qualification found two more harness defects: one fixed in the probe, one undiagnosed transient
+
+Both were found while running the required gates for `v0.1.0-alpha.12`; neither was waved through as a product
+failure, and neither was retried until green without a diagnosis. They are recorded here so a future release does
+not rediscover them.
+
+### 8.1 A subject port handed to the in-process peer (FIXED)
+
+`Browser differential` **41388200223** (workflow dispatch, head `3cfc165`, conclusion **failure**) was red on exactly
+one drive: `ai21: the streaming comparison refused`, with `cancellation.requestArrivedBoth` and eight sibling checks
+false. The uploaded leg `cancel-ai21-gotavern.json` showed the cause directly:
+
+- `gotavern` and `mockProvider` were BOTH `http://127.0.0.1:41987` (the subject and the peer shared one address);
+- `GET /` answered **404** and `GET /scripts/events.js` answered **404**;
+- `generateCalls` and `tokenizerCalls` were empty;
+- the leg's `failure` was `page.evaluate: TypeError: Failed to fetch dynamically imported module:
+  http://127.0.0.1:41987/scripts/events.js`.
+
+`generation-probe.mjs` allocated the subject's port with `bind(0)` and closed the probe socket, then spawned the
+subject on that port. The in-process peer is started later with `bind(0)`; on Linux the ephemeral range starts at
+32768, so the kernel could hand the peer EXACTLY the port the subject was about to use. The subject failed to bind,
+the peer answered `/version` with 404, and the old readiness wait accepted any status < 500 as "the server is up", so
+the drive loaded the peer's 404 page and the comparator correctly refused. That is a harness defect presenting as a
+product finding (AGENTS verification rule 10).
+
+Fix in commit `a01b536` (`tests/browser/generation-probe.mjs`, `tests/browser/compare-streaming-legs.mjs`):
+
+- `freePort()` chooses a port in **20000-29999**, below every platform's ephemeral range (Linux 32768+, macOS and
+  Windows 49152+), so a later `bind(0)` cannot be handed it;
+- readiness is an **identity check** (`waitForSubjectVersion`): HTTP 200 plus a SillyTavern `/version` payload,
+  otherwise the leg fails naming the received body and the subject log tail;
+- `compare-streaming-legs.mjs` records each leg's own `failure` in the artefact and prints it on refusal, so the
+  next refusal is diagnosable from the saved legs instead of only through check names.
+
+Teeth observed locally, not merely reasoned about: a fake peer on port 25555 answering 404 makes the probe report
+`server did not answer at http://127.0.0.1:25555/version with a SillyTavern /version payload: status 404: not the
+subject` instead of driving it; the fixed ai21 cancel leg records subject `127.0.0.1:26713` and peer
+`127.0.0.1:54340` with `requestArrived=true`, and the local streaming comparator's cancellation checks are all true.
+The required gate is green at `41403232535` (head `a01b536`, 2 h 02 m, `differential: success`).
+
+**Residual, stated rather than implied:** the other browser probes still allocate ports with `bind(0)` and were not
+re-audited for the same class; a recurrence would present as a refusal in that probe, not silently. This is recorded
+as unmeasured rather than assumed safe.
+
+### 8.2 An oracle double-run disagreement that the product did not produce (UNDIAGNOSED TRANSIENT)
+
+`GoTavern CI` **41425455502** (workflow dispatch, head `a01b536`, conclusion **failure**) failed inside the full
+oracle sweep, not in any product test:
+
+```
+Oracle probes failed: 1
+  - files-verify: oracle changed across identical pinned Node runs at:
+    $.responses.mixedPaths.body.user/files/existing.bin (run1 true, run2 false),
+    ... directory true/false, files2/prefix.txt true/false, ...,
+    headers.content-length (run1 "160", run2 "164"), headers.etag ...
+```
+
+The uploaded `oracle-linux-rerecord.patch` is the whole diff: the committed fixture (and run 1) report `true` for
+the four existing paths; run 2 reports `false` for all of them and a 4-byte-shorter body. The probe creates those
+files after the pinned server is ready and before any request, so the product side has no state to explain it.
+
+What was checked before calling it transient:
+
+- the probe's own double run was reproduced **locally on this Windows host**: two fresh runs both produced the
+  committed fixture byte-for-byte (`committed == run1 == run2`, `state.accountRecordUnchanged: true`);
+- the probe code, the pinned server and the fixture are unchanged between the last green alpha.11 run and this one;
+- no other probe failed, and every other CI job was green.
+
+The full oracle was therefore re-dispatched at the SAME commit and **`41448402199` is green**; the required gate
+table cites that green run. This is disclosed because a red gate that turns green without a root cause is exactly
+the kind of evidence this repository refuses to launder: the product claim rests on the green run, while the
+transient itself remains **unexplained**, and a repeat would be a new failure rather than a known flake. A first
+dispatch of the same commit (`41403220970`) was also cancelled at the job's 180-minute timeout before it could
+finish, which is why the release used a later dispatch rather than the first; both are recorded here.
+

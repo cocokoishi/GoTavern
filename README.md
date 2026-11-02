@@ -11,21 +11,21 @@
 - **What it is:** a drop-in replacement for the SillyTavern 1.19.0 server. It serves the unmodified upstream frontend over the same routes, the same `config.yaml` and the same on-disk layout. Your characters, chats, groups, world info, presets, Quick Replies, secrets, themes and frontend extensions keep working. No conversion, no private database.
 - **What you need:** nothing. No Node.js, no npm, no compiler. Download, unpack, run.
 - **Why bother:** it starts in milliseconds and uses a fraction of the memory (table below).
-- **Status:** `v0.1.0-alpha.11` is the current **prerelease**, published on the prerelease channel:
-  GitHub marks it pre-release, `releases/latest` keeps serving the stable `v0.1.0-alpha.9` release, a bare
-  installer with no version argument installs that stable release, and Docker `:latest` stays on the stable
-  image while `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11` names the alpha.11 image. Install the alpha.11 explicitly with
-  `--version v0.1.0-alpha.11` (Windows: `-Version v0.1.0-alpha.11`) or `docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11`.
+- **Status:** `v0.1.0-alpha.12` is the current **stable release**: GitHub publishes it as a full release (not a
+  pre-release), `releases/latest` serves it, a bare installer with no version argument installs it, and Docker
+  `:latest` points at `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.12`. `v0.1.0-alpha.9` was the first stable-channel
+  release; alpha.10 and alpha.11 remain available as prereleases by explicit `--version v0.1.0-alpha.11`
+  (Windows: `-Version v0.1.0-alpha.11`) or `docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11`.
   The channel rule is one script, [`scripts/classify-version-tag.sh`](scripts/classify-version-tag.sh), shared by
   the release workflow, the Docker workflow and both installers. Back up any data directory you can't afford to lose.
 - **What doesn't work:** arbitrary Node server plugins, and SillyTavern's local in-process ML (captioning, classification, speech). Full list in [What won't work](#what-wont-work).
 
 | | SillyTavern (Node) | GoTavern |
 |---|---|---|
-| Cold start to first `/version` 200 | 12,075 ms | **212 ms** |
-| Steady-state memory (RSS) | 1,141 MB | **39.1 MB** |
-| `GET /version` latency (median) | 32.61 ms | **0.345 ms** |
-| `GET /` latency (median) | 12.72 ms | **1.82 ms** |
+| Cold start to first `/version` 200 | 13,843 ms | **162 ms** |
+| Steady-state memory (RSS) | 1,057 MB | **36.9 MB** |
+| `GET /version` latency (median) | 55.91 ms | **0.402 ms** |
+| `GET /` latency (median) | 13.01 ms | **1.76 ms** |
 
 One GitHub runner, both servers from the same checkout. Details and caveats in [Performance](#performance).
 
@@ -34,8 +34,8 @@ One GitHub runner, both servers from the same checkout. Details and caveats in [
 Everything below downloads a **prebuilt archive**. Nothing compiles on your machine.
 
 > **No version argument needed.** An unpinned install resolves `releases/latest`, which serves the stable
-> `v0.1.0-alpha.9` release. Install the alpha.11 explicitly with `--version v0.1.0-alpha.11` (`-Version` on Windows);
-> pin any version for a reproducible deployment or a rollback target.
+> `v0.1.0-alpha.12` release. Install an older release explicitly with `--version v0.1.0-alpha.11` (`-Version` on
+> Windows); pin any version for a reproducible deployment or a rollback target.
 
 > **Both installers install into the current directory.** Create a folder, `cd` into it, run the installer. `--dir` /
 > `-InstallDir` exist as an advanced override. The script comes from `main` because that is where the
@@ -51,7 +51,7 @@ curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.sh
 ./start.sh
 ```
 
-To pin a release: `sh install.sh --version v0.1.0-alpha.11` (or the stable `v0.1.0-alpha.9`).
+To pin a specific release: `sh install.sh --version v0.1.0-alpha.11` (or the stable `v0.1.0-alpha.12`).
 
 **Windows (PowerShell)**
 
@@ -64,7 +64,7 @@ irm https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.ps1 -OutF
 .\Start.cmd
 ```
 
-To pin a release: `.\install.ps1 -Version v0.1.0-alpha.11` (or the stable `v0.1.0-alpha.9`). To install somewhere else:
+To pin a specific release: `.\install.ps1 -Version v0.1.0-alpha.11` (or the stable `v0.1.0-alpha.12`). To install somewhere else:
 `.\install.ps1 -InstallDir "D:\Servers\GoTavern"`. `Start.cmd` finds its own location, so you can launch it from any
 shell.
 
@@ -74,10 +74,11 @@ shell.
 docker pull ghcr.io/cocokoishi/gotavern:latest
 ```
 
-`ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.9` is the stable image addressed by tag; pin it when you need a
-reproducible deployment. `:latest` only moves when a **stable** tag is published, so a prerelease (including
-`v0.1.0-alpha.11`) can never silently become what a bare `docker pull` gets; the alpha.11 image is addressed explicitly as
-`ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11`. The image is linux/amd64.
+`ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.12` is the stable image addressed by tag; pin it when you need a
+reproducible deployment. `:latest` only moves when a **stable** tag is published, and it now points at
+`v0.1.0-alpha.12` (digest `sha256:d7b24f2609c3f2eb72e0e7680d206f9c46ea893a0d09c6bc780d926072144b07`); older
+prerelease images such as `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11` are addressed explicitly. The image is
+linux/amd64.
 
 **Manual:** download `gotavern-<os>-<arch>.tar.gz` (`.zip` on Windows) from the [releases page](https://github.com/cocokoishi/GoTavern/releases), check it against `checksums.txt`, unpack anywhere writable, run `./start.sh` / `Start.cmd`.
 
@@ -106,12 +107,12 @@ Point GoTavern at your existing directory and start it. Auto-update resolves to 
 
 | Metric | Pinned Node SillyTavern | GoTavern | How it was measured |
 |---|---|---|---|
-| Cold start to first `/version` 200 | 12,075 ms | **212 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
-| Steady-state RSS (`VmRSS` from `/proc`) | 1,141 MB | **39.1 MB** | median of 6 samples, after readiness and 30 requests per round |
-| `GET /version` latency | 32.61 ms | **0.345 ms** | median of 90 sequential requests (p95: 35.31 / 0.64) |
-| `GET /` latency (HTML shell) | 12.72 ms | **1.82 ms** | median of 90 sequential requests |
+| Cold start to first `/version` 200 | 13,843 ms | **162 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
+| Steady-state RSS (`VmRSS` from `/proc`) | 1,057 MB | **36.9 MB** | median of 6 samples, after readiness and 30 requests per round |
+| `GET /version` latency | 55.91 ms | **0.402 ms** | median of 90 sequential requests (p95: 58.83 / 0.603) |
+| `GET /` latency (HTML shell) | 13.01 ms | **1.76 ms** | median of 90 sequential requests |
 
-**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `41293926892` (success), the released commit `81ca5ad` (v0.1.0-alpha.11), on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -1.6 MB, p95 drift +0.34 ms); pinned only settled downward from its startup peak. A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The published release body appends the same-SHA run-id table, so the numbers above and the gate run that produced them are checkable together.
+**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `41403239135` (success), the released commit `a01b536` (v0.1.0-alpha.12), on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -1.5 MB, p95 drift +0.15 ms); pinned only settled downward from its startup peak. A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The published release body appends the same-SHA run-id table, so the numbers above and the gate run that produced them are checkable together.
 
 ### A profile-driven fix
 

@@ -192,12 +192,12 @@ jobs:
           # scripts/classify-version-tag.sh, so the image and the GitHub release cannot disagree about what a tag
           # means; scripts/test-classify-version-tag.sh covers the rule in the `verify` job.
           # A TAG NAME IS NOT THE CHANNEL, so do not read `alpha` in a tag name as "this must not move latest".
-          # `v0.1.0-alpha.9` is the ONE documented historical exception: scripts/classify-version-tag.sh answers
-          # `stable` for it (see the HISTORY_GRADUATION_TAG constant and the reason written beside it), because
-          # it is GoTavern's first official stable-channel release under a name that keeps the historical
-          # alpha-series spelling. This workflow therefore publishes `:v0.1.0-alpha.9` AND moves `:latest` onto
-          # it, which is the intended outcome and not an alpha leak. An `alpha` test added here to "correct"
-          # that would be the second copy of the channel rule this block exists to prevent.
+          # `GRADUATED_STABLE_TAGS` in scripts/classify-version-tag.sh is the equality list of tags whose channel
+          # graduates despite the historical alpha-series spelling: `v0.1.0-alpha.9` (the first stable-channel
+          # release) and `v0.1.0-alpha.12` (the 2026-11-02 stable release). This workflow therefore publishes
+          # `:v0.1.0-alpha.12` AND moves `:latest` onto it, which is the intended outcome and not an alpha leak.
+          # An `alpha` test added here to "correct" that would be the second copy of the channel rule this block
+          # exists to prevent; the table test is scripts/test-classify-version-tag.sh (43 named cases).
           channel=''
           latest='false'
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
