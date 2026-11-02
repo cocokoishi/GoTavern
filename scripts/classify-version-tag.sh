@@ -16,8 +16,8 @@
 # THE RULE, stated so it can be argued with rather than guessed at:
 #
 #   stable      the tag is EXACTLY v<major>.<minor>.<patch> -- plain digits, three components, nothing else --
-#               OR it is HISTORY_GRADUATION_TAG, the single documented historical exception below. There is
-#               exactly one such tag in this file's history and it is a constant, not a pattern.
+#               OR it is one of GRADUATED_STABLE_TAGS, the documented equality list below. Each entry is a
+#               constant chosen by its own commit; the list is not a pattern or a range.
 #   prerelease  anything else that still looks like a version tag: an alpha/beta/rc suffix, a 4th component, or
 #               semver build metadata (`+build.7`). Build metadata is a judgement call: semver calls `1.2.3+7`
 #               the same release as `1.2.3`, but an asset named `gotavern-linux-amd64.tar.gz` cannot carry the
@@ -29,12 +29,13 @@
 # The safe direction is deliberate: an unrecognised-but-version-shaped tag becomes a PRERELEASE, which is loud
 # and reversible, rather than a stable release, which silently becomes `latest`.
 #
-# THE EXCEPTION IS A CONSTANT SO IT CANNOT WIDEN. The rule above is a shape rule; the graduation is a decision
-# about ONE tag. Written as an equality test on a named constant it graduates `v0.1.0-alpha.9` and nothing else:
-# `v0.1.0-alpha.10`, `v0.1.0-alpha.09`, `v0.1.1-alpha.9`, `v0.1.0-alpha.9+build.1` and `v0.2.0-alpha.1` all stay
-# prereleases, and each of those is an assertion in scripts/test-classify-version-tag.sh so a future editor who
-# turns the exception into a regex (`alpha\.9`, `>= alpha.9`, a series prefix) breaks a named case instead of
-# quietly graduating an alpha nobody qualified.
+# THE GRADUATIONS ARE CONSTANTS SO THE LIST CANNOT WIDEN. The rule above is a shape rule; a graduation is a
+# decision about ONE tag. Written as equality tests on named constants the list graduates `v0.1.0-alpha.9` (the
+# historical first stable-channel release) and `v0.1.0-alpha.12` (the production release of the current line) and
+# nothing else: v0.1.0-alpha.10, v0.1.0-alpha.11, v0.1.0-alpha.13, v0.1.0-alpha.09, v0.1.1-alpha.9,
+# v0.1.0-alpha.12+build.1 and v0.2.0-alpha.1 all stay prereleases, and each of those is an assertion in
+# scripts/test-classify-version-tag.sh so a future editor who turns the list into a regex, a prefix or a
+# "series >= N" rule breaks a named case instead of quietly graduating an unqualified tag.
 
 set -eu
 
