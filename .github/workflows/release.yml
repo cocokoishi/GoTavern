@@ -42,9 +42,13 @@ name: GoTavern Release
 #   windows/amd64  BUILD + ARCHIVE-INSPECTED here; EXECUTED, launcher-tested (Start.cmd via cmd.exe) and
 #                  stock-tree-tested on a Windows runner by release-qualification.yml's qualify-windows-amd64
 #                  and dropin-qualification.yml's dropin-windows, against archives those jobs build.
-#   linux/arm64, darwin/amd64, darwin/arm64, windows/arm64
-#                  BUILD + ARCHIVE-INSPECTED only. This repository has no darwin or arm64 runner, so these
-#                  four are NEVER executed and are not labelled runtime-qualified anywhere.
+#   linux/arm64    BUILD + ARCHIVE-INSPECTED here; EXECUTED under QEMU by this workflow's execute-linux-arm64
+#                  (the archive is extracted, run, and its /version polled inside an arm64 container).
+#   darwin/amd64, darwin/arm64
+#                  BUILD + ARCHIVE-INSPECTED here; EXECUTED on native macOS runners by this workflow's
+#                  execute-darwin-amd64 / execute-darwin-arm64 jobs against the archives this run built.
+#   windows/arm64  BUILD + ARCHIVE-INSPECTED only: no windows/arm64 hosted runner exists. The
+#                  windows-arm64-boundary job asserts this boundary stays stated rather than implied.
 
 on:
   push:
@@ -93,19 +97,19 @@ jobs:
             archive: gotavern-linux-arm64.tar.gz
             kind: tar
             launcher: start.sh
-            execution: 'NOT EXECUTED: no arm64 runner in this repository; BUILT + ARCHIVE-INSPECTED only, NOT runtime-qualified'
+            execution: 'BUILT + ARCHIVE-INSPECTED here; EXECUTED under QEMU by this workflow execute-linux-arm64 -- the linux/arm64 archive is extracted, run and its /version polled inside an arm64 container'
           - goos: darwin
             goarch: amd64
             archive: gotavern-darwin-amd64.tar.gz
             kind: tar
             launcher: start.sh
-            execution: 'NOT EXECUTED: no darwin runner in this repository; BUILT + ARCHIVE-INSPECTED only, NOT runtime-qualified'
+            execution: 'BUILT + ARCHIVE-INSPECTED here; EXECUTED on a native x86_64 macOS runner by this workflow execute-darwin-amd64 (archive extracted, launched, /version polled)'
           - goos: darwin
             goarch: arm64
             archive: gotavern-darwin-arm64.tar.gz
             kind: tar
             launcher: start.sh
-            execution: 'NOT EXECUTED: no darwin runner in this repository; BUILT + ARCHIVE-INSPECTED only, NOT runtime-qualified'
+            execution: 'BUILT + ARCHIVE-INSPECTED here; EXECUTED on a native arm64 macOS runner by this workflow execute-darwin-arm64 (archive extracted, launched, /version polled)'
           - goos: windows
             goarch: amd64
             archive: gotavern-windows-amd64.zip

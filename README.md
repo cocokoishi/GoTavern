@@ -82,12 +82,15 @@ reproducible deployment. `:latest` only moves when a **stable** tag is published
 **Manual:** download `gotavern-<os>-<arch>.tar.gz` (`.zip` on Windows) from the [releases page](https://github.com/cocokoishi/GoTavern/releases), check it against `checksums.txt`, unpack anywhere writable, run `./start.sh` / `Start.cmd`.
 
 **Requirements:** a 64-bit Linux, macOS or Windows machine. Six prebuilt archives are published: linux and
-darwin (amd64 and arm64) and Windows (amd64 and arm64). **Runtime qualification is complete for linux/amd64 and
-windows/amd64** — those are the archives extracted, launched and booted against a stock tree in CI. The linux/arm64,
-darwin/amd64, darwin/arm64 and windows/arm64 archives are **built and structurally inspected, but never executed**
-in CI, because this project has no runner of those architectures. The frontend, default content and tokenizer
-manifest are embedded in the binary. The tokenizer *data* ships in `src/tokenizers/` (the same path upstream uses),
-because token counts have to be exact rather than estimated.
+darwin (amd64 and arm64) and Windows (amd64 and arm64). **Every published archive except windows/arm64 is executed
+by release CI against the archive it ships**: linux/amd64 and windows/amd64 are extracted, launched and booted
+against a stock tree by the drop-in and release-qualification gates; linux/arm64 is executed under QEMU (the archive
+extracted, run and its `/version` polled inside an arm64 container) and both darwin archives are executed on native
+macOS runners by `release.yml`'s cross-platform execution jobs. windows/arm64 stays **built and structurally
+inspected, not executed**, because no windows/arm64 hosted runner exists; that boundary is asserted in the release
+workflow instead of implied. The frontend, default content and tokenizer manifest are embedded in the binary. The
+tokenizer *data* ships in `src/tokenizers/` (the same path upstream uses), because token counts have to be exact
+rather than estimated.
 
 ### Updating and rolling back
 
