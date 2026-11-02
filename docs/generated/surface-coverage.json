@@ -7251,7 +7251,7 @@
       "path": "/api/backups/chat/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backups.go:34"
+      "evidence": "internal/server/backups.go:36"
     },
     {
       "pattern": "/api/backups/chat/download",
@@ -7259,7 +7259,7 @@
       "path": "/api/backups/chat/download",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backups.go:34"
+      "evidence": "internal/server/backups.go:36"
     },
     {
       "pattern": "/api/backups/chat/get",

@@ -10,8 +10,10 @@ package server
 // resulting base name to start with CHAT_BACKUPS_PREFIX ("chat_"), and answer 500 when the name is
 // missing or non-string because sanitize() throws. Deletion reuses startup.DeleteUserFile.
 //
-// DEFERRED, recorded in the fixture knownDifferences: /api/backups/chat/get (needs the getChatInfo
-// port: stat, formatBytes, first message and chat_items counting).
+// /api/backups/chat/get is IMPLEMENTED in backups_chat_get.go (it reuses the existing pinnedChatInfo port);
+// the old "deferred" note here and the fixture's recorded knownDifferences entry are historical and are not a
+// current product gap -- the route is registered and replayed by backups_chat_get_test.go and the get->download
+// restore round trip is covered by backups_restore_roundtrip_test.go.
 
 import (
 	"mime"

@@ -281,7 +281,7 @@
       "blockedBy": [
         "whole-session-e2e"
       ],
-      "notes": "Chat JSONL is the surface where a partial write loses a user's conversation, so the missing session test matters more here than elsewhere.\n\nCLOSED 2026-10-31 -- THE SAVE/RELOAD/CONTINUATION LEG (moved out of evidenceGap, which now holds only open items): the green whole-session run 41171620691 at 91e1e15 carries ONE chat through save, a fresh page load, a second turn, regenerate and continue on both subjects under 39/39 guards. The row stays PARTIAL on the crash-or-kill atomicity boundary only. CLOSED 2026-10-31 -- CROSS-RUNTIME CHAT ROUND TRIP (added, not a gap): Go-append + swipe + restart + pinned read/continue + Go re-read over a Node-originated chat is green in node-stock-tree.yml#node-stock-tree; crash-or-kill atomicity remains the open item."
+      "notes": "Chat JSONL is the surface where a partial write loses a user's conversation, so the missing session test matters more here than elsewhere.\n\nCLOSED 2026-10-31 -- THE SAVE/RELOAD/CONTINUATION LEG (moved out of evidenceGap, which now holds only open items): the green whole-session run 41171620691 at 91e1e15 carries ONE chat through save, a fresh page load, a second turn, regenerate and continue on both subjects under 39/39 guards. The row stays PARTIAL on the crash-or-kill atomicity boundary only. CLOSED 2026-10-31 -- CROSS-RUNTIME CHAT ROUND TRIP (added, not a gap): Go-append + swipe + restart + pinned read/continue + Go re-read over a Node-originated chat is green in node-stock-tree.yml#node-stock-tree; crash-or-kill atomicity remains the open item. CHAT-BACKUP ROUTES IMPLEMENTED (recorded 2026-11-02): /api/backups/chat/get, /delete and /download are implemented and replay-tested against committed oracle fixtures (backups_chat_get.go, backups.go, backups_chat_get_test.go, backups_restore_roundtrip_test.go); the old \"chat backup remains unimplemented\" sentence in this row and in gap rank 3 was stale and is corrected. The fixture knownDifferences entry for /chat/get is a historical recording and is NOT a current claim."
     },
     {
       "id": "groups",
@@ -1113,8 +1113,8 @@
     {
       "rank": 3,
       "row": "chats",
-      "title": "Chat writes are crash-atomic at 9 named fault points plus 115 seeded random kills, and the fault-tag suite now runs on the Linux CI gate too; chat backup remains unimplemented",
-      "wouldStopARealUser": "no observed corruption after the chat-rename fix; the remaining user-visible gap is the unimplemented chat backup feature, and the crash evidence no longer depends on one host",
+      "title": "Chat writes are crash-atomic at 9 named fault points plus 115 seeded random kills, and the fault-tag suite now runs on the Linux CI gate too; the chat-backup routes (get/delete/download) are implemented and replay-tested",
+      "wouldStopARealUser": "no observed corruption after the chat-rename fix; the chat-backup LISTING/DELETE/DOWNLOAD routes are implemented against the recorded pinned fixture and the get->download restore round trip is tested, so the previously named user-visible backup gap is closed",
       "evidence": "row chats: docs/data-safety.md section 7.3 records the crash matrix; the /api/chats/rename copy-then-unlink hole is fixed to one os.Rename with the mtime refresh; deterministic and seeded random kills leave only a complete old or new state, re-asserted after restart and parsed through the API, with the pre-fix defect reproduced as a mutation. The boundary is now ALSO on the gate host: GoTavern CI job crash-gate (run 41321305750, job success) builds with -tags gotavern_faults and runs every chat crash test with -count=1. What remains is the unimplemented chat backup (pinned throttled-backup gap), not a crash-atomicity hole."
     },
     {
