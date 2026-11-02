@@ -436,7 +436,11 @@ jobs:
           done > "$work/node-stock-tree.manifest"
           echo "node-originated tree files: $(wc -l < "$work/node-stock-tree.manifest")"
           ( cd "$work" && sha256sum node-stock-tree.manifest > node-stock-tree.manifest.sha256 && cat node-stock-tree.manifest.sha256 )
-          tar -czf "$work/node-stock-tree.tar.gz" -C "$(dirname "$tree")" "$(basename "$tree")"
+          # THE HARNESS EXPECTS A TOP-LEVEL 'tree' DIRECTORY (the same shape scripts/build-stock-tree.sh ships),
+          # so the member is renamed from the temp directory's name to 'tree' with GNU tar's --transform. Measured:
+          # without it ps1 refused the archive ("does not contain a 'tree' directory at its root") in run 41376687822.
+          tar -czf "$work/node-stock-tree.tar.gz" -C "$(dirname "$tree")" --transform "s,^$(basename "$tree"),tree," "$(basename "$tree")"
+          tar -tzf "$work/node-stock-tree.tar.gz" | head -3
           ls -l "$work"
 
       - name: Upload the Node-originated tree for the Windows twin
