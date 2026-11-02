@@ -47,6 +47,11 @@
       "workflow": "Helper state differential",
       "why": "the pinned Tavern Helper's second-order state (scoped variables, in-use preset mutation, lifecycle events, iframe->bridge->disk->next-request closure) on both subjects with a 30-guard judge and teeth",
       "requiredEvent": "workflow_dispatch"
+    },
+    {
+      "workflow": "Combination journey differential",
+      "why": "one composed session (character x complex preset x 酒馆助手 x world info x variables x regex x Quick Reply x streaming x save/reload/swipe/regenerate/continue/group/restart) on both subjects, byte-equal per capture, with the five-leg matrix, restart, hand-back and the gate self-test; this is GOAL.md section 9 combination rule evidence and must be green at the release commit",
+      "requiredEvent": "workflow_dispatch"
     }
   ]
 }

@@ -306,6 +306,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
+      # THE EMULATION IS SET UP EXPLICITLY. Without binfmt registration the arm64 image runs until it tries
+      # to exec the binary and dies with "exec format error" (measured in the first dry run), which would read
+      # as a product failure instead of a missing harness step.
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
       - uses: actions/download-artifact@v4
         with:
           name: gotavern-linux-arm64.tar.gz
@@ -317,6 +323,10 @@ jobs:
           tar -xzf archive/gotavern-linux-arm64.tar.gz -C "$work"
           test -x "$work/gotavern" || { echo "::error::the linux/arm64 archive has no executable gotavern"; exit 1; }
           mkdir -p "$work/tree"
+          # PROVE THE EMULATION BEFORE BLAMING THE BINARY: the container must report aarch64.
+          arch="$(docker run --rm --platform linux/arm64 ubuntu:24.04 uname -m)"
+          echo "emulated container uname -m: $arch"
+          [ "$arch" = "aarch64" ] || { echo "::error::the arm64 container did not report aarch64; QEMU/binfmt is not active"; exit 1; }
           docker run --rm --platform linux/arm64 -v "$work:/work" ubuntu:24.04 /work/gotavern version | tee "$work/version.txt"
           grep -q 'gotavern' "$work/version.txt"
           docker run -d --name gotavern-linux-arm64 --platform linux/arm64 -p 8831:8831 -v "$work:/work" -v "$work/tree:/tree" -w /tree ubuntu:24.04 /work/gotavern start --port 8831 --browserLaunchEnabled false
