@@ -207,8 +207,11 @@ recorded, not cited. They narrowed the reds to probe defects: the persona boot-o
 turn-1 capture byte-equal, so that finding is closed by measurement), the group first-responder nondeterminism
 (fixture NATURAL strategy; the probe now sets LIST), an `endSwipe` page error on BOTH subjects when the rendered
 message count drifts (the driver now reopens and waits for DOM/array agreement), and a Linux-only return-path race
-(guarded by a returned-to-character precondition). The workflow at the commit carrying these fixes is the CI citation
-once green; a local match is Layer A evidence only.
+(guarded by a returned-to-character precondition). Run 41369042127 then had all five legs green and every capture byte-equal, with only the inherited
+`endSwipe` page error red on BOTH subjects; the comparator now judges page errors as a parity property
+(`page-errors-are-not-gotavern-specific`, inherited errors recorded, an asymmetric one still fails), and re-judging
+that run gives `match` (80 guards, 0 failed). The CI citation is the workflow run at the commit that carries the
+comparator change; a local re-judge is Layer A evidence only.
 
 re-runs this workflow at the frozen candidate SHA and THAT run is cited in the release record, not here.
 

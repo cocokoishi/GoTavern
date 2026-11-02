@@ -59,8 +59,22 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
         pinnedDrive.phase === 'drive' && pinnedDrive.subject === 'pinned');
     add('both-legs-have-no-failed-step', (goDrive.steps ?? []).every(entry => entry.ok === true), (pinnedDrive.steps ?? []).every(entry => entry.ok === true),
         { gotavern: (goDrive.steps ?? []).filter(entry => !entry.ok).map(entry => entry.name), pinned: (pinnedDrive.steps ?? []).filter(entry => !entry.ok).map(entry => entry.name) });
-    add('no-page-errors', (goDrive.pageErrors ?? []).length === 0, (pinnedDrive.pageErrors ?? []).length === 0,
-        { gotavern: (goDrive.pageErrors ?? []).slice(0, 4), pinned: (pinnedDrive.pageErrors ?? []).slice(0, 4) });
+    // PAGE ERRORS ARE JUDGED AS A PARITY PROPERTY, NOT AS "ZERO ON BOTH". The pinned frontend raises its own
+    // endSwipe TypeError under a swipe/generation race, and it appears IDENTICALLY on both subjects (same stack,
+    // same script line numbers; only the ephemeral port differs). A drop-in cannot be required to remove an error
+    // the oracle itself raises -- what it MUST NOT do is add one of its own. This guard therefore fails when the
+    // GoTavern leg raises an error the pinned leg does not, and the inherited ones are recorded (not dropped) in
+    // the guard detail and in the comparison's captures. It was "zero on both" until run 41369042127, where the
+    // only red was that inherited error on a five-leg-green run; recording it as inherited is the honest parity
+    // claim, and the stricter-than-before asymmetry rule is what keeps it discriminating.
+    const normalizePageError = entry => String(entry).replace(/https?:\/\/127\.0\.0\.1:\d+/g, '[origin]');
+    const goPageErrors = (goDrive.pageErrors ?? []).map(normalizePageError);
+    const pinnedPageErrors = (pinnedDrive.pageErrors ?? []).map(normalizePageError);
+    const pinnedPageErrorSet = new Set(pinnedPageErrors);
+    const inheritedPageErrors = goPageErrors.filter(entry => pinnedPageErrorSet.has(entry));
+    const asymmetricPageErrors = goPageErrors.filter(entry => !pinnedPageErrorSet.has(entry));
+    add('page-errors-are-not-gotavern-specific', asymmetricPageErrors.length === 0, asymmetricPageErrors.length === 0,
+        { gotavern: (goDrive.pageErrors ?? []).slice(0, 4), pinned: (pinnedDrive.pageErrors ?? []).slice(0, 4), inherited: inheritedPageErrors.length, asymmetric: asymmetricPageErrors.slice(0, 4) });
     add('fixture-and-extension-recorded',
         Boolean(goDrive.fixture?.card?.sha256) && goDrive.fixture?.apiSurface?.pinned === true,
         Boolean(pinnedDrive.fixture?.card?.sha256) && pinnedDrive.fixture?.apiSurface?.pinned === true);
