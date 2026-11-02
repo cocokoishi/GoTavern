@@ -1053,7 +1053,11 @@ async function main() {
                 const chat = script.chat ?? [];
                 const last = chat[chat.length - 1] ?? null;
                 return {
-                    ok: chat.length > 0 && last?.is_user === false && last?.swipe_id !== undefined && script.is_send_press !== true,
+                    // endSwipe() awaits the in-flight generation and then indexes chat[mesId]; pressing while a
+                    // generation is still settling makes mesId stale when the chat array changes under it -- the
+                    // both-subject page error on ubuntu. Require a quiet window after the last GENERATION_ENDED too.
+                    ok: chat.length > 0 && last?.is_user === false && last?.swipe_id !== undefined
+                        && script.is_send_press !== true && (Date.now() - (window.__combLastGenerationEnded ?? 0)) > 1500,
                     chatLength: chat.length,
                     lastIsUser: last?.is_user ?? null,
                     swipeId: last?.swipe_id ?? null,
@@ -1376,7 +1380,7 @@ async function main() {
                 };
                 events.eventSource.on(events.event_types.GENERATION_STARTED, (...args) => record('GENERATION_STARTED', args));
                 events.eventSource.on(events.event_types.GENERATION_AFTER_COMMANDS, (...args) => record('GENERATION_AFTER_COMMANDS', args));
-                events.eventSource.on(events.event_types.GENERATION_ENDED, (...args) => record('GENERATION_ENDED', args));
+                events.eventSource.on(events.event_types.GENERATION_ENDED, (...args) => { window.__combLastGenerationEnded = Date.now(); record('GENERATION_ENDED', args); });
                 events.eventSource.on(events.event_types.GENERATE_AFTER_DATA, async (data, dryRun) => {
                     try {
                         let promptCountNow = null;
@@ -1519,24 +1523,22 @@ async function main() {
             }, { label: 'returned-to-character', timeoutMs: 20000 });
             report.browser.returnedCharacter = returnedCharacter.value ?? returnedCharacter;
             step('returned-to-character', returnedCharacter.ok === true, report.browser.returnedCharacter);
-            let back;
-            try {
-            back = await page.evaluate(async wanted => {
-                const script = await import('./script.js');
-                const groupChats = await import('./scripts/group-chats.js');
-                if (typeof groupChats.resetSelectedGroup === 'function') groupChats.resetSelectedGroup();
-                await new Promise(resolve => setTimeout(resolve, 300));
-                await script.openCharacterChat(wanted);
-                const deadline = Date.now() + 30000;
-                while (Date.now() < deadline) {
-                    const context = window.SillyTavern?.getContext?.();
-                    if (context?.chatId === wanted && (script.chat ?? []).length > 0) return { opened: true, chatId: context.chatId, chatLength: script.chat.length };
-                    await new Promise(resolve => setTimeout(resolve, 200));
+            // THE RETURN PATH IS THE RELOAD PATH A USER TAKES: open the character through the roster, wait for the
+            // chat to load, then reopen the saved conversation by id, preferring the same helper the reload phase uses.
+            // A single openCharacterChat(evaluate) left chatId null on pinned in run 41367546193, so this is bounded
+            // and retried instead of being one blind call.
+            let back = { opened: false };
+            for (let attempt = 0; attempt < 3 && back.opened !== true; attempt += 1) {
+                try {
+                    await openCharacter(page, CARD.name);
+                    await waitChatLoaded();
+                    await page.waitForTimeout(500);
+                    const attemptResult = await reopenJourneyChat(page, savedChatId, { minLength: 3, expectText: CARD.regexReplace });
+                    back = { ...attemptResult, attempt: attempt + 1 };
+                } catch (error) {
+                    back = { opened: false, reason: String(error?.message ?? error).slice(0, 300), threw: true, attempt: attempt + 1 };
                 }
-                return { opened: false, wanted, chatId: window.SillyTavern?.getContext?.()?.chatId ?? null };
-            }, savedChatId);
-            } catch (error) {
-                back = { opened: false, reason: String(error?.message ?? error).slice(0, 300), threw: true };
+                if (back.opened !== true) await page.waitForTimeout(1000);
             }
             step('returned-to-journey-chat', back.opened === true, back);
             const finalHelper = await injectVariablesThroughHelper(page);
