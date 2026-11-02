@@ -425,7 +425,8 @@ jobs:
           tree="${RUNNER_TEMP}/node-stock-tree"
           work="${RUNNER_TEMP}/node-stock-tree-inputs"
           parent="$(dirname "$tree")"
-          test -d "$tree/default-user" || { echo "::error::the node-originated tree has no default-user directory"; exit 1; }
+          # The generated tree is a SillyTavern INSTALLATION root: the users live under data/, not at the root.
+          test -d "$tree/data/default-user" || { echo "::error::the node-originated tree has no data/default-user directory"; exit 1; }
           rm -rf "$work"; mkdir -p "$work"
           ( cd "$parent" && find tree -type f -printf '%P\n' | LC_ALL=C sort | while IFS= read -r p; do
               printf '%s  %s\n' "$(sha256sum -- "tree/$p" | cut -d' ' -f1)" "$p"
