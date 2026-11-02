@@ -1080,11 +1080,21 @@ async function main() {
                 const chat = script.chat ?? [];
                 window.__combSwipeBefore = { chatLength: chat.length, lastText: String(chat[chat.length - 1]?.mes ?? '') };
                 const allowed = typeof script.isSwipingAllowed === 'function' ? script.isSwipingAllowed() : null;
+                // SWIPE THROUGH THE FRONTEND'S OWN SLASH COMMAND, not through a DOM control click. The control click
+                // captured mesId from the rendered element and endSwipe() later indexed chat[mesId]; a stale element
+                // made that undefined (the both-subject endSwipe TypeError). The `/swipe` command's callback waits for
+                // the generation lock and uses the chat array, so it is the same user-reachable action without the
+                // stale-DOM index. A DOM click remains as the fallback when the context does not expose the executor.
+                const slashContext = window.SillyTavern?.getContext?.() ?? null;
+                if (slashContext && typeof slashContext.executeSlashCommandsWithOptions === 'function') {
+                    const slash = await slashContext.executeSlashCommandsWithOptions('/swipe await=true');
+                    return { pressed: true, allowed, method: 'slash-command', slash: String(slash ?? '').slice(0, 120) };
+                }
                 const container = document.querySelector('#chat .mes:last-child');
                 const control = container?.querySelector('.swipe_right') ?? container?.querySelector('[data-i18n="Right"]');
                 if (!control) return { pressed: false, allowed, reason: 'no swipe-right control on the last message' };
                 control.click();
-                return { pressed: true, allowed };
+                return { pressed: true, allowed, method: 'dom-click' };
             });
             const swipeRequestIndex = peerRequests().length;
             const swipeSettled = await waitForCondition(page, async () => {
