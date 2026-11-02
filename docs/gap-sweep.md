@@ -209,9 +209,11 @@ turn-1 capture byte-equal, so that finding is closed by measurement), the group 
 message count drifts (the driver now reopens and waits for DOM/array agreement), and a Linux-only return-path race
 (guarded by a returned-to-character precondition). Run 41369042127 then had all five legs green and every capture byte-equal, with only the inherited
 `endSwipe` page error red on BOTH subjects; the comparator now judges page errors as a parity property
-(`page-errors-are-not-gotavern-specific`, inherited errors recorded, an asymmetric one still fails), and re-judging
-that run gives `match` (80 guards, 0 failed). The CI citation is the workflow run at the commit that carries the
-comparator change; a local re-judge is Layer A evidence only.
+(`page-errors-are-not-gotavern-specific`, inherited errors recorded, an asymmetric one still fails). CI CLOSED:
+`Combination journey differential` run 41373571666 (success, head 9481179) reports verdict `match`, 81 guards,
+0 failed, 0 asymmetries with the five legs green (67/67, 67/67, 20/20, 20/20, 13/13) and the gate self-test 5/5 named
+reds; that run is the citation for the combination claim. The local runs above are the diagnosis record, not the CI
+verdict.
 
 re-runs this workflow at the frozen candidate SHA and THAT run is cited in the release record, not here.
 

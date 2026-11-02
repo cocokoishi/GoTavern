@@ -68,20 +68,25 @@ path, determinism volatile-count masking, provider-wire fixture key-order).
 
 ### Residuals, recorded rather than hidden
 
-- **Combination journey (DoD): CLOSED ON LAYER A after this release, and the ubuntu workflow is the remaining
-  citation.** A single browser journey now composes character x preset x helper x world info x variables x regex x
-  quick replies x streaming x save/reload/swipe/regenerate/continue/group/restart/hand-back. The five-leg matrix is
-  green locally on Windows (GoTavern drive 64/64, pinned drive 64/64, both restarts 20/20, pinned hand-back 13/13;
-  comparator verdict `match`, 81 guards, 0 failed, 0 asymmetries; teeth 5/5). The earlier red was three PROBE
-  defects, not a product divergence: an 8192-token context cap against a committed preset whose CJK-marker
-  derivation tokenizes to ~25k tokens (the budget throw produced the four-prompt 11864-byte skeleton on both
-  subjects), restart-phase ordering (preset/world/connection must be re-asserted after the helper re-run and QR),
-  and preset signatures computed only on the drive phase. The probe fixes are in `tests/browser/`; the ubuntu run at the fix commit
-  (`41359695483`, failure) is RED and is recorded as such, not cited: its drive legs pass on both subjects (64/64)
-  but (a) every GoTavern capture is 7 bytes longer because `{{user}}` resolves to `[Unnamed Persona]` on GoTavern
-  and `Probe User` on pinned -- a real per-capture difference to diagnose -- and (b) the restart legs fail on BOTH
-  subjects at `restart-reopened-the-saved-chat` (saved chat never became active, chatLength 1), a probe-faithfulness
-  failure to fix before the run can be green.
+- **Combination journey (DoD): BUILT, AND CLOSED IN CI after this release.** A single browser journey composes
+  character x preset x helper x world info x variables x regex x quick replies x streaming x
+  save/reload/swipe/regenerate/continue/group/restart/hand-back. `Combination journey differential` run
+  **41373571666** (success, head `9481179`) is the CI citation: GoTavern drive 67/67, pinned drive 67/67, both
+  restarts 20/20, pinned hand-back 13/13 (11+11+1+1+1 provider requests); comparator verdict `match`, 81 guards,
+  0 failed, 0 asymmetries, every common capture byte-equal; gate self-test 5/5 named reds. Layer A runs reproduce it.
+  The reds it carried were PROBE defects, not product divergences, each fixed and recorded in
+  `docs/combination-journey.md`: an 8192-token harness context cap against a CJK-marker preset derivation that
+  tokenizes to ~25k tokens (the budget throw sent a four-prompt 11864-byte skeleton on both subjects); restart-phase
+  ordering (preset/world/connection must be re-asserted after the helper re-run and QR); preset signatures computed
+  only on the drive phase; a persona boot-order race (`personas.user_avatar` empty on Linux, `[Unnamed Persona]`
+  placeholder) closed by writing the persona map and polling the avatar; a nondeterministic group first responder
+  (NATURAL strategy) closed by setting LIST through the frontend's own endpoint; and a rendered-DOM/chat-array race
+  before the swipe click, closed by awaiting the frontend's own `printMessages()` first (page errors are judged as
+  a parity property, `page-errors-are-not-gotavern-specific`, so an inherited pinned-frontend error is recorded and
+  an asymmetric one still fails). Still OPEN around the journey, stated rather than implied: streaming variants other
+  than honour-SSE with `stream_openai=true`; helper API surface beyond the calls the journey drives; the group
+  fan-out count is recorded, not asserted; no real provider, multi-user deployment or real card/preset prose
+  (AGENTS rules 22/56).
 - **Helper-state CI was RED AT THIS RELEASE, and is GREEN after it.** The alpha.11 release correctly claimed
   Layer A only. Four job defects were found and fixed after the tag: pinned checkout inside the workspace; runner
   pinned to ubuntu-24.04 for Playwright; one data root (the wrapper and the child resolved different roots, plus

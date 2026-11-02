@@ -87,9 +87,18 @@ first-responder nondeterminism and the Linux-only return-path race are closed by
 `endSwipe` page error that the pinned frontend raises identically on both subjects. That is now handled as a PARITY
 guard, not a zero-error requirement: `page-errors-are-not-gotavern-specific` fails when GoTavern raises an error the
 pinned leg does not, records the inherited errors in the guard detail, and does not mask an asymmetric one. Re-judging
-run 41369042127's five reports with the changed comparator gives `match` (80 guards, 0 failed) and the gate self-test
-still produces 5/5 named reds; the workflow run at the commit carrying the comparator change is the CI citation the
-matrix note will hold. A local re-judge is still Layer A evidence only.
+run 41369042127's five reports with the changed comparator gave `match` and the gate self-test still produced 5/5
+named reds.
+
+## CLOSED: the ubuntu workflow is green (2026-11-02)
+
+`Combination journey differential` run **41373571666** (success, head `9481179`) is the CI citation. The five legs
+are green on ubuntu-24.04: GoTavern drive 67 steps / 0 failed / 11 provider requests, pinned drive 67 / 0 / 11,
+GoTavern restart 20 / 0 / 1, pinned restart 20 / 0 / 1, pinned hand-back 13 / 0 / 1. The comparator reports verdict
+`match`, **81 guards, 0 failed, 0 asymmetries**, every common capture byte-equal, and `page-errors-are-not-gotavern-specific`
+true (the inherited frontend error is recorded when it appears; an asymmetric one fails the guard). The gate self-test
+is part of the same workflow and reports 5/5 named reds. This is the run the matrix row cites; the local Layer A runs
+above remain the diagnosis record, not the citation.
 
 Both findings were then addressed at the source, not by moving the guards:
 
