@@ -424,16 +424,19 @@ jobs:
           set -eu
           tree="${RUNNER_TEMP}/node-stock-tree"
           work="${RUNNER_TEMP}/node-stock-tree-inputs"
-          parent="$(dirname "$tree")"
+          # NO `cd`: two runs showed `find tree` failing in a subshell that had cd'd to the parent, so the paths are
+          # used directly and the step prints what it sees before it measures anything.
+          echo "node-originated tree: $tree"
+          ls -ld "$tree" "$tree/data" "$tree/data/default-user" 2>&1 || true
           # The generated tree is a SillyTavern INSTALLATION root: the users live under data/, not at the root.
           test -d "$tree/data/default-user" || { echo "::error::the node-originated tree has no data/default-user directory"; exit 1; }
           rm -rf "$work"; mkdir -p "$work"
-          ( cd "$parent" && find tree -type f -printf '%P\n' | LC_ALL=C sort | while IFS= read -r p; do
-              printf '%s  %s\n' "$(sha256sum -- "tree/$p" | cut -d' ' -f1)" "$p"
-            done ) > "$work/node-stock-tree.manifest"
+          find "$tree" -type f -printf '%P\n' | LC_ALL=C sort | while IFS= read -r p; do
+            printf '%s  %s\n' "$(sha256sum -- "$tree/$p" | cut -d' ' -f1)" "$p"
+          done > "$work/node-stock-tree.manifest"
           echo "node-originated tree files: $(wc -l < "$work/node-stock-tree.manifest")"
           ( cd "$work" && sha256sum node-stock-tree.manifest > node-stock-tree.manifest.sha256 && cat node-stock-tree.manifest.sha256 )
-          tar -czf "$work/node-stock-tree.tar.gz" -C "$parent" tree
+          tar -czf "$work/node-stock-tree.tar.gz" -C "$(dirname "$tree")" "$(basename "$tree")"
           ls -l "$work"
 
       - name: Upload the Node-originated tree for the Windows twin
