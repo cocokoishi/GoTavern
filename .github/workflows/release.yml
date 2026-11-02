@@ -117,7 +117,7 @@ jobs:
             archive: gotavern-windows-arm64.zip
             kind: zip
             launcher: Start.cmd
-            execution: 'NOT EXECUTED: the Windows runner is x64; BUILT + ARCHIVE-INSPECTED only, NOT runtime-qualified'
+            execution: 'NOT EXECUTED: no windows/arm64 hosted runner exists; BUILT + ARCHIVE-INSPECTED only, NOT runtime-qualified'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -289,6 +289,132 @@ jobs:
           if-no-files-found: error
 
   # ===================================================================================================
+  # CROSS-PLATFORM EXECUTION: THE ARCHIVES THIS RUN BUILT ARE RUN ON arm64 LINUX AND BOTH macOS ARCHES.
+  #
+  # Until these jobs existed, release.yml's own matrix said linux/arm64 and both darwin arches were
+  # "BUILT + ARCHIVE-INSPECTED only, NOT runtime-qualified": the repository had no runner for them. They
+  # execute THE ARCHIVES THIS RUN BUILT (downloaded from the build artifact, not a fresh compile), assert
+  # `gotavern version`, boot the server in a clean tree and poll its own /version, so the release's
+  # execution claim covers the artefact a user downloads on those platforms.
+  #
+  # linux/arm64 RUNS UNDER QEMU on the ubuntu runner: the binary is CGO_ENABLED=0, so it is a static
+  # executable and qemu-user is a faithful execution of the same bytes. d?rw??n stays NOT EXECUTED: there
+  # is no windows/arm64 hosted runner, so that boundary is asserted below rather than faked.
+  # ===================================================================================================
+  execute-linux-arm64:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: gotavern-linux-arm64.tar.gz
+          path: archive
+      - name: Execute the linux/arm64 archive under QEMU and poll its /version
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          tar -xzf archive/gotavern-linux-arm64.tar.gz -C "$work"
+          test -x "$work/gotavern" || { echo "::error::the linux/arm64 archive has no executable gotavern"; exit 1; }
+          mkdir -p "$work/tree"
+          docker run --rm --platform linux/arm64 -v "$work:/work" ubuntu:24.04 /work/gotavern version | tee "$work/version.txt"
+          grep -q 'gotavern' "$work/version.txt"
+          docker run -d --name gotavern-linux-arm64 --platform linux/arm64 -p 8831:8831 -v "$work:/work" -v "$work/tree:/tree" -w /tree ubuntu:24.04 /work/gotavern start --port 8831 --browserLaunchEnabled false
+          ready=0
+          for attempt in $(seq 1 240); do
+            code="$(curl -sS -o "$work/version.json" -w '%{http_code}' http://127.0.0.1:8831/version || true)"
+            if [ "$code" = "200" ]; then ready=1; break; fi
+            sleep 0.25
+          done
+          docker logs gotavern-linux-arm64 > "$work/server.log" 2>&1 || true
+          docker stop gotavern-linux-arm64 >/dev/null 2>&1 || true
+          docker rm gotavern-linux-arm64 >/dev/null 2>&1 || true
+          cat "$work/version.json" 2>/dev/null || true
+          if [ "$ready" -ne 1 ]; then echo "::error::linux/arm64 did not answer /version within the bound"; tail -80 "$work/server.log"; exit 1; fi
+          grep -q '"pkgVersion":"1.19.0"' "$work/version.json" || { echo "::error::linux/arm64 /version did not report the pinned SillyTavern version"; cat "$work/version.json"; exit 1; }
+          echo "ok: linux/arm64 archive executed under QEMU and answered /version"
+
+  execute-darwin-amd64:
+    needs: build
+    runs-on: macos-15-intel
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: gotavern-darwin-amd64.tar.gz
+          path: archive
+      - name: Execute the darwin/amd64 archive and poll its /version
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          tar -xzf archive/gotavern-darwin-amd64.tar.gz -C "$work"
+          test -x "$work/gotavern" || { echo "::error::the darwin/amd64 archive has no executable gotavern"; exit 1; }
+          "$work/gotavern" version | tee "$work/version.txt"
+          mkdir -p "$work/tree"
+          ( cd "$work/tree" && "$work/gotavern" start --port 8832 --browserLaunchEnabled false > "$work/server.log" 2>&1 ) &
+          ready=0
+          for attempt in $(seq 1 240); do
+            code="$(curl -sS -o "$work/version.json" -w '%{http_code}' http://127.0.0.1:8832/version || true)"
+            if [ "$code" = "200" ]; then ready=1; break; fi
+            sleep 0.25
+          done
+          if [ "$ready" -ne 1 ]; then echo "::error::darwin/amd64 did not answer /version within the bound"; tail -80 "$work/server.log"; exit 1; fi
+          grep -q '"pkgVersion":"1.19.0"' "$work/version.json" || { echo "::error::darwin/amd64 /version did not report the pinned SillyTavern version"; cat "$work/version.json"; exit 1; }
+          echo "ok: darwin/amd64 archive executed on $(uname -m) and answered /version"
+
+  execute-darwin-arm64:
+    needs: build
+    runs-on: macos-14
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: gotavern-darwin-arm64.tar.gz
+          path: archive
+      - name: Execute the darwin/arm64 archive and poll its /version
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          tar -xzf archive/gotavern-darwin-arm64.tar.gz -C "$work"
+          test -x "$work/gotavern" || { echo "::error::the darwin/arm64 archive has no executable gotavern"; exit 1; }
+          "$work/gotavern" version | tee "$work/version.txt"
+          mkdir -p "$work/tree"
+          ( cd "$work/tree" && "$work/gotavern" start --port 8833 --browserLaunchEnabled false > "$work/server.log" 2>&1 ) &
+          ready=0
+          for attempt in $(seq 1 240); do
+            code="$(curl -sS -o "$work/version.json" -w '%{http_code}' http://127.0.0.1:8833/version || true)"
+            if [ "$code" = "200" ]; then ready=1; break; fi
+            sleep 0.25
+          done
+          if [ "$ready" -ne 1 ]; then echo "::error::darwin/arm64 did not answer /version within the bound"; tail -80 "$work/server.log"; exit 1; fi
+          grep -q '"pkgVersion":"1.19.0"' "$work/version.json" || { echo "::error::darwin/arm64 /version did not report the pinned SillyTavern version"; cat "$work/version.json"; exit 1; }
+          echo "ok: darwin/arm64 archive executed on $(uname -m) and answered /version"
+
+  windows-arm64-boundary:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      # A BOUNDARY IS ASSERTED, NOT IMPLIED. There is no windows/arm64 hosted runner, so the release keeps
+      # that target at BUILT + ARCHIVE-INSPECTED and this job FAILS if the release matrix ever starts
+      # claiming execution for it without a gate that actually ran.
+      - uses: actions/checkout@v4
+      - name: The windows/arm64 execution boundary is still the recorded one
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re, sys
+          text = open('.github/workflows/release.yml', encoding='utf-8').read()
+          match = re.search(r'- goos: windows\n\s+goarch: arm64\n(?:.*\n)*?\s+execution: (.*)', text)
+          if not match:
+              sys.exit('release.yml has no windows/arm64 matrix row')
+          execution = match.group(1)
+          if 'NOT EXECUTED' not in execution or 'no windows/arm64 hosted runner' not in execution:
+              sys.exit(f'windows/arm64 execution string no longer states the boundary: {execution}')
+          print('ok: windows/arm64 is still BUILT + ARCHIVE-INSPECTED only, with the reason recorded')
+          PY
+
+  # ===================================================================================================
   # PRE-PUBLISH QUALIFICATION: THE BARE-INSTALL PATH, BEFORE THE TAG EXISTS.
   #
   # `install.sh` / `install.ps1` with no version argument fetch `releases/latest/download/...`, and that
@@ -385,7 +511,10 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   publish:
-    needs: [build, prepublish-qualification]
+    # CROSS-PLATFORM EXECUTION IS A PRECONDITION OF PUBLISHING: a release whose arm64-Linux or macOS
+    # archives were never executed cannot be a release, so the publish job waits for those jobs instead of
+    # treating their green as optional post-hoc evidence.
+    needs: [build, prepublish-qualification, execute-linux-arm64, execute-darwin-amd64, execute-darwin-arm64, windows-arm64-boundary]
     runs-on: ubuntu-latest
     # Publishing is a few API calls; anything longer is a wedged runner.
     timeout-minutes: 15
