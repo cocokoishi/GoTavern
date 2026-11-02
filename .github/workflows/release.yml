@@ -328,7 +328,7 @@ jobs:
           echo "emulated container uname -m: $arch"
           [ "$arch" = "aarch64" ] || { echo "::error::the arm64 container did not report aarch64; QEMU/binfmt is not active"; exit 1; }
           docker run --rm --platform linux/arm64 -v "$work:/work" ubuntu:24.04 /work/gotavern version | tee "$work/version.txt"
-          grep -q 'gotavern' "$work/version.txt"
+          grep -qi 'gotavern' "$work/version.txt" || { echo "::error::the arm64 'gotavern version' output does not identify GoTavern"; cat "$work/version.txt"; exit 1; }
           docker run -d --name gotavern-linux-arm64 --platform linux/arm64 -p 8831:8831 -v "$work:/work" -v "$work/tree:/tree" -w /tree ubuntu:24.04 /work/gotavern start --port 8831 --browserLaunchEnabled false
           ready=0
           for attempt in $(seq 1 240); do

@@ -53,42 +53,32 @@ if ! printf '%s' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Z
 fi
 
 # =============================================================================================================
-# THE HISTORICAL ALPHA-SERIES GRADUATION EXCEPTION.
+# THE GRADUATED TAGS: single-tag EQUALITY decisions, never a pattern.
 #
-# `v0.1.0-alpha.9` is GoTavern's FIRST OFFICIAL STABLE-CHANNEL RELEASE even though its name still carries the
-# `-alpha.9` suffix the eight releases before it were published under. The name is kept on purpose:
+# The general rule above calls a tag stable only when it is exactly v<major>.<minor>.<patch>. Two tags in this
+# repository's history graduate to the stable channel while keeping their historical alpha-series names:
 #
-#   - The tag name is a historical fact. `v0.1.0-alpha.1` .. `v0.1.0-alpha.8` are published, prerelease-flagged
-#     releases that runs, fixtures and documentation already cite by name. Re-tagging or renaming alpha.9 would
-#     make the release that graduates the product the one tag whose name does not sort, compare or resolve the
-#     way every other tag in this series does, and every recorded citation of the alpha series would have to be
-#     re-derived to explain why one member is spelled differently.
-#   - What graduates is the CHANNEL, not the semver string. `release.yml` reads this word to decide whether to
-#     pass `--prerelease --latest=false`, and `docker.yml` reads it to decide whether to move `:latest`. Those
-#     are the two places a user feels the difference: `releases/latest/download/...` (what a bare `install.sh`
-#     or `install.ps1` fetches) and `docker pull ...:latest`. Making THIS word `stable` is the whole change.
-#   - The exception therefore lives HERE and nowhere else. `release.yml`, `docker.yml` and both installers
-#     consume this script's answer; none of them may grow its own `if alpha.9`, because a second copy is a
-#     second answer that drifts, and the drift is invisible until it has already shipped a channel to users.
+#   v0.1.0-alpha.9    the FIRST stable-channel release (historical; removing it would reclassify a published
+#                     release on a re-run, which is a channel-semantic change for an already-served tag)
+#   v0.1.0-alpha.12   the release that graduates the current line; it is this project's decision that alpha.12 is
+#                     the production release of the 0.1.0 series, and the evidence gates in
+#                     docs/release-manifest.json are what make publishing it possible (the classifier only says
+#                     which channel a tag WOULD be; the release workflow refuses to publish without the gates).
 #
-# ARGUING WITH IT: this is a deliberate single-tag decision, defensible exactly once. The next release must be
-# named for the channel it is on -- `v0.1.0-beta.1` is classified by the SHAPE rule above (prerelease), not by a
-# second exception, so `releases/latest`, both bare installers and Docker `:latest` keep serving the stable
-# `v0.1.0-alpha.9` release until a stable tag supersedes it.
-#
-# WHY THE CONSTANT STAYS EVEN THOUGH THE ORIGINAL NOTE SAID TO DELETE IT. Deleting it would reclassify
-# `v0.1.0-alpha.9` from `stable` to `prerelease`, which is a CHANNEL SEMANTIC CHANGE for an already-published
-# release: a re-run of that tag's release job would ask for `--prerelease --latest=false` on a release GitHub
-# already serves as `latest`. The constant is an equality test on a published historical fact, so it cannot widen;
-# the Beta release needed no change to it, and the beta cases in `scripts/test-classify-version-tag.sh` pin that.
-# It should be removed only together with a deliberate, documented decision to change what the alpha.9 tag means.
+# THE LIST IS EQUALITY, NOT A RANGE. It cannot widen by accident: v0.1.0-alpha.10, v0.1.0-alpha.11,
+# v0.1.0-alpha.13, v0.1.0-alpha.09, v0.1.1-alpha.9 and v0.1.0-alpha.12+build.1 all stay prereleases, and each of
+# those is an assertion in scripts/test-classify-version-tag.sh so a future editor who turns this into a regex, a
+# prefix comparison or a "series >= N" test breaks a named case instead of quietly graduating an unqualified tag.
+# Each entry is added by its own commit that cites the qualification evidence for that tag.
 # =============================================================================================================
-HISTORY_GRADUATION_TAG='v0.1.0-alpha.9'
+GRADUATED_STABLE_TAGS='v0.1.0-alpha.9 v0.1.0-alpha.12'
 
-if [ "$tag" = "$HISTORY_GRADUATION_TAG" ]; then
-  echo stable
-  exit 0
-fi
+for graduated_tag in $GRADUATED_STABLE_TAGS; do
+  if [ "$tag" = "$graduated_tag" ]; then
+    echo stable
+    exit 0
+  fi
+done
 
 if printf '%s' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
   echo stable
