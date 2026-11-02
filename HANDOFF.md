@@ -96,9 +96,10 @@ path, determinism volatile-count masking, provider-wire fixture key-order).
   before dispatch: 23/23 + 9/9 on each subject, comparator PASS (30/30 guards), teeth 6/6.
 - Crash-atomicity evidence is now gated on BOTH hosts: the Linux `GoTavern CI` job `crash-gate`
   (`-tags gotavern_faults`, `-count=1`, every chat crash test; run `41321305750`, job success) sits beside the
-  Windows Layer A measurements. Chat backup remains unimplemented. The packaged drop-in gate now ALSO boots a NODE-ORIGINATED tree (scenario 5/5, run `41335424614` success);
-  that scenario deliberately skips the anonymous API smoke because the tree has accounts enabled and has no
-  Windows twin; the `/api/settings/get` 500 seen during development is PINNED PARITY (pinned answers 500 when the
+  Windows Layer A measurements. Chat backup remains unimplemented. The packaged drop-in gate boots a NODE-ORIGINATED tree on BOTH hosts now: Linux scenario 5/5 (run
+  `41335424614`) and Windows scenario 4/4 (run `41378406564` success, head `31c2b61`; tree shipped as a UTF-8 zip
+  because Windows tar decoded its CJK filename in the OEM code page, verified against the Linux manifest before boot,
+  -SkipApiSmoke named for the account-enabled tree, readiness accepts /version 403 as pinned does); the `/api/settings/get` 500 seen during development is PINNED PARITY (pinned answers 500 when the
   user has no settings.json), documented rather than recorded as a product finding. The live canary has no credentialed run. AVIF/APNG
   avatar re-encoding is a pure-Go decoder boundary; world-info long tail and preset-varying group chats remain
   unmeasured; preset/helper/imports evidence is Layer A or narrow-run; non-amd64/non-x64 runtimes are built and

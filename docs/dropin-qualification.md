@@ -502,3 +502,33 @@ Two things are stated rather than implied:
   so a 500 here IS the pinned behaviour and GoTavern reproduces it. What was wrong was the HARNESS assumption that an
   account-enabled tree answers settings/get with 200; the anonymous smoke is therefore skipped for this scenario,
   and no product defect is recorded.
+
+
+## The Windows twin of the Node-originated scenario (2026-11-02)
+
+The packaged gate now boots the Node-originated tree on BOTH hosts. The Linux orchestrator
+(`dropin-current-head`) generates the tree once with `tools/build-node-stock-tree.mjs`, packages it as a
+**UTF-8 zip** with the required top-level `tree` member plus the shasum-shaped manifest and its digest, and uploads
+it. The Windows job downloads it, verifies every file against the Linux-recorded manifest (file count, per-file
+digest, manifest digest) before boot, lays the WINDOWS archive over it, runs it through `Start.cmd`, asserts the
+no-undeclared-writes rules and performs the crash-recovery restart.
+
+Measured, with the three corrections the first attempts forced:
+
+- **A zip, not a tar, because the tree carries a CJK filename.** The tree's `data/node-origin/characters` contains
+  `Node Origin Lantern 灯.png`. Windows' `tar.exe` decoded that gnu-tar member name in the OEM code page —
+  run `41377208175` measured 灯 arriving as τü» (CP437) — while a zip records the UTF-8 flag and `Expand-Archive`
+  decodes it correctly (verified locally before shipping). `qualify-dropin.ps1` therefore accepts
+  `-StockTreeZip` (exactly one carrier) and the manifest sort compares paths by their UTF-8 bytes, which is what
+  `LC_ALL=C sort` does on the Linux side.
+- **Readiness is "any /version answer below 500".** The account-enabled tree answers /version with **403** on both
+  subjects; the PowerShell poll originally required 200 and timed out against a server whose own startup trace said
+  `startup.ready` in 0.57 s (run `41377883654`). This is the same correction the shell harness needed.
+- **The anonymous API smoke is skipped by name.** `-SkipApiSmoke` prints that the smoke was skipped because the tree
+  has accounts enabled; boot, no-mutation and restart are still asserted, and the account-enabled API surface has its
+  own differential.
+
+Green run: `GoTavern drop-in qualification` **41378406564** (success, head `31c2b61`) — Windows drop-in 1/3, 2/3,
+3/3 and **4/4 the Node-originated tree (account-enabled)** all pass; scenario 4 reports `restart became ready via
+/version answered 403`, `no pre-existing user file was modified or deleted by two boots and a restart`, and
+`scenario start-cmd/node-originated passed in 8s`.
