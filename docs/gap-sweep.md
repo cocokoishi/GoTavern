@@ -202,11 +202,13 @@ now uses the preset's own 2000000 frame; (2) the restart leg set the preset/worl
 and QR instead of last; (3) the classifier computed the preset signatures only on the drive phase, so restart captures
 reported no preset markers even when the wire carried them. Full record, including what the captures carry and what
 stays OPEN (streaming variants, helper API beyond the driven calls, group fan-out count, real provider): 
-`docs/combination-journey.md`. The ubuntu run at that commit (41359695483, failure) is NOT cited as green: the drive legs pass there
-(64/64 both), but (a) every GoTavern capture is 7 bytes longer because `{{user}}` resolves to `[Unnamed Persona]`
-on GoTavern and `Probe User` on pinned -- a real per-capture difference to diagnose, not to normalise -- and (b) the
-restart legs fail on BOTH subjects at `restart-reopened-the-saved-chat` (saved chat never became active,
-chatLength 1), a probe-faithfulness failure to fix before the run can be green.
+`docs/combination-journey.md`. The ubuntu runs at the fix commits (41359695483, 41363205426, 41364544754, 41365945447 -- all failure) are
+recorded, not cited. They narrowed the reds to probe defects: the persona boot-order race (run 41365945447 shows the
+turn-1 capture byte-equal, so that finding is closed by measurement), the group first-responder nondeterminism
+(fixture NATURAL strategy; the probe now sets LIST), an `endSwipe` page error on BOTH subjects when the rendered
+message count drifts (the driver now reopens and waits for DOM/array agreement), and a Linux-only return-path race
+(guarded by a returned-to-character precondition). The workflow at the commit carrying these fixes is the CI citation
+once green; a local match is Layer A evidence only.
 
 re-runs this workflow at the frozen candidate SHA and THAT run is cited in the release record, not here.
 

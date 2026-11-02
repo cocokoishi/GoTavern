@@ -1485,12 +1485,40 @@ async function main() {
             step('group-chat-opened', group.opened === true && group.contextGroup !== null, group);
             const groupBefore = peerRequests().length;
             await waitForTokenizerReady(page);
+            // THE GROUP'S FIRST RESPONDER MUST BE DETERMINISTIC. The staged group uses the NATURAL strategy, whose
+            // tie-break is a random member order: the Linux run's only capture mismatch was the group turn, with Bob
+            // first on GoTavern and Alice first on pinned (the wire is otherwise byte-equal). The frontend's own LIST
+            // strategy takes the members in configured order, so set it through the frontend's groups endpoint before
+            // the turn -- a user-reachable setting change, not a comparator concession.
+            report.browser.groupStrategy = await page.evaluate(async groupId => {
+                const groupChats = await import('./scripts/group-chats.js');
+                const script = await import('./script.js');
+                const target = (groupChats.groups ?? []).find(entry => entry.id === groupId);
+                if (!target) return { ok: false, reason: 'group not listed' };
+                target.activation_strategy = groupChats.group_activation_strategy.LIST;
+                try {
+                    const headers = typeof script.getRequestHeaders === 'function' ? script.getRequestHeaders() : { 'Content-Type': 'application/json' };
+                    const response = await fetch('/api/groups/edit', { method: 'POST', headers, body: JSON.stringify(target) });
+                    return { ok: response.ok, status: response.status, strategy: target.activation_strategy };
+                } catch (error) { return { ok: false, reason: String(error?.message ?? error) }; }
+            }, group.groupId);
+            step('group-strategy-is-deterministic', report.browser.groupStrategy?.ok === true, report.browser.groupStrategy);
             const groupTurn = await turn(page, 'COMB_GROUP_TURN', 'turn-group');
             report.browser.groupTurn = { requests: groupTurn.requests.length, ok: groupTurn.ok };
             step('group-turn-produced-request', groupTurn.requests.length >= 1, { requests: groupTurn.requests.length });
             // RETURN TO THE 1:1 CHAT: the group context has no journey character chat, so the character is opened
             // through the same roster path a user takes and then the saved conversation is reopened by its id.
+            // CONFIRM THE CHARACTER BEFORE openCharacterChat: on the Linux run the return path threw
+            // "Cannot set properties of undefined (setting 'chat')" inside openCharacterChat because no character was
+            // selected yet after the group context, and the helper then could not save a character variable.
             await openCharacter(page, CARD.name);
+            const returnedCharacter = await waitForCondition(page, async () => {
+                const script = await import('./script.js');
+                const context = window.SillyTavern?.getContext?.();
+                return { ok: (script.this_chid !== undefined && script.this_chid !== null) || Boolean(context?.characterId), thisChid: script.this_chid ?? null, characterId: context?.characterId ?? null };
+            }, { label: 'returned-to-character', timeoutMs: 20000 });
+            report.browser.returnedCharacter = returnedCharacter.value ?? returnedCharacter;
+            step('returned-to-character', returnedCharacter.ok === true, report.browser.returnedCharacter);
             let back;
             try {
             back = await page.evaluate(async wanted => {

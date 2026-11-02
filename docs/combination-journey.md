@@ -67,8 +67,22 @@ the comparator's structural guards pass, but two things fail and neither is pape
 Verdict of that run: `mismatch` -- failed guards `no-page-errors`, `nodeEqualsGo-per-capture`,
 `restart-reopened-the-saved-chat`, `restart-chat-ready`, `after-restart-request-carries-authors-note`,
 `after-restart-request-carries-regex-rewritten-history`, `journey-chat-projection-equal-modulo-declared-volatile`.
-The matrix row's note therefore does NOT cite a green ubuntu run; it records Layer A match plus this red and the two
-named next steps.
+The matrix row's note therefore does NOT cite a green ubuntu run; it records Layer A match plus this red.
+
+### CI iteration log (each run named, each red named)
+
+| run | result | what it showed | fix |
+|---|---|---|---|
+| 41359695483 | failure | drive 64/64 both; persona `[Unnamed Persona]` vs `Probe User` (+7 B/capture); restart legs failed on both subjects | persona map write; deterministic saved-chat pick |
+| 41363205426 | failure | all five legs green (restarts 20/20, hand-back 13/13); persona difference unchanged; page error `swipe_id` on BOTH subjects | persona write read `user_avatar` from script.js (undefined) -> personas.js |
+| 41364544754 | failure | same persona difference; page error stack = `endSwipe`; swipe pressed without swipe state | persona write polls for the avatar and rewrites placeholder entries; swipe precondition + DOM sync |
+| 41365945447 | failure | **persona difference GONE** (turn-1 capture byte-equal); group capture differs by member ORDER (`g-natural-2` NATURAL strategy randomises the first responder); page error `endSwipe` persists on both; GoTavern drive's return-to-journey-chat threw inside `openCharacterChat` and the helper then failed to save a character variable | group strategy set to LIST through the frontend's groups endpoint; confirm the character before reopening its chat |
+
+The persona finding is closed by measurement (turn-1 byte-equal), not by normalising the comparator. The remaining reds
+are: the two-subject `endSwipe` page error (a frontend transient the driver must not enter), the group first-responder
+nondeterminism (fixture NATURAL strategy; now LIST), and the Linux-only return-path race (now guarded by a
+returned-to-character precondition). The workflow at the commit carrying these is the run that must be green before
+the matrix note cites CI; a local green remains Layer A evidence only.
 
 Both findings were then addressed at the source, not by moving the guards:
 
