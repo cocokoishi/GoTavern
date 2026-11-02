@@ -534,13 +534,23 @@ async function setJourneyUserName(page, name) {
         // setter (the ubuntu CI capture carried [Unnamed Persona] where pinned carried Probe User, +7 bytes on
         // every capture), while Windows happened to run it first. Setting the map entry too is what a user does
         // when they name their persona, and it makes the value survive the re-assert on both hosts.
-        // user_avatar lives in scripts/personas.js, NOT in script.js: reading it from script.js gave undefined and
-        // the prior version of this fix therefore did nothing (measured in ubuntu run 41363205426: every capture was
-        // STILL 7 bytes longer, [Unnamed Persona] vs Probe User).
+        // PERSONAS.js OWNS user_avatar AND THE BOOT MAY NOT HAVE SET IT YET. reading it from script.js gave undefined;
+        // reading it once from personas.js gave '' on the Linux boot (so the write was skipped and run 41364544754
+        // still carried [Unnamed Persona] on every capture). Wait bounded for it, write the map entry, and rewrite any
+        // placeholder entry the boot's addMissingPersonas() may already have created -- that entry is the one
+        // selectCurrentPersona() copies back into name1 when the boot step lands after this setter.
         const personasModule = await import('./scripts/personas.js');
-        const personaAvatar = personasModule.user_avatar ?? '';
+        let personaAvatar = '';
+        for (let attempt = 0; attempt < 50; attempt += 1) {
+            personaAvatar = personasModule.user_avatar ?? '';
+            if (personaAvatar) break;
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        powerUser.power_user.personas = powerUser.power_user.personas ?? {};
+        for (const [avatarId, personaName] of Object.entries(powerUser.power_user.personas)) {
+            if (!personaName || personaName === '[Unnamed Persona]') powerUser.power_user.personas[avatarId] = wanted;
+        }
         if (personaAvatar) {
-            powerUser.power_user.personas = powerUser.power_user.personas ?? {};
             powerUser.power_user.personas[personaAvatar] = wanted;
             powerUser.power_user.persona_descriptions = powerUser.power_user.persona_descriptions ?? {};
             powerUser.power_user.persona_descriptions[personaAvatar] = powerUser.power_user.persona_descriptions[personaAvatar] ?? { description: '', position: 0, depth: 4, role: 0, lorebook: '' };
@@ -1053,6 +1063,16 @@ async function main() {
             const swipeBefore = await readPageState(page);
             const swipe = await page.evaluate(async () => {
                 const script = await import('./script.js');
+                // THE RENDERED CHAT CAN LAG THE ARRAY ON THE LINUX BOOT: endSwipe() indexes chat[] with the DOM's
+                // message id, and a stale .mes node makes that index undefined -> the page error both subjects showed.
+                // If the counts disagree, reopen the active chat (a user-reachable sync) and wait for the DOM to agree.
+                const context = window.SillyTavern?.getContext?.();
+                const domCount = () => document.querySelectorAll('#chat .mes').length;
+                if (domCount() !== (script.chat ?? []).length && context?.chatId) {
+                    try { await script.openCharacterChat(context.chatId); } catch (error) { /* recorded below if it persists */ }
+                    const deadline = Date.now() + 15000;
+                    while (Date.now() < deadline && domCount() !== (script.chat ?? []).length) await new Promise(resolve => setTimeout(resolve, 100));
+                }
                 const chat = script.chat ?? [];
                 window.__combSwipeBefore = { chatLength: chat.length, lastText: String(chat[chat.length - 1]?.mes ?? '') };
                 const allowed = typeof script.isSwipingAllowed === 'function' ? script.isSwipingAllowed() : null;
