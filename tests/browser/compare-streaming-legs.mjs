@@ -242,6 +242,17 @@ const main = async () => {
             'Pinned emits extra prompt-manager dry generations (visible as duplicate GENERATE_AFTER_DATA dryRun=true entries); they never issue a provider request and are not part of the comparison.',
         ],
     };
+    // A LEG THAT COULD NOT DRIVE NAMES ITSELF IN THE ARTEFACT. The readiness defect that produced a false ai21
+    // refusal (run 41388200223: the in-process peer was handed the subject's port, answered /version with 404, and
+    // the drive rendered the peer's 404 page) surfaced only as "cancellation.requestArrivedBoth" -- the check that
+    // failed, never the leg's own `failure`. The probe now refuses to treat a 404 as readiness, and this records the
+    // leg failure beside the checks so a future refusal is diagnosable from the artefact alone.
+    comparison.legFailures = [
+        ['streamGotavern', streamGotavern], ['streamPinned', streamPinned],
+        ['cancelGotavern', cancelGotavern], ['cancelPinned', cancelPinned],
+        ['nonstreamGotavern', nonstreamGotavern], ['nonstreamPinned', nonstreamPinned],
+    ].filter(([, report]) => report && typeof report.failure === 'string' && report.failure !== '')
+        .map(([leg, report]) => `${leg}: ${report.failure}`);
     console.log(JSON.stringify(comparison, null, 2));
     // THE COMPARATOR'S OWN EXIT STATUS. It printed a `compatibleReady: false` verdict and exited 0, so the
     // workflow's attribution branch --
@@ -256,6 +267,9 @@ const main = async () => {
                 .filter(([, value]) => value !== true)
                 .map(([name]) => `${surface}.${name}`));
         console.error(`the streaming comparison refused: ${failed.join(', ') || 'no check isolated'}`);
+        if (comparison.legFailures.length > 0) {
+            console.error(`leg failure(s): ${comparison.legFailures.join(' | ')}`);
+        }
         process.exitCode = 1;
     }
 };

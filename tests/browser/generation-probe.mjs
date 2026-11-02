@@ -51,16 +51,66 @@ const playwrightModule = await import('@playwright/test');
 // CJS interop: the browser type may be exposed on the namespace or only under default.
 const chromium = playwrightModule.chromium ?? playwrightModule.default?.chromium;
 
+// A SUBJECT PORT THAT ANOTHER bind(0) CALLER CANNOT BE HANDED.
+//
+// This used to bind port 0 and close it, then spawn the subject on that port. On Linux the ephemeral range starts at
+// 32768, so the in-process peer (started later with bind(0)) could be handed EXACTLY the port the subject was about
+// to use. The subject then failed to bind, the peer answered /version with a 404, the old readiness wait accepted any
+// status < 500, and the drive rendered the peer's 404 page -- producing a "streaming comparison refused" for ai21 in
+// run 41388200223 while the health check looked satisfied. That is a harness defect presenting as a product finding
+// (AGENTS verification rule 10), so the port is chosen BELOW every platform's ephemeral range (Linux 32768+, macOS
+// and Windows 49152+) and the readiness check below asserts the responder's IDENTITY rather than only TCP reachability.
 function freePort() {
-    return new Promise((resolve, reject) => {
+    const start = 20000 + Math.floor(Math.random() * 8000);
+    const tryCandidate = (candidate) => new Promise((resolve) => {
         const server = createServer();
         server.unref();
-        server.on('error', reject);
-        server.listen(0, '127.0.0.1', () => {
-            const { port } = server.address();
-            server.close(() => resolve(port));
-        });
+        server.once('error', () => resolve(false));
+        server.listen(candidate, '127.0.0.1', () => server.close(() => resolve(true)));
     });
+    return (async () => {
+        for (let candidate = start; candidate < 30000; candidate++) {
+            if (await tryCandidate(candidate)) return candidate;
+        }
+        for (let candidate = 20000; candidate < start; candidate++) {
+            if (await tryCandidate(candidate)) return candidate;
+        }
+        throw new Error('no free port in 20000-29999; refusing to fall back to bind(0) because the OS can hand that port to the in-process peer');
+    })();
+}
+
+// READINESS IS AN IDENTITY CHECK, NOT A TCP CHECK. The in-process peer answers 404 on /version; a readiness wait that
+// accepts any status below 500 treats that 404 as "the subject is up", loads the peer's 404 page and reports a failed
+// drive for a subject that was never running. The subject is only ready when /version answers 200 with the
+// SillyTavern version payload, and the failure names the body and the subject log tail when it does not.
+async function waitForSubjectVersion(url, label, deadlineMs = 30000) {
+    const started = Date.now();
+    let last = 'no response yet';
+    while (Date.now() - started < deadlineMs) {
+        try {
+            const response = await fetch(url);
+            const body = await response.text();
+            if (response.status === 200) {
+                let parsed = null;
+                try {
+                    parsed = JSON.parse(body);
+                } catch {
+                    parsed = null;
+                }
+                if (parsed && (typeof parsed.pkgVersion === 'string' || typeof parsed.version === 'string')) {
+                    return parsed;
+                }
+                last = `status 200 but the body is not a SillyTavern /version payload: ${body.slice(0, 200)}`;
+            } else {
+                last = `status ${response.status}: ${body.slice(0, 200)}`;
+            }
+        } catch (error) {
+            last = String(error.message ?? error);
+        }
+        await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    const tail = typeof serverLog !== 'undefined' && Array.isArray(serverLog) ? serverLog.join('').slice(-2000) : '';
+    throw new Error(`${label} did not answer at ${url} with a SillyTavern /version payload: ${last}${tail ? `; subject log tail: ${tail}` : ''}`);
 }
 
 async function waitFor(url, label, deadlineMs = 30000) {
@@ -629,7 +679,7 @@ let browser;
 // the same factoring is what the provider comparison will need.
 const baseURL = process.env.PROBE_BASE_URL ?? `http://127.0.0.1:${port}`;
 try {
-    await waitFor(`${baseURL}/version`, 'server');
+    await waitForSubjectVersion(`${baseURL}/version`, 'server');
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
     page.on('pageerror', error => report.pageErrors.push(String(error.message ?? error).slice(0, 300)));
