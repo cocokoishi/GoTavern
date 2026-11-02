@@ -414,6 +414,35 @@ jobs:
             --layout cwd-root --config full --port 8801 --tree "$tree" --skip-api-smoke
           echo "scenario cwd-root/node-originated passed in $(( $(date +%s) - start ))s"
 
+      - name: Package the Node-originated tree as a tar + manifest for the Windows twin
+        # THE WINDOWS TWIN OF SCENARIO 5/5. The Node-originated tree is generated HERE, with the pinned checkout and
+        # its installed dependencies, and shipped to the Windows job as the same tar+manifest shape the derived tree
+        # uses -- so the PowerShell harness verifies the bytes it received against bytes Linux recorded (file count,
+        # per-file digests, manifest digest) instead of trusting a transfer. The manifest format is the shasum one:
+        # "<sha256>  <path relative to the tree>", LC_ALL=C sorted.
+        run: |
+          set -eu
+          tree="${RUNNER_TEMP}/node-stock-tree"
+          work="${RUNNER_TEMP}/node-stock-tree-inputs"
+          parent="$(dirname "$tree")"
+          test -d "$tree/default-user" || { echo "::error::the node-originated tree has no default-user directory"; exit 1; }
+          rm -rf "$work"; mkdir -p "$work"
+          ( cd "$parent" && find tree -type f -printf '%P\n' | LC_ALL=C sort | while IFS= read -r p; do
+              printf '%s  %s\n' "$(sha256sum -- "tree/$p" | cut -d' ' -f1)" "$p"
+            done ) > "$work/node-stock-tree.manifest"
+          echo "node-originated tree files: $(wc -l < "$work/node-stock-tree.manifest")"
+          ( cd "$work" && sha256sum node-stock-tree.manifest > node-stock-tree.manifest.sha256 && cat node-stock-tree.manifest.sha256 )
+          tar -czf "$work/node-stock-tree.tar.gz" -C "$parent" tree
+          ls -l "$work"
+
+      - name: Upload the Node-originated tree for the Windows twin
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-stock-tree-inputs
+          path: ${{ runner.temp }}/node-stock-tree-inputs/*
+          if-no-files-found: error
+          retention-days: 7
+
       - name: 'Hand the PACKAGED tree back to pinned Node (Q21) -- AGENTS.md 38'
         id: q21
         # THE CLAIM THE OTHER SCENARIOS CANNOT MAKE. They boot the archive over a planted tree and assert the
@@ -730,7 +759,7 @@ jobs:
           echo "::endgroup::"
 
   dropin-windows:
-    needs: windows-inputs
+    needs: [windows-inputs, dropin-current-head]
     runs-on: windows-latest
     # SIZED FROM MEASURED REALITY, not from hope. The job extracts three ~45 MB stock trees, hashes ~1000
     # files per scenario, and boots a server twice per scenario. The readiness bound is the harness's own
@@ -749,6 +778,11 @@ jobs:
           name: dropin-windows-inputs
           path: windows-inputs
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: node-stock-tree-inputs
+          path: node-inputs
+
       - name: Report the inputs this job is about to execute
         # PRINTED, so a green is attached to specific bytes: the archive's digest, the stock tree's file
         # count and its manifest digest are what the three scenarios below actually ran against.
@@ -762,6 +796,13 @@ jobs:
           "archive sha256: $((Get-FileHash -Algorithm SHA256 -LiteralPath 'windows-inputs/gotavern-windows-amd64-dropin.zip').Hash.ToLowerInvariant())"
           "stock tree file count (recorded on Linux): $((Get-Content -LiteralPath 'windows-inputs/stock-tree.manifest').Count)"
           "stock tree manifest digest (recorded on Linux): $(Get-Content -LiteralPath 'windows-inputs/stock-tree.manifest.sha256' -Raw)"
+          foreach ($required in 'node-stock-tree.tar.gz', 'node-stock-tree.manifest', 'node-stock-tree.manifest.sha256') {
+            $path = Join-Path 'node-inputs' $required
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "missing input: $path" }
+            "{0,-40} {1,12} bytes" -f $required, (Get-Item -LiteralPath $path).Length
+          }
+          "node-originated tree files (recorded on Linux): $((Get-Content -LiteralPath 'node-inputs/node-stock-tree.manifest').Count)"
+          "node-originated tree manifest digest (recorded on Linux): $(Get-Content -LiteralPath 'node-inputs/node-stock-tree.manifest.sha256' -Raw)"
 
       - name: 'Windows drop-in 1/3 -- Start.cmd, pristine pinned config'
         # THE DOCUMENTED WINDOWS USER PATH: the archive's own Start.cmd, whose `cd /d "%~dp0"` is what gives
@@ -812,6 +853,24 @@ jobs:
           $status = $LASTEXITCODE
           if ($status -ne 0) { throw "scenario foreign-cwd/full FAILED with exit $status" }
           "scenario foreign-cwd/full passed in $([int]((Get-Date) - $start).TotalSeconds)s"
+
+      - name: 'Windows drop-in 4/4 -- the NODE-ORIGINATED tree (account-enabled)'
+        # THE WINDOWS TWIN OF THE LINUX SCENARIO 5/5. Linux already proves the packaged binary boots the tree the
+        # pinned server itself generated; nothing on Windows had ever opened that tree shape. This is the same
+        # archive, the same tree bytes (verified against the Linux manifest before boot), and the same assertions as
+        # the scenarios above except the anonymous API smoke: the tree has two accounts, so that smoke is not
+        # applicable and `-SkipApiSmoke` says so as a NAMED narrow scenario instead of weakening a shared claim.
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $start = Get-Date
+          pwsh -NoProfile -File scripts/qualify-dropin.ps1 `
+            -Archive windows-inputs/gotavern-windows-amd64-dropin.zip `
+            -StockTreeTar node-inputs/node-stock-tree.tar.gz `
+            -StockTreeManifest node-inputs/node-stock-tree.manifest `
+            -Layout start-cmd -Config full -Port 8800 -SkipApiSmoke
+          $status = $LASTEXITCODE
+          if ($status -ne 0) { throw "scenario start-cmd/node-originated FAILED with exit $status" }
+          "scenario start-cmd/node-originated passed in $([int]((Get-Date) - $start).TotalSeconds)s"
 
       - name: Report failure context
         # The harness prints its own server log and the stage lines the boot managed; what it cannot show is

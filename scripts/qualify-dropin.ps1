@@ -99,6 +99,11 @@ param(
     [Parameter(Mandatory = $true)][ValidateSet('start-cmd', 'foreign-cwd')][string]$Layout,
     [ValidateSet('full', 'minimal')][string]$Config = 'full',
     [int]$Port = 8797,
+    # THE ACCOUNT-ENABLED TREE'S NAMED NARROW SCENARIO. The Node-originated tree (tools/build-node-stock-tree.mjs)
+    # has two user accounts, so the anonymous API smoke above is not applicable: pinned itself answers the same
+    # requests with 403. The switch SKIPS the smoke and PRINTS that it did, instead of weakening a shared assertion;
+    # boot, the no-undeclared-writes checks, the readiness bound and the crash-recovery restart still run.
+    [switch]$SkipApiSmoke,
     [switch]$Keep
 )
 
@@ -188,16 +193,30 @@ function Get-TreeManifestOnce {
     $paths = New-Object System.Collections.Generic.List[string]
     foreach ($file in @(Get-ChildItem -LiteralPath $Root -Recurse -File -Force -ErrorAction SilentlyContinue)) {
         $relative = $file.FullName.Substring($Root.Length).TrimStart('\', '/').Replace('\', '/')
-        if ($relative -match '[^\x20-\x7E]') {
-            Fail "the file '$relative' has a non-ASCII path; this harness compares manifests in ORDINAL order, which equals byte order only for ASCII, so the comparison would be a different one than the Linux side made"
-        }
+        # NON-ASCII PATHS ARE COMPARED BY THEIR UTF-8 BYTES, which is what the Linux side's `LC_ALL=C sort` orders.
+        # The derived stock tree is ASCII-only, but the NODE-ORIGINATED tree carries a character named with a CJK
+        # glyph, so refusing non-ASCII would refuse the tree this harness now has to open. PowerShell's ordinal
+        # string order is UTF-16 code-unit order and does NOT equal UTF-8 byte order for non-ASCII, so the sort is
+        # done over the encoded bytes below instead of over the strings.
         $paths.Add($relative)
         $digests[$relative] = Get-Sha256 $file.FullName
     }
     # List<string>.Sort(IComparer<string>) with StringComparer.Ordinal: the comparison the Linux side's
     # `LC_ALL=C sort` makes, and NOT the culture-aware default, which orders '-' against '_' and digits
     # differently and would make two identical trees compare unequal.
-    $paths.Sort([System.StringComparer]::Ordinal)
+    $utf8Comparer = [System.Comparison[string]]{
+        param([string]$left, [string]$right)
+        $leftBytes = [System.Text.Encoding]::UTF8.GetBytes($left)
+        $rightBytes = [System.Text.Encoding]::UTF8.GetBytes($right)
+        $shared = [Math]::Min($leftBytes.Length, $rightBytes.Length)
+        for ($index = 0; $index -lt $shared; $index++) {
+            if ($leftBytes[$index] -ne $rightBytes[$index]) {
+                if ($leftBytes[$index] -lt $rightBytes[$index]) { return -1 } else { return 1 }
+            }
+        }
+        return $leftBytes.Length.CompareTo($rightBytes.Length)
+    }
+    $paths.Sort($utf8Comparer)
     $lines = New-Object System.Collections.Generic.List[string]
     foreach ($relative in $paths) { $lines.Add(('{0}  {1}' -f $digests[$relative], $relative)) }
     return [string[]]$lines.ToArray()
@@ -733,6 +752,10 @@ try {
     Write-Host "startup stage lines in the boot-1 log: $boot1Stages (requested with GOTAVERN_STARTUP_TRACE=1; the tracer prints only stages slower than 200 ms by default)"
 
     # --- 6. API smoke, through the browser's real CSRF handshake --------------------------------
+    if ($SkipApiSmoke) {
+        Write-Host 'narrow scenario: anonymous API smoke SKIPPED (-SkipApiSmoke) because this tree has accounts enabled; boot, no-mutation and restart assertions below still run'
+        Ok 'anonymous API smoke skipped by -SkipApiSmoke (account-enabled tree; named narrow scenario)'
+    } else {
     $session = New-Session
     $token = Get-CsrfToken -Session $session
     Ok "csrf handshake (/csrf-token 200, token $($token.Length) chars)"
@@ -769,6 +792,7 @@ try {
         Fail "/api/chats/get returned $chatLines line(s), expected 3 (1 header + 2 messages)"
     }
     Ok "chat readable ($chatLines lines, the seeded synthetic chat)"
+    }
 
     # --- 7. boot must not mutate what it does not own -------------------------------------------
     $extStatusNow = @(Get-ExtensionGitStatus -Tree $Tree)
@@ -823,6 +847,9 @@ try {
     }
     Ok "restart became ready via $($Script:ReadySignal) (after $([math]::Round($ready2.Elapsed, 2))s)"
 
+    if ($SkipApiSmoke) {
+        Ok 'restart chat re-read skipped by -SkipApiSmoke (account-enabled tree; the restart readiness above is still asserted)'
+    } else {
     $session2 = New-Session
     $token2 = Get-CsrfToken -Session $session2
     $chat2 = Invoke-ApiPost -Session $session2 -Token $token2 -Route '/api/chats/get' -Body '{"avatar_url":"default_Seraphina.png","file_name":"dropin-smoke"}' -OutFile (Join-Path $Work 'chat2.json')
@@ -834,6 +861,7 @@ try {
         Fail "after restart the chat has $chatLines2 line(s), expected 3: persistence did not survive"
     }
     Ok "chat survived the restart ($chatLines2 lines)"
+    }
 
     if (-not (Stop-Server -Label 'boot 2')) {
         Write-ServerLog
