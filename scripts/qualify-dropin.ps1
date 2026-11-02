@@ -391,8 +391,12 @@ function Wait-Ready {
     while ($stopwatch.Elapsed.TotalSeconds -lt $ReadinessBoundSeconds) {
         try {
             $response = Invoke-WebRequest -Uri "$Script:Base/version" -TimeoutSec 2 -SkipHttpErrorCheck -UseBasicParsing
-            if ($response.StatusCode -eq 200) {
-                $Script:ReadySignal = '/version answered'
+            # READY MEANS "THE SERVER ANSWERED", NOT "THE SERVER ANSWERED 200". The NODE-ORIGINATED tree has accounts
+            # enabled, and pinned (and therefore the drop-in binary) answers /version with 403 in that configuration --
+            # the Linux harness made the same correction after the same tree shape timed out at its own bound. A 5xx is
+            # not ready; a 2xx/3xx/4xx means the listener and the router are up.
+            if ($response.StatusCode -lt 500) {
+                $Script:ReadySignal = "/version answered $($response.StatusCode)"
                 $elapsed = $stopwatch.Elapsed.TotalSeconds
                 [System.IO.File]::WriteAllText((Join-Path $Work 'version.json'), $response.Content, (New-Object System.Text.UTF8Encoding($false)))
                 return @{ Status = 0; Elapsed = $elapsed }
