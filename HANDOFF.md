@@ -105,6 +105,26 @@ multi-user contention untested. `docs/goal-scorecard.md` is re-anchored to `a01b
 (background paint half still unproven). None of these is a regression introduced by this release, and each is
 listed in the published release body.
 
+### Post-release verification and one disclosed infrastructure timeout
+
+- **The public download endpoint serves this release.** `https://github.com/cocokoishi/GoTavern/releases/latest`
+  resolves to `v0.1.0-alpha.12`, and `releases/latest/download/checksums.txt` returns the six published digests
+  (linux/darwin/windows amd64/arm64, windows-amd64 sha256 `831eeea5a4e93186d3278eb4500fcd18e929389223a9060b1ad71c038b131736`,
+  checked against a downloaded asset); the release body carries the 10-row same-SHA gate table appended by the
+  publish job.
+- **Post-release documentation commits do not touch the released commit.** The tag remains `c35c041` -> `a01b536`;
+  `main` advanced only with generated facts (`bb79fa5`), the docs update (`764b02a`) and the evidence-ledger fix
+  (`afc5dc4`). The first docs push (`GoTavern CI` run `41482748816`) was **red on two correct document gates**
+  (`TestPinnedCommitStringsMatchThePin` refused the full alpha.12 SHA in the benchmark provenance until it was
+  declared in `declaredOtherPins`, and `TestEvidenceLedgerIsConsistent` refused Q22's new smoke run until it was
+  added to `tests/docs/run-manifest.json`); `afc5dc4` fixes both and its `verify`, `race`, `crash-gate` and
+  `browser-evidence` jobs are green.
+- **One infrastructure timeout, stated rather than hidden.** The full-oracle job on the docs push (`GoTavern CI`
+  `41484909415`, head `afc5dc4`) ran to its 180-minute `timeout-minutes` and was cancelled before completing; this
+  is the same job whose 180-minute bound is recorded in `ci.yml` as "~1.9x the worst observed pass". It is not a
+  product failure, and the release's own required `GoTavern CI` gate at `a01b536` is green (`41448402199`); the
+  main-branch oracle bound remains a known scheduling cost rather than a qualified claim about this release.
+
 ## HISTORY - 2026-11-01: `v0.1.0-alpha.11` SHIPPED -- THE ALPHA-LINE PRERELEASE THAT TURNED THE REMAINING P1 EVIDENCE INTO MEASURED CAPABILITIES
 
 `v0.1.0-alpha.11` is a **prerelease on the alpha line** (release id `430586286`, tag object `a5a04e6`, commit
