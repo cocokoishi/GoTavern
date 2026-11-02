@@ -436,11 +436,16 @@ jobs:
           done > "$work/node-stock-tree.manifest"
           echo "node-originated tree files: $(wc -l < "$work/node-stock-tree.manifest")"
           ( cd "$work" && sha256sum node-stock-tree.manifest > node-stock-tree.manifest.sha256 && cat node-stock-tree.manifest.sha256 )
-          # THE HARNESS EXPECTS A TOP-LEVEL 'tree' DIRECTORY (the same shape scripts/build-stock-tree.sh ships),
-          # so the member is renamed from the temp directory's name to 'tree' with GNU tar's --transform. Measured:
-          # without it ps1 refused the archive ("does not contain a 'tree' directory at its root") in run 41376687822.
-          tar -czf "$work/node-stock-tree.tar.gz" -C "$(dirname "$tree")" --transform "s,^$(basename "$tree"),tree," "$(basename "$tree")"
-          tar -tzf "$work/node-stock-tree.tar.gz" | head -3
+          # A ZIP, NOT A TAR, AND THAT IS A MEASURED CHOICE. Windows' tar.exe decoded this tree's CJK character
+          # filename in the OEM code page (run 41377208175: 灯 arrived as τü», CP437) while a zip records the UTF-8
+          # flag and Expand-Archive decodes it correctly. The zip's top-level member is 'tree' (the shape
+          # scripts/build-stock-tree.sh ships), so the tree is hardlink-copied under that name before zipping.
+          pkg="$(dirname "$work")/node-stock-tree-pkg"
+          rm -rf "$pkg"; mkdir -p "$pkg"
+          cp -al "$tree" "$pkg/tree"
+          ( cd "$pkg" && zip -qr "$work/node-stock-tree.zip" tree )
+          rm -rf "$pkg"
+          unzip -l "$work/node-stock-tree.zip" | tail -3
           ls -l "$work"
 
       - name: Upload the Node-originated tree for the Windows twin
@@ -804,7 +809,7 @@ jobs:
           "archive sha256: $((Get-FileHash -Algorithm SHA256 -LiteralPath 'windows-inputs/gotavern-windows-amd64-dropin.zip').Hash.ToLowerInvariant())"
           "stock tree file count (recorded on Linux): $((Get-Content -LiteralPath 'windows-inputs/stock-tree.manifest').Count)"
           "stock tree manifest digest (recorded on Linux): $(Get-Content -LiteralPath 'windows-inputs/stock-tree.manifest.sha256' -Raw)"
-          foreach ($required in 'node-stock-tree.tar.gz', 'node-stock-tree.manifest', 'node-stock-tree.manifest.sha256') {
+          foreach ($required in 'node-stock-tree.zip', 'node-stock-tree.manifest', 'node-stock-tree.manifest.sha256') {
             $path = Join-Path 'node-inputs' $required
             if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "missing input: $path" }
             "{0,-40} {1,12} bytes" -f $required, (Get-Item -LiteralPath $path).Length
@@ -873,7 +878,7 @@ jobs:
           $start = Get-Date
           pwsh -NoProfile -File scripts/qualify-dropin.ps1 `
             -Archive windows-inputs/gotavern-windows-amd64-dropin.zip `
-            -StockTreeTar node-inputs/node-stock-tree.tar.gz `
+            -StockTreeZip node-inputs/node-stock-tree.zip `
             -StockTreeManifest node-inputs/node-stock-tree.manifest `
             -Layout start-cmd -Config full -Port 8800 -SkipApiSmoke
           $status = $LASTEXITCODE

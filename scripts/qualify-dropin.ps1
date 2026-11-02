@@ -32,6 +32,11 @@ WHAT THIS RUNS (one layout and one config variant per invocation, so a red run n
   9. report `config.yaml`: unchanged for the pristine pinned config, and rewritten-but-still-`false` for a
      used/trimmed one (the P0-C mechanism, measured here on Windows for the first time)
 
+THE TREE CARRIER. `-StockTreeTar` ships the DERIVED tree (ASCII names). `-StockTreeZip` ships the
+NODE-ORIGINATED tree: Windows' tar.exe decoded that tree's CJK character filename in the OEM code page (measured:
+灯 arrived as τü», CP437), while a zip records the UTF-8 flag and Expand-Archive decodes it correctly. Exactly one
+carrier is accepted; both are verified against the same Linux-recorded manifest before boot.
+
 LAYOUTS.
   start-cmd      Run the archive's `Start.cmd`, which does `cd /d "%~dp0"` and then `"%~dp0gotavern.exe" %*`.
                  THE DOCUMENTED WINDOWS USER PATH, and the only layout that executes the launcher's own
@@ -94,7 +99,12 @@ Usage:
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$Archive,
-    [Parameter(Mandatory = $true)][string]$StockTreeTar,
+    # ONE OF these two carries the tree. The DERIVED tree ships as .tar.gz (its names are ASCII); the
+    # NODE-ORIGINATED tree ships as .zip because Windows' tar.exe decodes a raw-UTF-8 member name in the OEM code
+    # page (measured: 灯 arrived as τü», CP437), while a zip records the UTF-8 flag and Expand-Archive decodes it
+    # correctly. The manifest/digest identity assertion is identical for both carriers.
+    [string]$StockTreeTar = '',
+    [string]$StockTreeZip = '',
     [Parameter(Mandatory = $true)][string]$StockTreeManifest,
     [Parameter(Mandatory = $true)][ValidateSet('start-cmd', 'foreign-cwd')][string]$Layout,
     [ValidateSet('full', 'minimal')][string]$Config = 'full',
@@ -529,7 +539,12 @@ enableServerPlugins: false
 
 try {
     # --- 0. the inputs, checked before anything expensive -------------------------------------
-    foreach ($required in @($Archive, $StockTreeTar, $StockTreeManifest, "$StockTreeManifest.sha256")) {
+    if (([string]::IsNullOrWhiteSpace($StockTreeTar) -and [string]::IsNullOrWhiteSpace($StockTreeZip)) -or
+        (-not [string]::IsNullOrWhiteSpace($StockTreeTar) -and -not [string]::IsNullOrWhiteSpace($StockTreeZip))) {
+        Fail 'exactly one of -StockTreeTar and -StockTreeZip must be given (tar for the derived tree, zip for the Node-originated one)'
+    }
+    $treeCarrier = if ($StockTreeZip) { $StockTreeZip } else { $StockTreeTar }
+    foreach ($required in @($Archive, $treeCarrier, $StockTreeManifest, "$StockTreeManifest.sha256")) {
         if (-not (Test-Path -LiteralPath $required -PathType Leaf)) { Fail "a required input is missing: $required" }
         if ((Get-Item -LiteralPath $required).Length -eq 0) { Fail "a required input is empty: $required" }
     }
@@ -545,10 +560,14 @@ try {
     # --- 1. the stock tree, extracted and then PROVEN to be the tree the Linux job built --------
     $extract = Join-Path $Work 'stock-tree-extract'
     $null = New-Item -ItemType Directory -Path $extract -Force
-    & tar -xzf $StockTreeTar -C $extract
-    if ($LASTEXITCODE -ne 0) { Fail "tar could not extract the stock tree from $StockTreeTar (exit $LASTEXITCODE)" }
+    if ($StockTreeZip) {
+        Expand-Archive -LiteralPath $StockTreeZip -DestinationPath $extract -Force
+    } else {
+        & tar -xzf $StockTreeTar -C $extract
+        if ($LASTEXITCODE -ne 0) { Fail "tar could not extract the stock tree from $StockTreeTar (exit $LASTEXITCODE)" }
+    }
     if (-not (Test-Path -LiteralPath (Join-Path $extract 'tree') -PathType Container)) {
-        Fail "the stock tree archive does not contain a 'tree' directory at its root: $StockTreeTar"
+        Fail "the stock tree archive does not contain a 'tree' directory at its root: $treeCarrier"
     }
     $Tree = Join-Path $Work 'tree'
     Move-Item -LiteralPath (Join-Path $extract 'tree') -Destination $Tree
