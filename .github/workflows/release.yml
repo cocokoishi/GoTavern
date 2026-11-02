@@ -322,27 +322,36 @@ jobs:
           work="$(mktemp -d)"
           tar -xzf archive/gotavern-linux-arm64.tar.gz -C "$work"
           test -x "$work/gotavern" || { echo "::error::the linux/arm64 archive has no executable gotavern"; exit 1; }
-          mkdir -p "$work/tree"
           # PROVE THE EMULATION BEFORE BLAMING THE BINARY: the container must report aarch64.
           arch="$(docker run --rm --platform linux/arm64 ubuntu:24.04 uname -m)"
           echo "emulated container uname -m: $arch"
           [ "$arch" = "aarch64" ] || { echo "::error::the arm64 container did not report aarch64; QEMU/binfmt is not active"; exit 1; }
-          docker run --rm --platform linux/arm64 -v "$work:/work" ubuntu:24.04 /work/gotavern version | tee "$work/version.txt"
-          grep -qi 'gotavern' "$work/version.txt" || { echo "::error::the arm64 'gotavern version' output does not identify GoTavern"; cat "$work/version.txt"; exit 1; }
-          docker run -d --name gotavern-linux-arm64 --platform linux/arm64 -p 8831:8831 -v "$work:/work" -v "$work/tree:/tree" -w /tree ubuntu:24.04 /work/gotavern start --port 8831 --browserLaunchEnabled false
-          ready=0
-          for attempt in $(seq 1 240); do
-            code="$(curl -sS -o "$work/version.json" -w '%{http_code}' http://127.0.0.1:8831/version || true)"
-            if [ "$code" = "200" ]; then ready=1; break; fi
-            sleep 0.25
-          done
-          docker logs gotavern-linux-arm64 > "$work/server.log" 2>&1 || true
-          docker stop gotavern-linux-arm64 >/dev/null 2>&1 || true
-          docker rm gotavern-linux-arm64 >/dev/null 2>&1 || true
-          cat "$work/version.json" 2>/dev/null || true
-          if [ "$ready" -ne 1 ]; then echo "::error::linux/arm64 did not answer /version within the bound"; tail -80 "$work/server.log"; exit 1; fi
-          grep -q '"pkgVersion":"1.19.0"' "$work/version.json" || { echo "::error::linux/arm64 /version did not report the pinned SillyTavern version"; cat "$work/version.json"; exit 1; }
-          echo "ok: linux/arm64 archive executed under QEMU and answered /version"
+          # EVERYTHING HAPPENS INSIDE THE CONTAINER. A server bound to 127.0.0.1 inside a container is not
+          # reachable through a published port (the first attempt got ECONNRESET from the host while the log
+          # showed a healthy "listening on IPv4: 127.0.0.1:8831"), so the boot and the readiness poll run in the
+          # same network namespace, using bash's /dev/tcp for HTTP -- no curl needed in the minimal image.
+          docker run --rm --platform linux/arm64 -v "$work:/work" -w /work ubuntu:24.04 bash -c '
+            set -euo pipefail
+            /work/gotavern version
+            /work/gotavern start --port 8831 --browserLaunchEnabled false > /work/server.log 2>&1 &
+            pid=$!
+            code=000
+            for attempt in $(seq 1 240); do
+              if exec 3<>/dev/tcp/127.0.0.1/8831 2>/dev/null; then
+                printf "GET /version HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n" >&3
+                { IFS= read -r status || true; printf "%s\n" "$status"; cat || true; } <&3 > /work/response.txt
+                exec 3<&- 3>&- 2>/dev/null || true
+                case "$(head -n1 /work/response.txt)" in *" 200 "*) code=200; break ;; esac
+              fi
+              sleep 0.25
+            done
+            kill -TERM "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            echo "linux/arm64 /version status code: $code"
+            if [ "$code" != 200 ]; then tail -80 /work/server.log; exit 1; fi
+            grep -q "\"pkgVersion\":\"1.19.0\"" /work/response.txt || { echo "::error::linux/arm64 /version did not report the pinned SillyTavern version"; cat /work/response.txt; exit 1; }
+            echo "ok: linux/arm64 archive executed under QEMU and answered /version with the pinned version"
+          '
 
   execute-darwin-amd64:
     needs: build
