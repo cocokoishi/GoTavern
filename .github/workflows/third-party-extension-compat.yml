@@ -429,7 +429,7 @@ jobs:
           second="$(node -e "const l=require('./tests/browser/third-party-extensions.lock.json'); console.log(l.selected[1].name)")"
           echo "representative extensions on ${{ matrix.platform }}: $first, $second"
           node tests/browser/third-party-extensions-run.mjs \
-            --shard-index 1 --shard-count 1 --names "$first,$second" \
+            --shard-index 1 --shard-count 1 --names "$first,$second" --lifecycle-only \
             --work-root "$RUNNER_TEMP/ext-compat-${{ matrix.platform }}"
       - name: Upload the cross-platform evidence
         if: always()

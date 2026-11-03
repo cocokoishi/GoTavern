@@ -53,6 +53,14 @@ const shardCount = Number(argumentValue('--shard-count', '1'));
 const workRoot = path.resolve(argumentValue('--work-root', path.join(os.tmpdir(), `gotavern-ext-compat-${process.pid}`)));
 const keep = process.argv.includes('--keep');
 const only = argumentValue('--only');
+// THE CROSS-PLATFORM REPRESENTATIVE RUN COVERS THE LIFECYCLE, NOT THE PROVIDER WIRE. The corpus on Linux
+// owns generation/provider-wire coverage; the Windows and macOS jobs exist to prove the same install,
+// activation, settings-persistence, disable/re-enable/uninstall and restart path works where path
+// handling, extension directories, filesystem casing, executable naming and user-data locations differ.
+// An extension that makes its OWN quiet LLM calls (measured: SillyTavern-Horae on macos-15-intel) builds a
+// state snapshot from those calls, and the snapshot content is not a stable property of a two-call peer,
+// so demanding provider-wire equality there would test the peer's script, not the platform.
+const lifecycleOnly = process.argv.includes('--lifecycle-only');
 const binary = process.env.GOTAVERN_BINARY ?? '';
 if (!binary || !existsSync(binary)) {
     console.error(`REFUSING: GOTAVERN_BINARY must point at a built GoTavern binary; got ${JSON.stringify(binary)}`);
@@ -516,7 +524,9 @@ for (const extension of extensions) {
         // that did not even activate would measure something other than the extension.
         const generationCapabilities = ['generation', 'prompt-injection', 'prompt-format'];
         const needsGeneration = (extension.capabilities ?? []).some(capability => generationCapabilities.includes(capability));
-        if (!needsGeneration) {
+        if (lifecycleOnly) {
+            row.generationLeg = { verdict: 'not-applicable', reason: 'cross-platform representative run: the Linux corpus owns generation/provider-wire coverage; this run covers install, activation, settings persistence, disable/re-enable/uninstall and restart where platform path handling differs' };
+        } else if (!needsGeneration) {
             row.generationLeg = { verdict: 'not-applicable', reason: 'the extension declares no generation/prompt-injection/prompt-format capability' };
         } else if (row.verdict !== 'PASS') {
             row.generationLeg = { verdict: 'skipped', reason: 'the lifecycle leg did not PASS, so the generation leg was not run' };
