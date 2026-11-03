@@ -234,13 +234,15 @@ const healthyRows = [row('/api/extensions/discover', 200, 'GET'), row('/api/sett
 }
 
 // ---- aggregator teeth ------------------------------------------------------------------------------
-async function runAggregator(shardReports, { expectedSha = null, expectedRunId = null } = {}) {
+async function runAggregator(shardReports, { expectedSha = 'a'.repeat(40), expectedRunId = '123' } = {}) {
     const directory = await fs.mkdtemp(path.join(temporary, 'aggregate-'));
     await Promise.all(shardReports.map((shard, index) => fs.writeFile(path.join(directory, `shard-${shard.provenance?.shardIndex ?? index + 1}.json`), JSON.stringify(shard))));
-    const args = [path.join(here, 'third-party-extensions-aggregate.mjs'), '--shards', directory, '--out-dir', path.join(directory, 'out')];
-    if (expectedSha) args.push('--expected-sha', expectedSha);
-    if (expectedRunId) args.push('--expected-run-id', expectedRunId);
-    const result = spawnSync(process.execPath, args, { encoding: 'utf8' });
+    // THE EXPECTED SHA AND RUN ID ARE ALWAYS PASSED EXPLICITLY. On a GitHub runner GITHUB_SHA and
+    // GITHUB_RUN_ID are set, and the aggregator's default reads them; a synthetic shard set then failed the
+    // positive control for a reason that has nothing to do with the check (measured: the first push run of
+    // this gate, selftest 41565578185). A self-test must not depend on the ambient environment.
+    const args = [path.join(here, 'third-party-extensions-aggregate.mjs'), '--shards', directory, '--out-dir', path.join(directory, 'out'), '--expected-sha', expectedSha, '--expected-run-id', expectedRunId];
+    const result = spawnSync(process.execPath, args, { encoding: 'utf8', env: { ...process.env, GITHUB_SHA: '', GITHUB_RUN_ID: '' } });
     return { status: result.status, stdout: result.stdout, stderr: result.stderr, directory };
 }
 
