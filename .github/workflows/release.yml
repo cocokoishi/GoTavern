@@ -13,11 +13,12 @@ name: GoTavern Release
 # THE CHANNEL IS ONE DECISION, READ FROM ONE PLACE.
 #
 # `v0.1.0-alpha.9` is GoTavern's first STABLE-CHANNEL release although its name keeps the historical
-# alpha spelling. The channel is not derived from the name anywhere in this file: it is asked of
-# `scripts/classify-version-tag.sh`, whose one documented HISTORY_GRADUATION_TAG equality test answers
-# `stable` for exactly that tag (and only that tag -- the widening cases are its own table test, run by
-# ci.yml's `verify` job). `docker.yml` asks the same script the same question for the same tag, so the
-# GitHub Release and the container image cannot disagree about what the tag means.
+# alpha spelling; `v0.1.0-alpha.12` and `v0.1.0-alpha.13` graduate the same way. The channel is not derived
+# from the name anywhere in this file: it is asked of `scripts/classify-version-tag.sh`, whose documented
+# equality list (`GRADUATED_STABLE_TAGS`) answers `stable` for exactly those tags (and only those -- the
+# widening cases are its own table test, run by ci.yml's `verify` job). `docker.yml` asks the same script the
+# same question for the same tag, so the GitHub Release and the container image cannot disagree about what the
+# tag means.
 #
 # What each channel does, stated so it can be checked against the steps below:
 #   stable      -> `gh release create` WITHOUT --prerelease and WITH --latest, so releases/latest (what a

@@ -194,10 +194,11 @@ jobs:
           # A TAG NAME IS NOT THE CHANNEL, so do not read `alpha` in a tag name as "this must not move latest".
           # `GRADUATED_STABLE_TAGS` in scripts/classify-version-tag.sh is the equality list of tags whose channel
           # graduates despite the historical alpha-series spelling: `v0.1.0-alpha.9` (the first stable-channel
-          # release) and `v0.1.0-alpha.12` (the 2026-11-02 stable release). This workflow therefore publishes
-          # `:v0.1.0-alpha.12` AND moves `:latest` onto it, which is the intended outcome and not an alpha leak.
+          # release), `v0.1.0-alpha.12` (the 2026-11-02 stable release) and `v0.1.0-alpha.13` (the third-party
+          # extension compatibility release). This workflow therefore publishes the tag's own version tag AND
+          # moves `:latest` onto it, which is the intended outcome and not an alpha leak.
           # An `alpha` test added here to "correct" that would be the second copy of the channel rule this block
-          # exists to prevent; the table test is scripts/test-classify-version-tag.sh (43 named cases).
+          # exists to prevent; the table test is scripts/test-classify-version-tag.sh (50 named cases).
           channel=''
           latest='false'
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then

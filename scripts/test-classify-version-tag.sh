@@ -136,30 +136,42 @@ check_refused_silently() {
 }
 
 # ---- THE GRADUATED TAGS: single-tag equality decisions, never a range -------------------------------------------
-# v0.1.0-alpha.9 (historical first stable-channel release) and v0.1.0-alpha.12 (the production release of the
-# current line) ARE stable-channel releases. The names are kept for history; the channel is what graduates. If a
-# case here goes red, a list entry in scripts/classify-version-tag.sh was removed, neutered or widened away.
+# v0.1.0-alpha.9 (historical first stable-channel release), v0.1.0-alpha.12 (the release that graduated the 0.1.0
+# line) and v0.1.0-alpha.13 (the third-party extension compatibility release) ARE stable-channel releases. The names
+# are kept for history; the channel is what graduates. If a case here goes red, a list entry in
+# scripts/classify-version-tag.sh was removed, neutered or widened away.
 check 'historical-alpha-graduation' 'v0.1.0-alpha.9' stable 0
 check_one_word_on_stdout 'historical-alpha-graduation-one-word' 'v0.1.0-alpha.9' stable
-check 'current-line-graduation' 'v0.1.0-alpha.12' stable 0
-check_one_word_on_stdout 'current-line-graduation-one-word' 'v0.1.0-alpha.12' stable
+check 'previous-line-graduation' 'v0.1.0-alpha.12' stable 0
+check_one_word_on_stdout 'previous-line-graduation-one-word' 'v0.1.0-alpha.12' stable
+check 'current-line-graduation' 'v0.1.0-alpha.13' stable 0
+check_one_word_on_stdout 'current-line-graduation-one-word' 'v0.1.0-alpha.13' stable
 
 # ---- THE EXCEPTION MUST NOT WIDEN ---------------------------------------------------------------------------------
-# Each of these is one plausible wrong implementation of "alpha.9 graduates": a family prefix (`>= alpha.9`), a
-# regex (`alpha\.9` matching `alpha.9x`/`alpha.09`), a series bump (`alpha.N >= 9`), a different patch, or the
-# exception leaking into build-metadata tags. None of them has been qualified, so each must stay a prerelease.
+# Each of these is one plausible wrong implementation of "the graduated tags graduate": a family prefix
+# (`>= alpha.9`), a regex (`alpha\.9` matching `alpha.9x`/`alpha.09`), a series bump (`alpha.N >= 9`), a different
+# patch, or the exception leaking into build-metadata tags. None of them has been qualified, so each must stay a
+# prerelease. The alpha.13 neighbours are the sharpest cases: a prefix/range rule would graduate alpha.130 and
+# alpha.13-rc1, and a "current series" rule would graduate alpha.14.
 check 'alpha-before-graduation' 'v0.1.0-alpha.8' prerelease 0
 check 'alpha-after-graduation-in-series' 'v0.1.0-alpha.10' prerelease 0
-check 'alpha-before-current-graduation' 'v0.1.0-alpha.11' prerelease 0
-check 'alpha-after-current-graduation' 'v0.1.0-alpha.13' prerelease 0
-check 'current-graduated-tag-with-build-metadata' 'v0.1.0-alpha.12+build.1' prerelease 0
-check 'current-graduated-tag-with-uppercase-alpha' 'v0.1.0-Alpha.12' prerelease 0
+check 'alpha-before-previous-graduation' 'v0.1.0-alpha.11' prerelease 0
+check 'alpha-after-current-graduation' 'v0.1.0-alpha.14' prerelease 0
+check 'current-graduated-tag-with-a-longer-number' 'v0.1.0-alpha.130' prerelease 0
+check 'current-graduated-tag-with-a-release-candidate-suffix' 'v0.1.0-alpha.13-rc1' prerelease 0
+check 'current-graduated-tag-with-build-metadata' 'v0.1.0-alpha.13+build.1' prerelease 0
+check 'current-graduated-tag-with-uppercase-alpha' 'v0.1.0-Alpha.13' prerelease 0
+check 'previous-graduated-tag-with-build-metadata' 'v0.1.0-alpha.12+build.1' prerelease 0
+check 'previous-graduated-tag-with-uppercase-alpha' 'v0.1.0-Alpha.12' prerelease 0
 check 'alpha-zero-padded' 'v0.1.0-alpha.09' prerelease 0
 check 'alpha-nine-in-another-patch' 'v0.1.1-alpha.9' prerelease 0
 check 'alpha-nine-in-another-minor' 'v0.2.0-alpha.9' prerelease 0
 check 'graduated-tag-with-build-metadata' 'v0.1.0-alpha.9+build.1' prerelease 0
 check 'graduated-tag-with-uppercase-alpha' 'v0.1.0-Alpha.9' prerelease 0
 check 'next-alpha-series' 'v0.2.0-alpha.1' prerelease 0
+# A TAG WITHOUT THE `v` IS NOT A VERSION TAG THIS REPOSITORY CAN CLASSIFY, even when its suffix matches a
+# graduated one. It must be REFUSED (exit 2, nothing on stdout) rather than classified by shape.
+check 'graduated-name-without-the-v-prefix' '0.1.0-alpha.13' '' 2
 
 # ---- stable: exactly v<major>.<minor>.<patch>, which is the general rule the exception sits beside ----------------
 check 'plain-three-component' 'v0.1.0' stable 0
@@ -215,4 +227,4 @@ if [ "$failed" -ne 0 ]; then
   echo "FAIL: ${failed} of $((passed + failed)) version-classification cases did not hold" >&2
   exit 1
 fi
-echo "version-tag classification is correct for ${passed} cases: v0.1.0-alpha.9 (historical) and v0.1.0-alpha.12 (the production release of the current line) are the two documented equality-based graduations to the stable channel, every neighbouring alpha is still a prerelease, stable tags are otherwise exactly v<major>.<minor>.<patch>, nothing else version-shaped is stable, and a non-version tag is refused with exit 2 and nothing on stdout"
+echo "version-tag classification is correct for ${passed} cases: v0.1.0-alpha.9 (historical), v0.1.0-alpha.12 (the line that graduated the 0.1.0 series) and v0.1.0-alpha.13 (the third-party extension compatibility release) are the three documented equality-based graduations to the stable channel, every neighbouring alpha is still a prerelease, stable tags are otherwise exactly v<major>.<minor>.<patch>, nothing else version-shaped is stable, and a non-version tag is refused with exit 2 and nothing on stdout"

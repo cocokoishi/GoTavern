@@ -31,9 +31,10 @@
 #
 # THE GRADUATIONS ARE CONSTANTS SO THE LIST CANNOT WIDEN. The rule above is a shape rule; a graduation is a
 # decision about ONE tag. Written as equality tests on named constants the list graduates `v0.1.0-alpha.9` (the
-# historical first stable-channel release) and `v0.1.0-alpha.12` (the production release of the current line) and
-# nothing else: v0.1.0-alpha.10, v0.1.0-alpha.11, v0.1.0-alpha.13, v0.1.0-alpha.09, v0.1.1-alpha.9,
-# v0.1.0-alpha.12+build.1 and v0.2.0-alpha.1 all stay prereleases, and each of those is an assertion in
+# historical first stable-channel release), `v0.1.0-alpha.12` (the production release of the 0.1.0 line) and
+# `v0.1.0-alpha.13` (the third-party extension compatibility release) and nothing else: v0.1.0-alpha.10,
+# v0.1.0-alpha.11, v0.1.0-alpha.14, v0.1.0-alpha.130, v0.1.0-alpha.13-rc1, v0.1.0-alpha.09, v0.1.1-alpha.9,
+# v0.1.0-alpha.13+build.1 and v0.2.0-alpha.1 all stay prereleases, and each of those is an assertion in
 # scripts/test-classify-version-tag.sh so a future editor who turns the list into a regex, a prefix or a
 # "series >= N" rule breaks a named case instead of quietly graduating an unqualified tag.
 
@@ -56,23 +57,25 @@ fi
 # =============================================================================================================
 # THE GRADUATED TAGS: single-tag EQUALITY decisions, never a pattern.
 #
-# The general rule above calls a tag stable only when it is exactly v<major>.<minor>.<patch>. Two tags in this
+# The general rule above calls a tag stable only when it is exactly v<major>.<minor>.<patch>. Three tags in this
 # repository's history graduate to the stable channel while keeping their historical alpha-series names:
 #
 #   v0.1.0-alpha.9    the FIRST stable-channel release (historical; removing it would reclassify a published
 #                     release on a re-run, which is a channel-semantic change for an already-served tag)
-#   v0.1.0-alpha.12   the release that graduates the current line; it is this project's decision that alpha.12 is
-#                     the production release of the 0.1.0 series, and the evidence gates in
+#   v0.1.0-alpha.12   the release that graduated the 0.1.0 line
+#   v0.1.0-alpha.13   the release that adds the 20-extension third-party compatibility gate; it is this project's
+#                     decision that alpha.13 is the production release of the line, and the evidence gates in
 #                     docs/release-manifest.json are what make publishing it possible (the classifier only says
 #                     which channel a tag WOULD be; the release workflow refuses to publish without the gates).
 #
 # THE LIST IS EQUALITY, NOT A RANGE. It cannot widen by accident: v0.1.0-alpha.10, v0.1.0-alpha.11,
-# v0.1.0-alpha.13, v0.1.0-alpha.09, v0.1.1-alpha.9 and v0.1.0-alpha.12+build.1 all stay prereleases, and each of
-# those is an assertion in scripts/test-classify-version-tag.sh so a future editor who turns this into a regex, a
-# prefix comparison or a "series >= N" test breaks a named case instead of quietly graduating an unqualified tag.
+# v0.1.0-alpha.14, v0.1.0-alpha.130, v0.1.0-alpha.13-rc1, v0.1.0-alpha.09, v0.1.1-alpha.9 and
+# v0.1.0-alpha.13+build.1 all stay prereleases, and each of those is an assertion in
+# scripts/test-classify-version-tag.sh so a future editor who turns this into a regex, a prefix comparison or a
+# "series >= N" test breaks a named case instead of quietly graduating an unqualified tag.
 # Each entry is added by its own commit that cites the qualification evidence for that tag.
 # =============================================================================================================
-GRADUATED_STABLE_TAGS='v0.1.0-alpha.9 v0.1.0-alpha.12'
+GRADUATED_STABLE_TAGS='v0.1.0-alpha.9 v0.1.0-alpha.12 v0.1.0-alpha.13'
 
 for graduated_tag in $GRADUATED_STABLE_TAGS; do
   if [ "$tag" = "$graduated_tag" ]; then

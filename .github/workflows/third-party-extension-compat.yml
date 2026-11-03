@@ -328,3 +328,114 @@ jobs:
           path: ${{ runner.temp }}/ext-compat/evidence
           if-no-files-found: warn
           retention-days: 90
+
+  # REPRESENTATIVE CROSS-PLATFORM COVERAGE. The full 20-extension corpus is judged on Linux (the
+  # reference platform). This job proves that the SAME lifecycle differential runs on Windows and on both
+  # macOS architectures, because path handling, extension directories, filesystem casing, executable
+  # naming, install scripts, browser startup and user-data locations are platform properties a Linux-only
+  # run cannot observe. Two representative extensions are enough to exercise those paths; the corpus
+  # itself stays on Linux so this job does not multiply the full cost by the runner matrix.
+  cross-platform:
+    needs: selftest
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.mode || 'full') == 'full' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows-amd64
+            binary: gotavern.exe
+          - os: macos-15-intel
+            platform: macos-amd64
+            binary: gotavern
+          - os: macos-14
+            platform: macos-arm64
+            binary: gotavern
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout-pinned
+        with:
+          commit: ${{ env.PINNED_BASELINE_COMMIT }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Cache the pinned server's node_modules
+        id: cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-${{ runner.arch }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-${{ runner.arch }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/AppData/Local/ms-playwright
+          key: ${{ runner.os }}-${{ runner.arch }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Install the pinned server's dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "pinned server node_modules: CACHE HIT -- install SKIPPED"
+          else
+            cd .reference/SillyTavern
+            if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          fi
+      - name: Install the browser harness
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            (cd tests/browser && npm ci --no-audit --no-fund)
+          fi
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            (cd tests/browser && npx playwright install --with-deps chromium)
+          else
+            (cd tests/browser && npx playwright install chromium)
+          fi
+      - name: Build the subject and the recording peer
+        shell: bash
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          mkdir -p .browser-bin
+          go build -trimpath -o ".browser-bin/${{ matrix.binary }}" ./cmd/gotavern
+          go build -trimpath -o ".browser-bin/mock-provider${{ matrix.binary == 'gotavern.exe' && '.exe' || '' }}" ./tools/mock-provider
+          echo "GOTAVERN_BINARY=${PWD}/.browser-bin/${{ matrix.binary }}" >> "$GITHUB_ENV"
+          echo "GOTAVERN_MOCK_PROVIDER_BINARY=${PWD}/.browser-bin/mock-provider${{ matrix.binary == 'gotavern.exe' && '.exe' || '' }}" >> "$GITHUB_ENV"
+          echo "GOTAVERN_REFERENCE=${PWD}/.reference/SillyTavern" >> "$GITHUB_ENV"
+      - name: Representative lifecycle differential on ${{ matrix.platform }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          first="$(node -e "const l=require('./tests/browser/third-party-extensions.lock.json'); console.log(l.selected[0].name)")"
+          second="$(node -e "const l=require('./tests/browser/third-party-extensions.lock.json'); console.log(l.selected[1].name)")"
+          echo "representative extensions on ${{ matrix.platform }}: $first, $second"
+          node tests/browser/third-party-extensions-run.mjs \
+            --shard-index 1 --shard-count 1 --names "$first,$second" \
+            --work-root "$RUNNER_TEMP/ext-compat-${{ matrix.platform }}"
+      - name: Upload the cross-platform evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-compat-${{ matrix.platform }}
+          path: ${{ runner.temp }}/ext-compat-${{ matrix.platform }}
+          if-no-files-found: warn
+          retention-days: 30
