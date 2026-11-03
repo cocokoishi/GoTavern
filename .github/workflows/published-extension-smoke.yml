@@ -160,11 +160,35 @@ jobs:
           set -euo pipefail
           image="ghcr.io/cocokoishi/gotavern:${TAG}"
           docker rm --force gotavern-published-smoke >/dev/null 2>&1 || true
-          docker run -d --name gotavern-published-smoke -p 8123:8000 "${image}"
+          docker run -d --name gotavern-published-smoke "${image}"
+          # ASK FROM INSIDE THE CONTAINER. The image's default config binds the server to its own
+          # loopback, so a host-side `-p` mapping does not reach it -- measured on run 41673532034: the
+          # published digest pair was equal, then the host curl timed out and the step read an empty JSON
+          # file. The Docker workflow's own smoke polls `127.0.0.1:8000` with wget INSIDE the container;
+          # this job does the same and prints the container logs when it cannot.
+          ready=0
           for _ in $(seq 1 60); do
-            if curl -fsS http://127.0.0.1:8123/version > "$RUNNER_TEMP/version.json" 2>/dev/null; then break; fi
+            state="$(docker inspect --format '{{.State.Status}}' gotavern-published-smoke 2>/dev/null || echo missing)"
+            if [ "$state" != "running" ]; then
+              echo "::group::container logs (state ${state})"
+              docker logs gotavern-published-smoke || true
+              echo "::endgroup::"
+              echo "::error::the published container exited before it served /version (state ${state})"
+              exit 1
+            fi
+            if docker exec gotavern-published-smoke wget -q -O "$RUNNER_TEMP/version.json" http://127.0.0.1:8000/version 2>/dev/null; then
+              ready=1
+              break
+            fi
             sleep 1
           done
+          if [ "$ready" != "1" ]; then
+            echo "::group::container logs (no /version after 60 s)"
+            docker logs gotavern-published-smoke || true
+            echo "::endgroup::"
+            echo "::error::the published container did not answer /version inside the container within 60 s"
+            exit 1
+          fi
           cat "$RUNNER_TEMP/version.json"
           node -e "const v=require(process.argv[1]); if (v.pkgVersion !== '1.19.0') { console.error('container /version does not name the SillyTavern baseline:', JSON.stringify(v)); process.exit(1); }" "$RUNNER_TEMP/version.json"
           docker exec gotavern-published-smoke gotavern version | head -1
