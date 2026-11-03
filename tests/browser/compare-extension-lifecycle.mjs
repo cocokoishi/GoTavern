@@ -97,6 +97,18 @@ function comparedRows(gotavern, pinned) {
         } else if (!b) {
             row.classification = row.kind === 'extension-asset' ? 'extra-on-gotavern' : 'issued-only-by-gotavern';
             row.reason = 'only the GoTavern page load issued this call; recorded as a page-load difference, not asserted';
+        } else if (row.kind === 'api' && (row.status.gotavern.length === 0 || row.status.pinned.length === 0)) {
+            // A REQUEST THAT WAS STILL IN FLIGHT WHEN THE DRIVE ENDED IS NOT A SERVER RESPONSE DIFFERENCE.
+            // The page's own network-quiet signal closes the capture window; an extension may issue a late
+            // request whose response has not arrived when the report is snapshotted. Measured locally on
+            // Windows: rpg-companion-sillytavern's POST /api/backgrounds/folders answered 200 on GoTavern
+            // and was still pending on stock, and the comparator called that "different-status" -- a
+            // capture-window artefact wearing a product difference's clothes. The row is recorded with the
+            // side that did not resolve; an extension ASSET that never resolves still fails, because a
+            // module that did not arrive is the "extension looks dead" failure this surface exists for.
+            const unresolvedSide = row.status.gotavern.length === 0 ? 'gotavern' : 'pinned';
+            row.classification = `unresolved-on-${unresolvedSide}`;
+            row.reason = `the drive ended while this request was still in flight on ${unresolvedSide} (the other side answered ${JSON.stringify(unresolvedSide === 'gotavern' ? row.status.pinned : row.status.gotavern)}); recorded as a capture-window boundary, not asserted as a server difference`;
         } else if (JSON.stringify(row.status.gotavern) !== JSON.stringify(row.status.pinned)) {
             row.classification = 'different-status';
             row.reason = 'both drives issued this request and the status sets differ, which is a server response difference';

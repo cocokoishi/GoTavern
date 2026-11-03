@@ -232,6 +232,34 @@ const healthyRows = [row('/api/extensions/discover', 200, 'GET'), row('/api/sett
     const activation = result.parsed?.capabilities?.activation;
     check('leg failure is preserved with a named reason', activation?.verdict === 'FAIL' && Array.isArray(activation.reasons), JSON.stringify(activation));
 }
+// A REQUEST STILL IN FLIGHT WHEN THE DRIVE ENDED is a capture-window boundary, not a server difference:
+// measured locally on Windows, rpg-companion's POST /api/backgrounds/folders answered 200 on GoTavern and
+// was still pending on stock, and the comparator reported "different-status". The API row must be recorded
+// as unresolved-on-pinned and NOT fail the pair; the extension-ASSET equivalent must still fail, because a
+// module that did not arrive is the "extension looks dead" failure.
+{
+    const go = [...healthyRows, row('/api/backgrounds/folders', 200)];
+    const pinned = [...healthyRows, row('/api/backgrounds/folders', null)];
+    const result = await runComparator([
+        report({ subject: 'gotavern', phase: 'before', rows: go }),
+        report({ subject: 'pinned', phase: 'before', rows: pinned }),
+        report({ subject: 'gotavern', phase: 'after', rows: healthyRows }),
+        report({ subject: 'pinned', phase: 'after', rows: healthyRows }),
+    ]);
+    const unresolved = result.parsed?.phases?.before?.rows?.find(entry => entry.path === '/api/backgrounds/folders');
+    check('an in-flight API request is recorded, not a server difference', result.parsed?.verdict === 'PASS' && unresolved?.classification === 'unresolved-on-pinned', JSON.stringify({ verdict: result.parsed?.verdict, unresolved }));
+}
+{
+    const go = [...healthyRows, row('/scripts/extensions/third-party/probe-extension/late.js', 200)];
+    const pinned = [...healthyRows, row('/scripts/extensions/third-party/probe-extension/late.js', null)];
+    const result = await runComparator([
+        report({ subject: 'gotavern', phase: 'before', rows: go }),
+        report({ subject: 'pinned', phase: 'before', rows: pinned }),
+        report({ subject: 'gotavern', phase: 'after', rows: healthyRows }),
+        report({ subject: 'pinned', phase: 'after', rows: healthyRows }),
+    ]);
+    check('an unresolved extension ASSET still fails', result.parsed?.verdict === 'FAIL', `verdict ${result.parsed?.verdict}`);
+}
 
 // ---- aggregator teeth ------------------------------------------------------------------------------
 async function runAggregator(shardReports, { expectedSha = 'a'.repeat(40), expectedRunId = '123' } = {}) {

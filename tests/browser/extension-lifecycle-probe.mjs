@@ -370,18 +370,28 @@ try {
 
         // UNINSTALL through the route the extension manager calls, then prove the directory is gone and a
         // fresh page still boots (no stale code, no startup failure).
+        //
+        // THE CSRF TOKEN IS AWAITED EXPLICITLY. The frontend's `getRequestHeaders()` reads a module-level
+        // `token` that `firstLoadInit()` fills from `GET /csrf-token`; calling it immediately after
+        // `domcontentloaded` races that fetch and sends NO token, which the server correctly refuses with
+        // 403. Measured locally on Windows: the same step answered 403 on one subject and 200 on the other
+        // purely because of that race, which reads exactly like a product difference. Fetching the token in
+        // the page and setting the header explicitly removes the race.
         const uninstallPage = await browser.newPage();
         await uninstallPage.goto(`${baseURL}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+        await uninstallPage.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 120000 }).catch(() => {});
         const uninstall = await uninstallPage.evaluate(async ({ extensionName }) => {
             const script = await import('./script.js');
-            const headers = script.getRequestHeaders();
+            const tokenResponse = await fetch('/csrf-token');
+            const tokenData = await tokenResponse.json();
+            const headers = { ...script.getRequestHeaders(), 'X-CSRF-Token': tokenData.token };
             const response = await fetch('/api/extensions/delete', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({ extensionName }),
             });
             const text = await response.text();
-            return { status: response.status, contentType: response.headers.get('content-type'), bodyShape: null, bodyLength: text.length, body: text.slice(0, 500) };
+            return { status: response.status, contentType: response.headers.get('content-type'), bodyShape: null, bodyLength: text.length, body: text.slice(0, 500), csrfTokenPresent: typeof tokenData.token === 'string' && tokenData.token.length > 0 };
         }, { extensionName: extension.name }).catch(error => ({ status: null, reason: String(error.message ?? error) }));
         report.phases.uninstall = uninstall;
         const directoryAfter = await fs.stat(extensionDirectory).then(() => true, () => false);

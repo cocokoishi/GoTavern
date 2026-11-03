@@ -188,13 +188,17 @@ it measured.
 * The pinned checkout's auto-update path is disabled by freezing `origin` to a local mirror. That is a
   harness property, not a product claim about update behaviour.
 * **A generation window may hold an extension-triggered dry run whose tail lands after the send window
-  closes, or an extension may start its own generation inside the window.** The shared generation
+  closes, an extension may start its own generation inside the window, or the extension's own counting
+  pass may fall inside the window on one subject and outside it on the other.** The shared generation
   comparator refuses such windows (`bothWindowsHoldCompleteGenerations`,
   `sendWindowHoldsExactlyOneRealSendAndNoDryAssembly`), because for a plain source those shapes mean the
   probe missed the send or compared the wrong window. An extension may legitimately run its own counting
-  or stepped generation. The runner accepts only those guards, only when the window integrity and the
-  normalised invocation trail are identical on both subjects, at least one real invocation assembled on
-  each, and the provider wire is byte-equal, and it records the exception, the window counters and both
-  invocation trails in the artifact. A Go-only difference in the trail or the wire still fails the leg.
-  Measured: rpg-companion-sillytavern (dry tail after the window) and st-stepped-thinking (its own
-  generation inside the window).
+  or stepped generation. The runner accepts only those guards, only when the provider wire is byte-equal,
+  nothing is unmatched, and the REAL invocation trails are equal on both subjects; for a dry-run boundary
+  race it additionally requires the real send to be complete on both and a dry invocation to exist in the
+  whole drive on both legs (so the counting pass ran on both and only its position moved). It records the
+  exception, the window counters and both invocation trails in the artifact. A Go-only difference in the
+  real trail or the wire still fails the leg. Measured: rpg-companion-sillytavern (dry tail after the
+  window; and on Windows the dry pass inside the window on stock but outside it on GoTavern, with
+  `providerRequestEqual: true` and `bodyDifferences: 0`) and st-stepped-thinking (its own generation
+  inside the window).

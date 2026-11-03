@@ -299,15 +299,22 @@ const bodyDiff = (left, right) => {
             if (key === 'messages' && Array.isArray(left[key]) && Array.isArray(right[key])) {
                 const lengthNote = left[key].length === right[key].length ? `${left[key].length} messages` : `${left[key].length} vs ${right[key].length} messages`;
                 for (let index = 0; index < Math.max(left[key].length, right[key].length); index++) {
-                    const leftMessage = JSON.stringify(left[key][index]);
-                    const rightMessage = JSON.stringify(right[key][index]);
+                    // `JSON.stringify(undefined)` RETURNS undefined, NOT A STRING. When the two message
+                    // arrays have different lengths, the shorter leg's element at the longer index is
+                    // undefined, and `.slice` on it crashed the comparator instead of reporting the
+                    // difference (measured: Third-party extension compatibility 41572575184, the Windows
+                    // cross-platform job's rpg-companion cancel leg: the comparator wrote 0 bytes and the
+                    // runner could only report "did not match or did not drive"). The fallback is a
+                    // STRING so a length difference is a reported difference, not a crash.
+                    const leftMessage = JSON.stringify(left[key][index]) ?? '<undefined>';
+                    const rightMessage = JSON.stringify(right[key][index]) ?? '<undefined>';
                     if (leftMessage !== rightMessage) {
                         differences.push(`messages[${index}] differs (${lengthNote}): ` +
                             `GoTavern ${leftMessage.slice(0, 120)}... pinned ${rightMessage.slice(0, 120)}...`);
                     }
                 }
             } else {
-                differences.push(`field ${key} differs: GoTavern ${JSON.stringify(left[key]).slice(0, 120)} pinned ${JSON.stringify(right[key]).slice(0, 120)}`);
+                differences.push(`field ${key} differs: GoTavern ${String(JSON.stringify(left[key])).slice(0, 120)} pinned ${String(JSON.stringify(right[key])).slice(0, 120)}`);
             }
         }
     }

@@ -183,22 +183,29 @@ async function installIntoRoot(dataRoot, extension, seedRoot) {
 //
 // The lifecycle and generation legs use SEPARATE data roots because the lifecycle's after-restart phase
 // uninstalls the extension; reusing its tree would measure a tree the user no longer has.
-async function runGenerationLeg({ extension, extensionWork, seedExtensionsRoot }) {
+async function runGenerationLeg({ extension, extensionWork, seedExtensionsRoot, keep }) {
     const generationProbe = path.join(here, 'generation-probe.mjs');
     const compareProbe = path.join(here, 'compare-generation-legs.mjs');
-    const roots = { gotavern: path.join(extensionWork, 'gen-gotavern'), pinned: path.join(extensionWork, 'gen-pinned') };
-    for (const root of Object.values(roots)) {
-        await fs.rm(root, { recursive: true, force: true });
-        await fs.mkdir(root, { recursive: true });
-        await installIntoRoot(root, extension, seedExtensionsRoot);
-    }
-    const goConfig = await seedLegConfig(roots.gotavern);
     const modes = ['nonstream', 'cancel'];
     const mockProvider = process.env.GOTAVERN_MOCK_PROVIDER_BINARY ?? '';
     const legs = {};
-    const server = await bootGoTavern(roots.gotavern);
-    try {
-        for (const mode of modes) {
+    for (const mode of modes) {
+        // A FRESH DATA ROOT PER MODE, AND A FRESH SERVER PER MODE. The modes used to share one root and
+        // one server, so the cancel drive started from whatever chat the nonstream drive had persisted --
+        // and whether that write reached disk before the subject was killed was a race. Measured on the
+        // Windows cross-platform job (Third-party extension compatibility 41572575184): the GoTavern
+        // cancel request carried an extra assistant message the pinned one did not, and the comparator
+        // reported a provider-wire difference that was the harness's own ordering. Each mode now starts
+        // from the same installed tree and the same empty chat state on both subjects.
+        const roots = { gotavern: path.join(extensionWork, `gen-${mode}-gotavern`), pinned: path.join(extensionWork, `gen-${mode}-pinned`) };
+        for (const root of Object.values(roots)) {
+            await fs.rm(root, { recursive: true, force: true });
+            await fs.mkdir(root, { recursive: true });
+            await installIntoRoot(root, extension, seedExtensionsRoot);
+        }
+        const goConfig = await seedLegConfig(roots.gotavern);
+        const server = await bootGoTavern(roots.gotavern);
+        try {
             const report = path.join(extensionWork, `generation-gotavern-${mode}.json`);
             const result = runNode([generationProbe, '--data-root', roots.gotavern, '--report', report], {
                 PROBE_BASE_URL: server.baseURL,
@@ -207,11 +214,9 @@ async function runGenerationLeg({ extension, extensionWork, seedExtensionsRoot }
                 ...(mockProvider ? { GOTAVERN_MOCK_PROVIDER_BINARY: mockProvider } : {}),
             }, `generation gotavern ${mode}`);
             legs[`gotavern-${mode}`] = { status: result.status, report };
+        } finally {
+            await server.close();
         }
-    } finally {
-        await server.close();
-    }
-    for (const mode of modes) {
         const report = path.join(extensionWork, `generation-pinned-${mode}.json`);
         const result = runNode([
             path.join(here, 'run-against-pinned.mjs'), 'generation-probe.mjs', '--',
@@ -282,7 +287,30 @@ async function runGenerationLeg({ extension, extensionWork, seedExtensionsRoot }
             && realSendComplete
             && parsed?.providerRequestEqual === true
             && (parsed?.bodyDifferences?.length ?? 1) === 0;
-        const benignWindow = benignWindowBoundary || benignExtensionWindow;
+        // THE DRY-RUN BOUNDARY RACE. The extension's own counting pass is a real invocation that may fall
+        // INSIDE the measured send window on one subject and OUTSIDE it on the other, purely by timing. The
+        // two window summaries then differ in their dry counters while the real send and the provider wire
+        // are identical -- measured locally on Windows on rpg-companion-sillytavern cancel mode: GoTavern's
+        // window held no dry STARTED, stock's held one, both real sends were 1/1 and the provider request was
+        // byte-equal. This is accepted only when: the failing guard is exactly the completeness guard; the
+        // real send is complete on both; the REAL invocation trails are equal; a dry invocation exists in
+        // the WHOLE drive on BOTH legs (so the counting pass ran on both, only its position moved); nothing
+        // is unmatched; and the provider wire is byte-equal. A Go-only real trail or wire difference fails.
+        const realTrail = invocations => invocationShape(invocations).filter(invocation => !invocation.dryRun);
+        const realTrailEqual = JSON.stringify(realTrail(parsed?.generationInvocations?.gotavern)) === JSON.stringify(realTrail(parsed?.generationInvocations?.pinned));
+        const wholeDriveHasDryOnBoth = (parsed?.wholeDriveInvocations?.gotavern ?? []).some(invocation => invocation.dryRun === true)
+            && (parsed?.wholeDriveInvocations?.pinned ?? []).some(invocation => invocation.dryRun === true);
+        const benignDryBoundary = Array.isArray(failedGuards)
+            && failedGuards.length === 1
+            && failedGuards[0] === 'bothWindowsHoldCompleteGenerations'
+            && !identicalWindows
+            && realSendComplete
+            && realTrailEqual
+            && wholeDriveHasDryOnBoth
+            && noUnmatched
+            && parsed?.providerRequestEqual === true
+            && (parsed?.bodyDifferences?.length ?? 1) === 0;
+        const benignWindow = benignWindowBoundary || benignExtensionWindow || benignDryBoundary;
         comparisons[mode] = {
             status: result.status,
             // THE COMPARATOR'S OWN VERDICT FIELDS, not a guessed field name. compare-generation-legs.mjs
@@ -295,9 +323,11 @@ async function runGenerationLeg({ extension, extensionWork, seedExtensionsRoot }
             failedGuards,
             windowBoundaryException: benignWindow
                 ? {
-                    reason: benignExtensionWindow
-                        ? 'the extension starts its own generation inside the send window (the drive\'s one-send premise does not hold), identically on both subjects, with identical invocation trails, at least one assembled real invocation and a byte-equal provider wire; the shared comparator guards are reported here rather than hidden'
-                        : 'the send window holds a dry generation whose AFTER_DATA landed after the window closed, identically on both subjects, while the real send is present and complete on both and the provider wire is byte-equal; the shared comparator guard is reported here rather than hidden',
+                    reason: benignDryBoundary
+                        ? 'the extension\'s own counting pass fell inside the send window on one subject and outside it on the other, while the real send is complete on both, the real invocation trails are equal, a dry invocation exists in the whole drive on both legs and the provider wire is byte-equal; the shared completeness guard is reported here rather than hidden'
+                        : benignExtensionWindow
+                            ? 'the extension starts its own generation inside the send window (the drive\'s one-send premise does not hold), identically on both subjects, with identical invocation trails, at least one assembled real invocation and a byte-equal provider wire; the shared comparator guards are reported here rather than hidden'
+                            : 'the send window holds a dry generation whose AFTER_DATA landed after the window closed, identically on both subjects, while the real send is present and complete on both and the provider wire is byte-equal; the shared comparator guard is reported here rather than hidden',
                     windowIntegrity: parsed?.windowIntegrity ?? null,
                     invocationTrails: { gotavern: invocationShape(parsed?.generationInvocations?.gotavern), pinned: invocationShape(parsed?.generationInvocations?.pinned) },
                 }
@@ -313,6 +343,14 @@ async function runGenerationLeg({ extension, extensionWork, seedExtensionsRoot }
         || comparisons[mode].providerRequestEqual !== true
         || comparisons[mode].bodyDifferences !== 0
         || (comparisons[mode].guardsPass !== true && comparisons[mode].windowBoundaryException === null));
+    // The per-mode trees are large and only needed to diagnose a failure; a PASS keeps the reports and the
+    // comparisons, which are the evidence.
+    if (failedModes.length === 0 && !keep) {
+        for (const mode of modes) {
+            await fs.rm(path.join(extensionWork, `gen-${mode}-gotavern`), { recursive: true, force: true }).catch(() => {});
+            await fs.rm(path.join(extensionWork, `gen-${mode}-pinned`), { recursive: true, force: true }).catch(() => {});
+        }
+    }
     return {
         verdict: failedModes.length === 0 ? 'PASS' : 'FAIL',
         modes,
@@ -454,7 +492,7 @@ for (const extension of extensions) {
         } else if (row.verdict !== 'PASS') {
             row.generationLeg = { verdict: 'skipped', reason: 'the lifecycle leg did not PASS, so the generation leg was not run' };
         } else {
-            const generation = await runGenerationLeg({ extension, extensionWork, seedExtensionsRoot });
+            const generation = await runGenerationLeg({ extension, extensionWork, seedExtensionsRoot, keep });
             row.generationLeg = generation;
             if (generation.verdict !== 'PASS') {
                 row.verdict = 'FAIL';
