@@ -310,7 +310,30 @@ async function runGenerationLeg({ extension, extensionWork, seedExtensionsRoot, 
             && noUnmatched
             && parsed?.providerRequestEqual === true
             && (parsed?.bodyDifferences?.length ?? 1) === 0;
-        const benignWindow = benignWindowBoundary || benignExtensionWindow || benignDryBoundary;
+        // AN EXTENSION-TRIGGERED EXTRA GENERATION AFTER THE MEASURED SEND. st-stepped-thinking starts its own
+        // follow-up generation; on one subject that follow-up reached the peer before the drive ended and on
+        // the other it did not, so the provider-request LISTS differ by a suffix while the measured send's
+        // request is byte-equal (measured: run 41577643804 shard 1, cancel mode). The pair is accepted only
+        // when the shorter list is a byte-equal PREFIX of the longer, both legs' REAL invocation trails are
+        // equal, both legs started more than one real generation (so the extra is the extension's own), nothing
+        // is unmatched, and at least one common POST exists. A difference inside the common prefix still fails.
+        const providerList = subject => (parsed?.providerRequests?.[subject] ?? []).map(entry => `${entry.method} ${entry.path} ${entry.bodyLength} ${entry.bodySha256}`);
+        const goList = providerList('gotavern');
+        const pinList = providerList('pinned');
+        const shorterList = goList.length <= pinList.length ? goList : pinList;
+        const longerList = goList.length <= pinList.length ? pinList : goList;
+        const commonPrefixEqual = shorterList.length > 0 && shorterList.every((entry, index) => entry === longerList[index]);
+        const bothStartedExtraReal = (parsed?.milestones?.gotavern?.realGenerationStarted ?? 0) >= 2 && (parsed?.milestones?.pinned?.realGenerationStarted ?? 0) >= 2;
+        const extensionExtraGeneration = Array.isArray(failedGuards)
+            && failedGuards.includes('bothLegsSettledAfterSend')
+            && parsed?.providerRequestEqual === false
+            && commonPrefixEqual
+            && shorterList.length < longerList.length
+            && realTrailEqual
+            && bothStartedExtraReal
+            && noUnmatched
+            && (parsed?.bodyDifferences?.length ?? 0) === 0;
+        const benignWindow = benignWindowBoundary || benignExtensionWindow || benignDryBoundary || extensionExtraGeneration;
         comparisons[mode] = {
             status: result.status,
             // THE COMPARATOR'S OWN VERDICT FIELDS, not a guessed field name. compare-generation-legs.mjs
@@ -323,26 +346,31 @@ async function runGenerationLeg({ extension, extensionWork, seedExtensionsRoot, 
             failedGuards,
             windowBoundaryException: benignWindow
                 ? {
-                    reason: benignDryBoundary
-                        ? 'the extension\'s own counting pass fell inside the send window on one subject and outside it on the other, while the real send is complete on both, the real invocation trails are equal, a dry invocation exists in the whole drive on both legs and the provider wire is byte-equal; the shared completeness guard is reported here rather than hidden'
-                        : benignExtensionWindow
-                            ? 'the extension starts its own generation inside the send window (the drive\'s one-send premise does not hold), identically on both subjects, with identical invocation trails, at least one assembled real invocation and a byte-equal provider wire; the shared comparator guards are reported here rather than hidden'
-                            : 'the send window holds a dry generation whose AFTER_DATA landed after the window closed, identically on both subjects, while the real send is present and complete on both and the provider wire is byte-equal; the shared comparator guard is reported here rather than hidden',
+                    reason: extensionExtraGeneration
+                        ? 'the extension started its own follow-up generation after the measured send; it reached the peer on one subject before the drive ended and not on the other, while the measured send\'s provider requests are a byte-equal prefix on both, the real invocation trails are equal and both legs started the extra generation; the shared settle guard is reported here rather than hidden'
+                        : benignDryBoundary
+                            ? 'the extension\'s own counting pass fell inside the send window on one subject and outside it on the other, while the real send is complete on both, the real invocation trails are equal, a dry invocation exists in the whole drive on both legs and the provider wire is byte-equal; the shared completeness guard is reported here rather than hidden'
+                            : benignExtensionWindow
+                                ? 'the extension starts its own generation inside the send window (the drive\'s one-send premise does not hold), identically on both subjects, with identical invocation trails, at least one assembled real invocation and a byte-equal provider wire; the shared comparator guards are reported here rather than hidden'
+                                : 'the send window holds a dry generation whose AFTER_DATA landed after the window closed, identically on both subjects, while the real send is present and complete on both and the provider wire is byte-equal; the shared comparator guard is reported here rather than hidden',
                     windowIntegrity: parsed?.windowIntegrity ?? null,
                     invocationTrails: { gotavern: invocationShape(parsed?.generationInvocations?.gotavern), pinned: invocationShape(parsed?.generationInvocations?.pinned) },
+                    providerRequests: extensionExtraGeneration ? { gotavern: goList, pinned: pinList } : null,
                 }
                 : null,
             comparison: path.basename(out),
             // A leg that never produced a report is a drive failure, not a product difference.
             legsProduced: [legs[`gotavern-${mode}`].status, legs[`pinned-${mode}`].status],
         };
+        comparisons[mode].pass = comparisons[mode].windowBoundaryException !== null
+            || (comparisons[mode].status === 0
+                && comparisons[mode].providerRequestEqual === true
+                && comparisons[mode].bodyDifferences === 0
+                && comparisons[mode].guardsPass === true);
     }
     const failedModes = modes.filter(mode => legs[`gotavern-${mode}`].status !== 0
         || legs[`pinned-${mode}`].status !== 0
-        || (comparisons[mode].status !== 0 && comparisons[mode].windowBoundaryException === null)
-        || comparisons[mode].providerRequestEqual !== true
-        || comparisons[mode].bodyDifferences !== 0
-        || (comparisons[mode].guardsPass !== true && comparisons[mode].windowBoundaryException === null));
+        || comparisons[mode].pass !== true);
     // The per-mode trees are large and only needed to diagnose a failure; a PASS keeps the reports and the
     // comparisons, which are the evidence.
     if (failedModes.length === 0 && !keep) {
@@ -359,7 +387,8 @@ async function runGenerationLeg({ extension, extensionWork, seedExtensionsRoot, 
     };
 }
 
-async function bundleFailure(extension, directory, details) {    const bundle = path.join(bundlesDir, extension.name);
+async function bundleFailure(extension, directory, details) {
+    const bundle = path.join(bundlesDir, extension.name);
     await fs.mkdir(bundle, { recursive: true });
     await fs.writeFile(path.join(bundle, 'failure.json'), `${JSON.stringify(details, null, 2)}\n`);
     for (const [name, reportPath] of Object.entries(details.reports ?? {})) {

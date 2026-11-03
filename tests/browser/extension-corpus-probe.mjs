@@ -426,7 +426,35 @@ try {
         await waitForNetworkQuiet(requests, { quietMs: 1200, deadlineMs: 30000 });
     }
 
+    // THE PAGE CAN BE MID-GENERATION WHEN THE NEXT SOAK STEP RUNS. A send clicked while the frontend is
+    // still streaming is refused by the frontend's own gate (`isGenerating`), so the soak would record a
+    // send that never happened and stop (measured: soak iteration 9 on the stock leg of run 41577643804).
+    // The stop button is visible exactly while a generation is in flight, so waiting for it to disappear is
+    // the page's own definition of idle; if it never disappears, the stop control is clicked once so the
+    // next iteration can proceed.
+    async function waitForIdle(deadlineMs = 30000) {
+        const deadline = Date.now() + deadlineMs;
+        while (Date.now() < deadline) {
+            const state = await page.evaluate(async () => {
+                const script = await import('./script.js');
+                const stop = document.querySelector('#mes_stop');
+                const stopVisible = Boolean(stop) && stop.offsetParent !== null;
+                return { stopVisible, streaming: script.streamingProcessor === true };
+            }).catch(() => ({ stopVisible: true, streaming: true }));
+            if (!state.stopVisible && !state.streaming) return { idle: true };
+            await page.waitForTimeout(200);
+        }
+        // Still busy: click the stop control once (the frontend's own cancel path) and give it a moment.
+        await page.evaluate(() => {
+            const stop = document.querySelector('#mes_stop');
+            if (stop && stop.offsetParent !== null) stop.click();
+        }).catch(() => {});
+        await page.waitForTimeout(1000);
+        return { idle: false };
+    }
+
     async function sendAndWait(marker) {
+        await waitForIdle();
         const baseline = await page.evaluate(async () => {
             const script = await import('./script.js');
             const chat = script.chat ?? [];
@@ -518,37 +546,74 @@ try {
         while (Date.now() < deadline) {
             iteration += 1;
             const startedAt = Date.now();
-            const rssNow = readVmRss(serverPid);
-            const goroutinesNow = await readGoroutines();
-            const sample = { iteration, at: new Date(startedAt).toISOString(), rssKb: rssNow.kb, rssReason: rssNow.reason, goroutines: goroutinesNow.value, goroutinesReason: goroutinesNow.reason, steps: [] };
-            const sendMarker = `CORPUS_${subject.toUpperCase()}_${phase.toUpperCase()}_SOAK_${iteration}`;
-            const send = await sendAndWait(sendMarker);
-            sample.steps.push({ name: 'send', ok: send.ok === true });
-            sample.sendOk = send.ok === true;
-            if (iteration % 3 === 0) {
-                const cancelled = await cancelStreamingReply(`CORPUS_${subject.toUpperCase()}_${phase.toUpperCase()}_CANCEL_${iteration}`);
-                sample.cancelled = cancelled;
-                sample.steps.push({ name: 'cancel', ok: cancelled.attempted === true && cancelled.idleAfter !== false });
+            // AN EXTENSION MAY RELOAD THE PAGE WHEN A SETTING IS SAVED. The soak toggles a setting every
+            // other iteration, and a frontend that reloads (or navigates) destroys the execution context of
+            // an in-flight evaluate: measured as `page.evaluate: Execution context was destroyed` on the
+            // GoTavern leg of run 41577643804. Recovery is explicit and bounded: re-reach the page once,
+            // reconnect the peer, and run the iteration again; a second failure is the iteration's failure.
+            const runIteration = async () => {
+                const rssNow = readVmRss(serverPid);
+                const goroutinesNow = await readGoroutines();
+                const sample = { iteration, at: new Date(startedAt).toISOString(), rssKb: rssNow.kb, rssReason: rssNow.reason, goroutines: goroutinesNow.value, goroutinesReason: goroutinesNow.reason, steps: [] };
+                const sendMarker = `CORPUS_${subject.toUpperCase()}_${phase.toUpperCase()}_SOAK_${iteration}`;
+                const send = await sendAndWait(sendMarker);
+                sample.steps.push({ name: 'send', ok: send.ok === true });
+                sample.sendOk = send.ok === true;
+                // A FAILED SEND ENDS THE ITERATION. Running cancel/toggle/reload on a page whose send was
+                // refused compounds the failure and makes the sample unreadable; the loop below retries the
+                // send once from a freshly reached page and only then gives up.
+                if (!send.ok) return sample;
+                if (iteration % 3 === 0) {
+                    const cancelled = await cancelStreamingReply(`CORPUS_${subject.toUpperCase()}_${phase.toUpperCase()}_CANCEL_${iteration}`);
+                    sample.cancelled = cancelled;
+                    sample.steps.push({ name: 'cancel', ok: cancelled.attempted === true && cancelled.idleAfter !== false });
+                }
+                if (iteration % 2 === 0) {
+                    const toggled = await toggleSettingAndSave();
+                    sample.setting = toggled;
+                    sample.steps.push({ name: 'toggle-setting', ok: toggled.after !== toggled.before });
+                }
+                if (iteration % 5 === 0) {
+                    const reloadStarted = Date.now();
+                    await reachPage(`${phase}-soak-${iteration}-reload`).catch(error => record('soak-reload', false, String(error.message ?? error)));
+                    sample.reloadMs = Date.now() - reloadStarted;
+                    await connectPeer();
+                    sample.steps.push({ name: 'reload', ok: true });
+                }
+                const apiEntries = requests.filter(entry => entry.path.startsWith('/api/') && entry.status !== null);
+                sample.apiResponses = apiEntries.length;
+                sample.apiFailures = apiEntries.filter(entry => entry.status >= 400).length;
+                sample.serverErrors = apiEntries.filter(entry => entry.status >= 500).length;
+                sample.latencyMs = latencyOf(apiEntries.map(entry => entry.latencyMs).filter(value => typeof value === 'number'));
+                sample.pageErrorCount = report.pageErrors.length;
+                sample.durationMs = Date.now() - startedAt;
+                return sample;
+            };
+            let sample;
+            try {
+                sample = await runIteration();
+            } catch (error) {
+                const message = String(error.message ?? error);
+                if (!/Execution context was destroyed|Target closed|navigat/i.test(message)) throw error;
+                record(`soak-iteration-${iteration}-recovered`, true, { reason: message });
+                await reachPage(`${phase}-soak-${iteration}-recover`).catch(() => {});
+                await connectPeer().catch(() => {});
+                sample = await runIteration();
             }
-            if (iteration % 2 === 0) {
-                const toggled = await toggleSettingAndSave();
-                sample.setting = toggled;
-                sample.steps.push({ name: 'toggle-setting', ok: toggled.after !== toggled.before });
+            // A REFUSED SEND GETS ONE RECOVERY ATTEMPT FROM A FRESHLY REACHED PAGE. Measured on the Windows
+            // local soak: iteration 12 (the one that cancels and toggles after a reload iteration) left the
+            // page busy enough that the frontend refused the send, the reply wait timed out and the sample
+            // read as a failed soak. The recovery is bounded and recorded; a second refusal is the
+            // iteration's failure.
+            if (sample.sendOk !== true) {
+                record(`soak-iteration-${iteration}-send-recovered`, true, { firstAttempt: sample });
+                await reachPage(`${phase}-soak-${iteration}-send-recover`).catch(() => {});
+                await connectPeer().catch(() => {});
+                await waitForIdle(20000);
+                const retrySend = await sendAndWait(`CORPUS_${subject.toUpperCase()}_${phase.toUpperCase()}_SOAK_${iteration}_RETRY`);
+                sample.steps.push({ name: 'send-retry', ok: retrySend.ok === true });
+                sample.sendOk = retrySend.ok === true;
             }
-            if (iteration % 5 === 0) {
-                const reloadStarted = Date.now();
-                await reachPage(`${phase}-soak-${iteration}-reload`).catch(error => record('soak-reload', false, String(error.message ?? error)));
-                sample.reloadMs = Date.now() - reloadStarted;
-                await connectPeer();
-                sample.steps.push({ name: 'reload', ok: true });
-            }
-            const apiEntries = requests.filter(entry => entry.path.startsWith('/api/') && entry.status !== null);
-            sample.apiResponses = apiEntries.length;
-            sample.apiFailures = apiEntries.filter(entry => entry.status >= 400).length;
-            sample.serverErrors = apiEntries.filter(entry => entry.status >= 500).length;
-            sample.latencyMs = latencyOf(apiEntries.map(entry => entry.latencyMs).filter(value => typeof value === 'number'));
-            sample.pageErrorCount = report.pageErrors.length;
-            sample.durationMs = Date.now() - startedAt;
             soakSamples.push(sample);
             record(`soak-iteration-${iteration}`, sample.sendOk === true, { sendOk: sample.sendOk, apiFailures: sample.apiFailures, rssKb: sample.rssKb });
             if (!sample.sendOk) break;

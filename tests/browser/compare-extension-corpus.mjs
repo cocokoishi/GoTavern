@@ -147,13 +147,20 @@ function groupRows(leg) {
 }
 const prefixOf = name => `/scripts/extensions/third-party/${name}/`;
 const isExtensionAsset = pathName => expected.some(name => pathName.startsWith(prefixOf(name)));
-function comparedRows(go, pin) {
+function comparedRows(go, pin, assertShapes = true) {
     const left = groupRows(go);
     const right = groupRows(pin);
     const keys = [...new Set([...left.keys(), ...right.keys()])]
         .filter(key => isExtensionAsset(key.split(' ')[1]) || key.split(' ')[1].startsWith('/api/'))
         .sort();
-    const statusSet = statuses => [...new Set(statuses.filter(status => status !== null))].sort((a, b) => a - b);
+    // A 304 IS A CACHE REVALIDATION, NOT A DIFFERENT RESPONSE. During the soak the page reloads; whether a
+    // given asset is served 200 or answered 304 depends on the browser's cache state at that moment, so the
+    // status SETS legitimately differ between the two subjects while the bytes the server would serve are
+    // identical. Measured on the Windows local soak: Dooms-Enhancement-Suite's whatsNew.js and several
+    // ReMemory modules were {200,304} on one subject and {200} on the other. 304 is dropped from the
+    // comparison and recorded on the row; a 4xx/5xx is still a real difference.
+    const statusSet = statuses => [...new Set(statuses.filter(status => status !== null && status !== 304))].sort((a, b) => a - b);
+    const conditionalRevalidations = statuses => statuses.filter(status => status === 304).length;
     return keys.map(key => {
         const a = left.get(key) ?? null;
         const b = right.get(key) ?? null;
@@ -162,6 +169,7 @@ function comparedRows(go, pin) {
             kind: isExtensionAsset((a ?? b).path) ? 'extension-asset' : 'api',
             occurrences: { gotavern: a?.occurrences ?? 0, pinned: b?.occurrences ?? 0 },
             status: { gotavern: a ? statusSet(a.statuses) : [], pinned: b ? statusSet(b.statuses) : [] },
+            conditional304: { gotavern: a ? conditionalRevalidations(a.statuses) : 0, pinned: b ? conditionalRevalidations(b.statuses) : 0 },
             bodyShape: { gotavern: a?.shapes?.[0] ?? null, pinned: b?.shapes?.[0] ?? null },
             classification: 'equal', reason: null, shapeAsserted: true,
         };
@@ -180,14 +188,24 @@ function comparedRows(go, pin) {
             row.classification = 'equal'; row.shapeAsserted = false;
             row.reason = 'the pinned handler for this path makes a live third-party request, so the body is whatever the internet returned (AGENTS 14); membership and status decide the row';
         } else if (row.bodyShape.gotavern !== null && row.bodyShape.pinned !== null && JSON.stringify(row.bodyShape.gotavern) !== JSON.stringify(row.bodyShape.pinned)) {
-            row.classification = 'different-shape';
-            row.reason = 'both subjects issued this request with the same status but the JSON response shapes differ';
+            if (assertShapes) {
+                row.classification = 'different-shape';
+                row.reason = 'both subjects issued this request with the same status but the JSON response shapes differ';
+            } else {
+                // A SOAK IS A STABILITY MEASUREMENT, NOT A SCHEMA MEASUREMENT. The soak's page reloads and
+                // repeated sends change the STATE the API returns (`/api/chats/recent` is [] before the
+                // chat is saved and one entry after), so a shape difference here is state, not schema. The
+                // shape is still recorded on the row; schema parity is asserted by the load drive and by
+                // the per-extension lifecycle legs, where the page is in a fixed state.
+                row.shapeAsserted = false;
+                row.reason = 'shape recorded but not asserted in soak mode: the soak page state changes between reloads, so a list length or presence difference is state, not schema';
+            }
         }
         return row;
     });
 }
-const phaseRows = comparedRows(goBefore, pinBefore);
-const afterRows = goAfter && pinAfter ? comparedRows(goAfter, pinAfter) : null;
+const phaseRows = comparedRows(goBefore, pinBefore, mode === 'load');
+const afterRows = goAfter && pinAfter ? comparedRows(goAfter, pinAfter, mode === 'load') : null;
 const judgedRows = [...phaseRows, ...(afterRows ?? [])];
 const assetFailures = judgedRows.filter(row => row.kind === 'extension-asset' && (row.classification === 'missing-on-gotavern'));
 const responseFailures = judgedRows.filter(row => row.classification === 'different-status' || row.classification === 'different-shape');
@@ -234,7 +252,15 @@ function chatState(leg) { return leg.chat ?? {}; }
 if (goAfter && pinAfter) {
     const a = chatState(goAfter); const b = chatState(pinAfter);
     add('restart-reopened-the-chat', a.opened === true && b.opened === true && Number(a.chatLength) > 1 && Number(b.chatLength) > 1, { go: a, pinned: b });
-    add('restart-chat-length-equal', Number(a.chatLength) === Number(b.chatLength), { go: a.chatLength ?? null, pinned: b.chatLength ?? null });
+    // THE LENGTH IS EQUAL ONLY FOR THE LOAD DRIVE. The soak sends a message per iteration, so the two legs'
+    // chat lengths depend on how many iterations fit in the time window (measured locally: 22 vs 21) and
+    // demanding equality would fail a faithful soak for a timing property. In soak mode the guard is that
+    // both legs reopened a non-empty chat and the last message's ROLE agrees; the lengths are recorded.
+    if (mode === 'soak') {
+        add('restart-chat-role-equal', a.lastIsUser === b.lastIsUser && a.opened === true && b.opened === true, { go: { chatLength: a.chatLength ?? null, lastIsUser: a.lastIsUser ?? null }, pinned: { chatLength: b.chatLength ?? null, lastIsUser: b.lastIsUser ?? null }, note: 'soak chat lengths depend on iteration count and are recorded, not asserted equal' });
+    } else {
+        add('restart-chat-length-equal', Number(a.chatLength) === Number(b.chatLength), { go: a.chatLength ?? null, pinned: b.chatLength ?? null });
+    }
 }
 
 // ---- SOAK METRICS -----------------------------------------------------------------------------------
