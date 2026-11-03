@@ -216,8 +216,15 @@ add('api-json-shapes-agree', responseFailures.filter(row => row.classification =
 // ---- BROWSER INTEGRITY ------------------------------------------------------------------------------
 function integrity(go, pin, label) {
     const normalize = text => String(text).replace(/:\d+:\d+/g, ':LINE:COL').replace(/\b\d{4,}\b/g, 'N');
-    const goErrors = [...(go.pageErrors ?? []), ...(go.consoleErrors ?? [])].map(normalize);
-    const pinErrors = [...(pin.pageErrors ?? []), ...(pin.consoleErrors ?? [])].map(normalize);
+    // THE SOAK'S OWN CANCEL PATH. The soak cancels a streaming reply every third iteration, and the pinned
+    // frontend reports that as "Generation was aborted." and "Clicked stop button". Whether those two
+    // messages fall inside a phase depends on where the iteration boundary lands (measured: run 41587614145,
+    // the AFTER phase saw them on GoTavern only), so in soak mode they are the drive's own signal, not a
+    // Go-only error. They are still recorded under sharedErrors when both sides produced them.
+    const soakNoise = /^(Generation was aborted\.|Clicked stop button)$/;
+    const collect = leg => [...(leg.pageErrors ?? []), ...(leg.consoleErrors ?? [])].map(normalize).filter(entry => !(mode === 'soak' && soakNoise.test(entry)));
+    const goErrors = collect(go);
+    const pinErrors = collect(pin);
     const pinSet = new Set(pinErrors);
     const goSet = new Set(goErrors);
     return {
@@ -264,11 +271,20 @@ if (goAfter && pinAfter) {
 }
 
 // ---- SOAK METRICS -----------------------------------------------------------------------------------
+// THE PROBE RECORDS THE SOAK'S RSS AS AN OBJECT (`{first,last,max,samples}`) AND ITS LATENCY AS A
+// DISTRIBUTION, because a 30-minute window has a series rather than one sample. A comparator that read
+// `entry.rssKb` as a number therefore saw nothing and failed `soak-metrics-measured` on a run that had
+// measured 88 and 103 iterations (measured: run 41587614145, both legs' RSS series present). Read the
+// recorded shape, and keep the MAX as the guard's subject: a regression is a peak, not a first sample.
+const rssOf = entry => typeof entry.rssKb === 'number'
+    ? entry.rssKb
+    : (typeof entry.rssKb?.max === 'number' ? entry.rssKb.max : (typeof entry.rssKb?.last === 'number' ? entry.rssKb.last : null));
+const percentileOf = (entry, name) => (typeof entry.latencyMs?.[name] === 'number' ? entry.latencyMs[name] : (typeof entry[name] === 'number' ? entry[name] : null));
 function soakOf(...legs) {
     const measured = legs.filter(Boolean).map(leg => leg.soak).filter(Boolean);
     if (measured.length === 0) return { requested: false };
-    const rss = measured.map(entry => entry.rssKb).filter(value => typeof value === 'number');
-    const p95 = measured.map(entry => entry.latencyMs?.p95).filter(value => typeof value === 'number');
+    const rss = measured.map(rssOf).filter(value => typeof value === 'number');
+    const p95 = measured.map(entry => percentileOf(entry, 'p95')).filter(value => typeof value === 'number');
     const iterations = measured.reduce((sum, entry) => sum + (entry.iterations ?? 0), 0);
     const apiResponses = measured.reduce((sum, entry) => sum + (entry.apiResponses ?? 0), 0);
     const failures = measured.reduce((sum, entry) => sum + (entry.apiFailures ?? 0), 0);
@@ -279,7 +295,7 @@ function soakOf(...legs) {
         iterations, apiResponses, apiFailures: failures, serverErrors,
         failureRate: apiResponses > 0 ? failures / apiResponses : null,
         rssKb: rss.length > 0 ? Math.max(...rss) : null,
-        p50: measured.map(entry => entry.latencyMs?.p50).filter(value => typeof value === 'number').sort((a, b) => a - b)[0] ?? null,
+        p50: measured.map(entry => percentileOf(entry, 'p50')).filter(value => typeof value === 'number').sort((a, b) => a - b)[0] ?? null,
         p95: p95.length > 0 ? Math.max(...p95) : null,
         unmeasured: measured.flatMap(entry => entry.unmeasured ?? []),
     };
