@@ -11,21 +11,22 @@
 - **What it is:** a drop-in replacement for the SillyTavern 1.19.0 server. It serves the unmodified upstream frontend over the same routes, the same `config.yaml` and the same on-disk layout. Your characters, chats, groups, world info, presets, Quick Replies, secrets, themes and frontend extensions keep working. No conversion, no private database.
 - **What you need:** nothing. No Node.js, no npm, no compiler. Download, unpack, run.
 - **Why bother:** it starts in milliseconds and uses a fraction of the memory (table below).
-- **Status:** `v0.1.0-alpha.12` is the current **stable release**: GitHub publishes it as a full release (not a
+- **Status:** `v0.1.0-alpha.13` is the current **stable release**: GitHub publishes it as a full release (not a
   pre-release), `releases/latest` serves it, a bare installer with no version argument installs it, and Docker
-  `:latest` points at `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.12`. `v0.1.0-alpha.9` was the first stable-channel
-  release; alpha.10 and alpha.11 remain available as prereleases by explicit `--version v0.1.0-alpha.11`
-  (Windows: `-Version v0.1.0-alpha.11`) or `docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11`.
+  `:latest` points at `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.13`. `v0.1.0-alpha.9` was the first stable-channel
+  release; `v0.1.0-alpha.12` was the previous stable release and stays downloadable by explicit
+  `--version v0.1.0-alpha.12` (Windows: `-Version v0.1.0-alpha.12`), and alpha.10/alpha.11 remain available as
+  prereleases by explicit version or `docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11`.
   The channel rule is one script, [`scripts/classify-version-tag.sh`](scripts/classify-version-tag.sh), shared by
   the release workflow, the Docker workflow and both installers. Back up any data directory you can't afford to lose.
 - **What doesn't work:** arbitrary Node server plugins, and SillyTavern's local in-process ML (captioning, classification, speech). Full list in [What won't work](#what-wont-work).
 
 | | SillyTavern (Node) | GoTavern |
 |---|---|---|
-| Cold start to first `/version` 200 | 13,843 ms | **162 ms** |
-| Steady-state memory (RSS) | 1,057 MB | **36.9 MB** |
-| `GET /version` latency (median) | 55.91 ms | **0.402 ms** |
-| `GET /` latency (median) | 13.01 ms | **1.76 ms** |
+| Cold start to first `/version` 200 | 11,522 ms | **213 ms** |
+| Steady-state memory (RSS) | 1,153 MB | **39.5 MB** |
+| `GET /version` latency (median) | 51.04 ms | **0.292 ms** |
+| `GET /` latency (median) | 10.72 ms | **1.49 ms** |
 
 One GitHub runner, both servers from the same checkout. Details and caveats in [Performance](#performance).
 
@@ -34,7 +35,7 @@ One GitHub runner, both servers from the same checkout. Details and caveats in [
 Everything below downloads a **prebuilt archive**. Nothing compiles on your machine.
 
 > **No version argument needed.** An unpinned install resolves `releases/latest`, which serves the stable
-> `v0.1.0-alpha.12` release. Install an older release explicitly with `--version v0.1.0-alpha.11` (`-Version` on
+> `v0.1.0-alpha.13` release. Install an older release explicitly with `--version v0.1.0-alpha.12` (`-Version` on
 > Windows); pin any version for a reproducible deployment or a rollback target.
 
 > **Both installers install into the current directory.** Create a folder, `cd` into it, run the installer. `--dir` /
@@ -51,7 +52,7 @@ curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.sh
 ./start.sh
 ```
 
-To pin a specific release: `sh install.sh --version v0.1.0-alpha.11` (or the stable `v0.1.0-alpha.12`).
+To pin a specific release: `sh install.sh --version v0.1.0-alpha.12` (or the stable `v0.1.0-alpha.13`).
 
 **Windows (PowerShell)**
 
@@ -64,7 +65,7 @@ irm https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.ps1 -OutF
 .\Start.cmd
 ```
 
-To pin a specific release: `.\install.ps1 -Version v0.1.0-alpha.11` (or the stable `v0.1.0-alpha.12`). To install somewhere else:
+To pin a specific release: `.\install.ps1 -Version v0.1.0-alpha.12` (or the stable `v0.1.0-alpha.13`). To install somewhere else:
 `.\install.ps1 -InstallDir "D:\Servers\GoTavern"`. `Start.cmd` finds its own location, so you can launch it from any
 shell.
 
@@ -74,9 +75,9 @@ shell.
 docker pull ghcr.io/cocokoishi/gotavern:latest
 ```
 
-`ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.12` is the stable image addressed by tag; pin it when you need a
+`ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.13` is the stable image addressed by tag; pin it when you need a
 reproducible deployment. `:latest` only moves when a **stable** tag is published, and it now points at
-`v0.1.0-alpha.12` (digest `sha256:d7b24f2609c3f2eb72e0e7680d206f9c46ea893a0d09c6bc780d926072144b07`); older
+`v0.1.0-alpha.13` (digest `sha256:5b2149a4c10b12192da0fe330363df60fb562f09a1bbb2b8ec9ba92474ba7264`); older
 prerelease images such as `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11` are addressed explicitly. The image is
 linux/amd64.
 
@@ -107,12 +108,12 @@ Point GoTavern at your existing directory and start it. Auto-update resolves to 
 
 | Metric | Pinned Node SillyTavern | GoTavern | How it was measured |
 |---|---|---|---|
-| Cold start to first `/version` 200 | 13,843 ms | **162 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
-| Steady-state RSS (`VmRSS` from `/proc`) | 1,057 MB | **36.9 MB** | median of 6 samples, after readiness and 30 requests per round |
-| `GET /version` latency | 55.91 ms | **0.402 ms** | median of 90 sequential requests (p95: 58.83 / 0.603) |
-| `GET /` latency (HTML shell) | 13.01 ms | **1.76 ms** | median of 90 sequential requests |
+| Cold start to first `/version` 200 | 11,522 ms | **213 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
+| Steady-state RSS (`VmRSS` from `/proc`) | 1,153 MB | **39.5 MB** | median of 6 samples, after readiness and 30 requests per round |
+| `GET /version` latency | 51.04 ms | **0.292 ms** | median of 90 sequential requests (p95: 59.56 / 0.424) |
+| `GET /` latency (HTML shell) | 10.72 ms | **1.49 ms** | median of 90 sequential requests |
 
-**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `41403239135` (success), the released commit `a01b536` (v0.1.0-alpha.12), on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -1.5 MB, p95 drift +0.15 ms); pinned only settled downward from its startup peak. A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The published release body appends the same-SHA run-id table, so the numbers above and the gate run that produced them are checkable together.
+**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `41614844179` (success), the released commit `4bf5451` (v0.1.0-alpha.13), on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -1.6 MB, p95 drift +0.32 ms); pinned's RSS fell from its startup peak while its p95 drifted +0.41 ms over the window. A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The published release body appends the same-SHA run-id table, so the numbers above and the gate run that produced them are checkable together.
 
 ### A profile-driven fix
 
@@ -145,6 +146,7 @@ This table states only what a fresh run on the current commit shows. The reposit
 | Do backgrounds display as in the original? | **partially verified** | the gallery renders and stages tiles on both subjects, and 40 UI elements are reachable identically across four viewport sizes. **Paint/behaviour is not measured:** the pinned frontend's own binding is absent on both subjects, so the differential is silent rather than negative. |
 | Does 酒馆助手 / JS-Slash-Runner work? | **verified** | `Browser differential` at the released commit (helper, helper-generation, helper-variable and REAL-preset legs): the iframe boots, the bridge reaches host modules, `generateRaw` is byte-identical on both subjects, a variable's resolved value reaches the final request and survives a restart, and a preset mutated in `in_use` changes the next request identically |
 | Does *every* feature of that extension work? | **partially verified** | only the interactions above are proven. Its own UI, script editor and anything implemented purely inside the iframe aren't covered. |
+| Do other real third-party extensions work? | **verified for a pinned corpus** | `Third-party extension compatibility` at the released commit: exactly 20 popular, SFW client extensions pinned by full commit in [`tests/browser/third-party-extensions.lock.json`](tests/browser/third-party-extensions.lock.json), each installed, activated, its own setting persisted across a real server restart, disabled, re-enabled and uninstalled on stock SillyTavern and on GoTavern; generation-capable ones are additionally judged on the provider-bound request. All 20 PASS. **Not a claim about the ecosystem:** it is the 20 pinned workloads in the covered scenarios -- methodology, taxonomy and limits in [`docs/compatibility/third-party-extensions.md`](docs/compatibility/third-party-extensions.md) |
 | Does a complex preset change the model context exactly as upstream does? | **verified** | `Browser differential` at the released commit (`mode: all`): `Node(A) == Go(A)`, `Node(B) == Go(B)`, and A ≠ B within one implementation -- the three conditions that make a preset differential mean something |
 | World info, Author's Note depth, token truncation? | **verified** (truncation: at the measured boundary) | provider-wire replay for world info; the Q17 sweep for Author's Note; both subjects keep and drop the same turns in the same order. A dedicated differential asserts that the `before`, `after` and `atDepth` world-info slots reach the FINAL provider request in pinned's order (`GoTavern world-info slot ordering` at the released commit, 21/21 guards). Truncation is **not** proven in general: upstream's total message count isn't monotone in `openai_max_context`. |
 | Streaming and cancellation? | **verified** | request bytes and frame terminators across a real TCP middle (`Browser differential` at the released commit), and a mid-stream cut releases the same partial text on both subjects. The transport properties have their own tests: frame ORDER, a graceful TLS shutdown mid-frame reaching the caller as a truncation error, and a cancelled stream arriving as an ordered prefix (`GoTavern CI` at the released commit). |
@@ -162,6 +164,10 @@ This table states only what a fresh run on the current commit shows. The reposit
 ### Coverage numbers
 
 These are computed from the tree by `tools/generate-doc-facts.mjs` on every CI run. A mismatch fails the build.
+
+### Third-party extension corpus
+
+The repository used to prove extension support with two pinned canaries it had chosen itself. Since alpha.13 it also runs an **external corpus**: exactly 20 real, popular, SFW third-party SillyTavern client extensions, selected from a 101-repository GitHub snapshot by a documented ranking (stars, forks, recent maintenance, official/community listings), with every exclusion recorded and Tavern Helper excluded in every form. Each extension is pinned by full commit and run on **both** subjects with the same probe, data root, `config.yaml` bytes, browser and timeouts: install, activate, change the extension's own setting, restart the server, verify the setting survived, disable, re-enable, uninstall. Generation-capable extensions additionally run the generation drive and their provider-bound request is compared byte-for-byte. The gate is a same-SHA release requirement and its aggregator requires the observed set to equal the lock's 20. Read the selection methodology in [`docs/compatibility/extension-selection.md`](docs/compatibility/extension-selection.md) and the harness, taxonomy and limitations in [`docs/compatibility/third-party-extensions.md`](docs/compatibility/third-party-extensions.md). The claim is the 20 pinned workloads, not "every SillyTavern extension works".
 
 | Area | State |
 |---|---|

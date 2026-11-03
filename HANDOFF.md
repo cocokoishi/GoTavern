@@ -10,7 +10,139 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-11-02: `v0.1.0-alpha.12` SHIPPED -- THE FIRST STABLE-CHANNEL RELEASE SINCE alpha.9
+## Latest checkpoint - 2026-11-03: `v0.1.0-alpha.13` SHIPPED -- THE STABLE RELEASE THAT PUT A REAL THIRD-PARTY EXTENSION CORPUS INTO THE GATE SET
+
+`v0.1.0-alpha.13` is the **stable** release: GitHub publishes it with `prerelease=false`, `releases/latest`
+serves it, the bare `install.sh` / `install.ps1` install it, Docker `:latest` points at it, and
+`scripts/classify-version-tag.sh` answers `stable` for it through a three-entry equality list
+(`v0.1.0-alpha.9` historical + `v0.1.0-alpha.12` + `v0.1.0-alpha.13`), covered by 50 named cases in
+`scripts/test-classify-version-tag.sh`. The tag keeps the historical `-alpha.13` spelling; the channel is what
+graduated.
+
+### Release identity and assets
+
+| fact | value |
+|---|---|
+| GitHub Release | `432921226` (`v0.1.0-alpha.13`, prerelease=**false**, draft=false, latest=true, published 2026-11-03T16:06:04Z) |
+| tag object -> commit | `2e2b604` -> `4bf5451` |
+| release workflow run | `41670315663` success -- six build jobs, four cross-platform execution jobs, `prepublish-qualification`, `publish`, `post-release-facts`; post-release facts commit `ccf7bd6` |
+| assets | 7 files, 366,161,276 bytes (`checksums.txt` 564 B + six canonical archives 366,160,712 B) |
+| release body | curated note `docs/release-notes-v0.1.0-alpha.13.md` (validated by `scripts/verify-release-notes.mjs`) **plus the same-SHA required-gate table appended by the publish job** |
+| Docker | `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.13` and `:latest` both published; `GoTavern Docker image` run `41670315661` success pulled both back and proved they are the same image, digest `sha256:5b2149a4c10b12192da0fe330363df60fb562f09a1bbb2b8ec9ba92474ba7264` |
+
+### Same-SHA required gates (all `workflow_dispatch`, all at `4bf5451`, verified by `scripts/verify-release-gates.mjs` before publish: 11/11 PASS)
+
+| gate | run |
+|---|---|
+| GoTavern CI (verify, race, crash-gate, browser-evidence, FULL oracle sweep) | `41640307892` success |
+| whole-session differential | `41614824693` success |
+| world-info slot ordering | `41614829603` success |
+| drop-in qualification | `41614834506` success |
+| Browser differential (mode=all) | `41614862594` success |
+| release qualification | `41614839309` success |
+| smoke metrics (paired benchmark + 10-minute soak) | `41614844179` success |
+| Docker image (no-push build) | `41614848916` success |
+| Helper state differential | `41614853248` success |
+| Combination journey differential | `41614858166` success |
+| **Third-party extension compatibility** (20 pinned extensions, shards 1-4 + all-20 + clusters + soak + overhead + 3-platform lifecycle) | `41614867218` success, carrying the required `extension-compat-evidence` artifact |
+
+### The new required gate: a real third-party extension corpus
+
+Exactly **20 real, popular, SFW third-party SillyTavern client extensions**, selected from a **101-repository**
+GitHub snapshot by a documented ranking (stars -> forks -> recent maintenance -> official/community listing),
+with every exclusion recorded and **Tavern Helper / 酒馆助手 excluded in every form**. Every extension is pinned
+by full commit in `tests/browser/third-party-extensions.lock.json` (committed blob sha256
+`2f2a5843993b004d1538d957c1fbf90c11d639551d85298931eb3ad7abb7f527`) and checked out into a temporary data root;
+its `origin` is frozen to a local mirror so the pinned frontend's own auto-update cannot advance it mid-run.
+
+Each extension runs on **both subjects** with the same probe, data root, `config.yaml` bytes, browser and
+timeouts: install -> activate -> change the extension's own setting -> **restart the server** -> setting
+persisted -> disable -> re-enable -> uninstall through `/api/extensions/delete`. Generation-capable extensions
+additionally run the generation drive (nonstream + cancel) and the provider-bound request is compared
+byte-for-byte. The 20-extension matrix is judged on Linux; the same two-extension lifecycle differential also
+runs on `windows-latest`, `macos-15-intel` and `macos-14` (lifecycle only -- the Linux corpus owns the
+generation/provider-wire legs).
+
+The gate is a **same-SHA release requirement**: `docs/release-manifest.json` marks `Third-party extension
+compatibility` with `requiredEvent: workflow_dispatch` and `requiredArtifact: extension-compat-evidence`, and
+`scripts/release-governance/gates.mjs` refuses a green conclusion whose artifact is missing or expired. The
+aggregator requires the observed set to equal the lock's 20 -- no missing shard, no duplicate, no unexpected
+name -- with one lock SHA-256 and one head SHA.
+
+### Performance measured at the released commit
+
+`smoke-metrics` `41614844179`: paired benchmark boot **213 ms vs 11,522 ms** (GoTavern vs pinned Node), steady-state
+RSS **39.5 MB vs 1,153 MB**, `GET /version` median **0.292 ms vs 51.04 ms** (p95 0.424 / 59.56), `GET /` median
+**1.49 ms vs 10.72 ms**, and a ten-minute soak with GoTavern RSS drift **-1.6 MB** / p95 **+0.32 ms** (pinned RSS fell
+from its startup peak while its p95 drifted +0.41 ms). These replaced the alpha.12 figures in `README.md`, the
+benchmark figure/provenance record and the Q22 row of `docs/goal-scorecard.md`.
+
+### Harness defects the corpus found, and what was fixed
+
+The corpus was built to find real defects, and it found them in the harness before it could find them in the
+product. Every fix below was reproduced, fixed and re-judged against the failing run's own artifacts:
+
+1. **Readiness was not identity-bound.** A 404, a 500, a TCP connect, a leftover server or a peer that took the
+   port could be read as "ready". Readiness now requires the spawned child to be alive, `/version` to answer 200
+   with the pinned `pkgVersion`, and the port's listener PID to be that child (`ss`/`lsof`/PowerShell); every
+   other outcome is a named refusal. `bind(0)` + close + spawn-later was replaced by a 20000-29999 port lease.
+2. **Uninstall raced the CSRF token.** `getRequestHeaders()` was called before `firstLoadInit()` filled the
+   module-level token, so `POST /api/extensions/delete` carried no token and the server correctly answered 403
+   on one subject and 200 on the other. The probe now awaits `GET /csrf-token` in the page and sets
+   `X-CSRF-Token` explicitly.
+3. **Generation modes shared one data root and one server**, so the cancel drive started from whatever chat the
+   nonstream drive had persisted, and whether that write reached disk before the subject was killed was a race.
+   Each mode now gets a fresh root and a fresh server.
+4. **The generation comparator crashed on differing message counts** (`JSON.stringify(undefined).slice`), writing
+   0 bytes instead of reporting the difference; a length difference is now a reported difference.
+5. **In-flight requests were read as server differences.** An API request whose response had not arrived when
+   the drive's quiet window closed is now `unresolved-on-<subject>`; an unresolved extension ASSET still fails.
+6. **The soak drive could not recover** from a refused send or an extension-triggered reload, compared 304/200
+   as different statuses, and read soak state (list lengths, chat lengths) as schema; it now waits for the page's
+   own idle signal, recovers once by re-reaching the page, drops 304 from the status set, records state without
+   asserting it, and asserts open/restart presence instead of lengths. Re-judged against run `41595903508`'s own
+   artifacts: 23/23 guards PASS (91 vs 127 iterations, 102,629 vs 192,548 API responses, 0 failures, 0 5xx).
+7. **The comparator read the soak RSS series as a scalar** and failed `soak-metrics-measured` on a measured run;
+   it now reads `{first,last,max,samples}` and guards the max (GoTavern 227,444 KB vs stock 1,142,636 KB, p95
+   403 ms vs 405 ms), and it ignores the soak's own cancel messages (`Generation was aborted.`, `Clicked stop
+   button`) as Go-only browser errors.
+8. **An extension's own follow-up generation was compared as if the drive had sent it.** Two extensions
+   (SillyTavern-Horae, Dooms-Enhancement-Suite, st-stepped-thinking) issue their own quiet/follow-up generations;
+   the runner records those as explicit exceptions only when the measured send's provider request is byte-equal,
+   the real invocation trails are equal and nothing is unmatched, and a Go-only real-trail or wire difference
+   still fails.
+9. **The cross-platform representative run compared an extension-generated snapshot** (Horae builds a state
+   snapshot from its own quiet LLM call, so the body differed by 144 bytes on macos-15-intel). That job now
+   passes `--lifecycle-only` and records the generation leg as N/A with the reason; the Linux corpus still runs
+   every generation leg.
+
+### Disclosed transients and scope decisions (not softened)
+
+- **Combination journey failed once at `4cfbb83`** (`41572567411`): the `continue-produced-a-request` step saw
+  `pressed:true, sawBusy:true`, no request, and a `defineProperty-threw` `generateWrapStatus` on BOTH legs; the
+  comparator judges by effect. It passed at `3724844` (`41577637976`) and at the release commit
+  (`41614858166`). It is recorded as an unexplained transient, not called a fix.
+- **The first full-oracle CI run at the release SHA was cancelled at its 180-minute job limit**
+  (`41614820122`, 3h01m); a fresh dispatch at the same SHA (`41640307892`) completed in 2h58m and is the gate
+  run. A previous alpha.12-era run also hit the same limit (`41403220970`), so this is a measured job-budget
+  boundary on a slow runner, not a retry-as-fix: the run that qualified is the second one, and both ids are
+  recorded.
+- **The macOS-intel representative run now covers the lifecycle only** (see defect 9). This is a scope
+  decision, recorded in the workflow and the document, not a narrowed Linux corpus.
+
+### Boundaries this release does NOT claim
+
+- **20 pinned workloads, not the ecosystem.** The corpus is exactly the 20 selected extensions in the covered
+  scenarios; "every SillyTavern extension works" is not claimed, and a capability an extension implements purely
+  in its own iframe is not our burden unless it reaches the server.
+- **windows/arm64 is built and structurally inspected, not executed** (no windows/arm64 hosted runner exists).
+- Remote embedding sources, local in-process ML, arbitrary Node server plugins and the private Google
+  `batchexecute` protocol remain explicit exclusions.
+- **No credentialed provider run.** The live canary uses a provider's anonymous mode; a real completion with a
+  user's key is not claimed.
+- The corpus is a representative sample: per-extension multi-turn verbs are not all re-driven, and the
+  cross-platform job is a two-extension representative, not the full matrix.
+## HISTORY - 2026-11-02: `v0.1.0-alpha.12` SHIPPED -- THE FIRST STABLE-CHANNEL RELEASE SINCE alpha.9
 
 `v0.1.0-alpha.12` is the **stable** release: GitHub publishes it with `prerelease=false`, `releases/latest`
 serves it, the bare `install.sh` / `install.ps1` install it, Docker `:latest` points at it, and

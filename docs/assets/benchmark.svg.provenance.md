@@ -8,12 +8,12 @@ with no provenance.
 ## How it was produced
 
 ```
-gh run download 41403239135 -n q22-paired-benchmark -D ./q22
+gh run download 41614844179 -n q22-paired-benchmark -D ./q22
 node tools/benchmark-svg.mjs \
   --report ./q22/q22-paired-benchmark.json \
   --out docs/assets/benchmark.svg \
-  --run-id 41403239135 \
-  --commit a01b536
+  --run-id 41614844179 \
+  --commit 4bf5451
 ```
 
 ## The artefact it is drawn from
@@ -21,20 +21,20 @@ node tools/benchmark-svg.mjs \
 | field | value |
 |---|---|
 | workflow | `GoTavern smoke metrics` |
-| run id | `41403239135` (conclusion: success) |
+| run id | `41614844179` (conclusion: success) |
 | run branch / event | `main`, `workflow_dispatch` |
-| commit measured | `a01b536315dffdb822e78fd5bbfa09a7f30b0525` (the released commit itself: the stable-channel release commit; the tag points at this commit, so the figure quotes the same-SHA gate run rather than an ancestor) |
+| commit measured | `4bf54510c747b3f257835fa1bfa86909bbb5f134` (the released commit itself: the stable-channel release commit; the tag points at this commit, so the figure quotes the same-SHA gate run rather than an ancestor) |
 | runner image | `ubuntu26` |
 | rounds / requests | 3 alternating rounds x 30 sequential requests per path |
 | soak | 2 x 10-minute windows, one per subject, 30 s sampling (both completed) |
 
-`docs/goal-scorecard.md` row Q22 cites this alpha.12 measurement for the method and names this provenance record for
+`docs/goal-scorecard.md` row Q22 cites this alpha.13 measurement for the method and names this provenance record for
 the current figure; the README's Performance table quotes this run's medians, and this figure is generated from the
 same artefact, so the picture and the table restate ONE recording.
 
 ## Why this run and not another one
 
-- **It measured the RELEASED commit.** `a01b536` is the tag's own target, so this is the required same-SHA
+- **It measured the RELEASED commit.** `4bf5451` is the tag's own target, so this is the required same-SHA
   `GoTavern smoke metrics` gate run rather than an ancestor measurement; the documentation and the curated release
   note live on `main` after the tag (and are read at publish), which is why the tag tree carries no run id of its
   own. The published release body appends the same run-id table.
@@ -44,7 +44,7 @@ same artefact, so the picture and the table restate ONE recording.
 - **The absolute numbers are host noise; the ratio is not.** Pinned boot has been measured at 14,355 ms, 8,777 ms,
   12,985 ms, 9,941 ms, 9,878 ms, 9,637 ms and 13,843 ms on the same image, and GoTavern's at 136 ms, 61 ms,
   32 ms, 185 ms, 189 ms, 397 ms and 162 ms. That is why the figure cites ONE runner and ONE run id, and why the README calls the numbers a
-  comparison rather than a budget. The figure was regenerated from the released-commit gate run for alpha.12;
+  comparison rather than a budget. The figure was regenerated from the released-commit gate run for alpha.13;
   quoting an older figure's numbers as this release's performance would have been an unmeasured claim, not a
   conservative one.
 

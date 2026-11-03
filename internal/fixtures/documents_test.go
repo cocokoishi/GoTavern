@@ -579,6 +579,11 @@ var declaredOtherPins = map[string]string{
 	// checkpoint must name the SHA the stable release was cut from, and the benchmark provenance record names
 	// it as the measured tree, because those numbers are only checkable against the run at this commit.
 	"a01b536315dffdb822e78fd5bbfa09a7f30b0525": "v0.1.0-alpha.12 stable release commit - HANDOFF.md current checkpoint, the SHA every required release gate ran at, and the benchmark provenance anchor (smoke metrics run 41403239135)",
+	// THE alpha.13 RELEASE COMMIT. It is the first release whose gate set includes the third-party extension
+	// compatibility corpus, so the checkpoint names both the SHA every required gate ran at and the
+	// extension-compat evidence run; the benchmark provenance record names the same tree because the README's
+	// performance table quotes smoke metrics run 41614844179 at this commit.
+	"4bf54510c747b3f257835fa1bfa86909bbb5f134": "v0.1.0-alpha.13 stable release commit - HANDOFF.md current checkpoint, the SHA every required release gate ran at (including Third-party extension compatibility run 41614867218), and the benchmark provenance anchor (smoke metrics run 41614844179)",
 }
 
 // checkPinnedCommitStrings is the gate body, extracted so the red-path test can drive it against a

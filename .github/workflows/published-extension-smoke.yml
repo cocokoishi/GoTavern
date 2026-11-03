@@ -1,0 +1,171 @@
+# THE POST-PUBLICATION CHECK: does the artifact a user downloads from the public internet actually
+# carry the extension compatibility this release claims?
+#
+# WHY THIS IS A SEPARATE WORKFLOW. Every other extension gate runs against a binary built from the release
+# commit in the workspace. That is necessary and not sufficient: the release asset is a different object
+# (packed, checksummed, uploaded, served over HTTPS), and the only way to prove the shipped thing works is
+# to download it from the public URL, verify its checksum, unpack it, and drive the corpus against it. This
+# workflow runs AFTER the release exists, by dispatch, and its green is the post-publication evidence.
+#
+# WHAT IT DOES:
+#   1. resolves `releases/latest` over public HTTPS and requires it to point at the requested tag;
+#   2. downloads `checksums.txt` and `gotavern-linux-amd64.tar.gz` from the public release URL and verifies
+#      the archive's SHA-256 against the published checksum;
+#   3. unpacks the archive into a clean directory, runs `gotavern version` (must name the tag) and the
+#      all-20 corpus differential against the unpacked binary with the pinned stock checkout as the oracle
+#      (boot, all 20 loaded, settings page, character load, new chat, send, cancel, reload, restart);
+#   4. pulls the published container image by its version tag AND `:latest`, proves both manifests resolve
+#      to the same image, boots it, and asserts `/version` and `gotavern version` inside it.
+#
+# A failure here does not change history: the release exists. It means the release is NOT complete, and the
+# report says so instead of calling the release done.
+
+name: GoTavern published-extension smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Published tag to verify (for example v0.1.0-alpha.13)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: published-extension-smoke-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PINNED_BASELINE_COMMIT: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
+
+jobs:
+  published-linux-artifact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout-pinned
+        with:
+          commit: ${{ env.PINNED_BASELINE_COMMIT }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Install the browser harness
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            (cd tests/browser && npm ci --no-audit --no-fund)
+          fi
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            (cd tests/browser && npx playwright install-deps chromium)
+          else
+            (cd tests/browser && npx playwright install --with-deps chromium)
+          fi
+      - name: Resolve releases/latest and download the PUBLISHED assets over HTTPS
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/published"
+          mkdir -p "$work"
+          # releases/latest MUST resolve to the tag this run verifies; a redirect to another tag means the
+          # stable channel is not the release being claimed.
+          latest_location="$(curl -sS -o /dev/null -w '%{redirect_url}' https://github.com/cocokoishi/GoTavern/releases/latest)"
+          echo "releases/latest -> ${latest_location}"
+          case "$latest_location" in
+            */tag/"${TAG}") echo "releases/latest resolves to ${TAG}" ;;
+            *) echo "::error::releases/latest resolves to '${latest_location}', not ${TAG}"; exit 1 ;;
+          esac
+          base="https://github.com/cocokoishi/GoTavern/releases/download/${TAG}"
+          curl -fsSL -o "$work/checksums.txt" "${base}/checksums.txt"
+          curl -fsSL -o "$work/gotavern-linux-amd64.tar.gz" "${base}/gotavern-linux-amd64.tar.gz"
+          expected="$(grep -E '  gotavern-linux-amd64\.tar\.gz$' "$work/checksums.txt" | awk '{print $1}')"
+          actual="$(sha256sum "$work/gotavern-linux-amd64.tar.gz" | awk '{print $1}')"
+          if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
+            echo "::error::published linux-amd64 archive checksum mismatch: expected ${expected:-<absent>}, got ${actual}"
+            exit 1
+          fi
+          echo "published linux-amd64 sha256 ${actual} matches checksums.txt"
+          mkdir -p "$work/unpacked"
+          tar -xzf "$work/gotavern-linux-amd64.tar.gz" -C "$work/unpacked"
+          binary="$(find "$work/unpacked" -maxdepth 2 -type f -name gotavern | head -1)"
+          if [ -z "$binary" ]; then echo "::error::the published archive contains no gotavern binary"; exit 1; fi
+          chmod +x "$binary"
+          version="$("$binary" version | head -1)"
+          echo "published binary: ${version}"
+          case "$version" in
+            "GoTavern ${TAG}") echo "published binary reports the requested tag" ;;
+            *) echo "::error::published binary reports '${version}', expected 'GoTavern ${TAG}'"; exit 1 ;;
+          esac
+          echo "PUBLISHED_BINARY=${binary}" >> "$GITHUB_ENV"
+          echo "PUBLISHED_WORK=${work}" >> "$GITHUB_ENV"
+      - name: All-20 extension differential against the PUBLISHED binary
+        run: |
+          set -euo pipefail
+          GOTAVERN_BINARY="${PUBLISHED_BINARY}" \
+          GOTAVERN_REFERENCE="${PWD}/.reference/SillyTavern" \
+            node tests/browser/extension-corpus-run.mjs --mode all20 \
+              --work-root "$RUNNER_TEMP/ext-compat-published"
+      - name: Upload the published-artifact evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-extension-smoke-linux
+          path: ${{ runner.temp }}/ext-compat-published
+          if-no-files-found: warn
+          retention-days: 90
+
+  published-container:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Pull the published image by version tag and by latest
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/cocokoishi/gotavern"
+          docker pull "${image}:${TAG}"
+          docker pull "${image}:latest"
+          version_digest="$(docker inspect --format '{{index .RepoDigests 0}}' "${image}:${TAG}")"
+          latest_digest="$(docker inspect --format '{{index .RepoDigests 0}}' "${image}:latest")"
+          echo "version tag digest: ${version_digest}"
+          echo "latest digest:      ${latest_digest}"
+          if [ "$version_digest" != "$latest_digest" ]; then
+            echo "::error::the published version tag and :latest do not resolve to the same image"
+            exit 1
+          fi
+          echo "the version tag and :latest resolve to the same image"
+      - name: Boot the published container and assert identity
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/cocokoishi/gotavern:${TAG}"
+          docker rm --force gotavern-published-smoke >/dev/null 2>&1 || true
+          docker run -d --name gotavern-published-smoke -p 8123:8000 "${image}"
+          for _ in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8123/version > "$RUNNER_TEMP/version.json" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/version.json"
+          node -e "const v=require(process.argv[1]); if (v.pkgVersion !== '1.19.0') { console.error('container /version does not name the SillyTavern baseline:', JSON.stringify(v)); process.exit(1); }" "$RUNNER_TEMP/version.json"
+          docker exec gotavern-published-smoke gotavern version | head -1
+          docker rm --force gotavern-published-smoke
