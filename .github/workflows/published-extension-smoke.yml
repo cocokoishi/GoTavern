@@ -209,5 +209,5 @@ jobs:
           fi
           cat "$RUNNER_TEMP/version.json"
           node -e "const v=require(process.argv[1]); if (v.pkgVersion !== '1.19.0') { console.error('container /version does not name the SillyTavern baseline:', JSON.stringify(v)); process.exit(1); }" "$RUNNER_TEMP/version.json"
-          docker exec gotavern-published-smoke gotavern version | head -1
+          docker exec gotavern-published-smoke /app/gotavern version | head -1
           docker rm --force gotavern-published-smoke
