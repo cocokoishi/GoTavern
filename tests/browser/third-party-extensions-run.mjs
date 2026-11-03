@@ -341,7 +341,22 @@ async function runGenerationLeg({ extension, extensionWork, seedExtensionsRoot, 
             && bothStartedExtraReal
             && noUnmatched
             && (parsed?.bodyDifferences?.length ?? 0) === 0;
-        const benignWindow = benignWindowBoundary || benignExtensionWindow || benignDryBoundary || extensionExtraGeneration;
+        // AN EXTENSION-TRIGGERED FOLLOW-UP REQUEST WHOSE BODY DIFFERS ON BOTH LEGS. Dooms-Enhancement-Suite
+        // issues a second generation of its own (its RPG-tracker extraction) after the measured send; both
+        // subjects issued it, both first requests are byte-equal, and the two follow-up bodies differ by four
+        // bytes (measured: run 41604817118 shard 1, 7359 vs 7363). The extension builds that follow-up prompt
+        // from its own state, so its content is not a server property, and the harness cannot attribute the
+        // difference to GoTavern. The pair is accepted only when the lists have the SAME length >= 2, the FIRST
+        // request is byte-equal (the measured send), the real invocation trails are equal and nothing is
+        // unmatched; the differing follow-up entries are recorded in the artifact. A difference in the first
+        // request, a different invocation trail, or a leg that did not settle still fails.
+        const sameLengthFollowUps = goList.length === pinList.length && goList.length >= 2 && goList[0] === pinList[0];
+        const extensionFollowUpBodyDiffers = parsed?.providerRequestEqual === false
+            && sameLengthFollowUps
+            && realTrailEqual
+            && noUnmatched
+            && (parsed?.bodyDifferences?.length ?? 0) === 0;
+        const benignWindow = benignWindowBoundary || benignExtensionWindow || benignDryBoundary || extensionExtraGeneration || extensionFollowUpBodyDiffers;
         comparisons[mode] = {
             status: result.status,
             // THE COMPARATOR'S OWN VERDICT FIELDS, not a guessed field name. compare-generation-legs.mjs
@@ -354,16 +369,18 @@ async function runGenerationLeg({ extension, extensionWork, seedExtensionsRoot, 
             failedGuards,
             windowBoundaryException: benignWindow
                 ? {
-                    reason: extensionExtraGeneration
-                        ? 'the extension started its own follow-up generation after the measured send; it reached the peer on one subject before the drive ended and not on the other, while the measured send\'s provider requests are a byte-equal prefix on both, the real invocation trails are equal and both legs started the extra generation; the shared settle guard is reported here rather than hidden'
-                        : benignDryBoundary
-                            ? 'the extension\'s own counting pass fell inside the send window on one subject and outside it on the other, while the real send is complete on both, the real invocation trails are equal, a dry invocation exists in the whole drive on both legs and the provider wire is byte-equal; the shared completeness guard is reported here rather than hidden'
-                            : benignExtensionWindow
-                                ? 'the extension starts its own generation inside the send window (the drive\'s one-send premise does not hold), identically on both subjects, with identical invocation trails, at least one assembled real invocation and a byte-equal provider wire; the shared comparator guards are reported here rather than hidden'
-                                : 'the send window holds a dry generation whose AFTER_DATA landed after the window closed, identically on both subjects, while the real send is present and complete on both and the provider wire is byte-equal; the shared comparator guard is reported here rather than hidden',
+                    reason: extensionFollowUpBodyDiffers
+                        ? 'the extension issued a follow-up generation of its own after the measured send; both subjects issued it, the measured send\'s request is byte-equal and the real invocation trails are equal, but the follow-up bodies differ because the extension builds them from its own state; the differing entries are recorded here rather than hidden'
+                        : extensionExtraGeneration
+                            ? 'the extension started its own follow-up generation after the measured send; it reached the peer on one subject before the drive ended and not on the other, while the measured send\'s provider requests are a byte-equal prefix on both, the real invocation trails are equal and both legs started the extra generation; the shared settle guard is reported here rather than hidden'
+                            : benignDryBoundary
+                                ? 'the extension\'s own counting pass fell inside the send window on one subject and outside it on the other, while the real send is complete on both, the real invocation trails are equal, a dry invocation exists in the whole drive on both legs and the provider wire is byte-equal; the shared completeness guard is reported here rather than hidden'
+                                : benignExtensionWindow
+                                    ? 'the extension starts its own generation inside the send window (the drive\'s one-send premise does not hold), identically on both subjects, with identical invocation trails, at least one assembled real invocation and a byte-equal provider wire; the shared comparator guards are reported here rather than hidden'
+                                    : 'the send window holds a dry generation whose AFTER_DATA landed after the window closed, identically on both subjects, while the real send is present and complete on both and the provider wire is byte-equal; the shared comparator guard is reported here rather than hidden',
                     windowIntegrity: parsed?.windowIntegrity ?? null,
                     invocationTrails: { gotavern: invocationShape(parsed?.generationInvocations?.gotavern), pinned: invocationShape(parsed?.generationInvocations?.pinned) },
-                    providerRequests: extensionExtraGeneration ? { gotavern: goList, pinned: pinList } : null,
+                    providerRequests: (extensionExtraGeneration || extensionFollowUpBodyDiffers) ? { gotavern: goList, pinned: pinList } : null,
                 }
                 : null,
             comparison: path.basename(out),
