@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "snapshotAt": "2026-11-03T01:35:43Z",
-  "methodology": "Popularity snapshot captured with the authenticated GitHub REST API at 2026-11-03T01:35:43Z using the following searches (search/repositories, sort=stars, order=desc, per_page=100): \"topic:sillytavern-extension\"; \"topic:sillytavern-extensions\"; \"topic:sillytavern\"; \"sillytavern extension in:name,description\"; \"sillytavern-extensions in:name,description\"; \"sillytavern extension in:description\"; \"sillytavern extension in:name\"; plus \"org:SillyTavern\", \"topic:sillytavern-plugin\", \"topic:tavern-helper\", and the author listings users/LenAnderson/repos, users/bmen25124/repos, users/Lodactio/repos. Additional exclusion-evidence searches were \"JS-Slash-Runner\" and '\"Tavern Helper\" in:name,description'. Duplicates are removed by repository full_name case-insensitively, keeping the most-starred row, and forks/mirrors are not counted separately when a canonical or more-starred copy is present. Candidate inclusion: a repository that those queries surfaced as a SillyTavern extension candidate with at least 30 stars at the snapshot, every SillyTavern-org downloadable client extension, every Tavern Helper family repository surfaced by the dedicated searches, and the non-client/other-category repositories those same queries return near the top. Ranking for eligible candidates is stars PRIMARY descending, forks SECONDARY descending, pushedAt TIE BREAKER descending, then official/community-listing membership as the final tie breaker (the official listing is https://docs.sillytavern.app/extensions/ and the SillyTavern org extension repositories; the community listing is the topic/author search surface above). The 20 selected are the top 20 eligible repositories after those filters; testability exclusions are recorded with the failing reason in the candidate table. This is not an official Top 20; it is the top 20 eligible extensions by the documented popularity snapshot/ranking methodology.",
+  "methodology": "Popularity snapshot captured with the authenticated GitHub REST API at 2026-11-03T01:35:43Z using the following searches (search/repositories, sort=stars, order=desc, per_page=100): \"topic:sillytavern-extension\"; \"topic:sillytavern-extensions\"; \"topic:sillytavern\"; \"sillytavern extension in:name,description\"; \"sillytavern-extensions in:name,description\"; \"sillytavern extension in:description\"; \"sillytavern extension in:name\"; plus \"org:SillyTavern\", \"topic:sillytavern-plugin\", \"topic:tavern-helper\", and the author listings users/LenAnderson/repos, users/bmen25124/repos, users/Lodactio/repos. Additional exclusion-evidence searches were \"JS-Slash-Runner\" and '\"Tavern Helper\" in:name,description'. Duplicates are removed by repository full_name case-insensitively, keeping the most-starred row, and forks/mirrors are not counted separately when a canonical or more-starred copy is present. Candidate inclusion: a repository that those queries surfaced as a SillyTavern extension candidate with at least 30 stars at the snapshot, every SillyTavern-org downloadable client extension (kept in the table as a first-party candidate but never eligible for selection), every Tavern Helper family repository surfaced by the dedicated searches, and the non-client/other-category repositories those same queries return near the top. Ranking for eligible candidates is stars PRIMARY descending, forks SECONDARY descending, pushedAt TIE BREAKER descending, then official/community-listing membership as the final tie breaker (the official listing is https://docs.sillytavern.app/extensions/ and the SillyTavern org extension repositories; the community listing is the topic/author search surface above). First-party exclusion (strict third-party corpus): any repository owned by the SillyTavern organisation is an official/first-party extension, not third-party, so it is ineligible for selection and is kept in the candidate table with the first-party exclusion reason. The 20 selected are the top 20 eligible repositories after those filters; testability and safety exclusions are recorded with the failing reason in the candidate table. This is not an official Top 20; it is the top 20 eligible extensions by the documented popularity snapshot/ranking methodology.",
   "candidates": [
     {
       "repo": "N0VI028/JS-Slash-Runner",
@@ -26,7 +26,7 @@
       "description": "[OBSOLETE] Extensions API for SillyTavern.",
       "topics": [],
       "eligible": false,
-      "exclusionReason": "Non-client: server-side Extensions API (obsolete); not a client extension.",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -39,7 +39,7 @@
       "description": "Launcher scripts for SillyTavern and ST-Extras.",
       "topics": [],
       "eligible": false,
-      "exclusionReason": "Non-extension: installer/launcher scripts, not a SillyTavern extension.",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -135,7 +135,7 @@
         "docs"
       ],
       "eligible": false,
-      "exclusionReason": "Non-extension: documentation website.",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -188,9 +188,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 7
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "mattjaybe/SillyTavern-Pathweaver",
@@ -242,9 +242,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 8
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "NemoVonNirgend/NemoPresetExt",
@@ -257,7 +257,7 @@
       "topics": [],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 9
+      "rank": 7
     },
     {
       "repo": "pixelnull/sillytavern-DeepLore",
@@ -301,9 +301,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 10
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "bmen25124/SillyTavern-Roadway",
@@ -316,7 +316,7 @@
       "topics": [],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 11
+      "rank": 8
     },
     {
       "repo": "Supker/ST-Copilot",
@@ -329,7 +329,7 @@
       "topics": [],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 12
+      "rank": 9
     },
     {
       "repo": "bal-spec/sillytavern-character-memory",
@@ -342,7 +342,7 @@
       "topics": [],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 13
+      "rank": 10
     },
     {
       "repo": "SillyTavern/Extension-QuickPersona",
@@ -355,9 +355,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 14
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "Bronya-Rand/Guinevere-UI-Extension",
@@ -370,7 +370,7 @@
       "topics": [],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 15
+      "rank": 11
     },
     {
       "repo": "senjinthedragon/Smart-Memory",
@@ -439,7 +439,7 @@
       "topics": [],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 16
+      "rank": 12
     },
     {
       "repo": "SillyTavern/Extension-VRM",
@@ -452,9 +452,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 17
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "Bronya-Rand/Prome-VN-Extension",
@@ -467,7 +467,7 @@
       "topics": [],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 18
+      "rank": 13
     },
     {
       "repo": "SillyTavern/SillyTavern-WebSearch-Selenium",
@@ -481,7 +481,7 @@
         "plugin"
       ],
       "eligible": false,
-      "exclusionReason": "Non-client: server plugin installed under plugins/, not a client extension.",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -495,7 +495,7 @@
       "topics": [],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 19
+      "rank": 14
     },
     {
       "repo": "InspectorCaracal/SillyTavern-ReMemory",
@@ -508,7 +508,7 @@
       "topics": [],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 20
+      "rank": 15
     },
     {
       "repo": "laboratoiresonore/spellcaster",
@@ -572,7 +572,7 @@
         "extension"
       ],
       "eligible": false,
-      "exclusionReason": "Testability: core function requires an external search provider (SearXNG instance, SerpApi/Tavily/Serper key, Extras API, or a Selenium server plugin).",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -586,7 +586,7 @@
       "topics": [],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 21
+      "rank": 16
     },
     {
       "repo": "DangerDaza/Dooms-Enhancement-Suite",
@@ -606,7 +606,7 @@
       ],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 22
+      "rank": 17
     },
     {
       "repo": "SillyTavern/Extension-PromptInspector",
@@ -619,9 +619,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 23
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/SillyTavern-Content",
@@ -633,7 +633,7 @@
       "description": "Official content repository.",
       "topics": [],
       "eligible": false,
-      "exclusionReason": "Non-extension: official content/asset repository.",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -645,9 +645,9 @@
       "license": "MIT",
       "description": "A SillyTavern extension that fixes schizo markdown. Also some HTML/JS stuff.",
       "topics": [],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 24
+      "eligible": false,
+      "exclusionReason": "Security: executes scripts extracted from sanitised chat-message HTML automatically during normal operation (chat content -> page script execution); an arbitrary-code-execution surface is excluded from the safety corpus.",
+      "rank": null
     },
     {
       "repo": "bmen25124/SillyTavern-MCP-Server",
@@ -703,7 +703,7 @@
       ],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 25
+      "rank": 18
     },
     {
       "repo": "SillyTavern/SillyTavern-Fandom-Scraper",
@@ -717,7 +717,7 @@
         "plugin"
       ],
       "eligible": false,
-      "exclusionReason": "Non-client: server plugin, not a client extension.",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -731,9 +731,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 26
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "bmen25124/SillyTavern-WTracker",
@@ -746,7 +746,7 @@
       "topics": [],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 27
+      "rank": 19
     },
     {
       "repo": "bmen25124/SillyTavern-Custom-Scenario",
@@ -759,7 +759,7 @@
       "topics": [],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 28
+      "rank": 20
     },
     {
       "repo": "platberlitz/sillytavern-image-gen",
@@ -809,9 +809,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 29
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "ghostd93/BetterSimTracker",
@@ -824,7 +824,7 @@
       "topics": [],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 30
+      "rank": 21
     },
     {
       "repo": "Rurijian/KimiThinkingPrefill",
@@ -843,7 +843,7 @@
       ],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 31
+      "rank": 22
     },
     {
       "repo": "SillyTavern/Extension-MessageLimit",
@@ -856,9 +856,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 32
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "ForgottenGlory/ST-SuperObjective",
@@ -871,7 +871,7 @@
       "topics": [],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 33
+      "rank": 23
     },
     {
       "repo": "SillyTavern/SillyTavern-EmulatorJS",
@@ -884,9 +884,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 34
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "gamer-mitsuha/sillytavern-auto-illustrator",
@@ -925,9 +925,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 35
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "bmen25124/SillyTavern-Magic-Translation",
@@ -940,7 +940,7 @@
       "topics": [],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 36
+      "rank": 24
     },
     {
       "repo": "SillyTavern/Extension-Silence",
@@ -953,9 +953,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 37
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "Spadic21/ComfyInject",
@@ -985,9 +985,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 38
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "mossyfield/ST-jeved",
@@ -1013,9 +1013,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 39
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-Mermaid",
@@ -1028,9 +1028,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 40
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "lannashelton/ST-Outfits",
@@ -1043,7 +1043,7 @@
       "topics": [],
       "eligible": true,
       "exclusionReason": null,
-      "rank": 41
+      "rank": 25
     },
     {
       "repo": "SillyTavern/SillyTavern-EdgeTTS-Plugin",
@@ -1057,7 +1057,7 @@
         "plugin"
       ],
       "eligible": false,
-      "exclusionReason": "Non-client: server plugin, not a client extension.",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -1072,7 +1072,7 @@
         "extension"
       ],
       "eligible": false,
-      "exclusionReason": "Testability: first use downloads model weights from a CDN/HuggingFace; network is mandatory for its core function.",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -1086,9 +1086,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 42
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-EmojiPicker",
@@ -1101,9 +1101,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 43
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-ReactTemplate",
@@ -1117,7 +1117,7 @@
         "template"
       ],
       "eligible": false,
-      "exclusionReason": "Non-extension: template repository; a scaffold, not a user-facing extension.",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -1131,9 +1131,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 44
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-CodeRunner",
@@ -1147,7 +1147,7 @@
         "extension"
       ],
       "eligible": false,
-      "exclusionReason": "Security: executes JavaScript/STscript from chat code blocks in page context; an arbitrary-code-execution surface is excluded from the safety corpus.",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -1161,9 +1161,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 45
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-Blip",
@@ -1176,9 +1176,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 46
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-GroupGreetings",
@@ -1191,9 +1191,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 47
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-DupeFinder",
@@ -1206,9 +1206,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 48
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-RVC",
@@ -1222,7 +1222,7 @@
         "extension"
       ],
       "eligible": false,
-      "exclusionReason": "Testability: requires the Extras API rvc module.",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -1236,9 +1236,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 49
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-ScreenShare",
@@ -1251,9 +1251,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 50
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-Spotify",
@@ -1267,7 +1267,7 @@
         "extension"
       ],
       "eligible": false,
-      "exclusionReason": "Testability/credentials: requires a Spotify developer application plus OAuth client ID/authentication.",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -1281,9 +1281,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 51
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-ScriptEvents",
@@ -1296,9 +1296,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 52
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-ChromaDB",
@@ -1312,7 +1312,7 @@
         "extension"
       ],
       "eligible": false,
-      "exclusionReason": "Testability: requires the Extras API chromadb module (repository also archived).",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -1326,9 +1326,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 53
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-RSS",
@@ -1342,7 +1342,7 @@
         "extension"
       ],
       "eligible": false,
-      "exclusionReason": "Testability: core function fetches live RSS feeds from external sites; network is mandatory.",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -1356,9 +1356,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 54
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-InjectManager",
@@ -1371,9 +1371,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 55
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-CustomSliders",
@@ -1386,9 +1386,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 56
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-VideoBackgroundLoader",
@@ -1401,9 +1401,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 57
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-HypeBot",
@@ -1417,7 +1417,7 @@
         "extension"
       ],
       "eligible": false,
-      "exclusionReason": "Testability/credentials: requires a NovelAI API key.",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -1431,9 +1431,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 58
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-Weather",
@@ -1447,7 +1447,7 @@
         "extension"
       ],
       "eligible": false,
-      "exclusionReason": "Testability/credentials: requires a weather API key.",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -1461,9 +1461,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 59
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-LoremIpsum",
@@ -1476,9 +1476,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 60
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-SamplerCommands",
@@ -1491,9 +1491,9 @@
       "topics": [
         "extension"
       ],
-      "eligible": true,
-      "exclusionReason": null,
-      "rank": 61
+      "eligible": false,
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
+      "rank": null
     },
     {
       "repo": "SillyTavern/Extension-WebpackTemplate",
@@ -1507,7 +1507,7 @@
         "template"
       ],
       "eligible": false,
-      "exclusionReason": "Non-extension: template repository; a scaffold, not a user-facing extension.",
+      "exclusionReason": "first-party SillyTavern organisation extension, not third-party",
       "rank": null
     },
     {
@@ -1560,7 +1560,7 @@
       "networkRequired": false,
       "credentialsRequired": false,
       "safetyReview": "Cloned 9c48009 and read index.js, src/systems/**, manifest.json. No package.json install hooks, no eval(atob(, no remote script loader and no external fetch during load; fetch targets are ST's own /api routes (sprites, classify) plus an optional OpenAI-compatible API whose baseUrl defaults to an empty string. The single new Function is a JSON-repair fallback applied to the model's own tracker output, not to remote code.",
-      "selectionReason": "Eligible rank 1/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 329 stars, 71 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it.",
+      "selectionReason": "Eligible rank 1/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 329 stars, 71 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
       "manifestPath": "manifest.json"
     },
     {
@@ -1591,7 +1591,7 @@
       "networkRequired": false,
       "credentialsRequired": false,
       "safetyReview": "Cloned 7a88598 and read index.js, core/**, manifest.json. No install hooks, eval/atob or dynamically loaded remote scripts; fetch calls target the extension's own locale/prompt JSON and ST API routes, with optional OpenAI-compatible auxiliary/embedding endpoints only when the user configures them. It imports ST modules rather than injecting remote code.",
-      "selectionReason": "Eligible rank 2/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 206 stars, 27 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it.",
+      "selectionReason": "Eligible rank 2/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 206 stars, 27 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
       "manifestPath": "manifest.json"
     },
     {
@@ -1624,7 +1624,7 @@
       "networkRequired": false,
       "credentialsRequired": false,
       "safetyReview": "Cloned 8ddf5ba and read dist/index.js plus src/*.ts. No postinstall hook; the atob/createElement('script') occurrences are inside bundled React/zod libraries. The extension fetches only ST's /api/characters/import and /api/characters/merge-attributes with ST request headers; LLM calls go through ST's ConnectionManagerRequestService, not a hardcoded external host.",
-      "selectionReason": "Eligible rank 3/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 185 stars, 25 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it.",
+      "selectionReason": "Eligible rank 3/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 185 stars, 25 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
       "manifestPath": "manifest.json"
     },
     {
@@ -1653,7 +1653,7 @@
       "networkRequired": false,
       "credentialsRequired": false,
       "safetyReview": "Cloned 6a0afdc and read all seven runtime files. No install hooks, eval/atob or remote script loading; fetch targets are ST's /api/connection-manager/profiles and, only when selected, an OpenAI-compatible or Ollama endpoint the user enters. The default path uses ST's active connection.",
-      "selectionReason": "Eligible rank 4/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 182 stars, 38 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it.",
+      "selectionReason": "Eligible rank 4/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 182 stars, 38 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
       "manifestPath": "manifest.json"
     },
     {
@@ -1684,7 +1684,7 @@
       "networkRequired": false,
       "credentialsRequired": false,
       "safetyReview": "Cloned 9b58956 and read index.js, thinking/*, settings/*. No install hooks, eval/atob or external fetches; the extension uses ST's Generate/setExtensionPrompt APIs and stores settings in extension_settings. All 13 runtime files were inspected for loaders and credential access; none were found.",
-      "selectionReason": "Eligible rank 5/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 173 stars, 19 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it.",
+      "selectionReason": "Eligible rank 5/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 173 stars, 19 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
       "manifestPath": "manifest.json"
     },
     {
@@ -1715,64 +1715,7 @@
       "networkRequired": false,
       "credentialsRequired": false,
       "safetyReview": "Cloned 357e80f; the runtime is dist/index.js built from src/**. No postinstall scripts; atob/script-injection hits are bundled React/zod internals; there is no external fetch target and LLM calls use ST's ConnectionManagerRequestService. World-info writes go through ST's own API helpers.",
-      "selectionReason": "Eligible rank 6/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 135 stars, 18 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it.",
-      "manifestPath": "manifest.json"
-    },
-    {
-      "name": "SillyTavern-Timelines",
-      "repo": "SillyTavern/SillyTavern-Timelines",
-      "url": "https://github.com/SillyTavern/SillyTavern-Timelines",
-      "commit": "03f74342c86d2edaa5a1751b34f0c7113813db7d",
-      "branch": "master",
-      "starsSnapshot": 127,
-      "forksSnapshot": 16,
-      "snapshotAt": "2026-11-03T01:35:43Z",
-      "license": "MIT",
-      "extensionType": "client",
-      "capabilities": [
-        "DOM",
-        "chat-events",
-        "character",
-        "group-chat",
-        "files",
-        "fetch",
-        "tokenizer",
-        "settings",
-        "slash-command",
-        "message-render"
-      ],
-      "installMethod": "git checkout at pinned commit into <dataRoot>/<handle>/extensions/<name>",
-      "networkRequired": false,
-      "credentialsRequired": false,
-      "safetyReview": "Cloned 03f7434 and read index.js and tl_*.js. The only dynamic script/style helper is fed a local file path inside the extension folder; cytoscape/dagre are vendored upstream libraries with their licenses retained. No install hooks, eval(atob(, external fetch or credential reads; all data comes from ST's chat APIs.",
-      "selectionReason": "Eligible rank 7/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 127 stars, 16 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it. Official SillyTavern downloadable extension (official-listing tie-break applies only on a full tie).",
-      "manifestPath": "manifest.json"
-    },
-    {
-      "name": "Extension-TopInfoBar",
-      "repo": "SillyTavern/Extension-TopInfoBar",
-      "url": "https://github.com/SillyTavern/Extension-TopInfoBar",
-      "commit": "930be54913d90abd90ebd698ddd81affa924e2e1",
-      "branch": "main",
-      "starsSnapshot": 97,
-      "forksSnapshot": 17,
-      "snapshotAt": "2026-11-03T01:35:43Z",
-      "license": "AGPL-3.0",
-      "extensionType": "client",
-      "capabilities": [
-        "DOM",
-        "chat-events",
-        "character",
-        "group-chat",
-        "files",
-        "fetch",
-        "slash-command"
-      ],
-      "installMethod": "git checkout at pinned commit into <dataRoot>/<handle>/extensions/<name>",
-      "networkRequired": false,
-      "credentialsRequired": false,
-      "safetyReview": "Cloned 930be549 and read all eight runtime files. No install hooks, eval, external fetch or credential access; the only fetch is ST's /api/characters/chats with ST request headers, and the UI is built with DOM/jQuery over ST's existing elements.",
-      "selectionReason": "Eligible rank 8/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 97 stars, 17 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it. Official SillyTavern downloadable extension (official-listing tie-break applies only on a full tie).",
+      "selectionReason": "Eligible rank 6/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 135 stars, 18 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
       "manifestPath": "manifest.json"
     },
     {
@@ -1804,37 +1747,7 @@
       "networkRequired": false,
       "credentialsRequired": false,
       "safetyReview": "Cloned 55c29c4 and reviewed content.js plus src/*. No postinstall hooks; new Function and child_process occurrences are confined to dev scripts and tests outside the runtime entry. Runtime fetch calls are ST's /api/presets/save endpoints; the 75 MB of assets are NemoEngine preset-data JSON parts, not executables or opaque binaries.",
-      "selectionReason": "Eligible rank 9/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 95 stars, 12 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it.",
-      "manifestPath": "manifest.json"
-    },
-    {
-      "name": "Extension-Live2d",
-      "repo": "SillyTavern/Extension-Live2d",
-      "url": "https://github.com/SillyTavern/Extension-Live2d",
-      "commit": "d1801d36a32ace9451cf6377c005a7a64292fc39",
-      "branch": "main",
-      "starsSnapshot": 88,
-      "forksSnapshot": 21,
-      "snapshotAt": "2026-11-03T01:35:43Z",
-      "license": "GPL-3.0",
-      "extensionType": "client",
-      "capabilities": [
-        "DOM",
-        "chat-events",
-        "character",
-        "files",
-        "fetch",
-        "settings",
-        "slash-command",
-        "message-render",
-        "audio",
-        "image"
-      ],
-      "installMethod": "git checkout at pinned commit into <dataRoot>/<handle>/extensions/<name>",
-      "networkRequired": false,
-      "credentialsRequired": false,
-      "safetyReview": "Cloned d1801d3 and reviewed index.js plus the runtime libs. The bundled pixi.min.js/live2dcubismcore.min.js are the upstream libraries with versions and licenses retained; their atob/new Function use is library internals. The extension fetches only ST asset/classify APIs, and Live2D model files are user-supplied from the ST assets directory.",
-      "selectionReason": "Eligible rank 10/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 88 stars, 21 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it. Official SillyTavern downloadable extension (official-listing tie-break applies only on a full tie).",
+      "selectionReason": "Eligible rank 7/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 95 stars, 12 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
       "manifestPath": "manifest.json"
     },
     {
@@ -1865,7 +1778,7 @@
       "networkRequired": false,
       "credentialsRequired": false,
       "safetyReview": "Cloned 8bd72bd and read dist/index.js plus src/index.ts. No install hooks, eval/atob, remote loaders or external fetch; LLM requests go through ST's ConnectionManagerRequestService and settings live in extension_settings.",
-      "selectionReason": "Eligible rank 11/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 83 stars, 13 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it.",
+      "selectionReason": "Eligible rank 8/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 83 stars, 13 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
       "manifestPath": "manifest.json"
     },
     {
@@ -1900,7 +1813,7 @@
       "networkRequired": false,
       "credentialsRequired": false,
       "safetyReview": "Cloned 1480960 and read index.js plus src/*. No install hooks or remote script loading; fetch targets are ST's own /api routes (files, worldinfo, characters, caption, backgrounds, tokencount) and LLM calls use the ST connection manager or a user-configured endpoint. atob is used only to decode local session payload strings.",
-      "selectionReason": "Eligible rank 12/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 80 stars, 12 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it.",
+      "selectionReason": "Eligible rank 9/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 80 stars, 12 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
       "manifestPath": "manifest.json"
     },
     {
@@ -1934,29 +1847,7 @@
       "networkRequired": false,
       "credentialsRequired": false,
       "safetyReview": "Cloned 35fcf22 and reviewed index.js and its supporting modules. No install hooks or remote script loaders; at load only ST APIs are touched. Optional direct-provider endpoints and keys are user-entered settings; default routing goes through ST. The large fixture in the repo is a sample chat JSONL, not an executable.",
-      "selectionReason": "Eligible rank 13/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 78 stars, 6 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it.",
-      "manifestPath": "manifest.json"
-    },
-    {
-      "name": "Extension-QuickPersona",
-      "repo": "SillyTavern/Extension-QuickPersona",
-      "url": "https://github.com/SillyTavern/Extension-QuickPersona",
-      "commit": "5509fb6bee903c833683cb860fbf437d4479b1cb",
-      "branch": "main",
-      "starsSnapshot": 76,
-      "forksSnapshot": 14,
-      "snapshotAt": "2026-11-03T01:35:43Z",
-      "license": "AGPL-3.0",
-      "extensionType": "client",
-      "capabilities": [
-        "DOM",
-        "chat-events"
-      ],
-      "installMethod": "git checkout at pinned commit into <dataRoot>/<handle>/extensions/<name>",
-      "networkRequired": false,
-      "credentialsRequired": false,
-      "safetyReview": "Cloned 5509fb6; five small runtime files. No fetch, no eval/atob, no credential access; it reads ST's personas from the page context, renders a dropdown and writes the selection back through ST settings.",
-      "selectionReason": "Eligible rank 14/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 76 stars, 14 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it. Official SillyTavern downloadable extension (official-listing tie-break applies only on a full tie).",
+      "selectionReason": "Eligible rank 10/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 78 stars, 6 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
       "manifestPath": "manifest.json"
     },
     {
@@ -1980,7 +1871,7 @@
       "networkRequired": false,
       "credentialsRequired": false,
       "safetyReview": "Cloned d93c056 and read index.js plus the theme-pack loader. No install hooks or remote loading; fetch is limited to reading a local theme-pack manifest inside the extension folder. Theme packs shipped in the repo can contain CSS/HTML/JS by design, and the review confirmed the shipped packs neither contact a network nor read credentials.",
-      "selectionReason": "Eligible rank 15/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 72 stars, 9 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it.",
+      "selectionReason": "Eligible rank 11/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 72 stars, 9 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
       "manifestPath": "manifest.json"
     },
     {
@@ -2009,36 +1900,7 @@
       "networkRequired": false,
       "credentialsRequired": false,
       "safetyReview": "Cloned a7ac25a and read all runtime files. No install hooks, eval/atob or external fetch; passes run through ST's chat-completion APIs and world-info helpers, with prompts assembled locally and settings stored in extension_settings.",
-      "selectionReason": "Eligible rank 16/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 66 stars, 7 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it.",
-      "manifestPath": "manifest.json"
-    },
-    {
-      "name": "Extension-VRM",
-      "repo": "SillyTavern/Extension-VRM",
-      "url": "https://github.com/SillyTavern/Extension-VRM",
-      "commit": "2b4c4d015a40d255a064e83ed70c408046d58049",
-      "branch": "main",
-      "starsSnapshot": 65,
-      "forksSnapshot": 16,
-      "snapshotAt": "2026-11-03T01:35:43Z",
-      "license": "GPL-3.0",
-      "extensionType": "client",
-      "capabilities": [
-        "DOM",
-        "chat-events",
-        "character",
-        "files",
-        "fetch",
-        "settings",
-        "message-render",
-        "audio",
-        "image"
-      ],
-      "installMethod": "git checkout at pinned commit into <dataRoot>/<handle>/extensions/<name>",
-      "networkRequired": false,
-      "credentialsRequired": false,
-      "safetyReview": "Cloned 2b4c4d0 and reviewed index.js and the bundled three.js/jsm libraries (ammo, draco, basis, rhino3dm; licenses retained). No install hooks or remote script loading; fetch calls target ST asset/classify APIs. Model files are user-supplied from ST assets and the wasm/JS libraries are standard upstream builds.",
-      "selectionReason": "Eligible rank 17/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 65 stars, 16 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it. Official SillyTavern downloadable extension (official-listing tie-break applies only on a full tie).",
+      "selectionReason": "Eligible rank 12/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 66 stars, 7 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
       "manifestPath": "manifest.json"
     },
     {
@@ -2068,7 +1930,7 @@
       "networkRequired": false,
       "credentialsRequired": false,
       "safetyReview": "Cloned 9cf09fb and read index.js plus the runtime modules. No install hooks, eval/atob or external fetch; the only fetch is ST's /api/sprites/get; settings live in extension_settings and sprites come from the user's ST assets.",
-      "selectionReason": "Eligible rank 18/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 65 stars, 9 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it.",
+      "selectionReason": "Eligible rank 13/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 65 stars, 9 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
       "manifestPath": "manifest.json"
     },
     {
@@ -2099,7 +1961,7 @@
       "networkRequired": false,
       "credentialsRequired": false,
       "safetyReview": "Cloned 2ab0c81 and read index.js, renderer.js and the tracker modules. No install hooks or remote loaders; fetch is limited to ST's /api/secrets/find. renderer.js evaluates user-authored template logic with new Function, a documented local feature; the repository is archived/sunset upstream.",
-      "selectionReason": "Eligible rank 19/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 64 stars, 7 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it.",
+      "selectionReason": "Eligible rank 14/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 64 stars, 7 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
       "manifestPath": "manifest.json"
     },
     {
@@ -2130,7 +1992,156 @@
       "networkRequired": false,
       "credentialsRequired": false,
       "safetyReview": "Cloned 2c36625; twelve small runtime files. No install hooks, eval/atob, external fetch or credential access; it calls ST's generateRaw and world-info APIs and keeps memories in world-info books through ST helpers.",
-      "selectionReason": "Eligible rank 20/61 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 61 stars, 7 forks. The top-20 cut is rank 20 at 61 stars (next eligible is 58); this repository is inside it.",
+      "selectionReason": "Eligible rank 15/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 61 stars, 7 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
+      "manifestPath": "manifest.json"
+    },
+    {
+      "name": "InlineSummary",
+      "repo": "Kristyku/InlineSummary",
+      "url": "https://github.com/Kristyku/InlineSummary",
+      "commit": "d720005c5b6efc26b744ea2f23773b018390b2c2",
+      "branch": "main",
+      "starsSnapshot": 58,
+      "forksSnapshot": 11,
+      "snapshotAt": "2026-11-03T01:35:43Z",
+      "license": "NOASSERTION",
+      "extensionType": "client",
+      "capabilities": [
+        "DOM",
+        "chat-events",
+        "generation",
+        "character",
+        "tokenizer",
+        "settings",
+        "slash-command",
+        "message-render"
+      ],
+      "installMethod": "git checkout at pinned commit into <dataRoot>/<handle>/extensions/<name>",
+      "networkRequired": false,
+      "credentialsRequired": false,
+      "safetyReview": "Cloned d720005 and read all four runtime files. No install hooks, eval/atob, remote script loading or fetch at all; generation goes through ST's generateRaw, settings through extension_settings, and the extension only renders avatars/messages from chat data already in the page.",
+      "selectionReason": "Eligible rank 16/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 58 stars, 11 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
+      "manifestPath": "manifest.json"
+    },
+    {
+      "name": "Dooms-Enhancement-Suite",
+      "repo": "DangerDaza/Dooms-Enhancement-Suite",
+      "url": "https://github.com/DangerDaza/Dooms-Enhancement-Suite",
+      "commit": "893b1e17f00f63f08de913777063b61e8d424882",
+      "branch": "main",
+      "starsSnapshot": 57,
+      "forksSnapshot": 9,
+      "snapshotAt": "2026-11-03T01:35:43Z",
+      "license": "NOASSERTION",
+      "extensionType": "client",
+      "capabilities": [
+        "DOM",
+        "chat-events",
+        "generation",
+        "prompt-injection",
+        "world-info",
+        "character",
+        "group-chat",
+        "macros",
+        "files",
+        "fetch",
+        "settings",
+        "slash-command",
+        "message-render",
+        "markdown",
+        "image",
+        "remote-network"
+      ],
+      "installMethod": "git checkout at pinned commit into <dataRoot>/<handle>/extensions/<name>",
+      "networkRequired": false,
+      "credentialsRequired": false,
+      "safetyReview": "Cloned 893b1e1 and read index.js plus src/**. child_process appears only in tools/ developer scripts outside the runtime entry; the single new Function is the JSON-repair fallback (opt-out flag) for the model's own tracker output. The only external fetches are a GitHub release/version check the user triggers and a Google Fonts stylesheet; no credential reads, no remote script loader, no obfuscated payloads.",
+      "selectionReason": "Eligible rank 17/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 57 stars, 9 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
+      "manifestPath": "manifest.json"
+    },
+    {
+      "name": "narrative-agent",
+      "repo": "Lol1p0p/narrative-agent",
+      "url": "https://github.com/Lol1p0p/narrative-agent",
+      "commit": "29a86d7323eb409131fdb28d926e3ea451eccb5c",
+      "branch": "master",
+      "starsSnapshot": 48,
+      "forksSnapshot": 2,
+      "snapshotAt": "2026-11-03T01:35:43Z",
+      "license": "MIT",
+      "extensionType": "client",
+      "capabilities": [
+        "DOM",
+        "chat-events",
+        "generation",
+        "world-info",
+        "macros",
+        "fetch",
+        "settings",
+        "message-render"
+      ],
+      "installMethod": "git checkout at pinned commit into <dataRoot>/<handle>/extensions/<name>",
+      "networkRequired": false,
+      "credentialsRequired": false,
+      "safetyReview": "Cloned 29a86d7 and read index.js, orchestrator/llm/tools modules and the manifest. No install hooks, eval(atob( or remote script loaders; new Function is used to compile the user's own custom-tool code (documented extensibility surface, local input only). Generation goes through ST's generateRaw and there is no external fetch target.",
+      "selectionReason": "Eligible rank 18/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 48 stars, 2 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
+      "manifestPath": "manifest.json"
+    },
+    {
+      "name": "SillyTavern-WTracker",
+      "repo": "bmen25124/SillyTavern-WTracker",
+      "url": "https://github.com/bmen25124/SillyTavern-WTracker",
+      "commit": "8a5e42e6cbea0b63ca0fb92b5ce52ec4a399012c",
+      "branch": "main",
+      "starsSnapshot": 44,
+      "forksSnapshot": 11,
+      "snapshotAt": "2026-11-03T01:35:43Z",
+      "license": "MIT",
+      "extensionType": "client",
+      "capabilities": [
+        "DOM",
+        "chat-events",
+        "generation",
+        "world-info",
+        "character",
+        "group-chat",
+        "macros",
+        "tokenizer",
+        "settings",
+        "slash-command",
+        "prompt-format",
+        "markdown"
+      ],
+      "installMethod": "git checkout at pinned commit into <dataRoot>/<handle>/extensions/<name>",
+      "networkRequired": false,
+      "credentialsRequired": false,
+      "safetyReview": "Cloned 8a5e42e and reviewed dist/index.js and its sources. No install hooks, eval/atob or external fetch; LLM calls use ST's ConnectionManagerRequestService with the user's configured profiles. The createElement('script') hits are bundled React internals, not extension code.",
+      "selectionReason": "Eligible rank 19/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 44 stars, 11 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
+      "manifestPath": "manifest.json"
+    },
+    {
+      "name": "SillyTavern-Custom-Scenario",
+      "repo": "bmen25124/SillyTavern-Custom-Scenario",
+      "url": "https://github.com/bmen25124/SillyTavern-Custom-Scenario",
+      "commit": "bf207fa1723bc39e19cc4aa530c30712c481b176",
+      "branch": "main",
+      "starsSnapshot": 42,
+      "forksSnapshot": 4,
+      "snapshotAt": "2026-11-03T01:35:43Z",
+      "license": "MIT",
+      "extensionType": "client",
+      "capabilities": [
+        "DOM",
+        "world-info",
+        "files",
+        "fetch",
+        "slash-command"
+      ],
+      "installMethod": "git checkout at pinned commit into <dataRoot>/<handle>/extensions/<name>",
+      "networkRequired": false,
+      "credentialsRequired": false,
+      "safetyReview": "Cloned bf207fa and reviewed dist/index.js and src/**. No install hooks, eval(atob(, remote script loader or credential access; new Function compiles scenario scripts the user authors inside the extension (documented scripting feature, local data only). The only fetch is ST's /api/characters/import; the repository ships UI screenshots only, no adult assets.",
+      "selectionReason": "Eligible rank 20/25 by the documented ordering (stars desc, forks desc, pushedAt desc, official-listing tie-break): 42 stars, 4 forks. The top-20 cut is rank 20 at 42 stars (next eligible is 40); this repository is inside it.",
       "manifestPath": "manifest.json"
     }
   ]
