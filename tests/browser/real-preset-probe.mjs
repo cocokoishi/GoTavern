@@ -32,6 +32,7 @@ const chromium = playwrightModule.chromium ?? playwrightModule.default?.chromium
 import { seedLegConfig } from './seed-leg-config.mjs';
 import { describeInstalledExtension, ensurePinnedExtensionInstalled } from './install-pinned-extension.mjs';
 import { pinnedExtension } from './pinned-extensions.mjs';
+import { allocatePort } from './port-lease.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -44,14 +45,10 @@ function argumentValue(name, fallback = null) {
 }
 
 function freePort() {
-    return new Promise((resolve, reject) => {
-        const server = http.createServer();
-        server.listen(0, '127.0.0.1', () => {
-            const { port } = server.address();
-            server.close(() => resolve(port));
-        });
-        server.on('error', reject);
-    });
+    // CONTROLLED-RANGE LEASE, NOT bind(0). tests/browser/port-lease.mjs records the measured defect:
+    // a port chosen by binding 0, closed, and handed to a process spawned later can be taken in between,
+    // and the probe then drives the wrong process (Browser differential 41388200223).
+    return allocatePort();
 }
 
 async function waitForServer(url, deadlineMs = 120000) {

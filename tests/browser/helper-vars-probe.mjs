@@ -149,6 +149,7 @@ import {
     buildTrio, hashTree, readCardStance, readChatRecords, readCommittedPreset, readHelperApiSurface,
     readPresetStance, readSettingsFile, seedChats, stageProbeCard, writeProbePresets, here, repoRoot,
 } from './extensions/helper-vars-kit.mjs';
+import { allocatePort } from './port-lease.mjs';
 
 const playwrightModule = await import('@playwright/test');
 const chromium = playwrightModule.chromium ?? playwrightModule.default?.chromium;
@@ -169,15 +170,10 @@ const dataRoot = path.resolve(argumentValue('--data-root') ?? await fs.mkdtemp(p
 const reportPath = path.resolve(argumentValue('--report', path.join(here, `helper-vars-${subject}-${variant}${afterRestart ? '-restart' : ''}.json`)));
 
 function freePort() {
-    return new Promise((resolve, reject) => {
-        const server = createServer();
-        server.unref();
-        server.on('error', reject);
-        server.listen(0, '127.0.0.1', () => {
-            const { port } = server.address();
-            server.close(() => resolve(port));
-        });
-    });
+    // CONTROLLED-RANGE LEASE, NOT bind(0). tests/browser/port-lease.mjs records the measured defect:
+    // a port chosen by binding 0, closed, and handed to a process spawned later can be taken in between,
+    // and the probe then drives the wrong process (Browser differential 41388200223).
+    return allocatePort();
 }
 
 async function waitForServer(url, deadlineMs = 90000) {

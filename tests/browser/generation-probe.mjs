@@ -44,6 +44,7 @@ import { fileURLToPath } from 'node:url';
 import { PEER_CIRCUIT, sourceFor } from './sources.mjs';
 import { PRESET_FIXTURE, applyPresetKit, applyAuthorsNoteOverlay, authorsNoteOverlaySpec, presetSpec, resolveAuthorsNoteCase } from './preset-kit.mjs';
 import { HOP_MODES, loopbackUpstream, startStreamingHop } from './streaming-framing.mjs';
+import { allocatePort } from './port-lease.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -61,22 +62,10 @@ const chromium = playwrightModule.chromium ?? playwrightModule.default?.chromium
 // (AGENTS verification rule 10), so the port is chosen BELOW every platform's ephemeral range (Linux 32768+, macOS
 // and Windows 49152+) and the readiness check below asserts the responder's IDENTITY rather than only TCP reachability.
 function freePort() {
-    const start = 20000 + Math.floor(Math.random() * 8000);
-    const tryCandidate = (candidate) => new Promise((resolve) => {
-        const server = createServer();
-        server.unref();
-        server.once('error', () => resolve(false));
-        server.listen(candidate, '127.0.0.1', () => server.close(() => resolve(true)));
-    });
-    return (async () => {
-        for (let candidate = start; candidate < 30000; candidate++) {
-            if (await tryCandidate(candidate)) return candidate;
-        }
-        for (let candidate = 20000; candidate < start; candidate++) {
-            if (await tryCandidate(candidate)) return candidate;
-        }
-        throw new Error('no free port in 20000-29999; refusing to fall back to bind(0) because the OS can hand that port to the in-process peer');
-    })();
+    // CONTROLLED-RANGE LEASE, NOT bind(0). tests/browser/port-lease.mjs records the measured defect:
+    // a port chosen by binding 0, closed, and handed to a process spawned later can be taken in between,
+    // and the probe then drives the wrong process (Browser differential 41388200223).
+    return allocatePort();
 }
 
 // READINESS IS AN IDENTITY CHECK, NOT A TCP CHECK. The in-process peer answers 404 on /version; a readiness wait that

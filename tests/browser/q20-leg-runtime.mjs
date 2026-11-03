@@ -18,6 +18,8 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
+import { allocatePort, waitForIdentity } from './port-lease.mjs';
+
 // THE MODULE'S OWN DIRECTORY, the way every other probe in this harness resolves it: `new URL(...).pathname` is a
 // URL path, so on a Windows host it arrives as `/C:/...` and `path.resolve` turns it into `C:\C:\...`.
 export const here = path.dirname(fileURLToPath(import.meta.url));
@@ -31,15 +33,10 @@ export function argumentValue(argv, name, fallback = null) {
 }
 
 function freePort() {
-    return new Promise((resolve, reject) => {
-        const server = http.createServer();
-        server.unref();
-        server.listen(0, '127.0.0.1', () => {
-            const { port } = server.address();
-            server.close(() => resolve(port));
-        });
-        server.on('error', reject);
-    });
+    // THE CONTROLLED-RANGE LEASE, NOT bind(0). See port-lease.mjs: the alpha.12 wrong-peer defect was a
+    // bind(0) port handed to an in-process peer before the subject bound it, and the same pattern lived
+    // here. The function keeps its old name so the probes that call it did not each need an edit.
+    return allocatePort();
 }
 
 export async function waitForServer(url, deadlineMs = 120000) {
@@ -318,6 +315,22 @@ export async function bootSubject({ argv, dataRoot, port, external }) {
     };
     server.stdout.on('data', collect);
     server.stderr.on('data', collect);
+    // IDENTITY-BOUND READINESS, so a peer or a leftover server that owns the port is refused by name instead
+    // of being driven (the class port-lease.mjs exists for). The caller may still wait again; this makes the
+    // shared boot helper itself safe for every Q20 probe that uses it.
+    try {
+        await waitForIdentity({
+            baseURL: `http://127.0.0.1:${port}`,
+            port,
+            childAlive: () => server.exitCode === null,
+            childPid: server.pid,
+            expectedPkgVersion: '1.19.0',
+            deadlineMs: 180000,
+            logTail: () => serverLog.join(''),
+        });
+    } catch (error) {
+        return { external: false, baseURL: `http://127.0.0.1:${port}`, server, serverLog, bootRefusal: `the subject did not reach identity on port ${port}: ${String(error.message ?? error)}`, tokenizers };
+    }
     void argv;
     return { external: false, baseURL: `http://127.0.0.1:${port}`, server, serverLog, bootRefusal: null, tokenizers };
 }

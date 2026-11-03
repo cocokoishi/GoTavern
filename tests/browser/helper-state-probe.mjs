@@ -47,6 +47,7 @@ import {
     HELPERS, PRESET_A, PRESET_B, STATE_MARKERS, readCardVariables, readChatMetadataVariables, readPresetDocument,
     readSettingsGlobalVariables, stageChats, stageSecondCard, stageValidCard, waitForDisk, writeStatePresets,
 } from './extensions/helper-state-kit.mjs';
+import { allocatePort } from './port-lease.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -97,15 +98,10 @@ function step(name, ok, detail = null) {
 }
 
 function freePort() {
-    return new Promise((resolve, reject) => {
-        const server = createServer();
-        server.unref();
-        server.on('error', reject);
-        server.listen(0, '127.0.0.1', () => {
-            const { port } = server.address();
-            server.close(() => resolve(port));
-        });
-    });
+    // CONTROLLED-RANGE LEASE, NOT bind(0). tests/browser/port-lease.mjs records the measured defect:
+    // a port chosen by binding 0, closed, and handed to a process spawned later can be taken in between,
+    // and the probe then drives the wrong process (Browser differential 41388200223).
+    return allocatePort();
 }
 
 async function waitForServer(url, deadlineMs = 120000) {

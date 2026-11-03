@@ -314,6 +314,23 @@ function shardReport(shardIndex, shardCount, names, overrides = {}) {
     check('a shard from another commit is a failure', result.status !== 0 && /headSha/.test(result.stderr), result.stderr.slice(-400));
 }
 
+// ---- the port-allocation class, across the whole harness ------------------------------------------
+// The alpha.12 defect was a probe that chose a port by binding 0 and closing the socket, then handed the
+// NUMBER to a process started later; an in-process peer took it and the probe drove the wrong server.
+// port-lease.mjs fixes the allocation for every probe that boots a subject, and this check refuses a
+// NEW probe that re-introduces the pattern. It is a static check on purpose: a runtime test can only
+// exercise the probes it runs, and the ones nobody ran are exactly where the pattern survived before.
+{
+    const files = (await fs.readdir(here)).filter(name => name.endsWith('.mjs'));
+    const offenders = [];
+    for (const file of files) {
+        const text = await fs.readFile(path.join(here, file), 'utf8');
+        const implementation = text.match(/function freePort\(\) \{[\s\S]*?\n\}/);
+        if (implementation && /listen\(\s*0\s*,/.test(implementation[0])) offenders.push(file);
+    }
+    check('no probe allocates a port by binding 0 and closing it', offenders.length === 0, offenders.join(', '));
+}
+
 // ---- lock validation teeth -------------------------------------------------------------------------
 {
     const mutated = JSON.parse(JSON.stringify(realLock.lock));

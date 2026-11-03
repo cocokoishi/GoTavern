@@ -52,6 +52,7 @@ import { fileURLToPath } from 'node:url';
 
 import { seedLegConfig } from './seed-leg-config.mjs';
 import { MARKERS, PROBE_USER_AVATAR, PROBE_USER_NAME, REGEX_SCENARIO, REGEX_VARIANTS, applyNegation, applyRegexKit, negationFor, regexRules, turnText } from './regex-kit.mjs';
+import { allocatePort } from './port-lease.mjs';
 
 const playwrightModule = await import('@playwright/test');
 const chromium = playwrightModule.chromium ?? playwrightModule.default?.chromium;
@@ -67,14 +68,10 @@ function argumentValue(name, fallback = null) {
 }
 
 function freePort() {
-    return new Promise((resolve, reject) => {
-        const server = http.createServer();
-        server.listen(0, '127.0.0.1', () => {
-            const { port } = server.address();
-            server.close(() => resolve(port));
-        });
-        server.on('error', reject);
-    });
+    // CONTROLLED-RANGE LEASE, NOT bind(0). tests/browser/port-lease.mjs records the measured defect:
+    // a port chosen by binding 0, closed, and handed to a process spawned later can be taken in between,
+    // and the probe then drives the wrong process (Browser differential 41388200223).
+    return allocatePort();
 }
 
 async function waitForServer(url, deadlineMs = 180000) {

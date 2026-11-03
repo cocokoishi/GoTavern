@@ -38,6 +38,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { seedLegConfig } from './seed-leg-config.mjs';
 import { DISCRIMINATOR_FILE, EXTENSION_DIR, FIXTURE_FILES, MISSING_MODULE_DIR, installFixture, sha256, urlsFor } from './extension-assets-fixture.mjs';
+import { allocatePort } from './port-lease.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -81,15 +82,10 @@ function step(name, ok, detail = null) {
 }
 
 function freePort() {
-    return new Promise((resolve, reject) => {
-        const server = http.createServer();
-        server.unref();
-        server.listen(0, '127.0.0.1', () => {
-            const { port } = server.address();
-            server.close(() => resolve(port));
-        });
-        server.on('error', reject);
-    });
+    // CONTROLLED-RANGE LEASE, NOT bind(0). tests/browser/port-lease.mjs records the measured defect:
+    // a port chosen by binding 0, closed, and handed to a process spawned later can be taken in between,
+    // and the probe then drives the wrong process (Browser differential 41388200223).
+    return allocatePort();
 }
 
 async function waitForVersion(baseURL, deadlineMs = 120000) {

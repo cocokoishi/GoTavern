@@ -57,6 +57,7 @@ import { fileURLToPath } from 'node:url';
 import {
     MARKERS, expectedSeedDigest, repositoryRoot, seedDigest, seedGroupChatTree,
 } from './group-chat-fixture.mjs';
+import { allocatePort } from './port-lease.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const external = Boolean(process.env.PROBE_BASE_URL);
@@ -82,15 +83,10 @@ if (seedOnly) {
 }
 
 function freePort() {
-    return new Promise((resolve, reject) => {
-        const server = createNetServer();
-        server.unref();
-        server.on('error', reject);
-        server.listen(0, '127.0.0.1', () => {
-            const { port } = server.address();
-            server.close(() => resolve(port));
-        });
-    });
+    // CONTROLLED-RANGE LEASE, NOT bind(0). tests/browser/port-lease.mjs records the measured defect:
+    // a port chosen by binding 0, closed, and handed to a process spawned later can be taken in between,
+    // and the probe then drives the wrong process (Browser differential 41388200223).
+    return allocatePort();
 }
 
 function sha256(value) {
