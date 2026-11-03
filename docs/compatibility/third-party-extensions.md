@@ -129,6 +129,19 @@ broke, then aggregates in a job that checks the set rather than the shards' conc
 The aggregator writes `summary.json`, `matrix.json`, `junit.xml` and `matrix.md` from the same data it
 judged, so a release-notes table cannot be assembled from a different run.
 
+The same workflow runs two more surfaces that the per-extension shards cannot express:
+
+* **all-20 simultaneous and capability clusters** — one browser loads every extension at once (boot,
+  all modules, settings page, character load, new chat, send, cancel, reload, restart) and then one
+  representative pair per capability cluster (prompt mutation, render/DOM, files/network,
+  settings/events, character/world, misc), so extensions interact instead of being judged in isolation;
+* **a 30-minute all-20 soak and a clean-vs-20 overhead measurement** — the soak repeats send / cancel /
+  reload / setting-toggle and records subject RSS, API failure rate, latency p50/p95/p99, browser errors
+  and an orphan scan on both subjects, with a broad regression guard (Go RSS or p95 more than 3x stock,
+  or a Go-only 5xx) rather than a tight threshold runner noise would turn red. The overhead measurement
+  reports server boot, RSS and latency plus browser time-to-settings-ready for GoTavern-clean,
+  GoTavern-20, stock-clean and stock-20, and makes no speedup or regression assertion.
+
 ## Reproducing it locally
 
 ```bash

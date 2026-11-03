@@ -439,3 +439,264 @@ jobs:
           path: ${{ runner.temp }}/ext-compat-${{ matrix.platform }}
           if-no-files-found: warn
           retention-days: 30
+  # ALL-20 SIMULTANEOUS AND CAPABILITY-CLUSTER DIFFERENTIALS. The per-extension shards judge one extension at
+  # a time; real ecosystems fail in combination. This job loads all 20 at once (boot, every module loaded on
+  # both subjects, settings page, character load, new chat, send, cancel, reload, restart) and then runs one
+  # representative PAIR per capability cluster (prompt mutation, render/DOM, files/network, settings/events,
+  # character/world, misc) so at least two extensions interact in every class. The runner refuses a set that
+  # omits an expected extension and the comparator fails on a Go-only asset, status, shape or browser error.
+  corpus:
+    needs: selftest
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode || 'full') == 'full') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout-pinned
+        with:
+          commit: ${{ env.PINNED_BASELINE_COMMIT }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Cache the pinned server's node_modules
+        id: cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Install the pinned server's dependencies
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "pinned server node_modules: CACHE HIT -- install SKIPPED"
+          else
+            cd .reference/SillyTavern
+            if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          fi
+      - name: Install the browser harness
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            (cd tests/browser && npm ci --no-audit --no-fund)
+          fi
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            (cd tests/browser && npx playwright install-deps chromium)
+          else
+            (cd tests/browser && npx playwright install --with-deps chromium)
+          fi
+      - name: Build the subject and the recording peer
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          mkdir -p .browser-bin
+          go build -trimpath -o .browser-bin/gotavern ./cmd/gotavern
+          go build -trimpath -o .browser-bin/mock-provider ./tools/mock-provider
+          echo "GOTAVERN_BINARY=${PWD}/.browser-bin/gotavern" >> "$GITHUB_ENV"
+          echo "GOTAVERN_MOCK_PROVIDER_BINARY=${PWD}/.browser-bin/mock-provider" >> "$GITHUB_ENV"
+          echo "GOTAVERN_REFERENCE=${PWD}/.reference/SillyTavern" >> "$GITHUB_ENV"
+      - name: All 20 extensions simultaneously (both subjects, restart)
+        run: |
+          set -euo pipefail
+          node tests/browser/extension-corpus-run.mjs --mode all20 --work-root "$RUNNER_TEMP/ext-corpus-all20"
+      - name: Capability-cluster pairs (both subjects)
+        run: |
+          set -euo pipefail
+          node tests/browser/extension-corpus-run.mjs --mode clusters --work-root "$RUNNER_TEMP/ext-corpus-clusters"
+      - name: Upload the all-20 and cluster evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-compat-corpus
+          path: |
+            ${{ runner.temp }}/ext-corpus-all20
+            ${{ runner.temp }}/ext-corpus-clusters
+          if-no-files-found: warn
+          retention-days: 30
+
+  # THE SOAK. A short lifecycle is not stability. This job drives the all-20 set for 30 minutes of repeated
+  # send / cancel / reload / setting-toggle, recording subject RSS, API failure rate, latency p50/p95/p99,
+  # browser errors and an orphan scan on both subjects, with a broad regression guard (Go RSS or p95 more
+  # than 3x stock, or a Go-only 5xx) rather than a tight threshold that runner noise would turn red.
+  soak:
+    needs: selftest
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode || 'full') == 'full') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout-pinned
+        with:
+          commit: ${{ env.PINNED_BASELINE_COMMIT }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Cache the pinned server's node_modules
+        id: cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Install the pinned server's dependencies
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "pinned server node_modules: CACHE HIT -- install SKIPPED"
+          else
+            cd .reference/SillyTavern
+            if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          fi
+      - name: Install the browser harness
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            (cd tests/browser && npm ci --no-audit --no-fund)
+          fi
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            (cd tests/browser && npx playwright install-deps chromium)
+          else
+            (cd tests/browser && npx playwright install --with-deps chromium)
+          fi
+      - name: Build the subject and the recording peer
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          mkdir -p .browser-bin
+          go build -trimpath -o .browser-bin/gotavern ./cmd/gotavern
+          go build -trimpath -o .browser-bin/mock-provider ./tools/mock-provider
+          echo "GOTAVERN_BINARY=${PWD}/.browser-bin/gotavern" >> "$GITHUB_ENV"
+          echo "GOTAVERN_MOCK_PROVIDER_BINARY=${PWD}/.browser-bin/mock-provider" >> "$GITHUB_ENV"
+          echo "GOTAVERN_REFERENCE=${PWD}/.reference/SillyTavern" >> "$GITHUB_ENV"
+      - name: Thirty-minute all-20 soak (both subjects)
+        run: |
+          set -euo pipefail
+          node tests/browser/extension-corpus-run.mjs --mode soak --soak-minutes 30 --work-root "$RUNNER_TEMP/ext-corpus-soak"
+      - name: Upload the soak evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-compat-soak
+          path: ${{ runner.temp }}/ext-corpus-soak
+          if-no-files-found: warn
+          retention-days: 30
+  # THE COST OF THE CORPUS, measured rather than guessed. Four fresh conditions on one runner: GoTavern
+  # clean, GoTavern with all 20 installed, stock clean, stock with all 20 installed. Reports server boot,
+  # RSS, /version and / latency, and browser time-to-settings-ready plus the all-20 asset-load moment, with
+  # deltas and an explicit "unmeasured" record where a metric cannot be obtained. It makes NO speedup or
+  # regression assertion: the numbers are evidence, not a marketing claim.
+  overhead:
+    needs: selftest
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode || 'full') == 'full') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout-pinned
+        with:
+          commit: ${{ env.PINNED_BASELINE_COMMIT }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Cache the pinned server's node_modules
+        id: cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Install the pinned server's dependencies
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "pinned server node_modules: CACHE HIT -- install SKIPPED"
+          else
+            cd .reference/SillyTavern
+            if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          fi
+      - name: Install the browser harness
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            (cd tests/browser && npm ci --no-audit --no-fund)
+          fi
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            (cd tests/browser && npx playwright install-deps chromium)
+          else
+            (cd tests/browser && npx playwright install --with-deps chromium)
+          fi
+      - name: Build the subject
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          mkdir -p .browser-bin
+          go build -trimpath -o .browser-bin/gotavern ./cmd/gotavern
+          go build -trimpath -o .browser-bin/mock-provider ./tools/mock-provider
+          echo "GOTAVERN_BINARY=${PWD}/.browser-bin/gotavern" >> "$GITHUB_ENV"
+          echo "GOTAVERN_REFERENCE=${PWD}/.reference/SillyTavern" >> "$GITHUB_ENV"
+      - name: Clean vs 20 extensions, both subjects
+        run: |
+          set -euo pipefail
+          node tests/browser/extension-overhead.mjs --work-root "$RUNNER_TEMP/ext-overhead" --samples 20
+      - name: Upload the overhead evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-compat-overhead
+          path: ${{ runner.temp }}/ext-overhead
+          if-no-files-found: warn
+          retention-days: 30
