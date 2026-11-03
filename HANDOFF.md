@@ -29,8 +29,20 @@ graduated.
 | assets | 7 files, 366,161,276 bytes (`checksums.txt` 564 B + six canonical archives 366,160,712 B) |
 | release body | curated note `docs/release-notes-v0.1.0-alpha.13.md` (validated by `scripts/verify-release-notes.mjs`) **plus the same-SHA required-gate table appended by the publish job** |
 | Docker | `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.13` and `:latest` both published; `GoTavern Docker image` run `41670315661` success pulled both back and proved they are the same image, digest `sha256:5b2149a4c10b12192da0fe330363df60fb562f09a1bbb2b8ec9ba92474ba7264` |
+| published-release install smoke | `41671802266` success (`smoke-published-linux-amd64` + `smoke-published-windows-amd64`: public assets, checksums, real-TLS installers, stable/latest both directions, tokenizer routes) |
+| published-extension smoke | `41680397364` success: `releases/latest` resolves to the tag, the published `checksums.txt` matches the downloaded linux archive, the unpacked **published** binary reports `GoTavern v0.1.0-alpha.13` and runs the all-20 extension corpus against stock, and the published container is pulled by version tag and `:latest` (same digest) and boots a `/version` naming the 1.19.0 baseline |
+| independent local check | all six published archives downloaded from the public release URL and their sha256 matched `checksums.txt`; the published windows archive contains `gotavern.exe`, `Start.cmd`, `src/`, `BUILD-INFO.txt`, `LICENSE`, `THIRD_PARTY_NOTICES.txt`, reports `GoTavern v0.1.0-alpha.13` / baseline `06bde939f`, boots and answers `/version`, and `gotavern migrate --dry-run` on a synthetic SillyTavern tree wrote nothing and left the source byte-identical |
 
 ### Same-SHA required gates (all `workflow_dispatch`, all at `4bf5451`, verified by `scripts/verify-release-gates.mjs` before publish: 11/11 PASS)
+
+The same-SHA table below is the pre-publish gate. The **post-publication** checks are the two rows above
+(install smoke and published-extension smoke) plus the independent local archive check; those ran against
+the published bytes, not against a workspace build, and their first executions are recorded in the run
+history with the harness defects they found (the published smoke's four setup iterations: missing pinned
+oracle dependencies, a container poll that asked from the host instead of inside the container, a wget
+output path that only existed on the host, and a `docker exec` that used the bare binary name instead of
+the image's `/app/gotavern`). None of those iterations changed a product artifact; the release had already
+been published and its same-SHA gates had already passed.
 
 | gate | run |
 |---|---|
