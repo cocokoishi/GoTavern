@@ -251,6 +251,30 @@ async function runGenerationLeg({ extension, extensionWork, seedExtensionsRoot }
         const identicalWindows = JSON.stringify(parsed?.windowIntegrity?.gotavern ?? null) === JSON.stringify(parsed?.windowIntegrity?.pinned ?? null);
         const realSendComplete = (parsed?.windowIntegrity?.gotavern?.realGenerationStarted === 1 && parsed?.windowIntegrity?.gotavern?.realAfterData === 1
             && parsed?.windowIntegrity?.pinned?.realGenerationStarted === 1 && parsed?.windowIntegrity?.pinned?.realAfterData === 1);
+        // THE EXTENSION-GENERATED WINDOW. Some extensions (measured: st-stepped-thinking) start their OWN
+        // generation as part of their behaviour, so the drive's "one user send == one generation" premise is
+        // false: the window holds two real GENERATION_STARTED, one AFTER_DATA, and a generation was already in
+        // flight before the click. The guards that encode that premise (`sendWindowHoldsExactlyOneRealSendAndNoDryAssembly`,
+        // and `bothWindowsHoldCompleteGenerations` because the second STARTED never assembles inside the window)
+        // are then false ON BOTH SUBJECTS IDENTICALLY. The comparable properties still hold: the invocation
+        // trail is identical on both legs, the provider wire is byte-equal, and at least one real invocation
+        // assembled. A Go-only difference in the trail still fails, because the exception requires the
+        // normalised trails to be equal.
+        const invocationShape = invocations => (invocations ?? []).map(invocation => ({ dryRun: invocation.dryRun === true, afterData: invocation.afterData ?? [] }));
+        const identicalInvocations = JSON.stringify(invocationShape(parsed?.generationInvocations?.gotavern)) === JSON.stringify(invocationShape(parsed?.generationInvocations?.pinned));
+        const noUnmatched = (parsed?.generationUnmatchedAfterData?.gotavern ?? []).length === 0 && (parsed?.generationUnmatchedAfterData?.pinned ?? []).length === 0;
+        const anyRealAssembled = invocationShape(parsed?.generationInvocations?.gotavern).some(invocation => !invocation.dryRun && invocation.afterData.includes(false))
+            && invocationShape(parsed?.generationInvocations?.pinned).some(invocation => !invocation.dryRun && invocation.afterData.includes(false));
+        const allowedExtensionGuards = new Set(['bothWindowsHoldCompleteGenerations', 'sendWindowHoldsExactlyOneRealSendAndNoDryAssembly']);
+        const benignExtensionWindow = Array.isArray(failedGuards)
+            && failedGuards.length > 0
+            && failedGuards.every(name => allowedExtensionGuards.has(name))
+            && identicalWindows
+            && identicalInvocations
+            && noUnmatched
+            && anyRealAssembled
+            && parsed?.providerRequestEqual === true
+            && (parsed?.bodyDifferences?.length ?? 1) === 0;
         const benignWindowBoundary = Array.isArray(failedGuards)
             && failedGuards.length === 1
             && failedGuards[0] === 'bothWindowsHoldCompleteGenerations'
@@ -258,6 +282,7 @@ async function runGenerationLeg({ extension, extensionWork, seedExtensionsRoot }
             && realSendComplete
             && parsed?.providerRequestEqual === true
             && (parsed?.bodyDifferences?.length ?? 1) === 0;
+        const benignWindow = benignWindowBoundary || benignExtensionWindow;
         comparisons[mode] = {
             status: result.status,
             // THE COMPARATOR'S OWN VERDICT FIELDS, not a guessed field name. compare-generation-legs.mjs
@@ -268,10 +293,13 @@ async function runGenerationLeg({ extension, extensionWork, seedExtensionsRoot }
             bodyDifferences: parsed?.bodyDifferences?.length ?? null,
             guardsPass: parsed?.guards ? Object.values(parsed.guards).every(Boolean) : null,
             failedGuards,
-            windowBoundaryException: benignWindowBoundary
+            windowBoundaryException: benignWindow
                 ? {
-                    reason: 'the send window holds a dry generation whose AFTER_DATA landed after the window closed, identically on both subjects, while the real send is present and complete on both and the provider wire is byte-equal; the shared comparator guard is reported here rather than hidden',
+                    reason: benignExtensionWindow
+                        ? 'the extension starts its own generation inside the send window (the drive\'s one-send premise does not hold), identically on both subjects, with identical invocation trails, at least one assembled real invocation and a byte-equal provider wire; the shared comparator guards are reported here rather than hidden'
+                        : 'the send window holds a dry generation whose AFTER_DATA landed after the window closed, identically on both subjects, while the real send is present and complete on both and the provider wire is byte-equal; the shared comparator guard is reported here rather than hidden',
                     windowIntegrity: parsed?.windowIntegrity ?? null,
+                    invocationTrails: { gotavern: invocationShape(parsed?.generationInvocations?.gotavern), pinned: invocationShape(parsed?.generationInvocations?.pinned) },
                 }
                 : null,
             comparison: path.basename(out),

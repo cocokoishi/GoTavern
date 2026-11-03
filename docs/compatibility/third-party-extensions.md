@@ -175,9 +175,13 @@ it measured.
 * The pinned checkout's auto-update path is disabled by freezing `origin` to a local mirror. That is a
   harness property, not a product claim about update behaviour.
 * **A generation window may hold an extension-triggered dry run whose tail lands after the send window
-  closes.** The shared generation comparator refuses such a window (`bothWindowsHoldCompleteGenerations`),
-  because for a plain source that shape means the probe missed the send. An extension may legitimately
-  start its own counting pass; the runner accepts this ONE guard only when the incompleteness is identical
-  on both subjects, the real send is present and complete on both, and the provider wire is byte-equal, and
-  it records the exception and the window counters in the artifact. Every other guard failure still fails
-  the leg.
+  closes, or an extension may start its own generation inside the window.** The shared generation
+  comparator refuses such windows (`bothWindowsHoldCompleteGenerations`,
+  `sendWindowHoldsExactlyOneRealSendAndNoDryAssembly`), because for a plain source those shapes mean the
+  probe missed the send or compared the wrong window. An extension may legitimately run its own counting
+  or stepped generation. The runner accepts only those guards, only when the window integrity and the
+  normalised invocation trail are identical on both subjects, at least one real invocation assembled on
+  each, and the provider wire is byte-equal, and it records the exception, the window counters and both
+  invocation trails in the artifact. A Go-only difference in the trail or the wire still fails the leg.
+  Measured: rpg-companion-sillytavern (dry tail after the window) and st-stepped-thinking (its own
+  generation inside the window).
