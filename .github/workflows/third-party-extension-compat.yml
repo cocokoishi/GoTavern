@@ -1,0 +1,330 @@
+# THE THIRD-PARTY EXTENSION COMPATIBILITY GATE.
+#
+# WHAT IT ANSWERS. With exactly 20 real, popular, SFW SillyTavern client extensions pinned by commit in
+# tests/browser/third-party-extensions.lock.json, does the unmodified pinned frontend activate them,
+# persist their settings across a real server restart, disable and re-enable them, and uninstall them
+# identically on stock SillyTavern and on GoTavern? Every extension is driven on BOTH subjects with the
+# same probe, the same data-root shape, the same config bytes, the same browser and the same timeouts.
+#
+# WHY IT IS A SEPARATE WORKFLOW. The full corpus is ~20 pinned checkouts, two pinned server boots and
+# four browser drives per extension; it does not belong in every PR. The lanes are:
+#   * pull_request -> `selftest` + `sentinel` (two pinned extensions, minutes): a change to the harness or
+#     the lock proves it still runs, without paying for the corpus;
+#   * schedule / workflow_dispatch -> the full sharded corpus, then the aggregator that requires the
+#     SET to be exactly the lock's 20;
+#   * release -> `workflow_dispatch mode=full` at the release SHA; the release manifest requires this
+#     workflow as a same-SHA gate, so publish refuses without it.
+#
+# WHAT MAKES THE VERDICT TRUSTWORTHY. The aggregator never trusts `conclusion == success`: it checks the
+# observed extension set against the lock (no missing, no duplicate, no unexpected), the pinned commit per
+# row, the lock SHA-256, the head SHA and run id every shard reports, and the capability verdicts. A
+# shard that silently runs fewer extensions fails. The harness self-test mutates the things the gate
+# guards (wrong product identity, 404-as-ready, port collision, listener ownership, forced leg failure,
+# comparator mismatch, missing artifact, aggregator set) and requires each mutation to go red.
+
+name: Third-party extension compatibility
+
+on:
+  pull_request:
+    paths:
+      - 'tests/browser/third-party-extensions.lock.json'
+      - 'tests/browser/third-party-extensions.mjs'
+      - 'tests/browser/third-party-extensions-run.mjs'
+      - 'tests/browser/third-party-extensions-aggregate.mjs'
+      - 'tests/browser/third-party-extensions-selftest.mjs'
+      - 'tests/browser/extension-lifecycle-probe.mjs'
+      - 'tests/browser/compare-extension-lifecycle.mjs'
+      - 'tests/browser/port-lease.mjs'
+      - 'tests/browser/install-pinned-extension.mjs'
+      - 'tests/browser/run-against-pinned.mjs'
+      - '.github/workflows/third-party-extension-compat.yml'
+  push:
+    paths:
+      - 'tests/browser/third-party-extensions.lock.json'
+      - 'tests/browser/third-party-extensions.mjs'
+      - 'tests/browser/third-party-extensions-run.mjs'
+      - 'tests/browser/third-party-extensions-aggregate.mjs'
+      - 'tests/browser/third-party-extensions-selftest.mjs'
+      - 'tests/browser/extension-lifecycle-probe.mjs'
+      - 'tests/browser/compare-extension-lifecycle.mjs'
+      - 'tests/browser/port-lease.mjs'
+      - 'tests/browser/install-pinned-extension.mjs'
+      - 'tests/browser/run-against-pinned.mjs'
+      - '.github/workflows/third-party-extension-compat.yml'
+  schedule:
+    # Nightly, off the hour so it does not contend with the other nightly sweeps.
+    - cron: '41 5 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'full runs the 20-extension corpus; sentinel runs the two-extension PR smoke'
+        type: choice
+        options: [full, sentinel]
+        default: full
+
+permissions:
+  contents: read
+
+concurrency:
+  group: third-party-extension-compat-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PINNED_BASELINE_COMMIT: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
+  MODE: ${{ inputs.mode || 'full' }}
+  # FOUR SHARDS IS A CONSTANT, NOT AN INPUT: the matrix below declares exactly these four, and the
+  # aggregator refuses an artifact set that does not match the shardCount the shards themselves declare.
+  # An input that changed the count without changing the matrix would be a silently missing-shard bug.
+  SHARD_COUNT: '4'
+
+jobs:
+  # Cheap, no browser, no pinned boot: proves the judge and the aggregator can still refuse before any
+  # expensive shard is paid for.
+  selftest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Install the browser harness
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            (cd tests/browser && npm ci --no-audit --no-fund)
+          fi
+      - name: Harness self-test (the gate's teeth)
+        run: node tests/browser/third-party-extensions-selftest.mjs
+
+  # The PR lane's small, real drive: two pinned extensions through the whole lifecycle on both subjects.
+  sentinel:
+    needs: selftest
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' || (inputs.mode || 'full') == 'sentinel' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout-pinned
+        with:
+          commit: ${{ env.PINNED_BASELINE_COMMIT }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Cache the pinned server's node_modules
+        id: cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Install the pinned server's dependencies
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "pinned server node_modules: CACHE HIT -- install SKIPPED"
+          else
+            cd .reference/SillyTavern
+            if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          fi
+      - name: Install the browser harness
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            (cd tests/browser && npm ci --no-audit --no-fund)
+          fi
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            (cd tests/browser && npx playwright install-deps chromium)
+          else
+            (cd tests/browser && npx playwright install --with-deps chromium)
+          fi
+      - name: Build the subject and the recording peer
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          mkdir -p .browser-bin
+          go build -trimpath -o .browser-bin/gotavern ./cmd/gotavern
+          go build -trimpath -o .browser-bin/mock-provider ./tools/mock-provider
+          echo "GOTAVERN_BINARY=${PWD}/.browser-bin/gotavern" >> "$GITHUB_ENV"
+          echo "GOTAVERN_MOCK_PROVIDER_BINARY=${PWD}/.browser-bin/mock-provider" >> "$GITHUB_ENV"
+          echo "GOTAVERN_REFERENCE=${PWD}/.reference/SillyTavern" >> "$GITHUB_ENV"
+      - name: Sentinel lifecycle differential (two pinned extensions)
+        run: |
+          set -euo pipefail
+          first="$(node -e "const l=require('./tests/browser/third-party-extensions.lock.json'); console.log(l.selected[0].name)")"
+          second="$(node -e "const l=require('./tests/browser/third-party-extensions.lock.json'); console.log(l.selected[1].name)")"
+          echo "sentinel extensions: $first, $second"
+          node tests/browser/third-party-extensions-run.mjs \
+            --shard-index 1 --shard-count 1 --names "$first,$second" \
+            --work-root "$RUNNER_TEMP/ext-compat-sentinel"
+      - name: Upload the sentinel evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-compat-sentinel
+          path: ${{ runner.temp }}/ext-compat-sentinel
+          if-no-files-found: warn
+          retention-days: 30
+
+  shard:
+    needs: selftest
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode || 'full') == 'full') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    strategy:
+      # FAIL-FAST FALSE IS THE POINT: the run must report HOW MANY extensions broke, not stop at the first.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout-pinned
+        with:
+          commit: ${{ env.PINNED_BASELINE_COMMIT }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Cache the pinned server's node_modules
+        id: cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Install the pinned server's dependencies
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "pinned server node_modules: CACHE HIT -- install SKIPPED"
+          else
+            cd .reference/SillyTavern
+            if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          fi
+      - name: Install the browser harness
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            (cd tests/browser && npm ci --no-audit --no-fund)
+          fi
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            (cd tests/browser && npx playwright install-deps chromium)
+          else
+            (cd tests/browser && npx playwright install --with-deps chromium)
+          fi
+      - name: Build the subject and the recording peer
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          mkdir -p .browser-bin
+          go build -trimpath -o .browser-bin/gotavern ./cmd/gotavern
+          go build -trimpath -o .browser-bin/mock-provider ./tools/mock-provider
+          echo "GOTAVERN_BINARY=${PWD}/.browser-bin/gotavern" >> "$GITHUB_ENV"
+          echo "GOTAVERN_MOCK_PROVIDER_BINARY=${PWD}/.browser-bin/mock-provider" >> "$GITHUB_ENV"
+          echo "GOTAVERN_REFERENCE=${PWD}/.reference/SillyTavern" >> "$GITHUB_ENV"
+      - name: Run shard ${{ matrix.shard }} of ${{ env.SHARD_COUNT }}
+        run: |
+          set -euo pipefail
+          node tests/browser/third-party-extensions-run.mjs \
+            --shard-index ${{ matrix.shard }} --shard-count ${{ env.SHARD_COUNT }} \
+            --work-root "$RUNNER_TEMP/ext-compat"
+      - name: Upload the shard evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-compat-shard-${{ matrix.shard }}
+          path: ${{ runner.temp }}/ext-compat
+          if-no-files-found: warn
+          retention-days: 30
+
+  # THE GATE. It does not trust the shards' conclusions: it requires the observed set to be exactly the
+  # lock's 20, from one lock hash and one head SHA, with every capability verdict PASS or N/A.
+  aggregate:
+    needs: shard
+    if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode || 'full') == 'full'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Download every shard artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: extension-compat-shard-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/ext-compat
+      - name: Aggregate the corpus (set, lock hash, SHA, capability verdicts)
+        run: |
+          set -euo pipefail
+          node tests/browser/third-party-extensions-aggregate.mjs \
+            --shards "$RUNNER_TEMP/ext-compat" \
+            --out-dir "$RUNNER_TEMP/ext-compat/evidence" \
+            --expected-sha "$GITHUB_SHA" \
+            --expected-run-id "$GITHUB_RUN_ID"
+      - name: Print the compatibility matrix
+        if: always()
+        run: |
+          set -uo pipefail
+          if [ -f "$RUNNER_TEMP/ext-compat/evidence/matrix.md" ]; then
+            cat "$RUNNER_TEMP/ext-compat/evidence/matrix.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f "$RUNNER_TEMP/ext-compat/evidence/summary.json" ]; then
+            cat "$RUNNER_TEMP/ext-compat/evidence/summary.json"
+          fi
+      - name: Upload the release-gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-compat-evidence
+          path: ${{ runner.temp }}/ext-compat/evidence
+          if-no-files-found: warn
+          retention-days: 90

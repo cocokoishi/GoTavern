@@ -52,6 +52,12 @@
       "workflow": "Combination journey differential",
       "why": "one composed session (character x complex preset x 酒馆助手 x world info x variables x regex x Quick Reply x streaming x save/reload/swipe/regenerate/continue/group/restart) on both subjects, byte-equal per capture, with the five-leg matrix, restart, hand-back and the gate self-test; this is GOAL.md section 9 combination rule evidence and must be green at the release commit",
       "requiredEvent": "workflow_dispatch"
+    },
+    {
+      "workflow": "Third-party extension compatibility",
+      "why": "exactly 20 real, popular, SFW third-party SillyTavern client extensions pinned by commit: each one installed, activated, setting persisted across a real server restart, disabled, re-enabled and uninstalled on stock SillyTavern and on GoTavern, judged by a taxonomy (PASS/FAIL/UPSTREAM_FAIL/N/A). The aggregator requires the observed set to equal the lock's 20 and requires the lock SHA-256, the head SHA and the capability verdicts, so a skipped shard or a dropped extension cannot pass",
+      "requiredEvent": "workflow_dispatch",
+      "requiredArtifact": "extension-compat-evidence"
     }
   ]
 }

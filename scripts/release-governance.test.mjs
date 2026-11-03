@@ -191,6 +191,45 @@ test('gates: the published evidence section carries every run id and the target 
     assert.match(evidence, /Target commit: `a{40}`/);
 });
 
+// A GATE WHOSE VERDICT IS A MACHINE-CHECKED SET MUST CARRY THAT SET. A green conclusion without the
+// artifact is exactly the "the aggregator step was skipped" shape: the workflow can conclude success
+// while the step that proves 20/20 never ran.
+function manifestWithArtifact(artifact = 'extension-compat-evidence') {
+    return {
+        schemaVersion: 1,
+        sameShaRequired: true,
+        requiredGates: [{ workflow: 'Workflow A', why: 'because the gate test says so', requiredArtifact: artifact }],
+    };
+}
+
+test('gates: a required artifact attached to the same-SHA successful run passes', () => {
+    const withArtifact = { ...run('Workflow A', { id: 31 }), artifacts: [{ name: 'extension-compat-evidence', expired: false }] };
+    const verdict = evaluateGates({ manifest: manifestWithArtifact(), sha: SHA, runs: [withArtifact] });
+    assert.equal(verdict.ok, true, JSON.stringify(verdict.problems));
+    assert.equal(verdict.rows[0].artifact, 'extension-compat-evidence');
+});
+
+test('gates: a required artifact that is absent fails closed', () => {
+    const withoutArtifact = { ...run('Workflow A', { id: 32 }), artifacts: [] };
+    const verdict = evaluateGates({ manifest: manifestWithArtifact(), sha: SHA, runs: [withoutArtifact] });
+    assert.equal(verdict.ok, false, 'a green conclusion without the required evidence artifact must not satisfy the gate');
+    assert.ok(verdict.problems.some((problem) => /missing-artifact/.test(problem)), JSON.stringify(verdict.problems));
+});
+
+test('gates: an expired required artifact fails closed', () => {
+    const expired = { ...run('Workflow A', { id: 33 }), artifacts: [{ name: 'extension-compat-evidence', expired: true }] };
+    const verdict = evaluateGates({ manifest: manifestWithArtifact(), sha: SHA, runs: [expired] });
+    assert.equal(verdict.ok, false);
+    assert.ok(verdict.problems.some((problem) => /missing-artifact/.test(problem)), JSON.stringify(verdict.problems));
+});
+
+test('gates: a required artifact is only accepted from a run at the target SHA', () => {
+    const elsewhere = { ...run('Workflow A', { id: 34, sha: OTHER_SHA }), artifacts: [{ name: 'extension-compat-evidence', expired: false }] };
+    const verdict = evaluateGates({ manifest: manifestWithArtifact(), sha: SHA, runs: [elsewhere] });
+    assert.equal(verdict.ok, false);
+    assert.ok(verdict.problems.some((problem) => /missing/.test(problem)), JSON.stringify(verdict.problems));
+});
+
 test('body: a curated note plus green same-SHA runs assembles a publishable body with the evidence table', () => {
     const result = assembleReleaseBody({
         notesText: noteBody(),

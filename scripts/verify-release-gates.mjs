@@ -85,7 +85,8 @@ async function fetchRuns() {
         return Array.isArray(fixture) ? fixture : fixture.workflow_runs ?? [];
     }
     try {
-        return await fetchRunsFromApi({ sha, repo, token });
+        const includeArtifacts = (manifest.requiredGates ?? []).some((entry) => entry.requiredArtifact);
+        return await fetchRunsFromApi({ sha, repo, token, includeArtifacts });
     } catch (error) {
         fail(error.message);
         process.exit(1);

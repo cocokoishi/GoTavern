@@ -102,7 +102,8 @@ async function main() {
         runs = Array.isArray(fixture) ? fixture : fixture.workflow_runs ?? [];
     } else {
         const { fetchRunsFromApi } = await import('./release-governance/gates.mjs');
-        runs = await fetchRunsFromApi({ sha, repo, token });
+        const includeArtifacts = (manifest.requiredGates ?? []).some((entry) => entry.requiredArtifact);
+        runs = await fetchRunsFromApi({ sha, repo, token, includeArtifacts });
     }
 
     const result = assembleReleaseBody({ notesText, tag, checksumsText, runs, manifest, sha, repo });
