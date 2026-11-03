@@ -198,7 +198,13 @@ const mockScript = {
 };
 
 const port = await freePort();
-const dataRoot = await fs.mkdtemp(path.join(process.env.TEMP ?? '/tmp', 'gotavern-probe-'));
+// A CALLER-SUPPLIED DATA ROOT is how the third-party extension generation leg reuses this proven drive
+// against a tree that already has a pinned extension installed. The default is unchanged: a fresh temp
+// root that this probe owns and deletes. A supplied root belongs to the caller and is NOT deleted here.
+const suppliedDataRoot = process.argv.includes('--data-root')
+    ? path.resolve(process.argv[process.argv.indexOf('--data-root') + 1])
+    : null;
+const dataRoot = suppliedDataRoot ?? await fs.mkdtemp(path.join(process.env.TEMP ?? '/tmp', 'gotavern-probe-'));
 const scriptPath = path.join(dataRoot, 'mock-script.json');
 await fs.writeFile(scriptPath, JSON.stringify(mockScript));
 
@@ -654,7 +660,11 @@ if (external && redirectFile && source.probe.redirectFrom.length > 0) {
     await fs.writeFile(redirectFile, JSON.stringify(source.probe.redirectFrom.map(origin => ({ from: origin, to: `http://${mockAddress}` }))));
 }
 
-const server = external ? null : spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
+// A SUPPLIED ROOT CARRIES ITS OWN CONFIG: the caller seeded it from the pinned default and the two legs of
+// an extension comparison must read the same bytes. Without --configPath the server would resolve config.yaml
+// against this repository, which is a different file deciding accounts/CORS/extensions.
+const suppliedConfigArgs = suppliedDataRoot ? ['--configPath', path.join(dataRoot, 'config.yaml')] : [];
+const server = external ? null : spawn(binary, ['start', '--port', String(port), '--dataRoot', dataRoot, ...suppliedConfigArgs, '--browserLaunchEnabled', 'false'], { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'] });
 const serverLog = [];
 if (server) {
     server.stdout.on('data', chunk => serverLog.push(chunk.toString()));
@@ -2245,7 +2255,7 @@ try {
     // twenty-nine abandoned copies of it filled the disk to 0.09 GB free, which then failed an
     // unrelated `go build` inside a differential with "not enough space on the disk". Clean up by
     // default; GOTAVERN_KEEP_TEMP=1 keeps it when a failed run needs its artifacts.
-    if (process.env.GOTAVERN_KEEP_TEMP !== '1') {
+    if (!suppliedDataRoot && process.env.GOTAVERN_KEEP_TEMP !== '1') {
         // Retries, because Windows keeps the just-killed binaries' handles open for a moment: the
         // first attempt after SIGKILL fails with EBUSY and an unconditional catch would hide it,
         // which is how twenty-nine copies accumulated without anything reporting a problem.

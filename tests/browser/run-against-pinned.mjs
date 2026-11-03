@@ -25,7 +25,6 @@
 //   PINNED_READY_MS overrides the readiness deadline (default 90000).
 
 import { spawn } from 'node:child_process';
-import { createServer } from 'node:net';
 import fs from 'node:fs/promises';
 import { existsSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
@@ -34,6 +33,7 @@ import process from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { seedLegConfig } from './seed-leg-config.mjs';
+import { allocatePort, releasePort, waitForIdentity } from './port-lease.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -70,17 +70,10 @@ async function resolveReference() {
     throw new Error(`no pinned SillyTavern checkout found; tried: ${candidates.join(', ')}`);
 }
 
-function freePort() {
-    return new Promise((resolve, reject) => {
-        const server = createServer();
-        server.unref();
-        server.on('error', reject);
-        server.listen(0, '127.0.0.1', () => {
-            const { port } = server.address();
-            server.close(() => resolve(port));
-        });
-    });
-}
+// THE PORT COMES FROM THE CONTROLLED-RANGE LEASE, NOT bind(0). See port-lease.mjs for the measured
+// defect (Browser differential 41388200223) and for why the number alone is not enough: the readiness
+// check below also requires the LISTENER to be the child this wrapper spawned.
+const port = await allocatePort();
 
 // The child is named after the first positional argument; anything after `--` is forwarded.
 const separator = process.argv.indexOf('--');
@@ -95,7 +88,6 @@ const scriptPath = path.resolve(here, script);
 
 const reference = await resolveReference();
 const readyMs = Number(process.env.PINNED_READY_MS ?? 90000);
-const port = await freePort();
 // A caller may supply a prepared data root (for example one with a pinned
 // extension already installed) so both legs of a comparison serve the same tree.
 // A supplied root belongs to the caller and is NOT deleted here.
@@ -192,29 +184,27 @@ server.on('exit', (code, signal) => {
     serverExit = { code, signal };
 });
 
-async function waitForVersion() {
-    const started = Date.now();
-    while (Date.now() - started < readyMs) {
-        if (serverExit) {
-            throw new Error(`the pinned server exited before answering /version: ${JSON.stringify(serverExit)}`);
-        }
-        try {
-            const response = await fetch(`${baseURL}/version`);
-            if (response.ok) {
-                return await response.json();
-            }
-        } catch {
-            // not up yet
-        }
-        await new Promise(resolve => setTimeout(resolve, 250));
-    }
-    throw new Error(`the pinned server did not answer ${baseURL}/version within ${readyMs}ms`);
+// IDENTITY-BOUND READINESS. `response.ok` used to be the whole test, which accepts a 200 from ANY
+// process that owns the port -- including a leftover server of the other subject, or an in-process peer
+// that took the port between the bind(0) probe and this spawn (Browser differential 41388200223). This
+// requires the pinned baseline product AND the listener PID to be the child spawned below.
+async function waitForPinnedIdentity() {
+    return waitForIdentity({
+        baseURL,
+        port,
+        childAlive: () => serverExit === null,
+        childPid: server.pid,
+        expectedPkgVersion: '1.19.0',
+        deadlineMs: readyMs,
+        logTail: () => tail.join(''),
+    });
 }
 
 let exitCode = 1;
 try {
-    const version = await waitForVersion();
-    console.log(`[pinned] ready: SillyTavern ${version.pkgVersion} (${version.gitRevision})`);
+    const identity = await waitForPinnedIdentity();
+    const version = identity.version;
+    console.log(`[pinned] ready: SillyTavern ${version.pkgVersion} (${version.gitRevision}); identity ${identity.identityMethod}, listener PID ${identity.listenerPid ?? 'unavailable'}`);
     const child = spawn(process.execPath, [scriptPath, '--base-url', baseURL, ...forwarded], {
         cwd: here,
         stdio: 'inherit',
@@ -233,6 +223,7 @@ try {
     console.error(tail.join('').slice(-4000));
 } finally {
     server.kill('SIGKILL');
+    releasePort(port);
     if (!suppliedDataRoot) {
         await fs.rm(dataRoot, { recursive: true, force: true }).catch(() => {});
     }

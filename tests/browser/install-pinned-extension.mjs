@@ -28,6 +28,18 @@ function run(command, args, cwd) {
     });
 }
 
+// The corpus lock records `repo` as owner/name (so it can be cross-checked against the popularity
+// snapshot) and `url` as the git URL; the two pinned canaries in pinned-extensions.mjs carry a full
+// `.repo` URL. Resolve one remote from whichever shape the caller supplied, so a lock entry is
+// installable without every caller having to know the difference.
+function extensionRemote(extension) {
+    if (typeof extension.url === 'string' && extension.url !== '') return extension.url;
+    if (typeof extension.repo !== 'string' || extension.repo === '') {
+        throw new Error(`extension ${JSON.stringify(extension.name)} has neither a url nor a repo`);
+    }
+    return /^https?:\/\//.test(extension.repo) ? extension.repo : `https://github.com/${extension.repo}.git`;
+}
+
 async function exists(target) {
     return fs.stat(target).then(() => true, () => false);
 }
@@ -134,7 +146,7 @@ export async function ensurePinnedExtensionInstalled(dataRoot, extension) {
     }
     await fs.mkdir(extensionDirectory, { recursive: true });
     await run('git', ['init', '--quiet'], extensionDirectory);
-    await run('git', ['remote', 'add', 'origin', extension.repo], extensionDirectory);
+    await run('git', ['remote', 'add', 'origin', extensionRemote(extension)], extensionDirectory);
     await run('git', ['fetch', '--depth', '1', 'origin', extension.commit], extensionDirectory);
     // A NAMED branch, not a detached HEAD. The pinned install route clones a
     // branch, and /api/extensions/update derives the current branch from
