@@ -47,3 +47,9 @@ oracle-rerecord.patch
 # scratch files created by the lead/agents during a session (never part of the product)
 .tmp-artifacts*
 .tmp-*
+
+# Benchmark/profile artifacts from scripts/bench-profiles.mjs (raw output, pprof files, test binary, trace).
+# UPLOADED BY .github/workflows/bench-profiles.yml AS AN ARTIFACT; NEVER COMMITTED (the committed record is
+# tests/perf/bench-baseline.txt plus its raw run).
+/tests/perf/out/
+*.pprof
