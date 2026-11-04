@@ -10,7 +10,7 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-11-04: M0-M5/M7 MERGED, M5b/M6 IN FLIGHT, ALPHA.14 NOT YET TAGGED
+## Latest checkpoint - 2026-11-04: M0-M6 MERGED, ALPHA.14 RELEASE IN PREPARATION
 
 The goal was rewritten and pushed as `93cccc9`: `GOAL.md` now states the product goal (§1a), the
 engineering goal (§1b: light, fast, stable, clear architecture, simple CLI, honest README/figure), the
@@ -57,18 +57,23 @@ zero timeouts.
 | M2b benchmarks | `3f734ea` | scale benchmarks (100/1000/10000 cards, large JSONL, settings, world info, 229-path page load, provider assemble/marshal), pprof/trace capture, two-sided baseline; profiles confirm card read/parse (1.20 GB for 10000 cards) and chat-summary whole-file read (4.67 GB) and re-rank marshal (bytes.Buffer + marshalNodeJSONString, not entries()) | `41758175427` green, mutation `41759085618` red |
 | M5a chat summaries | `7f5a5cd` | one shared sequential reader replaces both whole-file `getChatInfo` implementations; 3.4 MB fixture: 4.7x less allocation, 260x fewer allocs, 3.9x less CPU; oracle fixtures byte-identical | `41762705531` (oracle re-record zero diff) |
 | M3 compression | `dc7c2ad` | pinned compression contract recorded first (`tests/oracle/sillytavern-1.19.0-compression.json`), then the middleware; 229-request page load 9,067,849 B -> 2,951,609 B (67.4% saved), decoded bytes identical; CPU +0.57 ms per compressed response; one declared deviation: no brotli encoder | `41766644754` (oracle re-record byte-identical) |
+| M5b identity caches | `6ffde57` | settings aggregation and world-info listing cached on a sha256 identity digest (path+type+size+mtime ns) with the serialized body as the value, 64 entries / 64 MiB, no TTL; same-image CI: settings at 1100 docs 30.09 -> 4.29 ms (-85.7%) and 23.64 -> 3.04 MB; worlds at 1000 64.25 -> 2.90 ms (-95.5%) and 49.53 -> 0.90 MB; cached bodies byte-identical including ETag | bench profiles `41770713640`, Lane CI `41770081233` |
+| M6a stability | `3f7446b` | panic boundary answers pinned finalhandler's page (probed: 1411 B dev / 148 B production / 139 B thrown-string) and logs method+path+panic only; `http.Server` ReadHeaderTimeout 60 s / IdleTimeout 5 s / MaxHeaderBytes 16 KiB with WriteTimeout and ReadTimeout deliberately zero and asserted; account cache detects same-size atomic replacement on Unix via inode change time, Windows boundary recorded | GoTavern CI `41766792295` (verify + race + oracle 1h16m, 25 probes, zero diff) |
+| M6b stream termination | `4fd8ed7` | controlled-peer differential over 25 scenarios on all five relay paths: before 12/25 differed (novelai/textgen/Ollama ended cleanly where pinned hangs; Ollama sent a fourth `data: [DONE]`), after 25/25 match; the M0 textgen-redirect claim was corrected by evidence and the manual gzip branch recorded as an unreachable boundary; three named teeth | GoTavern CI `41776528079` |
+| alpha.14 channel | `af7ca38` | `GRADUATED_STABLE_TAGS` gains `v0.1.0-alpha.14` as an equality entry; the classifier table grows to 54 named cases and still asserts every neighbouring alpha (alpha.15, alpha.140, alpha.14-rc1, alpha.130, alpha.13-rc1) prerelease | local 54/54; CI on push |
 
-### In flight
+### Release preparation (M8)
 
-| lane | task | branch | scope |
-|---|---|---|---|
-| M5b identity caches | task-18 | `m5/identity-caches` | settings aggregation + world-info listing cached on path+mtime+size, bounded, cloned, own-write invalidated; before/after on the M2b benchmarks |
-| M6a stability | task-19 | `m6/stability` | panic boundary with the pinned 500 shape, `http.Server` read-header/idle timeouts (no WriteTimeout), same-size same-mtime cache-consistency decision |
-
-Next: merge M5b/M6a; M6b (provider truncation/redirect differentials, needs the oracle); then M8 is §16:
-same-SHA gate set, release notes checked against evidence, `classify-version-tag.sh` extended for
-`v0.1.0-alpha.14`, the formal release, and post-publication verification of the published bytes.
-The M0 report's priority order, do-not-rewrite list and per-optimization questions are in `GOAL.md` §15.
+`v0.1.0-alpha.14` is the target and no tag exists yet. `docs/release-notes-v0.1.0-alpha.14.md`
+is committed and passes `scripts/verify-release-notes.mjs` (6,211 bytes, required sections and no
+placeholders); the channel classifier graduates the tag through the 54-case table. The paired
+benchmark was dispatched at the final code commit (`GoTavern smoke metrics` 41777492725) so the
+README table, the dual-theme figure and the provenance can be regenerated from that run under the
+M2a one-commit update procedure; after that commit the full same-SHA gate set of
+`docs/release-manifest.json` is dispatched at the release commit, and the tag is created only when
+every §16 condition holds. Post-publication verification (published installers, checksums, the
+published binary against the 20-extension corpus, the container pull-back) is part of §16, not an
+afterthought.
 
 ---
 
