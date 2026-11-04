@@ -156,6 +156,97 @@ func TestStoredAccountCacheDoesNotHandOutItsMap(t *testing.T) {
 	}
 }
 
+// TestStoredAccountCacheSeesASameSizeSameModTimeAtomicReplacement is the M6
+// settlement of the M0 audit's R6: the old key was path+mtime+size, so a
+// replacement that preserved BOTH was invisible. The test reproduces exactly
+// that writer -- the atomic temp+rename both real writers use, then os.Chtimes
+// restoring the original mtime -- and requires the next read to see the new
+// record. It was measured RED against the path+mtime+size key (the read returned
+// "Ann" after the replacement).
+//
+// The defence is the inode change time, which the stat the read already performs
+// carries (record_change_unix.go), so it costs no extra syscall. The first
+// candidate, file identity via os.SameFile, was measured to FAIL on Windows
+// (NTFS gave the replacement the same file index), and the Windows creation time
+// failed too (file-system tunneling preserved it); Windows therefore carries the
+// documented accepted boundary instead of a witness, and this test skips there
+// with that reason. The Unix CI/gate runs the detection half.
+func TestStoredAccountCacheSeesASameSizeSameModTimeAtomicReplacement(t *testing.T) {
+	dataRoot := t.TempDir()
+	path := writeStoredAccountRecord(t, dataRoot, "cache-identity", "Ann", true)
+	originalInfo, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat original record: %v", err)
+	}
+	originalModTime := originalInfo.ModTime()
+
+	if _, found, err := loadStoredAccount(dataRoot, "cache-identity"); err != nil || !found {
+		t.Fatalf("prime the cache: found=%v err=%v", found, err)
+	}
+
+	// "Ann" -> "Bob": identical byte length. The helper replaces the record with
+	// temp+rename, then the test restores the mtime so the replacement matches the
+	// cached entry on BOTH fields the old key compared.
+	time.Sleep(10 * time.Millisecond)
+	writeStoredAccountRecord(t, dataRoot, "cache-identity", "Bob", true)
+	replacementInfo, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat replacement record: %v", err)
+	}
+	originalStamp, originalHasStamp := storedRecordChangeStamp(originalInfo)
+	replacementStamp, replacementHasStamp := storedRecordChangeStamp(replacementInfo)
+	if replacementInfo.Size() != originalInfo.Size() {
+		t.Fatalf("replacement size = %d, want the same size %d so only the change stamp could distinguish it", replacementInfo.Size(), originalInfo.Size())
+	}
+	if err := os.Chtimes(path, originalModTime, originalModTime); err != nil {
+		t.Fatalf("restore mtime on the replacement: %v", err)
+	}
+	afterInfo, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat after restoring mtime: %v", err)
+	}
+	if afterInfo.Size() != originalInfo.Size() || !afterInfo.ModTime().Equal(originalModTime) {
+		t.Fatalf("the test failed to reproduce same-size same-mtime: size %d/%d modtime %s/%s",
+			afterInfo.Size(), originalInfo.Size(), afterInfo.ModTime(), originalModTime)
+	}
+
+	updated, found, err := loadStoredAccount(dataRoot, "cache-identity")
+	if err != nil || !found {
+		t.Fatalf("read after same-size same-mtime replacement: found=%v err=%v", found, err)
+	}
+	name := updated.string("name")
+
+	if !originalHasStamp {
+		// THE RECORDED WINDOWS BOUNDARY, asserted so it cannot silently widen or
+		// silently disappear: without a change witness the key is mtime+size, so
+		// this replacement is (documented) invisible. If name is Bob, a witness was
+		// added -- delete this branch, assert detection on every platform, and
+		// update record_change_windows.go and the accounts.go cache comment in the
+		// same change.
+		if name == "Bob" {
+			t.Fatalf("the documented no-witness boundary changed: the replacement was seen without a change witness; update record_change_windows.go, the accounts.go cache comment and this test")
+		}
+		// replacementHasStamp must be false here: a platform with the witness would
+		// have taken the branch below and asserted detection.
+		if replacementHasStamp {
+			t.Fatalf("the original stat had no change witness but the replacement stat did; the witness helper is inconsistent")
+		}
+		if name != "Ann" {
+			t.Fatalf("same-size same-mtime replacement read name = %q, want the documented stale %q", name, "Ann")
+		}
+		return
+	}
+	if !replacementHasStamp {
+		t.Fatalf("the change-stamp witness disappeared between two stats on the same platform")
+	}
+	if originalStamp == replacementStamp {
+		t.Fatal("the replacement did not change the change stamp, so this test would not exercise the atomic-replacement case")
+	}
+	if name != "Bob" {
+		t.Fatalf("a same-size same-mtime atomic replacement was not seen: name = %q, want Bob (the key must include the change stamp)", name)
+	}
+}
+
 // TestStoredAccountCacheUnderConcurrentReadersAndWriter exists so `go test -race` has something to
 // judge: readers hit the stat-and-hit path while an external writer keeps replacing the record. The
 // assertions are deliberately loose (the value must be one of the writes, and the last read must see the

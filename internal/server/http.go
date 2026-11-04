@@ -533,11 +533,16 @@ func newHTTPHandlerWithRouteDomains(notFoundPage []byte, options HTTPHandlerOpti
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		serveStatic(w, r, notFoundPage, options)
 	})
-	// PINNED POSITION: `app.use(compression())` (src/server-main.js:107) is mounted before responseTime
-	// (108), CORS (138) and every route, so it is the OUTERMOST wrapper here too: it sees the final headers
-	// of every response, including the handlers' Content-Length/ETag and the middleware's Vary.
-	return pinnedCompressionMiddleware(pinnedResponseTimeMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		setPinnedSecurityHeaders(w.Header())
+	// THE PANIC BOUNDARY IS THE OUTERMOST MIDDLEWARE: it must see a panic from the
+	// response-time middleware, the compression middleware or any route, and answer
+	// Express finalhandler's 500 page (panic_boundary.go records pinned's page and the
+	// environment-specific difference). SEE GOAL.md 15.1/15.3 for the shape.
+	//
+	// PINNED POSITION: `app.use(compression())` (src/server-main.js:107) is mounted before
+	// responseTime (108), CORS (138) and every route, so it wraps everything below the panic
+	// boundary: it sees the final headers of every response, including the handlers'
+	// Content-Length/ETag and the middleware's Vary.
+	return pinnedPanicBoundary(pinnedCompressionMiddleware(pinnedResponseTimeMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {		setPinnedSecurityHeaders(w.Header())
 		setPinnedCORSBaseVary(w.Header(), corsSettings)
 		if servePinnedCORS(w, r, corsSettings) {
 			return
@@ -619,8 +624,7 @@ func newHTTPHandlerWithRouteDomains(notFoundPage []byte, options HTTPHandlerOpti
 			accounts.cacheBuster.handleIndex(w, r, requestAccountHandle(user))
 		}
 		mux.ServeHTTP(w, r)
-	})))
-}
+	}))), nil)}
 
 func setPinnedSecurityHeaders(header http.Header) {
 	header.Set("Cross-Origin-Opener-Policy", "same-origin")
