@@ -44,30 +44,46 @@ function argumentValue(name, fallback = null) {
 
 const reportPath = argumentValue('--report');
 const outPath = argumentValue('--out');
-// THE RUN ID IS NOT IN THE ARTEFACT. It is workflow context, so it is passed in explicitly rather than derived,
-// and it is REQUIRED: a figure that names no run is a number with no provenance, which the release constraint
-// forbids. This is one of the two values this script accepts on trust from its caller, and the caller is a release
-// step that can (and does) verify it against the run that produced the file.
-const runId = argumentValue('--run-id');
-// THE MEASURED COMMIT IS ALSO NOT IN THE ARTEFACT (the artefact records the runner, not a git revision), so the
-// caller names it too. It is printed, never inferred, and the previous revision of this file got it wrong by
-// HARD-CODING a stale short SHA into the footer -- a number that looked like provenance while naming a tree the
-// figure had not measured. Requiring it and refusing to render without it is the fix.
-const commit = argumentValue('--commit');
+// THE REPORT MAY BE A BARE q22 ARTEFACT OR THE COMMITTED BASELINE WRAPPER (tests/perf/q22-baseline.json).
+// The wrapper exists because the bare artefact does not record its own run id or commit; the wrapper carries
+// both in `provenance` and embeds the artefact verbatim under `report`. Accepting both keeps one command for
+// the documented update procedure while leaving the bare-artefact path usable for a downloaded file.
+const parsedReport = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+const report = parsedReport.report ?? parsedReport;
+const provenance = parsedReport.report ? (parsedReport.provenance ?? {}) : {};
+
+// THE RUN ID AND THE MEASURED COMMIT ARE STILL REQUIRED, AND STILL REFUSED WHEN ABSENT. They are workflow
+// context, not artefact fields, so they are taken from the wrapper's provenance when it has them and from the
+// caller otherwise; a figure that names no run is a number with no provenance. The previous revision hard-coded
+// a stale release tag into the footer, which is exactly the failure this requirement exists to prevent: the
+// commit is printed as given (or as the provenance records it), never inferred from the tree being checked out.
+const runIdArgument = argumentValue('--run-id');
+const commitArgument = argumentValue('--commit');
+const runId = runIdArgument ?? provenance.runId ?? null;
+// A wrapper's commit is a full 40-character id; the figure prints the short form so a reader can match it to
+// `git log` without a wall of hex. An explicitly passed commit is printed exactly as passed.
+const commit = commitArgument ?? (typeof provenance.commit === 'string' ? provenance.commit.slice(0, 7) : null);
 if (!reportPath || !outPath || !runId || !commit) {
-    console.error('usage: node tools/benchmark-svg.mjs --report <q22-paired-benchmark.json> --out <benchmark.svg> --run-id <actions run id> --commit <measured commit>');
+    console.error('usage: node tools/benchmark-svg.mjs --report <q22-paired-benchmark.json | tests/perf/q22-baseline.json> --out <benchmark.svg> [--run-id <actions run id>] [--commit <measured commit>]');
+    console.error('       (--run-id/--commit are required unless the report is the baseline wrapper, which carries them in provenance)');
+    process.exit(2);
+}
+if (runIdArgument && provenance.runId && runIdArgument !== provenance.runId) {
+    console.error(`--run-id ${runIdArgument} disagrees with the baseline provenance run id ${provenance.runId}; refusing to label a figure with a run it did not measure`);
     process.exit(2);
 }
 if (!/^[0-9]+$/.test(runId)) {
     console.error(`--run-id must be a GitHub Actions run id, got ${runId}`);
     process.exit(2);
 }
+if (commitArgument && provenance.commit && !provenance.commit.startsWith(commitArgument)) {
+    console.error(`--commit ${commitArgument} disagrees with the baseline provenance commit ${provenance.commit}; refusing to label a figure with a tree it did not measure`);
+    process.exit(2);
+}
 if (!/^[0-9a-f]{7,40}$/.test(commit)) {
     console.error(`--commit must be a hexadecimal commit id of 7-40 characters, got ${commit}`);
     process.exit(2);
 }
-
-const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
 
 // REFUSE RATHER THAN GUESS. Every field drawn below is required; a missing one is a failure, not a zero.
 function requireField(object, key, context) {
