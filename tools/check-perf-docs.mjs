@@ -170,6 +170,26 @@ if (readme !== null) {
     for (const variant of ['docs/assets/benchmark.svg', 'docs/assets/benchmark-light.svg']) {
         if (!firstScreen.includes(variant)) firstScreenProblem(`does not reference the figure variant ${variant} (both variants must be referenced, or one of them is unreachable)`);
     }
+    // THE ALT TEXT IS A FIRST-SCREEN NUMBER SURFACE TOO, so it is recomputed like a table cell rather than trusted.
+    // Without this, the alt text would be the one place in the first screen where a hand-copied number could drift
+    // from the artifact (the defect class this gate exists to remove).
+    const imgAlt = /<img\b[^>]*\balt="([^"]*)"/.exec(firstScreen);
+    if (!imgAlt) {
+        firstScreenProblem('has no <img alt="..."> inside the first screen, so the figure has no text alternative');
+    } else {
+        const formatRatioText = value => `${value >= 100 ? value.toFixed(1) : value.toFixed(2)}x`;
+        const altCells = [
+            { pinned: `${groupedInteger(summary.pinned.bootMsMedian)} ms`, go: `${groupedInteger(summary.gotavern.bootMsMedian)} ms`, ratio: formatRatioText(summary.pinned.bootMsMedian / summary.gotavern.bootMsMedian), source: 'report.summary.*.bootMsMedian' },
+            { pinned: formatMB(summary.pinned.rssBytesMedian), go: formatMB(summary.gotavern.rssBytesMedian), ratio: formatRatioText(summary.pinned.rssBytesMedian / summary.gotavern.rssBytesMedian), source: 'report.summary.*.rssBytesMedian' },
+            { pinned: `${formatMs(summary.pinned.versionMedianMs)} ms`, go: `${formatMs(summary.gotavern.versionMedianMs)} ms`, ratio: formatRatioText(summary.pinned.versionMedianMs / summary.gotavern.versionMedianMs), source: 'report.summary.*.versionMedianMs' },
+            { pinned: `${summary.pinned.rootMedianMs.toFixed(2)} ms`, go: `${summary.gotavern.rootMedianMs.toFixed(2)} ms`, ratio: formatRatioText(summary.pinned.rootMedianMs / summary.gotavern.rootMedianMs), source: 'report.summary.*.rootMedianMs' },
+        ];
+        for (const cells of altCells) {
+            for (const value of [cells.pinned, cells.go, cells.ratio]) {
+                if (!imgAlt[1].includes(value)) firstScreenProblem(`figure alt text does not carry ${JSON.stringify(value)} recomputed from ${cells.source}; a hand-copied number in the first screen can drift from the recorded artifact`);
+            }
+        }
+    }
     // (b) the shortest install+start block, on both platforms, not a link to it.
     for (const command of ['install.sh', './start.sh', 'install.ps1', '.\\Start.cmd']) {
         if (!firstScreen.includes(command)) firstScreenProblem(`does not carry the shortest start block: it is missing ${JSON.stringify(command)}`);

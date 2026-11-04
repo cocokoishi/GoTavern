@@ -139,7 +139,9 @@ mismatch with a readable diff naming the file, the expected value and the artefa
    variants through a `<picture>`/`prefers-color-scheme` pair, carry the shortest install+start commands for
    Linux/macOS and Windows, link the detailed sections, state the synthetic scope of the evidence and the unmet
    strong drop-in claim (`GOAL.md`, "not met", "synthetic" in the same place as the claim), and hardcode no
-   GoTavern release version. The whole README is also refused if it claims perfect compatibility;
+   GoTavern release version. The figure's alt text is a number surface too, so its four pinned values, four
+   GoTavern values and four computed ratios are recomputed from the artifact and must appear in it. The whole
+   README is also refused if it claims perfect compatibility;
 4. README table: cold start, RSS, `/version` (median + p95), `/` — recomputed from `summary.*` under
    the decimal-MB rule, for **every** occurrence of the four rows (the first screen no longer carries a
    second mini-table; the Performance table is the text surface, with its "How it was measured" column
@@ -169,6 +171,7 @@ file restored by copy, and the restore verified by SHA-256; the restored tree is
 | committed dark SVG `11,522 ms` → `11,523 ms` | `dark.svg:3: differs from the dark figure regenerated from ...: expected "<desc ... 11,522 ms ...", committed "<desc ... 11,523 ms ..."` |
 | committed light SVG `39.5 MB` → `39.6 MB` | `light.svg:3: differs from the light figure regenerated from ...` (the pair cannot disagree) |
 | first-screen honesty sentence `is not met yet` → `is met` | `readme.md: first screen: does not contain "not met" (must state that the strong drop-in claim is not met yet)` |
+| figure alt text `213 ms` → `214 ms` in a README copy | `readme.md: first screen: figure alt text does not carry "213 ms" recomputed from report.summary.*.bootMsMedian; a hand-copied number in the first screen can drift from the recorded artifact` |
 | `<picture>` element removed from a README copy | `readme.md: first screen: has no <picture> element, so the figure cannot be the one image of the first screen` |
 | type floor lowered to 11 px in a generator copy (both figures regenerated) | `dark.small.svg:12: dark figure: declares a 11px type size; the minimum at 1:1 is 12 px` |
 
