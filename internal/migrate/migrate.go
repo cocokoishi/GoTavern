@@ -104,6 +104,10 @@ third-party extension overlay when the source has them. Node server plugins are 
 Symlinks in the source are refused. A destination that already holds a runtime is refused unless
 --force is given, which moves the existing state to <dest>/.migrate-backup/ first.`
 
+// UsageText returns the documented migrate usage block. It is exported so `gotavern migrate --help`
+// prints exactly the text the parser's own refusals quote, instead of keeping a second copy in main.
+func UsageText() string { return usageText }
+
 // ParseOptions parses the documented forms. A missing or ambiguous source is a named error, never a
 // guess: exactly one of --from / (--source-config with --source-data) / --source-global.
 func ParseOptions(args []string) (Options, error) {
