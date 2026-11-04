@@ -10,7 +10,111 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-11-04: M0-M6 MERGED, ALPHA.14 RELEASE IN PREPARATION
+## Latest checkpoint - 2026-11-04: `v0.1.0-alpha.14` SHIPPED -- THE ENGINEERING-PROGRAM STABLE RELEASE
+
+`v0.1.0-alpha.14` is **published as a full (non-prerelease, non-draft) release** and is the current
+`releases/latest`. It lands the M0-M8 engineering program: the first-run CLI, the performance evidence
+gate, response compression decided against a recorded pinned contract, streaming chat summaries,
+identity-keyed settings/world-info caches, the route table, a panic boundary with bounded server
+timeouts, and provider stream-termination differentials. Baseline unchanged: SillyTavern `1.19.0` @
+`06bde939fb1e9c4c8d8641d810f0a916b5bce127`.
+
+**`GOAL.md` §14 (the strong drop-in claim over a real, long-used user tree) is still NOT MET and is
+not claimed.** The evidence covers a synthesised long-lived tree, the committed synthetic corpus, the
+packaged archive over a stock tree, the 20-extension corpus, the browser differential and the published
+artifacts. No README, release note, tag message or figure describes the product as "perfectly
+compatible" or "safe"; the release body's Known limitations says this in the same words.
+
+### Release identity and assets
+
+| fact | value |
+|---|---|
+| GitHub Release | `RE_kwDOVPI5684Z3Ndq` (`v0.1.0-alpha.14`, prerelease=**false**, draft=false, latest=true, published 2026-11-04T12:40:33Z) |
+| tag object -> commit | `8576c95` -> `c01d245e1b9ea0689efd84339707a219740df65a` |
+| release workflow run | `41831035942` success -- six build jobs, four cross-platform execution jobs (`execute-darwin-amd64`, `execute-linux-arm64`, `execute-darwin-arm64`, plus windows-amd64 EXECUTED + LAUNCHER-TESTED and the recorded windows-arm64 not-executed boundary), `prepublish-qualification`, `publish`, `post-release-facts` (facts commit `ccd42b6`) |
+| assets | 7 files, 366,255,656 bytes (`checksums.txt` 564 B + six canonical archives 366,255,092 B) |
+| release body | curated note `docs/release-notes-v0.1.0-alpha.14.md` (validated by `scripts/verify-release-notes.mjs`) **plus the same-SHA required-gate table appended by the publish job** -- 8,578 bytes with the table naming all eleven runs |
+| Docker | `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.14` and `:latest` published by the tag run `41831036023` success, which **pulled both back** and proved they are the same image, digest `sha256:9085de301cecf5638df1cd08d82bbd173de248dd6286100fcc25ca73ef3a93b0`, reporting `v0.1.0-alpha.14` |
+| published-release install smoke | `41831576316` (`smoke-published-linux-amd64` + `smoke-published-windows-amd64`: public assets, checksums, real-TLS installers, stable/latest both directions) |
+| independent local check | all six published archives downloaded from the public release URL; sha256 matched `checksums.txt` **6/6**. The published windows-arm64 archive unpacks to `gotavern.exe` (60,768,256 B), `Start.cmd`, `BUILD-INFO.txt`, `LICENSE`, `THIRD_PARTY_NOTICES.txt`; `gotavern version` prints `GoTavern v0.1.0-alpha.14` and the pinned baseline; `--help` shows the pinned option surface plus the two documented GoTavern additions; a boot on a clean temporary data root prints the resolved paths and the `Ready:` line, `GET /version` returns the **pinned SillyTavern JSON** (agent `SillyTavern:1.19.0:Cohee#1207`, revision `06bde939f`), `GET /` answers 200 with `Content-Encoding: gzip` at 734,837 B, the data root is created with the pinned layout (`default-user`, `_cache`, `_css`, `_errors`, `_storage`, `_uploads`, `content.log`, `cookie-secret.txt`), and the repository working tree is byte-clean afterwards |
+
+### Same-SHA required gates (all `workflow_dispatch`, all at `c01d245`, 11/11 PASS)
+
+Verified by `scripts/verify-release-gates.mjs` **before** the tag was created, and re-verified by the
+publish job; the same table is appended to the release body from the Actions API.
+
+| gate | run |
+|---|---|
+| GoTavern CI (verify, race, crash-gate, browser-evidence, **full 240-minute oracle sweep**) | `41811378449` success |
+| whole-session differential | `41811385455` success |
+| world-info slot ordering | `41811389100` success |
+| drop-in qualification | `41811393476` success |
+| Browser differential (mode=all) | `41811399229` success |
+| release qualification (baseline v0.1.0-alpha.13) | `41811404007` success |
+| smoke metrics (paired benchmark + 10-minute soak) | `41811411002` success |
+| Docker image (no-push build) | `41811415713` success |
+| Helper state differential | `41811420465` success |
+| Combination journey differential | `41811425639` success |
+| **Third-party extension compatibility** (20 pinned extensions, shards + all-20 + clusters + soak + overhead + 3-platform lifecycle) | `41811430570` success, carrying the required `extension-compat-evidence` artifact |
+
+### What the release path cost, recorded rather than retried away
+
+The candidate was **refrozen twice**, and both reasons are measurements, not hunches:
+
+1. **`f750ad1` sweep (10/11 green).** `GoTavern CI` `41780336056` was **cancelled at the 180-minute
+   oracle job bound**; its log shows the sweep was essentially complete (provider-wire closed all 258
+   scenarios, the pinned server was writing its last fixtures, webpack had rebuilt in 11 s), and the
+   corpus had grown with the compression and stream-termination probes. Two other gates were red on
+   their first execution: `Combination journey` `41780363054` (the `continue-produced-a-request` guard,
+   with `generateWrapStatus: "defineProperty-threw: Cannot redefine property: Generate"`) and
+   `Third-party extension compatibility` `41780365931` (soak, `no-gotavern-only-browser-errors`). Both
+   passed on a same-SHA re-run (`41783586308`, `41788549190`) and both are disclosed here rather than
+   swapped in silently.
+2. **`62d5c5d` sweep.** The oracle bound was raised to **240 minutes** from that measurement (commit
+   `62d5c5d`, with the reasoning in `ci.yml`). The third-party soak then failed **again**
+   (`41801638163`), and the failure bundle showed the guard's only entry was Dooms' `generateRaw` abort
+   reported as `TypeError: Failed to fetch` while **both legs** recorded the same probe-initiated stop
+   as "Cancelled by stop event" in the phases where it landed in the frontend. That is the soak's own
+   cancel in its network costume, so `compare-extension-corpus.mjs` now filters it **only when the leg
+   itself observed no failed API response** (`apiFailures === 0`), with two selftest teeth proving both
+   directions; the `extension-corpus-selftest.mjs` file turned out to be **referenced by no workflow**,
+   so it was wired into the third-party gate's selftest job (green in `41811430570`). This was a harness
+   defect, not a product change: the same tagged commit's soak run `41811430570` is green with the fix.
+3. **`c01d245` sweep.** 11/11 green on the first pass; tagged.
+
+**Residual harness risk, named:** the combination journey's `continue` guard failed **2 of 5 runs**
+across the three candidates (`41780363054`, `41801633134` red; `41783586308`, `41804515260`,
+`41811425639` green). Its root cause is the probe's failed `Object.defineProperty` wrap of the
+frontend's `Generate`, so the probe cannot observe the generate call directly and depends on the peer's
+request count; it is a probe-faithfulness gap (`AGENTS.md` rule 10), **not** a proven product
+difference, and it is left as the next harness item rather than hidden. The gate's green run at the
+released commit is the one in the table above.
+
+### Performance evidence carried by this release
+
+The committed baseline `tests/perf/q22-baseline.json` was recorded from `GoTavern smoke metrics`
+`41777492725` at `4fd8ed7` (the final code commit): boot **163 ms vs 14,629 ms** (89.75x), steady RSS
+**39.8 MB vs 1,145 MB** (28.73x), `/version` **0.403 ms vs 65.47 ms** (p95 0.526 / 73.01), `/`
+**8.28 ms vs 13.75 ms** (1.66x), soak drift **+0.0 MB / +0.44 ms**. The README table, both figure
+variants, the provenance and `docs/perf-baseline.md` were regenerated from that one recording and
+`tools/check-perf-docs.mjs` is the gate. **The `/` median includes gzip CPU** (it was 1.49 ms before
+compression) and that cost is stated in the README, the scorecard and the release body, beside the
+page-load win (9,067,849 -> 2,951,609 B wire, -67.4%). A bounded compressed-asset cache is the next
+optimisation, not a silent omission.
+
+### What remains unproven after this release
+
+The §14 items: a real long-used user tree (cards, chats, worlds, presets, extension settings,
+`extensions.tavern_helper`) has still not been swapped and qualified; the strongest claims rest on
+synthesised/committed derivations plus the published artifacts. The alpha.13 non-claims stand (arbitrary
+Node server plugins, local in-process ML, remote provider embeddings, wire formats owned by third-party
+npm packages, per-chat backups, VERTEXAI service-account mode), and the new boundaries are in the
+release notes: no brotli encoder, the Windows account-cache boundary, unmapped `requestTimeout`,
+cross-scheme redirects unproven, the unreachable gzip-close branch, and narrowed per-lane oracle runs.
+
+---
+
+## HISTORY - 2026-11-04: M0-M6 MERGED, ALPHA.14 IN PREPARATION
 
 The goal was rewritten and pushed as `93cccc9`: `GOAL.md` now states the product goal (§1a), the
 engineering goal (§1b: light, fast, stable, clear architecture, simple CLI, honest README/figure), the

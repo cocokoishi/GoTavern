@@ -589,6 +589,10 @@ var declaredOtherPins = map[string]string{
 	// while the release body's evidence table carries the separate same-SHA smoke run at the tag commit. A
 	// measurement anchor is declared by value AND named, exactly like the release-SHA entries above.
 	"4fd8ed7589abaec239c6c3b19dfff2fc940e5421": "v0.1.0-alpha.14 final code commit - the paired benchmark's measured tree (smoke metrics run 41777492725), cited by docs/assets/benchmark.svg.provenance.md and docs/perf-baseline.md",
+	// THE alpha.14 RELEASE COMMIT. Same duty as the release-SHA entries above: the HANDOFF checkpoint
+	// names the SHA every required gate ran at and the published release's target commit, and the evidence
+	// ledger re-anchors to it so the eleven same-SHA gate runs are citable. Declared by value AND named.
+	"c01d245e1b9ea0689efd84339707a219740df65a": "v0.1.0-alpha.14 stable release commit (tag v0.1.0-alpha.14) - HANDOFF.md current checkpoint, the SHA all eleven required release gates ran at, and docs/goal-scorecard.md's ledger anchor",
 }
 
 // checkPinnedCommitStrings is the gate body, extracted so the red-path test can drive it against a

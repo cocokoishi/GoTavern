@@ -65,12 +65,12 @@ local in-process ML are excluded by decision, not by omission.
 [![Latest release](https://img.shields.io/github/v/release/cocokoishi/GoTavern?label=release)](https://github.com/cocokoishi/GoTavern/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-`v0.1.0-alpha.13` is the current **stable release**: GitHub publishes it as a full release (not a pre-release),
+`v0.1.0-alpha.14` is the current **stable release**: GitHub publishes it as a full release (not a pre-release),
 `releases/latest` serves it, a bare installer with no version argument installs it, and Docker `:latest` points at
-`ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.13`. `v0.1.0-alpha.9` was the first stable-channel release;
-`v0.1.0-alpha.12` was the previous stable release and stays downloadable by explicit `--version v0.1.0-alpha.12`
-(Windows: `-Version v0.1.0-alpha.12`), and alpha.10/alpha.11 remain available as prereleases by explicit version or
-`docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11`. The channel rule is one script,
+`ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.14`. `v0.1.0-alpha.13` and `v0.1.0-alpha.12` were earlier stable
+releases and stay downloadable by explicit `--version v0.1.0-alpha.13` (Windows: `-Version v0.1.0-alpha.13`);
+`v0.1.0-alpha.9` was the first stable-channel release. alpha.10/alpha.11 remain available as prereleases by explicit
+version or `docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11`. The channel rule is one script,
 [`scripts/classify-version-tag.sh`](scripts/classify-version-tag.sh), shared by the release workflow, the Docker
 workflow and both installers. Back up any data directory you can't afford to lose.
 
