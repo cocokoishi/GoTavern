@@ -1,0 +1,456 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned response compression: encoding choice, headers, raw and decoded bodies, and the SSE non-compression contract",
+  "middleware": {
+    "package": "compression@^1.8.1 (src/server-main.js:107 app.use(compression()) with no options)",
+    "thresholdBytes": 1024,
+    "filter": "compressible(Content-Type); Cache-Control no-transform respected",
+    "supportedEncodings": [
+      "br",
+      "gzip",
+      "deflate",
+      "identity"
+    ],
+    "preferredEncodings": [
+      "br",
+      "gzip"
+    ],
+    "brotliAvailableOnPinnedRuntime": true
+  },
+  "inputs": {
+    "settingsJson": "{\"username\":\"compression-probe\",\"unknown\":{\"keep\":true},\"padding\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"}\n",
+    "secrets": {
+      "api_key_openai": "probe-openai-key"
+    },
+    "generateBody": {
+      "chat_completion_source": "openai",
+      "model": "probe-model",
+      "messages": [
+        {
+          "role": "user",
+          "content": "hello"
+        }
+      ],
+      "stream": true,
+      "max_tokens": 8
+    },
+    "sseFrames": "data: {\"id\":\"chatcmpl-probe\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"Hello\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-probe\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" world\"},\"finish_reason\":null}]}\n\ndata: [DONE]\n",
+    "pngAsset": "/img/default-expressions/admiration.png"
+  },
+  "scenarios": {
+    "static.scriptGzip": {
+      "name": "static.scriptGzip",
+      "request": {
+        "method": "GET",
+        "path": "/script.js",
+        "headers": {
+          "Accept-Encoding": "gzip, deflate"
+        },
+        "authenticated": false,
+        "conditional": false
+      },
+      "response": {
+        "status": 200,
+        "contentEncoding": "gzip",
+        "transferEncoding": "chunked",
+        "contentLength": null,
+        "vary": "Origin, Accept-Encoding",
+        "contentType": "application/javascript; charset=UTF-8",
+        "etagPresent": true,
+        "cacheControl": "public, max-age=0",
+        "acceptRanges": "bytes",
+        "contentRange": null
+      },
+      "raw": {
+        "bytes": 120104,
+        "sha256": "7ef815446052086b0079612b26048d69a427a06e5cd3c2059dd9692b96e1e50e"
+      },
+      "decoded": {
+        "bytes": 497669,
+        "sha256": "955c603d0bad84bac5a716f0818d85c2543e44d4c43878e0d63ef1e55ca91855",
+        "text": null
+      }
+    },
+    "static.scriptBrotliPreferred": {
+      "name": "static.scriptBrotliPreferred",
+      "request": {
+        "method": "GET",
+        "path": "/script.js",
+        "headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "authenticated": false,
+        "conditional": false
+      },
+      "response": {
+        "status": 200,
+        "contentEncoding": "br",
+        "transferEncoding": "chunked",
+        "contentLength": null,
+        "vary": "Origin, Accept-Encoding",
+        "contentType": "application/javascript; charset=UTF-8",
+        "etagPresent": true,
+        "cacheControl": "public, max-age=0",
+        "acceptRanges": "bytes",
+        "contentRange": null
+      },
+      "raw": {
+        "bytes": 118271,
+        "sha256": "52f6b48723f9986b56885e90e160c3a83c049d7ad81ac1c62232975cda483781"
+      },
+      "decoded": {
+        "bytes": 497669,
+        "sha256": "955c603d0bad84bac5a716f0818d85c2543e44d4c43878e0d63ef1e55ca91855",
+        "text": null
+      }
+    },
+    "static.scriptIdentity": {
+      "name": "static.scriptIdentity",
+      "request": {
+        "method": "GET",
+        "path": "/script.js",
+        "headers": {
+          "Accept-Encoding": "identity"
+        },
+        "authenticated": false,
+        "conditional": false
+      },
+      "response": {
+        "status": 200,
+        "contentEncoding": null,
+        "transferEncoding": null,
+        "contentLength": "497669",
+        "vary": "Origin, Accept-Encoding",
+        "contentType": "application/javascript; charset=UTF-8",
+        "etagPresent": true,
+        "cacheControl": "public, max-age=0",
+        "acceptRanges": "bytes",
+        "contentRange": null
+      },
+      "raw": {
+        "bytes": 497669,
+        "sha256": "955c603d0bad84bac5a716f0818d85c2543e44d4c43878e0d63ef1e55ca91855"
+      },
+      "decoded": {
+        "bytes": 497669,
+        "sha256": "955c603d0bad84bac5a716f0818d85c2543e44d4c43878e0d63ef1e55ca91855",
+        "text": null
+      }
+    },
+    "static.scriptNoAcceptEncoding": {
+      "name": "static.scriptNoAcceptEncoding",
+      "request": {
+        "method": "GET",
+        "path": "/script.js",
+        "headers": {},
+        "authenticated": false,
+        "conditional": false
+      },
+      "response": {
+        "status": 200,
+        "contentEncoding": null,
+        "transferEncoding": null,
+        "contentLength": "497669",
+        "vary": "Origin, Accept-Encoding",
+        "contentType": "application/javascript; charset=UTF-8",
+        "etagPresent": true,
+        "cacheControl": "public, max-age=0",
+        "acceptRanges": "bytes",
+        "contentRange": null
+      },
+      "raw": {
+        "bytes": 497669,
+        "sha256": "955c603d0bad84bac5a716f0818d85c2543e44d4c43878e0d63ef1e55ca91855"
+      },
+      "decoded": {
+        "bytes": 497669,
+        "sha256": "955c603d0bad84bac5a716f0818d85c2543e44d4c43878e0d63ef1e55ca91855",
+        "text": null
+      }
+    },
+    "shell.rootGzip": {
+      "name": "shell.rootGzip",
+      "request": {
+        "method": "GET",
+        "path": "/",
+        "headers": {
+          "Accept-Encoding": "gzip, deflate"
+        },
+        "authenticated": true,
+        "conditional": false
+      },
+      "response": {
+        "status": 200,
+        "contentEncoding": "gzip",
+        "transferEncoding": "chunked",
+        "contentLength": null,
+        "vary": "Origin, Accept-Encoding",
+        "contentType": "text/html; charset=UTF-8",
+        "etagPresent": true,
+        "cacheControl": "public, max-age=0",
+        "acceptRanges": "bytes",
+        "contentRange": null
+      },
+      "raw": {
+        "bytes": 85723,
+        "sha256": "6c65737dcd9cd04bdf086ea012b65d4d0f1e191999d75eb4d3b816b134b81951"
+      },
+      "decoded": {
+        "bytes": 734837,
+        "sha256": "647c22a47feff92148c07a0f821bbd84feea7400e543085841a95a418679419f",
+        "text": null
+      }
+    },
+    "json.settingsGetGzip": {
+      "name": "json.settingsGetGzip",
+      "request": {
+        "method": "POST",
+        "path": "/api/settings/get",
+        "headers": {
+          "Accept-Encoding": "gzip, deflate",
+          "Content-Type": "application/json"
+        },
+        "authenticated": true,
+        "conditional": false,
+        "body": "{}"
+      },
+      "response": {
+        "status": 200,
+        "contentEncoding": "gzip",
+        "transferEncoding": "chunked",
+        "contentLength": null,
+        "vary": "Origin, Accept-Encoding",
+        "contentType": "application/json; charset=utf-8",
+        "etagPresent": true,
+        "cacheControl": null,
+        "acceptRanges": null,
+        "contentRange": null
+      },
+      "raw": {
+        "bytes": 329,
+        "sha256": "ea8d3a7b02fde25eda2fd742953fd284bdfb94fbdc7a399908fb86c0884db10f"
+      },
+      "decoded": {
+        "bytes": 2636,
+        "sha256": "58be176d018f208840e6cf11285a743d579152e2e30baaf2671c0724ac908947",
+        "text": "{\"settings\":\"{\\\"username\\\":\\\"compression-probe\\\",\\\"unknown\\\":{\\\"keep\\\":true},\\\"padding\\\":\\\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\\\"}\\n\",\"koboldai_settings\":[],\"koboldai_setting_names\":[],\"world_names\":[],\"novelai_settings\":[],\"novelai_setting_names\":[],\"openai_settings\":[],\"openai_setting_names\":[],\"textgenerationwebui_presets\":[],\"textgenerationwebui_preset_names\":[],\"themes\":[],\"movingUIPresets\":[],\"quickReplyPresets\":[],\"instruct\":[],\"context\":[],\"sysprompt\":[],\"reasoning\":[],\"enable_extensions\":true,\"enable_extensions_auto_update\":false,\"enable_accounts\":true,\"request_compression\":{\"enabled\":false,\"minPayloadSize\":262144,\"maxPayloadSize\":8388608,\"timeout\":3000}}"
+      }
+    },
+    "revalidate.304": {
+      "name": "revalidate.304",
+      "request": {
+        "method": "GET",
+        "path": "/script.js",
+        "headers": {
+          "Accept-Encoding": "gzip, deflate"
+        },
+        "authenticated": false,
+        "conditional": true
+      },
+      "response": {
+        "status": 304,
+        "contentEncoding": null,
+        "transferEncoding": null,
+        "contentLength": null,
+        "vary": "Origin",
+        "contentType": null,
+        "etagPresent": true,
+        "cacheControl": "public, max-age=0",
+        "acceptRanges": "bytes",
+        "contentRange": null
+      },
+      "raw": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "decoded": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "text": ""
+      }
+    },
+    "range.bytes0to99": {
+      "name": "range.bytes0to99",
+      "request": {
+        "method": "GET",
+        "path": "/script.js",
+        "headers": {
+          "Accept-Encoding": "gzip, deflate",
+          "Range": "bytes=0-99"
+        },
+        "authenticated": false,
+        "conditional": false
+      },
+      "response": {
+        "status": 206,
+        "contentEncoding": null,
+        "transferEncoding": null,
+        "contentLength": "100",
+        "vary": "Origin, Accept-Encoding",
+        "contentType": "application/javascript; charset=UTF-8",
+        "etagPresent": true,
+        "cacheControl": "public, max-age=0",
+        "acceptRanges": "bytes",
+        "contentRange": "bytes 0-99/497669"
+      },
+      "raw": {
+        "bytes": 100,
+        "sha256": "cf48c6ec8295fea18bc107869f984731ff579192453ba72326d0593895cd6286"
+      },
+      "decoded": {
+        "bytes": 100,
+        "sha256": "cf48c6ec8295fea18bc107869f984731ff579192453ba72326d0593895cd6286",
+        "text": "import {\n    showdown,\n    moment,\n    DOMPurify,\n    hljs,\n    Handlebars,\n    SVGInject,\n    Poppe"
+      }
+    },
+    "small.version": {
+      "name": "small.version",
+      "request": {
+        "method": "GET",
+        "path": "/version",
+        "headers": {
+          "Accept-Encoding": "gzip, deflate"
+        },
+        "authenticated": true,
+        "conditional": false
+      },
+      "response": {
+        "status": 200,
+        "contentEncoding": null,
+        "transferEncoding": null,
+        "contentLength": "168",
+        "vary": "Origin, Accept-Encoding",
+        "contentType": "application/json; charset=utf-8",
+        "etagPresent": true,
+        "cacheControl": null,
+        "acceptRanges": null,
+        "contentRange": null
+      },
+      "raw": {
+        "bytes": 168,
+        "sha256": "586f3d932b58fe17b061aead167ee646af1d6f95090f1fc5ca992f88a63142a8"
+      },
+      "decoded": {
+        "bytes": 168,
+        "sha256": "586f3d932b58fe17b061aead167ee646af1d6f95090f1fc5ca992f88a63142a8",
+        "text": "{\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"gitRevision\":\"06bde939f\",\"gitBranch\":\"release\",\"commitDate\":\"2026-09-14 21:01:34 +0200\",\"isLatest\":true}"
+      }
+    },
+    "head.script": {
+      "name": "head.script",
+      "request": {
+        "method": "HEAD",
+        "path": "/script.js",
+        "headers": {
+          "Accept-Encoding": "gzip, deflate"
+        },
+        "authenticated": false,
+        "conditional": false
+      },
+      "response": {
+        "status": 200,
+        "contentEncoding": null,
+        "transferEncoding": null,
+        "contentLength": "497669",
+        "vary": "Origin, Accept-Encoding",
+        "contentType": "application/javascript; charset=UTF-8",
+        "etagPresent": true,
+        "cacheControl": "public, max-age=0",
+        "acceptRanges": "bytes",
+        "contentRange": null
+      },
+      "raw": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "decoded": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "text": ""
+      }
+    },
+    "binary.png": {
+      "name": "binary.png",
+      "request": {
+        "method": "GET",
+        "path": "/img/default-expressions/admiration.png",
+        "headers": {
+          "Accept-Encoding": "gzip, deflate"
+        },
+        "authenticated": false,
+        "conditional": false
+      },
+      "response": {
+        "status": 200,
+        "contentEncoding": null,
+        "transferEncoding": null,
+        "contentLength": "19672",
+        "vary": "Origin",
+        "contentType": "image/png",
+        "etagPresent": true,
+        "cacheControl": "public, max-age=0",
+        "acceptRanges": "bytes",
+        "contentRange": null
+      },
+      "raw": {
+        "bytes": 19672,
+        "sha256": "a250eb216d9f2ea1fcc773b6f629b6c906636ec38770ea56f8be69f0b9b48f54"
+      },
+      "decoded": {
+        "bytes": 19672,
+        "sha256": "a250eb216d9f2ea1fcc773b6f629b6c906636ec38770ea56f8be69f0b9b48f54",
+        "text": null
+      }
+    },
+    "sse.generateStream": {
+      "name": "sse.generateStream",
+      "request": {
+        "method": "POST",
+        "path": "/api/backends/chat-completions/generate",
+        "headers": {
+          "Accept-Encoding": "gzip, deflate",
+          "Content-Type": "application/json"
+        },
+        "authenticated": true,
+        "conditional": false,
+        "body": "{\"chat_completion_source\":\"openai\",\"model\":\"probe-model\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"max_tokens\":8}"
+      },
+      "response": {
+        "status": 200,
+        "contentEncoding": null,
+        "transferEncoding": "chunked",
+        "contentLength": null,
+        "vary": "Origin",
+        "contentType": null,
+        "etagPresent": false,
+        "cacheControl": null,
+        "acceptRanges": null,
+        "contentRange": null
+      },
+      "raw": {
+        "bytes": 393,
+        "sha256": "72f78f8f20f26298d244bda9a2787ba11cd144d053ea4532af5ebaa6652c8588"
+      },
+      "decoded": {
+        "bytes": 393,
+        "sha256": "72f78f8f20f26298d244bda9a2787ba11cd144d053ea4532af5ebaa6652c8588",
+        "text": "data: {\"id\":\"chatcmpl-probe\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"Hello\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-probe\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"probe-model\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" world\"},\"finish_reason\":null}]}\n\ndata: [DONE]\n"
+      }
+    }
+  },
+  "notRecorded": {
+    "etagValue": "Express static derives it from size+mtime, so it differs on every checkout/re-record; only etagPresent is recorded",
+    "lastModified": "same reason as etagValue",
+    "dateAndResponseTime": "run-specific headers",
+    "compressedBytesAsByteContract": "zlib and Go compress/gzip emit different deflate streams; the contract is encoding choice + headers + decoded bytes"
+  },
+  "notes": [
+    "The Go side must match the encoding CHOICE and headers, and the DECODED bytes; raw compressed bytes are evidence, not a byte-equality target.",
+    "pinned prefers br when the client offers it (Node 24 has brotli). GoTavern without a brotli encoder answers gzip for that request; that is the one recorded deviation and it is asserted on both halves.",
+    "SSE is not compressed because pinned forwards the provider stream with NO Content-Type, so the compression filter never matches; GoTavern sets no Content-Type there either (chat_completions.go), and this scenario guards that it stays so."
+  ]
+}
