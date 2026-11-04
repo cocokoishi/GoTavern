@@ -300,4 +300,3 @@ func digestWorldInfoList(worldsDirectory string) [sha256.Size]byte {
 	copy(identity[:], digest.Sum(nil))
 	return identity
 }
-
