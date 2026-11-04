@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"mime"
 	"net/http"
@@ -24,7 +25,7 @@ func (runtime *accountRuntime) serveImageMetadataAll(w http.ResponseWriter, requ
 	}
 	prefix, bodyError, accessError := imageMetadataPrefix(request)
 	if bodyError {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if accessError {

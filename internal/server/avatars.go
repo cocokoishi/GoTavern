@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"mime"
 	"net/http"
 	"os"
@@ -18,7 +19,7 @@ func (runtime *accountRuntime) serveAvatarsGet(w http.ResponseWriter, request *h
 	}
 	images, err := startup.UserAvatarImages(runtime.options.DataRoot, account.string("handle"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	respondJSON(w, http.StatusOK, images)
@@ -31,45 +32,45 @@ func (runtime *accountRuntime) serveAvatarsDelete(w http.ResponseWriter, request
 	}
 	contentType, _, err := mime.ParseMediaType(request.Header.Get("Content-Type"))
 	if err != nil || contentType != "application/json" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	input, valid := readAccountRequestBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	rawAvatar, exists := input["avatar"]
 	if !exists {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if filenameFieldHasForbiddenPathCharacter(rawAvatar) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	var value any
 	if err := json.Unmarshal(rawAvatar, &value); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	avatar, isString := value.(string)
 	if !isString {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	filename := startup.SanitizeUserFilename(avatar)
 	if avatar != filename {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	deleted, err := startup.DeleteUserAvatar(runtime.options.DataRoot, account.string("handle"), filename)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !deleted {
-		serveStatusText(w, http.StatusNotFound)
+		httpx.WriteStatusText(w, http.StatusNotFound)
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]string{"result": "ok"})

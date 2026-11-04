@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"net/http"
 	"os"
@@ -25,15 +26,15 @@ func (runtime *accountRuntime) serveBackgroundsUpload(w http.ResponseWriter, req
 	staged, originalFilename, err := parseBackgroundMultipartUpload(request, runtime.options.DataRoot)
 	if err != nil {
 		if errors.Is(err, errBackgroundUploadMissing) || errors.Is(err, http.ErrNotMultipart) {
-			serveStatusText(w, http.StatusBadRequest)
+			httpx.WriteStatusText(w, http.StatusBadRequest)
 		} else {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 		}
 		return
 	}
 	filename := startup.SanitizeUserFilename(originalFilename)
 	if err := startup.InstallUserBackgroundUpload(runtime.options.DataRoot, account.string("handle"), staged, filename); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 

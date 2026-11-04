@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"os"
 	"strconv"
@@ -19,7 +20,7 @@ func (runtime *accountRuntime) serveUserAdminSlugify(w http.ResponseWriter, requ
 	}
 	input, ok := readAccountRequestBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if !nodeTruthyJSON(input["text"]) {
@@ -35,7 +36,7 @@ func (runtime *accountRuntime) serveUserAdminCreate(w http.ResponseWriter, reque
 	}
 	input, ok := readAccountRequestBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if !nodeTruthyJSON(input["handle"]) || !nodeTruthyJSON(input["name"]) {
@@ -43,7 +44,7 @@ func (runtime *accountRuntime) serveUserAdminCreate(w http.ResponseWriter, reque
 		return
 	}
 	if runtime.options.DataRoot == "" {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 
@@ -52,7 +53,7 @@ func (runtime *accountRuntime) serveUserAdminCreate(w http.ResponseWriter, reque
 
 	keys, err := startup.NodePersistKeys(runtime.options.DataRoot, userStoragePrefix)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	handle := pinnedSlugify(nodeStringForSlug(input["handle"]))
@@ -69,19 +70,19 @@ func (runtime *accountRuntime) serveUserAdminCreate(w http.ResponseWriter, reque
 
 	saltBytes := make([]byte, 16)
 	if _, err := rand.Read(saltBytes); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	salt := base64.StdEncoding.EncodeToString(saltBytes)
 	password := ""
 	if nodeTruthyJSON(input["password"]) {
 		if err := json.Unmarshal(input["password"], &password); err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		password, err = upstreamPasswordHash(password, salt)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 	}
@@ -99,17 +100,17 @@ func (runtime *accountRuntime) serveUserAdminCreate(w http.ResponseWriter, reque
 	}
 	userJSON, err := marshalNodeJSON(createdUser)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if err := startup.SetNodePersistRecord(runtime.options.DataRoot, userStoragePrefix+handle, userJSON); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 
 	keys, err = startup.NodePersistKeys(runtime.options.DataRoot, userStoragePrefix)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	handles := make([]string, 0, len(keys))
@@ -117,12 +118,12 @@ func (runtime *accountRuntime) serveUserAdminCreate(w http.ResponseWriter, reque
 		handles = append(handles, strings.TrimPrefix(key, userStoragePrefix))
 	}
 	if err := runtime.ensureAccountDirectories(handles); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	newUserDirectories, err := startup.DirectoriesForUser(runtime.options.DataRoot, handle)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// checkForNewContent() catches and logs its own seeding failures; account
@@ -157,7 +158,7 @@ func respondText(w http.ResponseWriter, status int, contentType, value string) {
 	body := []byte(value)
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", expressWeakETag(body))
+	w.Header().Set("ETag", httpx.WeakETag(body))
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
 }

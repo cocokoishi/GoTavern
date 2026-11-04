@@ -5,6 +5,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -45,11 +46,11 @@ func (runtime *accountRuntime) serveChatsGroupGet(w http.ResponseWriter, request
 	}
 	input, valid := readFilesUploadBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if _, ok := pinnedGroupChatID(input); !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.pinnedChatsDirectories(account)
@@ -72,21 +73,21 @@ func (runtime *accountRuntime) serveChatsGroupInfo(w http.ResponseWriter, reques
 	}
 	input, valid := readFilesUploadBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if _, ok := pinnedGroupChatID(input); !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.pinnedChatsDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	chatFilePath, ok := pinnedGroupChatPath(input, directories)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// getChatInfo(chatFilePath) with no additional data and no metadata.
@@ -100,35 +101,35 @@ func (runtime *accountRuntime) serveChatsGroupDelete(w http.ResponseWriter, requ
 	}
 	input, valid := readFilesUploadBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if _, ok := pinnedGroupChatID(input); !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.pinnedChatsDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	chatFilePath, ok := pinnedGroupChatPath(input, directories)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	relativePath, err := filepath.Rel(directories["root"], chatFilePath)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	deleted, err := startup.DeleteUserFile(runtime.options.DataRoot, account.string("handle"), relativePath)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !deleted {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
@@ -141,12 +142,12 @@ func (runtime *accountRuntime) serveChatsGroupSave(w http.ResponseWriter, reques
 	}
 	input, valid := readFilesUploadBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	id, ok := pinnedGroupChatID(input)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.pinnedChatsDirectories(account)
@@ -214,7 +215,7 @@ func (runtime *accountRuntime) serveChatsGroupImport(w http.ResponseWriter, requ
 		return
 	}
 	if parsed.stagedPath == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	defer removeStagedCharacterUpload(parsed.stagedPath)

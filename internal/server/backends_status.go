@@ -17,6 +17,7 @@ package server
 // tests/oracle/sillytavern-1.19.0-backends.json; backends_test.go replays them.
 
 import (
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"strings"
 
@@ -28,7 +29,7 @@ import (
 // Express's plain-text status message.
 //
 // It is a helper because the same refusal is reproduced by every arm that reaches that point, and NINE
-// arms answered it with serveStatusText(400), so a request without a key got `Bad Request` as TEXT where the
+// arms answered it with httpx.WriteStatusText(400), so a request without a key got `Bad Request` as TEXT where the
 // pinned server sends `{"error":true}` as JSON. The shape is ORACLE-BACKED rather than derived: the recorded
 // scenarios status.openai.noKey, status.mistral.noKey and status.deepseek.noKey all record 400 with the body
 // {"error":true}, and minimaxChat.noKey records the same shape for the generate-side sibling. A test that
@@ -213,7 +214,7 @@ func (runtime *accountRuntime) serveBackendsChatCompletionStatus(w http.Response
 	// which stops being true the day that source lands.
 	if source != "custom" {
 		if pinnedChatCompletionSources[source] {
-			serveStatusText(w, http.StatusNotImplemented)
+			httpx.WriteStatusText(w, http.StatusNotImplemented)
 			return
 		}
 		// AN UNKNOWN NAME: the pinned chain's closing else (chat-completions.js:2062-2065) answers

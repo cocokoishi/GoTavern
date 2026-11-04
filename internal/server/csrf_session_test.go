@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -136,7 +137,7 @@ func TestPinnedNodeCSRFCookieSessionContract(t *testing.T) {
 	if got := response.Header().Get("Content-Length"); got != fmt.Sprint(len(response.Body.Bytes())) {
 		t.Fatalf("GET /csrf-token Content-Length = %q; body has %d bytes", got, response.Body.Len())
 	}
-	if got, want := response.Header().Get("ETag"), expressWeakETag(response.Body.Bytes()); got != want {
+	if got, want := response.Header().Get("ETag"), httpx.WeakETag(response.Body.Bytes()); got != want {
 		t.Fatalf("GET /csrf-token ETag = %q; Express format gives %q", got, want)
 	}
 	cookies := response.Header().Values("Set-Cookie")

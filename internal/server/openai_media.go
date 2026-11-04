@@ -27,6 +27,7 @@ package server
 // recorded audio is an ASCII byte pattern; that limitation is stated in the fixture.
 
 import (
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"strconv"
 
@@ -74,7 +75,7 @@ func registerOpenAIMediaRoutes(mux *http.ServeMux, accounts *accountRuntime, not
 func openaiMediaSendAudio(w http.ResponseWriter, contentType string, body []byte) {
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", expressWeakETag(body))
+	w.Header().Set("ETag", httpx.WeakETag(body))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(body)
 }

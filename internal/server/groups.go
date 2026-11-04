@@ -13,6 +13,7 @@ package server
 //    oracle records as a marker.
 
 import (
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"net/http"
 	"os"
@@ -53,24 +54,24 @@ func (runtime *accountRuntime) serveGroupsAll(w http.ResponseWriter, request *ht
 		return
 	}
 	if _, valid := readFilesUploadBody(request); !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.pinnedGroupDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	groupsRoot := directories["groups"]
 	if _, err := os.Stat(groupsRoot); err != nil {
 		if err := os.Mkdir(groupsRoot, 0o777); err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 	}
 	groupEntries, err := os.ReadDir(groupsRoot)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	chatEntries, err := os.ReadDir(directories["groupChats"])
@@ -145,12 +146,12 @@ func (runtime *accountRuntime) serveGroupsCreate(w http.ResponseWriter, request 
 	}
 	body, ok := readOrderedRequestBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.pinnedGroupDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	pinnedWarnOnGroupMetadata(&body)
@@ -175,25 +176,25 @@ func (runtime *accountRuntime) serveGroupsCreate(w http.ResponseWriter, request 
 	groupsRoot := directories["groups"]
 	if _, err := os.Stat(groupsRoot); err != nil {
 		if err := os.Mkdir(groupsRoot, 0o777); err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 	}
 	fileData, err := marshalCharacterJSONIndent(groupMetadata)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	pathToFile := filepath.Join(groupsRoot, startup.SanitizeUserFilename(id+".json"))
 	relativePath, err := filepath.Rel(directories["root"], pathToFile)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if err := startup.UpdateUserContentFile(runtime.options.DataRoot, account.string("handle"), relativePath, func([]byte) ([]byte, error) {
 		return fileData, nil
 	}); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	respondCharacterJSON(w, http.StatusOK, groupMetadata)
@@ -238,21 +239,21 @@ func (runtime *accountRuntime) serveGroupsEdit(w http.ResponseWriter, request *h
 	}
 	body, ok := readOrderedRequestBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	// getFileNameValidationFunction('id') rejects a forbidden path character.
 	if id, exists := body.member("id"); exists && pinnedAvatarURLRejected(id) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if !jsTruthy(nodeGet(body, "id")) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.pinnedGroupDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	id, ok := nodeGet(body, "id").stringValue()
@@ -262,19 +263,19 @@ func (runtime *accountRuntime) serveGroupsEdit(w http.ResponseWriter, request *h
 	pinnedWarnOnGroupMetadata(&body)
 	fileData, err := marshalCharacterJSONIndent(body)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	pathToFile := filepath.Join(directories["groups"], startup.SanitizeUserFilename(id+".json"))
 	relativePath, err := filepath.Rel(directories["root"], pathToFile)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if err := startup.UpdateUserContentFile(runtime.options.DataRoot, account.string("handle"), relativePath, func([]byte) ([]byte, error) {
 		return fileData, nil
 	}); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
@@ -287,27 +288,27 @@ func (runtime *accountRuntime) serveGroupsDelete(w http.ResponseWriter, request 
 	}
 	input, valid := readFilesUploadBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if rawID, exists := input["id"]; exists {
 		if value, err := decodeOrderedNodeJSON(rawID); err == nil && pinnedAvatarURLRejected(value) {
-			serveStatusText(w, http.StatusBadRequest)
+			httpx.WriteStatusText(w, http.StatusBadRequest)
 			return
 		}
 	}
 	if !nodeTruthyJSON(input["id"]) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.pinnedGroupDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	id, ok := pinnedStringValue(input, "id")
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	pathToGroup := filepath.Join(directories["groups"], startup.SanitizeUserFilename(id+".json"))
@@ -335,11 +336,11 @@ func (runtime *accountRuntime) serveGroupsDelete(w http.ResponseWriter, request 
 	if _, err := os.Stat(pathToGroup); err == nil {
 		relative, err := filepath.Rel(directories["root"], pathToGroup)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		if _, err := startup.DeleteUserFile(runtime.options.DataRoot, account.string("handle"), relative); err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 	}

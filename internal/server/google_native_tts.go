@@ -33,6 +33,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -354,10 +355,10 @@ func respondGoogleTTSFailure(w http.ResponseWriter, message string) {
 	answer.setMember("error", nodeString(message))
 	body, err := marshalCharacterJSON(answer)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusInternalServerError, body)
+	httpx.WriteJSONBytes(w, http.StatusInternalServerError, body)
 }
 
 func (runtime *accountRuntime) serveGoogleGenerateNativeTTS(w http.ResponseWriter, request *http.Request, options HTTPHandlerOptions) {
@@ -449,7 +450,7 @@ func (runtime *accountRuntime) serveGoogleGenerateNativeTTS(w http.ResponseWrite
 			respondGoogleTTSFailure(w, googleNativeTTSGenericFail)
 			return
 		}
-		respondJSONBytes(w, response.Status, encoded)
+		httpx.WriteJSONBytes(w, response.Status, encoded)
 		return
 	}
 

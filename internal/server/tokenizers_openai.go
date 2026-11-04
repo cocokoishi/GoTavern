@@ -16,6 +16,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"net/http"
 	"strings"
@@ -86,7 +87,7 @@ func tokenizerIDs(body []byte) (ids []int, idsInvalid bool) {
 func (runtime *accountRuntime) serveSentencePieceDecode(w http.ResponseWriter, request *http.Request, model string) {
 	body, bodyOK := tokenizerRawBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	ids, idsInvalid := tokenizerIDs(body)
@@ -114,7 +115,7 @@ func (runtime *accountRuntime) serveSentencePieceDecode(w http.ResponseWriter, r
 func (runtime *accountRuntime) serveTiktokenDecode(w http.ResponseWriter, request *http.Request) {
 	body, bodyOK := tokenizerRawBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	ids, idsInvalid := tokenizerIDs(body)
@@ -139,7 +140,7 @@ func (runtime *accountRuntime) serveTiktokenDecode(w http.ResponseWriter, reques
 func (runtime *accountRuntime) serveWebTokenizerDecode(w http.ResponseWriter, request *http.Request, model string) {
 	body, bodyOK := tokenizerRawBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	ids, idsInvalid := tokenizerIDs(body)
@@ -181,7 +182,7 @@ func (runtime *accountRuntime) webTokenizerDecode(model string, ids []int) (stri
 func (runtime *accountRuntime) serveOpenAITokenizerEncode(w http.ResponseWriter, request *http.Request) {
 	text, ok := tokenizerTextRequest(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	family := tokenizers.OpenAITokenizerFamily(request.URL.Query().Get("model"))
@@ -191,7 +192,7 @@ func (runtime *accountRuntime) serveOpenAITokenizerEncode(w http.ResponseWriter,
 func (runtime *accountRuntime) serveOpenAITokenizerDecode(w http.ResponseWriter, request *http.Request) {
 	body, bodyOK := tokenizerRawBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	ids, idsInvalid := tokenizerIDs(body)
@@ -310,7 +311,7 @@ func (runtime *accountRuntime) decodeForFamily(family string, ids []int) (string
 func (runtime *accountRuntime) serveOpenAITokenizerCount(w http.ResponseWriter, request *http.Request) {
 	body, bodyOK := tokenizerRawBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	queryModel := request.URL.Query().Get("model")

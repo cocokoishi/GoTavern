@@ -20,6 +20,7 @@ package server
 // the fixture records is identical; the transient temp artifact is not reproduced.
 
 import (
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"net/url"
 	"os"
@@ -239,7 +240,7 @@ func (runtime *accountRuntime) serveAssetsDownload(w http.ResponseWriter, reques
 	if category == "character" {
 		w.Header().Set("Content-Type", assetsDownloadMimeType(filename))
 		w.Header().Set("Content-Length", strconv.Itoa(len(downloaded)))
-		w.Header().Set("ETag", expressWeakETag(downloaded))
+		w.Header().Set("ETag", httpx.WeakETag(downloaded))
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(downloaded)
 		return

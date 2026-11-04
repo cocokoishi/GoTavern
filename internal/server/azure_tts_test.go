@@ -5,6 +5,7 @@ package server
 
 import (
 	"bytes"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -116,7 +117,7 @@ func TestAzureTTSListRequestAndResponse(t *testing.T) {
 	if got, want := recorder.Header().Get("Content-Length"), strconvItoa(recorder.Body.Len()); got != want {
 		t.Errorf("Content-Length = %q, body length %q", got, want)
 	}
-	if got, want := recorder.Header().Get("ETag"), expressWeakETag(recorder.Body.Bytes()); got != want {
+	if got, want := recorder.Header().Get("ETag"), httpx.WeakETag(recorder.Body.Bytes()); got != want {
 		t.Errorf("ETag = %q, Express weak ETag of the body %q", got, want)
 	}
 
@@ -258,7 +259,7 @@ func TestAzureTTSGenerateRequestAndResponse(t *testing.T) {
 	if got, want := recorder.Header().Get("Content-Length"), strconvItoa(len(audio)); got != want {
 		t.Errorf("Content-Length = %q, the audio length %q", got, want)
 	}
-	if got, want := recorder.Header().Get("ETag"), expressWeakETag(audio); got != want {
+	if got, want := recorder.Header().Get("ETag"), httpx.WeakETag(audio); got != want {
 		t.Errorf("ETag = %q, Express weak ETag of the audio %q", got, want)
 	}
 

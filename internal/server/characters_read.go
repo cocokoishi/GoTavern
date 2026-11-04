@@ -4,6 +4,7 @@ package server
 
 import (
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"math"
 	"net/http"
 	"os"
@@ -36,11 +37,11 @@ func validateCharactersFilenameField(w http.ResponseWriter, body orderedNodeJSON
 	}
 	text, err := characterString(value)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return false
 	}
 	if forbiddenAvatarRegExp(text) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return false
 	}
 	return true
@@ -96,7 +97,7 @@ func (runtime *accountRuntime) serveCharactersGet(w http.ResponseWriter, request
 	}
 	parsed, err := runtime.readCharactersRequest(request)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	body := parsed.body
@@ -105,18 +106,18 @@ func (runtime *accountRuntime) serveCharactersGet(w http.ResponseWriter, request
 	}
 	directories, ok := runtime.charactersDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	item, isString := nodeGet(body, "avatar_url").stringValue()
 	if !isString {
 		// path.join throws when the avatar is not a string.
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	filePath := filepath.Join(directories["characters"], item)
 	if _, err := os.Stat(filePath); err != nil {
-		serveStatusText(w, http.StatusNotFound)
+		httpx.WriteStatusText(w, http.StatusNotFound)
 		return
 	}
 	respondCharacterJSON(w, http.StatusOK, processCharacter(item, directories, false))
@@ -129,7 +130,7 @@ func (runtime *accountRuntime) serveCharactersChats(w http.ResponseWriter, reque
 	}
 	parsed, err := runtime.readCharactersRequest(request)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	body := parsed.body

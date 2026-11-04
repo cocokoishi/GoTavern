@@ -18,6 +18,7 @@ package server
 import (
 	"encoding/base64"
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"strings"
 	"time"
@@ -55,20 +56,20 @@ func (runtime *accountRuntime) serveOpenAIChutesTranscribe(w http.ResponseWriter
 	}
 	key, err := startup.ReadSecretString(directories, "api_key_chutes")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if key == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	fileBytes, fields, _, ok := readTranscribeUpload(runtime.options.DataRoot, request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if fileBytes == nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 
@@ -76,7 +77,7 @@ func (runtime *accountRuntime) serveOpenAIChutesTranscribe(w http.ResponseWriter
 	payload.setMember("audio_b64", nodeString(base64.StdEncoding.EncodeToString(fileBytes)))
 	body, err := marshalCharacterJSON(payload)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 
@@ -93,7 +94,7 @@ func (runtime *accountRuntime) serveOpenAIChutesTranscribe(w http.ResponseWriter
 		Body: body,
 	}, 120*time.Second)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {
@@ -108,11 +109,11 @@ func (runtime *accountRuntime) serveOpenAIChutesTranscribe(w http.ResponseWriter
 		Text string `json:"text"`
 	}
 	if err := json.Unmarshal(response.Body, &chunks); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !strings.HasPrefix(strings.TrimSpace(string(response.Body)), "[") {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	var builder strings.Builder
@@ -123,8 +124,8 @@ func (runtime *accountRuntime) serveOpenAIChutesTranscribe(w http.ResponseWriter
 	answer.setMember("text", nodeString(strings.TrimSpace(builder.String())))
 	encoded, err := marshalCharacterJSON(answer)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, encoded)
+	httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 }

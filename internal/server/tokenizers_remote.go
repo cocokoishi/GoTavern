@@ -29,6 +29,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -76,7 +77,7 @@ func tokenizerNodeNumber(value float64) string {
 func (runtime *accountRuntime) serveRemoteKoboldCount(w http.ResponseWriter, request *http.Request) {
 	body, bodyOK := tokenizerRawBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	input := map[string]json.RawMessage{}
@@ -283,7 +284,7 @@ func (runtime *accountRuntime) serveRemoteTextGenerationEncode(w http.ResponseWr
 	// `Object.assign(requestHeaders, headers)`, whose last act is the requestOverrides assignment.
 	headers, headersErr := backendsAdditionalHeaders(body, directories)
 	if headersErr != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	headers["content-type"] = "application/json"
@@ -293,17 +294,17 @@ func (runtime *accountRuntime) serveRemoteTextGenerationEncode(w http.ResponseWr
 	apiType, apiTypeIsString := apiTypeNode.stringValue()
 	if !apiTypeIsString {
 		// The pinned switch is over the RAW value: a missing or non-string api_type matches no case.
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	suffix, supported := textgenTokenizeSuffix(apiType)
 	if !supported {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	payloadNode, payloadOK := textgenTokenizePayload(apiType, text, model)
 	if !payloadOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	payload, payloadErr := marshalOrderedNodeJSON(payloadNode)

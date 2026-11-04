@@ -44,6 +44,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"math"
 	"mime"
@@ -587,7 +588,7 @@ func sdResponseOK(response *outbound.Response) bool {
 func serveSDStatus(w http.ResponseWriter, status int) {
 	body := []byte(http.StatusText(status))
 	if status == http.StatusNoContent || status == http.StatusNotModified {
-		w.Header().Set("ETag", expressWeakETag(body))
+		w.Header().Set("ETag", httpx.WeakETag(body))
 		w.WriteHeader(status)
 		return
 	}
@@ -609,7 +610,7 @@ func serveSDValue(w http.ResponseWriter, value orderedNodeJSON) {
 		w.WriteHeader(http.StatusOK)
 	case 'n':
 		w.Header().Set("Content-Length", "0")
-		w.Header().Set("ETag", expressWeakETag(nil))
+		w.Header().Set("ETag", httpx.WeakETag(nil))
 		w.WriteHeader(http.StatusOK)
 	case 's':
 		text, _ := value.stringValue()

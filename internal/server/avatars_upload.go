@@ -23,6 +23,7 @@ package server
 import (
 	"errors"
 	"fmt"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"net/http"
 	"os"
@@ -52,7 +53,7 @@ func (runtime *accountRuntime) serveAvatarsUpload(w http.ResponseWriter, request
 		if stagedPath != "" {
 			_ = os.Remove(stagedPath)
 		}
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 
@@ -62,14 +63,14 @@ func (runtime *accountRuntime) serveAvatarsUpload(w http.ResponseWriter, request
 	overwriteName := fields["overwrite_name"]
 	if filenameFieldHasForbiddenPathCharacters(overwriteName) {
 		_ = os.Remove(stagedPath)
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 
 	raw, readErr := os.ReadFile(stagedPath)
 	if readErr != nil {
 		_ = os.Remove(stagedPath)
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 
@@ -103,13 +104,13 @@ func (runtime *accountRuntime) serveAvatarsUpload(w http.ResponseWriter, request
 	directories, dirErr := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
 	if dirErr != nil {
 		_ = os.Remove(stagedPath)
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	target := filepath.Join(directories["avatars"], filename)
 	if writeErr := startup.WriteFileAtomic(target, encoded); writeErr != nil {
 		_ = os.Remove(stagedPath)
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	_ = os.Remove(stagedPath)

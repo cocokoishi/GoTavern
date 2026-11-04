@@ -32,6 +32,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"strconv"
 	"strings"
@@ -104,16 +105,16 @@ func (runtime *accountRuntime) serveOpenAIGenerateVideo(w http.ResponseWriter, r
 	}
 	key, err := startup.ReadSecretString(directories, "api_key_openai")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if key == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 
@@ -129,7 +130,7 @@ func (runtime *accountRuntime) serveOpenAIGenerateVideo(w http.ResponseWriter, r
 	setRawMember(&create, "seconds", openAIOrDefaultRaw(input, "seconds", openAIVideoDefaultSeconds))
 	body, err := marshalCharacterJSON(create)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 
@@ -152,7 +153,7 @@ func (runtime *accountRuntime) serveOpenAIGenerateVideo(w http.ResponseWriter, r
 			googleTextFailure(w, openAIVideoAborted)
 			return
 		}
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(created) {
@@ -161,7 +162,7 @@ func (runtime *accountRuntime) serveOpenAIGenerateVideo(w http.ResponseWriter, r
 	}
 	createdPayload, err := decodeOrderedNodeJSON(created.Body)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	jobID := ""
@@ -198,7 +199,7 @@ func (runtime *accountRuntime) serveOpenAIGenerateVideo(w http.ResponseWriter, r
 				googleTextFailure(w, openAIVideoAborted)
 				return
 			}
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		if !outboundOK(polled) {
@@ -207,7 +208,7 @@ func (runtime *accountRuntime) serveOpenAIGenerateVideo(w http.ResponseWriter, r
 		}
 		pollPayload, err := decodeOrderedNodeJSON(polled.Body)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		status := ""
@@ -233,7 +234,7 @@ func (runtime *accountRuntime) serveOpenAIGenerateVideo(w http.ResponseWriter, r
 				googleTextFailure(w, openAIVideoAborted)
 				return
 			}
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		if !outboundOK(content) {
@@ -245,10 +246,10 @@ func (runtime *accountRuntime) serveOpenAIGenerateVideo(w http.ResponseWriter, r
 		answer.setMember("data", nodeString(base64.StdEncoding.EncodeToString(content.Body)))
 		encoded, err := marshalCharacterJSON(answer)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
-		respondJSONBytes(w, http.StatusOK, encoded)
+		httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 		return
 	}
 

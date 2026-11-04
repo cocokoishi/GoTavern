@@ -10,6 +10,7 @@ package server
 // deterministic anyway because its non-empty branch throws upstream (see below).
 
 import (
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -27,13 +28,13 @@ func (runtime *accountRuntime) serveChatsImport(w http.ResponseWriter, request *
 	}
 	parsed, err := parseCharactersMultipart(request, runtime.options.DataRoot)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	defer removeStagedCharacterUpload(parsed.stagedPath)
 	input := parsed.body
 	if rawAvatarURL, exists := input.member("avatar_url"); exists && pinnedAvatarURLRejected(rawAvatarURL) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	// `(request.body.avatar_url).replace('.png','')` runs outside the pinned
@@ -41,23 +42,23 @@ func (runtime *accountRuntime) serveChatsImport(w http.ResponseWriter, request *
 	// Express error handler; GoTavern answers 500 instead.
 	avatar, isString := nodeGet(input, "avatar_url").stringValue()
 	if !isString {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// `sanitize(request.body.character_name) || 'Character'` likewise throws for
 	// a non-string and is outside the try/catch.
 	characterName, ok := pinnedImportName(input, "character_name", "Character")
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	userName, ok := pinnedImportName(input, "user_name", "User")
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if parsed.stagedPath == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.pinnedChatsDirectories(account)
@@ -67,7 +68,7 @@ func (runtime *accountRuntime) serveChatsImport(w http.ResponseWriter, request *
 	}
 	directoryPath := filepath.Join(directories["chats"], pinnedReplaceFirst(avatar, ".png", ""))
 	if !pinnedPathUnderParent(directories["chats"], directoryPath) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	format, _ := nodeGet(input, "file_type").stringValue()
@@ -127,7 +128,7 @@ func (runtime *accountRuntime) serveChatsImport(w http.ResponseWriter, request *
 		// The pinned handler sends no response at all for an unknown file_type,
 		// leaving the request open until the client times out. GoTavern answers
 		// 400 instead; see docs/compat-matrix.md.
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 	}
 }
 

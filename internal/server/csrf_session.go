@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"net/http"
 	"os"
@@ -219,7 +220,7 @@ func serveCSRFToken(w http.ResponseWriter, request *http.Request, options HTTPHa
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
-	w.Header().Set("ETag", expressWeakETag(body))
+	w.Header().Set("ETag", httpx.WeakETag(body))
 	w.Header().Set("Vary", "Origin, Accept-Encoding")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(body)
@@ -237,7 +238,7 @@ func serveDisabledCSRFToken(w http.ResponseWriter, request *http.Request) {
 	body := []byte(`{"token":"disabled"}`)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
-	w.Header().Set("ETag", expressWeakETag(body))
+	w.Header().Set("ETag", httpx.WeakETag(body))
 	w.Header().Set("Vary", "Origin, Accept-Encoding")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(body)
@@ -304,7 +305,7 @@ func serveInvalidCSRFToken(w http.ResponseWriter) {
 
 func servePing(w http.ResponseWriter, request *http.Request, options HTTPHandlerOptions) {
 	if options.AccountsEnabled && accountFromContext(request).user == nil {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	if request.URL.Query().Get("extend") != "" {
@@ -315,7 +316,7 @@ func servePing(w http.ResponseWriter, request *http.Request, options HTTPHandler
 			}
 		}
 	}
-	w.Header().Set("ETag", expressWeakETag([]byte("No Content")))
+	w.Header().Set("ETag", httpx.WeakETag([]byte("No Content")))
 	w.Header().Set("Vary", "Origin")
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -36,8 +36,8 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
-	"strconv"
 
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
@@ -71,7 +71,7 @@ func (runtime *accountRuntime) secretsDirectories(w http.ResponseWriter, request
 	}
 	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return nil, false
 	}
 	return directories, true
@@ -109,10 +109,10 @@ func (runtime *accountRuntime) serveSecretsRead(w http.ResponseWriter, request *
 	body, err := startup.ReadSecretState(directories, runtime.options.AllowKeysExposure)
 	if err != nil {
 		// The pinned handler's catch answers {} rather than an error status.
-		respondJSONBytes(w, http.StatusOK, []byte("{}"))
+		httpx.WriteJSONBytes(w, http.StatusOK, []byte("{}"))
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // serveSecretsView answers the active raw value per key, and 403 without allowKeysExposure.
@@ -122,15 +122,15 @@ func (runtime *accountRuntime) serveSecretsView(w http.ResponseWriter, request *
 		return
 	}
 	if !runtime.options.AllowKeysExposure {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	body, err := startup.ReadActiveSecrets(directories)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // serveSecretsFind answers one raw value: { value }.
@@ -141,7 +141,7 @@ func (runtime *accountRuntime) serveSecretsFind(w http.ResponseWriter, request *
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	keyRaw, hasKey := input["key"]
@@ -153,40 +153,40 @@ func (runtime *accountRuntime) serveSecretsFind(w http.ResponseWriter, request *
 	if !keyIsString {
 		// Known gap: the pinned code coerces a non-string truthy key through ToPropertyKey
 		// ("5", "true"). The oracle does not cover it, so it is not claimed here.
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if !runtime.options.AllowKeysExposure && !startup.IsExportableSecretKey(keyID) {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	present, err := startup.SecretStatePresence(directories, runtime.options.AllowKeysExposure, keyID)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// The state map has no own property for a non-SECRET_KEYS key, so only the prototype chain can
 	// make `!state[key]` false there.
 	if !present && !objectPrototypeSecretKeys[keyID] {
-		serveStatusText(w, http.StatusNotFound)
+		httpx.WriteStatusText(w, http.StatusNotFound)
 		return
 	}
 	identifier, hasIdentifier, ok := secretIdentifierValue(input["id"])
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	value, err := startup.ReadSecretValue(directories, keyID, identifier, hasIdentifier)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	body, err := startup.SecretFindResponse(value)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // serveSecretsDelete removes one entry and answers 204.
@@ -197,7 +197,7 @@ func (runtime *accountRuntime) serveSecretsDelete(w http.ResponseWriter, request
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	keyRaw, hasKey := input["key"]
@@ -207,16 +207,16 @@ func (runtime *accountRuntime) serveSecretsDelete(w http.ResponseWriter, request
 	}
 	keyID, keyIsString := secretsStringValue(keyRaw)
 	if !keyIsString {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	identifier, hasIdentifier, ok := secretIdentifierValue(input["id"])
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if err := startup.DeleteSecret(directories, keyID, identifier, hasIdentifier); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	serveNoContent(w)
@@ -230,7 +230,7 @@ func (runtime *accountRuntime) serveSecretsRotate(w http.ResponseWriter, request
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	keyRaw, hasKey := input["key"]
@@ -241,16 +241,16 @@ func (runtime *accountRuntime) serveSecretsRotate(w http.ResponseWriter, request
 	}
 	keyID, keyIsString := secretsStringValue(keyRaw)
 	if !keyIsString {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	identifier, _, ok := secretIdentifierValue(idRaw)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if err := startup.RotateSecret(directories, keyID, identifier); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	serveNoContent(w)
@@ -264,7 +264,7 @@ func (runtime *accountRuntime) serveSecretsRename(w http.ResponseWriter, request
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	keyRaw, hasKey := input["key"]
@@ -276,23 +276,23 @@ func (runtime *accountRuntime) serveSecretsRename(w http.ResponseWriter, request
 	}
 	keyID, keyIsString := secretsStringValue(keyRaw)
 	if !keyIsString {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	identifier, _, ok := secretIdentifierValue(idRaw)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	// Only the label's truthiness is checked upstream, so its JSON type is preserved: a number is
 	// written as a number.
 	label, _, ok := secretIdentifierValue(labelRaw)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if err := startup.RenameSecret(directories, keyID, identifier, label); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	serveNoContent(w)
@@ -310,7 +310,7 @@ func (runtime *accountRuntime) serveSecretsWrite(w http.ResponseWriter, request 
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	keyRaw, hasKey := input["key"]
@@ -323,12 +323,12 @@ func (runtime *accountRuntime) serveSecretsWrite(w http.ResponseWriter, request 
 	labelRaw, labelPresent := input["label"]
 	label, _, labelOK := secretIdentifierValue(labelRaw)
 	if !labelOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	id, err := startup.WriteSecret(directories, key, value, label, labelPresent)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]string{"id": id})
@@ -358,11 +358,5 @@ func secretsStringValue(raw []byte) (string, bool) {
 }
 
 // respondJSONBytes writes an already-serialized JSON body with the same headers respondJSON sets,
-// so a pre-marshalled ordered object keeps its pinned key order.
-func respondJSONBytes(w http.ResponseWriter, status int, body []byte) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", expressWeakETag(body))
-	w.WriteHeader(status)
-	_, _ = w.Write(body)
-}
+// so a pre-marshalled ordered object keeps its pinned key order. The writer itself lives in
+// internal/httpx (GOAL.md §15.4 move-only extraction); this file keeps only its call sites.

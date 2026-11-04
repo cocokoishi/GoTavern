@@ -12,6 +12,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -44,10 +45,10 @@ func (runtime *accountRuntime) serveStatsGet(w http.ResponseWriter, request *htt
 	body, err := readStatsFile(directories)
 	if err != nil || len(body) == 0 {
 		// The pinned handler answers {} when there is no entry for the handle.
-		respondJSONBytes(w, http.StatusOK, []byte("{}"))
+		httpx.WriteJSONBytes(w, http.StatusOK, []byte("{}"))
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // readStatsFile returns the raw stats.json body, preserving its key order, or nil when absent.
@@ -77,30 +78,30 @@ func (runtime *accountRuntime) serveStatsUpdate(w http.ResponseWriter, request *
 	}
 	body, bodyOK := tokenizerRawBody(request)
 	if !bodyOK || len(body) == 0 || string(body) == "null" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	var stats map[string]any
 	if err := json.Unmarshal(body, &stats); err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	stats["timestamp"] = time.Now().UnixMilli()
 	encoded, err := json.Marshal(stats)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	root := directories["root"]
 	if root == "" {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if err := startup.WriteFileAtomic(filepath.Join(root, "stats.json"), encoded); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	serveStatusText(w, http.StatusOK)
+	httpx.WriteStatusText(w, http.StatusOK)
 }
 
 // serveStatsRecreate reproduces POST /api/stats/recreate (stats.js:452): the requesting user's
@@ -113,10 +114,10 @@ func (runtime *accountRuntime) serveStatsRecreate(w http.ResponseWriter, request
 		return
 	}
 	if _, err := startup.RecreateUserStatistics(directories, time.Now()); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	serveStatusText(w, http.StatusOK)
+	httpx.WriteStatusText(w, http.StatusOK)
 }
 
 // The deprecated stats aliases /getstats, /updatestats and /recreatestats (src/server-startup.js:114-116)

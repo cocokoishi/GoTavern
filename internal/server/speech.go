@@ -46,6 +46,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"math/big"
 	"mime/multipart"
@@ -121,25 +122,25 @@ func (runtime *accountRuntime) servePollinationsVoices(w http.ResponseWriter, re
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	model := pollinationsDefaultModel
 	if raw, present := input["model"]; present && nodeTruthyJSON(raw) {
 		value, err := javascriptStringOfBody(raw)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		model = value
 	}
 	decoded, ok := speechUpstreamJSON(request, http.MethodGet, pollinationsAPIURL()+"/text/models", nil, nil)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if decoded.kind != 'a' {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// `data.find(m => m.name === model || m.aliases?.includes(model))`
@@ -167,20 +168,20 @@ func (runtime *accountRuntime) servePollinationsVoices(w http.ResponseWriter, re
 		}
 	}
 	if !jsTruthyNode(found) {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	voices := nodeGet(found, "voices")
 	if voices.kind != 'a' {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	body, err := marshalCharacterJSON(voices)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // servePollinationsGenerate synthesizes speech through the Pollinations chat completions endpoint.
@@ -192,7 +193,7 @@ func (runtime *accountRuntime) servePollinationsGenerate(w http.ResponseWriter, 
 	_ = directories
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	model := pollinationsDefaultModel
@@ -211,7 +212,7 @@ func (runtime *accountRuntime) servePollinationsGenerate(w http.ResponseWriter, 
 	// literal's order, and the seed is a fresh `Math.floor(Math.random() * 2 ** 32)` per request.
 	seed, err := randomPollinationsSeed()
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	audio := nodeObject()
@@ -222,7 +223,7 @@ func (runtime *accountRuntime) servePollinationsGenerate(w http.ResponseWriter, 
 	if raw, present := input["text"]; present {
 		text, err := decodeOrderedNodeJSON(raw)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		message.setMember("content", text)
@@ -238,7 +239,7 @@ func (runtime *accountRuntime) servePollinationsGenerate(w http.ResponseWriter, 
 	payload.setMember("messages", nodeArray(message))
 	body, err := marshalCharacterJSON(payload)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	decoded, ok := speechUpstreamJSON(request, http.MethodPost, pollinationsAPIURL()+"/v1/chat/completions",
@@ -247,22 +248,22 @@ func (runtime *accountRuntime) servePollinationsGenerate(w http.ResponseWriter, 
 			{Name: "Content-Type", Value: "application/json"},
 		}, body)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	audioData := nodeGet(decoded, "choices")
 	if audioData.kind != 'a' || len(audioData.array) == 0 {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	data := nodeGet(audioData.array[0], "message", "audio", "data")
 	if !jsTruthyNode(data) || data.kind != 's' {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	bytes, err := decodeBase64Node(data.scalar.(string))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "audio/mpeg")
@@ -284,7 +285,7 @@ func randomPollinationsSeed() (float64, error) {
 // not compress audio/mpeg, so an audio reply carries Vary: Origin alone.
 func respondBinary(w http.ResponseWriter, status int, body []byte) {
 	w.Header().Set("Content-Length", strconvItoa(len(body)))
-	w.Header().Set("ETag", expressWeakETag(body))
+	w.Header().Set("ETag", httpx.WeakETag(body))
 	w.Header().Set("Vary", "Origin")
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
@@ -340,15 +341,15 @@ func (runtime *accountRuntime) elevenLabsJSONRequest(w http.ResponseWriter, requ
 	decoded, ok := speechUpstreamJSON(request, http.MethodGet, elevenLabsAPIURL()+path,
 		[]outbound.Header{{Name: "xi-api-key", Value: key}}, nil)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	body, err := marshalCharacterJSON(decoded)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 func (runtime *accountRuntime) serveElevenLabsVoices(w http.ResponseWriter, request *http.Request) {
@@ -371,29 +372,29 @@ func (runtime *accountRuntime) serveElevenLabsSynthesize(w http.ResponseWriter, 
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	voiceID, hasVoice := input["voiceId"]
 	requestBody, hasRequest := input["request"]
 	if !hasVoice || !nodeTruthyJSON(voiceID) || !hasRequest || !nodeTruthyJSON(requestBody) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	voiceText, err := javascriptStringOfBody(voiceID)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// `JSON.stringify(request)`: the sub-object is re-serialized from the parsed body.
 	serialized, err := decodeOrderedNodeJSON(requestBody)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	body, err := marshalCharacterJSON(serialized)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	runtime.forwardElevenLabsAudio(w, request, http.MethodPost, elevenLabsAPIURL()+"/v1/text-to-speech/"+voiceText, key, body)
@@ -407,17 +408,17 @@ func (runtime *accountRuntime) serveElevenLabsHistoryAudio(w http.ResponseWriter
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	historyID, hasID := input["historyItemId"]
 	if !hasID || !nodeTruthyJSON(historyID) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	idText, err := javascriptStringOfBody(historyID)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	runtime.forwardElevenLabsAudio(w, request, http.MethodGet, elevenLabsAPIURL()+"/v1/history/"+idText+"/audio", key, nil)
@@ -439,12 +440,12 @@ func (runtime *accountRuntime) forwardElevenLabsAudio(w http.ResponseWriter, req
 		Body:    body,
 	}, 120*time.Second)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	defer response.Stream.Close()
 	if !outboundOK(response) {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// forwardFetchResponse copies the upstream status (401 becomes 400 there, but the !ok guard above
@@ -464,7 +465,7 @@ func (runtime *accountRuntime) serveElevenLabsVoicesAdd(w http.ResponseWriter, r
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	name := "Custom Voice"
@@ -488,15 +489,15 @@ func (runtime *accountRuntime) serveElevenLabsVoicesAdd(w http.ResponseWriter, r
 	var buffer bytes.Buffer
 	writer := multipart.NewWriter(&buffer)
 	if err := writer.WriteField("name", name); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if err := writer.WriteField("description", description); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if err := writer.WriteField("labels", labels); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if raw, present := input["files"]; present {
@@ -516,14 +517,14 @@ func (runtime *accountRuntime) serveElevenLabsVoicesAdd(w http.ResponseWriter, r
 					continue
 				}
 				if err := writeSpeechFilePart(writer, "files", "audio."+extensionForAudioMimeType(mimeType), mimeType, decoded); err != nil {
-					serveStatusText(w, http.StatusInternalServerError)
+					httpx.WriteStatusText(w, http.StatusInternalServerError)
 					return
 				}
 			}
 		}
 	}
 	if err := writer.Close(); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	decoded, ok := speechUpstreamJSON(request, http.MethodPost, elevenLabsAPIURL()+"/v1/voices/add",
@@ -532,15 +533,15 @@ func (runtime *accountRuntime) serveElevenLabsVoicesAdd(w http.ResponseWriter, r
 			{Name: "Content-Type", Value: writer.FormDataContentType()},
 		}, buffer.Bytes())
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	responseBody, err := marshalCharacterJSON(decoded)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, responseBody)
+	httpx.WriteJSONBytes(w, http.StatusOK, responseBody)
 }
 
 // writeSpeechFilePart writes one file part with an EXPLICIT content type. multipart.Writer.CreateFormFile
@@ -602,21 +603,21 @@ func (runtime *accountRuntime) serveElevenLabsRecognize(w http.ResponseWriter, r
 	}
 	fileBytes, model, found := readSpeechUpload(runtime.options.DataRoot, request)
 	if !found {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	var buffer bytes.Buffer
 	writer := multipart.NewWriter(&buffer)
 	if err := writeSpeechFilePart(writer, "file", "audio.wav", "audio/wav", fileBytes); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if err := writer.WriteField("model_id", model); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if err := writer.Close(); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	decoded, ok := speechUpstreamJSON(request, http.MethodPost, elevenLabsAPIURL()+"/v1/speech-to-text",
@@ -625,15 +626,15 @@ func (runtime *accountRuntime) serveElevenLabsRecognize(w http.ResponseWriter, r
 			{Name: "Content-Type", Value: writer.FormDataContentType()},
 		}, buffer.Bytes())
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	responseBody, err := marshalCharacterJSON(decoded)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, responseBody)
+	httpx.WriteJSONBytes(w, http.StatusOK, responseBody)
 }
 
 // readSpeechUpload reads the multipart upload the pinned global `multer().single('avatar')` would

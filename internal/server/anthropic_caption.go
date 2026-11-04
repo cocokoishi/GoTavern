@@ -48,6 +48,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"net/url"
 	"strings"
@@ -101,10 +102,10 @@ func anthropicCaptionJSONError(w http.ResponseWriter, status int) {
 	answer.setMember("error", nodeBool(true))
 	encoded, err := marshalCharacterJSON(answer)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, status, encoded)
+	httpx.WriteJSONBytes(w, status, encoded)
 }
 
 // anthropicCaptionJSString is JavaScript `String(value)` for a present member, used for the header value.
@@ -128,7 +129,7 @@ func (runtime *accountRuntime) serveAnthropicCaptionImage(w http.ResponseWriter,
 		// The pinned handler never sees an unparsable body: express.json() answers 400 first, so this is
 		// the server's answer and not the route's. The scenario records that status; the pinned page's
 		// bytes are Node's development error renderer and are classified shape, not compared.
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 
@@ -302,7 +303,7 @@ func (runtime *accountRuntime) serveAnthropicCaptionImage(w http.ResponseWriter,
 		anthropicCaptionTextFailure(w, "Internal server error")
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, output)
+	httpx.WriteJSONBytes(w, http.StatusOK, output)
 }
 
 // anthropicCaptionIndex reproduces JavaScript `value[0]`. The second result is false when the pinned

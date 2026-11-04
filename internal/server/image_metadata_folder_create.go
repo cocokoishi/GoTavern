@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"net/http"
 	"strings"
@@ -18,7 +19,7 @@ func (runtime *accountRuntime) serveImageMetadataFolderCreate(w http.ResponseWri
 	}
 	input, bodyError, accessError := readImageMetadataRequestBody(request)
 	if bodyError {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if accessError {

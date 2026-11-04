@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -21,30 +22,30 @@ func (runtime *accountRuntime) serveBackgroundsRename(w http.ResponseWriter, req
 		valid = true
 	}
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	oldFilename, oldExists := input["old_bg"]
 	newFilename, newExists := input["new_bg"]
 	if !oldExists || !newExists {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	oldName, oldIsString := readBackgroundRenameString(oldFilename)
 	newName, newIsString := readBackgroundRenameString(newFilename)
 	if !oldIsString || !newIsString {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	sanitizedOldName := startup.SanitizeUserFilename(oldName)
 	sanitizedNewName := startup.SanitizeUserFilename(newName)
 	renamed, err := startup.RenameUserBackground(runtime.options.DataRoot, account.string("handle"), sanitizedOldName, sanitizedNewName)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !renamed {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	oldRelativePath := nodeImageMetadataIndexPath(filepath.Join("backgrounds", oldName))

@@ -33,6 +33,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io/fs"
 	"net/http"
 	"os"
@@ -89,12 +90,12 @@ func (runtime *accountRuntime) imagesDirectories(w http.ResponseWriter, request 
 	}
 	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return nil, "", false
 	}
 	images, present := directories["userImages"]
 	if !present || images == "" {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return nil, "", false
 	}
 	return directories, images, true
@@ -160,7 +161,7 @@ func (runtime *accountRuntime) serveImagesUpload(w http.ResponseWriter, request 
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	formatRaw, hasFormat := input["format"]
@@ -264,7 +265,7 @@ func (runtime *accountRuntime) serveImagesList(w http.ResponseWriter, request *h
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	bodyFolder, bodyFolderPresent := input["folder"]
@@ -435,7 +436,7 @@ func (runtime *accountRuntime) serveImagesDelete(w http.ResponseWriter, request 
 	root := directories["root"]
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	pathRaw, hasPath := input["path"]
@@ -446,7 +447,7 @@ func (runtime *accountRuntime) serveImagesDelete(w http.ResponseWriter, request 
 	submitted, isString := secretsStringValue(pathRaw)
 	if !isString {
 		// `path.join(root, nonString)` throws in the pinned handler, which its catch answers 500.
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	pathToDelete := filepath.Join(root, submitted)
@@ -458,14 +459,14 @@ func (runtime *accountRuntime) serveImagesDelete(w http.ResponseWriter, request 
 		respondText(w, http.StatusNotFound, "text/html; charset=utf-8", "File not found")
 		return
 	} else if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if err := os.Remove(pathToDelete); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	serveStatusText(w, http.StatusOK)
+	httpx.WriteStatusText(w, http.StatusOK)
 }
 
 // isPathUnderParentToken mirrors `isPathUnderParent(parentPath, childPath)`.

@@ -4,6 +4,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -65,17 +66,17 @@ func (runtime *accountRuntime) serveChatsRename(w http.ResponseWriter, request *
 	}
 	input, valid := readFilesUploadBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if rawAvatarURL, exists := input["avatar_url"]; exists {
 		if value, err := decodeOrderedNodeJSON(rawAvatarURL); err == nil && pinnedAvatarURLRejected(value) {
-			serveStatusText(w, http.StatusBadRequest)
+			httpx.WriteStatusText(w, http.StatusBadRequest)
 			return
 		}
 	}
 	if !nodeTruthyJSON(input["original_file"]) || !nodeTruthyJSON(input["renamed_file"]) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.pinnedChatsDirectories(account)
@@ -89,7 +90,7 @@ func (runtime *accountRuntime) serveChatsRename(w http.ResponseWriter, request *
 		return
 	}
 	if !isGroup && !pinnedPathUnderParent(directories["chats"], folder) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	originalName, ok := pinnedStrictSanitize(input, "original_file")
@@ -149,12 +150,12 @@ func (runtime *accountRuntime) serveChatsDelete(w http.ResponseWriter, request *
 	}
 	input, valid := readFilesUploadBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if rawAvatarURL, exists := input["avatar_url"]; exists {
 		if value, err := decodeOrderedNodeJSON(rawAvatarURL); err == nil && pinnedAvatarURLRejected(value) {
-			serveStatusText(w, http.StatusBadRequest)
+			httpx.WriteStatusText(w, http.StatusBadRequest)
 			return
 		}
 	}
@@ -163,12 +164,12 @@ func (runtime *accountRuntime) serveChatsDelete(w http.ResponseWriter, request *
 	// so its catch turns that into a 500.
 	rawChatFile, exists := input["chatfile"]
 	if !exists {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	chatFileValue, err := decodeOrderedNodeJSON(rawChatFile)
 	if err != nil || chatFileValue.kind != 's' {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	chatFile, _ := chatFileValue.scalar.(string)
@@ -177,34 +178,34 @@ func (runtime *accountRuntime) serveChatsDelete(w http.ResponseWriter, request *
 	}
 	directories, ok := runtime.pinnedChatsDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	avatar, ok := pinnedStringValue(input, "avatar_url")
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	chatFilePath := filepath.Join(directories["chats"], pinnedReplaceFirst(avatar, ".png", ""), startup.SanitizeUserFilename(chatFile))
 	if !pinnedPathUnderParent(directories["chats"], chatFilePath) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	relativePath, err := filepath.Rel(directories["root"], chatFilePath)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	deleted, err := startup.DeleteUserFile(runtime.options.DataRoot, account.string("handle"), relativePath)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if deleted {
 		faultinject.Hit("chats.delete.after-remove")
 	}
 	if !deleted {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
@@ -217,12 +218,12 @@ func (runtime *accountRuntime) serveChatsExport(w http.ResponseWriter, request *
 	}
 	input, valid := readFilesUploadBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if rawAvatarURL, exists := input["avatar_url"]; exists {
 		if value, err := decodeOrderedNodeJSON(rawAvatarURL); err == nil && pinnedAvatarURLRejected(value) {
-			serveStatusText(w, http.StatusBadRequest)
+			httpx.WriteStatusText(w, http.StatusBadRequest)
 			return
 		}
 	}
@@ -234,17 +235,17 @@ func (runtime *accountRuntime) serveChatsExport(w http.ResponseWriter, request *
 		}
 	}
 	if !nodeTruthyJSON(input["file"]) || (!nodeTruthyJSON(input["avatar_url"]) && isGroupFalse) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.pinnedChatsDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	folder, isGroup, ok := pinnedChatFolder(input, directories)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	fileName, ok := pinnedStrictSanitize(input, "file")
@@ -252,17 +253,17 @@ func (runtime *accountRuntime) serveChatsExport(w http.ResponseWriter, request *
 		// sanitize() runs outside the pinned try/catch and the handler is async,
 		// so a non-string file rejects the handler and terminates the process.
 		// GoTavern answers 500 instead of crashing; see docs/compat-matrix.md.
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	filename := filepath.Join(folder, fileName)
 	if !isGroup && !pinnedPathUnderParent(directories["chats"], filename) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	exportFileName, ok := pinnedStringValue(input, "exportfilename")
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if _, err := os.Stat(filename); err != nil {
@@ -287,7 +288,7 @@ func (runtime *accountRuntime) serveChatsExport(w http.ResponseWriter, request *
 
 	body, err := os.ReadFile(filename)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	var buffer strings.Builder
@@ -297,7 +298,7 @@ func (runtime *accountRuntime) serveChatsExport(w http.ResponseWriter, request *
 			// Pinned Node parses inside a readline 'line' listener, so a
 			// malformed line escapes the route's try/catch and terminates the
 			// process. GoTavern answers 500 instead of crashing.
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		if jsTruthy(nodeGet(parsed, "is_system")) {
@@ -315,7 +316,7 @@ func (runtime *accountRuntime) serveChatsExport(w http.ResponseWriter, request *
 		}
 		textValue, err := characterString(text)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		buffer.WriteString(name + ": " + replaceCarriageReturns(textValue) + "\n\n")

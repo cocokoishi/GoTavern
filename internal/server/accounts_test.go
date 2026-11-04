@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -239,8 +240,8 @@ func TestPinnedNodeAccountsEnabledLoginAndSessionContract(t *testing.T) {
 		t.Fatalf("POST /api/users/list = %d with %d bytes; pinned Node has %d with %d bytes", listResponse.Code, listResponse.Body.Len(), fixture.UserList.Status, fixture.UserList.Bytes)
 	}
 	assertPinnedHeadersExcluding(t, listResponse.Header(), withoutHeader(fixture.UserList.Headers, "etag"), "ETag")
-	if got := listResponse.Header().Get("ETag"); got != expressWeakETag(listResponse.Body.Bytes()) {
-		t.Fatalf("user list ETag = %q; Express format gives %q", got, expressWeakETag(listResponse.Body.Bytes()))
+	if got := listResponse.Header().Get("ETag"); got != httpx.WeakETag(listResponse.Body.Bytes()) {
+		t.Fatalf("user list ETag = %q; Express format gives %q", got, httpx.WeakETag(listResponse.Body.Bytes()))
 	}
 	var listedUsers []map[string]any
 	if err := json.Unmarshal(listResponse.Body.Bytes(), &listedUsers); err != nil {

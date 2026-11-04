@@ -54,6 +54,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"html"
 	"net/http"
 	"os"
@@ -98,7 +99,7 @@ func (runtime *accountRuntime) serveExtensionStatic(w http.ResponseWriter, r *ht
 		return
 	}
 	// The pinned route ends with res.sendStatus(404), which is text/plain.
-	serveStatusText(w, http.StatusNotFound)
+	httpx.WriteStatusText(w, http.StatusNotFound)
 }
 
 // servePinnedExtensionRoot reproduces one pass of the pinned handler over one
@@ -108,7 +109,7 @@ func servePinnedExtensionRoot(w http.ResponseWriter, r *http.Request, root, file
 	target := filepath.Join(root, filePath)
 	if !nodeIsPathUnderParent(root, target) {
 		// res.sendStatus(403), which is text/plain.
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return true
 	}
 	if _, err := os.Stat(target); err != nil {
@@ -138,7 +139,7 @@ func nodeIsPathUnderParent(parent, child string) bool {
 func sendPinnedExtensionFile(w http.ResponseWriter, r *http.Request, target, filePath string, notFoundPage []byte) {
 	// res.sendFile throws for an empty path and the route's catch answers 500.
 	if filePath == "" {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	info, err := os.Stat(target)
@@ -469,7 +470,7 @@ func respondPinnedExtensionErrorPage(w http.ResponseWriter, status int, contentR
 	body := []byte(pinnedSendErrorDocument(status))
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", expressWeakETag(body))
+	w.Header().Set("ETag", httpx.WeakETag(body))
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
 }

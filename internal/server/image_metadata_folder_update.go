@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"fmt"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 
 	"github.com/cocokoishi/gotavern/internal/startup"
@@ -23,7 +24,7 @@ func (runtime *accountRuntime) serveImageMetadataFolderUpdate(w http.ResponseWri
 	}
 	input, bodyError, accessError := readImageMetadataRequestBody(request)
 	if bodyError {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if accessError {

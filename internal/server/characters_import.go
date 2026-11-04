@@ -8,6 +8,7 @@ package server
 // is recorded as a known gap in docs/compat-matrix.md.
 
 import (
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -26,17 +27,17 @@ func (runtime *accountRuntime) serveCharactersImport(w http.ResponseWriter, requ
 	}
 	parsed, err := runtime.readCharactersRequest(request)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if parsed.stagedPath == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	defer removeStagedCharacterUpload(parsed.stagedPath)
 	directories, ok := runtime.charactersDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	body := parsed.body
@@ -68,7 +69,7 @@ func (runtime *accountRuntime) serveCharactersImport(w http.ResponseWriter, requ
 		return
 	}
 	if fileName == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if preservedFileName != "" {

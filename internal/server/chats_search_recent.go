@@ -14,6 +14,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -139,12 +140,12 @@ func (runtime *accountRuntime) serveChatsSearch(w http.ResponseWriter, request *
 	}
 	input, valid := readFilesUploadBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if rawAvatarURL, exists := input["avatar_url"]; exists {
 		if value, err := decodeOrderedNodeJSON(rawAvatarURL); err == nil && pinnedAvatarURLRejected(value) {
-			serveStatusText(w, http.StatusBadRequest)
+			httpx.WriteStatusText(w, http.StatusBadRequest)
 			return
 		}
 	}
@@ -297,12 +298,12 @@ func (runtime *accountRuntime) serveChatsRecent(w http.ResponseWriter, request *
 	}
 	input, valid := readFilesUploadBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.pinnedChatsDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	pinnedChats := nodeArray()

@@ -40,6 +40,7 @@ package server
 // divergent copy of those semantics.
 
 import (
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -122,14 +123,14 @@ func (runtime *accountRuntime) serveUserDataStatic(w http.ResponseWriter, r *htt
 	}
 	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	filePath := r.PathValue("rest")
 	if servePinnedExtensionRoot(w, r, directories[directoryKey], filePath, notFoundPage) {
 		return
 	}
-	serveStatusText(w, http.StatusNotFound)
+	httpx.WriteStatusText(w, http.StatusNotFound)
 }
 
 // serveUserCSS is the pinned userCssMiddleware: GET only, the override file if it exists, otherwise

@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 
 	"github.com/cocokoishi/gotavern/internal/startup"
@@ -14,7 +15,7 @@ func (runtime *accountRuntime) serveImageMetadataFolderSetThumbnails(w http.Resp
 	}
 	input, bodyError, accessError := readImageMetadataRequestBody(request)
 	if bodyError {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if accessError {

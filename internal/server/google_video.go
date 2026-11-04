@@ -28,6 +28,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"strconv"
 	"strings"
@@ -86,7 +87,7 @@ func (runtime *accountRuntime) serveGoogleGenerateVideo(w http.ResponseWriter, r
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	model := googleVideoDefaultModel
@@ -95,7 +96,7 @@ func (runtime *accountRuntime) serveGoogleGenerateVideo(w http.ResponseWriter, r
 	}
 	config, err := runtime.googleAPIConfigFor(request, directories, options, input, model, "predictLongRunning")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	isVertex := false
@@ -153,7 +154,7 @@ func (runtime *accountRuntime) serveGoogleGenerateVideo(w http.ResponseWriter, r
 	payload.setMember("parameters", parameters)
 	body, err := marshalCharacterJSON(payload)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 
@@ -174,7 +175,7 @@ func (runtime *accountRuntime) serveGoogleGenerateVideo(w http.ResponseWriter, r
 			googleTextFailure(w, "Video generation aborted by client")
 			return
 		}
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(created) {
@@ -183,7 +184,7 @@ func (runtime *accountRuntime) serveGoogleGenerateVideo(w http.ResponseWriter, r
 	}
 	createdPayload, err := decodeOrderedNodeJSON(created.Body)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	jobName := ""
@@ -218,7 +219,7 @@ func (runtime *accountRuntime) serveGoogleGenerateVideo(w http.ResponseWriter, r
 		if isVertex {
 			pollConfig, err := runtime.googleAPIConfigFor(request, directories, options, input, model, "fetchPredictOperation")
 			if err != nil {
-				serveStatusText(w, http.StatusInternalServerError)
+				httpx.WriteStatusText(w, http.StatusInternalServerError)
 				return
 			}
 			pollURL = pollConfig.url
@@ -227,7 +228,7 @@ func (runtime *accountRuntime) serveGoogleGenerateVideo(w http.ResponseWriter, r
 			operation.setMember("operationName", nodeString(jobName))
 			encoded, err := marshalCharacterJSON(operation)
 			if err != nil {
-				serveStatusText(w, http.StatusInternalServerError)
+				httpx.WriteStatusText(w, http.StatusInternalServerError)
 				return
 			}
 			pollBody = encoded
@@ -249,7 +250,7 @@ func (runtime *accountRuntime) serveGoogleGenerateVideo(w http.ResponseWriter, r
 				googleTextFailure(w, "Video generation aborted by client")
 				return
 			}
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		if callerGone() {
@@ -262,7 +263,7 @@ func (runtime *accountRuntime) serveGoogleGenerateVideo(w http.ResponseWriter, r
 		}
 		pollPayload, err := decodeOrderedNodeJSON(pollResponse.Body)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		done := false
@@ -312,7 +313,7 @@ func (runtime *accountRuntime) serveGoogleGenerateVideo(w http.ResponseWriter, r
 			Headers: googleRequestHeaders(videoURI, config.headers, 0),
 		}, 120*time.Second)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		if !outboundOK(fetched) {
@@ -330,10 +331,10 @@ func googleVideoAnswer(w http.ResponseWriter, videoBase64 string) {
 	answer.setMember("video", nodeString(videoBase64))
 	encoded, err := marshalCharacterJSON(answer)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, encoded)
+	httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 }
 
 var _ = json.Marshal

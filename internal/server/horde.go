@@ -35,6 +35,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"net/url"
 	"os"
@@ -135,7 +136,7 @@ func hordeGet(request *http.Request, target string) (*outbound.Response, error) 
 func (runtime *accountRuntime) serveHordeStatus(w http.ResponseWriter, request *http.Request) {
 	response, err := hordeGet(request, hordeAPIBaseURL()+"/api/v2/status/heartbeat")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]bool{"ok": response.Status >= 200 && response.Status <= 299})
@@ -149,14 +150,14 @@ func (runtime *accountRuntime) serveHordeTextModels(w http.ResponseWriter, reque
 	}
 	if !force {
 		if cached, present := hordeModels.get(); present {
-			respondJSONBytes(w, http.StatusOK, cached)
+			httpx.WriteJSONBytes(w, http.StatusOK, cached)
 			return
 		}
 	}
 
 	response, err := hordeGet(request, hordeAPIBaseURL()+"/api/v2/status/models?type=text")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// No `response.ok` check here, deliberately: the pinned handler calls json() directly, so a
@@ -164,7 +165,7 @@ func (runtime *accountRuntime) serveHordeTextModels(w http.ResponseWriter, reque
 	// divergence that no ordinary test would notice.
 	var models any
 	if err := json.Unmarshal(response.Body, &models); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if merged, ok := mergeHordeModelsMetadata(request, models); ok {
@@ -172,11 +173,11 @@ func (runtime *accountRuntime) serveHordeTextModels(w http.ResponseWriter, reque
 	}
 	body, err := json.Marshal(models)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	hordeModels.set(body)
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // mergeHordeModelsMetadata reproduces the pinned merge: for each model, `{...model, ...metadata[name],
@@ -231,13 +232,13 @@ func (runtime *accountRuntime) serveHordeTextWorkers(w http.ResponseWriter, requ
 	}
 	if !force {
 		if cached, present := hordeWorkers.get(); present {
-			respondJSONBytes(w, http.StatusOK, cached)
+			httpx.WriteJSONBytes(w, http.StatusOK, cached)
 			return
 		}
 	}
 	response, err := hordeGet(request, hordeAPIBaseURL()+"/api/v2/workers?type=text")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// THE PROVIDER'S BYTES ARE REPRODUCED THE WAY PINNED REPRODUCES THEM, NOT THE WAY Go WOULD BY DEFAULT.
@@ -263,14 +264,14 @@ func (runtime *accountRuntime) serveHordeTextWorkers(w http.ResponseWriter, requ
 	// non-alphabetical body carrying `<`, `&` and a non-BMP character.
 	workers, err := decodeOrderedNodeJSON(response.Body)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	body, err := marshalOrderedNodeJSON(workers)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	hordeWorkers.set(body)
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }

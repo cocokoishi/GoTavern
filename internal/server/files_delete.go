@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -15,7 +16,7 @@ func (runtime *accountRuntime) serveFilesDelete(w http.ResponseWriter, request *
 	}
 	input, valid := readFilesUploadBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	rawPath, exists := input["path"]
@@ -25,19 +26,19 @@ func (runtime *accountRuntime) serveFilesDelete(w http.ResponseWriter, request *
 	}
 	pathValue, err := decodeOrderedNodeJSON(rawPath)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	filePath, isString := pathValue.scalar.(string)
 	if pathValue.kind != 's' || !isString {
 		// Node's path.join throws when request.body.path is not a string.
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 
 	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	pathToDelete := filepath.Join(directories["root"], filepath.FromSlash(filePath))
@@ -47,17 +48,17 @@ func (runtime *accountRuntime) serveFilesDelete(w http.ResponseWriter, request *
 	}
 	relativePath, err := filepath.Rel(directories["root"], pathToDelete)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	deleted, err := startup.DeleteUserFile(runtime.options.DataRoot, account.string("handle"), relativePath)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !deleted {
 		respondText(w, http.StatusNotFound, "text/html; charset=utf-8", "File not found")
 		return
 	}
-	serveStatusText(w, http.StatusOK)
+	httpx.WriteStatusText(w, http.StatusOK)
 }

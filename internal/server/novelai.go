@@ -21,6 +21,7 @@ package server
 // replays it. Voice bytes are compared as base64 + SHA-256 + length, never as text.
 
 import (
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"strconv"
 
@@ -148,7 +149,7 @@ func (runtime *accountRuntime) serveNovelAIGenerateVoice(w http.ResponseWriter, 
 	}
 	w.Header().Set("Content-Type", "audio/mpeg")
 	w.Header().Set("Content-Length", strconv.Itoa(len(response.Body)))
-	w.Header().Set("ETag", expressWeakETag(response.Body))
+	w.Header().Set("ETag", httpx.WeakETag(response.Body))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(response.Body)
 }

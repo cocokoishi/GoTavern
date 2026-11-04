@@ -39,6 +39,7 @@ package server
 // reproduced here.
 
 import (
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"math"
 	"mime"
@@ -154,7 +155,7 @@ func respondWorldInfoSend(w http.ResponseWriter, value orderedNodeJSON) {
 		// Accept-Encoding for a response it never encoded.
 		w.Header().Set("Vary", "Origin")
 		w.Header().Set("Content-Length", "0")
-		w.Header().Set("ETag", expressWeakETag(nil))
+		w.Header().Set("ETag", httpx.WeakETag(nil))
 		w.WriteHeader(http.StatusOK)
 	default:
 		serveWorldInfoNumberStatus(w, value.scalar.(float64))
@@ -170,10 +171,10 @@ func respondWorldInfoSend(w http.ResponseWriter, value orderedNodeJSON) {
 func serveWorldInfoNumberStatus(w http.ResponseWriter, status float64) {
 	code := int(status)
 	if math.IsNaN(status) || math.IsInf(status, 0) || status != float64(code) || code < 100 || code > 999 {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	serveStatusText(w, code)
+	httpx.WriteStatusText(w, code)
 }
 
 // readWorldInfoRouteFile mirrors the pinned helper for the world-info routes
@@ -219,7 +220,7 @@ func (runtime *accountRuntime) serveWorldInfoList(w http.ResponseWriter, request
 	}
 	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	worldsDirectory := directories["worlds"]
@@ -228,25 +229,25 @@ func (runtime *accountRuntime) serveWorldInfoList(w http.ResponseWriter, request
 	cacheKey := userMetadataCacheKey("worldinfo-list", runtime.options.DataRoot, account.string("handle"))
 	identity := digestWorldInfoList(worldsDirectory)
 	if body, hit := loadUserMetadataCache(cacheKey, identity); hit {
-		respondJSONBytes(w, http.StatusOK, body)
+		httpx.WriteJSONBytes(w, http.StatusOK, body)
 		return
 	}
 	data, err := buildWorldInfoList(worldsDirectory)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// The body is produced by the SAME serializer respondOrderedNodeJSON used, and respondJSONBytes sets
 	// exactly the headers respondOrderedNodeJSON set, so a hit is byte-identical including the ETag.
 	body, err := marshalOrderedNodeJSON(data)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if digestWorldInfoList(worldsDirectory) == identity {
 		storeUserMetadataCache(cacheKey, identity, body)
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // buildWorldInfoList is the original listing, unchanged in read order and error handling so the rebuild
@@ -319,23 +320,23 @@ func (runtime *accountRuntime) serveWorldInfoGet(w http.ResponseWriter, request 
 	}
 	body, ok := readPinnedJSONBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	name := nodeGet(body, "name")
 	if !jsTruthy(name) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	worldInfo, ok := readWorldInfoRouteFile(directories, name, true)
 	if !ok {
 		// JSON.parse, the template literal's ToString or readFileSync threw.
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	respondWorldInfoSend(w, worldInfo)
@@ -348,36 +349,36 @@ func (runtime *accountRuntime) serveWorldInfoDelete(w http.ResponseWriter, reque
 	}
 	body, ok := readPinnedJSONBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	name := nodeGet(body, "name")
 	if !jsTruthy(name) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	filename, ok := pinnedWorldInfoFilename(name)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// The pinned route throws when existsSync is false, which Express renders as
 	// its 500 error page.
 	if _, err := os.Stat(filepath.Join(directories["worlds"], filename)); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	found, err := startup.DeleteUserFile(runtime.options.DataRoot, account.string("handle"), filepath.Join("worlds", filename))
 	if err != nil || !found {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	serveStatusText(w, http.StatusOK)
+	httpx.WriteStatusText(w, http.StatusOK)
 }
 
 func (runtime *accountRuntime) serveWorldInfoImport(w http.ResponseWriter, request *http.Request) {
@@ -387,12 +388,12 @@ func (runtime *accountRuntime) serveWorldInfoImport(w http.ResponseWriter, reque
 	}
 	parsed, err := runtime.readCharactersRequest(request)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if parsed.stagedPath == "" {
 		// Pinned worldinfo.js:100: multer did not stage an `avatar` file.
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	// The pinned branch order matters: a truthy convertedData field wins, and
@@ -404,14 +405,14 @@ func (runtime *accountRuntime) serveWorldInfoImport(w http.ResponseWriter, reque
 	if jsTruthy(convertedData) {
 		text, stringErr := convertedData.javascriptString()
 		if stringErr != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		fileContents = []byte(text)
 	} else {
 		contents, readErr := os.ReadFile(parsed.stagedPath)
 		if readErr != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		fileContents = contents
@@ -445,7 +446,7 @@ func (runtime *accountRuntime) serveWorldInfoImport(w http.ResponseWriter, reque
 	if err := startup.UpdateUserContentFile(runtime.options.DataRoot, account.string("handle"), filepath.Join("worlds", filename), func([]byte) ([]byte, error) {
 		return fileContents, nil
 	}); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	respondOrderedNodeJSON(w, http.StatusOK, orderedNodeJSON{kind: 'o', object: []orderedNodeJSONEntry{
@@ -460,7 +461,7 @@ func (runtime *accountRuntime) serveWorldInfoEdit(w http.ResponseWriter, request
 	}
 	body, ok := readPinnedJSONBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	name := nodeGet(body, "name")
@@ -486,18 +487,18 @@ func (runtime *accountRuntime) serveWorldInfoEdit(w http.ResponseWriter, request
 	}
 	filename, ok := pinnedWorldInfoFilename(name)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	contents, err := marshalCharacterJSONIndent(data)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if err := startup.UpdateUserContentFile(runtime.options.DataRoot, account.string("handle"), filepath.Join("worlds", filename), func([]byte) ([]byte, error) {
 		return contents, nil
 	}); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	respondOrderedNodeJSON(w, http.StatusOK, orderedNodeJSON{kind: 'o', object: []orderedNodeJSONEntry{

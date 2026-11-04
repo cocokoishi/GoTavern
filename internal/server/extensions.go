@@ -48,6 +48,7 @@ package server
 
 import (
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io/fs"
 	"net/http"
 	"os"
@@ -83,7 +84,7 @@ func registerExtensionsRoutes(mux *http.ServeMux, accounts *accountRuntime, notF
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 			if !extensionsEnabled(options) {
-				serveStatusText(w, http.StatusNotFound)
+				httpx.WriteStatusText(w, http.StatusNotFound)
 				return
 			}
 			if r.Method != http.MethodPost {
@@ -103,7 +104,7 @@ func registerExtensionsRoutes(mux *http.ServeMux, accounts *accountRuntime, notF
 
 	mux.HandleFunc("/api/extensions/discover", func(w http.ResponseWriter, r *http.Request) {
 		if !extensionsEnabled(options) {
-			serveStatusText(w, http.StatusNotFound)
+			httpx.WriteStatusText(w, http.StatusNotFound)
 			return
 		}
 		if r.Method != http.MethodGet {
@@ -169,7 +170,7 @@ func extensionRequestLocation(options HTTPHandlerOptions, directories startup.Us
 func extensionRequestBody(w http.ResponseWriter, request *http.Request) (orderedNodeJSON, bool) {
 	body, ok := readPinnedJSONBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return orderedNodeJSON{}, false
 	}
 	return body, true
@@ -208,7 +209,7 @@ func (runtime *accountRuntime) extensionAccount(w http.ResponseWriter, request *
 		return nil, nil, false
 	}
 	if !extensionsEnabled(runtime.options) {
-		serveStatusText(w, http.StatusNotFound)
+		httpx.WriteStatusText(w, http.StatusNotFound)
 		return nil, nil, false
 	}
 	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))

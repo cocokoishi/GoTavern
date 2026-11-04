@@ -31,6 +31,7 @@ package server
 
 import (
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"math"
 	"net/http"
@@ -240,7 +241,7 @@ func respondMinimaxSendValue(w http.ResponseWriter, status int, value orderedNod
 		respondText(w, status, "text/html; charset=utf-8", text)
 	case 'n':
 		w.Header().Set("Content-Length", "0")
-		w.Header().Set("ETag", expressWeakETag(nil))
+		w.Header().Set("ETag", httpx.WeakETag(nil))
 		w.WriteHeader(status)
 	default:
 		respondOrderedNodeJSON(w, status, value)

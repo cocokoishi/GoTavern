@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -23,41 +24,41 @@ func (runtime *accountRuntime) serveBackgroundsDelete(w http.ResponseWriter, req
 		valid = true
 	}
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	rawFilename, exists := input["bg"]
 	if !exists {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if filenameFieldHasForbiddenPathCharacter(rawFilename) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	var value any
 	if err := json.Unmarshal(rawFilename, &value); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	filename, isString := value.(string)
 	if !isString {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	sanitizedFilename := startup.SanitizeUserFilename(filename)
 	if filename != sanitizedFilename {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 
 	deleted, err := startup.DeleteUserBackground(runtime.options.DataRoot, account.string("handle"), sanitizedFilename)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !deleted {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	relativePath := nodeImageMetadataIndexPath(filepath.Join("backgrounds", filename))

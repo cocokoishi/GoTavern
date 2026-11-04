@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"math"
 	"net/http"
@@ -318,12 +319,12 @@ func (value orderedNodeJSON) truthy() bool {
 func respondOrderedNodeJSON(w http.ResponseWriter, status int, value orderedNodeJSON) {
 	body, err := marshalOrderedNodeJSON(value)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", expressWeakETag(body))
+	w.Header().Set("ETag", httpx.WeakETag(body))
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
 }

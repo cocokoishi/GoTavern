@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"math"
 	"net/http"
 	"os"
@@ -159,36 +160,36 @@ func (runtime *accountRuntime) serveChatsSave(w http.ResponseWriter, request *ht
 	}
 	input, valid := readFilesUploadBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if rawAvatarURL, exists := input["avatar_url"]; exists {
 		if value, err := decodeOrderedNodeJSON(rawAvatarURL); err == nil && pinnedAvatarURLRejected(value) {
-			serveStatusText(w, http.StatusBadRequest)
+			httpx.WriteStatusText(w, http.StatusBadRequest)
 			return
 		}
 	}
 	cardName, ok := pinnedStringValue(input, "avatar_url")
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	cardName = pinnedReplaceFirst(cardName, ".png", "")
 	fileName, ok := pinnedStringValue(input, "file_name")
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	chatsRoot := directories["chats"]
 	chatFileName := startup.SanitizeUserFilename(fileName + ".jsonl")
 	chatFilePath := filepath.Join(chatsRoot, cardName, chatFileName)
 	if !pinnedPathUnderParent(chatsRoot, chatFilePath) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 
@@ -247,7 +248,7 @@ func (runtime *accountRuntime) serveChatsGet(w http.ResponseWriter, request *htt
 	}
 	input, valid := readFilesUploadBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
@@ -263,7 +264,7 @@ func (runtime *accountRuntime) serveChatsGet(w http.ResponseWriter, request *htt
 	}
 	directoryPath := filepath.Join(chatsRoot, pinnedReplaceFirst(avatarURL, ".png", ""))
 	if !pinnedPathUnderParent(chatsRoot, directoryPath) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if _, err := os.Stat(directoryPath); err != nil {

@@ -16,6 +16,7 @@ package server
 // restore round trip is covered by backups_restore_roundtrip_test.go.
 
 import (
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"mime"
 	"net/http"
 	"os"
@@ -120,7 +121,7 @@ func (runtime *accountRuntime) serveBackupsChatDownload(w http.ResponseWriter, r
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+filepath.Base(filePath)+"\"")
 	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
-	w.Header().Set("ETag", expressWeakETag(data))
+	w.Header().Set("ETag", httpx.WeakETag(data))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
 }

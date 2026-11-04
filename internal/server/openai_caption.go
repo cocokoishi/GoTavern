@@ -35,6 +35,7 @@ package server
 import (
 	"encoding/base64"
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -126,7 +127,7 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	api := ""
@@ -135,7 +136,7 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 	}
 	branch, known := openAICaptionBranchFor(api)
 	if !known {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	reverseProxy := ""
@@ -151,7 +152,7 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 		} else {
 			secret, err := startup.ReadSecretString(directories, branch.secretID)
 			if err != nil {
-				serveStatusText(w, http.StatusInternalServerError)
+				httpx.WriteStatusText(w, http.StatusInternalServerError)
 				return
 			}
 			key = secret
@@ -159,7 +160,7 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 	} else {
 		secret, err := startup.ReadSecretString(directories, branch.secretID)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		key = secret
@@ -171,7 +172,7 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 		}
 	}
 	if key == "" && reverseProxy == "" && !openAICaptionIsNoKey(api) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 
@@ -187,10 +188,10 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 			answer.setMember("error", nodeString("Cloudflare Workers AI Account ID is required"))
 			encoded, err := marshalCharacterJSON(answer)
 			if err != nil {
-				serveStatusText(w, http.StatusInternalServerError)
+				httpx.WriteStatusText(w, http.StatusInternalServerError)
 				return
 			}
-			respondJSONBytes(w, http.StatusBadRequest, encoded)
+			httpx.WriteJSONBytes(w, http.StatusBadRequest, encoded)
 			return
 		}
 	}
@@ -321,7 +322,7 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 
 	encoded, err := marshalCharacterJSON(body)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// The pinned header object is built UNCONDITIONALLY as `Authorization: Bearer ${key}`, so a no-key branch
@@ -357,7 +358,7 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 		Body:    encoded,
 	}, 120*time.Second)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {
@@ -368,7 +369,7 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 	}
 	decoded, err := decodeOrderedNodeJSON(response.Body)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	caption := ""
@@ -398,10 +399,10 @@ func (runtime *accountRuntime) serveOpenAICaptionImage(w http.ResponseWriter, re
 	answer.setMember("caption", nodeString(caption))
 	result, err := marshalCharacterJSON(answer)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, result)
+	httpx.WriteJSONBytes(w, http.StatusOK, result)
 }
 
 // openAICaptionVideoDataURI is the PINNED trigger for the zai video-inlining transform, transcribed from

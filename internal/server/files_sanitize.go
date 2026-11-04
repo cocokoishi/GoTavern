@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"mime"
 	"net/http"
@@ -22,17 +23,17 @@ func (runtime *accountRuntime) serveFileSanitizeFilename(w http.ResponseWriter, 
 	}
 	filename, err := readFileSanitizeFilename(request)
 	if errors.Is(err, errFileSanitizeBodyUnavailable) {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if err != nil {
 		var parseError fileSanitizeParseError
 		if errors.As(err, &parseError) {
-			serveStatusText(w, parseError.status)
+			httpx.WriteStatusText(w, parseError.status)
 		} else if errors.Is(err, errFileSanitizeCoercion) {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 		} else {
-			serveStatusText(w, http.StatusBadRequest)
+			httpx.WriteStatusText(w, http.StatusBadRequest)
 		}
 		return
 	}

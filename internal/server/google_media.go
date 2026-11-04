@@ -25,6 +25,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"strings"
 	"time"
@@ -57,10 +58,10 @@ func googleCaptionJSONError(w http.ResponseWriter) {
 	answer.setMember("error", nodeBool(true))
 	body, err := marshalCharacterJSON(answer)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusInternalServerError, body)
+	httpx.WriteJSONBytes(w, http.StatusInternalServerError, body)
 }
 
 // googleRawMemberString is `String(value)` for a raw member that the pinned code calls a string method on.
@@ -190,7 +191,7 @@ func (runtime *accountRuntime) serveGoogleCaptionImage(w http.ResponseWriter, re
 		googleTextFailure(w, "Internal server error")
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, encoded)
+	httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 }
 
 // googleSafetyArray renders the pinned safety settings in order.
@@ -220,7 +221,7 @@ func (runtime *accountRuntime) serveGoogleGenerateImage(w http.ResponseWriter, r
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	model := "imagen-3.0-generate-002"
@@ -229,7 +230,7 @@ func (runtime *accountRuntime) serveGoogleGenerateImage(w http.ResponseWriter, r
 	}
 	config, err := runtime.googleAPIConfigFor(request, directories, options, input, model, "predict")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 
@@ -301,7 +302,7 @@ func (runtime *accountRuntime) serveGoogleGenerateImage(w http.ResponseWriter, r
 	payload.setMember("parameters", parameters)
 	body, err := marshalCharacterJSON(payload)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 
@@ -312,7 +313,7 @@ func (runtime *accountRuntime) serveGoogleGenerateImage(w http.ResponseWriter, r
 		Body:    body,
 	}, 120*time.Second)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {
@@ -321,7 +322,7 @@ func (runtime *accountRuntime) serveGoogleGenerateImage(w http.ResponseWriter, r
 	}
 	decoded, err := decodeOrderedNodeJSON(response.Body)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	image := ""
@@ -338,8 +339,8 @@ func (runtime *accountRuntime) serveGoogleGenerateImage(w http.ResponseWriter, r
 	answer.setMember("image", nodeString(image))
 	encoded, err := marshalCharacterJSON(answer)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, encoded)
+	httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 }

@@ -31,6 +31,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"math"
 	"net/http"
 	"os"
@@ -184,18 +185,18 @@ func (runtime *accountRuntime) serveDataMaidReport(w http.ResponseWriter, reques
 	}
 	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	raw := collectDataMaidReport(directories, account.string("handle"))
 	report, err := sanitizeDataMaidReport(raw)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	token, err := mintDataMaidToken(account.string("handle"), raw)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	respondJSON(w, http.StatusOK, dataMaidReportResponse{Report: report, Token: token})
@@ -208,27 +209,27 @@ func (runtime *accountRuntime) serveDataMaidFinalize(w http.ResponseWriter, requ
 	}
 	input, valid := readAccountRequestBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	rawToken, exists := input["token"]
 	if !exists || !nodeTruthyJSON(rawToken) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	value, err := decodeOrderedNodeJSON(rawToken)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	token, err := value.javascriptString()
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	entry, found := lookupDataMaidToken(token)
 	if !found || entry.handle != account.string("handle") {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	forgetDataMaidToken(token)
@@ -244,12 +245,12 @@ func (runtime *accountRuntime) serveDataMaidView(w http.ResponseWriter, request 
 	token, tokenPresent := firstOrJoinedQueryValue(query, "token")
 	hash, hashPresent := firstOrJoinedQueryValue(query, "hash")
 	if !tokenPresent || token == "" || !hashPresent || hash == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	entry, found := lookupDataMaidToken(token)
 	if !found || entry.handle != account.string("handle") {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	var stored dataMaidStoredPath
@@ -262,23 +263,23 @@ func (runtime *accountRuntime) serveDataMaidView(w http.ResponseWriter, request 
 		}
 	}
 	if !storedFound {
-		serveStatusText(w, http.StatusNotFound)
+		httpx.WriteStatusText(w, http.StatusNotFound)
 		return
 	}
 	root := filepath.Join(runtime.options.DataRoot, account.string("handle"))
 	if !nodePathIsUnderParent(root, stored.path) {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	if _, err := os.Stat(stored.path); err != nil {
-		serveStatusText(w, http.StatusNotFound)
+		httpx.WriteStatusText(w, http.StatusNotFound)
 		return
 	}
 	content, err := os.ReadFile(stored.path)
 	if err != nil {
 		// A path that exists but cannot be read (a directory, a locked file) answers the pinned
 		// 500: the route checks existence first and lets the read rejection reach its catch.
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	mediaType, known := pinnedUserAvatarMediaType(stored.path)
@@ -290,7 +291,7 @@ func (runtime *accountRuntime) serveDataMaidView(w http.ResponseWriter, request 
 	// compress, so a `text/plain` view carries "Origin, Accept-Encoding" while an `image/png` one
 	// carries "Origin" alone. respondBinary cannot be used here for exactly that reason.
 	w.Header().Set("Content-Length", strconv.Itoa(len(content)))
-	w.Header().Set("ETag", expressWeakETag(content))
+	w.Header().Set("ETag", httpx.WeakETag(content))
 	if !pinnedCompressibleContentType(mediaType) {
 		w.Header().Set("Vary", "Origin")
 	}
@@ -305,14 +306,14 @@ func (runtime *accountRuntime) serveDataMaidDelete(w http.ResponseWriter, reques
 	}
 	input, valid := readAccountRequestBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	rawToken, hasToken := input["token"]
 	rawHashes, hasHashes := input["hashes"]
 	var hashes []json.RawMessage
 	if !hasToken || !nodeTruthyJSON(rawToken) || !hasHashes || json.Unmarshal(rawHashes, &hashes) != nil || len(hashes) == 0 {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	// The pinned handler keys the Map with `token` itself (no toString), so only a JSON string can
@@ -324,7 +325,7 @@ func (runtime *accountRuntime) serveDataMaidDelete(w http.ResponseWriter, reques
 		entry, found = lookupDataMaidToken(token)
 	}
 	if !found || entry.handle != account.string("handle") {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	root := filepath.Join(runtime.options.DataRoot, account.string("handle"))
@@ -352,7 +353,7 @@ func (runtime *accountRuntime) serveDataMaidDelete(w http.ResponseWriter, reques
 			continue
 		}
 		if err := os.Remove(stored.path); err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 	}

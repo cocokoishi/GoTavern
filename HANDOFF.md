@@ -20,17 +20,21 @@ server timeouts, and provider stream-termination differentials. Baseline unchang
 `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127`.
 
 **M4 IS PARTIAL, and the published record was corrected on 2026-11-04 to say so.** `GOAL.md` §11
-defines M4 as move-only `orderedjson` → `httpx` → `userdata` extraction *before* the route table; this
-program landed only the route-table step (`8eca43b`). The three package extractions did **not** land,
-so §12.1's M4 definition of done is **NOT met** and `internal/server` still owns that code. The
-release's own `docs/release-notes-v0.1.0-alpha.14.md` and the published release body now carry a
-"Scope correction (post-publication)" section saying exactly this; the extraction is the next milestone
-item in `GOAL.md` §11, to be gated by the existing differential suites and shipped in a follow-up
-release rather than retro-fitted into the tag. **No agent may read the tag's "M0-M8" phrasing as M4
-complete.** The published release body was edited the same day (`gh release edit`, 8,578 -> 9,478
-bytes) to insert the identical section between the opening summary and `## What changed`; the appended
-same-SHA gate table is untouched, and the repo's `docs/release-notes-v0.1.0-alpha.14.md` on `main`
-carries the same correction (`b1794b2`).
+defines M4 as move-only `orderedjson` → `httpx` → `userdata` extraction *before* the route table. The
+program shipped alpha.14 with only the route-table step (`8eca43b`), so the release's own
+`docs/release-notes-v0.1.0-alpha.14.md` and the published release body carry a "Scope correction
+(post-publication)" section, and `GOAL.md` §12.1 leaves the M4 box unticked. **No agent may read the
+tag's "M0-M8" phrasing as M4 complete.** The follow-up work then landed the two extractions that ARE
+move-only — `internal/httpx` (weak-ETag/JSON-writer/status-text conventions, 101 call sites) and
+`internal/userdata` (the pinned sanitize-filename naming policy, 4 call sites), both with their own
+tests and no behaviour change — and **refused the `orderedjson` extraction with a measurement**: 152
+files / 1,463 references inside `internal/server` read its unexported fields (644 `.kind`, 605
+`.array`, 156 `.scalar`), so no move-only extraction exists and the redesign a move would require is
+exactly what §15.4's do-not-rewrite list forbids. `internal/server` owns less; the ordered-JSON
+semantics stay beside the tests that pin them. The published release body was edited on publication day
+(`gh release edit`, 8,578 -> 9,478 bytes) to insert the scope section between the opening summary and
+`## What changed`; the appended same-SHA gate table is untouched, and the repo's
+`docs/release-notes-v0.1.0-alpha.14.md` on `main` carries the same correction (`b1794b2`).
 
 **`GOAL.md` §14 (the strong drop-in claim over a real, long-used user tree) is still NOT MET and is
 not claimed.** The evidence covers a synthesised long-lived tree, the committed synthetic corpus, the

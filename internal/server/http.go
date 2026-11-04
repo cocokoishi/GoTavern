@@ -4,10 +4,9 @@
 package server
 
 import (
-	"crypto/sha1"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"html"
 	"io"
 	"mime"
@@ -578,12 +577,12 @@ func newHTTPHandlerWithRouteDomains(notFoundPage []byte, options HTTPHandlerOpti
 			var err error
 			user, invalidated, err = accounts.currentUser(session)
 			if err != nil {
-				serveStatusText(w, http.StatusInternalServerError)
+				httpx.WriteStatusText(w, http.StatusInternalServerError)
 				return
 			}
 			if invalidated {
 				clearCookieSession(w, r, options)
-				serveStatusText(w, http.StatusForbidden)
+				httpx.WriteStatusText(w, http.StatusForbidden)
 				return
 			}
 			if user != nil && r.Method == http.MethodGet && r.URL.Path == "/" {
@@ -611,7 +610,7 @@ func newHTTPHandlerWithRouteDomains(notFoundPage []byte, options HTTPHandlerOpti
 			}
 		}
 		if options.AccountsEnabled && !isPublicAccountRequest(r, options) && user == nil {
-			serveStatusText(w, http.StatusForbidden)
+			httpx.WriteStatusText(w, http.StatusForbidden)
 			return
 		}
 		if !corsSettings.enabled && servePinnedExpressAutomaticOptions(w, r, mux, methodlessOptionsRoutes) {
@@ -800,7 +799,7 @@ func serveVersion(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
-	w.Header().Set("ETag", expressWeakETag(body))
+	w.Header().Set("ETag", httpx.WeakETag(body))
 	w.WriteHeader(http.StatusOK)
 	if r.Method != http.MethodHead {
 		_, _ = w.Write(body)
@@ -818,17 +817,11 @@ func serveStatic(w http.ResponseWriter, r *http.Request, notFoundPage []byte, op
 func serveNotFound(w http.ResponseWriter, r *http.Request, page []byte) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Length", fmt.Sprint(len(page)))
-	w.Header().Set("ETag", expressWeakETag(page))
+	w.Header().Set("ETag", httpx.WeakETag(page))
 	w.WriteHeader(http.StatusNotFound)
 	if r.Method != http.MethodHead {
 		_, _ = w.Write(page)
 	}
-}
-
-func expressWeakETag(body []byte) string {
-	digest := sha1.Sum(body)
-	encoded := base64.StdEncoding.EncodeToString(digest[:])
-	return fmt.Sprintf("W/\"%x-%s\"", len(body), encoded[:27])
 }
 
 func fsPathIsValid(p string) bool {

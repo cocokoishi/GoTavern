@@ -33,6 +33,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/userdata"
 	"image"
 	"io"
 	"os"
@@ -161,69 +162,6 @@ func readZipEntry(file *zip.File) ([]byte, error) {
 // File-name and path helpers (sanitize-filename with a replacement, getUniqueName,
 // clientRelativePath, urlJoin).
 // ---------------------------------------------------------------------------------------------------------------
-
-// sanitizeUserFilenameWithReplacement reproduces `sanitize(name, { replacement })`
-// from the sanitize-filename package, which is what pinned uses for BYAF names
-// with `sanitizeSafeCharacterReplacements` (src/util.js returns "_"). The
-// package REMOVES characters by default; with a replacement each illegal one is
-// replaced instead, so the two calls cannot share the existing helper.
-func sanitizeUserFilenameWithReplacement(input, replacement string) string {
-	var cleaned strings.Builder
-	cleaned.Grow(len(input))
-	for _, character := range input {
-		if sanitizeFilenameIllegal(character) || character <= 0x1f || (character >= 0x80 && character <= 0x9f) {
-			cleaned.WriteString(replacement)
-			continue
-		}
-		cleaned.WriteRune(character)
-	}
-	filename := cleaned.String()
-	if strings.Trim(filename, ".") == "" {
-		filename = ""
-	}
-	if sanitizeFilenameReserved(filename) {
-		filename = ""
-	}
-	filename = strings.TrimRight(filename, ". ")
-	if len(filename) > 255 {
-		// sanitize-filename truncates on the byte boundary of its own UTF-8 output.
-		cut := 255
-		for cut > 0 && !utf8RuneStart(filename[cut]) {
-			cut--
-		}
-		filename = filename[:cut]
-	}
-	return filename
-}
-
-func sanitizeFilenameIllegal(character rune) bool {
-	switch character {
-	case '/', '?', '<', '>', '\\', ':', '*', '|', '"', 0:
-		return true
-	default:
-		return false
-	}
-}
-
-func sanitizeFilenameReserved(filename string) bool {
-	base := filename
-	if index := strings.IndexByte(base, '.'); index >= 0 {
-		base = base[:index]
-	}
-	base = strings.ToLower(base)
-	switch base {
-	case "con", "prn", "aux", "nul":
-		return true
-	}
-	if len(base) == 4 && (strings.HasPrefix(base, "com") || strings.HasPrefix(base, "lpt")) && base[3] >= '1' && base[3] <= '9' {
-		return true
-	}
-	return false
-}
-
-func utf8RuneStart(character byte) bool {
-	return character&0xC0 != 0x80
-}
 
 // getUniqueName mirrors src/util.js getUniqueName with its default nameBuilder
 // and maxTries 1000. Pinned passes startIndex 1 and its nameBuilder is
@@ -1290,7 +1228,7 @@ func (runtime *accountRuntime) importFromByaf(uploadPath, preservedFileName stri
 	if !ok {
 		return "", true
 	}
-	safeName := sanitizeUserFilenameWithReplacement(nameText, "_")
+	safeName := userdata.SanitizeFilename(nameText, "_")
 	fileName := preservedFileName
 	if fileName == "" {
 		fileName, err = getPngName(nodeString(safeName), directories)
@@ -1365,7 +1303,7 @@ func (runtime *accountRuntime) persistByafScenarioState(reader *zip.Reader, acco
 		if title == "" {
 			title = cardName
 		}
-		chatName := sanitizeUserFilenameWithReplacement(title+" - "+humanizedDateTime(time.Now())+" imported.jsonl", "_")
+		chatName := userdata.SanitizeFilename(title+" - "+humanizedDateTime(time.Now())+" imported.jsonl", "_")
 		chatBody, err := byafChatFromScenario(scenario, userName, cardName, backgrounds)
 		if err != nil {
 			return true
@@ -1385,7 +1323,7 @@ func (runtime *accountRuntime) persistByafScenarioState(reader *zip.Reader, acco
 
 	for _, icon := range images[1:] {
 		nameString := jsStringOrEmpty(nodeGet(card, "name"))
-		iconFolder := sanitizeUserFilenameWithReplacement(nameString, "")
+		iconFolder := userdata.SanitizeFilename(nameString, "")
 		if iconFolder == "" {
 			continue
 		}
@@ -1397,7 +1335,7 @@ func (runtime *accountRuntime) persistByafScenarioState(reader *zip.Reader, acco
 		if err := os.MkdirAll(absoluteDirectory, 0o777); err != nil {
 			continue
 		}
-		baseName := sanitizeUserFilenameWithReplacement(icon.label, "_")
+		baseName := userdata.SanitizeFilename(icon.label, "_")
 		if baseName == "" {
 			baseName = "alt"
 		}

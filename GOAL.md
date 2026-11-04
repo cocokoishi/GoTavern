@@ -246,6 +246,16 @@ decides it. Moving on because the previous milestone's cheap checks are green is
 | **M7 — README and figure** | first-screen restructure; a ~1200×675 16:9 dark+light figure generated from the artifact; unit discipline; no stale version text; accessibility/contrast checks | generator determinism, agreement with the artifact, and the docs gate |
 | **M8 — acceptance and release** | the full same-SHA gate set, cross-platform, packaged artifact, public-artifact verification, and `v0.1.0-alpha.14` as a formal release | §16 |
 
+**M4 status (recorded 2026-11-04, after `v0.1.0-alpha.14`).** The route-table step (`8eca43b`) and two
+move-only extractions landed in the follow-up work: `internal/httpx` (the weak-ETag and response-writer
+conventions, 101 call sites) and `internal/userdata` (the pinned sanitize-filename naming policy). The
+`orderedjson` extraction is **REFUSED with a measurement, not skipped**: 152 files and 1,463 references
+inside `internal/server` read `orderedNodeJSON`'s unexported fields (644 `.kind`, 605 `.array`, 156
+`.scalar` accesses), so a move-only extraction does not exist — moving that type means exporting its
+internal API and rewriting 152 files, exactly the semantics §15.4 lists as do-not-rewrite. `internal/server`
+now owns less; the ordered-JSON semantics stay beside the tests that pin them. This is a recorded scope
+decision, and §12.1's M4 box carries it.
+
 Each milestone ends with a report in the shape of §12: what changed, before/after numbers on the same
 input, the gates that ran (with run ids), what became simpler, what is still unproven, and the next
 three priorities. A local run is triage; CI is the gate.
@@ -360,9 +370,11 @@ checkpoint; an unticked box is an open obligation, not a style note.
       Go version, runner, data scale, rounds and the raw artifact
 - [x] M3: one hotspot has a same-input before/after and the same-commit compatibility gates are green
 - [ ] M4: the extracted packages are move-only, `internal/server` owns less, and every step was gated
-      by an existing differential. **PARTIAL:** the route table landed (`8eca43b`); the
-      `orderedjson` → `httpx` → `userdata` extractions did NOT, so this box stays unticked and
-      `internal/server` still owns that code.
+      by an existing differential. **PARTIAL, and closed by decision where it cannot be move-only:** the
+      route table landed (`8eca43b`), `internal/httpx` and `internal/userdata` were extracted move-only
+      afterwards, and the `orderedjson` extraction is refused with the measurement in §11 (152 files /
+      1,463 references / 644 `.kind` reads against unexported fields; §15.4 forbids the redesign a move
+      would require). The box stays unticked because the milestone as WRITTEN named three extractions.
 - [x] M5: large-data and concurrency behaviour is measured and improved without changing response bytes
 - [x] M6: the failure paths and the truncation/redirect differentials are decided with evidence
 - [x] M7: README first screen, figure, provenance and the release record agree with the artifact

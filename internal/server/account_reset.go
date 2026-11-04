@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,23 +14,23 @@ import (
 func (runtime *accountRuntime) serveUserResetSettings(w http.ResponseWriter, request *http.Request) {
 	input, ok := readAccountRequestBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	state := accountFromContext(request)
 	if state.user == nil {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	if nodeTruthyJSON(state.user.raw("password")) {
 		var password string
 		if len(input["password"]) == 0 || input["password"][0] != '"' || json.Unmarshal(input["password"], &password) != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		passwordHash, err := upstreamPasswordHash(password, state.user.string("salt"))
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		if passwordHash != state.user.string("password") {
@@ -38,7 +39,7 @@ func (runtime *accountRuntime) serveUserResetSettings(w http.ResponseWriter, req
 		}
 	}
 	if runtime.options.DataRoot == "" {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	handle := state.user.string("handle")
@@ -49,21 +50,21 @@ func (runtime *accountRuntime) serveUserResetSettings(w http.ResponseWriter, req
 	}
 	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, handle)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	settingsPath := filepath.Join(directories["root"], "settings.json")
 	if info, err := os.Lstat(settingsPath); err == nil {
 		if info.IsDir() {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		if err := os.Remove(settingsPath); err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// checkForNewContent() catches and logs its own errors. The pinned route

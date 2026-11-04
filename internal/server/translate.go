@@ -40,6 +40,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"strconv"
 	"strings"
@@ -122,33 +123,33 @@ func (runtime *accountRuntime) serveTranslateLibre(w http.ResponseWriter, reques
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	key, err := runtime.translateSecret(directories, "libre")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	url, err := runtime.translateSecret(directories, "libre_url")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if url == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	// The pinned handler rewrites request.body.lang BEFORE the text/lang guard, so the remapping is
 	// observable even on a request it then rejects.
 	lang, ok := translateLanguage(input["lang"], map[string]string{"zh-CN": "zh", "zh-TW": "zt", "pt-BR": "pt", "pt-PT": "pt"})
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	text, hasText := translateTextValue(input["text"])
 	if !hasText || lang == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	payload := nodeObject()
@@ -159,23 +160,23 @@ func (runtime *accountRuntime) serveTranslateLibre(w http.ResponseWriter, reques
 	payload.setMember("api_key", nodeString(key))
 	body, err := marshalCharacterJSON(payload)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	response, err := outboundRequest(request, http.MethodPost, url, []outbound.Header{
 		{Name: "Content-Type", Value: "application/json"},
 	}, body)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	decoded, err := orderedNodeJSONOf(response)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	sendTranslationValue(w, nodeGet(decoded, "translatedText"))
@@ -189,12 +190,12 @@ func (runtime *accountRuntime) serveTranslateDeepLX(w http.ResponseWriter, reque
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	secretURL, err := runtime.translateSecret(directories, "deeplx_url")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	url := secretURL
@@ -203,12 +204,12 @@ func (runtime *accountRuntime) serveTranslateDeepLX(w http.ResponseWriter, reque
 	}
 	lang, ok := translateLanguage(input["lang"], map[string]string{"zh-CN": "ZH", "zh-TW": "ZH"})
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	text, hasText := translateTextValue(input["text"])
 	if !hasText || lang == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	payload := nodeObject()
@@ -217,7 +218,7 @@ func (runtime *accountRuntime) serveTranslateDeepLX(w http.ResponseWriter, reque
 	payload.setMember("target_lang", nodeString(lang))
 	body, err := marshalCharacterJSON(payload)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	response, err := outboundRequest(request, http.MethodPost, url, []outbound.Header{
@@ -225,16 +226,16 @@ func (runtime *accountRuntime) serveTranslateDeepLX(w http.ResponseWriter, reque
 		{Name: "Content-Type", Value: "application/json"},
 	}, body)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	decoded, err := orderedNodeJSONOf(response)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	sendTranslationValue(w, nodeGet(decoded, "data"))
@@ -251,26 +252,26 @@ func (runtime *accountRuntime) serveTranslateDeepL(w http.ResponseWriter, reques
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	key, err := runtime.translateSecret(directories, "deepl")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if key == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	lang, ok := translateLanguage(input["lang"], map[string]string{"zh-CN": "ZH", "zh-TW": "ZH"})
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	text, hasText := translateTextValue(input["text"])
 	if !hasText || lang == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	pairs := [][2]string{{"text", text}, {"target_lang", lang}}
@@ -292,21 +293,21 @@ func (runtime *accountRuntime) serveTranslateDeepL(w http.ResponseWriter, reques
 		{Name: "Content-Type", Value: "application/x-www-form-urlencoded"},
 	}, []byte(urlSearchParamsEncode(pairs)))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	decoded, err := orderedNodeJSONOf(response)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	translations := nodeGet(decoded, "translations")
 	if translations.kind != 'a' || len(translations.array) == 0 {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	sendTranslationValue(w, nodeGet(translations.array[0], "text"))
@@ -319,23 +320,23 @@ func (runtime *accountRuntime) serveTranslateYandex(w http.ResponseWriter, reque
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	lang, ok := translateLanguage(input["lang"], map[string]string{"zh-CN": "zh", "zh-TW": "zh", "pt-PT": "pt"})
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	chunks := input["chunks"]
 	// `if (!chunks || !lang)`: an EMPTY array is truthy, so it passes this guard.
 	if len(chunks) == 0 || !nodeTruthyJSON(chunks) || lang == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	decodedChunks, err := decodeOrderedNodeJSON(chunks)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	pairs := make([][2]string, 0)
@@ -343,7 +344,7 @@ func (runtime *accountRuntime) serveTranslateYandex(w http.ResponseWriter, reque
 		for _, chunk := range decodedChunks.array {
 			text, err := chunk.javascriptString()
 			if err != nil {
-				serveStatusText(w, http.StatusInternalServerError)
+				httpx.WriteStatusText(w, http.StatusInternalServerError)
 				return
 			}
 			pairs = append(pairs, [2]string{"text", text})
@@ -352,7 +353,7 @@ func (runtime *accountRuntime) serveTranslateYandex(w http.ResponseWriter, reque
 	pairs = append(pairs, [2]string{"lang", lang})
 	ucid, err := randomUCID()
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	target := yandexTranslateURL() + "?ucid=" + ucid + "&srv=android&format=text"
@@ -360,29 +361,29 @@ func (runtime *accountRuntime) serveTranslateYandex(w http.ResponseWriter, reque
 		{Name: "Content-Type", Value: "application/x-www-form-urlencoded"},
 	}, []byte(urlSearchParamsEncode(pairs)))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	decoded, err := orderedNodeJSONOf(response)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// `json.text.join()` throws when text is not an array, and the pinned catch answers 500.
 	texts := nodeGet(decoded, "text")
 	if texts.kind != 'a' {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	parts := make([]string, 0, len(texts.array))
 	for _, entry := range texts.array {
 		part, err := entry.javascriptString()
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		parts = append(parts, part)
@@ -398,12 +399,12 @@ func (runtime *accountRuntime) serveTranslateOneRing(w http.ResponseWriter, requ
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	secretURL, err := runtime.translateSecret(directories, "oneringtranslator_url")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	url := secretURL
@@ -412,29 +413,29 @@ func (runtime *accountRuntime) serveTranslateOneRing(w http.ResponseWriter, requ
 	}
 	// The pinned handler remaps `lang` here and then never uses it; only from_lang/to_lang are sent.
 	if _, ok := translateLanguage(input["lang"], map[string]string{"pt-BR": "pt", "pt-PT": "pt"}); !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	text, hasText := translateTextValue(input["text"])
 	fromLang, hasFrom := translateTextValue(input["from_lang"])
 	toLang, hasTo := translateTextValue(input["to_lang"])
 	if !hasText || !hasFrom || !hasTo {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	query := urlSearchParamsEncode([][2]string{{"text", text}, {"from_lang", fromLang}, {"to_lang", toLang}})
 	response, err := outboundRequest(request, http.MethodGet, url+"?"+query, nil, nil)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	decoded, err := orderedNodeJSONOf(response)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	sendTranslationValue(w, nodeGet(decoded, "result"))
@@ -448,12 +449,12 @@ func (runtime *accountRuntime) serveTranslateLingva(w http.ResponseWriter, reque
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	secretURL, err := runtime.translateSecret(directories, "lingva_url")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	base := secretURL
@@ -462,24 +463,24 @@ func (runtime *accountRuntime) serveTranslateLingva(w http.ResponseWriter, reque
 	}
 	lang, ok := translateLanguage(input["lang"], map[string]string{"zh-CN": "zh", "zh-TW": "zh", "pt-BR": "pt", "pt-PT": "pt"})
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	text, hasText := translateTextValue(input["text"])
 	if !hasText || lang == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	target := urlJoin(base, "auto", lang, encodeURIComponentJS(text))
 	response, err := outboundRequest(request, http.MethodGet, target, nil, nil)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// NO ok check: the pinned handler logs a non-ok answer and then parses the body anyway.
 	decoded, err := orderedNodeJSONOf(response)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	sendTranslationValue(w, nodeGet(decoded, "translation"))

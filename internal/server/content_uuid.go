@@ -24,6 +24,7 @@ package server
 // dispatch (including zero outbound requests).
 
 import (
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -115,7 +116,7 @@ func contentSendImportUUID(w http.ResponseWriter, result contentImportResult, uu
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+result.fileName+"\"")
 	w.Header().Set("X-Custom-Content-Type", uuidType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(result.buffer)))
-	w.Header().Set("ETag", expressWeakETag(result.buffer))
+	w.Header().Set("ETag", httpx.WeakETag(result.buffer))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(result.buffer)
 }
@@ -146,7 +147,7 @@ func (runtime *accountRuntime) serveContentImportUUID(w http.ResponseWriter, req
 	if kind != contentUUIDKindAICC {
 		// Unimplemented provider downloader: 501, never a 404 that would be indistinguishable from
 		// a policy refusal (AGENTS.md rule 17).
-		serveStatusText(w, http.StatusNotImplemented)
+		httpx.WriteStatusText(w, http.StatusNotImplemented)
 		return
 	}
 	result, downloadOK := contentDownloadAICC(request, contentAICCUUIDID(uuid))

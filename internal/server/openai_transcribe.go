@@ -17,6 +17,7 @@ package server
 
 import (
 	"bytes"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -130,27 +131,27 @@ func (runtime *accountRuntime) serveOpenAITranscribe(w http.ResponseWriter, requ
 	}
 	key, err := startup.ReadSecretString(directories, provider.secretID)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if key == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	fileBytes, fields, present, ok := readTranscribeUpload(runtime.options.DataRoot, request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if fileBytes == nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 
 	var buffer bytes.Buffer
 	writer := multipart.NewWriter(&buffer)
 	if err := writeSpeechFilePart(writer, "file", transcribeUpstreamFileName, transcribeUpstreamFileType, fileBytes); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	model := fields["model"]
@@ -160,17 +161,17 @@ func (runtime *accountRuntime) serveOpenAITranscribe(w http.ResponseWriter, requ
 		model = transcribeMissingMemberValue
 	}
 	if err := writer.WriteField("model", model); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if language := fields["language"]; language != "" {
 		if err := writer.WriteField("language", language); err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 	}
 	if err := writer.Close(); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 
@@ -188,7 +189,7 @@ func (runtime *accountRuntime) serveOpenAITranscribe(w http.ResponseWriter, requ
 		Body: body,
 	}, 120*time.Second)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {

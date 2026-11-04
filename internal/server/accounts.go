@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"math/big"
 	"net"
@@ -531,7 +532,7 @@ func (runtime *accountRuntime) serveLoginPage(w http.ResponseWriter, request *ht
 	if !noAuto {
 		accounts, err := loadStoredAccounts(runtime.options.DataRoot)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		if len(accounts) == 1 {
@@ -539,7 +540,7 @@ func (runtime *accountRuntime) serveLoginPage(w http.ResponseWriter, request *ht
 				if !nodeTruthyJSON(account.raw("password")) {
 					state := accountFromContext(request)
 					if state.session == nil || runtime.options.CookieSecret == "" {
-						serveStatusText(w, http.StatusInternalServerError)
+						httpx.WriteStatusText(w, http.StatusInternalServerError)
 						return
 					}
 					state.session.set("handle", account.string("handle"))
@@ -558,12 +559,12 @@ func (runtime *accountRuntime) serveLoginPage(w http.ResponseWriter, request *ht
 				if account, found := accounts[username]; found {
 					matched, err := storedAccountMatchesBasicAuth(account, password)
 					if err != nil {
-						serveStatusText(w, http.StatusInternalServerError)
+						httpx.WriteStatusText(w, http.StatusInternalServerError)
 						return
 					}
 					if matched {
 						if state.session == nil || runtime.options.CookieSecret == "" {
-							serveStatusText(w, http.StatusInternalServerError)
+							httpx.WriteStatusText(w, http.StatusInternalServerError)
 							return
 						}
 						state.session.set("handle", username)
@@ -637,12 +638,12 @@ func serveStaticAsset(w http.ResponseWriter, request *http.Request, name string)
 
 func (runtime *accountRuntime) serveUserList(w http.ResponseWriter, request *http.Request) {
 	if runtime.options.DiscreetLogin {
-		serveStatusText(w, http.StatusNoContent)
+		httpx.WriteStatusText(w, http.StatusNoContent)
 		return
 	}
 	accounts, err := loadStoredAccounts(runtime.options.DataRoot)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	users := make([]storedAccount, 0, len(accounts))
@@ -772,11 +773,11 @@ func (runtime *accountRuntime) serveUserLogin(w http.ResponseWriter, request *ht
 	var input map[string]json.RawMessage
 	body, err := io.ReadAll(io.LimitReader(request.Body, 500<<20))
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if len(body) > 0 && json.Unmarshal(body, &input) != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if input == nil {
@@ -797,7 +798,7 @@ func (runtime *accountRuntime) serveUserLogin(w http.ResponseWriter, request *ht
 	}
 	account, found, err := loadStoredAccount(runtime.options.DataRoot, handle)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !found {
@@ -821,7 +822,7 @@ func (runtime *accountRuntime) serveUserLogin(w http.ResponseWriter, request *ht
 	}
 	state := accountFromContext(request)
 	if state.session == nil || runtime.options.CookieSecret == "" {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	runtime.limiter.clear(ip)
@@ -834,7 +835,7 @@ func (runtime *accountRuntime) serveUserLogin(w http.ResponseWriter, request *ht
 func (runtime *accountRuntime) serveUserRecoverStep1(w http.ResponseWriter, request *http.Request) {
 	input, ok := readAccountRequestBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if !nodeTruthyJSON(input["handle"]) {
@@ -851,7 +852,7 @@ func (runtime *accountRuntime) serveUserRecoverStep1(w http.ResponseWriter, requ
 	handle := jsonString(input["handle"])
 	account, found, err := loadStoredAccount(runtime.options.DataRoot, handle)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !found {
@@ -869,7 +870,7 @@ func (runtime *accountRuntime) serveUserRecoverStep1(w http.ResponseWriter, requ
 	}
 	code, err := codeGenerator()
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	runtime.recoveryMu.Lock()
@@ -884,7 +885,7 @@ func (runtime *accountRuntime) serveUserRecoverStep1(w http.ResponseWriter, requ
 func (runtime *accountRuntime) serveUserRecoverStep2(w http.ResponseWriter, request *http.Request) {
 	input, ok := readAccountRequestBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if !nodeTruthyJSON(input["handle"]) || !nodeTruthyJSON(input["code"]) {
@@ -894,7 +895,7 @@ func (runtime *accountRuntime) serveUserRecoverStep2(w http.ResponseWriter, requ
 	handle := jsonString(input["handle"])
 	account, found, err := loadStoredAccount(runtime.options.DataRoot, handle)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	ip := runtime.clientIP(request)
@@ -925,12 +926,12 @@ func (runtime *accountRuntime) serveUserRecoverStep2(w http.ResponseWriter, requ
 	salt := ""
 	if nodeTruthyJSON(input["newPassword"]) {
 		if json.Unmarshal(input["newPassword"], &password) != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		saltBytes := make([]byte, 16)
 		if _, err := rand.Read(saltBytes); err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		salt = base64.StdEncoding.EncodeToString(saltBytes)
@@ -939,7 +940,7 @@ func (runtime *accountRuntime) serveUserRecoverStep2(w http.ResponseWriter, requ
 	if password != "" {
 		passwordHash, err = upstreamPasswordHash(password, salt)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 	}
@@ -962,7 +963,7 @@ func (runtime *accountRuntime) serveUserRecoverStep2(w http.ResponseWriter, requ
 		return updatedValue, nil
 	})
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 
@@ -987,7 +988,7 @@ func (runtime *accountRuntime) serveUserMe(w http.ResponseWriter, request *http.
 		account = &runtime.defaultUser
 	}
 	if account == nil {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	respondJSON(w, http.StatusOK, accountMeViewModel{
@@ -1003,7 +1004,7 @@ func (runtime *accountRuntime) serveUserMe(w http.ResponseWriter, request *http.
 func (runtime *accountRuntime) serveUserLogout(w http.ResponseWriter, request *http.Request) {
 	state := accountFromContext(request)
 	if state.session == nil || runtime.options.CookieSecret == "" {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	clearCookieSession(w, request, runtime.options)
@@ -1013,7 +1014,7 @@ func (runtime *accountRuntime) serveUserLogout(w http.ResponseWriter, request *h
 func (runtime *accountRuntime) serveUserChangeAvatar(w http.ResponseWriter, request *http.Request) {
 	input, ok := readAccountRequestBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if !nodeTruthyJSON(input["handle"]) {
@@ -1022,7 +1023,7 @@ func (runtime *accountRuntime) serveUserChangeAvatar(w http.ResponseWriter, requ
 	}
 	state := accountFromContext(request)
 	if state.user == nil {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	if !accountCanChangeTarget(state.user, input["handle"]) {
@@ -1033,7 +1034,7 @@ func (runtime *accountRuntime) serveUserChangeAvatar(w http.ResponseWriter, requ
 	if json.Unmarshal(input["avatar"], &avatar) != nil {
 		// The pinned handler calls startsWith directly. Missing and non-string
 		// avatar values throw and are converted to its generic 500 response.
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !strings.HasPrefix(avatar, "data:image/") && avatar != "" {
@@ -1042,7 +1043,7 @@ func (runtime *accountRuntime) serveUserChangeAvatar(w http.ResponseWriter, requ
 	}
 	handle := nodeStringValue(input["handle"])
 	if _, found, err := loadStoredAccount(runtime.options.DataRoot, handle); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	} else if !found {
 		respondJSON(w, http.StatusNotFound, map[string]string{"error": "User not found"})
@@ -1050,11 +1051,11 @@ func (runtime *accountRuntime) serveUserChangeAvatar(w http.ResponseWriter, requ
 	}
 	avatarJSON, err := marshalNodeJSON(avatar)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if err := startup.SetNodePersistRecord(runtime.options.DataRoot, avatarStoragePrefix+handle, avatarJSON); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	serveNoContent(w)
@@ -1063,7 +1064,7 @@ func (runtime *accountRuntime) serveUserChangeAvatar(w http.ResponseWriter, requ
 func (runtime *accountRuntime) serveUserChangeName(w http.ResponseWriter, request *http.Request) {
 	input, ok := readAccountRequestBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if !nodeTruthyJSON(input["name"]) || !nodeTruthyJSON(input["handle"]) {
@@ -1072,7 +1073,7 @@ func (runtime *accountRuntime) serveUserChangeName(w http.ResponseWriter, reques
 	}
 	state := accountFromContext(request)
 	if state.user == nil {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	if !accountCanChangeTarget(state.user, input["handle"]) {
@@ -1081,7 +1082,7 @@ func (runtime *accountRuntime) serveUserChangeName(w http.ResponseWriter, reques
 	}
 	handle := nodeStringValue(input["handle"])
 	if _, found, err := loadStoredAccount(runtime.options.DataRoot, handle); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	} else if !found {
 		respondJSON(w, http.StatusNotFound, map[string]string{"error": "User not found"})
@@ -1090,7 +1091,7 @@ func (runtime *accountRuntime) serveUserChangeName(w http.ResponseWriter, reques
 	if err := startup.UpdateNodePersistRecord(runtime.options.DataRoot, userStoragePrefix+handle, func(current json.RawMessage) (json.RawMessage, error) {
 		return replaceJSONObjectMembers(current, []string{"name"}, map[string]json.RawMessage{"name": input["name"]})
 	}); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	serveNoContent(w)
@@ -1099,7 +1100,7 @@ func (runtime *accountRuntime) serveUserChangeName(w http.ResponseWriter, reques
 func (runtime *accountRuntime) serveUserChangePassword(w http.ResponseWriter, request *http.Request) {
 	input, ok := readAccountRequestBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if !nodeTruthyJSON(input["handle"]) {
@@ -1108,7 +1109,7 @@ func (runtime *accountRuntime) serveUserChangePassword(w http.ResponseWriter, re
 	}
 	state := accountFromContext(request)
 	if state.user == nil {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	if !accountCanChangeTarget(state.user, input["handle"]) {
@@ -1118,7 +1119,7 @@ func (runtime *accountRuntime) serveUserChangePassword(w http.ResponseWriter, re
 	handle := nodeStringValue(input["handle"])
 	account, found, err := loadStoredAccount(runtime.options.DataRoot, handle)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !found {
@@ -1133,12 +1134,12 @@ func (runtime *accountRuntime) serveUserChangePassword(w http.ResponseWriter, re
 	if !isAdmin && nodeTruthyJSON(account.raw("password")) {
 		var oldPassword string
 		if json.Unmarshal(input["oldPassword"], &oldPassword) != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		computedHash, err := upstreamPasswordHash(oldPassword, account.string("salt"))
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		if subtle.ConstantTimeCompare([]byte(computedHash), []byte(account.string("password"))) != 1 {
@@ -1150,12 +1151,12 @@ func (runtime *accountRuntime) serveUserChangePassword(w http.ResponseWriter, re
 	salt := ""
 	if nodeTruthyJSON(input["newPassword"]) {
 		if json.Unmarshal(input["newPassword"], &password) != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		saltBytes := make([]byte, 16)
 		if _, err := rand.Read(saltBytes); err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		salt = base64.StdEncoding.EncodeToString(saltBytes)
@@ -1164,7 +1165,7 @@ func (runtime *accountRuntime) serveUserChangePassword(w http.ResponseWriter, re
 	if password != "" {
 		passwordHash, err = upstreamPasswordHash(password, salt)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 	}
@@ -1186,7 +1187,7 @@ func (runtime *accountRuntime) serveUserChangePassword(w http.ResponseWriter, re
 		updatedAccount = storedAccount{fields: fields}
 		return updatedValue, nil
 	}); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if state.session != nil {
@@ -1200,7 +1201,7 @@ func (runtime *accountRuntime) serveUserChangePassword(w http.ResponseWriter, re
 
 func (runtime *accountRuntime) serveUserAdminGet(w http.ResponseWriter, request *http.Request) {
 	if _, ok := readAccountRequestBody(request); !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if !requireAccountAdmin(w, request) {
@@ -1208,7 +1209,7 @@ func (runtime *accountRuntime) serveUserAdminGet(w http.ResponseWriter, request 
 	}
 	accounts, err := loadStoredAccounts(runtime.options.DataRoot)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	ordered := make([]storedAccount, 0, len(accounts))
@@ -1257,7 +1258,7 @@ func (runtime *accountRuntime) serveUserAdminDemote(w http.ResponseWriter, reque
 func (runtime *accountRuntime) serveUserAdminBooleanMutation(w http.ResponseWriter, request *http.Request, field string, value, preventSelf bool, selfError string) {
 	input, ok := readAccountRequestBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if !requireAccountAdmin(w, request) {
@@ -1274,7 +1275,7 @@ func (runtime *accountRuntime) serveUserAdminBooleanMutation(w http.ResponseWrit
 	}
 	handle := nodeStringValue(input["handle"])
 	if _, found, err := loadStoredAccount(runtime.options.DataRoot, handle); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	} else if !found {
 		respondJSON(w, http.StatusNotFound, map[string]string{"error": "User not found"})
@@ -1284,7 +1285,7 @@ func (runtime *accountRuntime) serveUserAdminBooleanMutation(w http.ResponseWrit
 	if err := startup.UpdateNodePersistRecord(runtime.options.DataRoot, userStoragePrefix+handle, func(current json.RawMessage) (json.RawMessage, error) {
 		return replaceJSONObjectMembers(current, []string{field}, map[string]json.RawMessage{field: encoded})
 	}); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	serveNoContent(w)
@@ -1293,7 +1294,7 @@ func (runtime *accountRuntime) serveUserAdminBooleanMutation(w http.ResponseWrit
 func (runtime *accountRuntime) serveUserAdminDelete(w http.ResponseWriter, request *http.Request) {
 	input, ok := readAccountRequestBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if !requireAccountAdmin(w, request) {
@@ -1313,7 +1314,7 @@ func (runtime *accountRuntime) serveUserAdminDelete(w http.ResponseWriter, reque
 		return
 	}
 	if runtime.options.DataRoot == "" {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	handle := nodeStringValue(input["handle"])
@@ -1322,27 +1323,27 @@ func (runtime *accountRuntime) serveUserAdminDelete(w http.ResponseWriter, reque
 	if purge {
 		directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, handle)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		dataRoot, err := filepath.Abs(runtime.options.DataRoot)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		userRoot = filepath.Clean(directories["root"])
 		if userRoot == filepath.Clean(dataRoot) {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 	}
 	if err := startup.RemoveNodePersistRecord(runtime.options.DataRoot, userStoragePrefix+handle); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if purge {
 		if err := os.RemoveAll(userRoot); err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 	}
@@ -1352,7 +1353,7 @@ func (runtime *accountRuntime) serveUserAdminDelete(w http.ResponseWriter, reque
 func requireAccountAdmin(w http.ResponseWriter, request *http.Request) bool {
 	state := accountFromContext(request)
 	if state.user == nil || !nodeTruthyJSON(state.user.raw("admin")) {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return false
 	}
 	return true
@@ -1463,7 +1464,7 @@ func serveAccountRateLimit(w http.ResponseWriter, wait time.Duration, message st
 }
 
 func serveNoContent(w http.ResponseWriter) {
-	w.Header().Set("ETag", expressWeakETag([]byte(http.StatusText(http.StatusNoContent))))
+	w.Header().Set("ETag", httpx.WeakETag([]byte(http.StatusText(http.StatusNoContent))))
 	w.Header().Set("Vary", "Origin")
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -1602,25 +1603,12 @@ func marshalNodeJSON(value any) ([]byte, error) {
 func respondJSON(w http.ResponseWriter, status int, value any) {
 	body, err := marshalNodeJSON(value)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", expressWeakETag(body))
-	w.WriteHeader(status)
-	_, _ = w.Write(body)
-}
-
-func serveStatusText(w http.ResponseWriter, status int) {
-	if status == http.StatusNoContent || status == http.StatusNotModified {
-		w.WriteHeader(status)
-		return
-	}
-	body := []byte(http.StatusText(status))
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", expressWeakETag(body))
+	w.Header().Set("ETag", httpx.WeakETag(body))
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
 }

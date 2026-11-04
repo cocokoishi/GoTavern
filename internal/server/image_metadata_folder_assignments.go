@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"os"
 	"path"
@@ -27,7 +28,7 @@ func (runtimeServer *accountRuntime) serveImageMetadataFolderAssignment(w http.R
 	}
 	input, bodyError, accessError := readImageMetadataRequestBody(request)
 	if bodyError {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if accessError {

@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"net/http"
 	"time"
@@ -23,24 +24,24 @@ func (runtime *accountRuntime) serveSettingsSave(w http.ResponseWriter, request 
 	}
 	body, err := io.ReadAll(io.LimitReader(request.Body, settingsSaveBodyLimit+1))
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if len(body) > settingsSaveBodyLimit {
-		serveStatusText(w, http.StatusRequestEntityTooLarge)
+		httpx.WriteStatusText(w, http.StatusRequestEntityTooLarge)
 		return
 	}
 	if len(bytes.TrimSpace(body)) == 0 {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	settings, err := startup.FormatSettingsJSON(body)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if err := runtime.saveSettings(account.string("handle"), settings); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]string{"result": "ok"})

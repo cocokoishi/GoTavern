@@ -29,6 +29,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"net/http"
 	"os"
@@ -460,7 +461,7 @@ type tokenizerCountResponse struct {
 func (runtime *accountRuntime) serveSentencePieceEncode(w http.ResponseWriter, request *http.Request, model string) {
 	text, ok := tokenizerTextRequest(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	set, present := openTokenizerSet(runtime.options)
@@ -480,7 +481,7 @@ func (runtime *accountRuntime) serveSentencePieceEncode(w http.ResponseWriter, r
 func (runtime *accountRuntime) serveTiktokenEncode(w http.ResponseWriter, request *http.Request) {
 	text, ok := tokenizerTextRequest(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	set, present := openTokenizerSet(runtime.options)
@@ -514,7 +515,7 @@ func (runtime *accountRuntime) serveTiktokenEncode(w http.ResponseWriter, reques
 func (runtime *accountRuntime) serveWebTokenizerEncode(w http.ResponseWriter, request *http.Request, model string) {
 	text, ok := tokenizerTextRequest(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	set, present := openTokenizerSet(runtime.options)

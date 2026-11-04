@@ -27,6 +27,7 @@ package server
 // and `list-native-voices` is a hardcoded table that this increment does not cover.
 
 import (
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 
 	"github.com/cocokoishi/gotavern/internal/startup"
@@ -58,10 +59,10 @@ func (runtime *accountRuntime) serveGoogleListVoices(w http.ResponseWriter, requ
 	}
 	body, err := marshalCharacterJSON(table)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // serveGoogleListNativeVoices answers the pinned hardcoded Gemini voice table. Like list-voices it reads
@@ -84,10 +85,10 @@ func (runtime *accountRuntime) serveGoogleListNativeVoices(w http.ResponseWriter
 	answer.setMember("voices", voices)
 	body, err := marshalCharacterJSON(answer)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // googleGetCode reproduces the pinned package `getCode(desiredLang)` from lib/languages.cjs, which is

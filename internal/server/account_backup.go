@@ -3,6 +3,7 @@ package server
 import (
 	"archive/zip"
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"net/http"
 	"os"
@@ -14,7 +15,7 @@ import (
 func (runtime *accountRuntime) serveUserBackup(w http.ResponseWriter, request *http.Request) {
 	input, ok := readAccountRequestBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if runtime.fullDataBackupAllowed() == false {
@@ -27,7 +28,7 @@ func (runtime *accountRuntime) serveUserBackup(w http.ResponseWriter, request *h
 	}
 	account := runtime.requestAccount(accountFromContext(request))
 	if account == nil {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	var handle string
@@ -35,7 +36,7 @@ func (runtime *accountRuntime) serveUserBackup(w http.ResponseWriter, request *h
 		if !nodeTruthyJSON(account.raw("admin")) {
 			respondJSON(w, http.StatusForbidden, map[string]string{"error": "Unauthorized"})
 		} else {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 		}
 		return
 	}
@@ -44,25 +45,25 @@ func (runtime *accountRuntime) serveUserBackup(w http.ResponseWriter, request *h
 		return
 	}
 	if runtime.options.DataRoot == "" {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	root := filepath.Join(runtime.options.DataRoot, filepath.FromSlash(handle))
 	temporary, err := os.CreateTemp("", "gotavern-full-backup-*.zip")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	temporaryPath := temporary.Name()
 	defer os.Remove(temporaryPath)
 	if err := writeUserBackupZip(temporary, root, runtime.options.AllowKeysExposure); err != nil {
 		_ = temporary.Close()
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if _, err := temporary.Seek(0, io.SeekStart); err != nil {
 		_ = temporary.Close()
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	filename := handle + "-" + time.Now().Format("20060102-150405") + ".zip"

@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"mime"
 	"net/http"
@@ -40,7 +41,7 @@ func (runtime *accountRuntime) serveFilesUpload(w http.ResponseWriter, request *
 	}
 	input, valid := readFilesUploadBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	nameRaw, hasName := input["name"]
@@ -50,7 +51,7 @@ func (runtime *accountRuntime) serveFilesUpload(w http.ResponseWriter, request *
 	}
 	filename, err := validateUploadedAssetName(nameRaw)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if message := assetFilenameValidationMessage(filename); message != "" {
@@ -65,18 +66,18 @@ func (runtime *accountRuntime) serveFilesUpload(w http.ResponseWriter, request *
 	}
 	dataValue, err := decodeOrderedNodeJSON(dataRaw)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	dataText, err := dataValue.javascriptString()
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	content := decodeNodeBase64(dataText)
 	relativePath, err := startup.SaveUserFile(runtime.options.DataRoot, account.string("handle"), filename, content)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	respondJSON(w, http.StatusOK, map[string]string{"path": relativePath})

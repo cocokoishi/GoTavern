@@ -30,6 +30,7 @@ package server
 // the arm never consults reverse_proxy and never assigns from proxy_password.
 
 import (
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 
 	"github.com/cocokoishi/gotavern/internal/outbound"
@@ -109,16 +110,16 @@ func (runtime *accountRuntime) serveWorkersAIChatCompletionStatus(w http.Respons
 		Headers: headers,
 	})
 	if fetchErr != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !sdResponseOK(response) {
-		serveStatusText(w, response.Status)
+		httpx.WriteStatusText(w, response.Status)
 		return
 	}
 	data, parsed := sdReadJSON(response)
 	if !parsed {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// `{data: result.map(model => ({...model, id: model.name}))}`.

@@ -44,6 +44,7 @@ package server
 
 import (
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"net"
 	"net/http"
@@ -230,7 +231,7 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 	if !ok {
 		// Express's JSON body parser answers its own 400 page for a malformed
 		// body; GoTavern answers the same status with a plain-text body.
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	// chat-completions.js:2246-2253, before ANY source branch is reached.
@@ -241,16 +242,16 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 	}
 	account := runtime.requestAccount(accountFromContext(request))
 	if account == nil {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	if runtime.options.DataRoot == "" || account.string("handle") == "" {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 
@@ -267,7 +268,7 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 	row, plan, failure := pinnedChatCompletionResolve(body, directories, runtime.options.CookieSecret)
 	if failure != nil {
 		if failure.payload == nil {
-			serveStatusText(w, failure.status)
+			httpx.WriteStatusText(w, failure.status)
 			return
 		}
 		respondOrderedNodeJSON(w, failure.status, *failure.payload)

@@ -32,6 +32,7 @@ package server
 
 import (
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"math"
 	"net/http"
 	"net/url"
@@ -134,30 +135,30 @@ func (runtime *accountRuntime) serveOpenRouterProviders(w http.ResponseWriter, r
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	model, err := javascriptStringOfBody(input["model"])
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	response, err := providerAuxGet(request, openRouterAPIURL()+"/models/"+model+"/endpoints",
 		[]outbound.Header{{Name: "Accept", Value: "application/json"}})
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {
-		respondJSONBytes(w, http.StatusOK, []byte("[]"))
+		httpx.WriteJSONBytes(w, http.StatusOK, []byte("[]"))
 		return
 	}
 	body, err := openRouterProviderNames(response)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 func openRouterProviderNames(response *outbound.Response) ([]byte, error) {
@@ -293,7 +294,7 @@ func openRouterImageFormat(mimeType string) string {
 func (runtime *accountRuntime) serveOpenRouterImageGenerate(w http.ResponseWriter, request *http.Request) {
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.secretsDirectories(w, request)
@@ -302,11 +303,11 @@ func (runtime *accountRuntime) serveOpenRouterImageGenerate(w http.ResponseWrite
 	}
 	keyText, err := startup.ReadSecretString(directories, "api_key_openrouter")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if keyText == "" {
-		respondJSONBytes(w, http.StatusBadRequest, []byte(`{"error":"OpenRouter API key not found"}`))
+		httpx.WriteJSONBytes(w, http.StatusBadRequest, []byte(`{"error":"OpenRouter API key not found"}`))
 		return
 	}
 	// `if (!model || !prompt)` is JS FALSINESS, so an ABSENT member must be refused even though a
@@ -314,13 +315,13 @@ func (runtime *accountRuntime) serveOpenRouterImageGenerate(w http.ResponseWrite
 	modelRaw, modelPresent := input["model"]
 	promptRaw, promptPresent := input["prompt"]
 	if !modelPresent || !promptPresent || !nodeTruthyJSON(modelRaw) || !nodeTruthyJSON(promptRaw) {
-		respondJSONBytes(w, http.StatusBadRequest, []byte(`{"error":"Model and prompt are required"}`))
+		httpx.WriteJSONBytes(w, http.StatusBadRequest, []byte(`{"error":"Model and prompt are required"}`))
 		return
 	}
 	model, modelErr := javascriptStringOfBody(modelRaw)
 	prompt, promptErr := javascriptStringOfBody(promptRaw)
 	if modelErr != nil || promptErr != nil || model == "" || prompt == "" {
-		respondJSONBytes(w, http.StatusBadRequest, []byte(`{"error":"Model and prompt are required"}`))
+		httpx.WriteJSONBytes(w, http.StatusBadRequest, []byte(`{"error":"Model and prompt are required"}`))
 		return
 	}
 	// `req.body.aspect_ratio || '1:1'` is JS OR-defaulting: a falsy member (absent, empty, 0) falls back.
@@ -342,22 +343,22 @@ func (runtime *accountRuntime) serveOpenRouterImageGenerate(w http.ResponseWrite
 	payload.setMember("image_config", imageConfig)
 	body, err := marshalCharacterJSON(payload)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	decoded, ok := sdPostJSON(request, openRouterAPIURL()+"/chat/completions", openRouterImageHeaders(keyText), body)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	imageURL, found := openRouterImageURL(decoded)
 	if !found {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	mimeType, base64Data, matched := openRouterSplitDataURI(imageURL)
 	if !matched {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	answer := nodeObject()
@@ -365,10 +366,10 @@ func (runtime *accountRuntime) serveOpenRouterImageGenerate(w http.ResponseWrite
 	answer.setMember("image", nodeString(base64Data))
 	encoded, err := marshalCharacterJSON(answer)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, encoded)
+	httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 }
 
 func (runtime *accountRuntime) serveOpenRouterModelList(w http.ResponseWriter, request *http.Request, inputModality, outputModality string, mode openRouterModelMode) {
@@ -378,15 +379,15 @@ func (runtime *accountRuntime) serveOpenRouterModelList(w http.ResponseWriter, r
 	target := openRouterAPIURL() + "/models?output_modalities=" + url.QueryEscape(outputModality)
 	response, err := providerAuxGet(request, target, []outbound.Header{{Name: "Accept", Value: "application/json"}})
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	body, err := openRouterFetchModelsByModality(response, inputModality, outputModality, mode)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // openRouterFetchModelsByModality reproduces fetchModelsByModality (openrouter.js:44). A non-ok peer
@@ -499,11 +500,11 @@ func (runtime *accountRuntime) serveOpenRouterCredits(w http.ResponseWriter, req
 	}
 	keyText, err := startup.ReadSecretString(directories, "api_key_openrouter")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if keyText == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	response, err := providerAuxGet(request, openRouterAPIURL()+"/credits", []outbound.Header{
@@ -511,19 +512,19 @@ func (runtime *accountRuntime) serveOpenRouterCredits(w http.ResponseWriter, req
 		{Name: "Authorization", Value: "Bearer " + keyText},
 	})
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	body, err := openRouterCreditsBody(response)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 func openRouterCreditsBody(response *outbound.Response) ([]byte, error) {

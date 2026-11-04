@@ -30,6 +30,7 @@ package server
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"math/big"
 	"net/http"
 	"strconv"
@@ -61,16 +62,16 @@ func (runtime *accountRuntime) serveSDPollinationsGenerate(w http.ResponseWriter
 	}
 	key, err := startup.ReadSecretString(directories, "api_key_pollinations")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if key == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	prompt := sdRawJavaScriptString(input["prompt"])
@@ -99,11 +100,11 @@ func (runtime *accountRuntime) serveSDPollinationsGenerate(w http.ResponseWriter
 		},
 	}, 120*time.Second)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	contentType := response.Header("Content-Type")
@@ -116,10 +117,10 @@ func (runtime *accountRuntime) serveSDPollinationsGenerate(w http.ResponseWriter
 	answer.setMember("format", nodeString(format))
 	encoded, err := marshalCharacterJSON(answer)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, encoded)
+	httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 }
 
 // serveSDTogetherGenerate posts to the Together image endpoint and answers `{ format, data }`.
@@ -130,16 +131,16 @@ func (runtime *accountRuntime) serveSDTogetherGenerate(w http.ResponseWriter, re
 	}
 	key, err := startup.ReadSecretString(directories, "api_key_togetherai")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if key == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	payload := nodeObject()
@@ -162,7 +163,7 @@ func (runtime *accountRuntime) serveSDTogetherGenerate(w http.ResponseWriter, re
 	}
 	body, err := marshalCharacterJSON(payload)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	target := sdTogetherURL() + "/v1/images/generations"
@@ -178,29 +179,29 @@ func (runtime *accountRuntime) serveSDTogetherGenerate(w http.ResponseWriter, re
 		Body: body,
 	}, 120*time.Second)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	decoded, err := decodeOrderedNodeJSON(response.Body)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// `data?.data?.[0]` then `choice.b64_json`: a missing entry or member throws in the pinned handler.
 	data := nodeGet(decoded, "data")
 	if data.kind != 'a' || len(data.array) == 0 {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	b64, hasB64 := hordeStringMember(data.array[0], "b64_json")
 	if !hasB64 || b64 == "" {
 		url, hasURL := hordeStringMember(data.array[0], "url")
 		if !hasURL || url == "" {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		fetched, err := outbound.Send(request.Context(), outbound.Request{
@@ -209,7 +210,7 @@ func (runtime *accountRuntime) serveSDTogetherGenerate(w http.ResponseWriter, re
 			Headers: []outbound.Header{{Name: "Host", Value: hostOf(url)}},
 		}, 120*time.Second)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		b64 = base64.StdEncoding.EncodeToString(fetched.Body)
@@ -219,10 +220,10 @@ func (runtime *accountRuntime) serveSDTogetherGenerate(w http.ResponseWriter, re
 	answer.setMember("data", nodeString(b64))
 	encoded, err := marshalCharacterJSON(answer)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, encoded)
+	httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 }
 
 // sdRawJavaScriptString is `String(value)` for a raw body member, with an absent member reading as

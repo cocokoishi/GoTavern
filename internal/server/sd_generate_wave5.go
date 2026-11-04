@@ -36,6 +36,7 @@ package server
 
 import (
 	"encoding/base64"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"math"
 	"net/http"
 	"strings"
@@ -293,7 +294,7 @@ func (runtime *accountRuntime) serveSDBFLGenerate(w http.ResponseWriter, request
 				serveSDStatus(w, http.StatusInternalServerError)
 				return
 			}
-			respondJSONBytes(w, http.StatusOK, encoded)
+			httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 			return
 		}
 		// `throw new Error('BFL failed to generate image.', { cause: statusData })` and BFL's catch answers
@@ -531,7 +532,7 @@ func (runtime *accountRuntime) serveSDFalaiGenerate(w http.ResponseWriter, reque
 				serveSDStatus(w, http.StatusInternalServerError)
 				return
 			}
-			respondJSONBytes(w, http.StatusOK, encoded)
+			httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 			return
 		}
 		// `throw new Error('FAL.AI failed to generate image.', { cause: statusData })` and the catch sends
@@ -637,7 +638,7 @@ func respondFalaiCause(w http.ResponseWriter, cause orderedNodeJSON) {
 			serveSDStatus(w, http.StatusInternalServerError)
 			return
 		}
-		respondJSONBytes(w, http.StatusInternalServerError, encoded)
+		httpx.WriteJSONBytes(w, http.StatusInternalServerError, encoded)
 		return
 	}
 	text, err := pinnedJSStringValue(cause)

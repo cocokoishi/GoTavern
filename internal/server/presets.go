@@ -26,6 +26,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -192,39 +193,39 @@ func (runtime *accountRuntime) servePresetSave(w http.ResponseWriter, request *h
 	}
 	body, ok := readPinnedJSONBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	name, ok := pinnedSanitizedName(nodeGet(body, "name"))
 	if !ok {
 		// sanitize-filename throws for a non-string name before the route's
 		// truthiness check runs, so this is a 500 rather than a 400.
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !jsTruthy(nodeGet(body, "preset")) || name == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directoryKey, hasFolder := pinnedPresetFolder(nodeGet(body, "apiId"))
 	if !hasFolder {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	contents, err := marshalCharacterJSONIndent(nodeGet(body, "preset"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	relative, ok := runtime.presetDirectoryPath(account.string("handle"), directoryKey)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if err := startup.UpdateUserContentFile(runtime.options.DataRoot, account.string("handle"), filepath.Join(relative, name+".json"), func([]byte) ([]byte, error) {
 		return contents, nil
 	}); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	respondOrderedNodeJSON(w, http.StatusOK, orderedNodeJSON{kind: 'o', object: []orderedNodeJSONEntry{
@@ -239,39 +240,39 @@ func (runtime *accountRuntime) servePresetDelete(w http.ResponseWriter, request 
 	}
 	body, ok := readPinnedJSONBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	name, ok := pinnedSanitizedName(nodeGet(body, "name"))
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if name == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directoryKey, hasFolder := pinnedPresetFolder(nodeGet(body, "apiId"))
 	if !hasFolder {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	relative, ok := runtime.presetDirectoryPath(account.string("handle"), directoryKey)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	found, err := startup.DeleteUserFile(runtime.options.DataRoot, account.string("handle"), filepath.Join(relative, name+".json"))
 	if err != nil {
 		// unlinkSync throws for a directory target or a permission failure.
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !found {
-		serveStatusText(w, http.StatusNotFound)
+		httpx.WriteStatusText(w, http.StatusNotFound)
 		return
 	}
-	serveStatusText(w, http.StatusOK)
+	httpx.WriteStatusText(w, http.StatusOK)
 }
 
 func (runtime *accountRuntime) servePresetRestore(w http.ResponseWriter, request *http.Request) {
@@ -280,14 +281,14 @@ func (runtime *accountRuntime) servePresetRestore(w http.ResponseWriter, request
 	}
 	body, ok := readPinnedJSONBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	// The pinned handler wraps everything below in one try/catch that answers
 	// sendStatus(500), so a non-string name is a plain-text 500 here.
 	name, ok := pinnedSanitizedName(nodeGet(body, "name"))
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	folderKey, _ := pinnedPresetFolder(nodeGet(body, "apiId"))

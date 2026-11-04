@@ -27,6 +27,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"os"
 	"strconv"
@@ -95,11 +96,11 @@ func (runtime *accountRuntime) providerSecretString(w http.ResponseWriter, reque
 	}
 	key, err := startup.ReadSecretString(directories, keyID)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return nil, "", false
 	}
 	if key == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return nil, "", false
 	}
 	return directories, key, true
@@ -144,7 +145,7 @@ func (runtime *accountRuntime) serveElectronHubModels(w http.ResponseWriter, req
 		respondText(w, http.StatusInternalServerError, "text/html; charset=utf-8", "Internal server error")
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // serveChutesEmbeddingModels answers data.items.
@@ -156,7 +157,7 @@ func (runtime *accountRuntime) serveChutesEmbeddingModels(w http.ResponseWriter,
 	response, err := providerAuxGet(request, chutesAPIURL()+"/chutes/?template=embedding&include_public=true&limit=999",
 		[]outbound.Header{{Name: "Authorization", Value: "Bearer " + key}})
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {
@@ -165,20 +166,20 @@ func (runtime *accountRuntime) serveChutesEmbeddingModels(w http.ResponseWriter,
 	}
 	data, err := orderedNodeJSONOf(response)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	items := nodeGet(data, "items")
 	if items.kind != 'a' {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	body, err := marshalCharacterJSON(items)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // serveNanoGPTEmbeddingModels answers data.data.
@@ -192,7 +193,7 @@ func (runtime *accountRuntime) serveNanoGPTEmbeddingModels(w http.ResponseWriter
 		{Name: "Accept-Encoding", Value: "identity"},
 	})
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {
@@ -201,20 +202,20 @@ func (runtime *accountRuntime) serveNanoGPTEmbeddingModels(w http.ResponseWriter
 	}
 	data, err := orderedNodeJSONOf(response)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	models := nodeGet(data, "data")
 	if models.kind != 'a' {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	body, err := marshalCharacterJSON(models)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // serveSiliconFlowEmbeddingModels answers data.data, from the .cn upstream only when the body asks
@@ -222,7 +223,7 @@ func (runtime *accountRuntime) serveNanoGPTEmbeddingModels(w http.ResponseWriter
 func (runtime *accountRuntime) serveSiliconFlowEmbeddingModels(w http.ResponseWriter, request *http.Request) {
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	_, key, ok := runtime.providerSecretString(w, request, "api_key_siliconflow")
@@ -231,7 +232,7 @@ func (runtime *accountRuntime) serveSiliconFlowEmbeddingModels(w http.ResponseWr
 	}
 	endpoint, err := javascriptStringOfBody(input["siliconflow_endpoint"])
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	base := siliconflowGlobalURL()
@@ -241,7 +242,7 @@ func (runtime *accountRuntime) serveSiliconFlowEmbeddingModels(w http.ResponseWr
 	response, err := providerAuxGet(request, base+"/v1/models?type=text&sub_type=embedding",
 		[]outbound.Header{{Name: "Authorization", Value: "Bearer " + key}})
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {
@@ -250,27 +251,27 @@ func (runtime *accountRuntime) serveSiliconFlowEmbeddingModels(w http.ResponseWr
 	}
 	data, err := orderedNodeJSONOf(response)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	models := nodeGet(data, "data")
 	if models.kind != 'a' {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	body, err := marshalCharacterJSON(models)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // serveWorkersAIEmbeddingModels answers data.result.map(m => ({ ...m, id: m.name })).
 func (runtime *accountRuntime) serveWorkersAIEmbeddingModels(w http.ResponseWriter, request *http.Request) {
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	_, key, ok := runtime.providerSecretString(w, request, "api_key_workers_ai")
@@ -279,11 +280,11 @@ func (runtime *accountRuntime) serveWorkersAIEmbeddingModels(w http.ResponseWrit
 	}
 	accountID, err := workersAIAccountID(input["workers_ai_account_id"])
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if accountID == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	target := cloudflareAPIURL() + "/client/v4/accounts/" + encodeURIComponentJS(accountID) +
@@ -291,7 +292,7 @@ func (runtime *accountRuntime) serveWorkersAIEmbeddingModels(w http.ResponseWrit
 	response, err := providerAuxGet(request, target,
 		[]outbound.Header{{Name: "Authorization", Value: "Bearer " + key}})
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !outboundOK(response) {
@@ -300,29 +301,29 @@ func (runtime *accountRuntime) serveWorkersAIEmbeddingModels(w http.ResponseWrit
 	}
 	data, err := orderedNodeJSONOf(response)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	result := nodeGet(data, "result")
 	if result.kind != 'a' {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	mapped := make([]orderedNodeJSON, 0, len(result.array))
 	for _, entry := range result.array {
 		spread, err := spreadWithModelID(entry)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		mapped = append(mapped, spread)
 	}
 	body, err := marshalCharacterJSON(nodeArray(mapped...))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // workersAIAccountID reproduces `String(request.body.workers_ai_account_id || ”).trim()`.

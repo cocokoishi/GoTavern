@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"os"
 	"strings"
@@ -17,7 +18,7 @@ func (runtime *accountRuntime) serveUserResetStep1(w http.ResponseWriter, reques
 	state := accountFromContext(request)
 	account := runtime.requestAccount(state)
 	if account == nil {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 
@@ -33,7 +34,7 @@ func (runtime *accountRuntime) serveUserResetStep1(w http.ResponseWriter, reques
 	}
 	code, err := codeGenerator()
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	handle := account.string("handle")
@@ -49,7 +50,7 @@ func (runtime *accountRuntime) serveUserResetStep1(w http.ResponseWriter, reques
 func (runtime *accountRuntime) serveUserResetStep2(w http.ResponseWriter, request *http.Request) {
 	input, ok := readAccountRequestBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if !nodeTruthyJSON(input["code"]) {
@@ -59,18 +60,18 @@ func (runtime *accountRuntime) serveUserResetStep2(w http.ResponseWriter, reques
 	state := accountFromContext(request)
 	account := runtime.requestAccount(state)
 	if account == nil {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	if nodeTruthyJSON(account.raw("password")) {
 		var password string
 		if len(input["password"]) == 0 || input["password"][0] != '"' || json.Unmarshal(input["password"], &password) != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		passwordHash, err := upstreamPasswordHash(password, account.string("salt"))
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		if passwordHash != account.string("password") {
@@ -105,25 +106,25 @@ func (runtime *accountRuntime) serveUserResetStep2(w http.ResponseWriter, reques
 	}
 	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, dataHandle)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if runtime.options.DataRoot == "" || directories["root"] == "" {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if err := os.RemoveAll(directories["root"]); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 
 	handles, err := runtime.userDirectoryHandles(dataHandle)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if _, err := startup.EnsureDirectories(runtime.options.InstallRoot, runtime.options.DataRoot, handles); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	_, _ = startup.SeedDefaultContent(runtime.options.DataRoot, []startup.UserDirectories{directories}, startup.SeedOptions{

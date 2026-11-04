@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,7 +18,7 @@ func (runtime *accountRuntime) serveFilesVerify(w http.ResponseWriter, request *
 	}
 	input, valid := readAccountRequestBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	var paths []json.RawMessage
@@ -29,7 +30,7 @@ func (runtime *accountRuntime) serveFilesVerify(w http.ResponseWriter, request *
 	}
 	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	filesDirectory := directories["files"]
@@ -37,12 +38,12 @@ func (runtime *accountRuntime) serveFilesVerify(w http.ResponseWriter, request *
 	for _, rawPath := range paths {
 		var pathValue any
 		if err := json.Unmarshal(rawPath, &pathValue); err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		fileURL, isString := pathValue.(string)
 		if !isString {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		pathToVerify := filepath.Join(directories["root"], filepath.FromSlash(fileURL))

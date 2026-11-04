@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 
 	"github.com/cocokoishi/gotavern/internal/startup"
@@ -14,7 +15,7 @@ func (runtime *accountRuntime) serveSpritesDelete(w http.ResponseWriter, request
 	}
 	input, valid := readAccountRequestBody(request)
 	if !valid {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	name := nodeStringValue(input["name"])
@@ -23,19 +24,19 @@ func (runtime *accountRuntime) serveSpritesDelete(w http.ResponseWriter, request
 		spriteName = input["label"]
 	}
 	if !nodeTruthyJSON(spriteName) || name == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	var targetName string
 	matchName := json.Unmarshal(spriteName, &targetName) == nil
 	found, err := startup.DeleteUserSpriteFiles(runtime.options.DataRoot, account.string("handle"), name, targetName, matchName)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if !found {
-		serveStatusText(w, http.StatusNotFound)
+		httpx.WriteStatusText(w, http.StatusNotFound)
 		return
 	}
-	serveStatusText(w, http.StatusOK)
+	httpx.WriteStatusText(w, http.StatusOK)
 }

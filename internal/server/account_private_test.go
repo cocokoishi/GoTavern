@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -184,7 +185,7 @@ func TestPinnedNodePrivateAccountProfileAndLogoutContract(t *testing.T) {
 		t.Fatalf("accounts-disabled profile created = %#v; pinned Node creates a numeric timestamp", disabledBody["created"])
 	}
 	disabledBody["created"] = "<timestamp>"
-	disabledETag := expressWeakETag(disabledMe.Body.Bytes())
+	disabledETag := httpx.WeakETag(disabledMe.Body.Bytes())
 	if got := disabledMe.Header().Get("ETag"); got != disabledETag || disabledETag == "" || created <= 0 {
 		t.Fatalf("accounts-disabled profile ETag/timestamp = %q / %v", disabledMe.Header().Get("ETag"), created)
 	}

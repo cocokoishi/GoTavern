@@ -28,6 +28,7 @@ package server
 
 import (
 	"encoding/base64"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"regexp"
 	"time"
@@ -89,11 +90,11 @@ func (runtime *accountRuntime) sdProviderSecret(w http.ResponseWriter, request *
 	}
 	key, err := startup.ReadSecretString(directories, keyID)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return nil, "", false
 	}
 	if key == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return nil, "", false
 	}
 	return directories, key, true
@@ -155,12 +156,12 @@ func sdJSONHeaders(key string) []outbound.Header {
 func sdRawBody(w http.ResponseWriter, body []byte) ([]byte, bool) {
 	decoded, err := decodeOrderedNodeJSON(body)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return nil, false
 	}
 	encoded, err := marshalCharacterJSON(decoded)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return nil, false
 	}
 	return encoded, true
@@ -183,7 +184,7 @@ func (runtime *accountRuntime) serveSDHuggingFaceGenerate(w http.ResponseWriter,
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	model := sdRawJavaScriptString(input["model"])
@@ -191,23 +192,23 @@ func (runtime *accountRuntime) serveSDHuggingFaceGenerate(w http.ResponseWriter,
 	setRawMember(&payload, "inputs", input["prompt"])
 	body, err := marshalCharacterJSON(payload)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// The model is interpolated RAW: no encodeURIComponent here, and that is deliberate.
 	content, ok := sdPostBytes(request, sdHuggingFaceURL()+"/models/"+model, sdJSONHeaders(key), body)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	answer := nodeObject()
 	answer.setMember("image", nodeString(base64.StdEncoding.EncodeToString(content)))
 	encoded, err := marshalCharacterJSON(answer)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, encoded)
+	httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 }
 
 // serveSDElectronHubGenerate posts an OpenAI-shaped image request and answers {image}.
@@ -218,7 +219,7 @@ func (runtime *accountRuntime) serveSDElectronHubGenerate(w http.ResponseWriter,
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	payload := nodeObject()
@@ -233,12 +234,12 @@ func (runtime *accountRuntime) serveSDElectronHubGenerate(w http.ResponseWriter,
 	}
 	body, err := marshalCharacterJSON(payload)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	decoded, ok := sdPostJSON(request, sdElectronHubURL()+"/v1/images/generations", sdJSONHeaders(key), body)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if base64Value, found := sdImageAt(decoded); found {
@@ -246,13 +247,13 @@ func (runtime *accountRuntime) serveSDElectronHubGenerate(w http.ResponseWriter,
 		answer.setMember("image", nodeString(base64Value))
 		encoded, err := marshalCharacterJSON(answer)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
-		respondJSONBytes(w, http.StatusOK, encoded)
+		httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 		return
 	}
-	serveStatusText(w, http.StatusInternalServerError)
+	httpx.WriteStatusText(w, http.StatusInternalServerError)
 }
 
 // sdImageAt is `data?.data?.[0]?.b64_json` as a string, for the providers that share that shape.
@@ -281,7 +282,7 @@ func (runtime *accountRuntime) serveSDChutesGenerate(w http.ResponseWriter, requ
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	payload := nodeObject()
@@ -294,22 +295,22 @@ func (runtime *accountRuntime) serveSDChutesGenerate(w http.ResponseWriter, requ
 	payload.setMember("num_inference_steps", sdOrDefaultNumber(input["steps"], 10))
 	body, err := marshalCharacterJSON(payload)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	content, ok := sdPostBytes(request, sdChutesImageURL()+"/generate", sdJSONHeaders(key), body)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	answer := nodeObject()
 	answer.setMember("image", nodeString(base64.StdEncoding.EncodeToString(content)))
 	encoded, err := marshalCharacterJSON(answer)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, encoded)
+	httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 }
 
 // sdOrDefaultNumber reproduces `value || fallback` for a numeric body member, which is TRUTHINESS, not
@@ -333,7 +334,7 @@ func (runtime *accountRuntime) serveSDNanoGPTGenerate(w http.ResponseWriter, req
 	}
 	body, _, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	payload, ok := sdRawBody(w, body)
@@ -345,7 +346,7 @@ func (runtime *accountRuntime) serveSDNanoGPTGenerate(w http.ResponseWriter, req
 		{Name: "Content-Type", Value: "application/json"},
 	}, payload)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if base64Value, found := sdImageAt(decoded); found {
@@ -353,13 +354,13 @@ func (runtime *accountRuntime) serveSDNanoGPTGenerate(w http.ResponseWriter, req
 		answer.setMember("image", nodeString(base64Value))
 		encoded, err := marshalCharacterJSON(answer)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
-		respondJSONBytes(w, http.StatusOK, encoded)
+		httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 		return
 	}
-	serveStatusText(w, http.StatusInternalServerError)
+	httpx.WriteStatusText(w, http.StatusInternalServerError)
 }
 
 // sdDataURLPattern is `/^data:(.+);base64,(.+)$/`.
@@ -373,7 +374,7 @@ func (runtime *accountRuntime) serveSDXaiGenerate(w http.ResponseWriter, request
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	payload := nodeObject()
@@ -384,12 +385,12 @@ func (runtime *accountRuntime) serveSDXaiGenerate(w http.ResponseWriter, request
 	payload.setMember("response_format", nodeString("b64_json"))
 	body, err := marshalCharacterJSON(payload)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	decoded, ok := sdPostJSON(request, sdXaiURL()+"/v1/images/generations", sdJSONHeaders(key), body)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	encodedImage := ""
@@ -402,7 +403,7 @@ func (runtime *accountRuntime) serveSDXaiGenerate(w http.ResponseWriter, request
 		}
 	}
 	if encodedImage == "" {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	image := encodedImage
@@ -418,10 +419,10 @@ func (runtime *accountRuntime) serveSDXaiGenerate(w http.ResponseWriter, request
 	answer.setMember("format", nodeString(format))
 	encoded, err := marshalCharacterJSON(answer)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, encoded)
+	httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 }
 
 // serveSDAimlapiGenerate forwards the whole body and answers {format, data}.
@@ -432,7 +433,7 @@ func (runtime *accountRuntime) serveSDAimlapiGenerate(w http.ResponseWriter, req
 	}
 	body, _, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	payload, ok := sdRawBody(w, body)
@@ -520,5 +521,5 @@ func (runtime *accountRuntime) serveSDAimlapiGenerate(w http.ResponseWriter, req
 		respondText(w, http.StatusInternalServerError, "text/html; charset=utf-8", "Internal error")
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, encoded)
+	httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 }

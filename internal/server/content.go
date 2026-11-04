@@ -23,6 +23,7 @@ package server
 // observable), and internal/server/content_test.go replays it.
 
 import (
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"log"
 	"net/http"
 	"net/url"
@@ -122,7 +123,7 @@ func contentSendImport(w http.ResponseWriter, result contentImportResult, conten
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+contentEncodeURI(result.fileName)+"\"")
 	w.Header().Set("X-Custom-Content-Type", contentTypeValue)
 	w.Header().Set("Content-Length", strconv.Itoa(len(result.buffer)))
-	w.Header().Set("ETag", expressWeakETag(result.buffer))
+	w.Header().Set("ETag", httpx.WeakETag(result.buffer))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(result.buffer)
 }
@@ -165,7 +166,7 @@ func (runtime *accountRuntime) serveContentImportURL(w http.ResponseWriter, requ
 	// Provider branches ported in later increments answer 501 rather than pretending the host was
 	// refused: silently answering 404 here would misreport pinned behaviour.
 	if isPygmalion || isJanny || isChub || isRisu || isPerchance {
-		serveStatusText(w, http.StatusNotImplemented)
+		httpx.WriteStatusText(w, http.StatusNotImplemented)
 		return
 	}
 

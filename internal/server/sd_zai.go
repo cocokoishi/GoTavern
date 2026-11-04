@@ -35,6 +35,7 @@ package server
 import (
 	"context"
 	"encoding/base64"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"net/url"
 	"strings"
@@ -209,7 +210,7 @@ func (runtime *accountRuntime) serveSDZaiGenerate(w http.ResponseWriter, request
 			serveSDStatus(w, http.StatusInternalServerError)
 			return
 		}
-		respondJSONBytes(w, http.StatusOK, encoded)
+		httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 		return
 	}
 	serveSDStatus(w, http.StatusInternalServerError)
@@ -365,7 +366,7 @@ func (runtime *accountRuntime) serveSDZaiGenerateVideo(w http.ResponseWriter, re
 				serveSDStatus(w, http.StatusInternalServerError)
 				return
 			}
-			respondJSONBytes(w, http.StatusOK, encoded)
+			httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 			return
 		}
 	}

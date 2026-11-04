@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"math"
 	"net/http"
 	"os"
@@ -53,7 +54,7 @@ func (runtime *accountRuntime) serveSettingsGet(w http.ResponseWriter, request *
 	}
 	directories, err := startup.DirectoriesForUser(runtime.options.DataRoot, account.string("handle"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// IDENTITY-KEYED CACHE, see settings_cache.go for the §15.3 fields and the residual window. The digest
@@ -62,12 +63,12 @@ func (runtime *accountRuntime) serveSettingsGet(w http.ResponseWriter, request *
 	cacheKey := userMetadataCacheKey("settings-get", runtime.options.DataRoot, account.string("handle"))
 	identity := digestSettingsAggregation(directories)
 	if body, hit := loadUserMetadataCache(cacheKey, identity); hit {
-		respondJSONBytes(w, http.StatusOK, body)
+		httpx.WriteJSONBytes(w, http.StatusOK, body)
 		return
 	}
 	response, err := runtime.buildSettingsGetResponse(directories)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// The body is produced by the SAME serializer the uncached route used (respondJSON called
@@ -75,13 +76,13 @@ func (runtime *accountRuntime) serveSettingsGet(w http.ResponseWriter, request *
 	// That is what makes a cache hit byte-identical to the uncached response, including the ETag.
 	body, err := marshalNodeJSON(response)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if digestSettingsAggregation(directories) == identity {
 		storeUserMetadataCache(cacheKey, identity, body)
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // buildSettingsGetResponse is the original aggregation, unchanged in read order and error handling so the

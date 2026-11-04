@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"image"
 	"image/draw"
 	"image/png"
@@ -203,18 +204,18 @@ func (runtime *accountRuntime) serveCharactersCreate(w http.ResponseWriter, requ
 	}
 	parsed, err := runtime.readCharactersRequest(request)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.charactersDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	body := parsed.body
 	chName, err := sanitizeCharacterName(nodeGet(body, "ch_name"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	nodeSet(&body, []string{"ch_name"}, nodeString(chName))
@@ -222,7 +223,7 @@ func (runtime *accountRuntime) serveCharactersCreate(w http.ResponseWriter, requ
 	char := charaFormatData(body, directories)
 	encoded, err := marshalCharacterJSON(char)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 
@@ -231,14 +232,14 @@ func (runtime *accountRuntime) serveCharactersCreate(w http.ResponseWriter, requ
 		text, ok := fileName.stringValue()
 		if !ok {
 			// path.join rejects the non-string name before the outer catch.
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		internalName = text
 	} else {
 		internalName, err = getPngName(nodeString(chName), directories)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 	}
@@ -246,7 +247,7 @@ func (runtime *accountRuntime) serveCharactersCreate(w http.ResponseWriter, requ
 	chatsPath := filepath.Join(directories["chats"], internalName)
 	if _, err := os.Stat(chatsPath); err != nil {
 		if err := os.Mkdir(chatsPath, 0o777); err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 	}
@@ -269,7 +270,7 @@ func (runtime *accountRuntime) serveCharactersRename(w http.ResponseWriter, requ
 	}
 	parsed, err := runtime.readCharactersRequest(request)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	body := parsed.body
@@ -277,28 +278,28 @@ func (runtime *accountRuntime) serveCharactersRename(w http.ResponseWriter, requ
 		return
 	}
 	if !jsTruthy(nodeGet(body, "avatar_url")) || !jsTruthy(nodeGet(body, "new_name")) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.charactersDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	oldAvatarName, isString := nodeGet(body, "avatar_url").stringValue()
 	if !isString {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	newName, err := sanitizeCharacterName(nodeGet(body, "new_name"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	oldInternalName := strings.TrimSuffix(oldAvatarName, nodePathExt(oldAvatarName))
 	newInternalName, err := getPngName(nodeString(newName), directories)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	newAvatarName := newInternalName + ".png"
@@ -308,12 +309,12 @@ func (runtime *accountRuntime) serveCharactersRename(w http.ResponseWriter, requ
 
 	rawOldData, exists := readCharacterData(oldAvatarPath)
 	if !exists {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	parsedCard, err := decodeOrderedNodeJSON([]byte(rawOldData))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	oldData := getCharaCardV2(parsedCard, directories, true)
@@ -321,7 +322,7 @@ func (runtime *accountRuntime) serveCharactersRename(w http.ResponseWriter, requ
 	nodeSet(&oldData, []string{"name"}, nodeString(newName))
 	newData, err := marshalCharacterJSON(oldData)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 
@@ -330,22 +331,22 @@ func (runtime *accountRuntime) serveCharactersRename(w http.ResponseWriter, requ
 			// Atomic on purpose: a partial tree here is not merely untidy, it makes the next
 			// rename attempt skip the copy and delete the complete original (see the function).
 			if err := copyDirectoryAtomically(oldChatsPath, newChatsPath); err != nil {
-				serveStatusText(w, http.StatusInternalServerError)
+				httpx.WriteStatusText(w, http.StatusInternalServerError)
 				return
 			}
 			if err := os.RemoveAll(oldChatsPath); err != nil {
-				serveStatusText(w, http.StatusInternalServerError)
+				httpx.WriteStatusText(w, http.StatusInternalServerError)
 				return
 			}
 		}
 	}
 
 	if err := writeCharacterCard(runtime.options.DataRoot, account.string("handle"), newInternalName, cardImageBytes(oldAvatarPath, nil), string(newData)); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if _, err := startup.DeleteUserFile(runtime.options.DataRoot, account.string("handle"), filepath.Join("characters", oldAvatarName)); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	response := nodeObject()
@@ -360,7 +361,7 @@ func (runtime *accountRuntime) serveCharactersEdit(w http.ResponseWriter, reques
 	}
 	parsed, err := runtime.readCharactersRequest(request)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	body := parsed.body
@@ -372,7 +373,7 @@ func (runtime *accountRuntime) serveCharactersEdit(w http.ResponseWriter, reques
 	}
 	directories, ok := runtime.charactersDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	char := charaFormatData(body, directories)
@@ -380,12 +381,12 @@ func (runtime *accountRuntime) serveCharactersEdit(w http.ResponseWriter, reques
 	nodeSet(&char, []string{"create_date"}, nodeGet(body, "create_date"))
 	encoded, err := marshalCharacterJSON(char)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	avatarURL, isString := nodeGet(body, "avatar_url").stringValue()
 	if !isString {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	targetFile := strings.Replace(avatarURL, ".png", "", 1)
@@ -397,7 +398,7 @@ func (runtime *accountRuntime) serveCharactersEdit(w http.ResponseWriter, reques
 		removeStagedCharacterUpload(parsed.stagedPath)
 	}
 	if err := writeCharacterCard(runtime.options.DataRoot, account.string("handle"), targetFile, imageBytes, string(encoded)); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// characters.js:1131-1132 — "Bust cache to reload the new avatar", in the `request.file` branch only
@@ -405,7 +406,7 @@ func (runtime *accountRuntime) serveCharactersEdit(w http.ResponseWriter, reques
 	if parsed.stagedPath != "" {
 		runtime.cacheBuster.bust(w, request)
 	}
-	serveStatusText(w, http.StatusOK)
+	httpx.WriteStatusText(w, http.StatusOK)
 }
 
 func (runtime *accountRuntime) serveCharactersEditAvatar(w http.ResponseWriter, request *http.Request) {
@@ -415,7 +416,7 @@ func (runtime *accountRuntime) serveCharactersEditAvatar(w http.ResponseWriter, 
 	}
 	parsed, err := runtime.readCharactersRequest(request)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if parsed.stagedPath == "" {
@@ -433,13 +434,13 @@ func (runtime *accountRuntime) serveCharactersEditAvatar(w http.ResponseWriter, 
 	}
 	directories, ok := runtime.charactersDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	avatarURL, isString := nodeGet(body, "avatar_url").stringValue()
 	if !isString {
 		// path.join rejects the non-string avatar before the outer catch.
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if _, err := os.Stat(parsed.stagedPath); err != nil {
@@ -455,7 +456,7 @@ func (runtime *accountRuntime) serveCharactersEditAvatar(w http.ResponseWriter, 
 	if err != nil {
 		// The pinned read throws for an unreadable card and the route's outer
 		// catch turns that into a 500.
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if data == "" {
@@ -465,13 +466,13 @@ func (runtime *accountRuntime) serveCharactersEditAvatar(w http.ResponseWriter, 
 	fileName := strings.Replace(avatarURL, ".png", "", 1)
 	imageBytes := cardImageBytes(parsed.stagedPath, parseAvatarCrop(request.URL.Query().Get("crop")))
 	if err := writeCharacterCard(runtime.options.DataRoot, account.string("handle"), fileName, imageBytes, data); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	// characters.js:1172-1173 — "Reset images caches", after the temp file is removed and before
 	// response.sendStatus(200).
 	runtime.cacheBuster.bust(w, request)
-	serveStatusText(w, http.StatusOK)
+	httpx.WriteStatusText(w, http.StatusOK)
 }
 
 func (runtime *accountRuntime) serveCharactersEditAttribute(w http.ResponseWriter, request *http.Request) {
@@ -481,7 +482,7 @@ func (runtime *accountRuntime) serveCharactersEditAttribute(w http.ResponseWrite
 	}
 	parsed, err := runtime.readCharactersRequest(request)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	body := parsed.body
@@ -497,33 +498,33 @@ func (runtime *accountRuntime) serveCharactersEditAttribute(w http.ResponseWrite
 	}
 	directories, ok := runtime.charactersDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	avatarURL, isString := nodeGet(body, "avatar_url").stringValue()
 	if !isString {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	avatarPath := filepath.Join(directories["characters"], avatarURL)
 	rawCard, exists := readCharacterData(avatarPath)
 	if !exists {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	card, err := decodeOrderedNodeJSON([]byte(rawCard))
 	if err != nil || card.kind != 'o' {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	field, err := characterString(nodeGet(body, "field"))
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	data := nodeGet(card, "data")
 	if data.kind != 'o' {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	topLevel, topExists := card.member(field)
@@ -536,15 +537,15 @@ func (runtime *accountRuntime) serveCharactersEditAttribute(w http.ResponseWrite
 	nodeSet(&card, []string{"data", field}, nodeGet(body, "value"))
 	encoded, err := marshalCharacterJSON(card)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	targetFile := strings.Replace(avatarURL, ".png", "", 1)
 	if err := writeCharacterCard(runtime.options.DataRoot, account.string("handle"), targetFile, cardImageBytes(avatarPath, nil), string(encoded)); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	serveStatusText(w, http.StatusOK)
+	httpx.WriteStatusText(w, http.StatusOK)
 }
 
 // validCharacterEditName mirrors the pinned ch_name guard shared by /edit and
@@ -714,7 +715,7 @@ func (runtime *accountRuntime) serveCharactersMergeAttributes(w http.ResponseWri
 	}
 	parsed, err := runtime.readCharactersRequest(request)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	body := parsed.body
@@ -723,7 +724,7 @@ func (runtime *accountRuntime) serveCharactersMergeAttributes(w http.ResponseWri
 	}
 	directories, ok := runtime.charactersDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	dataRoot := runtime.options.DataRoot
@@ -748,7 +749,7 @@ func (runtime *accountRuntime) serveCharactersMergeAttributes(w http.ResponseWri
 		} else {
 			entries, err := os.ReadDir(directories["characters"])
 			if err != nil {
-				serveStatusText(w, http.StatusInternalServerError)
+				httpx.WriteStatusText(w, http.StatusInternalServerError)
 				return
 			}
 			for _, entry := range entries {
@@ -796,7 +797,7 @@ func (runtime *accountRuntime) serveCharactersMergeAttributes(w http.ResponseWri
 	avatarPath := filepath.Join(directories["characters"], avatar)
 	ok, message, _, exception := mergeCharacterUpdate(dataRoot, handle, avatarPath, avatar, body, nil)
 	if ok {
-		serveStatusText(w, http.StatusOK)
+		httpx.WriteStatusText(w, http.StatusOK)
 		return
 	}
 	if exception != nil {
@@ -829,7 +830,7 @@ func (runtime *accountRuntime) serveCharactersDelete(w http.ResponseWriter, requ
 	}
 	parsed, err := runtime.readCharactersRequest(request)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	body := parsed.body
@@ -837,37 +838,37 @@ func (runtime *accountRuntime) serveCharactersDelete(w http.ResponseWriter, requ
 		return
 	}
 	if !jsTruthy(nodeGet(body, "avatar_url")) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.charactersDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	avatarURL, isString := nodeGet(body, "avatar_url").stringValue()
 	if !isString {
 		// The pinned handler calls sanitize() outside any try block, so a
 		// non-string avatar reaches the Express error handler.
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if avatarURL != startup.SanitizeUserFilename(avatarURL) {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	avatarPath := filepath.Join(directories["characters"], avatarURL)
 	if _, err := os.Stat(avatarPath); err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if _, err := startup.DeleteUserFile(runtime.options.DataRoot, account.string("handle"), filepath.Join("characters", avatarURL)); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	dirName := strings.Replace(avatarURL, ".png", "", 1)
 	if dirName == "" {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 	if jsLooseEqualsTrue(nodeGet(body, "delete_chats")) {
@@ -875,11 +876,11 @@ func (runtime *accountRuntime) serveCharactersDelete(w http.ResponseWriter, requ
 		// reproduces that (no shared content lock is held).
 		target := filepath.Join(directories["chats"], startup.SanitizeUserFilename(dirName))
 		if err := os.RemoveAll(target); err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 	}
-	serveStatusText(w, http.StatusOK)
+	httpx.WriteStatusText(w, http.StatusOK)
 }
 
 // jsLooseEqualsTrue mirrors `value == true`.
@@ -910,7 +911,7 @@ func (runtime *accountRuntime) serveCharactersDuplicate(w http.ResponseWriter, r
 	}
 	parsed, err := runtime.readCharactersRequest(request)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	body := parsed.body
@@ -918,7 +919,7 @@ func (runtime *accountRuntime) serveCharactersDuplicate(w http.ResponseWriter, r
 		return
 	}
 	if !jsTruthy(nodeGet(body, "avatar_url")) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.charactersDirectories(account)
@@ -933,7 +934,7 @@ func (runtime *accountRuntime) serveCharactersDuplicate(w http.ResponseWriter, r
 	}
 	filename := filepath.Join(directories["characters"], startup.SanitizeUserFilename(avatarURL))
 	if _, err := os.Stat(filename); err != nil {
-		serveStatusText(w, http.StatusNotFound)
+		httpx.WriteStatusText(w, http.StatusNotFound)
 		return
 	}
 	extension := nodePathExt(filename)
@@ -978,7 +979,7 @@ func (runtime *accountRuntime) serveCharactersExport(w http.ResponseWriter, requ
 	}
 	parsed, err := runtime.readCharactersRequest(request)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	body := parsed.body
@@ -986,22 +987,22 @@ func (runtime *accountRuntime) serveCharactersExport(w http.ResponseWriter, requ
 		return
 	}
 	if !jsTruthy(nodeGet(body, "format")) || !jsTruthy(nodeGet(body, "avatar_url")) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	directories, ok := runtime.charactersDirectories(account)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	avatarURL, isString := nodeGet(body, "avatar_url").stringValue()
 	if !isString {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	filename := filepath.Join(directories["characters"], startup.SanitizeUserFilename(avatarURL))
 	if _, err := os.Stat(filename); err != nil {
-		serveStatusText(w, http.StatusNotFound)
+		httpx.WriteStatusText(w, http.StatusNotFound)
 		return
 	}
 	format, _ := nodeGet(body, "format").stringValue()
@@ -1009,18 +1010,18 @@ func (runtime *accountRuntime) serveCharactersExport(w http.ResponseWriter, requ
 	case "png":
 		rawBuffer, err := os.ReadFile(filename)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		rawData, err := readPngCardText(rawBuffer)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		mutatedData := mutateJsonString(rawData, unsetPrivateFields)
 		mutatedBuffer, err := writePngCard(rawBuffer, mutatedData)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", staticContentType(filename))
@@ -1030,30 +1031,30 @@ func (runtime *accountRuntime) serveCharactersExport(w http.ResponseWriter, requ
 		// image response restores the pinned value here.
 		w.Header().Set("Vary", "Origin")
 		w.Header().Set("Content-Length", strconv.Itoa(len(mutatedBuffer)))
-		w.Header().Set("ETag", expressWeakETag(mutatedBuffer))
+		w.Header().Set("ETag", httpx.WeakETag(mutatedBuffer))
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(mutatedBuffer)
 	case "json":
 		rawCard, exists := readCharacterData(filename)
 		if !exists {
-			serveStatusText(w, http.StatusBadRequest)
+			httpx.WriteStatusText(w, http.StatusBadRequest)
 			return
 		}
 		card, err := decodeOrderedNodeJSON([]byte(rawCard))
 		if err != nil {
-			serveStatusText(w, http.StatusBadRequest)
+			httpx.WriteStatusText(w, http.StatusBadRequest)
 			return
 		}
 		jsonObject := getCharaCardV2(card, directories, true)
 		unsetPrivateFields(&jsonObject)
 		pretty, err := marshalCharacterJSONIndent(jsonObject)
 		if err != nil {
-			serveStatusText(w, http.StatusBadRequest)
+			httpx.WriteStatusText(w, http.StatusBadRequest)
 			return
 		}
 		respondText(w, http.StatusOK, "application/json; charset=utf-8", string(pretty))
 	default:
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 	}
 }
 

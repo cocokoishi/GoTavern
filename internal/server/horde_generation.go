@@ -44,6 +44,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -104,7 +105,7 @@ func (runtime *accountRuntime) hordeSecretValue(w http.ResponseWriter, request *
 	}
 	key, err := startup.ReadSecretString(directories, "api_key_horde")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return nil, "", false
 	}
 	if key == "" {
@@ -189,15 +190,15 @@ func (runtime *accountRuntime) serveHordeSDModels(w http.ResponseWriter, request
 	}
 	decoded, ok := hordeSDKJSON(request, http.MethodGet, "/api/v2/status/models", "", nil)
 	if !ok {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	body, err := marshalCharacterJSON(decoded)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // serveHordeUserInfo answers the profile of the configured key, or `{anonymous:true}` without one.
@@ -208,11 +209,11 @@ func (runtime *accountRuntime) serveHordeUserInfo(w http.ResponseWriter, request
 	}
 	key, err := startup.ReadSecretString(directories, "api_key_horde")
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	if key == "" {
-		respondJSONBytes(w, http.StatusOK, []byte(`{"anonymous":true}`))
+		httpx.WriteJSONBytes(w, http.StatusOK, []byte(`{"anonymous":true}`))
 		return
 	}
 	// `getSharedKey` is wrapped in its own try/catch: a failure is a null, not an error.
@@ -222,7 +223,7 @@ func (runtime *accountRuntime) serveHordeUserInfo(w http.ResponseWriter, request
 	}
 	user, found := hordeSDKJSON(request, http.MethodGet, "/api/v2/find_user", key, nil)
 	if !found {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	result := nodeObject()
@@ -231,10 +232,10 @@ func (runtime *accountRuntime) serveHordeUserInfo(w http.ResponseWriter, request
 	result.setMember("anonymous", nodeBool(false))
 	body, err := marshalCharacterJSON(result)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // serveHordeCancelTask cancels a text generation task.
@@ -254,31 +255,31 @@ func (runtime *accountRuntime) serveHordeTaskResource(w http.ResponseWriter, req
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	taskID, valid := hordeTextValue(input["taskId"])
 	if !valid {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	response, err := hordeAgentRequest(request, method, "/api/v2/generate/text/status/"+taskID,
 		[]outbound.Header{{Name: "Client-Agent", Value: upstreamAgent}}, nil)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	decoded, err := decodeOrderedNodeJSON(response.Body)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	body, err := marshalCharacterJSON(decoded)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, body)
+	httpx.WriteJSONBytes(w, http.StatusOK, body)
 }
 
 // serveHordeGenerateText submits a text generation and answers the async task object. The server does
@@ -290,7 +291,7 @@ func (runtime *accountRuntime) serveHordeGenerateText(w http.ResponseWriter, req
 	}
 	body, _, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	// `JSON.stringify(request.body)`: the submitted object is RE-SERIALIZED, so non-canonical text is
@@ -326,7 +327,7 @@ func (runtime *accountRuntime) serveHordeGenerateText(w http.ResponseWriter, req
 			respondJSON(w, http.StatusOK, map[string]bool{"error": true})
 			return
 		}
-		respondJSONBytes(w, http.StatusOK, encoded)
+		httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 		return
 	}
 	decoded, err := decodeOrderedNodeJSON(response.Body)
@@ -339,7 +340,7 @@ func (runtime *accountRuntime) serveHordeGenerateText(w http.ResponseWriter, req
 		respondJSON(w, http.StatusOK, map[string]bool{"error": true})
 		return
 	}
-	respondJSONBytes(w, http.StatusOK, encoded)
+	httpx.WriteJSONBytes(w, http.StatusOK, encoded)
 }
 
 // serveHordeCaptionImage submits an interrogation and polls until it finishes.
@@ -350,7 +351,7 @@ func (runtime *accountRuntime) serveHordeCaptionImage(w http.ResponseWriter, req
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	form := nodeObject()
@@ -359,7 +360,7 @@ func (runtime *accountRuntime) serveHordeCaptionImage(w http.ResponseWriter, req
 	if raw, present := input["image"]; present {
 		image, err := decodeOrderedNodeJSON(raw)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		submit.setMember("source_image", image)
@@ -369,27 +370,27 @@ func (runtime *accountRuntime) serveHordeCaptionImage(w http.ResponseWriter, req
 	submit.setMember("forms", nodeArray(form))
 	payload, err := marshalCharacterJSON(submit)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	submitted, found := hordeSDKJSON(request, http.MethodPost, "/api/v2/interrogate/async", key, payload)
 	if !found {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	id, hasID := hordeStringMember(submitted, "id")
 	if !hasID || id == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	for attempt := 0; attempt < hordePollMaxAttempts; attempt++ {
 		if !hordeSleepForPoll(request.Context()) {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		status, found := hordeSDKJSON(request, http.MethodGet, "/api/v2/interrogate/status/"+id, "", nil)
 		if !found {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		state, _ := hordeStringMember(status, "state")
@@ -397,29 +398,29 @@ func (runtime *accountRuntime) serveHordeCaptionImage(w http.ResponseWriter, req
 		case hordeCaptionStateDone:
 			forms := nodeGet(status, "forms")
 			if forms.isUndefined() {
-				serveStatusText(w, http.StatusInternalServerError)
+				httpx.WriteStatusText(w, http.StatusInternalServerError)
 				return
 			}
 			if forms.kind != 'a' || len(forms.array) == 0 {
-				serveStatusText(w, http.StatusInternalServerError)
+				httpx.WriteStatusText(w, http.StatusInternalServerError)
 				return
 			}
 			caption, _ := hordeStringMember(forms.array[0], "result", "caption")
 			if caption == "" {
-				serveStatusText(w, http.StatusInternalServerError)
+				httpx.WriteStatusText(w, http.StatusInternalServerError)
 				return
 			}
 			respondJSON(w, http.StatusOK, map[string]string{"caption": caption})
 			return
 		case hordeCaptionStateFaulted, hordeCaptionStateCancel:
-			serveStatusText(w, http.StatusServiceUnavailable)
+			httpx.WriteStatusText(w, http.StatusServiceUnavailable)
 			return
 		}
 	}
 	// Pinned falls out of the loop WITHOUT answering, so the browser hangs. A hang is a defect rather
 	// than compatibility, so Go answers 504 as the image route does; this is a named deviation and it is
 	// unprobed because reaching it takes ten minutes of polling.
-	serveStatusText(w, http.StatusGatewayTimeout)
+	httpx.WriteStatusText(w, http.StatusGatewayTimeout)
 }
 
 // serveHordeGenerateImage generates one image and polls until it is ready.
@@ -429,23 +430,23 @@ func (runtime *accountRuntime) serveHordeGenerateImage(w http.ResponseWriter, re
 	}
 	_, input, bodyOK := readUserPresetRequestBody(request)
 	if !bodyOK {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if promptRaw, present := input["prompt"]; !present || !nodeTruthyJSON(promptRaw) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	prompt, promptValid := hordeTextValue(input["prompt"])
 	if !promptValid {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	negativePrompt := "undefined"
 	if raw, present := input["negative_prompt"]; present {
 		text, valid := hordeTextValue(raw)
 		if !valid {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		negativePrompt = text
@@ -487,7 +488,7 @@ func (runtime *accountRuntime) serveHordeGenerateImage(w http.ResponseWriter, re
 	if raw, present := input["model"]; present {
 		model, decodeErr := decodeOrderedNodeJSON(raw)
 		if decodeErr != nil {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		models = nodeArray(model)
@@ -495,17 +496,17 @@ func (runtime *accountRuntime) serveHordeGenerateImage(w http.ResponseWriter, re
 	submit.setMember("models", models)
 	payload, err := marshalCharacterJSON(submit)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	submitted, found := hordeSDKJSON(request, http.MethodPost, "/api/v2/generate/async", key, payload)
 	if !found {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	id, hasID := hordeStringMember(submitted, "id")
 	if !hasID || id == "" {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	for attempt := 0; attempt < hordePollMaxAttempts; attempt++ {
@@ -519,11 +520,11 @@ func (runtime *accountRuntime) serveHordeGenerateImage(w http.ResponseWriter, re
 		}
 		check, found := hordeSDKJSON(request, http.MethodGet, "/api/v2/generate/check/"+id, "", nil)
 		if !found {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		if jsTruthyNode(nodeGet(check, "faulted")) {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		if !jsTruthyNode(nodeGet(check, "done")) {
@@ -531,19 +532,19 @@ func (runtime *accountRuntime) serveHordeGenerateImage(w http.ResponseWriter, re
 		}
 		result, found := hordeSDKJSON(request, http.MethodGet, "/api/v2/generate/status/"+id, "", nil)
 		if !found {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		generations := nodeGet(result, "generations")
 		if generations.isUndefined() || generations.kind != 'a' || len(generations.array) == 0 {
-			serveStatusText(w, http.StatusInternalServerError)
+			httpx.WriteStatusText(w, http.StatusInternalServerError)
 			return
 		}
 		image, _ := hordeStringMember(generations.array[0], "img")
 		respondText(w, http.StatusOK, "text/html; charset=utf-8", image)
 		return
 	}
-	serveStatusText(w, http.StatusGatewayTimeout)
+	httpx.WriteStatusText(w, http.StatusGatewayTimeout)
 }
 
 // hordeSleepForPoll waits one poll interval, reporting false when the client went away first.

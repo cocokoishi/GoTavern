@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"fmt"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"html"
 	"net"
 	"net/http"
@@ -358,7 +359,7 @@ func serveWhitelistForbidden(writer http.ResponseWriter, request *http.Request, 
 	body := bytes.ReplaceAll(page, []byte("{{ipDetails}}"), []byte(escapeHandlebars(ipDetails)))
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	writer.Header().Set("ETag", expressWeakETag(body))
+	writer.Header().Set("ETag", httpx.WeakETag(body))
 	writer.WriteHeader(http.StatusForbidden)
 	if request.Method != http.MethodHead {
 		_, _ = writer.Write(body)

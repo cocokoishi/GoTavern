@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"math"
 	"net/http"
 	"os"
@@ -70,7 +71,7 @@ func (runtime *basicAuthRuntime) authenticate(writer http.ResponseWriter, reques
 	username, password := decodeBasicCredentials(parts[1])
 	matched, err := basicAuthCredentialMatches(username, password, options)
 	if err != nil {
-		serveStatusText(writer, http.StatusInternalServerError)
+		httpx.WriteStatusText(writer, http.StatusInternalServerError)
 		return false
 	}
 	if matched {
@@ -198,7 +199,7 @@ func serveBasicAuthUnauthorized(writer http.ResponseWriter, request *http.Reques
 	writer.Header().Set("WWW-Authenticate", `Basic realm="SillyTavern", charset="UTF-8"`)
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	writer.Header().Set("ETag", expressWeakETag(body))
+	writer.Header().Set("ETag", httpx.WeakETag(body))
 	writer.WriteHeader(http.StatusUnauthorized)
 	if request.Method != http.MethodHead {
 		_, _ = writer.Write(body)
@@ -212,7 +213,7 @@ func serveBasicAuthRateLimited(writer http.ResponseWriter, request *http.Request
 	writer.Header().Set("Retry-After", strconv.FormatInt(seconds, 10))
 	writer.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	writer.Header().Set("Content-Length", strconv.Itoa(len(bodyBytes)))
-	writer.Header().Set("ETag", expressWeakETag(bodyBytes))
+	writer.Header().Set("ETag", httpx.WeakETag(bodyBytes))
 	writer.WriteHeader(http.StatusTooManyRequests)
 	if request.Method != http.MethodHead {
 		_, _ = writer.Write(bodyBytes)

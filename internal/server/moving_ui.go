@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"net/http"
 
 	"github.com/cocokoishi/gotavern/internal/startup"
@@ -13,27 +14,27 @@ func (runtime *accountRuntime) serveMovingUISave(w http.ResponseWriter, request 
 	}
 	body, input, ok := readUserPresetRequestBody(request)
 	if !ok {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	name := input["name"]
 	if !nodeTruthyJSON(name) {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	filename, err := startup.UserPresetFilename(name)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	contents, err := startup.FormatSettingsJSON(body)
 	if err != nil {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 	if err := startup.SaveMovingUIPreset(runtime.options.DataRoot, account.string("handle"), filename, contents); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	serveStatusText(w, http.StatusOK)
+	httpx.WriteStatusText(w, http.StatusOK)
 }

@@ -5,6 +5,7 @@ package server
 
 import (
 	"errors"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
 	"mime"
 	"net/http"
@@ -130,7 +131,7 @@ func (runtime *accountRuntime) charactersDirectories(account *storedAccount) (ma
 func respondCharacterJSON(w http.ResponseWriter, status int, value orderedNodeJSON) {
 	body, err := marshalCharacterJSON(value)
 	if err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
 	writeCharacterJSONBody(w, status, body)
@@ -139,7 +140,7 @@ func respondCharacterJSON(w http.ResponseWriter, status int, value orderedNodeJS
 func writeCharacterJSONBody(w http.ResponseWriter, status int, body []byte) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
-	w.Header().Set("ETag", expressWeakETag(body))
+	w.Header().Set("ETag", httpx.WeakETag(body))
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
 }

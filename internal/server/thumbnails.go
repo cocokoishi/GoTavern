@@ -39,6 +39,7 @@ package server
 
 import (
 	"bytes"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"image"
 	"image/jpeg"
 	"image/png"
@@ -148,14 +149,14 @@ func (runtime *accountRuntime) serveThumbnail(w http.ResponseWriter, r *http.Req
 	rawFile, fileIsSingle := thumbnailSingleValue(query, "file")
 	typeValue, typeIsSingle := thumbnailSingleValue(query, "type")
 	if !fileIsSingle || !typeIsSingle {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 
 	// (2) pinned: `if (!(type === 'bg' || type === 'avatar' || type === 'persona')) return 400`.
 	keys, knownType := thumbnailTypeDirs[typeValue]
 	if !knownType {
-		serveStatusText(w, http.StatusBadRequest)
+		httpx.WriteStatusText(w, http.StatusBadRequest)
 		return
 	}
 
@@ -166,7 +167,7 @@ func (runtime *accountRuntime) serveThumbnail(w http.ResponseWriter, r *http.Req
 	// unchanged. Do not harden this into a different predicate; a stricter check would answer 403
 	// where pinned serves the file, and real users have `[REDACTED_CARD].png` in this exact directory.
 	if startup.SanitizeUserFilename(rawFile) != rawFile {
-		serveStatusText(w, http.StatusForbidden)
+		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
 
@@ -185,7 +186,7 @@ func (runtime *accountRuntime) serveThumbnail(w http.ResponseWriter, r *http.Req
 		if serveThumbnailFile(w, r, originalPath) {
 			return
 		}
-		serveStatusText(w, http.StatusNotFound)
+		httpx.WriteStatusText(w, http.StatusNotFound)
 	}
 
 	// (4) thumbnails.enabled === false: no generation at all.
@@ -217,7 +218,7 @@ func (runtime *accountRuntime) serveThumbnail(w http.ResponseWriter, r *http.Req
 	// (8) the cached file, under its ORIGINAL name, which is what decides the MIME.
 	if !serveThumbnailFile(w, r, cachePath) {
 		// (9) `Send a 404 so the frontend can display a placeholder`.
-		serveStatusText(w, http.StatusNotFound)
+		httpx.WriteStatusText(w, http.StatusNotFound)
 	}
 }
 
