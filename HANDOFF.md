@@ -27,7 +27,10 @@ release's own `docs/release-notes-v0.1.0-alpha.14.md` and the published release 
 "Scope correction (post-publication)" section saying exactly this; the extraction is the next milestone
 item in `GOAL.md` §11, to be gated by the existing differential suites and shipped in a follow-up
 release rather than retro-fitted into the tag. **No agent may read the tag's "M0-M8" phrasing as M4
-complete.**
+complete.** The published release body was edited the same day (`gh release edit`, 8,578 -> 9,478
+bytes) to insert the identical section between the opening summary and `## What changed`; the appended
+same-SHA gate table is untouched, and the repo's `docs/release-notes-v0.1.0-alpha.14.md` on `main`
+carries the same correction (`b1794b2`).
 
 **`GOAL.md` §14 (the strong drop-in claim over a real, long-used user tree) is still NOT MET and is
 not claimed.** The evidence covers a synthesised long-lived tree, the committed synthetic corpus, the
