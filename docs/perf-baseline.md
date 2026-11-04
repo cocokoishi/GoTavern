@@ -1,13 +1,16 @@
 # Performance baseline and the evidence gate
 
-**One artifact is the source of truth for the README performance table, `docs/assets/benchmark.svg` and
+**One artifact is the source of truth for the README performance table, the two figure variants
+(`docs/assets/benchmark.svg` for dark GitHub and `docs/assets/benchmark-light.svg` for light) and
 `docs/assets/benchmark.svg.provenance.md`.** This document records the current baseline, the unit rule, the
 method and its limits, the current metric/workload coverage, and the procedure that replaces the baseline.
 `tools/check-perf-docs.mjs` enforces the agreement in CI (`ci.yml#verify`, step "Verify the performance
-evidence matches the recorded artifact"); no number in those three surfaces may exist only as prose.
+evidence matches the recorded artifact"); no number in those surfaces may exist only as prose.
 
 This is M2a of the engineering ladder (`GOAL.md` §11): the evidence gate first, so that the M2 scale
-benchmarks and the M7 figure restructure cannot ship numbers the repository cannot check.
+benchmarks and the M7 figure restructure cannot ship numbers the repository cannot check. M7 later added the
+second (light) figure variant and the first-screen structure checks to the same gate; no measured value was
+added by that change.
 
 ## 1. The committed artifact
 
@@ -72,11 +75,13 @@ for the same run.
 This document records the baseline's IDENTITY and its method; it does **not** restate the four performance
 numbers or the soak drift values, because a second hand-copied table is the defect class this gate exists to
 remove (the alpha.13 tag tree's README RSS row drifted from the run it cited precisely because the numbers were
-retyped). The numbers live in exactly two committed surfaces, both recomputed from `report.summary` and
+retyped). The numbers live in exactly two kinds of committed surface, both recomputed from `report.summary` and
 `report.soak` by `tools/check-perf-docs.mjs`:
 
-- the README Performance table and paragraph (and the TL;DR mini-table);
-- `docs/assets/benchmark.svg`, regenerated from the artifact and byte-compared in CI.
+- the README Performance table and paragraph, plus the first-screen figure's alt text (the README no longer keeps
+  a second mini-table; the first screen has the figure and the detailed section has the text table);
+- `docs/assets/benchmark.svg` and `docs/assets/benchmark-light.svg`, both regenerated from the artifact and
+  byte-compared in CI.
 
 The unit rule those surfaces use is stated in §2; the identity a new baseline must match is in §1 and §8.
 
@@ -130,27 +135,47 @@ mismatch with a readable diff naming the file, the expected value and the artefa
    deliberately does not restate the performance numbers, and the gate fails if a measured value is added
    back here (a second hand-copied table is the defect class), while the §7 teeth section is exempt because
    it quotes the gate's own observed failure strings;
-3. README table: cold start, RSS, `/version` (median + p95), `/` — recomputed from `summary.*` under
-   the decimal-MB rule, for **every** occurrence of the four rows (the TL;DR mini-table near the top and
-   the Performance table below the figure are both release surfaces; only the Performance section also
-   carries the "How it was measured" column, which is checked against the artifact's sample counts);
-4. README prose: cited run id and short commit; soak drift values (`−1.6 MB`, `+0.32 ms`, `+0.41 ms`)
+3. README **first screen**: it must be delimited by the `## Release status` heading, reference BOTH figure
+   variants through a `<picture>`/`prefers-color-scheme` pair, carry the shortest install+start commands for
+   Linux/macOS and Windows, link the detailed sections, state the synthetic scope of the evidence and the unmet
+   strong drop-in claim (`GOAL.md`, "not met", "synthetic" in the same place as the claim), and hardcode no
+   GoTavern release version. The whole README is also refused if it claims perfect compatibility;
+4. README table: cold start, RSS, `/version` (median + p95), `/` — recomputed from `summary.*` under
+   the decimal-MB rule, for **every** occurrence of the four rows (the first screen no longer carries a
+   second mini-table; the Performance table is the text surface, with its "How it was measured" column
+   checked against the artifact's sample counts);
+5. README prose: cited run id and short commit; soak drift values (`−1.6 MB`, `+0.32 ms`, `+0.41 ms`)
    recomputed from `soak[]`; the decimal-MB unit rule stated once in the section;
-5. provenance: run id, full commit, runner image, rounds, request count, soak description, and the
-   decimal-MB unit statement (including that the unit is stated on the row);
-6. the figure: `tools/benchmark-svg.mjs` regenerated from the committed baseline into a temp file **twice**
-   (determinism), byte-compared with the committed `docs/assets/benchmark.svg`; the generator must contain
-   no hardcoded release version or measured commit (the pinned oracle commit is the one allowed literal) and
-   the output must carry `role="img"`, `<title>`, `<desc>`, the per-metric `faster`/`lighter` verdicts, the
-   decimal-MB row note, the run id/short commit, and no external font/image/script/network reference.
-Teeth, observed locally on 2026-11-03 (each mutation was applied, the gate run, the file restored by copy,
-and the restore verified by SHA-256; the restored tree is green):
+6. provenance: run id, full commit, runner image, rounds, request count, soak description, the decimal-MB
+   unit statement (including that the unit is stated on the row), both figure filenames, the shared 1200 x
+   675 canvas, the contrast audit, the 12 px type floor, and an update procedure that regenerates both
+   variants (`--out-light`);
+7. the figures: `tools/benchmark-svg.mjs` regenerated from the committed baseline into temp files **twice**
+   (determinism), both variants byte-compared with the committed `docs/assets/benchmark.svg` and
+   `docs/assets/benchmark-light.svg`; the generator must contain no hardcoded release version or measured
+   commit (the pinned oracle commit is the one allowed literal); each figure must be 1200 x 675 with a matching
+   viewBox, carry `role="img"`, `<title>`, `<desc>`, the per-metric `faster`/`lighter` verdicts in both the
+   drawing and the description, the decimal-MB row note, the run id and short commit, the derived-ratio marks,
+   no external font/image/script/network reference, and **no declared type size below 12 px at 1:1**. The
+   generator additionally refuses to render when its own WCAG contrast audit is below threshold, so the gate
+   inherits that refusal as a red.
+Teeth, observed locally on 2026-11-03 (each mutation was applied to a COPY, the gate run against the copies, the
+file restored by copy, and the restore verified by SHA-256; the restored tree is green):
 
-| mutation | gate output (first line) |
+| mutation | gate output (first problem, observed 2026-11-03 on copies) |
 |---|---|
-| README performance row `11,522` → `11,523` | `README.md:26: row "Cold start to first `/version` 200": pinned cell is "11,523 ms", the artifact gives "11,522 ms" (report.summary.*.bootMsMedian (11522 / 213))` |
-| baseline copy `bootMsMedian` `11522` → `11523` | `README.md:26: row "Cold start to first `/version` 200": pinned cell is "11,522 ms", the artifact gives "11,523 ms" (report.summary.*.bootMsMedian (11523 / 213))`, plus the second README table and the SVG byte diff |
-| committed SVG `11,522` → `11,523` | `docs/assets/benchmark.svg:3: differs from the figure regenerated from tests/perf/q22-baseline.json: expected "<desc ... SillyTavern 11,522 ms ...", committed "<desc ... SillyTavern 11,523 ms ..."` |
+| README performance row `11,522` → `11,523` | `readme.md:162: row "Cold start to first `/version` 200": pinned cell is "11,523 ms", the artifact gives "11,522 ms" (report.summary.*.bootMsMedian (11522 / 213))` |
+| baseline copy `bootMsMedian` `11522` → `11523` | `readme.md:162: row "Cold start to first `/version` 200": pinned cell is "11,522 ms", the artifact gives "11,523 ms" (report.summary.*.bootMsMedian (11523 / 213))`, then the dark and light SVG byte diffs |
+| committed dark SVG `11,522 ms` → `11,523 ms` | `dark.svg:3: differs from the dark figure regenerated from ...: expected "<desc ... 11,522 ms ...", committed "<desc ... 11,523 ms ..."` |
+| committed light SVG `39.5 MB` → `39.6 MB` | `light.svg:3: differs from the light figure regenerated from ...` (the pair cannot disagree) |
+| first-screen honesty sentence `is not met yet` → `is met` | `readme.md: first screen: does not contain "not met" (must state that the strong drop-in claim is not met yet)` |
+| `<picture>` element removed from a README copy | `readme.md: first screen: has no <picture> element, so the figure cannot be the one image of the first screen` |
+| type floor lowered to 11 px in a generator copy (both figures regenerated) | `dark.small.svg:12: dark figure: declares a 11px type size; the minimum at 1:1 is 12 px` |
+
+Every mutation was applied to a COPY in a scratch directory, the gate run against the copies with its
+`--readme/--svg/--svg-light/--generator/...` overrides, and the copy restored from a pristine file copy before the
+next mutation; the restored tree ran green, and the SHA-256 of every real file in the repository was identical
+before and after the whole sequence (the repository itself was never mutated).
 
 CI teeth are the same assertions: the step is `node tools/check-perf-docs.mjs` in `ci.yml#verify`; a red
 run names the file, line, found value, artifact-derived value and artifact field, and writes nothing.
@@ -164,9 +189,13 @@ run names the file, line, found value, artifact-derived value and artifact field
    `gh run download <run-id> -n smoke-metrics -D /tmp/smoke`.
 3. Record the baseline (the recorder verifies the two artifacts are the same run/commit/runner):
    `node tools/record-perf-baseline.mjs --q22 /tmp/q22/q22-paired-benchmark.json --host /tmp/smoke/smoke-metrics.json --run-id <run-id> --commit <full sha> --out tests/perf/q22-baseline.json`
-4. Regenerate the figure from the new baseline: `node tools/benchmark-svg.mjs --report tests/perf/q22-baseline.json --out docs/assets/benchmark.svg` (the generator reads the wrapper's provenance for the run id and commit; two runs must be byte-identical).
-5. Update the README table/prose and the provenance run/commit/rounds/soak fields to the new numbers.
-6. `node tools/check-perf-docs.mjs` must be green; commit the baseline, the figure, the README, the
+4. Regenerate BOTH figure variants from the new baseline in one run:
+   `node tools/benchmark-svg.mjs --report tests/perf/q22-baseline.json --out docs/assets/benchmark.svg --out-light docs/assets/benchmark-light.svg`
+   (the generator reads the wrapper's provenance for the run id and commit; two runs must be byte-identical, and
+   one run writes the pair so the variants cannot disagree).
+5. Update the README table/prose and the provenance run/commit/rounds/soak fields to the new numbers, and the
+   first-screen alt text if a number changed there.
+6. `node tools/check-perf-docs.mjs` must be green; commit the baseline, both figures, the README, the
    provenance and this document in the **same commit**, so no intermediate tree claims one run's numbers
    while citing another's.
 
@@ -186,4 +215,13 @@ The gate cannot update anything itself: it fails closed and tells the maintainer
   engineering baseline**, not part of the paired artifact; the gate does not validate it and it is
   labelled local in the README.
 - The gate checks the recorded surfaces it knows; it does not validate free-form prose beyond the
-  numbers it recomputes, and it does not perform the M7 accessibility/contrast audit.
+  numbers it recomputes, and it does not judge the picture's aesthetics.
+- **The M7 accessibility audit is computed, and it is a generator property, not a second hand-copied table.**
+  The generator measures WCAG contrast from its own palette constants and refuses to render when a text pair is
+  below 4.5:1 (bar fills 3:1), and the gate checks the committed SVGs for a 12 px type floor. The recorded ratios
+  in `docs/assets/benchmark.svg.provenance.md` are a restatement of that computed output for reviewers; they are
+  not a gate input. Device-specific rendering (font fallback on a machine without the declared system families,
+  GitHub's own image downscaling on a narrow viewport) is not checked — the 420/640 CSS-px renders taken during
+  M7 show the 16:9 figure scaling below comfortable reading size, which is why the text table stays under the
+  figure. Both figure variants were rendered to PNG at 1x for visual review; that render is a review artefact and
+  is not committed.

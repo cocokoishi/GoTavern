@@ -1,34 +1,87 @@
 # GoTavern
 
+**SillyTavern 1.19.0's server, rewritten in Go: one binary, no Node.js, the same unmodified frontend and the same `data/` layout.**
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/benchmark.svg">
+  <img src="docs/assets/benchmark-light.svg" alt="Paired benchmark, one GitHub runner, both servers from the same checkout: GoTavern cold-starts in 213 ms against Node's 11,522 ms (54.09x faster), holds 39.5 MB RSS against 1,153 MB (29.16x lighter), answers GET /version in 0.292 ms against 51.04 ms (175.1x faster) and GET / in 1.49 ms against 10.72 ms (7.17x faster). Each row has its own zero-based axis whose maximum is printed; method and caveats are in the Performance section." width="1200">
+</picture>
+
+Medians of 3 alternating rounds on ONE shared GitHub runner, both servers from the same checkout. The figure ships in
+dark and light variants, chosen by GitHub's own colour scheme; the [Performance](#performance) section repeats every
+number as text for screen readers and small screens, with the caveats that make the comparison honest.
+
+## Start in 30 seconds
+
+**Linux / macOS**
+
+```sh
+mkdir GoTavern && cd GoTavern
+curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.sh | sh
+./start.sh
+```
+
+**Windows (PowerShell)**
+
+```powershell
+mkdir GoTavern; cd GoTavern
+irm https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.ps1 -OutFile install.ps1
+.\install.ps1
+.\Start.cmd
+```
+
+Both installers download a **prebuilt archive** — nothing compiles on your machine — and install into the current
+directory. An unpinned install resolves `releases/latest`; pin any version for a reproducible deployment. Docker,
+manual downloads and the archive matrix are in [Install](#install).
+
+## Where compatibility stands
+
+**The strong drop-in claim in [`GOAL.md` §14](GOAL.md) is not met yet, and this README does not make it.** The evidence
+that exists covers a **synthetic** long-lived tree, a committed synthetic corpus, and a packaged archive over a stock
+SillyTavern tree. It does not cover a long-lived tree that a real user has actually used, and two concrete gaps are
+named rather than hidden: response compression is absent where pinned sends gzip (a header and wire-byte divergence),
+and the character-card disk cache pinned maintains is created at startup but never used. The full list of what is and
+is not demonstrated, question by question, is in [Compatibility](#compatibility); the decisions behind the explicit
+exclusions are in [What won't work](#what-wont-work).
+
+What the tested scope shows: the unmodified pinned frontend is served over the pinned route surface (`0` unknown
+surfaces in the derived coverage inventory), provider-wire captures exist for every implemented chat-completion source,
+20 pinned third-party extensions each install, activate, persist a setting across a restart and uninstall on both
+subjects, and startup/rollback/migration paths run against prebuilt archives. Node server plugins and SillyTavern's
+local in-process ML are excluded by decision, not by omission.
+
+## Learn more
+
+- **[Performance](#performance)** — the table, how the numbers were measured, the ten-minute soak, and the provenance of the figure.
+- **[Compatibility](#compatibility)** — the evidence table, coverage numbers, the 20-extension corpus, and the words each status carries.
+- **[Install](#install)** — every platform, pinning, Docker, updates, rollback, and migrating an existing SillyTavern.
+- **[What won't work](#what-wont-work)** — explicit exclusions with their reasons.
+- **[How we decide something is compatible](#how-we-decide-something-is-compatible)** — the five observation surfaces and the four rules that make a green mean something.
+- **[Development](#development)** — local verification and the gates CI keeps. Deeper references: [`ARCHITECTURE.md`](ARCHITECTURE.md), [`GOAL.md`](GOAL.md), [`docs/`](docs/).
+
+## Release status
+
 [![GoTavern CI](https://github.com/cocokoishi/GoTavern/actions/workflows/ci.yml/badge.svg)](https://github.com/cocokoishi/GoTavern/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/cocokoishi/GoTavern?label=release)](https://github.com/cocokoishi/GoTavern/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-**SillyTavern's backend, rewritten in Go. One binary. Same frontend, same data folder.**
+`v0.1.0-alpha.13` is the current **stable release**: GitHub publishes it as a full release (not a pre-release),
+`releases/latest` serves it, a bare installer with no version argument installs it, and Docker `:latest` points at
+`ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.13`. `v0.1.0-alpha.9` was the first stable-channel release;
+`v0.1.0-alpha.12` was the previous stable release and stays downloadable by explicit `--version v0.1.0-alpha.12`
+(Windows: `-Version v0.1.0-alpha.12`), and alpha.10/alpha.11 remain available as prereleases by explicit version or
+`docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11`. The channel rule is one script,
+[`scripts/classify-version-tag.sh`](scripts/classify-version-tag.sh), shared by the release workflow, the Docker
+workflow and both installers. Back up any data directory you can't afford to lose.
 
-## TL;DR
+## What it is
 
-- **What it is:** a drop-in replacement for the SillyTavern 1.19.0 server. It serves the unmodified upstream frontend over the same routes, the same `config.yaml` and the same on-disk layout. Your characters, chats, groups, world info, presets, Quick Replies, secrets, themes and frontend extensions keep working. No conversion, no private database.
-- **What you need:** nothing. No Node.js, no npm, no compiler. Download, unpack, run.
-- **Why bother:** it starts in milliseconds and uses a fraction of the memory (table below).
-- **Status:** `v0.1.0-alpha.13` is the current **stable release**: GitHub publishes it as a full release (not a
-  pre-release), `releases/latest` serves it, a bare installer with no version argument installs it, and Docker
-  `:latest` points at `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.13`. `v0.1.0-alpha.9` was the first stable-channel
-  release; `v0.1.0-alpha.12` was the previous stable release and stays downloadable by explicit
-  `--version v0.1.0-alpha.12` (Windows: `-Version v0.1.0-alpha.12`), and alpha.10/alpha.11 remain available as
-  prereleases by explicit version or `docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11`.
-  The channel rule is one script, [`scripts/classify-version-tag.sh`](scripts/classify-version-tag.sh), shared by
-  the release workflow, the Docker workflow and both installers. Back up any data directory you can't afford to lose.
-- **What doesn't work:** arbitrary Node server plugins, and SillyTavern's local in-process ML (captioning, classification, speech). Full list in [What won't work](#what-wont-work).
-
-| | SillyTavern (Node) | GoTavern |
-|---|---|---|
-| Cold start to first `/version` 200 | 11,522 ms | **213 ms** |
-| Steady-state memory (RSS) | 1,153 MB | **39.5 MB** |
-| `GET /version` latency (median) | 51.04 ms | **0.292 ms** |
-| `GET /` latency (median) | 10.72 ms | **1.49 ms** |
-
-One GitHub runner, both servers from the same checkout. Details and caveats in [Performance](#performance).
+GoTavern is a replacement for the **SillyTavern 1.19.0 server**: it serves the unmodified upstream frontend over the
+same routes, reads the same `config.yaml` and the same on-disk layout, so characters, chats, groups, world info,
+presets, Quick Replies, secrets, themes and frontend extensions keep working — no conversion, no private database.
+That is the shape of the product; it is **not a claim that every part of it has been proven on a real user's tree**.
+The scope of what has actually been demonstrated is in [Where compatibility stands](#where-compatibility-stands), and
+the open strong claim is recorded in [`GOAL.md` §14](GOAL.md).
 
 ## Install
 
@@ -104,8 +157,6 @@ Point GoTavern at your existing directory and start it. Auto-update resolves to 
 
 ## Performance
 
-![GoTavern against pinned SillyTavern (Node), paired benchmark on one GitHub runner](docs/assets/benchmark.svg)
-
 | Metric | Pinned Node SillyTavern | GoTavern | How it was measured |
 |---|---|---|---|
 | Cold start to first `/version` 200 | 11,522 ms | **213 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
@@ -116,7 +167,9 @@ Point GoTavern at your existing directory and start it. Auto-update resolves to 
 Memory is decimal MB (1 MB = 1,000,000 bytes); every other number is milliseconds. The table, the figure and
 [`docs/assets/benchmark.svg.provenance.md`](docs/assets/benchmark.svg.provenance.md) are restatements of one committed
 artefact, [`tests/perf/q22-baseline.json`](tests/perf/q22-baseline.json), and `tools/check-perf-docs.mjs` fails CI when
-any of them disagrees with it.
+any of them disagrees with it. The figure is generated in two variants — `docs/assets/benchmark.svg` for dark GitHub and
+`docs/assets/benchmark-light.svg` for light — because one palette cannot be legible on both canvases; the table above is
+the same data for a screen reader, a small screen, or a reader who wants to check the arithmetic.
 
 **Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `41614844179` (success), the released commit `4bf5451` (v0.1.0-alpha.13), on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -1.6 MB, p95 drift +0.32 ms); pinned's RSS fell from its startup peak while its p95 drifted +0.41 ms over the window. A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The published release body appends the same-SHA run-id table, so the numbers above and the gate run that produced them are checkable together.
 
@@ -145,7 +198,7 @@ This table states only what a fresh run on the current commit shows. The reposit
 
 | Question | State | Evidence |
 |---|---|---|
-| Does a long-lived SillyTavern directory start directly? | **verified** | packaged archive over a stock tree (`GoTavern drop-in qualification` at the released commit (the release body's evidence table names the run), success); a synthesised long-lived tree asserted file-identical after boot (`tests/e2e/longlived_test.go`, `GoTavern CI` at the released commit) |
+| Does a long-lived SillyTavern directory start directly? | **verified** | packaged archive over a stock tree (`GoTavern drop-in qualification` at the released commit (the release body's evidence table names the run), success); a synthesised long-lived tree asserted file-identical after boot (`tests/e2e/longlived_test.go`, `GoTavern CI` at the released commit). **The tree is synthesised, not a user's** — see [`GOAL.md` §14](GOAL.md) |
 | Are my data and extensions left alone? | **verified** | auto-update resolves OFF for every ambiguous input; the long-lived leg hashes the extension tree before and after boot |
 | Do avatars, card images, in-chat avatars, personas and thumbnails show up? | **verified** | `Browser differential` at the released commit: every image decoded on both subjects, no failed request, no console load failure. `/thumbnail` serves real thumbnails at pinned paths and dimensions from a pure-Go codec. **Byte equality with Jimp is not claimed.** |
 | Do backgrounds display as in the original? | **partially verified** | the gallery renders and stages tiles on both subjects, and 40 UI elements are reachable identically across four viewport sizes. **Paint/behaviour is not measured:** the pinned frontend's own binding is absent on both subjects, so the differential is silent rather than negative. |
