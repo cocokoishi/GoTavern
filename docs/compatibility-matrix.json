@@ -40,7 +40,8 @@
           "tests/oracle/sillytavern-1.19.0-server-protocols.json",
           "tests/oracle/sillytavern-1.19.0-cors-middleware.json",
           "tests/oracle/sillytavern-1.19.0-redirect-aliases.json",
-          "tests/oracle/sillytavern-1.19.0-tokenizer-textgen-remote.json"
+          "tests/oracle/sillytavern-1.19.0-tokenizer-textgen-remote.json",
+          "tests/oracle/sillytavern-1.19.0-compression.json"
         ],
         "upstreamAssets": [
           "upstream/SILLYTAVERN_COMMIT",
@@ -49,7 +50,8 @@
         "implementation": [
           "internal/server",
           "internal/app",
-          "tools/compat-matrix/surface-coverage.mjs"
+          "tools/compat-matrix/surface-coverage.mjs",
+          "internal/server/compression.go"
         ],
         "tests": [
           "TestPinnedNodeFrontendStaticMiddleware",
@@ -57,7 +59,10 @@
           "TestPinnedNodeCORSMiddleware",
           "TestDeprecatedRedirectAliasesMatchPinnedOracle",
           "TestStatsAliasesRedirectToTheCanonicalRoutes",
-          "TestTokenizerRemoteTextgenEncodeMatchesLoopbackOracle"
+          "TestTokenizerRemoteTextgenEncodeMatchesLoopbackOracle",
+          "TestPinnedCompressionContract",
+          "TestPinnedCompressionSSEIsNotCompressed",
+          "TestPageLoadCompressionReducesWireBytesTransparently"
         ],
         "browserArtifacts": [],
         "ci": [
@@ -73,10 +78,11 @@
       "evidenceGap": [
         "no release-artifact result for a stock tree (AGENTS.md 23/34)",
         "the pinned public/** byte identity is recorded per file by upstream/manifests, but no gate compares the SERVED bytes against that manifest end to end",
-        "the frontend-derived surface drift gate PASSES on this tree (`tools/compat-matrix/surface-coverage.mjs`, run by `tools/compat-matrix/check.mjs` in `ci.yml#verify`): 573 frontend surfaces classified with 0 unknown, 422 Go registrations, 50 pinned redirect aliases ALL registered (0 open) and 342 pinned routes reconciled. The two surface gaps the gate previously PROVED here are now CLOSED, each against an executed pinned capture rather than a claim: (a) all 50 legacy redirect aliases are registered by the single table in internal/server/redirect_aliases.go and replayed by TestDeprecatedRedirectAliasesMatchPinnedOracle from tests/oracle/sillytavern-1.19.0-redirect-aliases.json (111 cases: 308 status, Location, headers, body bytes, the deprecation console.warn line, prefix-mount semantics including the 404 for a non-matching prefix, query dropping, and the literal `/api/images/list/:folder` destination; the three stats aliases previously answered 302 and now answer the pinned 308 with this test as the regression gate); (b) POST /api/tokenizers/remote/textgenerationwebui/encode is registered and replayed by TestTokenizerRemoteTextgenEncodeMatchesLoopbackOracle from tests/oracle/sillytavern-1.19.0-tokenizer-textgen-remote.json (31 cases recorded against an unmodified pinned boot with a loopback provider: auth headers, requestOverrides precedence, malformed/unreachable URLs as zero-provider-request cases, upstream non-2xx and non-JSON, String() coercions, body-parser branches) plus the 12 cases in the tokenizer corpus. Gap ids SURFACE-REDIRECT-ALIASES and SURFACE-TOKENIZER-REMOTE are RETIRED, not silenced: the gate refuses a classification entry that names a registered alias or route, so neither can be re-used to hide a future absence."
+        "the frontend-derived surface drift gate PASSES on this tree (`tools/compat-matrix/surface-coverage.mjs`, run by `tools/compat-matrix/check.mjs` in `ci.yml#verify`): 573 frontend surfaces classified with 0 unknown, 422 Go registrations, 50 pinned redirect aliases ALL registered (0 open) and 342 pinned routes reconciled. The two surface gaps the gate previously PROVED here are now CLOSED, each against an executed pinned capture rather than a claim: (a) all 50 legacy redirect aliases are registered by the single table in internal/server/redirect_aliases.go and replayed by TestDeprecatedRedirectAliasesMatchPinnedOracle from tests/oracle/sillytavern-1.19.0-redirect-aliases.json (111 cases: 308 status, Location, headers, body bytes, the deprecation console.warn line, prefix-mount semantics including the 404 for a non-matching prefix, query dropping, and the literal `/api/images/list/:folder` destination; the three stats aliases previously answered 302 and now answer the pinned 308 with this test as the regression gate); (b) POST /api/tokenizers/remote/textgenerationwebui/encode is registered and replayed by TestTokenizerRemoteTextgenEncodeMatchesLoopbackOracle from tests/oracle/sillytavern-1.19.0-tokenizer-textgen-remote.json (31 cases recorded against an unmodified pinned boot with a loopback provider: auth headers, requestOverrides precedence, malformed/unreachable URLs as zero-provider-request cases, upstream non-2xx and non-JSON, String() coercions, body-parser branches) plus the 12 cases in the tokenizer corpus. Gap ids SURFACE-REDIRECT-ALIASES and SURFACE-TOKENIZER-REMOTE are RETIRED, not silenced: the gate refuses a classification entry that names a registered alias or route, so neither can be re-used to hide a future absence.",
+        "response compression: pinned mounts `app.use(compression())` (src/server-main.js:107, compression@^1.8.1 with no options) and GoTavern now implements the recorded contract (gzip/deflate, 1024 B threshold, compressible(Content-Type) filter, Vary: Accept-Encoding merge, Content-Length removal, ETag/304/HEAD/Range semantics, no SSE compression). ONE RECORDED DEVIATION: pinned prefers `br` when the client offers it (Node 24 has brotli) while GoTavern answers gzip, and a br-only client receives identity because there is no standard-library brotli encoder; the probe records both halves and TestPinnedCompressionContract asserts them. The comparators that normalize Content-Encoding/Transfer-Encoding (characters_oracle_test.go:300-333, settings_get_test.go:212, account_admin_test.go:215-216) were NOT weakened further and can now be NARROWED to representation-aware comparisons as a follow-up, because the server finally produces the pinned encoding."
       ],
       "blockedBy": [],
-      "notes": "Route-level HTTP parity is the most mature area in this tree. The counts this note used to carry BY HAND (\"118 oracle recordings, 512 Go test functions\") had already drifted to 119 and 689; they are deleted here rather than corrected, because the generated \"Counts measured from this tree\" section is now the only place a count lives. Maturity of the fixtures is exactly why the three P0 defects shipped, so this row is not PASS for that reason alone. FRONTEND-DERIVED SURFACE DRIFT GATE (added alpha.10): the rule-43 inventory is now derived from the oracle's own lists -- pinned routes from docs/api-inventory.md, the actual mux.HandleFunc registrations in internal/server/*.go, and every URL the vendored pinned frontend builds -- and every surface must be classified implemented / intentionally-passthrough / not-applicable / unsupported-with-reason with a reason and a source line. It is executed by `tools/compat-matrix/check.mjs` in `ci.yml#verify`, and its teeth are a committed mutation selftest (`node tools/compat-matrix/surface-coverage.mjs --selftest`, 13/13 on COPIED fixture trees). It found the two recorded surface gaps quoted in evidenceGap and nothing else unclassified."
+      "notes": "Route-level HTTP parity is the most mature area in this tree. The counts this note used to carry BY HAND (\"118 oracle recordings, 512 Go test functions\") had already drifted to 119 and 689; they are deleted here rather than corrected, because the generated \"Counts measured from this tree\" section is now the only place a count lives. Maturity of the fixtures is exactly why the three P0 defects shipped, so this row is not PASS for that reason alone. FRONTEND-DERIVED SURFACE DRIFT GATE (added alpha.10): the rule-43 inventory is now derived from the oracle's own lists -- pinned routes from docs/api-inventory.md, the actual mux.HandleFunc registrations in internal/server/*.go, and every URL the vendored pinned frontend builds -- and every surface must be classified implemented / intentionally-passthrough / not-applicable / unsupported-with-reason with a reason and a source line. It is executed by `tools/compat-matrix/check.mjs` in `ci.yml#verify`, and its teeth are a committed mutation selftest (`node tools/compat-matrix/surface-coverage.mjs --selftest`, 13/13 on COPIED fixture trees). It found the two recorded surface gaps quoted in evidenceGap and nothing else unclassified. RESPONSE COMPRESSION (M3): `internal/server/compression.go` is the pinned middleware contract, recorded first by tools/probe-compression.mjs into tests/oracle/sillytavern-1.19.0-compression.json and replayed by TestPinnedCompressionContract / TestPinnedCompressionSSEIsNotCompressed. It is the OUTERMOST wrapper (pinned order 107 before responseTime 108 and CORS 138) and compresses through the standard library in a streaming gzip/deflate writer (no unbounded buffer; a sync.Pool removes the per-response flate-table allocation). Same-host same-input 229-request page load: 9,067,849 identity wire bytes -> 2,951,609 gzip wire bytes (67.4% saved), 181 responses compressed, decoded bytes identical; benchmark PageLoadIdentity 24,984,068 B/op / 21,877 allocs/op vs PageLoadGzip 15,469,140 B/op / 23,879 allocs/op (pooled gzip allocates less than identity; the CPU cost is ~+0.57 ms per compressed response). SSE framing/cancellation is untouched because pinned forwards the provider stream with no Content-Type, so the filter never matches (recorded and asserted). The CI re-record of the probe PROVED that compressed bytes are host-dependent (zlib/brotli output differed from the Windows recording), so the fixture records raw compressed bytes as null with the reason and the contract is the encoding choice + headers + decoded bytes; a CI oracle re-record of the compression probe is part of the evidence."
     },
     {
       "id": "auth-session-csrf",
@@ -1183,16 +1189,16 @@
   ],
   "derived": {
     "oracleFixtures": {
-      "inTree": 121,
-      "citedByMatrix": 69
+      "inTree": 122,
+      "citedByMatrix": 70
     },
     "browserArtefacts": {
       "inTree": 40,
       "citedByMatrix": 12
     },
     "goTestFunctions": {
-      "inTree": 813,
-      "citedByMatrix": 103
+      "inTree": 816,
+      "citedByMatrix": 106
     },
     "workflows": {
       "inTree": 20,
