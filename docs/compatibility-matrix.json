@@ -1189,7 +1189,7 @@
   ],
   "derived": {
     "oracleFixtures": {
-      "inTree": 122,
+      "inTree": 123,
       "citedByMatrix": 70
     },
     "browserArtefacts": {
@@ -1197,7 +1197,7 @@
       "citedByMatrix": 12
     },
     "goTestFunctions": {
-      "inTree": 816,
+      "inTree": 828,
       "citedByMatrix": 106
     },
     "workflows": {
