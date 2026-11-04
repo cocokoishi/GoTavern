@@ -21,7 +21,7 @@ package server
 //     be stringified. Express answers every one of those with its finalhandler
 //     HTML error page (status 500) whose <pre> block is the V8 stack trace,
 //     which embeds host-absolute source paths and pinned line numbers. GoTavern
-//     answers the same 500 status with the plain-text body serveStatusText
+//     answers the same 500 status with the plain-text body httpx.WriteStatusText
 //     produces and does not reproduce that page.
 //   - Express's default JSON body parser answers a malformed or non-object body
 //     with its own 400 HTML error page; GoTavern answers 400 with a plain-text
@@ -237,7 +237,7 @@ func (runtime *accountRuntime) serveWorldInfoList(w http.ResponseWriter, request
 		httpx.WriteStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	// The body is produced by the SAME serializer respondOrderedNodeJSON used, and respondJSONBytes sets
+	// The body is produced by the SAME serializer respondOrderedNodeJSON used, and httpx.WriteJSONBytes sets
 	// exactly the headers respondOrderedNodeJSON set, so a hit is byte-identical including the ETag.
 	body, err := marshalOrderedNodeJSON(data)
 	if err != nil {

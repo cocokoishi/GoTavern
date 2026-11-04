@@ -17,7 +17,7 @@ package server
 //     be confused with another user's even if two trees were hard-linked.
 //   - value: the fully serialized HTTP response body (JSON), never a parsed structure. It is produced by
 //     the same marshal function the uncached route used (`marshalNodeJSON` for settings/get,
-//     `marshalOrderedNodeJSON` for worldinfo/list) and written by `respondJSONBytes`, whose header set is
+//     `marshalOrderedNodeJSON` for worldinfo/list) and written by `httpx.WriteJSONBytes`, whose header set is
 //     byte-for-byte the one `respondJSON`/`respondOrderedNodeJSON` set. Storing the body rather than the
 //     parsed value means a hit performs no unmarshal, no re-marshal, and cannot drift in key order,
 //     escaping, number formatting or `json.RawMessage` compaction.

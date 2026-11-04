@@ -25,7 +25,7 @@ program shipped alpha.14 with only the route-table step (`8eca43b`), so the rele
 `docs/release-notes-v0.1.0-alpha.14.md` and the published release body carry a "Scope correction
 (post-publication)" section, and `GOAL.md` §12.1 leaves the M4 box unticked. **No agent may read the
 tag's "M0-M8" phrasing as M4 complete.** The follow-up work then landed the two extractions that ARE
-move-only — `internal/httpx` (weak-ETag/JSON-writer/status-text conventions, 101 call sites) and
+move-only — `internal/httpx` (weak-ETag/JSON-writer/status-text conventions, 902 call sites: 33 + 64 + 805) and
 `internal/userdata` (the pinned sanitize-filename naming policy, 4 call sites), both with their own
 tests and no behaviour change — and **refused the `orderedjson` extraction with a measurement**: 152
 files / 1,463 references inside `internal/server` read its unexported fields (644 `.kind`, 605

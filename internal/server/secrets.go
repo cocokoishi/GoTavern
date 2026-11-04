@@ -357,6 +357,6 @@ func secretsStringValue(raw []byte) (string, bool) {
 	return text, true
 }
 
-// respondJSONBytes writes an already-serialized JSON body with the same headers respondJSON sets,
-// so a pre-marshalled ordered object keeps its pinned key order. The writer itself lives in
-// internal/httpx (GOAL.md §15.4 move-only extraction); this file keeps only its call sites.
+// The already-serialized JSON writer lives in internal/httpx (GOAL.md §15.4 move-only extraction): it
+// sets the same headers respondJSON sets, so a pre-marshalled ordered object keeps its pinned key order.
+// This file keeps only its call sites.

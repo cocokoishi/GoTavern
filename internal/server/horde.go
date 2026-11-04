@@ -252,7 +252,7 @@ func (runtime *accountRuntime) serveHordeTextWorkers(w http.ResponseWriter, requ
 	//   HTML escaping  JSON.stringify does NOT escape `<`, `>` or `&`; Go's encoder writes `\u003c`, `\u003e`
 	//                  and `\u0026` unless `SetEscapeHTML(false)` is set.
 	//
-	// Both are byte-level differences on a browser-facing route, and the weak ETag `respondJSONBytes` computes
+	// Both are byte-level differences on a browser-facing route, and the weak ETag `httpx.WriteJSONBytes` computes
 	// is derived from those bytes, so the two differences are observable together. The project already owns the
 	// correct serialiser for JavaScript semantics -- `decodeOrderedNodeJSON` plus `marshalOrderedNodeJSON`, whose
 	// string path (`marshalNodeJSONString` -> `marshalNodeJSON` with `SetEscapeHTML(false)`, then U+2028/U+2029

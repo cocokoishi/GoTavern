@@ -248,7 +248,7 @@ decides it. Moving on because the previous milestone's cheap checks are green is
 
 **M4 status (recorded 2026-11-04, after `v0.1.0-alpha.14`).** The route-table step (`8eca43b`) and two
 move-only extractions landed in the follow-up work: `internal/httpx` (the weak-ETag and response-writer
-conventions, 101 call sites) and `internal/userdata` (the pinned sanitize-filename naming policy). The
+conventions, 902 call sites: 33 weak-ETag reads, 64 JSON-bytes writes and 805 status-text answers) and `internal/userdata` (the pinned sanitize-filename naming policy). The
 `orderedjson` extraction is **REFUSED with a measurement, not skipped**: 152 files and 1,463 references
 inside `internal/server` read `orderedNodeJSON`'s unexported fields (644 `.kind`, 605 `.array`, 156
 `.scalar` accesses), so a move-only extraction does not exist — moving that type means exporting its

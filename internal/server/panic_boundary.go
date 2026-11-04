@@ -40,7 +40,7 @@ package server
 // `<pre>err text</pre>` where pinned yields `<pre>Error: err text<br> ...at
 // ...</pre>`. This is the same difference the extension static handler records
 // (extensions.go: "...the <pre> block is the V8 stack with host-absolute paths
-// and pinned line numbers; GoTavern answers the same status with serveStatusText").
+// and pinned line numbers; GoTavern answers the same status with httpx.WriteStatusText").
 //
 // HEADERS FROM MIDDLEWARE THAT ALREADY RAN ARE KEPT, as Express keeps them:
 // pinned's helmet security headers are set before the route and survive the

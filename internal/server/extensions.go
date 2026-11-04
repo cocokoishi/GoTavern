@@ -44,7 +44,7 @@ package server
 //     does not.
 //   - A thrown route error answers with Express finalhandler's HTML page, whose
 //     <pre> block is the V8 stack with host-absolute paths and pinned line
-//     numbers; GoTavern answers the same status with serveStatusText.
+//     numbers; GoTavern answers the same status with httpx.WriteStatusText.
 
 import (
 	"errors"
@@ -62,7 +62,7 @@ import (
 // pinnedExtensionServerErrorMessage is the body every pinned catch block sends
 // with `response.status(500).send(...)` (extensions.js:154, 213, 262, 325, 373,
 // 430, 472). Express writes it as text/html, which is why these are not
-// serveStatusText responses.
+// httpx.WriteStatusText responses.
 const pinnedExtensionServerErrorMessage = "Internal Server Error. Check the server logs for more details."
 
 func respondExtensionServerError(w http.ResponseWriter) {

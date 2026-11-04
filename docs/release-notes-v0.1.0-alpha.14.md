@@ -52,21 +52,25 @@ decoded bytes) and `tests/oracle/sillytavern-1.19.0-stream-termination.json` (25
 
 ## Scope correction (post-publication, 2026-11-04)
 
-**M4's package extractions were not performed.** `GOAL.md` §11 names M4 as move-only
+**M4's package extractions were not performed in this release.** `GOAL.md` §11 names M4 as move-only
 `orderedjson` → `httpx` → `userdata` extraction *before* the route table; this release landed only the
 route-table step (`8eca43b`: 54 `init()` registrars replaced by one explicit table, no behaviour
-change). The three move-only package extractions did **not** land, so `GOAL.md` §12.1's M4 definition of
-done — "the extracted packages are move-only, `internal/server` owns less" — is **NOT met**, and the
-opening sentence's "M0–M8" must be read as: M0, M1, M2, M3, M5, M6, M7 and M8 complete; **M4 partial**.
-The extraction is recorded as the next milestone item in `GOAL.md` §11 and `HANDOFF.md`, to be gated by
-the existing differential suites and shipped in a follow-up release rather than retro-fitted into this
-tag. No other claim in this note changes.
+change). The three move-only package extractions did **not** land in the tag, so `GOAL.md` §12.1's M4
+definition of done — "the extracted packages are move-only, `internal/server` owns less" — is **NOT
+met by this artifact**, and the opening sentence's "M0–M8" must be read as: M0, M1, M2, M3, M5, M6, M7
+and M8 complete; **M4 partial**. The follow-up work on `main` then landed the two extractions that ARE
+move-only (`internal/httpx`: the weak-ETag / JSON-writer / status-text conventions, 902 call sites;
+`internal/userdata`: the pinned sanitize-filename naming policy) and REFUSED the `orderedjson` move with
+its measurement in `GOAL.md` §11 (152 files / 1,463 references against unexported fields; the redesign a
+move would require is what §15.4 forbids). None of that is retro-fitted into this tag. No other claim in
+this note changes.
 
 ## Known limitations
 
-- **M4 is partial (see the scope correction above):** the route table landed, the
-  `orderedjson`/`httpx`/`userdata` move-only extractions did not, so `internal/server` still owns the
-  code those packages were meant to take.
+- **M4 is partial (see the scope correction above):** the route table landed in this release; the
+  `orderedjson`/`httpx`/`userdata` move-only extractions did not land in the tag, and the follow-up on
+  `main` completed only the two that are move-only, refusing the `orderedjson` move with its
+  measurement.
 - **The strong drop-in claim in `GOAL.md` §14 is still NOT MET.** The evidence covers a synthesised
   long-lived tree, a committed synthetic corpus and a packaged archive over a stock tree; a real,
   long-used user directory has not been qualified.

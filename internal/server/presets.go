@@ -15,7 +15,7 @@ package server
 //   - `sanitize(request.body.name)` throws for every non-string name, which
 //     Express renders as its finalhandler HTML error page (status 500) whose
 //     <pre> block is the V8 stack with host-absolute source paths. GoTavern
-//     answers the same 500 status with the plain-text body serveStatusText
+//     answers the same 500 status with the plain-text body httpx.WriteStatusText
 //     produces and does not reproduce that page. /restore wraps the same throw
 //     in its own try/catch and answers sendStatus(500), which GoTavern
 //     reproduces byte for byte.

@@ -72,7 +72,7 @@ func (runtime *accountRuntime) serveSettingsGet(w http.ResponseWriter, request *
 		return
 	}
 	// The body is produced by the SAME serializer the uncached route used (respondJSON called
-	// marshalNodeJSON), and it is written by respondJSONBytes, whose headers are the ones respondJSON set.
+	// marshalNodeJSON), and it is written by httpx.WriteJSONBytes, whose headers are the ones respondJSON set.
 	// That is what makes a cache hit byte-identical to the uncached response, including the ETag.
 	body, err := marshalNodeJSON(response)
 	if err != nil {
