@@ -67,18 +67,18 @@ The single-sided record (`scripts/smoke-metrics.mjs`) is a separate harness: col
 sequential requests per path, VmRSS, host identity. It is not the baseline; it supplies the host block
 for the same run.
 
-## 4. Current baseline numbers (restated from the artifact; the gate is the authority)
+## 4. Where the numbers live (deliberately not restated here)
 
-| metric | pinned Node | GoTavern | unit/statistic |
-|---|---:|---:|---|
-| cold start to first `/version` 200 | 11,522 ms | 213 ms | median of 3 rounds |
-| steady-state RSS | 1,153 MB (1,153,224,704 B) | 39.5 MB (39,544,832 B) | median of 6 samples, decimal MB |
-| `GET /version` latency | 51.04 ms | 0.292 ms | median of 90; p95 59.56 / 0.424 |
-| `GET /` latency | 10.72 ms | 1.49 ms | median of 90 |
-| 10-minute soak | RSS drift −817.9 MB from peak, p95 +0.41 ms | RSS drift −1.6 MB, p95 +0.32 ms | last−first of 20 samples |
+This document records the baseline's IDENTITY and its method; it does **not** restate the four performance
+numbers or the soak drift values, because a second hand-copied table is the defect class this gate exists to
+remove (the alpha.13 tag tree's README RSS row drifted from the run it cited precisely because the numbers were
+retyped). The numbers live in exactly two committed surfaces, both recomputed from `report.summary` and
+`report.soak` by `tools/check-perf-docs.mjs`:
 
-These are the numbers the README table and the figure must restate; the gate compares them cell by cell
-and byte by byte rather than trusting this paragraph.
+- the README Performance table and paragraph (and the TL;DR mini-table);
+- `docs/assets/benchmark.svg`, regenerated from the artifact and byte-compared in CI.
+
+The unit rule those surfaces use is stated in §2; the identity a new baseline must match is in §1 and §8.
 
 ## 5. Current metric coverage
 
@@ -126,20 +126,23 @@ different harness or not recorded; `missing` = no measurement.
 mismatch with a readable diff naming the file, the expected value and the artefact field:
 
 1. baseline shape and provenance (run id, full commit, rounds, request count, soak window/sampling);
-2. README table: cold start, RSS, `/version` (median + p95), `/` — recomputed from `summary.*` under
+2. **this document's identity only** — run id, full commit, rounds/requests, CPU/RAM and the unit rule; §4
+   deliberately does not restate the performance numbers, and the gate fails if a measured value is added
+   back here (a second hand-copied table is the defect class), while the §7 teeth section is exempt because
+   it quotes the gate's own observed failure strings;
+3. README table: cold start, RSS, `/version` (median + p95), `/` — recomputed from `summary.*` under
    the decimal-MB rule, for **every** occurrence of the four rows (the TL;DR mini-table near the top and
    the Performance table below the figure are both release surfaces; only the Performance section also
    carries the "How it was measured" column, which is checked against the artifact's sample counts);
-3. README prose: cited run id and short commit; soak drift values (`−1.6 MB`, `+0.32 ms`, `+0.41 ms`)
+4. README prose: cited run id and short commit; soak drift values (`−1.6 MB`, `+0.32 ms`, `+0.41 ms`)
    recomputed from `soak[]`; the decimal-MB unit rule stated once in the section;
-4. provenance: run id, full commit, runner image, rounds, request count, soak description, and the
+5. provenance: run id, full commit, runner image, rounds, request count, soak description, and the
    decimal-MB unit statement (including that the unit is stated on the row);
-5. the figure: `tools/benchmark-svg.mjs` regenerated from the committed baseline into a temp file **twice**
+6. the figure: `tools/benchmark-svg.mjs` regenerated from the committed baseline into a temp file **twice**
    (determinism), byte-compared with the committed `docs/assets/benchmark.svg`; the generator must contain
    no hardcoded release version or measured commit (the pinned oracle commit is the one allowed literal) and
    the output must carry `role="img"`, `<title>`, `<desc>`, the per-metric `faster`/`lighter` verdicts, the
    decimal-MB row note, the run id/short commit, and no external font/image/script/network reference.
-
 Teeth, observed locally on 2026-11-03 (each mutation was applied, the gate run, the file restored by copy,
 and the restore verified by SHA-256; the restored tree is green):
 

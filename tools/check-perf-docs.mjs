@@ -31,7 +31,8 @@
 // USAGE:
 //   node tools/check-perf-docs.mjs
 //   node tools/check-perf-docs.mjs --baseline <q22-baseline.json> --readme <README.md> \
-//       --svg <benchmark.svg> --provenance <benchmark.svg.provenance.md>   # used by the teeth test on copies
+//       --svg <benchmark.svg> --provenance <benchmark.svg.provenance.md> --baseline-doc <perf-baseline.md>
+//       # used by the teeth test on copies
 
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -51,6 +52,7 @@ const readmePath = path.resolve(argument('--readme', path.join(ROOT, 'README.md'
 const svgPath = path.resolve(argument('--svg', path.join(ROOT, 'docs', 'assets', 'benchmark.svg')));
 const provenancePath = path.resolve(argument('--provenance', path.join(ROOT, 'docs', 'assets', 'benchmark.svg.provenance.md')));
 const generatorPath = path.resolve(argument('--generator', path.join(ROOT, 'tools', 'benchmark-svg.mjs')));
+const baselineDocPath = path.resolve(argument('--baseline-doc', path.join(ROOT, 'docs', 'perf-baseline.md')));
 
 const problems = [];
 function problem(file, line, message) {
@@ -262,6 +264,33 @@ if (provenanceText !== null) {
     if (provenance.host?.runnerImage) expectContains(provenancePath, provenanceText, String(provenance.host.runnerImage), 'provenance must name the runner image recorded with the baseline');
     expectContains(provenancePath, provenanceText, 'decimal MB (1e6 B)', 'provenance must state the decimal-MB unit rule');
     expectContains(provenancePath, provenanceText, 'stated on the row', 'provenance claims the unit is stated on the row; the figure must actually state it');
+}
+
+// ---- baseline document: identity only, no second hand-copied number table -------------------------
+const baselineDoc = readText(baselineDocPath);
+if (baselineDoc !== null) {
+    expectContains(baselineDocPath, baselineDoc, String(provenance.runId ?? ''), 'the baseline document must name the baseline run id');
+    expectContains(baselineDocPath, baselineDoc, String(provenance.commit ?? ''), 'the baseline document must name the full baseline commit');
+    expectContains(baselineDocPath, baselineDoc, `${rounds} alternating rounds × ${requestsPerRound} sequential requests per path`, `the baseline document must state ${rounds} rounds × ${requestsPerRound} requests per path from the baseline`);
+    if (provenance.host?.cpuCount !== undefined && provenance.host?.cpuCount !== null) {
+        expectContains(baselineDocPath, baselineDoc, `${provenance.host.cpuCount} vCPU`, 'the baseline document must state the recorded CPU count');
+    }
+    if (typeof provenance.host?.totalMemoryBytes === 'number') {
+        expectContains(baselineDocPath, baselineDoc, `${groupedInteger(provenance.host.totalMemoryBytes)} B`, 'the baseline document must state the recorded RAM');
+    }
+    expectContains(baselineDocPath, baselineDoc, 'decimal MB', 'the baseline document must state the unit rule');
+    expectContains(baselineDocPath, baselineDoc, '## 5. Current metric coverage', 'the baseline document must carry the metric matrix');
+    expectContains(baselineDocPath, baselineDoc, '## 8. Update procedure', 'the baseline document must carry the one-commit update procedure');
+    // The document deliberately does NOT restate the performance numbers in its identity/method sections (a
+    // second hand-copied table is the defect class this gate exists to remove). The teeth section quotes the
+    // gate's own observed failure strings, so it is excluded from this check.
+    const teethStart = baselineDoc.indexOf('## 7. The gate');
+    const beforeTeeth = teethStart < 0 ? baselineDoc : baselineDoc.slice(0, teethStart);
+    for (const stale of [`${groupedInteger(summary.pinned.bootMsMedian)} ms`, formatMB(summary.pinned.rssBytesMedian)]) {
+        if (beforeTeeth.includes(stale)) {
+            problem(baselineDocPath, lineOf(beforeTeeth, stale), `restates the measured value ${JSON.stringify(stale)}; the numbers belong to the README/figure, which the gate already checks (a second hand-copied table is the defect class)`);
+        }
+    }
 }
 
 // ---- figure: regenerate it, compare bytes, and check the properties it promises -------------------
