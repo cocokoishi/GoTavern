@@ -31,7 +31,10 @@ tests and no behaviour change — and **refused the `orderedjson` extraction wit
 files / 1,463 references inside `internal/server` read its unexported fields (644 `.kind`, 605
 `.array`, 156 `.scalar`), so no move-only extraction exists and the redesign a move would require is
 exactly what §15.4's do-not-rewrite list forbids. `internal/server` owns less; the ordered-JSON
-semantics stay beside the tests that pin them. The published release body was edited on publication day
+semantics stay beside the tests that pin them. **The move-only extraction was verified by the
+workflow_dispatch FULL oracle at `f328ca8` (`GoTavern CI` `41839609172`, success):** its zero-diff step
+compared the re-recorded fixtures against the committed tree, so the refactor changed no observable
+byte; the comment/figure cleanup that followed is `12f84c4`. The published release body was edited on publication day
 (`gh release edit`, 8,578 -> 9,478 bytes) to insert the scope section between the opening summary and
 `## What changed`; the appended same-SHA gate table is untouched, and the repo's
 `docs/release-notes-v0.1.0-alpha.14.md` on `main` carries the same correction (`b1794b2`).
