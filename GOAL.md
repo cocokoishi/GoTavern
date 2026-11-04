@@ -348,19 +348,25 @@ The core goal of a round is complete only when every line below is true.
 
 ### 12.1 The engineering program's definition of done
 
-- [ ] M1: the first-run output names GoTavern, its version, its baseline, its real data/config paths
+State as of the published `v0.1.0-alpha.14` (2026-11-04): everything below is met **except M4**, which
+is partial and is the next milestone item. A ticked box names the evidence in `HANDOFF.md`'s current
+checkpoint; an unticked box is an open obligation, not a style note.
+
+- [x] M1: the first-run output names GoTavern, its version, its baseline, its real data/config paths
       and a Ready line printed only after the listener serves; `--help`/`version` work for every
       subcommand regardless of argument position; an unknown flag warns; colour is TTY-safe; Docker
       boots headless; shutdown is friendly; the pinned error formats are preserved
-- [ ] M2: the performance-evidence gate exists and has teeth, and a baseline is recorded with commit,
+- [x] M2: the performance-evidence gate exists and has teeth, and a baseline is recorded with commit,
       Go version, runner, data scale, rounds and the raw artifact
-- [ ] M3: one hotspot has a same-input before/after and the same-commit compatibility gates are green
+- [x] M3: one hotspot has a same-input before/after and the same-commit compatibility gates are green
 - [ ] M4: the extracted packages are move-only, `internal/server` owns less, and every step was gated
-      by an existing differential
-- [ ] M5: large-data and concurrency behaviour is measured and improved without changing response bytes
-- [ ] M6: the failure paths and the truncation/redirect differentials are decided with evidence
-- [ ] M7: README first screen, figure, provenance and the release record agree with the artifact
-- [ ] M8: §16 is satisfied on one commit, and the public artifacts are verified after publication
+      by an existing differential. **PARTIAL:** the route table landed (`8eca43b`); the
+      `orderedjson` → `httpx` → `userdata` extractions did NOT, so this box stays unticked and
+      `internal/server` still owns that code.
+- [x] M5: large-data and concurrency behaviour is measured and improved without changing response bytes
+- [x] M6: the failure paths and the truncation/redirect differentials are decided with evidence
+- [x] M7: README first screen, figure, provenance and the release record agree with the artifact
+- [x] M8: §16 is satisfied on one commit, and the public artifacts are verified after publication
 
 ## 13. Non-claims
 

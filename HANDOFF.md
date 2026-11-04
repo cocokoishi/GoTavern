@@ -13,11 +13,21 @@ this repository at `../SillyTavern` and is READ-ONLY.
 ## Latest checkpoint - 2026-11-04: `v0.1.0-alpha.14` SHIPPED -- THE ENGINEERING-PROGRAM STABLE RELEASE
 
 `v0.1.0-alpha.14` is **published as a full (non-prerelease, non-draft) release** and is the current
-`releases/latest`. It lands the M0-M8 engineering program: the first-run CLI, the performance evidence
-gate, response compression decided against a recorded pinned contract, streaming chat summaries,
-identity-keyed settings/world-info caches, the route table, a panic boundary with bounded server
-timeouts, and provider stream-termination differentials. Baseline unchanged: SillyTavern `1.19.0` @
-`06bde939fb1e9c4c8d8641d810f0a916b5bce127`.
+`releases/latest`. It lands M0, M1, M2, M3, M5, M6, M7 and M8: the first-run CLI, the performance
+evidence gate, response compression decided against a recorded pinned contract, streaming chat
+summaries, identity-keyed settings/world-info caches, the route table, a panic boundary with bounded
+server timeouts, and provider stream-termination differentials. Baseline unchanged: SillyTavern
+`1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127`.
+
+**M4 IS PARTIAL, and the published record was corrected on 2026-11-04 to say so.** `GOAL.md` §11
+defines M4 as move-only `orderedjson` → `httpx` → `userdata` extraction *before* the route table; this
+program landed only the route-table step (`8eca43b`). The three package extractions did **not** land,
+so §12.1's M4 definition of done is **NOT met** and `internal/server` still owns that code. The
+release's own `docs/release-notes-v0.1.0-alpha.14.md` and the published release body now carry a
+"Scope correction (post-publication)" section saying exactly this; the extraction is the next milestone
+item in `GOAL.md` §11, to be gated by the existing differential suites and shipped in a follow-up
+release rather than retro-fitted into the tag. **No agent may read the tag's "M0-M8" phrasing as M4
+complete.**
 
 **`GOAL.md` §14 (the strong drop-in claim over a real, long-used user tree) is still NOT MET and is
 not claimed.** The evidence covers a synthesised long-lived tree, the committed synthetic corpus, the
