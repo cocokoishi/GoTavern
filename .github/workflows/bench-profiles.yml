@@ -25,10 +25,12 @@ name: GoTavern bench profiles
 # the comparison runs on. The first run of this workflow (before a baseline exists) exits 3 and uploads
 # `bench-baseline-candidate.txt` + its raw run; those are committed, and every later run compares.
 #
-# BOOTSTRAP TRIGGER. `workflow_dispatch` and `schedule` only fire for a workflow on the default branch, so the
-# FIRST runs of this new file are triggered by the temporary `push` block below on its own lane branch -- the
-# same measured constraint `smoke-metrics.yml` records for its own bootstrap. The `push` block is removed in
-# the commit that lands this file on the default branch; nothing else in this workflow depends on it.
+# BOOTSTRAP TRIGGER, AND WHY IT IS GONE. `workflow_dispatch` and `schedule` only fire for a workflow on the
+# default branch, so the first runs of this new file were triggered by a temporary branch-scoped `push` block --
+# the same measured constraint `smoke-metrics.yml` records for its own bootstrap. Those runs produced the
+# committed baseline (run 41756090210), the green comparison (41758175427) and the mutation teeth evidence
+# (41759085618); the block was then removed, and `workflow_dispatch` becomes available once this file is on the
+# default branch. Nothing else in this workflow depends on the removed trigger.
 
 on:
   workflow_dispatch:
@@ -40,10 +42,6 @@ on:
   schedule:
     # Tuesdays, 06:41 UTC: off-peak and a non-round minute, for the same reason smoke-metrics.yml uses one.
     - cron: '41 6 * * 2'
-  push:
-    branches:
-      - m2/bench
-      - m2/bench-mutation
 
 permissions:
   contents: read
