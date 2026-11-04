@@ -8,9 +8,17 @@
 // surface that the artifact does not contain", and this gate removes it:
 //
 //   * tests/perf/q22-baseline.json is the source of truth (provenance + the q22 artefact embedded verbatim);
-//   * docs/assets/benchmark.svg is REGENERATED from it and byte-compared, so the figure cannot drift;
+//   * docs/assets/benchmark.svg (dark) and docs/assets/benchmark-light.svg (light) are REGENERATED from it and
+//     byte-compared, so neither figure variant can drift and the two cannot disagree about the data;
 //   * the README performance table is RECOMPUTED from it under one stated unit rule and compared cell by
 //     cell, so a unit mismatch cannot hide;
+//   * the README's first screen is checked STRUCTURALLY: it must reference both figure variants through a
+//     <picture> element, carry the shortest install+start block, link the detailed sections, state the
+//     synthetic scope of the evidence and the unmet GOAL §14 claim in the same place as the claim, and
+//     hardcode no GoTavern release version;
+//   * the figures are checked for the properties they promise: 1200x675, role/title/desc with the same
+//     per-metric verdict words, every declared type size at least 12 px at 1:1, and no external font,
+//     image, script or network reference;
 //   * the provenance's run id, commit, rounds and soak are compared with the baseline's own provenance.
 //
 // ONE UNIT RULE, STATED ONCE AND USED EVERYWHERE: memory is decimal MB, 1 MB = 1,000,000 bytes. Formatting
@@ -26,12 +34,15 @@
 //
 // TEETH (recorded in the commit that added it): changing 11,522 to 11,523 in README.md, or one summary
 // number in a copy of the baseline, makes this gate exit 1 naming the metric, the expected value and the
-// artifact field; restoring the file by copy returns it to green.
+// artifact field; restoring the file by copy returns it to green. A mutated dark OR light SVG fails its own
+// byte comparison, and deleting the first screen's honesty sentence, dropping the <picture> element or
+// lowering a figure type size below 12 px each fails with the first-screen or accessibility message named.
 //
 // USAGE:
 //   node tools/check-perf-docs.mjs
 //   node tools/check-perf-docs.mjs --baseline <q22-baseline.json> --readme <README.md> \
-//       --svg <benchmark.svg> --provenance <benchmark.svg.provenance.md> --baseline-doc <perf-baseline.md>
+//       --svg <benchmark.svg> --svg-light <benchmark-light.svg> \
+//       --provenance <benchmark.svg.provenance.md> --baseline-doc <perf-baseline.md>
 //       # used by the teeth test on copies
 
 import { spawnSync } from 'node:child_process';
@@ -50,6 +61,7 @@ function argument(name, fallback) {
 const baselinePath = path.resolve(argument('--baseline', path.join(ROOT, 'tests', 'perf', 'q22-baseline.json')));
 const readmePath = path.resolve(argument('--readme', path.join(ROOT, 'README.md')));
 const svgPath = path.resolve(argument('--svg', path.join(ROOT, 'docs', 'assets', 'benchmark.svg')));
+const svgLightPath = path.resolve(argument('--svg-light', path.join(ROOT, 'docs', 'assets', 'benchmark-light.svg')));
 const provenancePath = path.resolve(argument('--provenance', path.join(ROOT, 'docs', 'assets', 'benchmark.svg.provenance.md')));
 const generatorPath = path.resolve(argument('--generator', path.join(ROOT, 'tools', 'benchmark-svg.mjs')));
 const baselineDocPath = path.resolve(argument('--baseline-doc', path.join(ROOT, 'docs', 'perf-baseline.md')));
@@ -137,8 +149,59 @@ if (report.asserted?.sampleCountsMatch !== true) problem(baselinePath, null, 're
 const shortCommit = String(provenance.commit ?? '').slice(0, 7);
 const runId = String(provenance.runId ?? '');
 
-// ---- README: the performance table and the paragraph that cites the run ---------------------------
+// ---- README: the FIRST SCREEN, checked structurally ------------------------------------------------
+// GOAL.md 15.6 fixes what a reader sees before scrolling: name and one-line description, one real performance
+// figure, the shortest install/start block, the compatibility state with known limits, and links to the detail.
+// A prose claim cannot be gated, but its STRUCTURE can: the boundary is the "## Release status" heading, and
+// everything before it is the first screen. The release history and the CI badges are deliberately below that
+// boundary, so a stale release version or a badge cannot creep back up into the first thing a reader sees.
 const readme = readText(readmePath);
+if (readme !== null) {
+    const lines = readme.split('\n');
+    const firstScreenEnd = lines.findIndex(line => /^##\s+Release status\s*$/.test(line));
+    if (firstScreenEnd < 0) {
+        problem(readmePath, null, 'has no "## Release status" heading, so the gate cannot tell where the first screen ends (the release history and CI badges must live below the first screen)');
+    }
+    const firstScreen = lines.slice(0, firstScreenEnd < 0 ? lines.length : firstScreenEnd).join('\n');
+    const firstScreenProblem = (message, line = null) => problem(readmePath, line, `first screen: ${message}`);
+    // (a) the ONE figure, in both variants, selected by GitHub's colour scheme.
+    if (!firstScreen.includes('<picture')) firstScreenProblem('has no <picture> element, so the figure cannot be the one image of the first screen');
+    if (!firstScreen.includes('prefers-color-scheme')) firstScreenProblem('does not choose the figure variant with prefers-color-scheme, so the dark/light pair cannot be selected by GitHub');
+    for (const variant of ['docs/assets/benchmark.svg', 'docs/assets/benchmark-light.svg']) {
+        if (!firstScreen.includes(variant)) firstScreenProblem(`does not reference the figure variant ${variant} (both variants must be referenced, or one of them is unreachable)`);
+    }
+    // (b) the shortest install+start block, on both platforms, not a link to it.
+    for (const command of ['install.sh', './start.sh', 'install.ps1', '.\\Start.cmd']) {
+        if (!firstScreen.includes(command)) firstScreenProblem(`does not carry the shortest start block: it is missing ${JSON.stringify(command)}`);
+    }
+    // (c) links to the detail, by anchor, so the first screen cannot become a dead end.
+    for (const anchor of ['(#performance)', '(#compatibility)', '(#install)']) {
+        if (!firstScreen.includes(anchor)) firstScreenProblem(`does not link the detailed section ${anchor}`);
+    }
+    // (d) THE HONESTY REQUIREMENT, as a structure: the claim and its scope in the same place. GOAL.md 14 says the
+    // strong form is NOT MET today and that any document calling the product drop-in must state which of its
+    // evidence items have run. The first screen must therefore name GOAL.md, say the claim is not met, and say the
+    // evidence is synthetic -- three facts that cannot drift apart in separate sections.
+    for (const [needle, why] of [
+        ['GOAL.md', 'must cite GOAL.md so the scope is checkable'],
+        ['not met', 'must state that the strong drop-in claim is not met yet'],
+        ['synthetic', 'must name the synthetic scope of the evidence'],
+    ]) {
+        if (!firstScreen.toLowerCase().includes(needle.toLowerCase())) firstScreenProblem(`does not contain ${JSON.stringify(needle)} (${why})`);
+    }
+    // (e) no GoTavern release version in the first screen: a release tag there is a number that goes stale on
+    // every release, and the release history has its own section below. The pinned upstream baseline ("1.19.0")
+    // is a deliberate constant, not a GoTavern release, so it does not match this pattern.
+    const releaseVersion = /\bv?0\.\d+\.\d+(?:-[0-9A-Za-z.]+)?|\balpha\.\d+\b/.exec(firstScreen);
+    if (releaseVersion) firstScreenProblem(`contains a hardcoded GoTavern release version ${JSON.stringify(releaseVersion[0])}; release history belongs below the first screen`, lineOf(firstScreen, releaseVersion[0]));
+    // Wording rule, whole document: the strong claim is not demonstrated, so no surface may say the product is
+    // perfectly compatible. The word "drop-in" stays available because the README uses it as the NAME of the
+    // release qualification gates, which is what they are called.
+    const perfect = /perfect(?:ly)?[\s-]*compatib/i.exec(readme);
+    if (perfect) problem(readmePath, lineOf(readme, perfect[0]), `claims ${JSON.stringify(perfect[0])}; GOAL.md 14's strong claim is not met, so compatibility wording must carry its scope`);
+}
+
+// ---- README: the performance table and the paragraph that cites the run ---------------------------
 if (readme !== null) {
     const lines = readme.split('\n');
     const sectionStart = lines.findIndex(line => /^##\s+Performance\s*$/.test(line));
@@ -186,9 +249,9 @@ if (readme !== null) {
                 measured: `median of ${summary.pinned.samples?.root ?? '?'} sequential requests`,
             },
         ];
-        // THE SAME NUMBERS APPEAR TWICE IN THE README (the TL;DR mini-table near the top and the
-        // Performance table below the figure). Both are release surfaces, so every occurrence is checked;
-        // only the Performance section also carries the "How it was measured" column.
+        // THE SAME NUMBERS MAY APPEAR MORE THAN ONCE (the first-screen figure's alt text never carries raw cell
+        // text, but a future README could repeat the table); every occurrence of a row is checked, and the
+        // Performance section's occurrence must also carry the "How it was measured" column.
         const clean = value => String(value ?? '').replace(/\*\*/g, '').trim();
         for (const row of expectedRows) {
             const indexes = lines
@@ -254,7 +317,7 @@ if (readme !== null) {
     }
 }
 
-// ---- provenance: it must name the same run, commit, rounds and soak ------------------------------
+// ---- provenance: it must name the same run, commit, rounds and soak, and both figure variants ---------
 const provenanceText = readText(provenancePath);
 if (provenanceText !== null) {
     expectContains(provenancePath, provenanceText, `| run id | \`${runId}\``, 'provenance must name the baseline run id');
@@ -264,6 +327,13 @@ if (provenanceText !== null) {
     if (provenance.host?.runnerImage) expectContains(provenancePath, provenanceText, String(provenance.host.runnerImage), 'provenance must name the runner image recorded with the baseline');
     expectContains(provenancePath, provenanceText, 'decimal MB (1e6 B)', 'provenance must state the decimal-MB unit rule');
     expectContains(provenancePath, provenanceText, 'stated on the row', 'provenance claims the unit is stated on the row; the figure must actually state it');
+    // The figure is now a dark/light PAIR. The provenance must say so, state the shared canvas, and record how the
+    // accessibility properties are verified, or a reader would look for one file and find the wrong half of a pair.
+    expectContains(provenancePath, provenanceText, 'benchmark-light.svg', 'provenance must name the light figure variant next to the dark one');
+    expectContains(provenancePath, provenanceText, '1200', 'provenance must state the shared canvas size');
+    expectContains(provenancePath, provenanceText, 'contrast', 'provenance must record the contrast audit');
+    expectContains(provenancePath, provenanceText, '12 px', 'provenance must state the minimum type size at 1:1');
+    expectContains(provenancePath, provenanceText, '--out-light', 'the update procedure must regenerate BOTH variants');
 }
 
 // ---- baseline document: identity only, no second hand-copied number table -------------------------
@@ -312,14 +382,17 @@ if (generatorSource !== null) {
 
 const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'gotavern-perf-evidence-'));
 try {
-    const firstSvg = path.join(tempRoot, 'first.svg');
-    const secondSvg = path.join(tempRoot, 'second.svg');
-    const runGenerator = output => spawnSync(process.execPath, [generatorPath, '--report', baselinePath, '--out', output], { cwd: ROOT, encoding: 'utf8' });
-    const first = runGenerator(firstSvg);
+    const generated = { dark: path.join(tempRoot, 'first-dark.svg'), light: path.join(tempRoot, 'first-light.svg') };
+    const regenerated = { dark: path.join(tempRoot, 'second-dark.svg'), light: path.join(tempRoot, 'second-light.svg') };
+    const runGenerator = (dark, light) => spawnSync(process.execPath, [generatorPath, '--report', baselinePath, '--out', dark, '--out-light', light], { cwd: ROOT, encoding: 'utf8' });
+    const first = runGenerator(generated.dark, generated.light);
     if (first.status !== 0) {
-        problem(generatorPath, null, `refused to regenerate the figure from the baseline: ${(first.stderr || first.stdout || '').trim().split('\n').slice(-3).join(' | ')}`);
+        problem(generatorPath, null, `refused to regenerate the figure variants from the baseline: ${(first.stderr || first.stdout || '').trim().split('\n').slice(-3).join(' | ')}`);
     } else {
-        const second = runGenerator(secondSvg);
+        const second = runGenerator(regenerated.dark, regenerated.light);
+        if (second.status !== 0) {
+            problem(generatorPath, null, `refused a second regeneration of the figure variants: ${(second.stderr || second.stdout || '').trim().split('\n').slice(-3).join(' | ')}`);
+        }
         const readBytes = file => {
             try {
                 return readFileSync(file);
@@ -327,47 +400,74 @@ try {
                 return null;
             }
         };
-        const generated = readBytes(firstSvg);
-        const regenerated = readBytes(secondSvg);
-        if (generated === null || regenerated === null) {
-            problem(generatorPath, null, 'did not write the regenerated figure');
-        } else {
-            if (!generated.equals(regenerated)) {
-                problem(generatorPath, null, 'is not deterministic: two regenerations from the same baseline produced different bytes');
+        const variants = [
+            { name: 'dark', committedPath: svgPath, generatedPath: generated.dark, regeneratedPath: regenerated.dark },
+            { name: 'light', committedPath: svgLightPath, generatedPath: generated.light, regeneratedPath: regenerated.light },
+        ];
+        const compareVariant = variant => {
+            const firstBytes = readBytes(variant.generatedPath);
+            const secondBytes = readBytes(variant.regeneratedPath);
+            if (firstBytes === null || secondBytes === null) {
+                problem(generatorPath, null, `did not write the ${variant.name} figure variant`);
+                return null;
             }
-            const committedText = readText(svgPath);
+            if (!firstBytes.equals(secondBytes)) {
+                problem(generatorPath, null, `is not deterministic for the ${variant.name} variant: two regenerations from the same baseline produced different bytes`);
+            }
+            const committedText = readText(variant.committedPath);
             if (committedText === null) {
-                problem(svgPath, null, 'cannot be read for the byte comparison');
-            } else {
-                const committed = committedText.replace(/\r\n/g, '\n');
-                const generatedText = generated.toString('utf8');
-                if (committed !== generatedText) {
-                    const committedLines = committed.split('\n');
-                    const generatedLines = generatedText.split('\n');
-                    const count = Math.max(committedLines.length, generatedLines.length);
-                    let firstDifference = -1;
-                    for (let index = 0; index < count; index++) {
-                        if (committedLines[index] !== generatedLines[index]) {
-                            firstDifference = index;
-                            break;
-                        }
+                problem(variant.committedPath, null, 'cannot be read for the byte comparison');
+                return null;
+            }
+            const committed = committedText.replace(/\r\n/g, '\n');
+            const generatedText = firstBytes.toString('utf8');
+            if (committed !== generatedText) {
+                const committedLines = committed.split('\n');
+                const generatedLines = generatedText.split('\n');
+                const count = Math.max(committedLines.length, generatedLines.length);
+                let firstDifference = -1;
+                for (let index = 0; index < count; index++) {
+                    if (committedLines[index] !== generatedLines[index]) {
+                        firstDifference = index;
+                        break;
                     }
-                    const line = firstDifference < 0 ? 1 : firstDifference + 1;
-                    const expected = firstDifference < 0 ? '' : generatedLines[firstDifference] ?? '<missing line>';
-                    const actual = firstDifference < 0 ? '' : committedLines[firstDifference] ?? '<missing line>';
-                    problem(svgPath, line, `differs from the figure regenerated from ${relative(baselinePath)}: expected ${JSON.stringify(expected.slice(0, 160))}, committed ${JSON.stringify(actual.slice(0, 160))}`);
                 }
-                const svg = committed;
-                expectContains(svgPath, svg, `RUN ${runId}`, 'the figure must name the baseline run id');
-                expectContains(svgPath, svg, `@ ${shortCommit}`, 'the figure must name the baseline short commit');
-                expectContains(svgPath, svg, 'decimal MB (1e6 B)', 'the RSS row note must state the decimal-MB unit rule');
-                expectContains(svgPath, svg, 'role="img"', 'the figure must expose role="img"');
-                expectContains(svgPath, svg, '<title', 'the figure must carry a <title>');
-                expectContains(svgPath, svg, '<desc', 'the figure must carry a <desc>');
-                expectContains(svgPath, svg, '-fold faster', 'the description must carry the per-metric timing verdict');
-                expectContains(svgPath, svg, '-fold lighter', 'the description must carry the per-metric memory verdict');
-                for (const forbidden of ['href="http', "href='http", '<script', '<image', '@font-face', 'url(http']) {
-                    if (svg.includes(forbidden)) problem(svgPath, lineOf(svg, forbidden), `contains an external/script reference ${JSON.stringify(forbidden)}; the figure must be self-contained`);
+                const line = firstDifference < 0 ? 1 : firstDifference + 1;
+                const expected = firstDifference < 0 ? '' : generatedLines[firstDifference] ?? '<missing line>';
+                const actual = firstDifference < 0 ? '' : committedLines[firstDifference] ?? '<missing line>';
+                problem(variant.committedPath, line, `differs from the ${variant.name} figure regenerated from ${relative(baselinePath)}: expected ${JSON.stringify(expected.slice(0, 160))}, committed ${JSON.stringify(actual.slice(0, 160))}`);
+            }
+            return committed;
+        };
+        for (const variant of variants) {
+            const svg = compareVariant(variant);
+            if (svg === null) continue;
+            const label = `${variant.name} figure`;
+            // 16:9 at the documented size, so "readable at 1:1" is a property of the committed bytes.
+            expectContains(variant.committedPath, svg, 'width="1200" height="675"', `${label}: must be 1200x675 (16:9); the first screen embeds it at natural size`);
+            expectContains(variant.committedPath, svg, 'viewBox="0 0 1200 675"', `${label}: the viewBox must match the 1200x675 canvas`);
+            expectContains(variant.committedPath, svg, `run ${runId}`, `${label}: must name the baseline run id`);
+            expectContains(variant.committedPath, svg, `commit ${shortCommit}`, `${label}: must name the baseline short commit`);
+            expectContains(variant.committedPath, svg, 'decimal MB (1e6 B)', `${label}: the RSS row note must state the decimal-MB unit rule`);
+            expectContains(variant.committedPath, svg, 'role="img"', `${label}: must expose role="img"`);
+            expectContains(variant.committedPath, svg, '<title', `${label}: must carry a <title>`);
+            expectContains(variant.committedPath, svg, '<desc', `${label}: must carry a <desc>`);
+            expectContains(variant.committedPath, svg, '-fold faster', `${label}: description must carry the per-metric timing verdict`);
+            expectContains(variant.committedPath, svg, '-fold lighter', `${label}: description must carry the per-metric memory verdict`);
+            expectContains(variant.committedPath, svg, 'faster', `${label}: must print the timing verdict word`);
+            expectContains(variant.committedPath, svg, 'lighter', `${label}: must print the memory verdict word`);
+            expectContains(variant.committedPath, svg, 'COMPUTED', `${label}: must mark the ratios as derived from the printed values`);
+            for (const forbidden of ['href="http', "href='http", '<script', '<image', '@font-face', 'url(http']) {
+                if (svg.includes(forbidden)) problem(variant.committedPath, lineOf(svg, forbidden), `${label}: contains an external/script reference ${JSON.stringify(forbidden)}; the figure must be self-contained`);
+            }
+            // THE TYPE FLOOR IS CHECKED FROM THE COMMITTED SVG, not asserted in prose. Every numeric size declared
+            // in a `font:`/`font-size:` declaration must be at least 12 px at 1:1, because the first screen embeds the
+            // figure at natural size and the previous figure's 8.5-10.5 px labels were unreadable on a laptop.
+            const sizes = [...svg.matchAll(/font(?:-size)?:\s*(?:[0-9]{3}\s+)?(\d+(?:\.\d+)?)px/g)].map(match => Number(match[1]));
+            if (sizes.length === 0) problem(variant.committedPath, null, `${label}: no font sizes could be found in the figure, so the 12 px floor cannot be checked`);
+            for (const size of sizes) {
+                if (size < 12) {
+                    problem(variant.committedPath, lineOf(svg, `${size}px`), `${label}: declares a ${size}px type size; the minimum at 1:1 is 12 px`);
                 }
             }
         }
