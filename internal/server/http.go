@@ -625,7 +625,8 @@ func newHTTPHandlerWithRouteDomains(notFoundPage []byte, options HTTPHandlerOpti
 			accounts.cacheBuster.handleIndex(w, r, requestAccountHandle(user))
 		}
 		mux.ServeHTTP(w, r)
-	}))), nil)}
+	}))), nil)
+}
 
 func setPinnedSecurityHeaders(header http.Header) {
 	header.Set("Cross-Origin-Opener-Policy", "same-origin")
