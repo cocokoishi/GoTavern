@@ -222,7 +222,22 @@ function integrity(go, pin, label) {
     // the AFTER phase saw them on GoTavern only), so in soak mode they are the drive's own signal, not a
     // Go-only error. They are still recorded under sharedErrors when both sides produced them.
     const soakNoise = /^(Generation was aborted\.|Clicked stop button)$/;
-    const collect = leg => [...(leg.pageErrors ?? []), ...(leg.consoleErrors ?? [])].map(normalize).filter(entry => !(mode === 'soak' && soakNoise.test(entry)));
+    // THE SAME ABORT IN ITS SECOND COSTUME. When the probe's stop lands on the NETWORK instead of in the
+    // frontend's handler, the extension's own follow-up fetch is aborted mid-flight and the browser reports
+    // `TypeError: Failed to fetch`. That is the same drive signal, measured twice: runs 41780365931 and
+    // 41801638163 failed this guard with exactly one entry, Dooms' generateRaw abort, while both legs recorded
+    // the same abort as "Cancelled by stop event" in the phases where it landed in the frontend. It is treated
+    // as noise ONLY when the leg itself observed no failed API response (apiFailures === 0): a real network
+    // failure reaches failedRequests/apiFailures and still fails this guard.
+    const soakAbortNoise = /TypeError: Failed to fetch/;
+    const collect = leg => [...(leg.pageErrors ?? []), ...(leg.consoleErrors ?? [])]
+        .map(normalize)
+        .filter(entry => {
+            if (mode !== 'soak') return true;
+            if (soakNoise.test(entry)) return false;
+            if (soakAbortNoise.test(entry) && Number(leg.soak?.apiFailures ?? 0) === 0) return false;
+            return true;
+        });
     const goErrors = collect(go);
     const pinErrors = collect(pin);
     const pinSet = new Set(pinErrors);

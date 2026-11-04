@@ -154,6 +154,29 @@ function soakLeg(subject, { rssKb, p95, serverErrors = 0, apiFailures = 0, apiRe
     check('soak p95 regression fails', result.status !== 0 && parsed?.guards?.['soak-p95-not-regressed-3x'] === false, `guards=${JSON.stringify(parsed?.guards)}`);
 }
 
+// 7b. THE PROBE'S OWN STOP, IN ITS NETWORK COSTUME -> NOISE, NOT A GO-ONLY ERROR.
+// The soak cancels a streaming reply; an extension's follow-up fetch can be aborted mid-flight and the
+// browser then reports TypeError: Failed to fetch. Both legs recorded the same abort as "Cancelled by stop
+// event" in the phases where it landed in the frontend (runs 41780365931 and 41801638163), so the message
+// is the drive's signal. It is noise only when the leg saw no failed API response.
+{
+    const go = soakLeg('gotavern', { rssKb: 1000, p95: 10 });
+    go.consoleErrors.push('[Dooms Tracker] Error updating RPG data: TypeError: Failed to fetch\n    at capturePatched (http://127.0.0.1:20000/scripts/extensions/third-party/Dooms-Enhancement-Suite/src/utils/responseExtractor.js:12:34)');
+    const pin = soakLeg('pinned', { rssKb: 1000, p95: 10 });
+    pin.consoleErrors.push('[Dooms Tracker] Error updating RPG data: Error: Cancelled by stop event');
+    const { result, parsed } = await runPair(go, pin, ['--mode', 'soak']);
+    check('a probe-aborted extension fetch is soak noise, not a Go-only error', result.status === 0 && parsed?.verdict === 'PASS', `exit=${result.status} verdict=${parsed?.verdict} failed=${JSON.stringify(parsed?.failedGuards)}`);
+}
+
+// 7c. THE SAME MESSAGE WITH A RECORDED API FAILURE STILL FAILS.
+{
+    const go = soakLeg('gotavern', { rssKb: 1000, p95: 10, apiFailures: 3 });
+    go.consoleErrors.push('[Dooms Tracker] Error updating RPG data: TypeError: Failed to fetch');
+    const pin = soakLeg('pinned', { rssKb: 1000, p95: 10 });
+    const { result, parsed } = await runPair(go, pin, ['--mode', 'soak']);
+    check('the same message with a recorded API failure still fails', result.status !== 0 && parsed?.guards?.['no-gotavern-only-browser-errors'] === false, `guards=${JSON.stringify(parsed?.guards)}`);
+}
+
 // 8. A LEG WITH failure MUST NOT PASS.
 {
     const go = baseLeg({ subject: 'gotavern' });
