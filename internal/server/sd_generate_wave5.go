@@ -86,10 +86,6 @@ func sdFalaiQueueURL() string {
 	return sdSeamURL("GOTAVERN_SD_FALAI_QUEUE_URL", sdFalaiQueueDefaultURL)
 }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerSDGenerateWave5Routes)
-}
-
 func registerSDGenerateWave5Routes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

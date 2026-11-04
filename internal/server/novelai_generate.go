@@ -55,10 +55,6 @@ const novelaiTextDefaultURL = "https://text.novelai.net"
 
 func novelaiTextURL() string { return sdSeamURL("GOTAVERN_NOVELAI_TEXT_URL", novelaiTextDefaultURL) }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerNovelAIGenerateRoutes)
-}
-
 func registerNovelAIGenerateRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

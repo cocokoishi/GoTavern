@@ -32,10 +32,6 @@ import (
 	"github.com/cocokoishi/gotavern/internal/outbound"
 )
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerGoogleMediaRoutes)
-}
-
 func registerGoogleMediaRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	post := func(route string, handler func(http.ResponseWriter, *http.Request, HTTPHandlerOptions)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

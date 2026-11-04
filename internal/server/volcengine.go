@@ -69,10 +69,6 @@ const (
 		`"disable_markdown_filter":true,"cache_config":{"use_cache":true,"text_type":1}}`
 )
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerVolcengineRoutes)
-}
-
 func registerVolcengineRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	mux.HandleFunc("/api/volcengine/generate-voice", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

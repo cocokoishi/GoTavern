@@ -42,10 +42,6 @@ import (
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerSecretsRoutes)
-}
-
 func registerSecretsRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

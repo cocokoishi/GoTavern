@@ -65,10 +65,6 @@ import (
 	"strings"
 )
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerExtensionStaticRoutes)
-}
-
 func registerExtensionStaticRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	// router.use matches every method, so this pattern deliberately has none.
 	// The pattern needs the trailing slash, exactly like the pinned mount: the

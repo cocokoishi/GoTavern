@@ -47,10 +47,6 @@ func nanogptProvidersAPIURL() string {
 	return sdSeamURL("GOTAVERN_NANOGPT_PROVIDERS_URL", "https://nano-gpt.com/api")
 }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerNanoGPTRoutes)
-}
-
 func registerNanoGPTRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	mux.HandleFunc("/api/nanogpt/credits", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

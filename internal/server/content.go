@@ -37,10 +37,6 @@ const contentAICCDefaultURL = "https://aicharactercards.com"
 
 func contentAICCURL() string { return sdSeamURL("GOTAVERN_CONTENT_AICC_URL", contentAICCDefaultURL) }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerContentRoutes)
-}
-
 func registerContentRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	routes := map[string]func(http.ResponseWriter, *http.Request){
 		"/api/content/importURL":  accounts.serveContentImportURL,

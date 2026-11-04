@@ -81,10 +81,6 @@ const (
 	azureTTSBaseTemplateEnv = "GOTAVERN_AZURE_TTS_BASE_TEMPLATE"
 )
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerAzureTTSRoutes)
-}
-
 func registerAzureTTSRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

@@ -5,10 +5,6 @@ package server
 
 import "net/http"
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerChatAndGroupRoutes)
-}
-
 func registerChatAndGroupRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	// The pinned routes are POST-only and Express answers any other method with
 	// the final 404 rather than a 405, so dispatch manually.

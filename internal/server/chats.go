@@ -21,10 +21,6 @@ import (
 // write outside the chat directory and are time-dependent, so they are not
 // reproduced here. See docs/compat-matrix.md for the recorded gap.
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerChatRoutes)
-}
-
 func registerChatRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	// The pinned routes are POST-only, and Express answers any other method with
 	// the final 404 rather than a 405, so dispatch manually.

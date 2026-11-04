@@ -261,7 +261,3 @@ func validateChatCompletionSourceRegistry() {
 		}
 	}
 }
-
-func init() {
-	validateChatCompletionSourceRegistry()
-}

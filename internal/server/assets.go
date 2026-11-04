@@ -37,10 +37,6 @@ var assetsUnsafeExtensions = []string{
 	".potm", ".potx", ".ppam", ".ppsx", ".ppsm", ".pps", ".sldx", ".sldm", ".ws",
 }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerAssetsRoutes)
-}
-
 func registerAssetsRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	for _, route := range []string{"/api/assets/get", "/api/assets/delete", "/api/assets/character", "/api/assets/download"} {
 		handler := map[string]func(http.ResponseWriter, *http.Request){

@@ -86,10 +86,6 @@ func sdZaiURL() string { return sdSeamURL("GOTAVERN_SD_ZAI_URL", sdZaiDefaultURL
 
 func sdZaiVideoURL() string { return sdSeamURL("GOTAVERN_SD_ZAI_VIDEO_URL", sdZaiDefaultURL) }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerSDZaiRoutes)
-}
-
 func registerSDZaiRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

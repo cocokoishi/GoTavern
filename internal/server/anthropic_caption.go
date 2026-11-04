@@ -70,10 +70,6 @@ const (
 	anthropicCaptionUndefinedHeader = "undefined"
 )
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerAnthropicCaptionRoutes)
-}
-
 func registerAnthropicCaptionRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	mux.HandleFunc("/api/anthropic/caption-image", func(w http.ResponseWriter, r *http.Request) {
 		// The pinned router only mounts POST here; anything else falls through to the static 404.

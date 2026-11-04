@@ -65,10 +65,6 @@ import (
 	"strings"
 )
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerDeprecatedRedirectAliases)
-}
-
 // redirectAliasWarnings receives the pinned deprecation `console.warn` line. It is an option rather than a
 // package variable so a test can capture it without racing a parallel test.
 func (options HTTPHandlerOptions) redirectAliasWarnings() io.Writer {

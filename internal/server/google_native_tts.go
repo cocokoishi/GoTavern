@@ -519,10 +519,6 @@ func (runtime *accountRuntime) serveGoogleGenerateNativeTTS(w http.ResponseWrite
 	respondBinary(w, http.StatusOK, audioBuffer)
 }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerGoogleNativeTTSRoutes)
-}
-
 func registerGoogleNativeTTSRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	mux.HandleFunc("/api/google/generate-native-tts", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

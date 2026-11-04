@@ -334,7 +334,18 @@ func NewHTTPHandlerWithOptions(options HTTPHandlerOptions) http.Handler {
 	return newHTTPHandler(page, options)
 }
 
+// newHTTPHandler builds the handler with the package's explicit route-domain
+// inventory (routes_registry.go).
 func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handler {
+	return newHTTPHandlerWithRouteDomains(notFoundPage, options, routeDomainTable())
+}
+
+// newHTTPHandlerWithRouteDomains builds a handler from the route-domain
+// inventory the caller supplies. Production always passes routeDomainTable();
+// the parameter exists so a test can prove the table is the ONLY source of
+// domain routes by building with a subset and observing that an excluded
+// domain's route is not answered (routes_registry_test.go).
+func newHTTPHandlerWithRouteDomains(notFoundPage []byte, options HTTPHandlerOptions, domains []routeDomain) http.Handler {
 	// THE CONSOLE LEVEL IS INSTALLED BEFORE THE FIRST REQUEST CAN BE SERVED, which is pinned's ordering:
 	// setupLogLevel runs at the end of the startup chain (src/server-main.js:448), i.e. before the listener
 	// accepts anything. SEE console.go.
@@ -516,9 +527,9 @@ func newHTTPHandler(notFoundPage []byte, options HTTPHandlerOptions) http.Handle
 	mux.HandleFunc("GET /callback/", func(w http.ResponseWriter, r *http.Request) {
 		serveCallback(w, r, notFoundPage)
 	})
-	// Domains implemented in their own files register here. This runs before the
-	// catch-all so the registrations read in the same order they take effect.
-	registerDomainRoutes(mux, accounts, notFoundPage, options)
+	// The route domains register from the explicit table (routes_registry.go).
+	// This runs before the catch-all so an unmatched path reaches serveStatic.
+	registerDomainRoutes(mux, accounts, notFoundPage, options, domains)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		serveStatic(w, r, notFoundPage, options)
 	})

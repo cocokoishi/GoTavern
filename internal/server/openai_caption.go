@@ -80,10 +80,6 @@ var openAICaptionBranches = []openAICaptionBranch{
 // openAICaptionNoKeyBranches are the api values that run WITHOUT a key.
 var openAICaptionNoKeyBranches = []string{"custom", "ooba", "koboldcpp", "vllm", "llamacpp"}
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerOpenAICaptionRoutes)
-}
-
 func registerOpenAICaptionRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	mux.HandleFunc("/api/openai/caption-image", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

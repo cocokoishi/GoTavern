@@ -39,10 +39,6 @@ const minimaxDefaultAPIHost = "https://api.minimax.io"
 // the seam only replaces the pinned literal.
 func minimaxAPIHost() string { return sdSeamURL("GOTAVERN_MINIMAX_API_URL", minimaxDefaultAPIHost) }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerMiniMaxRoutes)
-}
-
 func registerMiniMaxRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	mux.HandleFunc("/api/minimax/generate-voice", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

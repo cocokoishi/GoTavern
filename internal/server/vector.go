@@ -69,10 +69,6 @@ var errVectorCorruptIndex = errors.New("vector index is corrupt")
 // is not implemented. It maps to the same 500 a failed provider call produces.
 var errVectorUnsupportedSource = errors.New("vector source is not implemented")
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerVectorRoutes)
-}
-
 func registerVectorRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

@@ -58,10 +58,6 @@ import (
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerExtensionsRoutes)
-}
-
 // pinnedExtensionServerErrorMessage is the body every pinned catch block sends
 // with `response.status(500).send(...)` (extensions.js:154, 213, 262, 325, 373,
 // 430, 472). Express writes it as text/html, which is why these are not

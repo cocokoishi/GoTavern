@@ -39,10 +39,6 @@ import (
 	"github.com/cocokoishi/gotavern/internal/tokenizers"
 )
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerTokenizerRoutes)
-}
-
 // tokenizerSentencePieceModels are the models served by the SentencePiece engine, in the
 // pinned route order.
 var tokenizerSentencePieceModels = []string{"llama", "nerdstash", "nerdstash_v2", "mistral", "yi", "gemma", "jamba"}

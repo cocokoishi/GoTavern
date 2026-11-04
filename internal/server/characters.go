@@ -18,10 +18,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerCharactersRoutes)
-}
-
 func registerCharactersRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	lazyLoadCharacters := charactersLazyLoadEnabled(options)
 	post := func(pattern string, handler func(http.ResponseWriter, *http.Request)) {

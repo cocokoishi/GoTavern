@@ -74,10 +74,6 @@ func openAIVideosBaseURL() string {
 	return sdSeamURL("GOTAVERN_OPENAI_VIDEOS_URL", openAIVideosDefaultBase)
 }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerOpenAIVideoRoutes)
-}
-
 func registerOpenAIVideoRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	mux.HandleFunc("/api/openai/generate-video", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
