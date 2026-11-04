@@ -2,31 +2,40 @@
 
 The figure is **generated**, never hand-drawn. Every number in it is read out of a recorded benchmark artefact;
 `tools/benchmark-svg.mjs` contains no measured value and refuses to render if a field it needs is absent. It also
-refuses to render without `--run-id` and `--commit`, because a figure that names no run and no tree is a number
-with no provenance.
+refuses to render without a run id and a measured commit, because a figure that names no run and no tree is a number
+with no provenance. Both come from the committed baseline's `provenance` block, so the release path cannot mistype
+them, and `tools/check-perf-docs.mjs` regenerates the figure from that baseline and byte-compares it with this SVG in
+CI.
 
 ## How it was produced
 
+The recorded artefact is committed as `tests/perf/q22-baseline.json` (the wrapper embeds the downloaded q22 artefact
+verbatim; `docs/perf-baseline.md` §8 is the one-commit update procedure). The figure is regenerated from it with:
+
 ```
-gh run download 41614844179 -n q22-paired-benchmark -D ./q22
-node tools/benchmark-svg.mjs \
-  --report ./q22/q22-paired-benchmark.json \
-  --out docs/assets/benchmark.svg \
-  --run-id 41614844179 \
-  --commit 4bf5451
+node tools/benchmark-svg.mjs --report tests/perf/q22-baseline.json --out docs/assets/benchmark.svg
+node tools/check-perf-docs.mjs
 ```
+
+The baseline itself was recorded from the Actions artifacts of run `41614844179`
+(`gh run download 41614844179 -n q22-paired-benchmark` and `-n smoke-metrics`) by
+`tools/record-perf-baseline.mjs`, which refuses a run/commit/runner mismatch between the two artifacts.
 
 ## The artefact it is drawn from
 
 | field | value |
 |---|---|
+| committed baseline | `tests/perf/q22-baseline.json` (wrapper; the q22 artefact is embedded verbatim under `report`) |
 | workflow | `GoTavern smoke metrics` |
 | run id | `41614844179` (conclusion: success) |
 | run branch / event | `main`, `workflow_dispatch` |
 | commit measured | `4bf54510c747b3f257835fa1bfa86909bbb5f134` (the released commit itself: the stable-channel release commit; the tag points at this commit, so the figure quotes the same-SHA gate run rather than an ancestor) |
 | runner image | `ubuntu26` |
+| host (same run) | `ubuntu26` `20261026.180.1`, Linux/X64, kernel `7.0.0-1017-azure`, 4 vCPU, 16,759,443,456 B RAM, Node `v24.22.1` (from the same run's `smoke-metrics` artifact) |
+| Go toolchain | `go.mod` directive `1.27.3`, read by `setup-go` via `go-version-file: go.mod`; the artefact itself does not record the toolchain |
 | rounds / requests | 3 alternating rounds x 30 sequential requests per path |
 | soak | 2 x 10-minute windows, one per subject, 30 s sampling (both completed) |
+| unit rule | decimal MB, 1 MB = 1,000,000 bytes. The unit is **stated on the row** it applies to — the RSS row note reads `decimal MB (1e6 B)` — and the exact byte count is printed too, so the rounding is checkable |
 
 `docs/goal-scorecard.md` row Q22 cites this alpha.13 measurement for the method and names this provenance record for
 the current figure; the README's Performance table quotes this run's medians, and this figure is generated from the
@@ -82,7 +91,7 @@ put an inaccurate claim on a release surface. The headline covers all four by ma
 unreadable as text. The deep ink page (`#070b14` at the top of the gradient) keeps the identity colour as the bright
 accent it is and keeps every text pair past WCAG AA. Measured against the lightest stop of the page gradient
 (`#0b1322`), which is the worst case for light ink: primary `#eef3ff` 16.72:1, secondary `#a7b6cd` 9.04:1, muted
-`#7488a7` 4.82:1, cyan `#7fe9ff` 13.27:1, amber `#f6b545` 10.27:1. The in-bar value ink (`#1b1206`) is 10.23:1 on
+`#7488a7` 5.15:1, cyan `#7fe9ff` 13.27:1, amber `#f6b545` 10.27:1. The in-bar value ink (`#1b1206`) is 10.23:1 on
 the flat amber stop and 7.32:1 on the darkest amber stop, so it stays legible across the bar's own gradient. The
 hairline `#94a3b8` at 0.16 opacity is decoration only and carries no meaning; every meaning-bearing mark is also
 labelled in text.

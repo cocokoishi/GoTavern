@@ -7,8 +7,12 @@
 // publishing one, so the values are DATA and the layout is the only thing this file decides.
 //
 // Usage:
-//   node tools/benchmark-svg.mjs --report <q22-paired-benchmark.json> --out docs/assets/benchmark.svg \
-//       --run-id 41171857944 --commit 91e1e15
+//   node tools/benchmark-svg.mjs --report tests/perf/q22-baseline.json --out docs/assets/benchmark.svg
+//   node tools/benchmark-svg.mjs --report <q22-paired-benchmark.json> --out <benchmark.svg> \
+//       --run-id <actions run id> --commit <measured commit>
+// The first form is the release path: the committed baseline wrapper carries the run id and the full commit
+// in its provenance, and the figure prints the 7-character form. The second form is for a freshly downloaded
+// artefact that has no wrapper yet; both still refuse to render without a run id and a commit.
 //
 // WHY THE CHART IS SHAPED THIS WAY (release constraint: never hide a raw value behind a ratio, never truncate an
 // axis to exaggerate):
@@ -17,8 +21,12 @@
 //     invisible, so each metric gets its own zero-based axis rather than one shared axis.
 //   * Both the raw value AND the ratio are printed. The ratio is labelled as derived from the printed values, and
 //     it is computed here from the raw numbers rather than typed in, so a reader can check it with the values shown.
-//   * RSS and startup use DECIMAL megabytes (1e6 bytes), stated on the row, because that is the unit the byte
-//     counts round to; the exact byte count is printed too, so no reader has to trust the rounding.
+//   * RSS uses DECIMAL megabytes (1e6 bytes) and says so on its own row ("decimal MB (1e6 B)"), because that
+//     is the unit the byte counts round to; the exact byte count is printed too, so no reader has to trust the
+//     rounding. Startup and latency are milliseconds and say "ms" on their axes and values.
+//     ONE unit rule for the whole figure and the README: 1 MB = 1,000,000 bytes. The alpha.13 tag tree shipped
+//     a 1,057 MB RSS row against a figure that printed 1,109 decimal MB for the same recording; the unit is
+//     stated so that class of mismatch is visible to a reader and checkable by tools/check-perf-docs.mjs.
 //   * "Lower is better" is stated once, and the direction is not re-encoded in colour. The verdict word is
 //     PER METRIC: "faster" on the timing rows, "lighter" on memory, because a resident-set size is not fast or slow.
 //   * The figure carries its own background and uses colours that hold contrast on both GitHub themes; it has no
@@ -44,30 +52,46 @@ function argumentValue(name, fallback = null) {
 
 const reportPath = argumentValue('--report');
 const outPath = argumentValue('--out');
-// THE RUN ID IS NOT IN THE ARTEFACT. It is workflow context, so it is passed in explicitly rather than derived,
-// and it is REQUIRED: a figure that names no run is a number with no provenance, which the release constraint
-// forbids. This is one of the two values this script accepts on trust from its caller, and the caller is a release
-// step that can (and does) verify it against the run that produced the file.
-const runId = argumentValue('--run-id');
-// THE MEASURED COMMIT IS ALSO NOT IN THE ARTEFACT (the artefact records the runner, not a git revision), so the
-// caller names it too. It is printed, never inferred, and the previous revision of this file got it wrong by
-// HARD-CODING a stale short SHA into the footer -- a number that looked like provenance while naming a tree the
-// figure had not measured. Requiring it and refusing to render without it is the fix.
-const commit = argumentValue('--commit');
+// THE REPORT MAY BE A BARE q22 ARTEFACT OR THE COMMITTED BASELINE WRAPPER (tests/perf/q22-baseline.json).
+// The wrapper exists because the bare artefact does not record its own run id or commit; the wrapper carries
+// both in `provenance` and embeds the artefact verbatim under `report`. Accepting both keeps one command for
+// the documented update procedure while leaving the bare-artefact path usable for a downloaded file.
+const parsedReport = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+const report = parsedReport.report ?? parsedReport;
+const provenance = parsedReport.report ? (parsedReport.provenance ?? {}) : {};
+
+// THE RUN ID AND THE MEASURED COMMIT ARE STILL REQUIRED, AND STILL REFUSED WHEN ABSENT. They are workflow
+// context, not artefact fields, so they are taken from the wrapper's provenance when it has them and from the
+// caller otherwise; a figure that names no run is a number with no provenance. The previous revision hard-coded
+// a stale release tag into the footer, which is exactly the failure this requirement exists to prevent: the
+// commit is printed as given (or as the provenance records it), never inferred from the tree being checked out.
+const runIdArgument = argumentValue('--run-id');
+const commitArgument = argumentValue('--commit');
+const runId = runIdArgument ?? provenance.runId ?? null;
+// A wrapper's commit is a full 40-character id; the figure prints the short form so a reader can match it to
+// `git log` without a wall of hex. An explicitly passed commit is printed exactly as passed.
+const commit = commitArgument ?? (typeof provenance.commit === 'string' ? provenance.commit.slice(0, 7) : null);
 if (!reportPath || !outPath || !runId || !commit) {
-    console.error('usage: node tools/benchmark-svg.mjs --report <q22-paired-benchmark.json> --out <benchmark.svg> --run-id <actions run id> --commit <measured commit>');
+    console.error('usage: node tools/benchmark-svg.mjs --report <q22-paired-benchmark.json | tests/perf/q22-baseline.json> --out <benchmark.svg> [--run-id <actions run id>] [--commit <measured commit>]');
+    console.error('       (--run-id/--commit are required unless the report is the baseline wrapper, which carries them in provenance)');
+    process.exit(2);
+}
+if (runIdArgument && provenance.runId && runIdArgument !== provenance.runId) {
+    console.error(`--run-id ${runIdArgument} disagrees with the baseline provenance run id ${provenance.runId}; refusing to label a figure with a run it did not measure`);
     process.exit(2);
 }
 if (!/^[0-9]+$/.test(runId)) {
     console.error(`--run-id must be a GitHub Actions run id, got ${runId}`);
     process.exit(2);
 }
+if (commitArgument && provenance.commit && !provenance.commit.startsWith(commitArgument)) {
+    console.error(`--commit ${commitArgument} disagrees with the baseline provenance commit ${provenance.commit}; refusing to label a figure with a tree it did not measure`);
+    process.exit(2);
+}
 if (!/^[0-9a-f]{7,40}$/.test(commit)) {
     console.error(`--commit must be a hexadecimal commit id of 7-40 characters, got ${commit}`);
     process.exit(2);
 }
-
-const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
 
 // REFUSE RATHER THAN GUESS. Every field drawn below is required; a missing one is a failure, not a zero.
 function requireField(object, key, context) {
@@ -125,7 +149,7 @@ const metrics = [
             pinned: requireField(pinned, 'rssBytesMedian', 'summary.pinned'),
             go: requireField(gotavern, 'rssBytesMedian', 'summary.gotavern'),
         },
-        note: ['VmRSS from /proc, after readiness', 'and 30 requests; median of 6 samples'],
+        note: ['VmRSS from /proc; decimal MB (1e6 B);', 'median of 6 samples, after readiness and 30 requests/path'],
     },
     {
         key: 'version',
@@ -203,8 +227,10 @@ const verdictWord = metric => metric.verdict.toUpperCase();
 // ---------------------------------------------------------------------------------------------------------------
 // THE PALETTE. "Midnight ink" page, warm amber for the pinned Node server, cyan for GoTavern, and a violet-to-cyan
 // gradient used ONLY for derived numbers (the ratios and the second headline line) so colour marks "computed from
-// the two values beside it" rather than decorating. Contrast on #070b14: primary #eef3ff 17.6:1, secondary
-// #a7b6cd 9.9:1, muted #6b7d9c 4.9:1, cyan #7fe9ff 12.7:1, amber #f6b545 10.9:1. The hairline #94a3b8 at 0.16 is
+// the two values beside it" rather than decorating. Contrast measured against #070b14 (the page's darkest stop):
+// primary #eef3ff 17.71:1, secondary #a7b6cd 9.57:1, muted #7488a7 5.46:1, cyan #7fe9ff 14.06:1, amber #f6b545
+// 10.88:1. The previous comment named a muted colour the palette no longer used (#6b7d9c) and a ratio that
+// colour would have had; the palette below is the measured one. The hairline #94a3b8 at 0.16 is
 // decoration only and carries no meaning; every meaning-bearing mark is also labelled in text.
 const PAGE_TOP = '#070b14';
 const PAGE_BOTTOM = '#0b1322';
@@ -436,7 +462,7 @@ const footerLine1 = footerRuleY + 26;
 parts.push(`<rect x="${MARGIN}" y="${footerRuleY}" width="${CONTENT_RIGHT - MARGIN}" height="1" fill="url(#hairlineFade)"/>`);
 const footerLines = [
     ['VALUES', `GoTavern smoke metrics \u00b7 run ${runId} \u00b7 ${runnerImage} shared runner \u00b7 ${rounds} alternating rounds \u00d7 ${requestsPerRound} sequential requests per path \u00b7 medians shown`],
-    ['SUBJECTS', `SillyTavern 1.19.0 @ pinned 06bde939   vs   GoTavern @ ${commit}   (the commit this run measured; the v0.1.0-alpha.9 tag adds documentation only)`],
+    ['SUBJECTS', `SillyTavern 1.19.0 @ pinned 06bde939   vs   GoTavern @ ${commit}   (the commit this run measured)`],
     ['HONESTY', 'every bar sits on its own zero-based axis whose maximum is printed at the axis end, so no axis is truncated and no ratio replaces a value.'],
     ['', 'a 5 px floor keeps a near-zero bar visible; it never changes a printed value, the axis maximum or the ratio. Ratios restate the two printed values.'],
 ];

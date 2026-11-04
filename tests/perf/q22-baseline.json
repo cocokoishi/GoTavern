@@ -1,0 +1,860 @@
+{
+  "schemaVersion": 1,
+  "provenance": {
+    "runId": "41614844179",
+    "commit": "4bf54510c747b3f257835fa1bfa86909bbb5f134",
+    "workflow": "GoTavern smoke metrics",
+    "job": "paired-linux-amd64",
+    "artifact": "q22-paired-benchmark",
+    "recordedAt": "2026-11-04T01:12:40.437Z",
+    "measuredBy": "tests/perf/q22-paired-benchmark.mjs (--rounds 3 --requests 30, 10-minute soak per subject)",
+    "build": {
+      "cgoEnabled": "0",
+      "trimpath": true,
+      "ldflags": "-s -w -X main.version=paired-41614844179",
+      "source": "smoke-metrics.yml paired-linux-amd64 build step"
+    },
+    "goVersion": {
+      "value": "1.27.3",
+      "source": "go.mod `go` directive at the measured commit; the workflow uses setup-go `go-version-file: go.mod`; the artefact itself does not record the toolchain"
+    },
+    "gomaxprocs": {
+      "value": null,
+      "reason": "the q22 harness sets no GOMAXPROCS, so it defaults to the runner CPU count; the environment is not recorded in the artefact, so it is named rather than invented"
+    },
+    "host": {
+      "runnerImage": "ubuntu26",
+      "runnerImageVersion": "20261026.180.1",
+      "runnerOs": "Linux",
+      "runnerArch": "X64",
+      "kernel": "7.0.0-1017-azure",
+      "cpuCount": 4,
+      "totalMemoryBytes": 16759443456,
+      "nodeVersion": "v24.22.1",
+      "source": "smoke-metrics.json host block from the SAME run id and commit"
+    },
+    "notes": [
+      "The q22 artefact is embedded verbatim under `report`; no number is retyped.",
+      "Host facts come from the smoke-metrics.json of the SAME run id and commit, verified by the recorder.",
+      "A new run replaces this file and the docs it feeds in ONE commit; see docs/perf-baseline.md."
+    ]
+  },
+  "report": {
+    "schemaVersion": 1,
+    "question": "With the same runner, the same fresh data root and the same requests, how do pinned Node SillyTavern and GoTavern compare on boot, RSS and latency?",
+    "runnerImage": "ubuntu26",
+    "rounds": 3,
+    "requestsPerRound": 30,
+    "binary": "/home/runner/work/GoTavern/GoTavern/paired-work/install/gotavern",
+    "samples": [
+      {
+        "round": 0,
+        "subject": "pinned",
+        "dataRoot": "/tmp/gotavern-q22-pinned-DF2Bnc",
+        "port": 43813,
+        "bootMs": 11617,
+        "rssBytes": [
+          1150783488,
+          1174523904
+        ],
+        "latencyVersion": [
+          60.473595,
+          52.314589,
+          57.066159,
+          53.513062,
+          59.559333,
+          59.147467,
+          54.181679,
+          54.712362,
+          59.608,
+          51.287269,
+          57.204234,
+          52.233489,
+          49.816142,
+          50.729678,
+          51.239193,
+          56.861376,
+          48.454632,
+          45.678723,
+          46.784153,
+          45.658464,
+          45.825967,
+          46.448957,
+          45.943086,
+          46.506131,
+          48.930608,
+          48.748168,
+          45.403205,
+          46.287828,
+          45.931308,
+          45.662709
+        ],
+        "latencyRoot": [
+          15.464925,
+          12.002627,
+          14.504851,
+          11.187709,
+          11.009029,
+          14.108208,
+          11.324903,
+          10.395013,
+          10.676811,
+          13.788307,
+          10.448282,
+          10.206719,
+          14.448693,
+          10.104327,
+          10.012481,
+          10.049891,
+          13.555497,
+          10.240159,
+          10.087937,
+          10.737611,
+          10.814019,
+          10.932801,
+          10.852798,
+          10.432819,
+          10.560047,
+          10.882816,
+          10.701978,
+          10.752644,
+          10.695248,
+          10.719985
+        ],
+        "stopMs": 89,
+        "failure": null
+      },
+      {
+        "round": 0,
+        "subject": "gotavern",
+        "dataRoot": "/tmp/gotavern-q22-gotavern-6wMe1W",
+        "port": 38503,
+        "bootMs": 160,
+        "rssBytes": [
+          39362560,
+          39960576
+        ],
+        "latencyVersion": [
+          0.672818,
+          0.790523,
+          0.42445,
+          0.354856,
+          0.319474,
+          0.295238,
+          0.292794,
+          0.355007,
+          0.3436,
+          0.342738,
+          0.313085,
+          0.341036,
+          0.318442,
+          0.374726,
+          0.417529,
+          0.364932,
+          0.320796,
+          0.354215,
+          0.336389,
+          0.320956,
+          0.345693,
+          0.29671,
+          0.285634,
+          0.278803,
+          0.277402,
+          0.285373,
+          0.379874,
+          0.319273,
+          0.360956,
+          0.354716
+        ],
+        "latencyRoot": [
+          1.970224,
+          1.704289,
+          1.796776,
+          2.451177,
+          3.578439,
+          1.447538,
+          1.280841,
+          1.721054,
+          4.273391,
+          1.119421,
+          0.998661,
+          1.156075,
+          2.402775,
+          2.461121,
+          1.159219,
+          0.964982,
+          1.292338,
+          1.244677,
+          1.758649,
+          3.832105,
+          1.080934,
+          0.886956,
+          0.999228,
+          0.897852,
+          1.097318,
+          1.828539,
+          1.438995,
+          2.331619,
+          0.838895,
+          0.92301
+        ],
+        "stopMs": 4,
+        "failure": null
+      },
+      {
+        "round": 1,
+        "subject": "pinned",
+        "dataRoot": "/tmp/gotavern-q22-pinned-mIlWdO",
+        "port": 45137,
+        "bootMs": 10974,
+        "rssBytes": [
+          1131716608,
+          1155665920
+        ],
+        "latencyVersion": [
+          50.780342,
+          49.820849,
+          49.0733,
+          48.539989,
+          49.404311,
+          50.446508,
+          49.142483,
+          50.598693,
+          49.114852,
+          50.462761,
+          49.087381,
+          48.451027,
+          47.852569,
+          48.257118,
+          48.506267,
+          47.936803,
+          49.798956,
+          49.58657,
+          50.441449,
+          49.600221,
+          48.45394,
+          48.974182,
+          52.084947,
+          50.843766,
+          50.314591,
+          48.160345,
+          50.36084,
+          48.337598,
+          50.394019,
+          50.091861
+        ],
+        "latencyRoot": [
+          22.710385,
+          11.517698,
+          11.425001,
+          10.705974,
+          10.853353,
+          11.128722,
+          10.743661,
+          10.856567,
+          10.697997,
+          10.79413,
+          13.588962,
+          10.363286,
+          10.206584,
+          10.087577,
+          13.289448,
+          10.281385,
+          10.355119,
+          13.601004,
+          10.476624,
+          10.691753,
+          10.385669,
+          12.556189,
+          10.53734,
+          9.99971,
+          13.37892,
+          10.277849,
+          10.07577,
+          13.465769,
+          10.060136,
+          10.294924
+        ],
+        "stopMs": 91,
+        "failure": null
+      },
+      {
+        "round": 1,
+        "subject": "gotavern",
+        "dataRoot": "/tmp/gotavern-q22-gotavern-qppLOz",
+        "port": 34681,
+        "bootMs": 935,
+        "rssBytes": [
+          38838272,
+          39727104
+        ],
+        "latencyVersion": [
+          0.417359,
+          0.632419,
+          0.320886,
+          0.311502,
+          0.265013,
+          0.246616,
+          0.266445,
+          0.290281,
+          0.2835,
+          0.241148,
+          0.239085,
+          0.258443,
+          0.239165,
+          0.236521,
+          0.232896,
+          0.260701,
+          0.285394,
+          0.312343,
+          0.327235,
+          0.28931,
+          0.284382,
+          0.272494,
+          0.313615,
+          0.280657,
+          0.314496,
+          0.296941,
+          0.275008,
+          0.275279,
+          0.279685,
+          0.300786
+        ],
+        "latencyRoot": [
+          1.672301,
+          1.697569,
+          1.770477,
+          1.643618,
+          1.520511,
+          1.574376,
+          1.437943,
+          1.644299,
+          2.022756,
+          1.613895,
+          1.562759,
+          1.512084,
+          1.562048,
+          1.554086,
+          2.536634,
+          2.99234,
+          2.439759,
+          0.87656,
+          0.8422,
+          1.117858,
+          3.386344,
+          1.862904,
+          0.938643,
+          0.901537,
+          0.872294,
+          0.909139,
+          0.858564,
+          0.959203,
+          1.085941,
+          1.377744
+        ],
+        "stopMs": 3,
+        "failure": null
+      },
+      {
+        "round": 2,
+        "subject": "pinned",
+        "dataRoot": "/tmp/gotavern-q22-pinned-lhNy2J",
+        "port": 45883,
+        "bootMs": 11522,
+        "rssBytes": [
+          1141485568,
+          1165299712
+        ],
+        "latencyVersion": [
+          76.390947,
+          62.812093,
+          55.594876,
+          54.384106,
+          54.743153,
+          54.293285,
+          53.338199,
+          55.571175,
+          57.775391,
+          53.217449,
+          54.05743,
+          51.678166,
+          53.495531,
+          52.309196,
+          52.154793,
+          53.704541,
+          52.335105,
+          51.810121,
+          54.729157,
+          52.71943,
+          53.666896,
+          54.735431,
+          52.53781,
+          53.249847,
+          55.025612,
+          53.219632,
+          54.105697,
+          52.590619,
+          52.893338,
+          53.13027
+        ],
+        "latencyRoot": [
+          15.89435,
+          11.088475,
+          11.001446,
+          15.118248,
+          10.779111,
+          11.306344,
+          10.891708,
+          14.813466,
+          10.50187,
+          10.510803,
+          13.856066,
+          10.760789,
+          10.251088,
+          10.615603,
+          10.713033,
+          10.445256,
+          10.478846,
+          10.517283,
+          10.767123,
+          14.227567,
+          10.561164,
+          10.054741,
+          10.283916,
+          13.853893,
+          10.135382,
+          10.347575,
+          10.018368,
+          10.12495,
+          10.042618,
+          13.908168
+        ],
+        "stopMs": 90,
+        "failure": null
+      },
+      {
+        "round": 2,
+        "subject": "gotavern",
+        "dataRoot": "/tmp/gotavern-q22-gotavern-EMKPic",
+        "port": 33357,
+        "bootMs": 213,
+        "rssBytes": [
+          38957056,
+          39923712
+        ],
+        "latencyVersion": [
+          0.342729,
+          0.529215,
+          0.283861,
+          0.352543,
+          0.327496,
+          0.314517,
+          0.270811,
+          0.254147,
+          0.277482,
+          0.326364,
+          0.27631,
+          0.277341,
+          0.287827,
+          0.252805,
+          0.27602,
+          0.265804,
+          0.301817,
+          0.340275,
+          0.327116,
+          0.280946,
+          0.247327,
+          0.253777,
+          0.241848,
+          0.256381,
+          0.254938,
+          0.289199,
+          0.286625,
+          0.278013,
+          0.273796,
+          0.273646
+        ],
+        "latencyRoot": [
+          1.795063,
+          1.642576,
+          1.703647,
+          1.535127,
+          1.612352,
+          1.543459,
+          1.552944,
+          1.498513,
+          1.517511,
+          1.489289,
+          1.601165,
+          1.616207,
+          3.139828,
+          3.362218,
+          0.975908,
+          0.857592,
+          0.859715,
+          1.245687,
+          1.344094,
+          1.164788,
+          1.147061,
+          2.060867,
+          0.824333,
+          0.713659,
+          0.800337,
+          0.72793,
+          0.675613,
+          0.740799,
+          0.772706,
+          0.84254
+        ],
+        "stopMs": 2,
+        "failure": null
+      }
+    ],
+    "asserted": {
+      "everyRoundAnswered": true,
+      "sampleCountsMatch": true,
+      "soakCompleted": true,
+      "soakSeriesMatch": true
+    },
+    "notes": [
+      "A paired median on a shared runner is evidence for a report, not a release gate; asserting a threshold here would encode the runner into the product contract.",
+      "RSS comes from /proc/<pid>/status VmRSS and is null off Linux, with that reason rather than a zero.",
+      "Both subjects boot over a mkdtemp data root that each round deletes, so a warm page cache is the only carry-over.",
+      "The soak window is bounded and its samples are a SERIES: a stable creep and a single collection-then-recovery are different facts and a delta alone cannot distinguish them."
+    ],
+    "soak": [
+      {
+        "subject": "pinned",
+        "windowMs": 600000,
+        "sampleEveryMs": 30000,
+        "series": [
+          {
+            "atMs": 12384,
+            "rssBytes": 1149173760,
+            "p95Ms": 57.959784,
+            "medianMs": 54.016187,
+            "requests": 20
+          },
+          {
+            "atMs": 42244,
+            "rssBytes": 321671168,
+            "p95Ms": 50.853212,
+            "medianMs": 47.639140499999996,
+            "requests": 20
+          },
+          {
+            "atMs": 72092,
+            "rssBytes": 324931584,
+            "p95Ms": 41.31594,
+            "medianMs": 39.075077,
+            "requests": 20
+          },
+          {
+            "atMs": 102170,
+            "rssBytes": 327610368,
+            "p95Ms": 65.805665,
+            "medianMs": 41.597185999999994,
+            "requests": 20
+          },
+          {
+            "atMs": 132152,
+            "rssBytes": 329207808,
+            "p95Ms": 48.800638,
+            "medianMs": 40.752744,
+            "requests": 20
+          },
+          {
+            "atMs": 162121,
+            "rssBytes": 329818112,
+            "p95Ms": 48.325995,
+            "medianMs": 39.5306265,
+            "requests": 20
+          },
+          {
+            "atMs": 192115,
+            "rssBytes": 329023488,
+            "p95Ms": 51.047956,
+            "medianMs": 38.1269755,
+            "requests": 20
+          },
+          {
+            "atMs": 222123,
+            "rssBytes": 330219520,
+            "p95Ms": 42.902317,
+            "medianMs": 38.496175,
+            "requests": 20
+          },
+          {
+            "atMs": 252116,
+            "rssBytes": 330256384,
+            "p95Ms": 40.47399,
+            "medianMs": 38.2016695,
+            "requests": 20
+          },
+          {
+            "atMs": 282145,
+            "rssBytes": 330547200,
+            "p95Ms": 62.713539,
+            "medianMs": 36.755218,
+            "requests": 20
+          },
+          {
+            "atMs": 312130,
+            "rssBytes": 330571776,
+            "p95Ms": 38.559445,
+            "medianMs": 36.122074999999995,
+            "requests": 20
+          },
+          {
+            "atMs": 342144,
+            "rssBytes": 330829824,
+            "p95Ms": 37.664396,
+            "medianMs": 35.819896,
+            "requests": 20
+          },
+          {
+            "atMs": 372197,
+            "rssBytes": 330846208,
+            "p95Ms": 58.374188,
+            "medianMs": 36.000080999999994,
+            "requests": 20
+          },
+          {
+            "atMs": 402205,
+            "rssBytes": 330862592,
+            "p95Ms": 39.055991,
+            "medianMs": 36.2704705,
+            "requests": 20
+          },
+          {
+            "atMs": 432232,
+            "rssBytes": 330862592,
+            "p95Ms": 38.251286,
+            "medianMs": 36.457516,
+            "requests": 20
+          },
+          {
+            "atMs": 462286,
+            "rssBytes": 330862592,
+            "p95Ms": 62.063756,
+            "medianMs": 36.661041499999996,
+            "requests": 20
+          },
+          {
+            "atMs": 492285,
+            "rssBytes": 330862592,
+            "p95Ms": 40.6233,
+            "medianMs": 36.962821,
+            "requests": 20
+          },
+          {
+            "atMs": 522309,
+            "rssBytes": 330862592,
+            "p95Ms": 39.521935,
+            "medianMs": 37.019395,
+            "requests": 20
+          },
+          {
+            "atMs": 552401,
+            "rssBytes": 331296768,
+            "p95Ms": 43.326223,
+            "medianMs": 40.6377085,
+            "requests": 20
+          },
+          {
+            "atMs": 582457,
+            "rssBytes": 331313152,
+            "p95Ms": 58.371955,
+            "medianMs": 41.753343,
+            "requests": 20
+          }
+        ],
+        "failures": [],
+        "rssDriftBytes": -817860608,
+        "p95DriftMs": 0.41217100000000073
+      },
+      {
+        "subject": "gotavern",
+        "windowMs": 600000,
+        "sampleEveryMs": 30000,
+        "series": [
+          {
+            "atMs": 273,
+            "rssBytes": 38944768,
+            "p95Ms": 0.774809,
+            "medianMs": 0.349394,
+            "requests": 20
+          },
+          {
+            "atMs": 30275,
+            "rssBytes": 38961152,
+            "p95Ms": 1.181271,
+            "medianMs": 0.31091599999999997,
+            "requests": 20
+          },
+          {
+            "atMs": 60296,
+            "rssBytes": 38969344,
+            "p95Ms": 1.094543,
+            "medianMs": 0.2688735,
+            "requests": 20
+          },
+          {
+            "atMs": 90312,
+            "rssBytes": 38969344,
+            "p95Ms": 1.106511,
+            "medianMs": 0.2855985,
+            "requests": 20
+          },
+          {
+            "atMs": 120328,
+            "rssBytes": 37408768,
+            "p95Ms": 1.410202,
+            "medianMs": 0.3389275,
+            "requests": 20
+          },
+          {
+            "atMs": 150342,
+            "rssBytes": 37408768,
+            "p95Ms": 1.170526,
+            "medianMs": 0.289058,
+            "requests": 20
+          },
+          {
+            "atMs": 180367,
+            "rssBytes": 37408768,
+            "p95Ms": 1.336932,
+            "medianMs": 0.2661345,
+            "requests": 20
+          },
+          {
+            "atMs": 210387,
+            "rssBytes": 37421056,
+            "p95Ms": 1.080141,
+            "medianMs": 0.30117700000000003,
+            "requests": 20
+          },
+          {
+            "atMs": 240403,
+            "rssBytes": 37396480,
+            "p95Ms": 1.403402,
+            "medianMs": 0.3025085,
+            "requests": 20
+          },
+          {
+            "atMs": 270417,
+            "rssBytes": 37396480,
+            "p95Ms": 1.104528,
+            "medianMs": 0.2760745,
+            "requests": 20
+          },
+          {
+            "atMs": 300444,
+            "rssBytes": 37396480,
+            "p95Ms": 1.13289,
+            "medianMs": 0.2752435,
+            "requests": 20
+          },
+          {
+            "atMs": 330463,
+            "rssBytes": 37416960,
+            "p95Ms": 1.200891,
+            "medianMs": 0.283175,
+            "requests": 20
+          },
+          {
+            "atMs": 360480,
+            "rssBytes": 37310464,
+            "p95Ms": 2.296566,
+            "medianMs": 0.31711049999999996,
+            "requests": 20
+          },
+          {
+            "atMs": 390505,
+            "rssBytes": 37310464,
+            "p95Ms": 1.070718,
+            "medianMs": 0.264162,
+            "requests": 20
+          },
+          {
+            "atMs": 420531,
+            "rssBytes": 37310464,
+            "p95Ms": 1.056537,
+            "medianMs": 0.29404600000000003,
+            "requests": 20
+          },
+          {
+            "atMs": 450553,
+            "rssBytes": 37310464,
+            "p95Ms": 1.054644,
+            "medianMs": 0.26932500000000004,
+            "requests": 20
+          },
+          {
+            "atMs": 480570,
+            "rssBytes": 37314560,
+            "p95Ms": 1.324504,
+            "medianMs": 0.3189825,
+            "requests": 20
+          },
+          {
+            "atMs": 510597,
+            "rssBytes": 37318656,
+            "p95Ms": 1.077148,
+            "medianMs": 0.3223635,
+            "requests": 20
+          },
+          {
+            "atMs": 540623,
+            "rssBytes": 37318656,
+            "p95Ms": 1.037439,
+            "medianMs": 0.321938,
+            "requests": 20
+          },
+          {
+            "atMs": 570625,
+            "rssBytes": 37318656,
+            "p95Ms": 1.097198,
+            "medianMs": 0.30972449999999996,
+            "requests": 20
+          }
+        ],
+        "failures": [],
+        "rssDriftBytes": -1626112,
+        "p95DriftMs": 0.3223889999999999
+      }
+    ],
+    "summary": {
+      "pinned": {
+        "rounds": 3,
+        "failures": [],
+        "bootMsMedian": 11522,
+        "rssBytesMedian": 1153224704,
+        "versionMedianMs": 51.0414795,
+        "versionP95Ms": 59.559333,
+        "rootMedianMs": 10.716508999999999,
+        "samples": {
+          "boot": 3,
+          "rss": 6,
+          "version": 90,
+          "root": 90
+        }
+      },
+      "gotavern": {
+        "rounds": 3,
+        "failures": [],
+        "bootMsMedian": 213,
+        "rssBytesMedian": 39544832,
+        "versionMedianMs": 0.2915375,
+        "versionP95Ms": 0.42445,
+        "rootMedianMs": 1.4939010000000001,
+        "samples": {
+          "boot": 3,
+          "rss": 6,
+          "version": 90,
+          "root": 90
+        }
+      }
+    }
+  }
+}

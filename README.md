@@ -109,9 +109,14 @@ Point GoTavern at your existing directory and start it. Auto-update resolves to 
 | Metric | Pinned Node SillyTavern | GoTavern | How it was measured |
 |---|---|---|---|
 | Cold start to first `/version` 200 | 11,522 ms | **213 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
-| Steady-state RSS (`VmRSS` from `/proc`) | 1,153 MB | **39.5 MB** | median of 6 samples, after readiness and 30 requests per round |
+| Steady-state RSS (`VmRSS` from `/proc`) | 1,153 MB | **39.5 MB** | median of 6 samples, after readiness and 30 requests per path (60 per round) |
 | `GET /version` latency | 51.04 ms | **0.292 ms** | median of 90 sequential requests (p95: 59.56 / 0.424) |
 | `GET /` latency (HTML shell) | 10.72 ms | **1.49 ms** | median of 90 sequential requests |
+
+Memory is decimal MB (1 MB = 1,000,000 bytes); every other number is milliseconds. The table, the figure and
+[`docs/assets/benchmark.svg.provenance.md`](docs/assets/benchmark.svg.provenance.md) are restatements of one committed
+artefact, [`tests/perf/q22-baseline.json`](tests/perf/q22-baseline.json), and `tools/check-perf-docs.mjs` fails CI when
+any of them disagrees with it.
 
 **Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `41614844179` (success), the released commit `4bf5451` (v0.1.0-alpha.13), on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -1.6 MB, p95 drift +0.32 ms); pinned's RSS fell from its startup peak while its p95 drifted +0.41 ms over the window. A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The published release body appends the same-SHA run-id table, so the numbers above and the gate run that produced them are checkable together.
 

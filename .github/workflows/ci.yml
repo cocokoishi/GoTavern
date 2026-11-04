@@ -493,6 +493,21 @@ jobs:
         # Teeth demonstrated in the commit that added it: a phantom test name, a phantom path, a PASS row with
         # a gap, a stale Markdown and a stale derived count each went red naming the row and the citation.
         run: node tools/compat-matrix/check.mjs
+      - name: Verify the performance evidence matches the recorded artifact
+        # THE README PERFORMANCE TABLE, docs/assets/benchmark.svg AND its provenance are restatements of ONE
+        # committed recording, tests/perf/q22-baseline.json. Until this step existed, nothing compared the
+        # three surfaces to the recording: the v0.1.0-alpha.13 tag tree's README RSS row said 1,057 MB /
+        # 36.9 MB while the run it cited recorded 1,108,514,816 B / 38,647,808 B and the same tree's own
+        # figure printed 1,109 / 38.6 decimal MB. That unit mismatch survived two releases (M0 audit defect
+        # D1). This step regenerates the figure from the committed baseline and byte-compares it, recomputes
+        # every table cell under one stated unit rule (decimal MB = 1e6 B) and compares it cell by cell, and
+        # checks the provenance's run id, commit, rounds and soak against the baseline's own provenance. It
+        # fails closed, naming the file, the line, the value found, the value the artifact implies and the
+        # artifact field it came from.
+        # Teeth demonstrated in the commit that added it: changing one README cell (11,522 -> 11,523) and one
+        # number in a copy of the baseline each went red naming the metric, the expected value and the field;
+        # restoring the file by copy returned it to green. A mutated SVG also fails the byte comparison.
+        run: node tools/check-perf-docs.mjs
       - name: Test the oracle execution core
         # The double-run policy and the probe-execution primitive are CONTROL-PLANE code: they decide how many
         # times every probe runs, what happens when a run fails, and whether an empty selection is a success.
