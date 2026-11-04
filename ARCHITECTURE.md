@@ -577,6 +577,30 @@ Every route registration should carry test/inventory metadata linking it to its 
 
 Effective middleware ordering is contract. Reproduce the pinned order for security headers, compression, response timing where observable, body parsing/limits, CORS, Basic Auth, IP whitelist, Host whitelist, access logging, cookie sessions, user binding, CSRF, public routes/static assets, login enforcement, CORS proxy, uploads, version/deprecated/private routes and final 404 handling.
 
+### Response compression (pinned `app.use(compression())`)
+
+`internal/server/compression.go` implements the pinned middleware contract and is the OUTERMOST wrapper in
+`NewHTTPHandlerWithOptions`, because pinned mounts `app.use(compression())` at `src/server-main.js:107` before
+`responseTime` (108) and CORS (138). The contract is recorded first by `tools/probe-compression.mjs` into
+`tests/oracle/sillytavern-1.19.0-compression.json` and replayed by `TestPinnedCompressionContract`:
+`compression@^1.8.1` with no options, i.e. a 1024-byte threshold, the `compressible(Content-Type)` filter with
+`Cache-Control: no-transform` respected, `Vary: Accept-Encoding` appended for every compressible response even when
+the body is not compressed (identity client, HEAD, below threshold, Range), `Content-Length` removed and chunked
+framing when compressed, ETag/Last-Modified untouched (pinned does not make them representation-specific), 304
+revalidation untouched (a 304 has no Content-Type), HEAD never compressed, and SSE never compressed because pinned
+forwards the provider stream with no Content-Type. Compression is streamed through `compress/gzip` /
+`compress/zlib` with a pooled writer: bounded memory, no buffer of the response, no new dependency.
+
+**The one recorded deviation:** pinned's negotiator prefers `br` when the client offers it (Node 24 has brotli);
+GoTavern has no standard-library brotli encoder, so it answers `gzip` for a br+gzip client and identity for a
+br-only client. The probe records both halves and the replay asserts them. A follow-up may add a brotli encoder
+if a user requirement justifies the dependency; until then this is a declared deviation, not a silent one.
+
+The comparators that historically normalized `Content-Encoding`/`Transfer-Encoding` away
+(`characters_oracle_test.go`, `settings_get_test.go`, `account_admin_test.go`) were not weakened further; now that
+the server produces the pinned encoding they can be narrowed to representation-aware comparisons as a follow-up.
+
+
 Pinned upstream disables Helmet CSP; GoTavern must not introduce a stricter CSP that breaks frontend extensions.
 
 ### Body sizes without memory explosions

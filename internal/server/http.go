@@ -533,7 +533,10 @@ func newHTTPHandlerWithRouteDomains(notFoundPage []byte, options HTTPHandlerOpti
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		serveStatic(w, r, notFoundPage, options)
 	})
-	return pinnedResponseTimeMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// PINNED POSITION: `app.use(compression())` (src/server-main.js:107) is mounted before responseTime
+	// (108), CORS (138) and every route, so it is the OUTERMOST wrapper here too: it sees the final headers
+	// of every response, including the handlers' Content-Length/ETag and the middleware's Vary.
+	return pinnedCompressionMiddleware(pinnedResponseTimeMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		setPinnedSecurityHeaders(w.Header())
 		setPinnedCORSBaseVary(w.Header(), corsSettings)
 		if servePinnedCORS(w, r, corsSettings) {
@@ -616,7 +619,7 @@ func newHTTPHandlerWithRouteDomains(notFoundPage []byte, options HTTPHandlerOpti
 			accounts.cacheBuster.handleIndex(w, r, requestAccountHandle(user))
 		}
 		mux.ServeHTTP(w, r)
-	}))
+	})))
 }
 
 func setPinnedSecurityHeaders(header http.Header) {
