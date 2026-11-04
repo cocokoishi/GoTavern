@@ -141,13 +141,16 @@ jobs:
     needs: changes
     if: needs.changes.outputs.oracle == 'true'
     runs-on: ubuntu-latest
-    # MEASURED REALITY, twice. docs/development-loop.md recorded 51 min for a full sweep; the first full
+    # MEASURED REALITY, three times. docs/development-loop.md recorded 51 min for a full sweep; the first full
     # sweep after the reusable build root landed (run 40074538942) took ~96 min and THEN failed on a harness
-    # guard, so it was a real full pass, not an early abort. 96 min against a 120 bound is 20% headroom, which
-    # one slow runner or one retried probe eats. The decision is 180: ~1.9x the worst observed pass, and a
-    # wedged probe still fails at three hours instead of GitHub's default six. The warm build root should pull
-    # the next sweep back toward ~80 min; when a measured sweep settles, tighten to ~1.5x THAT and record it.
-    timeout-minutes: 180
+    # guard, so it was a real full pass, not an early abort. The corpus has since grown (compression and
+    # stream-termination probes), and the release candidate's full sweep (run 41780336056 at f750ad1) was
+    # CANCELLED at exactly 180 min: the log shows the provider-wire differential had closed all 258 scenarios
+    # and the pinned server was writing its last oracle fixtures, so the sweep needed only minutes more, not a
+    # re-think. A bound that cuts a nearly-complete sweep teaches the operator to re-run blind, so it is raised
+    # to 240: ~1.3x the longest observed pass and still a hard stop, sized so the next measured sweep can
+    # tighten it again rather than fail on the clock.
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/checkout-pinned
