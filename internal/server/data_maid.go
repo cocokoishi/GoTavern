@@ -42,10 +42,6 @@ import (
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerDataMaidRoutes)
-}
-
 func registerDataMaidRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	mux.HandleFunc("POST /api/data-maid/report", accounts.serveDataMaidReport)
 	mux.HandleFunc("POST /api/data-maid/finalize", accounts.serveDataMaidFinalize)

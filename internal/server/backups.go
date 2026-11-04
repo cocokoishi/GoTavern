@@ -28,10 +28,6 @@ import (
 
 const backupsChatPrefix = "chat_"
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerBackupsRoutes)
-}
-
 func registerBackupsRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	for _, route := range []string{"/api/backups/chat/delete", "/api/backups/chat/download"} {
 		handler := map[string]func(http.ResponseWriter, *http.Request){

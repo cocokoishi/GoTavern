@@ -64,10 +64,6 @@ const (
 // parity — it is a named difference.
 const sdComfyEngineMessageText = "ComfyUI returned an unparseable answer."
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerSDComfyGenerateRoutes)
-}
-
 func registerSDComfyGenerateRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

@@ -39,10 +39,6 @@ import (
 	"strings"
 )
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerBackupsChatGetRoutes)
-}
-
 func registerBackupsChatGetRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	mux.HandleFunc("/api/backups/chat/get", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

@@ -93,10 +93,6 @@ func sdPollinationsURL() string {
 }
 func sdFalaiURL() string { return sdSeamURL("GOTAVERN_SD_FALAI_URL", sdFalaiDefaultURL) }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerSDRoutes)
-}
-
 func registerSDRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

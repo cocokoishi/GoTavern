@@ -67,10 +67,6 @@ func searchTavilyURL() string { return sdSeamURL("GOTAVERN_SEARCH_TAVILY_URL", s
 func searchSerperURL() string { return sdSeamURL("GOTAVERN_SEARCH_SERPER_URL", searchSerperDefaultURL) }
 func searchZaiURL() string    { return sdSeamURL("GOTAVERN_SEARCH_ZAI_URL", searchZaiDefaultURL) }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerSearchRoutes)
-}
-
 func registerSearchRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

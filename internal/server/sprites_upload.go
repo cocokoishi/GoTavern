@@ -31,10 +31,6 @@ import (
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerSpritesUploadRoutes)
-}
-
 func registerSpritesUploadRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	for _, route := range []string{"/api/sprites/upload", "/api/sprites/upload-zip"} {
 		handler := map[string]func(http.ResponseWriter, *http.Request){

@@ -23,10 +23,6 @@ import (
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
-func init() {
-	// Registration happens in registerBackendsRoutes; nothing to add here.
-}
-
 // pinnedChatCompletionMissingKeyRefusal is the status chain's SHARED missing-key refusal,
 // chat-completions.js:2067-2070: `statusResponse.status(400).send({ error: true })` -- a JSON body, not
 // Express's plain-text status message.

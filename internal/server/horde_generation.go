@@ -76,10 +76,6 @@ var hordeSamplers = []string{
 	"k_dpm_fast", "k_dpm_adaptive", "k_dpmpp_2s_a", "k_dpmpp_2m", "dpmsolver", "k_dpmpp_sde",
 }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerHordeGenerationRoutes)
-}
-
 func registerHordeGenerationRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

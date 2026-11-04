@@ -75,10 +75,6 @@ func elevenLabsAPIURL() string {
 	return envSeamURL("GOTAVERN_ELEVENLABS_API_URL", elevenLabsDefaultAPIURL)
 }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerSpeechRoutes)
-}
-
 func registerSpeechRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

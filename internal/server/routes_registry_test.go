@@ -166,12 +166,114 @@ func registrarShortName(register domainRouteRegistrar) string {
 	return name
 }
 
-// effectiveRouteRegistrars returns the registrars the package actually
-// registers. Before M4a this is the init()-populated slice; after M4a it is
-// the explicit table. Keeping this accessor in the test is what lets the same
-// golden list prove both halves of the refactor.
+// effectiveRouteDomains returns the inventory the package actually registers.
+// Since M4a it is the explicit table in routes_registry.go; the golden lists in
+// this file are the gate that keeps the table's contents stable.
+func effectiveRouteDomains() []routeDomain {
+	return routeDomainTable()
+}
+
+// effectiveRouteRegistrars projects the table onto its registrar functions, so
+// the golden registrar list is the SAME expectation it was before the refactor
+// (when it was read from the init()-populated slice).
 func effectiveRouteRegistrars() []domainRouteRegistrar {
-	return domainRouteRegistrars
+	domains := effectiveRouteDomains()
+	registrars := make([]domainRouteRegistrar, 0, len(domains))
+	for _, domain := range domains {
+		registrars = append(registrars, domain.register)
+	}
+	return registrars
+}
+
+// expectedRouteDomainNames is the sorted set of domain names the explicit table
+// must contain. The names are the inventory a reader sees; the registrar golden
+// list above is the code behind it, so dropping, renaming or reordering a row
+// is visible in one of the two lists.
+var expectedRouteDomainNames = []string{
+	"anthropic-caption",
+	"assets",
+	"azure-tts",
+	"backends",
+	"backends-kobold-deferred",
+	"backends-textgen-generate",
+	"backups",
+	"backups-chat-get",
+	"characters",
+	"chat-completions",
+	"chats",
+	"chats-groups",
+	"content",
+	"data-maid",
+	"extensions",
+	"extensions-static",
+	"frontend-assets",
+	"google-media",
+	"google-native-tts",
+	"google-video",
+	"google-voice",
+	"horde",
+	"horde-generation",
+	"images",
+	"minimax",
+	"nanogpt",
+	"novelai",
+	"novelai-generate",
+	"openai-caption",
+	"openai-chutes-transcribe",
+	"openai-generate-video",
+	"openai-media",
+	"openai-models",
+	"openai-transcribe",
+	"openrouter",
+	"presets",
+	"redirect-aliases",
+	"sd",
+	"sd-generate",
+	"sd-generate-comfy",
+	"sd-generate-wave2",
+	"sd-generate-wave5",
+	"sd-zai",
+	"search",
+	"secrets",
+	"speech",
+	"sprites-upload",
+	"stats",
+	"thumbnails",
+	"tokenizers",
+	"translate",
+	"vector",
+	"volcengine",
+	"worldinfo",
+}
+
+// TestRouteDomainTableIsThePinnedInventory is the direct test of the explicit
+// table: exactly the pinned count of rows, no duplicate NAME (a name is a
+// domain's identity in the table, so two rows sharing one would make the
+// inventory ambiguous), no empty name, and no nil registrar.
+func TestRouteDomainTableIsThePinnedInventory(t *testing.T) {
+	domains := effectiveRouteDomains()
+	if len(domains) != expectedRouteDomainCount {
+		t.Fatalf("route-domain table has %d rows; pinned count is %d", len(domains), expectedRouteDomainCount)
+	}
+	got := make([]string, 0, len(domains))
+	seen := make(map[string]bool, len(domains))
+	for index, domain := range domains {
+		if domain.name == "" {
+			t.Fatalf("route-domain table row %d has an empty name", index)
+		}
+		if domain.register == nil {
+			t.Fatalf("route-domain table row %q has a nil registrar", domain.name)
+		}
+		if seen[domain.name] {
+			t.Fatalf("route-domain name %q appears twice in the table", domain.name)
+		}
+		seen[domain.name] = true
+		got = append(got, domain.name)
+	}
+	sort.Strings(got)
+	if !reflect.DeepEqual(got, expectedRouteDomainNames) {
+		t.Fatalf("route-domain names drifted from the pinned set\n got: %v\nwant: %v", got, expectedRouteDomainNames)
+	}
 }
 
 func TestRouteDomainInventoryIsThePinnedSet(t *testing.T) {
@@ -226,7 +328,7 @@ func TestRouteDomainInventoryHasAProbeForEveryDomain(t *testing.T) {
 func TestRouteDomainsRegisterRepresentativeRoutes(t *testing.T) {
 	accounts := newAccountRuntime(HTTPHandlerOptions{})
 	mux := http.NewServeMux()
-	registerDomainRoutes(mux, accounts, nil, HTTPHandlerOptions{})
+	registerDomainRoutes(mux, accounts, nil, HTTPHandlerOptions{}, routeDomainTable())
 	for name, probe := range routeDomainProbes {
 		request := httptest.NewRequest(probe.method, probe.path, nil)
 		_, pattern := mux.Handler(request)
@@ -242,8 +344,8 @@ func TestRouteDomainsRegisterRepresentativeRoutes(t *testing.T) {
 // registry. If this test ever stops panicking, the inventory can silently
 // shadow a route and the explicit table is no longer a single owner.
 func TestRouteDomainDuplicateRegistrationPanics(t *testing.T) {
-	inventory := append([]domainRouteRegistrar{}, effectiveRouteRegistrars()...)
-	inventory = append(inventory, registerStatsRoutes)
+	inventory := append(append([]routeDomain{}, effectiveRouteDomains()...),
+		routeDomain{name: "stats-duplicate", register: registerStatsRoutes})
 	defer func() {
 		recovered := recover()
 		if recovered == nil {
@@ -262,7 +364,30 @@ func TestRouteDomainDuplicateRegistrationPanics(t *testing.T) {
 	}()
 	mux := http.NewServeMux()
 	accounts := newAccountRuntime(HTTPHandlerOptions{})
-	for _, register := range inventory {
-		register(mux, accounts, nil, HTTPHandlerOptions{})
+	registerDomainRoutes(mux, accounts, nil, HTTPHandlerOptions{}, inventory)
+}
+
+// TestNewHTTPHandlerConsumesTheRouteDomainTable proves the wiring, not just the
+// table: newHTTPHandler must build its domain routes FROM the table it is given.
+// A truncated inventory containing only the stats domain answers that domain's
+// route and does NOT answer a domain omitted from the inventory, so a future
+// change that reintroduces a second registration path (for example a registrar
+// that registers itself) fails here rather than passing silently.
+func TestNewHTTPHandlerConsumesTheRouteDomainTable(t *testing.T) {
+	handler := newHTTPHandlerWithRouteDomains(nil, HTTPHandlerOptions{
+		DataRoot:    t.TempDir(),
+		DisableCSRF: true,
+	}, []routeDomain{{name: "stats", register: registerStatsRoutes}})
+
+	included := httptest.NewRecorder()
+	handler.ServeHTTP(included, httptest.NewRequest(http.MethodPost, "/api/stats/get", strings.NewReader("{}")))
+	if included.Code != http.StatusOK {
+		t.Fatalf("included domain route answered %d, want 200: %s", included.Code, included.Body.String())
+	}
+
+	excluded := httptest.NewRecorder()
+	handler.ServeHTTP(excluded, httptest.NewRequest(http.MethodPost, "/api/worldinfo/list", strings.NewReader("{}")))
+	if excluded.Code != http.StatusNotFound {
+		t.Fatalf("excluded domain route answered %d, want the static 404: %s", excluded.Code, excluded.Body.String())
 	}
 }

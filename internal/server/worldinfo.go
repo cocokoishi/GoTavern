@@ -51,10 +51,6 @@ import (
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerWorldInfoRoutes)
-}
-
 func registerWorldInfoRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	// Every pinned world-info route is POST-only. Express answers any other
 	// method with the final 404, so dispatch manually instead of letting

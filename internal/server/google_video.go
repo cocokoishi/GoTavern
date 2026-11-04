@@ -58,10 +58,6 @@ var googleVideoSleep = func(ctx context.Context, duration time.Duration) bool {
 	}
 }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerGoogleVideoRoutes)
-}
-
 func registerGoogleVideoRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	mux.HandleFunc("/api/google/generate-video", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

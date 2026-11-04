@@ -54,10 +54,6 @@ import (
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerThumbnailRoutes)
-}
-
 // thumbnailTypeDirs is getThumbnailFolder/getOriginalFolder (thumbnails.js:35-75) expressed as
 // startup.DirectoriesForUser keys.
 var thumbnailTypeDirs = map[string]struct{ original, cache string }{

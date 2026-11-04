@@ -35,10 +35,6 @@ const (
 func novelaiImageURL() string { return sdSeamURL("GOTAVERN_NOVELAI_IMAGE_URL", novelaiImageDefaultURL) }
 func novelaiAPIURL() string   { return sdSeamURL("GOTAVERN_NOVELAI_API_URL", novelaiAPIDefaultURL) }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerNovelAIRoutes)
-}
-
 func registerNovelAIRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	for _, route := range []string{"/api/novelai/status", "/api/novelai/generate-voice"} {
 		handler := map[string]func(http.ResponseWriter, *http.Request){

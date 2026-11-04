@@ -69,10 +69,6 @@ func cloudflareAPIURL() string {
 	return envSeamURL("GOTAVERN_CLOUDFLARE_API_URL", cloudflareDefaultAPIURL)
 }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerOpenAIModelRoutes)
-}
-
 func registerOpenAIModelRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

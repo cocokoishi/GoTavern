@@ -63,10 +63,6 @@ func sdNanoGPTGenerateURL() string {
 	return sdSeamURL("GOTAVERN_SD_NANOGPT_GENERATE_URL", sdNanoGPTGenerateDefaultURL)
 }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerSDGenerateWave2Routes)
-}
-
 func registerSDGenerateWave2Routes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

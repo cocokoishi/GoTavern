@@ -51,10 +51,6 @@ const (
 // errBackendsTextgenRedirects is node-fetch's `maximum redirect reached` refusal.
 var errBackendsTextgenRedirects = errors.New("maximum redirect reached")
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerBackendsTextgenGenerateRoutes)
-}
-
 func registerBackendsTextgenGenerateRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	mux.HandleFunc("/api/backends/text-completions/generate", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

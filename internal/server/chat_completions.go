@@ -94,10 +94,6 @@ var pinnedTextCompletionModels = map[string]bool{
 	"code-search-ada-code-001": true,
 }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerChatCompletionRoutes)
-}
-
 func registerChatCompletionRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	mux.HandleFunc("/api/backends/chat-completions/generate", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

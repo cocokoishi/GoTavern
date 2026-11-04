@@ -38,10 +38,6 @@ func chutesTranscribeURL(model string) string {
 	return strings.ReplaceAll(base, "{model}", model) + chutesTranscribePath
 }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerOpenAIChutesTranscribeRoutes)
-}
-
 func registerOpenAIChutesTranscribeRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	mux.HandleFunc("/api/openai/chutes/transcribe-audio", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

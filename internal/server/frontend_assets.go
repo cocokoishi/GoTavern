@@ -47,10 +47,6 @@ import (
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerFrontendAssetRoutes)
-}
-
 // userDataMounts is the GoTavern registration for the pinned user-data static trees. Pinned declares
 // SEVEN mounts at src/users.js:1213-1219:
 //

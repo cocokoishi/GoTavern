@@ -60,10 +60,6 @@ func openRouterAPIURL() string {
 	return openRouterDefaultAPIURL
 }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerOpenRouterRoutes)
-}
-
 func registerOpenRouterRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

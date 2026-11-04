@@ -115,10 +115,6 @@ var backendsProcessTypes = []string{
 	"", "claude", "merge", "merge_tools", "semi", "semi_tools", "strict", "strict_tools", "single",
 }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerBackendsRoutes)
-}
-
 func registerBackendsRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	post := func(route string, handler func(http.ResponseWriter, *http.Request)) {
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {

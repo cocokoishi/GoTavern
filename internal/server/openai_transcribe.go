@@ -59,10 +59,6 @@ func openAITranscribeProviders() []openAITranscribeProvider {
 	}
 }
 
-func init() {
-	domainRouteRegistrars = append(domainRouteRegistrars, registerOpenAITranscribeRoutes)
-}
-
 func registerOpenAITranscribeRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
 	for _, entry := range openAITranscribeProviders() {
 		provider := entry
