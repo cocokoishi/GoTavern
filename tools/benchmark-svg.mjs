@@ -7,8 +7,12 @@
 // publishing one, so the values are DATA and the layout is the only thing this file decides.
 //
 // Usage:
-//   node tools/benchmark-svg.mjs --report <q22-paired-benchmark.json> --out docs/assets/benchmark.svg \
-//       --run-id 41171857944 --commit 91e1e15
+//   node tools/benchmark-svg.mjs --report tests/perf/q22-baseline.json --out docs/assets/benchmark.svg
+//   node tools/benchmark-svg.mjs --report <q22-paired-benchmark.json> --out <benchmark.svg> \
+//       --run-id <actions run id> --commit <measured commit>
+// The first form is the release path: the committed baseline wrapper carries the run id and the full commit
+// in its provenance, and the figure prints the 7-character form. The second form is for a freshly downloaded
+// artefact that has no wrapper yet; both still refuse to render without a run id and a commit.
 //
 // WHY THE CHART IS SHAPED THIS WAY (release constraint: never hide a raw value behind a ratio, never truncate an
 // axis to exaggerate):
@@ -17,8 +21,12 @@
 //     invisible, so each metric gets its own zero-based axis rather than one shared axis.
 //   * Both the raw value AND the ratio are printed. The ratio is labelled as derived from the printed values, and
 //     it is computed here from the raw numbers rather than typed in, so a reader can check it with the values shown.
-//   * RSS and startup use DECIMAL megabytes (1e6 bytes), stated on the row, because that is the unit the byte
-//     counts round to; the exact byte count is printed too, so no reader has to trust the rounding.
+//   * RSS uses DECIMAL megabytes (1e6 bytes) and says so on its own row ("decimal MB (1e6 B)"), because that
+//     is the unit the byte counts round to; the exact byte count is printed too, so no reader has to trust the
+//     rounding. Startup and latency are milliseconds and say "ms" on their axes and values.
+//     ONE unit rule for the whole figure and the README: 1 MB = 1,000,000 bytes. The alpha.13 tag tree shipped
+//     a 1,057 MB RSS row against a figure that printed 1,109 decimal MB for the same recording; the unit is
+//     stated so that class of mismatch is visible to a reader and checkable by tools/check-perf-docs.mjs.
 //   * "Lower is better" is stated once, and the direction is not re-encoded in colour. The verdict word is
 //     PER METRIC: "faster" on the timing rows, "lighter" on memory, because a resident-set size is not fast or slow.
 //   * The figure carries its own background and uses colours that hold contrast on both GitHub themes; it has no
@@ -141,7 +149,7 @@ const metrics = [
             pinned: requireField(pinned, 'rssBytesMedian', 'summary.pinned'),
             go: requireField(gotavern, 'rssBytesMedian', 'summary.gotavern'),
         },
-        note: ['VmRSS from /proc, after readiness', 'and 30 requests; median of 6 samples'],
+        note: ['VmRSS from /proc; decimal MB (1e6 B);', 'median of 6 samples, after readiness and 30 requests/path'],
     },
     {
         key: 'version',
@@ -219,8 +227,10 @@ const verdictWord = metric => metric.verdict.toUpperCase();
 // ---------------------------------------------------------------------------------------------------------------
 // THE PALETTE. "Midnight ink" page, warm amber for the pinned Node server, cyan for GoTavern, and a violet-to-cyan
 // gradient used ONLY for derived numbers (the ratios and the second headline line) so colour marks "computed from
-// the two values beside it" rather than decorating. Contrast on #070b14: primary #eef3ff 17.6:1, secondary
-// #a7b6cd 9.9:1, muted #6b7d9c 4.9:1, cyan #7fe9ff 12.7:1, amber #f6b545 10.9:1. The hairline #94a3b8 at 0.16 is
+// the two values beside it" rather than decorating. Contrast measured against #070b14 (the page's darkest stop):
+// primary #eef3ff 17.71:1, secondary #a7b6cd 9.57:1, muted #7488a7 5.46:1, cyan #7fe9ff 14.06:1, amber #f6b545
+// 10.88:1. The previous comment named a muted colour the palette no longer used (#6b7d9c) and a ratio that
+// colour would have had; the palette below is the measured one. The hairline #94a3b8 at 0.16 is
 // decoration only and carries no meaning; every meaning-bearing mark is also labelled in text.
 const PAGE_TOP = '#070b14';
 const PAGE_BOTTOM = '#0b1322';
@@ -452,7 +462,7 @@ const footerLine1 = footerRuleY + 26;
 parts.push(`<rect x="${MARGIN}" y="${footerRuleY}" width="${CONTENT_RIGHT - MARGIN}" height="1" fill="url(#hairlineFade)"/>`);
 const footerLines = [
     ['VALUES', `GoTavern smoke metrics \u00b7 run ${runId} \u00b7 ${runnerImage} shared runner \u00b7 ${rounds} alternating rounds \u00d7 ${requestsPerRound} sequential requests per path \u00b7 medians shown`],
-    ['SUBJECTS', `SillyTavern 1.19.0 @ pinned 06bde939   vs   GoTavern @ ${commit}   (the commit this run measured; the v0.1.0-alpha.9 tag adds documentation only)`],
+    ['SUBJECTS', `SillyTavern 1.19.0 @ pinned 06bde939   vs   GoTavern @ ${commit}   (the commit this run measured)`],
     ['HONESTY', 'every bar sits on its own zero-based axis whose maximum is printed at the axis end, so no axis is truncated and no ratio replaces a value.'],
     ['', 'a 5 px floor keeps a near-zero bar visible; it never changes a printed value, the axis maximum or the ratio. Ratios restate the two printed values.'],
 ];
