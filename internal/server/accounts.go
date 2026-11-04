@@ -244,29 +244,61 @@ func loadStoredAccounts(dataRoot string) (map[string]storedAccount, error) {
 // alone 1.95 s of 5.42 s sampled, while every static asset the same request served accounted for 17%.
 // The read is a file open + read + two JSON decodes per request, for a record that changes almost never.
 //
-// THE CACHE KEY IS THE FILE'S OWN IDENTITY, NOT A TIMEOUT. `os.Stat` is asked for the record's mtime and
-// size on every read, and a hit requires both to be unchanged. That is what answers the five questions
-// this repository requires before a cache may exist:
-//   - key: the absolute record path;
+// THE CACHE KEY IS THE FILE'S OWN CHANGE WITNESS, NOT A TIMEOUT. `os.Stat` is asked on every read for
+// the record's mtime, size and change stamp (the inode change time on Unix), and a hit requires all of
+// them unchanged. That is what answers the questions GOAL.md §15.3 requires before a cache may exist:
+//   - key: the absolute record path, its mtime, its size and, where the platform supplies it, its change
+//     stamp (Unix: the inode change time carried by the stat; Windows: unavailable from stat, see below);
+//   - value: the decoded account fields (a clone per caller, see below) and the found flag;
 //   - owner: this package, process-local, no cross-process state and no shared file;
-//   - external modification: ANY write changes mtime (and nearly always size), so the entry is dropped --
-//     including a write by pinned Node over the same tree or a user editing the store by hand;
+//   - lifetime: the entry lives until the next stat disagrees, the cache is full, or the process exits;
+//   - capacity/eviction: at most storedAccountCacheLimit entries; at the limit the WHOLE map is dropped
+//     (every entry is re-derivable from its file, so this costs one round of reads, not correctness);
+//   - invalidation: any stat-field disagreement, or an explicit forget when the record is missing;
+//   - external modification: any ordinary write changes mtime and size; an atomic replacement (this
+//     server and pinned Node's node-persist both use temp+rename) additionally moves the inode change
+//     time on Unix, so even a replacement that preserved mtime+size -- a timestamp-preserving restore --
+//     is seen there. Windows is the recorded boundary below;
 //   - restart: the cache starts empty, so the first read is an ordinary read;
-//   - concurrent writes: a write through this server replaces the file atomically and therefore changes
-//     the same two stat fields, so the next read misses.
+//   - concurrency: one mutex around the map; the cached account is cloned before it is returned, because
+//     one caller mutates a record it built itself and a shared map would let that reach the next request;
+//   - rebuild/fallback: a miss is the ordinary read path and its errors are returned exactly as before
+//     (invalid storage file, fsretry's bounded retry); the cache has no second copy of the data. When the
+//     change stamp is unavailable for the platform/file the entry falls back to mtime+size, which is the
+//     pre-M6 key and is why the stamp helper reports ok rather than a sentinel zero.
 //
 // A TTL was rejected on purpose: a TTL answers "did this change?" with "not recently enough", which is
 // the stale-read defect a cache must not introduce.
 //
-// The cached account is never handed out by reference: the fields map is copied, because one caller
-// mutates a record it built itself and a shared map would let that reach the next request.
+// THE SAME-SIZE SAME-MTIME QUESTION, MEASURED AND DECIDED (M6, 2026-11-04). The old key was path+mtime
+// +size, and the M6 test replaced a record with the SAME byte length and restored its mtime with
+// os.Chtimes: the next read returned the OLD record -- measured red in
+// TestStoredAccountCacheSeesASameSizeSameModTimeAtomicReplacement. The first defence tried was the file
+// identity (os.SameFile), and the measurement REJECTED it: on Windows the temp+rename replacement was
+// given the same file index (NTFS record reuse), so os.SameFile reported "same file" after a real
+// replacement. The second was the creation time Windows carries in Win32FileAttributeData; it was
+// rejected too, because Windows file-system tunneling keeps the original creation timestamp when a file
+// is deleted and recreated under the same name inside its 15-second window, which a temp+rename over an
+// existing record is. The shipped defence is therefore the inode change time on Unix: it is carried by
+// the stat the read already performs (no extra syscall), the kernel moves it on every write and on the
+// rename that installs a replacement, and an unprivileged process cannot restore it (os.Chtimes moves
+// mtime, which moves ctime again). On Windows the witness is unavailable from stat, so the same-size
+// same-mtime case is the RECORDED, ACCEPTED BOUNDARY documented in record_change_windows.go: the only
+// reliable witness there is the NTFS change time, which needs an open handle on every cache hit and
+// would spend a measured part of the win this cache exists for, to close a window no production writer
+// produces (both writers replace atomically). Hashing was considered and rejected on this measurement:
+// it pays the read this cache exists to avoid on EVERY hit, for a case only an external
+// timestamp-preserving restore can create. Both boundaries are recorded under GOAL.md §15.3 terms
+// (key/owner/invalidation stated), not silently accepted.
 const storedAccountCacheLimit = 256
 
 type storedAccountCacheEntry struct {
-	modTime time.Time
-	size    int64
-	account storedAccount
-	found   bool
+	modTime     time.Time
+	size        int64
+	changeStamp int64
+	hasChange   bool
+	account     storedAccount
+	found       bool
 }
 
 var (
@@ -275,16 +307,21 @@ var (
 )
 
 func cachedStoredAccount(path string, info os.FileInfo) (storedAccountCacheEntry, bool) {
+	changeStamp, hasChange := storedRecordChangeStamp(info)
 	storedAccountCacheMu.Lock()
 	defer storedAccountCacheMu.Unlock()
 	entry, ok := storedAccountCache[path]
 	if !ok || !entry.modTime.Equal(info.ModTime()) || entry.size != info.Size() {
 		return storedAccountCacheEntry{}, false
 	}
+	if entry.hasChange && hasChange && entry.changeStamp != changeStamp {
+		return storedAccountCacheEntry{}, false
+	}
 	return entry, true
 }
 
 func rememberStoredAccount(path string, info os.FileInfo, account storedAccount, found bool) {
+	changeStamp, hasChange := storedRecordChangeStamp(info)
 	storedAccountCacheMu.Lock()
 	defer storedAccountCacheMu.Unlock()
 	if len(storedAccountCache) >= storedAccountCacheLimit {
@@ -293,7 +330,14 @@ func rememberStoredAccount(path string, info os.FileInfo, account storedAccount,
 		// whole map is correct (every entry is re-derivable from its file) and costs one round of reads.
 		storedAccountCache = make(map[string]storedAccountCacheEntry)
 	}
-	storedAccountCache[path] = storedAccountCacheEntry{modTime: info.ModTime(), size: info.Size(), account: account, found: found}
+	storedAccountCache[path] = storedAccountCacheEntry{
+		modTime:     info.ModTime(),
+		size:        info.Size(),
+		changeStamp: changeStamp,
+		hasChange:   hasChange,
+		account:     account,
+		found:       found,
+	}
 }
 
 func forgetStoredAccount(path string) {
