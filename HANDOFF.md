@@ -10,7 +10,57 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-11-03: `v0.1.0-alpha.13` SHIPPED -- THE STABLE RELEASE THAT PUT A REAL THIRD-PARTY EXTENSION CORPUS INTO THE GATE SET
+## Latest checkpoint - 2026-11-03: M0 AUDIT COMPLETE, GOAL REWRITTEN, M1/M2 IN FLIGHT
+
+The goal was rewritten and pushed as `93cccc9`: `GOAL.md` now states the product goal (§1a), the
+engineering goal (§1b: light, fast, stable, clear architecture, simple CLI, honest README/figure), the
+release deliverable (§1c: `v0.1.0-alpha.14` as a formal stable-channel release), the **M0-M8
+engineering ladder** (§11, with the old parity ladder kept as §11.1 and still a standing gate), the
+engineering contract (§15: what every optimization must answer, measurement discipline, cache
+discipline, do-not-rewrite list, CLI contract, README/figure contract) and the alpha.14 release bar
+(§16). `docs/goal-scorecard.md` §3 now points at the drop-in bar.
+
+### The honest state of the drop-in claim (GOAL.md §14)
+
+**NOT MET for the strong form.** The evidence covers a Go-synthesised long-lived tree, a committed
+synthetic corpus, a packaged archive over a stock tree, and the local private channel's *instruments*
+(canaried, never run against real originals: `docs/development-loop.md` §4 says
+`STATUS: NOT YET DEMONSTRATED`). `docs/goal-scorecard.md` §3 says the same in one line. No README,
+release note or figure may describe the product as "perfectly compatible", "safe" or "drop-in" without
+naming that scope until §14 items 1-5 run on one real tree.
+
+### M0 audit (read-only; no repo writes, no test runs; five parallel domains + independent verification)
+
+Confirmed, with file:line evidence, in the order they will be fixed:
+
+| area | confirmed finding | evidence |
+|---|---|---|
+| CLI | boot prints two lines only (no version/baseline/data/config/Ready/Ctrl+C); `gotavern start --help` BOOTS (measured); `migrate --help` and `version --help` exit 2 (measured); unknown `--flag` silently ignored (measured); no colour/TTY; Docker CMD lacks `--browserLaunchEnabled false`; `Go to:` silently dropped on an unparseable hostname; heartbeat start unreported; `http.Server` has no timeouts | `main.go:261-276,84-93,274-276`; `server.go:418,290-292`; `options.go:392-414`; `Dockerfile:92` |
+| perf | response compression missing where pinned sends gzip (oracle fixture records `content-encoding`); character-card memory+disk cache never used though created at startup; chat summaries read whole JSONL files (two implementations); `/chats/get`+`/save` whole-DOM decode/re-marshal; one per-data-root write lock + redundant read-before-write; settings/world-info aggregation re-reads; extension static whole-file reads; static path resolved twice; ordered-JSON marshal copies+sorts per node; no provider-path benchmark | `cors.go:51-57`; `characters_read.go:204-298`; `chats.go:120-244`; `user_content_file.go:38-68`; `settings_get.go:49-194`; `extensions_static.go:278`; `image_metadata_index.go:252-380` |
+| structure | `internal/server` = 360 files / 109,480 lines = 72.4% of all Go, behind 6 exported funcs/5 types; 396 methods on one receiver; 63-field options; 274-line constructor; 64 hand-written routes + 54 `init()` registrars; node-persist and ordered-JSON codecs implemented twice; 249 direct `os.*` sites; 94/180 tests boot the whole handler; 0 interfaces | `http.go:337-611`; `routes_registry.go:20`; `accounts.go:84`; `system_prompts.go:21` |
+| correctness | no panic boundary (panic closes the connection where pinned returns a 500 page); stream-truncation parity drift on novelai/textgen/ollama (needs oracle); textgen redirect drops neither credentials nor the abandoned body; gzip wrapper `Close` leaks the underlying body; unbounded provider buffering | `http.go:525-608`; `chat_completions.go:345-351`; `backends_textgen_generate.go:158-195,295-303`; `transport.go:287-336` |
+| evidence | released tag-tree README RSS row `1,057/36.9` is MiB labelled MB while its own cited run records `1,108,514,816/38,647,808` B and its own SVG prints decimal `1,109/38.6` (independently re-downloaded and recomputed); the SVG footer hardcodes `v0.1.0-alpha.9` for every commit; no gate ties README/SVG/provenance to the artifact; figure is 1000x1180 with 8.5-10.5 px type | `README.md` at tag; `tools/benchmark-svg.mjs:439`; `docs/assets/benchmark.svg:1` |
+
+Startup structure measured locally (Windows/arm64, triage only): first boot internal `data-startup`
+1.264 s (seeding ~100 files), warm boot internal total 301 ms of which `listeners` 224 ms (NIC
+enumeration + protocol selection); `config.yaml` read+parsed three times per boot; `http.Server` has
+zero timeouts.
+
+### In flight (shared tasks; each lane works in its own worktree, commits and pushes, CI is the gate)
+
+| lane | task | branch | scope |
+|---|---|---|---|
+| M1 CLI | task-11 | `m1/cli` | identity/Ready/real paths, per-command help, unknown-flag warning, TTY colour, Docker headless, quiet default, friendly shutdown, actionable errors, tests |
+| M2a evidence gate | task-12 | `m2/perf-evidence` | commit the q22 artifact, `tools/check-perf-docs.mjs` (regenerate SVG, recompute README table, check provenance), CI wiring, stale footer/unit/wording fixes, `docs/perf-baseline.md` |
+| M2b benchmarks | task-13 | `m2/bench` | scale benchmarks (100/1000/10000 cards, large JSONL, settings, world info, 229-asset page load, provider marshal), pprof capture, benchstat baseline |
+
+Next: M2 closes the measurement gap; M3 takes ONE hotspot from the profile; M4 extracts by data
+ownership (route table, `httpx`, `userdata`); M5-M7 as §11; M8 is §16 (alpha.14). The M0 report's
+priority order, do-not-rewrite list and per-optimization questions are in `GOAL.md` §15.
+
+---
+
+## HISTORY - 2026-11-03: `v0.1.0-alpha.13` SHIPPED -- THE STABLE RELEASE THAT PUT A REAL THIRD-PARTY EXTENSION CORPUS INTO THE GATE SET
 
 `v0.1.0-alpha.13` is the **stable** release: GitHub publishes it with `prerelease=false`, `releases/latest`
 serves it, the bare `install.sh` / `install.ps1` install it, Docker `:latest` points at it, and
