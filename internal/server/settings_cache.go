@@ -150,65 +150,84 @@ func resetUserMetadataCache() {
 	userMetadataCacheBodyBytes = 0
 }
 
-// hashText feeds a length-prefixed string to a digest, so "ab"+"c" and "a"+"bc" cannot collide.
-func hashText(digest hash.Hash, text string) {
+// metadataDigest is a sha256 walk with ONE reusable scratch buffer. Every name, marker and integer is
+// appended into that buffer and written to the hash, so hashing 1100 documents does not allocate per
+// name; the scratch grows once to the longest value hashed. Text is length-prefixed so "ab"+"c" and
+// "a"+"bc" cannot collide.
+type metadataDigest struct {
+	hash    hash.Hash
+	scratch []byte
+}
+
+func newMetadataDigest(label string) *metadataDigest {
+	digest := &metadataDigest{hash: sha256.New(), scratch: make([]byte, 0, 256)}
+	digest.text(label)
+	return digest
+}
+
+func (digest *metadataDigest) text(text string) {
+	digest.scratch = digest.scratch[:0]
 	var length [4]byte
 	binary.LittleEndian.PutUint32(length[:], uint32(len(text)))
-	_, _ = digest.Write(length[:])
-	_, _ = digest.Write([]byte(text))
+	digest.scratch = append(digest.scratch, length[:]...)
+	digest.scratch = append(digest.scratch, text...)
+	_, _ = digest.hash.Write(digest.scratch)
 }
 
-// hashInt64 feeds one integer to a digest.
-func hashInt64(digest hash.Hash, value int64) {
-	var encoded [8]byte
-	binary.LittleEndian.PutUint64(encoded[:], uint64(value))
-	_, _ = digest.Write(encoded[:])
+func (digest *metadataDigest) int64(value int64) {
+	digest.scratch = binary.LittleEndian.AppendUint64(digest.scratch[:0], uint64(value))
+	_, _ = digest.hash.Write(digest.scratch)
 }
 
-// hashFileInfo hashes the identity fields of one resolved file: type, size and mtime.
-func hashFileInfo(digest hash.Hash, info os.FileInfo) {
-	hashInt64(digest, int64(info.Mode().Type()))
-	hashInt64(digest, info.Size())
-	hashInt64(digest, info.ModTime().UnixNano())
+func (digest *metadataDigest) sum() [sha256.Size]byte {
+	var identity [sha256.Size]byte
+	copy(identity[:], digest.hash.Sum(nil))
+	return identity
 }
 
-// hashFileIdentity hashes one file's resolved identity: the path plus its type, size and mtime. It
-// follows symlinks on purpose, because os.ReadFile (the uncached read) follows them too. A missing or
-// unstatable file is hashed as a marker instead of failing the digest: the rebuild path then reproduces
-// the original route's error handling (a missing settings.json is still a 500 from the read, not from
-// the cache).
-func hashFileIdentity(digest hash.Hash, path string) {
+// fileInfo hashes the identity fields of one resolved file: type, size and mtime.
+func (digest *metadataDigest) fileInfo(info os.FileInfo) {
+	digest.int64(int64(info.Mode().Type()))
+	digest.int64(info.Size())
+	digest.int64(info.ModTime().UnixNano())
+}
+
+// fileIdentity hashes one file's resolved identity: the path plus its type, size and mtime. It follows
+// symlinks on purpose, because os.ReadFile (the uncached read) follows them too. A missing or unstatable
+// file is hashed as a marker instead of failing the digest: the rebuild path then reproduces the original
+// route's error handling (a missing settings.json is still a 500 from the read, not from the cache).
+func (digest *metadataDigest) fileIdentity(path string) {
 	info, err := os.Stat(path)
 	if err != nil {
-		hashText(digest, "stat-error")
+		digest.text("stat-error")
 		return
 	}
-	hashText(digest, path)
-	hashFileInfo(digest, info)
+	digest.text(path)
+	digest.fileInfo(info)
 }
 
-// hashDirectoryEntryIdentity hashes one directory entry WITHOUT paying for an extra stat where the
-// platform already returned the fields. For a regular entry, DirEntry.Info is the directory listing's own
-// FileInfo (on Windows ReadDir already carries size and mtime from the find data; on Unix it is one lstat,
-// which is what os.Stat would do anyway). A symlink is followed explicitly with os.Stat, because the
-// uncached readers follow it; using the link's own lstat would miss a retarget or a target rewrite.
-func hashDirectoryEntryIdentity(digest hash.Hash, entry fs.DirEntry, path string) {
-	hashText(digest, path)
+// directoryEntryIdentity hashes one directory entry WITHOUT paying for an extra stat where the platform
+// already returned the fields. For a regular entry, DirEntry.Info is the directory listing's own FileInfo
+// (on Windows ReadDir already carries size and mtime from the find data; on Unix it is one lstat, which is
+// what os.Stat would do anyway). A symlink is followed explicitly with os.Stat, because the uncached
+// readers follow it; using the link's own lstat would miss a retarget or a target rewrite.
+func (digest *metadataDigest) directoryEntryIdentity(entry fs.DirEntry, path string) {
+	digest.text(path)
 	if entry.Type()&os.ModeSymlink != 0 {
 		info, err := os.Stat(path)
 		if err != nil {
-			hashText(digest, "stat-error")
+			digest.text("stat-error")
 			return
 		}
-		hashFileInfo(digest, info)
+		digest.fileInfo(info)
 		return
 	}
 	info, err := entry.Info()
 	if err != nil {
-		hashText(digest, "info-error")
+		digest.text("info-error")
 		return
 	}
-	hashFileInfo(digest, info)
+	digest.fileInfo(info)
 }
 
 // digestSettingsAggregation hashes everything `/api/settings/get` derives its body from: settings.json,
@@ -222,50 +241,47 @@ func hashDirectoryEntryIdentity(digest hash.Hash, entry fs.DirEntry, path string
 // so only the names are hashed there -- a world file's body edit does not change the settings body's
 // world-name list and must not cause a needless rebuild.
 func digestSettingsAggregation(directories startup.UserDirectories) [sha256.Size]byte {
-	digest := sha256.New()
-	hashText(digest, "settings-aggregation-v1")
-	hashFileIdentity(digest, filepath.Join(directories["root"], "settings.json"))
+	digest := newMetadataDigest("settings-aggregation-v1")
+	digest.fileIdentity(filepath.Join(directories["root"], "settings.json"))
 	for _, key := range []string{"koboldAI_Settings", "novelAI_Settings", "openAI_Settings", "textGen_Settings"} {
-		hashSettingsJSONDirectory(digest, key, directories[key])
+		digest.settingsJSONDirectory(key, directories[key])
 	}
-	hashWorldNameDirectory(digest, "worlds", directories["worlds"])
+	digest.worldNameDirectory("worlds", directories["worlds"])
 	for _, key := range []string{"themes", "movingUI", "quickreplies", "instruct", "context", "sysprompt", "reasoning"} {
-		hashSettingsJSONDirectory(digest, key, directories[key])
+		digest.settingsJSONDirectory(key, directories[key])
 	}
-	var identity [sha256.Size]byte
-	copy(identity[:], digest.Sum(nil))
-	return identity
+	return digest.sum()
 }
 
-// hashSettingsJSONDirectory hashes the entries the two settings readers would open: names are counted in
+// settingsJSONDirectory hashes the entries the two settings readers would open: names are counted in
 // ReadDir order (which is sorted), and each selected file contributes its resolved identity.
-func hashSettingsJSONDirectory(digest hash.Hash, key, directory string) {
-	hashText(digest, key)
+func (digest *metadataDigest) settingsJSONDirectory(key, directory string) {
+	digest.text(key)
 	entries, err := os.ReadDir(directory)
 	if err != nil {
-		hashText(digest, "readdir-error")
+		digest.text("readdir-error")
 		return
 	}
 	for _, entry := range entries {
 		if filepath.Ext(entry.Name()) != ".json" {
 			continue
 		}
-		hashText(digest, entry.Name())
-		hashDirectoryEntryIdentity(digest, entry, filepath.Join(directory, entry.Name()))
+		digest.text(entry.Name())
+		digest.directoryEntryIdentity(entry, filepath.Join(directory, entry.Name()))
 	}
 }
 
-// hashWorldNameDirectory hashes only the NAMES readWorldNames returns, because that is all it reads.
-func hashWorldNameDirectory(digest hash.Hash, key, directory string) {
-	hashText(digest, key)
+// worldNameDirectory hashes only the NAMES readWorldNames returns, because that is all it reads.
+func (digest *metadataDigest) worldNameDirectory(key, directory string) {
+	digest.text(key)
 	entries, err := os.ReadDir(directory)
 	if err != nil {
-		hashText(digest, "readdir-error")
+		digest.text("readdir-error")
 		return
 	}
 	for _, entry := range entries {
 		if strings.EqualFold(filepath.Ext(entry.Name()), ".json") {
-			hashText(digest, entry.Name())
+			digest.text(entry.Name())
 		}
 	}
 }
@@ -275,28 +291,25 @@ func hashWorldNameDirectory(digest hash.Hash, key, directory string) {
 // and each one's identity, because the listing parses each file for its `name` and `extensions`. As in
 // the settings digest, a directory error is a marker and the rebuild path keeps the route's own 500.
 func digestWorldInfoList(worldsDirectory string) [sha256.Size]byte {
-	digest := sha256.New()
-	hashText(digest, "world-info-list-v1")
-	hashText(digest, worldsDirectory)
+	digest := newMetadataDigest("world-info-list-v1")
+	digest.text(worldsDirectory)
 	entries, err := os.ReadDir(worldsDirectory)
 	if err != nil {
-		hashText(digest, "readdir-error")
+		digest.text("readdir-error")
 	} else {
 		for _, entry := range entries {
 			if !strings.EqualFold(nodePathExt(entry.Name()), ".json") {
 				continue
 			}
-			hashText(digest, entry.Name())
+			digest.text(entry.Name())
 			if !entry.Type().IsRegular() {
 				// The pinned filter excludes a non-regular entry before any read; its name still
 				// occupies a position in the sorted list, so the name above is enough.
-				hashText(digest, "not-regular")
+				digest.text("not-regular")
 				continue
 			}
-			hashDirectoryEntryIdentity(digest, entry, filepath.Join(worldsDirectory, entry.Name()))
+			digest.directoryEntryIdentity(entry, filepath.Join(worldsDirectory, entry.Name()))
 		}
 	}
-	var identity [sha256.Size]byte
-	copy(identity[:], digest.Sum(nil))
-	return identity
+	return digest.sum()
 }
