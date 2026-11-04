@@ -108,6 +108,12 @@ jobs:
           fi
       - name: Harness self-test (the gate's teeth)
         run: node tests/browser/third-party-extensions-selftest.mjs
+      # THE COMPARATOR'S OWN TEETH. This file used to be referenced by nothing, so a change to the soak
+      # guard's noise filter (the abort-costume fix) could land with its two new cases never executed. The
+      # selftest spawns the real comparator against synthetic leg pairs and proves both directions: the
+      # probe-aborted fetch is ignored, and the same message WITH a recorded API failure still fails.
+      - name: Corpus comparator self-test (the soak guard's teeth)
+        run: node tests/browser/extension-corpus-selftest.mjs
 
   # The PR lane's small, real drive: two pinned extensions through the whole lifecycle on both subjects.
   sentinel:
