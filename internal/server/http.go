@@ -542,7 +542,8 @@ func newHTTPHandlerWithRouteDomains(notFoundPage []byte, options HTTPHandlerOpti
 	// responseTime (108), CORS (138) and every route, so it wraps everything below the panic
 	// boundary: it sees the final headers of every response, including the handlers'
 	// Content-Length/ETag and the middleware's Vary.
-	return pinnedPanicBoundary(pinnedCompressionMiddleware(pinnedResponseTimeMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {		setPinnedSecurityHeaders(w.Header())
+	return pinnedPanicBoundary(pinnedCompressionMiddleware(pinnedResponseTimeMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		setPinnedSecurityHeaders(w.Header())
 		setPinnedCORSBaseVary(w.Header(), corsSettings)
 		if servePinnedCORS(w, r, corsSettings) {
 			return
