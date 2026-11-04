@@ -139,7 +139,9 @@ A behaviour the product will not have, decided rather than pending:
 
 - **Q1's tree is synthesised, not the user's.** A claim about a real user's directory rests on the
   offline local qualification channel in `docs/development-loop.md` §4, whose result is recorded as
-  an observation and never as an upload.
+  an observation and never as an upload. The bar for the strong form of the claim -- one real,
+  long-used tree, a before/after byte census, journey and provider-request equality, hand-back,
+  rollback and the failure path -- is stated with its current `NOT MET` state in `GOAL.md` §14.
 - **A drift the harness had to neutralise is not a parity claim.** Pinned's `extensions.autoUpdate`
   defaults true while GoTavern resolves it OFF for every ambiguous input (`AGENTS.md` product rule
   26). That is a DECIDED divergence; the harness freezes the pinned extension at its pin so both

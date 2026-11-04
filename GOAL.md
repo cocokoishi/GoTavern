@@ -1,4 +1,4 @@
-# GoTavern — Real SillyTavern Drop-in Parity & Performance
+# GoTavern — Real SillyTavern Drop-in Parity, Performance and Engineering
 
 This file is the **locked goal** of the project. It is not a plan and not a roadmap: it is the
 statement every lane, subagent, commit, CI gate and report must answer to. The question is always
@@ -11,16 +11,39 @@ statement every lane, subagent, commit, CI gate and report must answer to. The q
 
 ## 1. The goal
 
-Turn GoTavern from "a Go backend that implements a large number of SillyTavern APIs" into a
-production-grade **drop-in replacement that can carry a long-lived SillyTavern user directory**.
+GoTavern has one product goal and one engineering goal, and they are pursued together — a faster,
+cleaner GoTavern that is less compatible, or a compatible one that is not measurably better, is not
+progress.
 
-A user must be able to keep their existing SillyTavern frontend, `config.yaml`, `data/`, character
-cards, avatars, backgrounds, chats, world books, complex presets, Quick Replies, Regex, STscript,
-variables, personas, extensions and 酒馆助手 / Tavern Helper / JS-Slash-Runner, and simply swap the
-backend.
+**1a. The product goal — a real drop-in.** Turn GoTavern from "a Go backend that implements a large
+number of SillyTavern APIs" into a production-grade **drop-in replacement that can carry a long-lived
+SillyTavern user directory**. A user must be able to keep their existing SillyTavern frontend,
+`config.yaml`, `data/`, character cards, avatars, backgrounds, chats, world books, complex presets,
+Quick Replies, Regex, STscript, variables, personas, extensions and 酒馆助手 / Tavern Helper /
+JS-Slash-Runner, and simply swap the backend. For every behaviour pinned SillyTavern supports and that
+is not an explicit product exclusion, GoTavern must be equivalent **on the surfaces a user actually
+observes**. §14 states the strongest form of this claim as a testable bar; it is the bar, not the
+current state.
 
-For every behaviour that pinned SillyTavern supports and that is not an explicit product exclusion,
-GoTavern must be equivalent **on the surfaces a user actually observes**.
+**1b. The engineering goal — a better artifact, without trading 1a away.** Make GoTavern genuinely
+light, fast, stable, understandable and pleasant to start:
+
+- **light and fast**: measured, reproducible improvement in startup, steady-state and peak RSS, CPU
+  time, tail latency and large-data behaviour, with the cost of every optimization stated (§15);
+- **stable**: no goroutine/file-descriptor/heap drift, no cache-incoherence or lost-write class, no
+  retry-masked failure, no hidden second database;
+- **clear architecture**: high cohesion, explicit ownership, testable seams, no god object — and the
+  discipline to leave mature, well-tested, semantically complex code alone (§15.4);
+- **simple CLI**: a first-run experience a non-developer understands — product identity, real paths, a
+  truthful Ready line, actionable errors, quiet by default, TTY-safe colour, no ASCII-art waste —
+  while every pinned SillyTavern flag and behaviour stays discoverable and compatible (§15.5);
+- **honest README and figure**: the first screen says what GoTavern is, why it is lighter and how to
+  start it; every number in it is generated from a recorded artifact and gated against it (§15.6).
+
+**1c. The release this program ships.** The deliverable is `v0.1.0-alpha.14` as a **formal,
+stable-channel release**: same-SHA gates green, release notes not ahead of evidence, published
+artifacts verified after publication (§16). No tag is created and no channel is moved until §16 holds
+and the evidence table names every gate run.
 
 The goal is met only when all of the following are demonstrated with the shipped artifact:
 
@@ -37,7 +60,8 @@ The goal is met only when all of the following are demonstrated with the shipped
 9. save / reload / swipe / regenerate / continue / restart all preserve that equality;
 10. data written by GoTavern can be handed back to original Node SillyTavern and keeps working;
 11. only after compatibility holds, a fair paired benchmark proves the CPU/RSS/startup/long-run
-    advantage.
+    advantage;
+12. the CLI, the README and the performance figure meet §15.5-§15.6, and the release meets §16.
 
 ## 2. What is forbidden as evidence
 
@@ -201,7 +225,35 @@ messages or JSON keys globally, dropping unknown fields, ignoring headers, ignor
 comparing only content, collapsing duplicates, or ignoring prompt order. Anything genuinely
 nondeterministic is normalised per JSON path with the reason and its evidence recorded.
 
-## 11. Order of work
+## 11. Order of work: the M0–M8 engineering ladder
+
+This is the ladder for the engineering program — architecture, performance, CLI, documentation and the
+release — and it is the only statement of what comes next for that program. It does not replace the
+parity ladder in §11.1: a parity milestone that regresses is a red gate at every point on this ladder.
+A milestone is not a theme: each one names the capability that must be RUNNABLE and the gate that
+decides it. Moving on because the previous milestone's cheap checks are green is forbidden
+(`AGENTS.md` rule 23).
+
+| Milestone | The capability that must be runnable | Closed by |
+|---|---|---|
+| **M0 — read-only audit** | a dependency, data-flow and performance model with confirmed issues, unverified hypotheses named, and a priority order | a dated `HANDOFF.md` checkpoint whose findings carry file:line evidence, plus this file |
+| **M1 — CLI experience** | identity, a truthful Ready line, real paths, per-command help/version, unknown-flag warning, TTY-safe colour, Docker headless boot, friendly shutdown, actionable errors — with every pinned flag preserved | new CLI tests over injected streams, the three-platform boot paths, and console-output fixtures updated deliberately |
+| **M2 — performance baseline** | first the evidence gate (README table, figure and provenance generated from and checked against the recorded artifact), then scale benchmarks: 100/1000/10000 cards, large JSONL chats, settings aggregation, world info, a 229-asset page load, provider assemble/marshal, concurrency; peak RSS, CPU time, GC, p99; pprof/benchstat capture | a recorded baseline naming commit, Go version, runner, data scale, rounds and raw artifact; and a gate that fails when the docs and the artifact disagree |
+| **M3 — first hotspot** | ONE highest-ROI, lowest-risk hotspot fixed, with before/after on the same input and the compatibility suite green on the same commit | the same-input benchmark plus a same-SHA differential run |
+| **M4 — architecture** | `orderedjson` → `httpx` → `userdata` extraction, move-only first, then an explicit route table replacing the `init()` registrars | every step guarded by an existing differential gate; no observable behaviour change |
+| **M5 — big data and concurrency** | chat-summary streaming, identity-keyed settings/world-info caches, static double-resolve removal, lock scope, large-tree startup | peak-memory and latency before/after, with response bytes unchanged |
+| **M6 — long-term stability** | panic boundary, cache-consistency tests (including same-size replacement), `http.Server` timeouts, provider truncation/redirect differentials, `-race` and parallel tests | each fix has a failing-then-passing reproducer |
+| **M7 — README and figure** | first-screen restructure; a ~1200×675 16:9 dark+light figure generated from the artifact; unit discipline; no stale version text; accessibility/contrast checks | generator determinism, agreement with the artifact, and the docs gate |
+| **M8 — acceptance and release** | the full same-SHA gate set, cross-platform, packaged artifact, public-artifact verification, and `v0.1.0-alpha.14` as a formal release | §16 |
+
+Each milestone ends with a report in the shape of §12: what changed, before/after numbers on the same
+input, the gates that ran (with run ids), what became simpler, what is still unproven, and the next
+three priorities. A local run is triage; CI is the gate.
+
+### 11.1 The parity ladder this program inherits (closed at `v0.1.0-alpha.13`; still standing gates)
+
+The `M0`-`M5` names in the table below are the PARITY milestones and are distinct from the engineering
+milestones in §11; a regression in any of them is a red gate at every point on the engineering ladder.
 
 The order below is the milestone ladder, and it is the only statement of what comes next. A milestone is
 not a theme: each one names the capability that must be RUNNABLE, and the gate that decides it. Moving to
@@ -294,6 +346,22 @@ The core goal of a round is complete only when every line below is true.
 [ ] the paired performance benchmark is done once compatibility is stable
 ```
 
+### 12.1 The engineering program's definition of done
+
+- [ ] M1: the first-run output names GoTavern, its version, its baseline, its real data/config paths
+      and a Ready line printed only after the listener serves; `--help`/`version` work for every
+      subcommand regardless of argument position; an unknown flag warns; colour is TTY-safe; Docker
+      boots headless; shutdown is friendly; the pinned error formats are preserved
+- [ ] M2: the performance-evidence gate exists and has teeth, and a baseline is recorded with commit,
+      Go version, runner, data scale, rounds and the raw artifact
+- [ ] M3: one hotspot has a same-input before/after and the same-commit compatibility gates are green
+- [ ] M4: the extracted packages are move-only, `internal/server` owns less, and every step was gated
+      by an existing differential
+- [ ] M5: large-data and concurrency behaviour is measured and improved without changing response bytes
+- [ ] M6: the failure paths and the truncation/redirect differentials are decided with evidence
+- [ ] M7: README first screen, figure, provenance and the release record agree with the artifact
+- [ ] M8: §16 is satisfied on one commit, and the public artifacts are verified after publication
+
 ## 13. Non-claims
 
 The following remain outside the product, and saying so is part of the contract: arbitrary Node.js
@@ -311,3 +379,135 @@ decision document, never a generic 500 and never a fake vector. This is a produc
 release and it is reversible by a user requirement (the scoped reversal plan is in the decision
 document). The compatibility promise for vector storage is therefore: **storage and body-supplied
 vectors are compatible; provider-produced embeddings are excluded and say so.**
+
+## 14. The drop-in bar, and the honest answer today
+
+The strongest form of this project's claim is the one a user makes for it:
+
+> point GoTavern at a long-lived, actually-used SillyTavern directory and everything keeps working --
+> cards, chats, groups, world books, presets, Quick Replies, personas, backgrounds, sprites, secrets,
+> settings, installed extensions and 酒馆助手; no file is damaged, no unknown field is dropped, no
+> extension is updated without consent; and every observable behaviour, including the final request that
+> reaches the model, equals pinned Node's.
+
+That is the bar. It is NOT the current state, and no document may present it as demonstrated until all
+of the following have run on ONE commit, on ONE real tree, with the result recorded in
+`docs/goal-scorecard.md`:
+
+1. **A real tree, not a synthesis.** A directory that has actually been used -- not the Go-synthesised
+   tree in `tests/e2e/longlived_test.go`, not the committed corpus, not a fresh install -- boots
+   directly with its own `config.yaml`, users, cards, chats, groups, worlds, presets, Quick Replies,
+   themes, assets, secrets and installed extensions. `docs/development-loop.md` §4 is the only channel
+   where this can be observed, and its result is an observation, never an upload.
+2. **A byte census.** Every file under the data root, the mutable install trees and the extension trees
+   is hashed before the first boot and after the journey. Every difference is classified as either the
+   exact mutation pinned makes from the same copy -- proven by running pinned Node on the same input --
+   or a defect. "Additive, so probably fine" is not a classification.
+3. **The journey equals pinned's.** The browser journey, the persisted state afterwards and the final
+   provider request bytes are equal between GoTavern and pinned Node on that tree: §3's sentence, run on
+   the real input instead of on a derivation.
+4. **Hand-back and rollback.** The tree GoTavern wrote is handed back to pinned Node and keeps working;
+   restoring the pre-boot copy yields a byte-identical tree.
+5. **The failure path is safe.** A killed process, a full disk, a read-only directory, a corrupted chat
+   and a concurrent writer each leave the user's data parseable and recoverable, with the bounded-lock
+   and atomic-write invariants of rules 12 and 24 intact.
+6. **The scope words travel with the claim.** Any README, release note, figure or report that calls the
+   product "drop-in", "compatible", "safe" or "stable" must state in the same place which of 1-5 have
+   run and which have not; a claim resting on a synthetic tree or a derivation says so.
+
+**Current state, dated 2026-11-03 (`v0.1.0-alpha.13`): NOT MET for the strong form.** The evidence that
+exists covers a Go-synthesised long-lived tree, a committed synthetic corpus, a packaged archive over a
+stock tree, and the local private channel's instruments -- canaried, never run against real originals
+(`docs/development-loop.md` §4: "STATUS: NOT YET DEMONSTRATED"). `docs/goal-scorecard.md` §3 says the
+same in one line: Q1's tree is synthesised, not the user's. The M0 audit of 2026-11-03 named two
+concrete reasons the sentence cannot be upgraded yet: response compression is absent where pinned sends
+gzip (a header and wire-byte divergence), and the character-card disk cache pinned maintains is created
+at startup but never used, so a real card-heavy tree is read and parsed differently. Neither is by
+itself a data-destruction path; both are the class of difference this section exists to catch. This
+paragraph is dated: when items 1-5 are demonstrated it is replaced, not kept, and the scorecard row
+carries the run.
+
+## 15. The engineering contract
+
+### 15.1 What every optimization must answer
+
+Before a change is accepted it must state: which condition it speeds up; what it costs (memory,
+complexity, a new cache, a new failure mode); why the observed behaviour is unchanged; how the gain
+was measured; and which gate guards it. An optimization with no measurement, or one that buys a
+benchmark at the expense of compatibility or data safety, is rejected.
+
+### 15.2 Measurement discipline
+
+Same host, same commit, same data, same parameters before and after. Every record names the commit,
+Go version, OS/CPU/RAM, GOMAXPROCS, build flags, run mode, data scale, concurrency, rounds and the raw
+artifact. Numbers from different hosts are never spliced into one claim. The tools are the ones the
+repository already owns (`internal/server/bench_test.go`, `scripts/smoke-metrics.mjs`, `tests/perf/`,
+`tools/benchmark-svg.mjs`); a competing system is not created. CPU/heap/block/mutex profiles,
+`benchstat` multi-round comparison, `-race` and an execution trace are used where they answer the
+question. A regression is reported as a regression.
+
+### 15.3 Cache discipline
+
+Every cache states its key, value, owner, lifetime, capacity, eviction rule, invalidation condition,
+external-modification handling, concurrency model, rebuild path, failure fallback and measured
+benefit. The identity-key model of the account cache (path + mtime + size, bounded, cloned values, no
+TTL) is the reference. If invalidation cannot be guaranteed, the design is simpler, not cached. A
+cache may never become an implicit second database.
+
+### 15.4 Architecture discipline and the do-not-rewrite list
+
+Boundaries are chosen by DATA OWNERSHIP, not by filename. Extraction is move-only first, one boundary
+per step, each step shippable and revertible, each guarded by an existing differential gate. No
+big-bang rewrite, no interface proliferation, no forwarding-only helper chains. Mature, well-tested,
+semantics-complex code is left alone: the ordered-JSON semantics, the provider wire converters, the
+tokenizer engines, the startup atomic-write/lock core, `fsretry`, `lockacquire`, the PNG/card
+semantics, the pinned MIME tables, the middleware order, the chat-completion registry, the frontend
+static serving, `internal/migrate`, `configinit`, and every oracle fixture.
+
+### 15.5 CLI contract
+
+A first run prints GoTavern's identity and baseline, the resolved data root and config path, and a
+Ready line carrying the real URL — only after the listener serves. By default it is quiet (no internal
+stage timings unless asked), never prints secrets, and prints no ASCII art. Errors name the cause and
+the next step (config syntax, port in use, data-dir permission, missing tokenizer, TLS, corrupt data,
+listener failure, browser launch failure) without changing a pinned error format that a fixture
+asserts. `--help` and `version` work for every subcommand and in any argument position; an unknown flag
+warns; colour is TTY-aware and honours `NO_COLOR`/`FORCE_COLOR`; Docker and the launchers boot
+headless; Ctrl+C prints a correct, brief message. Every pinned SillyTavern flag and its documented
+behaviour remain available.
+
+### 15.6 README and performance-figure contract
+
+The first screen states what GoTavern is, why it is lighter and how to start it: name and one-line
+description, one real performance figure, the shortest install/start block, the compatibility state
+with known limits, and links to the detail. The figure is ~1200×675 16:9, readable in dark and light
+GitHub, with units on every number, computed (never hardcoded) multipliers, per-metric wording
+("faster" for time, "lighter" for memory), no truncated axes, no external font/image/script/network
+reference, and it is GENERATED from a recorded artifact. The generator is deterministic and refuses to
+render without a run id and a commit. A gate compares the committed README table, figure and
+provenance against the artifact, so a number cannot drift from the run that produced it. Regressions
+are shown, not hidden.
+
+## 16. The `v0.1.0-alpha.14` release bar
+
+`v0.1.0-alpha.14` is the formal (stable-channel) release this program ships. It may be tagged only
+when ALL of the following hold, on ONE commit:
+
+1. every required same-SHA gate in `docs/release-manifest.json` is green at that commit, including the
+   third-party extension corpus gate with its `extension-compat-evidence` artifact;
+2. the new M1/M2/M7 gates (CLI, performance-evidence, README/figure) are green at the same commit;
+3. `scripts/classify-version-tag.sh` classifies the tag stable, its equality list is extended in the
+   same change, and `scripts/test-classify-version-tag.sh` covers the new tag;
+4. `docs/release-notes-v0.1.0-alpha.14.md` is generated from / checked against the evidence, states
+   every boundary and every unproven item (§14, §13), and does not claim ahead of a gate;
+5. the release publishes with `draft=false`, `prerelease=false`, `latest=true`, six archives plus
+   `checksums.txt`, and the release body carries the same-SHA evidence table;
+6. Docker `:v0.1.0-alpha.14` and `:latest` are published and resolve to the same digest;
+7. after publication the published bytes are verified independently: installers over real TLS,
+   checksums, the published binary's own `version`, the all-20 corpus against the published binary,
+   the published container's boot, and a local archive check;
+8. no force push, no tag move, no `--no-verify`, no private data in any artifact, and every commit
+   identity normalised.
+
+If any of 1-7 cannot be met, the release does not happen and the reason is recorded in `HANDOFF.md`.
+A formal release is a claim about the artifact, not about the intention.
