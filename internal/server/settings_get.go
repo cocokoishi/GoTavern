@@ -56,10 +56,41 @@ func (runtime *accountRuntime) serveSettingsGet(w http.ResponseWriter, request *
 		serveStatusText(w, http.StatusInternalServerError)
 		return
 	}
-	settingsBytes, err := os.ReadFile(filepath.Join(directories["root"], "settings.json"))
+	// IDENTITY-KEYED CACHE, see settings_cache.go for the §15.3 fields and the residual window. The digest
+	// is taken before the rebuild and re-taken after it; only a stable identity is stored, so a write that
+	// lands mid-rebuild can never be cached under the newer state.
+	cacheKey := userMetadataCacheKey("settings-get", runtime.options.DataRoot, account.string("handle"))
+	identity := digestSettingsAggregation(directories)
+	if body, hit := loadUserMetadataCache(cacheKey, identity); hit {
+		respondJSONBytes(w, http.StatusOK, body)
+		return
+	}
+	response, err := runtime.buildSettingsGetResponse(directories)
 	if err != nil {
 		serveStatusText(w, http.StatusInternalServerError)
 		return
+	}
+	// The body is produced by the SAME serializer the uncached route used (respondJSON called
+	// marshalNodeJSON), and it is written by respondJSONBytes, whose headers are the ones respondJSON set.
+	// That is what makes a cache hit byte-identical to the uncached response, including the ETag.
+	body, err := marshalNodeJSON(response)
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	if digestSettingsAggregation(directories) == identity {
+		storeUserMetadataCache(cacheKey, identity, body)
+	}
+	respondJSONBytes(w, http.StatusOK, body)
+}
+
+// buildSettingsGetResponse is the original aggregation, unchanged in read order and error handling so the
+// rebuild path behaves exactly like the uncached route (a missing settings.json or directory is still the
+// same 500).
+func (runtime *accountRuntime) buildSettingsGetResponse(directories startup.UserDirectories) (settingsGetResponse, error) {
+	settingsBytes, err := os.ReadFile(filepath.Join(directories["root"], "settings.json"))
+	if err != nil {
+		return settingsGetResponse{}, err
 	}
 	response := settingsGetResponse{
 		Settings:   string(bytes.ToValidUTF8(settingsBytes, []byte("\uFFFD"))),
@@ -72,24 +103,19 @@ func (runtime *accountRuntime) serveSettingsGet(w http.ResponseWriter, request *
 		RequestCompression:         runtime.settingsRequestCompression(),
 	}
 	if response.KoboldAISettings, response.KoboldAISettingNames, err = readSettingsFiles(directories["koboldAI_Settings"], true); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
-		return
+		return settingsGetResponse{}, err
 	}
 	if response.NovelAISettings, response.NovelAISettingNames, err = readSettingsFiles(directories["novelAI_Settings"], true); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
-		return
+		return settingsGetResponse{}, err
 	}
 	if response.OpenAISettings, response.OpenAISettingNames, err = readSettingsFiles(directories["openAI_Settings"], true); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
-		return
+		return settingsGetResponse{}, err
 	}
 	if response.TextGenerationWebUIPresets, response.TextGenerationWebUIPresetNames, err = readSettingsFiles(directories["textGen_Settings"], true); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
-		return
+		return settingsGetResponse{}, err
 	}
 	if response.WorldNames, err = readWorldNames(directories["worlds"]); err != nil {
-		serveStatusText(w, http.StatusInternalServerError)
-		return
+		return settingsGetResponse{}, err
 	}
 	for _, item := range []struct {
 		directory string
@@ -105,11 +131,10 @@ func (runtime *accountRuntime) serveSettingsGet(w http.ResponseWriter, request *
 	} {
 		*item.target, err = readAndParseSettingsDirectory(item.directory)
 		if err != nil {
-			serveStatusText(w, http.StatusInternalServerError)
-			return
+			return settingsGetResponse{}, err
 		}
 	}
-	respondJSON(w, http.StatusOK, response)
+	return response, nil
 }
 
 func readSettingsFiles(directory string, removeExtension bool) ([]string, []string, error) {

@@ -223,11 +223,39 @@ func (runtime *accountRuntime) serveWorldInfoList(w http.ResponseWriter, request
 		return
 	}
 	worldsDirectory := directories["worlds"]
+	// IDENTITY-KEYED CACHE, see settings_cache.go for the §15.3 fields and the residual window. The digest
+	// is taken before the rebuild and re-taken after it; only a stable identity is stored.
+	cacheKey := userMetadataCacheKey("worldinfo-list", runtime.options.DataRoot, account.string("handle"))
+	identity := digestWorldInfoList(worldsDirectory)
+	if body, hit := loadUserMetadataCache(cacheKey, identity); hit {
+		respondJSONBytes(w, http.StatusOK, body)
+		return
+	}
+	data, err := buildWorldInfoList(worldsDirectory)
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	// The body is produced by the SAME serializer respondOrderedNodeJSON used, and respondJSONBytes sets
+	// exactly the headers respondOrderedNodeJSON set, so a hit is byte-identical including the ETag.
+	body, err := marshalOrderedNodeJSON(data)
+	if err != nil {
+		serveStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	if digestWorldInfoList(worldsDirectory) == identity {
+		storeUserMetadataCache(cacheKey, identity, body)
+	}
+	respondJSONBytes(w, http.StatusOK, body)
+}
+
+// buildWorldInfoList is the original listing, unchanged in read order and error handling so the rebuild
+// path behaves exactly like the uncached route (a missing worlds directory is still the same 500).
+func buildWorldInfoList(worldsDirectory string) (orderedNodeJSON, error) {
 	entries, err := os.ReadDir(worldsDirectory)
 	if err != nil {
 		// Pinned worldinfo.js:65-68 answers sendStatus(500) when readdir fails.
-		serveStatusText(w, http.StatusInternalServerError)
-		return
+		return orderedNodeJSON{}, err
 	}
 	// The pinned filter is `file.isFile() && path.extname(file.name).toLowerCase()
 	// === '.json'` on Dirents from withFileTypes, so symlinks and directories are
@@ -281,7 +309,7 @@ func (runtime *accountRuntime) serveWorldInfoList(w http.ResponseWriter, request
 		fileData.setMember("extensions", fileExtensions)
 		data.array = append(data.array, fileData)
 	}
-	respondOrderedNodeJSON(w, http.StatusOK, data)
+	return data, nil
 }
 
 func (runtime *accountRuntime) serveWorldInfoGet(w http.ResponseWriter, request *http.Request) {
