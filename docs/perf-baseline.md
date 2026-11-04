@@ -30,15 +30,15 @@ only come from the same run, because GOAL §15.2 forbids splicing numbers or hos
 | field | value |
 |---|---|
 | workflow / job | `GoTavern smoke metrics` / `paired-linux-amd64` |
-| run id | `41614844179` (success, `workflow_dispatch`, `main`) |
-| measured commit | `4bf54510c747b3f257835fa1bfa86909bbb5f134` (`v0.1.0-alpha.13`) |
+| run id | `41777492725` (success, `workflow_dispatch`, `main`) |
+| measured commit | `4fd8ed7589abaec239c6c3b19dfff2fc940e5421` (the final code commit of the alpha.14 engineering program; the release tag is a documentation-only descendant and its own same-SHA smoke run is named separately) |
 | runner image | `ubuntu26` (`20261026.180.1`), Linux/X64, kernel `7.0.0-1017-azure`, **4 vCPU, 16,759,443,456 B RAM** |
 | Node (pinned subject) | `v24.22.1` |
 | Go toolchain | `go.mod` directive `1.27.3`, read by `setup-go` via `go-version-file: go.mod`; **not recorded by the artefact** (named, not invented) |
-| build | `CGO_ENABLED=0`, `-trimpath`, `-ldflags="-s -w -X main.version=paired-41614844179"` (`smoke-metrics.yml` paired job) |
+| build | `CGO_ENABLED=0`, `-trimpath`, `-ldflags="-s -w -X main.version=paired-41777492725"` (`smoke-metrics.yml` paired job) |
 | rounds / samples | 3 alternating rounds × 30 sequential requests per path; RSS median of 6 samples/subject; 90 latency samples/subject; soak 2 × 10 min, 30 s sampling, 20 samples/subject |
 | GOMAXPROCS | not set by the harness (defaults to the 4-vCPU runner); the environment is not in the artefact, so it is recorded as not-recorded |
-| raw artefact | Actions artifact `q22-paired-benchmark` of run `41614844179`, embedded under `report` |
+| raw artefact | Actions artifact `q22-paired-benchmark` of run `41777492725`, embedded under `report` |
 | sibling host record | Actions artifact `smoke-metrics` of the **same** run, used only for the host block above |
 
 ## 2. Unit rule
@@ -146,7 +146,7 @@ mismatch with a readable diff naming the file, the expected value and the artefa
    the decimal-MB rule, for **every** occurrence of the four rows (the first screen no longer carries a
    second mini-table; the Performance table is the text surface, with its "How it was measured" column
    checked against the artifact's sample counts);
-5. README prose: cited run id and short commit; soak drift values (`−1.6 MB`, `+0.32 ms`, `+0.41 ms`)
+5. README prose: cited run id and short commit; soak drift values (`+0.0 MB`, `+0.44 ms`, `-17.99 ms`)
    recomputed from `soak[]`; the decimal-MB unit rule stated once in the section;
 6. provenance: run id, full commit, runner image, rounds, request count, soak description, the decimal-MB
    unit statement (including that the unit is stated on the row), both figure filenames, the shared 1200 x

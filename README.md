@@ -4,7 +4,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/benchmark.svg">
-  <img src="docs/assets/benchmark-light.svg" alt="Paired benchmark, one GitHub runner, both servers from the same checkout: GoTavern cold-starts in 213 ms against Node's 11,522 ms (54.09x faster), holds 39.5 MB RSS against 1,153 MB (29.16x lighter), answers GET /version in 0.292 ms against 51.04 ms (175.1x faster) and GET / in 1.49 ms against 10.72 ms (7.17x faster). Each row has its own zero-based axis whose maximum is printed; method and caveats are in the Performance section." width="1200">
+  <img src="docs/assets/benchmark-light.svg" alt="Paired benchmark, one GitHub runner, both servers from the same checkout: GoTavern cold-starts in 163 ms against Node's 14,629 ms (89.75x faster), holds 39.8 MB RSS against 1,145 MB (28.73x lighter), answers GET /version in 0.403 ms against 65.47 ms (162.4x faster) and GET / in 8.28 ms against 13.75 ms (1.66x faster). Each row has its own zero-based axis whose maximum is printed; method and caveats are in the Performance section." width="1200">
 </picture>
 
 Medians of 3 alternating rounds on ONE shared GitHub runner, both servers from the same checkout. The figure ships in
@@ -38,11 +38,11 @@ manual downloads and the archive matrix are in [Install](#install).
 
 **The strong drop-in claim in [`GOAL.md` §14](GOAL.md) is not met yet, and this README does not make it.** The evidence
 that exists covers a **synthetic** long-lived tree, a committed synthetic corpus, and a packaged archive over a stock
-SillyTavern tree. It does not cover a long-lived tree that a real user has actually used, and two concrete gaps are
-named rather than hidden: response compression is absent where pinned sends gzip (a header and wire-byte divergence),
-and the character-card disk cache pinned maintains is created at startup but never used. The full list of what is and
-is not demonstrated, question by question, is in [Compatibility](#compatibility); the decisions behind the explicit
-exclusions are in [What won't work](#what-wont-work).
+SillyTavern tree. It does not cover a long-lived tree that a real user has actually used. Response compression — one of
+the two concrete gaps alpha.13 named — is now implemented and gated against a recorded pinned contract; the
+character-card disk cache pinned maintains is still created at startup but not used on the request path, and that
+remains a named gap. The full list of what is and is not demonstrated, question by question, is in
+[Compatibility](#compatibility); the decisions behind the explicit exclusions are in [What won't work](#what-wont-work).
 
 What the tested scope shows: the unmodified pinned frontend is served over the pinned route surface (`0` unknown
 surfaces in the derived coverage inventory), provider-wire captures exist for every implemented chat-completion source,
@@ -159,10 +159,10 @@ Point GoTavern at your existing directory and start it. Auto-update resolves to 
 
 | Metric | Pinned Node SillyTavern | GoTavern | How it was measured |
 |---|---|---|---|
-| Cold start to first `/version` 200 | 11,522 ms | **213 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
-| Steady-state RSS (`VmRSS` from `/proc`) | 1,153 MB | **39.5 MB** | median of 6 samples, after readiness and 30 requests per path (60 per round) |
-| `GET /version` latency | 51.04 ms | **0.292 ms** | median of 90 sequential requests (p95: 59.56 / 0.424) |
-| `GET /` latency (HTML shell) | 10.72 ms | **1.49 ms** | median of 90 sequential requests |
+| Cold start to first `/version` 200 | 14,629 ms | **163 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
+| Steady-state RSS (`VmRSS` from `/proc`) | 1,145 MB | **39.8 MB** | median of 6 samples, after readiness and 30 requests per path (60 per round) |
+| `GET /version` latency | 65.47 ms | **0.403 ms** | median of 90 sequential requests (p95: 73.01 / 0.526) |
+| `GET /` latency (HTML shell) | 13.75 ms | **8.28 ms** | median of 90 sequential requests; GoTavern's number includes gzip CPU |
 
 Memory is decimal MB (1 MB = 1,000,000 bytes); every other number is milliseconds. The table, the figure and
 [`docs/assets/benchmark.svg.provenance.md`](docs/assets/benchmark.svg.provenance.md) are restatements of one committed
@@ -171,7 +171,7 @@ any of them disagrees with it. The figure is generated in two variants — `docs
 `docs/assets/benchmark-light.svg` for light — because one palette cannot be legible on both canvases; the table above is
 the same data for a screen reader, a small screen, or a reader who wants to check the arithmetic.
 
-**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `41614844179` (success), the released commit `4bf5451` (v0.1.0-alpha.13), on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -1.6 MB, p95 drift +0.32 ms); pinned's RSS fell from its startup peak while its p95 drifted +0.41 ms over the window. A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The published release body appends the same-SHA run-id table, so the numbers above and the gate run that produced them are checkable together.
+**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `41777492725` (success), the released commit `4fd8ed7` (v0.1.0-alpha.14), on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift +0.0 MB, p95 drift +0.44 ms); pinned's RSS fell from its startup peak (-577 MB) and its p95 drifted -17.99 ms over the window. **One cost is shown rather than hidden:** `/` now carries gzip CPU because the HTML shell is compressed, which is why its median rose from the previous release while a full page load's wire bytes fell 67.4% (measured in this release's compression work). A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The published release body appends the same-SHA run-id table, so the numbers above and the gate run that produced them are checkable together.
 
 ### A profile-driven fix
 

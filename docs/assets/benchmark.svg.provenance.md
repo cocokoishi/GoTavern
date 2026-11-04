@@ -32,17 +32,17 @@ node tools/benchmark-svg.mjs --report tests/perf/q22-baseline.json \
 node tools/check-perf-docs.mjs
 ```
 
-The baseline itself was recorded from the Actions artifacts of run `41614844179`
-(`gh run download 41614844179 -n q22-paired-benchmark` and `-n smoke-metrics`) by
+The baseline itself was recorded from the Actions artifacts of run `41777492725`
+(`gh run download 41777492725 -n q22-paired-benchmark` and `-n smoke-metrics`) by
 `tools/record-perf-baseline.mjs`, which refuses a run/commit/runner mismatch between the two artifacts.
 
 | field | value |
 |---|---|
 | committed baseline | `tests/perf/q22-baseline.json` (wrapper; the q22 artefact is embedded verbatim under `report`) |
 | workflow | `GoTavern smoke metrics` |
-| run id | `41614844179` (conclusion: success) |
+| run id | `41777492725` (conclusion: success) |
 | run branch / event | `main`, `workflow_dispatch` |
-| commit measured | `4bf54510c747b3f257835fa1bfa86909bbb5f134` (the released commit itself: the stable-channel release commit; the tag points at this commit, so the figure quotes the same-SHA gate run rather than an ancestor) |
+| commit measured | `4fd8ed7589abaec239c6c3b19dfff2fc940e5421` (the final code commit of the engineering program; the release tag points at a documentation-only descendant, so the same-SHA `GoTavern smoke metrics` gate at the tag commit is a SEPARATE run whose id the release body's evidence table carries) |
 | runner image | `ubuntu26` |
 | host (same run) | `ubuntu26` `20261026.180.1`, Linux/X64, kernel `7.0.0-1017-azure`, 4 vCPU, 16,759,443,456 B RAM, Node `v24.22.1` (from the same run's `smoke-metrics` artifact) |
 | Go toolchain | `go.mod` directive `1.27.3`, read by `setup-go` via `go-version-file: go.mod`; the artefact itself does not record the toolchain |
@@ -51,16 +51,16 @@ The baseline itself was recorded from the Actions artifacts of run `41614844179`
 | unit rule | decimal MB, 1 MB = 1,000,000 bytes. The unit is **stated on the row** it applies to — the RSS row note reads `decimal MB (1e6 B)` — and the exact byte count is printed too, so the rounding is checkable |
 | figure size | 1200 x 675 pixels, 16:9; both variants are byte-compared in CI |
 
-`docs/goal-scorecard.md` row Q22 cites this alpha.13 measurement for the method and names this provenance record for
+`docs/goal-scorecard.md` row Q22 cites this alpha.14 measurement for the method and names this provenance record for
 the current figure; the README's Performance table quotes this run's medians, and both figure variants are generated
 from the same artefact, so the picture and the table restate ONE recording.
 
 ## Why this run and not another one
 
-- **It measured the RELEASED commit.** `4bf5451` is the tag's own target, so this is the required same-SHA
-  `GoTavern smoke metrics` gate run rather than an ancestor measurement; the documentation and the curated release
-  note live on `main` after the tag (and are read at publish), which is why the tag tree carries no run id of its
-  own. The published release body appends the same run-id table.
+- **It measured the final CODE commit, and the tag is a docs-only descendant.** `4fd8ed7` is the commit the
+  engineering program's code and gates last changed; the release tag points at the documentation commit after it, so
+  the figure cites the run that measured the code, while the release body's evidence table carries the separate
+  same-SHA `GoTavern smoke metrics` run at the tag commit. Both are named, and neither is inferred from the other.
 - **It measured the same experiment.** Same runner image, same alternating rounds, same fresh-`mkdtemp` data root
   per round, same 30 requests per path, and the artefact asserts `everyRoundAnswered`, `sampleCountsMatch`,
   `soakCompleted` and `soakSeriesMatch`.

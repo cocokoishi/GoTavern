@@ -67,13 +67,16 @@ zero timeouts.
 `v0.1.0-alpha.14` is the target and no tag exists yet. `docs/release-notes-v0.1.0-alpha.14.md`
 is committed and passes `scripts/verify-release-notes.mjs` (6,211 bytes, required sections and no
 placeholders); the channel classifier graduates the tag through the 54-case table. The paired
-benchmark was dispatched at the final code commit (`GoTavern smoke metrics` 41777492725) so the
-README table, the dual-theme figure and the provenance can be regenerated from that run under the
-M2a one-commit update procedure; after that commit the full same-SHA gate set of
-`docs/release-manifest.json` is dispatched at the release commit, and the tag is created only when
-every §16 condition holds. Post-publication verification (published installers, checksums, the
-published binary against the 20-extension corpus, the container pull-back) is part of §16, not an
-afterthought.
+benchmark was recorded at the final code commit (`GoTavern smoke metrics` 41777492725 at `4fd8ed7`):
+boot 163 ms vs 14,629 ms, steady RSS 39.8 MB vs 1,145 MB, `/version` 0.403 ms vs 65.47 ms (p95
+0.526 / 73.01), `/` 8.28 ms vs 13.75 ms, soak drift +0.0 MB / +0.44 ms. **`/` now includes gzip CPU**
+(1.49 ms before compression) and that cost is stated in the README, the scorecard and the figure
+while a full page load's wire bytes fall 67.4%; a bounded compressed-asset cache is the next
+optimisation, not a silent omission. The README table, both figure variants and the provenance were
+regenerated from that run under the M2a one-commit procedure. Next: the full same-SHA gate set of
+`docs/release-manifest.json` at the release commit, then the tag only when every §16 condition holds.
+Post-publication verification (published installers, checksums, the published binary against the
+20-extension corpus, the container pull-back) is part of §16, not an afterthought.
 
 ---
 
