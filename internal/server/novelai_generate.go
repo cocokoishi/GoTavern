@@ -359,7 +359,7 @@ func (runtime *accountRuntime) serveNovelAIGenerate(w http.ResponseWriter, reque
 			novelaiErrorTrue(w)
 			return
 		}
-		novelaiForwardStream(w, response)
+		novelaiForwardStream(w, request, response)
 		return
 	}
 
@@ -478,7 +478,7 @@ func novelaiFetchStreaming(ctx context.Context, request searchRequest) (*outboun
 // The non-ok branch ends the response with the raw error text, which is chunk-framed for the same
 // reason. Go would otherwise helpfully add a content-length for a small body, so the header is
 // flushed before any body byte is written.
-func novelaiForwardStream(w http.ResponseWriter, response *outbound.Response) {
+func novelaiForwardStream(w http.ResponseWriter, request *http.Request, response *outbound.Response) {
 	status := response.Status
 	if status == http.StatusUnauthorized {
 		status = http.StatusBadRequest
@@ -522,6 +522,11 @@ func novelaiForwardStream(w http.ResponseWriter, response *outbound.Response) {
 		}
 	}
 	_ = response.Stream.Close()
+	if response.Truncated {
+		// Pinned pipe() never forwards a source error and never ends the Express response, so a
+		// provider that dies mid-stream leaves the caller hanging until it disconnects.
+		<-request.Context().Done()
+	}
 }
 
 // ---- /api/novelai/generate-image -------------------------------------------------------------

@@ -1,0 +1,615 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "version": "1.19.0",
+    "commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+  },
+  "probe": "pinned relay response and peer-connection observable for a controlled provider that resets, stalls, redirects, or compresses; compared against GoTavern in the same run",
+  "crossHostSupported": true,
+  "clientTimeoutMs": 4000,
+  "paths": [
+    {
+      "id": "chat",
+      "route": "/api/backends/chat-completions/generate",
+      "body": {
+        "stream": true,
+        "chat_completion_source": "custom",
+        "custom_url": "<peer>",
+        "custom_model": "probe-model",
+        "messages": [
+          {
+            "role": "user",
+            "content": "probe"
+          }
+        ],
+        "max_tokens": 8,
+        "temperature": 0,
+        "presence_penalty": 0,
+        "frequency_penalty": 0,
+        "top_p": 1
+      },
+      "label": "chat-completions stream (forwardFetchResponse)",
+      "pinnedLiteral": null
+    },
+    {
+      "id": "kobold",
+      "route": "/api/backends/kobold/generate",
+      "body": {
+        "api_server": "<peer>",
+        "prompt": "probe",
+        "max_length": 8,
+        "streaming": true,
+        "temperature": 0,
+        "top_p": 1,
+        "top_k": 0,
+        "rep_pen": 1
+      },
+      "label": "kobold stream (forwardFetchResponse)",
+      "pinnedLiteral": null
+    },
+    {
+      "id": "novelai",
+      "route": "/api/novelai/generate",
+      "body": {
+        "streaming": true,
+        "model": "clio-v1",
+        "input": "probe",
+        "max_length": 8,
+        "temperature": 0,
+        "top_p": 1,
+        "top_k": 0,
+        "repetition_penalty": 1
+      },
+      "label": "novelai stream (forwardFetchResponse)",
+      "pinnedLiteral": "https://api.novelai.net"
+    },
+    {
+      "id": "textgen",
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<peer>",
+        "api_type": "generic",
+        "model": "probe-model",
+        "prompt": "probe",
+        "max_tokens": 8,
+        "stream": true,
+        "temperature": 0,
+        "top_p": 1
+      },
+      "label": "textgen stream (forwardFetchResponse + searchFetch redirect loop)",
+      "pinnedLiteral": null
+    },
+    {
+      "id": "ollama",
+      "route": "/api/backends/text-completions/generate",
+      "body": {
+        "api_server": "<peer>",
+        "api_type": "ollama",
+        "model": "probe-model",
+        "prompt": "probe",
+        "stream": true
+      },
+      "label": "textgen Ollama NDJSON re-framer (parseOllamaStream)",
+      "pinnedLiteral": null
+    }
+  ],
+  "scenarios": {
+    "chat.frames-reset": {
+      "relay": "chat",
+      "mode": "frames-reset",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "hang",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        }
+      },
+      "classification": "match"
+    },
+    "chat.stall": {
+      "relay": "chat",
+      "mode": "stall",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "hang",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        }
+      },
+      "classification": "match"
+    },
+    "chat.redirect-cross": {
+      "relay": "chat",
+      "mode": "redirect-cross",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "clean",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        },
+        "redirect": {
+          "hop1SensitivePresent": true,
+          "hop2SensitivePresent": false,
+          "hop2Sensitive": {},
+          "hop1BodyDrained": false,
+          "hop1BodyAborted": true,
+          "hop2RequestLine": "GET / HTTP/1.1"
+        }
+      },
+      "classification": "match"
+    },
+    "chat.redirect-same": {
+      "relay": "chat",
+      "mode": "redirect-same",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "clean",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        },
+        "redirect": {
+          "hop1SensitivePresent": true,
+          "hop2SensitivePresent": true,
+          "hop2Sensitive": {
+            "authorization": "<recorded>"
+          },
+          "hop1BodyDrained": false,
+          "hop1BodyAborted": true,
+          "hop2RequestLine": "GET / HTTP/1.1"
+        }
+      },
+      "classification": "match"
+    },
+    "chat.gzip": {
+      "relay": "chat",
+      "mode": "gzip",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "clean",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        }
+      },
+      "classification": "match"
+    },
+    "kobold.frames-reset": {
+      "relay": "kobold",
+      "mode": "frames-reset",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "hang",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        }
+      },
+      "classification": "match"
+    },
+    "kobold.stall": {
+      "relay": "kobold",
+      "mode": "stall",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "hang",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        }
+      },
+      "classification": "match"
+    },
+    "kobold.redirect-cross": {
+      "relay": "kobold",
+      "mode": "redirect-cross",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "clean",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        },
+        "redirect": {
+          "hop1SensitivePresent": false,
+          "hop2SensitivePresent": false,
+          "hop2Sensitive": {},
+          "hop1BodyDrained": false,
+          "hop1BodyAborted": true,
+          "hop2RequestLine": "GET / HTTP/1.1"
+        }
+      },
+      "classification": "match"
+    },
+    "kobold.redirect-same": {
+      "relay": "kobold",
+      "mode": "redirect-same",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "clean",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        },
+        "redirect": {
+          "hop1SensitivePresent": false,
+          "hop2SensitivePresent": false,
+          "hop2Sensitive": {},
+          "hop1BodyDrained": false,
+          "hop1BodyAborted": true,
+          "hop2RequestLine": "GET / HTTP/1.1"
+        }
+      },
+      "classification": "match"
+    },
+    "kobold.gzip": {
+      "relay": "kobold",
+      "mode": "gzip",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "clean",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        }
+      },
+      "classification": "match"
+    },
+    "novelai.frames-reset": {
+      "relay": "novelai",
+      "mode": "frames-reset",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "hang",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        }
+      },
+      "classification": "match"
+    },
+    "novelai.stall": {
+      "relay": "novelai",
+      "mode": "stall",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "hang",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        }
+      },
+      "classification": "match"
+    },
+    "novelai.redirect-cross": {
+      "relay": "novelai",
+      "mode": "redirect-cross",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "clean",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        },
+        "redirect": {
+          "hop1SensitivePresent": true,
+          "hop2SensitivePresent": false,
+          "hop2Sensitive": {},
+          "hop1BodyDrained": false,
+          "hop1BodyAborted": true,
+          "hop2RequestLine": "GET / HTTP/1.1"
+        }
+      },
+      "classification": "match"
+    },
+    "novelai.redirect-same": {
+      "relay": "novelai",
+      "mode": "redirect-same",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "clean",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        },
+        "redirect": {
+          "hop1SensitivePresent": true,
+          "hop2SensitivePresent": true,
+          "hop2Sensitive": {
+            "authorization": "<recorded>"
+          },
+          "hop1BodyDrained": false,
+          "hop1BodyAborted": true,
+          "hop2RequestLine": "GET / HTTP/1.1"
+        }
+      },
+      "classification": "match"
+    },
+    "novelai.gzip": {
+      "relay": "novelai",
+      "mode": "gzip",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "clean",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        }
+      },
+      "classification": "match"
+    },
+    "textgen.frames-reset": {
+      "relay": "textgen",
+      "mode": "frames-reset",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "hang",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        }
+      },
+      "classification": "match"
+    },
+    "textgen.stall": {
+      "relay": "textgen",
+      "mode": "stall",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "hang",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        }
+      },
+      "classification": "match"
+    },
+    "textgen.redirect-cross": {
+      "relay": "textgen",
+      "mode": "redirect-cross",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "clean",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        },
+        "redirect": {
+          "hop1SensitivePresent": true,
+          "hop2SensitivePresent": false,
+          "hop2Sensitive": {},
+          "hop1BodyDrained": false,
+          "hop1BodyAborted": true,
+          "hop2RequestLine": "GET / HTTP/1.1"
+        }
+      },
+      "classification": "match"
+    },
+    "textgen.redirect-same": {
+      "relay": "textgen",
+      "mode": "redirect-same",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "clean",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        },
+        "redirect": {
+          "hop1SensitivePresent": true,
+          "hop2SensitivePresent": true,
+          "hop2Sensitive": {
+            "authorization": "<recorded>"
+          },
+          "hop1BodyDrained": false,
+          "hop1BodyAborted": true,
+          "hop2RequestLine": "GET / HTTP/1.1"
+        }
+      },
+      "classification": "match"
+    },
+    "textgen.gzip": {
+      "relay": "textgen",
+      "mode": "gzip",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "clean",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        }
+      },
+      "classification": "match"
+    },
+    "ollama.frames-reset": {
+      "relay": "ollama",
+      "mode": "frames-reset",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "hang",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        }
+      },
+      "classification": "match"
+    },
+    "ollama.stall": {
+      "relay": "ollama",
+      "mode": "stall",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "hang",
+          "dataFrames": 3,
+          "doneFrame": false,
+          "readErrorClass": null,
+          "contentType": null
+        }
+      },
+      "classification": "match"
+    },
+    "ollama.redirect-cross": {
+      "relay": "ollama",
+      "mode": "redirect-cross",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "clean",
+          "dataFrames": 4,
+          "doneFrame": true,
+          "readErrorClass": null,
+          "contentType": null
+        },
+        "redirect": {
+          "hop1SensitivePresent": false,
+          "hop2SensitivePresent": false,
+          "hop2Sensitive": {},
+          "hop1BodyDrained": false,
+          "hop1BodyAborted": true,
+          "hop2RequestLine": "GET / HTTP/1.1"
+        }
+      },
+      "classification": "match"
+    },
+    "ollama.redirect-same": {
+      "relay": "ollama",
+      "mode": "redirect-same",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "clean",
+          "dataFrames": 4,
+          "doneFrame": true,
+          "readErrorClass": null,
+          "contentType": null
+        },
+        "redirect": {
+          "hop1SensitivePresent": false,
+          "hop2SensitivePresent": false,
+          "hop2Sensitive": {},
+          "hop1BodyDrained": false,
+          "hop1BodyAborted": true,
+          "hop2RequestLine": "GET / HTTP/1.1"
+        }
+      },
+      "classification": "match"
+    },
+    "ollama.gzip": {
+      "relay": "ollama",
+      "mode": "gzip",
+      "observation": {
+        "badRequest": null,
+        "serverExited": false,
+        "relay": {
+          "status": 200,
+          "terminal": "clean",
+          "dataFrames": 2,
+          "doneFrame": true,
+          "readErrorClass": null,
+          "contentType": null
+        }
+      },
+      "classification": "match"
+    }
+  },
+  "notRecorded": [
+    "provider request body bytes for non-redirect requests (owned by the provider-wire differential; this probe does not compare them)",
+    "response header ORDER and casing (only content-type is recorded; the browser does not receive the other relay headers as an ordering contract)",
+    "a cross-SCHEME redirect (http->https): pinned node-fetch also strips sensitive headers on a protocol change, but a TLS peer with a certificate both clients trust is not available in this loopback harness, so it is unproven rather than assumed",
+    "timing beyond the 4 s client bound (a stall is \"no terminal within the bound\", not a hang duration)"
+  ]
+}
