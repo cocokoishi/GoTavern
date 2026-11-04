@@ -106,6 +106,7 @@
     {"runId":"41788549190","workflow":"Third-party extension compatibility","headSha":"f750ad1cf1f655f308f0aa53abd7be173a7327fc","conclusion":"success","createdAt":"2026-11-04T06:53:48Z"},
     {"runId":"41801638163","workflow":"Third-party extension compatibility","headSha":"62d5c5d75f8fb70c3247f496be9bdde974ce616e","conclusion":"failure","createdAt":"2026-11-04T08:43:01Z"},
     {"runId":"41801633134","workflow":"Combination journey differential","headSha":"62d5c5d75f8fb70c3247f496be9bdde974ce616e","conclusion":"failure","createdAt":"2026-11-04T08:42:59Z"},
-    {"runId":"41804515260","workflow":"Combination journey differential","headSha":"62d5c5d75f8fb70c3247f496be9bdde974ce616e","conclusion":"success","createdAt":"2026-11-04T09:05:00Z"}
+    {"runId":"41804515260","workflow":"Combination journey differential","headSha":"62d5c5d75f8fb70c3247f496be9bdde974ce616e","conclusion":"success","createdAt":"2026-11-04T09:05:00Z"},
+    {"runId":"41832068124","workflow":"GoTavern published-extension smoke","headSha":"d12cf6a38337c3ca786e76936aa2ac70f30117e9","conclusion":"success","createdAt":"2026-11-04T12:45:45Z"}
   ]
 }
