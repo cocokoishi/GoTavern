@@ -131,6 +131,16 @@ function capture(name, request, result) {
     // Small bodies are recorded as text so the replay can compare the DECODED bytes directly; the SSE response
     // carries no Content-Type (pinned's forwardFetchResponse), so a content-type gate would hide its framing.
     const text = decoded.length <= 4096 ? decoded.toString('utf8') : null;
+    // THE COMPRESSED BYTES ARE NOT A CROSS-HOST CONTRACT. The CI re-record of this probe produced a different
+    // gzip stream (same length for some assets, different length for others) than the Windows recording, because
+    // zlib's deflate output is not byte-stable across builds/hosts; brotli is likewise implementation-defined. The
+    // contract is the encoding CHOICE, the headers and the DECODED bytes, so a compressed scenario records raw as
+    // null with the reason instead of committing a host-specific hash. Identity scenarios keep their raw bytes
+    // (raw === decoded there).
+    const encoding = String(result.headers['content-encoding'] ?? '').trim().toLowerCase();
+    const raw = encoding === ''
+        ? { bytes: result.raw.length, sha256: sha256(result.raw), reason: null }
+        : { bytes: null, sha256: null, reason: `content-encoding ${encoding}: compressed bytes are produced by the host's zlib/brotli build and are not a byte-stability contract; the encoding choice, headers and decoded bytes are` };
     return {
         name,
         request,
@@ -146,7 +156,7 @@ function capture(name, request, result) {
             acceptRanges: result.headers['accept-ranges'] ?? null,
             contentRange: result.headers['content-range'] ?? null,
         },
-        raw: { bytes: result.raw.length, sha256: sha256(result.raw) },
+        raw,
         decoded: { bytes: decoded.length, sha256: sha256(decoded), text },
     };
 }
@@ -247,7 +257,11 @@ try {
         path: '/script.js',
         headers: { ...gzipAccept, Range: 'bytes=0-99' },
     });
-    await run('small.version', { path: '/version', headers: { ...gzipAccept, Cookie: session.cookie } });
+    // A sub-threshold response with a HOST-STABLE body. `/version` was the obvious candidate but its body carries
+    // pinned's `gitRevision`, whose length depends on the checkout's git state (9 chars here, 7 on CI), so it
+    // cannot be a cross-host fixture. /robots.txt is 26 bytes of static text/plain: compressible by Content-Type,
+    // below the 1024 B threshold, and identical on every host.
+    await run('small.robotsTxt', { path: '/robots.txt', headers: gzipAccept });
     await run('head.script', { method: 'HEAD', path: '/script.js', headers: gzipAccept });
     await run('binary.png', { path: '/img/default-expressions/admiration.png', headers: gzipAccept });
 
@@ -287,7 +301,7 @@ try {
     expect('revalidate.304', s => s.response.status === 304, 'the conditional static request did not answer 304');
     expect('range.bytes0to99', s => s.response.status === 206 && s.response.contentLength === '100', 'the range response was not a 100-byte 206');
     expect('range.bytes0to99', s => s.response.contentEncoding === null, 'pinned compressed a sub-threshold range body');
-    expect('small.version', s => s.response.contentEncoding === null && s.response.contentLength !== null, 'the sub-threshold JSON was compressed or lost its length');
+    expect('small.robotsTxt', s => s.response.contentEncoding === null && s.response.contentLength !== null, 'the sub-threshold response was compressed or lost its length');
     expect('head.script', s => s.response.contentEncoding === null && s.response.contentLength !== null, 'HEAD was compressed or lost its length');
     expect('binary.png', s => s.response.contentEncoding === null, 'pinned compressed an image/png');
     expect('sse.generateStream', s => s.response.contentEncoding === null, 'pinned compressed the SSE stream');

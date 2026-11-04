@@ -65,8 +65,11 @@ type compressionFixture struct {
 			ContentRange     *string `json:"contentRange"`
 		} `json:"response"`
 		Raw struct {
-			Bytes  int    `json:"bytes"`
-			Sha256 string `json:"sha256"`
+			// Null for a compressed scenario: zlib/brotli output is host-dependent, so the fixture records the
+			// reason instead of a hash. Identity scenarios carry bytes+sha256 (raw === decoded there).
+			Bytes  *int    `json:"bytes"`
+			Sha256 *string `json:"sha256"`
+			Reason *string `json:"reason"`
 		} `json:"raw"`
 		Decoded struct {
 			Bytes  int     `json:"bytes"`

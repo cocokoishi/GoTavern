@@ -66,8 +66,9 @@
         "contentRange": null
       },
       "raw": {
-        "bytes": 120104,
-        "sha256": "7ef815446052086b0079612b26048d69a427a06e5cd3c2059dd9692b96e1e50e"
+        "bytes": null,
+        "sha256": null,
+        "reason": "content-encoding gzip: compressed bytes are produced by the host's zlib/brotli build and are not a byte-stability contract; the encoding choice, headers and decoded bytes are"
       },
       "decoded": {
         "bytes": 497669,
@@ -99,8 +100,9 @@
         "contentRange": null
       },
       "raw": {
-        "bytes": 118271,
-        "sha256": "52f6b48723f9986b56885e90e160c3a83c049d7ad81ac1c62232975cda483781"
+        "bytes": null,
+        "sha256": null,
+        "reason": "content-encoding br: compressed bytes are produced by the host's zlib/brotli build and are not a byte-stability contract; the encoding choice, headers and decoded bytes are"
       },
       "decoded": {
         "bytes": 497669,
@@ -133,7 +135,8 @@
       },
       "raw": {
         "bytes": 497669,
-        "sha256": "955c603d0bad84bac5a716f0818d85c2543e44d4c43878e0d63ef1e55ca91855"
+        "sha256": "955c603d0bad84bac5a716f0818d85c2543e44d4c43878e0d63ef1e55ca91855",
+        "reason": null
       },
       "decoded": {
         "bytes": 497669,
@@ -164,7 +167,8 @@
       },
       "raw": {
         "bytes": 497669,
-        "sha256": "955c603d0bad84bac5a716f0818d85c2543e44d4c43878e0d63ef1e55ca91855"
+        "sha256": "955c603d0bad84bac5a716f0818d85c2543e44d4c43878e0d63ef1e55ca91855",
+        "reason": null
       },
       "decoded": {
         "bytes": 497669,
@@ -196,8 +200,9 @@
         "contentRange": null
       },
       "raw": {
-        "bytes": 85723,
-        "sha256": "6c65737dcd9cd04bdf086ea012b65d4d0f1e191999d75eb4d3b816b134b81951"
+        "bytes": null,
+        "sha256": null,
+        "reason": "content-encoding gzip: compressed bytes are produced by the host's zlib/brotli build and are not a byte-stability contract; the encoding choice, headers and decoded bytes are"
       },
       "decoded": {
         "bytes": 734837,
@@ -231,8 +236,9 @@
         "contentRange": null
       },
       "raw": {
-        "bytes": 329,
-        "sha256": "ea8d3a7b02fde25eda2fd742953fd284bdfb94fbdc7a399908fb86c0884db10f"
+        "bytes": null,
+        "sha256": null,
+        "reason": "content-encoding gzip: compressed bytes are produced by the host's zlib/brotli build and are not a byte-stability contract; the encoding choice, headers and decoded bytes are"
       },
       "decoded": {
         "bytes": 2636,
@@ -265,7 +271,8 @@
       },
       "raw": {
         "bytes": 0,
-        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "reason": null
       },
       "decoded": {
         "bytes": 0,
@@ -299,7 +306,8 @@
       },
       "raw": {
         "bytes": 100,
-        "sha256": "cf48c6ec8295fea18bc107869f984731ff579192453ba72326d0593895cd6286"
+        "sha256": "cf48c6ec8295fea18bc107869f984731ff579192453ba72326d0593895cd6286",
+        "reason": null
       },
       "decoded": {
         "bytes": 100,
@@ -307,37 +315,38 @@
         "text": "import {\n    showdown,\n    moment,\n    DOMPurify,\n    hljs,\n    Handlebars,\n    SVGInject,\n    Poppe"
       }
     },
-    "small.version": {
-      "name": "small.version",
+    "small.robotsTxt": {
+      "name": "small.robotsTxt",
       "request": {
         "method": "GET",
-        "path": "/version",
+        "path": "/robots.txt",
         "headers": {
           "Accept-Encoding": "gzip, deflate"
         },
-        "authenticated": true,
+        "authenticated": false,
         "conditional": false
       },
       "response": {
         "status": 200,
         "contentEncoding": null,
         "transferEncoding": null,
-        "contentLength": "168",
+        "contentLength": "26",
         "vary": "Origin, Accept-Encoding",
-        "contentType": "application/json; charset=utf-8",
+        "contentType": "text/plain; charset=UTF-8",
         "etagPresent": true,
-        "cacheControl": null,
-        "acceptRanges": null,
+        "cacheControl": "public, max-age=0",
+        "acceptRanges": "bytes",
         "contentRange": null
       },
       "raw": {
-        "bytes": 168,
-        "sha256": "586f3d932b58fe17b061aead167ee646af1d6f95090f1fc5ca992f88a63142a8"
+        "bytes": 26,
+        "sha256": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
+        "reason": null
       },
       "decoded": {
-        "bytes": 168,
-        "sha256": "586f3d932b58fe17b061aead167ee646af1d6f95090f1fc5ca992f88a63142a8",
-        "text": "{\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"gitRevision\":\"06bde939f\",\"gitBranch\":\"release\",\"commitDate\":\"2026-09-14 21:01:34 +0200\",\"isLatest\":true}"
+        "bytes": 26,
+        "sha256": "331ea9090db0c9f6f597bd9840fd5b171830f6e0b3ba1cb24dfa91f0c95aedc1",
+        "text": "User-agent: *\nDisallow: /\n"
       }
     },
     "head.script": {
@@ -365,7 +374,8 @@
       },
       "raw": {
         "bytes": 0,
-        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "reason": null
       },
       "decoded": {
         "bytes": 0,
@@ -398,7 +408,8 @@
       },
       "raw": {
         "bytes": 19672,
-        "sha256": "a250eb216d9f2ea1fcc773b6f629b6c906636ec38770ea56f8be69f0b9b48f54"
+        "sha256": "a250eb216d9f2ea1fcc773b6f629b6c906636ec38770ea56f8be69f0b9b48f54",
+        "reason": null
       },
       "decoded": {
         "bytes": 19672,
@@ -433,7 +444,8 @@
       },
       "raw": {
         "bytes": 393,
-        "sha256": "72f78f8f20f26298d244bda9a2787ba11cd144d053ea4532af5ebaa6652c8588"
+        "sha256": "72f78f8f20f26298d244bda9a2787ba11cd144d053ea4532af5ebaa6652c8588",
+        "reason": null
       },
       "decoded": {
         "bytes": 393,
