@@ -9,9 +9,10 @@ import (
 	"time"
 )
 
-// SlowStageThreshold is how long a stage may take before its line is printed even when tracing is off. Boot is
-// supposed to be quiet, so the default is "say nothing unless something was slow" -- a hang then names the stage
-// that was still open instead of looking like a silent initialisation (ARCHITECTURE 34.2).
+// SlowStageThreshold used to be the point at which a stage printed even with tracing off. GOAL.md §15.5
+// ("by default it is quiet: no internal stage timings unless asked") removes that automatic line: stage
+// timings are now an explicit opt-in only (GOTAVERN_STARTUP_TRACE or --verbose). The constant is kept so
+// external review references and the qualification scripts keep a name for the threshold they describe.
 const SlowStageThreshold = 200 * time.Millisecond
 
 // startupTracer reports named startup stages with their durations.
@@ -21,10 +22,12 @@ const SlowStageThreshold = 200 * time.Millisecond
 // indistinguishable from a hang anywhere else, which is precisely how the P0-B report presented. The trace is
 // written to STDERR so the readiness line on stdout stays the single machine-readable signal a test may poll.
 //
-// Output policy, deliberately: a stage is printed when it was SLOW (>= SlowStageThreshold) or when
-// GOTAVERN_STARTUP_TRACE is truthy. A normal boot therefore prints nothing extra, which keeps "quiet by default"
-// while making a slow stage and a hang self-naming. A stage that never finishes is the one signal that cannot be
-// printed afterwards, so the tracer also exposes Close with the stage still open.
+// Output policy, deliberately: a stage is printed ONLY when tracing is explicitly requested
+// (GOTAVERN_STARTUP_TRACE or cmd/gotavern --verbose). A normal boot prints no stage timings at all, which is
+// what "quiet by default" means now; the legacy-wait announcement below remains unconditional because a
+// silent ten-second pause is the one thing a user cannot interpret without a line. A stage that never
+// finishes is the one signal that cannot be printed afterwards, so the tracer also exposes Close with the
+// stage still open.
 type startupTracer struct {
 	mutex   sync.Mutex
 	writer  io.Writer
@@ -72,7 +75,7 @@ func (t *startupTracer) begin(stage string) {
 	t.open = stage
 }
 
-// end closes the currently open stage and prints it if it was slow or tracing is on.
+// end closes the currently open stage and prints it only when tracing is on.
 func (t *startupTracer) end() {
 	if t == nil {
 		return
@@ -89,7 +92,7 @@ func (t *startupTracer) finishLocked() {
 	now := time.Now()
 	elapsed := now.Sub(t.last)
 	t.last = now
-	if !t.enabled && elapsed < SlowStageThreshold {
+	if !t.enabled {
 		t.open = ""
 		return
 	}

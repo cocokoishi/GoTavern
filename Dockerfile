@@ -88,8 +88,15 @@ EXPOSE 8000
 # becomes /app/data, outside the volume, and startup fails writing
 # cookie-secret.txt there as a non-root user. The documented launch path never
 # hits this because start.sh cds to the install root first; a container does not.
+# --browserLaunchEnabled false is a DELIBERATE DIVERGENCE from pinned container behaviour.
+# The shipped fresh config sets browserLaunch.enabled: true (upstream/default/config.yaml:22), so a
+# container booted without this flag prints "Launching in a browser: default..." and then a
+# "Failed to launch the browser" warning, because a container has no desktop opener. Pinned's Docker
+# image has the same noise; GOAL.md section 15.5 requires Docker and the launchers to boot headless, so
+# the container opts out explicitly. The divergence is limited to the container default: an operator who
+# wants browser launching can still pass --browserLaunchEnabled true.
 ENTRYPOINT ["/app/gotavern"]
-CMD ["start", "--listen", "true", "--port", "8000", "--dataRoot", "/data/data"]
+CMD ["start", "--listen", "true", "--port", "8000", "--dataRoot", "/data/data", "--browserLaunchEnabled", "false"]
 
 # /version is a pinned public compatibility route: no session and no CSRF, so it
 # is a valid liveness probe rather than an invented endpoint.

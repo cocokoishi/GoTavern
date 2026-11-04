@@ -17,7 +17,11 @@ services:
     # the volume. The flag is honoured outside global mode per pinned
     # src/command-line.js:288-290. config.yaml is resolved from the working
     # directory, which is the volume below.
-    command: ["start", "--listen", "true", "--port", "8000", "--dataRoot", "/data/data"]
+    # --browserLaunchEnabled false keeps the container headless (GOAL.md section 15.5). The shipped
+    # config has browserLaunch.enabled: true, so without it a container start prints a launch attempt and
+    # a failed-opener warning no user can act on; pinned's container has the same noise. This is a
+    # recorded divergence limited to the container default.
+    command: ["start", "--listen", "true", "--port", "8000", "--dataRoot", "/data/data", "--browserLaunchEnabled", "false"]
     ports:
       - "8000:8000"
     volumes:
