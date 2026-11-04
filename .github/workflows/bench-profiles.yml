@@ -68,6 +68,12 @@ jobs:
         with:
           node-version: 24
 
+      # PROVE THE COMPARATOR HAS TEETH BEFORE IT JUDGES ANYTHING. Synthetic baseline/current pairs exercise
+      # each failure class; a case that stops being caught (widened tolerance, skipped metric, deleted
+      # missing-benchmark branch) turns this red. No product code and no corpus are mutated by it.
+      - name: Prove the comparison gate's teeth
+        run: node scripts/bench-profiles.mjs --self-test
+
       - name: Record host facts and the Go version
         run: |
           set -eu

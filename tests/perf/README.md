@@ -65,3 +65,25 @@ different host (exit 2) instead of splicing them.
 
 A local run on another OS/arch cannot compare against the CI baseline by accident; use `--ignore-host` only
 for triage and say so in the report.
+
+## How the gate proves itself (teeth)
+
+The workflow runs `node scripts/bench-profiles.mjs --self-test` before it measures anything. The self-test
+feeds the comparator synthetic baseline/current pairs and requires each failure class to be caught: a baseline
+metric missing from current output, ns/op slower by more than the tolerance, ns/op dramatically FASTER (identical
+input means different work), B/op outside the tolerance, a vanished benchmark, a new benchmark, and a different
+host. A comparator that stops catching any of them makes the self-test -- and therefore the job -- red.
+
+Two measured facts about what a live mutation can and cannot show, so nobody claims a tooth that does not exist:
+
+* Removing `b.ReportAllocs` from a benchmark is **not observable while the harness passes `-test.benchmem`**:
+  `go test` reports B/op and allocs/op unconditionally in that mode (verified on windows/arm64 go1.27.3 -- the
+  mutated benchmark still printed `111711280 B/op 422990 allocs/op`). The MISSING-METRIC tooth therefore guards
+  the case where it is observable (a harness that drops `-test.benchmem`), and the self-test exercises it.
+* The live end-to-end tooth is a benchmark that stops measuring its real route (for example, sending the chat
+  summary request to `/version`): the two-sided tolerances catch it as a SPEEDUP, not a pass.
+
+The host-facts guard compares goos, goarch, Go version, GOMAXPROCS and the runner image label. The runner image
+**version** is recorded in the baseline header for provenance but is not compared: GitHub rotates
+`ubuntu-latest` about weekly (measured in this lane as `20261026.180.1` -> `20261101.186.1` between two runs six
+minutes apart), so gating on it would go red for a reason unrelated to the product.

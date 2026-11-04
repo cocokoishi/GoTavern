@@ -43,6 +43,16 @@
 //
 // EXIT CODES: 0 all phases passed; 1 comparison regression or profile/trace failure; 2 usage error or
 // incomparable host; 3 committed baseline absent (a candidate is written to --out-dir for review).
+//
+// THE GATE'S OWN TEETH are exercised by `--self-test`, which the workflow runs on every invocation before any
+// benchmark: it feeds the comparator synthetic baseline/current pairs for each failure class (missing metric,
+// slower than tolerance, dramatically faster than tolerance, vanished benchmark, new benchmark, different host)
+// and fails if any of them stops being caught. Measured while building this lane: removing b.ReportAllocs from
+// a benchmark is NOT observable while the harness passes `-test.benchmem`, because go test then reports B/op
+// and allocs/op unconditionally (verified on windows/arm64 go1.27.3: the mutated benchmark still printed
+// "111711280 B/op 422990 allocs/op"). That mutation is therefore covered as the MISSING-METRIC case at the level
+// where it IS observable -- a harness that drops `-test.benchmem` -- and the live end-to-end tooth is a
+// benchmark that measures a trivial route, which the two-sided tolerances catch.
 
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -94,6 +104,7 @@ function parseArguments(argv) {
     updateBaseline: false,
     ignoreHost: false,
     build: true,
+    selfTest: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -111,6 +122,7 @@ function parseArguments(argv) {
       case '--update-baseline': options.updateBaseline = true; break;
       case '--ignore-host': options.ignoreHost = true; break;
       case '--no-build': options.build = false; break;
+      case '--self-test': options.selfTest = true; break;
       case '--help': usage(); break;
       default: usage(`unknown argument ${argument}`);
     }
@@ -323,7 +335,11 @@ function parseBaseline(text) {
   return { facts, benchmarks };
 }
 
-const HOST_FACT_KEYS = ['goos', 'goarch', 'goversion', 'gomaxprocs', 'runnerImage', 'runnerImageVersion'];
+// runnerImageVersion is RECORDED in the baseline header for provenance but deliberately NOT compared:
+// GitHub rotates the ubuntu-latest image about weekly (measured in this lane: 20261026.180.1 -> 20261101.186.1
+// between two runs six minutes apart), so gating on it would make the gate red for a reason that has nothing
+// to do with the product. The keys below are the ones that decide whether a comparison is meaningful.
+const HOST_FACT_KEYS = ['goos', 'goarch', 'goversion', 'gomaxprocs', 'runnerImage'];
 
 function compareBaseline(facts, baseline, current) {
   const incompatible = [];
@@ -382,7 +398,7 @@ function compareBaseline(facts, baseline, current) {
   return { incompatible, rows, failures };
 }
 
-function writeComparisonTable(target, rows, baselinePath) {
+function formatComparisonTable(rows, baselinePath) {
   const lines = [];
   lines.push(`baseline: ${path.relative(repositoryRoot, baselinePath)}`);
   lines.push('');
@@ -392,7 +408,6 @@ function writeComparisonTable(target, rows, baselinePath) {
     const delta = (metric) => (row.deltas?.[metric] === undefined ? '-' : `${(row.deltas[metric] * 100).toFixed(1)}%`);
     lines.push(`${row.name}\t-\t-\t${delta('ns/op')}\t${delta('B/op')}\t${delta('allocs/op')}\t${row.verdict}${detail}`);
   }
-  fs.writeFileSync(target, `${lines.join('\n')}\n`, 'utf8');
   return `${lines.join('\n')}\n`;
 }
 
@@ -501,8 +516,99 @@ function tracePhase(options, binary) {
   return failures;
 }
 
+// SELF-TEST: PROVE THE GATE HAS TEETH WITHOUT MUTATING PRODUCT CODE. Every case below is a synthetic baseline
+// and a synthetic current run whose difference is exactly one failure class the gate exists to catch. A case
+// that stops being caught (a widened tolerance, a skipped metric, a missing-benchmark branch deleted) makes
+// this exit non-zero, so "the comparator is blind" is itself red. Invoked by the workflow on every run and by
+// `node scripts/bench-profiles.mjs --self-test`.
+function selfTest() {
+  console.log('bench-profiles self-test: the comparison gate must fail where it should');
+  const facts = {
+    goos: 'linux', goarch: 'amd64', goversion: 'go1.27.3',
+    gomaxprocs: 'default(4)', runnerImage: 'ubuntu-latest', runnerImageVersion: 'self-test',
+  };
+  const baselineMetrics = { ns: { 'ns/op': 1000, 'B/op': 100, 'allocs/op': 10 } };
+  const makeBaseline = (benchmarks) => ({ facts: { ...facts }, benchmarks: new Map(benchmarks) });
+  const currentOf = (benchmarks) => new Map(benchmarks);
+  const stable = ['BenchmarkStable', baselineMetrics.ns];
+
+  const cases = [
+    {
+      name: 'unchanged run passes',
+      baseline: makeBaseline([['BenchmarkStable', stable[1]]]),
+      current: currentOf([['BenchmarkStable', { metrics: { ...stable[1] } }]]),
+      check: (result) => result.incompatible.length === 0 && result.failures.length === 0,
+      expectation: 'no failure',
+    },
+    {
+      name: 'a baseline metric missing from current output (the b.ReportAllocs class under a harness that drops -benchmem) is MISSING METRIC',
+      baseline: makeBaseline([['BenchmarkStable', stable[1]]]),
+      current: currentOf([['BenchmarkStable', { metrics: { 'ns/op': 1000 } }]]),
+      check: (result) => result.failures.some((failure) => failure.includes('missing from current output')),
+      expectation: 'MISSING METRIC',
+    },
+    {
+      name: 'ns/op slower than the 60% tolerance is a REGRESSION',
+      baseline: makeBaseline([['BenchmarkStable', stable[1]]]),
+      current: currentOf([['BenchmarkStable', { metrics: { 'ns/op': 2000, 'B/op': 100, 'allocs/op': 10 } }]]),
+      check: (result) => result.rows.some((row) => row.verdict === 'REGRESSION'),
+      expectation: 'REGRESSION',
+    },
+    {
+      name: 'ns/op dramatically FASTER is caught too: on identical input it means different work',
+      baseline: makeBaseline([['BenchmarkStable', stable[1]]]),
+      current: currentOf([['BenchmarkStable', { metrics: { 'ns/op': 100, 'B/op': 100, 'allocs/op': 10 } }]]),
+      check: (result) => result.rows.some((row) => row.verdict === 'SPEEDUP'),
+      expectation: 'SPEEDUP',
+    },
+    {
+      name: 'B/op outside the 15% allocation tolerance is a REGRESSION',
+      baseline: makeBaseline([['BenchmarkStable', stable[1]]]),
+      current: currentOf([['BenchmarkStable', { metrics: { 'ns/op': 1000, 'B/op': 200, 'allocs/op': 10 } }]]),
+      check: (result) => result.rows.some((row) => row.verdict === 'REGRESSION' && row.detail.includes('B/op')),
+      expectation: 'REGRESSION (B/op)',
+    },
+    {
+      name: 'a benchmark that disappeared is MISSING BENCHMARK, not a silent pass',
+      baseline: makeBaseline([['BenchmarkStable', stable[1]], ['BenchmarkVanished', { 'ns/op': 1, 'B/op': 1, 'allocs/op': 1 }]]),
+      current: currentOf([['BenchmarkStable', { metrics: { ...stable[1] } }]]),
+      check: (result) => result.rows.some((row) => row.verdict === 'MISSING BENCHMARK'),
+      expectation: 'MISSING BENCHMARK',
+    },
+    {
+      name: 'a benchmark added without regenerating the baseline is NEW BENCHMARK',
+      baseline: makeBaseline([['BenchmarkStable', stable[1]]]),
+      current: currentOf([['BenchmarkStable', { metrics: { ...stable[1] } }], ['BenchmarkNew', { metrics: { 'ns/op': 1, 'B/op': 1, 'allocs/op': 1 } }]]),
+      check: (result) => result.rows.some((row) => row.verdict === 'NEW BENCHMARK'),
+      expectation: 'NEW BENCHMARK',
+    },
+  ];
+
+  let failures = 0;
+  for (const testCase of cases) {
+    const result = compareBaseline(facts, testCase.baseline, testCase.current);
+    const passed = testCase.check(result);
+    console.log(`  ${passed ? 'PASS' : 'FAIL'}  ${testCase.name} (expected ${testCase.expectation})`);
+    if (!passed) {
+      failures += 1;
+      console.log(`        observed failures: ${result.failures.join(' | ') || '(none)'}`);
+    }
+  }
+
+  const hostMismatch = compareBaseline({ ...facts, goos: 'darwin', goarch: 'arm64' }, makeBaseline([['BenchmarkStable', stable[1]]]), currentOf([['BenchmarkStable', { metrics: { ...stable[1] } }]]));
+  const hostPassed = hostMismatch.incompatible.length > 0;
+  console.log(`  ${hostPassed ? 'PASS' : 'FAIL'}  a different host is INCOMPARABLE (expected host mismatch)`);
+  if (!hostPassed) failures += 1;
+
+  console.log(failures === 0 ? 'bench-profiles self-test: PASS (8/8)' : `bench-profiles self-test: FAIL (${failures} case(s) blind)`);
+  return failures === 0;
+}
+
 function main() {
   const options = parseArguments(process.argv.slice(2));
+  if (options.selfTest) {
+    process.exit(selfTest() ? 0 : 1);
+  }
   fs.mkdirSync(options.outDir, { recursive: true });
   // Facts are captured BEFORE the binary build so the artifact states the commit the run started from.
   const facts = environmentFacts();
@@ -549,7 +655,7 @@ function main() {
       } else {
         const baseline = parseBaseline(fs.readFileSync(options.baseline, 'utf8'));
         const comparison = compareBaseline(facts, baseline, aggregated);
-        fs.writeFileSync(path.join(options.outDir, 'comparison.txt'), writeComparisonTable(path.join(options.outDir, 'comparison.txt'), comparison.rows, options.baseline), 'utf8');
+        fs.writeFileSync(path.join(options.outDir, 'comparison.txt'), formatComparisonTable(comparison.rows, options.baseline), 'utf8');
         printComparison(comparison.rows, comparison.failures);
         if (comparison.incompatible.length > 0) {
           if (options.ignoreHost) {
