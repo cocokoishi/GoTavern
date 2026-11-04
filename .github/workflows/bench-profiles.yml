@@ -1,0 +1,111 @@
+name: GoTavern bench profiles
+
+# RECORD THE ENGINEERING NUMBERS, WITH THE ARTIFACT THAT PRODUCED THEM (GOAL 15.2; M2 row).
+#
+# This workflow is the harness the M2 milestone names: scale benchmarks (100/1000/10000 cards, large JSONL
+# chats, settings aggregation, world-info listing, a 229-path page load, provider assemble/marshal), captured
+# CPU/heap/block/mutex profiles, an execution trace, and a comparison against the committed
+# tests/perf/bench-baseline.txt.
+#
+# WHAT IT ASSERTS, and what it does not. The only failure modes are:
+#   - numbers from a different host than the baseline (the baseline records goos/goarch/Go version/GOMAXPROCS/
+#     runner image and the script refuses to compare across them -- GOAL 15.2 forbids splicing hosts);
+#   - a two-sided change beyond the per-metric tolerances, INCLUDING a large speedup, because "much faster"
+#     on identical input means the benchmark stopped measuring the same work;
+#   - a metric that the current output no longer contains (deleting b.ReportAllocs) -- a missing column is a
+#     failure, never a skipped comparison;
+#   - a benchmark added or removed relative to the baseline.
+# Absolute numbers are REPORTED, not asserted against invented budgets: the baseline IS the record.
+#
+# REGENERATION is deliberate and documented in the script header and in the baseline itself:
+#   node scripts/bench-profiles.mjs --update-baseline --out-dir tests/perf/out
+# The regenerated file and its raw run are committed together, on the same runner image.
+#
+# WHERE THE BASELINE COMES FROM. It must be produced by this job on ubuntu-latest, because that is the host
+# the comparison runs on. The first run of this workflow (before a baseline exists) exits 3 and uploads
+# `bench-baseline-candidate.txt` + its raw run; those are committed, and every later run compares.
+#
+# BOOTSTRAP TRIGGER, AND WHY IT IS GONE. `workflow_dispatch` and `schedule` only fire for a workflow on the
+# default branch, so the first runs of this new file were triggered by a temporary branch-scoped `push` block --
+# the same measured constraint `smoke-metrics.yml` records for its own bootstrap. Those runs produced the
+# committed baseline (run 41756090210), the green comparison (41758175427) and the mutation teeth evidence
+# (41759085618); the block was then removed, and `workflow_dispatch` becomes available once this file is on the
+# default branch. Nothing else in this workflow depends on the removed trigger.
+
+on:
+  workflow_dispatch:
+    inputs:
+      rounds:
+        description: 'Benchmark rounds per benchmark for the comparison (median is taken)'
+        required: false
+        default: '3'
+  schedule:
+    # Tuesdays, 06:41 UTC: off-peak and a non-round minute, for the same reason smoke-metrics.yml uses one.
+    - cron: '41 6 * * 2'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bench-profiles-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  bench-profiles-linux-amd64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # PROVE THE COMPARATOR HAS TEETH BEFORE IT JUDGES ANYTHING. Synthetic baseline/current pairs exercise
+      # each failure class; a case that stops being caught (widened tolerance, skipped metric, deleted
+      # missing-benchmark branch) turns this red. No product code and no corpus are mutated by it.
+      - name: Prove the comparison gate's teeth
+        run: node scripts/bench-profiles.mjs --self-test
+
+      - name: Record host facts and the Go version
+        run: |
+          set -eu
+          uname -a
+          go version
+          go env GOOS GOARCH GOMAXPROCS GOTOOLCHAIN
+          cat /proc/cpuinfo | grep -m1 'model name' || true
+          free -m || true
+          node --version
+
+      # The script builds the test binary once, then uses it for the comparison, the profile capture and the
+      # trace, so every artifact in this run describes the same binary. Exits 0/1/2/3 as documented in the
+      # script header; the upload below runs on failure too, because a red run's profiles are the point.
+      - name: Run benchmarks, capture profiles, compare to the committed baseline
+        env:
+          ROUNDS: ${{ inputs.rounds || '3' }}
+        run: |
+          set -eu
+          node scripts/bench-profiles.mjs --rounds "${ROUNDS}" --out-dir tests/perf/out
+
+      - name: Upload the raw run, profiles, trace and comparison
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-profiles
+          path: tests/perf/out/**
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Print the comparison and the top profile frames for the job log
+        if: always()
+        run: |
+          set -eu
+          for file in verdict.txt comparison.txt environment.txt pprof-cpu-top.txt pprof-alloc-space-top.txt pprof-trace-sched-top.txt; do
+            echo "===== ${file} ====="
+            if [ -s "tests/perf/out/${file}" ]; then cat "tests/perf/out/${file}"; else echo "(absent)"; fi
+          done
