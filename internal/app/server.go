@@ -74,6 +74,49 @@ func (err *StartupError) Unwrap() error { return err.Cause }
 // process.
 func (err *StartupError) ExitCode() int { return err.Code }
 
+// PINNED NODE HTTP SERVER DEFAULTS. pinned SillyTavern 1.19.0 runs Node.js 20+
+// (package.json engines: >= 20) and sets none of the HTTP server's timeouts or
+// header limit itself: a grep of server.js and src/ for headersTimeout,
+// requestTimeout, keepAliveTimeout, maxHeaderSize and server.timeout finds only
+// the NODE_ENV logging line at server.js:5. The Node 20 defaults therefore
+// apply, and each maps to one Go field:
+//
+//   - headersTimeout 60000 ms -> ReadHeaderTimeout 60 s: the time a client has to
+//     send the complete request head. A peer that stalls mid-header is closed
+//     instead of holding a connection forever.
+//   - keepAliveTimeout 5000 ms -> IdleTimeout 5 s: the idle window between two
+//     requests on a kept-alive connection. Pinned's own responses prove the
+//     value: the pinned listener was recorded sending `Keep-Alive: timeout=5`.
+//   - maxHeaderSize 16384 B -> MaxHeaderBytes 16 KiB: the request-head size
+//     bound, so a client cannot grow the header buffer without limit.
+//
+// DELIBERATELY LEFT AT ZERO:
+//   - WriteTimeout: Node has no response-write timeout (server.timeout defaults
+//     to 0; headersTimeout/requestTimeout bound the request side only). A Go
+//     WriteTimeout would cut long SSE/streaming responses, which the streaming
+//     and cancellation gates exist to protect. The zero is asserted by a test.
+//   - ReadTimeout: Node's requestTimeout (300000 ms) bounds the WHOLE request,
+//     including its body, not just the head. Mapping it to Go ReadTimeout would
+//     put a read deadline under every upload; the stalled-header case that is a
+//     real availability risk is already bounded by ReadHeaderTimeout above. The
+//     difference is recorded here rather than silently widening a limit.
+const (
+	pinnedNodeHeadersTimeout     = 60 * time.Second
+	pinnedNodeKeepAliveTimeout   = 5 * time.Second
+	pinnedNodeMaxHeaderSizeBytes = 16 << 10
+)
+
+// newHTTPServer builds the http.Server with the pinned Node defaults above.
+func newHTTPServer(handler http.Handler) *http.Server {
+	return &http.Server{
+		Handler:           handler,
+		ReadHeaderTimeout: pinnedNodeHeadersTimeout,
+		IdleTimeout:       pinnedNodeKeepAliveTimeout,
+		MaxHeaderBytes:    pinnedNodeMaxHeaderSizeBytes,
+		// WriteTimeout and ReadTimeout unset on purpose; see the block comment.
+	}
+}
+
 // RunningServer owns the HTTP servers and sockets started by Start.
 type RunningServer struct {
 	CommandLine      commandline.CommandLineResult
@@ -415,7 +458,7 @@ func (running *RunningServer) startFamily(options commandline.ServerOptions, ipv
 	if tlsConfig != nil {
 		serveListener = tls.NewListener(listener, tlsConfig)
 	}
-	httpServer := &http.Server{Handler: handler}
+	httpServer := newHTTPServer(handler)
 	running.listeners = append(running.listeners, listener)
 	running.httpServers = append(running.httpServers, httpServer)
 	go func() {
