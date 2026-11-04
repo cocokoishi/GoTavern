@@ -8,7 +8,7 @@
   "sources": {
     "pinnedInventoryRows": 342,
     "pinnedRedirectAliases": 50,
-    "goRegistrationFiles": 180,
+    "goRegistrationFiles": 181,
     "goRegistrations": 422,
     "frontendFiles": 68,
     "startupObservedRequests": 229,
@@ -4144,7 +4144,7 @@
       "classification": "implemented",
       "reason": null,
       "evidence": [
-        "internal/server/http.go:513"
+        "internal/server/http.go:524"
       ],
       "reachesGo": true,
       "sources": [
@@ -6947,7 +6947,7 @@
       "path": "/",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:522"
+      "evidence": "internal/server/http.go:533"
     },
     {
       "pattern": "/api/anthropic/caption-image",
@@ -6955,7 +6955,7 @@
       "path": "/api/anthropic/caption-image",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/anthropic_caption.go:78"
+      "evidence": "internal/server/anthropic_caption.go:74"
     },
     {
       "pattern": "/api/assets/character",
@@ -6963,7 +6963,7 @@
       "path": "/api/assets/character",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/assets.go:45"
+      "evidence": "internal/server/assets.go:41"
     },
     {
       "pattern": "/api/assets/delete",
@@ -6971,7 +6971,7 @@
       "path": "/api/assets/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/assets.go:45"
+      "evidence": "internal/server/assets.go:41"
     },
     {
       "pattern": "/api/assets/download",
@@ -6979,7 +6979,7 @@
       "path": "/api/assets/download",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/assets.go:45"
+      "evidence": "internal/server/assets.go:41"
     },
     {
       "pattern": "/api/assets/get",
@@ -6987,7 +6987,7 @@
       "path": "/api/assets/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/assets.go:45"
+      "evidence": "internal/server/assets.go:41"
     },
     {
       "pattern": "/api/azure/generate",
@@ -6995,7 +6995,7 @@
       "path": "/api/azure/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/azure_tts.go:99"
+      "evidence": "internal/server/azure_tts.go:95"
     },
     {
       "pattern": "/api/azure/list",
@@ -7003,7 +7003,7 @@
       "path": "/api/azure/list",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/azure_tts.go:98"
+      "evidence": "internal/server/azure_tts.go:94"
     },
     {
       "pattern": "/api/backends/chat-completions/bias",
@@ -7011,7 +7011,7 @@
       "path": "/api/backends/chat-completions/bias",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:133"
+      "evidence": "internal/server/backends.go:129"
     },
     {
       "pattern": "/api/backends/chat-completions/generate",
@@ -7019,7 +7019,7 @@
       "path": "/api/backends/chat-completions/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chat_completions.go:102"
+      "evidence": "internal/server/chat_completions.go:98"
     },
     {
       "pattern": "/api/backends/chat-completions/multimodal-models/aimlapi",
@@ -7027,7 +7027,7 @@
       "path": "/api/backends/chat-completions/multimodal-models/aimlapi",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:138"
+      "evidence": "internal/server/backends.go:134"
     },
     {
       "pattern": "/api/backends/chat-completions/multimodal-models/chutes",
@@ -7035,7 +7035,7 @@
       "path": "/api/backends/chat-completions/multimodal-models/chutes",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:141"
+      "evidence": "internal/server/backends.go:137"
     },
     {
       "pattern": "/api/backends/chat-completions/multimodal-models/electronhub",
@@ -7043,7 +7043,7 @@
       "path": "/api/backends/chat-completions/multimodal-models/electronhub",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:140"
+      "evidence": "internal/server/backends.go:136"
     },
     {
       "pattern": "/api/backends/chat-completions/multimodal-models/mistral",
@@ -7051,7 +7051,7 @@
       "path": "/api/backends/chat-completions/multimodal-models/mistral",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:142"
+      "evidence": "internal/server/backends.go:138"
     },
     {
       "pattern": "/api/backends/chat-completions/multimodal-models/moonshot",
@@ -7059,7 +7059,7 @@
       "path": "/api/backends/chat-completions/multimodal-models/moonshot",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:144"
+      "evidence": "internal/server/backends.go:140"
     },
     {
       "pattern": "/api/backends/chat-completions/multimodal-models/nanogpt",
@@ -7067,7 +7067,7 @@
       "path": "/api/backends/chat-completions/multimodal-models/nanogpt",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:139"
+      "evidence": "internal/server/backends.go:135"
     },
     {
       "pattern": "/api/backends/chat-completions/multimodal-models/pollinations",
@@ -7075,7 +7075,7 @@
       "path": "/api/backends/chat-completions/multimodal-models/pollinations",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:137"
+      "evidence": "internal/server/backends.go:133"
     },
     {
       "pattern": "/api/backends/chat-completions/multimodal-models/workers_ai",
@@ -7083,7 +7083,7 @@
       "path": "/api/backends/chat-completions/multimodal-models/workers_ai",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:145"
+      "evidence": "internal/server/backends.go:141"
     },
     {
       "pattern": "/api/backends/chat-completions/multimodal-models/xai",
@@ -7091,7 +7091,7 @@
       "path": "/api/backends/chat-completions/multimodal-models/xai",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:143"
+      "evidence": "internal/server/backends.go:139"
     },
     {
       "pattern": "/api/backends/chat-completions/process",
@@ -7099,7 +7099,7 @@
       "path": "/api/backends/chat-completions/process",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:134"
+      "evidence": "internal/server/backends.go:130"
     },
     {
       "pattern": "/api/backends/chat-completions/status",
@@ -7107,7 +7107,7 @@
       "path": "/api/backends/chat-completions/status",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:135"
+      "evidence": "internal/server/backends.go:131"
     },
     {
       "pattern": "/api/backends/kobold/embed",
@@ -7115,7 +7115,7 @@
       "path": "/api/backends/kobold/embed",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:148"
+      "evidence": "internal/server/backends.go:144"
     },
     {
       "pattern": "/api/backends/kobold/generate",
@@ -7123,7 +7123,7 @@
       "path": "/api/backends/kobold/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends_kobold_deferred.go:66"
+      "evidence": "internal/server/backends_kobold_deferred.go:62"
     },
     {
       "pattern": "/api/backends/kobold/status",
@@ -7131,7 +7131,7 @@
       "path": "/api/backends/kobold/status",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:147"
+      "evidence": "internal/server/backends.go:143"
     },
     {
       "pattern": "/api/backends/kobold/transcribe-audio",
@@ -7139,7 +7139,7 @@
       "path": "/api/backends/kobold/transcribe-audio",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends_kobold_deferred.go:67"
+      "evidence": "internal/server/backends_kobold_deferred.go:63"
     },
     {
       "pattern": "/api/backends/text-completions/generate",
@@ -7147,7 +7147,7 @@
       "path": "/api/backends/text-completions/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends_textgen_generate.go:59"
+      "evidence": "internal/server/backends_textgen_generate.go:55"
     },
     {
       "pattern": "/api/backends/text-completions/llamacpp/props",
@@ -7155,7 +7155,7 @@
       "path": "/api/backends/text-completions/llamacpp/props",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:152"
+      "evidence": "internal/server/backends.go:148"
     },
     {
       "pattern": "/api/backends/text-completions/llamacpp/slots",
@@ -7163,7 +7163,7 @@
       "path": "/api/backends/text-completions/llamacpp/slots",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:153"
+      "evidence": "internal/server/backends.go:149"
     },
     {
       "pattern": "/api/backends/text-completions/ollama/caption-image",
@@ -7171,7 +7171,7 @@
       "path": "/api/backends/text-completions/ollama/caption-image",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:155"
+      "evidence": "internal/server/backends.go:151"
     },
     {
       "pattern": "/api/backends/text-completions/ollama/download",
@@ -7179,7 +7179,7 @@
       "path": "/api/backends/text-completions/ollama/download",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:154"
+      "evidence": "internal/server/backends.go:150"
     },
     {
       "pattern": "/api/backends/text-completions/props",
@@ -7187,7 +7187,7 @@
       "path": "/api/backends/text-completions/props",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:151"
+      "evidence": "internal/server/backends.go:147"
     },
     {
       "pattern": "/api/backends/text-completions/status",
@@ -7195,7 +7195,7 @@
       "path": "/api/backends/text-completions/status",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:150"
+      "evidence": "internal/server/backends.go:146"
     },
     {
       "pattern": "/api/backends/text-completions/tabby/download",
@@ -7203,7 +7203,7 @@
       "path": "/api/backends/text-completions/tabby/download",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backends.go:156"
+      "evidence": "internal/server/backends.go:152"
     },
     {
       "pattern": "/api/backgrounds/all",
@@ -7211,7 +7211,7 @@
       "path": "/api/backgrounds/all",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:399"
+      "evidence": "internal/server/http.go:410"
     },
     {
       "pattern": "/api/backgrounds/delete",
@@ -7219,7 +7219,7 @@
       "path": "/api/backgrounds/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:406"
+      "evidence": "internal/server/http.go:417"
     },
     {
       "pattern": "/api/backgrounds/folders",
@@ -7227,7 +7227,7 @@
       "path": "/api/backgrounds/folders",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:427"
+      "evidence": "internal/server/http.go:438"
     },
     {
       "pattern": "/api/backgrounds/rename",
@@ -7235,7 +7235,7 @@
       "path": "/api/backgrounds/rename",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:413"
+      "evidence": "internal/server/http.go:424"
     },
     {
       "pattern": "/api/backgrounds/upload",
@@ -7243,7 +7243,7 @@
       "path": "/api/backgrounds/upload",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:420"
+      "evidence": "internal/server/http.go:431"
     },
     {
       "pattern": "/api/backups/chat/delete",
@@ -7251,7 +7251,7 @@
       "path": "/api/backups/chat/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backups.go:36"
+      "evidence": "internal/server/backups.go:32"
     },
     {
       "pattern": "/api/backups/chat/download",
@@ -7259,7 +7259,7 @@
       "path": "/api/backups/chat/download",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backups.go:36"
+      "evidence": "internal/server/backups.go:32"
     },
     {
       "pattern": "/api/backups/chat/get",
@@ -7267,7 +7267,7 @@
       "path": "/api/backups/chat/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/backups_chat_get.go:47"
+      "evidence": "internal/server/backups_chat_get.go:43"
     },
     {
       "pattern": "/api/characters/all",
@@ -7275,7 +7275,7 @@
       "path": "/api/characters/all",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/characters.go:36"
+      "evidence": "internal/server/characters.go:32"
     },
     {
       "pattern": "/api/characters/chats",
@@ -7283,7 +7283,7 @@
       "path": "/api/characters/chats",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/characters.go:40"
+      "evidence": "internal/server/characters.go:36"
     },
     {
       "pattern": "/api/characters/create",
@@ -7291,7 +7291,7 @@
       "path": "/api/characters/create",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/characters.go:41"
+      "evidence": "internal/server/characters.go:37"
     },
     {
       "pattern": "/api/characters/delete",
@@ -7299,7 +7299,7 @@
       "path": "/api/characters/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/characters.go:47"
+      "evidence": "internal/server/characters.go:43"
     },
     {
       "pattern": "/api/characters/duplicate",
@@ -7307,7 +7307,7 @@
       "path": "/api/characters/duplicate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/characters.go:49"
+      "evidence": "internal/server/characters.go:45"
     },
     {
       "pattern": "/api/characters/edit",
@@ -7315,7 +7315,7 @@
       "path": "/api/characters/edit",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/characters.go:43"
+      "evidence": "internal/server/characters.go:39"
     },
     {
       "pattern": "/api/characters/edit-attribute",
@@ -7323,7 +7323,7 @@
       "path": "/api/characters/edit-attribute",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/characters.go:45"
+      "evidence": "internal/server/characters.go:41"
     },
     {
       "pattern": "/api/characters/edit-avatar",
@@ -7331,7 +7331,7 @@
       "path": "/api/characters/edit-avatar",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/characters.go:44"
+      "evidence": "internal/server/characters.go:40"
     },
     {
       "pattern": "/api/characters/export",
@@ -7339,7 +7339,7 @@
       "path": "/api/characters/export",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/characters.go:50"
+      "evidence": "internal/server/characters.go:46"
     },
     {
       "pattern": "/api/characters/get",
@@ -7347,7 +7347,7 @@
       "path": "/api/characters/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/characters.go:39"
+      "evidence": "internal/server/characters.go:35"
     },
     {
       "pattern": "/api/characters/import",
@@ -7355,7 +7355,7 @@
       "path": "/api/characters/import",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/characters.go:48"
+      "evidence": "internal/server/characters.go:44"
     },
     {
       "pattern": "/api/characters/merge-attributes",
@@ -7363,7 +7363,7 @@
       "path": "/api/characters/merge-attributes",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/characters.go:46"
+      "evidence": "internal/server/characters.go:42"
     },
     {
       "pattern": "/api/characters/rename",
@@ -7371,7 +7371,7 @@
       "path": "/api/characters/rename",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/characters.go:42"
+      "evidence": "internal/server/characters.go:38"
     },
     {
       "pattern": "/api/chats/delete",
@@ -7379,7 +7379,7 @@
       "path": "/api/chats/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats_routes.go:25"
+      "evidence": "internal/server/chats_routes.go:21"
     },
     {
       "pattern": "/api/chats/export",
@@ -7387,7 +7387,7 @@
       "path": "/api/chats/export",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats_routes.go:26"
+      "evidence": "internal/server/chats_routes.go:22"
     },
     {
       "pattern": "/api/chats/get",
@@ -7395,7 +7395,7 @@
       "path": "/api/chats/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats.go:38"
+      "evidence": "internal/server/chats.go:34"
     },
     {
       "pattern": "/api/chats/group/delete",
@@ -7403,7 +7403,7 @@
       "path": "/api/chats/group/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats_routes.go:33"
+      "evidence": "internal/server/chats_routes.go:29"
     },
     {
       "pattern": "/api/chats/group/get",
@@ -7411,7 +7411,7 @@
       "path": "/api/chats/group/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats_routes.go:30"
+      "evidence": "internal/server/chats_routes.go:26"
     },
     {
       "pattern": "/api/chats/group/import",
@@ -7419,7 +7419,7 @@
       "path": "/api/chats/group/import",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats_routes.go:34"
+      "evidence": "internal/server/chats_routes.go:30"
     },
     {
       "pattern": "/api/chats/group/info",
@@ -7427,7 +7427,7 @@
       "path": "/api/chats/group/info",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats_routes.go:31"
+      "evidence": "internal/server/chats_routes.go:27"
     },
     {
       "pattern": "/api/chats/group/save",
@@ -7435,7 +7435,7 @@
       "path": "/api/chats/group/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats_routes.go:32"
+      "evidence": "internal/server/chats_routes.go:28"
     },
     {
       "pattern": "/api/chats/import",
@@ -7443,7 +7443,7 @@
       "path": "/api/chats/import",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats_routes.go:27"
+      "evidence": "internal/server/chats_routes.go:23"
     },
     {
       "pattern": "/api/chats/recent",
@@ -7451,7 +7451,7 @@
       "path": "/api/chats/recent",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats_routes.go:29"
+      "evidence": "internal/server/chats_routes.go:25"
     },
     {
       "pattern": "/api/chats/rename",
@@ -7459,7 +7459,7 @@
       "path": "/api/chats/rename",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats_routes.go:24"
+      "evidence": "internal/server/chats_routes.go:20"
     },
     {
       "pattern": "/api/chats/save",
@@ -7467,7 +7467,7 @@
       "path": "/api/chats/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats.go:31"
+      "evidence": "internal/server/chats.go:27"
     },
     {
       "pattern": "/api/chats/search",
@@ -7475,7 +7475,7 @@
       "path": "/api/chats/search",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats_routes.go:28"
+      "evidence": "internal/server/chats_routes.go:24"
     },
     {
       "pattern": "/api/content/import",
@@ -7483,7 +7483,7 @@
       "path": "/api/content/import",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/content/importURL (src/server-startup.js:129)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/api/content/importURL",
@@ -7491,7 +7491,7 @@
       "path": "/api/content/importURL",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/content.go:49"
+      "evidence": "internal/server/content.go:45"
     },
     {
       "pattern": "/api/content/importUUID",
@@ -7499,7 +7499,7 @@
       "path": "/api/content/importUUID",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/content.go:49"
+      "evidence": "internal/server/content.go:45"
     },
     {
       "pattern": "/api/extensions/branches",
@@ -7507,7 +7507,7 @@
       "path": "/api/extensions/branches",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/extensions.go:102"
+      "evidence": "internal/server/extensions.go:98"
     },
     {
       "pattern": "/api/extensions/delete",
@@ -7515,7 +7515,7 @@
       "path": "/api/extensions/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/extensions.go:106"
+      "evidence": "internal/server/extensions.go:102"
     },
     {
       "pattern": "/api/extensions/discover",
@@ -7523,7 +7523,7 @@
       "path": "/api/extensions/discover",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/extensions.go:108"
+      "evidence": "internal/server/extensions.go:104"
     },
     {
       "pattern": "/api/extensions/install",
@@ -7531,7 +7531,7 @@
       "path": "/api/extensions/install",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/extensions.go:100"
+      "evidence": "internal/server/extensions.go:96"
     },
     {
       "pattern": "/api/extensions/move",
@@ -7539,7 +7539,7 @@
       "path": "/api/extensions/move",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/extensions.go:104"
+      "evidence": "internal/server/extensions.go:100"
     },
     {
       "pattern": "/api/extensions/switch",
@@ -7547,7 +7547,7 @@
       "path": "/api/extensions/switch",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/extensions.go:103"
+      "evidence": "internal/server/extensions.go:99"
     },
     {
       "pattern": "/api/extensions/update",
@@ -7555,7 +7555,7 @@
       "path": "/api/extensions/update",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/extensions.go:101"
+      "evidence": "internal/server/extensions.go:97"
     },
     {
       "pattern": "/api/extensions/version",
@@ -7563,7 +7563,7 @@
       "path": "/api/extensions/version",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/extensions.go:105"
+      "evidence": "internal/server/extensions.go:101"
     },
     {
       "pattern": "/api/google/caption-image",
@@ -7571,7 +7571,7 @@
       "path": "/api/google/caption-image",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/google_media.go:49"
+      "evidence": "internal/server/google_media.go:45"
     },
     {
       "pattern": "/api/google/generate-image",
@@ -7579,7 +7579,7 @@
       "path": "/api/google/generate-image",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/google_media.go:50"
+      "evidence": "internal/server/google_media.go:46"
     },
     {
       "pattern": "/api/google/generate-native-tts",
@@ -7587,7 +7587,7 @@
       "path": "/api/google/generate-native-tts",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/google_native_tts.go:527"
+      "evidence": "internal/server/google_native_tts.go:523"
     },
     {
       "pattern": "/api/google/generate-video",
@@ -7595,7 +7595,7 @@
       "path": "/api/google/generate-video",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/google_video.go:66"
+      "evidence": "internal/server/google_video.go:62"
     },
     {
       "pattern": "/api/google/list-native-voices",
@@ -7603,7 +7603,7 @@
       "path": "/api/google/list-native-voices",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/google_voice.go:50"
+      "evidence": "internal/server/google_voice.go:46"
     },
     {
       "pattern": "/api/google/list-voices",
@@ -7611,7 +7611,7 @@
       "path": "/api/google/list-voices",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/google_voice.go:49"
+      "evidence": "internal/server/google_voice.go:45"
     },
     {
       "pattern": "/api/groups/all",
@@ -7619,7 +7619,7 @@
       "path": "/api/groups/all",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats_routes.go:35"
+      "evidence": "internal/server/chats_routes.go:31"
     },
     {
       "pattern": "/api/groups/create",
@@ -7627,7 +7627,7 @@
       "path": "/api/groups/create",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats_routes.go:36"
+      "evidence": "internal/server/chats_routes.go:32"
     },
     {
       "pattern": "/api/groups/delete",
@@ -7635,7 +7635,7 @@
       "path": "/api/groups/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats_routes.go:38"
+      "evidence": "internal/server/chats_routes.go:34"
     },
     {
       "pattern": "/api/groups/edit",
@@ -7643,7 +7643,7 @@
       "path": "/api/groups/edit",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/chats_routes.go:37"
+      "evidence": "internal/server/chats_routes.go:33"
     },
     {
       "pattern": "/api/horde/cancel-task",
@@ -7651,7 +7651,7 @@
       "path": "/api/horde/cancel-task",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/horde_generation.go:93"
+      "evidence": "internal/server/horde_generation.go:89"
     },
     {
       "pattern": "/api/horde/caption-image",
@@ -7659,7 +7659,7 @@
       "path": "/api/horde/caption-image",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/horde_generation.go:98"
+      "evidence": "internal/server/horde_generation.go:94"
     },
     {
       "pattern": "/api/horde/generate-image",
@@ -7667,7 +7667,7 @@
       "path": "/api/horde/generate-image",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/horde_generation.go:100"
+      "evidence": "internal/server/horde_generation.go:96"
     },
     {
       "pattern": "/api/horde/generate-text",
@@ -7675,7 +7675,7 @@
       "path": "/api/horde/generate-text",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/horde_generation.go:95"
+      "evidence": "internal/server/horde_generation.go:91"
     },
     {
       "pattern": "/api/horde/sd-models",
@@ -7683,7 +7683,7 @@
       "path": "/api/horde/sd-models",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/horde_generation.go:97"
+      "evidence": "internal/server/horde_generation.go:93"
     },
     {
       "pattern": "/api/horde/sd-samplers",
@@ -7691,7 +7691,7 @@
       "path": "/api/horde/sd-samplers",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/horde_generation.go:96"
+      "evidence": "internal/server/horde_generation.go:92"
     },
     {
       "pattern": "/api/horde/status",
@@ -7699,7 +7699,7 @@
       "path": "/api/horde/status",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/horde.go:120"
+      "evidence": "internal/server/horde.go:116"
     },
     {
       "pattern": "/api/horde/task-status",
@@ -7707,7 +7707,7 @@
       "path": "/api/horde/task-status",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/horde_generation.go:94"
+      "evidence": "internal/server/horde_generation.go:90"
     },
     {
       "pattern": "/api/horde/text-models",
@@ -7715,7 +7715,7 @@
       "path": "/api/horde/text-models",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/horde.go:121"
+      "evidence": "internal/server/horde.go:117"
     },
     {
       "pattern": "/api/horde/text-workers",
@@ -7723,7 +7723,7 @@
       "path": "/api/horde/text-workers",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/horde.go:122"
+      "evidence": "internal/server/horde.go:118"
     },
     {
       "pattern": "/api/horde/user-info",
@@ -7731,7 +7731,7 @@
       "path": "/api/horde/user-info",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/horde_generation.go:99"
+      "evidence": "internal/server/horde_generation.go:95"
     },
     {
       "pattern": "/api/image-metadata",
@@ -7739,7 +7739,7 @@
       "path": "/api/image-metadata",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:504"
+      "evidence": "internal/server/http.go:515"
     },
     {
       "pattern": "/api/image-metadata/{$}",
@@ -7747,7 +7747,7 @@
       "path": "/api/image-metadata/",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:505"
+      "evidence": "internal/server/http.go:516"
     },
     {
       "pattern": "/api/image-metadata/all",
@@ -7755,7 +7755,7 @@
       "path": "/api/image-metadata/all",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:441"
+      "evidence": "internal/server/http.go:452"
     },
     {
       "pattern": "/api/image-metadata/cleanup",
@@ -7763,7 +7763,7 @@
       "path": "/api/image-metadata/cleanup",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:490"
+      "evidence": "internal/server/http.go:501"
     },
     {
       "pattern": "/api/image-metadata/folders/assign",
@@ -7771,7 +7771,7 @@
       "path": "/api/image-metadata/folders/assign",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:476"
+      "evidence": "internal/server/http.go:487"
     },
     {
       "pattern": "/api/image-metadata/folders/create",
@@ -7779,7 +7779,7 @@
       "path": "/api/image-metadata/folders/create",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:448"
+      "evidence": "internal/server/http.go:459"
     },
     {
       "pattern": "/api/image-metadata/folders/delete",
@@ -7787,7 +7787,7 @@
       "path": "/api/image-metadata/folders/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:469"
+      "evidence": "internal/server/http.go:480"
     },
     {
       "pattern": "/api/image-metadata/folders/get",
@@ -7795,7 +7795,7 @@
       "path": "/api/image-metadata/folders/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:434"
+      "evidence": "internal/server/http.go:445"
     },
     {
       "pattern": "/api/image-metadata/folders/set-thumbnails",
@@ -7803,7 +7803,7 @@
       "path": "/api/image-metadata/folders/set-thumbnails",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:455"
+      "evidence": "internal/server/http.go:466"
     },
     {
       "pattern": "/api/image-metadata/folders/unassign",
@@ -7811,7 +7811,7 @@
       "path": "/api/image-metadata/folders/unassign",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:483"
+      "evidence": "internal/server/http.go:494"
     },
     {
       "pattern": "/api/image-metadata/folders/update",
@@ -7819,7 +7819,7 @@
       "path": "/api/image-metadata/folders/update",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:462"
+      "evidence": "internal/server/http.go:473"
     },
     {
       "pattern": "/api/images/delete",
@@ -7827,7 +7827,7 @@
       "path": "/api/images/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/images.go:85"
+      "evidence": "internal/server/images.go:81"
     },
     {
       "pattern": "/api/images/folders",
@@ -7835,7 +7835,7 @@
       "path": "/api/images/folders",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/images.go:84"
+      "evidence": "internal/server/images.go:80"
     },
     {
       "pattern": "/api/images/list",
@@ -7843,7 +7843,7 @@
       "path": "/api/images/list",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/images.go:79"
+      "evidence": "internal/server/images.go:75"
     },
     {
       "pattern": "/api/images/list/",
@@ -7851,7 +7851,7 @@
       "path": "/api/images/list/",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/images.go:80"
+      "evidence": "internal/server/images.go:76"
     },
     {
       "pattern": "/api/images/upload",
@@ -7859,7 +7859,7 @@
       "path": "/api/images/upload",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/images.go:78"
+      "evidence": "internal/server/images.go:74"
     },
     {
       "pattern": "/api/minimax/generate-voice",
@@ -7867,7 +7867,7 @@
       "path": "/api/minimax/generate-voice",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/minimax.go:47"
+      "evidence": "internal/server/minimax.go:43"
     },
     {
       "pattern": "/api/nanogpt/credits",
@@ -7875,7 +7875,7 @@
       "path": "/api/nanogpt/credits",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/nanogpt.go:55"
+      "evidence": "internal/server/nanogpt.go:51"
     },
     {
       "pattern": "/api/nanogpt/models/providers",
@@ -7883,7 +7883,7 @@
       "path": "/api/nanogpt/models/providers",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/nanogpt.go:62"
+      "evidence": "internal/server/nanogpt.go:58"
     },
     {
       "pattern": "/api/novelai/generate",
@@ -7891,7 +7891,7 @@
       "path": "/api/novelai/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/novelai_generate.go:72"
+      "evidence": "internal/server/novelai_generate.go:68"
     },
     {
       "pattern": "/api/novelai/generate-image",
@@ -7899,7 +7899,7 @@
       "path": "/api/novelai/generate-image",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/novelai_generate.go:73"
+      "evidence": "internal/server/novelai_generate.go:69"
     },
     {
       "pattern": "/api/novelai/generate-voice",
@@ -7907,7 +7907,7 @@
       "path": "/api/novelai/generate-voice",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/novelai.go:43"
+      "evidence": "internal/server/novelai.go:39"
     },
     {
       "pattern": "/api/novelai/status",
@@ -7915,7 +7915,7 @@
       "path": "/api/novelai/status",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/novelai.go:43"
+      "evidence": "internal/server/novelai.go:39"
     },
     {
       "pattern": "/api/openai/caption-image",
@@ -7923,7 +7923,7 @@
       "path": "/api/openai/caption-image",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_caption.go:88"
+      "evidence": "internal/server/openai_caption.go:84"
     },
     {
       "pattern": "/api/openai/chutes/generate-voice",
@@ -7931,7 +7931,7 @@
       "path": "/api/openai/chutes/generate-voice",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_media.go:69"
+      "evidence": "internal/server/openai_media.go:65"
     },
     {
       "pattern": "/api/openai/chutes/models/embedding",
@@ -7939,7 +7939,7 @@
       "path": "/api/openai/chutes/models/embedding",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_models.go:87"
+      "evidence": "internal/server/openai_models.go:83"
     },
     {
       "pattern": "/api/openai/chutes/transcribe-audio",
@@ -7947,7 +7947,7 @@
       "path": "/api/openai/chutes/transcribe-audio",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_chutes_transcribe.go:46"
+      "evidence": "internal/server/openai_chutes_transcribe.go:42"
     },
     {
       "pattern": "/api/openai/custom/generate-voice",
@@ -7955,7 +7955,7 @@
       "path": "/api/openai/custom/generate-voice",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_media.go:67"
+      "evidence": "internal/server/openai_media.go:63"
     },
     {
       "pattern": "/api/openai/electronhub/generate-voice",
@@ -7963,7 +7963,7 @@
       "path": "/api/openai/electronhub/generate-voice",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_media.go:68"
+      "evidence": "internal/server/openai_media.go:64"
     },
     {
       "pattern": "/api/openai/electronhub/models",
@@ -7971,7 +7971,7 @@
       "path": "/api/openai/electronhub/models",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_models.go:86"
+      "evidence": "internal/server/openai_models.go:82"
     },
     {
       "pattern": "/api/openai/generate-image",
@@ -7979,7 +7979,7 @@
       "path": "/api/openai/generate-image",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_media.go:70"
+      "evidence": "internal/server/openai_media.go:66"
     },
     {
       "pattern": "/api/openai/generate-video",
@@ -7987,7 +7987,7 @@
       "path": "/api/openai/generate-video",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_generate_video.go:82"
+      "evidence": "internal/server/openai_generate_video.go:78"
     },
     {
       "pattern": "/api/openai/generate-voice",
@@ -7995,7 +7995,7 @@
       "path": "/api/openai/generate-voice",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_media.go:66"
+      "evidence": "internal/server/openai_media.go:62"
     },
     {
       "pattern": "/api/openai/groq/transcribe-audio",
@@ -8003,7 +8003,7 @@
       "path": "/api/openai/groq/transcribe-audio",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_transcribe.go:67"
+      "evidence": "internal/server/openai_transcribe.go:63"
     },
     {
       "pattern": "/api/openai/mistral/transcribe-audio",
@@ -8011,7 +8011,7 @@
       "path": "/api/openai/mistral/transcribe-audio",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_transcribe.go:67"
+      "evidence": "internal/server/openai_transcribe.go:63"
     },
     {
       "pattern": "/api/openai/nanogpt/models/embedding",
@@ -8019,7 +8019,7 @@
       "path": "/api/openai/nanogpt/models/embedding",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_models.go:88"
+      "evidence": "internal/server/openai_models.go:84"
     },
     {
       "pattern": "/api/openai/siliconflow/models/embedding",
@@ -8027,7 +8027,7 @@
       "path": "/api/openai/siliconflow/models/embedding",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_models.go:89"
+      "evidence": "internal/server/openai_models.go:85"
     },
     {
       "pattern": "/api/openai/transcribe-audio",
@@ -8035,7 +8035,7 @@
       "path": "/api/openai/transcribe-audio",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_transcribe.go:67"
+      "evidence": "internal/server/openai_transcribe.go:63"
     },
     {
       "pattern": "/api/openai/workers-ai/models/embedding",
@@ -8043,7 +8043,7 @@
       "path": "/api/openai/workers-ai/models/embedding",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_models.go:90"
+      "evidence": "internal/server/openai_models.go:86"
     },
     {
       "pattern": "/api/openai/zai/transcribe-audio",
@@ -8051,7 +8051,7 @@
       "path": "/api/openai/zai/transcribe-audio",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openai_transcribe.go:67"
+      "evidence": "internal/server/openai_transcribe.go:63"
     },
     {
       "pattern": "/api/openrouter/credits",
@@ -8059,7 +8059,7 @@
       "path": "/api/openrouter/credits",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openrouter.go:82"
+      "evidence": "internal/server/openrouter.go:78"
     },
     {
       "pattern": "/api/openrouter/image/generate",
@@ -8067,7 +8067,7 @@
       "path": "/api/openrouter/image/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openrouter.go:81"
+      "evidence": "internal/server/openrouter.go:77"
     },
     {
       "pattern": "/api/openrouter/models/embedding",
@@ -8075,7 +8075,7 @@
       "path": "/api/openrouter/models/embedding",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openrouter.go:79"
+      "evidence": "internal/server/openrouter.go:75"
     },
     {
       "pattern": "/api/openrouter/models/image",
@@ -8083,7 +8083,7 @@
       "path": "/api/openrouter/models/image",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openrouter.go:80"
+      "evidence": "internal/server/openrouter.go:76"
     },
     {
       "pattern": "/api/openrouter/models/multimodal",
@@ -8091,7 +8091,7 @@
       "path": "/api/openrouter/models/multimodal",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openrouter.go:78"
+      "evidence": "internal/server/openrouter.go:74"
     },
     {
       "pattern": "/api/openrouter/models/providers",
@@ -8099,7 +8099,7 @@
       "path": "/api/openrouter/models/providers",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/openrouter.go:77"
+      "evidence": "internal/server/openrouter.go:73"
     },
     {
       "pattern": "/api/presets/delete",
@@ -8107,7 +8107,7 @@
       "path": "/api/presets/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/presets.go:53"
+      "evidence": "internal/server/presets.go:49"
     },
     {
       "pattern": "/api/presets/restore",
@@ -8115,7 +8115,7 @@
       "path": "/api/presets/restore",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/presets.go:54"
+      "evidence": "internal/server/presets.go:50"
     },
     {
       "pattern": "/api/presets/save",
@@ -8123,7 +8123,7 @@
       "path": "/api/presets/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/presets.go:52"
+      "evidence": "internal/server/presets.go:48"
     },
     {
       "pattern": "/api/sd/aimlapi/generate-image",
@@ -8131,7 +8131,7 @@
       "path": "/api/sd/aimlapi/generate-image",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd_generate_wave2.go:85"
+      "evidence": "internal/server/sd_generate_wave2.go:81"
     },
     {
       "pattern": "/api/sd/aimlapi/models",
@@ -8139,7 +8139,7 @@
       "path": "/api/sd/aimlapi/models",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:147"
+      "evidence": "internal/server/sd.go:143"
     },
     {
       "pattern": "/api/sd/bfl/generate",
@@ -8147,7 +8147,7 @@
       "path": "/api/sd/bfl/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd_generate_wave5.go:103"
+      "evidence": "internal/server/sd_generate_wave5.go:99"
     },
     {
       "pattern": "/api/sd/chutes/generate",
@@ -8155,7 +8155,7 @@
       "path": "/api/sd/chutes/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd_generate_wave2.go:82"
+      "evidence": "internal/server/sd_generate_wave2.go:78"
     },
     {
       "pattern": "/api/sd/chutes/models",
@@ -8163,7 +8163,7 @@
       "path": "/api/sd/chutes/models",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:143"
+      "evidence": "internal/server/sd.go:139"
     },
     {
       "pattern": "/api/sd/comfy/delete-workflow",
@@ -8171,7 +8171,7 @@
       "path": "/api/sd/comfy/delete-workflow",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:130"
+      "evidence": "internal/server/sd.go:126"
     },
     {
       "pattern": "/api/sd/comfy/generate",
@@ -8179,7 +8179,7 @@
       "path": "/api/sd/comfy/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd_generate_comfy.go:81"
+      "evidence": "internal/server/sd_generate_comfy.go:77"
     },
     {
       "pattern": "/api/sd/comfy/models",
@@ -8187,7 +8187,7 @@
       "path": "/api/sd/comfy/models",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:124"
+      "evidence": "internal/server/sd.go:120"
     },
     {
       "pattern": "/api/sd/comfy/ping",
@@ -8195,7 +8195,7 @@
       "path": "/api/sd/comfy/ping",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:122"
+      "evidence": "internal/server/sd.go:118"
     },
     {
       "pattern": "/api/sd/comfy/rename-workflow",
@@ -8203,7 +8203,7 @@
       "path": "/api/sd/comfy/rename-workflow",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:131"
+      "evidence": "internal/server/sd.go:127"
     },
     {
       "pattern": "/api/sd/comfy/samplers",
@@ -8211,7 +8211,7 @@
       "path": "/api/sd/comfy/samplers",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:123"
+      "evidence": "internal/server/sd.go:119"
     },
     {
       "pattern": "/api/sd/comfy/save-workflow",
@@ -8219,7 +8219,7 @@
       "path": "/api/sd/comfy/save-workflow",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:129"
+      "evidence": "internal/server/sd.go:125"
     },
     {
       "pattern": "/api/sd/comfy/schedulers",
@@ -8227,7 +8227,7 @@
       "path": "/api/sd/comfy/schedulers",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:125"
+      "evidence": "internal/server/sd.go:121"
     },
     {
       "pattern": "/api/sd/comfy/vaes",
@@ -8235,7 +8235,7 @@
       "path": "/api/sd/comfy/vaes",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:126"
+      "evidence": "internal/server/sd.go:122"
     },
     {
       "pattern": "/api/sd/comfy/workflow",
@@ -8243,7 +8243,7 @@
       "path": "/api/sd/comfy/workflow",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:128"
+      "evidence": "internal/server/sd.go:124"
     },
     {
       "pattern": "/api/sd/comfy/workflows",
@@ -8251,7 +8251,7 @@
       "path": "/api/sd/comfy/workflows",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:127"
+      "evidence": "internal/server/sd.go:123"
     },
     {
       "pattern": "/api/sd/comfyrunpod/generate",
@@ -8259,7 +8259,7 @@
       "path": "/api/sd/comfyrunpod/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd_generate_comfy.go:82"
+      "evidence": "internal/server/sd_generate_comfy.go:78"
     },
     {
       "pattern": "/api/sd/comfyrunpod/ping",
@@ -8267,7 +8267,7 @@
       "path": "/api/sd/comfyrunpod/ping",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:133"
+      "evidence": "internal/server/sd.go:129"
     },
     {
       "pattern": "/api/sd/drawthings/generate",
@@ -8275,7 +8275,7 @@
       "path": "/api/sd/drawthings/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:140"
+      "evidence": "internal/server/sd.go:136"
     },
     {
       "pattern": "/api/sd/drawthings/get-model",
@@ -8283,7 +8283,7 @@
       "path": "/api/sd/drawthings/get-model",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:138"
+      "evidence": "internal/server/sd.go:134"
     },
     {
       "pattern": "/api/sd/drawthings/get-upscaler",
@@ -8291,7 +8291,7 @@
       "path": "/api/sd/drawthings/get-upscaler",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:139"
+      "evidence": "internal/server/sd.go:135"
     },
     {
       "pattern": "/api/sd/drawthings/ping",
@@ -8299,7 +8299,7 @@
       "path": "/api/sd/drawthings/ping",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:137"
+      "evidence": "internal/server/sd.go:133"
     },
     {
       "pattern": "/api/sd/electronhub/generate",
@@ -8307,7 +8307,7 @@
       "path": "/api/sd/electronhub/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd_generate_wave2.go:81"
+      "evidence": "internal/server/sd_generate_wave2.go:77"
     },
     {
       "pattern": "/api/sd/electronhub/models",
@@ -8315,7 +8315,7 @@
       "path": "/api/sd/electronhub/models",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:144"
+      "evidence": "internal/server/sd.go:140"
     },
     {
       "pattern": "/api/sd/electronhub/sizes",
@@ -8323,7 +8323,7 @@
       "path": "/api/sd/electronhub/sizes",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:145"
+      "evidence": "internal/server/sd.go:141"
     },
     {
       "pattern": "/api/sd/falai/generate",
@@ -8331,7 +8331,7 @@
       "path": "/api/sd/falai/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd_generate_wave5.go:104"
+      "evidence": "internal/server/sd_generate_wave5.go:100"
     },
     {
       "pattern": "/api/sd/falai/models",
@@ -8339,7 +8339,7 @@
       "path": "/api/sd/falai/models",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:152"
+      "evidence": "internal/server/sd.go:148"
     },
     {
       "pattern": "/api/sd/generate",
@@ -8347,7 +8347,7 @@
       "path": "/api/sd/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:112"
+      "evidence": "internal/server/sd.go:108"
     },
     {
       "pattern": "/api/sd/get-model",
@@ -8355,7 +8355,7 @@
       "path": "/api/sd/get-model",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:118"
+      "evidence": "internal/server/sd.go:114"
     },
     {
       "pattern": "/api/sd/huggingface/generate",
@@ -8363,7 +8363,7 @@
       "path": "/api/sd/huggingface/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd_generate_wave2.go:80"
+      "evidence": "internal/server/sd_generate_wave2.go:76"
     },
     {
       "pattern": "/api/sd/models",
@@ -8371,7 +8371,7 @@
       "path": "/api/sd/models",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:117"
+      "evidence": "internal/server/sd.go:113"
     },
     {
       "pattern": "/api/sd/nanogpt/generate",
@@ -8379,7 +8379,7 @@
       "path": "/api/sd/nanogpt/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd_generate_wave2.go:83"
+      "evidence": "internal/server/sd_generate_wave2.go:79"
     },
     {
       "pattern": "/api/sd/nanogpt/models",
@@ -8387,7 +8387,7 @@
       "path": "/api/sd/nanogpt/models",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:146"
+      "evidence": "internal/server/sd.go:142"
     },
     {
       "pattern": "/api/sd/ping",
@@ -8395,7 +8395,7 @@
       "path": "/api/sd/ping",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:111"
+      "evidence": "internal/server/sd.go:107"
     },
     {
       "pattern": "/api/sd/pollinations/generate",
@@ -8403,7 +8403,7 @@
       "path": "/api/sd/pollinations/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd_generate.go:56"
+      "evidence": "internal/server/sd_generate.go:52"
     },
     {
       "pattern": "/api/sd/pollinations/models",
@@ -8411,7 +8411,7 @@
       "path": "/api/sd/pollinations/models",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:151"
+      "evidence": "internal/server/sd.go:147"
     },
     {
       "pattern": "/api/sd/samplers",
@@ -8419,7 +8419,7 @@
       "path": "/api/sd/samplers",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:115"
+      "evidence": "internal/server/sd.go:111"
     },
     {
       "pattern": "/api/sd/schedulers",
@@ -8427,7 +8427,7 @@
       "path": "/api/sd/schedulers",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:116"
+      "evidence": "internal/server/sd.go:112"
     },
     {
       "pattern": "/api/sd/sd-next/upscalers",
@@ -8435,7 +8435,7 @@
       "path": "/api/sd/sd-next/upscalers",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:120"
+      "evidence": "internal/server/sd.go:116"
     },
     {
       "pattern": "/api/sd/sdcpp/generate",
@@ -8443,7 +8443,7 @@
       "path": "/api/sd/sdcpp/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:136"
+      "evidence": "internal/server/sd.go:132"
     },
     {
       "pattern": "/api/sd/sdcpp/models",
@@ -8451,7 +8451,7 @@
       "path": "/api/sd/sdcpp/models",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:135"
+      "evidence": "internal/server/sd.go:131"
     },
     {
       "pattern": "/api/sd/sdcpp/ping",
@@ -8459,7 +8459,7 @@
       "path": "/api/sd/sdcpp/ping",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:134"
+      "evidence": "internal/server/sd.go:130"
     },
     {
       "pattern": "/api/sd/set-model",
@@ -8467,7 +8467,7 @@
       "path": "/api/sd/set-model",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:119"
+      "evidence": "internal/server/sd.go:115"
     },
     {
       "pattern": "/api/sd/stability/generate",
@@ -8475,7 +8475,7 @@
       "path": "/api/sd/stability/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:150"
+      "evidence": "internal/server/sd.go:146"
     },
     {
       "pattern": "/api/sd/together/generate",
@@ -8483,7 +8483,7 @@
       "path": "/api/sd/together/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd_generate.go:57"
+      "evidence": "internal/server/sd_generate.go:53"
     },
     {
       "pattern": "/api/sd/together/models",
@@ -8491,7 +8491,7 @@
       "path": "/api/sd/together/models",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:142"
+      "evidence": "internal/server/sd.go:138"
     },
     {
       "pattern": "/api/sd/upscalers",
@@ -8499,7 +8499,7 @@
       "path": "/api/sd/upscalers",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:113"
+      "evidence": "internal/server/sd.go:109"
     },
     {
       "pattern": "/api/sd/vaes",
@@ -8507,7 +8507,7 @@
       "path": "/api/sd/vaes",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:114"
+      "evidence": "internal/server/sd.go:110"
     },
     {
       "pattern": "/api/sd/workersai/generate",
@@ -8515,7 +8515,7 @@
       "path": "/api/sd/workersai/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:149"
+      "evidence": "internal/server/sd.go:145"
     },
     {
       "pattern": "/api/sd/workersai/models",
@@ -8523,7 +8523,7 @@
       "path": "/api/sd/workersai/models",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd.go:148"
+      "evidence": "internal/server/sd.go:144"
     },
     {
       "pattern": "/api/sd/xai/generate",
@@ -8531,7 +8531,7 @@
       "path": "/api/sd/xai/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd_generate_wave2.go:84"
+      "evidence": "internal/server/sd_generate_wave2.go:80"
     },
     {
       "pattern": "/api/sd/zai/generate",
@@ -8539,7 +8539,7 @@
       "path": "/api/sd/zai/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd_zai.go:103"
+      "evidence": "internal/server/sd_zai.go:99"
     },
     {
       "pattern": "/api/sd/zai/generate-video",
@@ -8547,7 +8547,7 @@
       "path": "/api/sd/zai/generate-video",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sd_zai.go:104"
+      "evidence": "internal/server/sd_zai.go:100"
     },
     {
       "pattern": "/api/search/koboldcpp",
@@ -8555,7 +8555,7 @@
       "path": "/api/search/koboldcpp",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/search.go:88"
+      "evidence": "internal/server/search.go:84"
     },
     {
       "pattern": "/api/search/searxng",
@@ -8563,7 +8563,7 @@
       "path": "/api/search/searxng",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/search.go:86"
+      "evidence": "internal/server/search.go:82"
     },
     {
       "pattern": "/api/search/serpapi",
@@ -8571,7 +8571,7 @@
       "path": "/api/search/serpapi",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/search.go:84"
+      "evidence": "internal/server/search.go:80"
     },
     {
       "pattern": "/api/search/serper",
@@ -8579,7 +8579,7 @@
       "path": "/api/search/serper",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/search.go:89"
+      "evidence": "internal/server/search.go:85"
     },
     {
       "pattern": "/api/search/tavily",
@@ -8587,7 +8587,7 @@
       "path": "/api/search/tavily",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/search.go:87"
+      "evidence": "internal/server/search.go:83"
     },
     {
       "pattern": "/api/search/transcript",
@@ -8595,7 +8595,7 @@
       "path": "/api/search/transcript",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/search.go:85"
+      "evidence": "internal/server/search.go:81"
     },
     {
       "pattern": "/api/search/zai",
@@ -8603,7 +8603,7 @@
       "path": "/api/search/zai",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/search.go:90"
+      "evidence": "internal/server/search.go:86"
     },
     {
       "pattern": "/api/secrets/delete",
@@ -8611,7 +8611,7 @@
       "path": "/api/secrets/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/secrets.go:63"
+      "evidence": "internal/server/secrets.go:59"
     },
     {
       "pattern": "/api/secrets/find",
@@ -8619,7 +8619,7 @@
       "path": "/api/secrets/find",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/secrets.go:62"
+      "evidence": "internal/server/secrets.go:58"
     },
     {
       "pattern": "/api/secrets/read",
@@ -8627,7 +8627,7 @@
       "path": "/api/secrets/read",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/secrets.go:60"
+      "evidence": "internal/server/secrets.go:56"
     },
     {
       "pattern": "/api/secrets/rename",
@@ -8635,7 +8635,7 @@
       "path": "/api/secrets/rename",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/secrets.go:65"
+      "evidence": "internal/server/secrets.go:61"
     },
     {
       "pattern": "/api/secrets/rotate",
@@ -8643,7 +8643,7 @@
       "path": "/api/secrets/rotate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/secrets.go:64"
+      "evidence": "internal/server/secrets.go:60"
     },
     {
       "pattern": "/api/secrets/settings",
@@ -8651,7 +8651,7 @@
       "path": "/api/secrets/settings",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/secrets.go:66"
+      "evidence": "internal/server/secrets.go:62"
     },
     {
       "pattern": "/api/secrets/view",
@@ -8659,7 +8659,7 @@
       "path": "/api/secrets/view",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/secrets.go:61"
+      "evidence": "internal/server/secrets.go:57"
     },
     {
       "pattern": "/api/secrets/write",
@@ -8667,7 +8667,7 @@
       "path": "/api/secrets/write",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/secrets.go:59"
+      "evidence": "internal/server/secrets.go:55"
     },
     {
       "pattern": "/api/serpapi/search",
@@ -8675,7 +8675,7 @@
       "path": "/api/serpapi/search",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/search/serpapi (src/server-startup.js:131)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/api/serpapi/transcript",
@@ -8683,7 +8683,7 @@
       "path": "/api/serpapi/transcript",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/search/transcript (src/server-startup.js:133)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/api/serpapi/visit",
@@ -8691,7 +8691,7 @@
       "path": "/api/serpapi/visit",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/search/visit (src/server-startup.js:132)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/api/speech/elevenlabs/history",
@@ -8699,7 +8699,7 @@
       "path": "/api/speech/elevenlabs/history",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/speech.go:97"
+      "evidence": "internal/server/speech.go:93"
     },
     {
       "pattern": "/api/speech/elevenlabs/history-audio",
@@ -8707,7 +8707,7 @@
       "path": "/api/speech/elevenlabs/history-audio",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/speech.go:98"
+      "evidence": "internal/server/speech.go:94"
     },
     {
       "pattern": "/api/speech/elevenlabs/recognize",
@@ -8715,7 +8715,7 @@
       "path": "/api/speech/elevenlabs/recognize",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/speech.go:100"
+      "evidence": "internal/server/speech.go:96"
     },
     {
       "pattern": "/api/speech/elevenlabs/synthesize",
@@ -8723,7 +8723,7 @@
       "path": "/api/speech/elevenlabs/synthesize",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/speech.go:96"
+      "evidence": "internal/server/speech.go:92"
     },
     {
       "pattern": "/api/speech/elevenlabs/voice-settings",
@@ -8731,7 +8731,7 @@
       "path": "/api/speech/elevenlabs/voice-settings",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/speech.go:95"
+      "evidence": "internal/server/speech.go:91"
     },
     {
       "pattern": "/api/speech/elevenlabs/voices",
@@ -8739,7 +8739,7 @@
       "path": "/api/speech/elevenlabs/voices",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/speech.go:94"
+      "evidence": "internal/server/speech.go:90"
     },
     {
       "pattern": "/api/speech/elevenlabs/voices/add",
@@ -8747,7 +8747,7 @@
       "path": "/api/speech/elevenlabs/voices/add",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/speech.go:99"
+      "evidence": "internal/server/speech.go:95"
     },
     {
       "pattern": "/api/speech/pollinations/generate",
@@ -8755,7 +8755,7 @@
       "path": "/api/speech/pollinations/generate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/speech.go:93"
+      "evidence": "internal/server/speech.go:89"
     },
     {
       "pattern": "/api/speech/pollinations/voices",
@@ -8763,7 +8763,7 @@
       "path": "/api/speech/pollinations/voices",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/speech.go:92"
+      "evidence": "internal/server/speech.go:88"
     },
     {
       "pattern": "/api/sprites/upload",
@@ -8771,7 +8771,7 @@
       "path": "/api/sprites/upload",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sprites_upload.go:39"
+      "evidence": "internal/server/sprites_upload.go:35"
     },
     {
       "pattern": "/api/sprites/upload-zip",
@@ -8779,7 +8779,7 @@
       "path": "/api/sprites/upload-zip",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/sprites_upload.go:39"
+      "evidence": "internal/server/sprites_upload.go:35"
     },
     {
       "pattern": "/api/stats/get",
@@ -8787,7 +8787,7 @@
       "path": "/api/stats/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/stats.go:37"
+      "evidence": "internal/server/stats.go:33"
     },
     {
       "pattern": "/api/stats/recreate",
@@ -8795,7 +8795,7 @@
       "path": "/api/stats/recreate",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/stats.go:39"
+      "evidence": "internal/server/stats.go:35"
     },
     {
       "pattern": "/api/stats/update",
@@ -8803,7 +8803,7 @@
       "path": "/api/stats/update",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/stats.go:38"
+      "evidence": "internal/server/stats.go:34"
     },
     {
       "pattern": "/api/tokenizers/claude/decode",
@@ -8811,7 +8811,7 @@
       "path": "/api/tokenizers/claude/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/claude/decode",
@@ -8819,7 +8819,7 @@
       "path": "/api/tokenizers/claude/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/claude/encode",
@@ -8827,7 +8827,7 @@
       "path": "/api/tokenizers/claude/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/claude/encode",
@@ -8835,7 +8835,7 @@
       "path": "/api/tokenizers/claude/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/command-a/decode",
@@ -8843,7 +8843,7 @@
       "path": "/api/tokenizers/command-a/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/command-a/decode",
@@ -8851,7 +8851,7 @@
       "path": "/api/tokenizers/command-a/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/command-a/encode",
@@ -8859,7 +8859,7 @@
       "path": "/api/tokenizers/command-a/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/command-a/encode",
@@ -8867,7 +8867,7 @@
       "path": "/api/tokenizers/command-a/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/command-r/decode",
@@ -8875,7 +8875,7 @@
       "path": "/api/tokenizers/command-r/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/command-r/decode",
@@ -8883,7 +8883,7 @@
       "path": "/api/tokenizers/command-r/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/command-r/encode",
@@ -8891,7 +8891,7 @@
       "path": "/api/tokenizers/command-r/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/command-r/encode",
@@ -8899,7 +8899,7 @@
       "path": "/api/tokenizers/command-r/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/deepseek/decode",
@@ -8907,7 +8907,7 @@
       "path": "/api/tokenizers/deepseek/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/deepseek/decode",
@@ -8915,7 +8915,7 @@
       "path": "/api/tokenizers/deepseek/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/deepseek/encode",
@@ -8923,7 +8923,7 @@
       "path": "/api/tokenizers/deepseek/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/deepseek/encode",
@@ -8931,7 +8931,7 @@
       "path": "/api/tokenizers/deepseek/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/gemma/decode",
@@ -8939,7 +8939,7 @@
       "path": "/api/tokenizers/gemma/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/gemma/decode",
@@ -8947,7 +8947,7 @@
       "path": "/api/tokenizers/gemma/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/gemma/encode",
@@ -8955,7 +8955,7 @@
       "path": "/api/tokenizers/gemma/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/gemma/encode",
@@ -8963,7 +8963,7 @@
       "path": "/api/tokenizers/gemma/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/gpt2/decode",
@@ -8971,7 +8971,7 @@
       "path": "/api/tokenizers/gpt2/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:91"
+      "evidence": "internal/server/tokenizers.go:87"
     },
     {
       "pattern": "/api/tokenizers/gpt2/encode",
@@ -8979,7 +8979,7 @@
       "path": "/api/tokenizers/gpt2/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:90"
+      "evidence": "internal/server/tokenizers.go:86"
     },
     {
       "pattern": "/api/tokenizers/jamba/decode",
@@ -8987,7 +8987,7 @@
       "path": "/api/tokenizers/jamba/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/jamba/decode",
@@ -8995,7 +8995,7 @@
       "path": "/api/tokenizers/jamba/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/jamba/encode",
@@ -9003,7 +9003,7 @@
       "path": "/api/tokenizers/jamba/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/jamba/encode",
@@ -9011,7 +9011,7 @@
       "path": "/api/tokenizers/jamba/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/llama/decode",
@@ -9019,7 +9019,7 @@
       "path": "/api/tokenizers/llama/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/llama/decode",
@@ -9027,7 +9027,7 @@
       "path": "/api/tokenizers/llama/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/llama/encode",
@@ -9035,7 +9035,7 @@
       "path": "/api/tokenizers/llama/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/llama/encode",
@@ -9043,7 +9043,7 @@
       "path": "/api/tokenizers/llama/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/llama3/decode",
@@ -9051,7 +9051,7 @@
       "path": "/api/tokenizers/llama3/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/llama3/decode",
@@ -9059,7 +9059,7 @@
       "path": "/api/tokenizers/llama3/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/llama3/encode",
@@ -9067,7 +9067,7 @@
       "path": "/api/tokenizers/llama3/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/llama3/encode",
@@ -9075,7 +9075,7 @@
       "path": "/api/tokenizers/llama3/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/mistral/decode",
@@ -9083,7 +9083,7 @@
       "path": "/api/tokenizers/mistral/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/mistral/decode",
@@ -9091,7 +9091,7 @@
       "path": "/api/tokenizers/mistral/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/mistral/encode",
@@ -9099,7 +9099,7 @@
       "path": "/api/tokenizers/mistral/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/mistral/encode",
@@ -9107,7 +9107,7 @@
       "path": "/api/tokenizers/mistral/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/nemo/decode",
@@ -9115,7 +9115,7 @@
       "path": "/api/tokenizers/nemo/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/nemo/decode",
@@ -9123,7 +9123,7 @@
       "path": "/api/tokenizers/nemo/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/nemo/encode",
@@ -9131,7 +9131,7 @@
       "path": "/api/tokenizers/nemo/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/nemo/encode",
@@ -9139,7 +9139,7 @@
       "path": "/api/tokenizers/nemo/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/nerdstash_v2/decode",
@@ -9147,7 +9147,7 @@
       "path": "/api/tokenizers/nerdstash_v2/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/nerdstash_v2/decode",
@@ -9155,7 +9155,7 @@
       "path": "/api/tokenizers/nerdstash_v2/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/nerdstash_v2/encode",
@@ -9163,7 +9163,7 @@
       "path": "/api/tokenizers/nerdstash_v2/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/nerdstash_v2/encode",
@@ -9171,7 +9171,7 @@
       "path": "/api/tokenizers/nerdstash_v2/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/nerdstash/decode",
@@ -9179,7 +9179,7 @@
       "path": "/api/tokenizers/nerdstash/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/nerdstash/decode",
@@ -9187,7 +9187,7 @@
       "path": "/api/tokenizers/nerdstash/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/nerdstash/encode",
@@ -9195,7 +9195,7 @@
       "path": "/api/tokenizers/nerdstash/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/nerdstash/encode",
@@ -9203,7 +9203,7 @@
       "path": "/api/tokenizers/nerdstash/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/openai/count",
@@ -9211,7 +9211,7 @@
       "path": "/api/tokenizers/openai/count",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:103"
+      "evidence": "internal/server/tokenizers.go:99"
     },
     {
       "pattern": "/api/tokenizers/openai/decode",
@@ -9219,7 +9219,7 @@
       "path": "/api/tokenizers/openai/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:102"
+      "evidence": "internal/server/tokenizers.go:98"
     },
     {
       "pattern": "/api/tokenizers/openai/encode",
@@ -9227,7 +9227,7 @@
       "path": "/api/tokenizers/openai/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:101"
+      "evidence": "internal/server/tokenizers.go:97"
     },
     {
       "pattern": "/api/tokenizers/qwen2/decode",
@@ -9235,7 +9235,7 @@
       "path": "/api/tokenizers/qwen2/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/qwen2/decode",
@@ -9243,7 +9243,7 @@
       "path": "/api/tokenizers/qwen2/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/qwen2/encode",
@@ -9251,7 +9251,7 @@
       "path": "/api/tokenizers/qwen2/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/qwen2/encode",
@@ -9259,7 +9259,7 @@
       "path": "/api/tokenizers/qwen2/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:92"
+      "evidence": "internal/server/tokenizers.go:88"
     },
     {
       "pattern": "/api/tokenizers/remote/kobold/count",
@@ -9267,7 +9267,7 @@
       "path": "/api/tokenizers/remote/kobold/count",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:104"
+      "evidence": "internal/server/tokenizers.go:100"
     },
     {
       "pattern": "/api/tokenizers/remote/textgenerationwebui/encode",
@@ -9275,7 +9275,7 @@
       "path": "/api/tokenizers/remote/textgenerationwebui/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:105"
+      "evidence": "internal/server/tokenizers.go:101"
     },
     {
       "pattern": "/api/tokenizers/yi/decode",
@@ -9283,7 +9283,7 @@
       "path": "/api/tokenizers/yi/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/yi/decode",
@@ -9291,7 +9291,7 @@
       "path": "/api/tokenizers/yi/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/yi/encode",
@@ -9299,7 +9299,7 @@
       "path": "/api/tokenizers/yi/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/tokenizers/yi/encode",
@@ -9307,7 +9307,7 @@
       "path": "/api/tokenizers/yi/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:81"
+      "evidence": "internal/server/tokenizers.go:77"
     },
     {
       "pattern": "/api/translate/deepl",
@@ -9315,7 +9315,7 @@
       "path": "/api/translate/deepl",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/translate.go:92"
+      "evidence": "internal/server/translate.go:88"
     },
     {
       "pattern": "/api/translate/deeplx",
@@ -9323,7 +9323,7 @@
       "path": "/api/translate/deeplx",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/translate.go:96"
+      "evidence": "internal/server/translate.go:92"
     },
     {
       "pattern": "/api/translate/libre",
@@ -9331,7 +9331,7 @@
       "path": "/api/translate/libre",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/translate.go:91"
+      "evidence": "internal/server/translate.go:87"
     },
     {
       "pattern": "/api/translate/lingva",
@@ -9339,7 +9339,7 @@
       "path": "/api/translate/lingva",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/translate.go:94"
+      "evidence": "internal/server/translate.go:90"
     },
     {
       "pattern": "/api/translate/onering",
@@ -9347,7 +9347,7 @@
       "path": "/api/translate/onering",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/translate.go:95"
+      "evidence": "internal/server/translate.go:91"
     },
     {
       "pattern": "/api/translate/yandex",
@@ -9355,7 +9355,7 @@
       "path": "/api/translate/yandex",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/translate.go:93"
+      "evidence": "internal/server/translate.go:89"
     },
     {
       "pattern": "/api/vector/delete",
@@ -9363,7 +9363,7 @@
       "path": "/api/vector/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/vector.go:90"
+      "evidence": "internal/server/vector.go:86"
     },
     {
       "pattern": "/api/vector/insert",
@@ -9371,7 +9371,7 @@
       "path": "/api/vector/insert",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/vector.go:88"
+      "evidence": "internal/server/vector.go:84"
     },
     {
       "pattern": "/api/vector/list",
@@ -9379,7 +9379,7 @@
       "path": "/api/vector/list",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/vector.go:89"
+      "evidence": "internal/server/vector.go:85"
     },
     {
       "pattern": "/api/vector/purge",
@@ -9387,7 +9387,7 @@
       "path": "/api/vector/purge",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/vector.go:92"
+      "evidence": "internal/server/vector.go:88"
     },
     {
       "pattern": "/api/vector/purge-all",
@@ -9395,7 +9395,7 @@
       "path": "/api/vector/purge-all",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/vector.go:91"
+      "evidence": "internal/server/vector.go:87"
     },
     {
       "pattern": "/api/vector/query",
@@ -9403,7 +9403,7 @@
       "path": "/api/vector/query",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/vector.go:86"
+      "evidence": "internal/server/vector.go:82"
     },
     {
       "pattern": "/api/vector/query-multi",
@@ -9411,7 +9411,7 @@
       "path": "/api/vector/query-multi",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/vector.go:87"
+      "evidence": "internal/server/vector.go:83"
     },
     {
       "pattern": "/api/volcengine/generate-voice",
@@ -9419,7 +9419,7 @@
       "path": "/api/volcengine/generate-voice",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/volcengine.go:77"
+      "evidence": "internal/server/volcengine.go:73"
     },
     {
       "pattern": "/api/worldinfo/delete",
@@ -9427,7 +9427,7 @@
       "path": "/api/worldinfo/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/worldinfo.go:73"
+      "evidence": "internal/server/worldinfo.go:69"
     },
     {
       "pattern": "/api/worldinfo/edit",
@@ -9435,7 +9435,7 @@
       "path": "/api/worldinfo/edit",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/worldinfo.go:75"
+      "evidence": "internal/server/worldinfo.go:71"
     },
     {
       "pattern": "/api/worldinfo/get",
@@ -9443,7 +9443,7 @@
       "path": "/api/worldinfo/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/worldinfo.go:72"
+      "evidence": "internal/server/worldinfo.go:68"
     },
     {
       "pattern": "/api/worldinfo/import",
@@ -9451,7 +9451,7 @@
       "path": "/api/worldinfo/import",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/worldinfo.go:74"
+      "evidence": "internal/server/worldinfo.go:70"
     },
     {
       "pattern": "/api/worldinfo/list",
@@ -9459,7 +9459,7 @@
       "path": "/api/worldinfo/list",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/worldinfo.go:71"
+      "evidence": "internal/server/worldinfo.go:67"
     },
     {
       "pattern": "/assets/{rest...}",
@@ -9467,7 +9467,7 @@
       "path": "/assets/{rest...}",
       "classification": "intentionally-passthrough",
       "reason": "pinned user-data static mount: router.use('/assets/*', ...) in src/users.js:1216",
-      "evidence": "internal/server/frontend_assets.go:103"
+      "evidence": "internal/server/frontend_assets.go:99"
     },
     {
       "pattern": "/backgrounds/{rest...}",
@@ -9475,7 +9475,7 @@
       "path": "/backgrounds/{rest...}",
       "classification": "intentionally-passthrough",
       "reason": "pinned user-data static mount: router.use('/backgrounds/*', ...) in src/users.js:1213, served from the user's backgrounds directory with pinned createRouteHandler/send semantics",
-      "evidence": "internal/server/frontend_assets.go:103"
+      "evidence": "internal/server/frontend_assets.go:99"
     },
     {
       "pattern": "/characters/{rest...}",
@@ -9483,7 +9483,7 @@
       "path": "/characters/{rest...}",
       "classification": "intentionally-passthrough",
       "reason": "pinned user-data static mount: router.use('/characters/*', ...) in src/users.js:1214 -- this is the mount an avatar's full-size image, sprites and live2d are fetched through, and its absence was a shipped P0",
-      "evidence": "internal/server/frontend_assets.go:103"
+      "evidence": "internal/server/frontend_assets.go:99"
     },
     {
       "pattern": "/createcharacter",
@@ -9491,7 +9491,7 @@
       "path": "/createcharacter",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/create (src/server-startup.js:84)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/creategroup",
@@ -9499,7 +9499,7 @@
       "path": "/creategroup",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/groups/create (src/server-startup.js:107)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/css/user.css",
@@ -9507,7 +9507,7 @@
       "path": "/css/user.css",
       "classification": "intentionally-passthrough",
       "reason": "the pinned user.css override: a user-supplied stylesheet served in place of public/css/user.css, not a backend route",
-      "evidence": "internal/server/frontend_assets.go:109"
+      "evidence": "internal/server/frontend_assets.go:105"
     },
     {
       "pattern": "/delbackground",
@@ -9515,7 +9515,7 @@
       "path": "/delbackground",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/backgrounds/delete (src/server-startup.js:118)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/delchat",
@@ -9523,7 +9523,7 @@
       "path": "/delchat",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/delete (src/server-startup.js:99)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/deletecharacter",
@@ -9531,7 +9531,7 @@
       "path": "/deletecharacter",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/delete (src/server-startup.js:89)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/deletegroup",
@@ -9539,7 +9539,7 @@
       "path": "/deletegroup",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/groups/delete (src/server-startup.js:109)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/deletegroupchat",
@@ -9547,7 +9547,7 @@
       "path": "/deletegroupchat",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/group/delete (src/server-startup.js:104)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/deletequickreply",
@@ -9555,7 +9555,7 @@
       "path": "/deletequickreply",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/quick-replies/delete (src/server-startup.js:125)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/deleteuseravatar",
@@ -9563,7 +9563,7 @@
       "path": "/deleteuseravatar",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/avatars/delete (src/server-startup.js:123)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/deleteworldinfo",
@@ -9571,7 +9571,7 @@
       "path": "/deleteworldinfo",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/worldinfo/delete (src/server-startup.js:111)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/downloadbackground",
@@ -9579,7 +9579,7 @@
       "path": "/downloadbackground",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/backgrounds/upload (src/server-startup.js:120)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/dupecharacter",
@@ -9587,7 +9587,7 @@
       "path": "/dupecharacter",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/duplicate (src/server-startup.js:94)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/editcharacter",
@@ -9595,7 +9595,7 @@
       "path": "/editcharacter",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/edit (src/server-startup.js:86)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/editcharacterattribute",
@@ -9603,7 +9603,7 @@
       "path": "/editcharacterattribute",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/edit-attribute (src/server-startup.js:87)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/editgroup",
@@ -9611,7 +9611,7 @@
       "path": "/editgroup",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/groups/edit (src/server-startup.js:108)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/editworldinfo",
@@ -9619,7 +9619,7 @@
       "path": "/editworldinfo",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/worldinfo/edit (src/server-startup.js:113)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/exportcharacter",
@@ -9627,7 +9627,7 @@
       "path": "/exportcharacter",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/export (src/server-startup.js:95)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/exportchat",
@@ -9635,7 +9635,7 @@
       "path": "/exportchat",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/export (src/server-startup.js:100)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/getallchatsofcharacter",
@@ -9643,7 +9643,7 @@
       "path": "/getallchatsofcharacter",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/chats (src/server-startup.js:92)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/getbackgrounds",
@@ -9651,7 +9651,7 @@
       "path": "/getbackgrounds",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/backgrounds/all (src/server-startup.js:117)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/getcharacters",
@@ -9659,7 +9659,7 @@
       "path": "/getcharacters",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/all (src/server-startup.js:90)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/getchat",
@@ -9667,7 +9667,7 @@
       "path": "/getchat",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/get (src/server-startup.js:97)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/getgroupchat",
@@ -9675,7 +9675,7 @@
       "path": "/getgroupchat",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/group/get (src/server-startup.js:103)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/getgroups",
@@ -9683,7 +9683,7 @@
       "path": "/getgroups",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/groups/all (src/server-startup.js:106)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/getonecharacter",
@@ -9691,7 +9691,7 @@
       "path": "/getonecharacter",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/get (src/server-startup.js:91)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/getstats",
@@ -9699,7 +9699,7 @@
       "path": "/getstats",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/stats/get (src/server-startup.js:114)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/getuseravatars",
@@ -9707,7 +9707,7 @@
       "path": "/getuseravatars",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/avatars/get (src/server-startup.js:122)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/getworldinfo",
@@ -9715,7 +9715,7 @@
       "path": "/getworldinfo",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/worldinfo/get (src/server-startup.js:110)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/importcharacter",
@@ -9723,7 +9723,7 @@
       "path": "/importcharacter",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/import (src/server-startup.js:93)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/importchat",
@@ -9731,7 +9731,7 @@
       "path": "/importchat",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/import (src/server-startup.js:102)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/importgroupchat",
@@ -9739,7 +9739,7 @@
       "path": "/importgroupchat",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/group/import (src/server-startup.js:101)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/importworldinfo",
@@ -9747,7 +9747,7 @@
       "path": "/importworldinfo",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/worldinfo/import (src/server-startup.js:112)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/listimgfiles/:folder",
@@ -9755,7 +9755,7 @@
       "path": "/listimgfiles/:folder",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/images/list/:folder (src/server-startup.js:128)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/recreatestats",
@@ -9763,7 +9763,7 @@
       "path": "/recreatestats",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/stats/recreate (src/server-startup.js:115)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/renamebackground",
@@ -9771,7 +9771,7 @@
       "path": "/renamebackground",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/backgrounds/rename (src/server-startup.js:119)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/renamecharacter",
@@ -9779,7 +9779,7 @@
       "path": "/renamecharacter",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/rename (src/server-startup.js:85)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/renamechat",
@@ -9787,7 +9787,7 @@
       "path": "/renamechat",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/rename (src/server-startup.js:98)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/savechat",
@@ -9795,7 +9795,7 @@
       "path": "/savechat",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/save (src/server-startup.js:96)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/savegroupchat",
@@ -9803,7 +9803,7 @@
       "path": "/savegroupchat",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/chats/group/save (src/server-startup.js:105)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/savemovingui",
@@ -9811,7 +9811,7 @@
       "path": "/savemovingui",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/moving-ui/save (src/server-startup.js:130)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/savequickreply",
@@ -9819,7 +9819,7 @@
       "path": "/savequickreply",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/quick-replies/save (src/server-startup.js:126)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/savetheme",
@@ -9827,7 +9827,7 @@
       "path": "/savetheme",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/themes/save (src/server-startup.js:121)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/scripts/extensions/third-party/{rest...}",
@@ -9835,7 +9835,7 @@
       "path": "/scripts/extensions/third-party/{rest...}",
       "classification": "intentionally-passthrough",
       "reason": "pinned extension static mount: router.use('/scripts/extensions/third-party/*', ...) in src/users.js:1219, served per-user then globally",
-      "evidence": "internal/server/extensions_static.go:77"
+      "evidence": "internal/server/extensions_static.go:73"
     },
     {
       "pattern": "/thumbnail",
@@ -9843,7 +9843,7 @@
       "path": "/thumbnail",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/thumbnails.go:134"
+      "evidence": "internal/server/thumbnails.go:130"
     },
     {
       "pattern": "/thumbnail/",
@@ -9851,7 +9851,7 @@
       "path": "/thumbnail/",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/thumbnails.go:134"
+      "evidence": "internal/server/thumbnails.go:130"
     },
     {
       "pattern": "/updatestats",
@@ -9859,7 +9859,7 @@
       "path": "/updatestats",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/stats/update (src/server-startup.js:116)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/uploadimage",
@@ -9867,7 +9867,7 @@
       "path": "/uploadimage",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/images/upload (src/server-startup.js:127)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/uploaduseravatar",
@@ -9875,7 +9875,7 @@
       "path": "/uploaduseravatar",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/avatars/upload (src/server-startup.js:124)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "/user/files/{rest...}",
@@ -9883,7 +9883,7 @@
       "path": "/user/files/{rest...}",
       "classification": "intentionally-passthrough",
       "reason": "pinned user-data static mount: router.use('/user/files/*', ...) in src/users.js:1218 -- the tree LittleWhiteBox writes through /api/files/upload and reads back",
-      "evidence": "internal/server/frontend_assets.go:103"
+      "evidence": "internal/server/frontend_assets.go:99"
     },
     {
       "pattern": "/user/images/{rest...}",
@@ -9891,7 +9891,7 @@
       "path": "/user/images/{rest...}",
       "classification": "intentionally-passthrough",
       "reason": "pinned user-data static mount: router.use('/user/images/*', ...) in src/users.js:1217",
-      "evidence": "internal/server/frontend_assets.go:103"
+      "evidence": "internal/server/frontend_assets.go:99"
     },
     {
       "pattern": "/User%20Avatars/{rest...}",
@@ -9899,7 +9899,7 @@
       "path": "/User%20Avatars/{rest...}",
       "classification": "intentionally-passthrough",
       "reason": "pinned user-data static mount: router.use('/User%20Avatars/*', ...) in src/users.js:1215, registered with the escaped spelling because net/http treats a literal space as a method separator",
-      "evidence": "internal/server/frontend_assets.go:103"
+      "evidence": "internal/server/frontend_assets.go:99"
     },
     {
       "pattern": "/v2/editcharacterattribute",
@@ -9907,7 +9907,7 @@
       "path": "/v2/editcharacterattribute",
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/characters/merge-attributes (src/server-startup.js:88)",
-      "evidence": "internal/server/redirect_aliases.go:147"
+      "evidence": "internal/server/redirect_aliases.go:143"
     },
     {
       "pattern": "GET /api/data-maid/view",
@@ -9915,7 +9915,7 @@
       "path": "/api/data-maid/view",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/data_maid.go:52"
+      "evidence": "internal/server/data_maid.go:48"
     },
     {
       "pattern": "GET /api/sprites/get",
@@ -9923,7 +9923,7 @@
       "path": "/api/sprites/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:506"
+      "evidence": "internal/server/http.go:517"
     },
     {
       "pattern": "GET /api/users/me",
@@ -9931,7 +9931,7 @@
       "path": "/api/users/me",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:363"
+      "evidence": "internal/server/http.go:374"
     },
     {
       "pattern": "GET /callback",
@@ -9939,7 +9939,7 @@
       "path": "/callback",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:513"
+      "evidence": "internal/server/http.go:524"
     },
     {
       "pattern": "GET /callback/",
@@ -9947,7 +9947,7 @@
       "path": "/callback/",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:516"
+      "evidence": "internal/server/http.go:527"
     },
     {
       "pattern": "GET /csrf-token",
@@ -9955,7 +9955,7 @@
       "path": "/csrf-token",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:357"
+      "evidence": "internal/server/http.go:368"
     },
     {
       "pattern": "GET /login",
@@ -9963,7 +9963,7 @@
       "path": "/login",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:354"
+      "evidence": "internal/server/http.go:365"
     },
     {
       "pattern": "GET /version",
@@ -9971,7 +9971,7 @@
       "path": "/version",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:353"
+      "evidence": "internal/server/http.go:364"
     },
     {
       "pattern": "POST /api/avatars/delete",
@@ -9979,7 +9979,7 @@
       "path": "/api/avatars/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:393"
+      "evidence": "internal/server/http.go:404"
     },
     {
       "pattern": "POST /api/avatars/get",
@@ -9987,7 +9987,7 @@
       "path": "/api/avatars/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:392"
+      "evidence": "internal/server/http.go:403"
     },
     {
       "pattern": "POST /api/avatars/upload",
@@ -9995,7 +9995,7 @@
       "path": "/api/avatars/upload",
       "classification": "implemented",
       "reason": "AGENTS.md boundary 3, DECIDED 2026-10-29: the pinned route stores a Jimp output file, and GoTavern serves the OBSERVABLE contract from a pure-Go codec -- status, MIME/original-name behaviour, decodability, exact dimensions, the pinned 512x768 want_resize box, cover-not-stretch geometry, PNG output whatever was uploaded, and cache behaviour. Byte equality with Jimp is explicitly not claimed. The inventory row still says 'not implemented: boundary 3', which predates the decision; the explicit decision outranks it, which is exactly what this exception is for.",
-      "evidence": "internal/server/http.go:394"
+      "evidence": "internal/server/http.go:405"
     },
     {
       "pattern": "POST /api/data-maid/delete",
@@ -10003,7 +10003,7 @@
       "path": "/api/data-maid/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/data_maid.go:53"
+      "evidence": "internal/server/data_maid.go:49"
     },
     {
       "pattern": "POST /api/data-maid/finalize",
@@ -10011,7 +10011,7 @@
       "path": "/api/data-maid/finalize",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/data_maid.go:51"
+      "evidence": "internal/server/data_maid.go:47"
     },
     {
       "pattern": "POST /api/data-maid/report",
@@ -10019,7 +10019,7 @@
       "path": "/api/data-maid/report",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/data_maid.go:50"
+      "evidence": "internal/server/data_maid.go:46"
     },
     {
       "pattern": "POST /api/files/delete",
@@ -10027,7 +10027,7 @@
       "path": "/api/files/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:397"
+      "evidence": "internal/server/http.go:408"
     },
     {
       "pattern": "POST /api/files/sanitize-filename",
@@ -10035,7 +10035,7 @@
       "path": "/api/files/sanitize-filename",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:395"
+      "evidence": "internal/server/http.go:406"
     },
     {
       "pattern": "POST /api/files/upload",
@@ -10043,7 +10043,7 @@
       "path": "/api/files/upload",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:396"
+      "evidence": "internal/server/http.go:407"
     },
     {
       "pattern": "POST /api/files/verify",
@@ -10051,7 +10051,7 @@
       "path": "/api/files/verify",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:398"
+      "evidence": "internal/server/http.go:409"
     },
     {
       "pattern": "POST /api/moving-ui/save",
@@ -10059,7 +10059,7 @@
       "path": "/api/moving-ui/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:391"
+      "evidence": "internal/server/http.go:402"
     },
     {
       "pattern": "POST /api/ping",
@@ -10067,7 +10067,7 @@
       "path": "/api/ping",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:510"
+      "evidence": "internal/server/http.go:521"
     },
     {
       "pattern": "POST /api/quick-replies/delete",
@@ -10075,7 +10075,7 @@
       "path": "/api/quick-replies/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:388"
+      "evidence": "internal/server/http.go:399"
     },
     {
       "pattern": "POST /api/quick-replies/save",
@@ -10083,7 +10083,7 @@
       "path": "/api/quick-replies/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:387"
+      "evidence": "internal/server/http.go:398"
     },
     {
       "pattern": "POST /api/settings/get",
@@ -10091,7 +10091,7 @@
       "path": "/api/settings/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:382"
+      "evidence": "internal/server/http.go:393"
     },
     {
       "pattern": "POST /api/settings/get-snapshots",
@@ -10099,7 +10099,7 @@
       "path": "/api/settings/get-snapshots",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:381"
+      "evidence": "internal/server/http.go:392"
     },
     {
       "pattern": "POST /api/settings/load-snapshot",
@@ -10107,7 +10107,7 @@
       "path": "/api/settings/load-snapshot",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:384"
+      "evidence": "internal/server/http.go:395"
     },
     {
       "pattern": "POST /api/settings/make-snapshot",
@@ -10115,7 +10115,7 @@
       "path": "/api/settings/make-snapshot",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:385"
+      "evidence": "internal/server/http.go:396"
     },
     {
       "pattern": "POST /api/settings/restore-snapshot",
@@ -10123,7 +10123,7 @@
       "path": "/api/settings/restore-snapshot",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:386"
+      "evidence": "internal/server/http.go:397"
     },
     {
       "pattern": "POST /api/settings/save",
@@ -10131,7 +10131,7 @@
       "path": "/api/settings/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:383"
+      "evidence": "internal/server/http.go:394"
     },
     {
       "pattern": "POST /api/sprites/delete",
@@ -10139,7 +10139,7 @@
       "path": "/api/sprites/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:507"
+      "evidence": "internal/server/http.go:518"
     },
     {
       "pattern": "POST /api/themes/delete",
@@ -10147,7 +10147,7 @@
       "path": "/api/themes/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:390"
+      "evidence": "internal/server/http.go:401"
     },
     {
       "pattern": "POST /api/themes/save",
@@ -10155,7 +10155,7 @@
       "path": "/api/themes/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:389"
+      "evidence": "internal/server/http.go:400"
     },
     {
       "pattern": "POST /api/users/backup",
@@ -10163,7 +10163,7 @@
       "path": "/api/users/backup",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:367"
+      "evidence": "internal/server/http.go:378"
     },
     {
       "pattern": "POST /api/users/change-avatar",
@@ -10171,7 +10171,7 @@
       "path": "/api/users/change-avatar",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:364"
+      "evidence": "internal/server/http.go:375"
     },
     {
       "pattern": "POST /api/users/change-name",
@@ -10179,7 +10179,7 @@
       "path": "/api/users/change-name",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:365"
+      "evidence": "internal/server/http.go:376"
     },
     {
       "pattern": "POST /api/users/change-password",
@@ -10187,7 +10187,7 @@
       "path": "/api/users/change-password",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:366"
+      "evidence": "internal/server/http.go:377"
     },
     {
       "pattern": "POST /api/users/create",
@@ -10195,7 +10195,7 @@
       "path": "/api/users/create",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:372"
+      "evidence": "internal/server/http.go:383"
     },
     {
       "pattern": "POST /api/users/delete",
@@ -10203,7 +10203,7 @@
       "path": "/api/users/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:378"
+      "evidence": "internal/server/http.go:389"
     },
     {
       "pattern": "POST /api/users/demote",
@@ -10211,7 +10211,7 @@
       "path": "/api/users/demote",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:377"
+      "evidence": "internal/server/http.go:388"
     },
     {
       "pattern": "POST /api/users/disable",
@@ -10219,7 +10219,7 @@
       "path": "/api/users/disable",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:374"
+      "evidence": "internal/server/http.go:385"
     },
     {
       "pattern": "POST /api/users/enable",
@@ -10227,7 +10227,7 @@
       "path": "/api/users/enable",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:375"
+      "evidence": "internal/server/http.go:386"
     },
     {
       "pattern": "POST /api/users/get",
@@ -10235,7 +10235,7 @@
       "path": "/api/users/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:371"
+      "evidence": "internal/server/http.go:382"
     },
     {
       "pattern": "POST /api/users/list",
@@ -10243,7 +10243,7 @@
       "path": "/api/users/list",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:360"
+      "evidence": "internal/server/http.go:371"
     },
     {
       "pattern": "POST /api/users/login",
@@ -10251,7 +10251,7 @@
       "path": "/api/users/login",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:361"
+      "evidence": "internal/server/http.go:372"
     },
     {
       "pattern": "POST /api/users/logout",
@@ -10259,7 +10259,7 @@
       "path": "/api/users/logout",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:362"
+      "evidence": "internal/server/http.go:373"
     },
     {
       "pattern": "POST /api/users/promote",
@@ -10267,7 +10267,7 @@
       "path": "/api/users/promote",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:376"
+      "evidence": "internal/server/http.go:387"
     },
     {
       "pattern": "POST /api/users/recover-step1",
@@ -10275,7 +10275,7 @@
       "path": "/api/users/recover-step1",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:379"
+      "evidence": "internal/server/http.go:390"
     },
     {
       "pattern": "POST /api/users/recover-step2",
@@ -10283,7 +10283,7 @@
       "path": "/api/users/recover-step2",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:380"
+      "evidence": "internal/server/http.go:391"
     },
     {
       "pattern": "POST /api/users/reset-settings",
@@ -10291,7 +10291,7 @@
       "path": "/api/users/reset-settings",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:368"
+      "evidence": "internal/server/http.go:379"
     },
     {
       "pattern": "POST /api/users/reset-step1",
@@ -10299,7 +10299,7 @@
       "path": "/api/users/reset-step1",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:369"
+      "evidence": "internal/server/http.go:380"
     },
     {
       "pattern": "POST /api/users/reset-step2",
@@ -10307,7 +10307,7 @@
       "path": "/api/users/reset-step2",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:370"
+      "evidence": "internal/server/http.go:381"
     },
     {
       "pattern": "POST /api/users/slugify",
@@ -10315,7 +10315,7 @@
       "path": "/api/users/slugify",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:373"
+      "evidence": "internal/server/http.go:384"
     }
   ],
   "redirectAliases": [

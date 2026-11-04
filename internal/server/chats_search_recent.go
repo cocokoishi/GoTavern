@@ -22,101 +22,61 @@ import (
 	"strings"
 )
 
-// pinnedChatInfo ports chats.js getChatInfo, including the additionalData spread
-// and the optional match function.
+// pinnedChatInfo ports chats.js getChatInfo, including the additionalData spread and the optional match
+// function.
 //
-// The pinned matcher is called with the accumulated message texts of the lines
-// seen so far and stops the scan once it returns true; a line that fails to
-// parse contributes nothing to the buffer but still counts towards the item
-// counter.
+// The file read is scanChatSummary (chatsummary.go), shared with /api/characters/chats -- there is ONE
+// implementation of pinned's readline semantics, not two. The matcher keeps pinned's exact semantics: it is
+// called with the accumulated decoded `mes` texts of the lines seen so far (from the second line on), a line
+// that fails to parse contributes nothing to that buffer but still counts towards the item counter, and the
+// matcher is not called again after it has returned true.
 func pinnedChatInfo(pathToFile string, additionalData *orderedNodeJSON, withMetadata bool, matcher func([]string) bool) (orderedNodeJSON, error) {
-	info, err := os.Stat(pathToFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return chatVanishedObject(), nil
+	hasMatcher := matcher != nil
+	hasAnyMatch := false
+	matchBuffer := make([]string, 0, 8)
+	var onLine func(lineIndex int, line []byte)
+	if hasMatcher {
+		onLine = func(lineIndex int, line []byte) {
+			// pinned: `if (hasMatcher && !hasAnyMatch && itemCounter > 0)` -- itemCounter is the line index
+			// before the increment, so the metadata line is skipped and scanning stops feeding after a match.
+			if hasAnyMatch || lineIndex == 0 {
+				return
+			}
+			parsed, err := decodeOrderedNodeJSON(line)
+			if err != nil {
+				return
+			}
+			message, _ := nodeGet(parsed, "mes").stringValue()
+			matchBuffer = append(matchBuffer, message)
+			if matcher(matchBuffer) {
+				hasAnyMatch = true
+				matchBuffer = matchBuffer[:0]
+			}
 		}
+	}
+
+	summary, err := scanChatSummary(pathToFile, withMetadata, onLine)
+	if err != nil {
 		return orderedNodeJSON{}, err
 	}
-	base := filepath.Base(pathToFile)
-	chatData := nodeObject()
-	chatData.setMember("match", nodeBool(false))
-	chatData.setMember("file_id", nodeString(strings.TrimSuffix(base, nodePathExt(base))))
-	chatData.setMember("file_name", nodeString(base))
-	chatData.setMember("file_size", nodeString(formatBytes(info.Size())))
-	chatData.setMember("chat_items", nodeNumber(0))
-	chatData.setMember("mes", nodeString("[The chat is empty]"))
-	chatData.setMember("last_mes", nodeNumber(float64(info.ModTime().UnixNano())/1e6))
+	if summary.vanished {
+		return chatVanishedObject(), nil
+	}
+	chatData := newChatSummaryData(pathToFile, summary)
 	if additionalData != nil && additionalData.kind == 'o' {
 		for _, entry := range additionalData.object {
 			chatData.setMember(entry.key, entry.value)
 		}
 	}
-	if info.Size() == 0 {
+	if summary.size == 0 {
 		return chatData, nil
 	}
-
-	contents, err := os.ReadFile(pathToFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return chatVanishedObject(), nil
-		}
-		return orderedNodeJSON{}, err
+	applyChatSummaryMetadata(&chatData, summary)
+	if finishChatSummary(&chatData, summary) {
+		// pinned assigns `match` only inside the last-line handler; the empty-chat and empty-last-line returns
+		// above leave it false, even when no matcher is in play.
+		chatData.setMember("match", nodeBool(!hasMatcher || hasAnyMatch))
 	}
-	hasMatcher := matcher != nil
-	itemCounter := 0
-	hasAnyMatch := false
-	matchBuffer := make([]string, 0, 8)
-	lastLine := ""
-	hasLastLine := false
-	for _, line := range splitReadlineLines(string(contents)) {
-		if withMetadata && itemCounter == 0 {
-			if parsed, err := decodeOrderedNodeJSON([]byte(line)); err == nil {
-				if metadata, exists := parsed.member("chat_metadata"); exists && (metadata.kind == 'o' || metadata.kind == 'a') {
-					chatData.setMember("chat_metadata", metadata)
-				}
-			}
-		}
-		if hasMatcher && !hasAnyMatch && itemCounter > 0 {
-			if parsed, err := decodeOrderedNodeJSON([]byte(line)); err == nil {
-				message, _ := nodeGet(parsed, "mes").stringValue()
-				matchBuffer = append(matchBuffer, message)
-				if matcher(matchBuffer) {
-					hasAnyMatch = true
-					matchBuffer = matchBuffer[:0]
-				}
-			}
-		}
-		itemCounter++
-		lastLine = line
-		hasLastLine = true
-	}
-	if !hasLastLine || lastLine == "" {
-		return chatData, nil
-	}
-	parsed, err := decodeOrderedNodeJSON([]byte(lastLine))
-	valid := err == nil && jsTruthy(parsed) &&
-		(jsTruthy(nodeGet(parsed, "name")) || jsTruthy(nodeGet(parsed, "character_name")) || jsTruthy(nodeGet(parsed, "chat_metadata")))
-	if valid {
-		chatData.setMember("chat_items", nodeNumber(float64(itemCounter-1)))
-		message := nodeGet(parsed, "mes")
-		if !jsTruthy(message) {
-			message = nodeString("[The message is empty]")
-		}
-		chatData.setMember("mes", message)
-		sendDate := nodeGet(parsed, "send_date")
-		if !jsTruthy(sendDate) {
-			sendDate = nodeString(isoStringFromMilliseconds(float64(info.ModTime().UnixNano()) / 1e6))
-		}
-		chatData.setMember("last_mes", sendDate)
-	} else {
-		remaining := itemCounter - 2
-		if remaining < 0 {
-			remaining = 0
-		}
-		chatData.setMember("chat_items", nodeNumber(float64(remaining)))
-		chatData.setMember("mes", nodeString("[The message is empty]"))
-	}
-	chatData.setMember("match", nodeBool(!hasMatcher || hasAnyMatch))
 	return chatData, nil
 }
 
