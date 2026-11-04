@@ -39,7 +39,7 @@ manual downloads and the archive matrix are in [Install](#install).
 **The strong drop-in claim in [`GOAL.md` §14](GOAL.md) is not met yet, and this README does not make it.** The evidence
 that exists covers a **synthetic** long-lived tree, a committed synthetic corpus, and a packaged archive over a stock
 SillyTavern tree. It does not cover a long-lived tree that a real user has actually used. Response compression — one of
-the two concrete gaps alpha.13 named — is now implemented and gated against a recorded pinned contract; the
+the two concrete gaps the previous release named — is now implemented and gated against a recorded pinned contract; the
 character-card disk cache pinned maintains is still created at startup but not used on the request path, and that
 remains a named gap. The full list of what is and is not demonstrated, question by question, is in
 [Compatibility](#compatibility); the decisions behind the explicit exclusions are in [What won't work](#what-wont-work).

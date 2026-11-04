@@ -584,6 +584,11 @@ var declaredOtherPins = map[string]string{
 	// extension-compat evidence run; the benchmark provenance record names the same tree because the README's
 	// performance table quotes smoke metrics run 41614844179 at this commit.
 	"4bf54510c747b3f257835fa1bfa86909bbb5f134": "v0.1.0-alpha.13 stable release commit - HANDOFF.md current checkpoint, the SHA every required release gate ran at (including Third-party extension compatibility run 41614867218), and the benchmark provenance anchor (smoke metrics run 41614844179)",
+	// THE alpha.14 BENCHMARK ANCHOR. The release tag is a documentation-only descendant of this commit, so the
+	// figure's provenance names the tree the numbers were actually measured on (smoke metrics run 41777492725)
+	// while the release body's evidence table carries the separate same-SHA smoke run at the tag commit. A
+	// measurement anchor is declared by value AND named, exactly like the release-SHA entries above.
+	"4fd8ed7589abaec239c6c3b19dfff2fc940e5421": "v0.1.0-alpha.14 final code commit - the paired benchmark's measured tree (smoke metrics run 41777492725), cited by docs/assets/benchmark.svg.provenance.md and docs/perf-baseline.md",
 }
 
 // checkPinnedCommitStrings is the gate body, extracted so the red-path test can drive it against a
