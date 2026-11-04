@@ -10,7 +10,7 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-11-03: M0 AUDIT COMPLETE, GOAL REWRITTEN, M1/M2 IN FLIGHT
+## Latest checkpoint - 2026-11-04: M0-M5/M7 MERGED, M5b/M6 IN FLIGHT, ALPHA.14 NOT YET TAGGED
 
 The goal was rewritten and pushed as `93cccc9`: `GOAL.md` now states the product goal (§1a), the
 engineering goal (§1b: light, fast, stable, clear architecture, simple CLI, honest README/figure), the
@@ -46,17 +46,29 @@ Startup structure measured locally (Windows/arm64, triage only): first boot inte
 enumeration + protocol selection); `config.yaml` read+parsed three times per boot; `http.Server` has
 zero timeouts.
 
-### In flight (shared tasks; each lane works in its own worktree, commits and pushes, CI is the gate)
+### Merged (each with the CI run that judged it)
+
+| milestone | merge | what changed | CI |
+|---|---|---|---|
+| M2a evidence gate | `143008d` | q22 artifact committed as the single source of truth; `tools/check-perf-docs.mjs` regenerates the figure and recomputes the README table under one decimal-MB rule; stale alpha.9 footer removed; `docs/perf-baseline.md` | `41756700918` |
+| M1 CLI | `6e98e9c` | identity + baseline + real install/config/data paths + `Ready:` from the bound socket; help/version in any position (`start --help` no longer boots); unknown-flag warning; TTY colour; Docker headless; quiet default; friendly shutdown; actionable hints with the pinned config-refusal block unchanged | `41756246073`, drop-in `41756227277`, Docker `41757100773` |
+| M4a route table | `8eca43b` | 54 `init()` registrars and all 56 `init()` functions replaced by one explicit `routeDomainTable()`; 59 files, +251/-253, no route or handler line changed; golden inventory + probe-per-domain + duplicate-panic teeth | `41755388454`, drop-in `41755388446` |
+| M7 README/figure | `9ececc9`, `da55a45` | first screen = name + one sentence, one 1200x675 dark+light figure, shortest start, honest compatibility state (GOAL §14 NOT MET, named in the README), links; 12 px type floor, computed contrast, alt text recomputed from the artifact | `41760375946` |
+| M2b benchmarks | `3f734ea` | scale benchmarks (100/1000/10000 cards, large JSONL, settings, world info, 229-path page load, provider assemble/marshal), pprof/trace capture, two-sided baseline; profiles confirm card read/parse (1.20 GB for 10000 cards) and chat-summary whole-file read (4.67 GB) and re-rank marshal (bytes.Buffer + marshalNodeJSONString, not entries()) | `41758175427` green, mutation `41759085618` red |
+| M5a chat summaries | `7f5a5cd` | one shared sequential reader replaces both whole-file `getChatInfo` implementations; 3.4 MB fixture: 4.7x less allocation, 260x fewer allocs, 3.9x less CPU; oracle fixtures byte-identical | `41762705531` (oracle re-record zero diff) |
+| M3 compression | `dc7c2ad` | pinned compression contract recorded first (`tests/oracle/sillytavern-1.19.0-compression.json`), then the middleware; 229-request page load 9,067,849 B -> 2,951,609 B (67.4% saved), decoded bytes identical; CPU +0.57 ms per compressed response; one declared deviation: no brotli encoder | `41766644754` (oracle re-record byte-identical) |
+
+### In flight
 
 | lane | task | branch | scope |
 |---|---|---|---|
-| M1 CLI | task-11 | `m1/cli` | identity/Ready/real paths, per-command help, unknown-flag warning, TTY colour, Docker headless, quiet default, friendly shutdown, actionable errors, tests |
-| M2a evidence gate | task-12 | `m2/perf-evidence` | commit the q22 artifact, `tools/check-perf-docs.mjs` (regenerate SVG, recompute README table, check provenance), CI wiring, stale footer/unit/wording fixes, `docs/perf-baseline.md` |
-| M2b benchmarks | task-13 | `m2/bench` | scale benchmarks (100/1000/10000 cards, large JSONL, settings, world info, 229-asset page load, provider marshal), pprof capture, benchstat baseline |
+| M5b identity caches | task-18 | `m5/identity-caches` | settings aggregation + world-info listing cached on path+mtime+size, bounded, cloned, own-write invalidated; before/after on the M2b benchmarks |
+| M6a stability | task-19 | `m6/stability` | panic boundary with the pinned 500 shape, `http.Server` read-header/idle timeouts (no WriteTimeout), same-size same-mtime cache-consistency decision |
 
-Next: M2 closes the measurement gap; M3 takes ONE hotspot from the profile; M4 extracts by data
-ownership (route table, `httpx`, `userdata`); M5-M7 as §11; M8 is §16 (alpha.14). The M0 report's
-priority order, do-not-rewrite list and per-optimization questions are in `GOAL.md` §15.
+Next: merge M5b/M6a; M6b (provider truncation/redirect differentials, needs the oracle); then M8 is §16:
+same-SHA gate set, release notes checked against evidence, `classify-version-tag.sh` extended for
+`v0.1.0-alpha.14`, the formal release, and post-publication verification of the published bytes.
+The M0 report's priority order, do-not-rewrite list and per-optimization questions are in `GOAL.md` §15.
 
 ---
 
