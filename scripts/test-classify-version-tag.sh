@@ -137,26 +137,30 @@ check_refused_silently() {
 
 # ---- THE GRADUATED TAGS: single-tag equality decisions, never a range -------------------------------------------
 # v0.1.0-alpha.9 (historical first stable-channel release), v0.1.0-alpha.12 (the release that graduated the 0.1.0
-# line) and v0.1.0-alpha.13 (the third-party extension compatibility release) ARE stable-channel releases. The names
-# are kept for history; the channel is what graduates. If a case here goes red, a list entry in
-# scripts/classify-version-tag.sh was removed, neutered or widened away.
+# line), v0.1.0-alpha.13 (the third-party extension compatibility release) and v0.1.0-alpha.14 (the engineering-
+# program release) ARE stable-channel releases. The names are kept for history; the channel is what graduates. If a
+# case here goes red, a list entry in scripts/classify-version-tag.sh was removed, neutered or widened away.
 check 'historical-alpha-graduation' 'v0.1.0-alpha.9' stable 0
 check_one_word_on_stdout 'historical-alpha-graduation-one-word' 'v0.1.0-alpha.9' stable
 check 'previous-line-graduation' 'v0.1.0-alpha.12' stable 0
 check_one_word_on_stdout 'previous-line-graduation-one-word' 'v0.1.0-alpha.12' stable
 check 'current-line-graduation' 'v0.1.0-alpha.13' stable 0
 check_one_word_on_stdout 'current-line-graduation-one-word' 'v0.1.0-alpha.13' stable
+check 'engineering-program-graduation' 'v0.1.0-alpha.14' stable 0
+check_one_word_on_stdout 'engineering-program-graduation-one-word' 'v0.1.0-alpha.14' stable
 
 # ---- THE EXCEPTION MUST NOT WIDEN ---------------------------------------------------------------------------------
 # Each of these is one plausible wrong implementation of "the graduated tags graduate": a family prefix
 # (`>= alpha.9`), a regex (`alpha\.9` matching `alpha.9x`/`alpha.09`), a series bump (`alpha.N >= 9`), a different
 # patch, or the exception leaking into build-metadata tags. None of them has been qualified, so each must stay a
-# prerelease. The alpha.13 neighbours are the sharpest cases: a prefix/range rule would graduate alpha.130 and
-# alpha.13-rc1, and a "current series" rule would graduate alpha.14.
+# prerelease. The alpha.14 neighbours are the sharpest cases: a prefix/range rule would graduate alpha.140 and
+# alpha.14-rc1, and a "current series" rule would graduate alpha.15.
 check 'alpha-before-graduation' 'v0.1.0-alpha.8' prerelease 0
 check 'alpha-after-graduation-in-series' 'v0.1.0-alpha.10' prerelease 0
 check 'alpha-before-previous-graduation' 'v0.1.0-alpha.11' prerelease 0
-check 'alpha-after-current-graduation' 'v0.1.0-alpha.14' prerelease 0
+check 'alpha-after-latest-graduation' 'v0.1.0-alpha.15' prerelease 0
+check 'latest-graduated-tag-with-a-longer-number' 'v0.1.0-alpha.140' prerelease 0
+check 'latest-graduated-tag-with-a-release-candidate-suffix' 'v0.1.0-alpha.14-rc1' prerelease 0
 check 'current-graduated-tag-with-a-longer-number' 'v0.1.0-alpha.130' prerelease 0
 check 'current-graduated-tag-with-a-release-candidate-suffix' 'v0.1.0-alpha.13-rc1' prerelease 0
 check 'current-graduated-tag-with-build-metadata' 'v0.1.0-alpha.13+build.1' prerelease 0
@@ -227,4 +231,4 @@ if [ "$failed" -ne 0 ]; then
   echo "FAIL: ${failed} of $((passed + failed)) version-classification cases did not hold" >&2
   exit 1
 fi
-echo "version-tag classification is correct for ${passed} cases: v0.1.0-alpha.9 (historical), v0.1.0-alpha.12 (the line that graduated the 0.1.0 series) and v0.1.0-alpha.13 (the third-party extension compatibility release) are the three documented equality-based graduations to the stable channel, every neighbouring alpha is still a prerelease, stable tags are otherwise exactly v<major>.<minor>.<patch>, nothing else version-shaped is stable, and a non-version tag is refused with exit 2 and nothing on stdout"
+echo "version-tag classification is correct for ${passed} cases: v0.1.0-alpha.9 (historical), v0.1.0-alpha.12 (the line that graduated the 0.1.0 series), v0.1.0-alpha.13 (the third-party extension compatibility release) and v0.1.0-alpha.14 (the engineering-program release) are the four documented equality-based graduations to the stable channel, every neighbouring alpha is still a prerelease, stable tags are otherwise exactly v<major>.<minor>.<patch>, nothing else version-shaped is stable, and a non-version tag is refused with exit 2 and nothing on stdout"

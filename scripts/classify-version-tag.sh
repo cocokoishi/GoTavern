@@ -57,7 +57,7 @@ fi
 # =============================================================================================================
 # THE GRADUATED TAGS: single-tag EQUALITY decisions, never a pattern.
 #
-# The general rule above calls a tag stable only when it is exactly v<major>.<minor>.<patch>. Three tags in this
+# The general rule above calls a tag stable only when it is exactly v<major>.<minor>.<patch>. Four tags in this
 # repository's history graduate to the stable channel while keeping their historical alpha-series names:
 #
 #   v0.1.0-alpha.9    the FIRST stable-channel release (historical; removing it would reclassify a published
@@ -67,15 +67,18 @@ fi
 #                     decision that alpha.13 is the production release of the line, and the evidence gates in
 #                     docs/release-manifest.json are what make publishing it possible (the classifier only says
 #                     which channel a tag WOULD be; the release workflow refuses to publish without the gates).
+#   v0.1.0-alpha.14   the engineering-program release (M0-M8 of GOAL.md section 11: CLI, performance evidence
+#                     gate, compression, streaming chat summaries, identity-keyed caches, panic boundary and
+#                     server timeouts). Graduated by its own commit that cites the same-SHA gate evidence.
 #
 # THE LIST IS EQUALITY, NOT A RANGE. It cannot widen by accident: v0.1.0-alpha.10, v0.1.0-alpha.11,
-# v0.1.0-alpha.14, v0.1.0-alpha.130, v0.1.0-alpha.13-rc1, v0.1.0-alpha.09, v0.1.1-alpha.9 and
-# v0.1.0-alpha.13+build.1 all stay prereleases, and each of those is an assertion in
-# scripts/test-classify-version-tag.sh so a future editor who turns this into a regex, a prefix comparison or a
-# "series >= N" test breaks a named case instead of quietly graduating an unqualified tag.
+# v0.1.0-alpha.15, v0.1.0-alpha.140, v0.1.0-alpha.14-rc1, v0.1.0-alpha.130, v0.1.0-alpha.13-rc1,
+# v0.1.0-alpha.09, v0.1.1-alpha.9 and v0.1.0-alpha.13+build.1 all stay prereleases, and each of those is an
+# assertion in scripts/test-classify-version-tag.sh so a future editor who turns this into a regex, a prefix
+# comparison or a "series >= N" test breaks a named case instead of quietly graduating an unqualified tag.
 # Each entry is added by its own commit that cites the qualification evidence for that tag.
 # =============================================================================================================
-GRADUATED_STABLE_TAGS='v0.1.0-alpha.9 v0.1.0-alpha.12 v0.1.0-alpha.13'
+GRADUATED_STABLE_TAGS='v0.1.0-alpha.9 v0.1.0-alpha.12 v0.1.0-alpha.13 v0.1.0-alpha.14'
 
 for graduated_tag in $GRADUATED_STABLE_TAGS; do
   if [ "$tag" = "$graduated_tag" ]; then
