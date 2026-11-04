@@ -56,21 +56,21 @@ type compressionFixture struct {
 			Body          string            `json:"body"`
 		} `json:"request"`
 		Response struct {
-			Status          int     `json:"status"`
-			ContentEncoding *string `json:"contentEncoding"`
+			Status           int     `json:"status"`
+			ContentEncoding  *string `json:"contentEncoding"`
 			TransferEncoding *string `json:"transferEncoding"`
-			ContentLength   *string `json:"contentLength"`
-			Vary            *string `json:"vary"`
-			ContentType     *string `json:"contentType"`
-			ContentRange    *string `json:"contentRange"`
+			ContentLength    *string `json:"contentLength"`
+			Vary             *string `json:"vary"`
+			ContentType      *string `json:"contentType"`
+			ContentRange     *string `json:"contentRange"`
 		} `json:"response"`
 		Raw struct {
 			Bytes  int    `json:"bytes"`
 			Sha256 string `json:"sha256"`
 		} `json:"raw"`
 		Decoded struct {
-			Bytes  int    `json:"bytes"`
-			Sha256 string `json:"sha256"`
+			Bytes  int     `json:"bytes"`
+			Sha256 string  `json:"sha256"`
 			Text   *string `json:"text"`
 		} `json:"decoded"`
 	} `json:"scenarios"`
