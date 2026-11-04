@@ -186,6 +186,9 @@ func launchBrowser(stdout, stderr io.Writer, options commandline.ServerOptions, 
 		// the opener, so a failed launch still names the app.
 		fmt.Fprintf(stdout, "Launching in a browser: %s...\n", app)
 		fmt.Fprintf(stderr, "Failed to launch the browser. Open the URL manually. %v\n", err)
+		// GOAL.md §15.5: an error names the cause AND the next step. The launch failure is non-fatal by
+		// design (pinned's catch), so the hint is where the operator learns what to change.
+		fmt.Fprintln(stderr, "Hint: check browserLaunch.hostname in config.yaml (or --browserLaunchHostname); a malformed value cannot produce a URL.")
 		return
 	}
 	fmt.Fprintf(stdout, "Launching in a browser: %s...\n", app)
@@ -196,6 +199,7 @@ func launchBrowser(stdout, stderr io.Writer, options commandline.ServerOptions, 
 		}
 	}
 	fmt.Fprintf(stderr, "Failed to launch the browser. Open the URL manually. %v\n", launchErr)
+	fmt.Fprintf(stderr, "Hint: open %s in a browser yourself, or disable browser launch with browserLaunch.enabled: false (or --browserLaunchEnabled false).\n", target)
 }
 
 // jsTruthy is JavaScript's truthiness for the generic values ServerOptions

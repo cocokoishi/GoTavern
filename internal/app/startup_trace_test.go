@@ -10,8 +10,13 @@ import (
 
 // The startup trace exists because a hang anywhere in the boot chain used to look identical to a hang everywhere:
 // cmd/gotavern/main.go prints nothing between main() and "listener ready" (docs/startup-state-machine.md 1). These
-// tests pin the three properties that make it useful rather than noisy.
-func TestStartupTraceIsQuietUnlessSomethingWasSlowOrAsked(t *testing.T) {
+// tests pin the properties that make it useful rather than noisy.
+//
+// GOAL.md §15.5 tightens the policy: the default boot prints NO stage timings at all. A slow stage no longer
+// prints itself; the trace is opt-in (GOTAVERN_STARTUP_TRACE or cmd/gotavern --verbose). The "slow stage" row
+// below is deliberately updated from wantLines 1 to 0 for that reason, and the qualification harnesses already
+// request the trace explicitly, so a hang remains diagnosable on the packaged gates.
+func TestStartupTraceIsQuietUnlessAsked(t *testing.T) {
 	cases := []struct {
 		name      string
 		traceEnv  string
@@ -19,7 +24,7 @@ func TestStartupTraceIsQuietUnlessSomethingWasSlowOrAsked(t *testing.T) {
 		wantLines int
 	}{
 		{name: "a fast boot prints nothing", traceEnv: "", stages: []time.Duration{time.Millisecond, time.Millisecond}, wantLines: 0},
-		{name: "one slow stage prints that stage", traceEnv: "", stages: []time.Duration{time.Millisecond, SlowStageThreshold * 2}, wantLines: 1},
+		{name: "a slow stage prints nothing without the explicit opt-in", traceEnv: "", stages: []time.Duration{time.Millisecond, SlowStageThreshold * 2}, wantLines: 0},
 		{name: "tracing prints every stage", traceEnv: "1", stages: []time.Duration{time.Millisecond, time.Millisecond, time.Millisecond}, wantLines: 3},
 		{name: "GOTAVERN_STARTUP_TRACE=0 is off", traceEnv: "0", stages: []time.Duration{time.Millisecond}, wantLines: 0},
 	}

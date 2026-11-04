@@ -466,6 +466,59 @@ func parseServerArguments(args []string) map[string]any {
 	return values
 }
 
+// UnknownServerArguments reports the `--options` the pinned parser would ignore, in argument order.
+// The pinned yargs parser has no `.strict()`, so an unknown option is silently dropped there; GoTavern
+// keeps the same behaviour and exit status but prints a warning naming the spelling (GOAL.md §15.5),
+// which is a deliberate, recorded deviation from pinned's silence.
+//
+// The scan mirrors parseServerArguments' consumption rules so a VALUE is not mistaken for an unknown
+// option: a known value-taking flag consumes the next token, a boolean accepts an explicit true/false,
+// an array consumes every following non-`--` token, and inline `--name=value` values are never flags.
+func UnknownServerArguments(args []string) []string {
+	unknown := make([]string, 0)
+	for index := 0; index < len(args); index++ {
+		argument := args[index]
+		if argument == "--" {
+			break
+		}
+		if !strings.HasPrefix(argument, "--") {
+			continue
+		}
+		name, _, inline := strings.Cut(strings.TrimPrefix(argument, "--"), "=")
+		if strings.HasPrefix(name, "no-") && !inline {
+			negated := camelOptionName(strings.TrimPrefix(name, "no-"))
+			if cliOptionKinds[negated] == cliBoolean {
+				continue
+			}
+			unknown = append(unknown, argument)
+			continue
+		}
+		canonical := camelOptionName(name)
+		kind, known := cliOptionKinds[canonical]
+		if !known {
+			unknown = append(unknown, argument)
+			continue
+		}
+		switch kind {
+		case cliBoolean:
+			if !inline && index+1 < len(args) && (strings.EqualFold(args[index+1], "true") || strings.EqualFold(args[index+1], "false")) {
+				index++
+			}
+		case cliArray:
+			if !inline {
+				for index+1 < len(args) && !strings.HasPrefix(args[index+1], "--") {
+					index++
+				}
+			}
+		case cliString, cliNumber:
+			if !inline && index+1 < len(args) && !strings.HasPrefix(args[index+1], "--") {
+				index++
+			}
+		}
+	}
+	return unknown
+}
+
 func camelOptionName(name string) string {
 	parts := strings.Split(name, "-")
 	for index := 1; index < len(parts); index++ {

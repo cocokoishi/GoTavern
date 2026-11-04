@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -37,11 +38,19 @@ func main() {
 		// A CONFIG THAT PINNED REFUSES PRINTS PINNED'S LINES AND EXITS 1, not a GoTavern-prefixed error and
 		// exit 2. The recorded pinned boot (tests/oracle/sillytavern-1.19.0-config-duplicate-key.json) is
 		// exit 1 with the yaml message reported twice around a FATAL line, and a user diffing the two
-		// backends over a broken config.yaml must see the same thing from both.
+		// backends over a broken config.yaml must see the same thing from both. A hint is NOT printed for
+		// this path: the pinned block is a fixture-asserted format and stays byte-identical.
 		if code, reported := reportConfigParseFailure(os.Stderr, err); reported {
 			os.Exit(code)
 		}
+		// A second Ctrl+C is the user asking for the forced shutdown, not a failure: exit 130 without
+		// turning it into a "gotavern: ..." error line.
+		var forced forcedShutdown
+		if errors.As(err, &forced) {
+			os.Exit(forced.ExitCode())
+		}
 		fmt.Fprintln(os.Stderr, "gotavern:", err)
+		printErrorHint(os.Stderr, err)
 		var exitError interface{ ExitCode() int }
 		if errors.As(err, &exitError) {
 			os.Exit(exitError.ExitCode())
@@ -77,38 +86,32 @@ func run(args []string) error {
 // exactly what a user would see on stdout and stderr separately. pinned's own
 // help and version output goes to stdout (yargs `showHelp("log")` /
 // `showVersion("log")`), which the previous stderr-only usage text contradicted.
+//
+// HELP AND VERSION ARE HANDLED BEFORE DISPATCH, in ANY argument position (GOAL.md §15.5): pinned's
+// yargs answers --help/--version wherever they appear, so `gotavern start --help` must print the help
+// and exit 0 instead of booting a server. The top-level block is still the pinned option set.
 func runWithStreams(args []string, stdout, stderr io.Writer) error {
-	if len(args) == 0 {
-		return runServer(args, stdout, stderr)
-	}
-	if args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		printUsage(stdout)
+	args, verbose := stripVerbose(args)
+	if target, asked := requestedHelpTarget(args); asked {
+		printCommandHelp(target, stdout)
 		return nil
 	}
-	if args[0] == "--version" {
-		return runWithStreams(append([]string{"version"}, args[1:]...), stdout, stderr)
+	if versionRequestedAnywhere(args) {
+		return printVersionRequested(args, stdout)
 	}
-	if strings.HasPrefix(args[0], "--") {
-		return runServer(args, stdout, stderr)
+	if len(args) == 0 || strings.HasPrefix(args[0], "--") {
+		return withStartupTrace(verbose, func() error { return runServer(args, stdout, stderr) })
 	}
 
 	switch args[0] {
-	case "version", "--version":
-		info := buildInfo{
-			GoTavernVersion:    version,
-			SillyTavernVersion: upstream.SillyTavernVersion,
-			SillyTavernCommit:  upstream.SillyTavernCommit,
-		}
+	case "version":
 		if len(args) == 2 && args[1] == "--json" {
-			encoder := json.NewEncoder(stdout)
-			encoder.SetIndent("", "  ")
-			return encoder.Encode(info)
+			return printVersion(stdout, true)
 		}
 		if len(args) != 1 {
 			return fmt.Errorf("usage: gotavern version [--json]")
 		}
-		fmt.Fprintf(stdout, "GoTavern %s\nSillyTavern baseline %s (%s)\n", info.GoTavernVersion, info.SillyTavernVersion, info.SillyTavernCommit)
-		return nil
+		return printVersion(stdout, false)
 	case "assets":
 		if len(args) != 2 || args[1] != "verify" {
 			return fmt.Errorf("usage: gotavern assets verify")
@@ -148,13 +151,32 @@ func runWithStreams(args []string, stdout, stderr io.Writer) error {
 			return parseErr
 		}
 		return migrate.Run(options, stdout)
+	case "help":
+		printUsage(stdout)
+		return nil
+	case "start":
+		return withStartupTrace(verbose, func() error { return runServer(args[1:], stdout, stderr) })
 	default:
-		if args[0] == "start" {
-			return runServer(args[1:], stdout, stderr)
-		}
 		printUsage(stdout)
 		return fmt.Errorf("unknown command %q", args[0])
 	}
+}
+
+// printVersion writes the version block shared by `gotavern version`, `--version` in any position and
+// the JSON form. The text is the one the CLI already published; only the dispatch moved.
+func printVersion(stdout io.Writer, asJSON bool) error {
+	info := buildInfo{
+		GoTavernVersion:    version,
+		SillyTavernVersion: upstream.SillyTavernVersion,
+		SillyTavernCommit:  upstream.SillyTavernCommit,
+	}
+	if asJSON {
+		encoder := json.NewEncoder(stdout)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(info)
+	}
+	fmt.Fprintf(stdout, "GoTavern %s\nSillyTavern baseline %s (%s)\n", info.GoTavernVersion, info.SillyTavernVersion, info.SillyTavernCommit)
+	return nil
 }
 
 // verifyInstalledTokenizers hashes the tokenizers directory beside the executable against the
@@ -207,6 +229,9 @@ func runServer(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("resolve executable path: %w", err)
 	}
 	installRoot := filepath.Dir(executable)
+	// UNKNOWN OPTIONS WARN (deliberate deviation from pinned, whose yargs ignores them silently). The
+	// warning never changes the exit status: an invocation pinned accepted must still boot.
+	printUnknownOptionWarnings(stderr, commandline.UnknownServerArguments(args))
 	running, err := app.Start(app.StartOptions{
 		Args:             args,
 		WorkingDirectory: workingDirectory,
@@ -251,6 +276,20 @@ func runServer(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintf(stderr, "Warning: failed to start server on %s: %v\n", family, failure.Err)
 	}
 
+	// FIRST-RUN IDENTITY, from the REAL runtime state printed before the pinned-order launch/listener
+	// lines (GOAL.md §15.5). The paths are the ones app.Start actually resolved and used, so a boot from
+	// a foreign CWD or in global mode names the tree it wrote to rather than the one the user guessed.
+	stdoutPalette := newPalette(stdout)
+	paths := running.CommandLine.Paths
+	printStartupIdentity(stdout, stdoutPalette, startupIdentity{
+		Version:    version,
+		Baseline:   upstream.SillyTavernVersion,
+		Commit:     upstream.SillyTavernCommit,
+		InstallDir: installRoot,
+		ConfigFile: paths.ConfigFile,
+		DataRoot:   paths.RuntimeDataRoot,
+	})
+
 	// PINNED ORDER: postSetupTasks launches the browser (src/server-main.js:362-395) BEFORE it prints the
 	// listener lines and the `Go to:` line (:421-446), so the launch line is the first thing a user sees.
 	// The launch is gated on the existing `browserLaunch.enabled` key -- true on a fresh install because
@@ -259,20 +298,36 @@ func runServer(args []string, stdout, stderr io.Writer) error {
 	launchBrowser(stdout, stderr, options, running.CommandLine.BrowserLaunchApp, running.Protocols.UseIPv6, running.Protocols.UseIPv4, runtime.GOOS, execBrowserOpener)
 
 	if running.StartedIPv6 {
-		fmt.Fprintf(stdout, "GoTavern is listening on IPv6: %s\n", running.Listeners()[0].Addr())
+		fmt.Fprintf(stdout, "GoTavern is listening on IPv6: %s\n", stdoutPalette.green(running.Listeners()[0].Addr().String()))
 	}
 	if running.StartedIPv4 {
 		index := 0
 		if running.StartedIPv6 {
 			index = 1
 		}
-		fmt.Fprintf(stdout, "GoTavern is listening on IPv4: %s\n", running.Listeners()[index].Addr())
+		fmt.Fprintf(stdout, "GoTavern is listening on IPv4: %s\n", stdoutPalette.green(running.Listeners()[index].Addr().String()))
 	}
 	// PINNED `listen: true` HINT BLOCK (src/server-main.js:439-443). It is printed whenever the listener
 	// is network-visible, and it is the operator's only pointer to the per-connection log.
-	printListenHint(stdout, jsTruthy(options.Listen), running.CommandLine.Paths.RuntimeDataRoot)
-	if browserURL, urlErr := resolveBrowserLaunchTarget(options, running.Protocols.UseIPv6, running.Protocols.UseIPv4); urlErr == nil {
-		fmt.Fprintf(stdout, "Go to: %s to open GoTavern\n", browserURL)
+	printListenHint(stdout, jsTruthy(options.Listen), paths.RuntimeDataRoot)
+	browserURL := ""
+	if resolved, urlErr := resolveBrowserLaunchTarget(options, running.Protocols.UseIPv6, running.Protocols.UseIPv4); urlErr == nil {
+		browserURL = resolved
+		fmt.Fprintf(stdout, "Go to: %s to open GoTavern\n", stdoutPalette.blue(resolved))
+	}
+
+	// READY LINE: printed only here, after app.Start returned -- which happens after the listeners are
+	// bound and their Serve goroutines started -- and carrying the address a browser can actually reach.
+	// The URL is derived from the BOUND sockets, so port 0 (an ephemeral port) is reported truthfully
+	// rather than as the configured ":0".
+	readyURL := ""
+	if resolved, urlErr := serveURL(boundAddresses(running), jsTruthy(options.SSL)); urlErr == nil {
+		readyURL = resolved
+	} else {
+		readyURL = browserURL
+	}
+	if readyURL != "" {
+		printReadyLine(stdout, stdoutPalette, readyURL)
 	}
 
 	signals := make(chan os.Signal, 1)
@@ -280,12 +335,41 @@ func runServer(args []string, stdout, stderr io.Writer) error {
 	defer signal.Stop(signals)
 	select {
 	case received := <-signals:
-		fmt.Fprintf(stderr, "Shutting down after %s\n", received)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		return running.Close(ctx)
+		return shutdownAfterSignal(running, received, signals, stderr)
 	case serveErr := <-running.ServeErrors():
 		return fmt.Errorf("HTTP listener failed: %w", serveErr)
+	}
+}
+
+// boundAddresses exposes the bound listener addresses, which is what the Ready line reports instead of
+// re-deriving a URL from configuration that may already have been overridden.
+func boundAddresses(running *app.RunningServer) []net.Addr {
+	listeners := running.Listeners()
+	addresses := make([]net.Addr, 0, len(listeners))
+	for _, listener := range listeners {
+		addresses = append(addresses, listener.Addr())
+	}
+	return addresses
+}
+
+// shutdownAfterSignal prints the friendly first-signal message, then drains for up to the pinned ten
+// seconds. A SECOND signal during the drain force-closes the listeners (in-flight requests are aborted)
+// instead of being ignored, and exits 130 (128+SIGINT) through forcedShutdown.
+func shutdownAfterSignal(running *app.RunningServer, received os.Signal, signals <-chan os.Signal, stderr io.Writer) error {
+	fmt.Fprintln(stderr, shutdownNotice(received))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	closed := make(chan error, 1)
+	go func() { closed <- running.Close(ctx) }()
+	select {
+	case closeErr := <-closed:
+		return closeErr
+	case again := <-signals:
+		fmt.Fprintf(stderr, "Force closing after %s: closing listeners now (in-flight requests are aborted)\n", again)
+		for _, listener := range running.Listeners() {
+			_ = listener.Close()
+		}
+		return forcedShutdown{Signal: again.String()}
 	}
 }
 
@@ -322,4 +406,5 @@ func printUsage(stdout io.Writer) {
 	fmt.Fprintln(stdout, "  gotavern help")
 	fmt.Fprintln(stdout, "")
 	fmt.Fprint(stdout, commandline.OptionsHelp())
+	fmt.Fprint(stdout, helpFooter)
 }
