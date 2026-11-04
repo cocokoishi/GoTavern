@@ -199,7 +199,7 @@ func backendsTextgenStreamFetch(ctx context.Context, request searchRequest) (*ou
 // forwardBackendsTextgenStream reproduces forwardFetchResponse (src/util.js:732): the provider status is
 // copied (401 becomes 400 so a streamed reply cannot reset the browser's Basic Auth prompt), NO content
 // type is set, and the provider body is piped.
-func forwardBackendsTextgenStream(w http.ResponseWriter, response *outbound.Response) {
+func forwardBackendsTextgenStream(w http.ResponseWriter, request *http.Request, response *outbound.Response) {
 	status := response.Status
 	if status == http.StatusUnauthorized {
 		status = http.StatusBadRequest
@@ -248,13 +248,19 @@ func forwardBackendsTextgenStream(w http.ResponseWriter, response *outbound.Resp
 		}
 	}
 	_ = response.Stream.Close()
+	// Pinned forwardFetchResponse pipes the provider body; a source error is not forwarded and never
+	// ends the Express response, so a caller whose provider died mid-stream hangs until it disconnects.
+	// chat/kobold already reproduce this; the textgen copy used to end cleanly.
+	if response.Truncated {
+		<-request.Context().Done()
+	}
 }
 
 // forwardBackendsTextgenOllamaStream reproduces parseOllamaStream (text-completions.js:29): buffer
 // bytes, try JSON.parse of everything buffered, and on success emit one SSE frame and clear the buffer.
 // A frame split across chunks therefore waits for the rest, and a TRAILING incomplete frame is dropped
 // at end-of-stream, which is the pinned behaviour.
-func forwardBackendsTextgenOllamaStream(w http.ResponseWriter, response *outbound.Response) {
+func forwardBackendsTextgenOllamaStream(w http.ResponseWriter, request *http.Request, response *outbound.Response) {
 	w.Header().Set("Vary", "Origin")
 	w.Header()["Content-Type"] = nil
 	w.WriteHeader(http.StatusOK)
@@ -302,6 +308,13 @@ func forwardBackendsTextgenOllamaStream(w http.ResponseWriter, response *outboun
 		}
 	}
 	_ = response.Stream.Close()
+	// Pinned parseOllamaStream writes the terminal frame from the stream's 'end' handler only. A
+	// truncated body never emits 'end', so pinned sends NO [DONE] and the response stays open; an
+	// unconditional write here makes a truncated answer look complete.
+	if response.Truncated {
+		<-request.Context().Done()
+		return
+	}
 	_, _ = w.Write([]byte("data: [DONE]\n\n"))
 	if flusher != nil {
 		flusher.Flush()
@@ -492,10 +505,10 @@ func (runtime *accountRuntime) serveBackendsTextCompletionGenerate(w http.Respon
 			return
 		}
 		if apiType == "ollama" {
-			forwardBackendsTextgenOllamaStream(w, response)
+			forwardBackendsTextgenOllamaStream(w, request, response)
 			return
 		}
-		forwardBackendsTextgenStream(w, response)
+		forwardBackendsTextgenStream(w, request, response)
 		return
 	}
 
