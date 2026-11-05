@@ -64,20 +64,33 @@ go run ./cmd/build-longlived -small <empty-directory>   # fast smoke, same code 
 
 The command prints the manifest as JSON; it refuses a non-empty directory.
 
-## What the harness will prove (and what it will not)
+## What the harness proves today, and what it will prove next
 
-Planned, tracked by `GOAL.md` §14 and the qualification workflow:
+**Scenario 1 is green** (`tests/e2e/longlived_complex_test.go`,
+`TestComplexLongLivedInstanceQualifiesAsDropIn`; `-short` runs the small variant through the same code
+path): the default 169-file / 29 MB instance boots under the shipped binary and
 
-1. the tree boots under GoTavern with every pre-existing byte unchanged (the `Manifest.Files` digests are
-   the assertion), and the frontend reaches its cards, chats, worlds, presets and settings through the
-   routes it uses;
-2. a browser-driven differential against pinned Node on the same tree: send, regenerate, swipe, continue,
-   group turn, world-info trigger, preset switch, settings save - with the provider-wire bodies compared
-   byte-for-byte;
-3. Node → Go → Node hand-back on this tree after Go writes (chat, swipe, settings, character/world edits);
-4. migration from the legacy flat layout and rollback of a failed update;
-5. failure paths: corrupt JSON, read-only data root, interrupted write - each refuses without damaging
-   the tree.
+1. every planted byte is unchanged afterwards - except **one declared startup mutation**, pinned
+   SillyTavern's legacy-secrets migration (`migrateSecrets`), which rewrites `secrets.json` into the v2
+   `[{id,value,label,active}]` shape and adds `_migrated`. The test allows that rewrite **only** when
+   the migrated document still carries the planted value; any other rewrite fails;
+2. the frontend's own routes serve the planted data: all 32 cards listed and each card's PNG served
+   byte-identically, `/thumbnail` avatars and backgrounds render, a 240-message history opens (first
+   swipe-bearing message, second message, late marker and swipe alternates all present), all 400 entries
+   of the largest world book come back, world list / groups / backgrounds / settings carry the preset,
+   theme, persona and extension state, and the files the product has no opinion about are untouched.
+
+Measured locally: full spec 6.1 s, small spec 5.1 s (build + boot + assertions).
+
+Still to come, tracked by the goal:
+
+- a browser-driven differential against pinned Node on this same tree (send, regenerate, swipe, continue,
+  group turn, world-info trigger, preset switch, settings save) with the provider-wire bodies compared
+  byte-for-byte;
+- Node → Go → Node hand-back after Go writes, and unknown-field preservation on written files;
+- migration from the legacy flat layout and rollback of a failed update;
+- failure paths: corrupt JSON, read-only data root, interrupted write;
+- the same checks as a CI workflow with uploaded evidence.
 
 **It will not prove §14.** The instance is synthetic: no real user's prose, no real extension
 configuration, no real accident of history. What it proves is that the machinery survives a tree with the

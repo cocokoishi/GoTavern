@@ -453,7 +453,7 @@ func (g *generator) chatJSONL(characterName string, messages, salt int) ([]byte,
 				"gen_started": "2023-01-01T10:00:00.000Z", "gen_finished": "2023-01-01T10:00:01.000Z",
 			},
 		}
-		if !isUser && number%5 == 1 {
+		if !isUser && number%10 == 0 {
 			alternates := make([]any, 3)
 			for alternate := range alternates {
 				alternates[alternate] = fmt.Sprintf("SWIPE_%d_%d_%d", salt, number, alternate)
