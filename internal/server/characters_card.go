@@ -260,12 +260,30 @@ func readCharacterData(filePath string) (string, bool) {
 // readCharacterDataStrict reports the pinned read failure instead of collapsing
 // it, which /merge-attributes needs in order to distinguish a thrown error from
 // the empty-payload `Invalid character file` result.
+//
+// The decoded card text is memoised by file identity (characters_card_cache.go): the stat below is the
+// identity the cache validates against, so a hit skips only the read + PNG chunk walk + base64 decode. The
+// projection and the ordered-JSON marshal still run per request, and a hit returns exactly the string the
+// uncached path would have returned.
 func readCharacterDataStrict(filePath string) (string, error) {
+	info, statErr := os.Stat(filePath)
+	if statErr == nil {
+		if cached, ok := loadCharacterCardTextCache(filePath, identityForCharacterCardFile(info)); ok {
+			return cached, nil
+		}
+	}
 	image, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", err
 	}
-	return readPngCardText(image)
+	text, err := readPngCardText(image)
+	if err != nil {
+		return "", err
+	}
+	if statErr == nil {
+		storeCharacterCardTextCache(filePath, identityForCharacterCardFile(info), text)
+	}
+	return text, nil
 }
 
 // errorCharacter is the object pinned processCharacter returns after any
