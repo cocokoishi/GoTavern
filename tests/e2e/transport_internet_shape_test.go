@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -96,5 +97,114 @@ func TestProviderTransportFailureIsCausalThroughTheShippedBinary(t *testing.T) {
 		if err := json.Unmarshal(rawError, &errorObject); err != nil || len(errorObject) == 0 {
 			t.Fatalf("the `error` member is %s, which is neither `true` nor a non-empty object; the frontend's check breaks", string(rawError))
 		}
+	}
+}
+
+// TestProviderRedirectIsFollowedThroughTheShippedBinary is the artifact-level half of the redirect
+// contract internal/outbound/a15_redirect_semantics_test.go measures in the package. A provider edge that
+// 307-redirects the completion must be followed by the binary's production transport, with the POST body
+// and the same-host credential intact (pinned node-fetch follows redirects with the same rules: 307 keeps
+// method/body, same-domain sensitive headers survive). The final peer is asserted to have received the
+// request; without the follow, the route would answer a transport/error body instead of the completion.
+func TestProviderRedirectIsFollowedThroughTheShippedBinary(t *testing.T) {
+	requireProductionTransport(t)
+	fixture := loadProviderWireFixture(t)
+	nonStream := fixture.scenario(t, "deepseek-nonstream")
+	seam := deepSeekSeam(t, nonStream)
+
+	var finalRequests, redirectRequests int64
+	final := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt64(&finalRequests, 1)
+		if r.Method != http.MethodPost {
+			t.Errorf("the redirected completion reached the final peer with method %s, want POST (307 keeps it)", r.Method)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer "+syntheticDeepSeekKey {
+			t.Errorf("the redirected completion lost its credential (Authorization = %q); a same-host redirect keeps sensitive headers in pinned node-fetch", got)
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, _ = w.Write([]byte(nonStream.ProviderResponse.Body))
+	}))
+	t.Cleanup(final.Close)
+	redirector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt64(&redirectRequests, 1)
+		http.Redirect(w, r, final.URL+"/v1/chat/completions", http.StatusTemporaryRedirect)
+	}))
+	t.Cleanup(redirector.Close)
+
+	server := bootServer(t, map[string]string{seam: redirector.URL})
+	client := openSession(t, server.origin)
+	writeSecret(t, client, deepSeekSecretKey, syntheticDeepSeekKey)
+
+	status, _, body := client.postJSON(t, generateRoute, nonStream.driverBody(t, "deepseek-nonstream"))
+	if status != http.StatusOK {
+		t.Fatalf("POST %s through a 307 provider redirect = %d, want 200: %s\n%s",
+			generateRoute, status, compactForLog(body), server.diagnostic())
+	}
+	if got := atomic.LoadInt64(&redirectRequests); got != 1 {
+		t.Fatalf("the redirect peer received %d requests, want exactly 1 (one request, one redirect)", got)
+	}
+	if got := atomic.LoadInt64(&finalRequests); got != 1 {
+		t.Fatalf("the final peer received %d requests, want exactly 1: the production transport did not follow the redirect exactly once", got)
+	}
+	// The answer is the recorded completion, not an error envelope: the redirect was followed by the
+	// transport the binary actually uses, and the provider's body came back intact.
+	wantContent := completionContent(t, "recorded provider body", string(nonStream.ProviderResponse.Body))
+	if wantContent == "" {
+		t.Fatal("the capture records no completion content, so this assertion would be vacuous")
+	}
+	if got := completionContent(t, "redirected answer", body); got != wantContent {
+		t.Fatalf("completion content after the redirect = %q, want the recorded %q; body: %s", got, wantContent, compactForLog(body))
+	}
+	if strings.Contains(string(body), syntheticDeepSeekKey) || strings.Contains(string(body), "Bearer") {
+		t.Fatalf("the redirected answer leaked the provider credential: %s", compactForLog(body))
+	}
+}
+
+// TestProviderProxyFromTheEnvironmentThroughTheShippedBinary proves the documented proxy path reaches the
+// shipped artifact: with HTTP_PROXY exported and no requestProxy config, the binary's provider request must
+// be sent to the proxy (absolute-form request target) instead of dialling the provider host. The provider
+// host is deliberately a name that does not resolve -- if the request bypassed the proxy the route would
+// answer a transport failure, so a success is only possible through the proxy. The environment spelling is
+// the uppercase one; on Windows env names are case-insensitive, so a separate lowercase leg cannot be
+// distinguished from this one (the trap is recorded in the lane ledger rather than faked as a second case).
+func TestProviderProxyFromTheEnvironmentThroughTheShippedBinary(t *testing.T) {
+	requireProductionTransport(t)
+	fixture := loadProviderWireFixture(t)
+	nonStream := fixture.scenario(t, "deepseek-nonstream")
+	seam := deepSeekSeam(t, nonStream)
+
+	var proxied int64
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt64(&proxied, 1)
+		// A proxy receives the absolute request target, which is how this tells proxying apart from a
+		// direct dial: r.URL is absolute here and r.RequestURI starts with the provider scheme/host.
+		if !r.URL.IsAbs() || r.URL.Host != "provider.invalid" {
+			t.Errorf("the proxy received a non-absolute target %q; the request was not proxied", r.RequestURI)
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, _ = w.Write([]byte(nonStream.ProviderResponse.Body))
+	}))
+	t.Cleanup(proxy.Close)
+
+	server := bootServer(t, map[string]string{
+		seam:         "http://provider.invalid",
+		"HTTP_PROXY": proxy.URL,
+		"NO_PROXY":   "",
+		"no_proxy":   "",
+	})
+	client := openSession(t, server.origin)
+	writeSecret(t, client, deepSeekSecretKey, syntheticDeepSeekKey)
+
+	status, _, body := client.postJSON(t, generateRoute, nonStream.driverBody(t, "deepseek-nonstream"))
+	if status != http.StatusOK {
+		t.Fatalf("POST %s with HTTP_PROXY set = %d, want 200: the provider host does not resolve, so a failure means the request bypassed the environment proxy: %s\n%s",
+			generateRoute, status, compactForLog(body), server.diagnostic())
+	}
+	if got := atomic.LoadInt64(&proxied); got != 1 {
+		t.Fatalf("the proxy received %d requests, want exactly 1; the provider host cannot be reached directly", got)
+	}
+	wantContent := completionContent(t, "recorded provider body", string(nonStream.ProviderResponse.Body))
+	if got := completionContent(t, "proxied answer", body); got != wantContent {
+		t.Fatalf("completion content through the proxy = %q, want the recorded %q", got, wantContent)
 	}
 }

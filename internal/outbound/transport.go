@@ -218,16 +218,37 @@ func buildProductionClient(config *tls.Config) *http.Client {
 	}
 	return &http.Client{
 		Transport: transport,
-		// A bounded redirect policy rather than an open-ended one: an edge that redirects twice is
-		// ordinary, one that redirects in a loop must fail by name.
-		CheckRedirect: func(_ *http.Request, via []*http.Request) error {
-			if len(via) >= 5 {
+		// PINNED'S REDIRECT CONTRACT (node-fetch 3.3.2, the client pinned's provider traffic runs on):
+		//
+		//   - follow default 20 (node_modules/node-fetch/src/request.js:134; the branch rejects when
+		//     counter >= follow at src/index.js:178). A fixed limit of 5 was OUR number, not pinned's,
+		//     so a CDN chain longer than four hops failed where pinned succeeds.
+		//   - sensitive headers (authorization, www-authenticate, cookie, cookie2) are deleted when the
+		//     destination is not the same domain/subdomain OR not the same PROTOCOL
+		//     (src/index.js:200-213 with utils/is.js). net/http only compares hostnames
+		//     (net/http/client.go shouldCopyHeaderOnRedirect), so without the explicit strip below an
+		//     https->http redirect hands the bearer token to the plaintext target where pinned removes
+		//     it. That is a parity difference and a credential leak.
+		CheckRedirect: func(next *http.Request, via []*http.Request) error {
+			if len(via) >= productionRedirectLimit {
 				return fmt.Errorf("provider redirected %d times; giving up", len(via))
+			}
+			if len(via) > 0 && via[0].URL != nil && next.URL != nil && via[0].URL.Scheme != next.URL.Scheme {
+				for _, name := range pinnedRedirectSensitiveHeaders {
+					next.Header.Del(name)
+				}
 			}
 			return nil
 		},
 	}
 }
+
+// productionRedirectLimit is node-fetch's follow default: 20 redirects (src/request.js:134).
+const productionRedirectLimit = 20
+
+// pinnedRedirectSensitiveHeaders is the list node-fetch deletes across domain or protocol boundaries
+// (src/index.js:213). net/http already handles the domain half; the protocol half is ours.
+var pinnedRedirectSensitiveHeaders = []string{"Authorization", "Www-Authenticate", "Cookie", "Cookie2"}
 
 func sendProductionStreaming(ctx context.Context, request Request, timeout time.Duration) (*Response, error) {
 	host := providerHost(request.URL)
