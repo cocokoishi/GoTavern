@@ -192,3 +192,34 @@ before this round, that clause failed with four named 404s, which is a product f
 probe defect. The leg must also fail itself when helper-off and helper-on produce identical captures
 (`AGENTS.md` rule 50), and it must serve or explicitly block `testingcf.jsdelivr.net`, because the
 iframe heads are blocking `<script>` tags with no `onerror`.
+
+## 8. The alpha.15 disposition: `PRIVATE_NOT_RUN` (2026-11-05)
+
+This round re-asked `GOAL.md` §14's question and recorded its disposition rather than a convenience. The
+qualification host holds **no authorised original** (no real long-used SillyTavern tree, no real preset,
+no real card), and `docs/development-loop.md` §4 forbids manufacturing one or substituting a synthetic
+tree for it. The disposition is therefore:
+
+| item | disposition | reason |
+|---|---|---|
+| Boot a real, long-used directory with its own `config.yaml`, users, cards, chats, groups, worlds, presets, Quick Replies, themes, assets, secrets and installed extensions | **`PRIVATE_NOT_RUN`** | no original on the host; the channel is canaried, never executed (`development-loop.md` §4) |
+| Byte census before/after on real data | **`PRIVATE_NOT_RUN`** | needs the tree |
+| Journey + provider-request equality on the real tree | **`PRIVATE_NOT_RUN`** | needs the tree |
+| Hand-back to pinned Node and rollback on the real tree | **`PRIVATE_NOT_RUN`** | needs the tree |
+| Failure path (killed process, full disk, read-only dir, corrupt chat, concurrent writer) on the real tree | **`PARTIAL`** | every mechanism is proven on synthesised trees this round (lane B's alpha.15 gates); the real tree's own disk/permissions are not |
+| The instruments themselves (`scripts/private-workdir.mjs`, `scripts/private-egress-check.mjs`) | **canaried** | both were exercised only on ordinary repository fixtures; a canary run does NOT demonstrate the channel, and no document may cite one as a demonstration |
+
+What THIS round did prove, and it is not a substitute: the synthetic complex instance
+(`internal/longlivedfixture`, 169 files / 29.29 MB) carries the same *kinds* of surface — 32 PNG cards
+with v2 `chara` and v3 `ccv3` chunks, 39 year-spanning JSONL chats with branches, swipes and `is_system`
+hidden messages, 8 world books with recursive and regex keys, 8 presets across both completion kinds, 3
+group transcripts, extension state, legacy migration input, unknown/binary files and non-ASCII/emoji
+names — and it passes boot preservation, migration, unknown-field-preserving writes, corrupt-data
+refusal, unwritable-destination refusal, read-only data root (Linux) and a forced-migration backup that
+boots. The two-corpus schema bridge proves which tree each leg actually drove, and the 20 pinned
+third-party extensions run on both subjects.
+
+**The egress half is provable publicly and IS proven there:** the packaged drop-in gate and the fixture
+watermark scanner run in CI, so what may cross the boundary is checked where it can be checked. What
+cannot be proven here is the observation itself. That is the same sentence `GOAL.md` §14 carries, and
+alpha.15's release notes repeat it rather than soften it.

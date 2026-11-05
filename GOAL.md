@@ -40,10 +40,23 @@ light, fast, stable, understandable and pleasant to start:
 - **honest README and figure**: the first screen says what GoTavern is, why it is lighter and how to
   start it; every number in it is generated from a recorded artifact and gated against it (§15.6).
 
-**1c. The release this program ships.** The deliverable is `v0.1.0-alpha.14` as a **formal,
+**1c. The release this program ships.** The deliverable is `v0.1.0-alpha.15` as a **formal,
 stable-channel release**: same-SHA gates green, release notes not ahead of evidence, published
 artifacts verified after publication (§16). No tag is created and no channel is moved until §16 holds
 and the evidence table names every gate run.
+
+alpha.15 is the **final engineering-audit release** of the 0.1.0 line, and its additional obligation is
+not a feature: it must first *prove the gates can fail*, then use them. It ships (a) a structured
+blind-spot audit over the five observer surfaces, the filesystem/persistence layer, the transport,
+the browser evidence classes and the release machinery itself, with the test gaps that audit finds
+closed by tests that have each been shown to go red on a planted defect; (b) real fixes for real defects
+that audit finds, each with a failing-then-passing reproducer; (c) measured product optimization that
+does not trade §1a away — every accepted optimization states its measured before/after on the same input
+and the gate that guards it; (d) the two long-lived evidence surfaces this program grew *after* alpha.14
+(the medium long-lived corpus and the Node stock-tree round trip) promoted into the same-SHA release
+manifest, so a default `small` push run cannot masquerade as a `medium` gate; and (e) a re-run of every
+compatibility gate at one candidate SHA, because a number measured on an older commit is a different
+claim. The strong drop-in bar in §14 is **not** part of alpha.15's deliverable and is not claimed by it.
 
 The goal is met only when all of the following are demonstrated with the shipped artifact:
 
@@ -244,7 +257,7 @@ decides it. Moving on because the previous milestone's cheap checks are green is
 | **M5 — big data and concurrency** | chat-summary streaming, identity-keyed settings/world-info caches, static double-resolve removal, lock scope, large-tree startup | peak-memory and latency before/after, with response bytes unchanged |
 | **M6 — long-term stability** | panic boundary, cache-consistency tests (including same-size replacement), `http.Server` timeouts, provider truncation/redirect differentials, `-race` and parallel tests | each fix has a failing-then-passing reproducer |
 | **M7 — README and figure** | first-screen restructure; a ~1200×675 16:9 dark+light figure generated from the artifact; unit discipline; no stale version text; accessibility/contrast checks | generator determinism, agreement with the artifact, and the docs gate |
-| **M8 — acceptance and release** | the full same-SHA gate set, cross-platform, packaged artifact, public-artifact verification, and `v0.1.0-alpha.14` as a formal release | §16 |
+| **M8 — acceptance and release** | the full same-SHA gate set, cross-platform, packaged artifact, public-artifact verification, and the line's release as a formal release. M8 is a RECURRING milestone, not a one-off: alpha.14 closed it once, and alpha.15 closes it again on its own commit, which is why §16 names the tag rather than the milestone | §16 |
 
 **M4 status (recorded 2026-11-04, after `v0.1.0-alpha.14`).** The route-table step (`8eca43b`) and two
 move-only extractions landed in the follow-up work: `internal/httpx` (the weak-ETag and response-writer
@@ -358,8 +371,11 @@ The core goal of a round is complete only when every line below is true.
 
 ### 12.1 The engineering program's definition of done
 
-State as of the published `v0.1.0-alpha.14` (2026-11-04): everything below is met **except M4**, which
-is partial and is the next milestone item. A ticked box names the evidence in `HANDOFF.md`'s current
+State as of `v0.1.0-alpha.15` (2026-11-05): everything below is met **except M4**, which is partial and
+is closed by decision where it cannot be move-only (§11). alpha.15 adds no new milestone box: its own
+obligation is §1c's — re-audit the gates, close the blind spots the audit finds, fix the real defects,
+optimize with measurement, and re-run every gate at one candidate SHA so the release rests on that
+commit rather than on alpha.14's. A ticked box names the evidence in `HANDOFF.md`'s current
 checkpoint; an unticked box is an open obligation, not a style note.
 
 - [x] M1: the first-run output names GoTavern, its version, its baseline, its real data/config paths
@@ -433,17 +449,26 @@ of the following have run on ONE commit, on ONE real tree, with the result recor
    product "drop-in", "compatible", "safe" or "stable" must state in the same place which of 1-5 have
    run and which have not; a claim resting on a synthetic tree or a derivation says so.
 
-**Current state, dated 2026-11-03 (`v0.1.0-alpha.13`): NOT MET for the strong form.** The evidence that
-exists covers a Go-synthesised long-lived tree, a committed synthetic corpus, a packaged archive over a
-stock tree, and the local private channel's instruments -- canaried, never run against real originals
-(`docs/development-loop.md` §4: "STATUS: NOT YET DEMONSTRATED"). `docs/goal-scorecard.md` §3 says the
-same in one line: Q1's tree is synthesised, not the user's. The M0 audit of 2026-11-03 named two
-concrete reasons the sentence cannot be upgraded yet: response compression is absent where pinned sends
-gzip (a header and wire-byte divergence), and the character-card disk cache pinned maintains is created
-at startup but never used, so a real card-heavy tree is read and parsed differently. Neither is by
-itself a data-destruction path; both are the class of difference this section exists to catch. This
-paragraph is dated: when items 1-5 are demonstrated it is replaced, not kept, and the scorecard row
-carries the run.
+**Current state, dated 2026-11-05 (`v0.1.0-alpha.15`): NOT MET for the strong form.** The evidence that
+exists covers a Go-synthesised long-lived tree (`tests/e2e/longlived_*`), the committed synthetic
+browser corpus, a packaged archive over a stock tree, the 20 pinned third-party extensions and the
+browser/provider-wire differentials. No real, long-used user directory has been qualified: the local
+private channel of `docs/development-loop.md` §4 was **canaried, never run against real originals**, and
+this round's disposition is `PRIVATE_NOT_RUN` because no authorised original is present on the
+qualification host. `docs/goal-scorecard.md` §3 says the same in one line: Q1's tree is synthesised, not
+the user's.
+
+The M0 audit of 2026-11-03 named two concrete reasons the sentence could not then be upgraded. Both
+were RE-MEASURED this round rather than quoted: (1) **response compression** — no longer a reason; the
+pinned compression contract is implemented (`internal/server/compression*.go`) and pinned against a
+recorded oracle, with 229-request page-load wire bytes down 67.4% (`GoTavern CI` 41766644754); (2) **the
+character-card disk cache pinned maintains** — still not implemented in GoTavern. That is a *derived,
+rebuildable* cache pinned writes under `<dataRoot>/_cache/characters` (`SillyTavern`
+`src/endpoints/characters.js:36-159`, verified at the pin), so its absence is a parity/performance gap
+rather than a data-loss path: no user byte depends on it, and pinned rebuilds it from the cards. It is
+recorded as `partial` and not as a defect. Neither item is on the §14 bar itself — the bar is items
+1-5, and they need a real tree. This paragraph is dated: when items 1-5 are demonstrated it is
+replaced, not kept, and the scorecard row carries the run.
 
 ## 15. The engineering contract
 
@@ -506,26 +531,43 @@ render without a run id and a commit. A gate compares the committed README table
 provenance against the artifact, so a number cannot drift from the run that produced it. Regressions
 are shown, not hidden.
 
-## 16. The `v0.1.0-alpha.14` release bar
+## 16. The `v0.1.0-alpha.15` release bar
 
-`v0.1.0-alpha.14` is the formal (stable-channel) release this program ships. It may be tagged only
-when ALL of the following hold, on ONE commit:
+`v0.1.0-alpha.15` is the formal (stable-channel) release this program ships at the end of the
+engineering audit. It may be tagged only when ALL of the following hold, on ONE commit:
 
 1. every required same-SHA gate in `docs/release-manifest.json` is green at that commit, including the
-   third-party extension corpus gate with its `extension-compat-evidence` artifact;
-2. the new M1/M2/M7 gates (CLI, performance-evidence, README/figure) are green at the same commit;
-3. `scripts/classify-version-tag.sh` classifies the tag stable, its equality list is extended in the
-   same change, and `scripts/test-classify-version-tag.sh` covers the new tag;
-4. `docs/release-notes-v0.1.0-alpha.14.md` is generated from / checked against the evidence, states
-   every boundary and every unproven item (§14, §13), and does not claim ahead of a gate;
-5. the release publishes with `draft=false`, `prerelease=false`, `latest=true`, six archives plus
+   third-party extension corpus gate with its `extension-compat-evidence` artifact, **and** the two
+   surfaces this program grew after alpha.14: the long-lived corpus gate at its `medium` tier with a
+   fixed-name evidence artifact whose embedded HEAD SHA and tier marker the verifier reads (a default
+   `small` push run must NOT satisfy it), and the Node stock-tree round trip with its dedicated
+   evidence artifact;
+2. the M1/M2/M7 gates (CLI, performance-evidence, README/figure) are green at the same commit, and the
+   performance figures in README/release notes are regenerated from the artifact whose recorded
+   `provenance.commit` is the code-complete commit this release's evidence descends from (the artifact
+   cannot name the commit that contains it, so the recorded commit is an ancestor by construction and the
+   same-SHA `GoTavern smoke metrics` gate must ALSO be green at the tag commit); alpha.14's numbers are
+   never spliced into alpha.15's claim;
+3. `scripts/classify-version-tag.sh` classifies the tag stable, its equality list gains
+   `v0.1.0-alpha.15` in the same change, and `scripts/test-classify-version-tag.sh` proves the new tag
+   stable while `v0.1.0-alpha.16`, `v0.1.0-alpha.150`, `v0.1.0-alpha.15-rc1` and every other
+   version-shaped neighbour stay prerelease;
+4. `docs/release-notes-v0.1.0-alpha.15.md` is generated from / checked against the evidence, states
+   every boundary and every unproven item (§14, §13, and the alpha.15 audit's residual list), and does
+   not claim ahead of a gate;
+5. the audit obligation is met and RECORDED: the blind-spot ledger exists in the repository with one row
+   per audited surface (behaviour, upstream basis, product implementation, existing test, CI execution,
+   assertion, negative control, state), every new gate added this round has a demonstrated mutation
+   (planted defect → named assertion red → restored green), and every real defect found has a
+   reproducer plus the fix that makes that reproducer pass;
+6. the release publishes with `draft=false`, `prerelease=false`, `latest=true`, six archives plus
    `checksums.txt`, and the release body carries the same-SHA evidence table;
-6. Docker `:v0.1.0-alpha.14` and `:latest` are published and resolve to the same digest;
-7. after publication the published bytes are verified independently: installers over real TLS,
+7. Docker `:v0.1.0-alpha.15` and `:latest` are published and resolve to the same digest;
+8. after publication the published bytes are verified independently: installers over real TLS,
    checksums, the published binary's own `version`, the all-20 corpus against the published binary,
    the published container's boot, and a local archive check;
-8. no force push, no tag move, no `--no-verify`, no private data in any artifact, and every commit
+9. no force push, no tag move, no `--no-verify`, no private data in any artifact, and every commit
    identity normalised.
 
-If any of 1-7 cannot be met, the release does not happen and the reason is recorded in `HANDOFF.md`.
+If any of 1-8 cannot be met, the release does not happen and the reason is recorded in `HANDOFF.md`.
 A formal release is a claim about the artifact, not about the intention.

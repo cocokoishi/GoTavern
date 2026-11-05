@@ -20,15 +20,18 @@ about an orphaned commit cannot prove anything about this code.
 | F3 (no per-subject discriminator in save/reload/swipe) | fixed (guard), **teeth owed** | `compare-q20-legs.mjs` `artefactsDifferPerSubject`; there is no comparator self-test for it |
 | F4, F5, F6, F7, F8, F10, F11, F12, F13, F14 | fixed, `14d5e57` (F12 also `fae8513` lineage) | each has a named selftest case under `tests/browser/*-gate-selftest.mjs`, `verifier-guards-gate-selftest.mjs` or `streaming-framing-selftest.mjs` |
 | F9 (helper-generation `driveCompleted` vacuous) | **false finding** — the `Boolean(leg) &&` guard was present before the audit was written | `compare-helper-generation.mjs`; regression case retained |
-| F15 (self-tests claim more coverage than they have) | **OPEN** | measured at HEAD: two framing guards and five regex guards are named in no self-test while the footer claims "every guard … can fail" |
-| F17 (a nondeterministic body classified `equal`) | **OPEN, documented decision** | `compare-startup-legs.mjs` still counts the shape-classified body into `summary.equal`; it does not record the unstable value, so no compared field carries it |
+| F15 (self-tests claim more coverage than they have) | **fixed at alpha.15** | Coverage is now COMPUTED FROM THE COMPARATOR SOURCE instead of footered: `tests/browser/a15-comparator-teeth-coverage-selftest.mjs` counts the framing comparator's guards and cases (37 cases / 34 guards) and the regex comparator's (17/17), refuses a footer that claims "every guard" without the computed coverage, and refuses a planted guard that no case expects. Both are wired into `ci.yml`'s `browser-evidence` job (`e7b7f32`), so they run on every push rather than on a developer's machine |
+| F17 (a nondeterministic body classified `equal`) | **OPEN, documented decision** | `compare-startup-legs.mjs` still counts the shape-classified body into `summary.equal`; it does not record the unstable value, so no compared field carries it. The alpha.15 audit re-confirmed this and left it open on purpose: classifying it `equal-shape` requires a re-record of the committed `startup-comparison.json`, which is a re-record of an OBSERVATION and needs its own reason rather than a lane's convenience |
 | §3 Q20 continue positional selection | fixed | `continueRequestOf` anchors on the product's own nudge marker; `q20-continue-comparator-selftest.mjs` kills all 14 required guards by name |
 
-Two claims this document made about verifier integrity are **narrower than stated** and are corrected
-here: guards are compared by NAME presence per surface, and a two-way set comparison (so a guard cannot
-silently appear or disappear) exists only for the streaming-framing and chat-completion checks — not for
-assets, helper or variables. And `tools/docs-check-manifest.mjs`, the only thing that can re-check a
-recorded run CONCLUSION against the live API, is not invoked by any workflow.
+Two claims this document made about verifier integrity were **narrower than stated** when it was written, and
+the alpha.15 audit closed the larger of the two: guards are compared by NAME presence per surface, and a
+two-way set comparison (so a guard cannot silently appear or disappear) now exists for assets, helper,
+helper-generation, helper-variables and streaming-framing, with the pinned optional/excused lists held in
+allowlists by `tools/verify-browser-comparisons.mjs`; an artefact that records a guard no checker reads is a
+named refusal (`guardSetProblems`), and a required guard deleted from a checker is red too. The second claim
+is unchanged: `tools/docs-check-manifest.mjs`, the only thing that can re-check a recorded run CONCLUSION
+against the live API, is still not invoked by any workflow.
 
 ---
 
@@ -304,20 +307,23 @@ are missing, so this is a dead conjunct rather than an open hole.
 Smallest fix: require the boundary fields to be present (or compare against a literal that must exist).
 No re-record.
 
-### F15 — Self-test coverage does not match what the self-tests claim (class b, meta)
+### F15 — Self-test coverage does not match what the self-tests claim (class b, meta) — CLOSED at alpha.15
 
-* `tests/browser/streaming-framing-selftest.mjs:348` prints "every guard the framing comparator names can
-  fail"; measured against the comparator's 34 guards, three are named in neither framing self-test
-  (`hopReleasedLessThanThePeerWrote`, `noPageErrorsThroughTheHop`, `relayedDeliveredContentToThePage`),
-  and F4 shows the first one cannot fail for the reason its name gives.
+* `tests/browser/streaming-framing-selftest.mjs:348` printed "every guard the framing comparator names can
+  fail"; measured against the comparator's 34 guards, five were expected by no case
+  (`hopReleasedLessThanThePeerWrote`, `noPageErrorsThroughTheHop`, `relayedDeliveredContentToThePage`, and two
+  more added by the alpha.15 audit).
+* `tests/browser/regex-gate-selftest.mjs` named 12 of the comparator's 17 guards while its footer claimed the
+  set was covered.
 * `tests/browser/preset-gate-selftest.mjs` exercises four mutations and never touches
   `compareTokenizers` (`:1-19`, `:113-165`), which is where F2 lives.
-* `tests/browser/regex-gate-selftest.mjs` does not exercise `legsDrove`,
-  `variantsAreDistinctDeclarations`, `harnessDiscriminates`, `case5_disabledRuleIsUnchangedAndTheLegSaysWhy`
-  or `case5_noMatchIsUnchangedAndSaysWhy` (measured by name-matching against the comparator's 17 guards).
 
-Smallest fix: soften the printed claim to the guards actually exercised, or add one case per uncovered
-guard. No re-record.
+**Closed by making the claim computed rather than written.** `tests/browser/a15-comparator-teeth-coverage-selftest.mjs`
+extracts every `guard('name', …)` from the comparator SOURCE, requires every one of them to be expected by at
+least one self-test case, refuses a footer that claims "every guard" without the computed numbers, and refuses
+a planted fake guard — so a guard added later cannot escape, and a footer cannot claim ahead of its cases.
+The framing set grew to 37 cases / 34 guards and the regex set to 17/17. The F2 observation (the tokenizer
+comparison's three outcomes) is named by the same self-test. No re-record.
 
 ### F16 — Counters written but never read (class e, latent)
 
