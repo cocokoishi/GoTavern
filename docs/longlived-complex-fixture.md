@@ -142,6 +142,21 @@ path): the default 169-file / 29 MB instance boots under the shipped binary and
 - **FAILURE PATH**: a corrupt world file does not stop the boot, the roster and the healthy world still
   serve, the corrupt world is refused with a non-200, and the corrupt bytes are not rewritten.
 
+**Scenarios 5-7: unwritable destination, read-only data root, and a recoverable rollback** (same file):
+
+- **UNWRITABLE DESTINATION** (all hosts): the world file is replaced by a directory, so the write cannot
+  happen anywhere; the route answers non-2xx with text, nothing is half-written, `settings.json` and every
+  other byte are unchanged, and the roster still answers afterwards.
+- **READ-ONLY DATA ROOT** (Linux; Windows skips with the reason declared): `chmod 0555` on the worlds
+  directory refuses the write, the tree keeps every byte, and restoring the permission makes the same
+  write succeed - the refusal was the permission, not a wedged server. This branch executes in the Linux
+  CI job, which is the binding gate.
+- **RECOVERABLE FORCED MIGRATION**: `migrate --force` moves the destination's previous state to
+  `.migrate-backup/` byte-identically, and that backup BOOTS from a clean root with the previous
+  settings served - a rollback an operator can use, not a directory of leftovers.
+
+CI: `GoTavern long-lived corpus` run **41957672562** ran the complex gate (`go test -run '^TestComplex'`,
+now seven scenarios) on Linux and passed, including the read-only data-root branch that Windows skips.
 CI: `GoTavern long-lived corpus` run **41955926519** (push, `small-corpus` job) step 16
 "Complex-instance gate (boot, preserve, serve, migrate, write, corrupt)" ran `go test ./tests/e2e -run
 '^TestComplex'` and passed - one regex, so a new scenario cannot silently drop out. Measured locally: full
