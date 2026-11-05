@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -354,4 +355,226 @@ func sameDigests(left, right map[string]string) bool {
 		}
 	}
 	return true
+}
+
+// ---- FAILURE PATHS WHOSE TRIGGER IS THE FILESYSTEM, NOT THE REQUEST.
+
+// TestComplexWorldWriteFailureIsRefusedAndLeavesTheTreeIntact makes the destination path unwritable in a
+// way every supported host understands: the world file is replaced by a DIRECTORY. Opening it for write
+// fails on Windows and Linux alike, so the scenario is not skipped anywhere. The obligations asserted are
+// the product ones: the route reports a failure instead of a false success (hard rule 18), nothing is
+// half-written, neighbours are untouched, and the server is still usable afterwards.
+func TestComplexWorldWriteFailureIsRefusedAndLeavesTheTreeIntact(t *testing.T) {
+	spec := complexWriteSpec()
+	installRoot := t.TempDir()
+	dataRoot := filepath.Join(installRoot, "data")
+	if err := os.MkdirAll(dataRoot, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := longlivedfixture.Build(dataRoot, spec)
+	if err != nil {
+		t.Fatalf("build fixture: %v", err)
+	}
+	server := bootServerAt(t, installRoot, dataRoot, nil)
+	client := openSession(t, server.origin)
+
+	worldsDir := filepath.Join(dataRoot, "default-user", "worlds")
+	unwritable := filepath.Join(worldsDir, "World_01.json")
+	if err := os.Remove(unwritable); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(unwritable, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(unwritable, "keep.txt")
+	if err := os.WriteFile(marker, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	before := complexTreeDigests(t, dataRoot)
+	settingsPath := filepath.Join(dataRoot, "default-user", "settings.json")
+	settingsBefore, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	status, _, body := client.postJSON(t, "/api/worldinfo/edit", mustJSON(t, map[string]any{
+		"name": "World_01",
+		"data": map[string]any{"entries": map[string]any{"0": map[string]any{"content": "SHOULD_NOT_LAND"}}},
+	}))
+	if status == http.StatusOK {
+		t.Fatalf("a write into a path that cannot be written answered 200: %.300q", body)
+	}
+	if strings.TrimSpace(body) == "" {
+		t.Errorf("the refused write produced no text at all (hard rule 35 asks for a causal error)")
+	}
+	info, statErr := os.Stat(unwritable)
+	if statErr != nil || !info.IsDir() {
+		t.Fatalf("the unwritable destination changed shape instead of being left alone: %v", statErr)
+	}
+	if kept, err := os.ReadFile(marker); err != nil || string(kept) != "keep" {
+		t.Errorf("the marker inside the unwritable destination changed: %q %v", kept, err)
+	}
+	after := complexTreeDigests(t, dataRoot)
+	if !sameDigests(before, after) {
+		t.Errorf("a refused write changed the tree; first differences: %v", digestDifference(before, after))
+	}
+	if settingsNow, err := os.ReadFile(settingsPath); err != nil || sha256Hex(string(settingsNow)) != sha256Hex(string(settingsBefore)) {
+		t.Errorf("a refused world write changed settings.json")
+	}
+	// The server did not wedge: the healthy routes still answer.
+	status, _, body = client.postJSON(t, "/api/characters/all", "{}")
+	if status != http.StatusOK || !strings.Contains(body, manifest.Characters[0].Avatar) {
+		t.Errorf("the roster stopped working after a refused write: %d", status)
+	}
+}
+
+// TestComplexReadOnlyDataRootRefusesWritesWithoutDamage makes the data root read-only the way an operator
+// on a Unix host would (chmod a+rx, no write bit). The write must be refused, the tree must keep every
+// byte, and restoring the permission must make the same write succeed - which proves the refusal was the
+// permission and not a wedged server.
+func TestComplexReadOnlyDataRootRefusesWritesWithoutDamage(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a directory's read-only bit does not deny writes on Windows; the Linux CI job is the binding " +
+			"gate for this scenario (AGENTS working mode), and skipping is declared here rather than passed silently")
+	}
+	spec := complexWriteSpec()
+	installRoot := t.TempDir()
+	dataRoot := filepath.Join(installRoot, "data")
+	if err := os.MkdirAll(dataRoot, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := longlivedfixture.Build(dataRoot, spec); err != nil {
+		t.Fatalf("build fixture: %v", err)
+	}
+	server := bootServerAt(t, installRoot, dataRoot, nil)
+	client := openSession(t, server.origin)
+
+	worldsDir := filepath.Join(dataRoot, "default-user", "worlds")
+	before := complexTreeDigests(t, worldsDir)
+	if err := os.Chmod(worldsDir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(worldsDir, 0o755) })
+
+	status, _, body := client.postJSON(t, "/api/worldinfo/edit", mustJSON(t, map[string]any{
+		"name": "World_00",
+		"data": map[string]any{"entries": map[string]any{"0": map[string]any{"content": "READ_ONLY_ATTEMPT"}}},
+	}))
+	if status == http.StatusOK {
+		t.Fatalf("a write into a read-only data root answered 200: %.300q", body)
+	}
+	after := complexTreeDigests(t, worldsDir)
+	if !sameDigests(before, after) {
+		t.Errorf("a refused write into a read-only data root changed the tree; first differences: %v", digestDifference(before, after))
+	}
+	if err := os.Chmod(worldsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	status, _, body = client.postJSON(t, "/api/worldinfo/edit", mustJSON(t, map[string]any{
+		"name": "World_00",
+		"data": map[string]any{"entries": map[string]any{"0": map[string]any{"content": "WRITABLE_AGAIN"}}},
+	}))
+	if status != http.StatusOK {
+		t.Fatalf("after the data root was writable again the same write still failed: %d %.300q", status, body)
+	}
+	written, err := os.ReadFile(filepath.Join(worldsDir, "World_00.json"))
+	if err != nil || !strings.Contains(string(written), "WRITABLE_AGAIN") {
+		t.Errorf("the write after restoring permissions did not land")
+	}
+}
+
+// TestComplexForcedMigrationKeepsARecoverableBackup proves the rollback half of "a failure must be
+// recoverable": `migrate --force` moves the destination's previous state to `.migrate-backup/` rather
+// than deleting it, the backup carries those bytes EXACTLY, and the backup can itself be booted - so the
+// operator's previous installation is a working install, not just a directory of leftovers.
+func TestComplexForcedMigrationKeepsARecoverableBackup(t *testing.T) {
+	spec := complexWriteSpec()
+	installRoot := t.TempDir()
+	binary := resolveBinary(t, installRoot)
+	source := assembleLegacySource(t, spec)
+
+	dest := filepath.Join(t.TempDir(), "gotavern-install")
+	if err := os.MkdirAll(filepath.Join(dest, "data", "default-user"), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	oldConfig := []byte("# the previous destination's own config\nport: 8555\nuserUnknownSetting: old-dest-keep\n")
+	oldSettings := []byte("{\"marker\":\"OLD-DEST-STATE\",\"nested\":{\"keep\":true}}\n")
+	if err := os.WriteFile(filepath.Join(dest, "config.yaml"), oldConfig, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dest, "data", "default-user", "settings.json"), oldSettings, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	output, code := runGotavern(t, binary, "migrate", "--from", source, "--dest", dest, "--force")
+	if code != 0 {
+		t.Fatalf("migrate --force exited %d: %.400q", code, output)
+	}
+	backup := filepath.Join(dest, ".migrate-backup")
+	backupConfig, err := os.ReadFile(filepath.Join(backup, "config.yaml"))
+	if err != nil || sha256Hex(string(backupConfig)) != sha256Hex(string(oldConfig)) {
+		t.Fatalf("the backup does not carry the previous config.yaml byte-identically: %v", err)
+	}
+	backupSettings, err := os.ReadFile(filepath.Join(backup, "data", "default-user", "settings.json"))
+	if err != nil || sha256Hex(string(backupSettings)) != sha256Hex(string(oldSettings)) {
+		t.Fatalf("the backup does not carry the previous settings byte-identically: %v", err)
+	}
+
+	// The backup is a USABLE installation: boot it from a clean root and ask for the settings the
+	// previous destination carried. A backup nobody can start is not a rollback.
+	restored := filepath.Join(t.TempDir(), "restored")
+	if err := os.CopyFS(restored, os.DirFS(backup)); err != nil {
+		t.Fatalf("restore the backup: %v", err)
+	}
+	server := bootServerIn(t, restored, restored, filepath.Join(restored, "data"), nil)
+	client := openSession(t, server.origin)
+	status, _, body := client.postJSON(t, "/api/settings/get", "{}")
+	if status != http.StatusOK || !strings.Contains(body, "OLD-DEST-STATE") {
+		t.Fatalf("the restored installation does not serve the previous destination's settings: %d %.300q", status, body)
+	}
+}
+
+// assembleLegacySource builds the legacy-shaped migration source used by the complex instance tests.
+func assembleLegacySource(t *testing.T, spec longlivedfixture.Spec) string {
+	t.Helper()
+	payload := t.TempDir()
+	if _, err := longlivedfixture.Build(payload, spec); err != nil {
+		t.Fatalf("build fixture: %v", err)
+	}
+	source := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(source, "data"), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(payload, "default-user"), filepath.Join(source, "data", "default-user")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(payload, "public"), filepath.Join(source, "public")); err != nil {
+		t.Fatal(err)
+	}
+	legacyConfig := "# a long-lived config the user wrote\ndataRoot: \"./data\"\nport: 8000\nlisten: false\n" +
+		"userUnknownSetting: keep-me-please\ncustomProviderOptions:\n  nestedKey: [1, 2, 3]\n"
+	if err := os.WriteFile(filepath.Join(source, "config.yaml"), []byte(legacyConfig), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return source
+}
+
+// digestDifference names the first few paths that differ, so a failing tree assertion can be read.
+func digestDifference(before, after map[string]string) []string {
+	differences := []string{}
+	for path, digest := range before {
+		if after[path] != digest {
+			differences = append(differences, path)
+		}
+	}
+	for path := range after {
+		if _, ok := before[path]; !ok {
+			differences = append(differences, "+"+path)
+		}
+	}
+	sort.Strings(differences)
+	if len(differences) > 5 {
+		differences = differences[:5]
+	}
+	return differences
 }
