@@ -274,3 +274,131 @@ to this build and continues working with no undocumented manual migration", with
   `not-observed` and the verdict is **not** a pass.
 - Backup **housekeeping** (automatic chat/settings backup creation) is outside this gate's comparison; the backup
   surface has its own routes/probes and is recorded `partial` in `docs/compat-matrix.md`.
+
+## 8. The shared corpus-schema manifest, and the §0.3 two-corpus decision
+
+Alpha.15 §0.3 asks whether ONE deterministic initial corpus can feed the Go, Node, browser and
+provider-wire tests. The answer is implemented and measured rather than asserted:
+
+* **ONE schema.** `internal/longlivedfixture` emits `gotavern-corpus-schema` v1 for the complex Go
+  instance (`go run ./cmd/build-longlived <dir> -schema <file>`), and
+  `tools/build-longlived-corpus.mjs --schema-out <file>` emits the SAME shape for the browser/Node corpus.
+  The manifest records, for every file: relative forward-slash path, byte size, sha256 and a schema class;
+  plus derived scenario counts, named capability flags, marker inventories and a tree digest computed over
+  sorted `<sha256>  <path>` lines. Nothing reads a clock or an environment variable, so two builds of the
+  same input produce byte-identical manifests (this is a test, not a promise:
+  `TestCorpusSchemaIsDeterministicAndComplete`, `TestCorpusSchemaRebuildDiffHasTeeth`).
+* **ONE verifier for any tree.** `tools/longlived/verify-corpus-schema.mjs --corpus <dir> --schema <file>`
+  walks the tree and compares it to the manifest: missing files, extra files, per-file sha256, per-file
+  class, class counts, file/byte counts and the tree digest are each a NAMED assertion. A browser leg, a
+  Node probe or a Go boot can run this before it drives the tree, so "the tree I am about to drive is the
+  tree the manifest describes" stops being an assumption. The verifier is tested with teeth on a real tree:
+  `tests/e2e/longlived_schema_test.go` mutates one byte, adds a file, renames a file and tampers with a
+  manifest sha256, and asserts the named red (`file-sha256`, `inventory-no-extra-files`,
+  `inventory-no-missing-files`) before restoring to green.
+* **TWO trees, proven different.** `tools/longlived/compare-corpora.mjs --left <schema> --right <schema>`
+  compares the two manifests and NAMES every difference class. The measured result is
+  `TWO_CORPORA_SHARED_SCHEMA` with `byteIdentical: false`; it reports `ONE_CORPUS_BYTE_IDENTICAL` only
+  when every path exists on both sides with an equal sha256.
+
+Measured on the development host (Go complex-small seed `20261104` vs JS small seed `corpus-v1`;
+`TestLongLivedCorpusSchemaBridge` runs the same comparison in CI):
+
+| fact | Go complex-small | JS small |
+|---|---|---|
+| generator | `internal/longlivedfixture` | `tools/build-longlived-corpus.mjs` |
+| files | 47 | 69 |
+| bytes | 205,516 | 3,337,391 |
+| tree sha256 (prefix) | `6375b7193ea95d85` | `2c175dd355542698` |
+| byte-identical shared paths | 0 of 3 | |
+
+| scenario count | Go | JS |
+|---|---|---|
+| characters | 4 | 5 |
+| chats | 5 | 17 |
+| messages | 84 | 864 |
+| branches | 1 | 8 |
+| deleted turns | 0 | 8 |
+| swipes | 10 | 4 |
+| worlds / entries | 2 / 42 | 4 / 242 |
+| presets (chat / text) | 2 / 2 | 4 / 0 |
+| groups / group messages | 1 / 30 | 1 / 18 |
+| unknown files / legacy assets | 3 / 2 | 2 / 0 |
+
+The comparison reports 67 named difference classes; the ones that decide the question are coverage, not
+counts. Each corpus has scenario classes the other does not:
+
+| Go complex instance only | JS long-lived corpus only |
+|---|---|
+| legacy flat migration input (`public/characters`) | `content.log` (user + global) |
+| character sprite folders | stale thumbnails tree |
+| extension state directory | more chats/messages/world entries |
+| moving-UI layout preset | balanced branch pairs with 24-message shared prefixes |
+| `secrets.json`, `stats`, `regex` scripts | `user/files` and `user/images` breadth |
+| text-completion presets | |
+| chat backups, binary unknown files (`Thumbs.db`) | |
+| `is_system` messages, embedded character books, regex world keys | |
+
+Feature flags that differ are reported as `feature:<name>`; the 10 flags present only on the Go side are
+`backups`, `binaryUnknownFiles`, `characterSprites`, `extensionState`, `legacyMigrationInput`,
+`movingUI`, `secrets`, `systemMessages`, `textPresets`, `worldRegexKeys`, and the 2 present only on the
+JS side are `contentLog` and `unicodeNames`. Because the difference set includes files, classes and
+capabilities that exist on exactly one side, `separateCorporaJustified` is `true`: choosing either tree as
+the only input would drop the other's unique surfaces, which is the coverage reduction the assignment
+forbids. The manifest bridge makes the two corpora ONE contract without pretending they are ONE tree.
+
+### What this does NOT claim
+
+The schemas are not semantically equivalent and the corpora are not byte-identical. The bridge proves the
+tree a consumer drives matches the manifest it was given, and it proves the two known corpora differ in
+measured, named ways. It does not prove the Go complex instance and the JS corpus can be substituted for
+one another, and it does not shrink any existing scenario: every JS corpus is still verified by
+`tools/longlived/verify.mjs` and every Go complex test still builds the full instance.
+
+### Wiring the bridge into CI (owner: workflows lane; proposed patch, not applied here)
+
+The `longlived` workflow already generates ONE JS corpus and shares it between the loader gate, the Go
+corpus gate and the browser drive. To put the schema gate in the same path, the Lead applies these minimal
+additions (the tools are in this branch, the workflow and `tests/browser` are other lanes' scopes):
+
+```yaml
+# after "Generate the small corpus" and before the loader gate:
+- name: Emit and verify the shared corpus schema
+  run: |
+    node tools/build-longlived-corpus.mjs --size small --out "$GOTAVERN_LONGLIVED_CORPUS" \
+      --seed corpus-ci --force --schema-out "$RUNNER_TEMP/corpus-schema.json" --quiet
+    node tools/longlived/verify-corpus-schema.mjs --corpus "$GOTAVERN_LONGLIVED_CORPUS" \
+      --schema "$RUNNER_TEMP/corpus-schema.json" --report "$RUNNER_TEMP/corpus-schema-verification.json"
+# after the complex-instance gate:
+- name: Emit and verify the complex instance's shared schema
+  run: |
+    node tools/longlived/verify-corpus-schema.mjs --corpus "$COMPLEX_ROOT" \
+      --schema "$RUNNER_TEMP/complex-schema.json"
+```
+
+and in `tests/browser/longlived-qualify.mjs`, before the corpus is copied for either subject:
+
+```js
+import { loadSchema, verifyCorpusAgainstSchema } from '../../tools/longlived/corpus-schema.mjs';
+const schema = await loadSchema(argument('--corpus-schema', path.join(outDir, 'corpus-schema.json')));
+const verification = await verifyCorpusAgainstSchema({ corpus: corpusRoot, schema });
+if (!verification.ok) throw new Error(`the corpus does not match its shared schema: ${verification.failed.join(',')}`);
+verdict.corpus.schemaTreeSha256 = schema.tree.sha256;
+```
+
+The generator invocation in that driver gains `--schema-out` pointing OUTSIDE the corpus directory (a
+governance manifest is not part of the tree), and the generator's stdout already reports
+`corpusSchema.treeSha256` for the verdict.
+
+### Commands
+
+```text
+go run ./cmd/build-longlived <dir> -small -schema <schema.json>
+node tools/build-longlived-corpus.mjs --size small --out <dir> --seed corpus-v1 --schema-out <schema.json>
+node tools/longlived/verify-corpus-schema.mjs --corpus <dir> --schema <schema.json> --report <report.json>
+node tools/longlived/compare-corpora.mjs --left <go-schema.json> --right <js-schema.json> \
+     --out <comparison.json> --markdown <comparison.md>
+go test ./internal/longlivedfixture -run 'TestCorpusSchema' -count=1
+go test ./tests/e2e -run 'TestLongLivedCorpusSchemaBridge' -count=1 -v
+```
+

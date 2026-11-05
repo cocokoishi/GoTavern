@@ -91,9 +91,10 @@ type Chat struct {
 }
 
 type Group struct {
-	Name    string   `json:"name"`
-	Members []string `json:"members"`
-	Chat    string   `json:"chat"`
+	Name     string   `json:"name"`
+	Members  []string `json:"members"`
+	Chat     string   `json:"chat"`
+	Messages int      `json:"messages"`
 }
 
 type World struct {
@@ -495,7 +496,7 @@ func (g *generator) buildGroups(user string) error {
 		if err := g.writeUser(groupChat, body); err != nil {
 			return err
 		}
-		g.manifest.Groups = append(g.manifest.Groups, Group{Name: name, Members: members2Strings(members), Chat: "default-user/" + groupChat})
+		g.manifest.Groups = append(g.manifest.Groups, Group{Name: name, Members: members2Strings(members), Chat: "default-user/" + groupChat, Messages: 30})
 	}
 	return g.writeUserJSON("groups/groups.json", map[string]any{"groups": groups}, true)
 }

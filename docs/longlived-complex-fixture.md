@@ -203,3 +203,29 @@ Still open, tracked by `GOAL.md`, not by this document:
 configuration, no real accident of history. What it proves is that the machinery survives a tree with the
 right *shape* at the right *scale*; a real long-used tree remains the open item, and every document that
 mentions this fixture says so.
+
+## 8. The shared schema manifest (`--schema`), and how it relates to the corpus definition
+
+The complex instance is built by `internal/longlivedfixture`, so the harness normally calls the package
+directly. For a consumer outside Go, and for the §0.3 corpus-bridge, the same instance can be materialised
+by the command with a machine-readable manifest:
+
+```text
+go run ./cmd/build-longlived <empty-dir> [-small] [-schema <file>] [-size-label <label>]
+```
+
+`-schema` writes the SHARED `gotavern-corpus-schema` v1 manifest (relative path, byte size, sha256 and
+schema class per file; derived counts; named capability flags; marker inventory; tree digest). The file is
+written OUTSIDE the instance by convention: it describes the tree and is excluded from the tree identity on
+both generators, so the same instance built into two directories has the same manifest bytes. The browser/
+Node corpus emits the identical shape via `tools/build-longlived-corpus.mjs --schema-out`, and
+`tools/longlived/verify-corpus-schema.mjs` verifies any tree against either manifest.
+
+The measured comparison (docs/longlived-corpus.md §8) is `TWO_CORPORA_SHARED_SCHEMA`: the complex
+instance is NOT byte-identical to the browser corpus and is not a subset or superset of it. It remains the
+input for the complex-surface tests (legacy migration, sprites, extension state, moving UI, text presets,
+chat backups, binary unknown files, `is_system` messages) that the browser corpus does not cover; the
+bridge adds a manifest contract and a drift gate, it does not replace this instance and it does not reduce
+any existing scenario. Every assertion in this document still runs against the full 32-character instance
+(`DefaultSpec`), not against a schema.
+

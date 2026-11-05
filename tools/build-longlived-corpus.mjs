@@ -35,6 +35,13 @@
 //   node tools/build-longlived-corpus.mjs --size small --out .tmp-artifacts/corpus/small [--seed corpus-v1]
 //   node tools/build-longlived-corpus.mjs --size small --out DIR --verify-deterministic
 //   node tools/build-longlived-corpus.mjs --size small --out DIR --force
+//   node tools/build-longlived-corpus.mjs --size small --out DIR --schema-out DIR/../corpus-schema.json
+//
+// --schema-out writes the SHARED corpus-schema manifest (gotavern-corpus-schema v1, the same shape the Go
+// generator emits via cmd/build-longlived --schema). Point it OUTSIDE the corpus directory: it describes the
+// tree, is excluded from the tree identity by schema construction, and browser disk comparisons should not
+// have to learn a new governance file. A consumer verifies any tree against it with
+// `node tools/longlived/verify-corpus-schema.mjs --corpus DIR --schema FILE`.
 //
 // The manifest printed on stdout is JSON (one line), so a workflow can pipe it into a verdict without
 // parsing prose.
@@ -47,6 +54,7 @@ import {
     MANIFEST_NAME, UNICODE_MARKERS, buildManifest, createRng, encodePng, prose,
     walkTree, writeCardPng, writeTree,
 } from './longlived/corpus-lib.mjs';
+import { JS_GENERATOR, buildSchemaFromTree, writeSchema } from './longlived/corpus-schema.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(here, '..');
@@ -308,7 +316,7 @@ function generatedPreset({ rng, profile, index, promptCount }) {
     };
 }
 
-export async function buildCorpus({ size, out, seed = 'corpus-v1', force = false }) {
+export async function buildCorpus({ size, out, seed = 'corpus-v1', force = false, schemaOut = null }) {
     const profile = PROFILES[size];
     if (!profile) throw new Error(`unknown --size ${JSON.stringify(size)}; expected small, medium or large`);
     const rng = createRng(`${seed}|${size}`);
@@ -483,7 +491,10 @@ export async function buildCorpus({ size, out, seed = 'corpus-v1', force = false
         // above kept the card self-describing, and this is the field the browser uses.
         card.chat = chatNames[0];
         add(`${user}/characters/${character.avatar}`, writeCardPng(card, picture));
-        planted.cards.push({ avatar: `${user}/characters/${character.avatar}`, chat: `${chatDir}/${chatNames[0]}.jsonl`, spec: 'chara_card_v3' });
+        planted.cards.push({
+            avatar: `${user}/characters/${character.avatar}`, chat: `${chatDir}/${chatNames[0]}.jsonl`, spec: 'chara_card_v3',
+            bookEntries: Array.isArray(card.data?.character_book?.entries) ? card.data.character_book.entries.length : 0,
+        });
     }
 
     // A LEGACY v2 card: a long-lived directory holds cards from before v3.
@@ -501,7 +512,7 @@ export async function buildCorpus({ size, out, seed = 'corpus-v1', force = false
         },
     };
     add(`${user}/characters/Legacy_Card_v2.png`, writeCardPng(legacyCard, encodePng({ width: 64, height: 96, seedByte: 7 })));
-    planted.cards.push({ avatar: `${user}/characters/Legacy_Card_v2.png`, chat: null, spec: 'chara_card_v2' });
+    planted.cards.push({ avatar: `${user}/characters/Legacy_Card_v2.png`, chat: null, spec: 'chara_card_v2', bookEntries: 0 });
 
     // ---- groups and group chats.
     for (let index = 0; index < profile.groups; index++) {
@@ -734,8 +745,12 @@ export async function buildCorpus({ size, out, seed = 'corpus-v1', force = false
             swipedMessages: planted.characters.length,
             groups: planted.groups.length,
             groupMessages: planted.groups.reduce((sum, group) => sum + group.messages, 0),
+            branches: chatSummaries.filter(chat => chat.branch).length,
+            deletedTurns: chatSummaries.reduce((sum, chat) => sum + (chat.deletedTurns ?? 0), 0),
             worldbooks: planted.worlds.length,
             worldEntries: planted.worlds.reduce((sum, world) => sum + world.entries, 0),
+            worldRegexKeys: 0, // the JS corpus writes no regex/use_regex world keys (measured by comparison)
+            legacyAssets: 0, // no public/characters legacy flat layout (the Go complex fixture has one)
             presets: planted.presets.length,
             themes: planted.themes.length,
             backgrounds: planted.backgrounds.length,
@@ -767,6 +782,72 @@ export async function buildCorpus({ size, out, seed = 'corpus-v1', force = false
         determinism: { comparedFields: ['tree.sha256', 'tree.files', 'counts'], excludedFields: [MANIFEST_NAME] },
     };
     await fs.writeFile(path.join(out, MANIFEST_NAME), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+
+    // THE SHARED SCHEMA (alpha.15 lane E, §0.3). The same shape cmd/build-longlived writes for the Go
+    // complex instance, so ONE verifier/consumer accepts either tree. Counts a walk can derive are
+    // overwritten by buildSchemaFromTree; the declarations below cover what the tree alone cannot say.
+    const features = (files, classes) => ({
+        branchChats: chatSummaries.some(chat => chat.branch === 'base' || chat.branch === 'diverged'),
+        swipeHistory: (manifest.counts.swipedMessages ?? 0) > 0,
+        systemMessages: false, // the JS corpus writes no is_system messages (the Go fixture does)
+        embeddedCharacterBook: planted.cards.some(card => (card.bookEntries ?? 0) > 0),
+        characterSprites: false, // the JS corpus writes one PNG per card, no sprite folders
+        worldRegexKeys: false, // worldEntries() writes key/keysecondary, never a regex key
+        worldRecursion: true, // every entry carries excludeRecursion/preventRecursion/delayUntilRecursion
+        groups: (manifest.counts.groups ?? 0) > 0,
+        complexPreset: planted.presets.some(preset => preset.structurePreserving === true),
+        textPresets: (classes.textPresets ?? 0) > 0,
+        themes: (manifest.counts.themes ?? 0) > 0,
+        quickReplies: (manifest.counts.quickreplies ?? 0) > 0,
+        personas: (manifest.counts.avatars ?? 0) > 0,
+        backgrounds: (manifest.counts.backgrounds ?? 0) > 0,
+        unknownJsonFiles: files.some(file => file.class === 'unknown' && file.path.endsWith('.json')),
+        binaryUnknownFiles: files.some(file => file.class === 'binary'),
+        unicodeNames: planted.characters.some(character => character.unicode === true),
+        legacyMigrationInput: (classes.legacy ?? 0) > 0,
+        extensionState: (classes.extensionState ?? 0) > 0,
+        backups: (classes.chatBackups ?? 0) > 0,
+        movingUI: (classes.movingUI ?? 0) > 0,
+        contentLog: (classes.contentLog ?? 0) > 0,
+        secrets: (classes.secrets ?? 0) > 0,
+    });
+    const markers = {
+        unicodeNames: planted.characters.filter(character => character.unicode === true).map(character => character.name).sort(),
+        worldNames: [...worldNames].sort(),
+        presetNames: planted.presets.map(preset => preset.name).sort(),
+        chatMarkerPrefixes: ['CORPUS_MSG_', 'CORPUS_WI_', 'CORPUS_CARD_'],
+        cardMarkerKeys: ['chara', 'ccv3'],
+        settingsUnknownKeys: ['longlived_legacy_state'],
+        configUnknownKeys: ['longlived_legacy'],
+    };
+    const schemaCounts = {
+        characters: manifest.counts.characters,
+        chats: manifest.counts.chats,
+        messages: manifest.counts.messages,
+        branches: manifest.counts.branches,
+        swipes: manifest.counts.swipedMessages,
+        deletedTurns: manifest.counts.deletedTurns,
+        groups: manifest.counts.groups,
+        groupMessages: manifest.counts.groupMessages,
+        worlds: manifest.counts.worldbooks,
+        worldEntries: manifest.counts.worldEntries,
+        worldRegexKeys: manifest.counts.worldRegexKeys,
+        presets: manifest.counts.presets,
+        textPresets: 0, // the JS corpus writes no text-completion presets
+        themes: manifest.counts.themes,
+        quickReplies: manifest.counts.quickreplies,
+        personas: manifest.counts.avatars,
+        backgrounds: manifest.counts.backgrounds,
+    };
+    const schema = await buildSchemaFromTree({
+        root: out, generator: JS_GENERATOR, generatorVersion: Number(GENERATOR_VERSION) || 1,
+        size, seed, counts: schemaCounts, features, markers,
+    });
+    manifest.corpusSchema = {
+        schema: schema.schema, schemaVersion: schema.schemaVersion,
+        treeSha256: schema.tree.sha256, files: schema.tree.files, bytes: schema.tree.bytes,
+    };
+    if (schemaOut) await writeSchema(schemaOut, schema);
     return manifest;
 }
 
@@ -810,7 +891,7 @@ function argument(name, fallback = null) {
 
 function usage(message) {
     if (message) console.error(`build-longlived-corpus: ${message}`);
-    console.error('usage: node tools/build-longlived-corpus.mjs --size <small|medium|large> --out <dir> [--seed <text>] [--force] [--verify-deterministic] [--quiet]');
+    console.error('usage: node tools/build-longlived-corpus.mjs --size <small|medium|large> --out <dir> [--seed <text>] [--force] [--verify-deterministic] [--schema-out <file>] [--quiet]');
     process.exit(2);
 }
 
@@ -825,7 +906,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     const force = process.argv.includes('--force');
     const quiet = process.argv.includes('--quiet');
     const started = Date.now();
-    const manifest = await buildCorpus({ size, out, seed, force });
+    const schemaOut = argument('--schema-out', null);
+    const manifest = await buildCorpus({ size, out, seed, force, schemaOut: schemaOut ? path.resolve(schemaOut) : null });
     let determinism = null;
     if (process.argv.includes('--verify-deterministic')) {
         determinism = await verifyDeterministic({ size, seed, out });
@@ -851,5 +933,6 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
         console.error(`long-lived corpus (${size}): ${manifest.tree.files} files, ${(manifest.tree.bytes / (1024 * 1024)).toFixed(2)} MiB, tree sha256 ${manifest.tree.sha256}`);
         for (const [name, count] of Object.entries(manifest.counts)) console.error(`  ${name}: ${count}`);
         if (determinism) console.error(`  deterministic rebuild: ${determinism.identical ? 'BYTE-IDENTICAL' : 'DIFFERENT'} (${determinism.rebuiltSha256})`);
+    if (manifest.corpusSchema) console.error(`  corpus schema: tree ${manifest.corpusSchema.treeSha256} (${manifest.corpusSchema.files} files)`);
     }
 }
