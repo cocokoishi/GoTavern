@@ -540,6 +540,32 @@ jobs:
           echo "failures=$failures" >> "$GITHUB_OUTPUT"
 
       # -------------------------------------------------------------------------------------------------
+      # THE CONVERSATION-EDITING LANE (alpha.15). Swipe-right/left, edit, delete and a slash command are four
+      # things a user does ON a message, and none of them had a probe: the covered verbs were regenerate,
+      # continue, save/reload and group replies. This lane drives the unmodified pinned frontend with real
+      # pointer/key events and compares the provider requests BYTE-wise; it does not replace the Q20 lane, it
+      # covers the four verbs Q20 does not touch. Dispatch/`all` only -- a push run is the asset gate.
+      - name: Record and judge the conversation-editing legs (swipe, edit, delete, slash command)
+        if: ${{ (github.event_name == 'push' && 'assets' || (inputs.mode || 'all')) == 'all' }}
+        env:
+          PINNED_READY_MS: '300000'
+        run: |
+          set -uo pipefail
+          work="$RUNNER_TEMP/browser-differential/a15-gen"
+          rm -rf "$work"
+          mkdir -p "$work"
+          # Seed ONCE, then give each subject its own copy, so a divergence cannot come from the fixture.
+          node tests/browser/a15-gen-conversation-probe.mjs --seed-only "$work/seed"
+          cp -a "$work/seed" "$work/tree-go"
+          cp -a "$work/seed" "$work/tree-pinned"
+          GOTAVERN_BINARY="$GOTAVERN_BINARY" \
+            node tests/browser/a15-gen-conversation-probe.mjs --data-root "$work/tree-go" --report "$work/report-go.json"
+          node tests/browser/run-against-pinned.mjs a15-gen-conversation-probe.mjs -- \
+            --data-root "$work/tree-pinned" --report "$work/report-pinned.json"
+          node tests/browser/a15-gen-compare.mjs \
+            --gotavern "$work/report-go.json" --pinned "$work/report-pinned.json" | tee "$work/compare.txt"
+
+      # -------------------------------------------------------------------------------------------------
       # THE BROWSER ASSET DIFFERENTIAL (GOAL.md §8.4 Q3-Q7, AGENTS.md 42-46, ARCHITECTURE.md §35.2).
       # THE NETWORK HALF OF Q19: A REAL HOP BETWEEN SUBJECT AND PEER (the matrix row's own evidenceGap).
       #
