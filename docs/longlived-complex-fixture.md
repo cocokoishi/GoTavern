@@ -126,8 +126,10 @@ path): the default 169-file / 29 MB instance boots under the shipped binary and
 - **FAILURE PATH**: a corrupt world file does not stop the boot, the roster and the healthy world still
   serve, the corrupt world is refused with a non-200, and the corrupt bytes are not rewritten.
 
-Measured locally: full instance 6.1 s; small instance 5.1 s (boot); migration 4.8 s; world write 2.7 s;
-corrupt-world 3.2 s.
+CI: `GoTavern long-lived corpus` run **41955926519** (push, `small-corpus` job) step 16
+"Complex-instance gate (boot, preserve, serve, migrate, write, corrupt)" ran `go test ./tests/e2e -run
+'^TestComplex'` and passed - one regex, so a new scenario cannot silently drop out. Measured locally: full
+instance 6.1 s; small instance 5.1 s (boot); migration 4.8 s; world write 2.7 s; corrupt-world 3.2 s.
 
 Still to come, tracked by the goal:
 
