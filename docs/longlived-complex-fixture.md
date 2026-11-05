@@ -64,6 +64,34 @@ go run ./cmd/build-longlived -small <empty-directory>   # fast smoke, same code 
 
 The command prints the manifest as JSON; it refuses a non-empty directory.
 
+## Browser and provider-wire qualification on a very complex corpus
+
+The Go-built instance above is the **route/data-safety** fixture. The **browser + provider-wire**
+qualification runs on the repository's synthetic long-lived corpus at `medium` size - a second,
+independently generated years-old-shaped instance: 12 characters (CJK/emoji filenames), 6 chats each,
+2,400-message long histories with branches, swipes and deleted turns, 8 world books at 300 entries,
+5 presets (one byte-identical structure-preserving derivation), 3 groups, backgrounds/avatars/assets/
+themes/Quick Replies and legacy carriers.
+
+Evidence: `GoTavern long-lived corpus` run **41943468975** (`workflow_dispatch size=medium`,
+`medium-corpus` job, all steps success):
+
+- four legs all completed: Go drive, pinned drive, Go restart, pinned restart - both subjects over
+  byte-identical copies of the same corpus, restart required to be a NEW process;
+- comparator: **46 checks, 43 match, 0 mismatch, 0 not-observed, 0 harness-error, 3 decided
+  exclusions** (`stats.json` write, build-cache backup additions, thumbnail bytes - each named in
+  `docs/longlived-corpus.md`);
+- guarded properties include provider request BYTES and request COUNT, roster equality, resumed-chat
+  identity/length/markers, turn-one/turn-two reply text, preset/world/temperature switches;
+- the judge's teeth fired: mutations of provider-body bytes, request count, roster name, chat length and
+  preset switch each produced their NAMED mismatch on top of the green baseline;
+- residual risks recorded by the run itself: the provider is the recording peer (AGENTS 22), a `large`
+  corpus is qualified by generator + Go gate but has no browser drive yet, and the pinned leg needs its
+  checkout with `node_modules`.
+
+What this does **not** cover, stated so a green is not over-read: the drive is a bounded journey
+(send/regenerate/swipe/continue/group/preset/world switches), not every possible interaction; the
+provider is the recording peer; and a real long-used user tree remains the GOAL §14 item.
 ## What the harness proves today, and what it will prove next
 
 **Scenario 1 is green** (`tests/e2e/longlived_complex_test.go`,
