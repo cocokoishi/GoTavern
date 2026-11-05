@@ -38,7 +38,39 @@ import (
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
-const efbigLimitBytes uint64 = 1 << 20 // 1 MiB: above every startup write, far below the oversized save
+// efbigLimitFor derives the limit instead of hard-coding it. The first version used a 1 MiB constant with a
+// comment claiming it was "above every startup write"; the first Linux CI run measured that the commit's own
+// seeded background is 2 322 272 bytes, so the server died while SEEDING and the test never reached the save it
+// exists to provoke. A constant that the default content can outgrow is the wrong shape for this gate, so the
+// largest seeded file is measured and the limit is placed above it, with the margin reported.
+func efbigLimitFor(t *testing.T) (limit, largestSeeded uint64) {
+	t.Helper()
+	contentRoot := filepath.Join(moduleRoot(t), "upstream", "default", "content")
+	walkErr := filepath.WalkDir(contentRoot, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if size := uint64(info.Size()); size > largestSeeded {
+			largestSeeded = size
+		}
+		return nil
+	})
+	if walkErr != nil {
+		t.Fatalf("measure the seeded default content under %s: %v", contentRoot, walkErr)
+	}
+	if largestSeeded == 0 {
+		t.Fatalf("no default content under %s, so the EFBIG limit cannot be derived from what the boot writes", contentRoot)
+	}
+	// One MiB of headroom: the seeded writes pass, and any save larger than the limit fails with EFBIG.
+	return largestSeeded + (1 << 20), largestSeeded
+}
 
 // buildEFBIGLauncher compiles the testdata launcher with the SAME toolchain; testdata is invisible to
 // `go build ./...` and `go vet ./...`, so nothing else in the repository is affected.
@@ -62,7 +94,7 @@ func buildEFBIGLauncher(t *testing.T) string {
 // bootServerUnderEFBIGLimit mirrors bootServerCommand's fixed recipe and readiness loop, but starts the
 // binary through the launcher. (The harness boot helpers do not take a wrapper, and this lane may not edit
 // harness_test.go; duplicating the recipe keeps the wrapper scoped to this gate.)
-func bootServerUnderEFBIGLimit(t *testing.T, installRoot, workingDirectory, dataRoot, launcher string) *serverProcess {
+func bootServerUnderEFBIGLimit(t *testing.T, installRoot, workingDirectory, dataRoot, launcher string, limit uint64) *serverProcess {
 	t.Helper()
 	binary := resolveBinary(t, installRoot)
 	port := freePort(t)
@@ -76,7 +108,7 @@ func bootServerUnderEFBIGLimit(t *testing.T, installRoot, workingDirectory, data
 		"--heartbeatInterval", "0",
 	}
 	// launcher LIMIT BINARY ARGS... -- the launcher execs the binary with the remaining arguments.
-	commandArguments := append([]string{strconv.FormatUint(efbigLimitBytes, 10), binary}, arguments...)
+	commandArguments := append([]string{strconv.FormatUint(limit, 10), binary}, arguments...)
 	command := exec.Command(launcher, commandArguments...)
 	command.Dir = workingDirectory
 	command.Env = childEnvironment(nil)
@@ -132,6 +164,11 @@ func bootServerUnderEFBIGLimit(t *testing.T, installRoot, workingDirectory, data
 // build declares the same name skipped with the reason, in a15_efbig_windows_test.go.
 func TestKernelFileSizeLimitRefusesTheSaveAndKeepsTheOldDocument(t *testing.T) {
 	launcher := buildEFBIGLauncher(t)
+	limit, largestSeeded := efbigLimitFor(t)
+	if largestSeeded >= limit {
+		t.Fatalf("the derived EFBIG limit %d is not above the largest seeded write %d, so boot would fail before the save", limit, largestSeeded)
+	}
+	t.Logf("EFBIG limit=%d bytes (largest seeded default-content write=%d bytes, margin=%d)", limit, largestSeeded, limit-largestSeeded)
 	installRoot := t.TempDir()
 	dataRoot := filepath.Join(installRoot, "data")
 	userRoot := filepath.Join(dataRoot, "default-user")
@@ -144,7 +181,7 @@ func TestKernelFileSizeLimitRefusesTheSaveAndKeepsTheOldDocument(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server := bootServerUnderEFBIGLimit(t, installRoot, installRoot, dataRoot, launcher)
+	server := bootServerUnderEFBIGLimit(t, installRoot, installRoot, dataRoot, launcher, limit)
 	// PROOF THE LAUNCHER REACHED THE SUBJECT: its stderr names the applied limit.
 	if !strings.Contains(server.stderr.String(), "efbig-launcher: RLIMIT_FSIZE=") {
 		t.Fatalf("the EFBIG launcher did not report an applied RLIMIT_FSIZE, so the kernel limit never reached "+
@@ -156,7 +193,7 @@ func TestKernelFileSizeLimitRefusesTheSaveAndKeepsTheOldDocument(t *testing.T) {
 	control := `{"marker":"EFBIG-CONTROL","pad":"` + strings.Repeat("c", 16<<10) + `"}`
 	if status, _, body := client.postJSON(t, "/api/settings/save", control); status != 200 {
 		t.Fatalf("settings/save BELOW the %d-byte RLIMIT_FSIZE = %d, so the control never exercised the save "+
-			"path: %s", efbigLimitBytes, status, truncateForLog(body, 300))
+			"path: %s", limit, status, truncateForLog(body, 300))
 	}
 	controlBytes, err := os.ReadFile(settingsPath)
 	if err != nil {
@@ -171,11 +208,12 @@ func TestKernelFileSizeLimitRefusesTheSaveAndKeepsTheOldDocument(t *testing.T) {
 	}
 
 	// (2) A SAVE ABOVE THE LIMIT FAILS WITH A KERNEL WRITE ERROR, and the previous complete document stays.
-	oversized := []byte(`{"marker":"EFBIG-OVERSIZED","pad":"` + strings.Repeat("x", 8<<20) + `"}`)
+	// The pad IS the limit, so the JSON body is necessarily larger than the limit and the write must be refused.
+	oversized := []byte(`{"marker":"EFBIG-OVERSIZED","pad":"` + strings.Repeat("x", int(limit)) + `"}`)
 	status, _, _ := client.postJSON(t, "/api/settings/save", string(oversized))
 	if status == 200 {
 		t.Fatalf("settings/save REPORTED SUCCESS while the kernel refused writes past RLIMIT_FSIZE=%d; success "+
-			"for a save that cannot have landed is the data-loss lie this gate exists for", efbigLimitBytes)
+			"for a save that cannot have landed is the data-loss lie this gate exists for", limit)
 	}
 	afterRefusal, err := os.ReadFile(settingsPath)
 	if err != nil {

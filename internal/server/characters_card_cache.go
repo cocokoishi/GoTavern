@@ -125,24 +125,24 @@ func characterCardCachePath(filePath string) (string, bool) {
 
 // loadCharacterCardTextCache returns the cached text when the stored identity equals the identity of the
 // stat the caller just performed. A miss returns ok=false and the caller does the uncached work.
+//
+// ONE CRITICAL SECTION, because the entry's fields are MUTABLE: `store` replaces `identity` and `text` on a
+// re-read, so reading them after dropping the lock is a data race (found by the Linux `-race` job, which this
+// host cannot run -- `-race` is unsupported on windows/arm64). The lock covers only the map, the LRU list and
+// two field reads: the caller's file I/O happens outside it.
 func loadCharacterCardTextCache(filePath string, identity characterCardIdentity) (string, bool) {
 	key, ok := characterCardCachePath(filePath)
 	if !ok {
 		return "", false
 	}
 	characterCardCacheMu.Lock()
+	defer characterCardCacheMu.Unlock()
 	entry, exists := characterCardCache[key]
-	characterCardCacheMu.Unlock()
 	if !exists || entry.identity != identity {
 		return "", false
 	}
-	// Touch for LRU. A concurrent eviction between the lookup and this lock is harmless: the text is an
-	// immutable string and the caller only needs the value.
-	characterCardCacheMu.Lock()
-	if current, exists := characterCardCache[key]; exists && current == entry {
-		characterCardCacheLRU.MoveToFront(entry.element)
-	}
-	characterCardCacheMu.Unlock()
+	// The entry is in the list while the lock is held, so the move cannot act on an evicted element.
+	characterCardCacheLRU.MoveToFront(entry.element)
 	return entry.text, true
 }
 
