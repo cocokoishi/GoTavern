@@ -59,6 +59,13 @@ the save it exists to provoke — the limit is now DERIVED from the largest seed
   claimed.** The private channel's disposition this round is `PRIVATE_NOT_RUN` (no authorised original on the
   qualification host); `docs/real-user-input-audit.md` §8 records item by item what is unrun and what is
   partial, and that the instruments remain canaried-only.
+- **The new conversation-editing lane is UNPROVEN and is NOT a gate at this release.** Its 36 step assertions
+  pass on both subjects, but its comparator measured an unexplained DOM difference (`Browser differential`
+  run `42051169663`: `#chat .mes` 4 on GoTavern vs 3 on pinned at turn-1 / swipe-right / swipe-left, both chats
+  holding the same three messages; the extra node is a second block for the user message with class
+  `mes fade last_swipe`, and it disappears on the next full render). The workflow step is `continue-on-error`
+  with that reason in its own comment, and the finding is `docs/audit-v0.1.0-alpha.15.md` §6's last row.
+  Closing it — the frontend's create/remove path against the server's completion event — is alpha.16 work.
 - **Moving UI browser persistence and the opened-card editor image are UNPROVEN.** The probe is committed
   with its blocker named (its page renders no character rows although the API serves them, while
   `asset-probe.mjs` on the same tree renders them), so it reports a harness-faithfulness alarm instead of

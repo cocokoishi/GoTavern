@@ -5,7 +5,7 @@ audit rather than a feature: the gates were first proven able to fail, then used
 SillyTavern 1.19.0 baseline and the same compatibility contract as alpha.14.
 
 Three things were delivered, and the order matters. **First, the test machinery was audited for the ways it
-could report success while proving nothing** — fourteen such holes were found and closed, each by reproducing
+could report success while proving nothing** — sixteen such holes were found and closed, each by reproducing
 the old false PASS and then showing the new refusal by name. **Second, the audit was applied to the product
 and to the data paths**, which produced two real defects (both credential/transport, both reproduced before
 the fix), a set of data-safety gates that kill real processes and provoke real kernel write failures instead
@@ -130,6 +130,16 @@ capture is compared byte for byte. The two-corpus schema bridge proves which ini
   `main_api` makes the pinned frontend fetch a model list during page init, and the server-side branch fetches
   the public Horde endpoints; the harness seam to redirect them exists but no probe used it. Recorded as an
   isolation finding with the exact endpoints and left OPEN rather than improvised in a release freeze.
+- **The new conversation-editing lane is UNPROVEN and is not a gate at this release.** The lane drives swipe,
+  edit, delete and a slash command through the unmodified frontend on both subjects; its own 36 step assertions
+  pass on both. Its comparator, however, measured a difference the round could not explain before the freeze:
+  `Browser differential` run 42051169663 recorded the `#chat .mes` count as 4 on GoTavern against 3 on pinned at
+  turn-1, swipe-right and swipe-left, while BOTH chats hold the same three messages with the same fields; the
+  extra node is a second DOM block for the user message (`mesid` 1, class `mes fade last_swipe`) and it
+  disappears on the next full render (turn-2 and turn-3 agree). The unchanged frontend's `.last_swipe` rule only
+  affects chevron opacity, so if the node is visible it would be a duplicated user bubble. The step is therefore
+  `continue-on-error`, the finding is recorded in `docs/audit-v0.1.0-alpha.15.md` §6, and closing it is alpha.16
+  work — a release may be gated neither on a difference it cannot explain nor on calling that difference green.
 - **The large long-lived tier is not a browser gate, by design.** The driver refuses more than 100 MB /
   5 000-message chats; the nightly rail covers generator determinism, the loader and the Go boot.
 - **A narrowed oracle dispatch is not the full oracle.** Only the scheduled full sweep covers every probe.

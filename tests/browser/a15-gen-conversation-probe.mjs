@@ -144,6 +144,18 @@ async function readPageState(page) {
                 swipes: Array.isArray(last.swipes) ? last.swipes.map(String) : null,
             },
             domMessageCount: document.querySelectorAll('#chat .mes').length,
+            // THE DOM ITSELF, NOT JUST A COUNT. A count that differs while the chat array is identical means an
+            // element inside #chat has class `mes` without being a chat message; a bare number cannot say which,
+            // so the snapshot records each one's mesid, classes and text. Added while diagnosing `Browser
+            // differential` 42051169663 (gotavern=4, pinned=3 at turn-1/swipe-right/swipe-left with chatLength 3
+            // on both).
+            domMessages: [...document.querySelectorAll('#chat .mes')].map(element => ({
+                mesid: element.getAttribute('mesid'),
+                className: String(element.className).slice(0, 120),
+                text: String(element.querySelector('.mes_text')?.textContent ?? '').slice(0, 120),
+                nestedMesCount: element.querySelectorAll('.mes').length,
+                firstChildClass: String(element.firstElementChild?.className ?? '').slice(0, 80),
+            })),
             domLastText: String(document.querySelector('#chat .mes:last-child .mes_text')?.textContent ?? '').slice(0, 500),
             isSendPress: script.is_send_press ?? null,
             editingTextarea: document.querySelector('#curEditTextarea') !== null,
