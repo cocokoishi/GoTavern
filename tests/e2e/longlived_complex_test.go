@@ -200,6 +200,23 @@ func TestComplexLongLivedInstanceQualifiesAsDropIn(t *testing.T) {
 	if status != http.StatusOK || !strings.Contains(body, manifest.Groups[0].Name) {
 		t.Errorf("POST /api/groups/all = %d and does not name %q", status, manifest.Groups[0].Name)
 	}
+	// The group transcript is a REAL file in pinned's own location (<handle>/group chats/<chat_id>.jsonl,
+	// src/endpoints/groups.js:68-74), not a chats/<id>/ lookalike: the manifest records that path and the
+	// digest comparison above already proved it survived the boot.
+	groupChatPath := filepath.Join(dataRoot, filepath.FromSlash(manifest.Groups[0].Chat))
+	groupChat, readErr := os.ReadFile(groupChatPath)
+	if readErr != nil {
+		t.Errorf("the group chat the manifest records is not on disk at %s: %v", manifest.Groups[0].Chat, readErr)
+	} else if !strings.Contains(string(groupChat), "CHAT_") || strings.Count(string(groupChat), "\n") < 20 {
+		t.Errorf("the group chat at %s is not a planted transcript (%.200q)", manifest.Groups[0].Chat, groupChat)
+	}
+	// Moving UI is a preset the frontend loads from <handle>/movingUI/<name>.json (pinned moving-ui.js).
+	movingUI, readErr := os.ReadFile(filepath.Join(dataRoot, "default-user", "movingUI", "movingui.json"))
+	if readErr != nil {
+		t.Errorf("the moving-UI preset is not on disk: %v", readErr)
+	} else if !strings.Contains(string(movingUI), "leftNavPanel") {
+		t.Errorf("the moving-UI preset does not carry the layout the frontend expects: %.200q", movingUI)
+	}
 	status, _, body = client.postJSON(t, "/api/backgrounds/all", "{}")
 	if status != http.StatusOK {
 		t.Fatalf("POST /api/backgrounds/all = %d", status)

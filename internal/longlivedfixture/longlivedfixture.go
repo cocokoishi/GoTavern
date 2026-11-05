@@ -486,11 +486,16 @@ func (g *generator) buildGroups(user string) error {
 			"activation_strategy": index % 3, "generation_mode": index % 2,
 			"favorited": index == 0, "auto_mode_delay": 0,
 		})
+		// Pinned stores group transcripts in <handle>/group chats/<chat_id>.jsonl
+		// (src/endpoints/groups.js:68-74), NOT under chats/<id>/. A fixture that put them in chats/
+		// would look right to a directory walk and wrong to the product, so the corpus uses the pinned
+		// location and the manifest records that exact path.
 		body, _ := g.chatJSONL(name, 30, 5000+index)
-		if err := g.writeUser("chats/"+chatID+"/"+chatID+".jsonl", body); err != nil {
+		groupChat := "group chats/" + chatID + ".jsonl"
+		if err := g.writeUser(groupChat, body); err != nil {
 			return err
 		}
-		g.manifest.Groups = append(g.manifest.Groups, Group{Name: name, Members: members2Strings(members), Chat: "default-user/chats/" + chatID + "/" + chatID + ".jsonl"})
+		g.manifest.Groups = append(g.manifest.Groups, Group{Name: name, Members: members2Strings(members), Chat: "default-user/" + groupChat})
 	}
 	return g.writeUserJSON("groups/groups.json", map[string]any{"groups": groups}, true)
 }
