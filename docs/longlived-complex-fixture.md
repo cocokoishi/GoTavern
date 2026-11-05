@@ -85,6 +85,11 @@ Evidence: `GoTavern long-lived corpus` run **41943468975** (`workflow_dispatch s
   identity/length/markers, turn-one/turn-two reply text, preset/world/temperature switches;
 - the judge's teeth fired: mutations of provider-body bytes, request count, roster name, chat length and
   preset switch each produced their NAMED mismatch on top of the green baseline;
+- tier split, stated rather than implied: the browser driver **refuses `large` by design** (a >100 MB
+  corpus with 5,000-message chats would spend an hour loading history without adding an assertion); that
+  rail fired for real in run **41944602408**, which failed in ~20 s with the driver's own refusal and was
+  then reverted rather than worked around. `medium` is the browser/wire tier; `large` is the
+  generator + loader + Go-gate tier;
 - residual risks recorded by the run itself: the provider is the recording peer (AGENTS 22), a `large`
   corpus is qualified by generator + Go gate but has no browser drive yet, and the pinned leg needs its
   checkout with `node_modules`.
