@@ -301,6 +301,33 @@ jobs:
         run: |
           set -euo pipefail
           go test ./tests/e2e -run '^TestLongLivedCorpus$' -count=1 -v
+      # THE 20 PINNED THIRD-PARTY EXTENSIONS ON THE COMPLEX INSTANCE. The extensions are third-party
+      # repositories pinned by commit in tests/browser/third-party-extensions.lock.json; they are NOT
+      # committed (licences/sizes; rule 56 keeps third-party payloads out of the tree). This step
+      # materialises them into a temporary data root the way the pinned install route would and then
+      # asserts the backend contract on the complex tree: discover lists all 20, every manifest and entry
+      # script is served byte-for-byte from the user extensions directory, and the roster/world/settings
+      # still work with them present. Extension CONTENT stays on the runner; only the names/pins/counts
+      # manifest is uploaded, which is why this is SFW-safe.
+      - name: Install the 20 pinned third-party extensions into a temp data root
+        run: |
+          set -euo pipefail
+          node tools/longlived/install-pinned-extensions.mjs \
+            --data-root "$RUNNER_TEMP/pinned-extensions" \
+            --out "$RUNNER_TEMP/pinned-extensions-manifest.json"
+          echo "GOTAVERN_PINNED_EXTENSIONS=$RUNNER_TEMP/pinned-extensions/default-user/extensions" >> "$GITHUB_ENV"
+      - name: Complex instance with the 20 pinned extensions (discover, assets, settings, data)
+        run: |
+          set -euo pipefail
+          go test ./tests/e2e -run '^TestComplexWithPinnedThirdPartyExtensions$' -count=1 -v
+      - name: Upload the pinned-extension manifest (names, pins, counts and digests only)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: longlived-pinned-extensions-${{ github.run_id }}
+          path: ${{ runner.temp }}/pinned-extensions-manifest.json
+          retention-days: 14
+          if-no-files-found: warn
       - name: Drive the long-lived journey on both subjects and judge it
         env:
           PINNED_READY_MS: '240000'

@@ -161,10 +161,25 @@ now seven scenarios) on Linux and passed, including the read-only data-root bran
 out. Measured locally: full instance 6.1 s; small instance 5.1 s (boot); migration 4.8 s; world write 2.7 s;
 corrupt-world 3.2 s; unwritable destination 3.0 s; forced-migration backup 4.3 s.
 
+**The 20 pinned third-party extensions on the complex instance** (`TestComplexWithPinnedThirdPartyExtensions`,
+`tools/longlived/install-pinned-extensions.mjs`). The extensions are third-party repositories pinned by
+commit in `tests/browser/third-party-extensions.lock.json`; they are **not committed** (licences, sizes, and
+rule 56's boundary around third-party payloads), so the lock file is the pin and the workflow materialises
+them into a temporary data root exactly the way the pinned install route does:
+
+- discover lists all 20 next to the planted complex data (`[{type:"local", name:"third-party/<name>"}]`);
+- every extension's `manifest.json` and its declared `js` entry script is served **byte-for-byte** from
+  `<dataRoot>/default-user/extensions/<name>/`;
+- the complex roster, world book and the planted `extension_settings` still work with 20 extensions present;
+- the only uploaded artefact is the manifest (names, pins, file counts, `manifest.json` sha256) - extension
+  content never leaves the CI runner, which is the SFW boundary this document commits to.
+
+SFW statement for this path: the fixture's own text and images stay in the generator's SFW vocabulary; the
+third-party extensions are fetched at pinned commits into a temporary directory, never committed, never
+uploaded, and only their identity and digests are recorded.
+
 Still open, tracked by the goal:
 
-- the 20 pinned third-party extensions on THIS instance: they are installed and driven by the separate
-  third-party gate; combining that pipeline with the complex tree is the remaining product-side item;
 - a real long-used user tree: synthetic by construction, so this stays the GOAL §14 item below.
 
 **It will not prove §14.** The instance is synthetic: no real user's prose, no real extension

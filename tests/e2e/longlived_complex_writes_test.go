@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -577,4 +578,145 @@ func digestDifference(before, after map[string]string) []string {
 		differences = differences[:5]
 	}
 	return differences
+}
+
+// THE 20 PINNED THIRD-PARTY EXTENSIONS ON THE COMPLEX INSTANCE.
+//
+// The extensions are third-party repositories pinned by commit in
+// tests/browser/third-party-extensions.lock.json. They are not committed here, so the long-lived
+// workflow installs them with tools/longlived/install-pinned-extensions.mjs into a temporary directory
+// and points GOTAVERN_PINNED_EXTENSIONS at it. When that variable is absent the scenario declares the
+// skip rather than passing vacuously (AGENTS rule 7).
+//
+// What is asserted is the backend contract an installed extension needs on a YEARS-OLD tree: the
+// discover route lists all 20 next to the planted complex data, every manifest is served byte-for-byte
+// from <dataRoot>/default-user/extensions/<name>/, the extension's own entry script is served, and the
+// complex roster/chat/world book still work with the extensions present.
+func TestComplexWithPinnedThirdPartyExtensions(t *testing.T) {
+	extensionsRoot := os.Getenv("GOTAVERN_PINNED_EXTENSIONS")
+	if extensionsRoot == "" {
+		t.Skip("GOTAVERN_PINNED_EXTENSIONS is not set: the 20 pinned third-party extensions are third-party " +
+			"sources fetched in CI (the long-lived workflow's install step), and this scenario refuses to pass " +
+			"vacuously without them")
+	}
+	entries, err := os.ReadDir(extensionsRoot)
+	if err != nil {
+		t.Fatalf("read GOTAVERN_PINNED_EXTENSIONS %s: %v", extensionsRoot, err)
+	}
+	names := []string{}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			names = append(names, entry.Name())
+		}
+	}
+	sort.Strings(names)
+	if len(names) != 20 {
+		t.Fatalf("the pinned extension set carries %d directories, expected the lock's 20: %v", len(names), names)
+	}
+
+	spec := complexWriteSpec()
+	installRoot := t.TempDir()
+	dataRoot := filepath.Join(installRoot, "data")
+	if err := os.MkdirAll(dataRoot, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := longlivedfixture.Build(dataRoot, spec)
+	if err != nil {
+		t.Fatalf("build fixture: %v", err)
+	}
+	extensionsDir := filepath.Join(dataRoot, "default-user", "extensions")
+	if err := os.MkdirAll(extensionsDir, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range names {
+		if err := os.CopyFS(filepath.Join(extensionsDir, name), os.DirFS(filepath.Join(extensionsRoot, name))); err != nil {
+			t.Fatalf("copy pinned extension %s: %v", name, err)
+		}
+	}
+
+	server := bootServerAt(t, installRoot, dataRoot, nil)
+	client := openSession(t, server.origin)
+
+	status, _, body := client.get(t, "/api/extensions/discover")
+	if status != http.StatusOK {
+		t.Fatalf("GET /api/extensions/discover = %d: %.300q", status, body)
+	}
+	var discovered []any
+	if err := json.Unmarshal([]byte(body), &discovered); err != nil {
+		t.Fatalf("the discover response is not a JSON array: %v: %.200q", err, body)
+	}
+	// Pinned answers `[{type:"local", name:"third-party/<name>"}]` for user extensions, so the
+	// comparison strips that one pinned prefix rather than accepting a bare name that the route never
+	// produces.
+	discoveredNames := map[string]bool{}
+	for _, entry := range discovered {
+		switch value := entry.(type) {
+		case string:
+			discoveredNames[strings.TrimPrefix(value, "third-party/")] = true
+		case map[string]any:
+			if name, ok := value["name"].(string); ok {
+				discoveredNames[strings.TrimPrefix(name, "third-party/")] = true
+			}
+		}
+	}
+	for _, name := range names {
+		if !discoveredNames[name] {
+			t.Errorf("the discover route does not list the installed extension third-party/%s", name)
+		}
+	}
+
+	for _, name := range names {
+		assetRoot := filepath.Join(extensionsDir, name)
+		manifestBytes, err := os.ReadFile(filepath.Join(assetRoot, "manifest.json"))
+		if err != nil {
+			t.Errorf("the installed extension %s has no manifest on disk: %v", name, err)
+			continue
+		}
+		status, _, body := client.get(t, "/scripts/extensions/third-party/"+url.PathEscape(name)+"/manifest.json")
+		if status != http.StatusOK {
+			t.Errorf("GET /scripts/extensions/third-party/%s/manifest.json = %d", name, status)
+			continue
+		}
+		if sha256Hex(body) != sha256Hex(string(manifestBytes)) {
+			t.Errorf("the served manifest of %s does not match its bytes on disk", name)
+		}
+		var extensionManifest struct {
+			JS string `json:"js"`
+		}
+		if err := json.Unmarshal(manifestBytes, &extensionManifest); err != nil {
+			t.Errorf("the manifest of %s is not JSON: %v", name, err)
+			continue
+		}
+		if extensionManifest.JS == "" {
+			continue
+		}
+		scriptBytes, err := os.ReadFile(filepath.Join(assetRoot, filepath.FromSlash(extensionManifest.JS)))
+		if err != nil {
+			t.Errorf("the installed extension %s has no entry script %q on disk: %v", name, extensionManifest.JS, err)
+			continue
+		}
+		status, _, body = client.get(t, "/scripts/extensions/third-party/"+url.PathEscape(name)+"/"+url.PathEscape(extensionManifest.JS))
+		if status != http.StatusOK {
+			t.Errorf("GET the entry script of %s = %d", name, status)
+			continue
+		}
+		if sha256Hex(body) != sha256Hex(string(scriptBytes)) {
+			t.Errorf("the served entry script of %s (%s) does not match its bytes on disk", name, extensionManifest.JS)
+		}
+	}
+
+	// The complex data still works with 20 extensions present.
+	status, _, body = client.postJSON(t, "/api/characters/all", "{}")
+	if status != http.StatusOK || !strings.Contains(body, manifest.Characters[0].Avatar) {
+		t.Errorf("the roster stopped working with the pinned extensions installed: %d", status)
+	}
+	status, _, body = client.postJSON(t, "/api/worldinfo/get", mustJSON(t, map[string]any{"name": "World_00"}))
+	if status != http.StatusOK || !strings.Contains(body, "WI_CONTENT_0_") {
+		t.Errorf("the world book stopped working with the pinned extensions installed: %d", status)
+	}
+	// And the planted extension settings are not trampled by the extension install.
+	status, _, body = client.postJSON(t, "/api/settings/get", "{}")
+	if status != http.StatusOK || !strings.Contains(body, "synthetic-extension") {
+		t.Errorf("the settings aggregation lost the planted extension state: %d", status)
+	}
 }
