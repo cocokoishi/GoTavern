@@ -330,9 +330,15 @@ jobs:
   large-corpus:
     if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.size == 'large') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # Raised from 90: the BROWSER drive the medium job has is now here too, so the large corpus is no
+    # longer qualified by the generator + Go gate alone (the driver itself recorded that as a residual
+    # risk). 120 minutes leaves room for the pinned install, a 100-400 MB corpus and four legs.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/checkout-pinned
+        with:
+          commit: ${{ env.PINNED_BASELINE_COMMIT }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24.19.0
@@ -340,6 +346,45 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Cache the pinned server's node_modules
+        id: cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+      - name: Install the pinned server's dependencies
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then echo "pinned node_modules: CACHE HIT"; else
+            cd .reference/SillyTavern
+            if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          fi
+      - name: Install the browser harness
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then echo "harness node_modules: CACHE HIT"; else (cd tests/browser && npm ci --no-audit --no-fund); fi
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then (cd tests/browser && npx playwright install-deps chromium); else (cd tests/browser && npx playwright install --with-deps chromium); fi
+      - name: Build the candidate binary
+        env:
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          mkdir -p .browser-bin
+          go build -trimpath -o .browser-bin/gotavern ./cmd/gotavern
+          echo "GOTAVERN_BINARY=${PWD}/.browser-bin/gotavern" >> "$GITHUB_ENV"
+          echo "GOTAVERN_REFERENCE=${PWD}/.reference/SillyTavern" >> "$GITHUB_ENV"
       - name: Generate the large corpus (byte-identical rebuild asserted)
         run: |
           set -euo pipefail
@@ -355,22 +400,29 @@ jobs:
         run: |
           set -euo pipefail
           go test ./tests/e2e -run '^TestLongLivedCorpus$' -count=1 -v
-      - name: Publish the measurement on the job summary
+      - name: Drive the long-lived journey on both subjects and judge it
+        env:
+          PINNED_READY_MS: '240000'
+        run: |
+          set -euo pipefail
+          node tests/browser/longlived-qualify.mjs --size large --corpus "$GOTAVERN_LONGLIVED_CORPUS" \
+            --out-dir "$RUNNER_TEMP/longlived-large"
+      - name: Publish the verdict on the job summary
         if: always()
         run: |
           set -uo pipefail
-          verdict="$RUNNER_TEMP/longlived-large-verify.json"
+          verdict="$RUNNER_TEMP/longlived-large/longlived-verdict.json"
           if [ ! -s "$verdict" ]; then
-            echo "::error::the large-corpus loader produced no verdict"; exit 1
+            echo "::error::the driver produced no longlived-verdict.json"; exit 1
           fi
           status=0
           node tools/longlived/summarise-verdict.mjs --verdict "$verdict" --label "long-lived corpus (large)" >> "$GITHUB_STEP_SUMMARY" || status=$?
           exit "$status"
-      - name: Upload the large-corpus measurement
+      - name: Upload the legs, verdict, comparison and teeth
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: longlived-large-${{ github.run_id }}
-          path: ${{ runner.temp }}/longlived-large-*.json
+          path: ${{ runner.temp }}/longlived-large/**
           retention-days: 14
           if-no-files-found: warn
