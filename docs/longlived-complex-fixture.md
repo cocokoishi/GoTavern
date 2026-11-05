@@ -156,21 +156,16 @@ path): the default 169-file / 29 MB instance boots under the shipped binary and
   settings served - a rollback an operator can use, not a directory of leftovers.
 
 CI: `GoTavern long-lived corpus` run **41957672562** ran the complex gate (`go test -run '^TestComplex'`,
-now seven scenarios) on Linux and passed, including the read-only data-root branch that Windows skips.
-CI: `GoTavern long-lived corpus` run **41955926519** (push, `small-corpus` job) step 16
-"Complex-instance gate (boot, preserve, serve, migrate, write, corrupt)" ran `go test ./tests/e2e -run
-'^TestComplex'` and passed - one regex, so a new scenario cannot silently drop out. Measured locally: full
-instance 6.1 s; small instance 5.1 s (boot); migration 4.8 s; world write 2.7 s; corrupt-world 3.2 s.
+now seven scenarios) on Linux and passed, including the read-only data-root branch that Windows skips; run
+**41955926519** ran the first four scenarios there first. One regex, so a new scenario cannot silently drop
+out. Measured locally: full instance 6.1 s; small instance 5.1 s (boot); migration 4.8 s; world write 2.7 s;
+corrupt-world 3.2 s; unwritable destination 3.0 s; forced-migration backup 4.3 s.
 
-Still to come, tracked by the goal:
+Still open, tracked by the goal:
 
-- a browser-driven differential against pinned Node on this same tree (send, regenerate, swipe, continue,
-  group turn, world-info trigger, preset switch, settings save) with the provider-wire bodies compared
-  byte-for-byte;
-- Node → Go → Node hand-back after Go writes, and unknown-field preservation on written files;
-- migration from the legacy flat layout and rollback of a failed update;
-- failure paths: corrupt JSON, read-only data root, interrupted write;
-- the same checks as a CI workflow with uploaded evidence.
+- the 20 pinned third-party extensions on THIS instance: they are installed and driven by the separate
+  third-party gate; combining that pipeline with the complex tree is the remaining product-side item;
+- a real long-used user tree: synthetic by construction, so this stays the GOAL §14 item below.
 
 **It will not prove §14.** The instance is synthetic: no real user's prose, no real extension
 configuration, no real accident of history. What it proves is that the machinery survives a tree with the
