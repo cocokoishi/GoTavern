@@ -60,6 +60,7 @@ on:
       - 'tools/longlived/**'
       - 'tests/browser/longlived-*.mjs'
       - 'tests/e2e/longlived_corpus_test.go'
+      - 'tests/e2e/longlived_schema_test.go'
       - 'tests/e2e/longlived_complex_test.go'
       - 'tests/e2e/longlived_complex_writes_test.go'
       - 'internal/longlivedfixture/**'
@@ -187,9 +188,26 @@ jobs:
         run: |
           set -euo pipefail
           corpus="$RUNNER_TEMP/longlived-corpus-small"
-          node tools/build-longlived-corpus.mjs --size small --out "$corpus" --seed corpus-ci --force --verify-deterministic
+          schema="$RUNNER_TEMP/longlived-corpus-small-schema.json"
+          node tools/build-longlived-corpus.mjs --size small --out "$corpus" --seed corpus-ci --force --verify-deterministic \
+            --schema-out "$schema"
           echo "GOTAVERN_LONGLIVED_CORPUS=$corpus" >> "$GITHUB_ENV"
           echo "GOTAVERN_LONGLIVED_SIZE=small" >> "$GITHUB_ENV"
+          echo "GOTAVERN_LONGLIVED_SCHEMA=$schema" >> "$GITHUB_ENV"
+
+      # THE SHARED CORPUS SCHEMA. Both shipped generators (the Node corpus here and the Go instance in
+      # internal/longlivedfixture) emit the same `gotavern-corpus-schema` v1 document: per-file path/size/sha256/class,
+      # derived counts, feature flags, markers and a tree digest. This step proves the tree the browser leg is
+      # about to drive is the tree the manifest describes -- the "the tree you drive is the manifest you were given"
+      # property, instead of two generators that merely look alike. The schema is written OUTSIDE the corpus tree on
+      # purpose: the disk probe excludes only `manifest.json`, so a schema inside it would change the tree being measured.
+      - name: Corpus schema gate (the generated tree matches the shared schema)
+        run: |
+          set -euo pipefail
+          node tools/longlived/verify-corpus-schema.mjs \
+            --corpus "$GOTAVERN_LONGLIVED_CORPUS" \
+            --schema "$GOTAVERN_LONGLIVED_SCHEMA" \
+            --report "$RUNNER_TEMP/longlived-corpus-small-schema-verification.json"
 
       - name: Loader gate (the corpus matches its manifest and every surface is present)
         run: |
@@ -218,6 +236,18 @@ jobs:
           # unknown-field preservation on a world write, and a corrupt world that is refused rather
           # than repaired. One regex so a new TestComplex* scenario cannot silently drop out.
           go test ./tests/e2e -run '^TestComplex' -count=1 -v
+
+      # THE CROSS-LAYER BRIDGE. One test builds BOTH corpora with the shipped generators (the Go complex-small
+      # instance and the Node small corpus), verifies each against its own schema with the JS consumer, compares
+      # the two and names every difference class, then runs the mutation teeth. It is the executable answer to
+      # "can one deterministic corpus feed Go, Node, browser and provider-wire tests": the measured decision is
+      # TWO_CORPORA_SHARED_SCHEMA, because neither corpus is a superset of the other (44 Go-only files with 10
+      # feature surfaces, 66 JS-only files with 2). Collapsing them would delete coverage, so the bridge proves
+      # schema identity instead of claiming corpus identity.
+      - name: Shared corpus-schema bridge (Go + Node corpora, verify, compare, teeth)
+        run: |
+          set -euo pipefail
+          go test ./tests/e2e -run '^TestLongLivedCorpusSchemaBridge' -count=1 -v
 
       - name: Drive the long-lived journey on both subjects and judge it
         env:
@@ -311,9 +341,23 @@ jobs:
         run: |
           set -euo pipefail
           corpus="$RUNNER_TEMP/longlived-corpus-medium"
-          node tools/build-longlived-corpus.mjs --size medium --out "$corpus" --seed corpus-ci --force --verify-deterministic
+          schema="$RUNNER_TEMP/longlived-corpus-medium-schema.json"
+          node tools/build-longlived-corpus.mjs --size medium --out "$corpus" --seed corpus-ci --force --verify-deterministic \
+            --schema-out "$schema"
           echo "GOTAVERN_LONGLIVED_CORPUS=$corpus" >> "$GITHUB_ENV"
           echo "GOTAVERN_LONGLIVED_SIZE=medium" >> "$GITHUB_ENV"
+          echo "GOTAVERN_LONGLIVED_SCHEMA=$schema" >> "$GITHUB_ENV"
+
+      # The same shared-schema property the small job proves, applied to the tier that carries the release-evidence
+      # artifact: the ~50 MB / 2400-message corpus the browser legs drive must be the tree its manifest describes.
+      - name: Corpus schema gate (the generated tree matches the shared schema)
+        run: |
+          set -euo pipefail
+          node tools/longlived/verify-corpus-schema.mjs \
+            --corpus "$GOTAVERN_LONGLIVED_CORPUS" \
+            --schema "$GOTAVERN_LONGLIVED_SCHEMA" \
+            --report "$RUNNER_TEMP/longlived-corpus-medium-schema-verification.json"
+
       - name: Loader gate
         run: |
           set -euo pipefail

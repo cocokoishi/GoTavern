@@ -393,6 +393,19 @@ jobs:
         # committed evidence is a false finding. This runs the real exported comparison over synthesised calls,
         # including that exact shape, and controls it against the old positional walk.
         run: node tests/browser/tokenizer-comparator-selftest.mjs
+      - name: Prove the verifier's checked set, baseline and guard sets fail closed
+        # alpha.15's verifier audit found four shapes that printed COHERENT while proving nothing: a closed
+        # checked set (three committed artefacts were never claim-checked and a new *-comparison.json escaped
+        # automatically), a zero-evidence run, a declared pinned baseline that was never read, and one-way guard
+        # sets where an artefact could add a guard no checker consumed. Each case here runs the REAL verifier
+        # against a mutated copy and requires the named refusal on the old shape and a green on the fixed one.
+        run: node tests/browser/a15-verifier-coverage-selftest.mjs
+      - name: Prove every comparator guard claimed by a self-test is computed from the comparator
+        # The framing and regex self-tests used to FOOTER-claim "every guard can fail" while five and five
+        # guards were expected by no case. Coverage is now computed from the comparator SOURCE (framing 37
+        # cases / 34 guards; regex 17/17), so a guard added later cannot escape silently and a footer cannot
+        # claim ahead of the cases. A planted fake guard must fail, which is the case this step runs.
+        run: node tests/browser/a15-comparator-teeth-coverage-selftest.mjs
       - name: Prove the fixture gates can refuse (synthesised inputs, no originals needed)
         # AGENTS.md verification rule 7 and differential doctrine 4: every gate has teeth, and the teeth are
         # DEMONSTRATED. The two gates this runs stand between a user's real card and a public repository, so
