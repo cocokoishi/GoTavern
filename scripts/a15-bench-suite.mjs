@@ -493,6 +493,9 @@ function subjectArgv(subject, { dataRoot, configPath, port }) {
         return {
             command: process.execPath,
             args: [
+                // --trace-gc is Node's analogue of Go's GODEBUG=gctrace=1 for the pinned subject: it makes the
+                // GC-count field measured rather than null. Enabled for every pinned invocation alike.
+                '--trace-gc',
                 'server.js',
                 '--configPath', configPath,
                 '--dataRoot', dataRoot,
