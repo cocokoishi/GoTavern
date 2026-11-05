@@ -113,7 +113,21 @@ path): the default 169-file / 29 MB instance boots under the shipped binary and
    of the largest world book come back, world list / groups / backgrounds / settings carry the preset,
    theme, persona and extension state, and the files the product has no opinion about are untouched.
 
-Measured locally: full spec 6.1 s, small spec 5.1 s (build + boot + assertions).
+**Scenarios 2-4 are green too** (`tests/e2e/longlived_complex_writes_test.go`):
+
+- **MIGRATION** (rule 14): a legacy-shaped source (`config.yaml` with a relative `dataRoot`, `data/`, a
+  `public/` overlay) migrates with `--dry-run` writing nothing, the source byte-identical afterwards
+  (both dry-run and real), every planted data file arriving with the same digest, the config's
+  `dataRoot` rewritten while its unknown key survives, and the migrated install booting to serve the
+  cards and the world book.
+- **UNKNOWN-FIELD PRESERVATION ON WRITE** (rule 11): editing one world entry through
+  `/api/worldinfo/edit` keeps `fixtureUnknownField` (a field this project has never parsed) on EVERY
+  entry, leaves the other world book byte-identical, and reads the edit back.
+- **FAILURE PATH**: a corrupt world file does not stop the boot, the roster and the healthy world still
+  serve, the corrupt world is refused with a non-200, and the corrupt bytes are not rewritten.
+
+Measured locally: full instance 6.1 s; small instance 5.1 s (boot); migration 4.8 s; world write 2.7 s;
+corrupt-world 3.2 s.
 
 Still to come, tracked by the goal:
 

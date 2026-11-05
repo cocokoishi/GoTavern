@@ -43,6 +43,7 @@ on:
       - 'tests/browser/longlived-*.mjs'
       - 'tests/e2e/longlived_corpus_test.go'
       - 'tests/e2e/longlived_complex_test.go'
+      - 'tests/e2e/longlived_complex_writes_test.go'
       - 'internal/longlivedfixture/**'
       - 'cmd/build-longlived/**'
       - 'docs/longlived-complex-fixture.md'
@@ -188,10 +189,14 @@ jobs:
       # (one declared startup mutation is allowed and value-checked: the pinned legacy-secrets migration),
       # and the frontend's own routes serve the cards, chats, world book, presets, groups and assets.
       # The fixture is synthetic and strictly SFW (internal/longlivedfixture/sfw.go).
-      - name: Complex-instance gate (default very complex tree -- boot, preserve, serve)
+      - name: Complex-instance gate (boot, preserve, serve, migrate, write, corrupt)
         run: |
           set -euo pipefail
-          go test ./tests/e2e -run '^TestComplexLongLivedInstanceQualifiesAsDropIn$' -count=1 -v
+          # Every scenario on the synthetic complex instance: boot/data-safety/routes, migration
+          # (dry-run leaves the source alone, real run copies every byte, migrated install boots),
+          # unknown-field preservation on a world write, and a corrupt world that is refused rather
+          # than repaired. One regex so a new TestComplex* scenario cannot silently drop out.
+          go test ./tests/e2e -run '^TestComplex' -count=1 -v
 
       - name: Drive the long-lived journey on both subjects and judge it
         env:

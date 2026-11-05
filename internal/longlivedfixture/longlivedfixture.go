@@ -320,6 +320,7 @@ func (g *generator) buildWorlds(user string) error {
 				"scanDepth": number % 4, "caseSensitive": number%3 == 0, "matchWholeWords": number%5 == 0,
 				"useGroupScoring": false, "automationId": "", "role": number % 3,
 				"sticky": number % 4, "cooldown": number % 6, "delay": number % 5, "displayIndex": number,
+				"fixtureUnknownField": map[string]any{"keep": true, "nested": []any{1, 2}},
 			}
 		}
 		name := fmt.Sprintf("World_%02d", index)
@@ -625,8 +626,9 @@ func (g *generator) buildSettings(user string) error {
 			"auto_connect": false, "streaming": true, "smooth_streaming": true,
 			"image_inlining": false, "suggestions": true,
 		},
-		"character_aliases": map[string]any{g.manifest.Characters[0].Name: "Alias One"},
-		"character_avatars": map[string]any{},
+		"character_aliases":       map[string]any{g.manifest.Characters[0].Name: "Alias One"},
+		"longlived_unknown_state": map[string]any{"keep": true, "why": "a key this project has never parsed"},
+		"character_avatars":       map[string]any{},
 	}
 	if err := g.writeUserJSON("settings.json", settings, true); err != nil {
 		return err
@@ -698,6 +700,7 @@ func (g *generator) writeConfig(root string) error {
 		"enableIPv4: true",
 		"browserLaunchEnabled: false",
 		"whitelistMode: false",
+		"longlived_legacy: keep-me",
 		"", "",
 	}, "\n")
 	return g.write(root, "config.yaml", []byte(config))
