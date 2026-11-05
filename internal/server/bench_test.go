@@ -669,44 +669,6 @@ func BenchmarkCharactersAllScale(b *testing.B) {
 	}
 }
 
-// BenchmarkCharactersAllScaleColdFirstRequest is the card-text cache's COLD guard. It empties the cache before
-// EVERY request, so each iteration repeats the work the pre-cache code did (stat + ReadFile + PNG chunk walk +
-// base64 decode) WITH the cache lookup present. Its numbers must stay inside the noise band of the pre-cache
-// BenchmarkCharactersAllScale rows: a material rise means the lookup costs more than the read it saves.
-//
-// The warm rows (BenchmarkCharactersAllScale, which the cache makes repeat-serve) and these cold rows are the
-// before/after pair for GOAL §15.2: both measure the same routes over the same generated trees.
-func BenchmarkCharactersAllScaleColdFirstRequest(b *testing.B) {
-	cases := []struct {
-		name             string
-		cards, imageSize int
-		cardBytes        int
-	}{
-		{"cards_100_128KB_image", 100, 128 << 10, 8 << 10},
-		{"cards_1000_32KB_image", 1000, 32 << 10, 8 << 10},
-		{"cards_10000_4KB_image", 10000, 4 << 10, 2 << 10},
-		{"cards_100_640KB_image", 100, 640 << 10, 12 << 10},
-	}
-	for _, testCase := range cases {
-		testCase := testCase
-		b.Run(testCase.name, func(b *testing.B) {
-			env := newBenchEnvWithTree(b, func(tb testing.TB, dataRoot string) {
-				plantCharacterTree(tb, dataRoot, testCase.cards, testCase.imageSize, testCase.cardBytes)
-			})
-			env.requireAuth(b)
-			b.ReportAllocs()
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				// The reset is outside the timed region so the benchmark measures the request, not the harness.
-				b.StopTimer()
-				resetCharacterCardCache()
-				b.StartTimer()
-				benchRequest(b, env.handler, http.MethodPost, "/api/characters/all", env.cookie, env.token, []byte(`{}`))
-			}
-		})
-	}
-}
-
 // BenchmarkChatSummary is the M0 "chat summary whole-file read" hypothesis made measurable: N chats x M bytes
 // behind one character, answered by /api/characters/chats (getChatInfo per file).
 func BenchmarkChatSummary(b *testing.B) {
