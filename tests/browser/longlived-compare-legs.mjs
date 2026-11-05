@@ -146,7 +146,7 @@ function selectedSettings(settings) {
     };
 }
 
-export function compareLegs({ driveGo, drivePinned, restartGo, restartPinned }) {
+export function compareLegs({ driveGo, drivePinned, restartGo, restartPinned, handbackPinned = null, handbackGo = null }) {
     const checks = [];
     const report = (name, verdict, detail = null) => {
         checks.push({ name, verdict, ok: verdict === 'match' || verdict === 'decided-exclusion', detail });
@@ -385,6 +385,30 @@ export function compareLegs({ driveGo, drivePinned, restartGo, restartPinned }) 
     }
     report('assets-served-equivalently', assetProblems.length === 0 ? 'match' : 'mismatch', { problems: assetProblems });
 
+    // ---- 7. HAND-BACK (Node -> Go -> Node, and Go -> Node -> Go).
+    // Each hand-back leg is a `--phase restart` run of one subject against a COPY of the tree the OTHER
+    // subject wrote. The probe's own restart steps require the two user markers the drive wrote and the
+    // changed temperature, so "match" here means the other backend READ the written chat and settings and
+    // could continue through the provider -- the property a user depends on when they switch backends.
+    const handbackEvidence = (name, entry, expectedMarkers) => {
+        const leg = entry?.leg ?? null;
+        if (!leg) {
+            report(name, 'harness-error', { reason: 'the hand-back leg produced no report' });
+            return;
+        }
+        const failed = failedSteps(leg);
+        const markers = new Set([...(leg.browser?.baseline?.markers ?? []), ...(leg.browser?.final?.markers ?? [])]);
+        const missing = expectedMarkers.filter(marker => !markers.has(marker));
+        const resumed = leg.browser?.resumed?.ok === true;
+        const providerContinue = (leg.provider?.requests ?? []).some(request => /chat\/completions/.test(request.path ?? ''));
+        report(name, failed.length === 0 && resumed && missing.length === 0 && providerContinue ? 'match' : 'mismatch', {
+            failedSteps: failed, resumed, missingMarkers: missing,
+            providerContinue, subject: leg.subject ?? null, phase: leg.phase ?? null,
+        });
+    };
+    handbackEvidence('handback-pinned-resumed-the-gotavern-tree', handbackPinned, ['LL_TURN_ONE_MARKER', 'LL_TURN_TWO_MARKER']);
+    handbackEvidence('handback-gotavern-resumed-the-pinned-tree', handbackGo, ['LL_TURN_ONE_MARKER', 'LL_TURN_TWO_MARKER']);
+
     const mismatches = checks.filter(entry => entry.verdict === 'mismatch');
     const harnessErrors = checks.filter(entry => entry.verdict === 'harness-error');
     return {
@@ -406,6 +430,7 @@ export function compareLegs({ driveGo, drivePinned, restartGo, restartPinned }) 
         input: {
             driveGo: driveGo.path, drivePinned: drivePinned.path,
             restartGo: restartGo?.path ?? null, restartPinned: restartPinned?.path ?? null,
+            handbackPinned: handbackPinned?.path ?? null, handbackGotavern: handbackGo?.path ?? null,
         },
     };
 }
@@ -422,18 +447,22 @@ if (isMain) {
     const drivePinnedPath = option(argv, '--drive-pinned');
     const restartGoPath = option(argv, '--restart-go');
     const restartPinnedPath = option(argv, '--restart-pinned');
+    const handbackPinnedPath = option(argv, '--handback-pinned');
+    const handbackGotavernPath = option(argv, '--handback-gotavern');
     const out = option(argv, '--out', path.join(process.cwd(), 'longlived-comparison.json'));
     if (!driveGoPath || !drivePinnedPath) {
-        console.error('usage: node longlived-compare-legs.mjs --drive-go <json> --drive-pinned <json> [--restart-go <json>] [--restart-pinned <json>] --out <json>');
+        console.error('usage: node longlived-compare-legs.mjs --drive-go <json> --drive-pinned <json> [--restart-go <json>] [--restart-pinned <json>] [--handback-pinned <json>] [--handback-gotavern <json>] --out <json>');
         process.exit(2);
     }
-    const [driveGo, drivePinned, restartGo, restartPinned] = await Promise.all([
+    const [driveGo, drivePinned, restartGo, restartPinned, handbackPinned, handbackGo] = await Promise.all([
         readLeg(driveGoPath, 'go-drive'),
         readLeg(drivePinnedPath, 'pinned-drive'),
         restartGoPath ? readLeg(restartGoPath, 'go-restart') : null,
         restartPinnedPath ? readLeg(restartPinnedPath, 'pinned-restart') : null,
+        handbackPinnedPath ? readLeg(handbackPinnedPath, 'pinned-handback') : null,
+        handbackGotavernPath ? readLeg(handbackGotavernPath, 'go-handback') : null,
     ]);
-    const comparison = compareLegs({ driveGo, drivePinned, restartGo, restartPinned });
+    const comparison = compareLegs({ driveGo, drivePinned, restartGo, restartPinned, handbackPinned, handbackGo });
     await fs.mkdir(path.dirname(path.resolve(out)), { recursive: true });
     await fs.writeFile(path.resolve(out), `${JSON.stringify(comparison, null, 2)}\n`, 'utf8');
     for (const entry of comparison.checks) {

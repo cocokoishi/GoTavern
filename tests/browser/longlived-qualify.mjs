@@ -203,6 +203,36 @@ async function main() {
     }
     verdict.legReports = legResults;
 
+    // ---- 3b. HAND-BACK (Node -> Go -> Node, and Go -> Node -> Go).
+    // Each subject RESUMES the tree the OTHER subject wrote, with --phase restart: reopen the card, resume
+    // the long chat, and press continue. The probe's own `restart-resumed-chat` step requires the two user
+    // markers the drive phase wrote, so a green here means the other backend READ the chat that was
+    // written, not merely that the bytes sat on disk. The copies exist so neither hand-back can mutate the
+    // subject tree the comparison below already judged (AGENTS 14/51: never boot a corpus in place).
+    const handbackDir = path.join(outDir, 'subjects', 'handback');
+    const handbackReports = {};
+    for (const [subject, sourceTree] of [['pinned', goTree], ['gotavern', pinnedTree]]) {
+        if (subject === 'pinned' && skipPinned) {
+            handbackReports[subject] = null;
+            legResults.push({ subject, phase: 'handback', skipped: true, reason: '--skip-pinned (triage only; the verdict is NOT a pass)' });
+            continue;
+        }
+        const destination = path.join(handbackDir, subject === 'pinned' ? 'from-gotavern' : 'from-pinned');
+        await copyTree(sourceTree, destination);
+        const report = path.join(legsDir, `longlived-handback-${subject}.json`);
+        const prefix = subject === 'gotavern' ? 'LLHB_G_' : 'LLHB_P_';
+        const args = subject === 'gotavern'
+            ? [path.join(here, 'longlived-corpus-probe.mjs'), '--phase', 'restart', '--data-root', destination, '--reply-prefix', prefix, '--report', report]
+            : [path.join(here, 'run-against-pinned.mjs'), 'longlived-corpus-probe.mjs', '--', '--phase', 'restart', '--data-root', destination, '--reply-prefix', prefix, '--report', report];
+        const execution = await run(process.execPath, args, { env: { ...baseEnv, PINNED_READY_MS: process.env.PINNED_READY_MS ?? '180000' } });
+        const reportExists = await fs.stat(report).then(info => info.size > 0, () => false);
+        handbackReports[subject] = reportExists ? { path: report, leg: JSON.parse(await fs.readFile(report, 'utf8')) } : null;
+        legResults.push({ subject, phase: 'handback', exitCode: execution.code, elapsedMs: execution.elapsedMs, report: reportExists ? path.relative(outDir, report) : null });
+        verdict.legs.push({ name: `handback-${subject}`, exitCode: execution.code, elapsedMs: execution.elapsedMs, report: reportExists ? path.relative(outDir, report) : null });
+    }
+    verdict.handback = Object.fromEntries(Object.entries(handbackReports).map(([subject, entry]) => [subject,
+        entry ? { path: path.relative(outDir, entry.path), resumed: entry.leg?.browser?.resumed?.ok ?? null, failedSteps: (entry.leg?.steps ?? []).filter(step => step.ok !== true).map(step => step.name) } : null]));
+
     // ---- 4. THE JUDGE.
     const legPath = name => path.join(legsDir, `longlived-${name}.json`);
     const comparisonPath = path.join(outDir, 'longlived-comparison.json');
@@ -213,6 +243,8 @@ async function main() {
             '--drive-pinned', legPath('drive-pinned'),
             '--restart-go', legPath('restart-gotavern'),
             '--restart-pinned', legPath('restart-pinned'),
+            '--handback-pinned', legPath('handback-pinned'),
+            '--handback-gotavern', legPath('handback-gotavern'),
             '--out', comparisonPath,
         ], { env: { ...process.env } });
         verdict.legs.push({ name: 'compare', exitCode: comparison.code });
@@ -229,6 +261,8 @@ async function main() {
                 '--drive-pinned', legPath('drive-pinned'),
                 '--restart-go', legPath('restart-gotavern'),
                 '--restart-pinned', legPath('restart-pinned'),
+                '--handback-pinned', legPath('handback-pinned'),
+                '--handback-gotavern', legPath('handback-gotavern'),
                 '--out', teethPath,
             ], { env: { ...process.env } });
             verdict.legs.push({ name: 'teeth', exitCode: teeth.code });

@@ -138,6 +138,24 @@ export const MUTATIONS = [
             }
         },
     },
+    {
+        name: 'handback-lost-markers',
+        expectedCheck: 'handback-pinned-resumed-the-gotavern-tree',
+        expectedVerdicts: ['mismatch'],
+        apply: legs => {
+            legs.handbackPinned.leg.browser.baseline.markers = [];
+            legs.handbackPinned.leg.browser.final.markers = [];
+        },
+    },
+    {
+        name: 'handback-no-provider-continue',
+        expectedCheck: 'handback-gotavern-resumed-the-pinned-tree',
+        expectedVerdicts: ['mismatch'],
+        apply: legs => {
+            legs.handbackGo.leg.provider.requests = (legs.handbackGo.leg.provider.requests ?? [])
+                .filter(request => !/chat\/completions/.test(request.path ?? ''));
+        },
+    },
 ];
 
 export function runSelftest(legs) {
@@ -176,17 +194,19 @@ export function runSelftest(legs) {
 const isMain = process.argv[1] !== undefined && import.meta.url === new URL(`file://${process.argv[1].replace(/\\/g, '/')}`).href.replace(/%20/g, ' ');
 if (isMain) {
     const argv = process.argv.slice(2);
-    const [driveGo, drivePinned, restartGo, restartPinned] = await Promise.all([
+    const [driveGo, drivePinned, restartGo, restartPinned, handbackPinned, handbackGo] = await Promise.all([
         readLeg(argument('--drive-go', null)),
         readLeg(argument('--drive-pinned', null)),
         readLeg(argument('--restart-go', null)),
         readLeg(argument('--restart-pinned', null)),
+        readLeg(argument('--handback-pinned', null)),
+        readLeg(argument('--handback-gotavern', null)),
     ]);
-    if (!driveGo || !drivePinned || !restartGo || !restartPinned) {
-        console.error('usage: node longlived-gate-selftest.mjs --drive-go <json> --drive-pinned <json> --restart-go <json> --restart-pinned <json> --out <json>');
+    if (!driveGo || !drivePinned || !restartGo || !restartPinned || !handbackPinned || !handbackGo) {
+        console.error('usage: node longlived-gate-selftest.mjs --drive-go <json> --drive-pinned <json> --restart-go <json> --restart-pinned <json> --handback-pinned <json> --handback-gotavern <json> --out <json>');
         process.exit(2);
     }
-    const teeth = runSelftest({ driveGo, drivePinned, restartGo, restartPinned });
+    const teeth = runSelftest({ driveGo, drivePinned, restartGo, restartPinned, handbackPinned, handbackGo });
     const out = argument('--out', path.join(process.cwd(), 'longlived-teeth.json'));
     await fs.mkdir(path.dirname(path.resolve(out)), { recursive: true });
     await fs.writeFile(path.resolve(out), `${JSON.stringify(teeth, null, 2)}\n`, 'utf8');
