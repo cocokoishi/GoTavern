@@ -33,17 +33,53 @@ The only durable fix is a machine that reads the runs.
   narrowed selection, not the release gate"). The dispatch run is the one whose selection is the full one, and the
   row in the published evidence table names it.
 - The gate fails closed: a missing run, an in-progress run, a cancelled run, a failed run, or a different-SHA run
-  exits non-zero and the release is not published. Every row of its table (workflow, run id, event, conclusion) is
-  written to the run summary, and the published body carries the same table: `scripts/assemble-release-body.mjs`
-  appends it to the curated note at publish time, so the run ids appear in the release without a self-referential
-  commit (see section 2).
+  exits non-zero and the release is not published. Every row of its table (workflow, run id, event, conclusion,
+  required jobs, artifact/evidence) is written to the run summary, and the published body carries the same table:
+  `scripts/assemble-release-body.mjs` appends it to the curated note at publish time, so the run ids appear in the
+  release without a self-referential commit (see section 2).
+- **Four rails, because "the run is green" is not evidence.** A green conclusion can coexist with a job that never
+  ran, a missing or expired artifact, or an artifact whose content belongs to another attempt. Each manifest entry
+  may therefore name, besides `requiredEvent`:
+  - `requiredJobs`: every named job must be `completed`/`success` **in the cited run**. The runs API reports the
+    workflow's conclusion, not its jobs; a job whose `if:` was false contributes `skipped` to a successful run. This
+    is measured, not hypothetical: the long-lived workflow's **default dispatch runs small only and leaves
+    `medium-corpus` SKIPPED while the run is green** — the exact plausible-looking evidence the alpha.15 rails
+    refuse.
+  - `requiredArtifact`: the fixed-name evidence bundle must be attached to the cited run and not expired.
+  - `requiredEvidence`: the contract for the artifact's CONTENT — `kind`, optional tier marker (`tierField`/`tier`;
+    the long-lived gate requires `size: medium`), the **embedded head SHA which must equal the candidate**, plus
+    `requireTruthy` member paths and `requireSha256` digest paths. A name is not content: the verifier downloads the
+    artifact archive and reads `release-evidence.json` out of it (`scripts/release-governance/artifact-evidence.mjs`
+    has a bounded ZIP reader), so an artifact uploaded by another attempt, or a small-tier document dropped into a
+    similarly-named bundle, is refused.
+  - A gate naming any of those MUST also name its `requiredEvent` (`validateManifest` refuses otherwise), because
+    `node-stock-tree.yml` uploads the SAME fixed artifact name on push runs — without the event rail a push run
+    would satisfy its release gate. `requiredEvent` accepts any known Actions event; a `schedule` requirement is
+    satisfied only by a scheduled/cron run at the candidate SHA, never by a dispatch.
+- **One query plan.** `evidenceQueryNeeds(manifest)` derives the three live queries (artifact lists, job lists, the
+  named artifacts' downloaded evidence) from the manifest, and both publish paths — the curated-note assembler and
+  `verify-release-gates.mjs` — use it, so they cannot judge different evidence.
+- **The two alpha.15 gates and why they are independent.** `GoTavern long-lived corpus qualification` buys the
+  medium-tier long-lived shape (a ~50 MB, 2400-message-history corpus driven through resume/send/swipe/
+  switch/reload/save/restart/resume/continue with a comparator teeth proof and the 20-extension manifest digest);
+  no other entry exercises an existing long history across a restart. `GoTavern Node stock tree round trip` buys the
+  Node→Go→Node input half (a tree **originated by the pinned Node server** is read, mutated, restarted, handed back
+  and re-read); drop-in qualification boots a packaged archive against a **derived** tree and release qualification
+  installs the archive, so neither duplicates it. The `large` long-lived tier is a nightly/large-dispatch **rail**,
+  not a release gate: a nightly run predates the candidate and cannot be same-SHA by construction.
 - `GoTavern Release` is not in its own manifest: a workflow cannot be its own precondition. The publishing run
   supplies its own build and `prepublish-qualification` at the tag commit, and that job executes the bare
   installers against the archives this very run built.
 
 **The teeth.** `scripts/release-governance.test.mjs` (run by `ci.yml`'s `verify` job) drives the decision function
-with synthetic runs and requires each refusal by name, including the case that motivates the gate: a perfect set of
-green runs that belongs to a **different** commit must fail.
+with synthetic, fabricated API responses and requires each refusal by name: a perfect set of green runs belonging to
+a **different** commit; a push run for a dispatch-required gate; a dispatch run for a schedule-required gate; a green
+run whose required job was **skipped** (the small-tier long-lived masquerade); a required job absent or failed; a job
+list that was never fetched; a missing/wrong/expired artifact; missing embedded evidence; a wrong `kind`, tier marker,
+embedded head SHA, `schemaVersion`, truthy field or 64-hex digest; a newer empty run not masking an older satisfying
+one; and the positive control. It also exercises the ZIP reader on stored and deflated archives, the live query
+plumbing against a fake `fetch`, and the `release.yml` wiring (six platform assets, the shared classifier, both
+publish paths calling the gate, and the tag-only publish gate).
 
 ## 2. Release-body validation (both channels)
 

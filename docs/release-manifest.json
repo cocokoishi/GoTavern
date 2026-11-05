@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "sameShaRequired": true,
-  "comment": "The required gates for a GoTavern release. scripts/verify-release-gates.mjs runs inside the publish job BEFORE gh release create and fails closed unless every workflow named here has a completed successful run whose head_sha is the commit the release tag points at. This file is hand-maintained on purpose (it is the release policy); the gate that consumes it is machine-enforced. GoTavern Release itself is NOT listed: a workflow cannot be its own precondition. The publishing run supplies its own build + prepublish qualification at the same tag commit, and the prepublish job executes the bare installers against the archives this very run built. A requiredEvent of workflow_dispatch means an automatically-triggered run (a push/PR run, which narrows its oracle probe set by changed paths) cannot satisfy the gate: the release evidence must come from a run a release manager deliberately dispatched with the full selection at the candidate SHA.",
+  "comment": "The required gates for a GoTavern release. scripts/verify-release-gates.mjs runs inside the publish job BEFORE gh release create and fails closed unless every workflow named here has a completed successful run whose head_sha is the commit the release tag points at. This file is hand-maintained on purpose (it is the release policy); the gate that consumes it is machine-enforced. GoTavern Release itself is NOT listed: a workflow cannot be its own precondition. The publishing run supplies its own build + prepublish qualification at the same tag commit, and the prepublish job executes the bare installers against the archives this very run built. A requiredEvent of workflow_dispatch means an automatically-triggered run (a push/PR run, which narrows its oracle probe set by changed paths) cannot satisfy the gate: the release evidence must come from a run a release manager deliberately dispatched with the full selection at the candidate SHA. THREE FURTHER RAILS may be named per gate, and any gate naming one MUST name its requiredEvent too so a push run cannot carry the same fixed-name artifact past the gate: requiredJobs (each named job must be completed/success IN the cited run -- the runs API reports a workflow as success even when a job's `if:` evaluated false, which is exactly how a default small dispatch of the long-lived workflow is green while medium-corpus is SKIPPED); requiredArtifact (the fixed-name uploaded evidence bundle must be attached to the cited run and not expired); requiredEvidence (the content contract for that artifact: its kind, the required tier marker, the embedded head SHA which must equal the candidate, plus required truthy fields and 64-hex digests). A gate whose requiredEvent is `schedule` is satisfied only by a scheduled/cron run at the candidate SHA, never by a dispatch.",
   "requiredGates": [
     {
       "workflow": "GoTavern CI",
@@ -58,6 +58,32 @@
       "why": "exactly 20 real, popular, SFW third-party SillyTavern client extensions pinned by commit: each one installed, activated, setting persisted across a real server restart, disabled, re-enabled and uninstalled on stock SillyTavern and on GoTavern, judged by a taxonomy (PASS/FAIL/UPSTREAM_FAIL/N/A). The aggregator requires the observed set to equal the lock's 20 and requires the lock SHA-256, the head SHA and the capability verdicts, so a skipped shard or a dropped extension cannot pass",
       "requiredEvent": "workflow_dispatch",
       "requiredArtifact": "extension-compat-evidence"
+    },
+    {
+      "workflow": "GoTavern long-lived corpus qualification",
+      "why": "LONG-LIVED SESSION DATA at the MEDIUM tier: a deterministic synthetic corpus (~50 MB, 2400-message histories) generated and re-walked, then booted as two subject copies and driven through resume -> send -> swipe -> switch preset/world/character/temperature -> reload repeatedly -> save -> restart -> resume -> continue, judged by a legs comparator with a named-mutation teeth proof, while the 20 pinned third-party extensions are installed on the complex instance and their manifest digest is recorded. INDEPENDENCE: whole-session proves a fresh-install journey, drop-in proves a packaged-archive boot and extension-compat proves the 20-client roster on a fresh tree; NONE of them exercises an existing multi-thousand-message history across a restart with a long context, so this gate buys evidence no other manifest entry produces. THE MEDIUM TIER IS THE REQUIREMENT, because the workflow's default dispatch runs SMALL only and leaves the medium job SKIPPED while the RUN concludes success -- the gate therefore requires the medium-corpus job green AND the fixed-name longlived-medium-evidence artifact whose embedded tier marker is `medium`, whose head SHA is the candidate, and whose extension-manifest digest is a recorded SHA-256. The LARGE tier is a nightly/large-dispatch RAIL (generator determinism + loader + Go boot; the browser driver refuses large by design) and is NOT a same-SHA release gate: a nightly run predates the release candidate and cannot be same-SHA by construction.",
+      "requiredEvent": "workflow_dispatch",
+      "requiredJobs": ["medium-corpus"],
+      "requiredArtifact": "longlived-medium-evidence",
+      "requiredEvidence": {
+        "kind": "gotavern-longlived-corpus-evidence",
+        "tierField": "size",
+        "tier": "medium",
+        "requireTruthy": ["ok", "comparatorTeeth.ok"],
+        "requireSha256": ["pinnedExtensions.manifestSha256", "corpus.treeSha256"]
+      }
+    },
+    {
+      "workflow": "GoTavern Node stock tree round trip",
+      "why": "the INPUT half of the stock-tree claim: a tree RECORDED BY the pinned Node server (its own routes create every user-data surface; tools/build-node-stock-tree.mjs) is hashed, then Node writes -> GoTavern reads -> GoTavern mutates -> restart -> mutate -> pinned Node reads and continues -> GoTavern reads the Node mutation, asserting whole-tree preservation of unrelated files, unknown fields, filename bytes, modes and JSON/JSONL validity. INDEPENDENCE: drop-in qualification boots a PACKAGED ARCHIVE against a DERIVED stock tree (scripts/build-stock-tree.sh) and release qualification installs the archive; neither proves that a tree ORIGINATED BY pinned Node is accepted, nor that pinned Node accepts a tree GoTavern wrote. This is the only gate whose subject-tree origin is Node, so it duplicates no other entry's proof. The run also records the graceful-shutdown claim on POSIX only; the Windows abrupt-stop limitation is stated in docs/node-stock-tree.md rather than hidden. The gate requires the node-stock-tree job green and the fixed-name node-stock-tree-evidence artifact whose embedded head SHA is the candidate and whose tree/manifest digests are recorded SHA-256 values; the workflow also uploads this artifact on push runs, which is why the requiredEvent rail (dispatch only) is load-bearing here.",
+      "requiredEvent": "workflow_dispatch",
+      "requiredJobs": ["node-stock-tree"],
+      "requiredArtifact": "node-stock-tree-evidence",
+      "requiredEvidence": {
+        "kind": "gotavern-node-stock-tree-evidence",
+        "requireTruthy": ["ok", "roundTripOk"],
+        "requireSha256": ["treeSha256", "manifestSha256"]
+      }
     }
   ]
 }

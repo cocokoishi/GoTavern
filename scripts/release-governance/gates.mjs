@@ -14,6 +14,24 @@
 
 export const SCHEMA_VERSION = 1;
 
+import { EVIDENCE_MEMBER, parseReleaseEvidence, validateReleaseEvidence } from './artifact-evidence.mjs';
+
+// EVENTS the manifest may require. A typo must be a RED at PR time, not a gate that silently never matches a run: the
+// `requiredEvent` value is matched against the runs API's `event` field, so `workflow_disaptch` would fail closed at
+// publish time with a message that looks like a missing run. The allowlist is the set of events that can actually
+// carry release evidence; `schedule` is present because a nightly rail is a legitimate requirement (a dispatched run
+// is NOT a scheduled run and must not satisfy it).
+export const KNOWN_EVENTS = new Set([
+    'workflow_dispatch',
+    'schedule',
+    'push',
+    'pull_request',
+    'workflow_run',
+    'release',
+    'merge_group',
+    'repository_dispatch',
+]);
+
 // A manifest entry is a workflow NAME (the `name:` field of the workflow file, which is what the runs API reports as
 // `name`), not a file path: a path would silently stop matching if a workflow were renamed while its runs kept the
 // old name, and the manifest must be checkable against the workflows that exist.
@@ -47,8 +65,12 @@ export function validateManifest(manifest) {
         if (typeof entry.why !== 'string' || entry.why.trim() === '') {
             problems.push(`requiredGates[${index}].why is required so the gate records what it is buying`);
         }
-        if (entry.requiredEvent !== undefined && (typeof entry.requiredEvent !== 'string' || entry.requiredEvent.trim() === '')) {
-            problems.push(`requiredGates[${index}].requiredEvent, when present, must be a non-empty event name (for example "workflow_dispatch")`);
+        if (entry.requiredEvent !== undefined) {
+            if (typeof entry.requiredEvent !== 'string' || entry.requiredEvent.trim() === '') {
+                problems.push(`requiredGates[${index}].requiredEvent, when present, must be a non-empty event name (for example "workflow_dispatch")`);
+            } else if (!KNOWN_EVENTS.has(entry.requiredEvent)) {
+                problems.push(`requiredGates[${index}].requiredEvent ${JSON.stringify(entry.requiredEvent)} is not a known Actions event (known: ${[...KNOWN_EVENTS].sort().join(', ')})`);
+            }
         }
         // A GATE THAT PRODUCES A VERDICT MUST PRODUCE ITS EVIDENCE. `requiredArtifact` names the uploaded
         // artifact that carries the machine-checkable result (the 20/20 matrix, the lock hash, the
@@ -57,9 +79,65 @@ export function validateManifest(manifest) {
         if (entry.requiredArtifact !== undefined && (typeof entry.requiredArtifact !== 'string' || entry.requiredArtifact.trim() === '')) {
             problems.push(`requiredGates[${index}].requiredArtifact, when present, must be a non-empty artifact name`);
         }
+        // A GREEN RUN CAN HAVE SKIPPED JOBS. The runs API reports the workflow's conclusion; a job whose `if:`
+        // evaluated false (the small-tier long-lived run is exactly that) contributes a SKIPPED job to a SUCCESSFUL
+        // run. `requiredJobs` names the jobs that must themselves be completed/success at the target SHA.
+        if (entry.requiredJobs !== undefined) {
+            if (!Array.isArray(entry.requiredJobs) || entry.requiredJobs.length === 0) {
+                problems.push(`requiredGates[${index}].requiredJobs, when present, must be a non-empty array of job names`);
+            } else {
+                const jobs = new Set();
+                for (const [jobIndex, job] of entry.requiredJobs.entries()) {
+                    if (typeof job !== 'string' || job.trim() === '') {
+                        problems.push(`requiredGates[${index}].requiredJobs[${jobIndex}] is not a non-empty job name`);
+                        continue;
+                    }
+                    if (jobs.has(job)) problems.push(`requiredGates[${index}].requiredJobs names ${JSON.stringify(job)} twice`);
+                    jobs.add(job);
+                }
+            }
+        }
+        // THE ARTIFACT'S CONTENT IS PART OF THE CONTRACT. `requiredEvidence` describes the release-evidence document
+        // the fixed-name artifact must contain: its kind, the tier marker that separates a default small run from the
+        // qualified medium one, the embedded HEAD SHA (the same-SHA property applied to the CONTENT), and the fields
+        // that must be true/digests. It is meaningless without an artifact to read, so it requires one.
+        if (entry.requiredEvidence !== undefined) {
+            const spec = entry.requiredEvidence;
+            if (!spec || typeof spec !== 'object' || Array.isArray(spec)) {
+                problems.push(`requiredGates[${index}].requiredEvidence, when present, must be an object`);
+            } else {
+                if (typeof spec.kind !== 'string' || spec.kind.trim() === '') {
+                    problems.push(`requiredGates[${index}].requiredEvidence.kind is required (the document type the artifact must carry)`);
+                }
+                if (spec.tier !== undefined && typeof spec.tier !== 'string') {
+                    problems.push(`requiredGates[${index}].requiredEvidence.tier, when present, must be a string`);
+                }
+                if (spec.tierField !== undefined && (typeof spec.tierField !== 'string' || spec.tierField.trim() === '')) {
+                    problems.push(`requiredGates[${index}].requiredEvidence.tierField, when present, must be a non-empty member path`);
+                }
+                for (const fieldName of ['requireTruthy', 'requireSha256']) {
+                    const list = spec[fieldName];
+                    if (list === undefined) continue;
+                    if (!Array.isArray(list) || list.length === 0 || list.some((value) => typeof value !== 'string' || value.trim() === '')) {
+                        problems.push(`requiredGates[${index}].requiredEvidence.${fieldName}, when present, must be a non-empty array of member paths`);
+                    }
+                }
+                if (typeof entry.requiredArtifact !== 'string' || entry.requiredArtifact.trim() === '') {
+                    problems.push(`requiredGates[${index}].requiredEvidence requires requiredArtifact: there is no artifact whose content could be read`);
+                }
+            }
+        }
+        // A NARROWED OR UNINTENDED TRIGGER MUST NOT BE ABLE TO SATISFY AN EVIDENCE GATE. Any gate that names a job,
+        // an artifact or embedded evidence MUST also name the event it accepts; otherwise a push run (which can carry
+        // the same fixed-name artifact) would be accepted.
+        if ((entry.requiredArtifact !== undefined || entry.requiredJobs !== undefined || entry.requiredEvidence !== undefined)
+            && entry.requiredEvent === undefined) {
+            problems.push(`requiredGates[${index}] names a required job/artifact/evidence but no requiredEvent; a push-triggered run could then masquerade as release evidence`);
+        }
     }
     return problems;
 }
+
 
 function recordOf(run) {
     return {
@@ -74,9 +152,88 @@ function recordOf(run) {
     };
 }
 
-// Pick one run per required workflow. Preference is: a successful completed run at the target SHA wins; otherwise the
-// newest run at the target SHA is reported as the blocking observation. Runs at a different SHA are counted and
-// reported, never accepted -- that is the whole same-SHA property.
+// THE THREE EVIDENCE RAILS, checked against ONE candidate run. A run can be green and still fail any of them, and each
+// refusal names the rail that broke so a mutation is localised:
+//
+//   jobs      every `requiredJobs` entry must be completed/success IN THIS RUN (a skipped job is not success);
+//   artifact  the fixed-name artifact must be attached to this run and not expired;
+//   evidence  the artifact must CONTAIN a release-evidence document whose kind, embedded head SHA, tier marker and
+//             required fields match the manifest (a name is not content).
+function checkEvidenceRails(entry, run, sha) {
+    if (Array.isArray(entry.requiredJobs) && entry.requiredJobs.length > 0) {
+        if (!Array.isArray(run.jobs)) {
+            return {
+                ok: false,
+                verdict: 'missing-jobs',
+                detail: `the runs query did not retrieve the job list for run ${run.id}, so the required job(s) ${entry.requiredJobs.map((job) => JSON.stringify(job)).join(', ')} cannot be asserted`,
+            };
+        }
+        for (const requiredJob of entry.requiredJobs) {
+            const job = run.jobs.find((candidate) => candidate?.name === requiredJob);
+            if (!job) {
+                const observed = run.jobs.map((candidate) => candidate?.name).filter(Boolean);
+                return {
+                    ok: false,
+                    verdict: 'missing-job',
+                    detail: `required job ${JSON.stringify(requiredJob)} is absent from run ${run.id} (jobs: ${observed.length === 0 ? 'none' : observed.join(', ')})`,
+                };
+            }
+            if (job.status !== 'completed' || job.conclusion !== 'success') {
+                return {
+                    ok: false,
+                    verdict: 'job-not-green',
+                    detail: `required job ${JSON.stringify(requiredJob)} is ${job.status}/${job.conclusion ?? 'no conclusion'} in run ${run.id}${job.conclusion === 'skipped' ? ' (a skipped job is not a green job)' : ''}`,
+                };
+            }
+        }
+    }
+
+    if (entry.requiredArtifact) {
+        if (!Array.isArray(run.artifacts)) {
+            return {
+                ok: false,
+                verdict: 'missing-artifact',
+                detail: `the runs query did not retrieve artifacts for run ${run.id}, so the required artifact ${JSON.stringify(entry.requiredArtifact)} cannot be asserted`,
+            };
+        }
+        const artifact = run.artifacts.find((candidate) => candidate?.name === entry.requiredArtifact);
+        if (!artifact || artifact.expired === true) {
+            const observed = [...new Set(run.artifacts.map((candidate) => candidate?.name).filter(Boolean))];
+            return {
+                ok: false,
+                verdict: 'missing-artifact',
+                detail: `the successful run(s) at the target SHA do not carry the required artifact ${JSON.stringify(entry.requiredArtifact)}${artifact?.expired === true ? ' (the artifact is EXPIRED)' : ''} (observed: ${observed.join(', ') || 'none'})`,
+            };
+        }
+        if (entry.requiredEvidence) {
+            if (!artifact.evidence) {
+                return {
+                    ok: false,
+                    verdict: 'missing-evidence',
+                    detail: `artifact ${JSON.stringify(entry.requiredArtifact)} in run ${run.id} carries no readable release-evidence document (${artifact.evidenceError ?? 'the content was not fetched'})`,
+                };
+            }
+            const evidenceProblems = validateReleaseEvidence({
+                evidence: artifact.evidence,
+                spec: entry.requiredEvidence,
+                sha,
+                artifactName: entry.requiredArtifact,
+            });
+            if (evidenceProblems.length > 0) {
+                return {
+                    ok: false,
+                    verdict: 'evidence-mismatch',
+                    detail: `artifact ${JSON.stringify(entry.requiredArtifact)} in run ${run.id} carries evidence that does not satisfy its manifest contract: ${evidenceProblems.join('; ')}`,
+                };
+            }
+        }
+    }
+    return { ok: true };
+}
+
+// Pick one run per required workflow. Preference is: a completed successful run at the target SHA that SATISFIES its
+// evidence rails wins; otherwise the newest run at the target SHA is reported as the blocking observation. Runs at a
+// different SHA are counted and reported, never accepted -- that is the whole same-SHA property.
 export function evaluateGates({ manifest, runs, sha }) {
     const problems = validateManifest(manifest);
     if (!Array.isArray(runs)) problems.push('runs is not an array');
@@ -94,6 +251,8 @@ export function evaluateGates({ manifest, runs, sha }) {
         byName.get(name).push(run);
     }
 
+    const newest = (list) => [...list].sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))[0] ?? null;
+
     for (const entry of manifest.requiredGates) {
         const candidates = byName.get(entry.workflow) ?? [];
         // A NARROWED RUN IS NOT THE RELEASE GATE. `ci.yml` on a push selects its oracle probes from the changed
@@ -106,38 +265,36 @@ export function evaluateGates({ manifest, runs, sha }) {
         const atSha = entry.requiredEvent ? atShaAll.filter((run) => run.event === entry.requiredEvent) : atShaAll;
         const elsewhere = candidates.length - atSha.length;
         const completedSuccess = atSha.filter((run) => run.status === 'completed' && run.conclusion === 'success');
-        const newest = (list) => [...list].sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))[0] ?? null;
 
         if (completedSuccess.length > 0) {
-            // THE ARTIFACT CHECK. A required artifact must be attached to the SAME successful run this row
-            // names, and must not be expired. `artifacts` is populated by the live query; a fixture that
-            // omits it fails closed rather than defaulting to "present".
-            if (entry.requiredArtifact) {
-                const withArtifact = completedSuccess.filter((run) => Array.isArray(run.artifacts)
-                    && run.artifacts.some((artifact) => artifact?.name === entry.requiredArtifact && artifact?.expired !== true));
-                if (withArtifact.length === 0) {
-                    const observed = completedSuccess.flatMap((run) => (Array.isArray(run.artifacts) ? run.artifacts.map((artifact) => artifact?.name) : ['<artifacts not queried>']));
+            // Check the rails on the newest runs first; a green run whose required job was SKIPPED or whose artifact
+            // carries the wrong tier/marker must not win over an older run that satisfies the contract.
+            const ordered = [...completedSuccess].sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')));
+            let blocked = null;
+            for (const run of ordered) {
+                const rail = checkEvidenceRails(entry, run, sha);
+                if (rail.ok) {
+                    blocked = null;
                     rows.push({
-                        ...recordOf(newest(completedSuccess)),
-                        verdict: 'missing-artifact',
+                        ...recordOf(run),
+                        verdict: 'success',
                         artifact: entry.requiredArtifact,
-                        detail: `the successful run(s) at the target SHA do not carry the required artifact ${JSON.stringify(entry.requiredArtifact)} (observed: ${[...new Set(observed)].join(', ') || 'none'})`,
+                        evidence: entry.requiredEvidence?.kind,
+                        requiredJobs: entry.requiredJobs,
+                        detail: `${completedSuccess.length} completed success run(s) at the target SHA with event ${entry.requiredEvent ?? 'any'}${entry.requiredArtifact ? `, carrying artifact ${JSON.stringify(entry.requiredArtifact)}` : ''}${entry.requiredJobs ? `, required job(s) ${entry.requiredJobs.join(', ')} green` : ''}${entry.requiredEvidence ? `, evidence kind ${JSON.stringify(entry.requiredEvidence.kind)} with the candidate head SHA and tier marker` : ''}`,
                     });
-                    continue;
+                    break;
                 }
-                const chosen = newest(withArtifact);
-                rows.push({
-                    ...recordOf(chosen),
-                    verdict: 'success',
-                    artifact: entry.requiredArtifact,
-                    detail: `${withArtifact.length} completed success run(s) at the target SHA with event ${entry.requiredEvent ?? 'any'}, carrying artifact ${JSON.stringify(entry.requiredArtifact)}`,
-                });
-                continue;
+                blocked = { run, rail };
             }
+            if (!blocked) continue;
             rows.push({
-                ...recordOf(newest(completedSuccess)),
-                verdict: 'success',
-                detail: `${completedSuccess.length} completed success run(s) at the target SHA with event ${entry.requiredEvent ?? 'any'}`,
+                ...recordOf(blocked.run),
+                verdict: blocked.rail.verdict,
+                artifact: entry.requiredArtifact,
+                evidence: entry.requiredEvidence?.kind,
+                requiredJobs: entry.requiredJobs,
+                detail: blocked.rail.detail,
             });
             continue;
         }
@@ -148,7 +305,9 @@ export function evaluateGates({ manifest, runs, sha }) {
                 workflow: entry.workflow,
                 verdict: 'missing',
                 detail: wrongEvent.length > 0
-                    ? `no ${entry.requiredEvent} run at the target SHA (${wrongEvent.length} run(s) of the same workflow exist there with event(s) ${[...new Set(wrongEvent.map((run) => run.event))].join(', ')}, which prove a narrowed selection, not the release gate)`
+                    ? entry.requiredEvent === 'schedule'
+                        ? `no SCHEDULED run at the target SHA (${wrongEvent.length} run(s) of the same workflow exist there with event(s) ${[...new Set(wrongEvent.map((run) => run.event))].join(', ')}; a dispatched or pushed run is not a scheduled/cron run)`
+                        : `no ${entry.requiredEvent} run at the target SHA (${wrongEvent.length} run(s) of the same workflow exist there with event(s) ${[...new Set(wrongEvent.map((run) => run.event))].join(', ')}, which prove a narrowed selection, not the release gate)`
                     : elsewhere === 0
                         ? 'no run of this workflow exists; the gate cannot be satisfied by a claim'
                         : `no run at the target SHA (${elsewhere} run(s) exist at other SHAs, which is exactly the mismatch this gate refuses)`,
@@ -156,11 +315,11 @@ export function evaluateGates({ manifest, runs, sha }) {
             continue;
         }
 
-        const blocked = newest(atSha);
+        const blockedRun = newest(atSha);
         rows.push({
-            ...recordOf(blocked),
+            ...recordOf(blockedRun),
             verdict: 'not-green',
-            detail: `newest run at the target SHA is ${blocked.status}/${blocked.conclusion ?? 'no conclusion'}`,
+            detail: `newest run at the target SHA is ${blockedRun.status}/${blockedRun.conclusion ?? 'no conclusion'}`,
         });
     }
 
@@ -174,9 +333,42 @@ export function evaluateGates({ manifest, runs, sha }) {
     return { ok: problems.length === 0, sha, rows, problems };
 }
 
+// What the live query must fetch, derived from the manifest in ONE place so the verifier CLI and the body assembler
+// cannot ask for different evidence. A caller that asked for artifacts but not jobs would let a skipped required job
+// pass on a workflow conclusion; that split is why this is a single function.
+export function evidenceQueryNeeds(manifest) {
+    const gates = manifest?.requiredGates ?? [];
+    return {
+        includeArtifacts: gates.some((entry) => entry.requiredArtifact || entry.requiredJobs || entry.requiredEvidence),
+        includeJobs: gates.some((entry) => entry.requiredJobs),
+        includeEvidence: gates.some((entry) => entry.requiredEvidence),
+        artifactNames: [...new Set(gates.map((entry) => entry.requiredArtifact).filter(Boolean))],
+    };
+}
+
+
 // Live query for the runs of one commit. Kept here (with an injectable `fetchImpl`) so the gate CLI, the body assembler
 // and any test use ONE selection/query implementation, and a test can simulate GitHub without a network.
-export async function fetchRunsFromApi({ sha, repo, token, fetchImpl = fetch, includeArtifacts = false }) {
+//
+// THREE SEPARATE QUERIES, because the runs API embeds none of them:
+//   * artifacts: a required artifact is not visible on the run object, and an artifact that was never looked for is the
+//     same as no check at all;
+//   * jobs: a workflow's conclusion can be `success` while a required job was SKIPPED, so the jobs list is what makes
+//     `requiredJobs` enforceable;
+//   * evidence: the CONTENT of a required artifact (its kind, embedded tier marker and head SHA). Archives are
+//     downloaded only for names in `artifactNames`, so the query never pulls unrelated release-sized archives.
+// A failure to LIST artifacts/jobs is attached as `null` and a failure to READ evidence as `evidenceError`; both are
+// refusals in evaluateGates, never "requirement absent".
+export async function fetchRunsFromApi({
+    sha,
+    repo,
+    token,
+    fetchImpl = fetch,
+    includeArtifacts = false,
+    includeJobs = false,
+    includeEvidence = false,
+    artifactNames = [],
+}) {
     if (!token || !repo) {
         throw new Error('live mode needs GITHUB_TOKEN (or GH_TOKEN) and GITHUB_REPOSITORY; refusing to guess');
     }
@@ -200,19 +392,62 @@ export async function fetchRunsFromApi({ sha, repo, token, fetchImpl = fetch, in
     }
     // THE ARTIFACT LIST OF EACH RUN, fetched only when a manifest entry requires one. The runs API does
     // not embed artifacts, and a required artifact that was never looked for is the same as no check at
-    // all. An artifact lookup failure is attached as an empty list, which fails the artifact check closed.
+    // all. An artifact lookup failure is attached as null, which fails the artifact check closed.
     if (includeArtifacts) {
         for (const run of runs) {
             try {
                 const response = await fetchImpl(`https://api.github.com/repos/${repo}/actions/runs/${run.id}/artifacts?per_page=100`, { headers });
                 if (!response.ok) {
-                    run.artifacts = [];
+                    run.artifacts = null;
                     continue;
                 }
                 const payload = await response.json();
-                run.artifacts = (payload.artifacts ?? []).map((artifact) => ({ name: artifact.name, expired: artifact.expired, sizeInBytes: artifact.size_in_bytes }));
+                run.artifacts = (payload.artifacts ?? []).map((artifact) => ({ id: artifact.id, name: artifact.name, expired: artifact.expired, sizeInBytes: artifact.size_in_bytes }));
             } catch {
-                run.artifacts = [];
+                run.artifacts = null;
+            }
+        }
+    }
+    // THE JOB LIST, fetched only when an entry names a required job. `conclusion: success` on the RUN does not imply
+    // every job ran: the small-tier long-lived dispatch is green with medium-corpus SKIPPED, which is the masquerade
+    // `requiredJobs` exists to catch. A failed lookup is null and fails the job check closed.
+    if (includeJobs) {
+        for (const run of runs) {
+            try {
+                const response = await fetchImpl(`https://api.github.com/repos/${repo}/actions/runs/${run.id}/jobs?per_page=100`, { headers });
+                if (!response.ok) {
+                    run.jobs = null;
+                    continue;
+                }
+                const payload = await response.json();
+                run.jobs = (payload.jobs ?? []).map((job) => ({ name: job.name, status: job.status, conclusion: job.conclusion }));
+            } catch {
+                run.jobs = null;
+            }
+        }
+    }
+    // THE EMBEDDED EVIDENCE, read out of the fixed-name artifact archive. Only the named artifacts are downloaded;
+    // the release-evidence.json member is parsed out with a bounded ZIP reader (artifact-evidence.mjs).
+    if (includeEvidence) {
+        const wanted = new Set(artifactNames);
+        for (const run of runs) {
+            if (!Array.isArray(run.artifacts)) continue;
+            for (const artifact of run.artifacts) {
+                if (artifact?.expired === true || artifact?.id === undefined) continue;
+                if (wanted.size > 0 && !wanted.has(artifact.name)) continue;
+                try {
+                    const response = await fetchImpl(`https://api.github.com/repos/${repo}/actions/artifacts/${artifact.id}/zip`, { headers });
+                    if (!response.ok) {
+                        artifact.evidenceError = `the artifact download answered ${response.status}`;
+                        continue;
+                    }
+                    const buffer = Buffer.from(await response.arrayBuffer());
+                    const parsed = parseReleaseEvidence(buffer, EVIDENCE_MEMBER);
+                    artifact.evidence = parsed.evidence;
+                    if (parsed.error) artifact.evidenceError = parsed.error;
+                } catch (error) {
+                    artifact.evidenceError = `the artifact download failed: ${error.message}`;
+                }
             }
         }
     }
@@ -231,14 +466,16 @@ export function renderEvidence({ rows, sha, repo }) {
     lines.push('');
     lines.push(`Every workflow below has a completed, successful run whose \`head_sha\` is this release tag's target commit \`${sha}\`. The table is generated from the GitHub Actions API by \`scripts/assemble-release-body.mjs\` immediately before publication, so it is a measurement of this tag, not a hand-copied list.`);
     lines.push('');
-    lines.push('| workflow | run id | event | conclusion | artifact |');
-    lines.push('|---|---|---|---|---|');
+    lines.push('| workflow | run id | event | conclusion | required jobs | artifact (evidence) |');
+    lines.push('|---|---|---|---|---|---|');
     for (const row of rows) {
         const link = repo ? `[${row.runId}](https://github.com/${repo}/actions/runs/${row.runId})` : String(row.runId);
-        lines.push(`| ${row.workflow} | ${link} | ${row.event ?? '-'} | ${row.conclusion ?? '-'} | ${row.artifact ?? '-'} |`);
+        const jobs = Array.isArray(row.requiredJobs) && row.requiredJobs.length > 0 ? row.requiredJobs.join(', ') : '-';
+        const artifact = row.artifact ? `${row.artifact}${row.evidence ? ` (${row.evidence})` : ''}` : '-';
+        lines.push(`| ${row.workflow} | ${link} | ${row.event ?? '-'} | ${row.conclusion ?? '-'} | ${jobs} | ${artifact} |`);
     }
     lines.push('');
-    lines.push('The `artifact` column names the uploaded evidence bundle the verifier required for gates whose verdict is a machine-checked set (for example the 20/20 third-party extension matrix); `-` means the gate is judged by its own conclusion.');
+    lines.push('The `required jobs` column names the jobs that had to be completed/success IN the cited run, not merely present in a green workflow; the `artifact (evidence)` column names the fixed-name evidence bundle the verifier downloaded and the document kind whose embedded head SHA and tier marker it checked (`-` means the gate is judged by its own conclusion).');
     lines.push('');
     lines.push(`Target commit: \`${sha}\``);
     lines.push('');

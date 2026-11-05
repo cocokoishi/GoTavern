@@ -218,6 +218,11 @@ scripts/qualify-node-stock-tree.sh --pinned ../SillyTavern --tree <recorded tree
 - **Character variables have no pinned storage in 1.19.** Variable state is chat-scoped
   (`chat_metadata.variables`) and global (`extension_settings.variables.global`); both are API-created here.
   There is no character-scoped variable store to record, so none is seeded.
-- **This gate does not enter `docs/release-manifest.json`.** Whether it becomes a required release gate is the
-  Lead's decision; adding it to the manifest here would make the release workflow demand a run nobody has
-  configured.
+- **This gate IS a required release gate as of alpha.15** (`docs/release-manifest.json`, manifest entry
+  `GoTavern Node stock tree round trip`). The entry requires a `workflow_dispatch` run at the candidate SHA, the
+  `node-stock-tree` JOB completed/success, the fixed-name `node-stock-tree-evidence` artifact unexpired, and the
+  `release-evidence.json` member inside it: `kind: gotavern-node-stock-tree-evidence`, the embedded head SHA equal to
+  the candidate, `roundTripOk: true` and the tree/manifest SHA-256 digests. The workflow uploads that artifact on
+  push runs too, which is why the manifest's required event (dispatch) is load-bearing: a push run must not be able
+  to masquerade as release evidence (scripts/verify-release-gates.mjs enforces the event, job, artifact and embedded
+  content rails; scripts/release-governance.test.mjs has a fabricated-API negative control for each).

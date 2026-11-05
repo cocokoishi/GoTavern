@@ -22,7 +22,7 @@
 // names the exact run ids the tag is resting on instead of implying them.
 
 import { readFileSync, appendFileSync, existsSync, writeFileSync } from 'node:fs';
-import { evaluateGates, fetchRunsFromApi, renderEvidence, validateManifest, validateManifestAgainstWorkflowNames } from './release-governance/gates.mjs';
+import { evaluateGates, evidenceQueryNeeds, fetchRunsFromApi, renderEvidence, validateManifest, validateManifestAgainstWorkflowNames } from './release-governance/gates.mjs';
 
 const args = process.argv.slice(2);
 function valueOf(flag, fallback = null) {
@@ -85,8 +85,10 @@ async function fetchRuns() {
         return Array.isArray(fixture) ? fixture : fixture.workflow_runs ?? [];
     }
     try {
-        const includeArtifacts = (manifest.requiredGates ?? []).some((entry) => entry.requiredArtifact);
-        return await fetchRunsFromApi({ sha, repo, token, includeArtifacts });
+        // ONE derived query plan: whatever the manifest's evidence rails need (artifact lists, job lists, the embedded
+        // evidence documents of the named artifacts), fetched by the shared implementation. A caller cannot ask for a
+        // verdict on evidence it did not fetch.
+        return await fetchRunsFromApi({ sha, repo, token, ...evidenceQueryNeeds(manifest) });
     } catch (error) {
         fail(error.message);
         process.exit(1);
@@ -101,10 +103,19 @@ lines.push(`## Same-SHA release gate for \`${sha}\``);
 lines.push('');
 lines.push('Every required workflow must have a completed, successful run whose `head_sha` is this commit.');
 lines.push('');
-lines.push('| required workflow | run | event | status | conclusion | verdict |');
-lines.push('|---|---|---|---|---|---|');
+lines.push('| required workflow | run | event | status | conclusion | required jobs | evidence | verdict |');
+lines.push('|---|---|---|---|---|---|---|---|');
 for (const row of verdict.rows) {
-    lines.push(`| ${row.workflow} | ${row.runId === null ? '-' : row.runId} | ${row.event ?? '-'} | ${row.status ?? '-'} | ${row.conclusion ?? '-'} | ${row.verdict} |`);
+    const jobs = Array.isArray(row.requiredJobs) && row.requiredJobs.length > 0 ? row.requiredJobs.join(', ') : '-';
+    const evidence = row.artifact ? `${row.artifact}${row.evidence ? ` (${row.evidence})` : ''}` : '-';
+    lines.push(`| ${row.workflow} | ${row.runId === null ? '-' : row.runId} | ${row.event ?? '-'} | ${row.status ?? '-'} | ${row.conclusion ?? '-'} | ${jobs} | ${evidence} | ${row.verdict} |`);
+}
+if (!verdict.ok) {
+    lines.push('');
+    lines.push('Refusals, each naming the rail that broke (a green conclusion is not by itself evidence):');
+    for (const row of verdict.rows.filter((candidate) => candidate.verdict !== 'success')) {
+        lines.push(`- ${row.workflow}: **${row.verdict}** — ${row.detail ?? 'no detail'}`);
+    }
 }
 lines.push('');
 if (verdict.ok) {

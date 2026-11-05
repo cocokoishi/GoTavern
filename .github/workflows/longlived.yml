@@ -25,6 +25,24 @@
 # provider (AGENTS 22); real user data is never present (the corpus is synthetic); the large size is not
 # browser-driven; and the pinned leg needs the pinned checkout with its node_modules (a machine without it records
 # the pinned legs as not-observed and the verdict is NOT a pass).
+#
+# RELEASE EVIDENCE (alpha.15). This workflow is a required release gate at
+# docs/release-manifest.json, and the gate is specifically the MEDIUM tier: the default dispatch (size=small) runs
+# only the fast tier and leaves medium-corpus SKIPPED while the RUN still concludes success, which is exactly the
+# plausible-looking evidence the release verifier must refuse. The medium job therefore writes a FIXED-NAME artifact
+# (longlived-medium-evidence) whose embedded document carries the tier marker (`medium`), the head SHA, the leg
+# verdicts, the comparator teeth result and the sha256 of the 20-extension manifest; the verifier downloads that
+# artifact, reads release-evidence.json out of it and checks the marker and the SHA. The LARGE tier is a nightly
+# schedule / large-dispatch RAIL (generator determinism + loader + Go boot only; the browser driver refuses large by
+# design and that refusal is documented at tests/browser/longlived-qualify.mjs:115-119). Large is NOT a same-SHA
+# release gate: a nightly run predates the release candidate, so requiring it would make a release depend on timing
+# rather than on evidence. A release manager must dispatch the MEDIUM tier at CANDIDATE_SHA:
+#
+#   gh workflow run longlived.yml --ref main -f size=medium
+#
+# CONCURRENCY. The group separates dispatch runs from push/schedule runs by input size and event, and a dispatch is
+# never cancelled in progress: a release-evidence dispatch must not be silently cancelled by an unrelated push to
+# main (which is what the previous single group allowed).
 
 name: GoTavern long-lived corpus qualification
 
@@ -57,8 +75,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: longlived-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # The size/event suffix keeps a release-evidence medium dispatch in its OWN group: a push run (small) or a later
+  # scheduled large run must not cancel it. cancel-in-progress is false for dispatches so an operator's evidence run
+  # completes whatever else lands.
+  group: longlived-${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.size || github.event_name }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 env:
   PINNED_BASELINE_COMMIT: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
@@ -354,6 +375,65 @@ jobs:
           path: ${{ runner.temp }}/longlived-medium/**
           retention-days: 14
           if-no-files-found: warn
+      # =============================================================================================================
+      # THE FIXED-NAME RELEASE EVIDENCE. docs/release-manifest.json requires this workflow, the medium-corpus JOB,
+      # and THIS artifact, reading its embedded release-evidence.json: the tier marker (`medium`), the head SHA, the
+      # leg verdicts, the comparator teeth result and the 20-extension manifest digest. The step is success-only, so
+      # a failed qualification produces NO evidence artifact (and a run with no artifact is refused by the verifier).
+      # The assertions below are not decoration: if the verdict is not `ok`, if its size is not medium, or if the
+      # 20-extension manifest is missing/mismatched, the step fails rather than writing evidence that looks green.
+      # =============================================================================================================
+      - name: Write the fixed-name release evidence (tier, head SHA, legs, teeth, extension-manifest digest)
+        run: |
+          set -euo pipefail
+          verdict="$RUNNER_TEMP/longlived-medium/longlived-verdict.json"
+          extensions="$RUNNER_TEMP/pinned-extensions-manifest.json"
+          out="$RUNNER_TEMP/longlived-medium-evidence"
+          mkdir -p "$out"
+          test -s "$verdict" || { echo "::error::no longlived-verdict.json; refusing to write release evidence"; exit 1; }
+          test -s "$extensions" || { echo "::error::no pinned-extensions-manifest.json; refusing to write release evidence"; exit 1; }
+          node - "$verdict" "$extensions" "$out/release-evidence.json" <<'JS'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const [verdictPath, extensionsPath, outPath] = process.argv.slice(2);
+          const headSha = process.env.GITHUB_SHA;
+          const verdict = JSON.parse(fs.readFileSync(verdictPath, 'utf8'));
+          const extensionBytes = fs.readFileSync(extensionsPath);
+          const extensions = JSON.parse(extensionBytes.toString('utf8'));
+          if (verdict.schema !== 'gotavern-longlived-verdict') throw new Error(`unexpected verdict schema ${JSON.stringify(verdict.schema)}`);
+          if (verdict.size !== 'medium') throw new Error(`the verdict's size is ${JSON.stringify(verdict.size)}, not medium: a non-medium tier must not produce the release evidence`);
+          if (verdict.ok !== true) throw new Error('the medium qualification verdict is not ok; refusing to write release evidence');
+          if (verdict.teeth?.ok !== true) throw new Error('the comparator teeth proof is not ok; refusing to write release evidence');
+          if (extensions.installed !== extensions.expected || extensions.installed !== 20) throw new Error(`the pinned-extension manifest records installed=${extensions.installed} expected=${extensions.expected}; the release rail requires the 20-extension roster`);
+          if (!/^[0-9a-f]{64}$/.test(String(verdict.corpus?.treeSha256 ?? ''))) throw new Error('the verdict carries no corpus tree sha256');
+          const evidence = {
+            schemaVersion: 1,
+            kind: 'gotavern-longlived-corpus-evidence',
+            workflow: 'GoTavern long-lived corpus qualification',
+            headSha,
+            event: process.env.GITHUB_EVENT_NAME,
+            runId: process.env.GITHUB_RUN_ID,
+            runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+            size: verdict.size,
+            ok: verdict.ok,
+            corpus: { size: verdict.corpus.size, files: verdict.corpus.files, bytes: verdict.corpus.bytes, treeSha256: verdict.corpus.treeSha256 },
+            legs: (verdict.legReports ?? []).map((leg) => ({ name: `${leg.subject}-${leg.phase}`, skipped: leg.skipped === true, exitCode: leg.exitCode ?? null })),
+            comparator: verdict.comparison ? { ok: verdict.comparison.ok, verdict: verdict.comparison.verdict } : null,
+            comparatorTeeth: { ok: verdict.teeth.ok },
+            pinnedExtensions: { count: extensions.installed, expected: extensions.expected, lockSha256: extensions.lock?.sha256 ?? null, manifestSha256: crypto.createHash('sha256').update(extensionBytes).digest('hex') },
+          };
+          if (evidence.legs.length < 4) throw new Error(`only ${evidence.legs.length} leg(s) were recorded; the medium qualification runs four subject legs plus comparison and teeth`);
+          if (!/^[0-9a-f]{64}$/.test(String(evidence.pinnedExtensions.manifestSha256))) throw new Error('the extension manifest digest is not a sha256');
+          fs.writeFileSync(outPath, `${JSON.stringify(evidence, null, 2)}\n`);
+          console.log(`release evidence: head=${headSha} size=${evidence.size} legs=${evidence.legs.length} teeth=${evidence.comparatorTeeth.ok} extensions=${evidence.pinnedExtensions.count} digest=${evidence.pinnedExtensions.manifestSha256}`);
+          JS
+      - name: Upload the fixed-name release evidence (tier marker, head SHA, digests)
+        uses: actions/upload-artifact@v4
+        with:
+          name: longlived-medium-evidence
+          path: ${{ runner.temp }}/longlived-medium-evidence/release-evidence.json
+          retention-days: 90
+          if-no-files-found: error
 
   # ---------------------------------------------------------------------------------------------------------------
   # LARGE: nightly schedule or dispatch only. Generator determinism + loader + the Go boot gate; NOT a browser drive,

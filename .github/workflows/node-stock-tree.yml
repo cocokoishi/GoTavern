@@ -25,6 +25,15 @@
 # COST, BOUNDED: measured locally the pinned boot dominates (~2 min cold webpack compile on the development host,
 # faster on a runner with the cache below); the whole job is bounded at 45 minutes so a wedged probe fails rather
 # than consuming a runner. Every step that consumes time has its bound here or in the driver.
+#
+# RELEASE EVIDENCE (alpha.15). This workflow is a required release gate at docs/release-manifest.json. Besides the
+# two reports it has always uploaded, the fixed-name node-stock-tree-evidence artifact now contains
+# release-evidence.json: the pinned commit, the head SHA, the tree/manifest sha256 digests and the round-trip verdict.
+# The verifier downloads that archive, reads the member and checks the embedded head SHA and digests -- an artifact
+# NAME is not evidence (a push run uploads the same name, which is why the manifest also requires a dispatched run and
+# the verifier enforces the event). A release manager dispatches at CANDIDATE_SHA:
+#
+#   gh workflow run node-stock-tree.yml --ref main
 
 name: GoTavern Node stock tree round trip
 
@@ -37,10 +46,11 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: node-stock-tree-${{ github.ref }}
-  # A superseded push's run judges bytes nobody will ship; cancelled runs are not evidence either way, and the
-  # branch's next push produces a fresh one.
-  cancel-in-progress: true
+  # The event suffix and the dispatch cancellation rule exist for RELEASE EVIDENCE: this workflow uploads the SAME
+  # fixed-name artifact on push runs, so a release dispatch of the round trip at CANDIDATE_SHA must not share a group
+  # with (and be cancelled by) an unrelated push to main. Push runs may cancel each other; a dispatch completes.
+  group: node-stock-tree-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 permissions:
   contents: read
@@ -163,7 +173,55 @@ jobs:
             fi
           done
 
-      - name: Upload the tree hash report and the round-trip report
+      - name: Write the fixed-name release evidence (head SHA, tree and manifest digests, round-trip verdict)
+        # Success-only on purpose: a failed round trip must produce NO evidence document, so the verifier refuses the
+        # absence rather than finding a file that describes a failure. The assertions below also refuse to write an
+        # evidence file whose content does not match the reports it claims to summarise.
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/node-stock-tree"
+          node - "$work/generated/report.json" "$work/generated/manifest.json" "$work/roundtrip/report.json" "$work/release-evidence.json" <<'JS'
+          const fs = require('node:fs');
+          const crypto = require('node:crypto');
+          const [treeReportPath, manifestPath, roundTripPath, outPath] = process.argv.slice(2);
+          const treeReport = JSON.parse(fs.readFileSync(treeReportPath, 'utf8'));
+          const roundTrip = JSON.parse(fs.readFileSync(roundTripPath, 'utf8'));
+          const manifestBytes = fs.readFileSync(manifestPath);
+          const manifest = JSON.parse(manifestBytes.toString('utf8'));
+          const pinned = fs.readFileSync('upstream/SILLYTAVERN_COMMIT', 'utf8').trim();
+          if (treeReport.ok !== true) throw new Error(`the tree report is not ok (failure: ${treeReport.failure ?? 'none'})`);
+          if (roundTrip.ok !== true) throw new Error(`the round-trip report is not ok (failure: ${roundTrip.failure ?? 'none'})`);
+          const treeSha256 = String(treeReport.tree?.sha256 ?? '');
+          if (!/^[0-9a-f]{64}$/.test(treeSha256)) throw new Error(`the tree report carries no sha256 (${JSON.stringify(treeReport.tree?.sha256)})`);
+          const evidence = {
+            schemaVersion: 1,
+            kind: 'gotavern-node-stock-tree-evidence',
+            workflow: 'GoTavern Node stock tree round trip',
+            headSha: process.env.GITHUB_SHA,
+            event: process.env.GITHUB_EVENT_NAME,
+            runId: process.env.GITHUB_RUN_ID,
+            runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+            ok: true,
+            roundTripOk: true,
+            pinnedCommit: pinned,
+            treeSha256,
+            normalisedTreeSha256: treeReport.tree?.normalisedSha256 ?? null,
+            treeFiles: treeReport.tree?.fileCount ?? null,
+            treeBytes: treeReport.tree?.bytes ?? null,
+            deterministic: treeReport.determinism?.ok === true,
+            manifestSha256: crypto.createHash('sha256').update(manifestBytes).digest('hex'),
+            manifestEntries: Array.isArray(manifest.entries) ? manifest.entries.length : null,
+            assertions: Array.isArray(roundTrip.steps) ? roundTrip.steps.length : null,
+            failedAssertions: Array.isArray(roundTrip.steps) ? roundTrip.steps.filter((step) => !step.ok).length : null,
+            gracefulShutdown: roundTrip.gracefulShutdown ?? null,
+          };
+          if (evidence.failedAssertions !== 0) throw new Error(`the round-trip report records ${evidence.failedAssertions} failed assertion(s)`);
+          if (!/^[0-9a-f]{64}$/.test(evidence.manifestSha256)) throw new Error('the generated tree manifest digest is not a sha256');
+          fs.writeFileSync(outPath, `${JSON.stringify(evidence, null, 2)}\n`);
+          console.log(`release evidence: head=${evidence.headSha} tree=${evidence.treeSha256} manifest=${evidence.manifestSha256} assertions=${evidence.assertions}`);
+          JS
+
+      - name: Upload the tree hash report, the round-trip report and the fixed-name release evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -175,4 +233,5 @@ jobs:
             ${{ runner.temp }}/node-stock-tree/generated/report.json
             ${{ runner.temp }}/node-stock-tree/generated/manifest.json
             ${{ runner.temp }}/node-stock-tree/roundtrip/report.json
+            ${{ runner.temp }}/node-stock-tree/release-evidence.json
           retention-days: 30

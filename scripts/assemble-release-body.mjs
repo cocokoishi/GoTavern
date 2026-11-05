@@ -101,9 +101,12 @@ async function main() {
         const fixture = JSON.parse(readFileSync(runsJsonPath, 'utf8'));
         runs = Array.isArray(fixture) ? fixture : fixture.workflow_runs ?? [];
     } else {
-        const { fetchRunsFromApi } = await import('./release-governance/gates.mjs');
-        const includeArtifacts = (manifest.requiredGates ?? []).some((entry) => entry.requiredArtifact);
-        runs = await fetchRunsFromApi({ sha, repo, token, includeArtifacts });
+        // A RELEASE PUBLISHED FROM A CURATED NOTE USES THE SAME EVIDENCE QUERY AS THE GATE CLI. The manifest now
+        // requires job lists and the embedded content of fixed-name artifacts, so the body assembler must ask for
+        // exactly what the manifest needs; deriving that from the manifest in one place (evidenceQueryNeeds) is what
+        // stops the two publish paths from judging different evidence.
+        const { fetchRunsFromApi, evidenceQueryNeeds } = await import('./release-governance/gates.mjs');
+        runs = await fetchRunsFromApi({ sha, repo, token, ...evidenceQueryNeeds(manifest) });
     }
 
     const result = assembleReleaseBody({ notesText, tag, checksumsText, runs, manifest, sha, repo });
