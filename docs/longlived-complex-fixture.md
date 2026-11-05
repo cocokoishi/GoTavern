@@ -94,6 +94,22 @@ Evidence: `GoTavern long-lived corpus` run **41943468975** (`workflow_dispatch s
   corpus is qualified by generator + Go gate but has no browser drive yet, and the pinned leg needs its
   checkout with `node_modules`.
 
+**Node -> Go -> Node hand-back is green too** (`tests/browser/longlived-qualify.mjs`, hand-back legs).
+After the four legs, the driver copies each subject's WRITTEN tree and runs the OTHER subject's
+`--phase restart` probe against it: pinned Node reopens and continues a chat that GoTavern wrote, and
+GoTavern reopens and continues a chat that pinned wrote. Evidence: `GoTavern long-lived corpus` run
+**41956796610** (`workflow_dispatch size=medium`):
+
+- verdict `ok: true` with nine legs, all exit 0: `gotavern-drive`, `pinned-drive`, `gotavern-restart`,
+  `pinned-restart`, `handback-pinned`, `handback-gotavern`, `compare`, `teeth`;
+- both hand-back legs resumed the other backend's chat (`resumed: true`, `failedSteps: []`), and the two
+  user markers the other backend wrote were present - so this is a READ, not bytes on disk;
+- comparator: **48 checks, 45 match, 0 mismatch, 0 not-observed, 0 harness-error, 3 decided
+  exclusions**, with `handback-pinned-resumed-the-gotavern-tree` and
+  `handback-gotavern-resumed-the-pinned-tree` both `match` and `providerContinue: true`;
+- the teeth selftest now proves the new checks can fail: 14/14 mutations killed, including
+  `handback-lost-markers` and `handback-no-provider-continue`.
+
 What this does **not** cover, stated so a green is not over-read: the drive is a bounded journey
 (send/regenerate/swipe/continue/group/preset/world switches), not every possible interaction; the
 provider is the recording peer; and a real long-used user tree remains the GOAL §14 item.
