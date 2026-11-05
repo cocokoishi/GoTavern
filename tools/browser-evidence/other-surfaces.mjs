@@ -16,7 +16,18 @@ const OPTIONAL_GUARDS = {
     asset: new Map([
         ['noFailedImageRequestsRecordedAsFailures', 'the probe records whether a failed image request was miscounted as a failure; the required noImageRequestFailedOnEitherLeg already refuses a real failure, so this second observation is pinned but not required'],
     ]),
-    helper: new Map(),
+    helper: new Map([
+        // THESE TWO ARE RECORDED BY THE HELPER LANE'S OWN COMPARATOR AND PINNED HERE BY NAME. `compare-helper-legs.mjs`
+        // computes both from the drive's own state and carries a named failure explanation for each, so they are
+        // observations a checker already reads, not gaps this verifier must enforce; the required guards above read
+        // the wire and the persisted variables these two mirror.
+        ['chatFileCreated', 'the helper comparator records whether a chat file appeared after the save attempt; it observes the same save the required variable guards read, so it is pinned but not required'],
+        ['variablePersisted', 'the helper comparator records that a chat variable reached the persisted chat file; the required guards read the wire and the disk state, so this second observation is pinned but not required'],
+    ]),
+    // The generation surface records its own guard set; an entry pinned for helper-comparison.json must not
+    // be required to exist here, and vice versa (the shared map made one lane's pinned guard look stale in the
+    // other the moment it was added).
+    helperGeneration: new Map(),
     helperVariables: new Map([
         ['presetStaged', 'the narrow vehicle records that a preset exists for the drive; the required guards read the wire and disk, so this staging fact is pinned but not required'],
     ]),
@@ -355,7 +366,7 @@ export function helperGenerationSurface(ctx, generationComparison) {
             ctx.fail(`guards.${guard} is ${JSON.stringify(guards[guard])}, so the artefact does not support the claim that 酒馆助手's generation request equals pinned Node's`);
         }
     }
-    for (const problem of guardSetProblems({ guards, required, optional: OPTIONAL_GUARDS.helper })) {
+    for (const problem of guardSetProblems({ guards, required, optional: OPTIONAL_GUARDS.helperGeneration })) {
         ctx.fail(problem);
     }
     for (const asymmetry of generationComparison.asymmetries ?? []) {
