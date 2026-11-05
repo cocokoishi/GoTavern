@@ -87,3 +87,29 @@ The host-facts guard compares goos, goarch, Go version, GOMAXPROCS and the runne
 **version** is recorded in the baseline header for provenance but is not compared: GitHub rotates
 `ubuntu-latest` about weekly (measured in this lane as `20261026.180.1` -> `20261101.186.1` between two runs six
 minutes apart), so gating on it would go red for a reason unrelated to the product.
+
+## The A15 process-level harness (lane F)
+
+The two layers above measure handlers in-process and one paired release run on Linux CI. A third layer answers the
+A15 question — what a SHIPPED binary costs as a running process on the Windows arm64 development host, and how
+that compares with the published alpha.14 binary:
+
+* `scripts/a15-bench-suite.mjs` — modes `smoke` (cold + warm boot rounds, steady/peak RSS, CPU user+system, GC
+  counters, latency for `/version`, `/` and one data route), `scale` (100/1,000/10,000 cards, 10×2 MB chats, a
+  2,000-message JSONL chat, 1,000 worlds, 1,100 settings documents, complex preset, mixed), `concurrency`
+  (in-flight 32/128 tail latency and throughput), `assets` (the 229 startup calls from
+  `docs/frontend-startup-calls.md`), `soak` (10-minute RSS drift) and `paired` (alternating rounds of two
+  subjects over identical fresh trees). Every artifact carries commit/Go/OS/CPU/RAM/GOMAXPROCS/build flags/run
+  mode/data scale/concurrency/rounds/load label/raw-artifact path, and each subject's sha256, size and whether it
+  is a PUBLISHED release binary or a local rebuild.
+* `tests/perf/procstat` — the process facts helper: Windows `psapi!GetProcessMemoryInfo` +
+  `kernel32!GetProcessTimes`; Linux `/proc/<pid>/status` + `/proc/<pid>/stat`. The method string is recorded with
+  every sample; child CPU time is excluded on both platforms.
+* `tests/perf/fixturegen` — deterministic data roots whose shapes mirror `internal/server/bench_test.go`
+  (real decodable PNG cards with a `chara` tEXt document, padded JSON presets/worlds, LF+CRLF chats with one very
+  long line, a 2,000-message chat with a swipe branch).
+
+Artifacts are written to the gitignored `tests/perf/out/a15/*.json`. The alpha.14 subject is the published
+release archive with its sha256 verified against `checksums.txt`, never a local rebuild of the tag. The method,
+the noise discipline (a run is published only with `--load-label` naming a quiet host) and the arm64/amd64
+pairing rule are in `docs/perf-baseline.md` §10.

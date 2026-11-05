@@ -228,3 +228,71 @@ The gate cannot update anything itself: it fails closed and tells the maintainer
   M7 show the 16:9 figure scaling below comfortable reading size, which is why the text table stays under the
   figure. Both figure variants were rendered to PNG at 1x for visual review; that render is a review artefact and
   is not committed.
+
+## 10. The A15 process-level harness (lane F): what a shipped binary costs on this host
+
+§§1–9 describe the RELEASE artifact: one paired CI run on `ubuntu-latest`, recorded in
+`tests/perf/q22-baseline.json`, which the README and figures are recomputed from. They do not answer the A15
+engineering question — what alpha.14 versus the current tree costs **as a running process** on the development
+host, including peak RSS, CPU user+system, GC activity, tail latency under concurrency, soak drift, the 229-call
+page load and the large-data trees — because the q22 script supports Linux only and was written for one pair of
+cold starts, not for that matrix.
+
+Lane F therefore added a THIRD layer rather than changing the release one:
+
+| layer | subject | tool | artifact |
+|---|---|---|---|
+| in-process engineering | the Go handlers at 100/1,000/10,000 cards, chats, worlds, settings, 229 assets, provider assemble/marshal | `internal/server/bench_test.go` + `scripts/bench-profiles.mjs` | `tests/perf/bench-baseline.txt` (+ raw run) |
+| release baseline | one shipped binary vs pinned Node, Linux CI, 3 alternating rounds | `scripts/smoke-metrics.mjs` + `tests/perf/q22-paired-benchmark.mjs` | `tests/perf/q22-baseline.json` |
+| **A15 process-level (this section)** | **two shipped binaries (alpha.14 vs current) or GoTavern vs pinned Node, Windows arm64 development host** | **`scripts/a15-bench-suite.mjs`** | **`tests/perf/out/a15/*.json`** (gitignored; a recorded run is nominated per report) |
+
+### 10.1 What it measures
+
+| mode | measurement |
+|---|---|
+| `smoke` | per round, cold boot over a fresh tree and warm restart over the same tree: spawn→`GET /version` ms, steady RSS after warmup, peak RSS, CPU user+system over the request window, GC count/pause (gctrace), P50/P95 for `/version`, `/`, and one representative data route (settings aggregation by default) |
+| `scale` | boot each generated tree and record the same facts: 100/1,000/10,000 cards, 10×2 MB chats, one 2,000-message JSONL chat, 1,000 world books, 1,100 settings documents, a complex preset tree, and a mixed tree |
+| `concurrency` | fixed-duration in-flight 32 and 128 runs on a data route: throughput, P50/P95/P99/max, error count, CPU delta |
+| `assets` | the 229 startup calls enumerated by `docs/frontend-startup-calls.md` (same manifest and method set as the in-process benchmark), total decoded bytes, non-2xx rows, latency distribution |
+| `soak` | 10-minute sustained data-route load with 15 s process sampling: RSS drift, peak RSS, CPU, GC count |
+| `paired` | alternating rounds of two subjects over identical freshly generated trees; reports both medians and their ratio, never asserts "faster" |
+
+Process facts come from `tests/perf/procstat` (a Go helper): Windows `psapi!GetProcessMemoryInfo`
+(`WorkingSetSize`, `PeakWorkingSetSize`) + `kernel32!GetProcessTimes` (`UserTime`, `KernelTime`) opened with
+`PROCESS_QUERY_LIMITED_INFORMATION`; Linux `/proc/<pid>/status` (`VmRSS`, `VmHWM`) + `/proc/<pid>/stat`
+(`utime`,`stime`, `USER_HZ=100`). Child time is excluded on both platforms. The method string is written into
+every sample so the number can be traced to the API that produced it.
+
+Trees come from `tests/perf/fixturegen`, whose shapes mirror the in-process generators (real decodable PNG cards
+with a `chara` tEXt document and a same-size ancillary payload, padded JSON presets/worlds, LF and CRLF chats, one
+very long line), so an in-process number and a process-level number describe the same tree.
+
+### 10.2 Provenance in every artifact
+
+`environment` carries git commit/branch/dirty, Go version, Node version, OS/arch/release, CPU model and logical
+core count, total RAM, GOMAXPROCS, build flags, the `--load-label` (a shared host is never silently a quiet host),
+run mode, rounds, requests per path, in-flight set, data scale and the artifact's own path; `subjects` carries
+each binary's path, sha256, size, version identity and whether it is a PUBLISHED release artifact or a locally
+rebuilt one. The alpha.14 subject is the published archive binary (sha256 verified against `checksums.txt`), never
+a local rebuild of the tag, and a locally rebuilt current-SHA binary is always labelled as such.
+
+### 10.3 Honest limits of this layer (also repeated into every artifact)
+
+- Absolute milliseconds on the development host are comparable only **within** a run; seven lanes shared it during
+  Phase 1. A run is published only when `--load-label` says the host was quiet, and the artifact keeps every raw
+  sample and the min/max spread so a reader sees the noise.
+- Windows cannot deliver SIGTERM to a console process; the artifact records `stop.mode = abrupt-windows`.
+- Go allocation totals are not observable from outside a process: gctrace gives GC count/pause/heap goal, and
+  B/op remains the in-process benchmark's number.
+- The host is arm64. The published `windows-amd64` archive is the Lead-nominated alpha.14 subject for the primary
+  pairing, which is fair only if the current subject is also built `GOARCH=amd64` (both then run under Windows
+  x64 emulation); the native `windows-arm64` pairing is recorded separately and never mixed into one claim.
+- One representative data route per run; the mode does not drive browser legs (a browser leg inside the timed
+  window would measure the browser).
+
+### 10.4 Current state
+
+The harness exists and was exercised end-to-end under load during Phase 1 (every mode produced an artifact; no
+number from that phase is published). The paired alpha.14-vs-current table for this document is filled by the
+Phase-2 quiet-host run, with the artifact path and the subject hashes recorded beside it; until then this section
+deliberately carries no measured value (§4's rule: no number that exists only as prose).
