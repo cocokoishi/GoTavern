@@ -235,7 +235,20 @@ function integrity(go, pin, label) {
     // the same abort as "Cancelled by stop event" in the phases where it landed in the frontend. It is treated
     // as noise ONLY when the leg itself observed no failed API response (apiFailures === 0): a real network
     // failure reaches failedRequests/apiFailures and still fails this guard.
-    const soakAbortNoise = /TypeError: Failed to fetch/;
+    // THE SAME ABORT IN ITS TWO COSTUMES, AND BOTH ARE THE DRIVE'S SIGNAL. The soak cancels a streaming reply
+    // every third iteration. When that stop lands in the frontend's handler the extension logs
+    // `Cancelled by stop event`; when it lands on the NETWORK the extension's own follow-up fetch is aborted
+    // mid-flight and the browser logs `TypeError: Failed to fetch`. Runs 41780365931 and 41801638163 measured the
+    // network costume alone on GoTavern while both legs recorded the frontend costume in other phases, and the
+    // filter was written for that one costume only. `Third-party extension compatibility` run 42035843369 then
+    // measured the MIRROR case: the frontend costume appeared on GoTavern and in neither pinned phase, so the
+    // same drive signal failed this guard as a "Go-only error". Excusing one costume and not the other is the
+    // asymmetry, not the product:
+    //   * both are the probe's own STOP, emitted by the extension's handler, not by a response the server made;
+    //   * the excuse is conditional on the leg itself observing NO failed API response (apiFailures === 0), so a
+    //     real network failure still fails this guard through failedRequests/apiFailures, and
+    //   * `tests/browser/extension-corpus-selftest.mjs` cases 7b/7c/7d/7e pin both costumes in both directions.
+    const soakAbortNoise = /(?:TypeError: Failed to fetch|Cancelled by stop event)/;
     const collect = leg => [...(leg.pageErrors ?? []), ...(leg.consoleErrors ?? [])]
         .map(normalize)
         .filter(entry => {

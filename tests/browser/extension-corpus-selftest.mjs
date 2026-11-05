@@ -72,7 +72,9 @@ async function runPair(goBefore, pinBefore, extraArgs = [], { goAfter = null, pi
     return { result, parsed, caseDir };
 }
 
+let checksRan = 0;
 function check(label, condition, detail) {
+    checksRan += 1;
     if (condition) { console.log(`ok   ${label}`); return; }
     failures.push(`${label}: ${detail}`);
     console.error(`FAIL ${label} :: ${detail}`);
@@ -177,6 +179,27 @@ function soakLeg(subject, { rssKb, p95, serverErrors = 0, apiFailures = 0, apiRe
     check('the same message with a recorded API failure still fails', result.status !== 0 && parsed?.guards?.['no-gotavern-only-browser-errors'] === false, `guards=${JSON.stringify(parsed?.guards)}`);
 }
 
+// 7d. THE STOP SIGNAL IN ITS FRONTEND COSTUME -> NOISE TOO, UNDER THE SAME CONDITION.
+// Run 42035843369 measured the mirror of 7b: GoTavern logged `Cancelled by stop event` and pinned logged
+// neither costume, so one drive signal became a "Go-only error". Both costumes are the probe's own stop; the
+// excuse still requires apiFailures === 0 (case 7e).
+{
+    const go = soakLeg('gotavern', { rssKb: 1000, p95: 10 });
+    go.consoleErrors.push('[Dooms Tracker] Error updating RPG data: Error: Cancelled by stop event\n    at EventEmitter.abortHook (http://127.0.0.1:20000/script.js:12:34)');
+    const pin = soakLeg('pinned', { rssKb: 1000, p95: 10 });
+    const { result, parsed } = await runPair(go, pin, ['--mode', 'soak']);
+    check('the stop signal in its frontend costume is soak noise, not a Go-only error', result.status === 0 && parsed?.verdict === 'PASS', `exit=${result.status} verdict=${parsed?.verdict} failed=${JSON.stringify(parsed?.failedGuards)}`);
+}
+
+// 7e. THE SAME FRONTEND COSTUME WITH A RECORDED API FAILURE STILL FAILS.
+{
+    const go = soakLeg('gotavern', { rssKb: 1000, p95: 10, apiFailures: 3 });
+    go.consoleErrors.push('[Dooms Tracker] Error updating RPG data: Error: Cancelled by stop event');
+    const pin = soakLeg('pinned', { rssKb: 1000, p95: 10 });
+    const { result, parsed } = await runPair(go, pin, ['--mode', 'soak']);
+    check('the frontend costume with a recorded API failure still fails', result.status !== 0 && parsed?.guards?.['no-gotavern-only-browser-errors'] === false, `guards=${JSON.stringify(parsed?.guards)}`);
+}
+
 // 8. A LEG WITH failure MUST NOT PASS.
 {
     const go = baseLeg({ subject: 'gotavern' });
@@ -249,4 +272,4 @@ if (failures.length > 0) {
     console.error(`\n[selftest] ${failures.length} missed mutation(s):\n- ${failures.join('\n- ')}`);
     process.exit(1);
 }
-console.log(`\n[selftest] all ${13} corpus-comparator teeth fired; clean pair PASSed`);
+console.log(`\n[selftest] all ${checksRan} corpus-comparator checks fired (the count is computed, not footered); clean pair PASSed`);
