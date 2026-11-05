@@ -42,6 +42,10 @@ on:
       - 'tools/longlived/**'
       - 'tests/browser/longlived-*.mjs'
       - 'tests/e2e/longlived_corpus_test.go'
+      - 'tests/e2e/longlived_complex_test.go'
+      - 'internal/longlivedfixture/**'
+      - 'cmd/build-longlived/**'
+      - 'docs/longlived-complex-fixture.md'
       - '.github/workflows/longlived.yml'
   schedule:
     # Nightly at 05:23 UTC: the large-corpus generator/loader/Go gate. A scheduled run is the only routine run whose
@@ -184,7 +188,7 @@ jobs:
       # (one declared startup mutation is allowed and value-checked: the pinned legacy-secrets migration),
       # and the frontend's own routes serve the cards, chats, world book, presets, groups and assets.
       # The fixture is synthetic and strictly SFW (internal/longlivedfixture/sfw.go).
-      - name: Complex-instance gate (default very complex tree: boot, preserve, serve)
+      - name: Complex-instance gate (default very complex tree -- boot, preserve, serve)
         run: |
           set -euo pipefail
           go test ./tests/e2e -run '^TestComplexLongLivedInstanceQualifiesAsDropIn$' -count=1 -v
