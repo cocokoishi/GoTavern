@@ -231,9 +231,22 @@ function soakLeg(subject, { rssKb, p95, serverErrors = 0, apiFailures = 0, apiRe
     check('lock-set cluster resolves to its pair', JSON.stringify(namesForLockSet(lock, 'cluster:prompt-mutation')) === JSON.stringify(first.pairs.find(pair => pair.cluster === 'prompt-mutation').names), 'cluster lookup differs from plan');
 }
 
+// 13. AN EMPTY CORPUS MUST FAIL, NOT PASS VACUOUSLY.
+// Without --expected the comparator takes the expected set from the leg's own plan, so a drive that recorded
+// NO extensions used to make every expected-set guard vacuous and could reach PASS with zero comparisons.
+{
+    const go = baseLeg({ subject: 'gotavern', names: [] });
+    const pin = baseLeg({ subject: 'pinned', names: [] });
+    const { result, parsed } = await runPair(go, pin);
+    check('an empty corpus fails by name', result.status !== 0 && parsed?.verdict === 'FAIL'
+        && parsed?.guards?.['expected-set-declared'] === false
+        && parsed?.guards?.['corpus-recorded-extensions'] === false,
+        `exit=${result.status} verdict=${parsed?.verdict} guards=${JSON.stringify({ expected: parsed?.guards?.['expected-set-declared'], recorded: parsed?.guards?.['corpus-recorded-extensions'] })}`);
+}
+
 await fs.rm(tmpRoot, { recursive: true, force: true }).catch(() => {});
 if (failures.length > 0) {
     console.error(`\n[selftest] ${failures.length} missed mutation(s):\n- ${failures.join('\n- ')}`);
     process.exit(1);
 }
-console.log(`\n[selftest] all ${12} corpus-comparator teeth fired; clean pair PASSed`);
+console.log(`\n[selftest] all ${13} corpus-comparator teeth fired; clean pair PASSed`);

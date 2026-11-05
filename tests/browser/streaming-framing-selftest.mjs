@@ -329,6 +329,58 @@ addCase('different request bytes on the direct surface are caught',
     },
     { surface: 'stream', name: 'providerRequestBytesEqual' });
 
+// F15 (docs/verifier-audit.md): these two relayed-surface guards were named in NO self-test, so the
+// footer's "every guard the framing comparator names can fail" was an overclaim. They are separate
+// properties from the hop's frame arithmetic: one says the hop DELIVERED something the page could render,
+// the other says the page recorded no error while doing it.
+addCase('a hop that delivered no renderable content is caught',
+    legs => {
+        // BOTH subjects render nothing: equality alone would call that agreement, which is exactly the
+        // vacuous shape `relayedDeliveredContentToThePage` exists to refuse.
+        for (const leg of ['gotavern', 'pinned']) {
+            legs.relayed[leg].postSend.renderSnapshots = [];
+            legs.relayed[leg].postSend.finalAssistantText = '';
+        }
+    },
+    { surface: 'relayed', name: 'relayedDeliveredContentToThePage' });
+addCase('a page error through the hop is caught',
+    legs => {
+        legs.relayed.pinned.pageErrors = [{ message: 'mutated page error through the hop' }];
+    },
+    { surface: 'relayed', name: 'noPageErrorsThroughTheHop' });
+
+// The coverage assertion below is the general fix; these five cases close the gap it reported at HEAD.
+addCase('a subject that never reached the peer is caught',
+    legs => {
+        legs.stream.pinned.recording = [];
+    },
+    { surface: 'stream', name: 'bothSubjectsReachedThePeer' });
+addCase('a subject that rendered too few states to call it incremental is caught',
+    legs => {
+        legs.stream.pinned.postSend.renderSnapshots = [
+            { t: 1, text: WORDS[0] },
+            { t: 2, text: renderStates(2).at(-1) },
+        ];
+        legs.stream.pinned.postSend.finalAssistantText = fullText;
+    },
+    { surface: 'stream', name: 'incrementalRenderObservedOnBoth' });
+addCase('a relayed leg that did not cross the hop is caught',
+    legs => {
+        legs.relayed.gotavern.networkHop = directHop();
+    },
+    { surface: 'relayed', name: 'hopPresentOnBothSubjects' });
+addCase('a hop that saw a different number of frames on the two subjects is caught',
+    legs => {
+        legs.relayed.pinned.recording[0].framesWritten = 9;
+    },
+    { surface: 'relayed', name: 'bothSubjectsSawTheWholeScriptThroughTheHop' });
+addCase('a truncation that landed at a different render state is caught',
+    legs => {
+        legs.abort.pinned.postSend.renderSnapshots = renderStates(4).map((text, index) => ({ t: index, text }));
+        legs.abort.pinned.postSend.finalAssistantText = renderStates(4).at(-1);
+    },
+    { surface: 'abort', name: 'sameTruncationOnBothSubjects' });
+
 let failures = 0;
 let index = 0;
 for (const testCase of cases) {
@@ -354,9 +406,24 @@ for (const testCase of cases) {
     }
 }
 
+// EVERY GUARD THE COMPARATOR NAMES MUST BE EXERCISED BY A CASE. This is what makes the footer's claim
+// true rather than a promise: the names are read from the comparator SOURCE, so a guard added later that
+// no case mutates fails HERE instead of silently escaping the teeth proof (F15 in docs/verifier-audit.md:
+// the footer claimed "every guard" while three were named in no self-test).
+const comparatorSource = readFileSync(comparator, 'utf8');
+const namedGuards = new Set([...comparatorSource.matchAll(/guard\('([A-Za-z0-9_]+)'/g)].map(match => match[1]));
+const exercisedGuards = new Set(cases.filter(testCase => testCase.expected).map(testCase => testCase.expected.name));
+const uncoveredGuards = [...namedGuards].filter(name => !exercisedGuards.has(name));
+if (uncoveredGuards.length > 0) {
+    failures += 1;
+    console.error(`FAIL  coverage: the comparator names ${uncoveredGuards.length} guard(s) that no self-test case exercises: ${uncoveredGuards.join(', ')} -- the footer's claim is false until each has a mutation that goes red at its name`);
+} else {
+    console.log(`ok    coverage: all ${namedGuards.size} guards the comparator names are exercised by a case`);
+}
+
 rmSync(scenarioDir, { recursive: true, force: true });
 if (failures > 0) {
     console.error(`\n${failures} of ${cases.length} framing-comparator cases are wrong; the gate does not have the teeth it claims`);
     process.exit(1);
 }
-console.log(`\n${cases.length} cases: every guard the framing comparator names can fail, and the healthy artefact passes`);
+console.log(`\n${cases.length} cases: every one of the ${namedGuards.size} guards the framing comparator names can fail, and the healthy artefact passes`);

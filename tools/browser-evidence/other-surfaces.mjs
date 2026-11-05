@@ -5,6 +5,29 @@
 // sets with reasons, not two-leg drives), and mixing the two in one function is how the original file
 // grew to 1200 lines.
 
+import { guardSetProblems } from './coverage.mjs';
+
+/**
+ * Optional guards that are PINNED rather than required: they must be present and (because they are not in
+ * the required set) are not judged true here, but their disappearance is a finding. Without this, a guard
+ * that exists only in the artefact is a claim no checker reads, and a guard can silently appear or vanish.
+ */
+const OPTIONAL_GUARDS = {
+    asset: new Map([
+        ['noFailedImageRequestsRecordedAsFailures', 'the probe records whether a failed image request was miscounted as a failure; the required noImageRequestFailedOnEitherLeg already refuses a real failure, so this second observation is pinned but not required'],
+    ]),
+    helper: new Map(),
+    helperVariables: new Map([
+        ['presetStaged', 'the narrow vehicle records that a preset exists for the drive; the required guards read the wire and disk, so this staging fact is pinned but not required'],
+    ]),
+};
+
+/** Guard names an artefact excuses by name (`<guard>: <mechanism>` entries in unproven/declaredUnproven). */
+const excusedGuardNames = entries => (entries ?? [])
+    .map(entry => String(entry).split(':')[0].trim())
+    .filter(name => /^[A-Za-z][A-Za-z0-9]*$/.test(name));
+
+
 const requireReason = (ctx, where, entry) => {
     const reason = entry?.knownReason;
     if (typeof reason !== 'string' || reason.trim() === '') {
@@ -51,6 +74,12 @@ export function assetSurface(ctx, assetComparison) {
         if (guards[guard] !== true) {
             ctx.fail(`guards.${guard} is ${JSON.stringify(guards[guard])}, so the artefact does not support the claim that the page displays its images`);
         }
+    }
+    // THE GUARD SET ITSELF IS PINNED, not only its values: a guard that appears in the artefact but in no
+    // required/optional/excused list is a claim nobody reads, and a required guard that vanished is a
+    // silently reduced surface.
+    for (const problem of guardSetProblems({ guards, required, optional: OPTIONAL_GUARDS.asset, excused: excusedGuardNames(assetComparison.unproven) })) {
+        ctx.fail(problem);
     }
     if (Array.isArray(assetComparison.failedGuards) && assetComparison.failedGuards.length > 0) {
         ctx.fail(`failedGuards names ${assetComparison.failedGuards.join(', ')}, so a committed artefact records a red run`);
@@ -275,6 +304,9 @@ export function helperSurface(ctx, helperComparison) {
             ctx.fail(`guards.${guard} is ${JSON.stringify(guards[guard])}, so the artefact does not support the claim that the pinned 酒馆助手 iframe ran identically on both subjects`);
         }
     }
+    for (const problem of guardSetProblems({ guards, required, optional: OPTIONAL_GUARDS.helper, excused: excusedGuardNames(helperComparison.declaredUnproven) })) {
+        ctx.fail(problem);
+    }
     for (const asymmetry of helperComparison.asymmetries ?? []) {
         ctx.fail(`asymmetries names ${asymmetry.guard} (gotavern=${JSON.stringify(asymmetry.gotavern)}, pinned=${JSON.stringify(asymmetry.pinned)}): a guard true on one subject and false on the other is the difference this comparison exists to find`);
     }
@@ -322,6 +354,9 @@ export function helperGenerationSurface(ctx, generationComparison) {
         if (guards[guard] !== true) {
             ctx.fail(`guards.${guard} is ${JSON.stringify(guards[guard])}, so the artefact does not support the claim that 酒馆助手's generation request equals pinned Node's`);
         }
+    }
+    for (const problem of guardSetProblems({ guards, required, optional: OPTIONAL_GUARDS.helper })) {
+        ctx.fail(problem);
     }
     for (const asymmetry of generationComparison.asymmetries ?? []) {
         ctx.fail(`asymmetries names ${asymmetry.guard}: the two subjects disagree on a generation guard`);
@@ -483,6 +518,9 @@ export function helperVariablesSurface(ctx, variableComparison) {
         if (guards[guard] !== true) {
             ctx.fail(`guards.${guard} is ${JSON.stringify(guards[guard])}, so the artefact does not support the claim that a 酒馆助手 variable changes the final provider request AND survives on disk identically on both subjects`);
         }
+    }
+    for (const problem of guardSetProblems({ guards, required, optional: OPTIONAL_GUARDS.helperVariables })) {
+        ctx.fail(problem);
     }
     for (const asymmetry of variableComparison.asymmetries ?? []) {
         ctx.fail(`asymmetries names ${asymmetry.guard} (gotavern=${JSON.stringify(asymmetry.gotavern)}, pinned=${JSON.stringify(asymmetry.pinned)}): a guard true on one subject and false on the other is the difference this comparison exists to find`);

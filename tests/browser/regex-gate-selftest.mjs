@@ -279,6 +279,62 @@ const MUTATIONS = [
             return legs;
         },
     },
+    // F15 (docs/verifier-audit.md): the five guards below were named in NO mutation, so the self-test's
+    // "each mutation dies at a named guard" claim covered 12 of the comparator's 17 guards. Each mutation
+    // removes/corrupts exactly the observation its guard reads.
+    {
+        name: 'report-a-leg-failure',
+        // A leg that reports `failure` was not a faithful drive; `legsDrove` must name the subject.
+        expectedGuards: ['legsDrove'],
+        apply: legs => {
+            legs.baseline.gotavern.failure = 'mutated: the leg reports it did not drive';
+            return legs;
+        },
+    },
+    {
+        name: 'make-the-variants-identical-declarations',
+        // The disabled-rewrite variant made to declare the SAME rule set as the baseline: the two variants
+        // are no longer a negation, so `variantsAreDistinctDeclarations` must fire (the harness's own fault).
+        expectedGuards: ['variantsAreDistinctDeclarations'],
+        apply: legs => {
+            legs.disabled.gotavern.rules = clone(legs.baseline.gotavern.rules);
+            return legs;
+        },
+    },
+    {
+        name: 'make-the-variants-collide',
+        // The disabled-rewrite CAPTURE made byte-identical to the baseline's: rule 50 says the harness must
+        // fail ITSELF when its knobs no longer change the wire, which is `harnessDiscriminates`.
+        expectedGuards: ['harnessDiscriminates'],
+        apply: legs => {
+            const disabled = bodyOfFirst(legs.disabled.gotavern);
+            const baselineEntry = bodyOfFirst(legs.baseline.gotavern);
+            disabled.sha256 = baselineEntry.sha256;
+            return legs;
+        },
+    },
+    {
+        name: 'show-the-disabled-rule-firing',
+        // R2 is declared disabled; making its disabled-side observation show a change is the shape a broken
+        // "disabled" claim takes, and `case5_disabledRuleIsUnchangedAndTheLegSaysWhy` must refuse it.
+        expectedGuards: ['case5_disabledRuleIsUnchangedAndTheLegSaysWhy'],
+        apply: legs => {
+            legs.baseline.gotavern.sides = { ...(legs.baseline.gotavern.sides ?? {}) };
+            legs.baseline.gotavern.sides.disabled = { ...(legs.baseline.gotavern.sides.disabled ?? {}), entryChanged: true };
+            return legs;
+        },
+    },
+    {
+        name: 'show-the-no-match-token-rewritten',
+        // The no-match token is mentioned by no rule; a rewritten no-match observation is a finding, not a
+        // pass, and `case5_noMatchIsUnchangedAndSaysWhy` is the guard that says so.
+        expectedGuards: ['case5_noMatchIsUnchangedAndSaysWhy'],
+        apply: legs => {
+            legs.baseline.pinned.sides = { ...(legs.baseline.pinned.sides ?? {}) };
+            legs.baseline.pinned.sides.noMatch = { ...(legs.baseline.pinned.sides.noMatch ?? {}), entryChanged: true };
+            return legs;
+        },
+    },
 ];
 
 // --- run the comparator over a leg map -------------------------------------------------------------
@@ -363,6 +419,21 @@ if (control.verdict?.verdict === 'match') {
             problems.push(`${mutation.name}: the comparator went red, but NOT at ${missing.join(', ')} (it failed: ${failed.join(', ') || 'none'}); the targeted guard cannot fail`);
         }
     }
+}
+
+// ---- 3. EVERY GUARD THE COMPARATOR NAMES MUST BE TARGETED BY A MUTATION ------------------------------
+// The mutation list is hand-written, so without this assertion a guard added to the comparator later can
+// escape the teeth proof while this file still reports "each mutation died at its named guard" -- exactly
+// the overclaim F15 records. The names are read from the comparator SOURCE, not from a second list.
+const comparatorSource = fs.readFileSync(comparator, 'utf8');
+const namedGuards = new Set([...comparatorSource.matchAll(/guard\('([A-Za-z0-9_]+)'/g)].map(match => match[1]));
+const targetedGuards = new Set(MUTATIONS.flatMap(mutation => mutation.anyOfGuards ?? mutation.expectedGuards));
+const uncoveredGuards = [...namedGuards].filter(name => !targetedGuards.has(name));
+if (uncoveredGuards.length > 0) {
+    problems.push(`guard coverage: the comparator names ${uncoveredGuards.length} guard(s) that no mutation targets: ${uncoveredGuards.join(', ')} -- a guard nobody mutates is a guard whose teeth are unproven`);
+} else {
+    outcomes.push({ step: 'guard-coverage', guards: namedGuards.size });
+    console.log(`ok guard-coverage: all ${namedGuards.size} guards the comparator names are targeted by a mutation`);
 }
 
 fs.rmSync(scratch, { recursive: true, force: true });

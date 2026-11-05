@@ -50,6 +50,24 @@ function flatten(value, prefix = '', into = new Map()) {
 
 /** The differences between two artifacts, in document order of the committed one. */
 export function compareArtifacts(committed, fresh) {
+    // TWO EMPTY DOCUMENTS ARE NOT "FRESH". A comparator that wrote `{}` (or `null`) produced no observation,
+    // and an equality over nothing would report FRESH -- the empty-capture-reads-as-match shape. It is a
+    // finding here, not a pass, and it names which side produced nothing.
+    const emptyDocument = value => value === null || value === undefined
+        || (isPlainObject(value) && Object.keys(value).length === 0);
+    if (emptyDocument(committed) || emptyDocument(fresh)) {
+        return {
+            identical: false,
+            differences: [{
+                path: '',
+                kind: 'empty',
+                committed: emptyDocument(committed) ? '<empty document>' : undefined,
+                fresh: emptyDocument(fresh) ? '<empty document>' : undefined,
+                reason: 'a document with no fields is not an observation; comparing it would report FRESH over nothing',
+            }],
+            excluded: [...RUN_LOCAL_FIELDS],
+        };
+    }
     const left = flatten(committed);
     const right = flatten(fresh);
     const differences = [];
@@ -89,6 +107,8 @@ const main = () => {
                 console.log(`  ~ ${difference.path}: committed ${show(difference.committed)} -> fresh ${show(difference.fresh)}`);
             } else if (difference.kind === 'removed') {
                 console.log(`  - ${difference.path}: committed-only value ${show(difference.committed)}`);
+            } else if (difference.kind === 'empty') {
+                console.log(`  ! ${difference.path}: ${difference.reason} (committed ${show(difference.committed)}, fresh ${show(difference.fresh)})`);
             } else {
                 console.log(`  + ${difference.path}: fresh-only value ${show(difference.fresh)}`);
             }

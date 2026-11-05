@@ -92,6 +92,12 @@ const missingFromGo = expected.filter(name => !goNames.has(name));
 const missingFromPinned = expected.filter(name => !pinNames.has(name));
 add('expected-set-present-on-gotavern', missingFromGo.length === 0, { expected, missing: missingFromGo });
 add('expected-set-present-on-stock', missingFromPinned.length === 0, { expected, missing: missingFromPinned });
+// AN EMPTY CORPUS IS NOT A PASS. `expected` falls back to the leg's own plan when no --expected is supplied,
+// so a leg that recorded no extensions makes every `.every(...)` below true and can reach PASS with zero
+// extensions compared. This guard pins the expected count and the recorded count, so the vacuous shape is
+// a named failure (F15's class, in the corpus comparator).
+add('expected-set-declared', expected.length > 0, { expected, source: flags.expected ? '--expected' : 'the leg plan' });
+add('corpus-recorded-extensions', goNames.size > 0 && pinNames.size > 0, { gotavern: [...goNames], pinned: [...pinNames] });
 const lockHashes = [goBefore, pinBefore, ...(goAfter ? [goAfter] : []), ...(pinAfter ? [pinAfter] : [])].map(leg => leg.provenance?.lockSha256 ?? null);
 add('lock-hashes-agree', new Set(lockHashes).size === 1 && lockHashes[0] !== null, { lockHashes });
 const configHashes = [goBefore, pinBefore, ...(goAfter ? [goAfter] : []), ...(pinAfter ? [pinAfter] : [])].map(leg => leg.provenance?.legConfig?.sha256 ?? null);

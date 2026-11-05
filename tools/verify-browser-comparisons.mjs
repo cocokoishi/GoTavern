@@ -34,6 +34,7 @@ import {
     noDryInvocationInSendWindow, providerRequestsEqual, sendWindowFaithful, streamingSurfacesProven,
 } from './browser-evidence/invariants.mjs';
 import { assetSurface, authorsNoteSurface, dataDomainSurface, extensionSurface, helperGenerationSurface, helperSurface, helperVariablesSurface, startupSurface } from './browser-evidence/other-surfaces.mjs';
+import { claimProblems, evidenceFloorProblems, exemptionProblems, externalClaimProblems, pinnedBaselineProblems } from './browser-evidence/coverage.mjs';
 import { streamingFramingSurface } from './browser-evidence/streaming-framing.mjs';
 import { SOURCE_HOOKS } from './browser-evidence/source-hooks.mjs';
 
@@ -154,9 +155,61 @@ function sweepHostDerived(ctx, text) {
     }
 }
 
+/**
+ * COMMITTED ARTEFACTS THIS GATE DOES NOT JUDGE ITSELF, with the workflow step that does.
+ *
+ * The verifier's fixed surface list used to be the whole story, and it was a closed list: a committed
+ * artefact added outside it (preset, group chat, world-info slots) was swept for host-derived strings and
+ * then never read again by this job. Another workflow owning a surface is legitimate -- these three are
+ * re-recorded and byte-compared by their own jobs -- but the ownership must be DECLARED and the declared
+ * workflow step must still exist, or "another gate checks it" is a memory rather than a check.
+ */
+const EXTERNAL_CLAIM_GATES = new Map([
+    ['preset-complex-comparison.json', {
+        workflow: '.github/workflows/browser-differential.yml',
+        step: 'Compare the preset legs',
+        command: 'node tests/browser/compare-preset-legs.mjs',
+        reason: 'the preset lane re-runs the comparator, publishes only on exit 0 and compares the fresh artefact against the committed one field by field',
+    }],
+    ['group-chat-comparison.json', {
+        workflow: '.github/workflows/group-chat-differential.yml',
+        step: 'Judge that every leg and the comparison exist',
+        command: 'tests/browser/group-chat-comparison.json',
+        reason: 'the group-chat job re-runs the comparator, then requires verdict "match" and a non-empty guard set from the freshly written artefact',
+    }],
+    ['worldinfo-slots-comparison.json', {
+        workflow: '.github/workflows/worldinfo-slots.yml',
+        step: 'The committed artefact must match this run',
+        command: 'tests/browser/worldinfo-slots-comparison.json',
+        reason: 'the slot-order job re-records the artefact and refuses unless the committed bytes are identical to the fresh ones',
+    }],
+]);
+
+/** A declared pinned baseline that does not name this tree's pinned commit is a finding, wherever it appears. */
+function checkPinnedBaseline(ctx, artifact) {
+    const result = pinnedBaselineProblems(artifact);
+    for (const problem of result.problems) ctx.fail(problem);
+    if (!result.declared) {
+        ctx.observe('records no pinned-baseline declaration, so this gate cannot say which oracle it was measured against (a stated gap, not a pass)');
+    }
+}
+
+/**
+ * THE REVIEWED EXEMPTIONS. A source with `driveSupported: false` is skipped by every drive and by the
+ * catalogue checks, so the flag is a decided exclusion that must be listed here with the reviewed reason
+ * (a substring of the source's own `unproven` text, so the justification cannot move unnoticed).
+ */
+const DRIVE_EXEMPTIONS = new Map([
+    ['workers_ai', 'the current probe cannot select workers_ai; its two committed artefacts predate that and stay gate-checked but cannot be re-recorded until the account-id drive is exercised'],
+]);
+
 const main = () => {
     const findings = [];
     const lines = [];
+    // Every committed comparison artefact must be claimed by exactly one checker; these are the ones the
+    // verifier itself reads (sections 1, 2 and 2b).
+    const catalogueClaims = [];
+    const handledFiles = new Set();
 
     // ---- 1. THE CHAT-COMPLETION ARTEFACTS, one pass per catalogued source -----------------------
     let checked = 0;
@@ -166,13 +219,16 @@ const main = () => {
             const file = source.evidence?.[surface];
             if (!file) continue;
             checked += 1;
+            catalogueClaims.push(file);
             const ctx = createContext(file);
             const artifact = readArtifact(file);
             if (artifact.__readError) {
                 ctx.fail(`cannot be read as JSON (${artifact.__readError})`);
             } else if (surface === 'generation') {
+                checkPinnedBaseline(ctx, artifact);
                 checkGeneration(ctx, source, artifact);
             } else {
+                checkPinnedBaseline(ctx, artifact);
                 checkStreaming(ctx, source, artifact);
             }
             findings.push(...ctx.findings);
@@ -197,11 +253,13 @@ const main = () => {
         // `verdict: "PASS"` that nobody re-reads is the stale-evidence failure this file exists to prevent.
         ['authors-note-comparison.json', note => authorsNoteSurface(note.ctx, note.artifact)],
     ]) {
+        handledFiles.add(file);
         const ctx = createContext(file);
         const payload = readArtifact(file);
         if (payload.__readError) {
             ctx.fail(`cannot be read as JSON (${payload.__readError})`);
         } else {
+            checkPinnedBaseline(ctx, payload);
             run({ ctx, artifact: payload });
         }
         findings.push(...ctx.findings);
@@ -226,6 +284,7 @@ const main = () => {
         // not read as a pass, and a COMMITTED artefact that contradicts its own observations is a failure.
         ['streaming-framing-comparison.json', framing => streamingFramingSurface(framing.ctx, framing.artifact)],
     ]) {
+        handledFiles.add(file);
         const ctx = createContext(file);
         const payload = readArtifact(file);
         if (payload.__readError) {
@@ -244,6 +303,7 @@ const main = () => {
             }
             continue;
         }
+        checkPinnedBaseline(ctx, payload);
         run({ ctx, artifact: payload });
         findings.push(...ctx.findings);
         lines.push(`${ctx.findings.length === 0 ? 'ok  ' : 'FAIL'} ${file}`);
@@ -265,16 +325,30 @@ const main = () => {
         }
     }
 
-    // ---- 4. EVERY ARTEFACT BELONGS TO A CATALOGUED SOURCE ---------------------------------------
-    // The converse of the catalogue's own coverage rule: an artefact nobody catalogued is an artefact
-    // nothing above checked.
-    for (const artifactFile of readdirSync(browserDir).filter(name => name.endsWith('-comparison.json'))) {
-        const isChatCompletion = /^generation-.*-comparison\.json$/.test(artifactFile) || /^streaming-.*-comparison\.json$/.test(artifactFile);
-        if (!isChatCompletion) continue;
-        if (!sourceForArtifact(artifactFile)) {
-            findings.push(`${artifactFile}: no catalogued source claims this artefact, so none of the invariants above ran against it (add the row to tests/browser/sources.mjs or delete the file)`);
-            lines.push(`FAIL ${artifactFile} (uncatalogued)`);
-        }
+    // ---- 4. EVERY COMMITTED ARTEFACT IS CLAIMED BY EXACTLY ONE CHECKER ---------------------------
+    // The converse of the catalogue's own coverage rule, generalized: section 1 covers catalogued
+    // chat-completion artefacts, sections 2/2b cover the fixed surfaces, and EXTERNAL_CLAIM_GATES names the
+    // surfaces another workflow re-judges. Anything else is a committed claim this job never reads -- and a
+    // verifier that checked zero artefacts would otherwise report success, because a loop over nothing is
+    // not a failure.
+    const committedComparisonFiles = readdirSync(browserDir).filter(name => name.endsWith('-comparison.json'));
+    for (const problem of evidenceFloorProblems({ files: committedComparisonFiles, catalogueSize: SOURCES.length, checked })) {
+        findings.push(problem);
+    }
+    for (const problem of claimProblems({
+        files: committedComparisonFiles,
+        catalogueClaims,
+        handledFiles: [...handledFiles],
+        externalClaims: EXTERNAL_CLAIM_GATES,
+    })) {
+        findings.push(problem);
+        lines.push(`FAIL ${problem.split(' ')[0]} (unclaimed or multiply claimed)`);
+    }
+    for (const problem of externalClaimProblems(EXTERNAL_CLAIM_GATES, workflow => readFileSync(path.resolve(here, '..', workflow), 'utf8'))) {
+        findings.push(problem);
+    }
+    for (const problem of exemptionProblems(SOURCES, DRIVE_EXEMPTIONS)) {
+        findings.push(problem);
     }
 
     for (const line of lines) console.log(line);
@@ -285,7 +359,7 @@ const main = () => {
         console.error(`\n${findings.length} finding(s) across ${checked} catalogued source artefact(s).`);
         process.exit(1);
     }
-    console.log(`browser comparison artifacts are coherent with their claims (${checked} catalogued source artefacts)`);
+    console.log(`browser comparison artifacts are coherent with their claims (${checked} catalogued source artefacts; ${committedComparisonFiles.length} committed artefacts all claimed)`);
 };
 
 main();
