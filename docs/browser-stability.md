@@ -488,3 +488,65 @@ transient itself remains **unexplained**, and a repeat would be a new failure ra
 dispatch of the same commit (`41403220970`) was also cancelled at the job's 180-minute timeout before it could
 finish, which is why the release used a later dispatch rather than the first; both are recorded here.
 
+
+---
+
+## A15 lane D: the five evidence classes, and two surfaces that had none (2026-11-05)
+
+Every browser probe in this repository produces observations, and the lane brief fixes five **evidence classes**
+that must never stand in for each other:
+
+| class | the claim it is allowed to support | the observation that actually proves it |
+|---|---|---|
+| 1 LOAD | the resource was requested and answered | status + content-type + byte length of that URL |
+| 2 EXECUTE | the frontend's own code ran | a handler fired, a model populated, the DOM changed in a way only the product's JS produces |
+| 3 PAINT | a user can see it | decoded AND non-zero box AND inside the viewport AND visible (not `display:none`/`opacity:0`/clipped) |
+| 4 REQUEST | the provider request changed | byte comparison across subjects and across differing inputs; on a UI surface, the absence of any provider request |
+| 5 PERSIST | it was saved and read back | a file on disk AND a fresh page AND a NEW server process over the same tree |
+
+A 200 standing in for "decoded", `naturalWidth > 0` standing in for "visible", a file on disk standing in for "the
+frontend re-read it", and a request standing in for "saved" are the four substitutions this rule forbids.
+
+### The two surfaces with zero browser evidence at this baseline
+
+1. **The opened card image** (character editor, `#avatar_load_preview`). The asset probe drives a chat and asserts
+   list/chat avatars, but the editor's full-size image had no browser assertion.
+2. **MovingUI preset apply + persist**. `grep -l moving_ui tests/browser/*probe*.mjs` was EMPTY: the long-lived Go
+   test locks the preset FILE, not the browser behaviour. A user-facing pinned control (`#movingUIPresets`, writes
+   `power_user.movingUIState`, applies inline styles on load, saves into the settings file) could regress with every
+   browser gate green.
+
+`tests/browser/a15-ui-persist-probe.mjs` was added to cover both with classes labelled per check, in two phases
+(`drive`, `restart`) with `--assert` for the cross-leg differential. It closes the browser and kills its own server
+on every path (including signals) and leases its port.
+
+**Status: the probe is implemented but its own page-init convergence is BLOCKED, and it says so first.** On the
+GoTavern leg the characters API answers 200 with the staged characters (`{"status":200,"count":2,"names":["A15
+Card","Seraphina"]}`) while the page renders zero rows. The probe's first check therefore fails as a named
+harness-faithfulness alarm (`characterListRenderedPrecondition`) and the card/UI drives do not run, rather than
+reporting five product failures that all reduce to one harness cause (AGENTS rule 10). The same HEAD renders three
+avatars through `asset-probe.mjs`, so this is a probe-setup difference (route interception / default timeouts /
+staging), not a product finding. Classes 1/2/3 for the two surfaces above are **UNPROVEN until that is fixed**, and
+the planned teeth (wrong character name, skipped preset select, wrong persisted value, skipped reload, skipped
+restart) are **not yet run**.
+
+### Probe-isolation finding: page init reaches the live internet under the shipped default settings
+
+Measured while building the probe, on both a fresh GoTavern leg and the pinned subject's own page:
+
+- the committed default settings (`upstream/default/content/settings.json`) set `main_api: koboldhorde`;
+- `public/script.js:7865-7867` then runs `getStatusHorde()` and `getHordeModels(true)` during init;
+- `public/scripts/horde.js:45-60` fetches `/api/horde/text-models` and `/api/horde/text-workers`;
+- the server side (`internal/server/horde.go:146-170`) proxies those to the pinned literals
+  `https://aihorde.net` (`hordeDefaultAPIURL`, `:50`) and `https://raw.githubusercontent.com/db0/AI-Horde-text-model-reference/main/db.json`
+  (`hordeMetadataURL`, `:56`).
+
+Observed: the page's `/api/horde/text-models` request stayed pending when the network was slow and answered 200 from
+the real service when it was not; `asset-probe`'s own report console records the frontend taking the branch
+(`value? koboldhorde`), and no browser probe sets `GOTAVERN_HORDE_API_URL`. Consequence: every browser leg has an
+uncontrolled internet dependency at page init — a differential-doctrine-6 probe-isolation defect, not a product
+behaviour divergence (pinned makes the same call). The seam exists
+(`GOTAVERN_HORDE_API_URL`, `GOTAVERN_HORDE_METADATA_URL`) and should be wired in the browser harness (or the leg
+settings staged with `main_api: openai`, a one-field change to the product's own committed default, recorded in the
+leg's fixture digests) before the next release run. A first attempt to abort all external page requests made the
+pinned frontend's init stall, so the fix must be the seam, not a blanket abort.

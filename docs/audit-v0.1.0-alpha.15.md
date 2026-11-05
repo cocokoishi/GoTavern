@@ -130,13 +130,28 @@ the five classes it proves.
 | D2-09 | Quick Reply CREATION through the settings UI | pinned QR UI | QR routes | not asserted | — | — | — | unproven (`not-asserted-through-the-UI`) | named gap; execution is clicked today |
 | D2-10 | `in_use` preset mutation affecting a later ORDINARY turn | pinned: `in_use` is the helper's live settings object | chat-completions | helper `generate({preset_name:'in_use'})` path | `browser-differential.yml` helper lane | next request changes identically on both subjects | covered by helper comparator | proven via helper path (`covered-by-helper-path`); the ordinary-turn variant is a second proof of one observable | none |
 
-Lane D's rows (opened-card image, avatar/thumbnail paint, MovingUI apply+persist across a NEW process,
-background paint, reload/restart visible state) are in `docs/browser-stability.md` §alpha.15 and are gated by
-the same workflow. Two of them were the reason the lane exists: the audit found that "moving UI is covered"
-was true only of the Go test — `grep -l moving_ui tests/browser/*probe*.mjs` was empty — and that every
-browser boot reached the live network during page init because the shipped default `main_api` makes the
-frontend fetch a model list from a public endpoint, so probes needed explicit egress blocking to be
-hermetic. Both are recorded in that section rather than smoothed.
+Lane D's rows are recorded in `docs/browser-stability.md` §"A15 lane D: the five evidence classes, and two
+surfaces that had none". Its outcome is PARTIAL and is stated as such rather than upgraded: the two surfaces
+it set out to prove — the opened card image in the character editor, and Moving UI apply → disk save → reload →
+NEW-process restart — have **no passing assertion at this commit**. The probe exists
+(`tests/browser/a15-ui-persist-probe.mjs`, two phases, evidence classes labelled per check, egress recorder,
+port lease, bounded timeouts) but it stops at a NAMED harness precondition
+(`HARNESS FAITHFULNESS: the page rendered 0 character row(s) although /api/characters/all answered 200 with 2
+names`), while `asset-probe.mjs` on the same tree renders 3 list avatars and 0 failed images — so the
+difference is that probe's page setup, not the product, and the probe refuses to emit product findings from
+it (AGENTS rule 10). Its planned mutations therefore did not run, and they are listed as owed. It is committed
+but deliberately NOT wired into CI: a probe that exits on its own precondition would make the browser gate red
+for a harness reason.
+
+The same lane produced a second finding that outlives it: **every browser probe's page init reached the live
+network at this baseline.** The shipped default settings set `main_api: koboldhorde`
+(`upstream/default/content/settings.json`), the pinned frontend's init calls `getHordeModels(true)`
+(`public/script.js:7865-7867`), and the server-side branch fetches `https://aihorde.net` and a metadata URL on
+`raw.githubusercontent.com` (`internal/server/horde.go`). `grep -rn GOTAVERN_HORDE_API_URL tests/browser` is
+empty, so no probe redirects it. The harness seam exists (`GOTAVERN_HORDE_API_URL` /
+`GOTAVERN_HORDE_METADATA_URL`), and a blanket abort of all non-local page requests is NOT the fix (it stalls
+the pinned frontend's init); the hermeticity decision — point the seam at the mock peer, or stage the leg's
+settings with a non-remote `main_api` — is recorded OPEN rather than improvised.
 
 ### 3.5 The two corpora and the cross-layer bridge (lane E)
 
