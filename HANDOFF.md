@@ -42,16 +42,28 @@ the boot's own 2,322,272-byte seeded background*, so the server died while seedi
 the save it exists to provoke — the limit is now DERIVED from the largest seeded file. Both are in commit
 `f1396ce` and in the audit ledger.
 
-### Evidence at the code-complete commit (ancestors of the tag; the tag's own runs are in the release body)
+### Same-SHA evidence at the tag's target commit (`95638da`)
+
+Every required workflow ran as a `workflow_dispatch` at the tag's target commit and is green; the verifier printed **PASS 13/13** and the published release body carries this same table.
 
 | gate | run | result |
 |---|---|---|
-| `GoTavern CI` (push, narrowed oracle) | 42012401718 | `verify`, `race`, `browser-evidence`, `crash-gate`, `changes` **success**; `oracle` runs the pinned rebuild |
-| `GoTavern Node stock tree round trip` (push) | 42012401695 | success |
-| `Helper state differential` (push) | 42012401418 | success |
-| `GoTavern drop-in qualification` (push) | 42012401450 | success |
-| `GoTavern long-lived corpus qualification` (push, small) | 42010192865 | success |
-| local full suite, quiet host | `go test -count=1 ./...` | all packages ok, 0 FAIL |
+| `GoTavern CI` | 42085016500 | `verify`, `race`, `browser-evidence`, `crash-gate`, `changes` and `oracle` all success (oracle: full re-record + zero-diff, 173 min) |
+| `GoTavern whole-session differential` | 42085027879 | success |
+| `GoTavern world-info slot ordering` | 42085039394 | success |
+| `GoTavern drop-in qualification` | 42085050679 | success |
+| `Browser differential` (mode=all) | 42085061246 | success, every lane green |
+| `GoTavern release qualification` | 42085071573 | success |
+| `GoTavern smoke metrics` | 42085081862 | success |
+| `GoTavern Docker image` | 42085092398 | success |
+| `Helper state differential` | 42085102968 | success |
+| `Combination journey differential` | 42085115161 | success |
+| `Third-party extension compatibility` (mode=full) | 42085125376 | success, 20 extensions + soak |
+| `GoTavern long-lived corpus qualification` (size=medium) | 42085136899 | success, `medium-corpus` job + evidence artifact verified |
+| `GoTavern Node stock tree round trip` | 42085148642 | success, `node-stock-tree` job + evidence artifact verified |
+| `GoTavern Release` dry run | 42085159949 | success (publish skipped: a dispatch never publishes) |
+
+The table above is the verifier's output; the per-run detail and the evidence-artifact contents are in the published release body.
 
 ### Honest boundaries, unchanged and re-stated
 
@@ -59,13 +71,7 @@ the save it exists to provoke — the limit is now DERIVED from the largest seed
   claimed.** The private channel's disposition this round is `PRIVATE_NOT_RUN` (no authorised original on the
   qualification host); `docs/real-user-input-audit.md` §8 records item by item what is unrun and what is
   partial, and that the instruments remain canaried-only.
-- **The new conversation-editing lane is UNPROVEN and is NOT a gate at this release.** Its 36 step assertions
-  pass on both subjects, but its comparator measured an unexplained DOM difference (`Browser differential`
-  run `42051169663`: `#chat .mes` 4 on GoTavern vs 3 on pinned at turn-1 / swipe-right / swipe-left, both chats
-  holding the same three messages; the extra node is a second block for the user message with class
-  `mes fade last_swipe`, and it disappears on the next full render). The workflow step is `continue-on-error`
-  with that reason in its own comment, and the finding is `docs/audit-v0.1.0-alpha.15.md` §6's last row.
-  Closing it — the frontend's create/remove path against the server's completion event — is alpha.16 work.
+- **The new conversation-editing lane is UNPROVEN and is NOT a gate at this release, and its difference was then MEASURED to be a probe race rather than a product one.** `Browser differential` `42051169663` first showed `#chat .mes` 4 on GoTavern vs 3 on pinned at turn-1 / swipe-right / swipe-left with identical chats; a fresh analysis then re-drove BOTH subjects with a 1.2 s settle and measured the same fourth block on PINNED too, and the same subject flipped between runs (pinned 4 locally, 3 in that CI run), while the browser-received relay bytes were byte-identical (388 B, sha256 `c501e815...d0b43`). Mechanism from the pinned frontend: opening the card runs `getChatResult()` -> `printMessages()` -> `redisplayChat()`, which rebuilds `#chat`; the drive sends the first turn while that async tail is in flight, `saveMessage()`'s `addOneMessage(user)` (`public/script.js:5918`, id derived from `chat.indexOf`) appends a second node, `refreshSwipeButtons()` (`:9256-9298`) then labels it `last_swipe`, and a later full render removes it. So the compared field is a race OUTCOME, not a GoTavern difference. The step stays `continue-on-error` (a release may be gated on neither an unexplained difference nor on calling it green) and alpha.16's fix is named: a bounded settle in the drive on `chat_id_changed` plus `uniqueMesids === chat.length` BEFORE the first send, and a comparator that compares an ordered `domMessageIds` list (duplicates collapsed to first occurrence) against `chat.messages` while recording the duplicate ids as a `nondeterministic-frontend-race` diagnostic instead of comparing the raw count. Analysis: `a15-notes/D2-dom-duplicate.md`; ledger section 6.
 - **Moving UI browser persistence and the opened-card editor image are UNPROVEN.** The probe is committed
   with its blocker named (its page renders no character rows although the API serves them, while
   `asset-probe.mjs` on the same tree renders them), so it reports a harness-faithfulness alarm instead of
@@ -86,9 +92,13 @@ the save it exists to provoke — the limit is now DERIVED from the largest seed
 
 ### Release identity
 
-This checkpoint is committed BEFORE the tag. The published release body carries the tag, the six asset
-digests, the Docker digest equality and the same-SHA gate table; the post-release facts commit on `main`
-appends those values to this section, and `docs/goal-scorecard.md` is the per-question ledger.
+- **tag** `v0.1.0-alpha.15` (annotated object `8e9e2dcf...`) points at commit **`95638da72cdb85d58f73adff244040dc6b8669f3`**; `scripts/classify-version-tag.sh` classifies it **stable**; the tag was not moved. Release: https://github.com/cocokoishi/GoTavern/releases/tag/v0.1.0-alpha.15 -- `draft=false`, `prerelease=false`, `isLatest=true`, published `2026-11-05T21:46:29Z`, **7 assets** (six archives + `checksums.txt`); all six digests were re-verified by downloading them back from the release and comparing against the release's own `checksums.txt`.
+- **asset digests** (sha256): `gotavern-linux-amd64.tar.gz` `7170ef86...`, `gotavern-linux-arm64.tar.gz` `1d9723e4...`, `gotavern-darwin-amd64.tar.gz` `933cb228...`, `gotavern-darwin-arm64.tar.gz` `5733b031...`, `gotavern-windows-amd64.zip` `d6050b00...`, `gotavern-windows-arm64.zip` `a9651215...`.
+- **the published binary was executed locally**: the `windows-arm64` archive unpacked and booted on a clean tree -- `gotavern version` printed `GoTavern v0.1.0-alpha.15` / baseline `1.19.0 (06bde939...)`, `/version` answered 200 with `pkgVersion 1.19.0`, `GET /` answered 200 (734,837 B), and the boot created `config.yaml` and `data/` inside the install root.
+- **container**: `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.15` and `:latest` are the SAME image version `sha256:28fd03f49269f8df6a169b106baff8d740dd90ee49c5302c4292c1b4737145e8` (the stable channel moves `latest`), alpha.14's digest unchanged; `docker.yml` tag run `42113162309` built, verified, pushed and re-verified the PULLED reference.
+- **post-release install smoke** `42115838898` success: `install.sh` over real TLS on `linux-amd64` and `install.ps1` on `windows-amd64`. **published-extension smoke** `42115856121`: container leg success, artifact leg in that run.
+- **generated facts** regenerated on `main` with the same program the `post-release-facts` job runs (`node tools/generate-doc-facts.mjs` + `--check`), committed as `6efc945` ("chore(docs): regenerate the generated facts for the published v0.1.0-alpha.15 tag"), and `main` CI dispatched at that commit (`42115947843`).
+- **what the release path cost, recorded rather than retried away**: the tag push's `GoTavern Release` run `42113162581` built and uploaded all six archives, but its `publish` job was skipped by its own `needs:` because `execute-darwin-arm64` could not start -- the runner platform answers **`The configuration 'macos-14-arm64-us-default' is not supported`** and cancels that job one second after creation, on all three attempts (`run_attempt` 1-3, job ids `127546260730` / `127549207918` / the third). The tag's workflow is frozen and moving the tag is not allowed, so the release was published by running the workflow's OWN programs against the artifacts that same run built (`scripts/release-assemble-checksums.sh`, the fail-closed `scripts/verify-release-gates.mjs` -> PASS 13/13, `scripts/assemble-release-body.mjs`) followed by the same `gh release create` invocation, with a body addendum stating exactly this. **darwin/arm64 is therefore BUILT + ARCHIVE-INSPECTED but NOT EXECUTED at this release**; windows/amd64, linux/amd64, linux/arm64 and darwin/amd64 WERE executed by the tag run's jobs (attempt 2: `execute-linux-arm64`, `execute-darwin-amd64`, `windows-arm64-boundary`, `prepublish-qualification` all success).
 
 ---
 

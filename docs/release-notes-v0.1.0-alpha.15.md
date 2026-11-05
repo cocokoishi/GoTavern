@@ -155,9 +155,14 @@ Six prebuilt archives (`gotavern-linux-amd64.tar.gz`, `gotavern-linux-arm64.tar.
 `sha256sum -c checksums.txt`. The Docker image `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.15` is published by
 tag, and `:latest` moves to it because this tag classifies as stable.
 
-Runtime-qualified vs build-only, stated rather than implied: linux/amd64 and windows/amd64 are executed by
-the qualification jobs; linux/arm64, darwin/amd64, darwin/arm64 and windows/arm64 are BUILD-ONLY (compiled and
-packed, never executed) because this repository has no runner of those architectures.
+Runtime-qualified vs build-only, stated rather than implied, with the tag run as the measurement: at
+`v0.1.0-alpha.15` the linux/amd64 and windows/amd64 build jobs each boot their own archive and poll `/version`,
+and `execute-linux-arm64`, `execute-darwin-amd64` and `windows-arm64-boundary` completed green, so
+linux/amd64, windows/amd64, linux/arm64 and darwin/amd64 are RUNTIME-QUALIFIED. darwin/arm64 is the one
+boundary: built and archive-inspected but NOT executed, because this repository's runner platform answers
+`The configuration 'macos-14-arm64-us-default' is not supported` and cancels that job one second after creation
+(three attempts; the release body records the consequence). windows/arm64 remains BUILD-ONLY: no hosted runner
+of that architecture exists, and the `windows-arm64-boundary` job asserts that boundary rather than implying it.
 
 ## Evidence
 

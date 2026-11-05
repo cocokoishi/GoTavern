@@ -598,6 +598,11 @@ var declaredOtherPins = map[string]string{
 	// performance record's measured tree is this commit, which is why docs/perf-baseline.md and the figure
 	// provenance name it. Declared by value AND named, like every release/measurement anchor above.
 	"f1396cec6a26719501801846577f26d0cca0156b": "v0.1.0-alpha.15 code-complete commit - the tree the same-SHA gate sweep and the paired performance record (smoke metrics run 42012475880) were produced on, cited by HANDOFF.md and docs/perf-baseline.md",
+	// THE alpha.15 RELEASE COMMIT. Same duty as the release-SHA entries above: the HANDOFF checkpoint names the
+	// SHA every required gate ran at and the published release's target commit, so it is declared by value AND
+	// named rather than left as an unexplained 40-hex string in a document. The tag object is NOT declared: only
+	// this commit and the code-complete tree above are cited.
+	"95638da72cdb85d58f73adff244040dc6b8669f3": "v0.1.0-alpha.15 stable release commit (tag v0.1.0-alpha.15) - HANDOFF.md current checkpoint, the SHA all thirteen required release gates ran at, and the published release's target commit",
 }
 
 // checkPinnedCommitStrings is the gate body, extracted so the red-path test can drive it against a
