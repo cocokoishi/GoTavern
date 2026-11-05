@@ -25,6 +25,7 @@
 // useful output of a gate like this.
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SOURCES, sourceForArtifact } from '../tests/browser/sources.mjs';
@@ -40,6 +41,31 @@ import { SOURCE_HOOKS } from './browser-evidence/source-hooks.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const browserDir = path.resolve(here, '..', 'tests', 'browser');
+
+/**
+ * THE COVERAGE RULE IS ABOUT COMMITTED CLAIMS, so its file set comes from git, not from the directory.
+ *
+ * A browser differential run RE-RECORDS artefacts into `tests/browser/` before this verifier runs, so the
+ * working tree contains files no commit carries. Enumerating the directory made those look like committed
+ * claims with no checker: measured in `Browser differential` 42018032414, where six freshly written artefacts
+ * (`q20-*`, `real-preset`, `regex`, `truncation`) were reported "unclaimed or multiply claimed" and the run
+ * failed at its terminal verification step. The content sweeps below still read EVERY artefact on disk -- a
+ * fresh one must satisfy its content checks -- but only a COMMITTED artefact is a claim that needs a checker.
+ * A tree that is not a git checkout (the scratch trees some tests build) falls back to the directory listing,
+ * which is the pre-existing behaviour.
+ */
+function committedComparisonArtefacts() {
+    try {
+        const listed = execFileSync('git', ['ls-files', 'tests/browser'], { cwd: path.resolve(here, '..'), encoding: 'utf8' });
+        const names = listed.split('\n')
+            .map(line => path.basename(line.trim()))
+            .filter(name => name.endsWith('-comparison.json'));
+        if (names.length > 0) return [...new Set(names)].sort();
+    } catch {
+        // Not a git tree: fall through to the directory listing.
+    }
+    return readdirSync(browserDir).filter(name => name.endsWith('-comparison.json')).sort();
+}
 
 /** One artifact's finding collector. `scope` prefixes every message with the artefact name. */
 function createContext(scope) {
@@ -331,7 +357,7 @@ const main = () => {
     // surfaces another workflow re-judges. Anything else is a committed claim this job never reads -- and a
     // verifier that checked zero artefacts would otherwise report success, because a loop over nothing is
     // not a failure.
-    const committedComparisonFiles = readdirSync(browserDir).filter(name => name.endsWith('-comparison.json'));
+    const committedComparisonFiles = committedComparisonArtefacts();
     for (const problem of evidenceFloorProblems({ files: committedComparisonFiles, catalogueSize: SOURCES.length, checked })) {
         findings.push(problem);
     }

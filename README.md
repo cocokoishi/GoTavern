@@ -173,7 +173,26 @@ the same data for a screen reader, a small screen, or a reader who wants to chec
 
 **Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `42012475880` (success), the code-complete commit `f1396ce` (v0.1.0-alpha.15), on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -0.1 MB, p95 drift +0.35 ms); pinned's RSS fell from its startup peak (-571 MB) and its p95 drifted -3.29 ms over the window. **One cost is shown rather than hidden:** `/` carries gzip CPU because the HTML shell is compressed, which is why its median rose from the pre-compression release while a full page load's wire bytes fell 67.4% (measured in the compression work). A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The published release body appends the same-SHA run-id table, so the numbers above and the gate run that produced them are checkable together.
 
-**The alpha.14 comparison, stated rather than implied.** alpha.14's record (`GoTavern smoke metrics` run `41777492725`, commit `4fd8ed7`) measured 163 ms / 39.8 MB / 0.403 ms / 8.28 ms for the same four metrics on the same runner class. alpha.15's are 165 ms / 40.5 MB / 0.429 ms / 8.59 ms — every difference is between 1% and 6%, which is the order of run-to-run variation this harness has recorded for the same runner class (the provenance note lists historical boot medians for one subject spanning 8.8-14.6 s), so **this release does not claim an improvement in these four headline metrics**: they are published as measured. The measured optimization alpha.15 ships is at the allocation level on the character-list route (below), where the measured gain is larger than that variation.
+**The alpha.14 comparison, stated rather than implied.** alpha.14's record (`GoTavern smoke metrics` run `41777492725`, commit `4fd8ed7`) measured 163 ms / 39.8 MB / 0.403 ms / 8.28 ms for the same four metrics on the same runner class. alpha.15's are 165 ms / 40.5 MB / 0.429 ms / 8.59 ms — every difference is between 1% and 6%, which is the order of run-to-run variation this harness has recorded for the same runner class (the provenance note lists historical boot medians for one subject spanning 8.8-14.6 s), so **this release does not claim an improvement in these four headline metrics**: they are published as measured.
+
+### The optimization this release ships, measured where it lands
+
+These four headline metrics are dominated by boot and an empty `/version`; they cannot show a change to a
+card-heavy data route. `v0.1.0-alpha.15` ships one measured optimization — an identity-keyed cache of the
+decoded card text for `/api/characters/all`, keyed by absolute path plus file identity, with every per-request
+projection still running — and it was measured with on/off arms that differ only in the read function (two test
+binaries, three alternating rounds, a quiet host):
+
+| row | cold first request | repeat path | repeat allocations |
+|---|---|---|---|
+| 10,000 cards | 5.39 → 6.53 s (**+21%**, the cache adds a stat per card) | 4.96 → 4.10 s (**−17.4%**) | 1,216 → 968 MB (**−20.4%**) |
+| 100 cards / 640 KB text | 166 → 128 ms | 170 → 98 ms (**−42.3%**) | 182 → 52 MB (**−71.3%**) |
+
+Both halves are reported: the cache wins on repeats and allocations and loses on the cold first request. The
+paired CI record above does not drive that route, so the release claims no headline-metric improvement — the
+claim is the repeat-path CPU and allocation reduction, stated with the cost beside it. The full record,
+including the soak (roughly half the GC work at the same RSS drift) and the concurrency measurements that
+showed no headline difference, is `docs/perf-baseline.md` §10.
 
 ### A profile-driven fix
 

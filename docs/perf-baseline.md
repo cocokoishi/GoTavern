@@ -291,9 +291,57 @@ a local rebuild of the tag, and a locally rebuilt current-SHA binary is always l
 - One representative data route per run; the mode does not drive browser legs (a browser leg inside the timed
   window would measure the browser).
 
-### 10.4 Current state
+### 10.4 The quiet-window run (2026-11-05) and what it measured
 
-The harness exists and was exercised end-to-end under load during Phase 1 (every mode produced an artifact; no
-number from that phase is published). The paired alpha.14-vs-current table for this document is filled by the
-Phase-2 quiet-host run, with the artifact path and the subject hashes recorded beside it; until then this section
-deliberately carries no measured value (§4's rule: no number that exists only as prose).
+Run with no other lane active (`--load-label "quiet: no other lane running"`), HEAD `a877d11` (a docs-only
+descendant of the code-complete `f1396ce`; the subject binaries are LOCAL builds of `f1396ce`, arm64 sha256
+`37a619d0...`, amd64 `db9fb36b...`, and the alpha.14 subjects are the PUBLISHED arm64/amd64 archives, sha256
+verified against `checksums.txt`). The artifacts are local (`tests/perf/out/a15/*.json` and
+`../a15-work/out/*.json`, gitignored) because this layer is Layer A by design: the RELEASE performance record is
+the CI run named in `tests/perf/q22-baseline.json`, and no number below replaces it.
+
+**The optimization's measured effect (P1 on/off arms, `scripts/a15-bench-p1-arms.mjs`, two test binaries
+differing only in `readCharacterDataStrict`, 3 alternating rounds):**
+
+| row | cold first request (1x, empty cache) | repeat path (10x) | repeat B/op |
+|---|---|---|---|
+| 10,000 cards / 4 KB image | 5,392 -> 6,531 ms (**+21.1%**) | 4,961 -> 4,096 ms (**-17.4%**), every cached round below every uncached round | 1,216 -> 968 MB (**-20.4%**) |
+| 100 cards / 640 KB image | 166 -> 128 ms (-22.9%) | 170 -> 98 ms (**-42.3%**) | 182 -> 52 MB (**-71.3%**) |
+
+Derived repeat-only ns (subtracting the still-cold first iteration): 10k 4,913 -> 3,826 ms (**-22.1%**), 640 KB
+row -44.4%. **The claim this supports is narrow and stated as such: the cache wins on REPEAT reads and on
+allocations, and it LOSES ~21% on the cold first request at 10k cards** because it performs an extra `os.Stat`
+and path resolution per card. Both halves are measured, not inferred; the cold cost was accepted for this
+release because a long-running server repeats far more than it cold-reads, and the release notes repeat it.
+
+**Published alpha.14 vs the current tree (native arm64, 3 alternating rounds, 20 requests/path):**
+
+| metric | alpha.14 | current | note |
+|---|---|---|---|
+| boot median (P95) | 239.2 ms (447.3) | **197.4 ms (198.2)** | 17.4% faster median and a far tighter tail |
+| steady RSS | 23.74 MB | 24.75 MB | +4.3% |
+| peak RSS | 24.54 MB | 25.29 MB | +3.1% |
+| CPU user/system (20-request window) | 109 / 63 ms | 125 / 62 ms | |
+| GC cycles | 2 | 3 | |
+| complex-preset tree boot | 254.8 ms (P95 587.6) | 293.5 ms (P95 415.3) | median slower, tail better, RSS 2.9% lower |
+
+**GoTavern vs pinned Node (Layer-A, host-specific):** boot 301.8 ms vs 42,600.3 ms (141x), steady RSS 24.1 vs
+222.1 MB (9.2x lighter), peak RSS 24.4 vs 1,025.9 MB (42x lighter), `/version` median 23.9 vs 1,211.9 ms,
+settings aggregation P95 55.7 vs 24.5 ms (**Node is faster on that one route; reported, not omitted**), CPU
+47/32 vs 453/266 ms, GC 2 vs 127.
+
+**Soak (10 min per subject, `/api/characters/all` over 1,000 cards):** alpha.14 RSS 87.99 -> 94.76 MB
+(+6.77 MB), current 88.66 -> 95.77 MB (+7.11 MB); latency median 666 -> 511 ms, P95 757 -> 804 ms; CPU
+241.9/235.9 s -> 205.7/160.9 s; GC 15,090 cycles / 59.9 s pause -> 7,152 / 41.1 s. The cache's allocation
+reduction shows up as roughly half the GC work at the same drift.
+
+**Concurrency (32/128 in-flight, 5 s, small-response route):** 643.5 req/s (P95 93.3 ms) @32 and 686.4
+(P95 325.9) @128 for alpha.14; 596.1 (103.8) @32 and 693.1 (295.0, P99 1,427 vs 566) @128 for current. Equal
+within noise at 128; current is worse on P95@32 and P99@128, so **no headline concurrency claim is made**.
+(`/api/characters/all` at 32 in-flight saturates this 2-core host at ~2.2 req/s; recorded, not used as a tail
+comparison.)
+
+**Honest limits of these numbers:** a 2-logical-core development host; medians of 3 rounds with the raw
+per-round values in the artifacts; `GOMAXPROCS` unset (Go default = 2); pinned Node's GC counters are
+count-only; 1 GiB-memory-limit, file-descriptor and goroutine counts remain unmeasured, and they are listed as
+unmeasured rather than reported as zero. Nothing here is spliced into the CI record in §1-§9.

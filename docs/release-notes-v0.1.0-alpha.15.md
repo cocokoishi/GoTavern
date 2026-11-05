@@ -63,16 +63,20 @@ identity instead of claiming corpus identity.
 
 **The optimization, and the two that are not here.** The accepted change is an identity-keyed cache of the
 decoded card text for `/api/characters/all`, keyed by absolute path plus file identity, with no TTL, bounded
-by entries and bytes, LRU one-at-a-time, and every per-request projection still running. Its measured effect
-is an allocation reduction on every warm row (−10.4% at 10 000 cards, −39.6% for large card text) with a
-strong ns win at the small-card scales; a 10 000-card ns win is NOT claimed, because on the shared host the
-before/after spread exceeded the delta, and the quiet-host paired arms decide the wording. The first Linux
-`-race` run found a REAL data race in the new cache's lookup (it read mutable entry fields after dropping the
-mutex while a store replaced them) and the fix is one critical section: the development host cannot run
-`-race` at all, which is precisely why that job exists. A compressed static-asset response cache was
-**declined**: it sits in the protected frontend-serving area and would move the page-load figure the evidence
-gate is built on — its measured ROI is recorded for a future release. A chat-search matcher change was
-**deferred** until an oracle fixture can decide JavaScript's context-sensitive case mapping.
+by entries and bytes, LRU one-at-a-time, and every per-request projection still running. Its measured effect,
+from on/off arms that differ only in the read function (two test binaries, three alternating rounds on a quiet
+host): the 10 000-card **repeat** path drops **17.4%** in time and **20.4%** in allocations, the large-card-text
+row drops **42.3%** in time and **71.3%** in allocations, and the **cold first request is 21% slower** because
+the cache adds a stat per card — both halves are reported rather than only the favourable one. The paired CI
+record that the README table is generated from does not measure that route, so no headline-metric improvement
+is claimed; the release's performance statement is the CI record, and the cache's claim is the allocation and
+repeat-path measurement above. The first Linux `-race` run found a REAL data race in the new cache's lookup
+(it read mutable entry fields after dropping the mutex while a store replaced them) and the fix is one critical
+section: the development host cannot run `-race` at all, which is precisely why that job exists. A compressed
+static-asset response cache was **declined**: it sits in the protected frontend-serving area and would move the
+page-load figure the evidence gate is built on — its measured ROI is recorded for a future release. A
+chat-search matcher change was **deferred** until an oracle fixture can decide JavaScript's context-sensitive
+case mapping.
 
 ## Performance
 
