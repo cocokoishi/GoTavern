@@ -32,17 +32,17 @@ node tools/benchmark-svg.mjs --report tests/perf/q22-baseline.json \
 node tools/check-perf-docs.mjs
 ```
 
-The baseline itself was recorded from the Actions artifacts of run `41777492725`
-(`gh run download 41777492725 -n q22-paired-benchmark` and `-n smoke-metrics`) by
+The baseline itself was recorded from the Actions artifacts of run `42012475880`
+(`gh run download 42012475880 -n q22-paired-benchmark` and `-n smoke-metrics`) by
 `tools/record-perf-baseline.mjs`, which refuses a run/commit/runner mismatch between the two artifacts.
 
 | field | value |
 |---|---|
 | committed baseline | `tests/perf/q22-baseline.json` (wrapper; the q22 artefact is embedded verbatim under `report`) |
 | workflow | `GoTavern smoke metrics` |
-| run id | `41777492725` (conclusion: success) |
+| run id | `42012475880` (conclusion: success) |
 | run branch / event | `main`, `workflow_dispatch` |
-| commit measured | `4fd8ed7589abaec239c6c3b19dfff2fc940e5421` (the final code commit of the engineering program; the release tag points at a documentation-only descendant, so the same-SHA `GoTavern smoke metrics` gate at the tag commit is a SEPARATE run whose id the release body's evidence table carries) |
+| commit measured | `f1396cec6a26719501801846577f26d0cca0156b` (the alpha.15 code-complete commit; the documentation pass is a descendant, so the same-SHA `GoTavern smoke metrics` gate at the tag commit is a SEPARATE run whose id the release body's evidence table carries) |
 | runner image | `ubuntu26` |
 | host (same run) | `ubuntu26` `20261026.180.1`, Linux/X64, kernel `7.0.0-1017-azure`, 4 vCPU, 16,759,443,456 B RAM, Node `v24.22.1` (from the same run's `smoke-metrics` artifact) |
 | Go toolchain | `go.mod` directive `1.27.3`, read by `setup-go` via `go-version-file: go.mod`; the artefact itself does not record the toolchain |
@@ -51,16 +51,23 @@ The baseline itself was recorded from the Actions artifacts of run `41777492725`
 | unit rule | decimal MB, 1 MB = 1,000,000 bytes. The unit is **stated on the row** it applies to — the RSS row note reads `decimal MB (1e6 B)` — and the exact byte count is printed too, so the rounding is checkable |
 | figure size | 1200 x 675 pixels, 16:9; both variants are byte-compared in CI |
 
-`docs/goal-scorecard.md` row Q22 cites this alpha.14 measurement for the method and names this provenance record for
-the current figure; the README's Performance table quotes this run's medians, and both figure variants are generated
-from the same artefact, so the picture and the table restate ONE recording.
+`docs/goal-scorecard.md` row Q22 cites this alpha.15 measurement for the method and names this provenance record
+for the current figure; the README's Performance table quotes this run's medians, and both figure variants are
+generated from the same artefact, so the picture and the table restate ONE recording.
 
 ## Why this run and not another one
 
-- **It measured the final CODE commit, and the tag is a docs-only descendant.** `4fd8ed7` is the commit the
-  engineering program's code and gates last changed; the release tag points at the documentation commit after it, so
+- **It measured the alpha.15 CODE commit, and the tag is a docs-only descendant.** `f1396ce` is the commit the
+  audit round's code, tests and gates last changed; the release tag points at the documentation commit after it, so
   the figure cites the run that measured the code, while the release body's evidence table carries the separate
   same-SHA `GoTavern smoke metrics` run at the tag commit. Both are named, and neither is inferred from the other.
+- **It is compared with alpha.14 explicitly, and the difference is called what it is.** alpha.14's record
+  (`41777492725`, commit `4fd8ed7`) measured boot 163 ms, RSS 39.8 MB, `/version` 0.403 ms and `/` 8.28 ms; this
+  run measured 165 ms, 40.5 MB, 0.429 ms and 8.59 ms. Every delta is 1-6%, which is the order of run-to-run
+  variation this runner class has recorded (the boot history in the next section spans 8.8-14.6 s for one
+  subject), so the README states the four numbers as measured and does NOT claim an improvement in them. The
+  optimization this release ships is at the allocation level on `/api/characters/all`, where the measured gain is
+  much larger than that variation.
 - **It measured the same experiment.** Same runner image, same alternating rounds, same fresh-`mkdtemp` data root
   per round, same 30 requests per path, and the artefact asserts `everyRoundAnswered`, `sampleCountsMatch`,
   `soakCompleted` and `soakSeriesMatch`.

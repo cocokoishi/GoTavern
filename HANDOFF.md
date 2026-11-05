@@ -10,7 +10,82 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-11-04: `v0.1.0-alpha.14` SHIPPED -- THE ENGINEERING-PROGRAM STABLE RELEASE
+## Latest checkpoint - 2026-11-05: `v0.1.0-alpha.15` -- THE FINAL ENGINEERING-AUDIT RELEASE
+
+`v0.1.0-alpha.15` is the stable-channel release that ends the 0.1.0 line's engineering program with an
+audit. Its defining rule was **prove the gate can fail before trusting it**: every gate added this round has a
+planted defect that made a NAMED assertion go red, and the eight-lane audit is recorded in
+[`docs/audit-v0.1.0-alpha.15.md`](docs/audit-v0.1.0-alpha.15.md) (80 rows; seven audit areas plus the release
+itself). Baseline unchanged: SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127`.
+
+**Code-complete commit: `f1396cec6a26719501801846577f26d0cca0156b`.** The documentation pass is the commit
+after it; the same-SHA required-gate table for the tag is appended to the published release body by the publish
+job (`scripts/assemble-release-body.mjs`), because a note committed in the tag cannot cite runs of the tag.
+
+### What this round changed
+
+| area | change | measured evidence |
+|---|---|---|
+| provider transport | **two real defects fixed.** node-fetch deletes `authorization`/`cookie`/`www-authenticate`/`cookie2` on a redirect that changes DOMAIN **or PROTOCOL** (3.3.2 `src/index.js:200-213`), while `net/http` compares hostnames only — a same-host `https→http` redirect leaked the bearer token. The follow limit was OUR 5, not pinned's 20 (`src/request.js:134`). | the leak's reproducer was RED before the fix and names the leaked value; 14 new transport tests; 6 mutations; cross-scheme redirects and the gzip-close path are now PROVEN, closing two alpha.14 limitations |
+| data safety | settings/chat writes killed mid-write; a REAL kernel write failure (`EFBIG` via `RLIMIT_FSIZE`, no elevation); readers during a save see old XOR new; corrupt data boots unrepaired; two real processes on one data root; interrupted migration; `migrate --force` backup that boots; spaces/CJK/emoji roots and config paths; bounded lock acquisition | 10 mutations observed red and restored (M1-M10); the Windows reader measurement is kept verbatim (`saves=12 saveFailures=0 reads=213 partialSamples=0`) |
+| browser semantics | **four user actions that had no probe** (swipe right/left, edit, delete through the confirm popup, `/sys` slash command) driven through the unmodified pinned frontend with real pointer/key events, five evidence classes per step, byte-wise request comparison | 36 steps green on both subjects; 4 provider requests byte-identical, 8 snapshots equal, persisted chat equal after save+reload; 7 mutations; wired into `browser-differential.yml` as its own dispatch/`all` lane |
+| release machinery | the same-SHA gate now reads required JOBS, the fixed-name ARTIFACT and the artifact's EMBEDDED evidence (kind, schemaVersion, tier marker, head SHA, digests); the long-lived MEDIUM tier and the Node stock-tree round trip are required gates | 55 governance tests (34 fabricated-API refusals), 4 mutations; a live run against the real API refuses push runs and in-progress runs by name |
+| corpora | both generators emit ONE `gotavern-corpus-schema` v1; a verifier checks any tree against either manifest; a comparison measured why they stay two (`TWO_CORPORA_SHARED_SCHEMA`, `byteIdentical:false`, 67 difference classes, 10 Go-only surfaces / 2 JS-only) | bridge test builds both, verifies both, compares, and runs 5 drift mutations red→green |
+| performance | one accepted optimization (identity-keyed decoded-card-text cache for `/api/characters/all`); one declined (compressed static-asset cache, protected area + would move the page-load figure); one deferred (chat-search lowercasing needs an oracle first) | allocations fall on EVERY warm row (−10.4% at 10k cards, −39.6% large card text); a 10k ns win is NOT claimed |
+
+### The gates found real defects, which is the point
+
+Two failures were produced only by the Linux gates and both were fixed at the cause, not retried away:
+`race` found a **real data race in the new cache's lookup** (mutable entry fields read after dropping the
+mutex; this host cannot run `-race` at all), and `verify` found that the EFBIG gate's 1 MiB limit was *below
+the boot's own 2,322,272-byte seeded background*, so the server died while seeding and the test never reached
+the save it exists to provoke — the limit is now DERIVED from the largest seeded file. Both are in commit
+`f1396ce` and in the audit ledger.
+
+### Evidence at the code-complete commit (ancestors of the tag; the tag's own runs are in the release body)
+
+| gate | run | result |
+|---|---|---|
+| `GoTavern CI` (push, narrowed oracle) | 42012401718 | `verify`, `race`, `browser-evidence`, `crash-gate`, `changes` **success**; `oracle` runs the pinned rebuild |
+| `GoTavern Node stock tree round trip` (push) | 42012401695 | success |
+| `Helper state differential` (push) | 42012401418 | success |
+| `GoTavern drop-in qualification` (push) | 42012401450 | success |
+| `GoTavern long-lived corpus qualification` (push, small) | 42010192865 | success |
+| local full suite, quiet host | `go test -count=1 ./...` | all packages ok, 0 FAIL |
+
+### Honest boundaries, unchanged and re-stated
+
+- **`GOAL.md` §14 (the strong drop-in claim over a real, long-used user tree) is still NOT MET and is not
+  claimed.** The private channel's disposition this round is `PRIVATE_NOT_RUN` (no authorised original on the
+  qualification host); `docs/real-user-input-audit.md` §8 records item by item what is unrun and what is
+  partial, and that the instruments remain canaried-only.
+- **Moving UI browser persistence and the opened-card editor image are UNPROVEN.** The probe is committed
+  with its blocker named (its page renders no character rows although the API serves them, while
+  `asset-probe.mjs` on the same tree renders them), so it reports a harness-faithfulness alarm instead of
+  product findings and is deliberately not wired into CI; its six mutations are listed as owed.
+- **Every browser probe's page init reached the live network at this baseline** (the shipped default
+  `main_api: koboldhorde` makes the pinned frontend fetch a public model list). The seam exists, no probe used
+  it, and a blanket abort is not the fix; the hermeticity decision is recorded OPEN.
+- **Full-disk `ENOSPC` is unproven by policy** (needs a privileged small mount; elevation is forbidden this
+  round). The kernel write-failure class is proven with `EFBIG` instead.
+- **A committed bench baseline does not contain a cold-guard row**: `bench-profiles.mjs` fails on a benchmark
+  that is not in the committed baseline, and regenerating it needs the Linux baseline host plus a bootstrap
+  pass, so the cold guard lives in `scripts/a15-bench-p1-arms.mjs` instead of turning a scheduled gate red.
+- F17 (a shape-classified row counted as `equal`) is still open, committed browser artefacts still carry no
+  head SHA / run id / mode, and group-chat / Quick Reply CREATION through the UI remains
+  `not-asserted-through-the-UI`.
+- The alpha.13 non-claims stand: arbitrary Node server plugins, local in-process ML, remote provider
+  embeddings, wire formats inside third-party npm packages, per-chat backups, VertexAI service-account mode.
+
+### Release identity
+
+This checkpoint is committed BEFORE the tag. The published release body carries the tag, the six asset
+digests, the Docker digest equality and the same-SHA gate table; the post-release facts commit on `main`
+appends those values to this section, and `docs/goal-scorecard.md` is the per-question ledger.
+
+---
+
+## HISTORY - 2026-11-04: `v0.1.0-alpha.14` SHIPPED -- THE ENGINEERING-PROGRAM STABLE RELEASE
 
 `v0.1.0-alpha.14` is **published as a full (non-prerelease, non-draft) release** and is the current
 `releases/latest`. It lands M0, M1, M2, M3, M5, M6, M7 and M8: the first-run CLI, the performance

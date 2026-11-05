@@ -593,6 +593,11 @@ var declaredOtherPins = map[string]string{
 	// names the SHA every required gate ran at and the published release's target commit, and the evidence
 	// ledger re-anchors to it so the eleven same-SHA gate runs are citable. Declared by value AND named.
 	"c01d245e1b9ea0689efd84339707a219740df65a": "v0.1.0-alpha.14 stable release commit (tag v0.1.0-alpha.14) - HANDOFF.md current checkpoint, the SHA all eleven required release gates ran at, and docs/goal-scorecard.md's ledger anchor",
+	// THE alpha.15 CODE-COMPLETE COMMIT. alpha.15's documentation pass is its own commit, so the checkpoint
+	// names the tree the gates were run on rather than claiming the tag is already measured. The paired
+	// performance record's measured tree is this commit, which is why docs/perf-baseline.md and the figure
+	// provenance name it. Declared by value AND named, like every release/measurement anchor above.
+	"f1396cec6a26719501801846577f26d0cca0156b": "v0.1.0-alpha.15 code-complete commit - the tree the same-SHA gate sweep and the paired performance record (smoke metrics run 42012475880) were produced on, cited by HANDOFF.md and docs/perf-baseline.md",
 }
 
 // checkPinnedCommitStrings is the gate body, extracted so the red-path test can drive it against a

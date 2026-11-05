@@ -4,7 +4,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/benchmark.svg">
-  <img src="docs/assets/benchmark-light.svg" alt="Paired benchmark, one GitHub runner, both servers from the same checkout: GoTavern cold-starts in 163 ms against Node's 14,629 ms (89.75x faster), holds 39.8 MB RSS against 1,145 MB (28.73x lighter), answers GET /version in 0.403 ms against 65.47 ms (162.4x faster) and GET / in 8.28 ms against 13.75 ms (1.66x faster). Each row has its own zero-based axis whose maximum is printed; method and caveats are in the Performance section." width="1200">
+  <img src="docs/assets/benchmark-light.svg" alt="Paired benchmark, one GitHub runner, both servers from the same checkout: GoTavern cold-starts in 165 ms against Node's 14,515 ms (87.97x faster), holds 40.5 MB RSS against 915 MB (22.60x lighter), answers GET /version in 0.429 ms against 65.55 ms (152.9x faster) and GET / in 8.59 ms against 13.78 ms (1.60x faster). Each row has its own zero-based axis whose maximum is printed; method and caveats are in the Performance section." width="1200">
 </picture>
 
 Medians of 3 alternating rounds on ONE shared GitHub runner, both servers from the same checkout. The figure ships in
@@ -65,14 +65,14 @@ local in-process ML are excluded by decision, not by omission.
 [![Latest release](https://img.shields.io/github/v/release/cocokoishi/GoTavern?label=release)](https://github.com/cocokoishi/GoTavern/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-`v0.1.0-alpha.14` is the current **stable release**: GitHub publishes it as a full release (not a pre-release),
+`v0.1.0-alpha.15` is the current **stable release**: GitHub publishes it as a full release (not a pre-release),
 `releases/latest` serves it, a bare installer with no version argument installs it, and Docker `:latest` points at
-`ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.14`. `v0.1.0-alpha.13` and `v0.1.0-alpha.12` were earlier stable
-releases and stay downloadable by explicit `--version v0.1.0-alpha.13` (Windows: `-Version v0.1.0-alpha.13`);
-`v0.1.0-alpha.9` was the first stable-channel release. alpha.10/alpha.11 remain available as prereleases by explicit
-version or `docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11`. The channel rule is one script,
-[`scripts/classify-version-tag.sh`](scripts/classify-version-tag.sh), shared by the release workflow, the Docker
-workflow and both installers. Back up any data directory you can't afford to lose.
+`ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.15`. `v0.1.0-alpha.14`, `v0.1.0-alpha.13` and `v0.1.0-alpha.12` were
+earlier stable releases and stay downloadable by explicit `--version v0.1.0-alpha.14` (Windows:
+`-Version v0.1.0-alpha.14`); `v0.1.0-alpha.9` was the first stable-channel release. alpha.10/alpha.11 remain
+available as prereleases by explicit version or `docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11`. The
+channel rule is one script, [`scripts/classify-version-tag.sh`](scripts/classify-version-tag.sh), shared by the
+release workflow, the Docker workflow and both installers. Back up any data directory you can't afford to lose.
 
 ## What it is
 
@@ -159,10 +159,10 @@ Point GoTavern at your existing directory and start it. Auto-update resolves to 
 
 | Metric | Pinned Node SillyTavern | GoTavern | How it was measured |
 |---|---|---|---|
-| Cold start to first `/version` 200 | 14,629 ms | **163 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
-| Steady-state RSS (`VmRSS` from `/proc`) | 1,145 MB | **39.8 MB** | median of 6 samples, after readiness and 30 requests per path (60 per round) |
-| `GET /version` latency | 65.47 ms | **0.403 ms** | median of 90 sequential requests (p95: 73.01 / 0.526) |
-| `GET /` latency (HTML shell) | 13.75 ms | **8.28 ms** | median of 90 sequential requests; GoTavern's number includes gzip CPU |
+| Cold start to first `/version` 200 | 14,515 ms | **165 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
+| Steady-state RSS (`VmRSS` from `/proc`) | 915 MB | **40.5 MB** | median of 6 samples, after readiness and 30 requests per path (60 per round) |
+| `GET /version` latency | 65.55 ms | **0.429 ms** | median of 90 sequential requests (p95: 70.33 / 0.596) |
+| `GET /` latency (HTML shell) | 13.78 ms | **8.59 ms** | median of 90 sequential requests; GoTavern's number includes gzip CPU |
 
 Memory is decimal MB (1 MB = 1,000,000 bytes); every other number is milliseconds. The table, the figure and
 [`docs/assets/benchmark.svg.provenance.md`](docs/assets/benchmark.svg.provenance.md) are restatements of one committed
@@ -171,7 +171,9 @@ any of them disagrees with it. The figure is generated in two variants — `docs
 `docs/assets/benchmark-light.svg` for light — because one palette cannot be legible on both canvases; the table above is
 the same data for a screen reader, a small screen, or a reader who wants to check the arithmetic.
 
-**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `41777492725` (success), the released commit `4fd8ed7` (v0.1.0-alpha.14), on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. The ratios in the figure just restate the two values in each panel. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift +0.0 MB, p95 drift +0.44 ms); pinned's RSS fell from its startup peak (-577 MB) and its p95 drifted -17.99 ms over the window. **One cost is shown rather than hidden:** `/` now carries gzip CPU because the HTML shell is compressed, which is why its median rose from the previous release while a full page load's wire bytes fell 67.4% (measured in this release's compression work). A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The published release body appends the same-SHA run-id table, so the numbers above and the gate run that produced them are checkable together.
+**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `42012475880` (success), the code-complete commit `f1396ce` (v0.1.0-alpha.15), on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -0.1 MB, p95 drift +0.35 ms); pinned's RSS fell from its startup peak (-571 MB) and its p95 drifted -3.29 ms over the window. **One cost is shown rather than hidden:** `/` carries gzip CPU because the HTML shell is compressed, which is why its median rose from the pre-compression release while a full page load's wire bytes fell 67.4% (measured in the compression work). A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The published release body appends the same-SHA run-id table, so the numbers above and the gate run that produced them are checkable together.
+
+**The alpha.14 comparison, stated rather than implied.** alpha.14's record (`GoTavern smoke metrics` run `41777492725`, commit `4fd8ed7`) measured 163 ms / 39.8 MB / 0.403 ms / 8.28 ms for the same four metrics on the same runner class. alpha.15's are 165 ms / 40.5 MB / 0.429 ms / 8.59 ms — every difference is between 1% and 6%, which is the order of run-to-run variation this harness has recorded for the same runner class (the provenance note lists historical boot medians for one subject spanning 8.8-14.6 s), so **this release does not claim an improvement in these four headline metrics**: they are published as measured. The measured optimization alpha.15 ships is at the allocation level on the character-list route (below), where the measured gain is larger than that variation.
 
 ### A profile-driven fix
 

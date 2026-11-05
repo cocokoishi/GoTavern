@@ -30,16 +30,17 @@ only come from the same run, because GOAL §15.2 forbids splicing numbers or hos
 | field | value |
 |---|---|
 | workflow / job | `GoTavern smoke metrics` / `paired-linux-amd64` |
-| run id | `41777492725` (success, `workflow_dispatch`, `main`) |
-| measured commit | `4fd8ed7589abaec239c6c3b19dfff2fc940e5421` (the final code commit of the alpha.14 engineering program; the release tag is a documentation-only descendant and its own same-SHA smoke run is named separately) |
+| run id | `42012475880` (success, `workflow_dispatch`, `main`) |
+| measured commit | `f1396cec6a26719501801846577f26d0cca0156b` (the alpha.15 code-complete commit; the documentation pass is a descendant and its own same-SHA smoke run is named separately) |
 | runner image | `ubuntu26` (`20261026.180.1`), Linux/X64, kernel `7.0.0-1017-azure`, **4 vCPU, 16,759,443,456 B RAM** |
 | Node (pinned subject) | `v24.22.1` |
 | Go toolchain | `go.mod` directive `1.27.3`, read by `setup-go` via `go-version-file: go.mod`; **not recorded by the artefact** (named, not invented) |
-| build | `CGO_ENABLED=0`, `-trimpath`, `-ldflags="-s -w -X main.version=paired-41777492725"` (`smoke-metrics.yml` paired job) |
+| build | `CGO_ENABLED=0`, `-trimpath`, `-ldflags="-s -w -X main.version=paired-42012475880"` (`smoke-metrics.yml` paired job) |
 | rounds / samples | 3 alternating rounds × 30 sequential requests per path; RSS median of 6 samples/subject; 90 latency samples/subject; soak 2 × 10 min, 30 s sampling, 20 samples/subject |
 | GOMAXPROCS | not set by the harness (defaults to the 4-vCPU runner); the environment is not in the artefact, so it is recorded as not-recorded |
-| raw artefact | Actions artifact `q22-paired-benchmark` of run `41777492725`, embedded under `report` |
+| raw artefact | Actions artifact `q22-paired-benchmark` of run `42012475880`, embedded under `report` |
 | sibling host record | Actions artifact `smoke-metrics` of the **same** run, used only for the host block above |
+| alpha.14 comparison | run `41777492725` at `4fd8ed7`: boot 163 ms, RSS 39.8 MB, `/version` 0.403 ms (p95 0.526), `/` 8.28 ms, soak RSS +0.0 MB / p95 +0.44 ms. alpha.15 measured 165 ms, 40.5 MB, 0.429 ms (p95 0.596), 8.59 ms, soak RSS −0.1 MB / p95 +0.35 ms. Every delta is 1–6%, and §10 records a SECOND run of the same commit so that spread is measured rather than assumed; this release claims no improvement in these four headline metrics |
 
 ## 2. Unit rule
 
