@@ -156,10 +156,10 @@ path): the default 169-file / 29 MB instance boots under the shipped binary and
   settings served - a rollback an operator can use, not a directory of leftovers.
 
 CI: `GoTavern long-lived corpus` run **41957672562** ran the complex gate (`go test -run '^TestComplex'`,
-now seven scenarios) on Linux and passed, including the read-only data-root branch that Windows skips; run
+now eight scenarios) on Linux and passed, including the read-only data-root branch that Windows skips; run
 **41955926519** ran the first four scenarios there first. One regex, so a new scenario cannot silently drop
 out. Measured locally: full instance 6.1 s; small instance 5.1 s (boot); migration 4.8 s; world write 2.7 s;
-corrupt-world 3.2 s; unwritable destination 3.0 s; forced-migration backup 4.3 s.
+corrupt-world 3.2 s; unwritable destination 3.0 s; forced-migration backup 4.3 s; 20-extension scenario 8.1 s.
 
 **The 20 pinned third-party extensions on the complex instance** (`TestComplexWithPinnedThirdPartyExtensions`,
 `tools/longlived/install-pinned-extensions.mjs`). The extensions are third-party repositories pinned by
@@ -174,13 +174,30 @@ them into a temporary data root exactly the way the pinned install route does:
 - the only uploaded artefact is the manifest (names, pins, file counts, `manifest.json` sha256) - extension
   content never leaves the CI runner, which is the SFW boundary this document commits to.
 
+Evidence: run **41958655044** (`GoTavern long-lived corpus`, `workflow_dispatch size=medium`) step 15
+installed the 20, step 16 ran the scenario, step 17 uploaded the manifest, step 18 still drove the
+four-leg browser journey plus hand-back - the whole job passed.
+
 SFW statement for this path: the fixture's own text and images stay in the generator's SFW vocabulary; the
 third-party extensions are fetched at pinned commits into a temporary directory, never committed, never
 uploaded, and only their identity and digests are recorded.
 
-Still open, tracked by the goal:
+## Where each requirement of this goal is proven
 
-- a real long-used user tree: synthetic by construction, so this stays the GOAL §14 item below.
+| requirement | proof | CI evidence |
+|---|---|---|
+| a new, very complex synthetic instance (cards, chats, worlds, presets, groups, themes, personas, assets, unknown files) | `internal/longlivedfixture` + `cmd/build-longlived`; deterministic, per-file sha256 manifest | long-lived corpus run 41942744881 (step 16, first scenario) |
+| strictly SFW fixture, generator vocabulary guarded | `internal/longlivedfixture/sfw.go`, `TestEveryGeneratedTextFileIsSFW`, `TestSFWCheckHasTeeth` | GoTavern CI (green on every push) |
+| browser operations (send/regenerate/swipe/continue/group/world/preset) + provider wire bytes and counts | `tests/browser/longlived-*` four legs + comparator | long-lived corpus run 41943468975 (46 checks, 43 match, 0 mismatch) |
+| Node -> Go -> Node hand-back | hand-back legs + two new checks + two teeth mutations | long-lived corpus run 41956796610 (48 checks, teeth 14/14) |
+| startup and migration paths | `TestComplexLongLivedInstanceQualifiesAsDropIn`, `TestComplexInstanceMigratesAndBoots` | long-lived corpus runs 41955926519, 41957672562 |
+| untouched files stay byte-identical; unknown fields preserved; failure refused; rollback recoverable | scenarios 1-7 in `tests/e2e/longlived_complex_writes_test.go` | long-lived corpus run 41957672562 (Linux, seven scenarios) |
+| 20 real pinned third-party extensions on the instance | `tools/longlived/install-pinned-extensions.mjs` + `TestComplexWithPinnedThirdPartyExtensions` | long-lived corpus run 41958655044 (steps 15-17) |
+| all of it a reproducible CI gate + documentation | `longlived.yml` small/medium jobs, uploaded legs/comparison/teeth/manifest | the runs above |
+
+Still open, tracked by `GOAL.md`, not by this document:
+
+- a real long-used user tree: the instance is synthetic by construction, so this stays the GOAL §14 item.
 
 **It will not prove §14.** The instance is synthetic: no real user's prose, no real extension
 configuration, no real accident of history. What it proves is that the machinery survives a tree with the
