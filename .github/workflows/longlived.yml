@@ -176,6 +176,19 @@ jobs:
           set -euo pipefail
           go test ./tests/e2e -run '^TestLongLivedCorpus$' -count=1 -v
 
+      # THE NEW LONG-TERM GOAL'S FIRST GATE. The corpus above is a small committed tree; this step builds
+      # the far larger deterministic instance (internal/longlivedfixture: 32 PNG cards, 39 year-spanning
+      # chats with branches/swipes, 8 world books with the largest at 400 entries, 8 presets, 3 groups,
+      # themes/quick replies/personas/backgrounds, extension state, legacy migration input, unknown files)
+      # and asserts the two things the user actually cares about: every planted byte survives the boot
+      # (one declared startup mutation is allowed and value-checked: the pinned legacy-secrets migration),
+      # and the frontend's own routes serve the cards, chats, world book, presets, groups and assets.
+      # The fixture is synthetic and strictly SFW (internal/longlivedfixture/sfw.go).
+      - name: Complex-instance gate (default very complex tree: boot, preserve, serve)
+        run: |
+          set -euo pipefail
+          go test ./tests/e2e -run '^TestComplexLongLivedInstanceQualifiesAsDropIn$' -count=1 -v
+
       - name: Drive the long-lived journey on both subjects and judge it
         env:
           PINNED_READY_MS: '180000'
