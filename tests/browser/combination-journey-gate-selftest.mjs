@@ -131,7 +131,47 @@ function buildSyntheticProfileLegs() {
     const body = armedBody(expectedOrder);
     const armedRequest = { case: 'turn-1-armed', method: 'POST', path: '/v1/chat/completions', requestedStream: true, served: { wire: 'sse' }, ...bodyFields(body) };
     const presetOffBody = { messages: [{ role: 'system', content: 'CONTROL_NO_MARKERS' }, { role: 'user', content: 'COMB_PRESET_OFF' }] };
-    const wiOffBody = { messages: [{ role: 'system', content: 'CONTROL_NO_MARKERS' }, { role: 'user', content: 'COMB_WI_OFF' }] };
+    // THE WORLD-INFO-OFF ARM KEEPS THE PRESET APPLIED (it disables world info only), so its body still carries the
+    // enabled preset markers. Dispatch 42178757887 measured 6 on both subjects and the old synthetic pair encoded the
+    // opposite expectation; the guard's new clause is exercised by this fixture.
+    const wiOffBody = {
+        messages: [
+            { role: 'system', content: 'SYNTHETIC_WI_OFF_KEEPS_PRESET' },
+            ...expectedOrder.blocks.enabledRelative.map(marker => ({ role: 'system', content: marker })),
+            { role: 'user', content: 'COMB_WI_OFF' },
+        ],
+    };
+    // THE DURABLE CHAT: three journey files whose first messages collide (main chat and branch both open with the
+    // greeting) and whose insertion order differs between subjects -- the comparator must sort on CONTENT, not on the
+    // first message or the timestamped file name (dispatch 42178757887's branch/main order flipped with the listing).
+    const journeyFiles = () => ([
+        ['default-user/chats/COMB_JOURNEY_CARD - T.jsonl', {
+            messages: [
+                { name: 'COMB_JOURNEY_CARD', is_user: false, mes: 'COMB_CARD_GREETING', swipes: ['COMB_CARD_GREETING'], swipe_id: 0 },
+                { name: 'Probe User', is_user: true, mes: 'COMB_TURN_1', swipes: null, swipe_id: null, branches: ['COMB_JOURNEY_CARD - T - Branch #1'] },
+                { name: 'COMB_JOURNEY_CARD', is_user: false, mes: 'COMB_REGEX_OK_1 COMB_REGEX_OK_5', swipes: ['COMB_REGEX_OK_1 COMB_REGEX_OK_5'], swipe_id: 0, branches: null },
+                { name: 'Probe User', is_user: true, mes: 'COMB_FINAL_TURN', swipes: null, swipe_id: null, branches: null },
+            ],
+        }],
+        ['default-user/chats/COMB_JOURNEY_CARD - T - Branch #1.jsonl', {
+            messages: [
+                { name: 'COMB_JOURNEY_CARD', is_user: false, mes: 'COMB_CARD_GREETING', swipes: ['COMB_CARD_GREETING'], swipe_id: 0, branches: null },
+                { name: 'Probe User', is_user: true, mes: 'COMB_TURN_1', swipes: null, swipe_id: null, branches: null },
+            ],
+        }],
+        ['default-user/chats/Alice - T.jsonl', {
+            messages: [
+                { name: 'Alice', is_user: false, mes: 'COMB_GROUP_TURN greeting', swipes: ['COMB_GROUP_TURN greeting'], swipe_id: 0, branches: null },
+                { name: 'Probe User', is_user: true, mes: 'COMB_GROUP_TURN', swipes: null, swipe_id: null, branches: null },
+            ],
+        }],
+    ]);
+    const projectionFor = subject => {
+        const files = journeyFiles();
+        // DELIBERATELY DIFFERENT KEY ORDER: content sorts equal, the directory listing does not.
+        const ordered = subject === 'gotavern' ? files : [files[2], files[0], files[1]];
+        return Object.fromEntries(ordered);
+    };
     const makeLeg = subject => ({
         schemaVersion: 1,
         question: 'synthetic gate-selftest leg',
@@ -186,7 +226,7 @@ function buildSyntheticProfileLegs() {
                 verified: { ok: true, names: [built.books.cardEmbedded.name], bound: built.books.cardEmbedded.name, domWorld: built.books.cardEmbedded.name, name: built.books.cardEmbedded.name },
             },
         },
-        disk: { projection: {} },
+        disk: { projection: projectionFor(subject) },
         fixture: { card: { sha256: 'f'.repeat(64) }, apiSurface: { pinned: true } },
         identity,
         extensions,
@@ -428,7 +468,102 @@ syntheticMutation(
     },
 );
 
-// 14. THE ARTIFACT VERIFIER: a good identity verifies; a wrong head SHA, a wrong pinned SHA, a missing field and a
+// 15. THE DECLARED-AFTER-SLOT MARKER VANISHES: the worldbook after-slot ordering guard must still be red when a
+//     PRESENT after-slot marker is missing from the body (dispatch 42178757887's after guards were red only because
+//     the manifest's own `absent` markers were counted as expected-present; the guard keeps its teeth for the real
+//     present markers).
+syntheticMutation(
+    'A-PRESENT-AFTER-SLOT-MARKER-VANISHES goes RED by worldbook-order-cardEmbedded-after',
+    'worldbook-order-cardEmbedded-after',
+    legs => {
+        const request = legs.pinned.requests.find(entry => entry.case === 'turn-1-armed');
+        const parsed = JSON.parse(request.body);
+        const marker = synthetic.expectedOrder.worldBooks.cardEmbedded.slots.after
+            .find(entry => !synthetic.expectedOrder.absent.some(absent => absent.marker === entry));
+        if (!marker) throw new Error('the synthetic fast-tier card book has no present after-slot marker');
+        parsed.messages = parsed.messages.map(message => ({ ...message, content: String(message.content).split(marker).join('AFTER_SLOT_REMOVED') }));
+        Object.assign(request, bodyFields(parsed));
+    },
+);
+
+// 16. THE WORLD-INFO-OFF ARM LOSES THE PRESET MARKERS: the world-info-off arm is supposed to keep the preset applied,
+//     so a body without them must be red by HARNESS-NON-DISCRIMINATING (the new clause), not silently accepted.
+syntheticMutation(
+    'THE-WI-OFF-ARM-LOSES-THE-PRESET goes RED by HARNESS-NON-DISCRIMINATING',
+    'HARNESS-NON-DISCRIMINATING',
+    legs => {
+        const request = legs.pinned.requests.find(entry => entry.case === 'control-wi-off');
+        for (const marker of synthetic.expectedOrder.blocks.enabledRelative) {
+            request.body = String(request.body).split(marker).join('WI_OFF_PRESET_MARKER_REMOVED');
+        }
+    },
+);
+
+// 17. THE DURABLE CHAT DIFFERS: the projection guard must be red on a content difference (the sort change above must
+//     not turn a real difference green).
+syntheticMutation(
+    'THE-DURABLE-CHAT-DIFFERS goes RED by journey-chat-projection-equal-modulo-declared-volatile',
+    'journey-chat-projection-equal-modulo-declared-volatile',
+    legs => {
+        const file = Object.entries(legs.pinned.disk.projection).find(([name]) => name.includes('COMB_JOURNEY_CARD - T.jsonl'))?.[1];
+        if (!file) throw new Error('the synthetic pinned projection has no main journey file');
+        file.messages[3].mes = 'COMB_FINAL_TURN_WITH_A_DIFFERENCE';
+    },
+);
+
+// 18. THE CAPTURE-MISMATCH DIAGNOSTIC: a body difference must produce a bounded, named diagnosis in
+//     `captures.mismatches[].firstDifference` (path, char offset, capped excerpts, at most 3 differences). Dispatch
+//     42178757887's 16-byte red was only readable by downloading and diffing 18 KB bodies by hand.
+{
+    const legs = clone(synthetic.legs);
+    const request = legs.pinned.requests.find(entry => entry.case === 'turn-1-armed');
+    const parsed = JSON.parse(request.body);
+    parsed.messages[1].content = 'SYNTHETIC_MAIN_PROMPT_WITH_A_DIFFERENCE';
+    Object.assign(request, bodyFields(parsed));
+    const result = compareCombinationJourney({ goDrive: clone(legs.go), pinnedDrive: clone(legs.pinned), expectProfile: 'e03e04' });
+    const mismatch = (result.captures.mismatches ?? []).find(entry => entry.case === 'turn-1-armed');
+    const first = mismatch?.firstDifference ?? null;
+    record('A-CAPTURE-MISMATCH-NAMES-THE-FIRST-DIFFERING-MEMBER', result.guards['nodeEqualsGo-per-capture'] === false
+        && first?.path === '$.messages[1].content'
+        && Number.isInteger(first?.firstDifferingCharOffset) && first.firstDifferingCharOffset >= 0
+        && typeof first?.gotavernExcerpt === 'string' && first.gotavernExcerpt.length <= 200
+        && typeof first?.pinnedExcerpt === 'string' && first.pinnedExcerpt.length <= 200
+        && Array.isArray(first?.differences) && first.differences.length >= 1 && first.differences.length <= 3, {
+        guard: result.guards['nodeEqualsGo-per-capture'],
+        firstDifference: first,
+    });
+}
+
+// 19. THE RESTART CAPTURE DIFFERS: `restart-capture-equality` is a per-subject pair guard, and its red must be red
+//     when the restart legs' captures differ -- with the same bounded body diagnosis the drive captures carry.
+{
+    const legs = clone(synthetic.legs);
+    const restartFor = subject => ({
+        ...clone(legs[subject]),
+        phase: 'restart',
+        requests: clone(legs[subject].requests).map(entry => ({ ...clone(entry), case: entry.case === 'turn-1-armed' ? 'turn-after-restart' : `${entry.case}-restart` })),
+    });
+    const goRestart = restartFor('go');
+    const pinnedRestart = restartFor('pinned');
+    const baseline = compareCombinationJourney({ goDrive: clone(legs.go), pinnedDrive: clone(legs.pinned), goRestart: clone(goRestart), pinnedRestart: clone(pinnedRestart), expectProfile: 'e03e04' });
+    const guardWasGreen = baseline.guards['restart-capture-equality'] === true;
+    const mutatedPinnedRestart = restartFor('pinned');
+    const target = mutatedPinnedRestart.requests.find(entry => entry.case === 'turn-after-restart');
+    target.body = '{"messages":[{"role":"user","content":"MUTATED_RESTART"}]}';
+    target.sha256 = sha256(target.body);
+    target.byteLength = Buffer.byteLength(target.body, 'utf8');
+    const mutated = compareCombinationJourney({ goDrive: clone(legs.go), pinnedDrive: clone(legs.pinned), goRestart: clone(goRestart), pinnedRestart: mutatedPinnedRestart, expectProfile: 'e03e04' });
+    const difference = mutated.restart?.differences?.[0] ?? null;
+    record('THE-RESTART-CAPTURE-DIFFERS goes RED by restart-capture-equality', guardWasGreen && mutated.guards['restart-capture-equality'] === false
+        && difference?.case === 'turn-after-restart' && difference?.firstDifference?.path === '$.messages', {
+        targetGuard: 'restart-capture-equality',
+        baselineGuard: baseline.guards['restart-capture-equality'],
+        mutatedGuard: mutated.guards['restart-capture-equality'],
+        firstDifference: difference?.firstDifference ?? null,
+    });
+}
+
+// 20. THE ARTIFACT VERIFIER: a good identity verifies; a wrong head SHA, a wrong pinned SHA, a missing field and a
 //     tampered document digest are each REFUSED (never warnings). The document bytes are real files in a temp dir.
 function artifactVerifierCases() {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'cj-selftest-'));
@@ -495,6 +630,10 @@ const requiredGreen = [
     'e03e04-embedded-book-imported',
     'preset-block-order',
     'worldbook-order-recursiveGlobal-before',
+    'worldbook-order-cardEmbedded-after',
+    'worldbook-order-recursiveGlobal-after',
+    'both-subjects-wrote-a-journey-chat',
+    'journey-chat-projection-equal-modulo-declared-volatile',
     `preset-block-present-${firstEnabledMarker}`,
     'qr-to-helper-chain',
     'helper-variable-marker',

@@ -49,6 +49,67 @@ const firstRequest = (report, caseName) => (byCase(report)[caseName] ?? [])[0] ?
 const bodyOf = request => String(request?.body ?? '');
 const detailOf = (report, name) => stepValue(report, name)?.detail ?? null;
 
+/**
+ * BOUNDED BODY-DIFFERENCE DIAGNOSTICS (task-18a): a capture mismatch must NAME the first differing member/offset and
+ * carry an informative but bounded excerpt, so a red is readable from comparison.json without downloading 18 KB
+ * bodies by hand. Dispatch 42178757887's 16-byte difference was `.messages[16].content` gaining " COMB_REGEX_OK_5";
+ * the diagnostic below turns that class of red into one line. Bodies are synthetic markers, but every excerpt is
+ * capped so the artifact does not grow with body size.
+ */
+function firstBodyDifference(gotavernBody, pinnedBody, { maxValueChars = 160, maxDifferences = 3, maxExcerpt = 120 } = {}) {
+    const go = String(gotavernBody ?? '');
+    const pinned = String(pinnedBody ?? '');
+    let offset = 0;
+    while (offset < Math.min(go.length, pinned.length) && go[offset] === pinned[offset]) offset += 1;
+    const excerpt = (text, at) => {
+        const start = Math.max(0, at - Math.floor(maxExcerpt / 3));
+        return text.slice(start, start + maxExcerpt);
+    };
+    const summary = {
+        gotavernChars: go.length,
+        pinnedChars: pinned.length,
+        firstDifferingCharOffset: offset === Math.min(go.length, pinned.length) && go.length === pinned.length ? null : offset,
+        gotavernExcerpt: excerpt(go, offset),
+        pinnedExcerpt: excerpt(pinned, offset),
+        differences: [],
+        path: null,
+    };
+    const parse = text => { try { return { ok: true, value: JSON.parse(text) }; } catch { return { ok: false, value: null }; } };
+    const goJson = parse(go);
+    const pinJson = parse(pinned);
+    if (goJson.ok !== true || pinJson.ok !== true) {
+        summary.note = 'at least one body is not JSON; only the byte offset/excerpt are available';
+        return summary;
+    }
+    const clip = value => (typeof value === 'string' ? value.slice(0, maxValueChars) : value);
+    const walk = (a, b, at, depth) => {
+        if (summary.differences.length >= maxDifferences || depth > 14) return;
+        if (a === b) return;
+        const type = value => (value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value);
+        const ta = type(a);
+        const tb = type(b);
+        if (ta !== tb) { summary.differences.push({ path: at, kind: 'type', gotavern: ta, pinned: tb }); return; }
+        if (ta === 'array') {
+            if (a.length !== b.length) summary.differences.push({ path: at, kind: 'array-length', gotavern: a.length, pinned: b.length });
+            for (let index = 0; index < Math.min(a.length, b.length); index += 1) walk(a[index], b[index], `${at}[${index}]`, depth + 1);
+            return;
+        }
+        if (ta === 'object') {
+            for (const key of [...new Set([...Object.keys(a), ...Object.keys(b)])]) {
+                if (!Object.hasOwn(a, key)) { summary.differences.push({ path: `${at}.${key}`, kind: 'missing-in-gotavern', pinned: clip(b[key]) }); continue; }
+                if (!Object.hasOwn(b, key)) { summary.differences.push({ path: `${at}.${key}`, kind: 'missing-in-pinned', gotavern: clip(a[key]) }); continue; }
+                walk(a[key], b[key], `${at}.${key}`, depth + 1);
+            }
+            return;
+        }
+        summary.differences.push({ path: at, kind: 'value', gotavern: clip(a), pinned: clip(b), gotavernChars: String(a).length, pinnedChars: String(b).length });
+    };
+    walk(goJson.value, pinJson.value, '$', 0);
+    summary.path = summary.differences[0]?.path ?? null;
+    return summary;
+}
+
+
 const guard = (name, go, pinned, detail = null) => ({ name, go, pinned, ok: go === true && pinned === true, detail });
 
 // =================================================================================================================
@@ -186,13 +247,18 @@ function markerContract(bodyText, expectedOrder) {
     const strictlyIncreasing = ordered.every((entry, position) => position === 0 || entry.index > ordered[position - 1].index);
     observations.push({ name: 'preset-block-order', ok: ordered.length === sequence.length && strictlyIncreasing, detail: { observed: ordered.length, expected: sequence.length, strictlyIncreasing } });
 
-    // worldbook-order: each slot class's expected marker list appears ascending in the body.
+    // worldbook-order: each slot class's expected marker list appears ascending in the body. A marker the manifest
+    // itself declares ABSENT (an entry the activation recipe excludes) is not part of the observed order: including it
+    // made `worldbook-order-*-after` fail on BOTH subjects in dispatch 42178757887 for markers the contract's own
+    // `absent` list says must be absent (fast tier: MARKER_WB0004/MARKER_WC0006). The absence is still asserted by the
+    // `worldbook-absent-*` observations below, so filtering it here strengthens nothing away.
+    const declaredAbsent = new Set((expectedOrder.absent ?? []).map(item => item.marker));
     for (const [bookKey, book] of Object.entries(expectedOrder.worldBooks)) {
         for (const slot of ['before', 'after']) {
-            const markers = book.slots?.[slot] ?? [];
+            const markers = (book.slots?.[slot] ?? []).filter(marker => !declaredAbsent.has(marker));
             const indexes = markers.map(marker => (occurrences.get(marker) ?? [])[0]?.bodyIndex ?? -1);
             const ascending = indexes.every((value, position) => value >= 0 && (position === 0 || value > indexes[position - 1]));
-            observations.push({ name: `worldbook-order-${bookKey}-${slot}`, ok: markers.length > 0 && ascending, detail: { markers, indexes, ascending } });
+            observations.push({ name: `worldbook-order-${bookKey}-${slot}`, ok: markers.length > 0 && ascending, detail: { markers, indexes, ascending, declaredAbsentOmitted: (book.slots?.[slot] ?? []).filter(marker => declaredAbsent.has(marker)) } });
         }
     }
     // worldbook-depth-<depth>-<role>: each expected depth group is present; its distance from the end is recorded so a
@@ -402,6 +468,14 @@ function addE03E04Guards({ add, goDrive, pinnedDrive, goRestart, pinnedRestart, 
 
     // HARNESS-NON-DISCRIMINATING (AGENTS 50): the harness's capture must MOVE when the knobs move. With every knob
     // off both subjects producing the armed body is the exact failure this guard names.
+    //
+    // WHAT DISPATCH 42178757887 MEASURED, and why the expectation changed: the WOLRD-INFO-OFF arm deliberately keeps
+    // the complex preset applied - it turns off world info only - so its body MUST still carry the enabled preset
+    // markers (both subjects recorded 6). The old clause `wiOffPresetMarkers === 0` asserted the opposite and was red
+    // on both subjects with a correct harness. The discriminating claims are now:
+    //   * preset-off arm: 0 preset markers (knob moved);
+    //   * world-info-off arm: the SAME preset markers as the armed body (its knob did not move);
+    //   * each control body differs from the armed body AND from the other control body (the two knobs are distinct).
     const harnessFor = leg => {
         const armed = firstRequest(leg, 'turn-1-armed');
         const presetOff = firstRequest(leg, 'control-preset-off');
@@ -415,6 +489,7 @@ function addE03E04Guards({ add, goDrive, pinnedDrive, goRestart, pinnedRestart, 
             armed: Boolean(armed), presetOff: Boolean(presetOff), wiOff: Boolean(wiOff),
             armedDiffersFromPresetOff: Boolean(armed && presetOff) && armed.sha256 !== presetOff.sha256,
             armedDiffersFromWiOff: Boolean(armed && wiOff) && armed.sha256 !== wiOff.sha256,
+            presetOffDiffersFromWiOff: Boolean(presetOff && wiOff) && presetOff.sha256 !== wiOff.sha256,
             armedPresetMarkers: count(armedBody),
             presetOffPresetMarkers: count(presetOffBody),
             wiOffPresetMarkers: count(wiOffBody),
@@ -423,8 +498,8 @@ function addE03E04Guards({ add, goDrive, pinnedDrive, goRestart, pinnedRestart, 
     const goHarness = harnessFor(goDrive);
     const pinHarness = harnessFor(pinnedDrive);
     const harnessOk = value => value.armed && value.presetOff && value.wiOff
-        && value.armedDiffersFromPresetOff && value.armedDiffersFromWiOff
-        && value.armedPresetMarkers > 0 && value.presetOffPresetMarkers === 0 && value.wiOffPresetMarkers === 0;
+        && value.armedDiffersFromPresetOff && value.armedDiffersFromWiOff && value.presetOffDiffersFromWiOff
+        && value.armedPresetMarkers > 0 && value.presetOffPresetMarkers === 0 && value.wiOffPresetMarkers === value.armedPresetMarkers;
     add('HARNESS-NON-DISCRIMINATING', harnessOk(goHarness), harnessOk(pinHarness), {
         gotavern: goHarness,
         pinned: pinHarness,
@@ -572,16 +647,39 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
     const missingPairs = Object.keys(goCases).filter(name => !(name in pinCases)).concat(Object.keys(pinCases).filter(name => !(name in goCases)));
     const mismatches = common
         .filter(name => JSON.stringify(shaList(goCases[name])) !== JSON.stringify(shaList(pinCases[name])))
-        .map(name => ({
-            case: name,
-            gotavern: shaList(goCases[name]),
-            pinned: shaList(pinCases[name]),
-            gotavernBytes: goCases[name].map(entry => entry.byteLength),
-            pinnedBytes: pinCases[name].map(entry => entry.byteLength),
-        }));
+        .map(name => {
+            const goRequests = goCases[name] ?? [];
+            const pinnedRequests = pinCases[name] ?? [];
+            const pairs = Math.min(goRequests.length, pinnedRequests.length);
+            const differences = [];
+            for (let index = 0; index < pairs; index += 1) {
+                if (goRequests[index].sha256 === pinnedRequests[index].sha256) continue;
+                differences.push({
+                    index,
+                    gotavernSha: goRequests[index].sha256,
+                    pinnedSha: pinnedRequests[index].sha256,
+                    ...firstBodyDifference(goRequests[index].body, pinnedRequests[index].body),
+                });
+            }
+            return {
+                case: name,
+                gotavern: shaList(goRequests),
+                pinned: shaList(pinnedRequests),
+                gotavernBytes: goRequests.map(entry => entry.byteLength),
+                pinnedBytes: pinnedRequests.map(entry => entry.byteLength),
+                // BOUNDED DIAGNOSIS: path + char offset + capped excerpts of the first differing body pair.
+                firstDifference: differences[0] ?? null,
+                differences,
+            };
+        });
     add('both-subjects-captured-the-same-turns', missingPairs.length === 0, missingPairs.length === 0, { missingPairs });
     add('nodeEqualsGo-per-capture', common.length >= 5 && mismatches.length === 0, common.length >= 5 && mismatches.length === 0,
-        { commonCases: common.length, mismatches });
+        {
+            commonCases: common.length,
+            mismatchCases: mismatches.map(entry => entry.case),
+            firstDifference: mismatches[0]?.firstDifference ?? null,
+            mismatches,
+        });
     add('all-captures-were-streamed', (goDrive.requests ?? []).every(entry => entry.requestedStream === true), (pinnedDrive.requests ?? []).every(entry => entry.requestedStream === true));
     add('peer-served-sse', (goDrive.requests ?? []).every(entry => entry.served?.wire === 'sse'), (pinnedDrive.requests ?? []).every(entry => entry.served?.wire === 'sse'));
 
@@ -622,6 +720,7 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
         'after-reload-request-carries-variables-and-qr']) observed(name);
 
     // ---- restart survival (over the SAME trees) -------------------------------------------------------
+    let restartReport = null;
     if (goRestart && pinnedRestart) {
         add('restart-legs-are-restart-phase', goRestart.phase === 'restart', pinnedRestart.phase === 'restart');
         for (const name of ['restart-found-the-journey-chat', 'restart-reopened-the-saved-chat', 'restart-chat-ready', 'restart-prompt-manager-armed', 'restart-world-info-selected',
@@ -633,8 +732,21 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
         }
         const restartPairs = Object.keys(byCase(goRestart)).filter(name => name in byCase(pinnedRestart)).sort();
         const restartMismatch = restartPairs.filter(name => JSON.stringify(shaList(byCase(goRestart)[name])) !== JSON.stringify(shaList(byCase(pinnedRestart)[name])));
+        const restartDiff = restartMismatch.map(name => {
+            const goReq = (byCase(goRestart)[name] ?? [])[0] ?? null;
+            const pinnedReq = (byCase(pinnedRestart)[name] ?? [])[0] ?? null;
+            return {
+                case: name,
+                gotavernBytes: goReq?.byteLength ?? null,
+                pinnedBytes: pinnedReq?.byteLength ?? null,
+                firstDifference: goReq && pinnedReq ? firstBodyDifference(goReq.body, pinnedReq.body) : null,
+            };
+        });
         add('restart-capture-equality', restartPairs.length >= 1 && restartMismatch.length === 0, restartPairs.length >= 1 && restartMismatch.length === 0,
-            { pairs: restartPairs, mismatch: restartMismatch });
+            { pairs: restartPairs, mismatch: restartMismatch, differences: restartDiff });
+        // Recorded in the artifact so the restart red is readable: `restart-capture-equality` is a per-subject pair
+        // guard, and the body diff names the differing member exactly like the drive captures do.
+        restartReport = { pairs: restartPairs, mismatch: restartMismatch, differences: restartDiff, firstDifference: restartDiff.find(entry => entry.firstDifference)?.firstDifference ?? null };
     } else {
         add('restart-legs-supplied', false, false, { reason: 'no restart pair supplied: the restart claim is NOT-OBSERVED' });
     }
@@ -673,12 +785,34 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
     const journeyFiles = report => Object.values(report.disk?.projection ?? {})
         .filter(file => (file.messages ?? []).some(message => String(message.mes).includes('COMB_')))
         .map(messageShape)
-        .sort((first, second) => String(first.messages[0]?.mes ?? '').localeCompare(String(second.messages[0]?.mes ?? '')));
+        // THE SORT KEY IS THE MESSAGE CONTENT, NOT THE FIRST MESSAGE OR THE FILE NAME. Two journey files (the main
+        // chat and its branch) legitimately start with the SAME greeting, and the file names carry the creation
+        // timestamp, so sorting by either left the pair order dependent on the directory listing (measured in
+        // dispatch 42178757887: the branch/main order differed between trees while the content was equal). Sorting on
+        // the projected content makes equal trees compare equal and keeps unequal trees deterministic.
+        .sort((first, second) => JSON.stringify(first.messages).localeCompare(JSON.stringify(second.messages)));
     const goDisk = journeyFiles(goDrive);
     const pinDisk = journeyFiles(pinnedDrive);
     add('both-subjects-wrote-a-journey-chat', goDisk.length > 0, pinDisk.length > 0);
-    add('journey-chat-projection-equal-modulo-declared-volatile', JSON.stringify(goDisk) === JSON.stringify(pinDisk), JSON.stringify(goDisk) === JSON.stringify(pinDisk),
-        { gotavernFiles: goDisk.length, pinnedFiles: pinDisk.length });
+    const diskEqual = JSON.stringify(goDisk) === JSON.stringify(pinDisk);
+    const projectionDifference = (() => {
+        if (diskEqual) return null;
+        const limit = Math.max(goDisk.length, pinDisk.length);
+        for (let index = 0; index < limit; index += 1) {
+            const goFile = goDisk[index] ?? null;
+            const pinnedFile = pinDisk[index] ?? null;
+            if (JSON.stringify(goFile) === JSON.stringify(pinnedFile)) continue;
+            return {
+                fileIndex: index,
+                gotavernMessages: goFile?.messages?.length ?? null,
+                pinnedMessages: pinnedFile?.messages?.length ?? null,
+                firstDifference: firstBodyDifference(JSON.stringify(goFile ?? null), JSON.stringify(pinnedFile ?? null)),
+            };
+        }
+        return null;
+    })();
+    add('journey-chat-projection-equal-modulo-declared-volatile', diskEqual, diskEqual,
+        { gotavernFiles: goDisk.length, pinnedFiles: pinDisk.length, firstDifference: projectionDifference });
 
     const failedGuards = guards.filter(entry => entry.ok !== true).map(entry => entry.name);
     const verdict = failedGuards.length === 0 && asymmetries.length === 0 ? 'match' : 'mismatch';
@@ -690,7 +824,11 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
         failedGuards,
         asymmetries,
         subjectGuards: guards.map(entry => ({ name: entry.name, gotavern: entry.go, pinned: entry.pinned })),
-        captures: { commonCases: common, missingPairs, mismatches },
+        captures: { commonCases: common, missingPairs, mismatches, firstDifference: mismatches[0]?.firstDifference ?? null },
+        // The durable-chat red names its own cause (file count and the first differing projected message), so a
+        // projection failure is not a bare boolean in the artifact.
+        durable: { gotavernFiles: goDisk.length, pinnedFiles: pinDisk.length, equal: diskEqual, firstDifference: projectionDifference },
+        restart: restartReport,
         profile: profileResult,
         subjects: {
             gotavern: { steps: (goDrive.steps ?? []).length, failedSteps: (goDrive.steps ?? []).filter(entry => !entry.ok).map(entry => entry.name), requestCount: (goDrive.requests ?? []).length, cases: Object.keys(goCases).sort(), profile: goDrive.e03e04 ? { tier: goDrive.e03e04.tier, seed: goDrive.e03e04.seed, expectedOrderSha256: goDrive.e03e04.expectedOrderSha256 } : null },

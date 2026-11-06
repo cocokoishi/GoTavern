@@ -695,6 +695,39 @@ async function applyProfilePowerUserAfterBoot(page, patch) {
 }
 
 /**
+ * PERSIST A VERB'S EFFECT THROUGH THE PRODUCT'S OWN "WRITE IT NOW", BEFORE ANY PAGE RELOAD (task-18).
+ *
+ * WHAT DISPATCH 42178757887 MEASURED: `Generate('continue')` ends with `saveReply({type:'appendFinal'})` and then only
+ * `saveChatDebounced()` (script.js:7361) -- the q20 kit already documents this for its own leg. The journey probe
+ * continues, creates a branch, then RELOADS the page (`resetPageAndReopen` -> `openPage`), which re-reads the chat
+ * FILE. On GoTavern the debounced write had not landed, so the reloaded assistant message was `COMB_REGEX_OK_4`
+ * instead of `COMB_REGEX_OK_4 COMB_REGEX_OK_5` (16 bytes) and every later request from that chat carried the loss;
+ * pinned happened to flush first. The same race lost the GROUP chat file on pinned (the durable-chat projection had
+ * 3 files on GoTavern, 2 on pinned). A real user's `saveChatConditional` (script.js:7407, "close the chat") is the
+ * product's own write-it-now, and q20 uses it for exactly this reason. Using it is NOT a product concession: it
+ * removes a harness race so both subjects are compared on the state each product actually persisted.
+ *
+ * The effect is then POLLED on disk (bounded): the named step fails if the text is not in any persisted chat file.
+ */
+async function persistChatEffect(page, dataRoot, { action, expectText }) {
+    const wanted = String(expectText ?? '').trim();
+    if (wanted.length === 0) return { ok: false, action, reason: 'no expected text to look for; the verb effect was empty' };
+    const saved = await saveConditional(page);
+    const deadline = Date.now() + 20000;
+    let carriers = [];
+    while (Date.now() < deadline) {
+        const chats = await readJourneyChats(dataRoot);
+        carriers = Object.entries(chats)
+            .filter(([, file]) => (file?.messages ?? []).some(message => String(message?.mes ?? '').includes(wanted)
+                || (Array.isArray(message?.swipes) && message.swipes.some(swipe => String(swipe).includes(wanted)))))
+            .map(([name]) => name);
+        if (carriers.length > 0) break;
+        await page.waitForTimeout(300);
+    }
+    return { ok: saved?.ok === true && carriers.length > 0, action, expected: wanted.slice(0, 160), saved, filesCarrying: carriers };
+}
+
+/**
  * IMPORT THE CARD-EMBEDDED LOREBOOK THROUGH THE PRODUCT'S OWN PATH, INCLUDING THE BINDING THE DIALOG PATH DOES NOT DO.
  *
  * THE DISPATCH-42173399186 ROOT CAUSE (harness defect, not a product finding): the confirmation dialog's callback
@@ -2094,6 +2127,15 @@ async function main() {
             report.requests.push(...contRequests);
             report.captures.push({ case: 'continue', requestShas: contRequests.map(entry => entry.sha256) });
             step('continue-produced-a-request', cont?.pressed !== false && contRequests.length >= 1, { cont, requests: contRequests.length });
+            // THE CONTINUATION'S APPENDED TEXT MUST BE ON DISK BEFORE THE NEXT PAGE RELOAD, or the reload re-reads a
+            // stale chat file (dispatch 42178757887: 16 bytes, 4 capture mismatches + the restart capture + the chat
+            // projection). The in-page state the verb produced is the expectation; the disk copy is what the reload
+            // must see on BOTH subjects.
+            report.browser.continuePersist = await persistChatEffect(page, dataRoot, {
+                action: 'continue',
+                expectText: String(cont?.after?.lastText ?? ''),
+            });
+            step('continue-effect-persisted-before-reload', report.browser.continuePersist.ok === true, report.browser.continuePersist);
 
             const branch = await page.evaluate(async () => {
                 const script = await import('./script.js');
@@ -2514,6 +2556,11 @@ async function main() {
             const groupTurn = await turn(page, 'COMB_GROUP_TURN', 'turn-group');
             report.browser.groupTurn = { requests: groupTurn.requests.length, ok: groupTurn.ok };
             step('group-turn-produced-request', groupTurn.requests.length >= 1, { requests: groupTurn.requests.length });
+            // THE GROUP CHAT FILE MUST BE PERSISTED BEFORE THE RETURN TO THE 1:1 CHAT: opening the character switches
+            // the chat context, and dispatch 42178757887's pinned leg never wrote the group chat at all (the durable
+            // projection had 3 journey files on GoTavern and 2 on pinned) because the switch raced its debounced save.
+            report.browser.groupTurnPersist = await persistChatEffect(page, dataRoot, { action: 'group-turn', expectText: 'COMB_GROUP_TURN' });
+            step('group-turn-effect-persisted-before-return', report.browser.groupTurnPersist.ok === true, report.browser.groupTurnPersist);
             // RETURN TO THE 1:1 CHAT: the group context has no journey character chat, so the character is opened
             // through the same roster path a user takes and then the saved conversation is reopened by its id.
             // CONFIRM THE CHARACTER BEFORE openCharacterChat: on the Linux run the return path threw
