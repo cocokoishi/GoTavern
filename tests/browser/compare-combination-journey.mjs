@@ -252,6 +252,78 @@ function addE03E04Guards({ add, goDrive, pinnedDrive, goRestart, pinnedRestart, 
         extensionBatchOk(goDrive), extensionBatchOk(pinnedDrive),
         { gotavern: extensionBatchDetail(goDrive), pinned: extensionBatchDetail(pinnedDrive) });
 
+    // ---- THE APPLIED-STATE GUARDS (added after dispatch 42173399186) ------------------------------------------
+    // A selected preset is not an applied preset. The leg records `browser.presetApplied` (declared prompts + the
+    // ACTIVE order row for the live character id + the collection markers the assembly uses); these guards require
+    // both subjects to show it, and require the artifact to keep the STAGED and KIT preset digests apart.
+    const stagedPresetEvidence = leg => {
+        const record = leg?.e03e04?.record ?? null;
+        const preset = record?.preset ?? null;
+        const digests = leg?.identity?.digests ?? null;
+        const expectedTotal = record?.expectedOrder?.totalPromptCount ?? null;
+        const problems = [];
+        if (!preset) problems.push('the record carries no preset member');
+        if (!digests) problems.push('the leg identity carries no digests');
+        if (preset) {
+            if (!/^[0-9a-f]{64}$/.test(String(preset.sha256 ?? ''))) problems.push('record.preset.sha256 is not a sha256');
+            if (!/^[0-9a-f]{64}$/.test(String(preset.kitSha256 ?? ''))) problems.push('record.preset.kitSha256 is not a sha256');
+            if (preset.transformation?.kind !== 'add-active-prompt-order-row') problems.push('record.preset.transformation is not the active-order-row fix');
+            if (!Array.isArray(preset.promptOrderCharacterIds) || !preset.promptOrderCharacterIds.map(String).includes(String(preset.activePromptOrderCharacterId))) problems.push('the staged prompt_order does not carry its own active row id');
+            if (!Number.isInteger(preset.activePromptOrderCharacterId)) problems.push('record.preset.activePromptOrderCharacterId is not an integer');
+            if (Number.isInteger(expectedTotal) && preset.declaredPrompts !== expectedTotal) problems.push(`record.preset.declaredPrompts ${preset.declaredPrompts} != expectedOrder.totalPromptCount ${expectedTotal}`);
+            if (Number.isInteger(preset.declaredPrompts) && preset.activeOrderLength !== preset.declaredPrompts) problems.push(`the active order length ${preset.activeOrderLength} != declared prompts ${preset.declaredPrompts}`);
+        }
+        if (preset && digests) {
+            if (digests.preset !== preset.sha256) problems.push('the identity preset digest is not the STAGED preset digest');
+            if (digests.kitPreset !== preset.kitSha256) problems.push('the identity kitPreset digest is not the KIT preset digest');
+        }
+        return { ok: problems.length === 0, problems, digests: digests ? { preset: digests.preset, kitPreset: digests.kitPreset } : null };
+    };
+    const goStagedPreset = stagedPresetEvidence(goDrive);
+    const pinStagedPreset = stagedPresetEvidence(pinnedDrive);
+    add('e03e04-preset-document-recorded', goStagedPreset.ok, pinStagedPreset.ok, { gotavern: goStagedPreset, pinned: pinStagedPreset });
+
+    const appliedEvidence = leg => {
+        const applied = leg?.browser?.presetApplied ?? null;
+        if (!applied) return { ok: false, reason: 'the leg records no browser.presetApplied' };
+        const observed = applied.observed ?? null;
+        return {
+            ok: applied.ok === true,
+            problems: applied.problems ?? null,
+            activeCharacterId: observed?.activeCharacterId ?? null,
+            declaredPrompts: observed?.declaredPrompts ?? null,
+            orderRowFound: observed?.orderRowFound ?? null,
+            orderLength: observed?.orderLength ?? null,
+            collectionMarkers: [...new Set(observed?.collectionMarkers ?? [])].sort(),
+        };
+    };
+    const goApplied = appliedEvidence(goDrive);
+    const pinApplied = appliedEvidence(pinnedDrive);
+    const appliedParity = goApplied.ok === true && pinApplied.ok === true
+        && goApplied.activeCharacterId === pinApplied.activeCharacterId
+        && goApplied.declaredPrompts === pinApplied.declaredPrompts
+        && goApplied.orderLength === pinApplied.orderLength
+        && JSON.stringify(goApplied.collectionMarkers) === JSON.stringify(pinApplied.collectionMarkers);
+    add('e03e04-preset-applied', goApplied.ok === true && appliedParity, pinApplied.ok === true && appliedParity, { gotavern: goApplied, pinned: pinApplied });
+
+    const embeddedEvidence = leg => {
+        const embedded = leg?.browser?.embeddedBook ?? null;
+        if (!embedded) return { ok: false, reason: 'the leg records no browser.embeddedBook' };
+        const verified = embedded.verified ?? null;
+        return {
+            ok: embedded.ok === true && verified?.ok === true && String(verified?.bound ?? '') === String(embedded.bookName ?? '\u0000') && Array.isArray(embedded.via) && embedded.via.length > 0,
+            bookName: embedded.bookName ?? null,
+            bound: verified?.bound ?? null,
+            worldListed: Array.isArray(verified?.names) ? verified.names.includes(embedded.bookName) : null,
+            via: embedded.via ?? null,
+            saved: embedded.save?.saved === true,
+            populated: embedded.save?.evidence?.populated === true,
+        };
+    };
+    const goEmbedded = embeddedEvidence(goDrive);
+    const pinEmbedded = embeddedEvidence(pinnedDrive);
+    add('e03e04-embedded-book-imported', goEmbedded.ok === true, pinEmbedded.ok === true, { gotavern: goEmbedded, pinned: pinEmbedded });
+
     // THE ORDERED MARKER CONTRACT, per subject, then required on both.
     const goContract = markerContract(bodyOf(firstRequest(goDrive, 'turn-1-armed')), goExpected);
     const pinContract = markerContract(bodyOf(firstRequest(pinnedDrive, 'turn-1-armed')), pinExpected);
@@ -399,7 +471,7 @@ function addE03E04Guards({ add, goDrive, pinnedDrive, goRestart, pinnedRestart, 
     }
     add('artifact-identity-parity', parityProblems.length === 0, parityProblems.length === 0, { problems: parityProblems });
 
-    return { requested: true, refused: false, guardCount: names.length + 12 };
+    return { requested: true, refused: false, guardCount: names.length + 15 };
 }
 
 function extensionTierOf(leg) {

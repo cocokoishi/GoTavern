@@ -57,8 +57,9 @@ import { ensurePinnedExtensionInstalled, describeInstalledExtension } from './in
 import { pinnedExtension } from './pinned-extensions.mjs';
 import { readHelperApiSurface } from './extensions/helper-vars-kit.mjs';
 import {
-    CARD, JOURNEY, chatCarrying, chatProjection, readChatFiles as readJourneyChats, readSettings,
-    stageJourneyCard, stageJourneyGroups, stageJourneyWorldBook,
+    CARD, GLOBAL_PROMPT_ORDER_DUMMY_ID, JOURNEY, STAGED_PROMPT_ORDER_REASON, chatCarrying, chatProjection,
+    readChatFiles as readJourneyChats, readSettings,
+    stageJourneyCard, stageJourneyGroups, stageJourneyWorldBook, stagedPresetDocument, validateStagedPreset,
 } from './extensions/combination-journey-kit.mjs';
 import { MARKERS as WI_MARKERS, extractLayout } from './worldinfo-slots-kit.mjs';
 import { applyAuthorsNoteOverlay, authorsNoteOverlaySpec, resolveAuthorsNoteCase } from './preset-kit.mjs';
@@ -147,6 +148,22 @@ if (stageOnly && !profileMode) {
 }
 const PROFILE_PRESET_NAME = 'e03e04-profile';
 const PROFILE_RECORD_FILE = 'e03e04-profile.record.json';
+// THE GLOBAL PROMPT-ORDER CHARACTER ID IS 100001, NOT THE KIT'S 100000, AND THIS IS THE DISPATCH-DISCOVERED ROOT
+// CAUSE OF THE PRESET NOT APPLYING. The implementation and its assertion live in the JOURNEY KIT
+// (`combination-journey-kit.mjs`: `GLOBAL_PROMPT_ORDER_DUMMY_ID`, `stagedPresetDocument`, `validateStagedPreset`)
+// because they are pure and must be checkable by `node` alone; the source chain is:
+//   * `PromptManager.js:312-339` gives the PromptManager CLASS the configuration default `promptOrder.dummyId: 100000`,
+//     and `PromptManager.js:1006-1015` (sanitizeServiceSettings) injects `promptManagerDefaultPromptOrder` for the
+//     ACTIVE character when its order row has length 0;
+//   * `openai.js:696-699` (setupChatCompletionPromptManager) OVERRIDES that default with `dummyId: 100001`, and
+//     `script.js:7869` constructs the prompt manager with `oai_settings`, so `activeCharacter.id` is 100001;
+//   * `PromptManager.js:1207-1212` (getPromptOrderForCharacter) matches `String(list.character_id) === String(character.id)`,
+//     so a staged row keyed 100000 is INVISIBLE to the live prompt manager. `sanitizeServiceSettings` then injected the
+//     DEFAULT 11-prompt order, which is exactly what dispatch 42173399186 recorded:
+//     `{"promptCount":11,"identifiers":["main","worldInfoBefore",...],"activeCharacter":{"id":100001}}`.
+// The staged preset carries an ACTIVE row for 100001 in addition to the kit's row (a frontend-saved preset can carry
+// several character rows; committed preset-a.json carries 100000 AND 100001). The M1 kit is NOT edited; the
+// transformation is applied to the staged bytes by the probe and recorded with its reason.
 // The prompt-manager marker needle the "armed" wait counts. Legacy prompt contents carry the derivation's `MARK_`
 // tokens; the profile's blocks carry `MARKER_Pxxxx`. Passing the needle explicitly keeps BOTH paths strong (a wait
 // that counted nothing would call any page armed).
@@ -501,10 +518,19 @@ async function mergeProfileSettingsAtRoot(dataRoot, patch) {
 async function stageE03e04Profile(dataRoot) {
     const blockCount = E03E04_TIERS[tierArgument];
     const built = buildE03E04Profile({ seed: seedArgument, blockCount, tier: tierArgument });
+    // THE STAGED DOCUMENT, NOT THE KIT DOCUMENT: the active prompt_order row must carry the id the live prompt
+    // manager matches (100001). See GLOBAL_PROMPT_ORDER_DUMMY_ID for the source/dispatch evidence; the kit's own
+    // digest is kept beside the staged digest so a reader can reproduce both.
+    const document = stagedPresetDocument(built.preset);
+    const shape = validateStagedPreset(document);
+    if (shape.ok !== true) {
+        throw new Error(`the staged preset does not satisfy the frontend contract: ${shape.problems.join('; ')}`);
+    }
     const presetDirectory = path.join(dataRoot, 'default-user', 'OpenAI Settings');
     await fs.mkdir(presetDirectory, { recursive: true });
     const presetFile = path.join(presetDirectory, `${PROFILE_PRESET_NAME}.json`);
-    await fs.writeFile(presetFile, e03e04DocumentBytes(built.preset));
+    await fs.writeFile(presetFile, e03e04DocumentBytes(document));
+    const stagedPresetBytes = await fs.readFile(presetFile);
 
     const worldsDirectory = path.join(dataRoot, 'default-user', 'worlds');
     await fs.mkdir(worldsDirectory, { recursive: true });
@@ -526,7 +552,17 @@ async function stageE03e04Profile(dataRoot) {
         blockCount,
         expectedOrderSha256: e03e04Sha256(canonicalE03E04Json(built.expectedOrder)),
         expectedOrder: built.expectedOrder,
-        preset: { file: `OpenAI Settings/${PROFILE_PRESET_NAME}.json`, sha256: e03e04Sha256(canonicalE03E04Json(built.preset)) },
+        preset: {
+            file: `OpenAI Settings/${PROFILE_PRESET_NAME}.json`,
+            // `sha256` describes the STAGED bytes (what the page reads); `kitSha256` the unmodified kit document.
+            sha256: sha256(stagedPresetBytes),
+            kitSha256: e03e04Sha256(canonicalE03E04Json(built.preset)),
+            promptOrderCharacterIds: shape.promptOrderCharacterIds,
+            activePromptOrderCharacterId: shape.activeCharacterId,
+            declaredPrompts: shape.declaredPrompts,
+            activeOrderLength: shape.activeOrderLength,
+            transformation: { kind: 'add-active-prompt-order-row', reason: STAGED_PROMPT_ORDER_REASON },
+        },
         books,
         cardCharacterBook: {
             name: built.books.cardEmbedded.name,
@@ -549,7 +585,7 @@ async function stageE03e04Profile(dataRoot) {
     };
     const recordPath = path.join(dataRoot, 'default-user', PROFILE_RECORD_FILE);
     await fs.writeFile(recordPath, `${JSON.stringify(record, null, 2)}\n`);
-    return { built, record, recordFile: `default-user/${PROFILE_RECORD_FILE}` };
+    return { built, record, recordFile: `default-user/${PROFILE_RECORD_FILE}`, presetShape: shape, stagedPreset: document };
 }
 
 /** Read the record a drive leg staged and RE-VERIFY its manifest digest; a mismatch is a named refusal, not a guess. */
@@ -659,66 +695,179 @@ async function applyProfilePowerUserAfterBoot(page, patch) {
 }
 
 /**
- * IMPORT THE CARD-EMBEDDED LOREBOOK THROUGH THE PRODUCT'S OWN PATH (design section 5.3; card book is not
- * auto-active, world-info.js:5691-5760). `checkEmbeddedWorld` shows the product's own confirmation dialog; this
- * clicks the dialog's OK button. If the user setting `world_import_dialog` is off the product shows only a toast
- * instead, and the fallback calls the exact function the dialog's confirm calls
- * (`importEmbeddedWorldInfo(true)`); WHICH path ran is recorded, so the artifact never implies a dialog that did not
- * appear. Waits (bounded) for the book in the product's world list AND for the character's own world binding.
+ * IMPORT THE CARD-EMBEDDED LOREBOOK THROUGH THE PRODUCT'S OWN PATH, INCLUDING THE BINDING THE DIALOG PATH DOES NOT DO.
+ *
+ * THE DISPATCH-42173399186 ROOT CAUSE (harness defect, not a product finding): the confirmation dialog's callback
+ * (`world-info.js:5711-5716`) calls `importEmbeddedWorldInfo(true)`, which imports the world and sets the HIDDEN input
+ * `#character_world` (`world-info.js:5757`) but never saves the character. The state `getCharacterLore` actually
+ * reads is `characters[chid].data.extensions.world` (`world-info.js:4482`), which only changes when the character
+ * editor is saved. The product's own "Import Card Lore" MENU handler performs exactly that follow-up
+ * (`script.js:12363-12368`: `importEmbeddedWorldInfo(); saveCharacterDebounced();`), where
+ * `saveCharacterDebounced = debounce(() => $('#create_button').trigger('click'))` (`script.js:471`) and
+ * `createOrEditCharacter` posts the `#form_create` FormData - whose hidden `world` input is `#character_world`
+ * (`index.html:6206`) - then reloads the character via `getOneCharacter`. The first version of this probe clicked the
+ * dialog OK and required the binding, which the dialog path never performs. The dispatch showed the consequence: the
+ * GoTavern leg happened to be bound by a timing coincidence (its body carried the 3 extra MARKER_WB markers) while the
+ * pinned leg was not (`bound: ""`) - a HARNESS asymmetry that would have been a false product finding.
+ *
+ * The faithful flow: select the character through the editor-population path the dialog is normally opened from
+ * (`select_selected_character`, `script.js:8762`, which populates `#form_create` and calls `checkEmbeddedWorld` at
+ * `script.js:8811`), confirm the product dialog (or the product's fallback import), wait for the world to be listed,
+ * assert the editor form IS populated before saving (saving an unpopulated form would overwrite the card the rest of
+ * the journey measures - refuse by name instead), press the same Save the menu follow-up presses, wait for the
+ * product's own effective binding, and close the editor. Every step and its evidence is recorded.
  */
 async function importEmbeddedCardBookAfterBoot(page) {
-    const started = await page.evaluate(async () => {
-        const worldInfo = await import('./scripts/world-info.js');
+    const prepared = await page.evaluate(async () => {
         const script = await import('./script.js');
         const chid = script.this_chid;
         const character = chid === undefined || chid === null ? null : (script.characters ?? [])[chid] ?? null;
         if (!character) return { ok: false, reason: 'no active character' };
         if (!character?.data?.character_book) return { ok: false, reason: 'the staged card carries no data.character_book', chid, name: character?.name ?? null };
-        const opened = worldInfo.checkEmbeddedWorld(chid);
-        return { ok: opened === true, chid, name: character?.name ?? null, bookName: String(character.data.character_book.name ?? '') };
+        // The dialog is reached from the character editor; this is the product function that populates the editor form
+        // for the character AND calls checkEmbeddedWorld(chid). Recorded either way (a throw is captured below).
+        let editorSelection = { called: false };
+        if (typeof script.select_selected_character === 'function') {
+            try {
+                script.select_selected_character(chid, { switchMenu: true });
+                editorSelection = { called: true };
+            } catch (error) {
+                editorSelection = { called: true, threw: String(error?.message ?? error).slice(0, 200) };
+            }
+        }
+        return { ok: true, chid: String(chid), name: character?.name ?? null, bookName: String(character.data.character_book.name ?? ''), editorSelection };
     });
-    if (started.ok !== true) return { ...started, via: null };
+    if (prepared.ok !== true) return { ...prepared, via: [] };
+
+    const clickPopup = async (timeoutMs) => {
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+            const popup = await page.evaluate(() => {
+                const button = document.querySelector('.popup .popup-button-ok') ?? document.querySelector('.popup-button-ok');
+                if (!button) return { present: false };
+                button.click();
+                return { present: true };
+            }).catch(() => ({ present: false }));
+            if (popup.present) return true;
+            await page.waitForTimeout(200);
+        }
+        return false;
+    };
+
+    const via = [];
     let dialog = { present: false, clicked: false };
-    const deadline = Date.now() + 8000;
-    while (Date.now() < deadline) {
-        const popup = await page.evaluate(() => {
-            const button = document.querySelector('.popup .popup-button-ok') ?? document.querySelector('.popup-button-ok');
-            if (!button) return { present: false };
-            button.click();
-            return { present: true };
-        }).catch(() => ({ present: false }));
-        if (popup.present) { dialog = { present: true, clicked: true }; break; }
-        await page.waitForTimeout(200);
+    // (1) The dialog the editor-open path already raises (the product's own ask).
+    dialog.present = await clickPopup(6000);
+    if (dialog.present) {
+        dialog.clicked = true;
+        via.push('editor-open dialog confirm (checkEmbeddedWorld -> product confirm OK)');
     }
-    let via = dialog.clicked ? 'checkEmbeddedWorld dialog confirm' : null;
+    // (2) If no dialog is present (already-acknowledged character, or the user setting shows a toast), ask the product
+    //     to raise it; if the product answers "no dialog", call the exact function its confirm callback calls.
     let fallback = null;
-    if (!dialog.clicked) {
-        const direct = await page.evaluate(async () => {
+    if (!dialog.present) {
+        const triggered = await page.evaluate(async chid => {
             const worldInfo = await import('./scripts/world-info.js');
-            await worldInfo.importEmbeddedWorldInfo(true);
-            return { called: true };
-        }).catch(error => ({ called: false, error: String(error?.message ?? error).slice(0, 300) }));
-        via = direct.called ? 'importEmbeddedWorldInfo(true) (the dialog did not appear; the product function the dialog confirm calls)' : 'not-driven';
-        fallback = direct;
+            return { opened: worldInfo.checkEmbeddedWorld(Number(chid)) === true };
+        }, prepared.chid).catch(error => ({ opened: false, error: String(error?.message ?? error).slice(0, 200) }));
+        dialog.present = await clickPopup(6000);
+        if (dialog.present) {
+            dialog.clicked = true;
+            via.push('checkEmbeddedWorld -> product confirm OK');
+        } else {
+            const direct = await page.evaluate(async () => {
+                const worldInfo = await import('./scripts/world-info.js');
+                await worldInfo.importEmbeddedWorldInfo(true);
+                return { called: true };
+            }).catch(error => ({ called: false, error: String(error?.message ?? error).slice(0, 300) }));
+            fallback = { triggered, direct };
+            if (direct.called) via.push('importEmbeddedWorldInfo(true) (product function the dialog confirm calls)');
+        }
     }
-    // Bound the wait on the PRODUCT's own state: the book in world_names AND the character's world binding.
-    const wanted = started.bookName;
-    const deadline2 = Date.now() + 20000;
-    let verified = { ok: false };
-    while (Date.now() < deadline2) {
-        verified = await page.evaluate(async name => {
+    dialog.trigger = fallback?.triggered ?? null;
+
+    // (3) Import completion: the world is LISTED and the product set the hidden world input.
+    const waited = { deadlineMs: 20000 };
+    let importState = { listed: false, domWorld: null };
+    const importDeadline = Date.now() + waited.deadlineMs;
+    while (Date.now() < importDeadline) {
+        importState = await page.evaluate(async name => {
             const worldInfo = await import('./scripts/world-info.js');
+            const $ = globalThis.jQuery ?? null;
+            if (typeof worldInfo.getWorldInfoList === 'function') await worldInfo.getWorldInfoList();
+            const names = Array.isArray(worldInfo.world_names) ? worldInfo.world_names.slice() : [];
+            return { listed: names.includes(name), names, domWorld: $ ? String($('#character_world').val() ?? '') : null };
+        }, prepared.bookName).catch(error => ({ listed: false, error: String(error?.message ?? error).slice(0, 200) }));
+        if (importState.listed === true) break;
+        await page.waitForTimeout(250);
+    }
+
+    // (4) SAVE THROUGH THE SAME BUTTON THE PRODUCT'S MENU FOLLOW-UP PRESSES - but only from a POPULATED editor form:
+    //     posting an unpopulated form would overwrite the staged card (description/personality/scenario) that the
+    //     provider-request assertions measure. An unpopulated form is a NAMED harness failure, never a save.
+    const save = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        const $ = globalThis.jQuery ?? null;
+        const chid = script.this_chid;
+        const character = (script.characters ?? [])[chid] ?? null;
+        if (!$) return { saved: false, reason: 'no jQuery on the page' };
+        const actiontype = $('#form_create').attr('actiontype') ?? null;
+        const formName = String($('#character_name_pole').val() ?? '');
+        const formAvatar = String($('#avatar_url_pole').val() ?? '');
+        const domWorld = String($('#character_world').val() ?? '');
+        const populated = actiontype === 'editcharacter'
+            && character !== null
+            && formName === String(character?.name ?? '\u0000')
+            && formAvatar === String(character?.avatar ?? '\u0000');
+        const evidence = { populated, actiontype, formName, formAvatar, avatar: character?.avatar ?? null, name: character?.name ?? null, domWorld };
+        if (!populated) return { saved: false, evidence, reason: 'the character editor form is not populated for this character; refusing to save it' };
+        // `saveCharacterDebounced` (script.js:471) is a debounced `#create_button` click; triggering the click is the
+        // same product action without a debounce delay.
+        $('#create_button').trigger('click');
+        return { saved: true, evidence, mechanism: 'createOrEditCharacter via #create_button click (saveCharacterDebounced target, script.js:471)' };
+    }).catch(error => ({ saved: false, reason: String(error?.message ?? error).slice(0, 300) }));
+
+    // (5) The product's own effective binding: characters[chid].data.extensions.world, the member getCharacterLore
+    //     reads (world-info.js:4482). Bounded; both the bound value and the hidden input are recorded.
+    let verified = { ok: false };
+    const bindDeadline = Date.now() + 30000;
+    while (Date.now() < bindDeadline) {
+        verified = await page.evaluate(async name => {
             const script = await import('./script.js');
+            const worldInfo = await import('./scripts/world-info.js');
+            const $ = globalThis.jQuery ?? null;
             if (typeof worldInfo.getWorldInfoList === 'function') await worldInfo.getWorldInfoList();
             const names = Array.isArray(worldInfo.world_names) ? worldInfo.world_names.slice() : [];
             const chid = script.this_chid;
             const bound = String(script.characters?.[chid]?.data?.extensions?.world ?? '');
-            return { ok: names.includes(name) && bound === name, names, bound, name };
-        }, wanted).catch(error => ({ ok: false, error: String(error?.message ?? error).slice(0, 200) }));
+            return { ok: names.includes(name) && bound === name, names, bound, domWorld: $ ? String($('#character_world').val() ?? '') : null, name };
+        }, prepared.bookName).catch(error => ({ ok: false, error: String(error?.message ?? error).slice(0, 200) }));
         if (verified.ok === true) break;
         await page.waitForTimeout(250);
     }
-    return { ...started, via, dialog, fallback, verified, ok: verified.ok === true };
+
+    // (6) Return the page to the chat context the rest of the drive expects (close the editor if it is open).
+    const editorClosed = await page.evaluate(async () => {
+        const $ = globalThis.jQuery ?? null;
+        if (!$) return { closed: false, reason: 'no jQuery' };
+        const cross = $('#character_cross');
+        if (cross.length === 0) return { closed: false, reason: 'no #character_cross control' };
+        cross.trigger('click');
+        return { closed: true };
+    }).catch(error => ({ closed: false, error: String(error?.message ?? error).slice(0, 200) }));
+
+    if (save.saved === true) via.push('character Save (#create_button click; the menu handler follow-up)');
+    return {
+        ...prepared,
+        via,
+        dialog,
+        fallback,
+        importState,
+        save,
+        editorClosed,
+        verified,
+        ok: verified.ok === true && importState.listed === true && save.saved === true,
+    };
 }
 
 /** Fetch each installed extension's manifest through the product's own static mount and record the observed status. */
@@ -1081,7 +1230,25 @@ async function readPromptManagerState(page) {
         return {
             available: true,
             activeCharacter: pm.activeCharacter ?? null,
-            promptCount: Array.isArray(pm.prompts) ? pm.prompts.length : null,
+            // `pm.prompts` DOES NOT EXIST (the prompts live on `pm.serviceSettings.prompts`): the pre-dispatch version
+            // reported `prompts: null` here, which is why `complex-preset-selected` could look "selected but empty"
+            // and why the applied state was never asserted. Both the declared prompts and the ACTIVE order row are
+            // reported now, plus the marker-bearing collection the assembly actually uses.
+            promptCount: Array.isArray(pm.serviceSettings?.prompts) ? pm.serviceSettings.prompts.length : null,
+            promptOrderRows: Array.isArray(pm.serviceSettings?.prompt_order) ? pm.serviceSettings.prompt_order.map(row => ({ character_id: row?.character_id ?? null, orderLength: Array.isArray(row?.order) ? row.order.length : null })) : null,
+            activeCharacterId: pm.activeCharacter?.id ?? null,
+            activeOrderLength: (() => {
+                const id = pm.activeCharacter?.id ?? null;
+                const row = (pm.serviceSettings?.prompt_order ?? []).find(item => String(item?.character_id) === String(id));
+                return Array.isArray(row?.order) ? row.order.length : null;
+            })(),
+            collectionMarkers: (() => {
+                try {
+                    const entries = pm.getPromptCollection('normal');
+                    const prompts = Array.isArray(entries?.collection) ? entries.collection : [];
+                    return prompts.map(prompt => String(prompt?.content ?? '').match(/MARKER_P\d{4}/)?.[0] ?? null).filter(Boolean);
+                } catch { return null; }
+            })(),
             collection,
             enabled,
             disabled,
@@ -1089,6 +1256,74 @@ async function readPromptManagerState(page) {
             contextChid: (window.SillyTavern?.getContext?.()?.characterId ?? null),
         };
     });
+}
+
+/** The values an APPLIED profile preset must show, derived from the recorded recipe (no hand-written counts). */
+function expectedPresetApplication() {
+    const record = profileContext?.record ?? null;
+    const staged = profileContext?.stagedPreset ?? null;
+    const enabledMarkers = record
+        ? [...record.expectedOrder.blocks.enabledRelative, ...record.expectedOrder.blocks.enabledAbsolute]
+        : [];
+    let nonMarkerEnabled = null;
+    if (staged && Array.isArray(staged.prompts)) {
+        const contentByIdentifier = new Map(staged.prompts.map(prompt => [prompt.identifier, String(prompt?.content ?? '')]));
+        const activeRow = (staged.prompt_order ?? []).find(row => String(row?.character_id) === String(GLOBAL_PROMPT_ORDER_DUMMY_ID));
+        nonMarkerEnabled = (activeRow?.order ?? []).filter(entry => entry?.enabled === true && !/MARKER_P\d{4}/.test(contentByIdentifier.get(entry.identifier) ?? '')).length;
+    }
+    return {
+        declaredPrompts: record?.preset?.declaredPrompts ?? null,
+        orderLength: record?.preset?.activeOrderLength ?? null,
+        enabledMarkers,
+        nonMarkerEnabled,
+    };
+}
+
+/**
+ * THE APPLIED-STATE ASSERTION (what dispatch 42173399186 needed and did not have). A preset is applied only when the
+ * LIVE prompt manager shows the staged declared prompts, an order row for its OWN active character id, that row's
+ * length, and the marker-bearing collection the assembly uses. Selecting the option is not applying it; the previous
+ * check only reported `prompts: null` and could not tell the difference.
+ */
+async function readPresetAppliedState(page, expected) {
+    const observed = await page.evaluate(async () => {
+        const openai = await import('./scripts/openai.js');
+        const pm = openai.promptManager ?? null;
+        const service = pm?.serviceSettings ?? openai.oai_settings ?? {};
+        const activeId = pm?.activeCharacter?.id ?? null;
+        const rows = Array.isArray(service.prompt_order) ? service.prompt_order : [];
+        const row = rows.find(item => String(item?.character_id) === String(activeId)) ?? null;
+        const order = Array.isArray(row?.order) ? row.order : [];
+        const prompts = Array.isArray(service.prompts) ? service.prompts : [];
+        let collection = null;
+        try {
+            const entries = pm ? pm.getPromptCollection('normal') : null;
+            collection = Array.isArray(entries?.collection) ? entries.collection : null;
+        } catch { collection = null; }
+        const collectionMarkers = collection === null ? null : collection.map(prompt => String(prompt?.content ?? '').match(/MARKER_P\d{4}/)?.[0] ?? null).filter(Boolean);
+        return {
+            selectedPreset: openai.oai_settings?.preset_settings_openai ?? null,
+            activeCharacterId: activeId,
+            declaredPrompts: prompts.length,
+            orderRowFound: Boolean(row),
+            orderLength: order.length,
+            enabledInOrder: order.filter(entry => entry?.enabled === true).length,
+            collectionLength: collection === null ? null : collection.length,
+            collectionMarkers,
+            collectionNonMarkerCount: collection === null ? null : collection.filter(prompt => !/MARKER_P\d{4}/.test(String(prompt?.content ?? ''))).length,
+            promptManagerPresent: Boolean(pm),
+        };
+    });
+    const observedMarkers = [...new Set(observed.collectionMarkers ?? [])].sort();
+    const expectedMarkers = [...new Set(expected.enabledMarkers ?? [])].sort();
+    const problems = [];
+    if (observed.promptManagerPresent !== true) problems.push('the prompt manager is not initialised');
+    if (expected.declaredPrompts !== null && observed.declaredPrompts !== expected.declaredPrompts) problems.push(`declared prompts ${observed.declaredPrompts} != ${expected.declaredPrompts}`);
+    if (observed.orderRowFound !== true) problems.push(`no prompt_order row for the active character id ${String(observed.activeCharacterId)} (the dispatch-42173399186 failure: a row keyed for a different id is invisible, PromptManager.js:1207-1212)`);
+    if (expected.orderLength !== null && observed.orderLength !== expected.orderLength) problems.push(`active order length ${observed.orderLength} != ${expected.orderLength}`);
+    if (JSON.stringify(observedMarkers) !== JSON.stringify(expectedMarkers)) problems.push(`collection markers ${observedMarkers.length} != expected ${expectedMarkers.length} (${expectedMarkers.filter(marker => !observedMarkers.includes(marker)).slice(0, 5).join(',')} missing)`);
+    if (expected.nonMarkerEnabled !== null && observed.collectionNonMarkerCount !== expected.nonMarkerEnabled) problems.push(`non-marker collection prompts ${observed.collectionNonMarkerCount} != ${expected.nonMarkerEnabled}`);
+    return { ok: problems.length === 0, problems, observed, expected };
 }
 
 
@@ -1290,14 +1525,27 @@ async function main() {
                 };
                 step('e03e04-profile-staged', profileContext.record.expectedOrderSha256.length === 64
                     && profileContext.record.books['e03e04-book-a-three-slot'] !== undefined
-                    && profileContext.record.books['e03e04-book-c-recursive'] !== undefined, {
+                    && profileContext.record.books['e03e04-book-c-recursive'] !== undefined
+                    && profileContext.presetShape?.ok === true, {
                     tier: tierArgument,
                     seed: seedArgument,
                     blockCount: profileContext.record.blockCount,
                     expectedOrderSha256: profileContext.record.expectedOrderSha256,
-                    presetSha256: profileContext.record.preset.sha256,
+                    stagedPresetSha256: profileContext.record.preset.sha256,
+                    kitPresetSha256: profileContext.record.preset.kitSha256,
+                    promptOrderCharacterIds: profileContext.record.preset.promptOrderCharacterIds,
+                    activePromptOrderCharacterId: profileContext.record.preset.activePromptOrderCharacterId,
+                    declaredPrompts: profileContext.record.preset.declaredPrompts,
+                    activeOrderLength: profileContext.record.preset.activeOrderLength,
+                    presetShapeProblems: profileContext.presetShape?.problems ?? null,
                     cardCharacterBookSha256: profileContext.record.cardCharacterBook.sha256,
                 });
+                // The staged preset document is what the frontend will read; record the SHAPE check separately so a
+                // future run names "the file is not what the frontend applies" before a browser is even needed.
+                step('e03e04-preset-document-applies-to-frontend-id', profileContext.presetShape?.ok === true
+                    && String(profileContext.presetShape.activeCharacterId) === String(GLOBAL_PROMPT_ORDER_DUMMY_ID)
+                    && profileContext.presetShape.activeOrderLength === profileContext.presetShape.declaredPrompts,
+                    profileContext.presetShape);
                 if (extensionTierArgument !== tierArgument) {
                     step('e03e04-extension-tier-is-narrowed', false, {
                         blockTier: tierArgument,
@@ -1394,6 +1642,9 @@ async function main() {
                 seed: seedArgument,
                 recordFile: profileContext?.recordFile ?? null,
                 expectedOrderSha256: profileContext?.record?.expectedOrderSha256 ?? null,
+                stagedPresetSha256: profileContext?.record?.preset?.sha256 ?? null,
+                kitPresetSha256: profileContext?.record?.preset?.kitSha256 ?? null,
+                presetShape: profileContext?.presetShape ?? null,
                 documents: Object.keys(profileContext?.record?.manifest?.documents ?? {}),
             });
             return;
@@ -1552,10 +1803,25 @@ async function main() {
                 select.dispatchEvent(new Event('change', { bubbles: true }));
                 if (typeof openai.getPresetApplicationPromise === 'function') await openai.getPresetApplicationPromise(openai.oai_settings.preset_settings_openai);
                 await new Promise(resolve => setTimeout(resolve, 500));
-                return { ok: true, selected: openai.oai_settings.preset_settings_openai ?? null, prompts: Array.isArray(openai.promptManager?.prompts) ? openai.promptManager.prompts.length : (Array.isArray(openai.oai_settings.promptManager?.prompts) ? openai.oai_settings.promptManager.prompts.length : null), optionValue: option.value };
+                // THE DECLARED PROMPTS LIVE ON `promptManager.serviceSettings.prompts`, never on `promptManager.prompts`
+                // (the pre-dispatch read reported `null` from the wrong member). The APPLIED assertion is separate
+                // (readPresetAppliedState) so "selected" and "applied" are never conflated again.
+                const service = openai.promptManager?.serviceSettings ?? openai.oai_settings ?? {};
+                return {
+                    ok: true,
+                    selected: openai.oai_settings.preset_settings_openai ?? null,
+                    declaredPrompts: Array.isArray(service.prompts) ? service.prompts.length : null,
+                    orderRows: Array.isArray(service.prompt_order) ? service.prompt_order.map(row => ({ character_id: row?.character_id ?? null, orderLength: Array.isArray(row?.order) ? row.order.length : null })) : null,
+                    activeCharacterId: openai.promptManager?.activeCharacter?.id ?? null,
+                    optionValue: option.value,
+                };
             }, presetName);
+            // THE APPLIED-STATE ASSERTION: a selected option is not an applied preset. This is the named check that
+            // would have caught dispatch 42173399186's 11-default-prompt order at the step, before any request.
+            const presetApplied = profileMode ? await readPresetAppliedState(page, expectedPresetApplication()) : null;
+            report.browser.presetApplied = presetApplied;
             const plantedPreset = profileMode
-                ? profileContext.built.preset
+                ? profileContext.stagedPreset
                 : presetDocument;
             report.browser.preset = {
                 name: presetName,
@@ -1582,7 +1848,13 @@ async function main() {
             report.browser.presetSignatures = presetSignatures;
             step('complex-preset-selected', selected.ok === true
                 && String(selected.selected ?? '').toLowerCase().includes(profileMode ? 'e03e04' : 'comb-journey')
-                && (!profileMode || Number(selected.prompts) === profileContext.record.manifest.claim.totalPrompts), selected);
+                && (!profileMode || presetApplied?.ok === true), { selected, applied: presetApplied });
+            if (profileMode) {
+                // NAMED APPLIED ASSERTION (new in this task): the staged prompts/order reached the LIVE prompt manager,
+                // including an order row for its own active character id. Dispatch 42173399186 selected the option and
+                // still ran the 11 default prompts; this step fails with the exact mismatch that happened.
+                step('e03e04-preset-applied-to-prompt-manager', presetApplied?.ok === true, presetApplied);
+            }
 
             // ---- STEP 2b: author's note through the frontend's own module ----------------------------
             const anSpec = resolveAuthorsNoteCase(authorsNoteOverlaySpec(), 'parity');
@@ -2010,6 +2282,10 @@ async function main() {
             await waitForQuiet(page);
             report.browser.reloadPromptArmed = await waitForArmedPromptManager(page, { markerNeedle: ARMED_MARKER_NEEDLE });
             step('reload-prompt-manager-armed', report.browser.reloadPromptArmed.armed === true, report.browser.reloadPromptArmed);
+            if (profileMode) {
+                report.browser.reloadPresetApplied = await readPresetAppliedState(page, expectedPresetApplication());
+                step('e03e04-reload-preset-applied-to-prompt-manager', report.browser.reloadPresetApplied.ok === true, report.browser.reloadPresetApplied);
+            }
             await page.evaluate(async () => {
                 const script = await import('./script.js');
                 const events = await import('./scripts/events.js');
@@ -2385,6 +2661,10 @@ async function main() {
             report.browser.restartPromptArmedFinal = await waitForArmedPromptManager(page, { markerNeedle: ARMED_MARKER_NEEDLE });
             step('restart-ready-to-send', report.browser.restartPromptArmedFinal.armed === true
                 && report.browser.restartPresetFinal.ok === true, { armed: report.browser.restartPromptArmedFinal, preset: report.browser.restartPresetFinal, world: report.browser.restartWorldFinal });
+            if (profileMode) {
+                report.browser.restartPresetApplied = await readPresetAppliedState(page, expectedPresetApplication());
+                step('e03e04-restart-preset-applied-to-prompt-manager', report.browser.restartPresetApplied.ok === true, report.browser.restartPresetApplied);
+            }
         const resumed = await turn(page, 'COMB_TURN_AFTER_RESTART', 'turn-after-restart');
             const captureResumed = classifyCapture(resumed.requests[0]);
             report.browser.resumed = { requests: resumed.requests.length, after: resumed.after };
@@ -2425,6 +2705,10 @@ async function main() {
             step('handback-chat-ready', reopened.satisfied === true, { satisfied: reopened.satisfied, precondition: reopened.precondition, chatLength: reopened.chatLength, lastText: reopened.lastText });
             report.browser.handbackPromptArmed = await waitForArmedPromptManager(page, { markerNeedle: ARMED_MARKER_NEEDLE });
             step('handback-prompt-manager-armed', report.browser.handbackPromptArmed.armed === true, report.browser.handbackPromptArmed);
+            if (profileMode) {
+                report.browser.handbackPresetApplied = await readPresetAppliedState(page, expectedPresetApplication());
+                step('e03e04-handback-preset-applied-to-prompt-manager', report.browser.handbackPresetApplied.ok === true, report.browser.handbackPresetApplied);
+            }
             const before = await readPageState(page);
             report.browser.handbackBefore = before;
             step('handback-read-gotavern-history', before.chatLength > 5 && before.lastText.includes('COMB_'), { chatLength: before.chatLength, lastText: before.lastText.slice(0, 120) });
@@ -2465,10 +2749,21 @@ async function main() {
             subject,
             digests: stagedRecord
                 ? {
+                    // `preset` is the STAGED document's digest (what the page read); `kitPreset` is the unmodified M1
+                    // kit document's digest. The selector's order-row correction is the only difference.
                     preset: stagedRecord.preset?.sha256 ?? null,
+                    kitPreset: stagedRecord.preset?.kitSha256 ?? null,
                     expectedOrder: stagedRecord.expectedOrderSha256 ?? null,
                     cardCharacterBook: stagedRecord.cardCharacterBook?.sha256 ?? null,
                     settingsPatch: stagedRecord.settingsPatch?.sha256 ?? null,
+                }
+                : null,
+            promptOrder: stagedRecord?.preset
+                ? {
+                    characterIds: stagedRecord.preset.promptOrderCharacterIds ?? null,
+                    activeCharacterId: stagedRecord.preset.activePromptOrderCharacterId ?? null,
+                    declaredPrompts: stagedRecord.preset.declaredPrompts ?? null,
+                    activeOrderLength: stagedRecord.preset.activeOrderLength ?? null,
                 }
                 : null,
         };

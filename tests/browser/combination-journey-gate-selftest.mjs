@@ -23,6 +23,9 @@
 //   * record an artifact with a wrong head SHA     -> artifact-identity-complete (+ the verifier's own refusal)
 //   * make both subjects identical with every knob off -> HARNESS-NON-DISCRIMINATING
 //   * a leg with no profile record when one was requested -> e03e04-profile-recorded (REFUSED, never downgraded)
+//   * the dispatch-42173399186 defect: preset SELECTED but not APPLIED -> e03e04-preset-applied
+//   * staged preset digest confused with the kit digest -> e03e04-preset-document-recorded
+//   * the embedded book imported but NOT bound to the character (the dialog-only half) -> e03e04-embedded-book-imported
 //
 // Usage:
 //   node tests/browser/combination-journey-gate-selftest.mjs                        # synthetic suite only
@@ -41,6 +44,7 @@ import {
     verifyArtifactIdentity,
 } from './compare-combination-journey.mjs';
 import { buildProfile, canonicalJson, sha256, TIERS } from './extensions/e03e04-profile-kit.mjs';
+import { GLOBAL_PROMPT_ORDER_DUMMY_ID as KIT_GLOBAL_PROMPT_ORDER_DUMMY_ID, stagedPresetDocument, validateStagedPreset } from './extensions/combination-journey-kit.mjs';
 import { EXTENSION_TIERS } from './extensions/extension-install-batch.mjs';
 
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -68,7 +72,16 @@ function buildSyntheticProfileLegs() {
         blockCount: built.preset.e03e04_profile.blockCount,
         expectedOrderSha256: sha256(canonicalJson(expectedOrder)),
         expectedOrder,
-        preset: { sha256: sha256(canonicalJson(built.preset)) },
+        preset: {
+            file: 'OpenAI Settings/e03e04-profile.json',
+            sha256: sha256('synthetic-staged-preset-bytes'),
+            kitSha256: sha256(canonicalJson(built.preset)),
+            promptOrderCharacterIds: ['100001', '100000'],
+            activePromptOrderCharacterId: 100001,
+            declaredPrompts: built.preset.prompts.length,
+            activeOrderLength: built.preset.prompt_order[0].order.length,
+            transformation: { kind: 'add-active-prompt-order-row', reason: 'synthetic selftest: the dispatch root cause' },
+        },
         cardCharacterBook: { name: built.books.cardEmbedded.name, sha256: sha256(canonicalJson(built.books.cardEmbedded.characterBook)) },
         settingsPatch: { sha256: sha256(canonicalJson(built.settings)) },
         activation: built.books.activation,
@@ -108,6 +121,7 @@ function buildSyntheticProfileLegs() {
         subject: 'synthetic',
         digests: {
             preset: record.preset.sha256,
+            kitPreset: record.preset.kitSha256,
             expectedOrder: record.expectedOrderSha256,
             cardCharacterBook: record.cardCharacterBook.sha256,
             settingsPatch: record.settingsPatch.sha256,
@@ -138,6 +152,38 @@ function buildSyntheticProfileLegs() {
                 domIdsUnique: true,
                 domIdsCoverChat: true,
                 userMarkers: [{ index: 1, marker: 'COMB_TURN_1' }, { index: 3, marker: 'COMB_TURN_2' }, { index: 5, marker: 'COMB_FINAL_TURN' }],
+            },
+            // The APPLIED-state evidence the probe records after the preset is selected (dispatch 42173399186 showed
+            // selection without application; the leg record must carry both).
+            presetApplied: {
+                ok: true,
+                problems: [],
+                observed: {
+                    selectedPreset: 'e03e04-profile',
+                    activeCharacterId: 100001,
+                    declaredPrompts: built.preset.prompts.length,
+                    orderRowFound: true,
+                    orderLength: built.preset.prompt_order[0].order.length,
+                    collectionMarkers: [...expectedOrder.blocks.enabledRelative, ...expectedOrder.blocks.enabledAbsolute],
+                },
+            },
+            // The EMBEDDED-book evidence: imported, listed, bound to the character, and saved through the product's own
+            // editor-save follow-up (the dialog alone does not bind; dispatch 42173399186 root cause).
+            embeddedBook: {
+                ok: true,
+                chid: '3',
+                name: 'SYNTHETIC_CARD',
+                bookName: built.books.cardEmbedded.name,
+                via: ['editor-open dialog confirm (checkEmbeddedWorld -> product confirm OK)', 'character Save (#create_button click; the menu handler follow-up)'],
+                dialog: { present: true, clicked: true },
+                fallback: null,
+                importState: { listed: true, domWorld: built.books.cardEmbedded.name },
+                save: {
+                    saved: true,
+                    evidence: { populated: true, actiontype: 'editcharacter', formName: 'SYNTHETIC_CARD', formAvatar: 'synthetic.png', avatar: 'synthetic.png', name: 'SYNTHETIC_CARD', domWorld: built.books.cardEmbedded.name },
+                    mechanism: 'createOrEditCharacter via #create_button click (saveCharacterDebounced target, script.js:471)',
+                },
+                verified: { ok: true, names: [built.books.cardEmbedded.name], bound: built.books.cardEmbedded.name, domWorld: built.books.cardEmbedded.name, name: built.books.cardEmbedded.name },
             },
         },
         disk: { projection: {} },
@@ -338,7 +384,51 @@ syntheticMutation(
     legs => { delete legs.pinned.e03e04; },
 );
 
-// 11. THE ARTIFACT VERIFIER: a good identity verifies; a wrong head SHA, a wrong pinned SHA, a missing field and a
+// 11. THE DISPATCH-42173399186 DEFECT ITSELF: the preset was SELECTED but the live prompt manager kept the default 11
+//     prompts (staged order row keyed for an id the manager does not match). The applied-state guard must go red even
+//     though every body marker guard is green in the synthetic pair.
+syntheticMutation(
+    'A-PRESET-IS-SELECTED-BUT-NOT-APPLIED goes RED by e03e04-preset-applied',
+    'e03e04-preset-applied',
+    legs => {
+        legs.pinned.browser.presetApplied = {
+            ok: false,
+            problems: ['no prompt_order row for the active character id 100001 (the dispatch-42173399186 failure: a row keyed for a different id is invisible, PromptManager.js:1207-1212)'],
+            observed: {
+                selectedPreset: 'e03e04-profile',
+                activeCharacterId: 100001,
+                declaredPrompts: 24,
+                orderRowFound: false,
+                orderLength: 0,
+                collectionMarkers: [],
+            },
+        };
+    },
+);
+
+// 12. THE STAGED-PRESET DIGEST IS CONFUSED WITH THE KIT DIGEST: the record must keep both apart (the probe stages a
+//     document with the active order row added), or a reader cannot tell which document the page read.
+syntheticMutation(
+    'THE-STAGED-PRESET-DIGEST-IS-NOT-RECORDED goes RED by e03e04-preset-document-recorded',
+    'e03e04-preset-document-recorded',
+    legs => {
+        legs.go.identity.digests.preset = legs.go.e03e04.record.preset.kitSha256;
+    },
+);
+
+// 13. THE EMBEDDED BOOK IS IMPORTED (world listed) BUT NOT BOUND to the character. This is the HALF the dialog path
+//     actually performs - dispatch 42173399186 showed a bound=="" leg while the other happened to be bound - so the
+//     guard must demand the product's effective binding, not merely the dialog click.
+syntheticMutation(
+    'THE-EMBEDDED-BOOK-IS-NOT-BOUND goes RED by e03e04-embedded-book-imported',
+    'e03e04-embedded-book-imported',
+    legs => {
+        legs.pinned.browser.embeddedBook.verified.bound = '';
+        legs.pinned.browser.embeddedBook.ok = false;
+    },
+);
+
+// 14. THE ARTIFACT VERIFIER: a good identity verifies; a wrong head SHA, a wrong pinned SHA, a missing field and a
 //     tampered document digest are each REFUSED (never warnings). The document bytes are real files in a temp dir.
 function artifactVerifierCases() {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'cj-selftest-'));
@@ -372,6 +462,26 @@ function artifactVerifierCases() {
 
 artifactVerifierCases();
 
+// 14b. THE PURE-NODE CHECK OF THE DISPATCH-42173399186 PRESET DEFECT. The staged-preset transformation/assertion lives
+//      in the journey kit so it can be run without a browser: a KIT-ONLY document (row keyed 100000) is REFUSED, the
+//      staged form carries the live 100001 row with one order entry per declared prompt, and it is byte-deterministic.
+function stagedPresetShapeCases() {
+    const built = buildProfile({ seed: PROFILE_SEED, blockCount: TIERS[PROFILE_TIER], tier: PROFILE_TIER });
+    const kitOnly = validateStagedPreset(built.preset);
+    record('THE-KIT-ONLY-PRESET-IS-REFUSED-BY-THE-ACTIVE-ROW-ASSERTION', kitOnly.ok === false
+        && kitOnly.problems.length > 0, kitOnly);
+    const staged = stagedPresetDocument(built.preset);
+    const shape = validateStagedPreset(staged);
+    record('THE-STAGED-PRESET-CARRIES-THE-LIVE-ACTIVE-ROW', shape.ok === true
+        && Number(shape.activeCharacterId) === Number(KIT_GLOBAL_PROMPT_ORDER_DUMMY_ID)
+        && shape.promptOrderCharacterIds.includes(String(KIT_GLOBAL_PROMPT_ORDER_DUMMY_ID))
+        && shape.activeOrderLength === shape.declaredPrompts
+        && shape.activeOrderLength === built.preset.prompts.length, shape);
+    record('THE-STAGED-PRESET-IS-DETERMINISTIC', canonicalJson(stagedPresetDocument(built.preset)) === canonicalJson(staged), null);
+}
+
+stagedPresetShapeCases();
+
 // The baseline itself must be green for the target guards, or every planted red above would be vacuous. The legacy
 // guards are allowed to be red here: the synthetic pair is not a full journey, and each planted case only claims its
 // OWN target guard was green first (the per-guard precondition below is the same discipline the live suite uses).
@@ -380,6 +490,9 @@ const requiredGreen = [
     'e03e04-profile-recorded',
     'e03e04-profile-identical',
     'e03e04-extensions-installed',
+    'e03e04-preset-document-recorded',
+    'e03e04-preset-applied',
+    'e03e04-embedded-book-imported',
     'preset-block-order',
     'worldbook-order-recursiveGlobal-before',
     `preset-block-present-${firstEnabledMarker}`,

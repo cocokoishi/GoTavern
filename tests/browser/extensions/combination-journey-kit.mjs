@@ -299,3 +299,83 @@ export async function readSettings(dataRoot) {
         return { ok: false, reason: String(error?.message ?? error) };
     }
 }
+
+// =================================================================================================================
+// THE STAGED PRESET'S PROMPT-ORDER ROW (dispatch 42173399186 root cause; pure, dependency-free, testable without a
+// browser). The e03e04 profile kit (frozen, M1) keys its `prompt_order` row on `character_id: 100000`, the
+// PromptManager CLASS default (`PromptManager.js:312-339`). The LIVE prompt manager is constructed with
+// `oai_settings` (`script.js:7869` -> `openai.js:675-721`), whose configuration OVERRIDES the dummyId to 100001
+// (`openai.js:696-699`), and `getPromptOrderForCharacter` matches `String(list.character_id) === String(character.id)`
+// (`PromptManager.js:1207-1212`). A row keyed 100000 is therefore INVISIBLE; `sanitizeServiceSettings`
+// (`PromptManager.js:1006-1015`) then injects `promptManagerDefaultPromptOrder`, which is exactly the 11-prompt
+// default order dispatch 42173399186 recorded (`promptCount:11`, `activeCharacter:{id:100001}`).
+//
+// The probe therefore stages the kit document WITH AN ADDITIONAL ACTIVE ROW for 100001 (a frontend-saved preset can
+// carry several character rows: committed preset-a.json carries 100000 AND 100001), and this module owns the pure
+// functions so the transformation and its assertion are checkable by `node` alone:
+//   * `stagedPresetDocument(preset)` -> the document to write;
+//   * `validateStagedPreset(document)` -> the assertion; it returns `ok:false` for a kit-only document.
+// The kit document itself is NOT edited (the M1 lane owns it); the probe records both the staged and kit digests.
+// =================================================================================================================
+
+export const GLOBAL_PROMPT_ORDER_DUMMY_ID = 100001;
+
+export const STAGED_PROMPT_ORDER_REASON = 'the live prompt manager matches order rows against activeCharacter.id = '
+    + '100001 (openai.js:698 overrides the PromptManager.js:336 class default of 100000; script.js:7869 passes '
+    + 'oai_settings), and a row keyed 100000 is invisible to PromptManager.js:1207-1212 - measured in dispatch '
+    + '42173399186, where the selected preset left the 11 default prompts in the manager';
+
+/**
+ * The preset document AS STAGED: a deep clone of the kit document with an ACTIVE `prompt_order` row for the live
+ * global dummyId. Deterministic (no timestamps, same order array) so `--stage-only` can assert the bytes.
+ */
+export function stagedPresetDocument(presetDocument) {
+    if (presetDocument === null || typeof presetDocument !== 'object' || Array.isArray(presetDocument)) {
+        throw new Error('stagedPresetDocument requires the kit preset document');
+    }
+    const document = JSON.parse(JSON.stringify(presetDocument));
+    const rows = Array.isArray(document.prompt_order) ? document.prompt_order : [];
+    const template = rows[0] ?? { character_id: null, order: [] };
+    const orderCopy = JSON.parse(JSON.stringify(template.order ?? []));
+    const hasActiveRow = rows.some(row => String(row?.character_id) === String(GLOBAL_PROMPT_ORDER_DUMMY_ID));
+    if (!hasActiveRow) rows.unshift({ character_id: GLOBAL_PROMPT_ORDER_DUMMY_ID, order: orderCopy });
+    document.prompt_order = rows;
+    return document;
+}
+
+/**
+ * Validate the STAGED preset the way the frontend will read it: JSON shape, every declared prompt referenced exactly
+ * once by the active order, a boolean `enabled` on each order entry, and an active row for the live dummyId. A
+ * kit-only document fails this (`activeCharacterId` 100000, `ok:false`) - that is the assertion that would have
+ * caught dispatch 42173399186 before a browser booted.
+ */
+export function validateStagedPreset(document) {
+    const problems = [];
+    const prompts = Array.isArray(document?.prompts) ? document.prompts : [];
+    const rows = Array.isArray(document?.prompt_order) ? document.prompt_order : [];
+    const activeRow = rows.find(row => String(row?.character_id) === String(GLOBAL_PROMPT_ORDER_DUMMY_ID)) ?? null;
+    const order = Array.isArray(activeRow?.order) ? activeRow.order : [];
+    const declared = new Set();
+    for (const prompt of prompts) {
+        if (!prompt || typeof prompt.identifier !== 'string' || prompt.identifier.length === 0) problems.push('a declared prompt has no identifier');
+        else if (declared.has(prompt.identifier)) problems.push(`duplicate prompt identifier ${prompt.identifier}`);
+        else declared.add(prompt.identifier);
+    }
+    const referenced = new Set();
+    for (const entry of order) {
+        if (!entry || typeof entry.identifier !== 'string') problems.push('an active order entry has no identifier');
+        else if (!declared.has(entry.identifier)) problems.push(`active order references undeclared ${entry.identifier}`);
+        else if (referenced.has(entry.identifier)) problems.push(`active order references ${entry.identifier} twice`);
+        else referenced.add(entry.identifier);
+        if (typeof entry?.enabled !== 'boolean') problems.push(`active order entry ${entry?.identifier} has no boolean enabled`);
+    }
+    for (const identifier of declared) if (!referenced.has(identifier)) problems.push(`declared prompt ${identifier} is not referenced by the active order`);
+    return {
+        ok: problems.length === 0 && prompts.length > 0 && order.length > 0,
+        problems,
+        promptOrderCharacterIds: rows.map(row => String(row?.character_id)),
+        activeCharacterId: activeRow ? activeRow.character_id : null,
+        declaredPrompts: prompts.length,
+        activeOrderLength: order.length,
+    };
+}

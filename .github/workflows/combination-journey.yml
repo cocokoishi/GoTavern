@@ -214,12 +214,22 @@ jobs:
             echo "::error::$1"
             echo "failures=1" >> "$GITHUB_OUTPUT"
           }
+          # EVERY LEG'S OWN STDOUT GOES TO A FILE IN THE ARTIFACT. Dispatch 42173399186 was diagnosed only from
+          # `gh run view --log`; the artifact carried reports but no leg logs because the job failed before the
+          # comparator (and the upload step then ran too late to include them). The leg log is captured beside the
+          # report, and its tail is surfaced in the job log on failure so the red is readable without downloading.
           run_leg() {
             label="$1"; shift
-            if "$@"; then
-              echo "recorded the $label leg"
+            log="$work/legs/$label.leg.log"
+            "$@" > "$log" 2>&1
+            status=$?
+            if [ "$status" -eq 0 ]; then
+              echo "recorded the $label leg (log: $label.leg.log)"
             else
-              record_failure "the $label leg failed to drive"
+              echo "::group::$label leg log tail"
+              tail -n 120 "$log" || true
+              echo "::endgroup::"
+              record_failure "the $label leg failed to drive (exit $status; full log in $label.leg.log)"
             fi
           }
           # THE ORDER IS THE CLAIM: a restart leg runs over the tree its drive leg wrote, and the hand-back leg
