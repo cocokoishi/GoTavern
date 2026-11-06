@@ -27,6 +27,8 @@
 //   * staged preset digest confused with the kit digest -> e03e04-preset-document-recorded
 //   * the embedded book imported but NOT bound to the character (the dialog-only half) -> e03e04-embedded-book-imported
 //   * a group turn that did not persist, or persisted outside the group-chat directory -> group-chat-persisted-parity
+//   * an outgoing prompt replaced by an installed orchestrator (narrative-agent) -> outgoing-prompt-integrity
+//   * an installed orchestrator observed but not configured off through its own setting -> extension-prompt-takeover-handled
 //
 // Usage:
 //   node tests/browser/combination-journey-gate-selftest.mjs                        # synthetic suite only
@@ -194,6 +196,9 @@ function buildSyntheticProfileLegs() {
                 domIdsCoverChat: true,
                 userMarkers: [{ index: 1, marker: 'COMB_TURN_1' }, { index: 3, marker: 'COMB_TURN_2' }, { index: 5, marker: 'COMB_FINAL_TURN' }],
             },
+            // THE OUTGOING PROMPT'S INTEGRITY (task-21): the probe records a named record for the first measured turn;
+            // with an orchestrating extension installed it would carry `reason`/`extension` instead of ok:true.
+            outgoingPromptIntegrity: { ok: true, captured: 1 },
             // THE GROUP TURN'S PERSISTED EFFECT (task-19): the probe flushes it through the product's own save and reads
             // the GROUP-CHAT directory (`<user>/group chats/<id>.jsonl`), not `<user>/chats`. Both subjects persist the
             // same message projection, so the comparator's parity guard is green in the baseline.
@@ -614,7 +619,64 @@ syntheticMutation(
     },
 );
 
-// 22. THE ARTIFACT VERIFIER: a good identity verifies; a wrong head SHA, a wrong pinned SHA, a missing field and a
+// 23. THE OUTGOING PROMPT WAS REPLACED (dispatch 42186322374): an extension orchestrated the request, so no capture
+//     carried the user marker. The guard must be red on that record instead of reading `requests:0` as "no traffic".
+syntheticMutation(
+    'THE-OUTGOING-PROMPT-WAS-REPLACED goes RED by outgoing-prompt-integrity',
+    'outgoing-prompt-integrity',
+    legs => {
+        legs.pinned.browser.outgoingPromptIntegrity = {
+            ok: false,
+            reason: 'outgoing-prompt-replaced-by-extension',
+            extension: 'narrative-agent',
+            replacement: { sha256: 'a'.repeat(64), byteLength: 12353, bodyHead: '{"messages":[{"role":"system","content":"You are a relay.' },
+        };
+    },
+);
+
+// 24. THE ORCHESTRATING EXTENSION IS INSTALLED BUT WAS NOT OBSERVED/CONFIGURED (narrative-agent in the full tier): the
+//     conditional guard must require the wire-observed takeover AND the product-path setting change on BOTH subjects.
+//     Built directly because the synthetic fast-tier pair does not install the orchestrator.
+{
+    const takeoverRecord = {
+        installed: true,
+        detected: true,
+        extension: 'narrative-agent',
+        disabled: true,
+        toggle: { clicked: true, before: true, after: false, configEnabled: false },
+        enabledProbe: { called: { called: true }, arrived: true, relay: { sha256: 'b'.repeat(64), byteLength: 12353, bodyHead: '{"messages":[{"role":"system","content":"You are a relay.' }, intact: null, requests: [] },
+        intactProbe: { called: { called: true }, arrived: true, intact: { sha256: 'c'.repeat(64), byteLength: 12353 }, requests: [] },
+        sourceEvidence: 'third-party/narrative-agent bridge.js _onPromptReady',
+        ok: true,
+    };
+    const withOrchestrator = () => {
+        const legs = clone(synthetic.legs);
+        for (const leg of [legs.go, legs.pinned]) {
+            leg.extensions.installed.push({ name: 'narrative-agent', commit: 'd'.repeat(40), source: 'corpus-lock', directory: 'default-user/extensions/narrative-agent', wireEffect: { status: 'capability-relevant-unproven', evidence: 'synthetic selftest' } });
+            leg.extensions.installedCount = leg.extensions.installed.length;
+            leg.extensions.expected = leg.extensions.installed.length;
+            leg.browser.extensionTakeover = clone(takeoverRecord);
+        }
+        return legs;
+    };
+    const baselineLegs = withOrchestrator();
+    const baseline = compareCombinationJourney({ goDrive: clone(baselineLegs.go), pinnedDrive: clone(baselineLegs.pinned), expectProfile: 'e03e04' });
+    const guardWasGreen = baseline.guards['extension-prompt-takeover-handled'] === true;
+    const mutatedLegs = withOrchestrator();
+    mutatedLegs.pinned.browser.extensionTakeover.ok = false;
+    mutatedLegs.pinned.browser.extensionTakeover.disabled = false;
+    mutatedLegs.pinned.browser.extensionTakeover.toggle = { clicked: false, reason: 'the extension settings control was not found' };
+    mutatedLegs.pinned.browser.extensionTakeover.intactProbe = null;
+    const mutated = compareCombinationJourney({ goDrive: clone(mutatedLegs.go), pinnedDrive: clone(mutatedLegs.pinned), expectProfile: 'e03e04' });
+    record('AN-INSTALLED-ORCHESTRATOR-NOT-CONFIGURED goes RED by extension-prompt-takeover-handled',
+        guardWasGreen && mutated.guards['extension-prompt-takeover-handled'] === false, {
+        baselineGuard: baseline.guards['extension-prompt-takeover-handled'],
+        mutatedGuard: mutated.guards['extension-prompt-takeover-handled'],
+        takeoverBaseline: baseline.guards.outgoingPromptIntegrity === true ? 'outgoing-prompt-integrity also green' : 'outgoing-prompt-integrity was not green in this fixture',
+    });
+}
+
+// 25. THE ARTIFACT VERIFIER: a good identity verifies; a wrong head SHA, a wrong pinned SHA, a missing field and a
 //     tampered document digest are each REFUSED (never warnings). The document bytes are real files in a temp dir.
 function artifactVerifierCases() {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'cj-selftest-'));
@@ -673,6 +735,7 @@ stagedPresetShapeCases();
 // OWN target guard was green first (the per-guard precondition below is the same discipline the live suite uses).
 const syntheticBaseline = judge(synthetic.legs);
 const requiredGreen = [
+    'outgoing-prompt-integrity',
     'e03e04-profile-recorded',
     'e03e04-profile-identical',
     'e03e04-extensions-installed',

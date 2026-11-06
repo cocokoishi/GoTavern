@@ -546,7 +546,7 @@ function addE03E04Guards({ add, goDrive, pinnedDrive, goRestart, pinnedRestart, 
     }
     add('artifact-identity-parity', parityProblems.length === 0, parityProblems.length === 0, { problems: parityProblems });
 
-    return { requested: true, refused: false, guardCount: names.length + 16 };
+    return { requested: true, refused: false, guardCount: names.length + 18 };
 }
 
 function extensionTierOf(leg) {
@@ -639,6 +639,48 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
     add('fixture-and-extension-recorded',
         Boolean(goDrive.fixture?.card?.sha256) && goDrive.fixture?.apiSurface?.pinned === true,
         Boolean(pinnedDrive.fixture?.card?.sha256) && pinnedDrive.fixture?.apiSurface?.pinned === true);
+
+    // ---- THE OUTGOING PROMPT'S INTEGRITY (dispatch 42186322374) ----------------------------------------
+    // A turn can only be attributed when the request carries the user's marker. In the full tier narrative-agent
+    // replaced EVERY outgoing prompt with its relay prompt (bridge.js _onPromptReady; PLACEHOLDER "__NA_PLACEHOLDER__"),
+    // so all turns were `requests:0` and the chat replies were relay outputs. The probe now records a named
+    // `outgoingPromptIntegrity` for the first measured turn; both subjects must show an intact prompt, and an
+    // orchestrating extension, when installed, must have been observed and turned off through its own setting BEFORE
+    // the measured turns.
+    const outgoingFor = leg => leg?.browser?.outgoingPromptIntegrity ?? null;
+    const outgoingOk = leg => outgoingFor(leg)?.ok === true && (outgoingFor(leg)?.reason ?? null) === null;
+    add('outgoing-prompt-integrity', outgoingOk(goDrive), outgoingOk(pinnedDrive),
+        { gotavern: outgoingFor(goDrive), pinned: outgoingFor(pinnedDrive) });
+    const installedExtensionNames = leg => new Set((leg?.extensions?.installed ?? []).map(entry => String(entry.name)));
+    const ORCHESTRATOR = 'narrative-agent';
+    if (installedExtensionNames(goDrive).has(ORCHESTRATOR) && installedExtensionNames(pinnedDrive).has(ORCHESTRATOR)) {
+        // Conditional by INSTALLED SET: the fast tier does not install the orchestrator, so no guard is claimed there.
+        const takeoverFor = leg => leg?.browser?.extensionTakeover ?? null;
+        const takeoverEvidence = leg => {
+            const record = takeoverFor(leg);
+            const probe = record?.enabledProbe ?? null;
+            const intactProbe = record?.intactProbe ?? null;
+            return {
+                installed: record?.installed === true,
+                detected: record?.detected === true,
+                extension: record?.extension ?? null,
+                disabled: record?.disabled === true,
+                toggleBefore: record?.toggle?.before ?? null,
+                toggleAfter: record?.toggle?.after ?? null,
+                relayObserved: probe?.relay != null,
+                intactAfterConfiguration: intactProbe?.intact != null,
+                sourceEvidence: record?.sourceEvidence ?? null,
+            };
+        };
+        const goTakeover = takeoverEvidence(goDrive);
+        const pinTakeover = takeoverEvidence(pinnedDrive);
+        const takeoverOk = value => value.installed && value.detected && value.extension === ORCHESTRATOR
+            && value.disabled && value.toggleBefore === true && value.toggleAfter === false
+            && value.relayObserved && value.intactAfterConfiguration;
+        const takeoverParity = JSON.stringify({ extension: goTakeover.extension, detected: goTakeover.detected }) === JSON.stringify({ extension: pinTakeover.extension, detected: pinTakeover.detected });
+        add('extension-prompt-takeover-handled', takeoverOk(goTakeover) && takeoverParity, takeoverOk(pinTakeover) && takeoverParity,
+            { gotavern: goTakeover, pinned: pinTakeover, rule: 'an installed prompt-orchestrating extension must be observed on the wire and turned off through its own setting before the measured turns' });
+    }
 
     // ---- WIRE: per-capture byte equality --------------------------------------------------------------
     const goCases = byCase(goDrive);

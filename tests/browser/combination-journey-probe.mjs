@@ -759,6 +759,237 @@ async function persistChatEffect(page, dataRoot, { action, expectText, readGroup
 }
 
 /**
+ * VISIBLE PRODUCT POPUPS, as data. Dispatch 42186322374's full-tier embedded-book failure was a dialog-targeting
+ * defect: the old code clicked the FIRST `.popup .popup-button-ok` in the document, which is fine when the product's
+ * import dialog is the only popup (fast tier) and wrong as soon as the 22-extension install leaves another popup on
+ * screen. These helpers name what is open so a red can say WHICH dialog was clicked or which one blocked the page.
+ */
+async function readPopupInventory(page) {
+    return page.evaluate(() => {
+        const visible = element => {
+            if (!element || !element.isConnected) return false;
+            const style = getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+        };
+        const entries = [];
+        for (const element of document.querySelectorAll('.popup, #dialogue_popup, .dialogue_popup')) {
+            if (!visible(element)) continue;
+            entries.push({
+                tag: element.tagName.toLowerCase(),
+                id: element.id || null,
+                className: String(element.className ?? '').slice(0, 120),
+                text: String(element.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 220),
+                buttons: [...element.querySelectorAll('.popup-button-ok, .popup-button-cancel, .popup-button-close, #dialogue_popup_ok, #dialogue_popup_cancel, #dialogue_popup_close')]
+                    .filter(visible).map(button => ({ id: button.id || null, className: String(button.className ?? '').slice(0, 100), label: String(button.textContent ?? button.value ?? '').trim().slice(0, 40) })),
+            });
+        }
+        return entries;
+    }).catch(() => []);
+}
+
+// The product's embedded-world confirmation text (world-info.js:5708-5710: "This character has an embedded
+// World/Lorebook." / "Would you like to import it now?").
+const IMPORT_DIALOG_PATTERN = /embedded World\/Lorebook|Would you like to import it now|Import Card Lore/i;
+
+/** Click the OK of the dialog whose TEXT is the embedded-world confirmation; never "the first popup on screen". */
+async function clickImportDialog(page, timeoutMs = 15000) {
+    const deadline = Date.now() + timeoutMs;
+    let last = { matched: false };
+    while (Date.now() < deadline) {
+        last = await page.evaluate(patternSource => {
+            const pattern = new RegExp(patternSource, 'i');
+            const containers = [...document.querySelectorAll('.popup, #dialogue_popup, .dialogue_popup')];
+            const container = containers.find(element => pattern.test(String(element.textContent ?? '')) && element.getBoundingClientRect().width > 0);
+            if (!container) return { matched: false, popups: containers.filter(element => element.getBoundingClientRect().width > 0).length };
+            const ok = container.querySelector('.popup-button-ok, #dialogue_popup_ok, #dialogue_popup_ok2');
+            const text = String(container.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 220);
+            if (!ok) return { matched: true, clicked: false, text };
+            ok.click();
+            return { matched: true, clicked: true, text, button: String(ok.className ?? '').slice(0, 100) };
+        }, IMPORT_DIALOG_PATTERN.source).catch(() => ({ matched: false }));
+        if (last.matched) return last;
+        await page.waitForTimeout(200);
+    }
+    return last;
+}
+
+/** Close every visible popup whose text does NOT match `keep`, through the popup's own dismiss button. */
+async function dismissOtherPopups(page, keepPattern, maxDismissals = 6) {
+    const dismissals = [];
+    for (let index = 0; index < maxDismissals; index += 1) {
+        const dismissed = await page.evaluate(patternSource => {
+            const pattern = new RegExp(patternSource, 'i');
+            const container = [...document.querySelectorAll('.popup, #dialogue_popup, .dialogue_popup')]
+                .find(element => element.getBoundingClientRect().width > 0 && !pattern.test(String(element.textContent ?? '')));
+            if (!container) return null;
+            const text = String(container.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 200);
+            const button = container.querySelector('.popup-button-cancel, .popup-button-close, #dialogue_popup_cancel, #dialogue_popup_close')
+                ?? container.querySelector('.popup-button-ok, #dialogue_popup_ok');
+            if (!button) return { text, clicked: false, reason: 'the popup has no dismiss button; a real user is stuck at the same dialog' };
+            button.click();
+            return { text, clicked: true, button: String(button.className ?? button.id ?? '').slice(0, 100) };
+        }, keepPattern.source).catch(() => null);
+        if (!dismissed) break;
+        dismissals.push(dismissed);
+        if (dismissed.clicked !== true) break;
+        await page.waitForTimeout(150);
+    }
+    return dismissals;
+}
+
+/**
+ * IS THE PAGE SENDABLE? The full-tier dispatch produced `requests:0` for every turn with no named cause. This reads
+ * the product's own send path the way a user sees it: the `#send_but` control exists/visible/enabled and is not
+ * covered by another element, the page is not mid-generation, and no product popup is open. When it is not sendable
+ * the caller fails BY NAME with the blocking element in the detail instead of recording a silent empty capture.
+ */
+async function readSendability(page) {
+    return page.evaluate(async () => {
+        const script = await import('./script.js');
+        const visible = element => {
+            if (!element || !element.isConnected) return false;
+            const style = getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+        };
+        const describe = element => element ? {
+            tag: element.tagName.toLowerCase(),
+            id: element.id || null,
+            className: String(element.className ?? '').slice(0, 140),
+            text: String(element.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 120),
+        } : null;
+        const popups = [...document.querySelectorAll('.popup, #dialogue_popup, .dialogue_popup')].filter(visible).map(describe);
+        const send = document.querySelector('#send_but');
+        let coveredBy = null;
+        if (send && visible(send)) {
+            const rect = send.getBoundingClientRect();
+            const point = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+            if (point && point !== send && !send.contains(point)) coveredBy = describe(point);
+        }
+        const sendState = { exists: Boolean(send), visible: visible(send), disabled: send?.disabled === true, pointerEvents: send ? getComputedStyle(send).pointerEvents : null, coveredBy };
+        const moduleState = { isSendPress: script.is_send_press ?? null, streamingProcessor: Boolean(script.streamingProcessor), generatingFlag: document.body?.dataset?.generating ?? null };
+        const problems = [];
+        if (!sendState.exists) problems.push('there is no #send_but control');
+        else if (!sendState.visible) problems.push('#send_but is not visible');
+        else if (sendState.disabled) problems.push('#send_but is disabled');
+        if (coveredBy) problems.push(`#send_but is covered by ${coveredBy.tag}${coveredBy.id ? '#' + coveredBy.id : ''} (class "${coveredBy.className}")`);
+        if (moduleState.isSendPress === true) problems.push('the page is still generating (is_send_press=true)');
+        if (moduleState.streamingProcessor === true) problems.push('a streaming processor is active');
+        if (popups.length > 0) problems.push(`a visible popup/dialog is open: ${popups.map(entry => entry.text.slice(0, 80)).join(' | ')}`);
+        return { ok: problems.length === 0, problems, send: sendState, moduleState, popups };
+    }).catch(error => ({ ok: false, problems: [`the sendability read threw: ${String(error?.message ?? error).slice(0, 200)}`] }));
+}
+
+/**
+ * Make the page sendable the way a user does -- close leftover product dialogs through their own buttons -- and
+ * return the named blocker when it still is not. A modal left by the embedded-book path, or a send control disabled
+ * by an extension, is reported by name and never silently turned into an empty capture.
+ */
+async function ensureSendable(page, { rounds = 2 } = {}) {
+    const popupsBefore = await readPopupInventory(page);
+    const dismissals = [];
+    let state = await readSendability(page);
+    for (let round = 0; round < rounds && state.ok !== true; round += 1) {
+        const dismissed = await dismissOtherPopups(page, /$^/, 6);
+        dismissals.push(...dismissed);
+        state = await readSendability(page);
+        if (dismissed.length === 0) break;
+    }
+    return { ...state, dismissed: dismissals, popupsBefore, popupsAfter: await readPopupInventory(page) };
+}
+
+/**
+ * THE FULL-TIER PROMPT-TAKEOVER PROBE AND ITS PRODUCT-PATH CONFIGURATION (dispatch 42186322374 root cause).
+ *
+ * WHAT HAPPENS WITHOUT THIS. `narrative-agent` (full tier, pinned commit 29a86d7) installs a bridge on
+ * `CHAT_COMPLETION_PROMPT_READY`; `bridge.js _onPromptReady` does
+ * `data.chat.splice(0, data.chat.length); data.chat.push({role:'system', content:'You are a relay. You must output
+ * exactly the following text and nothing else: ' + PLACEHOLDER}); data.chat.push({role:'user', content:'Relay the
+ * designated text now.'})` (`constants.js` PLACEHOLDER = "__NA_PLACEHOLDER__"). Every provider request therefore
+ * carries the RELAY prompt, never the journey's user message/preset/world info; `turn()` rightly refuses to attribute
+ * those bodies and records `requests:0` -- while the visible replies ARE the relay outputs (regex-rewritten peer
+ * replies), which is why the chat looked alive. Both subjects run the same client extension, so this is NOT a product
+ * difference; it is a full-extension-install behaviour the harness must observe and configure the way a user does.
+ *
+ * WHAT THIS PROBE DOES. It runs ONE product-path quiet generation (`generateRaw`, exported at script.js:4122) and reads
+ * the provider body: a relay body proves the takeover. It then turns `narrative-agent` off through the extension's own
+ * settings control (`#na_enabled`, its settings.html checkbox; the change handler sets `bridge.enabled=false`) and
+ * probes AGAIN: the second body must carry the probe's own system marker, proving no extension replaces the prompt.
+ * Everything is recorded; nothing is skipped. Conditional on `narrative-agent` being installed, so the FAST tier (3
+ * extensions) sends no probe requests and its wire bytes are unchanged.
+ */
+async function probeAndConfigurePromptTakeover(page) {
+    const installedCheck = await page.evaluate(() => {
+        const ctx = window.SillyTavern?.getContext?.() ?? null;
+        const extensionSettings = ctx?.extensionSettings ?? null;
+        return {
+            installed: Boolean(extensionSettings && Object.hasOwn(extensionSettings, 'narrative-agent'))
+                || document.querySelector('#narrative_agent_settings') !== null
+                || document.querySelector('#na_enabled') !== null,
+            togglePresent: document.querySelector('#na_enabled') !== null,
+            configEnabled: extensionSettings?.['narrative-agent']?.config?.enabled ?? null,
+        };
+    }).catch(error => ({ installed: false, error: String(error?.message ?? error).slice(0, 200) }));
+    if (installedCheck.installed !== true) {
+        return { installed: false, detected: false, ok: true, reason: 'narrative-agent is not installed; no prompt-takeover probe needed (fast tier sends no probe requests)' };
+    }
+    const runRawProbe = async (systemMarker, userMarker) => {
+        const before = peerRequests().length;
+        const called = await page.evaluate(async ({ systemMarker: system, userMarker: user }) => {
+            const script = await import('./script.js');
+            try { await script.generateRaw({ systemPrompt: system, prompt: user }); return { called: true }; }
+            catch (error) { return { called: false, error: String(error?.message ?? error).slice(0, 300) }; }
+        }, { systemMarker, userMarker }).catch(error => ({ called: false, error: String(error?.message ?? error).slice(0, 300) }));
+        const arrived = await waitForPeerRequests(page, before + 1, 30000);
+        const entries = completionsFrom(before).map(entry => ({ sha256: entry.sha256, byteLength: entry.byteLength, body: String(entry.body ?? '') }));
+        const relay = entries.find(entry => entry.body.includes('__NA_PLACEHOLDER__')) ?? null;
+        const intact = entries.find(entry => entry.body.includes(systemMarker)) ?? null;
+        return {
+            called,
+            arrived,
+            requests: entries.map(entry => ({ sha256: entry.sha256, byteLength: entry.byteLength })),
+            relay: relay ? { sha256: relay.sha256, byteLength: relay.byteLength, bodyHead: relay.body.slice(0, 300) } : null,
+            intact: intact ? { sha256: intact.sha256, byteLength: intact.byteLength } : null,
+        };
+    };
+    const enabledProbe = await runRawProbe('NA_TAKEOVER_PROBE_SYSTEM_MARKER', 'NA_TAKEOVER_PROBE_USER_MARKER');
+    const detected = enabledProbe.relay !== null && enabledProbe.intact === null;
+    if (!detected) {
+        return { installed: true, detected: false, ok: true, togglePresent: installedCheck.togglePresent, before: installedCheck, enabledProbe, reason: 'the probe generation carried its own marker: no extension replaced the outgoing prompt' };
+    }
+    // Turn the orchestrator off through the extension's own settings control (a user action, recorded before/after).
+    const toggle = await page.evaluate(async () => {
+        const checkbox = document.querySelector('#na_enabled');
+        if (!checkbox) return { clicked: false, reason: 'the narrative-agent settings control #na_enabled is not in the page; the product never rendered its settings pane' };
+        const before = checkbox.checked === true;
+        if (before) checkbox.click();
+        const ctx = window.SillyTavern?.getContext?.() ?? null;
+        return { clicked: true, before, after: checkbox.checked === true, configEnabled: ctx?.extensionSettings?.['narrative-agent']?.config?.enabled ?? null };
+    }).catch(error => ({ clicked: false, reason: String(error?.message ?? error).slice(0, 300) }));
+    const disabled = toggle.clicked === true && toggle.after === false;
+    const intactProbe = disabled ? await runRawProbe('NA_TAKEOVER_PROBE_SYSTEM_MARKER_2', 'NA_TAKEOVER_PROBE_USER_MARKER_2') : null;
+    const intact = intactProbe?.intact != null;
+    return {
+        installed: true,
+        detected: true,
+        extension: 'narrative-agent',
+        sourceEvidence: 'third-party/narrative-agent bridge.js _onPromptReady (CHAT_COMPLETION_PROMPT_READY) replaces data.chat with the relay prompt built from constants.js PLACEHOLDER "__NA_PLACEHOLDER__"',
+        enabledProbe,
+        toggle,
+        disabled,
+        intactProbe,
+        intact,
+        ok: detected && disabled && intact,
+        via: [
+            'generateRaw quiet probe -> provider body was narrative-agent\'s relay prompt',
+            'narrative-agent #na_enabled turned off through its own settings control',
+            'second generateRaw probe -> provider body carries the probe system marker (no replacement)',
+        ],
+    };
+}
+
+/**
  * IMPORT THE CARD-EMBEDDED LOREBOOK THROUGH THE PRODUCT'S OWN PATH, INCLUDING THE BINDING THE DIALOG PATH DOES NOT DO.
  *
  * THE DISPATCH-42173399186 ROOT CAUSE (harness defect, not a product finding): the confirmation dialog's callback
@@ -766,20 +997,14 @@ async function persistChatEffect(page, dataRoot, { action, expectText, readGroup
  * `#character_world` (`world-info.js:5757`) but never saves the character. The state `getCharacterLore` actually
  * reads is `characters[chid].data.extensions.world` (`world-info.js:4482`), which only changes when the character
  * editor is saved. The product's own "Import Card Lore" MENU handler performs exactly that follow-up
- * (`script.js:12363-12368`: `importEmbeddedWorldInfo(); saveCharacterDebounced();`), where
- * `saveCharacterDebounced = debounce(() => $('#create_button').trigger('click'))` (`script.js:471`) and
- * `createOrEditCharacter` posts the `#form_create` FormData - whose hidden `world` input is `#character_world`
- * (`index.html:6206`) - then reloads the character via `getOneCharacter`. The first version of this probe clicked the
- * dialog OK and required the binding, which the dialog path never performs. The dispatch showed the consequence: the
- * GoTavern leg happened to be bound by a timing coincidence (its body carried the 3 extra MARKER_WB markers) while the
- * pinned leg was not (`bound: ""`) - a HARNESS asymmetry that would have been a false product finding.
+ * (`script.js:12363-12368`).
  *
- * The faithful flow: select the character through the editor-population path the dialog is normally opened from
- * (`select_selected_character`, `script.js:8762`, which populates `#form_create` and calls `checkEmbeddedWorld` at
- * `script.js:8811`), confirm the product dialog (or the product's fallback import), wait for the world to be listed,
- * assert the editor form IS populated before saving (saving an unpopulated form would overwrite the card the rest of
- * the journey measures - refuse by name instead), press the same Save the menu follow-up presses, wait for the
- * product's own effective binding, and close the editor. Every step and its evidence is recorded.
+ * THE DISPATCH-42186322374 ADDITION (full tier): the old implementation clicked the FIRST `.popup-button-ok` on the
+ * page. With 22 extensions installed, a dialog from another extension can be the first one, so the import dialog was
+ * never confirmed and its product state was never checked. This version closes unrelated popups (through their own
+ * buttons, recorded), clicks ONLY the dialog whose text is the embedded-world confirmation, proves the import through
+ * the product's own `#character_world` input (world-info.js:5757), saves through the product's own Save, and waits for
+ * the product's own CHARACTER_EDITED event plus the effective binding. Every failure is NAMED; nothing is assumed.
  */
 async function importEmbeddedCardBookAfterBoot(page) {
     const prepared = await page.evaluate(async () => {
@@ -789,7 +1014,7 @@ async function importEmbeddedCardBookAfterBoot(page) {
         if (!character) return { ok: false, reason: 'no active character' };
         if (!character?.data?.character_book) return { ok: false, reason: 'the staged card carries no data.character_book', chid, name: character?.name ?? null };
         // The dialog is reached from the character editor; this is the product function that populates the editor form
-        // for the character AND calls checkEmbeddedWorld(chid). Recorded either way (a throw is captured below).
+        // for the character AND calls checkEmbeddedWorld(chid) (script.js:8762/8811).
         let editorSelection = { called: false };
         if (typeof script.select_selected_character === 'function') {
             try {
@@ -803,74 +1028,53 @@ async function importEmbeddedCardBookAfterBoot(page) {
     });
     if (prepared.ok !== true) return { ...prepared, via: [] };
 
-    const clickPopup = async (timeoutMs) => {
-        const deadline = Date.now() + timeoutMs;
-        while (Date.now() < deadline) {
-            const popup = await page.evaluate(() => {
-                const button = document.querySelector('.popup .popup-button-ok') ?? document.querySelector('.popup-button-ok');
-                if (!button) return { present: false };
-                button.click();
-                return { present: true };
-            }).catch(() => ({ present: false }));
-            if (popup.present) return true;
-            await page.waitForTimeout(200);
-        }
-        return false;
-    };
-
     const via = [];
-    let dialog = { present: false, clicked: false };
-    // (1) The dialog the editor-open path already raises (the product's own ask).
-    dialog.present = await clickPopup(6000);
-    if (dialog.present) {
-        dialog.clicked = true;
-        via.push('editor-open dialog confirm (checkEmbeddedWorld -> product confirm OK)');
-    }
-    // (2) If no dialog is present (already-acknowledged character, or the user setting shows a toast), ask the product
-    //     to raise it; if the product answers "no dialog", call the exact function its confirm callback calls.
+    const popupInventory = { before: await readPopupInventory(page) };
+    // (1) Close dialogs that are NOT the embedded-world confirmation, so the confirmation is the ONE clicked.
+    popupInventory.dismissed = await dismissOtherPopups(page, IMPORT_DIALOG_PATTERN);
+    // (2) Ask the product to raise its confirmation, then click ONLY that dialog.
+    const checkEmbedded = await page.evaluate(async chid => {
+        const worldInfo = await import('./scripts/world-info.js');
+        const powerUser = await import('./scripts/power-user.js');
+        return { opened: worldInfo.checkEmbeddedWorld(Number(chid)) === true, worldImportDialog: powerUser.power_user?.world_import_dialog ?? null };
+    }, prepared.chid).catch(error => ({ opened: false, error: String(error?.message ?? error).slice(0, 200) }));
+    let dialog = await clickImportDialog(page, 15000);
+    if (dialog.clicked === true) via.push('product confirm dialog OK (text-matched embedded-World/Lorebook confirmation)');
+    // (3) If the product answers "no dialog" (world_import_dialog off, or the alert key was already acknowledged by an
+    //     earlier step), call the exact function the dialog's confirm callback calls; the documented user fallback is
+    //     "Import Card Lore" in the character panel menu, which does the same call followed by a character save.
     let fallback = null;
-    if (!dialog.present) {
-        const triggered = await page.evaluate(async chid => {
+    if (dialog.clicked !== true) {
+        const direct = await page.evaluate(async () => {
             const worldInfo = await import('./scripts/world-info.js');
-            return { opened: worldInfo.checkEmbeddedWorld(Number(chid)) === true };
-        }, prepared.chid).catch(error => ({ opened: false, error: String(error?.message ?? error).slice(0, 200) }));
-        dialog.present = await clickPopup(6000);
-        if (dialog.present) {
-            dialog.clicked = true;
-            via.push('checkEmbeddedWorld -> product confirm OK');
-        } else {
-            const direct = await page.evaluate(async () => {
-                const worldInfo = await import('./scripts/world-info.js');
-                await worldInfo.importEmbeddedWorldInfo(true);
-                return { called: true };
-            }).catch(error => ({ called: false, error: String(error?.message ?? error).slice(0, 300) }));
-            fallback = { triggered, direct };
-            if (direct.called) via.push('importEmbeddedWorldInfo(true) (product function the dialog confirm calls)');
-        }
+            await worldInfo.importEmbeddedWorldInfo(true);
+            return { called: true };
+        }).catch(error => ({ called: false, error: String(error?.message ?? error).slice(0, 300) }));
+        fallback = { checkEmbedded, direct };
+        if (direct.called) via.push('importEmbeddedWorldInfo(true) (the product function the dialog confirm calls; "Import Card Lore" menu path)');
     }
-    dialog.trigger = fallback?.triggered ?? null;
-
-    // (3) Import completion: the world is LISTED and the product set the hidden world input.
-    const waited = { deadlineMs: 20000 };
-    let importState = { listed: false, domWorld: null };
-    const importDeadline = Date.now() + waited.deadlineMs;
+    dialog = { ...dialog, checkEmbedded, fallback };
+    // (4) The product's OWN post-import evidence: the hidden `#character_world` input is set to the book
+    //     (world-info.js:5757), and the world is listed. Poll both; a missing input is a NAMED harness failure.
+    const importDeadline = Date.now() + 20000;
+    let importState = { listed: false, domWorld: '', names: [] };
     while (Date.now() < importDeadline) {
         importState = await page.evaluate(async name => {
             const worldInfo = await import('./scripts/world-info.js');
             const $ = globalThis.jQuery ?? null;
             if (typeof worldInfo.getWorldInfoList === 'function') await worldInfo.getWorldInfoList();
             const names = Array.isArray(worldInfo.world_names) ? worldInfo.world_names.slice() : [];
-            return { listed: names.includes(name), names, domWorld: $ ? String($('#character_world').val() ?? '') : null };
+            return { listed: names.includes(name), names, domWorld: $ ? String($('#character_world').val() ?? '') : null, importButtonVisible: $ ? $('#import_character_info').is(':visible') : null };
         }, prepared.bookName).catch(error => ({ listed: false, error: String(error?.message ?? error).slice(0, 200) }));
-        if (importState.listed === true) break;
+        if (importState.listed === true && importState.domWorld === prepared.bookName) break;
         await page.waitForTimeout(250);
     }
-
-    // (4) SAVE THROUGH THE SAME BUTTON THE PRODUCT'S MENU FOLLOW-UP PRESSES - but only from a POPULATED editor form:
-    //     posting an unpopulated form would overwrite the staged card (description/personality/scenario) that the
-    //     provider-request assertions measure. An unpopulated form is a NAMED harness failure, never a save.
+    const imported = importState.listed === true && importState.domWorld === prepared.bookName;
+    // (5) SAVE THROUGH THE SAME BUTTON THE PRODUCT'S MENU FOLLOW-UP PRESSES - only from a POPULATED editor form
+    //     (posting an unpopulated form would overwrite the staged card the provider-request assertions measure).
     const save = await page.evaluate(async () => {
         const script = await import('./script.js');
+        const events = await import('./scripts/events.js');
         const $ = globalThis.jQuery ?? null;
         const chid = script.this_chid;
         const character = (script.characters ?? [])[chid] ?? null;
@@ -885,14 +1089,18 @@ async function importEmbeddedCardBookAfterBoot(page) {
             && formAvatar === String(character?.avatar ?? '\u0000');
         const evidence = { populated, actiontype, formName, formAvatar, avatar: character?.avatar ?? null, name: character?.name ?? null, domWorld };
         if (!populated) return { saved: false, evidence, reason: 'the character editor form is not populated for this character; refusing to save it' };
-        // `saveCharacterDebounced` (script.js:471) is a debounced `#create_button` click; triggering the click is the
-        // same product action without a debounce delay.
+        // Record the product's OWN completion event, so "saved" is the product's statement, not a timeout's absence.
+        window.__cjCharacterEdited = null;
+        try {
+            script.eventSource.once(events.event_types.CHARACTER_EDITED, detail => {
+                window.__cjCharacterEdited = { at: Date.now(), id: detail?.detail?.id ?? null };
+            });
+        } catch { /* recorded as missing */ }
         $('#create_button').trigger('click');
         return { saved: true, evidence, mechanism: 'createOrEditCharacter via #create_button click (saveCharacterDebounced target, script.js:471)' };
     }).catch(error => ({ saved: false, reason: String(error?.message ?? error).slice(0, 300) }));
 
-    // (5) The product's own effective binding: characters[chid].data.extensions.world, the member getCharacterLore
-    //     reads (world-info.js:4482). Bounded; both the bound value and the hidden input are recorded.
+    // (6) The product's own effective binding + its own CHARACTER_EDITED event, bounded.
     let verified = { ok: false };
     const bindDeadline = Date.now() + 30000;
     while (Date.now() < bindDeadline) {
@@ -904,13 +1112,12 @@ async function importEmbeddedCardBookAfterBoot(page) {
             const names = Array.isArray(worldInfo.world_names) ? worldInfo.world_names.slice() : [];
             const chid = script.this_chid;
             const bound = String(script.characters?.[chid]?.data?.extensions?.world ?? '');
-            return { ok: names.includes(name) && bound === name, names, bound, domWorld: $ ? String($('#character_world').val() ?? '') : null, name };
+            return { ok: names.includes(name) && bound === name, names, bound, domWorld: $ ? String($('#character_world').val() ?? '') : null, name, characterEdited: window.__cjCharacterEdited ?? null };
         }, prepared.bookName).catch(error => ({ ok: false, error: String(error?.message ?? error).slice(0, 200) }));
         if (verified.ok === true) break;
         await page.waitForTimeout(250);
     }
-
-    // (6) Return the page to the chat context the rest of the drive expects (close the editor if it is open).
+    // (7) Close the editor, then PROVE the page the rest of the drive uses has no modal left over.
     const editorClosed = await page.evaluate(async () => {
         const $ = globalThis.jQuery ?? null;
         if (!$) return { closed: false, reason: 'no jQuery' };
@@ -919,18 +1126,27 @@ async function importEmbeddedCardBookAfterBoot(page) {
         cross.trigger('click');
         return { closed: true };
     }).catch(error => ({ closed: false, error: String(error?.message ?? error).slice(0, 200) }));
-
+    const popupsAfter = await readPopupInventory(page);
+    const leftoverDismissals = popupsAfter.length > 0 ? await dismissOtherPopups(page, /$^/) : [];
+    const popupsFinal = await readPopupInventory(page);
+    const failures = [];
+    if (imported !== true) failures.push(`the import did not set #character_world to ${JSON.stringify(prepared.bookName)} (listed=${importState.listed}, domWorld=${JSON.stringify(importState.domWorld)}); worldImportDialog=${String(dialog.checkEmbedded?.worldImportDialog)}; popups=${JSON.stringify(popupsAfter).slice(0, 400)}`);
+    if (save.saved !== true) failures.push(`the character Save was refused: ${String(save.reason)}`);
+    if (verified.ok !== true) failures.push(`the character binding was not persisted (bound=${JSON.stringify(verified.bound)}, characterEdited=${JSON.stringify(verified.characterEdited)})`);
+    if (popupsFinal.length > 0) failures.push(`a popup was still open after the editor-save path: ${popupsFinal.map(entry => entry.text).join(' | ').slice(0, 300)}`);
     if (save.saved === true) via.push('character Save (#create_button click; the menu handler follow-up)');
     return {
         ...prepared,
         via,
         dialog,
         fallback,
+        popupInventory: { ...popupInventory, after: popupsAfter, final: popupsFinal, leftoverDismissals },
         importState,
         save,
         editorClosed,
         verified,
-        ok: verified.ok === true && importState.listed === true && save.saved === true,
+        ok: failures.length === 0,
+        failures,
     };
 }
 
@@ -1447,10 +1663,16 @@ async function waitForArmedPromptManager(page, { minimum = 8, timeoutMs = 30000,
 /** One user turn: baseline first, click the product's send control, wait for the page AND the peer to move. */
 async function turn(page, marker, caseName, { settleMs = 0 } = {}) {
     await waitForQuiet(page);
+    // THE PAGE MUST BE SENDABLE BEFORE A SEND CAN MEAN ANYTHING (dispatch 42186322374 recorded every turn as
+    // `requests:0` with no cause). A leftover modal or a send control disabled/covered by an extension is NAMED here.
+    const sendability = await ensureSendable(page);
+    if (sendability.ok !== true) {
+        return { ok: false, caseName, reason: 'page-not-sendable', sendability, requests: [], outgoingPrompt: null, sent: null, replied: null };
+    }
     const baseline = await readPageState(page);
     const before = peerRequests().length;
     const sent = await sendTurn(page, marker);
-    if (!sent?.clicked) return { ok: false, caseName, reason: 'send control did not click', sent, requests: [] };
+    if (!sent?.clicked) return { ok: false, caseName, reason: 'send control did not click', sent, sendability, requests: [], outgoingPrompt: null };
     const replied = await waitForReply(page, { baseline, peerCompletions: peerRequests(), timeoutMs: 120000 });
     // The peer answers in a stream; the page settles when the generation ends. Both conditions are bounded.
     const requestArrived = await waitForPeerRequests(page, before + 1, 60000);
@@ -1527,9 +1749,23 @@ async function turn(page, marker, caseName, { settleMs = 0 } = {}) {
     report.captures.push({ case: caseName, marker, at: Date.now(), requestCount: requests.length, requestShas: requests.map(entry => entry.sha256) });
     report.requests.push(...requests);
     const after = await readPageState(page);
+    // WHY A TURN CAN HAVE NO ATTRIBUTED CAPTURE. With an extension-orchestrated prompt the provider bodies cannot
+    // carry the user marker by construction; naming that (instead of "requests:0") is the point. narrative-agent's
+    // relay placeholder is the observed signature (bridge.js; constants.js PLACEHOLDER "__NA_PLACEHOLDER__").
+    const relayEntry = slice.find(entry => String(entry.body ?? '').includes('__NA_PLACEHOLDER__')) ?? null;
+    const outgoingPrompt = requests.length > 0
+        ? { ok: true, captured: requests.length }
+        : {
+            ok: false,
+            reason: relayEntry ? 'outgoing-prompt-replaced-by-extension' : 'no-generation-request-with-the-user-marker',
+            extension: relayEntry ? 'narrative-agent' : null,
+            replacement: relayEntry ? { sha256: relayEntry.sha256, byteLength: relayEntry.byteLength, bodyHead: String(relayEntry.body ?? '').slice(0, 400) } : null,
+            seen: slice.length,
+            hint: relayEntry ? 'the provider body is narrative-agent\'s relay prompt (bridge.js _onPromptReady replaces data.chat); the visible reply is its relay output, not the journey assembly' : null,
+        };
     return {
         ok: replied?.ok !== false && requestArrived && requests.length >= 1,
-        caseName, requested: requestArrived, matched: requests.length, sent, replied, baseline, after, requests,
+        caseName, requested: requestArrived, matched: requests.length, sent, replied, baseline, after, requests, sendability, outgoingPrompt,
         noGenerationRequest: returns?.noGenerationRequest === true, seen: returns?.seen ?? null, recovered: returns?.recovered ?? recovered,
     };
 }
@@ -1834,9 +2070,9 @@ async function main() {
             if (profileMode) {
                 const embedded = await importEmbeddedCardBookAfterBoot(page);
                 report.browser.embeddedBook = embedded;
-                step('e03e04-embedded-book-imported', embedded.ok === true, {
-                    bookName: embedded.bookName, via: embedded.via, verified: embedded.verified, dialog: embedded.dialog,
-                });
+                // THE FULL RECORD goes into the artefact: the old step passed only four members, so the dispatch that
+                // failed at the popup had no inventory/save/import evidence to read.
+                step('e03e04-embedded-book-imported', embedded.ok === true, embedded);
             }
 
             // ---- STEP 2a: committed complex preset SELECTED through the frontend control -------------------
@@ -2037,6 +2273,37 @@ async function main() {
                 step('drive-injections-active-in-page', driveInjections.variables?.present === true && driveInjections.variables?.hasValue === true, driveInjections);
             }
 
+            // ---- STEP 2e: FULL-TIER PROMPT-TAKEOVER PROBE + PRODUCT-PATH CONFIGURATION ------------------
+            // Dispatch 42186322374: every provider request in the full tier was narrative-agent's relay prompt, so no
+            // turn could be attributed and the chat replies were relay outputs. The extension takes over EVERY
+            // generation on BOTH subjects (same client code): that is an install behaviour, not a product difference.
+            // A user who wants the core preset/world/QR pipeline turns the extension off in its own settings; the probe
+            // PROVES the takeover on the wire first, then does exactly that through `#na_enabled`, then proves the
+            // prompt is intact again. Conditional on narrative-agent being installed -> the fast tier sends NOTHING.
+            const takeover = await probeAndConfigurePromptTakeover(page);
+            const takeoverRecord = {
+                installed: takeover.installed === true,
+                detected: takeover.detected === true,
+                extension: takeover.extension ?? null,
+                disabled: takeover.disabled ?? null,
+                intact: takeover.intact ?? null,
+                ok: takeover.ok === true,
+                reason: takeover.reason ?? null,
+                sourceEvidence: takeover.sourceEvidence ?? null,
+                toggle: takeover.toggle ?? null,
+                enabledProbe: takeover.enabledProbe
+                    ? { called: takeover.enabledProbe.called, arrived: takeover.enabledProbe.arrived, relay: takeover.enabledProbe.relay, intact: takeover.enabledProbe.intact, requests: takeover.enabledProbe.requests }
+                    : null,
+                intactProbe: takeover.intactProbe
+                    ? { called: takeover.intactProbe.called, arrived: takeover.intactProbe.arrived, intact: takeover.intactProbe.intact, requests: takeover.intactProbe.requests }
+                    : null,
+            };
+            report.browser.extensionTakeover = takeoverRecord;
+            step('extension-prompt-takeover-probed', takeover.ok !== false, takeoverRecord);
+            if (takeover.installed === true) {
+                step('extension-prompt-takeover-handled', takeover.ok === true, takeoverRecord);
+            }
+
             // ---- STEP 3: the armed streamed turn -----------------------------------------------------
             report.browser.promptManagerArmed = await readPromptManagerState(page);
             // The profile's world-info entries are keyed on synthetic trigger tokens that must be IN the scanned chat
@@ -2047,8 +2314,18 @@ async function main() {
                 : 'COMB_TURN_1';
             const turn1 = await turn(page, turn1Marker, 'turn-1-armed');
             const capture1 = classifyCapture(turn1.requests[0]);
-            report.browser.turn1 = { ok: turn1.ok, replied: turn1.replied, after: turn1.after, marker: turn1Marker };
-            step('turn-1-request-captured', turn1.requests.length >= 1, { requests: turn1.requests.length });
+            report.browser.turn1 = { ok: turn1.ok, replied: turn1.replied, after: turn1.after, marker: turn1Marker, sendability: turn1.sendability, outgoingPrompt: turn1.outgoingPrompt };
+            // THE OUTGOING PROMPT'S INTEGRITY, named: with an orchestrating extension installed the body is its relay
+            // prompt and this step says so (extension + replacement body head), instead of a bare `requests:0`.
+            report.browser.outgoingPromptIntegrity = turn1.outgoingPrompt ?? { ok: false, reason: 'the turn returned before the outgoing prompt could be inspected' };
+            step('turn-1-outgoing-prompt-intact', turn1.outgoingPrompt?.ok === true, report.browser.outgoingPromptIntegrity);
+            step('turn-1-request-captured', turn1.requests.length >= 1, {
+                requests: turn1.requests.length,
+                reason: turn1.reason ?? null,
+                sendability: turn1.sendability?.problems ?? null,
+                outgoingPrompt: turn1.outgoingPrompt?.reason ?? null,
+                extension: turn1.outgoingPrompt?.extension ?? null,
+            });
             step('turn-1-streaming-requested', capture1?.requestedStream === true && capture1?.servedWire === 'sse', { requestedStream: capture1?.requestedStream, served: capture1?.servedWire });
             step('turn-1-preset-pieces-in-request', presetSignatures.length >= 2 && (capture1?.presetMarkers ?? []).filter(entry => entry.present).length >= 2, { signatures: presetSignatures, found: capture1?.presetMarkers });
             step('turn-1-world-info-three-slots-placed', capture1?.layout?.slotsPresent === 3 && capture1?.layout?.positions?.depth !== null, capture1?.layout);
