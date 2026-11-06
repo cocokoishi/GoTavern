@@ -212,6 +212,25 @@ function buildSyntheticProfileLegs() {
             // THE BLOCKING-OVERLAY RECORD (task-23): empty when no overlay is present (the fast tier's shape), a
             // dismissal entry naming the overlay id and the clicked button when one was dismissed.
             overlayHandling: { ok: true, dismissals: [], undismissable: [], observations: [] },
+            // THE GENERATION TRAIL (dispatch 42207738114): turn 1's attributed request is the streaming NORMAL generation;
+            // a synthetic pair has no extension quiet generations, and the planted interception case below adds one on the
+            // pinned leg to prove the parity guard has teeth.
+            // THE QUIET-GENERATION EXTENSION RECORD (dispatch 42207738114): fast-tier shape = not installed, handled.
+            quietGenerationExtension: { installed: false, handled: true, extension: null, decision: null, after: { settingsEnabled: null }, sourceEvidence: [], reason: null },
+            generationTrail: {
+                cases: [{
+                    case: 'turn-1-armed',
+                    window: { reset: true },
+                    events: [{ kind: 'generation-started', type: 'normal' }, { kind: 'completion-settings-ready', type: 'normal', stream: true }],
+                    windowRequests: [{ requestedStream: true, servedWire: 'sse', byteLength: 27038, sha256: 'synthetic-normal' }],
+                    attributed: [{ requestedStream: true, servedWire: 'sse', sha256: 'synthetic-normal', byteLength: 27038 }],
+                    extensionGenerations: [],
+                    quietBeforeAttributed: [],
+                    normalGenerationWait: null,
+                    assistant: { ok: true },
+                    reason: null,
+                }],
+            },
             // THE GROUP TURN'S PERSISTED EFFECT (task-19): the probe flushes it through the product's own save and reads
             // the GROUP-CHAT directory (`<user>/group chats/<id>.jsonl`), not `<user>/chats`. Both subjects persist the
             // same message projection, so the comparator's parity guard is green in the baseline.
@@ -871,6 +890,68 @@ syntheticMutation(
         baselineGuard: baseline.guards['legs-are-complete'],
         mutatedGuard: partial.guards['legs-are-complete'],
     });
+    // (c) THE INTERCEPTION CASE (dispatch 42207738114): an extension starts a QUIET generation on the send, the quiet
+    //     request carries the user marker and is the ONLY request in the window, and the turn must be NAMED as
+    //     intercepted rather than attributed to that quiet body. The synthetic pinned leg gets a quiet generation in
+    //     the trail and a non-streaming attributed request; the GO leg keeps the normal streaming attribution. The
+    //     parity guard is GREEN on the baseline and RED here, and the same record proves the wire guard is red too
+    //     (mirrors the real full-tier failure where the quiet body was the 27424-byte "normal" capture).
+    const interceptionLegs = clone(synthetic.legs);
+    interceptionLegs.pinned.requests = clone(interceptionLegs.pinned.requests).map((entry, index) => index === 0
+        ? { ...entry, requestedStream: false, served: { wire: 'json', frames: 0, bytes: 267, terminal: true } }
+        : entry);
+    interceptionLegs.pinned.steps = clone(interceptionLegs.pinned.steps).map(entry => entry.name === 'turn-1-streaming-requested'
+        ? { ...entry, ok: false, detail: { requestedStream: false, served: 'json' } }
+        : entry);
+    interceptionLegs.pinned.browser.generationTrail = {
+        cases: [{
+            case: 'turn-1-armed',
+            window: { reset: true },
+            events: [
+                { kind: 'generation-started', type: 'normal' },
+                { kind: 'generation-started', type: 'quiet', quietPromptPreview: 'SYNTHETIC_THINKING_PROMPT' },
+                { kind: 'completion-settings-ready', type: 'quiet', stream: false, messages: 96 },
+            ],
+            windowRequests: [{ requestedStream: false, servedWire: 'json', byteLength: 27424, sha256: 'synthetic-quiet' }],
+            attributed: [{ requestedStream: false, servedWire: 'json', sha256: 'synthetic-quiet', byteLength: 27424 }],
+            extensionGenerations: [{ requestedStream: false, servedWire: 'json', byteLength: 27424, sha256: 'synthetic-quiet' }],
+            quietBeforeAttributed: ['quiet', 'quiet'],
+            normalGenerationWait: { waitedMs: 150000, found: 0 },
+            assistant: { ok: false },
+            reason: 'no-normal-generation-after-extension-quiet-generation',
+        }],
+    };
+    const interception = compareCombinationJourney({ goDrive: clone(interceptionLegs.go), pinnedDrive: clone(interceptionLegs.pinned), expectProfile: 'e03e04' });
+    record('AN-EXTENSION-QUIET-GENERATION-ON-SEND-IS-NAMED-NOT-ATTRIBUTED', baseline.guards['extension-quiet-generation-parity'] === true
+        && interception.guards['extension-quiet-generation-parity'] === false
+        && interception.guards['turn-1-streaming-requested'] === false, {
+        baselineGuard: baseline.guards['extension-quiet-generation-parity'],
+        mutatedGuard: interception.guards['extension-quiet-generation-parity'],
+        wireGuard: interception.guards['turn-1-streaming-requested'],
+        quietGeneration: interceptionLegs.pinned.browser.generationTrail.cases[0].extensionGenerations,
+    });
+    // (d) THE SEND-INTERCEPTING EXTENSION MUST BE HANDLED ON BOTH SUBJECTS: a leg that recorded the extension as
+    //     installed but NOT disabled (its own settings still enabled) goes red by name, so "the quiet generation
+    //     happened but nobody recorded the decision" cannot pass as a product finding.
+    const extensionLegs = clone(synthetic.legs);
+    extensionLegs.pinned.browser.quietGenerationExtension = {
+        installed: true,
+        handled: false,
+        extension: 'st-stepped-thinking',
+        decision: null,
+        before: { settingsEnabled: true },
+        disabled: { ok: false, reason: 'the extension own enable control did not persist is_enabled=false' },
+        after: { settingsEnabled: true },
+        sourceEvidence: ['installed thinking/engine.js:56 eventSource.on(GENERATION_AFTER_COMMANDS, runChatThinking)'],
+        reason: 'the extension own enable control did not persist is_enabled=false',
+    };
+    const extensionUnhandled = compareCombinationJourney({ goDrive: clone(extensionLegs.go), pinnedDrive: clone(extensionLegs.pinned), expectProfile: 'e03e04' });
+    record('AN-UNHANDLED-QUIET-GENERATION-EXTENSION-GOES-RED-BY-quiet-generation-extension-handled', baseline.guards['quiet-generation-extension-handled'] === true
+        && extensionUnhandled.guards['quiet-generation-extension-handled'] === false, {
+        baselineGuard: baseline.guards['quiet-generation-extension-handled'],
+        mutatedGuard: extensionUnhandled.guards['quiet-generation-extension-handled'],
+        record: extensionLegs.pinned.browser.quietGenerationExtension,
+    });
 }
 
 // 27. THE ARTIFACT VERIFIER: a good identity verifies; a wrong head SHA, a wrong pinned SHA, a missing field and a
@@ -937,6 +1018,8 @@ const requiredGreen = [
     'turn-1-streaming-requested',
     'streaming-setting-armed-before-turn-1',
     'legs-are-complete',
+    'extension-quiet-generation-parity',
+    'quiet-generation-extension-handled',
     'e03e04-profile-recorded',
     'e03e04-profile-identical',
     'e03e04-extensions-installed',

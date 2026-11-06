@@ -546,7 +546,7 @@ function addE03E04Guards({ add, goDrive, pinnedDrive, goRestart, pinnedRestart, 
     }
     add('artifact-identity-parity', parityProblems.length === 0, parityProblems.length === 0, { problems: parityProblems });
 
-    return { requested: true, refused: false, guardCount: names.length + 20 };
+    return { requested: true, refused: false, guardCount: names.length + 22 };
 }
 
 function extensionTierOf(leg) {
@@ -733,6 +733,79 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
         gotavern: goCompletion,
         pinned: pinCompletion,
         rule: 'a leg that ended before its phase landmarks is a named failure (leg-completed-all-expected-phases); a truncated report never passes as an ordinary short leg',
+    });
+
+    // ---- THE SEND-INTERCEPTING QUIET-GENERATION EXTENSION (dispatch 42207738114) ------------------------
+    // st-stepped-thinking starts quiet generations on every normal send; the probe records its source evidence and
+    // turns it off through its own #stepthink_is_enabled control before the measured turns. Both subjects must have
+    // handled it; an installed-but-not-disabled record is red by name (the wire guard alone would only say
+    // 'non-streaming', not WHY). Fast tier: not installed -> a recorded no-op.
+    const quietExtensionFor = leg => leg?.browser?.quietGenerationExtension ?? null;
+    const quietExtensionEvidence = leg => {
+        const record = quietExtensionFor(leg);
+        return {
+            installed: record?.installed === true,
+            handled: record?.handled === true,
+            extension: record?.extension ?? null,
+            decision: record?.decision ?? null,
+            settingsEnabledAfter: record?.after?.settingsEnabled ?? null,
+            sourceEvidence: Array.isArray(record?.sourceEvidence) ? record.sourceEvidence.length : 0,
+            reason: record?.reason ?? null,
+        };
+    };
+    const goQuietExtension = quietExtensionEvidence(goDrive);
+    const pinQuietExtension = quietExtensionEvidence(pinnedDrive);
+    const quietExtensionOk = value => value.installed === false
+        ? value.handled === true
+        : value.handled === true && value.settingsEnabledAfter === false && value.sourceEvidence > 0;
+    add('quiet-generation-extension-handled', quietExtensionOk(goQuietExtension), quietExtensionOk(pinQuietExtension), {
+        gotavern: goQuietExtension,
+        pinned: pinQuietExtension,
+        rule: 'an extension that starts quiet generations on a normal send (st-stepped-thinking, engine.js:56/:453) must be recorded and disabled through its own setting before the measured turns, on both subjects; fast tier records a no-op',
+    });
+
+    // ---- EXTENSION-INDUCED GENERATIONS (dispatch 42207738114) ------------------------------------------
+    // A QUIET generation started by an extension from a normal send assembles the SAME chat -- the user marker is in
+    // the body -- and pinned forces `stream=false` for it (`openai.js:2785`, `type !== 'quiet'`). Content attribution
+    // therefore called that request "the turn". The probe now attributes the turn to the NORMAL generation (the one
+    // that streams with the staged setting) and records the quiet generations as named evidence in
+    // `browser.generationTrail`; both subjects must show the SAME number of extension quiet generations for turn 1 and
+    // the attributed turn-1 request must be the streaming one (the wire guard `turn-1-streaming-requested` stays the
+    // real assertion; this guard is the cross-subject evidence that the interception is the same on both).
+    const trailCases = leg => (leg?.browser?.generationTrail?.cases ?? []).slice().sort((first, second) => String(first.case).localeCompare(String(second.case)));
+    // BACKWARD-COMPATIBLE DERIVATION: reports from a run that predates the explicit field still carry the event trail,
+    // so the deterministic quiet-before-attributed prefix is derived from it rather than treating the field as absent.
+    const quietBeforeAttributedOf = turn1 => {
+        if (Array.isArray(turn1?.quietBeforeAttributed)) return turn1.quietBeforeAttributed;
+        const events = (turn1?.events ?? []).filter(entry => entry.kind === 'completion-settings-ready');
+        const normalIndex = events.findIndex(entry => entry.type !== 'quiet' && entry.stream === true);
+        const prefix = normalIndex >= 0 ? events.slice(0, normalIndex) : events;
+        return prefix.filter(entry => entry.type === 'quiet').map(() => 'quiet');
+    };    const trailEvidence = leg => {
+        const cases = trailCases(leg);
+        const turn1 = cases.find(entry => entry.case === 'turn-1-armed') ?? null;
+        return {
+            present: cases.length > 0,
+            cases: cases.length,
+            turn1: turn1 ? {
+                quiet: (turn1.extensionGenerations ?? []).length,
+                quietBeforeAttributed: quietBeforeAttributedOf(turn1),
+                attributedRequestedStream: turn1.attributed?.[0]?.requestedStream ?? null,
+                settingsReadyTypes: (turn1.events ?? []).filter(entry => entry.kind === 'completion-settings-ready').map(entry => String(entry.type)),
+                reason: turn1.reason ?? null,
+            } : null,
+        };
+    };
+    const goTrail = trailEvidence(goDrive);
+    const pinTrail = trailEvidence(pinnedDrive);
+    const quietParity = goTrail.turn1 !== null && pinTrail.turn1 !== null
+        && Array.isArray(goTrail.turn1.quietBeforeAttributed) && Array.isArray(pinTrail.turn1.quietBeforeAttributed)
+        && JSON.stringify(goTrail.turn1.quietBeforeAttributed) === JSON.stringify(pinTrail.turn1.quietBeforeAttributed)
+        && (goTrail.turn1.quiet === 0 || (goTrail.turn1.attributedRequestedStream === true && pinTrail.turn1.attributedRequestedStream === true));
+    add('extension-quiet-generation-parity', quietParity, quietParity, {
+        gotavern: goTrail,
+        pinned: pinTrail,
+        rule: 'an extension that starts quiet generations on a normal send must be recorded and equal on both subjects; the turn is attributed to the streaming NORMAL generation, never to the quiet one, and a normal generation that never arrives is a named failure',
     });
 
     // ---- WIRE: per-capture byte equality --------------------------------------------------------------

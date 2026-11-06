@@ -315,6 +315,36 @@ function sha256(buffer) {
 // still writes a report, and a summary that threw inside the finally would replace the real failure with a TypeError.
 const peerRequests = () => (peer ? peer.requests : []).filter(entry => /chat\/completions/.test(entry.path ?? ''));
 const completionsFrom = index => peerRequests().slice(index);
+
+/**
+ * CAPTURE THE USER'S GENERATION, NOT AN EXTENSION'S QUIET ONE (dispatch 42207738114). The verb paths
+ * (swipe/regenerate/continue) used to capture EVERY completion that arrived after their index; st-stepped-thinking and
+ * Doom's tracker start quiet generations on the same events, so a `stream:false`/json tracker body was recorded as the
+ * verb's capture and made `all-captures-were-streamed` and `nodeEqualsGo-per-capture` depend on extension timing. The
+ * user's generation is the STREAMING one (settings true); the quiet ones are recorded by name under
+ * `browser.extensionGenerations` with body digests, exactly like the turn attribution does.
+ */
+const captureGeneration = (index, caseName) => {
+    const entries = completionsFrom(index);
+    const normal = entries.filter(entry => entry.requestedStream === true);
+    const extension = entries.filter(entry => entry.requestedStream !== true);
+    if (extension.length > 0) {
+        report.browser.extensionGenerations = report.browser.extensionGenerations ?? { cases: [] };
+        report.browser.extensionGenerations.cases.push({
+            case: caseName,
+            count: extension.length,
+            requests: extension.map(entry => ({
+                requestedStream: entry.requestedStream,
+                servedWire: entry.served?.wire ?? null,
+                byteLength: entry.byteLength,
+                sha256: entry.sha256,
+                bodyHead: String(entry.body ?? '').slice(0, 400),
+                bodyTail: String(entry.body ?? '').slice(-800),
+            })),
+        });
+    }
+    return normal.map(entry => ({ case: caseName, method: entry.method, path: entry.path, byteLength: entry.byteLength, sha256: entry.sha256, body: entry.body, requestedStream: entry.requestedStream, served: entry.served }));
+};
 let peer = null;
 let browser = null;
 let server = null;
@@ -2027,6 +2057,180 @@ async function waitForArmedPromptManager(page, { minimum = 8, timeoutMs = 30000,
 }
 
 /**
+ * THE GENERATION WINDOW (dispatch 42207738114). The provider body alone cannot say WHICH generation produced a
+ * request: a quiet generation triggered from a normal send assembles the SAME chat (with the user's marker) and only
+ * the pinned `type !== 'quiet'` clause (openai.js:2785) makes it non-streaming. This records the product's own events
+ * for one turn so the artefact names the generation types and the extension-induced quiet prompt:
+ *   GENERATION_STARTED(type, options)        -- the event carries the type; quiet generations show `type:'quiet'` and
+ *                                               the quiet prompt preview the extension asked for;
+ *   GENERATION_AFTER_COMMANDS(type)          -- where extensions hook a normal send;
+ *   CHAT_COMPLETION_PROMPT_READY / SETTINGS_READY -- the last two products events before the request body is built,
+ *                                               with the `type` and the resolved `stream` flag.
+ * A fresh window is started before every send; the recorder itself is idempotent per page.
+ */
+async function beginGenerationWindow(page) {
+    return page.evaluate(async () => {
+        const script = await import('./script.js');
+        window.__combJourneyGenerationLog = [];
+        if (window.__combJourneyGenerationRecorder === true) return { reset: true, reinstalled: false };
+        const log = window.__combJourneyGenerationLog;
+        const push = (kind, payload) => log.push({ kind, at: Date.now(), ...payload });
+        const preview = value => value === null || value === undefined ? null : String(value).replace(/\s+/g, ' ').slice(0, 220);
+        script.eventSource.on(script.event_types.GENERATION_STARTED, (type, options, dryRun) => {
+            if (dryRun) return;
+            push('generation-started', {
+                type: type ?? null,
+                quietPromptPreview: preview(options?.quiet_prompt),
+                quietToLoud: options?.quietToLoud === true,
+                forceChid: options?.force_chid ?? null,
+                automaticTrigger: options?.automatic_trigger === true,
+            });
+        });
+        script.eventSource.on(script.event_types.GENERATION_AFTER_COMMANDS, (type, options, dryRun) => {
+            if (dryRun) return;
+            push('after-commands', { type: type ?? null, quietPromptPreview: preview(options?.quiet_prompt) });
+        });
+        script.eventSource.on(script.event_types.CHAT_COMPLETION_PROMPT_READY, data => {
+            const chat = Array.isArray(data?.chat) ? data.chat : [];
+            push('completion-prompt-ready', {
+                messages: chat.length,
+                markerMessages: chat.filter(message => JSON.stringify(message?.content ?? '').includes('COMB_TURN_')).length,
+            });
+        });
+        script.eventSource.on(script.event_types.CHAT_COMPLETION_SETTINGS_READY, data => {
+            const messages = Array.isArray(data?.messages) ? data.messages : [];
+            push('completion-settings-ready', {
+                type: data?.type ?? null,
+                stream: data?.stream === true,
+                messages: messages.length,
+                markerMessages: messages.filter(message => JSON.stringify(message?.content ?? '').includes('COMB_TURN_')).length,
+                quietPromptPreview: preview(String(messages.map(message => message?.content ?? '').join('\n')).slice(-600)),
+            });
+        });
+        window.__combJourneyGenerationRecorder = true;
+        return { reset: true, reinstalled: true };
+    }).catch(error => ({ reset: false, error: String(error?.message ?? error).slice(0, 200) }));
+}
+
+async function readGenerationWindow(page) {
+    return page.evaluate(() => ({ log: window.__combJourneyGenerationLog ?? [], count: (window.__combJourneyGenerationLog ?? []).length }))
+        .catch(error => ({ log: [], count: 0, error: String(error?.message ?? error).slice(0, 200) }));
+}
+
+/**
+ * THE SECOND SEND-INTERCEPTING EXTENSION (dispatch 42207738114, reproduced locally).
+ *
+ * st-stepped-thinking hooks the product's own `GENERATION_AFTER_COMMANDS` (installed `thinking/engine.js:56` ->
+ * `runChatThinking`, `:186`) and, for `type === 'normal'` only (`isGenerationTypeAllowed`, `:504-513`), starts one
+ * QUIET generation per configured thinking prompt (`context.generateQuietPrompt`, `thinking/engine.js:453`; default
+ * prompts at `settings/settings.js:690` and `:705`). A quiet generation assembles the SAME chat -- the user marker is in
+ * the body -- and pinned forces `stream = false` for it (`openai.js:2785`, `type !== 'quiet'`), which is exactly the
+ * body dispatch 42207738114 captured as "turn 1" (27424 bytes, sha 4564c5b..., matching the local quiet-generation body
+ * byte for byte). Its inserted thoughts also carry the peer's reply ordinals, which drift with extension timing and
+ * make later request bodies differ across subjects for a HARNESS reason.
+ *
+ * This is a send takeover by design (the extension's whole feature is to generate thoughts before the reply), so the
+ * journey handles it the way it handled narrative-agent's relay: record the source evidence, then turn it OFF through
+ * its OWN setting control (`#stepthink_is_enabled`, `settings/settings.html:12`, whose input handler persists
+ * `extension_settings['st-stepped-thinking'].is_enabled`), with a bounded read-back through the same settings object.
+ * The measured turns then exercise the product's normal generation; `turn-1-streaming-requested` keeps asserting
+ * `stream:true` and the generation trail keeps proving no quiet generation preceded it.
+ */
+async function handleQuietGenerationExtension(page) {
+    const readState = () => page.evaluate(async () => {
+        const extensions = await import('./scripts/extensions.js');
+        const settings = extensions.extension_settings['st-stepped-thinking'] ?? null;
+        const control = document.querySelector('#stepthink_is_enabled');
+        return {
+            settingsPresent: Boolean(settings),
+            settingsEnabled: settings?.is_enabled ?? null,
+            controlPresent: Boolean(control),
+            controlChecked: control ? Boolean(control.checked) : null,
+            enabledThinkingPrompts: Array.isArray(settings?.thinking_prompts) ? settings.thinking_prompts.filter(prompt => prompt?.is_enabled !== false).length : null,
+            characterSettings: Array.isArray(settings?.character_settings) ? settings.character_settings.filter(setting => setting?.is_setting_enabled).length : null,
+        };
+    }).catch(error => ({ error: String(error?.message ?? error).slice(0, 200) }));
+    const before = await readState();
+    // INSTALLED FROM THE PAGE'S OWN SETTINGS, not only the report list: the restart/hand-back phases do not re-run the
+    // extension-batch step, but the extension is loaded into their page exactly the same way.
+    const installed = before?.settingsPresent === true || (report.extensions?.installed ?? []).some(entry => entry.name === 'st-stepped-thinking');
+    if (installed !== true) {
+        return { installed: false, handled: true, reason: 'st-stepped-thinking is not installed in this tier; no quiet generation can be started by it' };
+    }
+    const sourceEvidence = [
+        'installed thinking/engine.js:56 eventSource.on(GENERATION_AFTER_COMMANDS, runChatThinking)',
+        'installed thinking/engine.js:504-513 isGenerationTypeAllowed: only normal (and group_chat while group-generating)',
+        'installed thinking/engine.js:453 context.generateQuietPrompt(...) inside generateCharacterThought',
+        'installed settings/settings.js:690,705 default thinking prompts ("Pause your roleplay. Describe {{char}}\'s thoughts/plans ...")',
+        'pinned openai.js:2785 stream = settings.stream_openai && type !== \'quiet\' -> a quiet generation is non-streaming',
+        'local reproduction: its quiet body (27424 B, sha256 4564c5bcfaa56b45f59dd860c6049bf21fba8471775cdc6e3007a7f2cfad7ae7) is byte-identical to the dispatch 42207738114 turn-1 capture',
+    ];
+    let disabled = null;
+    if (before.settingsEnabled !== false) {
+        disabled = await page.evaluate(async () => {
+            const control = document.querySelector('#stepthink_is_enabled');
+            if (!control) return { ok: false, reason: 'its own enable control (#stepthink_is_enabled) is not in the page' };
+            control.checked = false;
+            control.dispatchEvent(new Event('input', { bubbles: true }));
+            const deadline = Date.now() + 15000;
+            let settings = null;
+            while (Date.now() < deadline) {
+                const extensions = await import('./scripts/extensions.js');
+                settings = extensions.extension_settings['st-stepped-thinking'] ?? null;
+                if (settings?.is_enabled === false) break;
+                await new Promise(resolve => setTimeout(resolve, 150));
+            }
+            return { ok: settings?.is_enabled === false, settingsEnabled: settings?.is_enabled ?? null, controlChecked: control.checked, via: 'product #stepthink_is_enabled input handler (settings.html:12)' };
+        }).catch(error => ({ ok: false, error: String(error?.message ?? error).slice(0, 200) }));
+    }
+    const after = await readState();
+    const handled = after.settingsEnabled === false;
+    return {
+        installed: true,
+        extension: 'st-stepped-thinking',
+        handled,
+        decision: 'disabled through the extension own setting',
+        before,
+        disabled,
+        after,
+        sourceEvidence,
+        reason: handled ? null : 'the extension own enable control did not persist is_enabled=false',
+    };
+}
+
+
+/**
+ * Wait for a settled assistant message after the attributed request. `waitForReply` alone accepts the USER message the
+ * click inserted (`chatLength` moved) as "the reply", which is how dispatch 42207738114 evaluated the regex before any
+ * assistant text existed; this requires a non-user last message with text and a quiet page.
+ */
+async function waitForAssistantMessage(page, { timeoutMs = 150000 } = {}) {
+    const started = Date.now();
+    let last = null;
+    while (Date.now() - started < timeoutMs) {
+        const state = await page.evaluate(async () => {
+            const script = await import('./script.js');
+            const chat = script.chat ?? [];
+            const tail = chat[chat.length - 1] ?? null;
+            return {
+                chatLength: chat.length,
+                tailIsUser: tail?.is_user ?? null,
+                tailTextLength: String(tail?.mes ?? '').length,
+                tailText: String(tail?.mes ?? '').slice(0, 300),
+                isSendPress: script.is_send_press === true,
+                streamingProcessor: Boolean(script.streamingProcessor),
+            };
+        }).catch(error => ({ error: String(error?.message ?? error).slice(0, 200) }));
+        last = state;
+        if (state?.tailIsUser === false && state.tailTextLength > 0 && state.isSendPress === false && state.streamingProcessor === false) {
+            return { ok: true, waitedMs: Date.now() - started, state };
+        }
+        await page.waitForTimeout(250);
+    }
+    return { ok: false, waitedMs: timeoutMs, state: last };
+}
+
+/**
  * Wait for a page that has just been navigated (a character/chat switch can start one AFTER the click that caused it
  * returns) to become drivable again. Dispatch 42203249658: the pinned drive died in `sendTurn`'s `page.evaluate` with
  * "Execution context was destroyed, most likely because of a navigation" immediately after `character-opened` at the
@@ -2079,10 +2283,20 @@ async function turn(page, marker, caseName, { settleMs = 0 } = {}) {
     if (profileMode && profileContext?.stagedPreset) {
         expectedStreaming = profileContext.stagedPreset.stream_openai !== false;
     }
-    const streamingArm = recordStreamingAssertion(caseName, await assertStreamingSetting(page, expectedStreaming, caseName));
+    // THE SEND-INTERCEPTING QUIET-GENERATION EXTENSION, handled once per leg before the first send (dispatch
+    // 42207738114): record its source evidence and turn it off through its own setting; the measured turns then carry
+    // the product's normal streaming generation. Fast tier: not installed, so this is a recorded no-op.
+    if (!report.browser.quietGenerationExtension) {
+        const quietExtensionHandling = await handleQuietGenerationExtension(page);
+        report.browser.quietGenerationExtension = quietExtensionHandling;
+        step('quiet-generation-extension-handled', quietExtensionHandling.handled === true, quietExtensionHandling);
+    }    const streamingArm = recordStreamingAssertion(caseName, await assertStreamingSetting(page, expectedStreaming, caseName));
     // Also arm the value for the generation itself: if the mutation happens inside `Generate('normal')` (an extension
     // hook between GENERATION_STARTED and the request), the one-shot product-event guard restores it before assembly.
     streamingArm.generationGuard = await armStreamingThroughGeneration(page, expectedStreaming);
+    // THE GENERATION WINDOW FOR THIS TURN: the product's own event trail (types + quiet prompt previews) so the
+    // captured request can be attributed to a generation rather than to "a body containing the marker".
+    const generationWindow = await beginGenerationWindow(page);
     // A NAVIGATION THAT STARTED AFTER THE PREVIOUS STEP CAN DESTROY THE EVALUATION CONTEXT UNDER THE CLICK. Wait for
     // the page to be drivable again, and if the click still loses its context, wait once more and retry with the retry
     // recorded; a second failure is returned as a named reason, never a truncated report.
@@ -2160,6 +2374,88 @@ async function turn(page, marker, caseName, { settleMs = 0 } = {}) {
         const seen = slice.map(entry => ({ attribution: entry.attribution, byteLength: entry.byteLength, sha256: entry.sha256 }));
         returns = { noGenerationRequest: true, seen, recovered };
     }
+    // WHICH GENERATION IS THE USER'S TURN? (dispatch 42207738114, measured locally). An extension can start a QUIET
+    // generation while the user's normal send is running: st-stepped-thinking's GENERATION_AFTER_COMMANDS handler runs
+    // one quiet generation per thinking prompt ("Pause your roleplay. Describe {{char}}'s thoughts ..."). A quiet
+    // generation assembles the SAME chat -- the user marker is in the body -- and pinned forces `stream = false` for it
+    // at openai.js:2785 (`type !== 'quiet'`), so CONTENT attribution picked the extension's quiet request as "the
+    // turn". The user's own generation is the NORMAL one, and with the staged setting true that request asks for a
+    // stream. Attribute the turn to the STREAMING marker-carrying request whenever one reached the wire; keep every
+    // quiet request as NAMED extension evidence; wait bounded for the normal generation if only quiet ones arrived so
+    // far; fail by name if it never arrives.
+    const streamingMatches = () => completionsFrom(before).filter(entry => entry.requestedStream === true && userMessageCarries(entry.body, marker));
+    let extensionGenerations = matched.filter(entry => entry.requestedStream !== true).map(entry => ({
+        requestedStream: entry.requestedStream,
+        servedWire: entry.served?.wire ?? null,
+        byteLength: entry.byteLength,
+        sha256: entry.sha256,
+        attribution: entry.attribution,
+        bodyHead: String(entry.body ?? '').slice(0, 900),
+        bodyTail: String(entry.body ?? '').slice(-1400),
+    }));
+    let normalGenerationWait = { waitedMs: 0, found: matched.filter(entry => entry.requestedStream === true).length, alreadyPresent: true };
+    let streamedMatches = matched.filter(entry => entry.requestedStream === true);
+    if (matched.length > 0 && matched.every(entry => entry.requestedStream !== true)) {
+        const deadline = Date.now() + 150000;
+        streamedMatches = streamingMatches();
+        while (streamedMatches.length === 0 && Date.now() < deadline) {
+            await page.waitForTimeout(250);
+            streamedMatches = streamingMatches();
+        }
+        normalGenerationWait = { waitedMs: 150000 - Math.max(0, deadline - Date.now()), found: streamedMatches.length, alreadyPresent: false };
+    }
+    if (streamedMatches.length > 0) {
+        if (matched.some(entry => entry.requestedStream !== true)) {
+            slice = attribute(completionsFrom(before));
+        }
+        extensionGenerations = slice.filter(entry => entry.matchedMarker && entry.requestedStream !== true).map(entry => ({
+            requestedStream: entry.requestedStream,
+            servedWire: entry.served?.wire ?? null,
+            byteLength: entry.byteLength,
+            sha256: entry.sha256,
+            attribution: entry.attribution,
+            bodyHead: String(entry.body ?? '').slice(0, 900),
+            bodyTail: String(entry.body ?? '').slice(-1400),
+        }));
+        matched = streamedMatches;
+    } else if (matched.length > 0) {
+        returns = { noNormalGeneration: true, quietGenerations: extensionGenerations.length, seen: slice.map(entry => ({ requestedStream: entry.requestedStream, byteLength: entry.byteLength, sha256: entry.sha256 })), recovered };
+    }
+    // A settled assistant message is part of the turn: the click alone inserts the user message and `waitForReply`
+    // accepts that movement. Dispatch 42207738114 evaluated the regex while the reply did not exist yet.
+    const assistant = await waitForAssistantMessage(page, { timeoutMs: 150000 });
+    replied.assistant = assistant;
+    const generationLog = await readGenerationWindow(page);
+    // THE QUIET GENERATIONS THAT PRECEDED THE USER'S NORMAL ONE. st-stepped-thinking runs one quiet generation per
+    // configured thinking prompt on EVERY normal send (engine.js:56 GENERATION_AFTER_COMMANDS -> :453
+    // context.generateQuietPrompt), so these are deterministic extension evidence; the trailing quiet tracker request
+    // (Doom's Enhancement Suite) lands after the normal generation and its timing is not part of the turn attribution.
+    // The parity guard compares this deterministic prefix, while the full `extensionGenerations` list stays in the
+    // artefact with body digests for diagnosis.
+    const settingsReadyEvents = (generationLog.log ?? []).filter(entry => entry.kind === 'completion-settings-ready');
+    const attributedSettingsIndex = settingsReadyEvents.findIndex(entry => entry.type !== 'quiet' && entry.stream === true);
+    const preAttributionEvents = attributedSettingsIndex >= 0 ? settingsReadyEvents.slice(0, attributedSettingsIndex) : settingsReadyEvents;
+    const quietBeforeAttributed = preAttributionEvents.filter(entry => entry.type === 'quiet').map(entry => String(entry.type));
+    const generationTrail = {
+        case: caseName,
+        window: generationWindow,
+        events: generationLog.log ?? [],
+        windowRequests: completionsFrom(before).map(entry => ({
+            requestedStream: entry.requestedStream,
+            servedWire: entry.served?.wire ?? null,
+            byteLength: entry.byteLength,
+            sha256: entry.sha256,
+            bodyHead: String(entry.body ?? '').slice(0, 700),
+            bodyTail: entry.requestedStream === true ? null : String(entry.body ?? '').slice(-1200),
+        })),
+        attributed: matched.map(entry => ({ requestedStream: entry.requestedStream, servedWire: entry.served?.wire ?? null, sha256: entry.sha256, byteLength: entry.byteLength })),
+        extensionGenerations,
+        quietBeforeAttributed,
+        normalGenerationWait,
+        assistant: { ok: assistant.ok === true, waitedMs: assistant.waitedMs ?? null },
+        reason: returns?.noNormalGeneration === true ? 'no-normal-generation-after-extension-quiet-generation' : null,
+    };
+    (report.browser.generationTrail ??= { cases: [] }).cases.push(generationTrail);
     const unmatched = slice.filter(entry => entry.attribution !== 'user-message');
     if (unmatched.length > 0) {
         report.unattributedRequests = report.unattributedRequests ?? [];
@@ -2187,16 +2483,21 @@ async function turn(page, marker, caseName, { settleMs = 0 } = {}) {
         ? { ok: true, captured: requests.length }
         : {
             ok: false,
-            reason: relayEntry ? 'outgoing-prompt-replaced-by-extension' : 'no-generation-request-with-the-user-marker',
+            reason: returns?.noNormalGeneration === true
+                ? 'user-turn-generation-replaced-by-extension-quiet-generation'
+                : (relayEntry ? 'outgoing-prompt-replaced-by-extension' : 'no-generation-request-with-the-user-marker'),
             extension: relayEntry ? 'narrative-agent' : null,
+            quietGenerations: returns?.noNormalGeneration === true ? (extensionGenerations?.length ?? null) : null,
+            hint: returns?.noNormalGeneration === true
+                ? 'the only requests carrying the user marker were QUIET generations started by an extension on this send (pinned openai.js:2785 forces stream=false for type=quiet); the normal generation never reached the wire inside the bounded wait. The generation trail in browser.generationTrail names the types and the quiet prompt preview.'
+                : null,
             replacement: relayEntry ? { sha256: relayEntry.sha256, byteLength: relayEntry.byteLength, bodyHead: String(relayEntry.body ?? '').slice(0, 400) } : null,
             seen: slice.length,
-            hint: relayEntry ? 'the provider body is narrative-agent\'s relay prompt (bridge.js _onPromptReady replaces data.chat); the visible reply is its relay output, not the journey assembly' : null,
         };
     return {
         ok: replied?.ok !== false && requestArrived && requests.length >= 1,
-        caseName, requested: requestArrived, matched: requests.length, sent, replied, baseline, after, requests, sendability, outgoingPrompt, streamingArm,
-        noGenerationRequest: returns?.noGenerationRequest === true, seen: returns?.seen ?? null, recovered: returns?.recovered ?? recovered,
+        caseName, requested: requestArrived, matched: requests.length, sent, replied, baseline, after, requests, sendability, outgoingPrompt, streamingArm, generation: generationTrail,
+        noGenerationRequest: returns?.noGenerationRequest === true, noNormalGeneration: returns?.noNormalGeneration === true, seen: returns?.seen ?? null, recovered: returns?.recovered ?? recovered,
     };
 }
 
@@ -2769,11 +3070,22 @@ async function main() {
                 : 'COMB_TURN_1';
             const turn1 = await turn(page, turn1Marker, 'turn-1-armed');
             const capture1 = classifyCapture(turn1.requests[0]);
-            report.browser.turn1 = { ok: turn1.ok, replied: turn1.replied, after: turn1.after, marker: turn1Marker, sendability: turn1.sendability, outgoingPrompt: turn1.outgoingPrompt, streamingArm: turn1.streamingArm };
+            report.browser.turn1 = { ok: turn1.ok, replied: turn1.replied, after: turn1.after, marker: turn1Marker, sendability: turn1.sendability, outgoingPrompt: turn1.outgoingPrompt, streamingArm: turn1.streamingArm, generation: turn1.generation };
             // THE ARMING EVIDENCE, named before the request assertion: the profile's staged `stream_openai` was READ
             // and, when an installed extension had changed it, RESTORED through the product's own `#stream_toggle`
             // control before the send. `turn-1-streaming-requested` stays the real wire guard and is not weakened.
             step('streaming-setting-armed-before-turn-1', turn1.streamingArm?.ok === true && turn1.streamingArm?.expected === true, turn1.streamingArm);
+            // THE TURN'S GENERATION ATTRIBUTION (dispatch 42207738114): the attributed request must be the STREAMING
+            // normal generation; any extension-started quiet generation on this send is named with its type(s) and
+            // quiet-prompt preview instead of being mistaken for the user's turn.
+            step('turn-1-generation-attribution', turn1.generation?.attributed?.[0]?.requestedStream === true, {
+                attributed: turn1.generation?.attributed ?? null,
+                extensionQuietGenerations: (turn1.generation?.extensionGenerations ?? []).length,
+                settingsReadyTypes: (turn1.generation?.events ?? []).filter(entry => entry.kind === 'completion-settings-ready').map(entry => entry.type),
+                generationStartedTypes: (turn1.generation?.events ?? []).filter(entry => entry.kind === 'generation-started').map(entry => ({ type: entry.type, quietPromptPreview: entry.quietPromptPreview ?? null })),
+                normalGenerationWait: turn1.generation?.normalGenerationWait ?? null,
+                reason: turn1.generation?.reason ?? null,
+            });
             // THE OUTGOING PROMPT'S INTEGRITY, named: with an orchestrating extension installed the body is its relay
             // prompt and this step says so (extension + replacement body head), instead of a bare `requests:0`.
             report.browser.outgoingPromptIntegrity = turn1.outgoingPrompt ?? { ok: false, reason: 'the turn returned before the outgoing prompt could be inspected' };
@@ -2872,7 +3184,7 @@ async function main() {
                 return { ok: chat.length >= before.chatLength && script.is_send_press !== true && String(chat[chat.length - 1]?.mes ?? '') !== before.lastText };
             }, { label: 'swipe-settled', timeoutMs: 90000 });
             await waitForPeerRequests(page, swipeRequestIndex + (swipe.pressed ? 1 : 0), 60000);
-            const swipeRequests = completionsFrom(swipeRequestIndex).map(entry => ({ case: 'swipe', method: entry.method, path: entry.path, byteLength: entry.byteLength, sha256: entry.sha256, body: entry.body, requestedStream: entry.requestedStream, served: entry.served }));
+            const swipeRequests = captureGeneration(swipeRequestIndex, 'swipe');
             report.requests.push(...swipeRequests);
             report.captures.push({ case: 'swipe', requestShas: swipeRequests.map(entry => entry.sha256) });
             step('swipe-produced-a-request', swipe.pressed === true && swipeRequests.length >= 1 && swipeSettled.ok === true, { swipe, requests: swipeRequests.length });
@@ -2882,7 +3194,7 @@ async function main() {
             const regen = await pressRegenerate(page);
             await waitForReply(page, { baseline: await readPageState(page), peerCompletions: regenBefore, timeoutMs: 120000 }).catch(() => null);
             await waitForPeerRequests(page, regenBefore + 1, 90000);
-            const regenRequests = completionsFrom(regenBefore).map(entry => ({ case: 'regenerate', method: entry.method, path: entry.path, byteLength: entry.byteLength, sha256: entry.sha256, body: entry.body, requestedStream: entry.requestedStream, served: entry.served }));
+            const regenRequests = captureGeneration(regenBefore, 'regenerate');
             report.requests.push(...regenRequests);
             report.captures.push({ case: 'regenerate', requestShas: regenRequests.map(entry => entry.sha256) });
             step('regenerate-produced-a-request', regen?.pressed !== false && regenRequests.length >= 1, { regen, requests: regenRequests.length });
@@ -2890,7 +3202,7 @@ async function main() {
             const contBefore = peerRequests().length;
             const cont = await pressContinue(page);
             await waitForPeerRequests(page, contBefore + 1, 90000);
-            const contRequests = completionsFrom(contBefore).map(entry => ({ case: 'continue', method: entry.method, path: entry.path, byteLength: entry.byteLength, sha256: entry.sha256, body: entry.body, requestedStream: entry.requestedStream, served: entry.served }));
+            const contRequests = captureGeneration(contBefore, 'continue');
             report.requests.push(...contRequests);
             report.captures.push({ case: 'continue', requestShas: contRequests.map(entry => entry.sha256) });
             step('continue-produced-a-request', cont?.pressed !== false && contRequests.length >= 1, { cont, requests: contRequests.length });
