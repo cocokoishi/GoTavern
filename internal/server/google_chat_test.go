@@ -20,6 +20,7 @@ import (
 
 	"github.com/cocokoishi/gotavern/internal/outbound"
 	"github.com/cocokoishi/gotavern/internal/startup"
+	"github.com/cocokoishi/gotavern/tests/mockprovider"
 )
 
 // googleTestDirectories writes a user tree holding the MAKERSUITE key, so the makersuite plan exercises the
@@ -223,5 +224,143 @@ func TestGoogleTransportResponseShapes(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), `{"error":{"code":429}}`) {
 		t.Fatalf("non-2xx body = %s, want the PARSED provider body", recorder.Body.String())
+	}
+}
+
+// ---- the `gemini.apiVersion` READER the MAKERSUITE generate and /status URLs must use -------------
+//
+// This section is the gate for the M0 audit's D-H2 finding: the chat path hardcoded the pinned default
+// while docs/config-parity.md claimed the key was implemented.
+//
+// WHERE THE EXPECTATIONS COME FROM, stated so nobody mistakes this for a recording:
+//   - the pinned reads are chat-completions.js:679 (`const apiVersion = getConfigValue('gemini.apiVersion',
+//     'v1beta')`), :730 (`/${apiVersion}/models/${model}:${responseType}`) and :1911-1914 (the status arm,
+//     same read, `/${apiVersion}/models` with `?key=` only when a key exists);
+//   - the effective value for a key the operator's file omits is NOT the JS fallback: pinned's config-init
+//     inserts the shipped default into the runtime config at startup, and the committed
+//     tests/oracle/sillytavern-1.19.0-config-init.json records `gemini.apiVersion: "v1beta"` in its fresh
+//     install's output. So "absent" and "v1beta" are the same effective value, which is why the default
+//     case below is an oracle-backed assertion while the `v1` override case is a source derivation.
+//
+// The assertions are at the PROVIDER request (the recorded raw target), because that is where the version
+// is observable: a route that read the key and never used it would answer the same HTTP response.
+
+// pinnedGeminiAPIVersionEnv is `keyToEnv('gemini.apiVersion')` (src/util.js:38): the environment override
+// the pinned getConfigValue (util.js:88-98) checks before the config file.
+const pinnedGeminiAPIVersionEnv = "SILLYTAVERN_GEMINI_APIVERSION"
+
+// clearGeminiAPIVersionEnv makes the variable genuinely ABSENT for the rest of the test. t.Setenv records
+// the original value so cleanup restores the host state, and the Unsetenv is what removes it: a PRESENT
+// variable -- even an empty one -- is an override in pinned util.js:90-95, so leaving a sentinel in place
+// would replace the config file this test writes and the config case would prove nothing.
+func clearGeminiAPIVersionEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv(pinnedGeminiAPIVersionEnv, "sentinel-not-an-override")
+	os.Unsetenv(pinnedGeminiAPIVersionEnv)
+}
+
+// TestGoogleChatAPIVersionFollowsTheConfig is the gate: the MakerSuite generate URL AND its /status URL
+// must carry the configured version, and both must fall back to v1beta when the key is absent.
+func TestGoogleChatAPIVersionFollowsTheConfig(t *testing.T) {
+	const generateResponse = `{"candidates":[{"content":{"parts":[{"text":"probe"}]}}]}`
+	const modelsResponse = `{"models":[{"name":"models/gemini-2.5-pro","supportedGenerationMethods":["generateContent"]}]}`
+
+	for _, testCase := range []struct {
+		name          string
+		backendConfig []string
+		environment   string
+		wantVersion   string
+	}{
+		{
+			name:          "a configured v1 is used",
+			backendConfig: []string{"gemini:", "  apiVersion: v1"},
+			wantVersion:   "v1",
+		},
+		{
+			// The effective config after config-init: the recorded fresh install carries
+			// gemini.apiVersion: "v1beta" (tests/oracle/sillytavern-1.19.0-config-init.json), and the
+			// pinned default is the same string, so this case is the stock install.
+			name:        "an absent key is the shipped v1beta",
+			wantVersion: "v1beta",
+		},
+		{
+			// pinned util.js:88-98: the environment override wins over the file. This is a source
+			// derivation, asserted because the same helper serves the file path.
+			name:        "the environment override wins",
+			environment: "v1",
+			wantVersion: "v1",
+		},
+	} {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			clearGeminiAPIVersionEnv(t)
+			if testCase.environment != "" {
+				t.Setenv(pinnedGeminiAPIVersionEnv, testCase.environment)
+			}
+
+			t.Run("generate", func(t *testing.T) {
+				recorder := mockprovider.New([]mockprovider.Response{{
+					Status:  200,
+					Headers: []mockprovider.Header{{Name: "Content-Type", Value: "application/json"}},
+					Body:    generateResponse,
+				}})
+				address, err := recorder.Listen(0)
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = recorder.Close() })
+
+				scenario := chatCompletionTestScenario()
+				scenario.BackendConfig = testCase.backendConfig
+				origin, cookie, token := startChatCompletionTestServer(t, scenario)
+				body := `{"chat_completion_source":"makersuite","model":"gemini-2.5-pro","messages":[{"role":"user","content":"probe"}],"stream":false,"reverse_proxy":"http://` + address.String() + `","proxy_password":"synthetic-proxy-password"}`
+				status, _, text, _, _ := driveChatCompletionScenario(t, scenario, origin, cookie, token, body)
+				if status != 200 {
+					t.Fatalf("status = %d, want 200 (body %q)", status, text)
+				}
+				recorded := recorder.Recording().Requests
+				if len(recorded) != 1 {
+					t.Fatalf("the provider received %d request(s), want exactly 1", len(recorded))
+				}
+				wantPath := "/" + testCase.wantVersion + "/models/gemini-2.5-pro:generateContent"
+				if recorded[0].RawPath != wantPath {
+					t.Fatalf("provider target = %q, want %q: pinned builds the URL from getConfigValue('gemini.apiVersion', 'v1beta') (chat-completions.js:679, :730)", recorded[0].RawPath, wantPath)
+				}
+			})
+
+			t.Run("status", func(t *testing.T) {
+				recorder := mockprovider.New([]mockprovider.Response{{
+					Status:  200,
+					Headers: []mockprovider.Header{{Name: "Content-Type", Value: "application/json"}},
+					Body:    modelsResponse,
+				}})
+				address, err := recorder.Listen(0)
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = recorder.Close() })
+
+				scenario := providerWireScenario{}
+				scenario.Request.Path = "/api/backends/chat-completions/status"
+				scenario.BackendConfig = testCase.backendConfig
+				origin, cookie, token := startChatCompletionTestServer(t, scenario)
+				body := `{"chat_completion_source":"makersuite","reverse_proxy":"http://` + address.String() + `","proxy_password":"synthetic-proxy-password"}`
+				status, _, text, _, _ := driveChatCompletionScenario(t, scenario, origin, cookie, token, body)
+				if status != 200 {
+					t.Fatalf("status = %d, want the pinned 200 {data: models} (body %q)", status, text)
+				}
+				recorded := recorder.Recording().Requests
+				if len(recorded) != 1 {
+					t.Fatalf("the provider received %d request(s), want exactly 1", len(recorded))
+				}
+				wantPath := "/" + testCase.wantVersion + "/models"
+				if recorded[0].RawPath != wantPath {
+					t.Fatalf("status provider target = %q, want %q: the status arm reads the same key (chat-completions.js:1911-1914)", recorded[0].RawPath, wantPath)
+				}
+				if !strings.Contains(text, `"data":[`) {
+					t.Fatalf("body = %q, want the {data: models} envelope", text)
+				}
+			})
+		})
 	}
 }

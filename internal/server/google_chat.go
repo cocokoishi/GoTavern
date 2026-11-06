@@ -30,12 +30,15 @@ package server
 //     `content.parts.filter(p => !p.thought).map(p => p.text).join('\n\n')` -- thought parts are dropped.
 //
 // NOT COVERED, stated rather than silently different:
-//   - `gemini.apiVersion` (:679, :1911) is a config value that is not projected into HTTPHandlerOptions, so the
-//     pinned default `v1beta` is used. This is the same named gap the claude and deepseek routes carry.
 //   - VERTEX FULL MODE mints a service-account JWT and exchanges it for an OAuth token. `pinnedVertexAIAuth`
 //     returns a NAMED failure for it instead of fabricating a credential, so the observable is that failure
 //     carried through the pinned `400 {"error":true,"message"}` shape. The transport's full-mode URL branch is
 //     implemented below for completeness but is unreachable behind that boundary.
+//
+// `gemini.apiVersion` (:679, :1911) IS read now, for the MAKERSUITE generate URL and its /status URL: the
+// planner receives the user directories, so pinnedGoogleAPIVersion resolves the key through the same
+// pinned_chat_config.go path as the other module-load chat values, with the shipped default `v1beta` as the
+// config-init effective fallback. VERTEXAI never consults the key (its version is the hardcoded `v1`, :697).
 
 import (
 	"context"
@@ -64,8 +67,14 @@ func pinnedGoogleAPIName(useVertexAI bool) string {
 	return "Google AI Studio"
 }
 
-// pinnedGoogleAPIVersion is `getConfigValue('gemini.apiVersion', 'v1beta')` (:679).
-func pinnedGoogleAPIVersion() string { return pinnedGeminiDefaultAPIVersion }
+// pinnedGoogleAPIVersion is `getConfigValue('gemini.apiVersion', 'v1beta')` (:679, :1911), resolved the way
+// pinned_chat_config.go explains: the environment override, then the runtime config.yaml, then the value a
+// DEFAULT INSTALL ends up with. The last step is `v1beta` here because that is both the pinned default and
+// the shipped/inserted value (default/config.yaml:380, recorded in the config-init fresh install), so a
+// stock install is unchanged while an operator's `v1` reaches the URL.
+func pinnedGoogleAPIVersion(directories startup.UserDirectories) string {
+	return pinnedChatConfigString(directories, []string{"gemini", "apiVersion"}, pinnedGeminiDefaultAPIVersion)
+}
 
 // pinnedGoogleRegion is `request.body.vertexai_region || 'us-central1'` (:691, :716).
 func pinnedGoogleRegion(body orderedNodeJSON) string {
@@ -197,7 +206,7 @@ func pinnedGooglePlan(body orderedNodeJSON, directories startup.UserDirectories,
 				keyText = pinnedClaudeJSString(apiKey)
 			}
 		}
-		endpointURL = pinnedMakerSuiteGenerateURL(base, pinnedGoogleAPIVersion(), model, stream, keyText)
+		endpointURL = pinnedMakerSuiteGenerateURL(base, pinnedGoogleAPIVersion(directories), model, stream, keyText)
 	}
 
 	payload := pinnedGoogleBody(body, useVertexAI)
@@ -450,7 +459,7 @@ func (runtime *accountRuntime) serveMakerSuiteChatCompletionStatus(w http.Respon
 			keyText = pinnedClaudeJSString(apiKey)
 		}
 	}
-	modelsURL := pinnedMakerSuiteStatusURL(base, pinnedGoogleAPIVersion(), keyText, proxyTruthy)
+	modelsURL := pinnedMakerSuiteStatusURL(base, pinnedGoogleAPIVersion(directories), keyText, proxyTruthy)
 	models, fetchErr := pinnedGoogleFetchModels(request.Context(), modelsURL, proxyTruthy, keyText)
 	if fetchErr != nil {
 		searchGoogleStatusFailure(w)

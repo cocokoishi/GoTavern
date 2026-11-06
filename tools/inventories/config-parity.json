@@ -378,7 +378,22 @@
         },
         {
             "match": [
-                "gemini.apiVersion",
+                "gemini.apiVersion"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/google_chat.go",
+                "internal/server/makersuite_chat.go"
+            ],
+            "tests": [
+                "TestGoogleChatAPIVersionFollowsTheConfig",
+                "TestGeminiMakerSuiteURLShapes",
+                "TestGeminiMakerSuiteStatusURLShape"
+            ],
+            "note": "read from the effective config for the MAKERSUITE generate and /status URLs (chat-completions.js:679, :1911); the shipped/config-init default is v1beta and VERTEXAI never consults the key"
+        },
+        {
+            "match": [
                 "gemini.image.personGeneration",
                 "gemini.thoughtSignatures"
             ],
@@ -393,7 +408,20 @@
                 "TestGoogleConfigValueResolvesLikePinned",
                 "TestPinnedThoughtSignaturesResolution"
             ],
-            "note": "endpoint version, imagemagick generation policy and the thought-signature gate"
+            "note": "imagemagick generation policy and the thought-signature gate"
+        },
+        {
+            "match": [
+                "claude.enableAdaptiveThinking"
+            ],
+            "classification": "implemented",
+            "implementation": [
+                "internal/server/claude_chat.go"
+            ],
+            "tests": [
+                "TestChatCompletionClaudeAdaptiveThinkingFollowsTheConfig"
+            ],
+            "note": "gates the Claude 4-6 adaptive thinking payload (chat-completions.js:112, :260); the shipped/config-init value is false, so a stock install sends budget_tokens rather than the adaptive shape"
         },
         {
             "match": [

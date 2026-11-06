@@ -24,10 +24,10 @@ Pinned default leaf keys inventoried: **116**. CLI options parsed by GoTavern: *
 
 | Classification | Keys |
 |---|---|
-| implemented | 75 |
+| implemented | 76 |
 | explicit-no-op-with-startup-warning | 14 |
 | explicit-unsupported | 2 |
-| inherited | 25 |
+| inherited | 24 |
 | not-applicable | 0 |
 | **total** | **116** |
 
@@ -53,7 +53,7 @@ Pinned default leaf keys inventoried: **116**. CLI options parsed by GoTavern: *
 | `cacheBuster.enabled` | `false` | implemented | `TestCacheBusterSettingsFollowThePinnedConstructor`<br>`TestCacheBusterAndWarningsReachTheResolvedCommandLine`<br>`internal/server/cache_buster.go`<br>`internal/commandline/cachebuster.go` | middleware mounted where pinned mounts it; the pinned truthiness quirk and the once-per-key set order are reproduced |
 | `cacheBuster.userAgentPattern` | `''` | implemented | `TestCacheBusterSettingsFollowThePinnedConstructor`<br>`TestCacheBusterAndWarningsReachTheResolvedCommandLine`<br>`internal/server/cache_buster.go`<br>`internal/commandline/cachebuster.go` | middleware mounted where pinned mounts it; the pinned truthiness quirk and the once-per-key set order are reproduced |
 | `claude.cachingAtDepth` | `-1` | inherited | — | carried by the config pipeline (inserted/migrated/preserved and read at startup); this lane has no dedicated key-level behaviour evidence, so this row is the explicit work list rather than a parity claim |
-| `claude.enableAdaptiveThinking` | `false` | inherited | — | carried by the config pipeline (inserted/migrated/preserved and read at startup); this lane has no dedicated key-level behaviour evidence, so this row is the explicit work list rather than a parity claim |
+| `claude.enableAdaptiveThinking` | `false` | implemented | `TestChatCompletionClaudeAdaptiveThinkingFollowsTheConfig`<br>`internal/server/claude_chat.go` | gates the Claude 4-6 adaptive thinking payload (chat-completions.js:112, :260); the shipped/config-init value is false, so a stock install sends budget_tokens rather than the adaptive shape |
 | `claude.enableSystemPromptCache` | `false` | inherited | — | carried by the config pipeline (inserted/migrated/preserved and read at startup); this lane has no dedicated key-level behaviour evidence, so this row is the explicit work list rather than a parity claim |
 | `claude.extendedTTL` | `false` | inherited | — | carried by the config pipeline (inserted/migrated/preserved and read at startup); this lane has no dedicated key-level behaviour evidence, so this row is the explicit work list rather than a parity claim |
 | `cors.allowedHeaders` | `[]` | implemented | `TestPinnedNodeCORSMiddleware`<br>`internal/server/cors.go`<br>`internal/server/http.go` | the pinned cors option block plus the /proxy/:url(*) passthrough |
@@ -86,10 +86,10 @@ Pinned default leaf keys inventoried: **116**. CLI options parsed by GoTavern: *
 | `forwardedHeaders.cfConnectingIp` | `false` | implemented | `TestStartGlobalBasicAuthMatchesPinnedNodeResponses`<br>`TestStartPerUserBasicAuthMatchesPinnedNode`<br>`internal/server/http.go` | client-IP derivation headers used by the whitelist and rate limits |
 | `forwardedHeaders.xForwardedFor` | `true` | implemented | `TestStartGlobalBasicAuthMatchesPinnedNodeResponses`<br>`TestStartPerUserBasicAuthMatchesPinnedNode`<br>`internal/server/http.go` | client-IP derivation headers used by the whitelist and rate limits |
 | `forwardedHeaders.xRealIp` | `true` | implemented | `TestStartGlobalBasicAuthMatchesPinnedNodeResponses`<br>`TestStartPerUserBasicAuthMatchesPinnedNode`<br>`internal/server/http.go` | client-IP derivation headers used by the whitelist and rate limits |
-| `gemini.apiVersion` | `'v1beta'` | implemented | `TestGeminiMakerSuiteURLShapes`<br>`TestGoogleConfigValueResolvesLikePinned`<br>`TestPinnedThoughtSignaturesResolution`<br>`internal/server/google_media.go`<br>`internal/server/makersuite_chat.go`<br>`internal/server/openrouter_media.go` | endpoint version, imagemagick generation policy and the thought-signature gate |
+| `gemini.apiVersion` | `'v1beta'` | implemented | `TestGoogleChatAPIVersionFollowsTheConfig`<br>`TestGeminiMakerSuiteURLShapes`<br>`TestGeminiMakerSuiteStatusURLShape`<br>`internal/server/google_chat.go`<br>`internal/server/makersuite_chat.go` | read from the effective config for the MAKERSUITE generate and /status URLs (chat-completions.js:679, :1911); the shipped/config-init default is v1beta and VERTEXAI never consults the key |
 | `gemini.enableSystemPromptCache` | `false` | explicit-no-op-with-startup-warning | `TestUnimplementedConfigWarningsNameTheKey`<br>`internal/commandline/unimplemented_config.go` | needs the isOpenRouterModelCacheable network probe (docs/config-boundaries.md); the flag alone must not be applied |
-| `gemini.image.personGeneration` | `'allow_adult'` | implemented | `TestGeminiMakerSuiteURLShapes`<br>`TestGoogleConfigValueResolvesLikePinned`<br>`TestPinnedThoughtSignaturesResolution`<br>`internal/server/google_media.go`<br>`internal/server/makersuite_chat.go`<br>`internal/server/openrouter_media.go` | endpoint version, imagemagick generation policy and the thought-signature gate |
-| `gemini.thoughtSignatures` | `true` | implemented | `TestGeminiMakerSuiteURLShapes`<br>`TestGoogleConfigValueResolvesLikePinned`<br>`TestPinnedThoughtSignaturesResolution`<br>`internal/server/google_media.go`<br>`internal/server/makersuite_chat.go`<br>`internal/server/openrouter_media.go` | endpoint version, imagemagick generation policy and the thought-signature gate |
+| `gemini.image.personGeneration` | `'allow_adult'` | implemented | `TestGeminiMakerSuiteURLShapes`<br>`TestGoogleConfigValueResolvesLikePinned`<br>`TestPinnedThoughtSignaturesResolution`<br>`internal/server/google_media.go`<br>`internal/server/makersuite_chat.go`<br>`internal/server/openrouter_media.go` | imagemagick generation policy and the thought-signature gate |
+| `gemini.thoughtSignatures` | `true` | implemented | `TestGeminiMakerSuiteURLShapes`<br>`TestGoogleConfigValueResolvesLikePinned`<br>`TestPinnedThoughtSignaturesResolution`<br>`internal/server/google_media.go`<br>`internal/server/makersuite_chat.go`<br>`internal/server/openrouter_media.go` | imagemagick generation policy and the thought-signature gate |
 | `git.backend` | `auto` | explicit-no-op-with-startup-warning | `TestUnimplementedConfigWarningsNameTheKey`<br>`internal/commandline/unimplemented_config.go` | auto (system git) works; the integrated isomorphic-git backend does not exist, so `builtin` warns |
 | `heartbeatInterval` | `0` | implemented | `TestStartFreshServerMatchesPinnedNodeHTTPResponses`<br>`TestStartHeartbeatMatchesPinnedNodeLifecycle`<br>`TestRelativeDataRootCreatesOnlyTheDirectoryItUses`<br>`internal/commandline/paths.go`<br>`internal/commandline/options.go`<br>`internal/app/server.go` | listener, path resolution and heartbeat lifecycle |
 | `hostWhitelist.enabled` | `false` | implemented | `TestStartHostWhitelistMatchesPinnedNodeHTTPResponses`<br>`TestPinnedHostWhitelistPatternMatching`<br>`internal/server/host_whitelist.go` | the pinned wildcard pattern matcher and the scan warning are reproduced |
