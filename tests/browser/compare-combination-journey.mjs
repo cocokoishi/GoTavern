@@ -546,7 +546,7 @@ function addE03E04Guards({ add, goDrive, pinnedDrive, goRestart, pinnedRestart, 
     }
     add('artifact-identity-parity', parityProblems.length === 0, parityProblems.length === 0, { problems: parityProblems });
 
-    return { requested: true, refused: false, guardCount: names.length + 19 };
+    return { requested: true, refused: false, guardCount: names.length + 20 };
 }
 
 function extensionTierOf(leg) {
@@ -719,6 +719,22 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
         rule: 'an extension overlay covering #send_but must be dismissed through its own control on BOTH subjects, with the overlay and selector recorded; the dismissed (overlay id|button id) SET is compared ORDER-INSENSITIVELY (both subjects must dismiss the same layers, in any order); an undismissable overlay is a named harness failure',
     });
 
+    // ---- LEG COMPLETION (dispatch 42203249658) ---------------------------------------------------------
+    // The pinned drive stopped after 50 of 85 steps (a navigation destroyed the evaluation context during the
+    // control segment) and wrote a SHORT report whose summary listed only the two ordinary step failures. A partial
+    // leg must be a NAMED failure: the probe records `completion {ok, landmarks, missing, steps, failure}` and its
+    // own `leg-completed-all-expected-phases` step, and this guard requires both subjects to have completed their
+    // phase landmarks. A truncated report can never be read as an ordinary short leg again.
+    const completionOf = leg => leg?.completion ?? null;
+    const goCompletion = completionOf(goDrive);
+    const pinCompletion = completionOf(pinnedDrive);
+    const completionOk = value => value?.ok === true && Array.isArray(value?.missing) && value.missing.length === 0;
+    add('legs-are-complete', completionOk(goCompletion), completionOk(pinCompletion), {
+        gotavern: goCompletion,
+        pinned: pinCompletion,
+        rule: 'a leg that ended before its phase landmarks is a named failure (leg-completed-all-expected-phases); a truncated report never passes as an ordinary short leg',
+    });
+
     // ---- WIRE: per-capture byte equality --------------------------------------------------------------
     const goCases = byCase(goDrive);
     const pinCases = byCase(pinnedDrive);
@@ -767,7 +783,7 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
         'world-info-selected-after-boot', 'world-info-persisted-after-boot', 'user-name-set', 'drive-injections-active-in-page',
         'character-opened', 'character-scoped-regex-allowed-and-visible', 'complex-preset-selected',
         'authors-note-applied', 'helper-variables-written', 'helper-closure-inside-iframe',
-        'quick-reply-created-and-executed', 'turn-1-request-captured', 'turn-1-streaming-requested',
+        'quick-reply-created-and-executed', 'turn-1-request-captured', 'turn-1-streaming-requested', 'streaming-setting-armed-before-turn-1',
         'turn-1-preset-pieces-in-request', 'turn-1-world-info-three-slots-placed', 'turn-1-variables-in-request',
         'turn-1-quick-reply-in-request', 'turn-1-authors-note-in-request', 'regex-rewrote-visible-message',
         'turn-2-history-carries-regex-rewritten-text', 'turn-2-history-carries-turn-1',

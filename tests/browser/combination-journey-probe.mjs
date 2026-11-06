@@ -174,6 +174,113 @@ const profileWorldNames = () => (profileContext
     ? [profileContext.built.books.threeSlot.name, profileContext.built.books.recursiveGlobal.name]
     : []);
 
+// THE STREAMING SETTING THE PROFILE STAGED (dispatch 42203249658). The profile preset carries `stream_openai: true`,
+// and the request stream flag is read from it per request: pinned `openai.js:2785`
+// `const stream = settings.stream_openai && type !== 'quiet' && ...`, put into the body at `openai.js:2812`.
+// Its only writers are the preset-apply mapping (`openai.js:4341` with the `settingsToUpdate` entry at `:376`) and the
+// `#stream_toggle` load/change pair (`openai.js:376` / `:6841-6844`). Dispatch 42203249658 measured turn-1 and turn-2
+// as `stream:false`/json while swipe/regenerate/continue were `stream:true`/sse in the SAME full-tier session, so the
+// setting is being mutated at runtime between turns by something installed; the harness never writes it there. The
+// journey therefore snapshots the staged expectation and ASSERT-AND-RESTORES the product's own control immediately
+// before EVERY measured turn, recording each read/restore. A restore only happens when the value differs, so the fast
+// tier (no extensions flipping it) performs no write and its wire bytes are unchanged.
+let expectedStreaming = true;
+
+async function readStreamingSetting(page) {
+    return page.evaluate(async () => {
+        const openai = await import('./scripts/openai.js');
+        const control = document.querySelector('#stream_toggle');
+        return {
+            setting: openai.oai_settings?.stream_openai ?? null,
+            settingType: typeof openai.oai_settings?.stream_openai,
+            toggleChecked: control ? Boolean(control.checked) : null,
+            togglePresent: Boolean(control),
+            mainApi: openai.main_api ?? null,
+            source: openai.oai_settings?.chat_completion_source ?? null,
+        };
+    }).catch(error => ({ error: String(error?.message ?? error).slice(0, 200) }));
+}
+
+/**
+ * Snapshot the streaming setting, and when it is not the profile's staged value restore it THROUGH THE PRODUCT'S OWN
+ * SETTING PATH: check `#stream_toggle` and dispatch its `change` event, which runs the pinned handler at
+ * `openai.js:6841-6844` (`oai_settings.stream_openai = !!$('#stream_toggle').prop('checked')` + debounced save). The
+ * checkbox remains the user-visible control, so this is what a user would do rather than a silent field write; if the
+ * page has no control the module member is used and that fallback is recorded.
+ */
+async function assertStreamingSetting(page, expected, where) {
+    const before = await readStreamingSetting(page);
+    if (before.setting === expected) {
+        return { ok: true, where, expected, before, restored: false, after: before };
+    }
+    const restored = await page.evaluate(async want => {
+        const openai = await import('./scripts/openai.js');
+        const control = document.querySelector('#stream_toggle');
+        if (control) {
+            control.checked = want;
+            control.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+            openai.oai_settings.stream_openai = want;
+        }
+        return { via: control ? 'product #stream_toggle change handler' : 'openai.oai_settings member (no control)', setting: openai.oai_settings?.stream_openai ?? null, toggleChecked: control ? Boolean(control.checked) : null };
+    }, expected).catch(error => ({ via: 'threw', error: String(error?.message ?? error).slice(0, 200) }));
+    const after = await readStreamingSetting(page);
+    return { ok: after.setting === expected, where, expected, before, restored: true, via: restored.via, restoreValue: restored.setting, after };
+}
+
+/** Append every streaming-setting read to the artefact (both tiers; the fast tier records `restored:false` only). */
+function recordStreamingAssertion(where, assertion) {
+    const existing = report.browser.streamingSetting ?? { expected: expectedStreaming, assertions: [] };
+    existing.expected = expectedStreaming;
+    existing.assertions.push({ ...assertion, at: Date.now() });
+    report.browser.streamingSetting = existing;
+    return assertion;
+}
+
+/**
+ * ARM THE STREAMING SETTING FOR THE GENERATION ITSELF. A restore immediately before the click cannot help if the
+ * mutation happens INSIDE the send path (`Generate('normal')` emits `GENERATION_STARTED` at script.js:4299 before the
+ * assembly and `sendOpenAIRequest` at script.js:4077 for quiet / openai.js:3145 for normal). This installs a ONE-SHOT
+ * product-event listener on that event which re-asserts the profile's staged value THROUGH `#stream_toggle` (the same
+ * control a user has, whose change handler is openai.js:6841-6844) when the live value differs; it fires before the
+ * request body is built. The listener removes itself when it fires and is disarmed after the turn, so later generations
+ * are unaffected. Both tiers install it; it writes only when the value differs, so the fast tier's wire bytes are
+ * unchanged.
+ */
+async function armStreamingThroughGeneration(page, expected) {
+    return page.evaluate(async want => {
+        const script = await import('./script.js');
+        const openai = await import('./scripts/openai.js');
+        const control = document.querySelector('#stream_toggle');
+        const existing = window.__combStreamingArm;
+        if (existing?.handler) script.eventSource.removeListener(script.event_types.GENERATION_STARTED, existing.handler);
+        const force = () => {
+            if (openai.oai_settings?.stream_openai === want) return;
+            if (control) {
+                control.checked = want;
+                control.dispatchEvent(new Event('change', { bubbles: true }));
+            } else {
+                openai.oai_settings.stream_openai = want;
+            }
+        };
+        const handler = () => { force(); };
+        script.eventSource.once(script.event_types.GENERATION_STARTED, handler);
+        window.__combStreamingArm = { handler, want };
+        return { installed: true, expected: want, settingBefore: openai.oai_settings?.stream_openai ?? null, toggleChecked: control ? Boolean(control.checked) : null, via: control ? 'product #stream_toggle change handler on GENERATION_STARTED' : 'openai.oai_settings member (no control)' };
+    }, expected).catch(error => ({ installed: false, error: String(error?.message ?? error).slice(0, 200) }));
+}
+
+/** Remove the one-shot streaming guard after the turn (a listener that never fired must not leak into a later turn). */
+async function disarmStreamingThroughGeneration(page) {
+    return page.evaluate(async () => {
+        const script = await import('./script.js');
+        const existing = window.__combStreamingArm;
+        if (existing?.handler) script.eventSource.removeListener(script.event_types.GENERATION_STARTED, existing.handler);
+        window.__combStreamingArm = null;
+        return { disarmed: true };
+    }).catch(error => ({ disarmed: false, error: String(error?.message ?? error).slice(0, 200) }));
+}
+
 const report = {
     schemaVersion: 1,
     question: 'Does the full combination journey (card × complex preset × world book × variables × QR × character regex × streaming × verbs × reload × restart × group turn) produce the same provider requests, browser state and durable chat on pinned Node and GoTavern in ONE session, and does pinned Node continue the GoTavern-written chat?',
@@ -1919,6 +2026,39 @@ async function waitForArmedPromptManager(page, { minimum = 8, timeoutMs = 30000,
     return { ...(last ?? {}), armed: false, waitedMs: Date.now() - started };
 }
 
+/**
+ * Wait for a page that has just been navigated (a character/chat switch can start one AFTER the click that caused it
+ * returns) to become drivable again. Dispatch 42203249658: the pinned drive died in `sendTurn`'s `page.evaluate` with
+ * "Execution context was destroyed, most likely because of a navigation" immediately after `character-opened` at the
+ * control segment, while the Go leg continued -- a navigation race, not a product difference. A bounded read of the
+ * frontend's own readiness flag plus `document.readyState` is the same precondition a user waits for.
+ */
+async function waitForPageStable(page, { maxMs = 45000 } = {}) {
+    const started = Date.now();
+    let last = null;
+    while (Date.now() - started < maxMs) {
+        const state = await page.evaluate(async () => {
+            const script = await import('./script.js');
+            return {
+                readyState: document.readyState,
+                settingsReady: script.settingsReady === true,
+                isSendPress: script.is_send_press === true,
+                chatLength: (script.chat ?? []).length,
+            };
+        }).catch(error => ({ error: String(error?.message ?? error).slice(0, 200) }));
+        last = state;
+        if (state?.error) {
+            // The execution context is mid-navigation: wait for the new document rather than treating it as a failure.
+            await page.waitForLoadState('domcontentloaded').catch(() => {});
+            await page.waitForTimeout(200);
+            continue;
+        }
+        if (state.readyState !== 'loading' && state.settingsReady === true) return { ok: true, waitedMs: Date.now() - started, state };
+        await page.waitForTimeout(200);
+    }
+    return { ok: false, waitedMs: Date.now() - started, state: last };
+}
+
 /** One user turn: baseline first, click the product's send control, wait for the page AND the peer to move. */
 async function turn(page, marker, caseName, { settleMs = 0 } = {}) {
     await waitForQuiet(page);
@@ -1931,15 +2071,41 @@ async function turn(page, marker, caseName, { settleMs = 0 } = {}) {
         report.browser.overlayHandling = mergeOverlayHandling(report.browser.overlayHandling, caseName, sendability.overlayHandling);
     }
     if (sendability.ok !== true) {
-        return { ok: false, caseName, reason: 'page-not-sendable', sendability, requests: [], outgoingPrompt: null, sent: null, replied: null };
+        return { ok: false, caseName, reason: 'page-not-sendable', sendability, streamingArm: null, requests: [], outgoingPrompt: null, sent: null, replied: null };
     }
+    // THE PROFILE'S STAGED STREAMING SETTING MUST BE IN FORCE WHEN THE SEND HAPPENS (dispatch 42203249658). Read the
+    // live setting, restore it through the product's own control when an installed extension changed it, and record the
+    // before/after so the artefact says what was flipped instead of leaving a non-streaming turn unexplainable.
+    if (profileMode && profileContext?.stagedPreset) {
+        expectedStreaming = profileContext.stagedPreset.stream_openai !== false;
+    }
+    const streamingArm = recordStreamingAssertion(caseName, await assertStreamingSetting(page, expectedStreaming, caseName));
+    // Also arm the value for the generation itself: if the mutation happens inside `Generate('normal')` (an extension
+    // hook between GENERATION_STARTED and the request), the one-shot product-event guard restores it before assembly.
+    streamingArm.generationGuard = await armStreamingThroughGeneration(page, expectedStreaming);
+    // A NAVIGATION THAT STARTED AFTER THE PREVIOUS STEP CAN DESTROY THE EVALUATION CONTEXT UNDER THE CLICK. Wait for
+    // the page to be drivable again, and if the click still loses its context, wait once more and retry with the retry
+    // recorded; a second failure is returned as a named reason, never a truncated report.
+    const stable = await waitForPageStable(page);
     const baseline = await readPageState(page);
     const before = peerRequests().length;
-    const sent = await sendTurn(page, marker);
-    if (!sent?.clicked) return { ok: false, caseName, reason: 'send control did not click', sent, sendability, requests: [], outgoingPrompt: null };
+    let navigationRetry = null;
+    let sent = await sendTurn(page, marker).catch(error => ({ clicked: false, reason: `sendTurn threw: ${String(error?.message ?? error).slice(0, 200)}` }));
+    if (sent?.clicked !== true && /Execution context was destroyed|navigation/i.test(String(sent?.reason ?? ''))) {
+        navigationRetry = await waitForPageStable(page);
+        sent = await sendTurn(page, marker).catch(error => ({ clicked: false, reason: `sendTurn retry threw: ${String(error?.message ?? error).slice(0, 200)}` }));
+    }
+    if (!sent?.clicked) {
+        streamingArm.generationGuardDisarm = await disarmStreamingThroughGeneration(page);
+        return { ok: false, caseName, reason: 'send control did not click', sent, sendability, streamingArm, navigationRetry, pageStable: stable, requests: [], outgoingPrompt: null };
+    }
+    sent.navigationRetry = navigationRetry;
+    sent.pageStable = stable;
     const replied = await waitForReply(page, { baseline, peerCompletions: peerRequests(), timeoutMs: 120000 });
     // The peer answers in a stream; the page settles when the generation ends. Both conditions are bounded.
     const requestArrived = await waitForPeerRequests(page, before + 1, 60000);
+    streamingArm.generationGuardDisarm = await disarmStreamingThroughGeneration(page);
+    streamingArm.afterTurn = await readStreamingSetting(page);
     if (settleMs > 0) await page.waitForTimeout(settleMs);
     // ATTRIBUTION BY CONTENT, NOT BY ARRIVAL ORDER. A page that has just reloaded can have a late request in flight
     // (the connection change fires a prompt assembly), and an arrival-order slice then records that request as "the
@@ -2029,7 +2195,7 @@ async function turn(page, marker, caseName, { settleMs = 0 } = {}) {
         };
     return {
         ok: replied?.ok !== false && requestArrived && requests.length >= 1,
-        caseName, requested: requestArrived, matched: requests.length, sent, replied, baseline, after, requests, sendability, outgoingPrompt,
+        caseName, requested: requestArrived, matched: requests.length, sent, replied, baseline, after, requests, sendability, outgoingPrompt, streamingArm,
         noGenerationRequest: returns?.noGenerationRequest === true, seen: returns?.seen ?? null, recovered: returns?.recovered ?? recovered,
     };
 }
@@ -2418,6 +2584,11 @@ async function main() {
                 // including an order row for its own active character id. Dispatch 42173399186 selected the option and
                 // still ran the 11 default prompts; this step fails with the exact mismatch that happened.
                 step('e03e04-preset-applied-to-prompt-manager', presetApplied?.ok === true, presetApplied);
+                // THE PROFILE'S STAGED STREAMING SETTING, read right after the preset lands (dispatch 42203249658:
+                // turn 1 was non-streaming while the staged preset and the fast tier are streaming).
+                expectedStreaming = profileContext?.stagedPreset?.stream_openai !== false;
+                const streamingAfterPreset = recordStreamingAssertion('after-preset-applied', await assertStreamingSetting(page, expectedStreaming, 'after-preset-applied'));
+                step('streaming-setting-staged-by-preset', streamingAfterPreset.ok === true && streamingAfterPreset.expected === true, streamingAfterPreset);
             }
 
             // ---- STEP 2b: author's note through the frontend's own module ----------------------------
@@ -2567,6 +2738,11 @@ async function main() {
             if (takeover.installed === true) {
                 step('extension-prompt-takeover-handled', takeover.ok === true, takeoverRecord);
             }
+            // THE QUIET PROBE GENERATIONS MUST NOT LEAVE THE STREAMING SETTING CHANGED. Read it right after the
+            // takeover probe (the full-tier-only step before the measured turns) and restore through the product's own
+            // control if something flipped it; the record names the before/after either way.
+            const streamingAfterTakeover = recordStreamingAssertion('after-takeover-probe', await assertStreamingSetting(page, expectedStreaming, 'after-takeover-probe'));
+            step('streaming-setting-survived-takeover-probe', streamingAfterTakeover.ok === true, streamingAfterTakeover);
 
             // ---- STEP 2f: THE SEND BUTTON'S BLOCKING-OVERLAY CHECK -----------------------------------
             // Dispatch 42193009501: ST-Copilot's startup changelog overlay (`#scp-changelog-modal.scp-modal-overlay`,
@@ -2593,7 +2769,11 @@ async function main() {
                 : 'COMB_TURN_1';
             const turn1 = await turn(page, turn1Marker, 'turn-1-armed');
             const capture1 = classifyCapture(turn1.requests[0]);
-            report.browser.turn1 = { ok: turn1.ok, replied: turn1.replied, after: turn1.after, marker: turn1Marker, sendability: turn1.sendability, outgoingPrompt: turn1.outgoingPrompt };
+            report.browser.turn1 = { ok: turn1.ok, replied: turn1.replied, after: turn1.after, marker: turn1Marker, sendability: turn1.sendability, outgoingPrompt: turn1.outgoingPrompt, streamingArm: turn1.streamingArm };
+            // THE ARMING EVIDENCE, named before the request assertion: the profile's staged `stream_openai` was READ
+            // and, when an installed extension had changed it, RESTORED through the product's own `#stream_toggle`
+            // control before the send. `turn-1-streaming-requested` stays the real wire guard and is not weakened.
+            step('streaming-setting-armed-before-turn-1', turn1.streamingArm?.ok === true && turn1.streamingArm?.expected === true, turn1.streamingArm);
             // THE OUTGOING PROMPT'S INTEGRITY, named: with an orchestrating extension installed the body is its relay
             // prompt and this step says so (extension + replacement body head), instead of a bare `requests:0`.
             report.browser.outgoingPromptIntegrity = turn1.outgoingPrompt ?? { ok: false, reason: 'the turn returned before the outgoing prompt could be inspected' };
@@ -3403,6 +3583,32 @@ async function main() {
                 }
                 : null,
         };
+        // A PARTIAL LEG MUST FAIL BY NAME (dispatch 42203249658): the pinned drive stopped after 50 of 85 steps when a
+        // navigation destroyed the execution context during `sendTurn`, yet the short report's summary listed only the
+        // two ordinary step failures. Every phase has landmark steps that ONLY a completed journey reaches; a report
+        // missing any of them now carries a named `leg-completed-all-expected-phases` failure, so a truncated leg can
+        // never be read as "ended early with nothing else wrong".
+        const completionLandmarks = report.stagingOnly === true
+            ? ['e03e04-profile-staged', 'stage-only-complete']
+            : phase === 'drive'
+                ? (profileMode
+                    ? ['turn-1-request-captured', 'streaming-setting-armed-before-turn-1', 'journey-chat-written', 'e03e04-ordered-message-ids-recorded']
+                    : ['turn-1-request-captured', 'journey-chat-written', 'ordered-message-ids-recorded'])
+                : phase === 'restart'
+                    ? ['restart-found-the-journey-chat', 'after-restart-request-captured']
+                    : ['handback-tree-has-the-journey-chat', 'handback-continued-and-reached-provider'];
+        const presentSteps = new Set(report.steps.map(entry => entry.name));
+        const missingLandmarks = completionLandmarks.filter(name => !presentSteps.has(name));
+        const completion = {
+            phase,
+            landmarks: completionLandmarks,
+            missing: missingLandmarks,
+            steps: report.steps.length,
+            ok: missingLandmarks.length === 0 && !report.failure,
+            failure: report.failure ? String(report.failure).split('\n')[0].slice(0, 300) : null,
+        };
+        report.completion = completion;
+        step('leg-completed-all-expected-phases', completion.ok, completion);
         report.summary = {
             steps: report.steps.length,
             failedSteps: report.steps.filter(entry => !entry.ok).map(entry => entry.name),

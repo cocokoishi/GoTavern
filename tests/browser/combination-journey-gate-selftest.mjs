@@ -181,7 +181,17 @@ function buildSyntheticProfileLegs() {
         phase: 'drive',
         subject,
         nonce: 'synthetic',
-        steps: [{ name: 'synthetic-leg', ok: true, detail: null }],
+        steps: [
+            { name: 'synthetic-leg', ok: true, detail: null },
+            // THE STREAMING-ARMING EVIDENCE (dispatch 42203249658): the probe records the setting read/restore before
+            // turn 1 and the turn's wire request must have asked for a stream. The synthetic pair carries both, so the
+            // planted non-streaming case below can go red on exactly the guard that names it.
+            { name: 'streaming-setting-armed-before-turn-1', ok: true, detail: { ok: true, expected: true, restored: false } },
+            { name: 'turn-1-streaming-requested', ok: true, detail: { requestedStream: true, served: 'sse' } },
+        ],
+        // THE LEG-COMPLETION RECORD (dispatch 42203249658): a completed phase lists its landmarks; the probe emits
+        // `leg-completed-all-expected-phases` and the comparator guard `legs-are-complete` requires this record.
+        completion: { phase: 'drive', ok: true, landmarks: ['turn-1-request-captured', 'streaming-setting-armed-before-turn-1', 'journey-chat-written', 'e03e04-ordered-message-ids-recorded'], missing: [], steps: 3, failure: null },
         requests: [
             armedRequest,
             { case: 'control-preset-off', method: 'POST', path: '/v1/chat/completions', requestedStream: true, served: { wire: 'sse' }, ...bodyFields(presetOffBody) },
@@ -823,7 +833,47 @@ syntheticMutation(
         && Array.isArray(rpgRefused.overlay?.buttons) && rpgRefused.overlay.buttons.length === 2, rpgRefused);
 }
 
-// 26. THE ARTIFACT VERIFIER: a good identity verifies; a wrong head SHA, a wrong pinned SHA, a missing field and a
+// 26. STREAMING-ARMING AND LEG COMPLETION (dispatch 42203249658). A profile turn that reached the provider without
+//     `stream:true` and a leg that stopped before its phase landmarks must each be RED BY NAME. The comparator's
+//     `turn-1-streaming-requested` is the wire guard the probe already reports; `legs-are-complete` is the new
+//     completion guard fed by `report.completion` + `leg-completed-all-expected-phases`.
+{
+    const baseline = judge(synthetic.legs);
+    const streamingBaselineGreen = baseline.guards['turn-1-streaming-requested'] === true && baseline.guards['streaming-setting-armed-before-turn-1'] === true;
+    // (a) A TURN SENT NON-STREAMING in profile mode: the request asked for JSON and the step says so. The fast tier's
+    //     request is untouched, so the mutation is pinned-only -- the same asymmetry a real product difference shows.
+    const nonStreamingLegs = clone(synthetic.legs);
+    nonStreamingLegs.pinned.requests = clone(nonStreamingLegs.pinned.requests).map((entry, index) => index === 0 ? { ...entry, requestedStream: false, served: { wire: 'json', frames: 0, bytes: 267, terminal: true } } : entry);
+    nonStreamingLegs.pinned.steps = clone(nonStreamingLegs.pinned.steps).map(entry => entry.name === 'turn-1-streaming-requested'
+        ? { ...entry, ok: false, detail: { requestedStream: false, served: 'json' } }
+        : entry);
+    const nonStreaming = compareCombinationJourney({ goDrive: clone(nonStreamingLegs.go), pinnedDrive: clone(nonStreamingLegs.pinned), expectProfile: 'e03e04' });
+    record('A-TURN-SENT-NON-STREAMING-GOES-RED-BY-turn-1-streaming-requested', streamingBaselineGreen
+        && nonStreaming.guards['turn-1-streaming-requested'] === false, {
+        baselineGuard: baseline.guards['turn-1-streaming-requested'],
+        mutatedGuard: nonStreaming.guards['turn-1-streaming-requested'],
+        served: nonStreaming.guards['all-captures-were-streamed'],
+    });
+    // (b) A PARTIAL LEG: the pinned report stopped at 50 of 85 steps; its completion record names the missing
+    //     landmarks and the navigation failure. The guard must be RED and must not be read as an ordinary short leg.
+    const partialLegs = clone(synthetic.legs);
+    partialLegs.pinned.completion = {
+        phase: 'drive',
+        ok: false,
+        landmarks: ['turn-1-request-captured', 'streaming-setting-armed-before-turn-1', 'journey-chat-written', 'e03e04-ordered-message-ids-recorded'],
+        missing: ['journey-chat-written', 'e03e04-ordered-message-ids-recorded'],
+        steps: 50,
+        failure: 'page.evaluate: Execution context was destroyed, most likely because of a navigation.',
+    };
+    const partial = compareCombinationJourney({ goDrive: clone(partialLegs.go), pinnedDrive: clone(partialLegs.pinned), expectProfile: 'e03e04' });
+    record('A-PARTIAL-LEG-GOES-RED-BY-legs-are-complete', baseline.guards['legs-are-complete'] === true
+        && partial.guards['legs-are-complete'] === false, {
+        baselineGuard: baseline.guards['legs-are-complete'],
+        mutatedGuard: partial.guards['legs-are-complete'],
+    });
+}
+
+// 27. THE ARTIFACT VERIFIER: a good identity verifies; a wrong head SHA, a wrong pinned SHA, a missing field and a
 //     tampered document digest are each REFUSED (never warnings). The document bytes are real files in a temp dir.
 function artifactVerifierCases() {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'cj-selftest-'));
@@ -884,6 +934,9 @@ const syntheticBaseline = judge(synthetic.legs);
 const requiredGreen = [
     'outgoing-prompt-integrity',
     'send-blocking-overlays-handled',
+    'turn-1-streaming-requested',
+    'streaming-setting-armed-before-turn-1',
+    'legs-are-complete',
     'e03e04-profile-recorded',
     'e03e04-profile-identical',
     'e03e04-extensions-installed',
