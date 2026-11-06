@@ -73,8 +73,9 @@ var (
 )
 
 // pinnedClaudeModelFlags is the resolved set of pinned predicates for one model string. isAdaptiveModel
-// folds the CONFIG default `claude.enableAdaptiveThinking` (true) into the 4-6 generation, which is why
-// it is computed here rather than being a plain pattern.
+// folds the RESOLVED `claude.enableAdaptiveThinking` value into the 4-6 generation (the pinned read is at
+// chat-completions.js:112 and the gate at :260), which is why it is computed here rather than being a
+// plain pattern.
 type pinnedClaudeModelFlags struct {
 	fable           bool
 	fable51         bool
@@ -97,7 +98,7 @@ func pinnedClaudeJSString(value orderedNodeJSON) string {
 	return text
 }
 
-func pinnedClaudeModelFlagsFor(body orderedNodeJSON) pinnedClaudeModelFlags {
+func pinnedClaudeModelFlagsFor(body orderedNodeJSON, enableAdaptiveThinking bool) pinnedClaudeModelFlags {
 	model := pinnedClaudeJSString(sdBodyMember(body, "model"))
 	flags := pinnedClaudeModelFlags{
 		fable:           pinnedClaudeFablePattern.MatchString(model),
@@ -116,9 +117,12 @@ func pinnedClaudeModelFlagsFor(body orderedNodeJSON) pinnedClaudeModelFlags {
 		pinnedJSTruthy(sdBodyMember(body, "enable_web_search"))
 	flags.verbosity = flags.verbosity || flags.fable || flags.claude5
 	flags.noPrefill = flags.noPrefill || flags.fable || flags.claude5
-	// :260 -- `enableAdaptiveThinking` defaults to TRUE in the pinned config.
+	// :260 -- `(enableAdaptiveThinking && /^claude-(opus-4-6|sonnet-4-6)/.test(model))`. The flag is read
+	// once at module load (:112) from the effective startup config, whose shipped value is FALSE
+	// (default/config.yaml:376 and the recorded config-init fresh install), so the 4-6 generation is
+	// adaptive ONLY when the operator enabled it. The base adaptive pattern (:70) is NOT gated upstream.
 	flags.adaptive = pinnedClaudeAdaptivePattern.MatchString(model) || flags.fable || flags.claude5 ||
-		pinnedClaudeAdaptive46Pattern.MatchString(model)
+		(enableAdaptiveThinking && pinnedClaudeAdaptive46Pattern.MatchString(model))
 	flags.noSampling = pinnedClaudeNoSamplingPattern.MatchString(model) || flags.fable || flags.claude5
 	return flags
 }
@@ -556,10 +560,21 @@ func pinnedClaudeIsJSSpace(character rune) bool {
 	return character >= '\u2000' && character <= '\u200a'
 }
 
-// pinnedClaudePayload builds the pinned requestBody (:269-406) for the DEFAULT configuration and the
-// anthropic-beta list that goes with it. Member order is the byte contract.
-func pinnedClaudePayload(body orderedNodeJSON, promptPlaceholder string) (orderedNodeJSON, []string, *pinnedChatCompletionFailure) {
-	flags := pinnedClaudeModelFlagsFor(body)
+// pinnedClaudeAdaptiveThinking is `getConfigValue('claude.enableAdaptiveThinking', true, 'boolean')` at
+// chat-completions.js:112, resolved the way pinned_chat_config.go explains: the environment override, then
+// the runtime config.yaml, then the value a DEFAULT INSTALL ends up with. That last step is FALSE here,
+// not the JS fallback `true`: default/config.yaml:376 ships `enableAdaptiveThinking: false`, pinned's
+// config-init inserts it into every fresh runtime config (the committed
+// tests/oracle/sillytavern-1.19.0-config-init.json records it in the fresh install's output), so a stock
+// install observes false and only an explicit operator/true override observes true.
+func pinnedClaudeAdaptiveThinking(directories startup.UserDirectories) bool {
+	return pinnedChatConfigBool(directories, []string{"claude", "enableAdaptiveThinking"}, false)
+}
+
+// pinnedClaudePayload builds the pinned requestBody (:269-406) and the anthropic-beta list that goes with
+// it. Member order is the byte contract.
+func pinnedClaudePayload(body orderedNodeJSON, promptPlaceholder string, enableAdaptiveThinking bool) (orderedNodeJSON, []string, *pinnedChatCompletionFailure) {
+	flags := pinnedClaudeModelFlagsFor(body, enableAdaptiveThinking)
 	useTools := false
 	if tools := sdBodyMember(body, "tools"); tools.kind == 'a' && len(tools.array) > 0 {
 		useTools = true
@@ -815,7 +830,7 @@ func pinnedClaudePlan(body orderedNodeJSON, directories startup.UserDirectories)
 		return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
 	}
 
-	payload, betaHeaders, failure := pinnedClaudePayload(body, pinnedChatPromptPlaceholder(directories))
+	payload, betaHeaders, failure := pinnedClaudePayload(body, pinnedChatPromptPlaceholder(directories), pinnedClaudeAdaptiveThinking(directories))
 	// :281-283, :297-299, :330-332, then :334-337 -- the caching mutations happen on the built payload and the
 	// beta list grows by two tokens when either branch is active. Config read per request for the reason
 	// pinned_chat_config.go states.

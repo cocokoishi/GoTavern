@@ -238,6 +238,109 @@ func TestChatCompletionClaudeMissingKeyIsRefusedBeforeTheFetch(t *testing.T) {
 	}
 }
 
+// pinnedClaudeAdaptiveThinkingEnv is `keyToEnv('claude.enableAdaptiveThinking')` (src/util.js:38).
+const pinnedClaudeAdaptiveThinkingEnv = "SILLYTAVERN_CLAUDE_ENABLEADAPTIVETHINKING"
+
+// TestChatCompletionClaudeAdaptiveThinkingFollowsTheConfig is the gate for the M0 D-H3 finding: the
+// pinned flag is read at MODULE LOAD (chat-completions.js:112,
+// `getConfigValue('claude.enableAdaptiveThinking', true, 'boolean')`) and gates ONLY the 4-6 generation
+// at :260 (`enableAdaptiveThinking && /^claude-(opus-4-6|sonnet-4-6)/`). The shipped default is FALSE
+// (../SillyTavern/default/config.yaml:376), and the committed fresh-install capture records
+// `claude.enableAdaptiveThinking: false` in the effective config
+// (tests/oracle/sillytavern-1.19.0-config-init.json), so a stock install must send the non-adaptive
+// `budget_tokens` thinking shape to a 4-6 model -- not the unbiased-true `adaptive` shape Go hardcoded.
+//
+// WHERE THE EXPECTATIONS COME FROM, so this is not mistaken for a recording: no provider-wire capture
+// exists for a 4-6 model (all 20 claude scenarios use sonnet-4-5 / 3-5, which do not match the gated
+// pattern). The budget math and the two payload shapes are read from the pinned lines instead:
+//   - :740-747 non-adaptive: `thinking:{type:'enabled',budget_tokens:<calculated>}`, max_tokens raised
+//     only when <= 1024, and temperature/top_p/top_k deleted;
+//   - :716-730 adaptive: `thinking:{type:'adaptive'}` plus `output_config:{effort:<mapped>}`.
+//
+// `reasoning_effort: medium` with max_tokens 4096 makes the calculated budget 1024 (floor(4096*0.25)
+// clamped to at least 1024, and not capped above 21333 for a non-streaming request), so the expected
+// member is exact. The `true` case is the control that makes the flag, not the model, the explanation:
+// the same body and model must flip shape when only the config key changes.
+func TestChatCompletionClaudeAdaptiveThinkingFollowsTheConfig(t *testing.T) {
+	// Make the environment override genuinely ABSENT: a PRESENT variable -- even empty -- wins over the
+	// config file in pinned util.js:90-95, so a host value would replace the backendConfig under test.
+	t.Setenv(pinnedClaudeAdaptiveThinkingEnv, "sentinel-not-an-override")
+	os.Unsetenv(pinnedClaudeAdaptiveThinkingEnv)
+
+	const providerBody = `{"id":"msg_probe","type":"message","role":"assistant","content":[{"type":"text","text":"mock claude reply"}],"stop_reason":"end_turn","stop_sequence":null}`
+
+	for _, testCase := range []struct {
+		name          string
+		backendConfig []string
+		wantThinking  string
+		wantAdaptive  bool
+	}{
+		{
+			// The stock install: the shipped key is present and false.
+			name:          "the shipped false sends budget_tokens",
+			backendConfig: []string{"claude:", "  enableAdaptiveThinking: false"},
+			wantThinking:  `"thinking":{"type":"enabled","budget_tokens":1024}`,
+		},
+		{
+			// Config-init inserts the shipped default, so an absent key is the same effective value; the
+			// expectation is shared with the row above on purpose (the recorded fresh install proves it).
+			name:         "an absent key is the config-init false",
+			wantThinking: `"thinking":{"type":"enabled","budget_tokens":1024}`,
+		},
+		{
+			name:          "an operator true sends the adaptive shape",
+			backendConfig: []string{"claude:", "  enableAdaptiveThinking: true"},
+			wantThinking:  `"thinking":{"type":"adaptive"}`,
+			wantAdaptive:  true,
+		},
+	} {
+		testCase := testCase
+		for _, model := range []string{"claude-sonnet-4-6", "claude-opus-4-6"} {
+			model := model
+			t.Run(testCase.name+"/"+model, func(t *testing.T) {
+				recorder := mockprovider.New([]mockprovider.Response{{
+					Status:  200,
+					Headers: []mockprovider.Header{{Name: "Content-Type", Value: "application/json"}},
+					Body:    providerBody,
+				}})
+				address, err := recorder.Listen(0)
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = recorder.Close() })
+
+				scenario := chatCompletionTestScenario()
+				scenario.BackendConfig = testCase.backendConfig
+				origin, cookie, token := startChatCompletionTestServer(t, scenario)
+				body := `{"chat_completion_source":"claude","model":"` + model + `","messages":[{"role":"user","content":"probe"}],"max_tokens":4096,"reasoning_effort":"medium","use_sysprompt":false,"stream":false,"reverse_proxy":"http://` + address.String() + `","proxy_password":"synthetic-proxy-password"}`
+				status, _, text, _, _ := driveChatCompletionScenario(t, scenario, origin, cookie, token, body)
+				if status != http.StatusOK {
+					t.Fatalf("status = %d, want 200 (body %q)", status, text)
+				}
+				recorded := recorder.Recording().Requests
+				if len(recorded) != 1 {
+					t.Fatalf("the provider received %d request(s), want exactly 1", len(recorded))
+				}
+				if recorded[0].BodyText == nil {
+					t.Fatal("the recorded provider request carries no body text, so the payload is unasserted")
+				}
+				payload := *recorded[0].BodyText
+				if !strings.Contains(payload, testCase.wantThinking) {
+					t.Fatalf("provider body = %s\nwant it to contain %s: pinned gates the 4-6 adaptive shape on getConfigValue('claude.enableAdaptiveThinking') (chat-completions.js:112, :260) and the shipped value is false (default/config.yaml:376)", payload, testCase.wantThinking)
+				}
+				if !testCase.wantAdaptive && strings.Contains(payload, `"type":"adaptive"`) {
+					t.Fatalf("provider body = %s\nwant the NON-adaptive thinking shape: enableAdaptiveThinking resolves false, so :260's 4-6 clause is false and :740-747 builds budget_tokens", payload)
+				}
+				if testCase.wantAdaptive {
+					if !strings.Contains(payload, `"output_config":{"effort":"medium"}`) {
+						t.Fatalf("provider body = %s\nwant the adaptive output_config effort member (:729): the adaptive flag was resolved true, so the effort string, not a token budget, must be sent", payload)
+					}
+				}
+			})
+		}
+	}
+}
+
 // TestChatCompletionClaudeTransportFailureAnswers500 is a LABELLED DERIVATION (see the file header):
 // :441-446 answers 500 {"error":true} when the fetch throws and the headers have not been sent. The
 // failure is produced through a REAL closed port, and it is asserted to be the CLAUDE answer rather
