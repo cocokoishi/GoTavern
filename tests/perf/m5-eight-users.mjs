@@ -20,6 +20,21 @@
 // account's document/chats contain that account's LAST marker and no other account's marker. Every route's
 // p50/p95/p99/max and the end-to-end throughput are written into the JSON report.
 //
+// READINESS MUST NOT DEPEND ON THE AUTH POLICY THIS ROW ITSELF TURNS ON (added after the first real dispatch,
+// GoTavern M5 measurements 42209241061 at 6077405, failed `boot/timeout ... last: GET /version answered 403`).
+// bootSubject writes `enableUserAccounts: true`, and with accounts on BOTH servers put /version behind their
+// login middleware: pinned mounts `app.use(requireLoginMiddleware)` at src/server-main.js:248 BEFORE the
+// /version route at :272, and src/users.js:1027-1030 answers `sendStatus(403)` ("Forbidden") for an anonymous
+// request -- recorded in tests/oracle/sillytavern-1.19.0-account-session.json `unauthenticatedVersion`;
+// GoTavern refuses every non-public route with 403 at internal/server/http.go:612-614 and pins that against
+// the same fixture (internal/server/accounts_test.go:196-201). The old check therefore asked the subject to
+// contradict the contract the row is built on; the harness was wrong, not the product. Readiness is now the
+// PUBLIC GET /csrf-token route (pinned src/server-main.js:192, before the auth middleware; GoTavern
+// isPublicAccountRequest at internal/server/accounts.go:589-610), then the pinned version record read the way
+// an authenticated client reads it: if the anonymous GET /version is a 403, log in as the admin the product
+// seeds in an empty user store (pinned src/users.js:556-570; GoTavern internal/startup/storage.go) and read it
+// again. Every stage fails by name rather than timing out anonymously.
+//
 // WHAT IT DOES NOT PROVE (recorded in the report's `unproven` array):
 //   * the absolute numbers are only comparable WITHIN one runner image; this harness therefore records
 //     provenance and refuses to compare across a host fingerprint (the report carries the fingerprint; a
@@ -498,31 +513,67 @@ function guardCleanupRoot(target) {
     return resolved;
 }
 
-async function waitForReady(origin, child) {
+// READINESS IS TWO STAGES, AND NEITHER STAGE ASSUMES THE AUTH POLICY IS "OFF".
+//
+// Stage 1 is the PUBLIC route. GET /csrf-token is served before login middleware in both implementations
+// (pinned src/server-main.js:192 before :248; GoTavern internal/server/accounts.go:589-610), so a 200 with a
+// token proves the HTTP handler is serving without depending on enableUserAccounts.
+//
+// Stage 2 is the pinned version record. It may legitimately be 403 for an anonymous client -- that is the
+// pinned contract when accounts are enabled (testable in tests/oracle/sillytavern-1.19.0-account-session.json:
+// unauthenticatedVersion.status 403, body "Forbidden"). The old readiness code read that 403 as a boot failure
+// and spun for 120 s (Lane run 42209241061). When it is 403, log in as the admin the product SEEDS in an empty
+// user store (pinned src/users.js:556-570 writes DEFAULT_USER with an empty password; GoTavern
+// internal/startup/storage.go seeds the same record) and read the record again. Each stage refuses by NAME.
+async function waitForServing(origin, child) {
     const deadline = Date.now() + BOOT_DEADLINE_MS;
     let last = null;
     while (Date.now() < deadline) {
         if (child.exitCode !== null) {
-            refuse('boot/exited', `the subject exited (code ${child.exitCode}) before answering /version; stderr follows:\n${(child.m5Logs ?? []).join('').slice(-4000)}`);
+            refuse('boot/exited', `the subject exited (code ${child.exitCode}) before serving GET /csrf-token; stderr follows:\n${(child.m5Logs ?? []).join('').slice(-4000)}`);
         }
         try {
-            const response = await fetch(`${origin}/version`, { signal: AbortSignal.timeout(5000) });
-            const text = await response.text();
+            const response = await fetch(`${origin}/csrf-token`, { signal: AbortSignal.timeout(5000) });
             if (response.status === 200) {
-                let parsed = null;
-                try { parsed = JSON.parse(text); } catch { parsed = null; }
-                const pkgVersion = parsed?.pkgVersion;
-                if (typeof pkgVersion === 'string' && pkgVersion.startsWith('1.19.0')) return { bootMs: Date.now() - (child.m5SpawnedAt ?? Date.now()), pkgVersion };
-                last = `GET /version answered 200 but its body is not the pinned version record: ${text.slice(0, 200)}`;
+                const body = await response.json().catch(() => null);
+                if (body && typeof body.token === 'string' && body.token !== '') return Date.now();
+                last = 'GET /csrf-token answered 200 without a token';
             } else {
-                last = `GET /version answered ${response.status}`;
+                last = `GET /csrf-token answered ${response.status}`;
             }
         } catch (error) {
             last = String(error?.message ?? error);
         }
         await new Promise(resolve => setTimeout(resolve, 200));
     }
-    refuse('boot/timeout', `the subject did not answer GET /version with the pinned version record within ${BOOT_DEADLINE_MS} ms; last: ${last}`);
+    refuse('boot/timeout', `the subject did not start serving the public GET /csrf-token route within ${BOOT_DEADLINE_MS} ms; last: ${last}`);
+}
+
+async function waitForReady(origin, child) {
+    const servedAt = await waitForServing(origin, child);
+    const session = new HttpSession(origin, 'boot-admin');
+    let versionRequiresLogin = false;
+    let response = await session.get('/version');
+    if (response.status === 403) {
+        // NOT A BOOT FAILURE: this is the pinned auth contract for an accounts-enabled server. Read the
+        // record through the admin session the provisioning step uses anyway, and name an auth failure
+        // instead of reporting a timeout.
+        versionRequiresLogin = true;
+        await session.handshake();
+        const login = await session.post('/api/users/login', { handle: 'default-user' });
+        if (login.status !== 200) {
+            refuse('boot/admin-login', `the row boots with enableUserAccounts: true, so /version is behind requireLoginMiddleware (pinned src/server-main.js:248 vs :272; GoTavern internal/server/http.go:612), and readiness needs the seeded default-user admin session; POST /api/users/login answered ${login.status}: ${login.text().slice(0, 300)}`);
+        }
+        response = await session.get('/version');
+    }
+    if (response.status !== 200) {
+        refuse('boot/version-record', `GET /version answered ${response.status}: ${response.text().slice(0, 200)}`);
+    }
+    const pkgVersion = response.body?.pkgVersion;
+    if (typeof pkgVersion !== 'string' || !pkgVersion.startsWith('1.19.0')) {
+        refuse('boot/version-record', `GET /version answered 200 but its body is not the pinned version record: ${response.text().slice(0, 200)}`);
+    }
+    return { bootMs: servedAt - (child.m5SpawnedAt ?? servedAt), pkgVersion, versionRequiresLogin };
 }
 
 async function bootSubject({ binary, workRoot, loadLabel }) {
@@ -566,7 +617,7 @@ async function bootSubject({ binary, workRoot, loadLabel }) {
         try { child.kill('SIGKILL'); } catch { /* gone */ }
         throw error;
     }
-    return { child, origin, installRoot, dataRoot, installPath: installed, configPath, logs, bootMs: ready.bootMs, pkgVersion: ready.pkgVersion };
+    return { child, origin, installRoot, dataRoot, installPath: installed, configPath, logs, bootMs: ready.bootMs, pkgVersion: ready.pkgVersion, versionRequiresLogin: ready.versionRequiresLogin };
 }
 
 async function stopSubject(subject) {
@@ -691,6 +742,22 @@ function startContractStub({ dataRoot }) {
                 setSession(response, nextCookie);
                 return json(response, 200, { handle });
             }
+            if (request.method === 'GET' && url === '/version') {
+                // PINNED PARITY, accounts enabled: tests/oracle/sillytavern-1.19.0-account-session.json records
+                // unauthenticatedVersion = {status 403, body "Forbidden"} because pinned mounts
+                // requireLoginMiddleware (src/server-main.js:248) before the /version route (:272). The stub
+                // reproduces that so `--self-test` proves the readiness path logs in instead of polling an
+                // auth-gated route anonymously (the Lane 42209241061 failure).
+                const cookie = cookieOf(request);
+                const handle = cookie ? sessions.get(cookie) : null;
+                if (!handle) {
+                    const payload = Buffer.from('Forbidden');
+                    response.writeHead(403, { 'content-type': 'text/plain; charset=utf-8', 'content-length': payload.length });
+                    response.end(payload);
+                    return;
+                }
+                return json(response, 200, { pkgVersion: '1.19.0', gitRevision: 'contract-stub', isLatest: true });
+            }
             if (request.method === 'POST' && url === '/api/users/create') {
                 const session = requireSession(request, response);
                 if (!session) return;
@@ -793,6 +860,14 @@ async function runSelfTest() {
         record('contract-stub-isolation', measurement.isolationChecks.length === 1 && measurement.perUser.length === 2, measurement.perUser);
         record('contract-stub-throughput', Number.isFinite(measurement.throughputOpsPerSec) && measurement.throughputOpsPerSec > 0, measurement.throughputOpsPerSec);
 
+        // 4b. READINESS IS AUTH-AWARE. The row's own boot config enables accounts, so an anonymous GET /version
+        // is 403 by the pinned contract (the stub reproduces it). The REAL waitForReady must log in and read the
+        // record instead of timing out -- this is the Lane 42209241061 defect, driven without a product binary.
+        const anonymousVersion = await fetch(`http://127.0.0.1:${stub.port}/version`);
+        record('readiness-anonymous-version-is-403', anonymousVersion.status === 403, { status: anonymousVersion.status });
+        const readiness = await waitForReady(`http://127.0.0.1:${stub.port}`, { exitCode: null, m5SpawnedAt: Date.now(), m5Logs: [] });
+        record('readiness-logs-in-and-reads-version', readiness.versionRequiresLogin === true && readiness.pkgVersion === '1.19.0' && Number.isFinite(readiness.bootMs) && readiness.bootMs >= 0, readiness);
+
         // 5. three planted failures, each required by name. Each case uses a FRESH handle prefix: the contract
         // stub keeps its accounts and files, and an account that already exists would fail provisioning before
         // the planted failure could be reached (measured: the first version reported 409 for every later case).
@@ -835,6 +910,7 @@ async function runProduct(options) {
         environment.subject = {
             bootMs: Math.round(subject.bootMs * 1000) / 1000,
             pkgVersion: subject.pkgVersion,
+            versionRequiresLogin: subject.versionRequiresLogin,
             installRoot: '$WORK/install',
             dataRoot: '$WORK/data',
         };
@@ -866,6 +942,13 @@ async function runProduct(options) {
             thresholds: options.thresholds ?? null,
             results: measurement,
             checks: [
+                {
+                    name: 'boot/auth-readiness',
+                    ok: true,
+                    detail: environment.subject.versionRequiresLogin
+                        ? 'the subject served the public GET /csrf-token route and the pinned version record was read through the seeded default-user admin session; with enableUserAccounts: true both implementations gate /version behind requireLoginMiddleware (pinned oracle unauthenticatedVersion = 403 "Forbidden"), so this is the row\'s documented auth contract rather than a boot failure'
+                        : 'the subject served the public GET /csrf-token route and answered the pinned version record anonymously',
+                },
                 { name: 'write/status', ok: true, detail: `${measurement.operations} request(s), 0 non-200` },
                 { name: 'isolation/disk-and-cross-user', ok: true, detail: measurement.isolationChecks[0]?.detail ?? null },
                 { name: 'isolation/read-own', ok: true, detail: `${measurement.handles.length} accounts served their own document` },

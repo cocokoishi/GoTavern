@@ -2,7 +2,7 @@ name: M5 measurements
 
 # THE M5 MEASUREMENT ROWS THAT HAD NO WORKFLOW ROW.
 #
-# WHY THIS FILE EXISTS. docs/alpha16/m5-measurement-plan.md §2 maps plan §7's metrics to an existing
+# WHY THIS FILE EXISTS. docs/alpha16/m5-measurement-plan.md section 2 maps plan section 7's metrics to an existing
 # workflow/job/row or a named GAP: cold+warm boot, 100/1k/10k cards, large JSONL and provider assembly
 # are covered by `GoTavern smoke metrics` and `GoTavern bench profiles`; the 20-extension page load by the
 # third-party `overhead` job; but **8-user concurrent writes** had no harness at all (the two-process
@@ -15,14 +15,14 @@ name: M5 measurements
 # WHAT EACH JOB RUNS (every command is derived from the script's own usage, never invented)
 #   eight-users  tests/perf/m5-eight-users.mjs --binary <built> --report <json> --users N --waves N
 #                --body-bytes 49152 --max-seconds 180 [--load-label TEXT] [--thresholds-json BEFORE]
-#                (usage: tests/perf/m5-eight-users.mjs:38-49; thresholds: :51-55 and deriveThresholds :137-152)
+#                (usage: tests/perf/m5-eight-users.mjs:53-62; thresholds: :66-69 and deriveThresholds :155-177)
 #   soak         scripts/a15-bench-suite.mjs --mode soak --soak-minutes N --soak-rate 10
 #                --subject current=<built> --out <dir> --report <fixed-name json> --max-minutes N+10
 #                (usage: scripts/a15-bench-suite.mjs:151-160; args: :107-131; soak mode: :990-1047;
 #                 artifact writer: :735-780)
 #   scale        scripts/a15-bench-suite.mjs --mode scale [no --scale: the script's own default list]
 #                --subject current=<built> --out <dir> --report <fixed-name json> --requests 20
-#                --max-minutes 60   (scale list: :802-833 — 100/1,000/10,000 cards, 10x2MB and a 2,000-
+#                --max-minutes 60   (scale list: :802-833 - 100/1,000/10,000 cards, 10x2MB and a 2,000-
 #                message 4MB chat, 1,000 worlds, settings, complex preset, mixed-large)
 #
 # THE BEFORE/AFTER PAIR (the M5 procedure, made mechanical)
@@ -31,7 +31,7 @@ name: M5 measurements
 #   AFTER:  dispatch at the change under test with `thresholds_from_run=<BEFORE run id>`. The job downloads
 #           that run's artifact and passes it as `--thresholds-json`; the harness derives each route's
 #           ceiling as previous p95 x 1.25 and fails closed by name (`threshold/<route>-p95`) when the after
-#           run is above it (tests/perf/m5-eight-users.mjs:137-152, :961-971). A missing BEFORE artifact is
+#           run is above it (tests/perf/m5-eight-users.mjs:155-177, :1044-1054). A missing BEFORE artifact is
 #           a named failure, never a run with no threshold.
 #   NO THRESHOLD IS INVENTED: the first run of a row has no noise estimate, so it reports and fails only on
 #   correctness; the second run is where a latency regression can turn the job red.
@@ -39,7 +39,7 @@ name: M5 measurements
 # WHAT THIS WORKFLOW DOES NOT PROVE (mirrored into every artifact)
 #   - absolute numbers are comparable only within one runner image label+version; each artifact records both;
 #   - the soak row's "positive last-third RSS slope" is a REGRESSION SIGNAL, and a small positive slope can be
-#     runner noise — the verdict names the slope in bytes/s so a red is diagnosable, and the M5 document
+#     runner noise - the verdict names the slope in bytes/s so a red is diagnosable, and the M5 document
 #     treats a red as "re-run once on a quiet host, then investigate", not as a product verdict by itself;
 #   - the 8-user subject is the CI-built binary copied by the harness into a scratch install root; the
 #     harness copies only the binary, so tokenizer assets are absent and tokenizer routes take the pinned
@@ -254,7 +254,7 @@ jobs:
         run: |
           set -euo pipefail
           if ! [[ "$SOAK_MINUTES" =~ ^[0-9]+$ ]] || [ "$SOAK_MINUTES" -lt 5 ] || [ "$SOAK_MINUTES" -gt 60 ]; then
-            echo "::error::m5-soak/input: soak_minutes=$SOAK_MINUTES is outside the supported 5..60 band (plan §7 asks for a 30-60 minute soak); refusing to start a study whose bound and evidence would be wrong"
+            echo "::error::m5-soak/input: soak_minutes=$SOAK_MINUTES is outside the supported 5..60 band (plan section 7 asks for a 30-60 minute soak); refusing to start a study whose bound and evidence would be wrong"
             exit 1
           fi
           echo "soak_minutes=$SOAK_MINUTES is inside 5..60"
@@ -414,7 +414,7 @@ jobs:
           retention-days: 30
 
   # ---------------------------------------------------------------------------------------------------------
-  # ROW 2b/3b: PROCESS-LEVEL SCALE — 100/1,000/10,000 cards and the large JSONL rows, via the script's own
+  # ROW 2b/3b: PROCESS-LEVEL SCALE - 100/1,000/10,000 cards and the large JSONL rows, via the script's own
   # default scale list (scripts/a15-bench-suite.mjs:802-833). Optional: selected by `which`.
   # ---------------------------------------------------------------------------------------------------------
   scale:

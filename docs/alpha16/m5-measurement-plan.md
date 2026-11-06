@@ -197,6 +197,23 @@ p50/p95/p99/max/count/errors per route, throughput, provisioning time, environme
 binary sha256 + `version --json`, Go/Node/OS/CPU/RAM/GOMAXPROCS-with-reason, `--load-label`), parameters,
 thresholds source, and an explicit `unproven` array.
 
+**Readiness is auth-aware, because the row itself enables accounts (added 2026-11-06).** The first real
+dispatch (GoTavern M5 measurements run 42209241061, job `eight-users` at 6077405) failed at boot readiness with
+`boot/timeout ... last: GET /version answered 403`. The 403 was the pinned contract, not a product defect: with
+`enableUserAccounts: true` pinned mounts `requireLoginMiddleware` (`src/server-main.js:248`) BEFORE the
+`/version` route (`:272`), and `requireLoginMiddleware` answers `sendStatus(403)` for an anonymous request
+(`src/users.js:1027-1030`). The committed oracle records it as `unauthenticatedVersion` = 403 `"Forbidden"`
+(`tests/oracle/sillytavern-1.19.0-account-session.json`), and GoTavern reproduces it
+(`internal/server/http.go:612-614`, pinned by `internal/server/accounts_test.go:196-201`). Readiness therefore
+waits for the PUBLIC `GET /csrf-token` route (pinned `src/server-main.js:192`, before the auth middleware;
+GoTavern `internal/server/accounts.go:589-610`) and then reads the pinned version record the way an
+authenticated client does: when the anonymous `GET /version` is a 403 it logs in as the admin the product seeds
+in an empty user store (pinned `src/users.js:556-570`; GoTavern `internal/startup/storage.go`) and reads the
+record again. Each stage refuses by name (`boot/exited`, `boot/timeout`, `boot/admin-login`,
+`boot/version-record`), and the report carries `environment.subject.versionRequiresLogin` plus a
+`boot/auth-readiness` check row. The workflow's harness line-range comments are stale by this change and need
+the Lead's update (workflow files are outside this task's write scope).
+
 **What it deliberately does not do** (stated in the report and in the file header): delete/rename/import
 (the E06 verbs beyond write/load/isolation are not in this row); a real provider; multi-process; and it
 asserts **no latency threshold unless a previous report is supplied** (`--thresholds-json`), because the first
@@ -213,15 +230,18 @@ removal; a boot failure kills the child before rethrowing (no orphan). Failing b
 
 | evidence | command | result |
 |---|---|---|
-| syntax + self-test (pure logic, `percentile`/threshold/cleanup guard, then the SAME measurement code against an in-process contract stub, then three planted failures) | `node tests/perf/m5-eight-users.mjs --self-test` | **12/12 cases held, exit 0**; the planted cases are `write/status/settingsSave`, `isolation/read-own`, `provision/login/default-user`, each required by name |
+| syntax + self-test (pure logic, `percentile`/threshold/cleanup guard, then the SAME measurement code against an in-process contract stub, then three planted failures) | `node tests/perf/m5-eight-users.mjs --self-test` | **14/14 cases held, exit 0**; the planted cases are `write/status/settingsSave`, `isolation/read-own`, `provision/login/default-user`, each required by name, plus the two readiness cases added with the fix (`readiness-anonymous-version-is-403`, `readiness-logs-in-and-reads-version`) |
 | fail-by-name + red report still written + no orphan + no leftover temp dir | `node tests/perf/m5-eight-users.mjs --binary <node> --report <tmp>` (a non-GoTavern executable) | exit 1; report written with `ok=false`, `failure.check="boot/exited"`; 0 leftover `gotavern-m5-eight-users-*` dirs |
 | usage refusals | no args; `--binary <missing>` | exit 2 with a named message, no work tree created |
+| **the CI failure reproduced locally, pre-fix** | the 6077405 harness: `node tests/perf/m5-eight-users.mjs --binary <locally built gotavern> --report <tmp> --users 8 --waves 6 --body-bytes 49152 --max-seconds 180` | exit 1 after 122.7 s with `boot/timeout: the subject did not answer GET /version with the pinned version record within 120000 ms; last: GET /version answered 403`; report `ok=false`. The 403 was deterministic, not a seeding artefact |
+| **the fixed harness against the REAL binary (LOCAL-ONLY, Windows/arm64, 2026-11-06)** | the same command at the fixed harness | exit 0, `ok=true`: `boot/auth-readiness` held with `versionRequiresLogin=true` and `pkgVersion=1.19.0`, 8 accounts x 6 waves = **144 ops**, `errorRate=0`, throughput 18.07 ops/s, bootMs 570 ms, no leftover work dirs. Layer-A triage, not a CI number |
 
 The contract stub is **not** product evidence: it validates the harness's request sequence and its ability
-to fail, and the report of a stub run says `mode: "product"` is absent. The product path itself is unexecuted
-until the Lead dispatches it - that is this row's main residual risk (section 8 R2).
+to fail, and the report of a stub run says `mode: "product"` is absent. The product path is now executed
+locally on Windows (table above) after the readiness fix, but no CI dispatch has produced a number yet: the
+first dispatch failed before the measurement, and the re-dispatch is the gate (section 8 R2).
 
-**Dispatch (the Lead must add the job first - no workflow runs this harness yet):**
+**Dispatch (`m5-measurements.yml` `eight-users` job; the Lead re-dispatches it after this readiness fix):**
 
 ```bash
 # after the workflow job builds a CGO_ENABLED=0 binary (same flags as smoke-metrics.yml:74-95)
@@ -362,7 +382,7 @@ be same-SHA for its own dispatch.
 | # | risk / item | why it is not closed now | who/what closes it |
 |---|---|---|---|
 | R1 | **Every M5 number is CI-only.** The development host is Windows/arm64 and is not a comparison host (`docs/alpha16/baseline/README.md:17-19`); `bench-profiles` refuses a different host; q22 reads `/proc`. | No CI dispatch is allowed in this task. | Lead's dispatches (section 6). Local numbers stay `LOCAL-ONLY (Layer A)` and are never spliced. |
-| R2 | **The 8-user row's PRODUCT path is unexecuted.** Locally it was validated against the contract stub only (12/12 self-test) and against a non-GoTavern binary for fail-by-name; the real account/login/CSRF/write path has not run. | No product boot allowed in this prep. | The first Lead dispatch. If it fails, the failure is named (`provision/*`, `boot/*`, `write/*`) and localisable. |
+| R2 | **The 8-user row has no CI number yet, and its first dispatch failed at boot readiness.** The product path now runs locally (Layer-A, Windows: 8 accounts x 6 waves = 144 ops, `errorRate=0`, `ok=true`), and the pre-fix harness reproduced the CI failure locally (`boot/timeout ... GET /version answered 403`). The 403 was the PINNED contract for an accounts-enabled server, not a product defect: pinned `src/server-main.js:248` mounts `requireLoginMiddleware` before `/version` at `:272`, `src/users.js:1027-1030` answers 403, and `tests/oracle/sillytavern-1.19.0-account-session.json` records `unauthenticatedVersion` = 403 `"Forbidden"` (GoTavern reproduces it: `internal/server/http.go:612-614`, `internal/server/accounts_test.go:196-201`). The harness's readiness was fixed to use the public `GET /csrf-token` plus an authenticated `GET /version` through the seeded `default-user` admin. | No CI dispatch is allowed in this task, and a Windows number is not the gate. | Re-dispatch `eight-users` at the same commit; the artifact must show `ok=true`, the `boot/auth-readiness` check with `versionRequiresLogin=true`, `parameters.users=8`, and 144 ops with `errorRate=0` - then the BEFORE report exists and the AFTER run can apply `--thresholds-json`. |
 | R3 | **The 30-60 min soak has no workflow row.** The harness exists and samples correctly, but no job runs it. | Workflow writes are not in this task's scope. | Add `m5-measurements.yml`/job (section 5.2) and dispatch before/after. Until then the 30-60 min requirement is **CI-PENDING**, exactly as M0 recorded (`docs/alpha16/baseline/README.md:63,167-168`). |
 | R4 | **The 20-extension page load has no committed baseline and no gate.** The `overhead` job asserts nothing by design (`tests/browser/extension-overhead.mjs:13-24`) and runs only on `mode=full` dispatch/schedule. | Baseline/threshold decision belongs to the Lead; a baseline artifact would need the recorder pattern (`tools/record-perf-baseline.mjs`). | Ratify section 3.2 from two `mode=full` dispatches; then wrap the artifact like `q22-baseline.json`. |
 | R5 | **Streaming cancellation has no performance harness at all** (functional gates only; `docs/perf-baseline.md:125`). | Designing TTFB/inter-frame/cancel-to-idle needs a provider peer that streams slowly - that is a new harness, not a threshold. | M5/M6 harness decision; UNPROVEN until then. |
