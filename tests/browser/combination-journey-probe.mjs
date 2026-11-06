@@ -58,7 +58,7 @@ import { pinnedExtension } from './pinned-extensions.mjs';
 import { readHelperApiSurface } from './extensions/helper-vars-kit.mjs';
 import {
     CARD, GLOBAL_PROMPT_ORDER_DUMMY_ID, JOURNEY, STAGED_PROMPT_ORDER_REASON, chatCarrying, chatProjection,
-    readChatFiles as readJourneyChats, readGroupChatFiles, readSettings,
+    chooseOverlayDismissal, readChatFiles as readJourneyChats, readGroupChatFiles, readSettings,
     stageJourneyCard, stageJourneyGroups, stageJourneyWorldBook, stagedPresetDocument, validateStagedPreset,
 } from './extensions/combination-journey-kit.mjs';
 import { MARKERS as WI_MARKERS, extractLayout } from './worldinfo-slots-kit.mjs';
@@ -882,9 +882,210 @@ async function readSendability(page) {
 }
 
 /**
- * Make the page sendable the way a user does -- close leftover product dialogs through their own buttons -- and
- * return the named blocker when it still is not. A modal left by the embedded-book path, or a send control disabled
- * by an extension, is reported by name and never silently turned into an empty capture.
+ * READ THE BLOCKING-OVERLAY STATE AROUND `#send_but` (dispatch 42193009501).
+ *
+ * WHAT IS MEASURED, not guessed: the send button's centre, what `document.elementFromPoint` actually returns there
+ * (the element a user's click would land on), and then every visible overlay/modal layer whose rectangle contains
+ * that point and whose pointer-events are not none. ST-Copilot's startup changelog (pinned 1480960, window.html) is
+ * `<div id="scp-changelog-modal" class="scp-modal-overlay">` with its own close button
+ * `<button class="scp-hbtn scp-hbtn-close" id="scp-changelog-close">`; that class/id pair is what makes it findable
+ * without naming the extension.
+ *
+ * Elements get temporary `data-cj-overlay-root` / `data-cj-overlay-button` attributes so a pure decision function
+ * (kit `chooseOverlayDismissal`) can return indexes and the probe can click exactly those elements -- never a random
+ * page element and never a JS-forced synthetic event on something the user could not press.
+ */
+async function readOverlayState(page) {
+    return page.evaluate(() => {
+        const visible = element => {
+            if (!element || !element.isConnected) return false;
+            const style = getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+        };
+        const describe = element => element ? {
+            tag: element.tagName.toLowerCase(),
+            id: element.id || null,
+            className: String(element.className ?? '').slice(0, 160),
+            text: String(element.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 240),
+            role: element.getAttribute?.('role') ?? null,
+            ariaLabel: element.getAttribute?.('aria-label') ?? null,
+            title: element.getAttribute?.('title') ?? null,
+        } : null;
+        const send = document.querySelector('#send_but');
+        const sendRect = send?.getBoundingClientRect() ?? null;
+        const sendVisible = sendRect ? sendRect.width > 0 && sendRect.height > 0 : false;
+        const center = sendRect && sendVisible ? { x: sendRect.left + sendRect.width / 2, y: sendRect.top + sendRect.height / 2 } : null;
+        const hit = center ? document.elementFromPoint(center.x, center.y) : null;
+        const hitIsSend = Boolean(hit && send && (hit === send || send.contains(hit)));
+        const containsSendCenter = element => {
+            if (!center) return false;
+            const rect = element.getBoundingClientRect();
+            return rect.left <= center.x && center.x <= rect.right && rect.top <= center.y && center.y <= rect.bottom;
+        };
+        const overlayish = element => {
+            const style = getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            const area = rect.width * rect.height;
+            const viewportArea = Math.max(1, window.innerWidth * window.innerHeight);
+            const className = String(element.className ?? '');
+            return (style.position === 'fixed' || style.position === 'absolute')
+                && style.pointerEvents !== 'none'
+                && (area / viewportArea >= 0.12 || /overlay|modal|backdrop|scrim|dialog/i.test(className) || element.getAttribute('role') === 'dialog' || element.getAttribute('aria-modal') === 'true');
+        };
+        const collect = new Set();
+        if (hit && !hitIsSend) {
+            // The element under the click point is the obstruction; its overlay/modal root is the layer a user sees.
+            let node = hit;
+            let guard = 0;
+            while (node && node !== document.body && guard < 10) {
+                if (overlayish(node) && containsSendCenter(node)) collect.add(node);
+                node = node.parentElement;
+                guard += 1;
+            }
+            collect.add(hit);
+        }
+        const sendAncestors = new Set([send, ...(send ? (function* () { let node = send.parentElement; while (node) { yield node; node = node.parentElement; } })() : [])]);
+        for (const element of document.querySelectorAll('[class*="overlay" i], [class*="modal" i], [role="dialog"], [aria-modal="true"]')) {
+            if (!visible(element) || sendAncestors.has(element)) continue;
+            if (overlayish(element) && containsSendCenter(element)) collect.add(element);
+        }
+        const overlays = [...collect].filter(visible).map((element, index) => {
+            element.setAttribute('data-cj-overlay-root', String(index));
+            const buttons = [...element.querySelectorAll('button, [role="button"], input[type="button"], input[type="submit"], a[href]')]
+                .filter(visible)
+                .map((button, buttonIndex) => {
+                    button.setAttribute('data-cj-overlay-button', String(buttonIndex));
+                    return {
+                        index: buttonIndex,
+                        tag: button.tagName.toLowerCase(),
+                        id: button.id || null,
+                        className: String(button.className ?? '').slice(0, 160),
+                        text: String(button.textContent ?? button.value ?? '').replace(/\s+/g, ' ').trim().slice(0, 80),
+                        role: button.getAttribute('role') ?? null,
+                        ariaLabel: button.getAttribute('aria-label') ?? null,
+                        title: button.getAttribute('title') ?? null,
+                        disabled: button.disabled === true || button.getAttribute('aria-disabled') === 'true',
+                        href: button.getAttribute('href'),
+                    };
+                });
+            const html = String(element.outerHTML ?? '');
+            const extensionHints = [...new Set([...html.matchAll(/third-party\/([^/"'\\]+)/g)].map(match => match[1]))];
+            const layerRect = element.getBoundingClientRect();
+            const viewportArea = Math.max(1, window.innerWidth * window.innerHeight);
+            return {
+                index,
+                ...describe(element),
+                blocksSend: containsSendCenter(element),
+                areaRatio: Math.round((layerRect.width * layerRect.height) / viewportArea * 1000) / 1000,
+                pointerEvents: getComputedStyle(element).pointerEvents,
+                zIndex: getComputedStyle(element).zIndex,
+                buttons,
+                extensionHints,
+            };
+        });
+        return {
+            sendButton: send ? { id: send.id || null, visible: sendVisible, disabled: send.disabled === true, pointerEvents: getComputedStyle(send).pointerEvents } : null,
+            sendCenter: center,
+            hit: describe(hit),
+            hitIsSend,
+            overlays,
+            popups: [...document.querySelectorAll('.popup, #dialogue_popup, .dialogue_popup')].filter(visible).map(describe),
+        };
+    }).catch(error => ({ hitIsSend: false, overlays: [], error: String(error?.message ?? error).slice(0, 200) }));
+}
+
+/**
+ * Dismiss the overlay that intercepts the send button, through the overlay's OWN control (kit
+ * `chooseOverlayDismissal` decides which element that is), then wait bounded for `#send_but` to become the click
+ * target again. Bounded rounds; an overlay with no dismissal affordance is reported by NAME and left alone.
+ */
+async function dismissBlockingOverlays(page, { rounds = 3, settleMs = 8000 } = {}) {
+    const inventoryBefore = await readOverlayState(page);
+    const dismissals = [];
+    if (inventoryBefore.hitIsSend === true) {
+        return { ok: true, acted: false, reason: 'no visible overlay intercepted the send button', inventoryBefore, dismissals: [], inventoryAfter: inventoryBefore };
+    }
+    let inventory = inventoryBefore;
+    for (let round = 0; round < rounds; round += 1) {
+        const plan = chooseOverlayDismissal(inventory);
+        if (plan.ok !== true) {
+            return {
+                ok: false,
+                acted: dismissals.length > 0,
+                undismissable: plan.undismissable === true,
+                plan,
+                reason: plan.reason,
+                inventoryBefore,
+                dismissals,
+                inventoryAfter: await readOverlayState(page),
+            };
+        }
+        const clicked = await page.evaluate(({ overlayIndex, buttonIndex }) => {
+            const overlay = document.querySelector(`[data-cj-overlay-root="${overlayIndex}"]`);
+            const button = overlay ? overlay.querySelector(`[data-cj-overlay-button="${buttonIndex}"]`) : null;
+            if (!overlay || !button) return { clicked: false, reason: 'the inventoried overlay/button is no longer in the document' };
+            button.click();
+            return {
+                clicked: true,
+                button: { id: button.id || null, className: String(button.className ?? '').slice(0, 120), text: String(button.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 60) },
+                overlay: { id: overlay.id || null, className: String(overlay.className ?? '').slice(0, 120) },
+            };
+        }, { overlayIndex: plan.overlayIndex, buttonIndex: plan.buttonIndex }).catch(error => ({ clicked: false, reason: String(error?.message ?? error).slice(0, 200) }));
+        const dismissal = {
+            overlay: plan.overlay,
+            button: plan.button,
+            clicked,
+            at: Date.now(),
+        };
+        dismissals.push(dismissal);
+        if (clicked.clicked !== true) {
+            return { ok: false, acted: true, undismissable: false, plan, reason: `the dismissal click failed: ${clicked.reason}`, inventoryBefore, dismissals, inventoryAfter: await readOverlayState(page) };
+        }
+        // BOUNDED WAIT: the send button must become the hit target again (the product's own close handler removes the
+        // overlay synchronously, but an extension may animate it out).
+        const deadline = Date.now() + settleMs;
+        let after = null;
+        while (Date.now() < deadline) {
+            after = await readOverlayState(page);
+            if (after.hitIsSend === true) break;
+            await page.waitForTimeout(200);
+        }
+        dismissal.removedAfterMs = settleMs - Math.max(0, deadline - Date.now());
+        dismissal.hitIsSendAfter = after?.hitIsSend === true;
+        if (dismissal.hitIsSendAfter === true) {
+            return { ok: true, acted: true, plan, dismissals, inventoryBefore, inventoryAfter: after };
+        }
+        inventory = after;
+    }
+    return {
+        ok: false,
+        acted: dismissals.length > 0,
+        undismissable: false,
+        reason: 'the overlay was dismissed but the send button is still not the click target after the bounded wait',
+        inventoryBefore,
+        dismissals,
+        inventoryAfter: await readOverlayState(page),
+    };
+}
+
+/** Merge one turn's overlay handling into the report-level record (both subjects' evidence is read by the comparator). */
+function mergeOverlayHandling(existing, caseName, handling) {
+    const current = existing ?? { ok: true, dismissals: [], undismissable: [], observations: [] };
+    const merged = {
+        ok: current.ok === true && (handling?.ok !== false),
+        dismissals: [...(current.dismissals ?? []), ...((handling?.dismissals ?? []).map(entry => ({ case: caseName, ...entry })))],
+        undismissable: [...(current.undismissable ?? []), ...(handling?.undismissable === true ? [{ case: caseName, plan: handling.plan ?? null, reason: handling.reason ?? null }] : [])],
+        observations: [...(current.observations ?? []), { case: caseName, acted: handling?.acted === true, ok: handling?.ok !== false, reason: handling?.reason ?? null }],
+    };
+    return merged;
+}
+
+/**
+ * Make the page sendable the way a user does -- close leftover product dialogs through their own buttons, then dismiss
+ * the extension overlay that covers the send button through that overlay's own control -- and return the named
+ * blocker when it still is not. A modal left by the embedded-book path, an extension's startup changelog, or a send
+ * control disabled by an extension is reported by name and never silently turned into an empty capture.
  */
 async function ensureSendable(page, { rounds = 2 } = {}) {
     const popupsBefore = await readPopupInventory(page);
@@ -896,7 +1097,19 @@ async function ensureSendable(page, { rounds = 2 } = {}) {
         state = await readSendability(page);
         if (dismissed.length === 0) break;
     }
-    return { ...state, dismissed: dismissals, popupsBefore, popupsAfter: await readPopupInventory(page) };
+    // THE OVERLAY LAYER (dispatch 42193009501): an extension modal is not a `.popup`, so it needs its own generic
+    // dismissal; only then is sendability re-read (a `page-not-sendable` therefore only fires for a genuinely
+    // undismissable obstruction).
+    let overlayHandling = null;
+    if (state.ok !== true) {
+        overlayHandling = await dismissBlockingOverlays(page);
+        state = await readSendability(page);
+    }
+    const result = { ...state, dismissed: dismissals, popupsBefore, popupsAfter: await readPopupInventory(page), overlayHandling };
+    if (state.ok !== true && overlayHandling?.undismissable === true) {
+        result.problems = [...(result.problems ?? []), `the blocking overlay is undismissable: ${String(overlayHandling.reason ?? 'no dismissal affordance')}; overlay id=${String(overlayHandling.plan?.overlay?.id ?? null)} class=${String(overlayHandling.plan?.overlay?.className ?? null)} text=${String(overlayHandling.plan?.overlay?.text ?? '').slice(0, 160)}`];
+    }
+    return result;
 }
 
 /**
@@ -1666,6 +1879,11 @@ async function turn(page, marker, caseName, { settleMs = 0 } = {}) {
     // THE PAGE MUST BE SENDABLE BEFORE A SEND CAN MEAN ANYTHING (dispatch 42186322374 recorded every turn as
     // `requests:0` with no cause). A leftover modal or a send control disabled/covered by an extension is NAMED here.
     const sendability = await ensureSendable(page);
+    // Record the overlay handling at report level: the comparator reads it cross-subject (an extension overlay must be
+    // dismissed on BOTH subjects, with the overlay/selector named, or the run is a harness failure).
+    if (sendability.overlayHandling) {
+        report.browser.overlayHandling = mergeOverlayHandling(report.browser.overlayHandling, caseName, sendability.overlayHandling);
+    }
     if (sendability.ok !== true) {
         return { ok: false, caseName, reason: 'page-not-sendable', sendability, requests: [], outgoingPrompt: null, sent: null, replied: null };
     }
@@ -2303,6 +2521,21 @@ async function main() {
             if (takeover.installed === true) {
                 step('extension-prompt-takeover-handled', takeover.ok === true, takeoverRecord);
             }
+
+            // ---- STEP 2f: THE SEND BUTTON'S BLOCKING-OVERLAY CHECK -----------------------------------
+            // Dispatch 42193009501: ST-Copilot's startup changelog overlay (`#scp-changelog-modal.scp-modal-overlay`,
+            // window.html at pinned 1480960) covered `#send_but` on BOTH subjects, so every turn returned
+            // `page-not-sendable` and the whole journey cascaded. A user's normal action is the overlay's own close
+            // button; this runs the generic dismissal (kit `chooseOverlayDismissal` picks the affordance), records the
+            // inventory before/after and which element was clicked, and fails BY NAME if it cannot be dismissed.
+            const preSendable = await ensureSendable(page);
+            report.browser.preSendable = preSendable;
+            report.browser.overlayHandling = mergeOverlayHandling(report.browser.overlayHandling, 'pre-turn-1', preSendable.overlayHandling ?? { ok: true, dismissals: [], undismissable: [], observations: [] });
+            step('send-blocking-overlay-handled', preSendable.ok === true, {
+                problems: preSendable.problems ?? null,
+                overlayHandling: preSendable.overlayHandling ?? null,
+                popups: preSendable.popups ?? null,
+            });
 
             // ---- STEP 3: the armed streamed turn -----------------------------------------------------
             report.browser.promptManagerArmed = await readPromptManagerState(page);

@@ -47,7 +47,7 @@ import {
     verifyArtifactIdentity,
 } from './compare-combination-journey.mjs';
 import { buildProfile, canonicalJson, sha256, TIERS } from './extensions/e03e04-profile-kit.mjs';
-import { GLOBAL_PROMPT_ORDER_DUMMY_ID as KIT_GLOBAL_PROMPT_ORDER_DUMMY_ID, stagedPresetDocument, validateStagedPreset } from './extensions/combination-journey-kit.mjs';
+import { GLOBAL_PROMPT_ORDER_DUMMY_ID as KIT_GLOBAL_PROMPT_ORDER_DUMMY_ID, chooseOverlayDismissal, stagedPresetDocument, validateStagedPreset } from './extensions/combination-journey-kit.mjs';
 import { EXTENSION_TIERS } from './extensions/extension-install-batch.mjs';
 
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -199,6 +199,9 @@ function buildSyntheticProfileLegs() {
             // THE OUTGOING PROMPT'S INTEGRITY (task-21): the probe records a named record for the first measured turn;
             // with an orchestrating extension installed it would carry `reason`/`extension` instead of ok:true.
             outgoingPromptIntegrity: { ok: true, captured: 1 },
+            // THE BLOCKING-OVERLAY RECORD (task-23): empty when no overlay is present (the fast tier's shape), a
+            // dismissal entry naming the overlay id and the clicked button when one was dismissed.
+            overlayHandling: { ok: true, dismissals: [], undismissable: [], observations: [] },
             // THE GROUP TURN'S PERSISTED EFFECT (task-19): the probe flushes it through the product's own save and reads
             // the GROUP-CHAT directory (`<user>/group chats/<id>.jsonl`), not `<user>/chats`. Both subjects persist the
             // same message projection, so the comparator's parity guard is green in the baseline.
@@ -676,7 +679,86 @@ syntheticMutation(
     });
 }
 
-// 25. THE ARTIFACT VERIFIER: a good identity verifies; a wrong head SHA, a wrong pinned SHA, a missing field and a
+// 25. THE BLOCKING-OVERLAY DECISION (dispatch 42193009501). The probe's browser side only inventories the overlay and
+//     its controls; the kit's `chooseOverlayDismissal` decides which element is the extension's OWN dismiss affordance.
+//     These are the same bytes the probe executes, so the selftest demonstrates both halves:
+//     (a) an overlay with a close control is dismissed (and the close control, not the navigation link, is chosen);
+//     (b) an overlay with NO dismiss affordance fails BY NAME (id/class/text + the buttons found) and is not clicked.
+{
+    const blockingOverlay = (buttons, text = "What's New in ST-Copilot Version 2.9.0") => ({
+        sendButton: { id: 'send_but', visible: true, disabled: false, pointerEvents: 'auto' },
+        sendCenter: { x: 640, y: 700 },
+        hit: { tag: 'div', id: 'scp-changelog-modal', className: 'scp-modal-overlay', text },
+        hitIsSend: false,
+        overlays: [{
+            index: 0,
+            tag: 'div',
+            id: 'scp-changelog-modal',
+            className: 'scp-modal-overlay',
+            text,
+            blocksSend: true,
+            extensionHints: ['ST-Copilot'],
+            buttons,
+        }],
+    });
+    const dismissable = chooseOverlayDismissal(blockingOverlay([
+        { index: 0, tag: 'a', id: null, className: 'scp-link', text: 'Release notes', role: null, ariaLabel: null, title: null, disabled: false, href: 'https://example.invalid/changelog' },
+        { index: 1, tag: 'button', id: 'scp-changelog-close', className: 'scp-hbtn scp-hbtn-close', text: '', role: null, ariaLabel: null, title: null, disabled: false, href: null },
+        { index: 2, tag: 'button', id: 'scp-settings-btn', className: 'scp-hbtn', text: 'Settings', role: null, ariaLabel: null, title: null, disabled: false, href: null },
+    ]));
+    record('AN-OVERLAY-WITH-A-CLOSE-CONTROL-IS-DISMISSED-BY-ITS-OWN-BUTTON', dismissable.ok === true
+        && dismissable.buttonIndex === 1 && dismissable.button.id === 'scp-changelog-close'
+        && dismissable.overlay.id === 'scp-changelog-modal' && dismissable.overlay.extensionHints.includes('ST-Copilot'),
+        dismissable);
+    const undismissableInventory = blockingOverlay([
+        { index: 0, tag: 'a', id: null, className: 'scp-link', text: 'Release notes', role: null, ariaLabel: null, title: null, disabled: false, href: 'https://example.invalid/changelog' },
+        { index: 1, tag: 'button', id: 'scp-settings-btn', className: 'scp-hbtn', text: 'Settings', role: null, ariaLabel: null, title: null, disabled: false, href: null },
+    ], 'ST-Copilot blocked the page with no way out');
+    const refused = chooseOverlayDismissal(undismissableInventory);
+    record('AN-OVERLAY-WITHOUT-A-DISMISS-AFFORDANCE-IS-NAMED-NOT-CLICKED', refused.ok === false
+        && refused.undismissable === true
+        && refused.overlay?.id === 'scp-changelog-modal'
+        && String(refused.reason).includes('no dismissal affordance')
+        && Array.isArray(refused.overlay?.buttons) && refused.overlay.buttons.length === 2,
+        refused);
+    // The comparator side: a leg that RECORDED an undismissable overlay must be red by name (and must not pass as
+    // "no overlay present"); a leg that dismissed it is green. Same record shape the probe writes.
+    const withOverlayRecord = overlay => {
+        const legs = clone(synthetic.legs);
+        for (const leg of [legs.go, legs.pinned]) leg.browser.overlayHandling = clone(overlay);
+        return legs;
+    };
+    const dismissedRecord = {
+        ok: true,
+        dismissals: [{
+            case: 'pre-turn-1',
+            overlay: { id: 'scp-changelog-modal', className: 'scp-modal-overlay', text: "What's New in ST-Copilot", extensionHints: ['ST-Copilot'] },
+            button: { id: 'scp-changelog-close', className: 'scp-hbtn scp-hbtn-close', text: '' },
+            clicked: { clicked: true },
+            hitIsSendAfter: true,
+        }],
+        undismissable: [],
+        observations: [{ case: 'pre-turn-1', acted: true, ok: true }],
+    };
+    const overlayBaselineLegs = withOverlayRecord(dismissedRecord);
+    const overlayBaseline = compareCombinationJourney({ goDrive: overlayBaselineLegs.go, pinnedDrive: overlayBaselineLegs.pinned, expectProfile: 'e03e04' });
+    const overlayGuardWasGreen = overlayBaseline.guards['send-blocking-overlays-handled'] === true;
+    const undismissableLegs = withOverlayRecord(dismissedRecord);
+    undismissableLegs.pinned.browser.overlayHandling = {
+        ok: false,
+        dismissals: [],
+        undismissable: [{ case: 'pre-turn-1', reason: 'the blocking overlay has no dismissal affordance a user could press', plan: refused }],
+        observations: [{ case: 'pre-turn-1', acted: false, ok: false }],
+    };
+    const overlayMutated = compareCombinationJourney({ goDrive: clone(undismissableLegs.go), pinnedDrive: clone(undismissableLegs.pinned), expectProfile: 'e03e04' });
+    record('AN-UNDISMISSABLE-OVERLAY-RECORD goes RED by send-blocking-overlays-handled', overlayGuardWasGreen
+        && overlayMutated.guards['send-blocking-overlays-handled'] === false, {
+        baselineGuard: overlayBaseline.guards['send-blocking-overlays-handled'],
+        mutatedGuard: overlayMutated.guards['send-blocking-overlays-handled'],
+    });
+}
+
+// 26. THE ARTIFACT VERIFIER: a good identity verifies; a wrong head SHA, a wrong pinned SHA, a missing field and a
 //     tampered document digest are each REFUSED (never warnings). The document bytes are real files in a temp dir.
 function artifactVerifierCases() {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'cj-selftest-'));
@@ -736,6 +818,7 @@ stagedPresetShapeCases();
 const syntheticBaseline = judge(synthetic.legs);
 const requiredGreen = [
     'outgoing-prompt-integrity',
+    'send-blocking-overlays-handled',
     'e03e04-profile-recorded',
     'e03e04-profile-identical',
     'e03e04-extensions-installed',

@@ -400,3 +400,119 @@ export function validateStagedPreset(document) {
         activeOrderLength: order.length,
     };
 }
+
+// =================================================================================================================
+// THE BLOCKING-OVERLAY DECISION (dispatch 42193009501; full tier).
+//
+// WHAT HAPPENED. ST-Copilot (pinned 1480960) renders a startup changelog modal from `window.html`:
+//   <div id="scp-changelog-modal" class="scp-modal-overlay">
+//     <div class="scp-modal"><div class="scp-modal-header">What's New in ST-Copilot ...
+//       <button class="scp-hbtn scp-hbtn-close" id="scp-changelog-close">x</button> ...
+// Its overlay covered `#send_but` on BOTH subjects, so every turn returned `page-not-sendable` and the whole
+// journey cascaded. Dismissing it is a normal user action: press the overlay's OWN close button (the element the
+// extension itself wires to `closeChangelog()`); a user cannot send with a modal in the way and is not expected to
+// force the page.
+//
+// WHY THIS IS A PURE FUNCTION HERE. The decision -- WHICH element inside the overlay is the extension's own dismiss
+// affordance -- must be testable by `node` alone (gate selftest planted reds) and must never click a random page
+// element. The browser side only inventories elements (id/class/text/aria/title/role/disabled/href and whether the
+// overlay intercepts the send button at its centre); this function scores the affordances and returns the plan.
+// =================================================================================================================
+
+const OVERLAY_CLOSE_ID = /(^|[-_])close([-_]|$)|dismiss|cancel|(^|[-_])x([-_]|$)/i;
+const OVERLAY_CLOSE_CLASS = /(^|[-_ ])(close|dismiss|cancel)([-_ ]|$)|btn-close|modal-close/i;
+const OVERLAY_CLOSE_ARIA = /close|dismiss|cancel|\u2715|\u2716|\u2717|\u00d7/i;
+const OVERLAY_CLOSE_TEXT = /^(\u00d7|\u2715|\u2716|\u2717|x|close|dismiss|cancel|got it|ok|okay|continue|i understand|accept|done|no thanks|thanks|start|enter|skip)$/i;
+const OVERLAY_NAV_TEXT = /settings|what'?s new|learn more|read more|docs?|documentation|github|discord|release notes|changelog|update|download|open|link|manage|configure|enable|disable|skip for now|don'?t show again/i;
+
+/**
+ * Score one candidate button as the overlay's OWN dismissal affordance. Negative scores are navigation/management
+ * controls; only a strictly positive score is ever clicked.
+ */
+function scoreDismissAffordance(button) {
+    const id = String(button?.id ?? '');
+    const className = String(button?.className ?? '');
+    const text = String(button?.text ?? '').trim();
+    const aria = String(button?.ariaLabel ?? '');
+    const title = String(button?.title ?? '');
+    const role = String(button?.role ?? '');
+    const tag = String(button?.tag ?? '').toLowerCase();
+    const href = button?.href ?? null;
+    let score = 0;
+    if (OVERLAY_CLOSE_ARIA.test(aria) || OVERLAY_CLOSE_ARIA.test(title)) score += 100;
+    if (OVERLAY_CLOSE_ID.test(id)) score += 80;
+    if (OVERLAY_CLOSE_CLASS.test(className)) score += 60;
+    if (OVERLAY_CLOSE_TEXT.test(text)) score += 70;
+    else if (/close|dismiss|cancel/i.test(text)) score += 50;
+    if (tag === 'button' || role === 'button') score += 10;
+    if (href !== null && href !== '') score -= 200;
+    if (OVERLAY_NAV_TEXT.test(text)) score -= 100;
+    if (button?.disabled === true) score -= 500;
+    return score;
+}
+
+/**
+ * Choose the overlay dismissal. `inventory` is the browser's read:
+ *   { sendButton, hit: {...}, hitIsSend, overlays: [{ index, id, className, text, blocksSend, buttons: [...] }] }
+ * Returns `{ ok: true, overlayIndex, buttonIndex, button, overlay, score }` or
+ * `{ ok: false, undismissable: true, overlay, reason }` naming the blocking overlay and the buttons that were found.
+ */
+export function chooseOverlayDismissal(inventory) {
+    const overlays = Array.isArray(inventory?.overlays) ? inventory.overlays : [];
+    const byArea = (first, second) => Number(second?.areaRatio ?? 0) - Number(first?.areaRatio ?? 0);
+    const blockers = overlays.filter(overlay => overlay?.blocksSend === true).sort(byArea);
+    // The ROOT layer (largest covering element) is the modal a user sees; nested boxes are inside it, and its own
+    // dismissal control is normally in the root's header. Sorting by covered area keeps the reported overlay the root.
+    const candidates = (blockers.length > 0 ? blockers : overlays).sort(byArea);
+    if (candidates.length === 0) {
+        return { ok: false, undismissable: false, reason: 'no visible overlay was recorded in the inventory', overlay: null };
+    }
+    let best = null;
+    for (const overlay of candidates) {
+        for (const button of overlay.buttons ?? []) {
+            const score = scoreDismissAffordance(button);
+            if (score <= 0) continue;
+            if (best === null || score > best.score) best = { score, overlay, button };
+        }
+        if (best !== null) break; // the topmost blocking overlay first; its own affordance is the user's way out
+    }
+    if (best === null) {
+        const overlay = candidates[0];
+        return {
+            ok: false,
+            undismissable: true,
+            overlay: {
+                index: overlay.index ?? null,
+                id: overlay.id ?? null,
+                className: overlay.className ?? null,
+                text: overlay.text ?? null,
+                blocksSend: overlay.blocksSend === true,
+                buttons: (overlay.buttons ?? []).map(button => ({ id: button.id ?? null, className: button.className ?? null, text: button.text ?? null })),
+            },
+            reason: 'the blocking overlay has no dismissal affordance a user could press (no close/dismiss/cancel/ok control inside it); it is NOT dismissed by a forced click',
+        };
+    }
+    return {
+        ok: true,
+        overlayIndex: best.overlay.index ?? null,
+        buttonIndex: best.button.index ?? null,
+        score: best.score,
+        overlay: {
+            index: best.overlay.index ?? null,
+            id: best.overlay.id ?? null,
+            className: best.overlay.className ?? null,
+            text: best.overlay.text ?? null,
+            blocksSend: best.overlay.blocksSend === true,
+            extensionHints: best.overlay.extensionHints ?? [],
+        },
+        button: {
+            index: best.button.index ?? null,
+            tag: best.button.tag ?? null,
+            id: best.button.id ?? null,
+            className: best.button.className ?? null,
+            text: best.button.text ?? null,
+            ariaLabel: best.button.ariaLabel ?? null,
+            title: best.button.title ?? null,
+        },
+    };
+}

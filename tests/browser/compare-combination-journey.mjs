@@ -546,7 +546,7 @@ function addE03E04Guards({ add, goDrive, pinnedDrive, goRestart, pinnedRestart, 
     }
     add('artifact-identity-parity', parityProblems.length === 0, parityProblems.length === 0, { problems: parityProblems });
 
-    return { requested: true, refused: false, guardCount: names.length + 18 };
+    return { requested: true, refused: false, guardCount: names.length + 19 };
 }
 
 function extensionTierOf(leg) {
@@ -681,6 +681,43 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
         add('extension-prompt-takeover-handled', takeoverOk(goTakeover) && takeoverParity, takeoverOk(pinTakeover) && takeoverParity,
             { gotavern: goTakeover, pinned: pinTakeover, rule: 'an installed prompt-orchestrating extension must be observed on the wire and turned off through its own setting before the measured turns' });
     }
+
+    // ---- THE SEND BUTTON'S BLOCKING OVERLAYS (dispatch 42193009501) ------------------------------------
+    // ST-Copilot's startup changelog (`#scp-changelog-modal.scp-modal-overlay`, its own close button
+    // `#scp-changelog-close`) covered `#send_but` on both subjects, so no turn could start. The probe dismisses such
+    // an overlay through the overlay's OWN control and records the inventory before/after; this guard requires both
+    // subjects to have a sendable page with no undismissable overlay, and requires the SAME dismissal (overlay id +
+    // button id) when one occurred. An undismissable overlay is a named harness failure, never silently skipped.
+    const overlayEvidence = leg => {
+        const record = leg?.browser?.overlayHandling ?? null;
+        const dismissals = Array.isArray(record?.dismissals) ? record.dismissals : [];
+        const undismissable = Array.isArray(record?.undismissable) ? record.undismissable : [];
+        return {
+            present: Boolean(record),
+            ok: record?.ok === true && undismissable.length === 0,
+            dismissedCount: dismissals.length,
+            dismissed: dismissals.map(entry => ({
+                case: entry.case ?? null,
+                overlayId: entry.overlay?.id ?? null,
+                overlayClassName: entry.overlay?.className ?? null,
+                buttonId: entry.button?.id ?? null,
+                buttonClassName: entry.button?.className ?? null,
+                clicked: entry.clicked?.clicked === true,
+                hitIsSendAfter: entry.hitIsSendAfter === true,
+            })),
+            undismissable: undismissable.map(entry => ({ case: entry.case ?? null, reason: entry.reason ?? null, plan: entry.plan ?? null })),
+        };
+    };
+    const goOverlays = overlayEvidence(goDrive);
+    const pinOverlays = overlayEvidence(pinnedDrive);
+    const overlayKey = value => value.dismissed.map(entry => `${entry.overlayId ?? ''}|${entry.buttonId ?? ''}`).sort();
+    const overlayParity = goOverlays.dismissedCount === pinOverlays.dismissedCount
+        && JSON.stringify(overlayKey(goOverlays)) === JSON.stringify(overlayKey(pinOverlays));
+    add('send-blocking-overlays-handled', goOverlays.ok === true && overlayParity, pinOverlays.ok === true && overlayParity, {
+        gotavern: goOverlays,
+        pinned: pinOverlays,
+        rule: 'an extension overlay covering #send_but must be dismissed through its own control on BOTH subjects, with the overlay and selector recorded; an undismissable overlay is a named harness failure',
+    });
 
     // ---- WIRE: per-capture byte equality --------------------------------------------------------------
     const goCases = byCase(goDrive);
