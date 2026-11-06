@@ -402,32 +402,47 @@ export function validateStagedPreset(document) {
 }
 
 // =================================================================================================================
-// THE BLOCKING-OVERLAY DECISION (dispatch 42193009501; full tier).
+// THE BLOCKING-OVERLAY DECISION (dispatch 42193009501 first overlay, 42198916430 second/third overlays; full tier).
 //
-// WHAT HAPPENED. ST-Copilot (pinned 1480960) renders a startup changelog modal from `window.html`:
-//   <div id="scp-changelog-modal" class="scp-modal-overlay">
-//     <div class="scp-modal"><div class="scp-modal-header">What's New in ST-Copilot ...
-//       <button class="scp-hbtn scp-hbtn-close" id="scp-changelog-close">x</button> ...
-// Its overlay covered `#send_but` on BOTH subjects, so every turn returned `page-not-sendable` and the whole
-// journey cascaded. Dismissing it is a normal user action: press the overlay's OWN close button (the element the
-// extension itself wires to `closeChangelog()`); a user cannot send with a modal in the way and is not expected to
-// force the page.
+// WHAT HAPPENED. The full tier leaves SEVERAL startup popups over the composer, and the hit test -- not the class
+// names -- is what proves it:
+//   * ST-Copilot's changelog: <div id="scp-changelog-modal" class="scp-modal-overlay"> ... its own close button
+//     <button class="scp-hbtn scp-hbtn-close" id="scp-changelog-close">;
+//   * Doom's Enhancement Suite "What's New": <div id="dooms-whats-new" class="dooms-wn-overlay" role="dialog"> with
+//     <button class="dooms-wn-close" title="Close">x</button> / "Got it";
+//   * rpg-companion's deprecation notice: <div id="rpg-deprecation-modal" class="rpg-settings-popup is-open"> with
+//     <button id="rpg-deprecation-close" class="rpg-popup-close" aria-label="Close Deprecation Notice"> and
+//     <button id="rpg-deprecation-got-it">Got it!</button>.
+// Dispatch 42198916430 dismissed the first and then failed: EVERY later dismissal record showed the plan targeting
+// rpg-deprecation-modal while the click still landed on the STALE `scp-changelog-close` marker from the first
+// inventory (the closed ST-Copilot modal stays in the DOM, display:none, with its data attributes), so 3 rounds
+// re-clicked a hidden button and `#send_but` never became the hit target. The fix is twofold and lives on both
+// sides:
+//   (1) the BROWSER clears and re-stamps the inventory markers on every read (no stale targets, and the clicked
+//       element is verified against the plan);
+//   (2) DISCOVERY IS AUTHORITATIVE ON THE HIT TEST: the element painted at the send button's centre (or its ancestor
+//       chain) blocks the click by definition when it is not #send_but or a descendant -- class names, role, area and
+//       z-index are only RANKING CLUES, never a filter (a `rpg-settings-popup is-open` with no modal/overlay token is
+//       still a blocker because elementFromPoint says so). The probe walks the hit chain and reads every layer until
+//       #send_but is the hit target again; each dismissal is recorded in sequence, and a layer with no dismissal
+//       affordance fails BY NAME with its inventory -- a random click or a JS-forced event is never used.
 //
-// WHY THIS IS A PURE FUNCTION HERE. The decision -- WHICH element inside the overlay is the extension's own dismiss
-// affordance -- must be testable by `node` alone (gate selftest planted reds) and must never click a random page
-// element. The browser side only inventories elements (id/class/text/aria/title/role/disabled/href and whether the
-// overlay intercepts the send button at its centre); this function scores the affordances and returns the plan.
+// WHY THE DECISION IS A PURE FUNCTION HERE. WHICH control inside each blocking layer is the extension's own dismissal
+// affordance must be testable by `node` alone (gate selftest planted reds). The browser only inventories layers and
+// controls; `classifyBlockingOverlays` turns the hit chain into ranked blocking candidates with a recorded
+// classification reason, and `chooseOverlayDismissal` scores the affordances and returns the plan (or a named
+// undismissable refusal).
 // =================================================================================================================
 
 const OVERLAY_CLOSE_ID = /(^|[-_])close([-_]|$)|dismiss|cancel|(^|[-_])x([-_]|$)/i;
-const OVERLAY_CLOSE_CLASS = /(^|[-_ ])(close|dismiss|cancel)([-_ ]|$)|btn-close|modal-close/i;
+const OVERLAY_CLOSE_CLASS = /(^|[-_ ])(close|dismiss|cancel)([-_ ]|$)|btn-close|modal-close|popup-close|wn-close/i;
 const OVERLAY_CLOSE_ARIA = /close|dismiss|cancel|\u2715|\u2716|\u2717|\u00d7/i;
-const OVERLAY_CLOSE_TEXT = /^(\u00d7|\u2715|\u2716|\u2717|x|close|dismiss|cancel|got it|ok|okay|continue|i understand|accept|done|no thanks|thanks|start|enter|skip)$/i;
-const OVERLAY_NAV_TEXT = /settings|what'?s new|learn more|read more|docs?|documentation|github|discord|release notes|changelog|update|download|open|link|manage|configure|enable|disable|skip for now|don'?t show again/i;
+const OVERLAY_CLOSE_TEXT = /^(\u00d7|\u2715|\u2716|\u2717|x|close|dismiss|cancel|got it!?|ok|okay|continue|i understand|accept|done|no thanks|thanks|start|enter|skip)$/i;
+const OVERLAY_NAV_TEXT = /settings|what'?s new|learn more|read more|docs?|documentation|github|discord|release notes|changelog|update|download|open|link|manage|configure|enable|disable|skip for now|don'?t show again|contact|copy/i;
 
 /**
- * Score one candidate button as the overlay's OWN dismissal affordance. Negative scores are navigation/management
- * controls; only a strictly positive score is ever clicked.
+ * Score one candidate control as the blocking layer's OWN dismissal affordance. Negative scores are
+ * navigation/management/link controls; only a strictly positive score is ever clicked.
  */
 function scoreDismissAffordance(button) {
     const id = String(button?.id ?? '');
@@ -443,53 +458,111 @@ function scoreDismissAffordance(button) {
     if (OVERLAY_CLOSE_ID.test(id)) score += 80;
     if (OVERLAY_CLOSE_CLASS.test(className)) score += 60;
     if (OVERLAY_CLOSE_TEXT.test(text)) score += 70;
-    else if (/close|dismiss|cancel/i.test(text)) score += 50;
+    else if (/close|dismiss|cancel|got it/i.test(text)) score += 50;
+    if (/popup|settings-popup/i.test(className)) score += 15;
     if (tag === 'button' || role === 'button') score += 10;
     if (href !== null && href !== '') score -= 200;
-    if (OVERLAY_NAV_TEXT.test(text)) score -= 100;
-    if (button?.disabled === true) score -= 500;
+    if (OVERLAY_NAV_TEXT.test(text)) score -= 120;
+    if (button?.disabled === true || button?.ariaDisabled === true) score -= 500;
     return score;
 }
 
+/** Stable identity for a layer across inventory reads: id+class, or the tag+class+position for a class-less popup. */
+export function overlayLayerKey(layer) {
+    if (!layer) return null;
+    return `${String(layer.tag ?? '')}|${String(layer.id ?? '')}|${String(layer.className ?? '')}`;
+}
+
 /**
- * Choose the overlay dismissal. `inventory` is the browser's read:
- *   { sendButton, hit: {...}, hitIsSend, overlays: [{ index, id, className, text, blocksSend, buttons: [...] }] }
- * Returns `{ ok: true, overlayIndex, buttonIndex, button, overlay, score }` or
- * `{ ok: false, undismissable: true, overlay, reason }` naming the blocking overlay and the buttons that were found.
+ * AUTHORITATIVE BLOCKING-LAYER CLASSIFICATION. `snapshot` is the browser's read:
+ *   { hitIsSend, hit, hitChain: [layer, ...ancestors from the hit element upward],
+ *     overlays: [class/role-matched extras], sendCenter }
+ * Every hit-chain layer is blocking BY CONSTRUCTION (it is painted above #send_but at the button's centre, or it is
+ * an ancestor of that element); the classification records which case applied. Class/role extras are kept as
+ * secondary clues only, ranked after the chain, so a class-less popup is still discovered.
  */
-export function chooseOverlayDismissal(inventory) {
-    const overlays = Array.isArray(inventory?.overlays) ? inventory.overlays : [];
-    const byArea = (first, second) => Number(second?.areaRatio ?? 0) - Number(first?.areaRatio ?? 0);
-    const blockers = overlays.filter(overlay => overlay?.blocksSend === true).sort(byArea);
-    // The ROOT layer (largest covering element) is the modal a user sees; nested boxes are inside it, and its own
-    // dismissal control is normally in the root's header. Sorting by covered area keeps the reported overlay the root.
-    const candidates = (blockers.length > 0 ? blockers : overlays).sort(byArea);
-    if (candidates.length === 0) {
-        return { ok: false, undismissable: false, reason: 'no visible overlay was recorded in the inventory', overlay: null };
+export function classifyBlockingOverlays(snapshot) {
+    const hitChain = Array.isArray(snapshot?.hitChain) ? snapshot.hitChain : [];
+    const extras = Array.isArray(snapshot?.overlays) ? snapshot.overlays : [];
+    const candidates = [];
+    const seen = new Set();
+    hitChain.forEach((layer, position) => {
+        const key = overlayLayerKey(layer);
+        if (key === null || seen.has(key)) return;
+        seen.add(key);
+        candidates.push({
+            ...layer,
+            rank: position,
+            discoveredBy: position === 0 ? 'hit-test-element' : 'hit-test-ancestor',
+            blocking: true,
+            classification: position === 0
+                ? 'the element painted at the send button centre is not #send_but or a descendant, so it intercepts the click'
+                : 'an ancestor layer of the hit-tested element contains the send button centre and intercepts the click',
+        });
+    });
+    extras.forEach((layer, position) => {
+        const key = overlayLayerKey(layer);
+        if (key === null || seen.has(key)) return;
+        seen.add(key);
+        candidates.push({
+            ...layer,
+            rank: hitChain.length + position,
+            discoveredBy: 'class-or-role-clue',
+            blocking: layer?.blocksSend === true,
+            classification: 'class/role matched a modal-ish layer containing the send button centre (secondary clue, never the authority)',
+        });
+    });
+    return {
+        hitIsSend: snapshot?.hitIsSend === true,
+        hit: snapshot?.hit ?? null,
+        candidates,
+    };
+}
+
+/**
+ * Choose the next dismissal. Returns `{ ok: true, overlayIndex, buttonIndex, button, overlay }` where overlay carries
+ * `discoveredBy`/`classification`, or `{ ok: false, undismissable: true, overlay, reason }` naming the blocking layer
+ * and the controls that were found -- in which case nothing is clicked.
+ */
+export function chooseOverlayDismissal(snapshot) {
+    const classified = classifyBlockingOverlays(snapshot);
+    if (classified.hitIsSend === true) {
+        return { ok: true, nothingToDismiss: true, reason: 'no blocking layer: #send_but is the click target', overlay: null };
+    }
+    if (classified.candidates.length === 0) {
+        return {
+            ok: false,
+            undismissable: false,
+            hit: classified.hit,
+            reason: 'the hit test reports a blocker over #send_but but no layer could be inventoried from it',
+        };
     }
     let best = null;
-    for (const overlay of candidates) {
+    for (const overlay of classified.candidates) {
         for (const button of overlay.buttons ?? []) {
             const score = scoreDismissAffordance(button);
             if (score <= 0) continue;
             if (best === null || score > best.score) best = { score, overlay, button };
         }
-        if (best !== null) break; // the topmost blocking overlay first; its own affordance is the user's way out
+        if (best !== null) break; // the topmost blocking layer first; its own affordance is the user's way out
     }
     if (best === null) {
-        const overlay = candidates[0];
+        const overlay = classified.candidates[0];
         return {
             ok: false,
             undismissable: true,
             overlay: {
                 index: overlay.index ?? null,
+                tag: overlay.tag ?? null,
                 id: overlay.id ?? null,
                 className: overlay.className ?? null,
                 text: overlay.text ?? null,
+                discoveredBy: overlay.discoveredBy,
+                classification: overlay.classification,
                 blocksSend: overlay.blocksSend === true,
-                buttons: (overlay.buttons ?? []).map(button => ({ id: button.id ?? null, className: button.className ?? null, text: button.text ?? null })),
+                buttons: (overlay.buttons ?? []).map(button => ({ id: button.id ?? null, className: button.className ?? null, text: button.text ?? null, disabled: button.disabled === true })),
             },
-            reason: 'the blocking overlay has no dismissal affordance a user could press (no close/dismiss/cancel/ok control inside it); it is NOT dismissed by a forced click',
+            reason: 'the blocking layer has no dismissal affordance a user could press (no close/dismiss/cancel/ok control inside it); it is NOT dismissed by a forced click',
         };
     }
     return {
@@ -499,9 +572,12 @@ export function chooseOverlayDismissal(inventory) {
         score: best.score,
         overlay: {
             index: best.overlay.index ?? null,
+            tag: best.overlay.tag ?? null,
             id: best.overlay.id ?? null,
             className: best.overlay.className ?? null,
             text: best.overlay.text ?? null,
+            discoveredBy: best.overlay.discoveredBy,
+            classification: best.overlay.classification,
             blocksSend: best.overlay.blocksSend === true,
             extensionHints: best.overlay.extensionHints ?? [],
         },

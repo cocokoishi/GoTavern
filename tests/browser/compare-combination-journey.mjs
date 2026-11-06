@@ -716,7 +716,7 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
     add('send-blocking-overlays-handled', goOverlays.ok === true && overlayParity, pinOverlays.ok === true && overlayParity, {
         gotavern: goOverlays,
         pinned: pinOverlays,
-        rule: 'an extension overlay covering #send_but must be dismissed through its own control on BOTH subjects, with the overlay and selector recorded; an undismissable overlay is a named harness failure',
+        rule: 'an extension overlay covering #send_but must be dismissed through its own control on BOTH subjects, with the overlay and selector recorded; the dismissed (overlay id|button id) SET is compared ORDER-INSENSITIVELY (both subjects must dismiss the same layers, in any order); an undismissable overlay is a named harness failure',
     });
 
     // ---- WIRE: per-capture byte equality --------------------------------------------------------------

@@ -47,7 +47,7 @@ import {
     verifyArtifactIdentity,
 } from './compare-combination-journey.mjs';
 import { buildProfile, canonicalJson, sha256, TIERS } from './extensions/e03e04-profile-kit.mjs';
-import { GLOBAL_PROMPT_ORDER_DUMMY_ID as KIT_GLOBAL_PROMPT_ORDER_DUMMY_ID, chooseOverlayDismissal, stagedPresetDocument, validateStagedPreset } from './extensions/combination-journey-kit.mjs';
+import { GLOBAL_PROMPT_ORDER_DUMMY_ID as KIT_GLOBAL_PROMPT_ORDER_DUMMY_ID, chooseOverlayDismissal, classifyBlockingOverlays, stagedPresetDocument, validateStagedPreset } from './extensions/combination-journey-kit.mjs';
 import { EXTENSION_TIERS } from './extensions/extension-install-batch.mjs';
 
 const clone = value => JSON.parse(JSON.stringify(value));
@@ -756,6 +756,71 @@ syntheticMutation(
         baselineGuard: overlayBaseline.guards['send-blocking-overlays-handled'],
         mutatedGuard: overlayMutated.guards['send-blocking-overlays-handled'],
     });
+
+    // ---- THE TWO-OVERLAY SEQUENCE (dispatch 42198916430): the SECOND layer is a class-less popup that only the hit
+    //      test discovers (`#rpg-deprecation-modal` class "rpg-settings-popup is-open": no modal/overlay/dialog token).
+    //      The loop below is the probe's own rule expressed over pure snapshots: classify from the hit chain, choose
+    //      that layer's own control, "dismiss", re-read the next snapshot, repeat -- so a passing case means both
+    //      layers were dismissed in sequence through their own controls.
+    const layerSnapshot = (hitLayer, { hitIsSend = false } = {}) => ({
+        hitIsSend,
+        sendCenter: { x: 640, y: 700 },
+        hit: { tag: 'div', id: hitLayer.id ?? null, className: hitLayer.className ?? '', text: hitLayer.text ?? '' },
+        hitChain: [hitLayer],
+        overlays: [],
+    });
+    const scpLayer = {
+        index: 0, tag: 'div', id: 'scp-changelog-modal', className: 'scp-modal-overlay', role: null,
+        text: "What's New in ST-Copilot Version 2.9.0", blocksSend: true, position: 'fixed', pointerEvents: 'auto', zIndex: '2147483040',
+        buttons: [{ index: 0, tag: 'button', id: 'scp-changelog-close', className: 'scp-hbtn scp-hbtn-close', text: '', ariaLabel: null, title: null, disabled: false, href: null }],
+    };
+    const rpgLayer = {
+        index: 0, tag: 'div', id: 'rpg-deprecation-modal', className: 'rpg-settings-popup is-open', role: null,
+        text: 'RPG Companion becomes deprecated! Thank you all for the continuous support.', blocksSend: true, position: 'fixed', pointerEvents: 'auto', zIndex: '10000',
+        buttons: [
+            { index: 0, tag: 'a', id: null, className: 'menu_button interactable', text: 'MarinaraEngine', ariaLabel: null, title: null, disabled: false, href: 'https://github.com/Pasta-Devs/Marinara-Engine' },
+            { index: 1, tag: 'button', id: 'rpg-deprecation-close', className: 'rpg-popup-close', text: '', ariaLabel: 'Close Deprecation Notice', title: null, disabled: false, href: null },
+            { index: 2, tag: 'button', id: 'rpg-deprecation-got-it', className: 'rpg-btn-primary', text: 'Got it!', ariaLabel: null, title: null, disabled: false, href: null },
+        ],
+    };
+    const twoOverlaySequence = [layerSnapshot(scpLayer), layerSnapshot(rpgLayer), layerSnapshot(rpgLayer, { hitIsSend: true })];
+    const sequenceDismissals = [];
+    for (const snapshot of twoOverlaySequence) {
+        const classified = classifyBlockingOverlays(snapshot);
+        const plan = chooseOverlayDismissal(snapshot);
+        if (snapshot.hitIsSend === true) { sequenceDismissals.push({ done: true, hitIsSend: true }); continue; }
+        sequenceDismissals.push({
+            overlayId: plan.overlay?.id ?? null,
+            buttonId: plan.button?.id ?? null,
+            discoveredBy: plan.overlay?.discoveredBy ?? null,
+            classification: plan.overlay?.classification ?? null,
+            candidates: classified.candidates.map(candidate => ({ id: candidate.id, discoveredBy: candidate.discoveredBy, blocking: candidate.blocking })),
+            ok: plan.ok === true,
+        });
+    }
+    record('TWO-OVERLAYS-ARE-DISMISSED-IN-SEQUENCE-BY-HIT-TEST', sequenceDismissals.length === 3
+        && sequenceDismissals[0].ok === true && sequenceDismissals[0].overlayId === 'scp-changelog-modal' && sequenceDismissals[0].buttonId === 'scp-changelog-close'
+        && sequenceDismissals[1].ok === true && sequenceDismissals[1].overlayId === 'rpg-deprecation-modal' && sequenceDismissals[1].buttonId === 'rpg-deprecation-close'
+        && sequenceDismissals[1].discoveredBy === 'hit-test-element'
+        && sequenceDismissals[1].candidates[0]?.id === 'rpg-deprecation-modal'
+        && sequenceDismissals[1].candidates[0]?.blocking === true
+        && sequenceDismissals[2].hitIsSend === true, sequenceDismissals);
+    // The same class-less layer with NO dismissal affordance (only a navigation link and a disabled control) must be
+    // named and left alone -- a second overlay cannot be "clicked randomly" to get past it.
+    const rpgNoAffordance = {
+        ...rpgLayer,
+        buttons: [
+            { index: 0, tag: 'a', id: null, className: 'menu_button interactable', text: 'MarinaraEngine', ariaLabel: null, title: null, disabled: false, href: 'https://github.com/Pasta-Devs/Marinara-Engine' },
+            { index: 1, tag: 'button', id: 'rpg-disabled-ok', className: 'rpg-btn-primary', text: 'Continue', ariaLabel: null, title: null, disabled: true, href: null },
+        ],
+    };
+    const rpgRefused = chooseOverlayDismissal(layerSnapshot(rpgNoAffordance));
+    record('A-SECOND-OVERLAY-WITHOUT-A-CLOSE-CONTROL-IS-NAMED', rpgRefused.ok === false
+        && rpgRefused.undismissable === true
+        && rpgRefused.overlay?.id === 'rpg-deprecation-modal'
+        && /rpg-settings-popup/.test(String(rpgRefused.overlay?.className ?? ''))
+        && String(rpgRefused.reason).includes('no dismissal affordance')
+        && Array.isArray(rpgRefused.overlay?.buttons) && rpgRefused.overlay.buttons.length === 2, rpgRefused);
 }
 
 // 26. THE ARTIFACT VERIFIER: a good identity verifies; a wrong head SHA, a wrong pinned SHA, a missing field and a
