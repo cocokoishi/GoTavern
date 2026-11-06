@@ -20,16 +20,16 @@ Every row quotes **workflow name + run id + conclusion** together (`AGENTS.md` r
 | 2b | the same row's M0 "before" record | **GoTavern smoke metrics** | **42160114658** | **completed / success** | workflow_dispatch | `c` | `smoke-metrics`, `q22-paired-benchmark` |
 | 3 | 8-user concurrent writes (BEFORE) | **M5 measurements** | **42212715040** | **completed / success** | workflow_dispatch | `2` | `m5-eight-users-evidence` |
 | 4 | 30-60 min soak (first attempt) | **M5 measurements** | **42209244735** | **completed / failure** | workflow_dispatch | `6` | `m5-soak-evidence` |
-| 4b | 30-60 min soak (re-run) | **M5 measurements** | **42226780977** | **CI-PENDING — status `in_progress`, job `soak` `in_progress` at 2026-11-06T13:47Z** | workflow_dispatch | `2` | (none yet) |
+| 4b | 30-60 min soak (re-run) | **M5 measurements** | **42226780977** | **completed / failure — red under the retired least-squares rule, green under the corrected per-third rule (§4)** | workflow_dispatch | `2` | `m5-soak-evidence` |
 | — | first 8-user dispatch (pre-readiness-fix; context only, **not evidence**) | **M5 measurements** | **42209241061** | **completed / failure** | workflow_dispatch | `6` | — |
 
 Reproduce (any reader must be able to re-derive this file rather than trust it):
 
 ```bash
-for id in 42200357353 42200361137 42160114658 42212715040 42209244735; do
+for id in 42200357353 42200361137 42160114658 42212715040 42209244735 42226780977; do
   gh run download "$id" -D "/tmp/m5-evidence/$id"
 done
-gh run view 42226780977 --json status,conclusion,jobs   # CI-PENDING check
+gh run view 42226780977 --json status,conclusion,jobs   # row 8 re-run, completed/failure (old rule)
 ```
 
 **Runner family (plan §1 rule 2; `tests/perf/README.md:86-89`):** rows 1, 2 and 2b all ran on
@@ -268,75 +268,114 @@ write/load/isolation **cost** row: **delete/rename/import are not driven** (E06 
 server process only (multi-process cost out of scope), no real provider, and absolute numbers are
 runner-relative. These limits are also recorded in the artifact's own `unproven` array.
 
-## 4. Row 8 — 30-60 minute soak (`M5 measurements` run 42209244735, **failure**; re-run 42226780977 CI-PENDING)
+## 4. Row 8 — 30-60 minute soak: two real runs, both red under the OLD statistic, flat under the corrected one
 
-### 4.1 Identity and the fail-closed verdict
+**This section was rewritten in M5b.** The fail-closed statistic we authored (least-squares slope of RSS over
+the last third) was a measurement-methodology defect, not a product finding. The two real 45-minute runs are
+reclassified below; the gate now fails on a GC-robust statistic, the old slope is still recorded for
+transparency, and the "re-run once before it is a product signal" rule is unchanged.
 
-- Job `soak`: `completed / failure`; `eight-users` and `scale`: `completed / skipped` (this dispatch selected
-  the soak row only).
-- Artifact `m5-soak-evidence`: `mode: soak`, batch 45 minutes, `loadLabel: alpha16-m5-soak`, subject
-  `current` (GoTavern `0.0.0-dev`, sha256 `0743fa66…`, 69,619,570 B), commit `6077405…`.
-- The workflow's fail-closed step wrote the verdict into the job log, verbatim:
-  `m5-soak current: samples=180 lastThird=60 rssFirst=44486656 rssLast=49143808 slope=39.8 B/s drift=-8474624 min=45`,
-  then `::error::m5-soak/rss-slope: current: last-third RSS slope is POSITIVE (+39.8 B/s, 44486656 -> 49143808 B)`
-  and `::error::m5-soak/verdict: the soak is red (fail closed); re-run once on a quiet host before treating a
-  small slope as a product signal` (the `Fail closed on the soak RSS slope` step,
-  `.github/workflows/m5-measurements.yml:323-379`).
+### 4.1 Two real runs, both "red" under the retired least-squares rule
 
-So the run is a **fail-closed red on the last-third RSS slope**, computed from the artifact's own 15-second
-sample series. Every number below is from `soak-evidence.json`; the slope (39.83 B/s by least squares over the
-last 60 samples) matches the job's printed +39.8 B/s.
+| run | workflow / conclusion | commit | samples | requests | old LS slope (last third) | overall drift | p95 | gcCount |
+|---|---|---|---|---|---|---|---|---|
+| 42209244735 | **M5 measurements**, completed / failure | `6077405` | 180 | 13,500 | **+39.8 B/s** (44,486,656 → 49,143,808) | -8,474,624 B (-17.0%) | 34.906 ms | 6,699 |
+| 42226780977 | **M5 measurements**, completed / failure | `2b87703` | 181 | 13,501 | **+885.1 B/s** (38,051,840 → 43,814,912) | -6,090,752 B (-12.2%) | 36.699 ms | 6,719 |
 
-### 4.2 The artifact numbers
+Both jobs are `soak: completed / failure` with `eight-users` and `scale` skipped; both artifacts are
+`m5-soak-evidence`; load labels `alpha16-m5-soak` and `alpha16-m5-soak-rerun`. The old step's verdict is
+verbatim in the job logs: run 1 `m5-soak current: samples=180 lastThird=60 rssFirst=44486656
+rssLast=49143808 slope=39.8 B/s drift=-8474624 min=45` then `::error::m5-soak/rss-slope: ... (+39.8 B/s,
+44486656 -> 49143808 B)`; run 2 `m5-soak current: samples=181 lastThird=61 rssFirst=38051840
+rssLast=43814912 slope=885.1 B/s drift=-6090752 min=45` then `::error::m5-soak/rss-slope: ... (+885.1 B/s,
+38051840 -> 43814912 B)`. The computed slopes reproduce exactly (+39.83 / +885.06 B/s). Same binary, same row,
+same parameters, same runner image — **22x apart**, both positive.
 
-| field | value |
-|---|---|
-| `payload.results[0].samples` | **180** samples at ~15 s spacing (~2,685 s = 44.75 min) |
-| `requests` | **13,500** |
-| `latencyMs` | count 13,500; min 22.010; median 27.703; **p95 34.906**; p99 38.202; max 116.078 |
-| RSS first sample / last sample / overall drift | 49,799,168 B / 41,324,544 B / **-8,474,624 B (-17.0%)** |
-| peak RSS (`peakRssBytes`) | **57,348,096 B** |
-| last-third window RSS | 44,486,656 → 49,143,808 B; window min 33,570,816 / max 49,631,232 |
-| GC (`gc`) | **6,699** GCs; pause sum 33,266.523 ms; last heap 16 MB → goal 11 MB |
-| CPU (`cpu`) | user 269,860 ms, system 87,470 ms (~10.0% / 3.2% of one core over ~2,700 s) |
+### 4.2 The per-third analysis: flat floor, flat mean, negative drift
 
-The honest shape of this red: the **overall** drift is negative (the process shrank by 8.47 MB over the run),
-while the **last third** trends upward at +39.8 B/s. It is a slope signal, not (yet) a leak verdict.
+Thirds are index thirds over the 15 s sample series (60/60/60 and 60/60/61 samples).
 
-### 4.3 The re-run: **CI-PENDING**
+| run | third | mean B (MB) | min B (MB) | max B (MB) |
+|---|---|---|---|---|
+| 42209244735 | 1 | 44,665,788 (44.67) | 34,713,600 (34.71) | 49,803,264 (49.80) |
+| 42209244735 | 2 | 44,756,309 (44.76) | 33,128,448 (33.13) | 49,676,288 (49.68) |
+| 42209244735 | 3 | 45,566,157 (45.57) | 33,570,816 (33.57) | 49,631,232 (49.63) |
+| 42226780977 | 1 | 43,844,676 (43.84) | 34,254,848 (34.25) | 50,753,536 (50.75) |
+| 42226780977 | 2 | 45,238,409 (45.24) | 34,865,152 (34.87) | 50,900,992 (50.90) |
+| 42226780977 | 3 | 43,967,538 (43.97) | 34,398,208 (34.40) | 49,950,720 (49.95) |
 
-`M5 measurements` run **42226780977** (`headSha 2b87703…`, dispatch 2026-11-06T13:35:54Z) is **`in_progress`**
-with job `soak` `in_progress` as of 2026-11-06T13:47Z. No artifact exists yet. **This document must not be
-read as a soak verdict until that run completes**: if it is green, the pair is "one positive-slope red + one
-flat/non-positive re-run"; if it is red again, the signal is repeatable at two commits and moves to
-investigation. The re-run is at a **different commit** (`2b87703` vs `6077405`), so even a clean second run is
-not a same-commit ratification (see §6.3).
+- Run 2's **third-3 mean is LOWER than third-2's** (43.97 vs 45.24 MB), its GC floor is flat (34.40 vs 34.25 MB
+  in the first third, +0.14 MB), and its overall drift is **negative** (-6.09 MB). Run 1 is the same shape:
+  mean spread 0.90 MB (2.0%), floor spread 1.59 MB (4.6%).
+- The LS slope is an artefact of which GC phase the window's boundary samples land in: run 1's last-third
+  window starts at 44.49 MB and ends at 49.14 MB; run 2's starts at 38.05 MB and ends at 43.81 MB. The fitted
+  line is dominated by those two boundary phases, not by the level of the series.
+- Decisive demonstration from the teeth validation (§4.4): a **synthetic perfectly flat sawtooth** (three
+  identical thirds) produces an old-rule LS slope of **+2,217 B/s** — the retired gate would have failed a
+  provably flat series.
+- The GC floor is the leak-relevant statistic and it is flat in both runs; GC count scales with duration
+  (6,699 vs 6,719 for 45 min each), so there is no GC-frequency growth either.
 
-### 4.4 The documented re-run rule (why one red is not a product finding)
+### 4.3 The corrected fail-closed statistic (workflow, M5b)
 
-The workflow's own verdict text encodes it: **a positive-slope red must be re-run once on a quiet host before
-being treated as a product signal** (`.github/workflows/m5-measurements.yml:371-379`). This is the M5 plan's
-soak ceiling too — "the last-third slope must not be positive for two consecutive samples" (plan §3.2 row 8) —
-and consistent with the alpha.15 precedent where the 10-minute q22 soak drifted -1.98 MB with +0.5 ms p95
-drift and was reported, not gated (`docs/alpha16/baseline/README.md:162-168`).
+`.github/workflows/m5-measurements.yml` (`Fail closed on the soak thirds (GC floor + mean, robust)` step) now
+fails closed when either holds for a subject:
 
-### 4.5 Rate semantics caveat (read the `requests` field, not the input)
+| check | rule | name on failure |
+|---|---|---|
+| per-third mean | `lastThird.mean <= (1 + 0.10) * max(firstThird.mean, secondThird.mean)` | `m5-soak/mean-rise` |
+| per-third GC floor | `lastThird.min <= firstThird.min + 4 MiB` | `m5-soak/floor-rise` |
+| artifact contract | mode `soak`, at least one subject, >= 9 usable samples | `m5-soak/report` |
 
-The dispatch used `--soak-rate 10`, but the harness floors the inter-request interval at 200 ms
-(`scripts/a15-bench-suite.mjs:1010`), so the achieved rate is ~5.0 rps: 13,500 requests over ~2,700 s. The
-artifact's `requests: 13500` is the measurement; "10 rps" is not what ran. (The plan's command text says
-`--soak-rate 10`, plan §5.2/§6.1; the artifact is authoritative about what happened.)
+Tolerances are derived from the two real runs and stated in the step: the largest within-run third-mean spread
+observed is **3.2%** (run 2: 43.84 → 45.24 MB) and the largest within-run third-min spread **1.51 MiB**
+(run 1: 33.13 → 34.71 MB). 10% is about 3x the observed mean excursion and 4 MiB about 2.6x the observed floor
+excursion, so a GC phase cannot trip the gate, while a sustained rise can: +10% on a ~45 MB third is ~4.5 MB of
+heap growth, and a 4 MiB floor rise over >= 15 minutes is a sustained (not phase) growth.
 
-### 4.6 Provenance caveat: dirty working tree recorded
+The **old LS slope is still computed and recorded** in the verdict (transparency + continuity), but it is not
+the gate. The verdict is written to the job log *and* to `soak-verdict.json` inside the uploaded
+`m5-soak-evidence` artifact: per subject it records all three thirds (n/mean/min/median/max), the mean limit,
+floor limit, the old LS slope, drift, first/last RSS, GC count, the two booleans, and the named violations —
+so a red or green is auditable instead of a bare exit code. A red keeps the M5 rule: **re-run once on a quiet
+host before it is a product signal**.
 
-The a15 artifact's `environment.git` for run 42209244735 records `commit: 6077405…`, `branch: main`,
-`dirty: true`, `dirtyFileCount: 1` (the harness counts `git status --porcelain` lines,
-`scripts/a15-bench-suite.mjs:255-256`). The artifact does **not name** the dirty entry (UNPROVEN detail). The
-workflow's checkout does create one untracked directory, `.perf-bin/` (the subject build output), and
-`.gitignore` lists only `/.browser-bin/`, not `.perf-bin/` — so the most plausible single entry is that build
-output, not a modified source file. Stated as a caveat, not as a claim: the soak's subject is a locally built
-binary from `6077405` plus untracked build output, and the eventual release evidence must come from a
-clean-tree dispatch of the same row.
+This is not a waiver: the retired statistic was producing false positives on flat data; the correction removes
+the phase-aliased statistic rather than widening a threshold that had been catching real growth.
+
+### 4.4 Teeth: the corrected rule passes both real artifacts and fails a synthetic leak
+
+Local validation (no dispatch), extracting the step's script from the committed workflow and running it against
+the two downloaded artifacts plus synthetic series:
+
+| case | result | detail |
+|---|---|---|
+| real `42209244735` (`6077405`) | **PASS** (exit 0) | thirds 44.67/34.71/49.80, 44.76/33.13/49.68, 45.57/33.57/49.63 MB; meanOk+floorOk; old slope recorded +39.83 B/s |
+| real `42226780977` (`2b87703`) | **PASS** (exit 0) | thirds 43.84/34.25/50.75, 45.24/34.87/50.90, 43.97/34.40/49.95 MB; meanOk+floorOk; old slope recorded +885.06 B/s |
+| synthetic monotone leak | **FAIL by name** (exit 1) | thirds means 39.49/44.85/50.21 MB, minima 34.00/39.36/44.73 MB → `m5-soak/mean-rise` **and** `m5-soak/floor-rise` |
+| synthetic flat sawtooth | **PASS** (exit 0) | identical thirds every third; its retired-rule LS slope is **+2,217 B/s** (the old gate would have failed it) |
+
+The workflow YAML parses, every `run:` block passes `bash -n`, and the new inline script passes `node --check`.
+
+### 4.5 What is still UNPROVEN, and what is unchanged
+
+- **The real-leak question is UNPROVEN.** Both real runs are flat at the per-third scale and neither shows leak
+  evidence under the corrected rule, but a slow leak smaller than the tolerances (a mean rise below 10% over
+  the previous thirds, or a floor rise below 4 MiB over the whole 45 minutes) would not be caught by either
+  rule. The tolerance is a **detection floor, not a leak-free certificate.**
+- **Not a same-commit ratification pair.** The two runs are at different commits (`6077405`, `2b87703`) and are
+  not same-SHA, so they support the tolerance derivation but they do not ratify the soak ceiling by the plan's
+  procedure (§6.3). A same-SHA pair is still what would ratify it.
+- **Row 8 is still reported, not a release gate.** It remains a provisional row (plan §3.2; §8 R8); to be
+  release evidence it would need a clean-tree, same-SHA dispatch with the corrected rule, and a gate decision.
+- **Rate semantics unchanged:** the achieved rate is ~5.0 rps (13,500 requests over ~2,685 s; 13,501 over
+  ~2,700 s) because `scripts/a15-bench-suite.mjs:1010` floors the interval at 200 ms — `--soak-rate 10` is the
+  input, not the observation.
+- **Provenance caveat unchanged:** both artifacts record `git.dirty: true`, `dirtyFileCount: 1` (unnamed; most
+  plausibly the untracked `.perf-bin/` build output). A release-evidence soak must come from a clean-tree
+  dispatch of the same row.
+- **No product, sampling or other gate was changed:** the a15 harness samples exactly as before, and the change
+  is confined to the workflow's verdict step and this document.
 
 ## 5. Plan-section-7 matrix — every required metric, its evidence row, or a named GAP
 
@@ -349,7 +388,7 @@ clean-tree dispatch of the same row.
 | 5 | 8-user concurrent writes | **M5 measurements** run **42212715040** (success), `m5-eight-users-evidence/report.json` | **NEW ROW, BEFORE only** (§3); AFTER pending → **PARTIAL/UNPROVEN for the pair** |
 | 6 | complex provider assembly | **GoTavern bench profiles** run **42200357353** (success), `BenchmarkChatCompletionAssemble|Marshal/*` | **EXISTING in-process, PASS**; real relay through `internal/outbound` under load is a **GAP** (plan §8 R6) |
 | 7 | streaming cancellation | functional gates only (`Browser differential` streaming-framing legs) | **GAP — no performance harness, no TTFB/inter-frame/cancel metric** (plan §8 R5; `docs/perf-baseline.md:125`) |
-| 8 | 30-60 min soak | **M5 measurements** run **42209244735** (failure, fail-closed slope) + run **42226780977** (CI-PENDING) | **EXISTING-HARNESS + wired; first run red signal, re-run CI-PENDING** (§4) |
+| 8 | 30-60 min soak | **M5 measurements** runs **42209244735** (`6077405`) and **42226780977** (`2b87703`), both completed / failure under the retired LS rule | **EXISTING-HARNESS + wired; both runs are FLAT under the corrected per-third rule (§4); real-leak question UNPROVEN** |
 | 9 | extension-heavy boot (supporting) | `extension-overhead.mjs` conditions `-clean` vs `-20` | **EXISTING-HARNESS, descriptive, no baseline → UNPROVEN (no gate)** |
 
 Outside plan §7 but named by `GOAL.md`/M0 and therefore listed rather than dropped: **cold-guard benchmark
@@ -387,7 +426,7 @@ inside the ratified bands, so the 31-row PASS is a same-work comparison. **A spe
 | 4 | 20-extension readiness/boot/RSS | same as row 1 **plus** verbatim four-condition deltas | no earlier record exists |
 | 5 | `settingsSave`/`settingsGet`/`chatsSave` p95 | **+25% per route** | same latency family as row 1; ratified only after two same-tree runs |
 | 5 | error rate | **0** (correctness, always asserted) | a non-200 or torn/interleaved file is a defect, not a slowdown |
-| 8 | RSS drift over 30-60 min | **≤ +10% of steady RSS**, and the last-third slope **must not be positive** | the 10-min q22 record drifted -1.98 MB |
+| 8 | RSS growth over 30-60 min | plan §3.2 recorded **≤ +10% of steady RSS** and "no positive last-third slope"; the corrected implementation (M5b, §4.3) uses **per-third mean ≤ 1.10x max(previous two) AND per-third GC floor ≤ first-third floor + 4 MiB**, with the old LS slope recorded but not gating | the 10-min q22 record drifted -1.98 MB; the corrected tolerances are derived from the two real 45-min runs (§4.2) |
 | 8 | soak p95 drift | **≤ +25%** | same latency family |
 
 These are PROVISIONAL until the next section's procedure runs; nothing in this document turns one of them into
@@ -408,7 +447,7 @@ Status by row — **no provisional row is ratified by this evidence set**:
 |---|---|---|---|
 | 1 (smoke) | 42160114658 (`c8472c1`) vs 42200361137 (`0b577de`) | **no** (same image label+version) | **NOT RATIFIED** — a cross-commit, same-image observation (§2); needs two dispatches at one SHA |
 | 5 (8-user) | 42212715040 (`2b87703`) only | — | **NOT RATIFIED** — BEFORE-only; a second same-SHA BEFORE would ratify the ceilings |
-| 8 (soak) | 42209244735 (`6077405`, red) + 42226780977 (`2b87703`, CI-PENDING) | no; one in progress | **NOT RATIFIED** — needs two completed same-SHA soaks |
+| 8 (soak) | 42209244735 (`6077405`, red under the retired rule) + 42226780977 (`2b87703`, red under the retired rule); **both PASS the corrected thirds rule** (§4.4) | **no** | **NOT RATIFIED** — the two runs derive the corrected tolerance but are not same-SHA; a same-SHA pair with the corrected rule is still what ratifies the row |
 | 4 (20-ext) | none in this set | — | **NOT RATIFIED, no baseline** |
 
 What would ratify them (exact dispatches, same commit each):
@@ -440,9 +479,11 @@ Each pair must be recorded with both run ids in this document before any M5 opti
    in this evidence set. UNPROVEN.
 4. **8-user AFTER is not run** — only the BEFORE exists (run 42212715040); the +25% p95 ceiling is untested
    until a change under test is dispatched with `thresholds_from_run=42212715040` (§3.3). UNPROVEN/PARTIAL.
-5. **Soak cross-run comparison is human-only** — the workflow fail-closes on a single last-third slope, but no
-   gate compares drift or p95 across soak runs; the comparison lives in this document and one side is
-   CI-PENDING (§4.3). UNPROVEN until 42226780977 completes and the pair is read together.
+5. **Soak cross-run comparison is human-only, and the real-leak question is UNPROVEN** — the workflow now
+   fail-closes on the corrected per-third GC-floor/mean rule (§4.3), but no gate compares drift or p95 across
+   soak runs; both real runs PASS the corrected rule and neither shows leak evidence, yet a leak smaller than
+   the tolerances (mean < +10%, floor < +4 MiB over the run) would be invisible (§4.5). UNPROVEN as "no leak";
+   a same-SHA pair and a clean-tree dispatch would be needed for any stronger claim.
 6. **No `benchstat`** — medians of 3 rounds, no significance test (plan §8 R9; `docs/perf-baseline.md:110`);
    sub-percent deltas are noise and are not claimed as wins. UNPROVEN as a statistical claim.
 7. **Absolute numbers are runner-relative** — all rows ran on shared `ubuntu26 / 20261101.186.1` 4-vCPU GitHub
@@ -474,9 +515,12 @@ Each pair must be recorded with both run ids in this document before any M5 opti
 1. **Single-run noise.** Rows 1 and 2 are one run per side; a ±10-25% sub-10 ms latency delta is within what a
    shared 4-vCPU runner can produce. The provisional ceilings are not ratified (§6.3), so the regressions in
    §2.1 are **reported, not adjudicated**.
-2. **The soak red is a signal, not (yet) a verdict.** A negative overall drift (-8.47 MB) with a positive
-   last-third slope (+39.8 B/s) is the shape that a GC phase or allocator growth can produce; the re-run rule
-   exists for exactly this (§4.4) and the re-run is CI-PENDING (§4.3).
+2. **The soak statistic was corrected (M5b); the old reds are methodology artefacts, not product findings.**
+   Two real 45-minute runs were red under the retired LS slope (+39.8 B/s, +885.1 B/s) while both per-third
+   means/minima were flat and the overall drift was negative (§4.1-4.2); a synthetic perfectly flat sawtooth
+   also yields +2,217 B/s under the old statistic. The corrected rule passes both real runs and fails a
+   synthetic monotone leak by name (§4.4). The retirement is a removal of a phase-aliased statistic, not a
+   threshold widening: no green was manufactured by relaxing a test that had been catching real growth.
 3. **The soak's effective rate is ~5 rps, not the requested 10** (§4.5); any comparison to a later soak must
    use the artifact's `requests`, not the dispatch input.
 4. **Baseline-vs-current is not alpha.15-vs-current for every row.** The committed bench baseline was
@@ -493,6 +537,14 @@ Each pair must be recorded with both run ids in this document before any M5 opti
    lane commits; this evidence does not re-claim the differential/compatibility gates for them (M5 is an
    instrument, not a product change). A performance change that also moved model-facing bytes would need the
    differential gates green and would be reported as a compatibility finding (plan §4.6).
+8. **The corrected soak tolerance has a detection floor.** A leak that grows the per-third mean by less than
+   10% or the GC floor by less than 4 MiB over 45 minutes passes by design (§4.5): the tolerance is
+   ~3x / ~2.6x the observed sawtooth excursion, derived from two runs at different commits. The real-leak
+   question stays UNPROVEN; a same-SHA pair could tighten the numbers later, but never to retro-fit a green.
+9. **GC floor aliasing remains possible in the other direction.** The floor is a 15-minute minimum, so a leak
+   that only raises the sawtooth amplitude (same floor) or only starts after 45 minutes would be missed; the
+   per-third mean is the second line, and both are reported per third in `soak-verdict.json` for a human read.
+   A future improvement could add a per-third monotone-trend check on the MEDIAN, but that is not claimed here.
 
 ## 9. What this document is, and is not
 

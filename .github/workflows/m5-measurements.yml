@@ -38,9 +38,14 @@ name: M5 measurements
 #
 # WHAT THIS WORKFLOW DOES NOT PROVE (mirrored into every artifact)
 #   - absolute numbers are comparable only within one runner image label+version; each artifact records both;
-#   - the soak row's "positive last-third RSS slope" is a REGRESSION SIGNAL, and a small positive slope can be
-#     runner noise - the verdict names the slope in bytes/s so a red is diagnosable, and the M5 document
-#     treats a red as "re-run once on a quiet host, then investigate", not as a product verdict by itself;
+#   - the soak row's fail-closed statistic is GC-ROBUST, because the old least-squares slope over the last
+#     third of a GC sawtooth is phase-aliased: two real 45-minute runs of the same binary gave +39.8 B/s and
+#     +885.1 B/s while their per-third means (43.84/45.24/43.97 MB) and per-third minima (34.25/34.87/34.40 MB)
+#     were flat and their overall drift was negative. The gate now fails on the per-third MEAN
+#     (lastThird.mean <= 1.10 x max(firstThird.mean, secondThird.mean)) and the per-third GC FLOOR
+#     (lastThird.min <= firstThird.min + 4 MiB); every third's mean/min/median/max and the old slope are
+#     recorded in the verdict. A red still means "re-run once on a quiet host, then investigate" before it is
+#     treated as a product signal (docs/alpha16/m5-evidence.md section 4);
 #   - the 8-user subject is the CI-built binary copied by the harness into a scratch install root; the
 #     harness copies only the binary, so tokenizer assets are absent and tokenizer routes take the pinned
 #     fallback. The measured routes (/api/settings/save|get, /api/chats/save) do not tokenize;
@@ -316,19 +321,40 @@ jobs:
           if [ -n "$LOAD_LABEL" ]; then args+=(--load-label "$LOAD_LABEL"); fi
           node scripts/a15-bench-suite.mjs "${args[@]}"
 
-      # FAIL CLOSED ON THE SOAK VERDICT. Two conditions, both named:
-      #   1. the artifact must exist and describe a soak with at least one subject and enough samples;
-      #   2. the least-squares slope of rssBytes over the LAST THIRD of the samples must not be positive.
-      # The slope is printed in bytes/second so a red run is diagnosable from the log alone.
-      - name: Fail closed on the soak RSS slope
+      # FAIL CLOSED ON A GC-ROBUST SOAK VERDICT (M5b methodology correction).
+      # THE OLD STATISTIC WAS THE DEFECT: a least-squares slope over the last third of a GC sawtooth is
+      # dominated by which GC phase the window starts and ends in. Two real 45-minute runs of the same binary
+      # (M5 measurements 42209244735 at 6077405 and 42226780977 at 2b87703) gave +39.8 B/s then +885.1 B/s
+      # while both artifacts' per-third statistics were FLAT (e.g. 42226780977: third means 43.84/45.24/43.97
+      # MB and third minima 34.25/34.87/34.40 MB, overall drift -6.09 MB). The correction is narrow, not a
+      # waiver: the gate now fails on a statistic a GC phase cannot move, and the old slope is still recorded.
+      #   mean  : lastThird.mean <= (1 + 0.10) x max(firstThird.mean, secondThird.mean)
+      #   floor : lastThird.min  <= firstThird.min + 4 MiB
+      # Tolerances derive from those two runs (docs/alpha16/m5-evidence.md section 4): the largest within-run
+      # third-mean spread observed was 3.2% and the largest within-run third-min spread 1.51 MiB, so 10% and
+      # 4 MiB are ~3x and ~2.6x the observed sawtooth excursion while still refusing a sustained rise. Every
+      # third's n/mean/min/median/max and the OLD slope are printed AND written to soak-verdict.json (inside
+      # the uploaded artifact) so the verdict is auditable, not a bare exit code.
+      - name: Fail closed on the soak thirds (GC floor + mean, robust)
         if: ${{ always() }}
         env:
           SOAK_REPORT: ${{ runner.temp }}/m5-soak/soak-evidence.json
+          SOAK_VERDICT: ${{ runner.temp }}/m5-soak/soak-verdict.json
         run: |
           set -euo pipefail
           node -e '
             const fs = require("node:fs");
+            const path = require("node:path");
             const reportPath = process.env.SOAK_REPORT;
+            const verdictPath = process.env.SOAK_VERDICT;
+            const MEAN_TOLERANCE = 0.10;
+            const FLOOR_BAND_BYTES = 4 * 1024 * 1024;
+            const median = (values) => {
+              const sorted = [...values].sort((left, right) => left - right);
+              const mid = Math.floor(sorted.length / 2);
+              return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+            };
+            const mean = (values) => values.reduce((sum, value) => sum + value, 0) / values.length;
             if (!fs.existsSync(reportPath)) {
               console.error("::error::m5-soak/report: the soak artifact was not written, so the row has no evidence (fail closed)");
               process.exit(1);
@@ -344,41 +370,97 @@ jobs:
               process.exit(1);
             }
             const violations = [];
+            const subjects = [];
             for (const record of results) {
+              const subject = record.subject ?? "?";
               const samples = (record.samples ?? []).filter(sample => Number.isFinite(sample?.rssBytes) && Number.isFinite(sample?.atMs));
-              if (samples.length < 6) {
-                violations.push(`${record.subject ?? "?"}: only ${samples.length} usable RSS sample(s); a last-third slope needs >=6 (fail closed)`);
+              if (samples.length < 9) {
+                violations.push(`m5-soak/report: ${subject}: only ${samples.length} usable RSS sample(s); thirds need >=9 (fail closed)`);
                 continue;
               }
-              const window = samples.slice(Math.floor(samples.length * 2 / 3));
-              if (window.length < 3) {
-                violations.push(`${record.subject ?? "?"}: last-third window has ${window.length} sample(s), needs >=3 (fail closed)`);
-                continue;
+              const count = samples.length;
+              const bounds = [0, Math.floor(count / 3), Math.floor((2 * count) / 3), count];
+              const thirds = [];
+              for (let index = 0; index < 3; index += 1) {
+                const slice = samples.slice(bounds[index], bounds[index + 1]);
+                const values = slice.map(sample => sample.rssBytes);
+                if (values.length === 0) {
+                  violations.push(`m5-soak/report: ${subject}: third ${index + 1} has no samples (fail closed)`);
+                  continue;
+                }
+                thirds.push({
+                  n: values.length,
+                  mean: mean(values),
+                  min: Math.min(...values),
+                  median: median(values),
+                  max: Math.max(...values),
+                  atMsFirst: slice[0].atMs,
+                  atMsLast: slice[slice.length - 1].atMs,
+                });
               }
+              if (thirds.length !== 3) continue;
+              const [first, second, last] = thirds;
+              const meanLimit = (1 + MEAN_TOLERANCE) * Math.max(first.mean, second.mean);
+              const floorLimit = first.min + FLOOR_BAND_BYTES;
+              const meanOk = last.mean <= meanLimit;
+              const floorOk = last.min <= floorLimit;
+              if (!meanOk) {
+                violations.push(`m5-soak/mean-rise: ${subject}: last-third MEAN ${Math.round(last.mean)} B exceeds ${Math.round(meanLimit)} B (1.10 x max of the previous two third means ${Math.round(first.mean)} / ${Math.round(second.mean)} B) -- a sustained heap rise, not a GC phase`);
+              }
+              if (!floorOk) {
+                violations.push(`m5-soak/floor-rise: ${subject}: last-third GC FLOOR ${last.min} B exceeds ${floorLimit} B (first-third floor ${first.min} B + 4 MiB band) -- the post-GC floor is rising`);
+              }
+              const window = samples.slice(Math.floor(count * 2 / 3));
               const x0 = window[0].atMs;
               const xs = window.map(sample => (sample.atMs - x0) / 1000);
               const ys = window.map(sample => sample.rssBytes);
-              const n = xs.length;
-              const meanX = xs.reduce((sum, value) => sum + value, 0) / n;
-              const meanY = ys.reduce((sum, value) => sum + value, 0) / n;
+              const nx = xs.length;
+              const meanX = mean(xs);
+              const meanY = mean(ys);
               let numerator = 0;
               let denominator = 0;
-              for (let index = 0; index < n; index += 1) {
+              for (let index = 0; index < nx; index += 1) {
                 numerator += (xs[index] - meanX) * (ys[index] - meanY);
                 denominator += (xs[index] - meanX) ** 2;
               }
-              const slopeBytesPerSecond = denominator === 0 ? 0 : numerator / denominator;
-              console.log(`m5-soak ${record.subject ?? "?"}: samples=${samples.length} lastThird=${n} rssFirst=${ys[0]} rssLast=${ys[n - 1]} slope=${slopeBytesPerSecond.toFixed(1)} B/s drift=${record.rssDriftBytes ?? "null"} min=${record.soakMinutes ?? "?"}`);
-              if (slopeBytesPerSecond > 0) {
-                violations.push(`${record.subject ?? "?"}: last-third RSS slope is POSITIVE (+${slopeBytesPerSecond.toFixed(1)} B/s, ${ys[0]} -> ${ys[n - 1]} B): sustained load is growing the resident set`);
-              }
+              const oldSlopeBytesPerSecond = denominator === 0 ? 0 : numerator / denominator;
+              subjects.push({
+                subject,
+                soakMinutes: record.soakMinutes ?? null,
+                requests: record.requests ?? null,
+                samples: count,
+                thirds,
+                meanLimitBytes: meanLimit,
+                floorLimitBytes: floorLimit,
+                meanTolerance: MEAN_TOLERANCE,
+                floorBandBytes: FLOOR_BAND_BYTES,
+                meanOk,
+                floorOk,
+                oldLeastSquaresSlopeBytesPerSecond: oldSlopeBytesPerSecond,
+                rssDriftBytes: record.rssDriftBytes ?? null,
+                rssFirstBytes: record.firstRssBytes ?? null,
+                rssLastBytes: record.lastRssBytes ?? null,
+                gcCount: record?.gc?.gcCount ?? null,
+              });
+              console.log(`m5-soak ${subject}: samples=${count} thirds=[` + thirds.map((third, index) => `t${index + 1}(n=${third.n},mean=${Math.round(third.mean)},min=${third.min},max=${third.max})`).join(" ") + `] meanLimit=${Math.round(meanLimit)} floorLimit=${floorLimit} oldLsSlope=${oldSlopeBytesPerSecond.toFixed(2)} B/s drift=${record.rssDriftBytes ?? "null"} gc=${record?.gc?.gcCount ?? "null"} meanOk=${meanOk} floorOk=${floorOk}`);
             }
+            const verdict = {
+              rule: "per-third mean <= (1 + 0.10) x max(previous two third means) AND per-third GC floor (min) <= first-third min + 4 MiB; the old last-third least-squares slope is recorded but is NOT the gate",
+              meanTolerance: MEAN_TOLERANCE,
+              floorBandBytes: FLOOR_BAND_BYTES,
+              generatedAt: new Date().toISOString(),
+              subjects,
+              violations,
+              passed: violations.length === 0,
+            };
+            fs.mkdirSync(path.dirname(verdictPath), { recursive: true });
+            fs.writeFileSync(verdictPath, JSON.stringify(verdict, null, 2) + "\n");
             if (violations.length > 0) {
-              for (const violation of violations) console.error(`::error::m5-soak/rss-slope: ${violation}`);
-              console.error("::error::m5-soak/verdict: the soak is red (fail closed); re-run once on a quiet host before treating a small slope as a product signal");
+              for (const violation of violations) console.error(`::error::${violation}`);
+              console.error("::error::m5-soak/verdict: the soak is red (fail closed on the GC floor / per-third mean); re-run once on a quiet host before treating it as a product signal");
               process.exit(1);
             }
-            console.log("m5-soak: every subject is flat or decreasing over the last third of the samples");
+            console.log("m5-soak: per-third GC floor and per-third mean are flat within the stated tolerance (the old LS slope is recorded but is not the gate)");
           '
 
       - name: Print the soak summary
