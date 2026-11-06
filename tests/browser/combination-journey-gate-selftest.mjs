@@ -243,12 +243,47 @@ function buildSyntheticProfileLegs() {
                 filesCarrying: ['group chats/Natural Two - T.jsonl'],
                 persisted: [{
                     file: 'group chats/Natural Two - T.jsonl',
-                    messageCount: 2,
+                    messageCount: 5,
                     messages: [
                         { name: 'Alice', is_user: false, mes: 'Alice raises the lantern and says: the orchard is this way.', swipes: ['Alice raises the lantern and says: the orchard is this way.'], swipe_id: 0, branches: null },
+                        { name: 'Bob', is_user: false, mes: 'Bob checks the map and disagrees with everyone.', swipes: ['Bob checks the map and disagrees with everyone.'], swipe_id: 0, branches: null },
                         { name: 'Probe User', is_user: true, mes: 'COMB_GROUP_TURN', swipes: null, swipe_id: null, branches: null },
+                        { name: 'Alice', is_user: false, mes: 'COMB_RAW_REPLY_17', swipes: ['COMB_RAW_REPLY_17'], swipe_id: 0, branches: null },
+                        { name: 'Bob', is_user: false, mes: 'COMB_RAW_REPLY_19', swipes: ['COMB_RAW_REPLY_19'], swipe_id: 0, branches: null },
                     ],
                 }],
+            },
+            // THE FULL GROUP FAN-OUT (dispatch 42226736120): the capture window closes after the first member, so the
+            // probe waits for the product's own generating state to idle, then records EVERY group-sequence request
+            // (post-capture members flagged). Both subjects must reach quiescence with the same sealed request count.
+            groupFanOut: {
+                quiesced: true,
+                waitedMs: 9000,
+                expectedReplies: 2,
+                requestCount: 2,
+                sealedRequests: 2,
+                postCapture: 1,
+                state: {
+                    chatLength: 5,
+                    lastIsUser: false,
+                    repliesAfterUser: 2,
+                    replyNames: ['Alice', 'Bob'],
+                    quietForMs: 5100,
+                    isSendPress: false,
+                    streamingProcessor: false,
+                    isGroupGenerating: false,
+                    generatingFlag: null,
+                },
+            },
+            groupTurn: {
+                requests: 2,
+                captured: 1,
+                postCapture: 1,
+                ok: true,
+                requestsDetail: [
+                    { case: 'turn-group', requestedStream: true, servedWire: 'sse', byteLength: 26484, sha256: 'synthetic-group-first', captured: true, postCapture: false },
+                    { case: 'turn-group', requestedStream: true, servedWire: 'sse', byteLength: 26604, sha256: 'synthetic-group-second', captured: false, postCapture: true },
+                ],
             },
             // The APPLIED-state evidence the probe records after the preset is selected (dispatch 42173399186 showed
             // selection without application; the leg record must carry both).
@@ -651,6 +686,36 @@ syntheticMutation(
     },
 );
 
+// 22. THE GROUP FAN-OUT WAS NOT QUIESCED (dispatch 42226736120): the pinned leg read the group-chat file while the
+//     second member was still generating, so the persisted projection had only Alice's reply while the other subject
+//     had Alice's AND Bob's. The guard must be RED -- both through the missing projection and through the recorded
+//     quiescence evidence -- so a lagging fan-out cannot pass as "the durable chats match".
+syntheticMutation(
+    'A-NON-QUIESCED-GROUP-FAN-OUT goes RED by group-chat-persisted-parity',
+    'group-chat-persisted-parity',
+    legs => {
+        const fanOut = legs.pinned.browser.groupFanOut;
+        legs.pinned.browser.groupFanOut = {
+            ...fanOut,
+            quiesced: false,
+            waitedMs: 180000,
+            state: { ...fanOut.state, repliesAfterUser: 1, replyNames: ['Alice'] },
+        };
+        legs.pinned.browser.groupTurn = {
+            ...legs.pinned.browser.groupTurn,
+            requests: 1,
+            captured: 1,
+            postCapture: 0,
+            requestsDetail: legs.pinned.browser.groupTurn.requestsDetail.slice(0, 1),
+        };
+        const persistRecord = legs.pinned.browser.groupTurnPersist;
+        persistRecord.persisted = persistRecord.persisted.map(entry => ({
+            ...entry,
+            messageCount: 4,
+            messages: entry.messages.filter(message => !(message.name === 'Bob' && String(message.mes).includes('COMB_RAW_REPLY_19'))),
+        }));
+    },
+);
 // 23. THE OUTGOING PROMPT WAS REPLACED (dispatch 42186322374): an extension orchestrated the request, so no capture
 //     carried the user marker. The guard must be red on that record instead of reading `requests:0` as "no traffic".
 syntheticMutation(

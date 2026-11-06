@@ -899,11 +899,45 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
     };
     const goGroupPersist = groupPersistFor(goDrive);
     const pinGroupPersist = groupPersistFor(pinnedDrive);
+    // THE FAN-OUT EVIDENCE IS PART OF THE GUARD (dispatch 42226736120): the durable comparison is only meaningful after
+    // the product stopped generating, and the request count must be the FULL fan-out (post-capture members included),
+    // not the first-request capture. A leg that did not reach quiescence, or whose recorded sequence omits
+    // post-capture requests, is red by name even if the file happened to match; a genuinely different persisted
+    // projection stays red through the byte comparison below and is reported as a product difference with this
+    // request evidence beside it.
+    const groupFanOutFor = leg => leg?.browser?.groupFanOut ?? null;
+    const groupTurnFor = leg => leg?.browser?.groupTurn ?? null;
+    const fanOutEvidence = leg => {
+        const fanOut = groupFanOutFor(leg);
+        const groupTurn = groupTurnFor(leg);
+        return {
+            quiesced: fanOut?.quiesced === true,
+            waitedMs: fanOut?.waitedMs ?? null,
+            expectedReplies: fanOut?.expectedReplies ?? null,
+            repliesAfterUser: fanOut?.state?.repliesAfterUser ?? null,
+            replyNames: fanOut?.state?.replyNames ?? null,
+            requestCount: fanOut?.requestCount ?? null,
+            sealedRequests: groupTurn?.requests ?? null,
+            capturedRequests: groupTurn?.captured ?? null,
+            postCapture: groupTurn?.postCapture ?? null,
+            detailCount: Array.isArray(groupTurn?.requestsDetail) ? groupTurn.requestsDetail.length : null,
+            quietForMs: fanOut?.state?.quietForMs ?? null,
+        };
+    };
+    const goFanOut = fanOutEvidence(goDrive);
+    const pinFanOut = fanOutEvidence(pinnedDrive);
+    const fanOutOk = value => value.quiesced === true
+        && Number.isFinite(value.expectedReplies) && value.expectedReplies > 0
+        && Number.isFinite(value.repliesAfterUser) && value.repliesAfterUser >= value.expectedReplies
+        && Number.isFinite(value.sealedRequests) && value.sealedRequests >= 1
+        && value.detailCount === value.sealedRequests;
+    const fanOutParity = fanOutOk(goFanOut) && fanOutOk(pinFanOut) && goFanOut.sealedRequests === pinFanOut.sealedRequests;
     const groupPersistParity = goGroupPersist.ok === true && pinGroupPersist.ok === true
         && JSON.stringify(goGroupPersist.messages) === JSON.stringify(pinGroupPersist.messages)
         && JSON.stringify(goGroupPersist.expected) === JSON.stringify(pinGroupPersist.expected);
-    add('group-chat-persisted-parity', goGroupPersist.ok === true && groupPersistParity, pinGroupPersist.ok === true && groupPersistParity,
-        { gotavern: goGroupPersist, pinned: pinGroupPersist });
+    add('group-chat-persisted-parity', goGroupPersist.ok === true && groupPersistParity && fanOutParity,
+        pinGroupPersist.ok === true && groupPersistParity && fanOutParity,
+        { gotavern: { ...goGroupPersist, fanOut: goFanOut }, pinned: { ...pinGroupPersist, fanOut: pinFanOut } });
 
     // ---- discrimination (AGENTS 50): the harness's captures move when its knobs move -------------------
     observed('preset-off-turn-captured');

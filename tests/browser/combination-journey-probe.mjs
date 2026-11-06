@@ -850,7 +850,7 @@ async function applyProfilePowerUserAfterBoot(page, patch) {
  *
  * The effect is POLLED on disk (bounded): the named step fails if the text is not in any persisted chat file.
  */
-async function persistChatEffect(page, dataRoot, { action, expectText, readGroupChats = false }) {
+async function persistChatEffect(page, dataRoot, { action, expectText, readGroupChats = false, minimumMessages = null }) {
     const wanted = String(expectText ?? '').trim();
     if (wanted.length === 0) return { ok: false, action, reason: 'no expected text to look for; the verb effect was empty' };
     const readAll = async () => {
@@ -860,16 +860,23 @@ async function persistChatEffect(page, dataRoot, { action, expectText, readGroup
         return { ...chats, ...(await readGroupChatFiles(dataRoot)) };
     };
     const saved = await saveConditional(page);
-    const deadline = Date.now() + 20000;
+    // A GROUP FAN-OUT PERSISTS ONE MESSAGE PER MEMBER; a carrier whose marker is already there may still be ONE REPLY
+    // SHORT (dispatch 42226736120: pinned had the second member reply in the file, GoTavern did not yet). When the
+    // caller knows how many messages the completed effect has, the poll therefore waits for THAT count, not merely for
+    // the marker. If the product genuinely persists fewer, the comparator's projection parity stays RED.
+    const expectedMessages = Number.isFinite(minimumMessages) ? Number(minimumMessages) : null;
+    const deadline = Date.now() + 30000;
     let files = {};
     let carriers = [];
+    let messageWatch = null;
     while (Date.now() < deadline) {
         files = await readAll();
         carriers = Object.entries(files)
             .filter(([, file]) => (file?.messages ?? []).some(message => String(message?.mes ?? '').includes(wanted)
                 || (Array.isArray(message?.swipes) && message.swipes.some(swipe => String(swipe).includes(wanted)))))
             .map(([name]) => name);
-        if (carriers.length > 0) break;
+        if (carriers.length > 0 && (expectedMessages === null || carriers.some(name => (files[name]?.messages?.length ?? 0) >= expectedMessages))) break;
+        messageWatch = { waitedMs: 30000 - Math.max(0, deadline - Date.now()), carriers, messageCounts: carriers.map(name => files[name]?.messages?.length ?? null), expectedMessages };
         await page.waitForTimeout(300);
     }
     const persisted = carriers.map(name => ({
@@ -885,13 +892,15 @@ async function persistChatEffect(page, dataRoot, { action, expectText, readGroup
         })),
     }));
     return {
-        ok: saved?.ok === true && carriers.length > 0,
+        ok: saved?.ok === true && carriers.length > 0 && (expectedMessages === null || persisted.some(entry => (entry.messageCount ?? 0) >= expectedMessages)),
         action,
         expected: wanted.slice(0, 160),
         saved,
         scopesRead: readGroupChats ? ['chats', 'group chats'] : ['chats'],
         filesCarrying: carriers,
         persisted,
+        expectedMessages,
+        messageWatch,
     };
 }
 
@@ -2263,6 +2272,74 @@ async function waitForPageStable(page, { maxMs = 45000 } = {}) {
     return { ok: false, waitedMs: Date.now() - started, state: last };
 }
 
+/**
+ * WAIT FOR THE GROUP TURN'S FULL FAN-OUT TO QUIESCE (dispatch 42226736120).
+ *
+ * The multi-member group turn generates one reply per member. The probe's capture window closes after the FIRST group
+ * request, so the second member's reply is post-capture fan-out: the frontend keeps generating, the chat file grows,
+ * and dispatch 42226736120 read it while pinned had already flushed both replies and GoTavern had flushed only Alice
+ * (persisted messageCount 5 vs 4, message projections unequal). That is a race in the HARNESS, not a product
+ * difference, but the durable comparison must still be made after the product has stopped generating.
+ *
+ * Quiescence is read from the PRODUCT's own state (not a sleep): `is_send_press`, `streamingProcessor`, the group
+ * generator's `is_group_generating`, and `body[data-generating]` must all be idle, the chat must hold at least one
+ * non-user reply per group member after the user turn, the chat length must be unchanged for `quietMs`, and the peer
+ * must have received no new completion for `quietMs`. Returns the full fan-out request list (post-capture flagged by
+ * the caller) whether or not quiescence was reached, so a genuinely lagging fan-out is evidence, not a silent wait.
+ */
+async function waitForGroupFanOutQuiescence(page, { groupId, baselineChatLength = 0, requestCountBefore = 0, timeoutMs = 180000, quietMs = 5000 } = {}) {
+    const started = Date.now();
+    let last = null;
+    let quietSince = Date.now();
+    let lastChatLength = null;
+    let lastRequestCount = requestCountBefore;
+    while (Date.now() - started < timeoutMs) {
+        const state = await page.evaluate(async wantedGroupId => {
+            const script = await import('./script.js');
+            const groupChats = await import('./scripts/group-chats.js');
+            const chat = script.chat ?? [];
+            const groups = groupChats.groups ?? [];
+            const group = groups.find(entry => String(entry?.id) === String(wantedGroupId)) ?? null;
+            const members = Array.isArray(group?.members) ? group.members.filter(Boolean) : [];
+            const lastUserIndex = chat.map(message => message?.is_user === true).lastIndexOf(true);
+            const repliesAfterUser = lastUserIndex >= 0 ? chat.slice(lastUserIndex + 1).filter(message => message?.is_user !== true && String(message?.mes ?? '').length > 0) : [];
+            return {
+                chatLength: chat.length,
+                lastIsUser: chat[chat.length - 1]?.is_user ?? null,
+                lastTextLength: String(chat[chat.length - 1]?.mes ?? '').length,
+                lastUserIndex,
+                repliesAfterUser: repliesAfterUser.length,
+                replyNames: repliesAfterUser.map(message => String(message?.name ?? '')),
+                memberCount: members.length,
+                members,
+                isSendPress: script.is_send_press === true,
+                streamingProcessor: Boolean(script.streamingProcessor),
+                isGroupGenerating: groupChats.is_group_generating === true,
+                generatingFlag: document.body?.dataset?.generating ?? null,
+            };
+        }, groupId).catch(error => ({ error: String(error?.message ?? error).slice(0, 200) }));
+        const requestCount = peerRequests().length;
+        if (requestCount !== lastRequestCount) { lastRequestCount = requestCount; quietSince = Date.now(); }
+        const expectedReplies = Math.max(1, Number(state?.memberCount) || 1);
+        const idle = state?.error ? false : (state.isSendPress !== true && state.streamingProcessor !== true && state.isGroupGenerating !== true && (state.generatingFlag === null || state.generatingFlag === 'false'));
+        if (state?.chatLength !== lastChatLength) { lastChatLength = state?.chatLength ?? null; quietSince = Date.now(); }
+        const quietForMs = Date.now() - quietSince;
+        last = {
+            ...state,
+            requestCount,
+            expectedReplies,
+            quietForMs,
+            idle,
+            chatStable: true,
+        };
+        if (idle && quietForMs >= quietMs && Number(state?.repliesAfterUser) >= expectedReplies && state?.lastIsUser === false) {
+            return { ok: true, quiesced: true, waitedMs: Date.now() - started, state: last, requestCount, expectedReplies, baselineChatLength };
+        }
+        await page.waitForTimeout(250);
+    }
+    return { ok: false, quiesced: false, waitedMs: Date.now() - started, state: last, requestCount: peerRequests().length, expectedReplies: last?.expectedReplies ?? null, baselineChatLength };
+}
+
 /** One user turn: baseline first, click the product's send control, wait for the page AND the peer to move. */
 async function turn(page, marker, caseName, { settleMs = 0 } = {}) {
     await waitForQuiet(page);
@@ -3632,15 +3709,74 @@ async function main() {
                 } catch (error) { return { ok: false, reason: String(error?.message ?? error) }; }
             }, group.groupId);
             step('group-strategy-is-deterministic', report.browser.groupStrategy?.ok === true, report.browser.groupStrategy);
+            const groupRequestIndex = peerRequests().length;
             const groupTurn = await turn(page, 'COMB_GROUP_TURN', 'turn-group');
-            report.browser.groupTurn = { requests: groupTurn.requests.length, ok: groupTurn.ok };
+            // THE FULL FAN-OUT, NOT THE FIRST REQUEST (dispatch 42226736120). The capture window closes after the first
+            // member's request; the remaining members are generated afterwards. Wait for the product to stop generating
+            // and for a quiet window with no new peer request, then record EVERY group-sequence request (post-capture
+            // ones flagged) so the count is evidence instead of an undercount.
+            const groupFanOut = await waitForGroupFanOutQuiescence(page, {
+                groupId: group.groupId,
+                baselineChatLength: groupTurn.baseline?.chatLength ?? 0,
+                requestCountBefore: groupRequestIndex,
+            });
+            report.browser.groupFanOut = groupFanOut;
+            const groupRequests = peerRequests().slice(groupRequestIndex).map(entry => {
+                const captured = groupTurn.requests.some(request => request.sha256 === entry.sha256);
+                return {
+                    case: 'turn-group',
+                    requestedStream: entry.requestedStream,
+                    servedWire: entry.served?.wire ?? null,
+                    byteLength: entry.byteLength,
+                    sha256: entry.sha256,
+                    captured,
+                    postCapture: captured !== true,
+                };
+            });
+            report.browser.groupTurn = {
+                requests: groupRequests.length,
+                captured: groupTurn.requests.length,
+                postCapture: groupRequests.filter(entry => entry.postCapture === true).length,
+                ok: groupTurn.ok,
+                requestsDetail: groupRequests,
+            };
             step('group-turn-produced-request', groupTurn.requests.length >= 1, { requests: groupTurn.requests.length });
+            step('group-fan-out-quiesced', groupFanOut.quiesced === true, {
+                waitedMs: groupFanOut.waitedMs,
+                expectedReplies: groupFanOut.expectedReplies,
+                repliesAfterUser: groupFanOut.state?.repliesAfterUser ?? null,
+                replyNames: groupFanOut.state?.replyNames ?? null,
+                requestCount: groupFanOut.requestCount,
+                sealedRequests: groupRequests.length,
+                postCapture: report.browser.groupTurn.postCapture,
+                quietForMs: groupFanOut.state?.quietForMs ?? null,
+                productState: groupFanOut.state ? {
+                    isSendPress: groupFanOut.state.isSendPress,
+                    streamingProcessor: groupFanOut.state.streamingProcessor,
+                    isGroupGenerating: groupFanOut.state.isGroupGenerating,
+                    generatingFlag: groupFanOut.state.generatingFlag,
+                } : null,
+            });
             // THE GROUP CHAT FILE MUST BE PERSISTED BEFORE THE RETURN TO THE 1:1 CHAT: opening the character switches
             // the chat context, so the group effect is flushed through the product's own `saveChatConditional` (which
             // routes to `saveGroupChat` -> POST /api/chats/group/save while `selected_group` is set) and then POLLED
             // for in the GROUP-CHAT directory, `<user>/group chats/<id>.jsonl` -- NOT in `<user>/chats`, which is the
-            // reader-scope defect dispatch 42182251438 exposed (`saved:{ok:true}` but `filesCarrying:[]`).
-            report.browser.groupTurnPersist = await persistChatEffect(page, dataRoot, { action: 'group-turn', expectText: 'COMB_GROUP_TURN', readGroupChats: true });
+            // reader-scope defect dispatch 42182251438 exposed (`saved:{ok:true}` but `filesCarrying:[]`). The poll
+            // waits for the COMPLETED effect's message count (one reply per member), so a carrier that already holds
+            // the user marker but not the last member reply is not read as complete.
+            report.browser.groupTurnPersist = await persistChatEffect(page, dataRoot, {
+                action: 'group-turn',
+                expectText: 'COMB_GROUP_TURN',
+                readGroupChats: true,
+                minimumMessages: groupFanOut.state?.chatLength ?? null,
+            });
+            report.browser.groupTurnPersist.fanOut = {
+                quiesced: groupFanOut.quiesced === true,
+                waitedMs: groupFanOut.waitedMs,
+                expectedReplies: groupFanOut.expectedReplies,
+                sealedRequests: groupRequests.length,
+                postCapture: report.browser.groupTurn.postCapture,
+            };
             step('group-turn-effect-persisted-before-return', report.browser.groupTurnPersist.ok === true, report.browser.groupTurnPersist);
             // RETURN TO THE 1:1 CHAT: the group context has no journey character chat, so the character is opened
             // through the same roster path a user takes and then the saved conversation is reopened by its id.
