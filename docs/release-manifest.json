@@ -50,8 +50,17 @@
     },
     {
       "workflow": "Combination journey differential",
-      "why": "one composed session (character x complex preset x 酒馆助手 x world info x variables x regex x Quick Reply x streaming x save/reload/swipe/regenerate/continue/group/restart) on both subjects, byte-equal per capture, with the five-leg matrix, restart, hand-back and the gate self-test; this is GOAL.md section 9 combination rule evidence and must be green at the release commit",
-      "requiredEvent": "workflow_dispatch"
+      "why": "one composed session (character x complex preset x 酒馆助手 x world info x variables x regex x Quick Reply x streaming x save/reload/swipe/regenerate/continue/group/restart) on both subjects, byte-equal per capture, with the five-leg matrix, restart, hand-back and the gate self-test; this is GOAL.md section 9 combination rule evidence and must be green at the release commit. RELEASE RAIL (M6b): the cited run must carry the combination-journey-evidence artifact whose root release-evidence.json states profile=e03e04, interactingScenario=true and tier=full with the candidate head SHA and the five leg digests; a legacy profile=none run (no evidence document) or a narrowed fast/medium dispatch cannot satisfy this gate.",
+      "requiredEvent": "workflow_dispatch",
+      "requiredJobs": ["combination-journey"],
+      "requiredArtifact": "combination-journey-evidence",
+      "requiredEvidence": {
+        "kind": "combination-journey-evidence",
+        "tierField": "tier",
+        "tier": "full",
+        "requireTruthy": ["interactingScenario", "ok", "legs.allRecorded", "teeth.ok", "kit.ok"],
+        "requireSha256": ["documents.go-drive.sha256", "documents.pinned-drive.sha256", "documents.go-restart.sha256", "documents.pinned-restart.sha256", "documents.pinned-handback.sha256"]
+      }
     },
     {
       "workflow": "Third-party extension compatibility",

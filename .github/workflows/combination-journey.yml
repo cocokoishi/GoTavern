@@ -18,8 +18,29 @@ name: Combination journey differential
 #
 # Judge: tests/browser/compare-combination-journey.mjs (byte-oriented per-capture equality; two-subject asymmetry
 # fails even when each leg's own steps are green; absent restart/handback legs are NOT-OBSERVED and REFUSED, never
-# passed). Teeth: tests/browser/combination-journey-gate-selftest.mjs (five mutations, each required to fire a NAMED
-# guard, with the target guard proved green in the unmutated pair first).
+# passed).
+#
+# TEETH: tests/browser/combination-journey-gate-selftest.mjs runs the synthetic profile suite (one planted case per
+# design-section-6 row, no browser) AND, when the two real drive legs are supplied, the live mutation suite over
+# them. Each planted case must fire its NAMED guard, with the target guard proved green in the unmutated pair
+# first; the run prints "[selftest] N/N planted case(s) produced their NAMED red". The count is NOT hardcoded here
+# because it moves when a design row gains a case: the step requires N == N and the release evidence records it.
+#
+# THE RELEASE RAIL (M6b). This workflow writes the release-evidence document at the ARTIFACT ROOT as
+# release-evidence.json (the release verifier reads exactly that member, artifact-evidence.mjs:21). The release
+# manifest requires this gate's run to carry it with kind=combination-journey-evidence, pegged to the candidate
+# head SHA, profile=e03e04, interactingScenario=true and tier=full -- so a legacy profile=none run, or a fast /
+# medium dispatch, cannot satisfy the rail. A bounded fail-closed step also executes
+# tests/browser/extensions/e03e04-kit-selftest.mjs in the same run, and a SHA-pinned verifier refuses a
+# well-formed but wrong head SHA (the comparator's artifact verifier checks only the SHA FORMAT).
+#
+# TIER LADDER (a scheduled trigger is deliberately NOT wired yet: a schedule would be a nightly rail, not a
+# same-SHA release gate). Every tier stages all three books; only the block count and the extension batch narrow:
+#   fast   (12 blocks / 3 extensions)   branch or push-time (legacy profile=none) and cheap dispatches. NARROWED:
+#                                       it cannot support a release claim -- the rail requires tier=full.
+#   medium (60 / 10)                    same-SHA qualification dispatches. NARROWED as well.
+#   full   (120 / 22)                   THE ONLY RELEASE-ADMISSIBLE TIER: the release dispatch is
+#                                       `profile=e03e04 tier=full` and its evidence is what the manifest rail reads.
 #
 # WHAT A GREEN RUN WOULD NOT PROVE: a real provider (the peer is an in-process recording backend, AGENTS 22);
 # multi-user; a real user's card/preset prose (committed derivations only, AGENTS 56); text-completion
@@ -31,14 +52,15 @@ on:
     inputs:
       # THE E03+E04 PROFILE (task-14, docs/alpha16/first-scenario-design.md). `none` keeps the legacy journey
       # (committed preset-a derivation, journey 3-slot book, tavern-helper only) so a push keeps its previous
-      # behaviour until the first green M2 dispatch; the release gate dispatches `profile=e03e04 tier=full`.
+      # behaviour byte-identically; the RELEASE dispatch is `profile=e03e04 tier=full`, and its
+      # release-evidence.json is what the manifest rail inspects.
       profile:
-        description: 'Scenario profile (none = legacy journey, e03e04 = generated 120-block/nested-books/22-extension profile)'
+        description: 'Scenario profile (none = legacy journey; e03e04 = generated 120-block/nested-books/22-extension profile, required for the release rail)'
         type: choice
         options: ['none', 'e03e04']
         default: 'none'
       tier:
-        description: 'Profile tier: fast (12 blocks, 3 extensions), medium (60 blocks, 10), full (120 blocks, 22)'
+        description: 'Profile tier: fast (12 blocks, 3 extensions) / medium (60, 10) are NARROWED; full (120, 22) is the only release-admissible tier'
         type: choice
         options: ['fast', 'medium', 'full']
         default: 'full'
@@ -75,8 +97,11 @@ permissions:
   contents: read
 
 concurrency:
+  # C6 (M6b): an EVIDENCE run must not be cancelled by a later dispatch on the same ref. The legacy journey
+  # (profile=none, which is what the push trigger runs) keeps its previous behaviour -- a newer push cancels the
+  # older run -- while any profile=e03e04 dispatch is never cancelled.
   group: combination-journey-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ (inputs.profile || 'none') == 'none' }}
 
 env:
   PINNED_BASELINE_COMMIT: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
@@ -149,6 +174,18 @@ jobs:
           else
             (cd tests/browser && npx playwright install --with-deps chromium)
           fi
+
+      - name: Run the e03e04 kit self-test (bounded, fail-closed)
+        if: ${{ (inputs.profile || 'none') == 'e03e04' }}
+        timeout-minutes: 10
+        # C9 (M6b): design section 6 required the kit selftest to observe its contract before the scenario was wired
+        # into CI; until now it was only a push path filter. It needs no browser and no network, so its green is
+        # evidence in THIS run; a red exits nonzero and fails the job (no continue-on-error).
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/combination-journey"
+          mkdir -p "$work"
+          node tests/browser/extensions/e03e04-kit-selftest.mjs 2>&1 | tee "$work/e03e04-kit-selftest.log"
 
       - name: Build the subject binary
         env:
@@ -344,16 +381,202 @@ jobs:
           work="$RUNNER_TEMP/combination-journey"
           node tests/browser/compare-combination-journey.mjs --verify-artifact "$work/legs/identity.json"
 
-      - name: Upload reports, comparison, identity and teeth log
+      - name: Write the release evidence document (artifact root)
+        if: ${{ always() && (inputs.profile || 'none') == 'e03e04' }}
+        # C2 (M6b): the RELEASE verifier reads exactly release-evidence.json at the ARTIFACT ROOT
+        # (scripts/release-governance/artifact-evidence.mjs:21); legs/identity.json is only the in-workflow
+        # identity. Written even on a failed run, so a red artifact stays attributable and the gate reports WHY
+        # (verdict, failed guards, missing legs, teeth result) rather than "missing evidence".
+        env:
+          LEG_FAILURES: ${{ steps.legs.outputs.failures }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/combination-journey"
+          node -e '
+            const fs = require("node:fs");
+            const path = require("node:path");
+            const crypto = require("node:crypto");
+            const work = process.env.RUNNER_TEMP + "/combination-journey";
+            const labels = ["go-drive", "pinned-drive", "go-restart", "pinned-restart", "pinned-handback"];
+            const readJson = (file) => { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return null; } };
+            const readText = (file) => { try { return fs.readFileSync(file, "utf8"); } catch { return ""; } };
+            const digest = (file) => crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+            const documents = {};
+            for (const label of labels) {
+              const file = path.join(work, "legs", label + ".json");
+              if (!fs.existsSync(file)) continue;
+              documents[label] = { path: "legs/" + label + ".json", sha256: digest(file) };
+            }
+            const comparison = readJson(path.join(work, "legs", "comparison.json"));
+            const selftestLog = readText(path.join(work, "legs", "selftest.log"));
+            const planted = /\[selftest\]\s+(\d+)\/(\d+) planted case\(s\) produced their NAMED red/.exec(selftestLog);
+            const teethOk = Boolean(planted) && Number(planted[1]) === Number(planted[2]) && Number(planted[2]) > 0;
+            const kitLog = readText(path.join(work, "e03e04-kit-selftest.log"));
+            const kitOk = /RESULT: PASS/.test(kitLog);
+            const failedGuards = Array.isArray(comparison?.failedGuards) ? comparison.failedGuards : [];
+            const guards = comparison?.guards && typeof comparison.guards === "object" ? comparison.guards : {};
+            const verdict = typeof comparison?.verdict === "string" ? comparison.verdict : null;
+            const legFailures = Number(process.env.LEG_FAILURES ?? "1");
+            const allRecorded = labels.every((label) => Boolean(documents[label]));
+            const profile = process.env.PROFILE || "none";
+            const ok = profile === "e03e04"
+              && allRecorded
+              && legFailures === 0
+              && verdict === "match"
+              && failedGuards.length === 0
+              && teethOk
+              && kitOk;
+            const evidence = {
+              schemaVersion: 1,
+              kind: "combination-journey-evidence",
+              headSha: process.env.GITHUB_SHA || null,
+              pinnedSha: process.env.PINNED_BASELINE_COMMIT || null,
+              profile,
+              interactingScenario: profile === "e03e04",
+              tier: process.env.TIER || null,
+              seed: process.env.SEED || null,
+              extensionTier: process.env.EXTENSION_TIER || null,
+              run: { workflow: process.env.GITHUB_WORKFLOW || null, runId: process.env.GITHUB_RUN_ID || null, runAttempt: process.env.GITHUB_RUN_ATTEMPT || null },
+              verdict,
+              guards: { total: Object.keys(guards).length, failedCount: failedGuards.length, failed: failedGuards },
+              documents,
+              legs: {
+                allRecorded,
+                failures: legFailures,
+                restartRecorded: Boolean(documents["go-restart"]) && Boolean(documents["pinned-restart"]),
+                handbackRecorded: Boolean(documents["pinned-handback"]),
+              },
+              teeth: { ok: teethOk, planted: planted ? planted[1] + "/" + planted[2] : null, cases: planted ? Number(planted[2]) : null, log: "legs/selftest.log" },
+              kit: { ok: kitOk, log: "e03e04-kit-selftest.log" },
+              ok,
+              notes: [
+                "release-evidence.json is written at the ARTIFACT ROOT because the release verifier reads exactly that member (artifact-evidence.mjs:21).",
+                "The release manifest requires profile=e03e04, interactingScenario=true and tier=full; a legacy profile=none run does not write this document and cannot satisfy the rail.",
+                "ok is true only when all five legs were recorded, the comparator verdict is match with zero failed guards, the gate self-test observed every planted red, and the kit self-test passed.",
+              ],
+            };
+            fs.writeFileSync(path.join(work, "release-evidence.json"), JSON.stringify(evidence, null, 2) + "\n");
+            console.log(JSON.stringify(evidence, null, 2));
+          '
+
+      - name: Verify the release evidence (head SHA pinned, planted cases)
+        if: ${{ always() && (inputs.profile || 'none') == 'e03e04' }}
+        # C5 (M6b): the comparator artifact verifier checks the head SHA FORMAT only -- its planted case uses
+        # "Z".repeat(40), which fails the hex regex rather than the equality -- so a WELL-FORMED wrong SHA would
+        # pass it. The release verifier pins the embedded head SHA to the checked-out GITHUB_SHA
+        # (artifact-evidence.mjs:131-133 does the same against the candidate). This step enforces that here, and
+        # runs planted cases on EVERY run so the guard is proved able to fail instead of being decoration.
+        env:
+          EVIDENCE: ${{ runner.temp }}/combination-journey/release-evidence.json
+          REQUIRE_EVIDENCE: '1'
+        run: |
+          set -euo pipefail
+          node -e '
+            const fs = require("node:fs");
+            const path = require("node:path");
+            const crypto = require("node:crypto");
+            const work = process.env.RUNNER_TEMP + "/combination-journey";
+            const labels = ["go-drive", "pinned-drive", "go-restart", "pinned-restart", "pinned-handback"];
+            const sha = process.env.GITHUB_SHA;
+            const pinned = process.env.PINNED_BASELINE_COMMIT;
+            function validate(evidence, expectSha, verifyDigests) {
+              const problems = [];
+              if (!evidence || typeof evidence !== "object") { problems.push("evidence is not an object"); return problems; }
+              if (evidence.schemaVersion !== 1) problems.push("schemaVersion is not 1");
+              if (evidence.kind !== "combination-journey-evidence") problems.push("kind is not combination-journey-evidence");
+              if (!/^[0-9a-f]{40}$/.test(String(evidence.headSha))) problems.push("headSha is not a 40-hex commit");
+              if (evidence.headSha !== expectSha) problems.push("headSha does not equal the checked-out GITHUB_SHA");
+              if (evidence.pinnedSha !== pinned) problems.push("pinnedSha does not equal PINNED_BASELINE_COMMIT");
+              if (evidence.profile !== "e03e04") problems.push("profile is not e03e04");
+              if (evidence.interactingScenario !== true) problems.push("interactingScenario is not true");
+              if (evidence.tier !== "full") problems.push("tier is not full (the release rail requires full)");
+              if (evidence.ok !== true) problems.push("ok is not true");
+              if (evidence.legs?.allRecorded !== true) problems.push("legs.allRecorded is not true");
+              if (evidence.teeth?.ok !== true) problems.push("teeth.ok is not true");
+              if (evidence.kit?.ok !== true) problems.push("kit.ok is not true");
+              for (const label of labels) {
+                const doc = evidence.documents?.[label];
+                if (!doc || typeof doc.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(doc.sha256)) {
+                  problems.push("documents." + label + " has no 64-hex digest");
+                  continue;
+                }
+                if (verifyDigests) {
+                  const file = path.join(work, "legs", label + ".json");
+                  if (!fs.existsSync(file)) { problems.push("the " + label + " leg file is absent"); continue; }
+                  const actual = crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+                  if (actual !== doc.sha256) problems.push("documents." + label + " does not match the shipped bytes");
+                }
+              }
+              return problems;
+            }
+            const goodDocuments = Object.fromEntries(labels.map((label) => [label, { path: "legs/" + label + ".json", sha256: "a".repeat(64) }]));
+            const good = {
+              schemaVersion: 1,
+              kind: "combination-journey-evidence",
+              headSha: sha,
+              pinnedSha: pinned,
+              profile: "e03e04",
+              interactingScenario: true,
+              tier: "full",
+              seed: "e03e04-alpha16",
+              extensionTier: "full",
+              verdict: "match",
+              guards: { total: 100, failedCount: 0, failed: [] },
+              documents: goodDocuments,
+              legs: { allRecorded: true, failures: 0, restartRecorded: true, handbackRecorded: true },
+              teeth: { ok: true, planted: "N/N", cases: 1, log: "legs/selftest.log" },
+              kit: { ok: true, log: "e03e04-kit-selftest.log" },
+              ok: true,
+            };
+            const planted = [];
+            const expectAccept = (name, value) => planted.push([name, validate(value, sha, false).length === 0, validate(value, sha, false).join("; ")]);
+            const expectRefuse = (name, value, needle) => {
+              const problems = validate(value, sha, false);
+              planted.push([name, problems.length > 0 && (!needle || problems.some((problem) => problem.includes(needle))), problems.join("; ")]);
+            };
+            expectAccept("planted-accepts-a-correct-document", good);
+            expectRefuse("planted-refuses-a-well-formed-wrong-head-sha", { ...good, headSha: "b".repeat(40) }, "headSha");
+            expectRefuse("planted-refuses-a-malformed-head-sha", { ...good, headSha: "Z".repeat(40) }, "headSha");
+            expectRefuse("planted-refuses-a-legacy-profile-none-document", { ...good, profile: "none", interactingScenario: false }, "profile");
+            expectRefuse("planted-refuses-a-fast-tier-document", { ...good, tier: "fast" }, "tier");
+            expectRefuse("planted-refuses-an-ok-false-document", { ...good, ok: false }, "ok");
+            expectRefuse("planted-refuses-missing-library-digests", { ...good, documents: { ...goodDocuments, "go-drive": undefined } }, "digest");
+            let plantedFailures = 0;
+            for (const [name, passed, detail] of planted) {
+              console.log((passed ? "ok   " : "FAIL ") + name + (passed ? "" : " -- " + detail));
+              if (!passed) plantedFailures += 1;
+            }
+            console.log("[planted] " + (planted.length - plantedFailures) + "/" + planted.length + " planted case(s) behaved as required");
+            if (plantedFailures > 0) { console.error("::error::m6b/planted: the head-SHA verifier did not refuse what it must refuse"); process.exit(1); }
+            if (process.env.REQUIRE_EVIDENCE === "1") {
+              if (!fs.existsSync(process.env.EVIDENCE)) {
+                console.error("::error::m6b/evidence: release-evidence.json is absent from the artifact root, so the release rail would read no document (fail closed)");
+                process.exit(1);
+              }
+              const evidence = JSON.parse(fs.readFileSync(process.env.EVIDENCE, "utf8"));
+              const problems = validate(evidence, sha, true);
+              if (problems.length > 0) {
+                for (const problem of problems) console.error("::error::m6b/evidence: " + problem);
+                console.error("::error::m6b/evidence: the release evidence does not satisfy the rail (fail closed)");
+                process.exit(1);
+              }
+              console.log("release evidence: headSha == GITHUB_SHA, profile=e03e04, interactingScenario=true, tier=full, digests match the shipped legs");
+            }
+          '
+
+      - name: Upload reports, comparison, identity, release evidence and teeth logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          # FIXED NAME: a reader (and the scheduled aggregate) finds the evidence without guessing a run-specific
-          # artifact name; the identity file inside it carries the run-specific tree/profile.
+          # FIXED NAME: a reader (and the release verifier, and the scheduled aggregate) finds the evidence without
+          # guessing a run-specific artifact name; release-evidence.json is written at the artifact ROOT because
+          # scripts/release-governance/artifact-evidence.mjs reads exactly that member (EVIDENCE_MEMBER).
           name: combination-journey-evidence
           path: |
             ${{ runner.temp }}/combination-journey/legs/*.json
             ${{ runner.temp }}/combination-journey/legs/*.log
             ${{ runner.temp }}/combination-journey/extension-seed.json
+            ${{ runner.temp }}/combination-journey/release-evidence.json
+            ${{ runner.temp }}/combination-journey/e03e04-kit-selftest.log
           if-no-files-found: warn
           retention-days: 14

@@ -1,9 +1,17 @@
-# The first E03+E04 combined scenario (M0 design)
+# The first E03+E04 combined scenario (implemented)
 
-**Status: design only, not implemented.** This is the M0 exit artefact the plan's *Immediate first task*
-asks for: the first combined browser scenario in which a complex preset, the real pinned 酒馆助手 /
-JS-Slash-Runner, Quick Replies/STscript, regex scripts, nested world books and the 20 locked third-party
-extensions all change **one** recorded provider request, driven through the unmodified pinned frontend.
+**Status: IMPLEMENTED as the `profile=e03e04` form of `.github/workflows/combination-journey.yml`, and the
+RELEASE RAIL reads its root `release-evidence.json` (M6b).** This file began as the M0 design for the plan's
+*Immediate first task*: the first combined browser scenario in which a complex preset, the real pinned
+酒馆助手 / JS-Slash-Runner, Quick Replies/STscript, regex scripts, nested world books and the 20 locked
+third-party extensions all change **one** recorded provider request, driven through the unmodified pinned
+frontend.
+
+Tier status (the workflow header owns the ladder; this paragraph records the design's current reading):
+**full (120 blocks / 22 extensions) is the only release-admissible tier**; **fast (12 / 3) and medium (60 / 10)
+are NARROWED** and cannot support a release claim. All three tiers stage the same three books, and the full
+tier's evidence is what `docs/release-manifest.json` requires of the gate. A scheduled full-tier run is NOT
+wired yet (a schedule would be a nightly rail, not a same-SHA release gate).
 
 It is written against the harness that exists (`tests/browser/combination-journey-probe.mjs`, 1,665 lines,
 and `tests/browser/third-party-extensions-run.mjs`, 591 lines). It does not propose a third fixture/framework;
@@ -102,18 +110,26 @@ names the source, not merely "bodies differ".
 | make both subjects produce identical captures with every knob off | `HARNESS NON-DISCRIMINATING` (rule 50) |
 
 `combination-journey-gate-selftest.mjs` gets one planted case per row and must observe the named assertion go
-red before the scenario is wired into CI.
+red before the scenario is wired into CI. **Wired (M6b):** the workflow executes this self-test as a fail-closed
+step (`Prove the gate has teeth`), prints `[selftest] N/N planted case(s) produced their NAMED red`, and the
+release evidence records the observed N/N — the count is deliberately not hardcoded here. The workflow also
+executes `tests/browser/extensions/e03e04-kit-selftest.mjs` as a bounded fail-closed step (C9), so the kit's
+contract green is evidence in the same run.
 
 ## 7. Tiers and cost
 
-| tier | blocks | extensions | books | where |
-|---|---|---|---|---|
-| fast (per push on harness paths) | 12 | 3 (helper + 2 no-wire-effect) | 1 | branch CI, minutes |
-| medium (dispatch) | 60 | 10 | 2 | dispatch |
-| full (scheduled / release) | 120 | 20 | 3 | scheduled + alpha.16 release gate |
+Every tier stages all three books; only the block count and the extension batch narrow.
+
+| tier | blocks | extensions | books | where | release-admissible |
+|---|---|---|---|---|---|
+| fast | 12 | 3 (Tavern Helper + the first two lock entries) | all 3 | branch CI / cheap dispatch | NO — narrowed |
+| medium | 60 | 10 (2 canaries + 8 lock entries) | all 3 | same-SHA qualification dispatch | NO — narrowed |
+| full | 120 | 22 (2 canaries + the 20 locked extensions) | all 3 | release dispatch `profile=e03e04 tier=full`; a scheduled run is not wired yet | **YES — the only tier the manifest rail accepts** |
 
 The full tier is the only one whose green covers the whole design; a narrowed run states its tier in the
-artifact and never supports a full-coverage claim.
+artifact and never supports a full-coverage claim. The fast tier's "3 extensions" are capability-relevant
+(helper + the first two lock entries), not the design's hoped-for quiet entries: all twenty locked extensions
+declare a wire-relevant capability (`tests/browser/extensions/extension-install-batch.mjs`).
 
 ## 8. What this scenario does NOT claim
 
@@ -130,12 +146,16 @@ artifact and never supports a full-coverage claim.
    `main_api: openai` to remove the Horde model-list fetch, and the HANDOFF checkpoint records that every
    browser probe's page init reached the live network. This scenario may not run at the full tier until the
    egress path is either staged away or recorded as an explicit allowlist with a validated local seam
-   (plan §5).
+   (plan §5). **Status (M6b): STILL OPEN** — `docs/alpha16/source-audit.md` records it as an OPEN residual, and
+   M6b did not change browser egress. A full-tier release dispatch therefore inherits this open prerequisite;
+   it is reported beside the C1 gate rather than hidden by it.
 2. **Bounded settle for the conversation-editing race.** The drive must wait on
    `chat_id_changed` + `uniqueMesids === chat.length` before the first send and compare an ordered
    `domMessageIds` list rather than a raw count (HANDOFF checkpoint), or the duplicate-node race will be
    attributed to the product again.
-3. **Artifact identity.** The comparator's artifact must embed `kind`, `schemaVersion`, `headSha`,
-   `pinnedSha`, `seed`, `tier`, `profile`, the fixture digests and the run/workflow identity; the committed
-   browser comparison artifacts at the baseline carry only `schemaVersion`/`mode` and would be refused by the
-   fail-closed verifier the plan requires.
+3. **Artifact identity. IMPLEMENTED (M6b).** The comparator's artifact carries `kind`, `schemaVersion`,
+   `headSha`, `pinnedSha`, `seed`, `tier`, `profile` and the fixture digests (`legs/identity.json`), and the
+   workflow now also writes the release-evidence document at the artifact root (`release-evidence.json`) with
+   the verdict, guard counts, teeth and kit results and the five leg digests. A SHA-pinned, fail-closed verifier
+   refuses a well-formed but wrong head SHA, and the release verifier
+   (`scripts/release-governance/artifact-evidence.mjs`) checks the same identity against the candidate.
