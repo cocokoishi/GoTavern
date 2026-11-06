@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "stage1Boundary": "Stage 1 validates the backend -> provider transformation only. Browser-side prompt assembly happens in the frontend before the request reaches the route and is NOT covered here; a green provider-wire capture is not evidence of preset-level equivalence.",
+  "targetPath": "makersuite",
+  "backendConfig": [
+    "enableUserAccounts: true",
+    "skipContentCheck: true",
+    "requestProxy:",
+    "  enabled: false",
+    "gemini:",
+    "  apiVersion: v1"
+  ],
+  "secrets": {
+    "api_key_makersuite": [
+      {
+        "id": "probe-id-api_key_makersuite",
+        "value": "synthetic-makersuite-key",
+        "label": "api_key_makersuite",
+        "active": true
+      }
+    ]
+  },
+  "transportRedirect": [
+    {
+      "from": "https://generativelanguage.googleapis.com",
+      "to": "<mock>"
+    }
+  ],
+  "goSeam": {
+    "environmentVariable": "GOTAVERN_MAKERSUITE_CHAT_URL",
+    "value": "<mock>",
+    "pinnedLiteral": "https://generativelanguage.googleapis.com"
+  },
+  "normalization": {
+    "tier2": [
+      {
+        "path": "provider.requests[].headers[Host]",
+        "rule": "value replaced with <mock-authority>",
+        "reason": "The mock listens on an ephemeral loopback port, so the authority is not a property of either backend.",
+        "harnessSource": "tools/mock-provider/main.go: --port 0 asks the kernel for a free port"
+      },
+      {
+        "path": "provider.requests[].url",
+        "rule": "the recorder origin is replaced with <mock>",
+        "reason": "API_MAKERSUITE is a pinned literal, so the GoTavern leg reaches the recorder through its seam and the pinned leg through this transport redirect. The PATH -- including the API VERSION segment this scenario exists to observe -- and the ?key= parameter are untouched and ARE compared.",
+        "pinnedSource": "src/endpoints/backends/chat-completions.js:80 API_MAKERSUITE, :679 const apiVersion = getConfigValue('gemini.apiVersion', 'v1beta'), :730 url = `${apiUrl}/${apiVersion}/models/${model}:${responseType}?key=${apiKey}`"
+      }
+    ],
+    "tier3": [
+      {
+        "path": "providerResponse.headers[x-response-time]",
+        "rule": "excluded from the compared headers",
+        "reason": "It is a measurement of elapsed wall-clock time, so it differs on every run and no backend can match it; the value is a duration, not a contract.",
+        "pinnedSource": "src/server-main.js:108 app.use(responseTime())"
+      }
+    ]
+  },
+  "name": "makersuite-api-version-generate",
+  "purpose": "D-H2, GENERATE URL: `gemini.apiVersion: v1` must drive the MAKERSUITE generate URL, so the provider receives `/v1/models/gemini-2.5-pro:generateContent?key=<key>` rather than the pinned default `/v1beta/...` (chat-completions.js:679 reads `getConfigValue('gemini.apiVersion','v1beta')`, :730 interpolates it into the URL). DISCRIMINATING BECAUSE: the API version lives IN THE RECORDED REQUEST TARGET, and the request target is compared exactly (only the recorder origin is normalized); an implementation that hardcodes the default -- the pre-fix Go behaviour -- records `/v1beta/models/...` and fails the raw-target comparison with the version as the only difference. The opposite mutation (hardcoding `v1`) is caught by the existing default-config scenario makersuite-nonstream, which records `/v1beta/models/...` with the same model and no config line, so the pair discriminates in both directions. The unit-level gate is TestGoogleChatAPIVersionFollowsTheConfig.",
+  "request": {
+    "path": "/api/backends/chat-completions/generate",
+    "body": {
+      "chat_completion_source": "makersuite",
+      "use_sysprompt": true,
+      "messages": [
+        {
+          "role": "system",
+          "content": "probe system marker"
+        },
+        {
+          "role": "user",
+          "content": "probe user marker"
+        }
+      ],
+      "model": "gemini-2.5-pro",
+      "max_tokens": 128,
+      "temperature": 0.4,
+      "top_p": 0.8,
+      "stream": false
+    }
+  },
+  "mock": {
+    "responses": [
+      {
+        "status": 200,
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"mock gemini reply\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":9,\"candidatesTokenCount\":5,\"totalTokenCount\":14}}"
+      }
+    ]
+  }
+}
