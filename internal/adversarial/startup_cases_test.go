@@ -231,8 +231,12 @@ func startupCases(t *testing.T) []caseSpec {
 			//       case then requires the boot to have been influenced by it (see `exercised` below);
 			//   (b) a boot that succeeds must state WHERE it put the data, and the directory it used must
 			//       exist -- there is no assertion-free success branch;
-			//   (c) the failure branch keeps its original reading: created in one base and used in the other
-			//       is the split that cannot succeed.
+			//   (c) the failure branch keeps its original reading AND adds one: created in one base and used
+			//       in the other is the split that cannot succeed, and an unlucky listener PORT may not
+			//       excuse it. Data startup runs before the listeners, so the split is still on disk when a
+			//       listener precondition fails; the split is judged FIRST and only an unsplit, fully
+			//       observed boot turns the port into a harness/precondition outcome
+			//       (judgeRelativeDataRootFailure, Lane CI run 42162940621).
 			//
 			// The earlier work-root note still holds and is kept: the case needs a work root nobody else has
 			// touched, because run 40427159678 recorded a violation that the next commit's run
@@ -293,16 +297,13 @@ func startupCases(t *testing.T) []caseSpec {
 					}
 					return okResult("parsed %s and created %s under the launch directory", configPath, createdInWork)
 				}
-				// (c) the failure branch, unchanged in substance: a boot that created one base and died using
-				// the other is the split this invariant forbids.
-				if created && !used {
-					return violation("boot created %s and then failed using %s, which it never created: %v", createdInWork, usedInInstall, startErr)
-				}
-				if !strings.Contains(startErr.Error(), "data") && !strings.Contains(startErr.Error(), "cookie") &&
-					!strings.Contains(startErr.Error(), "secret") {
-					return violation("the failure does not name the data root: %v", startErr)
-				}
-				return okResult("refused with %v", startErr)
+				// (c) the failure branch is the extracted, tested judge. The created/used split observed
+				// on disk is judged FIRST: data startup runs before the listeners (internal/app/server.go
+				// traces "data-startup" and only then "listeners"), so a boot that died on a port has
+				// ALREADY rendered the dataRoot into one base. Only an unsplit boot whose planted config
+				// still carries its marker, and whose only failure is the listener, is a harness/host
+				// precondition rather than a product verdict (AGENTS rule 10; Lane CI 42162940621).
+				return judgeRelativeDataRootFailure(createdInWork, usedInInstall, created, used, markerSurvived, startErr)
 			},
 		},
 		{
@@ -548,4 +549,44 @@ func startupCases(t *testing.T) []caseSpec {
 			},
 		},
 	}
+}
+
+// judgeRelativeDataRootFailure is the FAILURE branch of
+// boot.foreign-cwd-relative-data-root. It is extracted so the classification can
+// be tested without booting the product, because the precondition/verdict split
+// is exactly the defect Lane CI 42162940621 exposed.
+//
+// ORDER IS THE FIX. Data startup runs BEFORE the listeners are bound
+// (internal/app/server.go traces "data-startup" and only then "listeners"), so a
+// boot that died because its port was taken had ALREADY rendered the relative
+// dataRoot into one of the two bases. The created/used split is therefore still
+// observable on disk and must be judged FIRST: an unlucky port may not excuse
+// the split this invariant forbids. Only after the split and the
+// input-faithfulness observations hold does a listener precondition get
+// classified as the harness/host condition it is -- notApplicable, never a pass
+// and never a product verdict (AGENTS verification rule 10).
+func judgeRelativeDataRootFailure(createdInWork, usedInInstall string, created, used, markerSurvived bool, startErr error) caseResult {
+	if created && !used {
+		return violation("boot created %s and then failed using %s, which it never created: %v", createdInWork, usedInInstall, startErr)
+	}
+	if created && used {
+		return violation("the boot created BOTH %s (the launch-directory rendering) and %s (the install-root rendering) of one relative dataRoot: a single `dataRoot` value produced two trees: %v", createdInWork, usedInInstall, startErr)
+	}
+	if listenerPreconditionFailure(startErr) {
+		if !markerSurvived {
+			return violation("a listener precondition failed and the config this case planted is gone or was rewritten without its marker, so the case cannot say its dataRoot was ever parsed: %v", startErr)
+		}
+		if !created && !used {
+			return violation("a listener precondition failed and neither %s nor %s exists: the relative dataRoot did not reach the resolution at all, so the case cannot judge its central input: %v", createdInWork, usedInInstall, startErr)
+		}
+		return notApplicable("a listener precondition failed before the boot could finish (%v); the data-root split was still judged from disk (created=%t used=%t), so the invariant was not violated. This is the harness/host port, not a product verdict (AGENTS rule 10; Lane CI 42162940621).", startErr, created, used)
+	}
+	// Exactly one tree existed and the failure is not a listener precondition:
+	// the original reading is unchanged -- a failure that does not name the data
+	// root is a violation.
+	if !strings.Contains(startErr.Error(), "data") && !strings.Contains(startErr.Error(), "cookie") &&
+		!strings.Contains(startErr.Error(), "secret") {
+		return violation("the failure does not name the data root: %v", startErr)
+	}
+	return okResult("refused with %v", startErr)
 }
