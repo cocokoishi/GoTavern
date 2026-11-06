@@ -380,8 +380,9 @@ directory or a stray destination file fails the command instead of being reporte
 
 ### Running it twice
 
-A second migration into a destination that already holds `config.yaml` or `data/` **refuses**, naming
-what is in the way. It does not merge and it does not silently overwrite. `--force` moves that state to
+A second migration into a destination that already holds `config.yaml`, `data/`, or (when the source
+carries them) `certs/` or the global third-party extension overlay **refuses**, naming what is in the
+way. It does not merge and it does not silently overwrite. `--force` moves those existing paths to
 `<dest>/.migrate-backup/` first and then reproduces the tree; a second `--force` refuses while that
 backup exists, so no forced run quietly discards the previous destination.
 

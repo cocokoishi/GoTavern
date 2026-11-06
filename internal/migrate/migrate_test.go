@@ -16,6 +16,10 @@ package migrate
 //   6. unknown config keys survive byte for byte     TestConfigKeepsUnknownKeysAndChangesOnlyDataRoot
 //   7. symlinks refused loudly, nothing written      TestSymlinksAreRefusedAndNothingIsWritten
 //   8. every documented form, and named refusals     TestDocumentedForms / TestSourceRefusals
+//   9. the destination certs/ and third-party
+//      overlay are part of the --force backup set    TestForcedMigrationMovesDestinationCertsAndOverlayIntoTheBackup
+//                                                    TestMigrationRefusesDestinationCertsAndOverlayWithoutForce
+//                                                    TestDestinationCertsAreNotAConflictWhenTheSourceHasNone
 
 import (
 	"bytes"
@@ -602,6 +606,196 @@ func TestSourceRefusals(t *testing.T) {
 				t.Fatal("a refused migration wrote into the source")
 			}
 		})
+	}
+}
+
+// ---- 9. destination certs/ and the third-party overlay are conflicts too -------------------
+//
+// WHY THIS SECTION EXISTS (AGENTS rule 28; M0 hypothesis B-H3). `Run` copies certs/ and the global
+// extension overlay into the destination when the source carries them, but the conflict set used to name
+// only config.yaml and data/. A destination that already had certs/ or the overlay (for example a
+// previous install whose config/data had been removed, or a partial earlier migration) was therefore
+// overwritten
+// in place under --force while the command's own promise is that --force MOVES the existing state to
+// .migrate-backup/ first. The data-safety property is that every pre-existing destination byte is in the
+// backup: the overwritten bytes matter, not the directory entry.
+//
+// These tests use COLLIDING paths (a destination file at the same relative path as a source file), so
+// they fail on the overwrite itself. A destination-only path that the source does not have is not lost by
+// copyTree and is asserted separately, because "the source has no file here" is not a data-safety claim.
+
+func destinationTreesWithCollisions(t *testing.T, dest string) (snapshot []treeEntry) {
+	t.Helper()
+	// The colliding paths already exist in buildSource's tree: certs/cert.pem and
+	// <overlay>/probe-ext/manifest.json. The destination-only paths are the extra state a real
+	// destination may carry and must ALSO be moved aside, because --force replaces the tree rather than
+	// merging into it.
+	writeFile(t, filepath.Join(dest, DestCertsName, "cert.pem"), "destination-cert-bytes-must-survive")
+	writeFile(t, filepath.Join(dest, DestCertsName, "server.pem"), "destination-only-cert-must-survive")
+	writeFile(t, filepath.Join(dest, filepath.FromSlash(DestOverlayPath), "probe-ext", "manifest.json"),
+		`{"destination_overlay":"must-survive"}`)
+	writeFile(t, filepath.Join(dest, filepath.FromSlash(DestOverlayPath), "x", "index.js"),
+		"destination-only-overlay-must-survive")
+	return snapshotTree(t, dest)
+}
+
+// TestForcedMigrationMovesDestinationCertsAndOverlayIntoTheBackup is the data-safety half of B-H3: the
+// pre-existing destination certs/ and third-party overlay must be MOVED to .migrate-backup/, byte for
+// byte, and the destination must be the source's trees rather than a merge.
+func TestForcedMigrationMovesDestinationCertsAndOverlayIntoTheBackup(t *testing.T) {
+	source := buildSource(t)
+	dest := filepath.Join(t.TempDir(), "gotavern")
+	destinationTreesWithCollisions(t, dest)
+	backup := filepath.Join(dest, DestBackupName)
+
+	// CAPTURE THE OVERWRITE EVIDENCE ON THE UNFIXED TREE. Run returns an error there (the destination's
+	// extra cert fails the byte-for-byte verification AFTER the copy already replaced the colliding one),
+	// so the failure has to report what the destination holds now, not only the error text: that is the
+	// data loss.
+	var output bytes.Buffer
+	options, parseErr := ParseOptions([]string{"--from", source, "--dest", dest, "--force"})
+	if parseErr != nil {
+		t.Fatal(parseErr)
+	}
+	runErr := Run(options, &output)
+	if runErr != nil {
+		overwrittenCert, _ := os.ReadFile(filepath.Join(dest, DestCertsName, "cert.pem"))
+		overwrittenOverlay, _ := os.ReadFile(filepath.Join(dest, filepath.FromSlash(DestOverlayPath), "probe-ext", "manifest.json"))
+		_, backupErr := os.Stat(backup)
+		t.Fatalf("the forced migration failed (%v); the pre-existing destination certs/cert.pem was %q and now holds %q, the overlay manifest was %q and now holds %q, and .migrate-backup exists=%v",
+			runErr,
+			"destination-cert-bytes-must-survive", overwrittenCert,
+			`{"destination_overlay":"must-survive"}`, overwrittenOverlay,
+			backupErr == nil)
+	}
+
+	// The plan must NAME the paths it is about to move, so a user reading --dry-run sees the same set the
+	// real run backs up.
+	for _, wanted := range []string{"destination conflicts:", DestCertsName, DestOverlayPath} {
+		if !strings.Contains(output.String(), wanted) {
+			t.Fatalf("the forced run's plan does not name %q among the destination conflicts:\n%s", wanted, output.String())
+		}
+	}
+
+	// 1. The destination got the source's bytes (the migration actually happened).
+	sourceCert, err := os.ReadFile(filepath.Join(source, DestCertsName, "cert.pem"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	migratedCert, err := os.ReadFile(filepath.Join(dest, DestCertsName, "cert.pem"))
+	if err != nil {
+		t.Fatalf("the destination has no certs/cert.pem after a forced migration: %v", err)
+	}
+	if string(migratedCert) != string(sourceCert) {
+		t.Fatalf("the destination certs/cert.pem is not the source's: got %q want %q", migratedCert, sourceCert)
+	}
+
+	// 2. Every pre-existing destination byte is in the backup at its relative path. This is the assertion
+	// that fails on the unfixed tree: the colliding cert was replaced in place and nothing was moved.
+	for _, preserved := range []struct {
+		relative string
+		body     string
+	}{
+		{filepath.Join(DestCertsName, "cert.pem"), "destination-cert-bytes-must-survive"},
+		{filepath.Join(DestCertsName, "server.pem"), "destination-only-cert-must-survive"},
+		{filepath.Join(filepath.FromSlash(DestOverlayPath), "probe-ext", "manifest.json"), `{"destination_overlay":"must-survive"}`},
+		{filepath.Join(filepath.FromSlash(DestOverlayPath), "x", "index.js"), "destination-only-overlay-must-survive"},
+	} {
+		got, readErr := os.ReadFile(filepath.Join(backup, preserved.relative))
+		if readErr != nil {
+			overwritten, _ := os.ReadFile(filepath.Join(dest, preserved.relative))
+			t.Fatalf("the pre-existing destination %s was not moved into %s (%v); the destination now holds %q instead of %q",
+				preserved.relative, DestBackupName, readErr, overwritten, preserved.body)
+		}
+		if string(got) != preserved.body {
+			t.Fatalf("the backup's %s is %q, want the pre-existing bytes %q", preserved.relative, got, preserved.body)
+		}
+	}
+
+	// 3. The replaced trees are REPLACED, not merged: a destination-only file under them is not left
+	// behind in the destination after --force (it is in the backup, asserted above).
+	for _, replaced := range []string{
+		filepath.Join(DestCertsName, "server.pem"),
+		filepath.Join(filepath.FromSlash(DestOverlayPath), "x", "index.js"),
+	} {
+		if _, statErr := os.Stat(filepath.Join(dest, replaced)); !errors.Is(statErr, os.ErrNotExist) {
+			t.Fatalf("the forced migration left the pre-existing %s in the destination instead of moving it aside", replaced)
+		}
+	}
+
+	// 4. The source's overlay arrived.
+	sourceOverlay, err := os.ReadFile(filepath.Join(source, filepath.FromSlash(DestOverlayPath), "probe-ext", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	migratedOverlay, err := os.ReadFile(filepath.Join(dest, filepath.FromSlash(DestOverlayPath), "probe-ext", "manifest.json"))
+	if err != nil {
+		t.Fatalf("the destination overlay was not migrated: %v", err)
+	}
+	if string(migratedOverlay) != string(sourceOverlay) {
+		t.Fatalf("the destination overlay is not the source's: got %q want %q", migratedOverlay, sourceOverlay)
+	}
+}
+
+// TestMigrationRefusesDestinationCertsAndOverlayWithoutForce is the refusal half: the same destination
+// without --force must be refused by name and left byte-identical, because a refusal that still wrote
+// would be the same data loss with a louder message.
+func TestMigrationRefusesDestinationCertsAndOverlayWithoutForce(t *testing.T) {
+	source := buildSource(t)
+	dest := filepath.Join(t.TempDir(), "gotavern")
+	before := destinationTreesWithCollisions(t, dest)
+
+	err := migrateErr(t, "--from", source, "--dest", dest)
+	if err == nil {
+		collidingCert, _ := os.ReadFile(filepath.Join(dest, DestCertsName, "cert.pem"))
+		t.Fatalf("a migration into a destination that already holds %s/ and the third-party overlay succeeded and replaced its bytes (certs/cert.pem now holds %q); the conflict set must name those destination paths",
+			DestCertsName, collidingCert)
+	}
+	if !IsRefusal(err) {
+		overwrittenCert, _ := os.ReadFile(filepath.Join(dest, DestCertsName, "cert.pem"))
+		_, configWritten := os.Stat(filepath.Join(dest, DestConfigName))
+		t.Fatalf("the destination conflict did not produce a refusal naming the paths: %v; the run had already replaced certs/cert.pem (now %q) and wrote config.yaml=%v, which is the data loss this conflict set must prevent",
+			err, overwrittenCert, configWritten == nil)
+	}
+	for _, wanted := range []string{DestCertsName, DestOverlayPath, "--force"} {
+		if !strings.Contains(err.Error(), wanted) {
+			t.Fatalf("the refusal does not mention %q: %v", wanted, err)
+		}
+	}
+	if _, statErr := os.Stat(filepath.Join(dest, DestConfigName)); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatal("a refused migration wrote the destination config.yaml")
+	}
+	if after := snapshotTree(t, dest); !equalTrees(before, after) {
+		t.Fatalf("a refused migration modified the destination:\n%s", describeTreeDifference(before, after))
+	}
+}
+
+// TestDestinationCertsAreNotAConflictWhenTheSourceHasNone guards the fix in the other direction: a
+// destination certs/ that the source cannot replace is not a conflict, so an ordinary migration still
+// succeeds and leaves it alone. Over-refusing would make the command unusable for a destination that
+// merely has certs and no runtime.
+func TestDestinationCertsAreNotAConflictWhenTheSourceHasNone(t *testing.T) {
+	source := buildSource(t)
+	if err := os.RemoveAll(filepath.Join(source, DestCertsName)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(source, filepath.FromSlash(DestOverlayPath))); err != nil {
+		t.Fatal(err)
+	}
+	dest := filepath.Join(t.TempDir(), "gotavern")
+	writeFile(t, filepath.Join(dest, DestCertsName, "server.pem"), "destination-only-cert-must-survive")
+
+	runMigrate(t, "--from", source, "--dest", dest)
+
+	body, err := os.ReadFile(filepath.Join(dest, DestCertsName, "server.pem"))
+	if err != nil {
+		t.Fatalf("a migration whose source has no certs/ removed the destination's: %v", err)
+	}
+	if string(body) != "destination-only-cert-must-survive" {
+		t.Fatalf("the destination's certs/server.pem changed to %q although the source has no certs/", body)
+	}
+	if _, err := os.Stat(filepath.Join(dest, DestBackupName)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("a migration with no destination conflict created a migration backup")
 	}
 }
 

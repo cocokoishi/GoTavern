@@ -101,8 +101,9 @@ const usageText = `Usage:
 Copies a SillyTavern runtime into a GoTavern installation. The SOURCE IS NEVER MODIFIED.
 The destination gets config.yaml (with only its dataRoot changed), data/, certs/ and the global
 third-party extension overlay when the source has them. Node server plugins are REPORTED, not copied.
-Symlinks in the source are refused. A destination that already holds a runtime is refused unless
---force is given, which moves the existing state to <dest>/.migrate-backup/ first.`
+Symlinks in the source are refused. A destination that already holds config.yaml, data/, or (when the
+source carries them) certs/ or the global third-party extension overlay is refused unless --force is
+given, which moves those existing paths to <dest>/.migrate-backup/ first.`
 
 // UsageText returns the documented migrate usage block. It is exported so `gotavern migrate --help`
 // prints exactly the text the parser's own refusals quote, instead of keeping a second copy in main.
@@ -201,7 +202,15 @@ func Run(options Options, stdout io.Writer) error {
 			return fmt.Errorf("create the migration backup directory: %w", err)
 		}
 		for _, conflict := range plan.Conflicts {
-			if err := os.Rename(filepath.Join(plan.DestDir, conflict), filepath.Join(backup, conflict)); err != nil {
+			// A conflict can be NESTED: the global extension overlay is
+			// public/scripts/extensions/third-party, and os.Rename does not create parents. The backup
+			// parent directories are created first so --force works for every conflict path, not only
+			// the flat config.yaml and data/ names.
+			backupPath := filepath.Join(backup, filepath.FromSlash(conflict))
+			if err := os.MkdirAll(filepath.Dir(backupPath), 0o755); err != nil {
+				return fmt.Errorf("create the backup directory for the existing destination %s: %w", conflict, err)
+			}
+			if err := os.Rename(filepath.Join(plan.DestDir, filepath.FromSlash(conflict)), backupPath); err != nil {
 				return fmt.Errorf("move the existing destination %s aside: %w", conflict, err)
 			}
 		}
@@ -429,8 +438,21 @@ func buildPlan(options Options) (Plan, error) {
 		return Plan{}, err
 	}
 
-	for _, existing := range []string{DestConfigName, DestDataName} {
-		if _, statErr := os.Lstat(filepath.Join(plan.DestDir, existing)); statErr == nil {
+	// DESTINATION CONFLICTS ARE EVERY PATH THIS MIGRATION WOULD REPLACE, which is what makes --force
+	// mean "move the existing state aside" instead of "replace it in place" (AGENTS rule 28: existing
+	// user data wins). config.yaml and data/ are always replaced. certs/ and the global extension
+	// overlay are replaced only when the source carries them -- the copies in Run are conditional on
+	// CopyCerts/CopyOverlay -- so they are conflicts exactly then. Naming them here also puts them in
+	// the dry-run plan, so the report a user approves is the set the real run backs up.
+	replacements := []string{DestConfigName, DestDataName}
+	if plan.CopyCerts {
+		replacements = append(replacements, DestCertsName)
+	}
+	if plan.CopyOverlay {
+		replacements = append(replacements, DestOverlayPath)
+	}
+	for _, existing := range replacements {
+		if _, statErr := os.Lstat(filepath.Join(plan.DestDir, filepath.FromSlash(existing))); statErr == nil {
 			plan.Conflicts = append(plan.Conflicts, existing)
 		}
 	}
