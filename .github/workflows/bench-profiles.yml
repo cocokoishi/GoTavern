@@ -39,6 +39,11 @@ on:
         description: 'Benchmark rounds per benchmark for the comparison (median is taken)'
         required: false
         default: '3'
+      update_baseline:
+        description: 'DELIBERATE baseline regeneration: rewrite tests/perf/bench-baseline.txt from this run and upload it as bench-baseline-candidate. Use ONLY when the measured observation legitimately changed (a benchmark input or subject changed, or a real product change landed) and commit the downloaded candidate together with its raw run; a normal comparison run at the same SHA must then follow. The script refuses a dirty tree and requires the full benchmark set.'
+        required: false
+        type: boolean
+        default: false
   schedule:
     # Tuesdays, 06:41 UTC: off-peak and a non-round minute, for the same reason smoke-metrics.yml uses one.
     - cron: '41 6 * * 2'
@@ -85,12 +90,23 @@ jobs:
       # The script builds the test binary once, then uses it for the comparison, the profile capture and the
       # trace, so every artifact in this run describes the same binary. Exits 0/1/2/3 as documented in the
       # script header; the upload below runs on failure too, because a red run's profiles are the point.
+      #
+      # BASELINE REGENERATION IS A SEPARATE, DELIBERATE MODE (inputs.update_baseline), never the default: the
+      # script refuses a dirty tree, requires the full set, records the current host facts and writes both
+      # baseline files into the checkout. The candidate is UPLOADED, never committed by CI -- a maintainer
+      # downloads it, commits it together with the raw run, and then runs a normal comparison at the same SHA
+      # so the green comparison is the evidence that the regenerated baseline describes the tree it names.
       - name: Run benchmarks, capture profiles, compare to the committed baseline
         env:
           ROUNDS: ${{ inputs.rounds || '3' }}
         run: |
           set -eu
-          node scripts/bench-profiles.mjs --rounds "${ROUNDS}" --out-dir tests/perf/out
+          if [ "${{ inputs.update_baseline }}" = "true" ]; then
+            echo "bench-profiles: UPDATE MODE -- rewriting the committed baseline from this run"
+            node scripts/bench-profiles.mjs --update-baseline --rounds "${ROUNDS}" --out-dir tests/perf/out
+          else
+            node scripts/bench-profiles.mjs --rounds "${ROUNDS}" --out-dir tests/perf/out
+          fi
 
       - name: Upload the raw run, profiles, trace and comparison
         if: always()
@@ -100,6 +116,17 @@ jobs:
           path: tests/perf/out/**
           retention-days: 30
           if-no-files-found: warn
+
+      - name: Upload the regenerated baseline candidate
+        if: inputs.update_baseline
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-baseline-candidate
+          path: |
+            tests/perf/bench-baseline.txt
+            tests/perf/bench-baseline-raw.txt
+          retention-days: 30
+          if-no-files-found: error
 
       - name: Print the comparison and the top profile frames for the job log
         if: always()
