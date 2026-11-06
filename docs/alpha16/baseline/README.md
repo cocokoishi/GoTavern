@@ -97,7 +97,7 @@ The artifacts are the record; the numbers below are a summary of the artifact, n
 | record | run | result |
 |---|---|---|
 | `GoTavern bench profiles` | **42160109620** (`workflow_dispatch` at `c8472c1`, rounds=3) | **FAILURE** — job `bench-profiles-linux-amd64`, step `Run benchmarks, capture profiles, compare to the committed baseline` |
-| `GoTavern smoke metrics` | **42160114658** (`workflow_dispatch` at `c8472c1`, requests=50) | `measure-linux-amd64` completed **success**; `paired-linux-amd64` still running at the time of writing |
+| `GoTavern smoke metrics` | **42160114658** (`workflow_dispatch` at `c8472c1`, requests=50) | `measure-linux-amd64` **success**; `paired-linux-amd64` **success**; `smoke-metrics.json` `verdict.passed: true` |
 
 The bench failure is eight comparison failures (eight rows, two metrics on three rows plus two ns/op rows):
 
@@ -132,3 +132,42 @@ without a post-cache bench run, and `GoTavern bench profiles` is not one of the 
    reported, not asserted, and its first same-SHA job completed green.
 
 Lead fragment: `docs/alpha16/audit/lead.json` hypothesis `L-H1`.
+
+## 8. The product record, as measured (smoke metrics 42160114658)
+
+Artifact: `smoke-metrics.json` (`host.sha = c8472c1…`, `runnerImage ubuntu26`, `runnerImageVersion
+20261101.186.1`, 4 vCPU, 16.8 GB, node v24.22.2) and `q22-paired-benchmark.json` from the same run. These
+numbers are quoted from the artifacts; the artifacts are the record.
+
+**Fresh-install / boot / latency (single subject, `measure-linux-amd64`):**
+
+| metric | value |
+|---|---|
+| cold start → `GET /version` 200 (empty data root, no config) | **917.25 ms** (includes the first-run seeding of 203 files / 16,169,121 bytes) |
+| warm start → `GET /version` 200 (same root, after SIGTERM) | **29.22 ms** |
+| `GET /version` | median **0.611 ms**, p95 **1.715 ms**, first **1.999 ms** |
+| `GET /` (734,837-byte shell) | median **6.457 ms**, p95 **14.274 ms** |
+| RSS after cold boot / warm boot | **38,215,680 B** / **18,309,120 B** |
+| install staging footprint | 27 files / 98,910,141 B; warm−cold seeded delta 0 |
+
+**Paired Node-vs-GoTavern (3 alternating rounds, `paired-linux-amd64`, medians):**
+
+| metric | pinned Node | GoTavern |
+|---|---|---|
+| boot | 13,685 ms | **161 ms** |
+| steady RSS | 1,129,486,336 B | **40,527,872 B** |
+| `GET /version` median | 54.919 ms | **0.379 ms** |
+| `GET /version` p95 | 56.883 ms | **0.516 ms** |
+| `GET /` median | 12.810 ms | **8.026 ms** |
+| 10-minute soak, RSS drift | −574,287,872 B | **−1,982,464 B** |
+| 10-minute soak, p95 drift | −8.415 ms | **+0.502 ms** |
+
+Two honest notes: (a) the cold 917 ms is not the q22 `bootMs` measure — it includes the fresh-install seeding
+that a real first run pays, which is why the paired record (an already-seeded root per round) reports 161 ms;
+(b) the soak is **10 minutes**, not the 30–60 minutes the plan's M5 asks for, so the long-run requirement is
+still `CI-PENDING` (§4 item 3). The paired record's own notes say a paired median on a shared runner is
+"evidence for a report, not a release gate" — consistent with L/E-H2, which records that the smoke-metrics
+release gate asserts no performance number.
+
+**Baseline status:** the product half is recorded and green; the engineering half is still red until the
+committed bench baseline is deliberately regenerated (§7).
