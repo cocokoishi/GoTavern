@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "lane": "Lead",
+  "title": "program scaffolding, generated source graph, M0 baseline record, cross-cutting findings",
+  "commit": "c8472c14aef63e78a6249e29aae2ce95fc9c8ce9",
+  "note": "The Lead fragment records what the Lead verified itself. Lane fragments (a-e) hold the domain audits; ownership-map.json is the union assembled after all lanes close. 'commit' is the tree read for the generated graph; the source-graph was generated at c256f21 and the Go tree is identical at HEAD (verified with git diff --stat f1396ce..HEAD -- '*.go' ':!*_test.go' ':!tools/alpha16-graph', empty).",
+  "filesInspected": [
+    {"path": "docs/alpha16-agent-execution-plan.md", "kind": "doc", "depth": "deep", "why": "the program plan being executed"},
+    {"path": "docs/alpha16/README.md", "kind": "doc", "depth": "deep", "why": "the M0 contract written by this lane"},
+    {"path": "docs/alpha16/source-graph.json", "kind": "doc", "depth": "mechanical", "why": "generated AST facts for 603 Go files"},
+    {"path": "tools/alpha16-graph/main.go", "kind": "driver", "depth": "deep", "why": "the generator of the graph"},
+    {"path": "GOAL.md", "kind": "doc", "depth": "deep", "why": "locked goal, section 1-16"},
+    {"path": "HANDOFF.md", "kind": "doc", "depth": "deep", "why": "latest checkpoint, honest boundaries"},
+    {"path": "docs/goal-scorecard.md", "kind": "doc", "depth": "deep", "why": "the evidence ledger, Q1-Q22"},
+    {"path": "docs/development-loop.md", "kind": "doc", "depth": "deep", "why": "CI-first loop and tiers"},
+    {"path": "docs/release-manifest.json", "kind": "doc", "depth": "deep", "why": "the 13 required same-SHA gates"},
+    {"path": "tests/perf/bench-baseline.txt", "kind": "doc", "depth": "deep", "why": "the committed M2 benchmark baseline whose staleness is L-H1"},
+    {"path": "scripts/bench-profiles.mjs", "kind": "driver", "depth": "deep", "why": "the comparator and host-fact guard"},
+    {"path": "internal/server/settings_save.go", "kind": "production", "depth": "deep", "why": "settings save mutex and backup timer"},
+    {"path": "internal/server/settings_cache.go", "kind": "production", "depth": "deep", "why": "identity-keyed settings cache contract"},
+    {"path": "internal/server/characters_card_cache.go", "kind": "production", "depth": "deep", "why": "identity-keyed card cache contract"},
+    {"path": "internal/server/pinned_chat_config.go", "kind": "production", "depth": "deep", "why": "chat config resolution (verified D-H1)"},
+    {"path": "internal/server/claude_chat.go", "kind": "production", "depth": "deep", "why": "adaptive thinking resolution (verified D-H3)"},
+    {"path": "internal/server/google_chat.go", "kind": "production", "depth": "deep", "why": "gemini apiVersion constant (verified D-H2)"},
+    {"path": "internal/migrate/migrate.go", "kind": "production", "depth": "deep", "why": "migration conflict/backup matrix (verified B-H3)"},
+    {"path": "internal/server/http.go", "kind": "production", "depth": "deep", "why": "HTTPHandlerOptions flat struct and translation"},
+    {"path": "tests/browser/combination-journey-probe.mjs", "kind": "driver", "depth": "deep", "why": "the E03+E04 vehicle"},
+    {"path": "tests/browser/extensions/combination-journey-kit.mjs", "kind": "driver", "depth": "mechanical", "why": "staging kit for the journey"},
+    {"path": "tests/browser/third-party-extensions-run.mjs", "kind": "driver", "depth": "mechanical", "why": "the 20-extension lifecycle driver"},
+    {"path": "internal/fixtures/documents_test.go", "kind": "test", "depth": "deep", "why": "the document gate that caught the plan-document pin citation"},
+    {"path": "tests/perf/README.md", "kind": "doc", "depth": "deep", "why": "the benchmark harness rules"}
+  ],
+  "packages": [
+    {"path": "internal/server", "role": "HTTP surface, persistence, provider adapters", "entryPoints": ["internal/server/http.go:140"], "stateOwners": ["accountRuntime internal/server/accounts.go:85", "settingsSaveMu internal/server/settings_save.go:50", "userMetadataCache internal/server/settings_cache.go:94", "characterCardCache internal/server/characters_card_cache.go:110"], "outbound": ["internal/outbound"], "writablePaths": ["<dataRoot>/<handle>/**"], "failRetry": "per-route"},
+    {"path": "internal/startup", "role": "startup mutations and the shared atomic-write/lock core", "entryPoints": ["internal/startup/data_startup.go:61"], "stateOwners": ["data-root content flock internal/startup/content.go:398", "storage flock internal/startup/storage.go:430"], "outbound": [], "writablePaths": ["<dataRoot>/**", "<install>/public/**"], "failRetry": "atomicReplace + bounded fsretry"},
+    {"path": "internal/app", "role": "boot composition, listener family, shutdown", "entryPoints": ["internal/app/server.go:130"], "stateOwners": ["boot deadline internal/lockacquire/lockacquire.go:41"], "outbound": [], "writablePaths": [], "failRetry": "bounded waits with named errors"},
+    {"path": "internal/commandline", "role": "pinned CLI/config resolution into options", "entryPoints": ["internal/commandline/paths.go:101"], "stateOwners": [], "outbound": [], "writablePaths": ["<configPath>"], "failRetry": "refuse by name"},
+    {"path": "internal/migrate", "role": "copy an existing SillyTavern runtime into a GoTavern install", "entryPoints": ["internal/migrate/migrate.go:180"], "stateOwners": [], "outbound": [], "writablePaths": ["<dest>/config.yaml", "<dest>/data/**", "<dest>/certs/**", "<dest>/public/scripts/extensions/third-party/**"], "failRetry": "plan-refuse by name, copy verified"}
+  ],
+  "requestPath": [
+    {"stage": "cli-parse", "source": "cmd/gotavern/main.go:70", "notes": "subcommand dispatch; config init before boot"},
+    {"stage": "config-resolution", "source": "internal/commandline/paths.go:101-115", "notes": "--configPath resolves and configinit runs on it; an explicit path wins over the install-root chdir (internal/app/server.go:158-173)"},
+    {"stage": "config-init-mutation", "source": "internal/configinit/config.go:77-139", "notes": "creation, legacy-key migration, default insertion under the config flock"},
+    {"stage": "boot-locks", "source": "internal/app/server.go:138-173", "notes": "nested boot budget: config -> storage -> content, bounded by lockacquire"},
+    {"stage": "startup-mutations", "source": "internal/startup/data_startup.go:61", "notes": "data dirs, seeding, migrations; per-user failures collected as diagnostics"},
+    {"stage": "handler-options", "source": "internal/server/http.go:140-240", "notes": "one translation function from parsed config to a ~60-field flat HTTPHandlerOptions; nil-vs-false and JS truthiness encoded in optionBoolean/optionNumber"},
+    {"stage": "middleware-order", "source": "internal/server/http.go (mux composition) and cors.go/basic_auth.go/host_whitelist.go/csrf_session.go/access_log.go/panic_boundary.go", "notes": "pinned middleware order; Lane A owns the citation list"},
+    {"stage": "route-dispatch", "source": "internal/server/routes_registry.go:1-107", "notes": "explicit route-domain table; mounted routers registered from it"},
+    {"stage": "account-session-csrf", "source": "internal/server/accounts.go:85-103; csrf_session.go", "notes": "accountRuntime owns auth/recovery/settings-save/cachebuster state; session cookie and CSRF gate before handlers"},
+    {"stage": "handler-write", "source": "internal/startup/user_content_file.go:13-70", "notes": "per-user locked, containment-checked atomic update; call sites are the writer matrix (Lane B)"},
+    {"stage": "provider-call", "source": "internal/server/chat_completions.go and internal/outbound", "notes": "browser body decode -> pinned plan -> provider request; byte-oriented capture (Lane D)"},
+    {"stage": "response", "source": "internal/httpx and internal/server/compression.go", "notes": "response writer conventions, weak ETag, compression"}
+  ],
+  "writers": [],
+  "concurrency": [],
+  "caches": [],
+  "hypotheses": [
+    {
+      "id": "L-H1",
+      "title": "The committed M2/M5 benchmark baseline is stale: the bench gate is red at the program base SHA on unchanged product code, with 8 comparison failures whose magnitudes are the alpha.15 card-cache win",
+      "classification": "confirmed-defect",
+      "surface": "performance",
+      "impact": "performance",
+      "evidence": [
+        "GoTavern bench profiles run 42160109620 (workflow_dispatch at c8472c1), job bench-profiles-linux-amd64, step 'Run benchmarks, capture profiles, compare to the committed baseline' -> FAILURE",
+        "the run's comparison table: BenchmarkCharactersAllScale/cards_100_640KB_image ns/op -84.3% / B/op -78.4%; cards_100_128KB_image -72.8% / -57.0%; cards_1000_32KB_image -64.6% / -34.7%; ChatCompletionAssemble/scaled_1MB -63.5%; ChatCompletionMarshal/scaled_1MB -66.4%",
+        "tests/perf/bench-baseline.txt header: recordedAt 2026-11-04T03:56:01Z, commit ed75eee (2026-11-03T19:55), runnerImage ubuntu26",
+        "git cat-file -e ed75eee:internal/server/characters_card_cache.go -> 128 (the baseline tree predates the cache)",
+        "cc72384 'perf(characters): identity-keyed card-text cache for /api/characters/all' is 2026-11-05T02:07 and is an ancestor of main (git merge-base --is-ancestor cc72384 main exit 0)",
+        "47da1de (2026-11-05) removed BenchmarkCharactersAllScaleColdFirstRequest 'to keep the committed-baseline gate green' and said 'no scheduled gate is left red'; the warm rows themselves had moved, so the message's premise was false",
+        "gh run list --workflow=bench-profiles.yml: the last run before 42160109620 was 2026-11-04; the workflow triggers on a Tuesday cron + dispatch, so alpha.15 shipped without a post-cache run",
+        "scripts/bench-profiles.mjs:338-346 deliberately excludes runnerImageVersion from HOST_FACT_KEYS",
+        "docs/release-manifest.json: 'GoTavern bench profiles' is NOT a required gate; 'GoTavern smoke metrics' is"
+      ],
+      "reproducer": "GoTavern bench profiles run 42160109620 (failure)",
+      "reproducerPlan": "Already observed: dispatch bench-profiles.yml at a SHA whose product code is f1396ce. The eight failures are the observation. The deliberate repair is a baseline regeneration on the Linux runner with the cache in the tree (node scripts/bench-profiles.mjs --update-baseline --out-dir tests/perf/out), committed together with its raw run, followed by a green comparison; it must NOT be done as an M0 read-only action.",
+      "strength": 5,
+      "counterargument": "The speedups are legitimate: the cache really does remove repeat-serve allocations, so the code is not wrong and a naive 'fix the code' would be the wrong repair. The defect is the stale gate input plus the claim in 47da1de that no gate was left red. It is nevertheless a confirmed defect of the evidence machinery, not of the product: M5's before/after cannot cite this comparator until the baseline is regenerated, and alpha.15's M2 performance-evidence claim rested on a gate that was not run at its release SHA."
+    },
+    {
+      "id": "L-H2",
+      "title": "The M0 resource baseline has no server-process profile: smoke metrics records RSS and latency but no heap/block/mutex/CPU pprof of the running server, and the bench profiles are in-process",
+      "classification": "verified-risk",
+      "surface": "performance",
+      "impact": "performance",
+      "evidence": [
+        "scripts/smoke-metrics.mjs measures coldStartToVersionMs, warmStartToVersionMs, latency.*, freshInstall.files/bytes, memory.*.rssBytes and install.*",
+        "the only pprof capture is bench-profiles (in-process test binary): scripts/bench-profiles.mjs:431-460",
+        "grep for /debug/pprof across internal/: 0 hits (Lane E independent count)",
+        "docs/perf-baseline.md:111 says pprof capture is missing while bench-profiles captures it (Lane E H12)"
+      ],
+      "reproducer": "NONE",
+      "reproducerPlan": "M5's 30-60 minute soak needs a server-process heap/goroutine/FD profile at intervals; add a gated pprof seam (or a separate profile harness) and record it with provenance. Until then M5 can report latency/RSS only.",
+      "strength": 3,
+      "counterargument": "The in-process benches cover the allocation-heavy routes and smoke-metrics covers RSS; a server-process profile is a means, not a contract. It becomes load-bearing only if M5 claims a heap/goroutine-leak result."
+    },
+    {
+      "id": "L-H3",
+      "title": "The five strongest candidates, after independent Lead verification: three provider-wire config defects (D-H1, D-H2, D-H3), one data-safety migration gap (B-H3), and the stale benchmark baseline (L-H1)",
+      "classification": "confirmed-defect",
+      "surface": "provider-wire",
+      "impact": "user-visible",
+      "evidence": [
+        "D-H1 verified: internal/server/pinned_chat_config.go:35-45 derives the config file only from <dataRoot> and its parent; internal/commandline/paths.go:101-115 resolves an explicit --configPath; internal/app/server.go:158-173 says the explicit path wins; ../SillyTavern/src/util.js:44-79 resolves getConfigValue from the CONFIG_PATH chosen at startup. A --configPath launch therefore reaches provider-visible config keys as defaults.",
+        "D-H2 verified: internal/server/google_chat.go:33-34 names the gap, :67-68 returns a constant, :200/:453 consume it; ../SillyTavern/src/endpoints/backends/chat-completions.js:679/:1911 read gemini.apiVersion; docs/config-parity.md:89 classifies it 'implemented' with a test that only asserts URL shapes.",
+        "D-H3 verified: Select-String over internal/**/*.go for enableAdaptiveThinking returns only two comment lines (claude_chat.go:76, :119); ../SillyTavern/src/endpoints/backends/chat-completions.js:112 reads it, :260 gates the 4-6 generation with it; ../SillyTavern/default/config.yaml:376 ships enableAdaptiveThinking: false. Go hardcodes the JS default (true), so a stock install diverges for claude-opus-4-6/sonnet-4-6.",
+        "B-H3 verified: internal/migrate/migrate.go:432-436 puts only config.yaml and data in Conflicts; :221-230 copies certs and the third-party overlay with copyTree into the destination; :191-209 backs up Conflicts only. A dest that already has certs/overlay loses them silently under --force.",
+        "L-H1 verified in this fragment (run id, baseline commit, cache ancestry)."
+      ],
+      "reproducer": "NONE for the union; each row's own reproducerPlan names the one scenario needed",
+      "reproducerPlan": "D-H1: boot with --configPath elsewhere/config.yaml carrying requestOverrides, drive one chat completion, assert the peer received the override header. D-H2: a provider-wire scenario with backendConfig gemini.apiVersion v1, compare rawTarget. D-H3: a provider-wire scenario with claude-sonnet-4-6 and the stock config; pinned sends budget_tokens, Go sends the effort string. B-H3: pre-create dest/certs/server.pem, run migrate --force, assert the cert bytes survive. L-H1: already observed (run 42160109620).",
+      "strength": 5,
+      "counterargument": "None of the five is a data-loss or crash defect in the default install: D-H2's default equals the pinned default, D-H1 needs an explicit flag, D-H3 needs a 4-6 model, B-H3 needs an unusual destination shape, L-H1 is evidence machinery. They rank highest because each is source-proven, has a small discriminating reproducer, and defeats a claim the product currently makes (config-parity 'implemented', provider-wire equality, migration safety, M5 baseline)."
+    }
+  ],
+  "refactorCandidates": [
+    {"id": "R1", "candidate": "immutable nested configuration options instead of the ~60-field flat HTTPHandlerOptions", "evidenceFor": "one translation function internal/server/http.go:140-240 mixes optionBoolean/optionNumber/defaults; 9 fallback defaults differ from pinned (D-H10); the config path is resolved twice (commandline and the chat-path heuristic, D-H1)", "evidenceAgainst": "no measured defect in the default launch path; the translation is already centralized in ONE function and its truthiness rules are tested; a nesting rewrite is not move-only and touches every handler construction", "leadDisposition": "DECLINE unless a red test from D-H1/D-H10 justifies it; keep the flat struct as a documented boundary"},
+    {"id": "R2", "candidate": "per-user runtime coordinator for settings saves, backup timers and child git processes", "evidenceFor": "settingsSaveMu is process-global and held across disk persistence (settings_save.go:50-87); a pending time.AfterFunc backup is not drained on shutdown; extensions_git uses context.Background with a 5-minute wall clock", "evidenceAgainst": "pinned is a single-threaded event loop, so cross-user serialization is not observably different in the simple case; no reproducer of lost state; a generic coordinator is exactly the indirection GOAL.md 15.4 warns about", "leadDisposition": "HOLD until Lane C's contention/shutdown evidence is complete; prefer a per-user map change over a scheduler"},
+    {"id": "R3", "candidate": "route every mutating route through the shared startup write layer", "evidenceFor": "37/56 writers already use the data-root flock + atomicReplace; B-H4 names two recursive destructive routes outside the lock; B-H3 names migrate conflicts", "evidenceAgainst": "avatars/images are deliberately atomic-unlocked; the atomic-write core is on the do-not-rewrite list; no completed dangling-write or corruption reproducer yet", "leadDisposition": "HOLD; the actionable part is the two destructive routes (B-H4), which is a bounded fix, not an extraction"},
+    {"id": "R4", "candidate": "request-scoped cancellation for extension git and other child processes", "evidenceFor": "extensions_git.go:56-95 detaches from the request context; a cancelled browser action leaves git running up to five minutes", "evidenceAgainst": "pinned's simple-git path also has no abort and uses the same 5-minute block timeout (pinnedGitBlockTimeout mirrors extensions.js:17), so request-scoping would be safer-but-different and needs a product decision", "leadDisposition": "DECLINE as parity; if kept, it is a product decision that must change the compatibility claim"},
+    {"id": "R5", "candidate": "one cache framework for the identity-keyed caches", "evidenceFor": "three identity-keyed caches (accounts, settings/user-metadata, card text) share a key model and invalidation rule", "evidenceAgainst": "each documents its own bounds/eviction for a measured reason (settings drops the map, card cache LRU-evicts); merging them would create the generic abstraction the plan forbids; all three are tested including the documented residual window", "leadDisposition": "DECLINE; preserve"},
+    {"id": "R6", "candidate": "split a concrete cross-domain responsibility from internal/server", "evidenceFor": "internal/server is 187 production files; the route-domain table already exists", "evidenceAgainst": "no measured coupling or ownership defect has been produced yet; GOAL.md 15.4 forbids rewrites chosen by file size; the ordered-JSON extraction is already refused with a measurement (152 files / 1,463 references)", "leadDisposition": "DECLINE unless a lane produces a measured seam; the source graph is the input to that decision"}
+  ],
+  "baseline": {
+    "record": "docs/alpha16/baseline/README.md",
+    "tree": "c8472c1 (product code identical to f1396ce; diff is empty)",
+    "engineeringRun": {"workflow": "GoTavern bench profiles", "run": 42160109620, "status": "FAILURE", "why": "stale committed baseline (L-H1)"},
+    "productRun": {"workflow": "GoTavern smoke metrics", "run": 42160114658, "status": "pending at fragment time; measure-linux-amd64 completed success, paired-linux-amd64 in progress"},
+    "conclusion": "The M0 engineering baseline is NOT usable as a baseline until the committed bench baseline is deliberately regenerated. No backward comparison may cite the alpha.15 baseline after cc72384 without that regeneration."
+  },
+  "questions": [
+    "Lane A and Lane C fragments were still in progress when this fragment was written; the union must merge their hypotheses before the five-strongest ranking is final.",
+    "Which of B-H1/B-H2 (console parity) closes as intentional-parity is an owner decision (GOAL.md 15.5 quiet-by-default vs AGENTS rule 13 startup mutations): the Lead takes the GOAL 15.5 side for the default first-run, and requires the pinned messages to be recorded as a documented divergence instead of silently omitted."
+  ]
+}
