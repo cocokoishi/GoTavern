@@ -58,7 +58,7 @@ import { pinnedExtension } from './pinned-extensions.mjs';
 import { readHelperApiSurface } from './extensions/helper-vars-kit.mjs';
 import {
     CARD, GLOBAL_PROMPT_ORDER_DUMMY_ID, JOURNEY, STAGED_PROMPT_ORDER_REASON, chatCarrying, chatProjection,
-    readChatFiles as readJourneyChats, readSettings,
+    readChatFiles as readJourneyChats, readGroupChatFiles, readSettings,
     stageJourneyCard, stageJourneyGroups, stageJourneyWorldBook, stagedPresetDocument, validateStagedPreset,
 } from './extensions/combination-journey-kit.mjs';
 import { MARKERS as WI_MARKERS, extractLayout } from './worldinfo-slots-kit.mjs';
@@ -695,36 +695,67 @@ async function applyProfilePowerUserAfterBoot(page, patch) {
 }
 
 /**
- * PERSIST A VERB'S EFFECT THROUGH THE PRODUCT'S OWN "WRITE IT NOW", BEFORE ANY PAGE RELOAD (task-18).
+ * PERSIST A VERB'S EFFECT THROUGH THE PRODUCT'S OWN "WRITE IT NOW", BEFORE ANY PAGE RELOAD (task-18/task-19).
  *
- * WHAT DISPATCH 42178757887 MEASURED: `Generate('continue')` ends with `saveReply({type:'appendFinal'})` and then only
- * `saveChatDebounced()` (script.js:7361) -- the q20 kit already documents this for its own leg. The journey probe
- * continues, creates a branch, then RELOADS the page (`resetPageAndReopen` -> `openPage`), which re-reads the chat
- * FILE. On GoTavern the debounced write had not landed, so the reloaded assistant message was `COMB_REGEX_OK_4`
- * instead of `COMB_REGEX_OK_4 COMB_REGEX_OK_5` (16 bytes) and every later request from that chat carried the loss;
- * pinned happened to flush first. The same race lost the GROUP chat file on pinned (the durable-chat projection had
- * 3 files on GoTavern, 2 on pinned). A real user's `saveChatConditional` (script.js:7407, "close the chat") is the
- * product's own write-it-now, and q20 uses it for exactly this reason. Using it is NOT a product concession: it
- * removes a harness race so both subjects are compared on the state each product actually persisted.
+ * WHAT DISPATCH 42178757887 MEASURED for the CONTINUE path: `Generate('continue')` ends with
+ * `saveReply({type:'appendFinal'})` and then only `saveChatDebounced()` (script.js:7361) -- the q20 kit already
+ * documents this for its own leg. The journey probe continues, creates a branch, then RELOADS the page
+ * (`resetPageAndReopen` -> `openPage`), which re-reads the chat FILE. A `saveChatConditional` (script.js:7412, "close
+ * the chat") is the product's own write-it-now and removes the race on both subjects.
  *
- * The effect is then POLLED on disk (bounded): the named step fails if the text is not in any persisted chat file.
+ * WHAT DISPATCH 42182251438 MEASURED for the GROUP-CHAT path: the same helper reported `{ok:true}` from
+ * `saveChatConditional`, then found NO file carrying the marker because it polled only `<user>/chats`. Group chats
+ * are saved by `saveGroupChat` -> POST /api/chats/group/save into `<user>/group chats/<id>.jsonl`
+ * (pinned src/endpoints/chats.js:922-947 and constants.js:16-25; Go internal/startup/storage.go:68 uses the same
+ * directory), so the reader must read that directory too. `readGroupChats: true` does exactly that and records WHICH
+ * file carried the effect plus a bounded message projection of it, so the comparator can require the same persisted
+ * group chat on both subjects.
+ *
+ * The effect is POLLED on disk (bounded): the named step fails if the text is not in any persisted chat file.
  */
-async function persistChatEffect(page, dataRoot, { action, expectText }) {
+async function persistChatEffect(page, dataRoot, { action, expectText, readGroupChats = false }) {
     const wanted = String(expectText ?? '').trim();
     if (wanted.length === 0) return { ok: false, action, reason: 'no expected text to look for; the verb effect was empty' };
+    const readAll = async () => {
+        const chats = await readJourneyChats(dataRoot);
+        if (!readGroupChats) return chats;
+        // Group-chat files live in their own user directory; a group effect is persisted THERE, not in `chats/`.
+        return { ...chats, ...(await readGroupChatFiles(dataRoot)) };
+    };
     const saved = await saveConditional(page);
     const deadline = Date.now() + 20000;
+    let files = {};
     let carriers = [];
     while (Date.now() < deadline) {
-        const chats = await readJourneyChats(dataRoot);
-        carriers = Object.entries(chats)
+        files = await readAll();
+        carriers = Object.entries(files)
             .filter(([, file]) => (file?.messages ?? []).some(message => String(message?.mes ?? '').includes(wanted)
                 || (Array.isArray(message?.swipes) && message.swipes.some(swipe => String(swipe).includes(wanted)))))
             .map(([name]) => name);
         if (carriers.length > 0) break;
         await page.waitForTimeout(300);
     }
-    return { ok: saved?.ok === true && carriers.length > 0, action, expected: wanted.slice(0, 160), saved, filesCarrying: carriers };
+    const persisted = carriers.map(name => ({
+        file: name,
+        messageCount: files[name]?.messages?.length ?? null,
+        messages: (files[name]?.messages ?? []).map(message => ({
+            name: message.name ?? null,
+            is_user: message.is_user === true,
+            mes: String(message.mes ?? ''),
+            swipes: message.swipes ?? null,
+            swipe_id: message.swipe_id ?? null,
+            branches: message.branches ?? null,
+        })),
+    }));
+    return {
+        ok: saved?.ok === true && carriers.length > 0,
+        action,
+        expected: wanted.slice(0, 160),
+        saved,
+        scopesRead: readGroupChats ? ['chats', 'group chats'] : ['chats'],
+        filesCarrying: carriers,
+        persisted,
+    };
 }
 
 /**
@@ -2557,9 +2588,11 @@ async function main() {
             report.browser.groupTurn = { requests: groupTurn.requests.length, ok: groupTurn.ok };
             step('group-turn-produced-request', groupTurn.requests.length >= 1, { requests: groupTurn.requests.length });
             // THE GROUP CHAT FILE MUST BE PERSISTED BEFORE THE RETURN TO THE 1:1 CHAT: opening the character switches
-            // the chat context, and dispatch 42178757887's pinned leg never wrote the group chat at all (the durable
-            // projection had 3 journey files on GoTavern and 2 on pinned) because the switch raced its debounced save.
-            report.browser.groupTurnPersist = await persistChatEffect(page, dataRoot, { action: 'group-turn', expectText: 'COMB_GROUP_TURN' });
+            // the chat context, so the group effect is flushed through the product's own `saveChatConditional` (which
+            // routes to `saveGroupChat` -> POST /api/chats/group/save while `selected_group` is set) and then POLLED
+            // for in the GROUP-CHAT directory, `<user>/group chats/<id>.jsonl` -- NOT in `<user>/chats`, which is the
+            // reader-scope defect dispatch 42182251438 exposed (`saved:{ok:true}` but `filesCarrying:[]`).
+            report.browser.groupTurnPersist = await persistChatEffect(page, dataRoot, { action: 'group-turn', expectText: 'COMB_GROUP_TURN', readGroupChats: true });
             step('group-turn-effect-persisted-before-return', report.browser.groupTurnPersist.ok === true, report.browser.groupTurnPersist);
             // RETURN TO THE 1:1 CHAT: the group context has no journey character chat, so the character is opened
             // through the same roster path a user takes and then the saved conversation is reopened by its id.

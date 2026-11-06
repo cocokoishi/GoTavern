@@ -26,6 +26,7 @@
 //   * the dispatch-42173399186 defect: preset SELECTED but not APPLIED -> e03e04-preset-applied
 //   * staged preset digest confused with the kit digest -> e03e04-preset-document-recorded
 //   * the embedded book imported but NOT bound to the character (the dialog-only half) -> e03e04-embedded-book-imported
+//   * a group turn that did not persist, or persisted outside the group-chat directory -> group-chat-persisted-parity
 //
 // Usage:
 //   node tests/browser/combination-journey-gate-selftest.mjs                        # synthetic suite only
@@ -192,6 +193,25 @@ function buildSyntheticProfileLegs() {
                 domIdsUnique: true,
                 domIdsCoverChat: true,
                 userMarkers: [{ index: 1, marker: 'COMB_TURN_1' }, { index: 3, marker: 'COMB_TURN_2' }, { index: 5, marker: 'COMB_FINAL_TURN' }],
+            },
+            // THE GROUP TURN'S PERSISTED EFFECT (task-19): the probe flushes it through the product's own save and reads
+            // the GROUP-CHAT directory (`<user>/group chats/<id>.jsonl`), not `<user>/chats`. Both subjects persist the
+            // same message projection, so the comparator's parity guard is green in the baseline.
+            groupTurnPersist: {
+                ok: true,
+                action: 'group-turn',
+                expected: 'COMB_GROUP_TURN',
+                saved: { ok: true },
+                scopesRead: ['chats', 'group chats'],
+                filesCarrying: ['group chats/Natural Two - T.jsonl'],
+                persisted: [{
+                    file: 'group chats/Natural Two - T.jsonl',
+                    messageCount: 2,
+                    messages: [
+                        { name: 'Alice', is_user: false, mes: 'Alice raises the lantern and says: the orchard is this way.', swipes: ['Alice raises the lantern and says: the orchard is this way.'], swipe_id: 0, branches: null },
+                        { name: 'Probe User', is_user: true, mes: 'COMB_GROUP_TURN', swipes: null, swipe_id: null, branches: null },
+                    ],
+                }],
             },
             // The APPLIED-state evidence the probe records after the preset is selected (dispatch 42173399186 showed
             // selection without application; the leg record must carry both).
@@ -563,7 +583,38 @@ syntheticMutation(
     });
 }
 
-// 20. THE ARTIFACT VERIFIER: a good identity verifies; a wrong head SHA, a wrong pinned SHA, a missing field and a
+// 20. THE GROUP TURN IS NOT PERSISTED ON ONE SUBJECT: the parity guard must be red when a subject records
+//     `filesCarrying: []` (the exact dispatch 42182251438 failure, before the reader was fixed).
+syntheticMutation(
+    'THE-GROUP-TURN-IS-NOT-PERSISTED goes RED by group-chat-persisted-parity',
+    'group-chat-persisted-parity',
+    legs => {
+        legs.pinned.browser.groupTurnPersist = {
+            ok: false,
+            action: 'group-turn',
+            expected: 'COMB_GROUP_TURN',
+            saved: { ok: true },
+            scopesRead: ['chats', 'group chats'],
+            filesCarrying: [],
+            persisted: [],
+        };
+    },
+);
+
+// 21. THE GROUP TURN IS PERSISTED, BUT READ FROM THE WRONG DIRECTORY: a group chat recorded under `chats/` (the
+//     pre-fix reader scope) must be red -- the guard requires the group-chat directory, not merely a file carrying
+//     the marker, or the reader-scope defect would pass as persisted.
+syntheticMutation(
+    'THE-GROUP-CHAT-IS-READ-FROM-THE-WRONG-DIRECTORY goes RED by group-chat-persisted-parity',
+    'group-chat-persisted-parity',
+    legs => {
+        const persistRecord = legs.pinned.browser.groupTurnPersist;
+        persistRecord.filesCarrying = ['chats/bob/Bob - T.jsonl'];
+        persistRecord.persisted = persistRecord.persisted.map(entry => ({ ...entry, file: 'chats/bob/Bob - T.jsonl' }));
+    },
+);
+
+// 22. THE ARTIFACT VERIFIER: a good identity verifies; a wrong head SHA, a wrong pinned SHA, a missing field and a
 //     tampered document digest are each REFUSED (never warnings). The document bytes are real files in a temp dir.
 function artifactVerifierCases() {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'cj-selftest-'));
@@ -634,6 +685,7 @@ const requiredGreen = [
     'worldbook-order-recursiveGlobal-after',
     'both-subjects-wrote-a-journey-chat',
     'journey-chat-projection-equal-modulo-declared-volatile',
+    'group-chat-persisted-parity',
     `preset-block-present-${firstEnabledMarker}`,
     'qr-to-helper-chain',
     'helper-variable-marker',

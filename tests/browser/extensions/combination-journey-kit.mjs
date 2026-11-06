@@ -207,8 +207,13 @@ export async function stageJourneyGroups(dataRoot) {
 // by construction between two runs and are EXCLUDED by name in the comparator, with the reason recorded.
 // ---------------------------------------------------------------------------------------------------------
 
-export async function readChatFiles(dataRoot) {
-    const root = path.join(dataRoot, 'default-user', 'chats');
+/**
+ * Read every `.jsonl` chat file under one user chat directory, keyed by its path relative to `default-user`.
+ * Shared by character chats (`chats/...`) and group chats (`group chats/...`), whose layout is otherwise identical
+ * (a header line carrying `chat_metadata`, then one message per line).
+ */
+async function readChatTree(dataRoot, directoryName) {
+    const root = path.join(dataRoot, 'default-user', directoryName);
     const files = {};
     const walk = async directory => {
         for (const entry of await fs.readdir(directory, { withFileTypes: true }).catch(() => [])) {
@@ -253,6 +258,22 @@ export async function readChatFiles(dataRoot) {
     };
     await walk(root);
     return files;
+}
+
+export async function readChatFiles(dataRoot) {
+    return readChatTree(dataRoot, 'chats');
+}
+
+/**
+ * GROUP CHATS LIVE IN THEIR OWN USER DIRECTORY (pinned `USER_DIRECTORY_TEMPLATE.groupChats = 'group chats'`,
+ * constants.js:16-25; the save route writes `<user>/group chats/<id>.jsonl`, src/endpoints/chats.js:922-947, and
+ * GoTavern mirrors that path in internal/startup/storage.go:68). `readChatFiles` walks only `<user>/chats`, so a
+ * group turn's persisted file is INVISIBLE to it -- dispatch 42182251438's `filesCarrying: []` was this reader-scope
+ * defect, not a failure to persist (the product's `saveChatConditional` had already reported `{ok:true}` through
+ * `saveGroupChat` -> POST /api/chats/group/save). Callers that assert a group-chat effect read THIS directory.
+ */
+export async function readGroupChatFiles(dataRoot) {
+    return readChatTree(dataRoot, 'group chats');
 }
 
 export function chatCarrying(files, marker) {

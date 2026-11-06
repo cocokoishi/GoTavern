@@ -546,7 +546,7 @@ function addE03E04Guards({ add, goDrive, pinnedDrive, goRestart, pinnedRestart, 
     }
     add('artifact-identity-parity', parityProblems.length === 0, parityProblems.length === 0, { problems: parityProblems });
 
-    return { requested: true, refused: false, guardCount: names.length + 15 };
+    return { requested: true, refused: false, guardCount: names.length + 16 };
 }
 
 function extensionTierOf(leg) {
@@ -700,6 +700,42 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
         'branch-created-through-frontend-bookmarks', 'group-chat-opened', 'group-turn-produced-request',
         'returned-to-journey-chat', 'final-turn-earned-request', 'journey-chat-written',
         'disk-chat-carries-regex-rewritten-reply', 'disk-chat-carries-branch-metadata']) observed(name);
+
+    // ---- the GROUP CHAT is a PERSISTED artifact too (task-19; dispatch 42182251438) --------------------
+    // The probe flushes the group turn through the product's own `saveChatConditional` (which routes to
+    // `saveGroupChat` while `selected_group` is set) and records the GROUP-CHAT file that carried it -- group chats
+    // live in `<user>/group chats/<id>.jsonl` (pinned src/endpoints/chats.js:922-947, constants.js:16-25; Go
+    // internal/startup/storage.go:68 mirrors it), NOT in `<user>/chats`. The previous assertion polled only `chats`,
+    // so a successful save still produced `filesCarrying: []` on both subjects: a reader-scope defect. This guard
+    // requires BOTH subjects to have persisted the group turn AND the persisted message projections to be equal
+    // (the group request bytes are already compared by nodeEqualsGo-per-capture; this is the durable side).
+    const groupPersistFor = leg => {
+        const persisted = leg?.browser?.groupTurnPersist ?? null;
+        if (!persisted) return { ok: false, reason: 'the leg records no browser.groupTurnPersist' };
+        const files = Array.isArray(persisted.filesCarrying) ? persisted.filesCarrying.map(String) : [];
+        const projection = (persisted.persisted ?? []).map(entry => ({ file: entry.file ?? null, messageCount: entry.messageCount ?? null, messages: entry.messages ?? [] }));
+        const groupChatFile = files.find(name => name.startsWith('group chats/')) ?? null;
+        return {
+            ok: persisted.ok === true
+                && files.length > 0
+                && groupChatFile !== null
+                && projection.length > 0
+                && projection.every(entry => entry.messages.some(message => String(message.mes ?? '').includes('COMB_GROUP_TURN'))),
+            expected: persisted.expected ?? null,
+            saved: persisted.saved?.ok === true,
+            filesCarrying: files,
+            groupChatFile,
+            messageCounts: projection.map(entry => entry.messageCount),
+            messages: projection.map(entry => entry.messages),
+        };
+    };
+    const goGroupPersist = groupPersistFor(goDrive);
+    const pinGroupPersist = groupPersistFor(pinnedDrive);
+    const groupPersistParity = goGroupPersist.ok === true && pinGroupPersist.ok === true
+        && JSON.stringify(goGroupPersist.messages) === JSON.stringify(pinGroupPersist.messages)
+        && JSON.stringify(goGroupPersist.expected) === JSON.stringify(pinGroupPersist.expected);
+    add('group-chat-persisted-parity', goGroupPersist.ok === true && groupPersistParity, pinGroupPersist.ok === true && groupPersistParity,
+        { gotavern: goGroupPersist, pinned: pinGroupPersist });
 
     // ---- discrimination (AGENTS 50): the harness's captures move when its knobs move -------------------
     observed('preset-off-turn-captured');

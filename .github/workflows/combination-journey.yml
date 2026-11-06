@@ -218,14 +218,19 @@ jobs:
           # `gh run view --log`; the artifact carried reports but no leg logs because the job failed before the
           # comparator (and the upload step then ran too late to include them). The leg log is captured beside the
           # report, and its tail is surfaced in the job log on failure so the red is readable without downloading.
+          #
+          # `-e` IS INHERITED, NOT DISABLED: this step's shell is the runner's Linux default `bash -e {0}`, and
+          # `set -uo pipefail` does NOT clear it. Dispatch 42182251438 proved the consequence: `"$@" > "$log" 2>&1`
+          # as a SIMPLE command aborted the whole step on the first failing leg, so no pinned/restart/hand-back leg
+          # ran, no tail printed, and the leg-failure counter was never consumed as the cause. The invocation is now
+          # the CONDITION of an `if`, where `-e` does not apply, and every leg is attempted by construction.
           run_leg() {
             label="$1"; shift
             log="$work/legs/$label.leg.log"
-            "$@" > "$log" 2>&1
-            status=$?
-            if [ "$status" -eq 0 ]; then
+            if "$@" > "$log" 2>&1; then
               echo "recorded the $label leg (log: $label.leg.log)"
             else
+              status=$?
               echo "::group::$label leg log tail"
               tail -n 120 "$log" || true
               echo "::endgroup::"
