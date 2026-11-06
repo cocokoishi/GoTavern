@@ -235,7 +235,7 @@ jobs:
     runs-on: ubuntu-latest
     # Sized from the input (+20 for build/setup/fixture generation), capped so a dispatch can never exceed
     # 90 minutes. The preflight below refuses an out-of-range input before the study starts.
-    timeout-minutes: ${{ (inputs.soak_minutes + 20) > 90 && 90 || (inputs.soak_minutes + 20) }}
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
