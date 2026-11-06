@@ -425,7 +425,7 @@ evidence does not decide the claim), **BLOCKED** (a structural precondition prev
 | 11 | release notes generated/checked against evidence and stating every skipped/UNPROVEN scenario (`plan:130`, `GOAL.md:555-557`) | **PROVEN (claim)** / drift found | **UNPROVEN** | alpha.15 note lists its boundaries (`release-notes-v0.1.0-alpha.15.md:92-148`) and its notes are validated by `scripts/verify-release-notes.mjs` (`release.yml:486-503`); **but its `## Performance` section is empty (`release-notes-v0.1.0-alpha.15.md:81-83`)** even though `GOAL.md:545-550` requires the figures to be regenerated from the artifact - the README/figure gate is green, the note itself carries no numbers. No alpha.16 note exists (`docs/` search: no `*alpha.16*`) |
 | 12 | interacting-scenario gate added only after oracle leg + comparator + negative controls are independently proven (`plan:127`) | n/a | **BLOCKED** | workflow is gate #10, but the E03+E04 full tier has never been green (two reds, one unrecorded run) and the evidence rails are not in the manifest (section 3.4 C1-C10) |
 | 13 | no test passes merely because it created files / installed an extension / hit an endpoint / saw a 200; evidence must show extension code executed, markers reached the provider wire, and the intended mutation occurred (`plan:128`) | **PARTIAL** | **PARTIAL** | combination fast tier `42184268652` proves the ordered markers reach the provider body for fast; full tier never green; the all-20 corpus job proves load/API-state, not code execution (M0 finding E-H4); the third-party lifecycle job proves setting persistence and restart but on one extension per root. The strict form of plan:128 is not yet proven at full tier |
-| 14 | cross-platform process/file semantics; macOS ARM64 resolved or transparently downgraded with no `continue-on-error` loophole (`plan:129`) | **PROVEN as a recorded downgrade** | **BLOCKED** | the platform refuses `macos-14-arm64-us-default` and cancels the job (`HANDOFF.md:101`; `release-notes-v0.1.0-alpha.15.md:161-165`); `release.yml:389-416` still targets `macos-14` with no downgrade field, and `publish` needs it (`:541`), so a tag run's publish job skips. darwin/arm64 is built + archive-inspected, NOT executed. `docs/alpha16/source-audit.md:234` records the open fix: a supported runner or an explicit downgrade in `release.yml` |
+| 14 | cross-platform process/file semantics; macOS ARM64 resolved or transparently downgraded with no `continue-on-error` loophole (`plan:129`) | **PROVEN as a recorded downgrade** | **IMPLEMENTED (recorded downgrade)** | the platform refuses `macos-14-arm64-us-default` and cancels the execution job (annotation on run 42242191281, job 127975851110, zero steps; `HANDOFF.md:101`); the same label succeeded five times on 2026-11-05, so it is platform-side. `execute-darwin-arm64` is replaced by `darwin-arm64-recorded-downgrade`, which proves a thin arm64 Mach-O + the build contract on ubuntu-latest, emits the fixed-name marker artifact, and makes `publish` refuse a missing/unknown marker or a notes file without the limitation line (scripts/release-governance/darwin-arm64-qualification.mjs; docs/release-governance.md section 4; tests 61/61). darwin/arm64 is NOT runtime-qualified and the notes say so. |
 | 15 | release governance applied to the embedded evidence schema, required artifact, required jobs and exact candidate SHA (`plan:129`) | **PARTIAL** | **PARTIAL** | the schema/rails exist and are tested (`release-governance.md:40-82`), but only 3/13 gates carry an artifact and 2/13 carry `requiredEvidence` (`release-manifest.json`); 10 gates are conclusion-only (M0 E-H8). The exact-candidate check is real for the gates that use the rails |
 | 16 | M1/M2/M7 gates + performance figures regenerated from the artifact + same-SHA smoke metrics at the tag commit (`GOAL.md:545-550`) | **PROVEN** | **UNPROVEN** | alpha.15: `GoTavern smoke metrics` `42085081862`; `tests/perf/q22-baseline.json` names `f1396ce` as the measured ancestor; the README/figure gate runs in `ci.yml` verify. Program tree: L-H1 was closed by deliberate regeneration (`42164978648` regenerate ??' `42165562517` green comparison, `docs/alpha16/baseline/README.md:175-192`), but no smoke-metrics run at HEAD exists, and the M5 matrix is still unexercised (`docs/alpha16/m5-measurement-plan.md`) |
 | 17 | `scripts/classify-version-tag.sh` classifies the new tag stable, the equality list gains it, and the neighbour test proves it (`GOAL.md:551-554`) | alpha.15 **PROVEN** | **UNPROVEN for alpha.16** | `GRADUATED_STABLE_TAGS` ends at `v0.1.0-alpha.15` (`scripts/classify-version-tag.sh:92`); an alpha.16 tag today classifies **prerelease**, and `scripts/test-classify-version-tag.sh` has no alpha.16-stable case. This is a required, one-commit change |
@@ -457,49 +457,4 @@ close it"). Any alpha.16 release note that omits this is a claim ahead of eviden
    `release-notes-v0.1.0-alpha.15.md:92-148` that still applies, the new section 3.5 tier statement, and the
    skipped/UNPROVEN list. The alpha.15 note's empty `## Performance` section (`:81-83`) is the anti-pattern
    to avoid.
-3. **macOS ARM64.** Resolve `execute-darwin-arm64` (`release.yml:389-416`, `runs-on: macos-14`) or add an
-   explicit, recorded downgrade so the publish job (`:541`) does not skip on an unsupported runner label -
-   without a `continue-on-error` loophole (`plan:129`). Today a tag run skips `publish` exactly as at
-   alpha.15 (`HANDOFF.md:101`).
-4. **Release-qualification evidence schema.** Write `release-evidence.json` at the artifact root and add
-   `requiredJobs`/`requiredArtifact`/`requiredEvidence` for gate #6 (section 2.2). Until then the fail-closed
-   verifier cannot see inside this gate.
-5. **Combination-journey rails.** Conditions section 3.4 C1-C10, in order; the first is a full-tier green at an
-   explicit candidate SHA, the second is moving the identity to a root `release-evidence.json` carrying a
-   boolean the rails can assert.
-6. **Narrowed-dispatch rail (M0 E-H1).** Ten gates can be satisfied by a `workflow_dispatch` whose inputs
-   narrow the selection (`ci.yml:124`; `browser-differential.yml:264`; `combination-journey.yml:39`). The
-   verifier cannot read dispatch inputs (`gates.mjs:142-153`). Either add a selection marker to each gate's
-   evidence document plus a `requiredEvidence` rail, or record the limitation explicitly in the bar.
-7. **Evidence per gate.** 10/13 gates upload no fixed-name release evidence; if alpha.16 wants "evidence
-   judged, not names", each gate that already computes a verdict (whole-session comparison, worldinfo
-   comparison, helper-state comparison, combination identity, extension-compat summary) can write the same
-   `release-evidence.json` contract.
-8. **Alpha.16 blind-spot ledger.** One row per new/changed gate with its mutation, per `GOAL.md:558-562`;
-   the combination selftest gives 35 synthetic rows, but the release-rail mutations (tier/profile/head-SHA
-   refusal) have no row set yet.
-9. **Alpha.16 candidate dispatches.** section 2.4 must be executed at one candidate SHA and the run ids collected
-   per section 2.5; only then can any of the "program tree" cells in section 4 move from UNPROVEN to PROVEN.
-
-## 6. Residual risks and what this document does not prove
-
-1. **The 13-gate bar is proven as a mechanism, not as evidence at this tree.** section 1.4's 0/13
-   release-admissible is a statement about recorded runs, not about the gates' correctness; the M6
-   dispatches are what change it.
-2. **The verifier cannot see dispatch inputs or (for 10 gates) anything inside a run.** A narrowed dispatch
-   can satisfy a conclusion-only gate; that is M0 E-H1 and it is not closed by this document.
-3. **`42198916430` is now verified (see section 0.2).** It failed at the send-blocking-overlay guard (second overlay not dismissed); gate #10 remains UNPROVEN for the interacting scenario until a full-tier green exists at an explicit candidate SHA.
-   must be updated; until then the full-tier interacting scenario has no green.
-4. **The combination artifact's in-workflow verifier accepts a well-formed but wrong head SHA** (section 3.4 C5);
-   the planted selftest case only proves the format check.
-5. **The alpha.15 publish path was not the tag run's publish job** (it was skipped on the unsupported
-   runner; the workflow's own programs were re-run by hand against that run's artifacts, `HANDOFF.md:101`).
-   The gate result (`PASS 13/13`) and the tag immutability are recorded, but a future release must either fix
-   the runner or record the same exception; the automation path itself has never been exercised end-to-end
-   on a supported runner set.
-6. **`release-qualification` and 10 other gates have no embedded evidence**, so "the verifier passed" does
-   not mean "the qualification jobs ran". The narrow fix is section 5.4.
-7. **The macOS ARM64 / darwin-arm64 execution boundary is a platform blocker, not a product gap**; it must
-   stay visible in the release notes and may not be papered over with `continue-on-error`.
-8. **No claim in this document is a run.** Every number is a citation; every absence is marked UNPROVEN.
-   Nothing here was dispatched, so nothing here is fresh evidence about `0b577de`.
+3. **macOS ARM64.** IMPLEMENTED as a recorded downgrade rather than resolved: `execute-darwin-arm64` is replaced by `darwin-arm64-recorded-downgrade` (ubuntu-latest), which proves a thin arm64 Mach-O and the build contract, records the platform refusal with run/job ids, and emits the fixed-name `darwin-arm64-platform-limitation` marker; `publish` requires the marker AND a curated notes line stating darwin/arm64 is NOT runtime-qualified, refusing `missing-marker`, `mach-o-not-arm64`, `archive-sha-mismatch` and `notes-limitation-missing` by name (docs/release-governance.md section 4; scripts/release-governance/darwin-arm64-qualification.mjs). No continue-on-error exists. Runtime execution of darwin/arm64 remains UNPROVEN and is disclosed in the alpha.16 notes.

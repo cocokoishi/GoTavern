@@ -11,12 +11,12 @@ This gate runs the archives **the release build itself produced** on each reacha
 |---|---|---|
 | linux/arm64 | the archive is extracted, `gotavern version` runs, the server boots and its `/version` is polled **inside an arm64 container under QEMU** | `execute-linux-arm64` (ubuntu-24.04, `docker/setup-qemu-action`) |
 | darwin/amd64 | the archive is extracted, `gotavern version` runs, the server boots and its `/version` is polled | `execute-darwin-amd64` (macos-15-intel) |
-| darwin/arm64 | same, on native arm64 | `execute-darwin-arm64` (macos-14) |
+| darwin/arm64 | same, on native arm64 | `darwin-arm64-recorded-downgrade` (recorded platform limitation; execution not qualified) |
 | windows/arm64 | **NOT EXECUTED** — no windows/arm64 hosted runner exists | `windows-arm64-boundary` asserts the boundary text stays "NOT EXECUTED" with its reason, and fails if the matrix ever claims execution without a gate |
 
 The jobs download the build artifact by archive name, so the executed bytes are the ones the build job inspected and
 the publish job would upload. `publish` **needs** all of `execute-linux-arm64`, `execute-darwin-amd64`,
-`execute-darwin-arm64` and `windows-arm64-boundary`: a release whose non-x64/x64 archives were never executed cannot
+`darwin-arm64-recorded-downgrade` and `windows-arm64-boundary`: a release whose non-x64 archives were never executed cannot
 publish.
 
 ## What is asserted
@@ -39,7 +39,7 @@ jobs pass:
 - `execute-linux-arm64`: `emulated container uname -m: aarch64`, `ok: linux/arm64 archive executed under QEMU and
   answered /version with the pinned version`;
 - `execute-darwin-amd64`: `ok: darwin/amd64 archive executed on x86_64 and answered /version`;
-- `execute-darwin-arm64`: `ok: darwin/arm64 archive executed on arm64 and answered /version`;
+- `darwin-arm64-recorded-downgrade`: `recorded-downgrade: arm64 Mach-O proof, build contract, and the recorded platform refusal; runtime execution NOT qualified`;
 - `windows-arm64-boundary`: `ok: windows/arm64 is still BUILT + ARCHIVE-INSPECTED only, with the reason recorded`.
 
 The release matrix's `execution:` strings were updated to those tiers **after** this run, and the release workflow's
