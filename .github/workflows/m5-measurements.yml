@@ -1,0 +1,533 @@
+name: M5 measurements
+
+# THE M5 MEASUREMENT ROWS THAT HAD NO WORKFLOW ROW.
+#
+# WHY THIS FILE EXISTS. docs/alpha16/m5-measurement-plan.md §2 maps plan §7's metrics to an existing
+# workflow/job/row or a named GAP: cold+warm boot, 100/1k/10k cards, large JSONL and provider assembly
+# are covered by `GoTavern smoke metrics` and `GoTavern bench profiles`; the 20-extension page load by the
+# third-party `overhead` job; but **8-user concurrent writes** had no harness at all (the two-process
+# correctness test drives ONE user: tests/e2e/a15_concurrent_writers_test.go:1-17) and the **30-60 min
+# soak** harness existed only as an un-wired script (scripts/a15-bench-suite.mjs --mode soak, :990-1047).
+# tests/perf/m5-eight-users.mjs (committed in the M5 change) supplies the 8-user row; this workflow is the
+# only missing piece: a bounded, dispatch-only way to run both rows on the same runner and keep the
+# artifacts.
+#
+# WHAT EACH JOB RUNS (every command is derived from the script's own usage, never invented)
+#   eight-users  tests/perf/m5-eight-users.mjs --binary <built> --report <json> --users N --waves N
+#                --body-bytes 49152 --max-seconds 180 [--load-label TEXT] [--thresholds-json BEFORE]
+#                (usage: tests/perf/m5-eight-users.mjs:38-49; thresholds: :51-55 and deriveThresholds :137-152)
+#   soak         scripts/a15-bench-suite.mjs --mode soak --soak-minutes N --soak-rate 10
+#                --subject current=<built> --out <dir> --report <fixed-name json> --max-minutes N+10
+#                (usage: scripts/a15-bench-suite.mjs:151-160; args: :107-131; soak mode: :990-1047;
+#                 artifact writer: :735-780)
+#   scale        scripts/a15-bench-suite.mjs --mode scale [no --scale: the script's own default list]
+#                --subject current=<built> --out <dir> --report <fixed-name json> --requests 20
+#                --max-minutes 60   (scale list: :802-833 — 100/1,000/10,000 cards, 10x2MB and a 2,000-
+#                message 4MB chat, 1,000 worlds, settings, complex preset, mixed-large)
+#
+# THE BEFORE/AFTER PAIR (the M5 procedure, made mechanical)
+#   BEFORE: dispatch with `thresholds_from_run` EMPTY. The `m5-eight-users-evidence` artifact carries
+#           report.json, which becomes the baseline for the next run.
+#   AFTER:  dispatch at the change under test with `thresholds_from_run=<BEFORE run id>`. The job downloads
+#           that run's artifact and passes it as `--thresholds-json`; the harness derives each route's
+#           ceiling as previous p95 x 1.25 and fails closed by name (`threshold/<route>-p95`) when the after
+#           run is above it (tests/perf/m5-eight-users.mjs:137-152, :961-971). A missing BEFORE artifact is
+#           a named failure, never a run with no threshold.
+#   NO THRESHOLD IS INVENTED: the first run of a row has no noise estimate, so it reports and fails only on
+#   correctness; the second run is where a latency regression can turn the job red.
+#
+# WHAT THIS WORKFLOW DOES NOT PROVE (mirrored into every artifact)
+#   - absolute numbers are comparable only within one runner image label+version; each artifact records both;
+#   - the soak row's "positive last-third RSS slope" is a REGRESSION SIGNAL, and a small positive slope can be
+#     runner noise — the verdict names the slope in bytes/s so a red is diagnosable, and the M5 document
+#     treats a red as "re-run once on a quiet host, then investigate", not as a product verdict by itself;
+#   - the 8-user subject is the CI-built binary copied by the harness into a scratch install root; the
+#     harness copies only the binary, so tokenizer assets are absent and tokenizer routes take the pinned
+#     fallback. The measured routes (/api/settings/save|get, /api/chats/save) do not tokenize;
+#   - no real provider, no multi-user >8, no delete/rename/import (that is E06, not this row).
+#
+# DELIBERATELY NOT HERE: no `push` trigger (evidence rows are dispatched), no `continue-on-error` anywhere,
+# no baseline regeneration (`GoTavern bench profiles` owns the committed bench baseline), no product code.
+# `workflow_dispatch` is only available for a workflow present on the default branch (the same measured
+# constraint as .github/workflows/browser-differential.yml:45-52 and release-install-smoke.yml:81-90).
+
+on:
+  workflow_dispatch:
+    inputs:
+      which:
+        description: 'Which measurement row(s) to run'
+        type: choice
+        options: [all, eight-users, soak, scale]
+        default: all
+      soak_minutes:
+        description: 'Soak duration in minutes (must be 5..60; the job refuses outside that)'
+        type: number
+        default: 45
+      users:
+        description: 'Concurrent accounts for the 8-user row (must be 2..32)'
+        type: number
+        default: 8
+      waves:
+        description: 'Waves per account for the 8-user row (must be 1..200)'
+        type: number
+        default: 6
+      load_label:
+        description: 'Load label recorded in every artifact (e.g. "quiet window, no other CI")'
+        type: string
+        default: ''
+      thresholds_from_run:
+        description: 'A previous m5-measurements run id whose m5-eight-users-evidence is the BEFORE report; the AFTER run then fails closed above previous p95 x 1.25'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  # Cross-run artifact download for the before/after pair (actions/download-artifact with run-id).
+  actions: read
+
+# Evidence runs are never cancelled by a later dispatch on the same ref. The event/which suffix keeps the
+# three row groups in their own lanes (the same discipline as longlived.yml:78-83 and node-stock-tree.yml:48-53).
+concurrency:
+  group: m5-measurements-${{ github.ref }}-${{ inputs.which }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------------------------------------
+  # ROW 5: EIGHT ACCOUNTS WRITING CONCURRENTLY (settings/save, settings/get, chats/save) + isolation.
+  # ---------------------------------------------------------------------------------------------------------
+  eight-users:
+    if: ${{ inputs.which == 'all' || inputs.which == 'eight-users' }}
+    runs-on: ubuntu-latest
+    # The harness bounds itself at --max-seconds 180; this is the build + setup backstop.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+
+      - name: Record and print provenance
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/m5-eight-users"
+          mkdir -p "$dir"
+          {
+            echo "row=eight-users"
+            echo "workflow=$GITHUB_WORKFLOW"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "head_sha=$GITHUB_SHA"
+            echo "runner_os=$RUNNER_OS"
+            echo "runner_arch=$RUNNER_ARCH"
+            echo "image_os=${ImageOS:-unknown}"
+            echo "image_version=${ImageVersion:-unknown}"
+            echo "uname=$(uname -a)"
+            echo "nproc=$(nproc)"
+            echo "memory_mib=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo)"
+            echo "go=$(go version)"
+            echo "gomaxprocs=$(go env GOMAXPROCS)"
+            echo "node=$(node --version)"
+            echo "load_label=${{ inputs.load_label }}"
+            echo "thresholds_from_run=${{ inputs.thresholds_from_run }}"
+          } | tee "$dir/environment.txt"
+          {
+            echo '### M5 eight-users provenance'
+            echo '```'
+            cat "$dir/environment.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build the subject binary
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          set -euo pipefail
+          mkdir -p .perf-bin
+          go build -trimpath -o .perf-bin/gotavern ./cmd/gotavern
+          .perf-bin/gotavern version --json | tee "$RUNNER_TEMP/m5-eight-users/subject-version.json"
+
+      - name: Download the BEFORE report
+        if: ${{ inputs.thresholds_from_run != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: m5-eight-users-evidence
+          run-id: ${{ inputs.thresholds_from_run }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/m5-before
+
+      # FAIL CLOSED: an AFTER run with no BEFORE report would assert nothing, so it is refused by name rather
+      # than run as an unthresholded "after".
+      - name: Require the BEFORE report (fail closed)
+        if: ${{ inputs.thresholds_from_run != '' }}
+        run: |
+          set -euo pipefail
+          before="$RUNNER_TEMP/m5-before/report.json"
+          if [ ! -s "$before" ]; then
+            echo "::error::m5-8users/before-report: run ${{ inputs.thresholds_from_run }} carries no m5-eight-users-evidence/report.json; an AFTER run without a BEFORE report cannot assert a threshold (fail closed)"
+            exit 1
+          fi
+          echo "BEFORE report: $before"
+          node -e "const fs=require('node:fs');const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));console.log('before ok='+r.ok+' users='+r?.parameters?.users+' waves='+r?.parameters?.waves);if(r.ok!==true){console.error('::error::m5-8users/before-report: the BEFORE run itself was not ok; refusing to derive thresholds from it');process.exit(1)}" "$before"
+
+      - name: Run the 8-user row
+        env:
+          USERS: ${{ inputs.users }}
+          WAVES: ${{ inputs.waves }}
+          LOAD_LABEL: ${{ inputs.load_label }}
+          THRESHOLDS_FROM_RUN: ${{ inputs.thresholds_from_run }}
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/m5-eight-users"
+          args=(--binary "$PWD/.perf-bin/gotavern" --report "$dir/report.json"
+                --users "$USERS" --waves "$WAVES" --body-bytes 49152 --max-seconds 180)
+          if [ -n "$LOAD_LABEL" ]; then args+=(--load-label "$LOAD_LABEL"); fi
+          if [ -n "$THRESHOLDS_FROM_RUN" ]; then args+=(--thresholds-json "$RUNNER_TEMP/m5-before/report.json"); fi
+          node tests/perf/m5-eight-users.mjs "${args[@]}"
+
+      # The harness exits 1 on a named failure, but this step is the explicit fail-closed gate: a report that
+      # is absent or not ok=true is a red even if the process somehow exited 0.
+      - name: Fail closed on the report verdict
+        if: ${{ always() }}
+        env:
+          REPORT: ${{ runner.temp }}/m5-eight-users/report.json
+        run: |
+          set -euo pipefail
+          node -e '
+            const fs = require("node:fs");
+            const reportPath = process.env.REPORT;
+            if (!fs.existsSync(reportPath)) {
+              console.error("::error::m5-8users/report: the report was not written, so the row has no evidence (fail closed)");
+              process.exit(1);
+            }
+            const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+            const routes = Object.entries(report?.results?.routes ?? {}).map(([route, s]) => `${route} n=${s.count} p50=${s.p50} p95=${s.p95} p99=${s.p99} max=${s.max}`).join("; ");
+            console.log(`m5-8users: ok=${report.ok} users=${report?.parameters?.users} waves=${report?.parameters?.waves} ops=${report?.results?.operations} throughput=${report?.results?.throughputOpsPerSec}/s`);
+            console.log(`m5-8users routes: ${routes || "(none)"}`);
+            console.log(`m5-8users thresholds: ${report?.thresholds ? "applied from the BEFORE report" : "none (this run is the BEFORE)"}`);
+            if (report.ok !== true) {
+              console.error(`::error::m5-8users/verdict: report.ok=${report.ok} failure=${JSON.stringify(report.failure)} (fail closed)`);
+              process.exit(1);
+            }
+          '
+
+      - name: Upload m5-eight-users-evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-eight-users-evidence
+          path: ${{ runner.temp }}/m5-eight-users
+          if-no-files-found: error
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------------------------------------
+  # ROW 8: THE 30-60 MINUTE SOAK (scripts/a15-bench-suite.mjs --mode soak, un-wired until this workflow).
+  # ---------------------------------------------------------------------------------------------------------
+  soak:
+    if: ${{ inputs.which == 'all' || inputs.which == 'soak' }}
+    runs-on: ubuntu-latest
+    # Sized from the input (+20 for build/setup/fixture generation), capped so a dispatch can never exceed
+    # 90 minutes. The preflight below refuses an out-of-range input before the study starts.
+    timeout-minutes: ${{ (inputs.soak_minutes + 20) > 90 && 90 || (inputs.soak_minutes + 20) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+
+      - name: Refuse an out-of-range soak duration (fail closed)
+        env:
+          SOAK_MINUTES: ${{ inputs.soak_minutes }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$SOAK_MINUTES" =~ ^[0-9]+$ ]] || [ "$SOAK_MINUTES" -lt 5 ] || [ "$SOAK_MINUTES" -gt 60 ]; then
+            echo "::error::m5-soak/input: soak_minutes=$SOAK_MINUTES is outside the supported 5..60 band (plan §7 asks for a 30-60 minute soak); refusing to start a study whose bound and evidence would be wrong"
+            exit 1
+          fi
+          echo "soak_minutes=$SOAK_MINUTES is inside 5..60"
+
+      - name: Record and print provenance
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/m5-soak"
+          mkdir -p "$dir"
+          {
+            echo "row=soak"
+            echo "workflow=$GITHUB_WORKFLOW"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "head_sha=$GITHUB_SHA"
+            echo "runner_os=$RUNNER_OS"
+            echo "runner_arch=$RUNNER_ARCH"
+            echo "image_os=${ImageOS:-unknown}"
+            echo "image_version=${ImageVersion:-unknown}"
+            echo "uname=$(uname -a)"
+            echo "nproc=$(nproc)"
+            echo "memory_mib=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo)"
+            echo "go=$(go version)"
+            echo "gomaxprocs=$(go env GOMAXPROCS)"
+            echo "node=$(node --version)"
+            echo "soak_minutes=${{ inputs.soak_minutes }}"
+            echo "load_label=${{ inputs.load_label }}"
+          } | tee "$dir/environment.txt"
+          {
+            echo '### M5 soak provenance'
+            echo '```'
+            cat "$dir/environment.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build the subject binary
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          set -euo pipefail
+          mkdir -p .perf-bin
+          go build -trimpath -o .perf-bin/gotavern ./cmd/gotavern
+          .perf-bin/gotavern version --json | tee "$RUNNER_TEMP/m5-soak/subject-version.json"
+
+      - name: Run the soak row
+        env:
+          SOAK_MINUTES: ${{ inputs.soak_minutes }}
+          LOAD_LABEL: ${{ inputs.load_label }}
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/m5-soak"
+          mkdir -p "$dir"
+          max_minutes=$(( SOAK_MINUTES + 10 ))
+          args=(--mode soak --soak-minutes "$SOAK_MINUTES" --soak-rate 10
+                --subject "current=$PWD/.perf-bin/gotavern"
+                --out "$dir" --report "$dir/soak-evidence.json" --max-minutes "$max_minutes" --work-dir "$RUNNER_TEMP/a15-work")
+          if [ -n "$LOAD_LABEL" ]; then args+=(--load-label "$LOAD_LABEL"); fi
+          node scripts/a15-bench-suite.mjs "${args[@]}"
+
+      # FAIL CLOSED ON THE SOAK VERDICT. Two conditions, both named:
+      #   1. the artifact must exist and describe a soak with at least one subject and enough samples;
+      #   2. the least-squares slope of rssBytes over the LAST THIRD of the samples must not be positive.
+      # The slope is printed in bytes/second so a red run is diagnosable from the log alone.
+      - name: Fail closed on the soak RSS slope
+        if: ${{ always() }}
+        env:
+          SOAK_REPORT: ${{ runner.temp }}/m5-soak/soak-evidence.json
+        run: |
+          set -euo pipefail
+          node -e '
+            const fs = require("node:fs");
+            const reportPath = process.env.SOAK_REPORT;
+            if (!fs.existsSync(reportPath)) {
+              console.error("::error::m5-soak/report: the soak artifact was not written, so the row has no evidence (fail closed)");
+              process.exit(1);
+            }
+            const artifact = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+            if (artifact.mode !== "soak") {
+              console.error(`::error::m5-soak/report: artifact.mode=${JSON.stringify(artifact.mode)}, expected "soak" (fail closed)`);
+              process.exit(1);
+            }
+            const results = artifact?.payload?.results ?? [];
+            if (results.length === 0) {
+              console.error("::error::m5-soak/report: payload.results is empty; the soak measured no subject (fail closed)");
+              process.exit(1);
+            }
+            const violations = [];
+            for (const record of results) {
+              const samples = (record.samples ?? []).filter(sample => Number.isFinite(sample?.rssBytes) && Number.isFinite(sample?.atMs));
+              if (samples.length < 6) {
+                violations.push(`${record.subject ?? "?"}: only ${samples.length} usable RSS sample(s); a last-third slope needs >=6 (fail closed)`);
+                continue;
+              }
+              const window = samples.slice(Math.floor(samples.length * 2 / 3));
+              if (window.length < 3) {
+                violations.push(`${record.subject ?? "?"}: last-third window has ${window.length} sample(s), needs >=3 (fail closed)`);
+                continue;
+              }
+              const x0 = window[0].atMs;
+              const xs = window.map(sample => (sample.atMs - x0) / 1000);
+              const ys = window.map(sample => sample.rssBytes);
+              const n = xs.length;
+              const meanX = xs.reduce((sum, value) => sum + value, 0) / n;
+              const meanY = ys.reduce((sum, value) => sum + value, 0) / n;
+              let numerator = 0;
+              let denominator = 0;
+              for (let index = 0; index < n; index += 1) {
+                numerator += (xs[index] - meanX) * (ys[index] - meanY);
+                denominator += (xs[index] - meanX) ** 2;
+              }
+              const slopeBytesPerSecond = denominator === 0 ? 0 : numerator / denominator;
+              console.log(`m5-soak ${record.subject ?? "?"}: samples=${samples.length} lastThird=${n} rssFirst=${ys[0]} rssLast=${ys[n - 1]} slope=${slopeBytesPerSecond.toFixed(1)} B/s drift=${record.rssDriftBytes ?? "null"} min=${record.soakMinutes ?? "?"}`);
+              if (slopeBytesPerSecond > 0) {
+                violations.push(`${record.subject ?? "?"}: last-third RSS slope is POSITIVE (+${slopeBytesPerSecond.toFixed(1)} B/s, ${ys[0]} -> ${ys[n - 1]} B): sustained load is growing the resident set`);
+              }
+            }
+            if (violations.length > 0) {
+              for (const violation of violations) console.error(`::error::m5-soak/rss-slope: ${violation}`);
+              console.error("::error::m5-soak/verdict: the soak is red (fail closed); re-run once on a quiet host before treating a small slope as a product signal");
+              process.exit(1);
+            }
+            console.log("m5-soak: every subject is flat or decreasing over the last third of the samples");
+          '
+
+      - name: Print the soak summary
+        if: ${{ always() }}
+        env:
+          SOAK_REPORT: ${{ runner.temp }}/m5-soak/soak-evidence.json
+        run: |
+          set -euo pipefail
+          if [ ! -s "$SOAK_REPORT" ]; then
+            echo 'soak artifact absent; see the step above' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node -e '
+            const fs = require("node:fs");
+            const artifact = JSON.parse(fs.readFileSync(process.env.SOAK_REPORT, "utf8"));
+            const lines = ["### M5 soak result", "", "```"];
+            for (const record of artifact?.payload?.results ?? []) {
+              const latency = record.latencyMs ?? {};
+              lines.push(`${record.subject ?? "?"}: ${record.soakMinutes ?? "?"} min, requests=${record.requests ?? "?"}, rssDrift=${record.rssDriftBytes ?? "null"} B, p50=${latency.p50 ?? "null"} ms, p95=${latency.p95 ?? "null"} ms, gcCount=${record?.gc?.gcCount ?? "null"}`);
+            }
+            lines.push("```");
+            console.log(lines.join("\n"));
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+          '
+
+      - name: Upload m5-soak-evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-soak-evidence
+          path: ${{ runner.temp }}/m5-soak
+          if-no-files-found: error
+          retention-days: 30
+
+  # ---------------------------------------------------------------------------------------------------------
+  # ROW 2b/3b: PROCESS-LEVEL SCALE — 100/1,000/10,000 cards and the large JSONL rows, via the script's own
+  # default scale list (scripts/a15-bench-suite.mjs:802-833). Optional: selected by `which`.
+  # ---------------------------------------------------------------------------------------------------------
+  scale:
+    if: ${{ inputs.which == 'all' || inputs.which == 'scale' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+
+      - name: Record and print provenance
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/m5-scale"
+          mkdir -p "$dir"
+          {
+            echo "row=scale"
+            echo "workflow=$GITHUB_WORKFLOW"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "run_attempt=$GITHUB_RUN_ATTEMPT"
+            echo "head_sha=$GITHUB_SHA"
+            echo "runner_os=$RUNNER_OS"
+            echo "runner_arch=$RUNNER_ARCH"
+            echo "image_os=${ImageOS:-unknown}"
+            echo "image_version=${ImageVersion:-unknown}"
+            echo "uname=$(uname -a)"
+            echo "nproc=$(nproc)"
+            echo "memory_mib=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo)"
+            echo "go=$(go version)"
+            echo "gomaxprocs=$(go env GOMAXPROCS)"
+            echo "node=$(node --version)"
+            echo "load_label=${{ inputs.load_label }}"
+          } | tee "$dir/environment.txt"
+          {
+            echo '### M5 scale provenance'
+            echo '```'
+            cat "$dir/environment.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build the subject binary
+        env:
+          CGO_ENABLED: '0'
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          set -euo pipefail
+          mkdir -p .perf-bin
+          go build -trimpath -o .perf-bin/gotavern ./cmd/gotavern
+          .perf-bin/gotavern version --json | tee "$RUNNER_TEMP/m5-scale/subject-version.json"
+
+      - name: Run the scale row
+        env:
+          LOAD_LABEL: ${{ inputs.load_label }}
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/m5-scale"
+          mkdir -p "$dir"
+          args=(--mode scale --subject "current=$PWD/.perf-bin/gotavern"
+                --out "$dir" --report "$dir/scale-evidence.json" --requests 20 --max-minutes 60 --work-dir "$RUNNER_TEMP/a15-work")
+          if [ -n "$LOAD_LABEL" ]; then args+=(--load-label "$LOAD_LABEL"); fi
+          node scripts/a15-bench-suite.mjs "${args[@]}"
+
+      # FAIL CLOSED: the artifact must describe the script's FULL default scale list (9 scales, :807-817),
+      # each with a named scale and a measured boot; a silently narrowed run is refused.
+      - name: Fail closed on the scale coverage
+        if: ${{ always() }}
+        env:
+          SCALE_REPORT: ${{ runner.temp }}/m5-scale/scale-evidence.json
+        run: |
+          set -euo pipefail
+          node -e '
+            const fs = require("node:fs");
+            const reportPath = process.env.SCALE_REPORT;
+            if (!fs.existsSync(reportPath)) {
+              console.error("::error::m5-scale/report: the scale artifact was not written, so the row has no evidence (fail closed)");
+              process.exit(1);
+            }
+            const artifact = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+            if (artifact.mode !== "scale") {
+              console.error(`::error::m5-scale/report: artifact.mode=${JSON.stringify(artifact.mode)}, expected "scale" (fail closed)`);
+              process.exit(1);
+            }
+            const records = artifact?.payload?.records ?? [];
+            if (records.length !== 9) {
+              console.error(`::error::m5-scale/coverage: ${records.length} scale record(s), expected the script default list of 9; refusing a narrowed run as a scale row (fail closed)`);
+              process.exit(1);
+            }
+            const broken = records.filter(record => typeof record?.scale !== "string" || record.scale === "" || !Number.isFinite(record?.bootMs));
+            if (broken.length > 0) {
+              console.error(`::error::m5-scale/coverage: ${broken.length} record(s) carry no scale name or no bootMs (fail closed)`);
+              process.exit(1);
+            }
+            for (const record of records) console.log(`m5-scale ${record.scale}: files=${record?.fixture?.files ?? "?"} bytes=${record?.fixture?.bytes ?? "?"} bootMs=${record.bootMs} rssSteadyBytes=${record?.rssSteadyBytes ?? "null"} p95=${record?.latency?.data?.ms?.p95 ?? "null"}`);
+            const lines = ["### M5 scale result", "", "| scale | files | bytes | boot ms | rss steady | p95 ms |", "|---|---|---|---|---|---|"];
+            for (const record of records) lines.push(`| ${record.scale} | ${record?.fixture?.files ?? "?"} | ${record?.fixture?.bytes ?? "?"} | ${record.bootMs} | ${record?.rssSteadyBytes ?? "null"} | ${record?.latency?.data?.ms?.p95 ?? "null"} |`);
+            console.log(lines.join("\n"));
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+          '
+
+      - name: Upload m5-scale-evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: m5-scale-evidence
+          path: ${{ runner.temp }}/m5-scale
+          if-no-files-found: error
+          retention-days: 30
