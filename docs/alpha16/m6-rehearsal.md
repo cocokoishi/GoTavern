@@ -1,209 +1,143 @@
-# M6 release rehearsal — alpha.16 candidate `9f6a76e`
+# M6 release rehearsal - alpha.16 candidate `6e96959`
 
-**Status: REHEARSAL RECORD, IN PROGRESS. No dispatch was made for this document and no git action was run.**
-The 13 required-gate dispatches were made by the Lead at one candidate; this file records what was dispatched,
-what each gate must prove, and how the result is read. **Every gate verdict in this file is `PENDING`.** A run
-that has concluded is not a verdict: a verdict is the release verifier's rail outcome (event + conclusion +
-required job + artifact + embedded evidence) for that candidate, and it is recorded here only after the
-verifier reads it. No conclusion is copied from a summary line.
+**Status: COMPLETE. The rehearsal result is a verifier `PASS`, and the release bar is MET at this
+candidate within the synthetic adversarial-qualification scope.** This file is the rehearsal's working
+record; the machine evidence is the same-commit table in `docs/alpha16/same-sha-evidence.md` (the output
+of `scripts/verify-release-gates.mjs`) and the publish job's own re-run of the same program on a tag.
+No alpha.16 tag was created or moved and no release was published during this rehearsal - the program
+stopped at qualification.
 
-Candidate: `main@9f6a76e` (the lane's current head at dispatch time).
-Policy: `docs/release-manifest.json` (13 required workflows, `sameShaRequired: true`). Published evidence is
-the same-commit table the publish job appends; this file is the rehearsal's working record, not evidence.
+Candidate: `main@6e96959`. Short form is used because the repository's document gate refuses a
+forty-character commit that is not the pinned one; the verifier resolves the short form through the
+runs API and the recorded table names every run.
+
+Policy: `docs/release-manifest.json` (13 required workflows, `sameShaRequired: true`, per-gate required
+jobs/artifacts/embedded-evidence rails).
 
 ## 1. Method
 
-1. Dispatch every workflow in `docs/release-manifest.json` as `workflow_dispatch` **at the candidate commit**,
-   with the full selection that gate names (an empty/narrowed input is a narrowed run and cannot carry a
-   release claim).
+1. Freeze the candidate commit and dispatch every workflow in `docs/release-manifest.json` as
+   `workflow_dispatch` **at that commit**, with the full selection each gate names. An empty or narrowed
+   input is a narrowed run and cannot carry a release claim, so every row below records its selection.
 2. Evaluate the candidate with the same program the publish job runs:
-   `scripts/verify-release-gates.mjs` — never with a hand-written checklist.
-3. Only a verifier `PASS` with the full 13-row table, plus the checksums and notes checks below, may feed the
-   publish path. The publish path is tag-gated (`release.yml`'s publish job) and a dispatch dry run never
-   publishes.
+   `scripts/verify-release-gates.mjs` - never with a hand-written checklist. The recorded output is
+   `docs/alpha16/same-sha-evidence.md`.
+3. Only a verifier `PASS` with the full 13-row table may feed the publish path. The publish path is
+   tag-gated (`release.yml`'s publish job) and a dispatch dry run never publishes.
+4. Run the release dry run at the same candidate (`release.yml`, `ref` = the full candidate SHA,
+   `candidate_version=v0.1.0-alpha.16`) to prove the archive build, the cross-platform execution legs,
+   the darwin/arm64 recorded platform limitation and the publish gate against curated notes.
 
-## 2. The 13 dispatch rows
+## 2. The 13 dispatch rows and their verdicts
 
-`Expected artifact / evidence` is what `docs/release-manifest.json` requires for the gate; all 13 require
-`requiredEvent: workflow_dispatch`, `head_sha` = the candidate and conclusion `success`, and rows with a
-required job additionally require that job completed/success in the cited run.
+`Required job` / `Required artifact` / `Embedded evidence` are what `docs/release-manifest.json`
+requires for that gate; every row also requires `requiredEvent: workflow_dispatch`, `head_sha` = the
+candidate and conclusion `success`.
 
 | # | workflow | run id | dispatched selection | required job | required artifact | embedded evidence contract | verdict |
 |---|---|---|---|---|---|---|---|
-| 1 | GoTavern CI | **42237652240** | `probes` empty → full oracle sweep | changes, oracle, browser-evidence, verify, crash-gate, race | — | — | **PENDING** |
-| 2 | GoTavern whole-session differential | **42237657487** | — | — | — | — | **PENDING** |
-| 3 | GoTavern world-info slot ordering | **42237662677** | — | — | — | — | **PENDING** |
-| 4 | GoTavern drop-in qualification | **42237667805** | — | — | — | — | **PENDING** |
-| 5 | Browser differential | **42237672610** | `mode=all` | — | — | — | **PENDING** |
-| 6 | GoTavern release qualification | **42237676939** | — | — | — | — | **PENDING** |
-| 7 | GoTavern smoke metrics | **42237682002** | `requests=50` | measure-linux-amd64, paired-linux-amd64 | — | — | **PENDING** |
-| 8 | GoTavern Docker image | **42237686752** | — | — | — | — | **PENDING** |
-| 9 | Helper state differential | **42237692314** | — | — | — | — | **PENDING** |
-| 10 | Combination journey differential | **42237697117** | `profile=e03e04`, `tier=full` (extension tier follows) | `combination-journey` | `combination-journey-evidence` | kind `combination-journey-evidence`; `tier` = `full`; truthy `interactingScenario`, `ok`, `legs.allRecorded`, `teeth.ok`, `kit.ok`; 64-hex `documents.go-drive.sha256`, `documents.pinned-drive.sha256`, `documents.go-restart.sha256`, `documents.pinned-restart.sha256`, `documents.pinned-handback.sha256` | **PENDING** |
-| 11 | Third-party extension compatibility | **42237701919** | `mode=full` | — | `extension-compat-evidence` | — | **PENDING** |
-| 12 | GoTavern long-lived corpus qualification | **42237707075** | `size=medium` | `medium-corpus` | `longlived-medium-evidence` | kind `gotavern-longlived-corpus-evidence`; `size` = `medium`; truthy `ok`, `comparatorTeeth.ok`; 64-hex `pinnedExtensions.manifestSha256`, `corpus.treeSha256` | **PENDING** |
-| 13 | GoTavern Node stock tree round trip | **42237711904** | — | `node-stock-tree` | `node-stock-tree-evidence` | kind `gotavern-node-stock-tree-evidence`; truthy `ok`, `roundTripOk`; 64-hex `treeSha256`, `manifestSha256` | **PENDING** |
+| 1 | GoTavern CI | 42294114075 | `probes` empty -> full oracle sweep | changes, oracle, browser-evidence, verify, crash-gate, race | - | - | **success** |
+| 2 | GoTavern whole-session differential | 42294118964 | - | - | - | - | **success** |
+| 3 | GoTavern world-info slot ordering | 42294123412 | - | - | - | - | **success** |
+| 4 | GoTavern drop-in qualification | 42294127433 | - | - | - | - | **success** |
+| 5 | Browser differential | 42294131712 | `mode=all` | - | - | - | **success** |
+| 6 | GoTavern release qualification | 42294137094 | - | - | - | - | **success** |
+| 7 | GoTavern smoke metrics | 42294141379 | `requests=50` | measure-linux-amd64, paired-linux-amd64 | - | - | **success** |
+| 8 | GoTavern Docker image | 42294146024 | - | - | - | - | **success** |
+| 9 | Helper state differential | 42294150962 | - | - | - | - | **success** |
+| 10 | Combination journey differential | 42294155456 | `profile=e03e04`, `tier=full` (extension tier follows) | `combination-journey` | `combination-journey-evidence` | kind `combination-journey-evidence`; `tier` = `full`; truthy `interactingScenario`, `ok`, `legs.allRecorded`, `teeth.ok`, `kit.ok`; 64-hex digests of the five recorded documents | **success** |
+| 11 | Third-party extension compatibility | 42294159806 | `mode=full` | - | `extension-compat-evidence` | the artifact carries `macos-arm64-platform-limitation.json` (kind `gotavern-macos-arm64-platform-limitation`, `matrix.arm64LegPresent:false`, the two remaining cross-platform legs, `execution.performed:false`); the aggregate refuses a missing/inconsistent record | **success** |
+| 12 | GoTavern long-lived corpus qualification | 42294164369 | `size=medium` | `medium-corpus` | `longlived-medium-evidence` | kind `gotavern-longlived-corpus-evidence`; `size` = `medium`; truthy `ok`, `comparatorTeeth.ok`; 64-hex `pinnedExtensions.manifestSha256`, `corpus.treeSha256` | **success** |
+| 13 | GoTavern Node stock tree round trip | 42294168373 | - | `node-stock-tree` | `node-stock-tree-evidence` | kind `gotavern-node-stock-tree-evidence`; truthy `ok`, `roundTripOk`; 64-hex `treeSha256`, `manifestSha256` | **success** |
 
-**Snapshot at 2026-11-06T15:05Z (not a verdict):** 5 runs `completed/success` (world-info slot ordering,
-release qualification, Docker, long-lived, Node stock tree), 6 `in_progress` (CI, whole-session, drop-in,
-smoke, helper state, third-party), 2 `queued` (browser differential, combination journey). The snapshot is a
-queue observation only; the `PENDING` column does not change because a run concluded — it changes when the
-verifier has read the row, the required job and the embedded evidence.
+**Verifier result:** `**PASS**: 13/13 required workflow(s) are green at this SHA.` (exit 0; full table in
+`docs/alpha16/same-sha-evidence.md`).
 
-**Gate #11's platform limitation (task-40).** The first rehearsal dispatch (`GoTavern third-party extension
-compatibility` run `42247719306`, `mode=full`) had every meaningful job green except the cross-platform
-`os: macos-14` / `platform: macos-arm64` leg, job `127994821648`, cancelled with zero steps and no runner
-(annotation: `The configuration 'macos-14-arm64-us-default' is not supported`). That cancelled job made the run
-conclusion `cancelled`, so gate #11 could not be green. The workflow now removes that leg, records the limitation
-in `macos-arm64-recorded-limitation` (marker carried inside `extension-compat-evidence` by the aggregate job), and
-the aggregate refuses a missing or inconsistent record. The row above is therefore expected to be green on the
-re-dispatch at the frozen candidate, with the two remaining legs (`windows-amd64`, `macos-amd64`) as the
-cross-platform evidence; its verdict stays `PENDING` until the verifier reads the new run.
+### 2.1 Superseded dispatch waves
 
-## 3. The verifier command and the expected output
+Two earlier waves were dispatched while the program was still landing changes (M3b chaos tests, the
+darwin/arm64 recorded downgrade, the macos-arm64 extension-gate limitation, the M2m deterministic-swipe
+fix, and the regenerated compatibility matrix). They are recorded here so the ids are not mistaken for
+the final evidence: the first wave at `9f6a76e`/`a54db37` had 8 gates green before the candidate moved;
+the second wave at `97e8cde` was superseded by the regenerate-compatibility-matrix commit because its
+GoTavern CI verify job correctly refused a stale derived-count claim. Only the wave above is the
+same-SHA evidence.
 
-The publish job runs this exact program (`release.yml`'s publish step; the curated-note path reaches it
-through `scripts/assemble-release-body.mjs`). Run it locally against the GitHub API with a token that can read
-Actions metadata and artifacts:
+## 3. The release dry run at the same candidate
 
-```bash
-GITHUB_REPOSITORY=cocokoishi/GoTavern \
-GITHUB_TOKEN="$(gh auth token)" \
-node scripts/verify-release-gates.mjs \
-  --sha "$(git rev-parse 9f6a76e)" \
-  --manifest docs/release-manifest.json \
-  --evidence-out /tmp/alpha16-gate-evidence.md
-```
+`GoTavern Release` run **42294172571** (workflow_dispatch, `ref` = the full candidate SHA,
+`candidate_version=v0.1.0-alpha.16`) is **completed/success**:
 
-Expected on success: exit 0, a markdown table with one row per required workflow (run id, event, status,
-conclusion, required jobs, artifact+evidence, verdict `success`), the final line
+- all six `build` jobs green: linux/amd64 and windows/amd64 executed and launcher-tested, linux/arm64
+  and darwin/amd64 built and archive-inspected (darwin/amd64 also executed), darwin/arm64 built and
+  archive-inspected, windows/arm64 built/archive-inspected only (no windows/arm64 hosted runner exists);
+- `execute-linux-arm64`, `execute-darwin-amd64`, `windows-arm64-boundary` green;
+- `darwin-arm64-recorded-downgrade` green, uploading the fixed-name artifact
+  `darwin-arm64-platform-limitation` (mode `recorded-downgrade`, thin arm64 Mach-O proof, the recorded
+  platform attempts, `execution.performed:false`);
+- `prepublish-qualification` green;
+- `publish` green with every tag-only step skipped: a dispatch dry run publishes nothing, and the
+  repository's release listing was not changed;
+- `post-release-facts` skipped (tag-only);
+- artifacts present: the six canonical archives plus `darwin-arm64-platform-limitation`.
 
-```
-**PASS**: 13/13 required workflow(s) are green at this SHA.
-```
+**Platform limitation (recorded, not hidden).** The macOS arm64 hosted runner is unavailable
+platform-side: the job receives zero steps and no runner and the check-run annotation is
+`The configuration 'macos-14-arm64-us-default' is not supported` (same annotation at alpha.15, while the
+same job/label succeeded five times on 2026-11-05; the repository is public with zero self-hosted
+runners). `release.yml` therefore replaces the pure-execution job with
+`darwin-arm64-recorded-downgrade`, and `third-party-extension-compat.yml` replaces its macos-14 matrix
+leg with `macos-arm64-recorded-limitation`. Both record a machine-readable limitation that the publish
+gate and the extension aggregate refuse to omit; there is no `continue-on-error` anywhere. darwin/arm64
+runtime execution and the macos-arm64 extension lifecycle remain **UNPROVEN** and the release notes say
+so.
 
-and a second line `wrote same-SHA qualification evidence to /tmp/alpha16-gate-evidence.md`; the written file is
-the evidence section the publish job appends to the release body. Expected on failure: exit 1, a `**FAIL**`
-block naming every refusal, and no evidence file written (the verifier writes nothing for a failing verdict).
+## 4. Notes, checksums and the dry-run boundary
 
-Refusal names a row can show, each from `scripts/release-governance/gates.mjs`: `missing` (no run of that
-workflow at the candidate SHA with the required event), `not-green`, `missing-jobs` / `missing-job` /
-`job-not-green` (a skipped required job is not green), `missing-artifact` (absent or expired),
-`missing-evidence` (no readable `release-evidence.json` inside the artifact), `evidence-mismatch` (wrong kind,
-schema, embedded head SHA not the candidate, wrong tier marker, a required truthy field not exactly true, or a
-digest that is not lowercase 64-hex).
+- The curated notes `docs/release-notes-v0.1.0-alpha.16.md` exist at the candidate, classify as a
+  graduated stable tag (`v0.1.0-alpha.16` in `GRADUATED_STABLE_TAGS`; classifier suite 64/64), carry the
+  darwin/arm64 and macos-arm64 limitation lines the publish gate requires, and pass the notes verifier
+  with no checksums and with a synthetic checksums file; a planted degenerate digest is refused.
+- `dist/checksums.txt` is produced by the release build and checked by the publish job against the
+  uploaded archives; a dry run builds and inspects the archives but does not publish, so the final
+  checksum membership check is part of the tag run's publish path, not of this rehearsal.
+- The publish gate was exercised end to end on the dry run: the job ran the limitation program's
+  `--self-test`, resolved the curated notes exactly as the body step does, and verified the marker
+  against the archive; a missing marker, missing note line or archive-sha mismatch refuses by name.
 
-## 4. Notes, checksums and the dispatch dry run
+## 5. Local validations (not gate verdicts)
 
-After the gate verdict is PASS, the remaining release-rehearsal steps (each `PENDING` until run):
+- `node scripts/release-governance/darwin-arm64-qualification.mjs --self-test` 11/11; the
+  macos-arm64 limitation program's `--self-test` 8/8; `scripts/release-governance.test.mjs` 69/69;
+  `scripts/test-classify-version-tag.sh` 64/64.
+- `node tools/compat-matrix/check.mjs` green after the regenerate; `node tools/generate-doc-facts.mjs
+  --check` current; the Go document gates green; the compatibility surface-coverage drift gate green
+  (573 frontend surfaces, 422 Go registrations, 50/50 redirect aliases, 0 recorded open missing routes).
+- `tests/browser/combination-journey-gate-selftest.mjs` 44/44 planted reds, including the new
+  deterministic-swipe case.
+- A local full `go test ./...` run on this Windows host failed only with ENOSPC ("There is not enough
+  space on the disk") on a nearly-full host volume, which is a host artefact and not a test result; the
+  Linux CI run 42294114075 is the gate and it is green.
 
-1. **Notes validation.** `node scripts/verify-release-notes.mjs docs/release-notes-v0.1.0-alpha.16.md
-   v0.1.0-alpha.16 --checksums dist/checksums.txt` — the same check the prepublish job runs (`release.yml`).
-   Expected: `release notes OK: …` and `0 cited digest(s) checked against 6 asset(s)` (the note cites no asset
-   digest, so membership has nothing to fail on; a cited digest must match the checksums file or it is
-   refused).
-2. **Checksums.** `bash scripts/release-assemble-checksums.sh dist` — validates the six canonical archives and
-   writes `dist/checksums.txt`; expected six entries.
-3. **Dispatch dry run.** `gh workflow run release.yml --ref main -f ref="$(git rev-parse 9f6a76e)"
-   -f candidate_version=v0.1.0-alpha.16` — builds the six archives, runs the cross-platform jobs the runner
-   platform supports, classifies `candidate_version`, validates notes and feeds the bare installers through
-   `scripts/qualify-prepublish.sh`. A dispatch never publishes (`release.yml` publish is tag-gated).
-   **The 2026-11-06 attempt was cancelled at the darwin/arm64 step:** `GoTavern Release` run `42242191281`
-   (ref `a54db37`, `candidate_version=v0.1.0-alpha.16`) built and archive-inspected all six archives and ran
-   `execute-darwin-amd64`, `execute-linux-arm64`, `windows-arm64-boundary` and `prepublish-qualification` green,
-   then `execute-darwin-arm64` (labels `macos-14`, `timeout-minutes: 20`) was **cancelled after 54 s** with
-   **zero steps**, **no assigned runner**, and the check-run annotation `The configuration
-   'macos-14-arm64-us-default' is not supported`; `publish` was skipped because its dependency did not succeed,
-   so the run ended cancelled. (An earlier dispatch at `9f6a76e`, run `42240357384`, failed in the build jobs'
-   checkout and never reached the darwin/arm64 step.) The replacement job `darwin-arm64-recorded-downgrade` runs
-   on `ubuntu-latest`, proves the archive is a thin arm64 Mach-O, records the limitation marker, and the publish
-   job gates on that marker plus the notes limitation line. Expected on the re-dispatch: **all build jobs green,
-   `execute-darwin-amd64` / `execute-linux-arm64` / `windows-arm64-boundary` green,
-   `darwin-arm64-recorded-downgrade` green (not cancelled), `prepublish-qualification` green, and `publish`
-   green with its tag-only steps skipped and no release created**, with the `darwin-arm64-platform-limitation`
-   artifact present. `PENDING` until read.
-4. **Verifier on the dry run's artifacts.** The verifier above is the same one; its `PASS` is the gate result
-   this rehearsal records. `PENDING`.
-5. **Post-publication checks** (installer smoke over TLS, published-extension journey, container pull-back,
-   checksums re-verified from the public endpoint) are outside this rehearsal record; they are `PENDING` by
-   construction and are the release body's evidence section plus the post-release workflows.
+## 6. Residual register (unchanged by the green rehearsal)
 
-## 5. Local validations already completed (not gate verdicts)
+- GOAL.md section 14 real-private-tree claim: **NOT MET**; this is a synthetic adversarial qualification
+  with a stated scope.
+- darwin/arm64 runtime execution and the macos-arm64 extension lifecycle: **UNPROVEN** (recorded
+  platform limitation; archives are proved to be thin arm64 Mach-O and build-contract-clean).
+- Streaming-cancellation performance, real provider-relay p99, 20-extension page-load row, same-commit
+  soak ratification and the 8-user AFTER row: see `docs/alpha16/m5-evidence.md`; the soak is green at
+  this candidate under the corrected GC-robust rule and the 8-user AFTER is a fail-closed red under an
+  unratified BEFORE x1.25 ceiling (reported as a repeatability finding, not a product regression).
+- Real kernel ENOSPC remains UNPROVEN by policy; the ENOSPC/EFBIG non-conflation is proved by named
+  tests and mutations in `docs/alpha16/m3-chaos-evidence.md`.
+- No tag was created or moved and no release was published; publishing remains a separate, explicit
+  action that the tag-gated publish job must pass with this same verifier.
 
-- **Notes verifier dry run** on the committed note with no checksums file: exit 0, `release notes OK` (well above
-  the 1,500-byte minimum), observation `no checksums.txt supplied: digest membership was not checked`.
-- **Notes verifier with a synthetic placeholder checksums file** (six canonical asset names, sha256 of
-  placeholder payloads, no release build): exit 0, `0 cited digest(s) checked against 6 asset(s)`.
-- **Planted negative control for the notes digest rule:** a temporary copy citing a repeated 64-hex value was
-  refused (`cite a degenerate 64-hex value … which is an example checksum, not a digest`), so the digest path
-  is live and not vacuous.
-- **Classifier table test:** `scripts/test-classify-version-tag.sh` passes 64 cases after the alpha.16
-  graduation; direct checks return `stable` for `v0.1.0-alpha.16` and `prerelease` for `v0.1.0-alpha.160`,
-  `v0.1.0-alpha.16-rc1` and `v0.1.0-alpha.17`.
-- **darwin/arm64 recorded-downgrade gate:** `node scripts/release-governance/darwin-arm64-qualification.mjs
-  --self-test` holds 11/11 planted cases (missing marker, unknown mode, recorded downgrade without the notes
-  limitation line, downgrade without the arm64 Mach-O proof, downgrade with no platform evidence, a
-  recorded-downgrade marker claiming execution, an archive-sha mismatch, an executed marker without execution
-  evidence, and both positive controls).
-- **darwin/arm64 inspection, locally on a synthetic archive:** a tar.gz whose `gotavern` carries a real arm64
-  Mach-O header (`0xfeedfacf` / `0x0100000c`) plus the contract members was inspected: exit 0, marker written
-  with the archive sha256 and the Mach-O/build-info proof; `verify` against the committed note's limitation
-  line: exit 0; a note without the line, a missing marker, and an x86_64-header archive were each refused by
-  name (`notes-limitation-missing`, `missing-marker`, `mach-o-not-arm64`). The tar executable-bit assertion is
-  enforced on the Linux runner; this Windows host cannot represent Unix mode bits on disk, so the local run
-  records that limitation instead of manufacturing a red.
-- **Release governance suite:** `node --test scripts/release-governance.test.mjs` passes 69/69, including the
-  darwin/arm64 refusal/wiring cases, the third-party macos/arm64 refusal/wiring cases, and both planted-cases
-  cases.
-- **Publish-gate step simulation:** the publish job's marker step was extracted from `release.yml`, evaluated
-  with `workflow_dispatch` and the candidate version substituted, and run locally against the synthetic
-  marker/archive and the committed note: exit 0. With the marker removed it refuses with
-  `::error::missing-marker` (exit 1). The tag-only note-from-`origin/main` branch of that step was not
-  exercised locally (it needs a tag checkout) and stays `PENDING` for the dry run.
-- **Third-party limitation record:** `node scripts/release-governance/macos-arm64-limitation.mjs --self-test`
-  holds 8/8 planted cases (missing marker, invalid JSON, arm64 leg still claimed, missing cross-platform leg,
-  execution claimed without evidence, workflow still declaring the leg, missing limitation job, and the valid
-  control). `record` against the real workflow exits 0 and writes a marker with
-  `matrix.crossPlatformPresent = [windows-amd64, macos-amd64]`, `matrix.removed = [macos-arm64]`,
-  `matrix.arm64LegPresent = false`, three recorded cancelled attempts (run/job/annotation), and
-  `execution.performed = false`; `verify` exits 0 and writes the published record into the evidence directory.
-  An aggregate-step simulation of the verify block passes with the marker and refuses with
-  `::error::missing-marker` (exit 1) without it.
-- **third-party-extension-compat.yml sanity:** YAML parses; the cross-platform matrix is exactly
-  `windows-amd64` + `macos-amd64` (no `os: macos-14` / `platform: macos-arm64` leg); the
-  `macos-arm64-recorded-limitation` job exists and uploads the fixed-name artifact; `aggregate.needs` includes
-  it and its verify step writes the record into `$RUNNER_TEMP/ext-compat/evidence/`; no `continue-on-error` key
-  is added.
-- **release.yml sanity:** YAML parses; the job list is `build`, `execute-linux-arm64`, `execute-darwin-amd64`,
-  `darwin-arm64-recorded-downgrade`, `windows-arm64-boundary`, `prepublish-qualification`, `publish`,
-  `post-release-facts`; `publish.needs` includes `darwin-arm64-recorded-downgrade`; no `execute-darwin-arm64`
-  job remains; the new run blocks pass `bash -n`; no `continue-on-error` key is added; the prepublish and
-  publish artifact downloads use `pattern: gotavern-*`, so the platform-limitation marker artifact cannot leak
-  into `dist` beside the six canonical archives.
+## 7. How this record becomes the release evidence
 
-## 6. What remains blocked on run completion
-
-- Every verdict in §2 is **PENDING** until the verifier reads the row. The blockers are the queue (the two
-  long browser/gate runs and the long-lived and CI runs), not a judgement about the candidate.
-- The curated-note path additionally needs the publish dry run's `dist/checksums.txt` and the notes check
-  (§4); neither exists until that run builds the archives.
-- `darwin/arm64` is no longer an execution job: the recorded-downgrade job must come back green and its
-  `darwin-arm64-platform-limitation` marker must pass the publish gate together with the notes limitation line.
-  `PENDING` until the re-dispatched dry run is read. If the platform ever provides an arm64 macOS runner, the
-  job is restored to execution mode and the gate then requires execution evidence
-  (`docs/release-governance.md` §4); no claim of darwin/arm64 runtime qualification exists until then.
-- Gate #11 (`Third-party extension compatibility`) is no longer blocked by the cancelled arm64 leg: the
-  re-dispatched run must be `completed/success` with `macos-arm64-recorded-limitation` and `aggregate` green,
-  and the `extension-compat-evidence` artifact must contain `macos-arm64-platform-limitation.json`. `PENDING`
-  until the new run is read; if the marker or the aggregate check is missing, the aggregate job fails by name.
-- The soak row (`M5 measurements`) is **not** one of the 13 required gates and is not part of this rehearsal's
-  pass condition; its corrected statistic and the real-leak question are recorded in
-  `docs/alpha16/m5-evidence.md` and the release notes' Known limitations.
-
-## 7. How this record becomes final
-
-When the verifier has run against the candidate and the publish dry run has been read, this file is updated
-row by row: each `PENDING` is replaced by the verifier verdict and the run id it cited, `PASS 13/13` is quoted
-verbatim, and the evidence file path is recorded. Until that edit, this record must not be cited as evidence
-that any gate passed — the published body's appended table is the evidence, and it is written only by the
-publish path itself.
+The publish job runs `scripts/verify-release-gates.mjs` against the exact tag target and appends the
+same-commit table to the release; this file and `docs/alpha16/same-sha-evidence.md` are the rehearsal's
+record of the same program's output at the frozen candidate. If the tag target differs by even one
+commit, the verifier refuses (it requires `head_sha` equal to the target), which is the fail-closed
+property this rehearsal exists to prove.

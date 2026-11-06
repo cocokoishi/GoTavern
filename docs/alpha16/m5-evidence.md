@@ -554,3 +554,48 @@ their ratification status, and an explicit list of what is unproven. It is **not
 record, retained 30 days and re-downloadable), not a release gate (the only asserted performance number in the
 pipeline is the 60 s cold ceiling), and not a claim about user hardware — every number is runner-relative and
 same-image only.
+
+## 10. Same-candidate additions (2026-11-06, candidate `6e96959`)
+
+Two M5 rows that were PENDING in sections 3-4 were re-run against the frozen alpha.16 candidate. Both
+results are recorded here in both directions; neither changes a release gate (the only asserted
+performance number in the pipeline is the 60 s cold ceiling), and neither is used to claim a
+ratification that did not happen.
+
+### 10.1 Soak at the candidate (row 8): `M5 measurements` run 42247845380, completed/success
+
+The same-candidate soak under the corrected GC-robust rule (workflow `m5-measurements.yml`, job `soak`,
+45 minutes, `load_label=alpha16-m5-soak-candidate`) is **green**: the third-third mean is inside the
+corrected rule and the failure mode the rule exists for (a real monotone leak) would still refuse it
+(teeth recorded in section 4.4). This is the row's first same-commit green; the two older artifacts
+(runs 42209244735 and 42226780977) remain the real-data proof that the retired least-squares statistic
+was phase-aliased, because they are the reds the correction was derived from. What is still NOT claimed:
+the soak is not a release gate, the rule is a detection floor rather than a proof of leak-freedom, and a
+leak that only raises the sawtooth amplitude (same floor) or starts after 45 minutes would be missed -
+the section 4.5 and section 7 statements stand unchanged.
+
+### 10.2 8-user AFTER (row 5): `M5 measurements` run 42247840229, completed/failure (fail closed)
+
+The AFTER run was dispatched at the same candidate with `thresholds_from_run=42212715040` (the BEFORE
+report) so the harness would apply the recorded ceilings. It failed closed, which is the machinery
+working, and the numbers are reported as measured (route count 48 each, waves 6):
+
+| route | BEFORE p95 (report 42212715040) | AFTER p50 / p95 (this run) | AFTER vs the BEFORE x1.25 p95 ceiling |
+|---|---|---|---|
+| settingsSave | 65.35 ms | 111.26 / 339.31 ms | 339.31 ms vs 81.68 ms -> **FAIL** `threshold/settingsSave-p95` |
+| settingsGet | 38.93 ms | 25.17 / 36.13 ms | inside |
+| chatsSave | 87.73 ms | 278.20 / 614.83 ms | 614.83 ms vs 109.66 ms -> **FAIL** `threshold/chatsSave-p95` |
+
+The BEFORE p50 values are in the BEFORE report artifact and are not re-quoted here; only the p95s the
+threshold uses are compared above.
+
+Throughput was 49.844 ops/s in the AFTER run versus 287.425 ops/s in the BEFORE run, with error rate 0 in
+both. The AFTER numbers are roughly 2-7x the BEFORE p95s while the product code is identical between the
+two runs (the candidate differs from the BEFORE commit only in tests, harness and documentation), so this
+is a **cross-run repeatability finding on an unratified ceiling**, not a product regression: the
+BEFORE x1.25 ceiling was never ratified by the two-run procedure in section 6.3, and a single BEFORE run
+cannot establish a ceiling that survives a different runner instance. The honest statement is that the
+8-user row currently has a BEFORE and a red AFTER, the ceiling is not ratified, and a ratification series
+(multiple BEFORE runs on quiet runners, then the AFTER against the spread) is still required before the
+row can be graded. The row is therefore still **NOT RATIFIED**, and the red is kept as the fail-closed
+evidence that the threshold mechanism works rather than being suppressed or re-run until green.
