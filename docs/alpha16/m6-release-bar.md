@@ -1,7 +1,7 @@
 # M6 release bar - the 13 same-SHA gates, the fail-closed verifier, and what is (not) proven at this tree
 
 **Status: M6 PREPARATION, documentation only. No workflow was dispatched, no product file changed, no git
-operation was run.** Read at `0` (2026-11-06, clean tree).
+operation was run.** Read at `0b577de` (2026-11-06, clean tree).
 
 This document answers four questions for the alpha.16 release bar:
 
@@ -11,8 +11,8 @@ This document answers four questions for the alpha.16 release bar:
    exact rehearsal commands and run-id evidence a release rehearsal must produce;
 3. where the combination-journey interacting scenario stands (tier wiring, independent proofs, run states)
    and the precise conditions before it can carry a release claim;
-4. a fail-closed checklist over plan ?section 8 and the release bar, with PROVEN / UNPROVEN / BLOCKED and run ids,
-   including the `GOAL.md` ?section 14 statement that synthetic qualification does not satisfy the real-private-tree
+4. a fail-closed checklist over plan section 8 and the release bar, with PROVEN / UNPROVEN / BLOCKED and run ids,
+   including the `GOAL.md` section 14 statement that synthetic qualification does not satisfy the real-private-tree
    claim.
 
 ## 0. Method, sources, and the run-id integrity rule
@@ -33,8 +33,8 @@ This document answers four questions for the alpha.16 release bar:
 | `docs/alpha16/source-audit.md:146-172` | this program's recorded CI evidence and the gate findings inherited from M0 |
 | `docs/alpha16/baseline/README.md:21-197` | this program's two dispatched records (bench profiles, smoke metrics) and L-H1 |
 | `docs/release-notes-v0.1.0-alpha.15.md:1-172` | alpha.15's curated claim document and its named boundaries |
-| `GOAL.md:417-472` (?section 14), `:534-573` (?section 16) | the drop-in bar and the release bar |
-| `docs/alpha16-agent-execution-plan.md:125-131` (?section 8) | the M6 requirements |
+| `GOAL.md:417-472` (section 14), `:534-573` (section 16) | the drop-in bar and the release bar |
+| `docs/alpha16-agent-execution-plan.md:125-131` (section 8) | the M6 requirements |
 | git history `c256f21..0b577de` (27 commits) | program-tree run ids and their states, quoted from commit messages by hash |
 
 ### 0.2 Run-id integrity
@@ -88,7 +88,7 @@ state at `0b577de` from runs recorded in the tree/history, or UNPROVEN.
 | 3 | GoTavern world-info slot ordering | `worldinfo-slots:50` (`.github/workflows/worldinfo-slots.yml`) | before/after/atDepth slots reach the provider request in pinned order (`release-manifest.json:17-20`) | yes - dispatch, no inputs | `42085039394` success `HANDOFF.md:53` | **UNPROVEN** - no program-tree run recorded |
 | 4 | GoTavern drop-in qualification | `dropin-current-head:114`, `windows-inputs:606`, `dropin-windows:774` (`.github/workflows/dropin-qualification.yml`) | the packaged archive boots against a stock tree on Linux and Windows (`release-manifest.json:22-25`) | yes - dispatch | `42085050679` success `HANDOFF.md:54` | **UNPROVEN as release evidence.** `42160006870` success at a docs-only program tree (`source-audit.md:171-172`); the recorded event is not a release dispatch, so it cannot be cited as same-SHA dispatch evidence |
 | 5 | Browser differential | `differential:246` (+ `handback-stability:2314` only in stability mode, `publish-preset:2537`) (`.github/workflows/browser-differential.yml`) | the pinned frontend's real journeys incl. the Q21 hand-back judge (`release-manifest.json:27-30`) | yes - dispatch with `mode` input (`browser-differential.yml:190-197`) | `42085061246` success, mode=all `HANDOFF.md:55` | **UNPROVEN** - no program-tree run recorded (program work was on the combination harness) |
-| 6 | GoTavern release qualification | `qualify-linux-amd64:57`, `qualify-windows-amd64:316`, `qualify-upgrade-rollback:397`, `qualify-published-alpha9-upgrade:520`, `qualify-dropin-linux:638` (`.github/workflows/release-qualification.yml`) | fresh install, idempotence, update/rollback and cross-baseline survival from the extracted archive (`release-manifest.json:32-35`) | yes - dispatch (or a tag push) | `42085071573` success `HANDOFF.md:56` | **UNPROVEN** - no program-tree run recorded; ?section 2 gives its rails and rehearsal |
+| 6 | GoTavern release qualification | `qualify-linux-amd64:57`, `qualify-windows-amd64:316`, `qualify-upgrade-rollback:397`, `qualify-published-alpha9-upgrade:520`, `qualify-dropin-linux:638` (`.github/workflows/release-qualification.yml`) | fresh install, idempotence, update/rollback and cross-baseline survival from the extracted archive (`release-manifest.json:32-35`) | yes - dispatch (or a tag push) | `42085071573` success `HANDOFF.md:56` | **UNPROVEN** - no program-tree run recorded; section 2 gives its rails and rehearsal |
 | 7 | GoTavern smoke metrics | `measure-linux-amd64:63`, `paired-linux-amd64:137` (`.github/workflows/smoke-metrics.yml`) | the paired performance record and the soak (`release-manifest.json:37-40`) | yes - dispatch (`requests` input) | `42085081862` success `HANDOFF.md:57` | **UNPROVEN at HEAD.** `42160114658` success at `c8472c1`: both jobs succeeded and the artifact verdict passed (`docs/alpha16/baseline/README.md:23-28`, `:100`; commit `44658a9`). Not at HEAD and no same-SHA dispatch at HEAD |
 | 8 | GoTavern Docker image | `docker:76` (`.github/workflows/docker.yml`) | the image builds, verifies tokenizer assets and smokes a pinned route (`release-manifest.json:42-45`) | yes - dispatch; a dispatch with default `push_image=false` publishes nothing (`docker.yml:54-62`, `:168-217`) | `42085092398` success `HANDOFF.md:58` | **UNPROVEN** - no program-tree run recorded |
 | 9 | Helper state differential | `helper-state:43` (`.github/workflows/helper-state.yml`) | ?...'????????? second-order state with a 30-guard judge and teeth (`release-manifest.json:47-50`) | yes - dispatch, no inputs | `42085102968` success `HANDOFF.md:59` | **UNPROVEN** - no program-tree run recorded |
@@ -119,7 +119,7 @@ not happen (`verify-release-gates.mjs:140-143`). There is no override flag (`rel
 artifact (`third-party:60`, `longlived:67`, `node-stock-tree:81`) and only 2 name `requiredEvidence`
 (`longlived:68-74`, `node-stock-tree:82-86`). **Ten gates are judged by conclusion + event only**
 (`release-manifest.json:7-55`). That is a deliberate alpha.15 design (`release-manifest.json:4`,
-`artifact-evidence.mjs:75-78`), and it is also the reason ?section 2's release-qualification evidence schema is a
+`artifact-evidence.mjs:75-78`), and it is also the reason section 2's release-qualification evidence schema is a
 **gap**: there is nothing for the verifier to read.
 
 ### 1.4 Current-state summary at this program's tree
@@ -216,7 +216,7 @@ gh workflow run release-qualification.yml   --ref <ref>
 gh workflow run smoke-metrics.yml           --ref <ref> -f requests=50
 gh workflow run docker.yml                  --ref <ref>
 gh workflow run helper-state.yml            --ref <ref>
-gh workflow run combination-journey.yml     --ref <ref>    # see ?section 3.4: for an interacting-scenario claim this must be -f profile=e03e04 -f tier=full
+gh workflow run combination-journey.yml     --ref <ref>    # see section 3.4: for an interacting-scenario claim this must be -f profile=e03e04 -f tier=full
 gh workflow run third-party-extension-compat.yml --ref <ref> -f mode=full
 gh workflow run longlived.yml               --ref <ref> -f size=medium  # medium-corpus + longlived-medium-evidence
 gh workflow run node-stock-tree.yml         --ref <ref>
@@ -252,7 +252,7 @@ Notes:
   constraint is recorded in `release-install-smoke.yml:81-90`.
 - The dispatch inputs are part of the evidence: `mode=all`, `mode=full`, `size=medium` and an empty
   `probes` are what make the selection full. The verifier **cannot see dispatch inputs**
-  (`gates.mjs:142-153` copies only run fields), so the run-id record must state them (?section 2.5) - this is M0's
+  (`gates.mjs:142-153` copies only run fields), so the run-id record must state them (section 2.5) - this is M0's
   E-H1 and it is still open.
 - `release-qualification` is also triggered by a tag push; for the rehearsal use the dispatch, because the
   manifest requires `workflow_dispatch` (`release-manifest.json:32-34`).
@@ -266,7 +266,7 @@ For each of the 13 gates, and for the release dry run, record together (never a 
 | workflow name + run id + conclusion | `gh run view <id> --json name,id,conclusion,event,headSha,createdAt` |
 | `head_sha` == candidate | same output |
 | event == `workflow_dispatch` | same output |
-| dispatch inputs used | the command line from ?section 2.4 (GitHub does not return them) |
+| dispatch inputs used | the command line from section 2.4 (GitHub does not return them) |
 | required job(s) state | `gh run view <id> --json jobs` ??' name/status/conclusion, or the verifier row |
 | artifact + embedded evidence | `gh run download <id> -n <artifact>`; quote `release-evidence.json` fields (kind/schemaVersion/headSha/tier/truthy/digests) - for the 10 gates without a rail, say so |
 | verifier output | the printed table + `PASS 13/13` + the `--evidence-out` file |
@@ -308,7 +308,7 @@ the interacting-scenario addition; it is wired into the workflow but **not into 
 | concurrency | group `combination-journey-<workflow>-<ref>`, `cancel-in-progress: true` | `:77-79` |
 
 Two source-level drifts are worth recording: the workflow header still says "Teeth: - (five mutations -)"
-(`combination-journey.yml:21-22`) although the selftest now reports **35/35** (?section 3.3), and
+(`combination-journey.yml:21-22`) although the selftest now reports **35/35** (section 3.3), and
 `first-scenario-design.md:3` still says "design only, not implemented".
 
 ### 3.2 What it adds over the thirteen
@@ -325,7 +325,7 @@ provider request:
    records, `no-wire-effect` honesty, and a prompt-takeover probe/configure-off for an installed orchestrator
    (`narrative-agent`) proven on the wire;
 4. the same helper ?- QR/STscript ?- regex ?- variables ?- group interactions as gate #10, now under the
-   extension-collision and prompt-stress conditions GOAL ?section 9 names;
+   extension-collision and prompt-stress conditions GOAL section 9 names;
 5. embedded artifact identity + fail-closed identity verification, and a `--expect-profile` refusal that
    makes a missing profile record a red rather than a silent legacy pass.
 
@@ -335,7 +335,7 @@ provider request:
 |---|---|---|
 | **oracle legs exist and are independent** | the pinned drive, pinned restart and pinned hand-back legs run through `run-against-pinned.mjs` (`combination-journey.yml:250-257`); the comparator refuses a missing restart pair or hand-back (`compare-combination-journey.mjs:17`) | **IN HAND (code + runs recorded)**; the full-tier legs have never all been green |
 | **comparator teeth** | local read-only run at `0b577de`: `node tests/browser/combination-journey-gate-selftest.mjs` ??' `[selftest] 35/35 planted case(s) produced their NAMED red`, exit 0 (synthetic suite, no browser, no legs). Progression recorded: 28/28 (commit `6332ef2`), 30/30 (`f22cd1b`), 32/32 (`5262039`), 35/35 (`0b577de`) | **IN HAND for the synthetic suite.** The LIVE mutation suite runs only when the two real legs are supplied (`:293-300`) and has not been recorded green at full tier |
-| **negative controls** | the selftest header enumerates one planted red per design ?section 6 row plus the dispatch-driven additions: `worldbook-order-*`, `preset-block-present-*`, `qr-to-helper-chain`, `helper-variable-marker`, `extension-effect-*`, `ordered-message-ids`, `card-character-book-marker`, `artifact-identity-complete`, `HARNESS-NON-DISCRIMINATING`, `e03e04-profile-recorded`, `e03e04-preset-applied`, `e03e04-preset-document-recorded`, `e03e04-embedded-book-imported`, `group-chat-persisted-parity`, `outgoing-prompt-integrity`, `extension-prompt-takeover-handled`, `send-blocking-overlays-handled` (`combination-journey-gate-selftest.mjs:15-30`) | **IN HAND** at the synthetic level; each row's live counterpart depends on the real legs |
+| **negative controls** | the selftest header enumerates one planted red per design section 6 row plus the dispatch-driven additions: `worldbook-order-*`, `preset-block-present-*`, `qr-to-helper-chain`, `helper-variable-marker`, `extension-effect-*`, `ordered-message-ids`, `card-character-book-marker`, `artifact-identity-complete`, `HARNESS-NON-DISCRIMINATING`, `e03e04-profile-recorded`, `e03e04-preset-applied`, `e03e04-preset-document-recorded`, `e03e04-embedded-book-imported`, `group-chat-persisted-parity`, `outgoing-prompt-integrity`, `extension-prompt-takeover-handled`, `send-blocking-overlays-handled` (`combination-journey-gate-selftest.mjs:15-30`) | **IN HAND** at the synthetic level; each row's live counterpart depends on the real legs |
 | **fast tier green** | `Combination journey differential` **`42184268652`** - `match` - at lane `f22cd1b` (recorded in commit `5262039`, M2e) | **PROVEN for the fast tier** (12 blocks, 3 extensions, all three books staged) |
 | **full tier attempt 1** | `Combination journey differential` **`42186322374`** - failure - at lane `f22cd1b`, profile=e03e04 tier=full extension_tier=full; failed symmetrically on BOTH subjects; all five legs recorded; the job failed at the leg-failure counter and the comparator was skipped (commit `5262039`) | **RED** |
 | **full tier attempt 2** | `Combination journey differential` **`42193009501`** - failure - at lane `5262039`; the M2e fixes worked on both subjects (`extensionTakeover {detected:true, narrative-agent, disabled:true, intact:true}`, embedded book bound), and the NEW guard `send-blocking-overlays-handled` was red on both because ST-Copilot's startup changelog overlay covered `#send_but` (commit `0b577de`, M2f) | **RED** |
@@ -345,7 +345,7 @@ provider request:
 ### 3.4 Precise conditions before it may be ADDED to the release bar
 
 The workflow is gate #10, but the interacting-scenario claim is not in the bar. All of the following must
-hold (plan ?section 8: "only after its oracle leg, comparator and negative controls are independently proven"):
+hold (plan section 8: "only after its oracle leg, comparator and negative controls are independently proven"):
 
 1. **A full-tier green exists at an explicit candidate SHA.** A `workflow_dispatch` with
    `profile=e03e04 tier=full extension_tier=full` must conclude success with verdict `match`, all five legs
@@ -375,7 +375,7 @@ hold (plan ?section 8: "only after its oracle leg, comparator and negative contr
    workflows protect dispatch evidence with an event-suffixed group and `cancel-in-progress` false for
    dispatches (`longlived.yml:78-83`; `node-stock-tree.yml:48-53`); this workflow does not. Fix before it
    carries release evidence.
-7. **The tier ladder required by plan ?section 8 must be wired or the narrower coverage declared.** Plan ?section 8 asks
+7. **The tier ladder required by plan section 8 must be wired or the narrower coverage declared.** Plan section 8 asks
    for a fast PR/branch tier, a medium same-SHA qualification tier and a full scheduled stress/soak tier.
    Today: a push runs `profile=none` (not the fast tier), medium is only a dispatch parameter, and there is
    no scheduled full/soak run. Either wire the ladder or declare the gate full-tier-only and stop claiming
@@ -395,7 +395,7 @@ hold (plan ?section 8: "only after its oracle leg, comparator and negative contr
 |---|---|---|---|---|---|
 | fast | 12 | 3 (helper + first two lock entries) | all 3 | the ordered-marker contract + the journey's core interactions at small scale; suitable for branch CI | not the 22-extension collision, not the 120-block order, not the full-tier orchestration takeover paths |
 | medium | 60 | 10 (2 canaries + 8 lock entries) | all 3 | a mid-size prompt order + a 10-extension coexistence | not all 20 locked extensions; not the full prompt stress |
-| full | 120 | 22 (2 canaries + 20 lock) | all 3 | the GOAL ?section 9 combination at the stress tier - the only tier that can support the interacting-scenario claim | still not a real provider, not multi-user, not a real user's prose, not frontend-only extension effects (`combination-journey.yml:24-27`; `first-scenario-design.md:118-125`) |
+| full | 120 | 22 (2 canaries + 20 lock) | all 3 | the GOAL section 9 combination at the stress tier - the only tier that can support the interacting-scenario claim | still not a real provider, not multi-user, not a real user's prose, not frontend-only extension effects (`combination-journey.yml:24-27`; `first-scenario-design.md:118-125`) |
 
 The fast-tier extension composition is itself a measured correction of the design: all twenty lock
 extensions declare a wire-relevant capability, so the "two quiet entries" the design hoped for do not
@@ -404,7 +404,7 @@ exist; the fast tier installs the first two lock-order entries and records them 
 
 ---
 
-## 4. Fail-closed ?section 8 checklist
+## 4. Fail-closed section 8 checklist
 
 States: **PROVEN** (a run/artifact exists and is cited), **UNPROVEN** (no evidence at this tree, or the
 evidence does not decide the claim), **BLOCKED** (a structural precondition prevents it). "alpha.15" and
@@ -412,7 +412,7 @@ evidence does not decide the claim), **BLOCKED** (a structural precondition prev
 
 | # | requirement (source) | alpha.15 | program tree (`0b577de`) | why / evidence |
 |---|---|---|---|---|
-| 1 | all 13 same-SHA required workflows green at one commit (`plan:127`, `GOAL.md:539-544`) | **PROVEN** | **UNPROVEN** | alpha.15: 13 runs at `95638da`, verifier `PASS 13/13` (`HANDOFF.md:45-66`). Program tree: 0/13 release-admissible (?section 1.4); expected before M6 dispatches |
+| 1 | all 13 same-SHA required workflows green at one commit (`plan:127`, `GOAL.md:539-544`) | **PROVEN** | **UNPROVEN** | alpha.15: 13 runs at `95638da`, verifier `PASS 13/13` (`HANDOFF.md:45-66`). Program tree: 0/13 release-admissible (section 1.4); expected before M6 dispatches |
 | 2 | third-party gate with its fixed-name `extension-compat-evidence` artifact (`GOAL.md:539-544`; `release-manifest.json:57-61`) | **PROVEN** | **UNPROVEN** | run `42085125376` mode=full (`HANDOFF.md:61`); no program-tree run |
 | 3 | long-lived medium tier + `longlived-medium-evidence` with embedded tier/head SHA/teeth/digests (`release-manifest.json:63-76`) | **PROVEN** | **UNPROVEN** | run `42085136899` verified (`HANDOFF.md:62`); no program-tree run; the small-tier masquerade rail is in code (`gates.mjs:181-189`) |
 | 4 | Node stock-tree round trip + `node-stock-tree-evidence` (`release-manifest.json:77-87`) | **PROVEN** | **UNPROVEN** | run `42085148642` verified (`HANDOFF.md:63`); `42160006691` is a docs-only program-tree success whose event/rails are not recorded as release evidence (`source-audit.md:171-172`) |
@@ -421,19 +421,19 @@ evidence does not decide the claim), **BLOCKED** (a structural precondition prev
 | 7 | TLS installer smoke (`plan:130`, `GOAL.md:566-568`) | **PROVEN** | **UNPROVEN** | `GoTavern published-release install smoke` `42115838898` success (`HANDOFF.md:99`) |
 | 8 | published-extension complex journey (`plan:130`, `GOAL.md:566-568`) | **PROVEN** | **UNPROVEN** | `GoTavern published-extension smoke` `42115856121` success, both legs (`HANDOFF.md:99`) |
 | 9 | Node ??" Go hand-back (`plan:130`, `GOAL.md:563-564`) | **PROVEN** | **UNPROVEN** | Q21 hand-back in `Browser differential` `42085061246` (`HANDOFF.md:55`) and the Node stock-tree round trip `42085148642` (`:63`); no program-tree run |
-| 10 | no tag move, no force push, no `--no-verify`, no private data, commit identities (`GOAL.md:569-570`) | **PROVEN** | **UNPROVEN** | alpha.15 tag object `8e9e2dcf-` target `95638da-`, "the tag was not moved" (`HANDOFF.md:95`); commit-identity gate runs in CI (`release-governance.md` ?section 3; `ci.yml:481`). Note the publish-path exception: the tag run's `publish` job was skipped because the macOS arm64 runner was unsupported, and publication was done by running the workflow's own programs against that run's artifacts (`HANDOFF.md:101`) - recorded, and the tag did not move |
+| 10 | no tag move, no force push, no `--no-verify`, no private data, commit identities (`GOAL.md:569-570`) | **PROVEN** | **UNPROVEN** | alpha.15 tag object `8e9e2dcf-` target `95638da-`, "the tag was not moved" (`HANDOFF.md:95`); commit-identity gate runs in CI (`release-governance.md` section 3; `ci.yml:481`). Note the publish-path exception: the tag run's `publish` job was skipped because the macOS arm64 runner was unsupported, and publication was done by running the workflow's own programs against that run's artifacts (`HANDOFF.md:101`) - recorded, and the tag did not move |
 | 11 | release notes generated/checked against evidence and stating every skipped/UNPROVEN scenario (`plan:130`, `GOAL.md:555-557`) | **PROVEN (claim)** / drift found | **UNPROVEN** | alpha.15 note lists its boundaries (`release-notes-v0.1.0-alpha.15.md:92-148`) and its notes are validated by `scripts/verify-release-notes.mjs` (`release.yml:486-503`); **but its `## Performance` section is empty (`release-notes-v0.1.0-alpha.15.md:81-83`)** even though `GOAL.md:545-550` requires the figures to be regenerated from the artifact - the README/figure gate is green, the note itself carries no numbers. No alpha.16 note exists (`docs/` search: no `*alpha.16*`) |
-| 12 | interacting-scenario gate added only after oracle leg + comparator + negative controls are independently proven (`plan:127`) | n/a | **BLOCKED** | workflow is gate #10, but the E03+E04 full tier has never been green (two reds, one unrecorded run) and the evidence rails are not in the manifest (?section 3.4 C1-C10) |
+| 12 | interacting-scenario gate added only after oracle leg + comparator + negative controls are independently proven (`plan:127`) | n/a | **BLOCKED** | workflow is gate #10, but the E03+E04 full tier has never been green (two reds, one unrecorded run) and the evidence rails are not in the manifest (section 3.4 C1-C10) |
 | 13 | no test passes merely because it created files / installed an extension / hit an endpoint / saw a 200; evidence must show extension code executed, markers reached the provider wire, and the intended mutation occurred (`plan:128`) | **PARTIAL** | **PARTIAL** | combination fast tier `42184268652` proves the ordered markers reach the provider body for fast; full tier never green; the all-20 corpus job proves load/API-state, not code execution (M0 finding E-H4); the third-party lifecycle job proves setting persistence and restart but on one extension per root. The strict form of plan:128 is not yet proven at full tier |
 | 14 | cross-platform process/file semantics; macOS ARM64 resolved or transparently downgraded with no `continue-on-error` loophole (`plan:129`) | **PROVEN as a recorded downgrade** | **BLOCKED** | the platform refuses `macos-14-arm64-us-default` and cancels the job (`HANDOFF.md:101`; `release-notes-v0.1.0-alpha.15.md:161-165`); `release.yml:389-416` still targets `macos-14` with no downgrade field, and `publish` needs it (`:541`), so a tag run's publish job skips. darwin/arm64 is built + archive-inspected, NOT executed. `docs/alpha16/source-audit.md:234` records the open fix: a supported runner or an explicit downgrade in `release.yml` |
 | 15 | release governance applied to the embedded evidence schema, required artifact, required jobs and exact candidate SHA (`plan:129`) | **PARTIAL** | **PARTIAL** | the schema/rails exist and are tested (`release-governance.md:40-82`), but only 3/13 gates carry an artifact and 2/13 carry `requiredEvidence` (`release-manifest.json`); 10 gates are conclusion-only (M0 E-H8). The exact-candidate check is real for the gates that use the rails |
 | 16 | M1/M2/M7 gates + performance figures regenerated from the artifact + same-SHA smoke metrics at the tag commit (`GOAL.md:545-550`) | **PROVEN** | **UNPROVEN** | alpha.15: `GoTavern smoke metrics` `42085081862`; `tests/perf/q22-baseline.json` names `f1396ce` as the measured ancestor; the README/figure gate runs in `ci.yml` verify. Program tree: L-H1 was closed by deliberate regeneration (`42164978648` regenerate ??' `42165562517` green comparison, `docs/alpha16/baseline/README.md:175-192`), but no smoke-metrics run at HEAD exists, and the M5 matrix is still unexercised (`docs/alpha16/m5-measurement-plan.md`) |
 | 17 | `scripts/classify-version-tag.sh` classifies the new tag stable, the equality list gains it, and the neighbour test proves it (`GOAL.md:551-554`) | alpha.15 **PROVEN** | **UNPROVEN for alpha.16** | `GRADUATED_STABLE_TAGS` ends at `v0.1.0-alpha.15` (`scripts/classify-version-tag.sh:92`); an alpha.16 tag today classifies **prerelease**, and `scripts/test-classify-version-tag.sh` has no alpha.16-stable case. This is a required, one-commit change |
-| 18 | audit obligation recorded: one-row-per-surface blind-spot ledger, every new gate mutation, every real defect reproducer (`GOAL.md:558-562`) | **PROVEN** | **PARTIAL** | alpha.15: `docs/audit-v0.1.0-alpha.15.md` (80 rows; `HANDOFF.md:16-19`). alpha.16: M0 audit deliverables exist (`docs/alpha16/source-audit.md`, `audit/*.md`, `ownership-map.json`) and the combination teeth are 35/35, but there is no alpha.16 blind-spot ledger row set and no mutation ledger for the *new* release rails (?section 3.4 C2-C10) |
+| 18 | audit obligation recorded: one-row-per-surface blind-spot ledger, every new gate mutation, every real defect reproducer (`GOAL.md:558-562`) | **PROVEN** | **PARTIAL** | alpha.15: `docs/audit-v0.1.0-alpha.15.md` (80 rows; `HANDOFF.md:16-19`). alpha.16: M0 audit deliverables exist (`docs/alpha16/source-audit.md`, `audit/*.md`, `ownership-map.json`) and the combination teeth are 35/35, but there is no alpha.16 blind-spot ledger row set and no mutation ledger for the *new* release rails (section 3.4 C2-C10) |
 | 19 | Docker `:v0.1.0-alpha.16` and `:latest` published and resolving to the same digest (`GOAL.md:565`) | **PROVEN** | **UNPROVEN** | alpha.15 digest `sha256:28fd03f4-`, `:latest` moved because the tag is stable (`HANDOFF.md:98`); a same-SHA dispatch of `docker.yml` with default `push_image=false` does not publish (`docker.yml:168-217`), so the future gate must evidence the tag run |
-| 20 | `GOAL.md` ?section 14 strong drop-in bar is NOT MET by synthetic qualification (`plan:131`, `GOAL.md:417-472`) | **STATED** | **STATED** | see ?section 4.1; the statement is already in the tree and must be repeated in alpha.16's notes |
+| 20 | `GOAL.md` section 14 strong drop-in bar is NOT MET by synthetic qualification (`plan:131`, `GOAL.md:417-472`) | **STATED** | **STATED** | see section 4.1; the statement is already in the tree and must be repeated in alpha.16's notes |
 
-### 4.1 The `GOAL.md` ?section 14 statement (must not be redefined)
+### 4.1 The `GOAL.md` section 14 statement (must not be redefined)
 
 `GOAL.md:452`: *"Current state, dated 2026-11-05 (`v0.1.0-alpha.15`): **NOT MET for the strong form.**
 The evidence that exists is synthetic-"*. The same statement is carried in `HANDOFF.md:70-73` and
@@ -454,7 +454,7 @@ close it"). Any alpha.16 release note that omits this is a claim ahead of eviden
    stay prerelease (`GOAL.md:551-554`). One commit; without it an alpha.16 tag publishes as prerelease.
 2. **Alpha.16 release notes.** Create `docs/release-notes-v0.1.0-alpha.16.md` (or `docs/releases/-`) from the
    evidence, with a non-empty performance section, every boundary from
-   `release-notes-v0.1.0-alpha.15.md:92-148` that still applies, the new ?section 3.5 tier statement, and the
+   `release-notes-v0.1.0-alpha.15.md:92-148` that still applies, the new section 3.5 tier statement, and the
    skipped/UNPROVEN list. The alpha.15 note's empty `## Performance` section (`:81-83`) is the anti-pattern
    to avoid.
 3. **macOS ARM64.** Resolve `execute-darwin-arm64` (`release.yml:389-416`, `runs-on: macos-14`) or add an
@@ -462,9 +462,9 @@ close it"). Any alpha.16 release note that omits this is a claim ahead of eviden
    without a `continue-on-error` loophole (`plan:129`). Today a tag run skips `publish` exactly as at
    alpha.15 (`HANDOFF.md:101`).
 4. **Release-qualification evidence schema.** Write `release-evidence.json` at the artifact root and add
-   `requiredJobs`/`requiredArtifact`/`requiredEvidence` for gate #6 (?section 2.2). Until then the fail-closed
+   `requiredJobs`/`requiredArtifact`/`requiredEvidence` for gate #6 (section 2.2). Until then the fail-closed
    verifier cannot see inside this gate.
-5. **Combination-journey rails.** Conditions ?section 3.4 C1-C10, in order; the first is a full-tier green at an
+5. **Combination-journey rails.** Conditions section 3.4 C1-C10, in order; the first is a full-tier green at an
    explicit candidate SHA, the second is moving the identity to a root `release-evidence.json` carrying a
    boolean the rails can assert.
 6. **Narrowed-dispatch rail (M0 E-H1).** Ten gates can be satisfied by a `workflow_dispatch` whose inputs
@@ -478,19 +478,19 @@ close it"). Any alpha.16 release note that omits this is a claim ahead of eviden
 8. **Alpha.16 blind-spot ledger.** One row per new/changed gate with its mutation, per `GOAL.md:558-562`;
    the combination selftest gives 35 synthetic rows, but the release-rail mutations (tier/profile/head-SHA
    refusal) have no row set yet.
-9. **Alpha.16 candidate dispatches.** ?section 2.4 must be executed at one candidate SHA and the run ids collected
-   per ?section 2.5; only then can any of the "program tree" cells in ?section 4 move from UNPROVEN to PROVEN.
+9. **Alpha.16 candidate dispatches.** section 2.4 must be executed at one candidate SHA and the run ids collected
+   per section 2.5; only then can any of the "program tree" cells in section 4 move from UNPROVEN to PROVEN.
 
 ## 6. Residual risks and what this document does not prove
 
-1. **The 13-gate bar is proven as a mechanism, not as evidence at this tree.** ?section 1.4's 0/13
+1. **The 13-gate bar is proven as a mechanism, not as evidence at this tree.** section 1.4's 0/13
    release-admissible is a statement about recorded runs, not about the gates' correctness; the M6
    dispatches are what change it.
 2. **The verifier cannot see dispatch inputs or (for 10 gates) anything inside a run.** A narrowed dispatch
    can satisfy a conclusion-only gate; that is M0 E-H1 and it is not closed by this document.
 3. **`42198916430` is now verified (see section 0.2).** It failed at the send-blocking-overlay guard (second overlay not dismissed); gate #10 remains UNPROVEN for the interacting scenario until a full-tier green exists at an explicit candidate SHA.
    must be updated; until then the full-tier interacting scenario has no green.
-4. **The combination artifact's in-workflow verifier accepts a well-formed but wrong head SHA** (?section 3.4 C5);
+4. **The combination artifact's in-workflow verifier accepts a well-formed but wrong head SHA** (section 3.4 C5);
    the planted selftest case only proves the format check.
 5. **The alpha.15 publish path was not the tag run's publish job** (it was skipped on the unsupported
    runner; the workflow's own programs were re-run by hand against that run's artifacts, `HANDOFF.md:101`).
@@ -498,7 +498,7 @@ close it"). Any alpha.16 release note that omits this is a claim ahead of eviden
    the runner or record the same exception; the automation path itself has never been exercised end-to-end
    on a supported runner set.
 6. **`release-qualification` and 10 other gates have no embedded evidence**, so "the verifier passed" does
-   not mean "the qualification jobs ran". The narrow fix is ?section 5.4.
+   not mean "the qualification jobs ran". The narrow fix is section 5.4.
 7. **The macOS ARM64 / darwin-arm64 execution boundary is a platform blocker, not a product gap**; it must
    stay visible in the release notes and may not be papered over with `continue-on-error`.
 8. **No claim in this document is a run.** Every number is a citation; every absence is marked UNPROVEN.

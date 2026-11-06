@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // M5 ROW: 8 CONCURRENT USER ACCOUNTS WRITING OVERLAPPING SETTINGS AND CHATS.
 //
-// WHY THIS FILE EXISTS. docs/alpha16/baseline/README.md ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§4 item 2 names the gap in one sentence: "8-user
+// WHY THIS FILE EXISTS. docs/alpha16/baseline/README.md section4 item 2 names the gap in one sentence: "8-user
 // concurrent writes. The plan's E06 needs overlapping save/load/delete/rename/import and cross-user
 // isolation under contention. No record above drives more than one user; settingsSaveMu's cross-user
 // contention is therefore an untested hypothesis, not a measured fact." The existing correctness harnesses
@@ -24,10 +24,10 @@
 //   * the absolute numbers are only comparable WITHIN one runner image; this harness therefore records
 //     provenance and refuses to compare across a host fingerprint (the report carries the fingerprint; a
 //     future gate is the thing that compares two reports);
-//   * it does not drive delete/rename/import (E06's remaining verbs) ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â this row is the write/load/isolation
+//   * it does not drive delete/rename/import (E06's remaining verbs) - this row is the write/load/isolation
 //     cost row, not the whole E06 matrix;
 //   * no threshold is asserted unless one is supplied (M5_8USER_MAX_P95_MS). The first run of a new row has
-//     no noise estimate, and docs/alpha16/baseline/README.md ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§5 forbids choosing a threshold after seeing
+//     no noise estimate, and docs/alpha16/baseline/README.md section5 forbids choosing a threshold after seeing
 //     the result. Until two same-tree runs exist, the row is REPORTED, and it fails only on correctness.
 //
 // WHY NODE, NOT A GO TEST. Every performance row in this repository is a Node harness on a built binary
