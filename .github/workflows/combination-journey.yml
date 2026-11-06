@@ -28,11 +28,37 @@ name: Combination journey differential
 
 on:
   workflow_dispatch:
+    inputs:
+      # THE E03+E04 PROFILE (task-14, docs/alpha16/first-scenario-design.md). `none` keeps the legacy journey
+      # (committed preset-a derivation, journey 3-slot book, tavern-helper only) so a push keeps its previous
+      # behaviour until the first green M2 dispatch; the release gate dispatches `profile=e03e04 tier=full`.
+      profile:
+        description: 'Scenario profile (none = legacy journey, e03e04 = generated 120-block/nested-books/22-extension profile)'
+        type: choice
+        options: ['none', 'e03e04']
+        default: 'none'
+      tier:
+        description: 'Profile tier: fast (12 blocks, 3 extensions), medium (60 blocks, 10), full (120 blocks, 22)'
+        type: choice
+        options: ['fast', 'medium', 'full']
+        default: 'full'
+      seed:
+        description: 'Deterministic recipe seed for the generated profile'
+        type: string
+        default: 'e03e04-alpha16'
+      extension_tier:
+        description: 'Extension cost tier; empty = follow the block tier'
+        type: choice
+        options: ['', 'fast', 'medium', 'full']
+        default: ''
   push:
     branches: [main]
     paths:
       - 'tests/browser/combination-journey-*'
       - 'tests/browser/extensions/combination-journey-kit.mjs'
+      - 'tests/browser/extensions/extension-install-batch.mjs'
+      - 'tests/browser/extensions/e03e04-profile-kit.mjs'
+      - 'tests/browser/extensions/e03e04-kit-selftest.mjs'
       - 'tests/browser/compare-combination-journey.mjs'
       - 'tests/browser/combination-journey-gate-selftest.mjs'
       - 'tests/browser/fixtures/real/preset-a.json'
@@ -133,6 +159,50 @@ jobs:
           go build -trimpath -o .browser-bin/gotavern ./cmd/gotavern
           echo "GOTAVERN_BINARY=${PWD}/.browser-bin/gotavern" >> "$GITHUB_ENV"
 
+      - name: Resolve the scenario profile arguments
+        id: scenario
+        # THE ARGUMENTS BOTH LEGS RECEIVE, in one place. With profile=none the probe gets NO profile flag and behaves
+        # exactly as before this workflow gained inputs; the comparator gets no --expect-profile either.
+        run: |
+          set -euo pipefail
+          profile='${{ inputs.profile || 'none' }}'
+          tier='${{ inputs.tier || 'full' }}'
+          seed='${{ inputs.seed || 'e03e04-alpha16' }}'
+          extension_tier='${{ inputs.extension_tier || '' }}'
+          if [ -z "$extension_tier" ]; then extension_tier="$tier"; fi
+          if [ "$profile" = "e03e04" ]; then
+            probe_args="--profile e03e04 --tier $tier --seed $seed --extension-tier $extension_tier"
+            comparator_args="--expect-profile e03e04"
+          else
+            probe_args=""
+            comparator_args=""
+            extension_tier=""
+          fi
+          {
+            echo "PROFILE=$profile"
+            echo "TIER=$tier"
+            echo "SEED=$seed"
+            echo "EXTENSION_TIER=$extension_tier"
+            echo "PROBE_PROFILE_ARGS=$probe_args"
+            echo "COMPARATOR_PROFILE_ARGS=$comparator_args"
+          } >> "$GITHUB_ENV"
+          echo "profile=$profile tier=$tier seed=$seed extension_tier=$extension_tier"
+          echo "probe args: ${probe_args:-(none: legacy journey)}"
+
+      - name: Seed the pinned extension batch (one install, copied into each leg)
+        if: ${{ (inputs.profile || 'none') == 'e03e04' }}
+        # ONE network install of the E04 set into a scratch data root; every leg then copies from it through
+        # GOTAVERN_EXTENSION_SEED_ROOT (install-pinned-extension.mjs), so a 22-extension profile does not pay 44 clones
+        # and the pin cannot move between legs. The helper is the same `installExtensionBatch` the probe calls.
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/combination-journey"
+          mkdir -p "$work"
+          node tests/browser/extensions/extension-install-batch.mjs \
+            --seed-out "$work/extension-seed" --tier "$EXTENSION_TIER" \
+            | tee "$work/extension-seed.json"
+          echo "GOTAVERN_EXTENSION_SEED_ROOT=$work/extension-seed/default-user/extensions" >> "$GITHUB_ENV"
+
       - name: Record the five legs
         id: legs
         run: |
@@ -158,17 +228,18 @@ jobs:
           pinned_tree="$work/tree-pinned"
           rm -rf "$go_tree" "$pinned_tree"
           mkdir -p "$go_tree" "$pinned_tree"
+          probe_args=($PROBE_PROFILE_ARGS)
 
           run_leg gotavern-drive node tests/browser/combination-journey-probe.mjs \
-            --data-root "$go_tree" --report "$work/legs/go-drive.json" --nonce "cj-${GITHUB_RUN_ID:-local}"
+            --data-root "$go_tree" --report "$work/legs/go-drive.json" --nonce "cj-${GITHUB_RUN_ID:-local}" "${probe_args[@]}"
           run_leg pinned-drive node tests/browser/run-against-pinned.mjs combination-journey-probe.mjs -- \
-            --data-root "$pinned_tree" --report "$work/legs/pinned-drive.json" --nonce "cj-${GITHUB_RUN_ID:-local}"
+            --data-root "$pinned_tree" --report "$work/legs/pinned-drive.json" --nonce "cj-${GITHUB_RUN_ID:-local}" "${probe_args[@]}"
           run_leg gotavern-restart node tests/browser/combination-journey-probe.mjs \
-            --data-root "$go_tree" --report "$work/legs/go-restart.json" --nonce "cj-${GITHUB_RUN_ID:-local}" --after-restart
+            --data-root "$go_tree" --report "$work/legs/go-restart.json" --nonce "cj-${GITHUB_RUN_ID:-local}" --after-restart "${probe_args[@]}"
           run_leg pinned-restart node tests/browser/run-against-pinned.mjs combination-journey-probe.mjs -- \
-            --data-root "$pinned_tree" --report "$work/legs/pinned-restart.json" --nonce "cj-${GITHUB_RUN_ID:-local}" --after-restart
+            --data-root "$pinned_tree" --report "$work/legs/pinned-restart.json" --nonce "cj-${GITHUB_RUN_ID:-local}" --after-restart "${probe_args[@]}"
           run_leg pinned-handback node tests/browser/run-against-pinned.mjs combination-journey-probe.mjs -- \
-            --data-root "$go_tree" --report "$work/legs/pinned-handback.json" --nonce "cj-${GITHUB_RUN_ID:-local}" --handback
+            --data-root "$go_tree" --report "$work/legs/pinned-handback.json" --nonce "cj-${GITHUB_RUN_ID:-local}" --handback "${probe_args[@]}"
           for report in go-drive pinned-drive go-restart pinned-restart pinned-handback; do
             if [ ! -s "$work/legs/$report.json" ]; then
               record_failure "the $report leg wrote no report"
@@ -176,30 +247,98 @@ jobs:
           done
           echo "artefacts at $work/legs"
 
+      - name: Consume the leg-failure counter
+        # THE COUNTER WAS WRITTEN AND NEVER READ BEFORE THIS STEP: five legs could fail to drive and the job still
+        # proceeded to the comparator, where the failures presented as a mismatch (or, worse, as NOT-OBSERVED guards
+        # that a later reader could mistake for a narrowed run). A drive failure is a HARNESS FAILURE: fail here, by
+        # name, before the comparator is asked to judge bytes that were never recorded.
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          failures='${{ steps.legs.outputs.failures }}'
+          if [ -z "$failures" ]; then failures=1; fi
+          if [ "$failures" != "0" ]; then
+            echo "::error::HARNESS FAILURE: at least one leg failed to drive (leg-failure counter = $failures); the comparator's verdict would not be evidence"
+            exit 1
+          fi
+          echo "leg-failure counter = $failures: every leg drove"
+
       - name: Compare the subjects
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/combination-journey"
+          comparator_args=($COMPARATOR_PROFILE_ARGS)
           node tests/browser/compare-combination-journey.mjs \
             "$work/legs/go-drive.json" "$work/legs/pinned-drive.json" \
             --restart "$work/legs/go-restart.json" "$work/legs/pinned-restart.json" \
             --handback "$work/legs/pinned-handback.json" \
+            "${comparator_args[@]}" \
             --out "$work/legs/comparison.json" 2>&1 | tee "$work/legs/compare.log"
 
       - name: Prove the gate has teeth
+        # Runs the synthetic profile suite (no browser, each design-section-6 defect must fire a NAMED red) AND, when
+        # the two real legs are supplied, the live mutation suite over them.
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/combination-journey"
           node tests/browser/combination-journey-gate-selftest.mjs \
             "$work/legs/go-drive.json" "$work/legs/pinned-drive.json" 2>&1 | tee "$work/legs/selftest.log"
 
-      - name: Upload reports, comparison and teeth log
+      - name: Write the evidence identity
+        # THE ARTIFACT MUST SAY WHICH TREE/PROFILE IT MEASURED (design section 9.3): kind, schemaVersion, head SHA,
+        # pinned SHA, profile, tier, seed, extension tier, and the sha256 of every leg file it ships. Written even on a
+        # failed run, so a red artifact is still attributable.
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/combination-journey"
+          node -e '
+            const fs = require("node:fs");
+            const path = require("node:path");
+            const crypto = require("node:crypto");
+            const work = process.env.RUNNER_TEMP + "/combination-journey";
+            const labels = ["go-drive", "pinned-drive", "go-restart", "pinned-restart", "pinned-handback"];
+            const documents = {};
+            for (const label of labels) {
+              const file = path.join(work, "legs", label + ".json");
+              if (!fs.existsSync(file)) continue;
+              documents[label] = { path: file, sha256: crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex") };
+            }
+            const identity = {
+              kind: "combination-journey-evidence",
+              schemaVersion: 1,
+              headSha: process.env.GITHUB_SHA || null,
+              pinnedSha: process.env.PINNED_BASELINE_COMMIT || null,
+              profile: process.env.PROFILE || "none",
+              tier: process.env.TIER || null,
+              seed: process.env.SEED || null,
+              extensionTier: process.env.EXTENSION_TIER || null,
+              documents,
+            };
+            fs.mkdirSync(path.join(work, "legs"), { recursive: true });
+            fs.writeFileSync(path.join(work, "legs", "identity.json"), JSON.stringify(identity, null, 2) + "\n");
+            console.log(JSON.stringify(identity, null, 2));
+          '
+
+      - name: Verify the evidence identity (fail-closed)
+        # A wrong head SHA, a wrong pinned SHA, a missing field or a digest that does not match the shipped bytes is a
+        # REFUSAL (nonzero), never a warning. The verifier re-derives every document digest from the files on disk.
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/combination-journey"
+          node tests/browser/compare-combination-journey.mjs --verify-artifact "$work/legs/identity.json"
+
+      - name: Upload reports, comparison, identity and teeth log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: combination-journey
+          # FIXED NAME: a reader (and the scheduled aggregate) finds the evidence without guessing a run-specific
+          # artifact name; the identity file inside it carries the run-specific tree/profile.
+          name: combination-journey-evidence
           path: |
             ${{ runner.temp }}/combination-journey/legs/*.json
             ${{ runner.temp }}/combination-journey/legs/*.log
+            ${{ runner.temp }}/combination-journey/extension-seed.json
           if-no-files-found: warn
           retention-days: 14

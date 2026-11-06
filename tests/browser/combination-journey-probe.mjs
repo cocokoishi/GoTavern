@@ -36,8 +36,11 @@
 //
 // Usage:
 //   node tests/browser/combination-journey-probe.mjs --data-root <tree> --report <json> [--nonce <shared>]
+//   node tests/browser/combination-journey-probe.mjs --data-root <tree> --report <json> --profile e03e04 --tier fast|medium|full [--seed <s>] [--extension-tier fast|medium|full]
 //   node tests/browser/run-against-pinned.mjs combination-journey-probe.mjs -- --data-root <tree> --report <json> --handback
-// The GoTavern restart leg is the same command with --after-restart.
+// The GoTavern restart leg is the same command with --after-restart. `--profile e03e04` stages the generated
+// E03+E04 profile (120-block class preset, three world books incl. a card-embedded one, 22 pinned extensions) and
+// records the ordered marker manifest; with the flag absent the legacy journey above runs unchanged.
 
 import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
@@ -59,6 +62,14 @@ import {
 } from './extensions/combination-journey-kit.mjs';
 import { MARKERS as WI_MARKERS, extractLayout } from './worldinfo-slots-kit.mjs';
 import { applyAuthorsNoteOverlay, authorsNoteOverlaySpec, resolveAuthorsNoteCase } from './preset-kit.mjs';
+import {
+    buildProfile as buildE03E04Profile,
+    canonicalJson as canonicalE03E04Json,
+    documentBytes as e03e04DocumentBytes,
+    sha256 as e03e04Sha256,
+    TIERS as E03E04_TIERS,
+} from './extensions/e03e04-profile-kit.mjs';
+import { EXTENSION_TIERS, extensionBatchRecord, installExtensionBatch } from './extensions/extension-install-batch.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
@@ -67,7 +78,7 @@ const chromium = playwrightModule.chromium ?? playwrightModule.default?.chromium
 
 const dataRoot = path.resolve(argumentValue(process.argv, '--data-root') ?? '');
 if (!argumentValue(process.argv, '--data-root')) {
-    console.error('usage: node combination-journey-probe.mjs --data-root <tree> --report <json> [--after-restart|--handback]');
+    console.error('usage: node combination-journey-probe.mjs --data-root <tree> --report <json> [--profile e03e04 --tier fast|medium|full] [--after-restart|--handback]');
     process.exit(2);
 }
 const reportPath = path.resolve(argumentValue(process.argv, '--report') ?? path.join(here, 'combination-journey-report.json'));
@@ -82,6 +93,70 @@ const subject = external ? 'pinned' : 'gotavern';
 const nonce = argumentValue(process.argv, '--nonce') ?? 'comb';
 const JOURNEY_WORLD = 'wi-slots-probe';
 
+// =================================================================================================================
+// E03+E04 PROFILE MODE (`--profile e03e04`).
+//
+// With the flag ABSENT this probe behaves exactly as it did before this mode existed: the committed preset-a
+// derivation, the journey's own 3-slot book, the tavern-helper install, and the same 9-step journey. The flag only
+// ADDS ingredients and profile-specific steps; it never changes a legacy step, a capture case name, or the report
+// shape a legacy leg already wrote (`e03e04`, `extensions`, `identity` are new nullable members).
+//
+// WHAT THE MODE DOES (design sections 3-6; task-14):
+//   * stages `buildProfile({seed, blockCount: TIERS[tier], tier})` BEFORE the page can read its lists: the preset
+//     into `default-user/OpenAI Settings/`, the three-slot + recursive book documents into `default-user/worlds/`,
+//     the settings patch merged into `settings.json`, and the card-embedded `character_book` payload into the
+//     journey card's PNG through `combination-journey-kit.mjs` (which owns the tEXt staging);
+//   * installs the tier's pinned extensions before boot through the ONE extracted batch helper;
+//   * after boot it re-asserts the profile world-info settings through the product's own
+//     `updateWorldInfoSettings`, selects the journey + profile books, imports the embedded book through the
+//     product's own `checkEmbeddedWorld` path, and selects the preset through `#settings_preset_openai`;
+//   * puts the profile's activation trigger tokens into the first user message (world-info activation needs them
+//     in the scanned chat);
+//   * RECORDS `expectedOrder` (and every staged document's digest) beside the leg in `report.e03e04`; it does NOT
+//     assert the marker contract in the probe -- the comparator does (task-14 split).
+// The record file `<dataRoot>/default-user/e03e04-profile.record.json` is written by the drive leg and READ BACK by
+// the restart/hand-back legs, so they assert the SAME manifest the drive staged, with its digest re-verified.
+// =================================================================================================================
+
+const profileArgument = argumentValue(process.argv, '--profile');
+if (profileArgument !== null && profileArgument !== 'e03e04') {
+    console.error(`unsupported --profile ${JSON.stringify(profileArgument)}; supported: e03e04 (omit the flag for the legacy journey)`);
+    process.exit(2);
+}
+const profileMode = profileArgument;
+const tierArgument = profileMode ? (argumentValue(process.argv, '--tier') ?? 'full') : null;
+if (profileMode && !Object.hasOwn(E03E04_TIERS, tierArgument)) {
+    console.error(`unsupported --tier ${JSON.stringify(tierArgument)}; supported: ${Object.keys(E03E04_TIERS).join(', ')}`);
+    process.exit(2);
+}
+// The extension tier follows the block tier by default (fast 3 / medium 10 / full 22); a caller may narrow it
+// INDEPENDENTLY for triage, and the artifact records the value that actually ran.
+const extensionTierArgument = profileMode ? (argumentValue(process.argv, '--extension-tier') ?? tierArgument) : null;
+if (profileMode && !Object.hasOwn(E03E04_TIERS, extensionTierArgument)) {
+    console.error(`unsupported --extension-tier ${JSON.stringify(extensionTierArgument)}; supported: ${Object.keys(E03E04_TIERS).join(', ')}`);
+    process.exit(2);
+}
+const seedArgument = profileMode ? (argumentValue(process.argv, '--seed') ?? 'e03e04-alpha16') : null;
+// TRIAGE MODE: stage the profile documents + record, skip the extension install and the boot. It exists so the
+// staging path can be exercised by `node` alone (no browser, no pinned server, no network); the CI gate never passes
+// it, and a leg recorded with it is not a journey leg (`report.stagingOnly = true`).
+const stageOnly = process.argv.includes('--stage-only');
+if (stageOnly && !profileMode) {
+    console.error('--stage-only requires --profile e03e04');
+    process.exit(2);
+}
+const PROFILE_PRESET_NAME = 'e03e04-profile';
+const PROFILE_RECORD_FILE = 'e03e04-profile.record.json';
+// The prompt-manager marker needle the "armed" wait counts. Legacy prompt contents carry the derivation's `MARK_`
+// tokens; the profile's blocks carry `MARKER_Pxxxx`. Passing the needle explicitly keeps BOTH paths strong (a wait
+// that counted nothing would call any page armed).
+const ARMED_MARKER_NEEDLE = profileMode ? 'MARKER_P' : 'MARK_';
+// Filled by the drive staging block (and reconstructed from the record file on the restart/hand-back phases).
+let profileContext = null;
+const profileWorldNames = () => (profileContext
+    ? [profileContext.built.books.threeSlot.name, profileContext.built.books.recursiveGlobal.name]
+    : []);
+
 const report = {
     schemaVersion: 1,
     question: 'Does the full combination journey (card × complex preset × world book × variables × QR × character regex × streaming × verbs × reload × restart × group turn) produce the same provider requests, browser state and durable chat on pinned Node and GoTavern in ONE session, and does pinned Node continue the GoTavern-written chat?',
@@ -94,6 +169,11 @@ const report = {
     browser: {},
     disk: {},
     fixture: {},
+    // Profile-mode records. All THREE are new optional members: a legacy leg leaves them null and the comparator's
+    // profile guards simply do not exist for it (profile guards are created only for a profile pair).
+    e03e04: null,
+    extensions: null,
+    identity: null,
     failure: null,
 };
 
@@ -107,7 +187,9 @@ function sha256(buffer) {
     return createHash('sha256').update(buffer).digest('hex');
 }
 
-const peerRequests = () => peer.requests.filter(entry => /chat\/completions/.test(entry.path ?? ''));
+// `peer` may legitimately be null when a SEQUENCE BEFORE BOOT fails (or in `--stage-only` triage): the finally block
+// still writes a report, and a summary that threw inside the finally would replace the real failure with a TypeError.
+const peerRequests = () => (peer ? peer.requests : []).filter(entry => /chat\/completions/.test(entry.path ?? ''));
 const completionsFrom = index => peerRequests().slice(index);
 let peer = null;
 let browser = null;
@@ -376,6 +458,414 @@ async function selectWorldBookAfterBoot(page, dataRoot, worldName) {
     return { ok: last?.ok === true, attempts, last, persistedGlobalSelect, fallbackDirectWrite };
 }
 
+// =================================================================================================================
+// E03+E04 PROFILE HELPERS (used only when `--profile e03e04`). Kept together so the legacy path above is untouched.
+// =================================================================================================================
+
+/** Merge the profile kit's settings patch into `settings.json` BEFORE the page reads it (best effort; re-asserted after boot). */
+async function mergeProfileSettingsAtRoot(dataRoot, patch) {
+    const settingsPath = path.join(dataRoot, 'default-user', 'settings.json');
+    let current = {};
+    try {
+        current = JSON.parse(await fs.readFile(settingsPath, 'utf8'));
+    } catch {
+        current = {};
+    }
+    const mergeInto = (target, source) => {
+        for (const [key, value] of Object.entries(source)) {
+            if (value && typeof value === 'object' && !Array.isArray(value) && target[key] && typeof target[key] === 'object' && !Array.isArray(target[key])) {
+                target[key] = { ...target[key], ...value };
+            } else {
+                target[key] = value;
+            }
+        }
+        return target;
+    };
+    mergeInto(current, patch);
+    await fs.mkdir(path.dirname(settingsPath), { recursive: true });
+    await fs.writeFile(settingsPath, `${JSON.stringify(current, null, 2)}\n`);
+    return { file: 'settings.json', sha256: sha256(await fs.readFile(settingsPath)), members: Object.keys(patch) };
+}
+
+/**
+ * STAGE THE PROFILE BEFORE BOOT (drive phase only). Writes, in the order a user's tree would hold them:
+ *   1. the preset document into `OpenAI Settings/` (the directory the frontend lists at page load);
+ *   2. the three-slot and recursive world-book documents into `worlds/`;
+ *   3. the profile kit's settings patch into `settings.json`;
+ *   4. the profile RECORD into `default-user/<record>.json`, which the restart/hand-back phases read back (the
+ *      record carries `expectedOrder` and the digest of every staged document, so a later phase cannot silently
+ *      judge against a different manifest).
+ * The card (with the embedded `character_book`) is staged by the caller through the journey kit, which owns PNG
+ * staging; this function returns the payload so the caller passes the SAME object.
+ */
+async function stageE03e04Profile(dataRoot) {
+    const blockCount = E03E04_TIERS[tierArgument];
+    const built = buildE03E04Profile({ seed: seedArgument, blockCount, tier: tierArgument });
+    const presetDirectory = path.join(dataRoot, 'default-user', 'OpenAI Settings');
+    await fs.mkdir(presetDirectory, { recursive: true });
+    const presetFile = path.join(presetDirectory, `${PROFILE_PRESET_NAME}.json`);
+    await fs.writeFile(presetFile, e03e04DocumentBytes(built.preset));
+
+    const worldsDirectory = path.join(dataRoot, 'default-user', 'worlds');
+    await fs.mkdir(worldsDirectory, { recursive: true });
+    const books = {};
+    for (const book of [built.books.threeSlot, built.books.recursiveGlobal]) {
+        const file = path.join(worldsDirectory, `${book.name}.json`);
+        // Canonical bytes for the staged document, so two runs of the same recipe stage byte-identical files.
+        await fs.writeFile(file, `${JSON.stringify(book.document, null, 2)}\n`);
+        books[book.name] = { file: `worlds/${book.name}.json`, sha256: sha256(await fs.readFile(file)) };
+    }
+    const settings = await mergeProfileSettingsAtRoot(dataRoot, built.settings);
+
+    const record = {
+        kind: 'e03e04-profile-record',
+        schemaVersion: 1,
+        profile: profileMode,
+        tier: tierArgument,
+        seed: seedArgument,
+        blockCount,
+        expectedOrderSha256: e03e04Sha256(canonicalE03E04Json(built.expectedOrder)),
+        expectedOrder: built.expectedOrder,
+        preset: { file: `OpenAI Settings/${PROFILE_PRESET_NAME}.json`, sha256: e03e04Sha256(canonicalE03E04Json(built.preset)) },
+        books,
+        cardCharacterBook: {
+            name: built.books.cardEmbedded.name,
+            sha256: e03e04Sha256(canonicalE03E04Json(built.books.cardEmbedded.characterBook)),
+            entries: built.books.cardEmbedded.characterBook.entries.length,
+        },
+        settingsPatch: {
+            sha256: e03e04Sha256(canonicalE03E04Json(built.settings)),
+            file: settings.file,
+            stagedSha256: settings.sha256,
+        },
+        activation: built.books.activation,
+        worldInfoSettings: built.books.worldInfoSettings,
+        // The power_user half of the settings patch (stop strings + instruct/context templates). Recorded so a later
+        // phase (or a boot that overwrote settings.json) can re-assert the SAME values the drive staged.
+        powerUserPatch: built.settings.power_user,
+        selection: built.books.selection,
+        extensionTier: extensionTierArgument,
+        manifest: built.manifest,
+    };
+    const recordPath = path.join(dataRoot, 'default-user', PROFILE_RECORD_FILE);
+    await fs.writeFile(recordPath, `${JSON.stringify(record, null, 2)}\n`);
+    return { built, record, recordFile: `default-user/${PROFILE_RECORD_FILE}` };
+}
+
+/** Read the record a drive leg staged and RE-VERIFY its manifest digest; a mismatch is a named refusal, not a guess. */
+async function readE03e04Record(dataRoot) {
+    const recordPath = path.join(dataRoot, 'default-user', PROFILE_RECORD_FILE);
+    let record = null;
+    let error = null;
+    try {
+        record = JSON.parse(await fs.readFile(recordPath, 'utf8'));
+    } catch (caught) {
+        error = String(caught?.message ?? caught);
+    }
+    if (!record) return { verified: false, record: null, reason: `the profile record is missing or unreadable: ${error}` };
+    if (record.kind !== 'e03e04-profile-record' || record.schemaVersion !== 1) return { verified: false, record, reason: 'the profile record has an unknown kind/schemaVersion' };
+    const recomputed = e03e04Sha256(canonicalE03E04Json(record.expectedOrder));
+    const verified = recomputed === record.expectedOrderSha256;
+    // Restore the pieces the drive path keeps in memory, so later phases can reuse the same helpers.
+    const fakeBuilt = { books: { threeSlot: { name: 'e03e04-book-a-three-slot' }, recursiveGlobal: { name: 'e03e04-book-c-recursive' } } };
+    return { verified, record, reason: verified ? null : `expectedOrder sha256 ${recomputed} != recorded ${record.expectedOrderSha256}`, built: fakeBuilt };
+}
+
+/**
+ * Re-assert the profile world-info settings and selection through the PRODUCT'S OWN settings path after boot.
+ * The pre-boot `settings.json` write cannot be relied on (both servers' boot overwrites it; measured by the journey's
+ * own single-world helper), so every profile claim about recursion/depth/selection is applied to the live module and
+ * then polled on disk.
+ */
+async function applyProfileWorldInfoAfterBoot(page, { worldInfoSettings, worldNames }) {
+    const applied = await page.evaluate(async ({ patch, worlds }) => {
+        const worldInfo = await import('./scripts/world-info.js');
+        if (typeof worldInfo.getWorldInfoList === 'function') await worldInfo.getWorldInfoList();
+        const names = Array.isArray(worldInfo.world_names) ? worldInfo.world_names.slice() : [];
+        const missing = worlds.filter(name => !names.includes(name));
+        if (missing.length > 0) return { ok: false, reason: 'the world books are not in world_names', missing, names };
+        const current = worldInfo.getWorldInfoSettings();
+        // Only the members the profile actually declares are overlaid; `world_info` itself is the product's own
+        // selection object and must not be replaced by the patch's copy.
+        const next = { ...current, ...patch, world_info: current.world_info };
+        worldInfo.updateWorldInfoSettings(next, worlds);
+        return { ok: true, names, selected: Array.isArray(worldInfo.selected_world_info) ? worldInfo.selected_world_info.slice() : null };
+    }, { patch: worldInfoSettings, worlds: worldNames });
+    // Poll the product's persisted member the same way the legacy single-world helper does, with a named fallback.
+    let persistedGlobalSelect = null;
+    const deadline = Date.now() + 25000;
+    while (Date.now() < deadline) {
+        const settings = await readSettings(dataRoot);
+        persistedGlobalSelect = settings.globalSelect ?? null;
+        if (Array.isArray(persistedGlobalSelect) && worldNames.every(name => persistedGlobalSelect.includes(name))) break;
+        await page.waitForTimeout(500);
+    }
+    let fallbackDirectWrite = null;
+    if (!(Array.isArray(persistedGlobalSelect) && worldNames.every(name => persistedGlobalSelect.includes(name)))) {
+        const settingsPath = path.join(dataRoot, 'default-user', 'settings.json');
+        const current = JSON.parse(await fs.readFile(settingsPath, 'utf8').catch(() => '{}'));
+        current.world_info = { ...(current.world_info ?? {}), globalSelect: worldNames };
+        if (current.world_info_settings && typeof current.world_info_settings === 'object') {
+            current.world_info_settings = { ...current.world_info_settings, world_info: { ...(current.world_info_settings.world_info ?? {}), globalSelect: worldNames } };
+        }
+        await fs.writeFile(settingsPath, `${JSON.stringify(current, null, 2)}\n`);
+        persistedGlobalSelect = worldNames;
+        fallbackDirectWrite = { file: 'settings.json', member: 'world_info.globalSelect', reason: 'the frontend updateWorldInfoSettings save path did not reach disk within the bounded wait; recorded so the artefact shows the harness wrote the product member itself' };
+    }
+    return { ok: applied.ok === true, applied, persistedGlobalSelect, fallbackDirectWrite, worlds: worldNames };
+}
+
+/** Profile-mode world selection: the journey's book PLUS both profile books, in one product-path call. */
+async function selectJourneyWorlds(page, dataRoot) {
+    if (!profileMode) return selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+    const worldNames = [JOURNEY_WORLD, ...profileWorldNames()];
+    return applyProfileWorldInfoAfterBoot(page, {
+        worldInfoSettings: profileContext.record.worldInfoSettings,
+        worldNames,
+    });
+}
+
+/** True when a selection covers every world this join/mode claims (legacy: the journey book; profile: plus both). */
+function worldSelectionCovers(selection) {
+    const persisted = selection?.persistedGlobalSelect ?? selection?.globalSelect ?? null;
+    const required = profileMode ? [JOURNEY_WORLD, ...profileWorldNames()] : [JOURNEY_WORLD];
+    return Array.isArray(persisted) && required.every(name => persisted.includes(name));
+}
+
+/**
+ * Re-assert the power_user half of the profile patch (custom stop strings, instruct/context templates) after boot.
+ * The pre-boot `settings.json` merge cannot be assumed (the boot seeds/rewrites it), and the stop strings DO reach a
+ * chat-completion request (`openai.js:2814` getCustomStoppingStrings), so they are written through the product's own
+ * `power_user` module before the armed turn.
+ */
+async function applyProfilePowerUserAfterBoot(page, patch) {
+    if (!patch) return { ok: false, reason: 'the record carries no power_user patch' };
+    return page.evaluate(async wanted => {
+        const powerUser = await import('./scripts/power-user.js');
+        const script = await import('./script.js');
+        powerUser.power_user.custom_stopping_strings = wanted.custom_stopping_strings;
+        powerUser.power_user.custom_stopping_strings_macro = wanted.custom_stopping_strings_macro === true;
+        if (wanted.instruct) powerUser.power_user.instruct = { ...(powerUser.power_user.instruct ?? {}), ...wanted.instruct };
+        if (wanted.context) powerUser.power_user.context = { ...(powerUser.power_user.context ?? {}), ...wanted.context };
+        if (typeof script.saveSettingsDebounced === 'function') script.saveSettingsDebounced();
+        return {
+            ok: true,
+            custom_stopping_strings: powerUser.power_user.custom_stopping_strings,
+            custom_stopping_strings_macro: powerUser.power_user.custom_stopping_strings_macro,
+            instructEnabled: powerUser.power_user.instruct?.enabled ?? null,
+            contextPreset: powerUser.power_user.context?.preset ?? null,
+        };
+    }, patch);
+}
+
+/**
+ * IMPORT THE CARD-EMBEDDED LOREBOOK THROUGH THE PRODUCT'S OWN PATH (design section 5.3; card book is not
+ * auto-active, world-info.js:5691-5760). `checkEmbeddedWorld` shows the product's own confirmation dialog; this
+ * clicks the dialog's OK button. If the user setting `world_import_dialog` is off the product shows only a toast
+ * instead, and the fallback calls the exact function the dialog's confirm calls
+ * (`importEmbeddedWorldInfo(true)`); WHICH path ran is recorded, so the artifact never implies a dialog that did not
+ * appear. Waits (bounded) for the book in the product's world list AND for the character's own world binding.
+ */
+async function importEmbeddedCardBookAfterBoot(page) {
+    const started = await page.evaluate(async () => {
+        const worldInfo = await import('./scripts/world-info.js');
+        const script = await import('./script.js');
+        const chid = script.this_chid;
+        const character = chid === undefined || chid === null ? null : (script.characters ?? [])[chid] ?? null;
+        if (!character) return { ok: false, reason: 'no active character' };
+        if (!character?.data?.character_book) return { ok: false, reason: 'the staged card carries no data.character_book', chid, name: character?.name ?? null };
+        const opened = worldInfo.checkEmbeddedWorld(chid);
+        return { ok: opened === true, chid, name: character?.name ?? null, bookName: String(character.data.character_book.name ?? '') };
+    });
+    if (started.ok !== true) return { ...started, via: null };
+    let dialog = { present: false, clicked: false };
+    const deadline = Date.now() + 8000;
+    while (Date.now() < deadline) {
+        const popup = await page.evaluate(() => {
+            const button = document.querySelector('.popup .popup-button-ok') ?? document.querySelector('.popup-button-ok');
+            if (!button) return { present: false };
+            button.click();
+            return { present: true };
+        }).catch(() => ({ present: false }));
+        if (popup.present) { dialog = { present: true, clicked: true }; break; }
+        await page.waitForTimeout(200);
+    }
+    let via = dialog.clicked ? 'checkEmbeddedWorld dialog confirm' : null;
+    let fallback = null;
+    if (!dialog.clicked) {
+        const direct = await page.evaluate(async () => {
+            const worldInfo = await import('./scripts/world-info.js');
+            await worldInfo.importEmbeddedWorldInfo(true);
+            return { called: true };
+        }).catch(error => ({ called: false, error: String(error?.message ?? error).slice(0, 300) }));
+        via = direct.called ? 'importEmbeddedWorldInfo(true) (the dialog did not appear; the product function the dialog confirm calls)' : 'not-driven';
+        fallback = direct;
+    }
+    // Bound the wait on the PRODUCT's own state: the book in world_names AND the character's world binding.
+    const wanted = started.bookName;
+    const deadline2 = Date.now() + 20000;
+    let verified = { ok: false };
+    while (Date.now() < deadline2) {
+        verified = await page.evaluate(async name => {
+            const worldInfo = await import('./scripts/world-info.js');
+            const script = await import('./script.js');
+            if (typeof worldInfo.getWorldInfoList === 'function') await worldInfo.getWorldInfoList();
+            const names = Array.isArray(worldInfo.world_names) ? worldInfo.world_names.slice() : [];
+            const chid = script.this_chid;
+            const bound = String(script.characters?.[chid]?.data?.extensions?.world ?? '');
+            return { ok: names.includes(name) && bound === name, names, bound, name };
+        }, wanted).catch(error => ({ ok: false, error: String(error?.message ?? error).slice(0, 200) }));
+        if (verified.ok === true) break;
+        await page.waitForTimeout(250);
+    }
+    return { ...started, via, dialog, fallback, verified, ok: verified.ok === true };
+}
+
+/** Fetch each installed extension's manifest through the product's own static mount and record the observed status. */
+async function recordExtensionServeEvidence(page, installed) {
+    return page.evaluate(async entries => {
+        const observations = [];
+        for (const entry of entries) {
+            const url = `/scripts/extensions/third-party/${entry.name}/manifest.json`;
+            try {
+                const response = await fetch(url);
+                observations.push({ name: entry.name, url, status: response.status, ok: response.ok === true });
+            } catch (error) {
+                observations.push({ name: entry.name, url, status: null, ok: false, error: String(error?.message ?? error).slice(0, 200) });
+            }
+        }
+        return observations;
+    }, installed.map(entry => ({ name: entry.name })));
+}
+
+/**
+ * THE PROFILE'S QR -> HELPER CHAIN (design section 5.5). The QR's STscript WRITES the chat variable and then
+ * INJECTS its prompt; the read-only helper run AFTER the QR reads the scopes and injects the readback, so the
+ * provider body carries "the helper read the value the QR wrote" (and both markers are attributable).
+ */
+async function runProfileQrHelperChain(page) {
+    const writeMarker = 'COMB_QR_WROTE_MARKER';
+    const injection = JOURNEY.qrInjection;
+    const qr = await page.evaluate(async ({ setName, label, marker, text }) => {
+        const api = globalThis.quickReplyApi;
+        if (!api) return { status: 'not-driven', reason: 'quickReplyApi not published' };
+        try {
+            await api.createSet(setName).catch(() => {});
+            const message = `/setvar key=comb_chat_var "${marker}" | /inject id=comb-journey-qr position=0 depth=4 "${text}"`;
+            await api.createQuickReply(setName, label, { message });
+            const set = api.getSetByName(setName);
+            if (set && typeof set.save === 'function') await set.save();
+            if (typeof api.executeQuickReply === 'function') {
+                await api.executeQuickReply(setName, label);
+                return { status: 'driven', via: 'api.executeQuickReply', message };
+            }
+            return { status: 'not-driven', reason: 'no executeQuickReply', message };
+        } catch (error) {
+            return { status: 'not-driven', reason: String(error?.message ?? error).slice(0, 300) };
+        }
+    }, { setName: JOURNEY.qrSet, label: JOURNEY.qrLabel, marker: writeMarker, text: injection });
+
+    let pageVariable = { direct: null };
+    const deadline = Date.now() + 15000;
+    while (Date.now() < deadline) {
+        pageVariable = await page.evaluate(async () => {
+            try {
+                const script = await import('./script.js');
+                const variables = script.chat_metadata?.variables ?? null;
+                return { direct: variables && typeof variables === 'object' ? (variables.comb_chat_var ?? null) : null, hasMetadata: Boolean(script.chat_metadata) };
+            } catch (error) {
+                return { direct: null, error: String(error?.message ?? error).slice(0, 160) };
+            }
+        });
+        if (pageVariable.direct === writeMarker) break;
+        await page.waitForTimeout(200);
+    }
+
+    // THE READ-ONLY HELPER RUN: it writes nothing, so what it reads is what the QR wrote.
+    const helperScript = `
+        (async () => {
+            const cfg = window.parent.__combRead;
+            if (!cfg) {
+                window.__combDone = { runId: 'auto-run-on-load', errors: [], closure: { insideIframe: window !== window.parent, bridge: Boolean(window.TavernHelper) }, readback: null };
+                return;
+            }
+            const out = { runId: cfg.runId, errors: [], closure: null, readback: null };
+            const done = () => { window.__combDone = out; };
+            try {
+                const H = window.TavernHelper || window.parent.TavernHelper;
+                out.closure = { insideIframe: window !== window.parent, bridge: Boolean(H) };
+                const parts = [];
+                for (const type of ['chat', 'global', 'character']) {
+                    const value = H.getVariables({ type });
+                    const keys = Object.keys(value || {}).filter(key => key.indexOf('comb_') === 0).sort();
+                    parts.push('COMB_VAR_' + type.toUpperCase() + '[' + type + ']=' + keys.map(key => key + '=' + JSON.stringify(value[key])).join(';'));
+                }
+                out.readback = parts;
+                await H.injectPrompts([{ id: 'comb-journey-vars', content: parts.join(' ') }]);
+            } catch (error) { out.errors.push(String(error && error.message || error)); }
+            return done();
+        })();
+    `;
+    const runId = `comb-readonly-helper-${Date.now()}`;
+    await page.evaluate(item => {
+        window.__combRead = { runId: item.runId };
+        window.__combDone = null;
+        window.TavernHelper.replaceScriptTrees([{ type: 'script', enabled: true, name: item.runId, id: item.runId, content: item.content, button: { enabled: false, buttons: [] } }], { type: 'global' });
+    }, { runId, content: helperScript });
+    const done = await waitForCondition(page, async () => {
+        const found = [...document.querySelectorAll('iframe')].map(frame => { try { return frame.contentWindow?.__combDone ?? null; } catch { return null; } }).filter(Boolean);
+        const record = found.find(entry => entry.runId === window.__combRead?.runId) ?? null;
+        return { ok: Boolean(record), done: record };
+    }, { label: 'profile-readonly-helper', timeoutMs: 60000 });
+    const readOnly = { payload: { runId }, done: done.value?.done ?? null, ok: done.ok === true && (done.value?.done?.errors ?? []).length === 0 };
+    const readbackText = (readOnly.done?.readback ?? []).join(' ');
+    const chain = {
+        writeMarker,
+        injection,
+        intendedOrder: ['qr-script-writes-chat-var', 'helper-reads-scopes', 'helper-injects-readback', 'qr-injects-prompt'],
+        qr,
+        pageVariable,
+        helper: readOnly,
+        readbackCarriesWrite: readbackText.includes(writeMarker),
+    };
+    return {
+        qr,
+        helper: readOnly,
+        chain,
+        readbackCarriesWrite: chain.readbackCarriesWrite,
+        closure: readOnly.done?.closure ?? null,
+        errors: readOnly.done?.errors ?? [],
+        ok: qr.status === 'driven' && readOnly.ok === true && chain.readbackCarriesWrite === true,
+    };
+}
+
+/** Ordered message ids: the persisted/rendered order the design's duplicate-message control reads. */
+async function recordOrderedMessageIds(page) {
+    return page.evaluate(async () => {
+        const script = await import('./script.js');
+        const chat = script.chat ?? [];
+        const userMarkers = [];
+        const messages = chat.map((message, index) => {
+            const text = String(message?.mes ?? '');
+            const marker = (text.match(/COMB_[A-Z_]+/) ?? [null])[0];
+            if (message?.is_user === true && marker) userMarkers.push({ index, marker });
+            return { index, role: message?.is_user === true ? 'user' : 'assistant', marker, textLength: text.length };
+        });
+        const domMesIds = [...document.querySelectorAll('#chat .mes')].map(element => element.getAttribute('mesid') ?? element.dataset?.mesId ?? null);
+        return {
+            messages,
+            userMarkers,
+            domMesIds,
+            chatLength: chat.length,
+            domCount: domMesIds.length,
+            // The two facts the comparator needs: the rendered ids are unique, and the rendered count matches the
+            // chat array (the conversation-editing race the design requires be resolved before this lane gates).
+            domIdsUnique: new Set(domMesIds).size === domMesIds.length,
+            domIdsCoverChat: domMesIds.length === chat.length,
+        };
+    });
+}
+
 /** Which of the journey's injected prompts the page's own assembly state currently carries. */
 async function verifyInjectionPrompts(page, { timeoutMs = 8000 } = {}) {
     const read = () => page.evaluate(async () => {
@@ -603,11 +1093,11 @@ async function readPromptManagerState(page) {
 
 
 /** Wait (bounded) until the prompt manager's NORMAL collection is the character's, not the dummy fallback. */
-async function waitForArmedPromptManager(page, { minimum = 8, timeoutMs = 30000 } = {}) {
+async function waitForArmedPromptManager(page, { minimum = 8, timeoutMs = 30000, markerNeedle = 'MARK_' } = {}) {
     const started = Date.now();
     let last = null;
     while (Date.now() - started < timeoutMs) {
-        last = await page.evaluate(async () => {
+        last = await page.evaluate(async needle => {
             const openai = await import('./scripts/openai.js');
             const script = await import('./script.js');
             const pm = openai.promptManager;
@@ -623,11 +1113,13 @@ async function waitForArmedPromptManager(page, { minimum = 8, timeoutMs = 30000 
                 // THE COMPLEX PRESET IS WHAT MAKES THE FINAL REQUEST WHAT IT IS. The default prompt order also has
                 // chatHistory/worldInfoBefore/main, so the three required identifiers could not tell an armed complex
                 // preset from a freshly booted default one -- and the restart capture carried world-info slots but no
-                // preset markers while this check was green. Count the preset's MARK_ prompts and require them.
-                markerCount = prompts.filter(prompt => String(prompt?.content ?? '').includes('MARK_')).length;
+                // preset markers while this check was green. Count the preset's own marker-shaped prompts and require
+                // them; the NEEDLE is passed in so the legacy derivation's `MARK_` tokens and the E03+E04 profile's
+                // `MARKER_Pxxxx` blocks each get a check that can actually fail.
+                markerCount = prompts.filter(prompt => String(prompt?.content ?? '').includes(needle)).length;
             } catch (error) { return { available: true, error: String(error?.message ?? error) }; }
-            return { available: true, promptCount: count, identifiers, markerCount, activeCharacter: pm.activeCharacter ?? null, chid: script.this_chid ?? null };
-        });
+            return { available: true, promptCount: count, identifiers, markerCount, needle, activeCharacter: pm.activeCharacter ?? null, chid: script.this_chid ?? null };
+        }, markerNeedle);
         const identifiers = last?.identifiers ?? [];
         const required = ['chatHistory', 'worldInfoBefore', 'main'];
         const armed = last?.available === true && Number(last?.promptCount) >= minimum && Number(last?.markerCount) >= 5 && required.every(identifier => identifiers.includes(identifier));
@@ -637,12 +1129,12 @@ async function waitForArmedPromptManager(page, { minimum = 8, timeoutMs = 30000 
             let stable = true;
             while (Date.now() - stableSince < 2500) {
                 await page.waitForTimeout(250);
-                const again = await page.evaluate(async () => {
+                const again = await page.evaluate(async needle => {
                     const openai = await import('./scripts/openai.js');
                     const collection = openai.promptManager?.getPromptCollection('normal');
                     const prompts = Array.isArray(collection?.collection) ? collection.collection : [];
-                    return { count: prompts.length, identifiers: prompts.map(prompt => prompt?.identifier ?? null), markerCount: prompts.filter(prompt => String(prompt?.content ?? '').includes('MARK_')).length };
-                });
+                    return { count: prompts.length, identifiers: prompts.map(prompt => prompt?.identifier ?? null), markerCount: prompts.filter(prompt => String(prompt?.content ?? '').includes(needle)).length };
+                }, markerNeedle);
                 const stillArmed = Number(again?.count) >= minimum && Number(again?.markerCount) >= 5 && required.every(identifier => (again?.identifiers ?? []).includes(identifier));
                 if (!stillArmed) { stable = false; break; }
             }
@@ -780,26 +1272,131 @@ async function main() {
         // lists the preset directory as it was when the page initialised; a file written after page load is not in
         // its list (measured: options were ["Default"]). The user-equivalent path is a preset file in the tree
         // before the page opens, which is also what whole-session-probe.mjs does for its preset arm.
-        const presetName = 'comb-journey-complex-preset';
+        const presetName = profileMode ? PROFILE_PRESET_NAME : 'comb-journey-complex-preset';
         let presetDocument = null;
         let presetSource = null;
         if (phase === 'drive') {
-            presetSource = await fs.readFile(path.join(here, 'fixtures', 'real', 'preset-a.json'));
-            presetDocument = JSON.parse(presetSource.toString('utf8'));
-            await fs.mkdir(path.join(dataRoot, 'default-user', 'OpenAI Settings'), { recursive: true });
-            await fs.writeFile(path.join(dataRoot, 'default-user', 'OpenAI Settings', `${presetName}.json`), `${JSON.stringify(presetDocument, null, 2)}\n`);
-            const card = await stageJourneyCard(dataRoot);
-            const world = await stageJourneyWorldBook(dataRoot);
-            const groups = await stageJourneyGroups(dataRoot);
-            const extension = await ensurePinnedExtensionInstalled(dataRoot, pinnedExtension('tavern-helper'));
-            const apiSurface = await readHelperApiSurface(extension, extension.extensionDirectory);
-            report.fixture = { card, world, groups, extension: { ...describeInstalledExtension(extension.extensionDirectory), revision: extension.revision }, apiSurface };
-            step('card-staged', card.sha256.length === 64, { file: card.file, regex: card.regex });
-            step('world-book-staged', world.book.entries === 3 && Array.isArray(world.selection.worldInfo?.globalSelect), world.book);
-            step('groups-staged', Boolean(groups.groupName), { groupId: groups.groupId, groupName: groups.groupName });
-            step('helper-extension-is-pinned', apiSurface.pinned === true && (apiSurface.reasons ?? []).length === 0, { pinned: apiSurface.pinned, reasons: apiSurface.reasons });
+            if (profileMode) {
+                // ---- E03+E04 INGREDIENTS, ALL OF THEM, BEFORE THE PAGE READS ITS LISTS --------------------
+                profileContext = await stageE03e04Profile(dataRoot);
+                report.e03e04 = {
+                    profile: profileMode,
+                    tier: tierArgument,
+                    seed: seedArgument,
+                    blockCount: profileContext.record.blockCount,
+                    recordFile: profileContext.recordFile,
+                    expectedOrderSha256: profileContext.record.expectedOrderSha256,
+                    record: profileContext.record,
+                };
+                step('e03e04-profile-staged', profileContext.record.expectedOrderSha256.length === 64
+                    && profileContext.record.books['e03e04-book-a-three-slot'] !== undefined
+                    && profileContext.record.books['e03e04-book-c-recursive'] !== undefined, {
+                    tier: tierArgument,
+                    seed: seedArgument,
+                    blockCount: profileContext.record.blockCount,
+                    expectedOrderSha256: profileContext.record.expectedOrderSha256,
+                    presetSha256: profileContext.record.preset.sha256,
+                    cardCharacterBookSha256: profileContext.record.cardCharacterBook.sha256,
+                });
+                if (extensionTierArgument !== tierArgument) {
+                    step('e03e04-extension-tier-is-narrowed', false, {
+                        blockTier: tierArgument,
+                        extensionTier: extensionTierArgument,
+                        reason: 'the extension tier was narrowed independently of the block tier; the run is a triage run and must not be reported as full coverage',
+                    });
+                }
+                // ONE extracted install helper (extension-install-batch.mjs); revisions are re-read and verified there.
+                if (stageOnly) {
+                    step('e03e04-extensions-install-skipped', true, { reason: '--stage-only: the staging triage mode does not install extensions (no network, no boot)' });
+                } else {
+                    const batch = await installExtensionBatch({ dataRoot, tier: extensionTierArgument });
+                    report.extensions = extensionBatchRecord(batch);
+                    step('e03e04-extensions-installed', batch.installedCount === batch.expected && batch.expected === EXTENSION_TIERS[extensionTierArgument],
+                        { tier: extensionTierArgument, expected: batch.expected, installed: batch.installedCount, lockSha256: batch.lockSha256 });
+                }
+                if (report.extensions === null) report.extensions = { tier: extensionTierArgument, skipped: true, installedCount: 0, expected: EXTENSION_TIERS[extensionTierArgument], installed: [], serveEvidence: [] };
+                const helperRecord = report.extensions.installed.find(entry => entry.name === 'JS-Slash-Runner') ?? null;
+                if (!helperRecord && !stageOnly) {
+                    step('helper-extension-is-pinned', false, { reason: 'the batch did not install the pinned Tavern Helper canary', installed: report.extensions.installed.map(entry => entry.name) });
+                }
+                const built = profileContext.built;
+                const card = await stageJourneyCard(dataRoot, { characterBook: built.books.cardEmbedded.characterBook });
+                const world = await stageJourneyWorldBook(dataRoot);
+                const groups = await stageJourneyGroups(dataRoot);
+                const helperDirectory = helperRecord ? path.join(dataRoot, helperRecord.directory) : null;
+                const apiSurface = helperDirectory ? await readHelperApiSurface({ extensionDirectory: helperDirectory, revision: helperRecord.commit }, helperDirectory) : { pinned: false, reasons: ['helper not installed by the batch'] };
+                report.fixture = {
+                    card,
+                    world,
+                    groups,
+                    profile: {
+                        profile: profileMode,
+                        tier: tierArgument,
+                        seed: seedArgument,
+                        blockCount: profileContext.record.blockCount,
+                        documents: profileContext.record.manifest.documents,
+                    },
+                    extensions: report.extensions,
+                    apiSurface,
+                };
+                step('card-staged', card.sha256.length === 64 && card.characterBook?.sha256 === profileContext.record.cardCharacterBook.sha256,
+                    { file: card.file, regex: card.regex, characterBook: card.characterBook });
+                step('world-book-staged', world.book.entries === 3 && Array.isArray(world.selection.worldInfo?.globalSelect), world.book);
+                step('groups-staged', Boolean(groups.groupName), { groupId: groups.groupId, groupName: groups.groupName });
+                if (!stageOnly) {
+                    step('helper-extension-is-pinned', apiSurface.pinned === true && (apiSurface.reasons ?? []).length === 0, { pinned: apiSurface.pinned, reasons: apiSurface.reasons });
+                }
+            } else {
+                presetSource = await fs.readFile(path.join(here, 'fixtures', 'real', 'preset-a.json'));
+                presetDocument = JSON.parse(presetSource.toString('utf8'));
+                await fs.mkdir(path.join(dataRoot, 'default-user', 'OpenAI Settings'), { recursive: true });
+                await fs.writeFile(path.join(dataRoot, 'default-user', 'OpenAI Settings', `${presetName}.json`), `${JSON.stringify(presetDocument, null, 2)}\n`);
+                const card = await stageJourneyCard(dataRoot);
+                const world = await stageJourneyWorldBook(dataRoot);
+                const groups = await stageJourneyGroups(dataRoot);
+                const extension = await ensurePinnedExtensionInstalled(dataRoot, pinnedExtension('tavern-helper'));
+                const apiSurface = await readHelperApiSurface(extension, extension.extensionDirectory);
+                report.fixture = { card, world, groups, extension: { ...describeInstalledExtension(extension.extensionDirectory), revision: extension.revision }, apiSurface };
+                step('card-staged', card.sha256.length === 64, { file: card.file, regex: card.regex });
+                step('world-book-staged', world.book.entries === 3 && Array.isArray(world.selection.worldInfo?.globalSelect), world.book);
+                step('groups-staged', Boolean(groups.groupName), { groupId: groups.groupId, groupName: groups.groupName });
+                step('helper-extension-is-pinned', apiSurface.pinned === true && (apiSurface.reasons ?? []).length === 0, { pinned: apiSurface.pinned, reasons: apiSurface.reasons });
+            }
         } else {
             report.fixture = { reused: true };
+            if (profileMode) {
+                // A LATER PHASE JUDGES AGAINST THE SAME MANIFEST THE DRIVE STAGED, digest re-verified; it never
+                // re-derives a possibly different recipe from the command line alone.
+                const loaded = await readE03e04Record(dataRoot);
+                profileContext = loaded.built ? { record: loaded.record, built: loaded.built } : null;
+                report.e03e04 = {
+                    profile: profileMode,
+                    tier: loaded.record?.tier ?? tierArgument,
+                    seed: loaded.record?.seed ?? seedArgument,
+                    blockCount: loaded.record?.blockCount ?? null,
+                    recordFile: `default-user/${PROFILE_RECORD_FILE}`,
+                    expectedOrderSha256: loaded.record?.expectedOrderSha256 ?? null,
+                    recordSha256Verified: loaded.verified,
+                    record: loaded.record,
+                };
+                // The later phases classify captures with the SAME three preset signatures the drive used.
+                if (loaded.verified === true) presetSignatures = loaded.record.expectedOrder.blocks.enabledRelative.slice(0, 3);
+                step('e03e04-profile-record-reused', loaded.verified === true, { verified: loaded.verified, reason: loaded.reason, tier: loaded.record?.tier ?? null });
+            }
+        }
+
+        if (stageOnly) {
+            // TRIAGE MODE ONLY: the staged documents and record are the whole point; no server/browser is started.
+            report.stagingOnly = true;
+            step('stage-only-complete', true, {
+                profile: profileMode,
+                tier: tierArgument,
+                seed: seedArgument,
+                recordFile: profileContext?.recordFile ?? null,
+                expectedOrderSha256: profileContext?.record?.expectedOrderSha256 ?? null,
+                documents: Object.keys(profileContext?.record?.manifest?.documents ?? {}),
+            });
+            return;
         }
 
         // ---- boot + browser ---------------------------------------------------------------------------
@@ -819,13 +1416,34 @@ async function main() {
         const peerURL = `http://127.0.0.1:${peer.port}/v1`;
         const connect = () => applyConnectionState(page, peerURL);
         report.browser.connect = await connect();
+        // PROFILE: the stop strings / instruct-context members are power_user state, not preset members, and the boot
+        // may have rewritten settings.json; re-assert them through the product's own module before any turn.
+        if (profileMode) {
+            report.browser.powerUserPatch = await applyProfilePowerUserAfterBoot(page, profileContext?.record?.powerUserPatch ?? null);
+            if (phase === 'drive') {
+                step('e03e04-stops-and-templates-applied', report.browser.powerUserPatch.ok === true && Array.isArray(JSON.parse(report.browser.powerUserPatch.custom_stopping_strings ?? '[]')) && JSON.parse(report.browser.powerUserPatch.custom_stopping_strings).length === 4, report.browser.powerUserPatch);
+            }
+        }
+        // THE EXTENSION BATCH IS SERVED BY THE PRODUCT'S OWN STATIC MOUNT. Fetching each installed extension's
+        // manifest is the page-side half of E04's install claim (the disk half is the revision-verified batch); the
+        // per-extension `extension-effect-<name>` guard reads this record together with the wire-effect classification.
+        if (profileMode && phase === 'drive') {
+            const serveEvidence = await recordExtensionServeEvidence(page, report.extensions.installed);
+            report.extensions.serveEvidence = serveEvidence;
+            const served = serveEvidence.filter(entry => entry.ok === true).length;
+            const classified = report.extensions.installed.filter(entry => entry.wireEffect?.status && entry.wireEffect?.evidence).length;
+            step('e03e04-extensions-served', served === report.extensions.installed.length, { served, expected: report.extensions.installed.length, failures: serveEvidence.filter(entry => entry.ok !== true).slice(0, 4) });
+            step('e03e04-extension-effects-recorded', classified === report.extensions.installed.length, { classified, expected: report.extensions.installed.length, noWireEffect: report.extensions.installed.filter(entry => entry.wireEffect?.status === 'no-wire-effect').map(entry => entry.name) });
+        }
         // THE WORLD BOOK IS SELECTED THROUGH THE FRONTEND AFTER BOOT, on every phase: the pre-boot settings write is
         // overwritten by both servers' booting (measured on pinned: turn-1 slots 0). This is the product's own
-        // selection path and the disk member it persists is polled, not assumed.
-        const bootWorldSelection = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+        // selection path and the disk member it persists is polled, not assumed. In profile mode the SAME call also
+        // re-asserts the recursion/depth settings and selects the journey book PLUS both profile books.
+        const bootWorldSelection = await selectJourneyWorlds(page, dataRoot);
         report.browser.worldSelectionAfterBoot = bootWorldSelection;
         step('world-info-selected-after-boot', bootWorldSelection.ok === true, bootWorldSelection);
-        step('world-info-persisted-after-boot', Array.isArray(bootWorldSelection.persistedGlobalSelect) && bootWorldSelection.persistedGlobalSelect.includes(JOURNEY_WORLD), bootWorldSelection);
+        step('world-info-persisted-after-boot', Array.isArray(bootWorldSelection.persistedGlobalSelect) && bootWorldSelection.persistedGlobalSelect.includes(JOURNEY_WORLD)
+            && (!profileMode || profileWorldNames().every(name => bootWorldSelection.persistedGlobalSelect.includes(name))), bootWorldSelection);
         report.browser.userName = await setJourneyUserName(page, 'Probe User');
         step('user-name-set', report.browser.userName.name1 === 'Probe User', report.browser.userName);
 
@@ -847,7 +1465,7 @@ async function main() {
         const resetPageAndReopen = async chatId => {
             await openPage(page, baseURL);
             await connect();
-            const world = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            const world = await selectJourneyWorlds(page, dataRoot);
             await openJourneyCharacter();
             await waitChatLoaded();
             const reopened = await reopenJourneyChat(page, chatId, { minLength: 2 });
@@ -893,6 +1511,19 @@ async function main() {
             report.browser.regexAllow = regexAllow;
             step('character-scoped-regex-allowed-and-visible', regexAllow.avatar !== null && Number(regexAllow.scopedScriptsVisible) >= 1, regexAllow);
 
+            // ---- STEP 2a-pre: the CARD-EMBEDDED LOREBOOK, through the product's own import path (profile only) ----
+            // The book is in the card's V3 payload (`data.character_book`), NOT auto-active: a user imports it from
+            // the character panel ("Import Card Lore") and the product binds it as the character's world
+            // (world-info.js:5691-5760). The journey's legacy path stages no embedded book, so this step exists only
+            // in profile mode.
+            if (profileMode) {
+                const embedded = await importEmbeddedCardBookAfterBoot(page);
+                report.browser.embeddedBook = embedded;
+                step('e03e04-embedded-book-imported', embedded.ok === true, {
+                    bookName: embedded.bookName, via: embedded.via, verified: embedded.verified, dialog: embedded.dialog,
+                });
+            }
+
             // ---- STEP 2a: committed complex preset SELECTED through the frontend control -------------------
             // (The file itself was planted BEFORE the server booted: the preset manager lists the preset directory
             // as it was at startup, so a file written after page load is not in its list -- measured: only
@@ -921,20 +1552,37 @@ async function main() {
                 select.dispatchEvent(new Event('change', { bubbles: true }));
                 if (typeof openai.getPresetApplicationPromise === 'function') await openai.getPresetApplicationPromise(openai.oai_settings.preset_settings_openai);
                 await new Promise(resolve => setTimeout(resolve, 500));
-                return { ok: true, selected: openai.oai_settings.preset_settings_openai ?? null, prompts: (openai.oai_settings.promptManager?.prompts ?? []).length, optionValue: option.value };
+                return { ok: true, selected: openai.oai_settings.preset_settings_openai ?? null, prompts: Array.isArray(openai.promptManager?.prompts) ? openai.promptManager.prompts.length : (Array.isArray(openai.oai_settings.promptManager?.prompts) ? openai.oai_settings.promptManager.prompts.length : null), optionValue: option.value };
             }, presetName);
-            report.browser.preset = { name: presetName, plantedSha: sha256(presetSource), structure: { prompts: (presetDocument.prompts ?? []).length, orderRows: (presetDocument.prompt_order ?? []).flatMap(row => row.order ?? []).length }, selected };
-            // THE PRESET'S OWN LITERAL PIECES: from the planted bytes, the first three non-empty prompt bodies that
-            // carry a marker-shaped token (the derivation's `MARK_` strings). A placed preset must put them on the
-            // wire; a preset selection that did nothing cannot.
-            presetSignatures = (presetDocument.prompts ?? [])
-                .map(entry => String(entry?.content ?? ''))
-                .filter(content => /MARK_[0-9A-Za-z]{4,}/.test(content))
-                .map(content => (content.match(/MARK_[0-9A-Za-z_]+/) ?? [null])[0])
-                .filter(Boolean)
-                .slice(0, 3);
+            const plantedPreset = profileMode
+                ? profileContext.built.preset
+                : presetDocument;
+            report.browser.preset = {
+                name: presetName,
+                plantedSha: profileMode ? profileContext.record.preset.sha256 : sha256(presetSource),
+                structure: {
+                    prompts: (plantedPreset.prompts ?? []).length,
+                    orderRows: (plantedPreset.prompt_order ?? []).flatMap(row => row.order ?? []).length,
+                },
+                profile: profileMode ? { tier: tierArgument, blockCount: profileContext.record.blockCount, totalPromptCount: profileContext.record.manifest.claim.totalPrompts } : null,
+                selected,
+            };
+            // THE PRESET'S OWN LITERAL PIECES, from the document this run planted:
+            //   * legacy: the derivation's `MARK_` tokens;
+            //   * profile: the first three enabled RELATIVE block markers from the recorded manifest (a subset of the
+            //     full ordered contract, which the COMPARATOR asserts -- the probe does not assert expectedOrder).
+            presetSignatures = profileMode
+                ? profileContext.record.expectedOrder.blocks.enabledRelative.slice(0, 3)
+                : (presetDocument.prompts ?? [])
+                    .map(entry => String(entry?.content ?? ''))
+                    .filter(content => /MARK_[0-9A-Za-z]{4,}/.test(content))
+                    .map(content => (content.match(/MARK_[0-9A-Za-z_]+/) ?? [null])[0])
+                    .filter(Boolean)
+                    .slice(0, 3);
             report.browser.presetSignatures = presetSignatures;
-            step('complex-preset-selected', selected.ok === true && String(selected.selected ?? '').toLowerCase().includes('comb-journey'), selected);
+            step('complex-preset-selected', selected.ok === true
+                && String(selected.selected ?? '').toLowerCase().includes(profileMode ? 'e03e04' : 'comb-journey')
+                && (!profileMode || Number(selected.prompts) === profileContext.record.manifest.claim.totalPrompts), selected);
 
             // ---- STEP 2b: author's note through the frontend's own module ----------------------------
             const anSpec = resolveAuthorsNoteCase(authorsNoteOverlaySpec(), 'parity');
@@ -942,85 +1590,128 @@ async function main() {
             report.browser.authorsNote = { spec: anSpec, applied: anApplied };
             step('authors-note-applied', anApplied?.problems?.length === 0, anApplied);
 
-            // ---- STEP 2c: variables + injection through the pinned 酒馆助手 bridge --------------------
-            const helperInstall = await ensurePinnedExtensionInstalled(dataRoot, pinnedExtension('tavern-helper'));
-            report.fixture.helperInstall = { revision: helperInstall.revision };
-            const helperScript = `
-                (async () => {
-                    const cfg = window.parent.__comb;
-                    if (!cfg) {
-                        window.__combDone = { runId: 'auto-run-on-load', cases: [], errors: [], closure: { insideIframe: window !== window.parent, bridge: Boolean(window.TavernHelper) }, readback: null, skipped: 'no injection payload' };
-                        return;
-                    }
-                    const out = { runId: cfg.runId, cases: [], errors: [], closure: null };
-                    const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-                    const done = () => { window.__combDone = out; };
-                    try {
-                        const H = window.TavernHelper || window.parent.TavernHelper;
-                        out.closure = { insideIframe: window !== window.parent, bridge: !!H };
-                        H.insertOrAssignVariables({ comb_chat_var: cfg.chat }, { type: 'chat' });
-                        H.insertOrAssignVariables({ comb_global_var: cfg.global }, { type: 'global' });
-                        H.insertOrAssignVariables({ comb_character_var: cfg.character }, { type: 'character' });
-                        await sleep(300);
-                        const parts = [];
-                        for (const type of ['chat', 'global', 'character']) {
-                            const value = H.getVariables({ type });
-                            const keys = Object.keys(value || {}).filter(key => key.indexOf('comb_') === 0).sort();
-                            parts.push('COMB_VAR_' + type.toUpperCase() + '[' + type + ']=' + keys.map(key => key + '=' + JSON.stringify(value[key])).join(';'));
+            // ---- STEP 2c/2d: variables + injection + Quick Reply (profile mode composes them into ONE chain) ----
+            // LEGACY: the helper writes the three scoped variables and injects them; the QR is created and EXECUTED
+            // afterwards (two independent effects).
+            // PROFILE (design section 5.5): the QR's STscript WRITES the chat variable and injects its prompt, then a
+            // READ-ONLY helper run reads the scopes (it writes nothing) and injects the readback -- so the body
+            // carries "the helper read the value the QR wrote", the chain the comparator guard `qr-to-helper-chain`
+            // names.
+            if (profileMode) {
+                // The E03/E04 chain needs the three scopes populated as well as the QR-written value: the legacy
+                // WRITE helper runs first, then the QR writes/injects, then the read-only helper re-reads and
+                // re-injects, so the armed body carries all three scope markers AND the QR-written chat value the
+                // helper read.
+                const writeRun = await injectVariablesThroughHelper(page);
+                report.browser.profileWriteRun = { ok: writeRun.ok, done: writeRun.done ?? null };
+                const chain = await runProfileQrHelperChain(page);
+                report.browser.profileChain = chain;
+                report.browser.helper = { payload: chain.helper?.payload ?? null, done: chain.helper?.done ?? null, mode: 'write-run + read-only-after-qr' };
+                report.browser.quickReply = chain.qr;
+                step('helper-variables-written', writeRun.ok === true && chain.helper?.ok === true && chain.readbackCarriesWrite === true, {
+                    writeRun: { ok: writeRun.ok, errors: writeRun.done?.errors ?? null },
+                    readback: chain.helper?.done?.readback ?? null,
+                    writeMarker: chain.chain.writeMarker,
+                    readbackCarriesWrite: chain.readbackCarriesWrite,
+                });
+                step('helper-closure-inside-iframe', chain.closure?.insideIframe === true, chain.closure ?? null);
+                step('quick-reply-created-and-executed', chain.qr?.status === 'driven', chain.qr);
+                const driveInjections = await verifyInjectionPrompts(page);
+                report.browser.driveInjections = driveInjections;
+                step('drive-injections-active-in-page', driveInjections.variables?.present === true && driveInjections.variables?.hasValue === true, driveInjections);
+                step('e03e04-qr-helper-chain-recorded', chain.ok === true, {
+                    intendedOrder: chain.chain.intendedOrder,
+                    readbackCarriesWrite: chain.readbackCarriesWrite,
+                    pageVariable: chain.chain.pageVariable,
+                    qr: chain.qr,
+                });
+            } else {
+                // ---- STEP 2c: variables + injection through the pinned 酒馆助手 bridge --------------------
+                const helperInstall = await ensurePinnedExtensionInstalled(dataRoot, pinnedExtension('tavern-helper'));
+                report.fixture.helperInstall = { revision: helperInstall.revision };
+                const helperScript = `
+                    (async () => {
+                        const cfg = window.parent.__comb;
+                        if (!cfg) {
+                            window.__combDone = { runId: 'auto-run-on-load', cases: [], errors: [], closure: { insideIframe: window !== window.parent, bridge: Boolean(window.TavernHelper) }, readback: null, skipped: 'no injection payload' };
+                            return;
                         }
-                        out.readback = parts;
-                        await H.injectPrompts([{ id: 'comb-journey-vars', content: parts.join(' ') }]);
-                        out.cases.push({ name: 'variables-written', applied: true });
-                    } catch (error) { out.errors.push(String(error && error.message || error)); }
-                    return done();
-                })();
-            `;
-            const helperRunId = `comb-helper-${Date.now()}`;
-            const helperPayload = { runId: helperRunId, chat: 'COMB_CHAT_VAR_MARKER', global: 'COMB_GLOBAL_VAR_MARKER', character: 'COMB_CHARACTER_VAR_MARKER' };
-            await page.evaluate(item => { window.__comb = item.payload; window.__combDone = null; window.TavernHelper.replaceScriptTrees([{ type: 'script', enabled: true, name: item.runId, id: item.runId, content: item.content, button: { enabled: false, buttons: [] } }], { type: 'global' }); }, { payload: helperPayload, runId: helperRunId, content: helperScript });
-            const helperDone = await waitForCondition(page, async () => {
-                const found = [...document.querySelectorAll('iframe')].map(frame => { try { return frame.contentWindow?.__combDone ?? null; } catch { return null; } }).filter(Boolean);
-                const done = found.find(entry => entry.runId === window.__comb?.runId) ?? null;
-                return { ok: Boolean(done), done };
-            }, { label: 'helper-variables', timeoutMs: 60000 });
-            report.browser.helper = { payload: helperPayload, done: helperDone.value?.done ?? null };
-            step('helper-variables-written', helperDone.ok === true && (helperDone.value?.done?.errors ?? []).length === 0, helperDone.value?.done ?? helperDone.last);
-            step('helper-closure-inside-iframe', helperDone.value?.done?.closure?.insideIframe === true, helperDone.value?.done?.closure ?? null);
+                        const out = { runId: cfg.runId, cases: [], errors: [], closure: null };
+                        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+                        const done = () => { window.__combDone = out; };
+                        try {
+                            const H = window.TavernHelper || window.parent.TavernHelper;
+                            out.closure = { insideIframe: window !== window.parent, bridge: !!H };
+                            H.insertOrAssignVariables({ comb_chat_var: cfg.chat }, { type: 'chat' });
+                            H.insertOrAssignVariables({ comb_global_var: cfg.global }, { type: 'global' });
+                            H.insertOrAssignVariables({ comb_character_var: cfg.character }, { type: 'character' });
+                            await sleep(300);
+                            const parts = [];
+                            for (const type of ['chat', 'global', 'character']) {
+                                const value = H.getVariables({ type });
+                                const keys = Object.keys(value || {}).filter(key => key.indexOf('comb_') === 0).sort();
+                                parts.push('COMB_VAR_' + type.toUpperCase() + '[' + type + ']=' + keys.map(key => key + '=' + JSON.stringify(value[key])).join(';'));
+                            }
+                            out.readback = parts;
+                            await H.injectPrompts([{ id: 'comb-journey-vars', content: parts.join(' ') }]);
+                            out.cases.push({ name: 'variables-written', applied: true });
+                        } catch (error) { out.errors.push(String(error && error.message || error)); }
+                        return done();
+                    })();
+                `;
+                const helperRunId = `comb-helper-${Date.now()}`;
+                const helperPayload = { runId: helperRunId, chat: 'COMB_CHAT_VAR_MARKER', global: 'COMB_GLOBAL_VAR_MARKER', character: 'COMB_CHARACTER_VAR_MARKER' };
+                await page.evaluate(item => { window.__comb = item.payload; window.__combDone = null; window.TavernHelper.replaceScriptTrees([{ type: 'script', enabled: true, name: item.runId, id: item.runId, content: item.content, button: { enabled: false, buttons: [] } }], { type: 'global' }); }, { payload: helperPayload, runId: helperRunId, content: helperScript });
+                const helperDone = await waitForCondition(page, async () => {
+                    const found = [...document.querySelectorAll('iframe')].map(frame => { try { return frame.contentWindow?.__combDone ?? null; } catch { return null; } }).filter(Boolean);
+                    const done = found.find(entry => entry.runId === window.__comb?.runId) ?? null;
+                    return { ok: Boolean(done), done };
+                }, { label: 'helper-variables', timeoutMs: 60000 });
+                report.browser.helper = { payload: helperPayload, done: helperDone.value?.done ?? null };
+                step('helper-variables-written', helperDone.ok === true && (helperDone.value?.done?.errors ?? []).length === 0, helperDone.value?.done ?? helperDone.last);
+                step('helper-closure-inside-iframe', helperDone.value?.done?.closure?.insideIframe === true, helperDone.value?.done?.closure ?? null);
 
-            // ---- STEP 2d: a Quick Reply created through the extension API and EXECUTED ----------------
-            const qr = await page.evaluate(async ({ setName, label, injection }) => {
-                const api = globalThis.quickReplyApi;
-                const preconditions = { published: Boolean(api) };
-                if (!api) return { status: 'not-driven', preconditions };
-                try {
-                    await api.createSet(setName).catch(() => {});
-                    await api.createQuickReply(setName, label, { message: `/inject id=comb-journey-qr position=0 depth=4 "${injection}"` });
-                    const set = api.getSetByName(setName);
-                    if (set && typeof set.save === 'function') await set.save();
-                    let via = null;
-                    if (typeof api.executeQuickReply === 'function') {
-                        await api.executeQuickReply(setName, label);
-                        via = 'api.executeQuickReply';
-                    } else {
-                        const buttons = [...document.querySelectorAll('.qr--button')];
-                        const button = buttons.find(entry => String(entry.textContent ?? '').includes(label));
-                        if (button) { button.click(); via = 'dom .qr--button click'; }
-                    }
-                    return { status: via ? 'driven' : 'not-driven', via, preconditions };
-                } catch (error) { return { status: 'not-driven', preconditions, reason: String(error?.message ?? error).slice(0, 300) }; }
-            }, { setName: JOURNEY.qrSet, label: JOURNEY.qrLabel, injection: JOURNEY.qrInjection });
-            report.browser.quickReply = qr;
-            step('quick-reply-created-and-executed', qr.status === 'driven', qr);
+                // ---- STEP 2d: a Quick Reply created through the extension API and EXECUTED ----------------
+                const qr = await page.evaluate(async ({ setName, label, injection }) => {
+                    const api = globalThis.quickReplyApi;
+                    const preconditions = { published: Boolean(api) };
+                    if (!api) return { status: 'not-driven', preconditions };
+                    try {
+                        await api.createSet(setName).catch(() => {});
+                        await api.createQuickReply(setName, label, { message: `/inject id=comb-journey-qr position=0 depth=4 "${injection}"` });
+                        const set = api.getSetByName(setName);
+                        if (set && typeof set.save === 'function') await set.save();
+                        let via = null;
+                        if (typeof api.executeQuickReply === 'function') {
+                            await api.executeQuickReply(setName, label);
+                            via = 'api.executeQuickReply';
+                        } else {
+                            const buttons = [...document.querySelectorAll('.qr--button')];
+                            const button = buttons.find(entry => String(entry.textContent ?? '').includes(label));
+                            if (button) { button.click(); via = 'dom .qr--button click'; }
+                        }
+                        return { status: via ? 'driven' : 'not-driven', via, preconditions };
+                    } catch (error) { return { status: 'not-driven', preconditions, reason: String(error?.message ?? error).slice(0, 300) }; }
+                }, { setName: JOURNEY.qrSet, label: JOURNEY.qrLabel, injection: JOURNEY.qrInjection });
+                report.browser.quickReply = qr;
+                step('quick-reply-created-and-executed', qr.status === 'driven', qr);
 
-            const driveInjections = await verifyInjectionPrompts(page);
-            report.browser.driveInjections = driveInjections;
-            step('drive-injections-active-in-page', driveInjections.variables?.present === true && driveInjections.variables?.hasValue === true, driveInjections);
+                const driveInjections = await verifyInjectionPrompts(page);
+                report.browser.driveInjections = driveInjections;
+                step('drive-injections-active-in-page', driveInjections.variables?.present === true && driveInjections.variables?.hasValue === true, driveInjections);
+            }
 
             // ---- STEP 3: the armed streamed turn -----------------------------------------------------
             report.browser.promptManagerArmed = await readPromptManagerState(page);
-            const turn1 = await turn(page, 'COMB_TURN_1', 'turn-1-armed');
+            // The profile's world-info entries are keyed on synthetic trigger tokens that must be IN the scanned chat
+            // (a constant entry needs no key, but the recursion/secondary-key chain does). Putting them in the first
+            // user message is the user-equivalent path -- the probe does not write book state at scan time.
+            const turn1Marker = profileMode
+                ? `COMB_TURN_1 ${profileContext.record.activation.chatTriggerTokens.join(' ')}`
+                : 'COMB_TURN_1';
+            const turn1 = await turn(page, turn1Marker, 'turn-1-armed');
             const capture1 = classifyCapture(turn1.requests[0]);
-            report.browser.turn1 = { ok: turn1.ok, replied: turn1.replied, after: turn1.after };
+            report.browser.turn1 = { ok: turn1.ok, replied: turn1.replied, after: turn1.after, marker: turn1Marker };
             step('turn-1-request-captured', turn1.requests.length >= 1, { requests: turn1.requests.length });
             step('turn-1-streaming-requested', capture1?.requestedStream === true && capture1?.servedWire === 'sse', { requestedStream: capture1?.requestedStream, served: capture1?.servedWire });
             step('turn-1-preset-pieces-in-request', presetSignatures.length >= 2 && (capture1?.presetMarkers ?? []).filter(entry => entry.present).length >= 2, { signatures: presetSignatures, found: capture1?.presetMarkers });
@@ -1028,6 +1719,12 @@ async function main() {
             step('turn-1-variables-in-request', capture1?.variables?.chat === true && capture1?.variables?.global === true && capture1?.variables?.character === true, capture1?.variables);
             step('turn-1-quick-reply-in-request', capture1?.qr === true, { qr: capture1?.qr });
             step('turn-1-authors-note-in-request', capture1?.anMarker === true, { anMarker: capture1?.anMarker });
+            if (profileMode) {
+                step('e03e04-trigger-tokens-in-first-user-message', userMessageCarries(turn1.requests[0]?.body, profileContext.record.activation.chatTriggerTokens[0]), {
+                    triggerTokens: profileContext.record.activation.chatTriggerTokens,
+                    found: String(turn1.requests[0]?.body ?? '').includes(profileContext.record.activation.chatTriggerTokens[0]),
+                });
+            }
 
             // ---- STEP 4: regex changed the visible message (AI output) and the stored form ----------
             const visible = await page.evaluate(async () => {
@@ -1159,7 +1856,7 @@ async function main() {
             // A PRESET CARRIES PROVIDER SETTINGS: re-point the page at the peer and re-select the world book, then start
             // the control turn from the frontend's own idle state.
             report.browser.presetOffReconnected = await connect();
-            const controlWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            const controlWorld = await selectJourneyWorlds(page, dataRoot);
             report.browser.controlPersona = await setJourneyUserName(page, 'Probe User');
             report.browser.controlRecover = await recoverStuckSend(page);
             await waitForQuiet(page);
@@ -1187,13 +1884,13 @@ async function main() {
             }, presetName);
             report.browser.presetRestored = presetRestored;
             report.browser.presetRestoredReconnected = await connect();
-            await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            await selectJourneyWorlds(page, dataRoot);
             await waitForQuiet(page);
             step('preset-restored-after-control', presetRestored.ok === true, presetRestored);
             // SECOND ARM, SEPARATE SEGMENT: a fresh page, armed preset, then the world book is cleared in-page for the
             // control turn. The reset is what keeps a wedged composer from the first arm out of this one.
             report.browser.wiSegmentReset = await resetPageAndReopen((await readPageState(page)).chatId);
-            report.browser.wiSegmentWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            report.browser.wiSegmentWorld = await selectJourneyWorlds(page, dataRoot);
             report.browser.wiSegmentPreset = await selectPresetThroughControl(page, presetName);
 
             const wiOff = await page.evaluate(async () => {
@@ -1201,7 +1898,15 @@ async function main() {
                 const before = Array.isArray(worldInfo.selected_world_info) ? worldInfo.selected_world_info.slice() : null;
                 window.__combWorldSelection = before;
                 if (Array.isArray(worldInfo.selected_world_info)) worldInfo.selected_world_info.length = 0;
-                return { before, after: Array.isArray(worldInfo.selected_world_info) ? worldInfo.selected_world_info.slice() : null };
+                // PROFILE MODE ALSO UNBINDS THE CHARACTER'S OWN WORLD. The card-embedded book is CHARACTER lore, not
+                // a `selected_world_info` member, so clearing the global selection alone would leave its before/after
+                // entries in the request and make the "world info off" arm a lie. The binding is restored below, and
+                // the arm records both values.
+                const jQuery = globalThis.jQuery ?? null;
+                const characterWorldBefore = jQuery ? String(jQuery('#character_world').val() ?? '') : null;
+                window.__combCharacterWorld = characterWorldBefore;
+                if (jQuery) jQuery('#character_world').val('').trigger('change');
+                return { before, after: Array.isArray(worldInfo.selected_world_info) ? worldInfo.selected_world_info.slice() : null, characterWorldBefore, characterWorldCleared: Boolean(jQuery) };
             });
             report.browser.wiOff = wiOff;
             report.browser.wiOffPersona = await setJourneyUserName(page, 'Probe User');
@@ -1224,9 +1929,23 @@ async function main() {
             step('wi-off-turn-captured', turnWiOff.requests.length >= 1, { requests: turnWiOff.requests.length });
             step('wi-off-request-lacks-world-info', captureWiOff?.layout?.slotsPresent === 0, { layout: captureWiOff?.layout, markers: captureWiOff?.wiMarkers });
 
-            const wiRestored = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            const wiRestored = await selectJourneyWorlds(page, dataRoot);
             report.browser.wiRestore = wiRestored;
-            step('world-info-restored-after-control', wiRestored.ok === true && Array.isArray(wiRestored.persistedGlobalSelect) && wiRestored.persistedGlobalSelect.includes(JOURNEY_WORLD), wiRestored);
+            // Restore the character's own world binding cleared for the profile's world-info-off arm (the product path:
+            // the same `#character_world` change a user's panel selection performs, then the debounced character save).
+            if (profileMode && report.browser.embeddedBook?.bookName) {
+                report.browser.characterWorldRestore = await page.evaluate(async wanted => {
+                    const script = await import('./script.js');
+                    const jQuery = globalThis.jQuery ?? null;
+                    if (!jQuery) return { ok: false, reason: 'no jQuery on the page' };
+                    jQuery('#character_world').val(wanted).trigger('change');
+                    if (typeof script.saveCharacterDebounced === 'function') script.saveCharacterDebounced();
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    const chid = script.this_chid;
+                    return { ok: String(script.characters?.[chid]?.data?.extensions?.world ?? '') === wanted, bound: String(script.characters?.[chid]?.data?.extensions?.world ?? '') };
+                }, report.browser.embeddedBook.bookName).catch(error => ({ ok: false, error: String(error?.message ?? error) }));
+            }
+            step('world-info-restored-after-control', wiRestored.ok === true && worldSelectionCovers(wiRestored), wiRestored);
             report.browser.wiPersisted = wiRestored.persistedGlobalSelect ?? null;
             step('world-info-selection-persisted-to-disk', Array.isArray(report.browser.wiPersisted) && report.browser.wiPersisted.length > 0, { wiPersisted: report.browser.wiPersisted });
 
@@ -1249,7 +1968,7 @@ async function main() {
             // persona binding (the character open cleared it), and re-apply the peer connection LAST. Sending before
             // the chat is active is what produced a system-only 11864-byte assembly with no history.
             const reloadPreset = await selectPresetThroughControl(page, presetName);
-            const reloadWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            const reloadWorld = await selectJourneyWorlds(page, dataRoot);
             const reloadPersisted = await readSettings(dataRoot);
             await openJourneyCharacter();
             await waitChatLoaded();
@@ -1263,7 +1982,7 @@ async function main() {
             report.browser.reload = { saved, savedChatId, beforeReload: { chatLength: beforeReload.chatLength, chatId: beforeReload.chatId }, reopened: reloadReopen, reloadPreset, reloadWorld, reloadPersisted: reloadPersisted.globalSelect ?? null, reloadUserName, reloadedState };
             step('chat-saved-and-reloaded', saved.ok === true && reloadReopen.opened === true, { saved, reopened: reloadReopen });
             step('reload-preserved-history', reloadReopen.satisfied === true && reloadReopen.chatLength >= beforeReload.chatLength, { before: beforeReload.chatLength, after: reloadReopen.chatLength, lastIsUser: reloadReopen.lastIsUser, regexWordPresent: reloadReopen.regexWordPresent });
-            step('reload-world-info-persisted-from-disk', Array.isArray(reloadPersisted.globalSelect) && reloadPersisted.globalSelect.includes(JOURNEY_WORLD), reloadPersisted.globalSelect ?? null);
+            step('reload-world-info-persisted-from-disk', worldSelectionCovers(reloadPersisted), reloadPersisted.globalSelect ?? null);
             report.browser.reloadPresetNow = await page.evaluate(async () => {
                 const openai = await import('./scripts/openai.js');
                 return { preset: openai.oai_settings.preset_settings_openai ?? null, source: openai.oai_settings.chat_completion_source ?? null };
@@ -1289,7 +2008,7 @@ async function main() {
             report.browser.reloadPresetFinal = await selectPresetThroughControl(page, presetName);
             report.browser.reloadConnectedFinal2 = await connect();
             await waitForQuiet(page);
-            report.browser.reloadPromptArmed = await waitForArmedPromptManager(page);
+            report.browser.reloadPromptArmed = await waitForArmedPromptManager(page, { markerNeedle: ARMED_MARKER_NEEDLE });
             step('reload-prompt-manager-armed', report.browser.reloadPromptArmed.armed === true, report.browser.reloadPromptArmed);
             await page.evaluate(async () => {
                 const script = await import('./script.js');
@@ -1569,6 +2288,21 @@ async function main() {
             step('disk-chat-carries-regex-rewritten-reply', chatCarrying(report.disk.chats, CARD.regexReplace).length > 0, { carrying: chatCarrying(report.disk.chats, CARD.regexReplace) });
             step('disk-chat-carries-branch-metadata', Object.values(report.disk.chats).some(file => file.messages.some(message => Array.isArray(message.branches) && message.branches.length > 0)) || (branch.created === true), { branch });
             report.disk.projection = chatProjection(report.disk.chats);
+            if (profileMode) {
+                // THE ORDERED MESSAGE IDS (design section 6/9.2): the persisted/rendered order the duplicate-message
+                // control reads, plus the two DOM facts that make a duplicate visible (unique mes ids, count equal to
+                // the chat array). Recorded, not asserted against a golden: the comparator compares both subjects and
+                // the planted case mutates this record.
+                report.browser.orderedMessageIds = await recordOrderedMessageIds(page);
+                const ordered = report.browser.orderedMessageIds;
+                step('e03e04-ordered-message-ids-recorded', ordered.domIdsUnique === true && ordered.domIdsCoverChat === true && ordered.userMarkers.length > 0, {
+                    chatLength: ordered.chatLength,
+                    domCount: ordered.domCount,
+                    domIdsUnique: ordered.domIdsUnique,
+                    domIdsCoverChat: ordered.domIdsCoverChat,
+                    userMarkers: ordered.userMarkers.slice(0, 8),
+                });
+            }
         }
 
         // THE PRESET SIGNATURES ARE CLASSIFIER INPUT, NOT DRIVE-ONLY DATA. They were computed inside the drive
@@ -1609,7 +2343,7 @@ async function main() {
             const chatId = restartPick[0] ? path.basename(restartPick[0], '.jsonl') : null;
             await openCharacter(page, CARD.name);
             await waitChatLoaded();
-            const handbackWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            const handbackWorld = await selectJourneyWorlds(page, dataRoot);
             report.browser.handbackWorldSelection = handbackWorld;
             step('handback-world-info-selected', handbackWorld.ok === true, handbackWorld);
             report.browser.handbackPreset = await selectPresetThroughControl(page, presetName);
@@ -1620,12 +2354,12 @@ async function main() {
             report.browser.handbackReconnected = await connect();
             await waitForQuiet(page);
             step('restart-chat-ready', reopened.satisfied === true, { satisfied: reopened.satisfied, precondition: reopened.precondition, chatLength: reopened.chatLength, lastText: reopened.lastText });
-            report.browser.restartPromptArmed = await waitForArmedPromptManager(page);
+            report.browser.restartPromptArmed = await waitForArmedPromptManager(page, { markerNeedle: ARMED_MARKER_NEEDLE });
             step('restart-prompt-manager-armed', report.browser.restartPromptArmed.armed === true, report.browser.restartPromptArmed);
             // A NEW PROCESS HAS NO IN-MEMORY INJECTIONS EITHER: the installed helper re-runs and the user re-clicks
             // the QR. What must survive is the VARIABLES themselves, the preset selection, the world-info selection,
             // the author's note (chat metadata) and the banked history.
-            const restartWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            const restartWorld = await selectJourneyWorlds(page, dataRoot);
             report.browser.restartWorldSelection = restartWorld;
             step('restart-world-info-selected', restartWorld.ok === true, restartWorld);
             report.browser.restartPreset = await selectPresetThroughControl(page, presetName);
@@ -1644,11 +2378,11 @@ async function main() {
             // execute page code that can leave the prompt manager on the default order. restart-prompt-manager-armed
             // was measured BEFORE the injections, and the capture then carried world-info slots but no preset
             // markers at all (both subjects identically). Re-assert here, last, and assert the armed state again.
-            report.browser.restartWorldFinal = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            report.browser.restartWorldFinal = await selectJourneyWorlds(page, dataRoot);
             report.browser.restartPresetFinal = await selectPresetThroughControl(page, presetName);
             report.browser.restartReconnectedFinal = await connect();
             await waitForQuiet(page);
-            report.browser.restartPromptArmedFinal = await waitForArmedPromptManager(page);
+            report.browser.restartPromptArmedFinal = await waitForArmedPromptManager(page, { markerNeedle: ARMED_MARKER_NEEDLE });
             step('restart-ready-to-send', report.browser.restartPromptArmedFinal.armed === true
                 && report.browser.restartPresetFinal.ok === true, { armed: report.browser.restartPromptArmedFinal, preset: report.browser.restartPresetFinal, world: report.browser.restartWorldFinal });
         const resumed = await turn(page, 'COMB_TURN_AFTER_RESTART', 'turn-after-restart');
@@ -1679,7 +2413,7 @@ async function main() {
             const chatId = handbackPick[0] ? path.basename(handbackPick[0], '.jsonl') : null;
             await openCharacter(page, CARD.name);
             await waitChatLoaded();
-            const handbackWorld = await selectWorldBookAfterBoot(page, dataRoot, JOURNEY_WORLD);
+            const handbackWorld = await selectJourneyWorlds(page, dataRoot);
             report.browser.handbackWorldSelection = handbackWorld;
             step('handback-world-info-selected', handbackWorld.ok === true, handbackWorld);
             const reopened = await reopenJourneyChat(page, chatId, { minLength: 3, expectText: 'COMB_' });
@@ -1689,7 +2423,7 @@ async function main() {
             report.browser.handbackReconnected = await connect();
             await waitForQuiet(page);
             step('handback-chat-ready', reopened.satisfied === true, { satisfied: reopened.satisfied, precondition: reopened.precondition, chatLength: reopened.chatLength, lastText: reopened.lastText });
-            report.browser.handbackPromptArmed = await waitForArmedPromptManager(page);
+            report.browser.handbackPromptArmed = await waitForArmedPromptManager(page, { markerNeedle: ARMED_MARKER_NEEDLE });
             step('handback-prompt-manager-armed', report.browser.handbackPromptArmed.armed === true, report.browser.handbackPromptArmed);
             const before = await readPageState(page);
             report.browser.handbackBefore = before;
@@ -1711,10 +2445,41 @@ async function main() {
         if (browser) await browser.close().catch(() => {});
         if (peer) await peer.close().catch(() => {});
         if (server?.server) server.server.kill('SIGKILL');
+        // ARTIFACT IDENTITY, written even on a failed drive (a red leg's artifact must still say WHICH tree/profile
+        // it measured). `designed` values come from the command line; the profile digests come from the staged record
+        // when the staging step got that far. The comparator's artifact guards require these fields, and a
+        // fail-closed `--verify-artifact` mode refuses a missing/ill-formed identity.
+        const stagedRecord = report.e03e04?.record ?? null;
+        report.identity = {
+            kind: 'combination-journey-leg',
+            schemaVersion: 1,
+            headSha: process.env.GITHUB_SHA ?? null,
+            pinnedSha: process.env.PINNED_BASELINE_COMMIT ?? null,
+            profile: profileMode ?? 'none',
+            tier: profileMode ? (stagedRecord?.tier ?? tierArgument) : null,
+            seed: profileMode ? (stagedRecord?.seed ?? seedArgument) : null,
+            extensionTier: profileMode ? (stagedRecord?.extensionTier ?? extensionTierArgument) : null,
+            blockCount: profileMode ? (stagedRecord?.blockCount ?? E03E04_TIERS[tierArgument]) : null,
+            nonce,
+            phase,
+            subject,
+            digests: stagedRecord
+                ? {
+                    preset: stagedRecord.preset?.sha256 ?? null,
+                    expectedOrder: stagedRecord.expectedOrderSha256 ?? null,
+                    cardCharacterBook: stagedRecord.cardCharacterBook?.sha256 ?? null,
+                    settingsPatch: stagedRecord.settingsPatch?.sha256 ?? null,
+                }
+                : null,
+        };
         report.summary = {
             steps: report.steps.length,
             failedSteps: report.steps.filter(entry => !entry.ok).map(entry => entry.name),
             requestCount: peerRequests().length,
+            profile: profileMode ?? 'none',
+            tier: profileMode ? report.identity.tier : null,
+            extensionTier: profileMode ? report.identity.extensionTier : null,
+            extensionCount: report.extensions?.installedCount ?? null,
         };
         await fs.writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
         console.error(`[${subject}/${phase}] ${report.steps.length} step(s), ${report.summary.failedSteps.length} failed${report.summary.failedSteps.length ? ` [${report.summary.failedSteps.join(', ')}]` : ''}`);

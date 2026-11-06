@@ -82,7 +82,13 @@ function pngTextChunk(keyword, value) {
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 
-export function journeyCardDocument() {
+// THE CARD'S EMBEDDED LOREBOOK IS OPTIONAL AND OFF BY DEFAULT, so every existing leg stages byte-identical bytes.
+// For the E03+E04 profile the payload comes from `e03e04-profile-kit.mjs` (`buildBooks().cardEmbedded.characterBook`);
+// this kit owns the PNG staging (the `tEXt` chunks), so it embeds the payload into `data.character_book` in BOTH the
+// `chara` and `ccv3` chunks. `data.extensions.world` is deliberately LEFT EMPTY: the embedded book is activated by the
+// product's own import path (`checkEmbeddedWorld` -> `importEmbeddedWorldInfo`, world-info.js:5691-5760), which sets
+// the character's world; pre-binding it here would fake that path.
+export function journeyCardDocument({ characterBook = null } = {}) {
     const data = {
         name: CARD.name,
         description: CARD.description,
@@ -125,12 +131,13 @@ export function journeyCardDocument() {
         },
         group_only_greetings: [],
     };
+    if (characterBook) data.character_book = characterBook;
     return { spec: 'chara_card_v3', spec_version: '3.0', name: data.name, ...data, data };
 }
 
-export async function stageJourneyCard(dataRoot) {
+export async function stageJourneyCard(dataRoot, { characterBook = null } = {}) {
     const fixture = await fs.readFile(path.join(browserDirectory, 'fixtures', 'real', 'card-a.png'));
-    const encoded = Buffer.from(JSON.stringify(journeyCardDocument()), 'utf8').toString('base64');
+    const encoded = Buffer.from(JSON.stringify(journeyCardDocument({ characterBook })), 'utf8').toString('base64');
     const chunks = imageChunksOnly(fixture);
     const png = Buffer.concat([
         Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
@@ -148,8 +155,34 @@ export async function stageJourneyCard(dataRoot) {
         sha256: digest(png),
         byteLength: png.length,
         regex: { find: CARD.regexFind, replace: CARD.regexReplace, placement: [2] },
+        characterBook: characterBook
+            ? {
+                name: String(characterBook.name ?? ''),
+                entries: Array.isArray(characterBook.entries) ? characterBook.entries.length : 0,
+                sha256: digest(Buffer.from(canonicalJson(characterBook), 'utf8')),
+                embeddedIn: ['chara', 'ccv3'],
+            }
+            : null,
         derivedFrom: 'tests/browser/fixtures/real/card-a.png (image chunks only)',
     };
+}
+
+/**
+ * Canonical JSON for the payload digest (object keys sorted, arrays in order). Kept local to this kit so the card
+ * fixture's provenance does not depend on the profile kit's serialiser; the two agree by construction on the same
+ * payload, and the probe records the profile kit's digest of the same object so a disagreement is visible.
+ */
+function canonicalJson(value) {
+    const normalise = item => {
+        if (Array.isArray(item)) return item.map(normalise);
+        if (item && typeof item === 'object') {
+            const sorted = {};
+            for (const key of Object.keys(item).sort()) sorted[key] = normalise(item[key]);
+            return sorted;
+        }
+        return item;
+    };
+    return JSON.stringify(normalise(value));
 }
 
 /** Stage the complex world book and the persisted selection BEFORE the page reads its settings. */
