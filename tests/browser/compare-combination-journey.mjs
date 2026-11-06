@@ -1051,6 +1051,42 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
     })();
     add('journey-chat-projection-equal-modulo-declared-volatile', diskEqual, diskEqual,
         { gotavernFiles: goDisk.length, pinnedFiles: pinDisk.length, firstDifference: projectionDifference });
+    // ---- BRANCH METADATA PERSISTED (dispatch 42230495689) ----------------------------------------------
+    // The durable projection compares ranchCount (the branch EXISTENCE/COUNT; the generated branch NAME is the
+    // declared volatile part, see the normalisation note above and the design list). That comparison is only
+    // meaningful if the branch point's extra.branches reached the main chat file before the page reloaded: pinned
+    // scripts/bookmarks.js:237-243 writes it to client memory AFTER its branch-file save, so a reload before a save
+    // flush loses it on the main file and no later save can recover it. The probe now waits for the client's own
+    // metadata, flushes saveChatConditional and verifies the persisted field; this guard requires BOTH subjects to
+    // have done that, so a branch-less durable file cannot be read as "the chats matched".
+    const branchPersistFor = leg => leg?.browser?.branchPersist ?? null;
+    const branchPersistEvidence = leg => {
+        const record = branchPersistFor(leg);
+        const persisted = Array.isArray(record?.flush?.persistedBranchesByIndex) ? record.flush.persistedBranchesByIndex : [];
+        const projectionBranchCounts = (leg?.disk?.projection ? Object.values(leg.disk.projection).flatMap(file => (file?.messages ?? []).map((message, index) => ({ index, count: Array.isArray(message?.branches) ? message.branches.length : null }))) : [])
+            .filter(entry => Number.isFinite(entry.count) && entry.count > 0);
+        return {
+            present: Boolean(record),
+            ok: record?.ok === true && record?.flush?.ok === true,
+            index: record?.index ?? null,
+            waitedMs: record?.waitedMs ?? null,
+            flushWaitedMs: record?.flush?.waitedMs ?? null,
+            persistedIndexes: persisted.map(entry => entry.index),
+            persistedFiles: Array.isArray(record?.flush?.files) ? record.flush.files : [],
+            settledAfterStep: record?.settledAfterStep ?? null,
+            projectionBranchCounts,
+        };
+    };
+    const goBranchPersist = branchPersistEvidence(goDrive);
+    const pinBranchPersist = branchPersistEvidence(pinnedDrive);
+    const branchPersistedOk = value => value.present === true && value.ok === true
+        && Number.isInteger(value.index) && value.persistedIndexes.includes(value.index)
+        && value.projectionBranchCounts.length > 0;
+    add('branch-metadata-persisted', branchPersistedOk(goBranchPersist), branchPersistedOk(pinBranchPersist), {
+        gotavern: goBranchPersist,
+        pinned: pinBranchPersist,
+        rule: 'the branch point extra.branches must be in the product client state and in the persisted main chat on both subjects BEFORE the reload; the durable projection keeps comparing branchCount verbatim (no normalisation beyond the declared volatile branch NAME)',
+    });
 
     const failedGuards = guards.filter(entry => entry.ok !== true).map(entry => entry.name);
     const verdict = failedGuards.length === 0 && asymmetries.length === 0 ? 'match' : 'mismatch';

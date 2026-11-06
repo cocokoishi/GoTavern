@@ -217,6 +217,22 @@ function buildSyntheticProfileLegs() {
             // pinned leg to prove the parity guard has teeth.
             // THE QUIET-GENERATION EXTENSION RECORD (dispatch 42207738114): fast-tier shape = not installed, handled.
             quietGenerationExtension: { installed: false, handled: true, extension: null, decision: null, after: { settingsEnabled: null }, sourceEvidence: [], reason: null },
+            // THE BRANCH POINT'S PERSISTED METADATA (dispatch 42230495689): the product client state carried the branch
+            // name, the main chat was flushed through saveChatConditional before the reload, and the saved file carries
+            // extra.branches. The durable projection keeps comparing branchCount verbatim.
+            branchPersist: {
+                ok: true,
+                index: 1,
+                waitedMs: 180,
+                settledAfterStep: 'branch-created-through-frontend-bookmarks',
+                flush: {
+                    ok: true,
+                    waitedMs: 300,
+                    saved: { ok: true },
+                    files: ['chats/comb-journey-card/COMB_JOURNEY_CARD - T.jsonl'],
+                    persistedBranchesByIndex: [{ file: 'chats/comb-journey-card/COMB_JOURNEY_CARD - T.jsonl', index: 1, branches: ['COMB_JOURNEY_CARD - T - Branch #1'] }],
+                },
+            },
             generationTrail: {
                 cases: [{
                     case: 'turn-1-armed',
@@ -603,6 +619,37 @@ syntheticMutation(
     },
 );
 
+// 17b. MISSING PERSISTED BRANCH METADATA (dispatch 42230495689's pre-fix shape): the branch point's
+//      extra.branches is absent from one subject's persisted main chat, so the projection's branchCount is null on
+//      that subject (pinned number on the other in the dispatch). The durable guard must stay RED, and the new
+//      branch-metadata-persisted guard must name the harness failure (client/flush evidence missing). This is the
+//      exact defect that made the last dispatch's ONLY failing guard a null-vs-number field.
+{
+    const baseline = judge(synthetic.legs);
+    const legs = clone(synthetic.legs);
+    const mainFile = Object.entries(legs.pinned.disk.projection).find(([name]) => name.includes('COMB_JOURNEY_CARD - T.jsonl'))?.[1];
+    if (!mainFile) throw new Error('the synthetic pinned projection has no main journey file');
+    mainFile.messages[1].branches = null;
+    legs.pinned.browser.branchPersist = {
+        ok: false,
+        index: 1,
+        waitedMs: 15000,
+        reason: 'the client never carried extra.branches for the created branch',
+        flush: { ok: false, waitedMs: 20000, saved: { ok: true }, files: [], persistedBranchesByIndex: [], reason: 'the saved main chat has no extra.branches at index 1' },
+        settledAfterStep: null,
+    };
+    const mutated = compareCombinationJourney({ goDrive: clone(legs.go), pinnedDrive: clone(legs.pinned), expectProfile: 'e03e04' });
+    record('MISSING-PERSISTED-BRANCH-METADATA goes RED by branch-metadata-persisted and journey-chat-projection', baseline.guards['branch-metadata-persisted'] === true
+        && baseline.guards['journey-chat-projection-equal-modulo-declared-volatile'] === true
+        && mutated.guards['branch-metadata-persisted'] === false
+        && mutated.guards['journey-chat-projection-equal-modulo-declared-volatile'] === false, {
+        baselineGuard: baseline.guards['branch-metadata-persisted'],
+        mutatedGuard: mutated.guards['branch-metadata-persisted'],
+        baselineProjectionGuard: baseline.guards['journey-chat-projection-equal-modulo-declared-volatile'],
+        mutatedProjectionGuard: mutated.guards['journey-chat-projection-equal-modulo-declared-volatile'],
+        durable: mutated.durable?.firstDifference ?? null,
+    });
+}
 // 18. THE CAPTURE-MISMATCH DIAGNOSTIC: a body difference must produce a bounded, named diagnosis in
 //     `captures.mismatches[].firstDifference` (path, char offset, capped excerpts, at most 3 differences). Dispatch
 //     42178757887's 16-byte red was only readable by downloading and diffing 18 KB bodies by hand.
@@ -1083,6 +1130,7 @@ const requiredGreen = [
     'turn-1-streaming-requested',
     'streaming-setting-armed-before-turn-1',
     'legs-are-complete',
+    'branch-metadata-persisted',
     'extension-quiet-generation-parity',
     'quiet-generation-extension-handled',
     'e03e04-profile-recorded',

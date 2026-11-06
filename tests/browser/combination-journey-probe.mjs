@@ -2340,6 +2340,76 @@ async function waitForGroupFanOutQuiescence(page, { groupId, baselineChatLength 
     return { ok: false, quiesced: false, waitedMs: Date.now() - started, state: last, requestCount: peerRequests().length, expectedReplies: last?.expectedReplies ?? null, baselineChatLength };
 }
 
+/**
+ * WAIT FOR THE PRODUCT'S OWN BRANCH METADATA ON THE MESSAGE IT BRANCHED (dispatch 42230495689).
+ *
+ * pinned `scripts/bookmarks.js:237-243` writes `lastMes.extra.branches` AFTER it saved the branch chat file, so the
+ * MAIN chat's copy of that field exists only in client memory at that moment. If the page reloads before a save flushes
+ * it, the reloaded chat comes from the branch-less file and the metadata is gone for the rest of the run. This waits
+ * (bounded) for the product state itself: a message whose `extra.branches` array contains the branch name the frontend
+ * just created, and reports every message's branch metadata so the artefact says where it landed.
+ */
+async function waitForClientBranchMetadata(page, { expectedName, timeoutMs = 15000 } = {}) {
+    const started = Date.now();
+    let last = null;
+    while (Date.now() - started < timeoutMs) {
+        const state = await page.evaluate(async name => {
+            const script = await import('./script.js');
+            const chat = script.chat ?? [];
+            const branchesByIndex = chat.map((message, index) => ({
+                index,
+                isUser: message?.is_user === true,
+                branches: Array.isArray(message?.extra?.branches) ? message.extra.branches.map(String) : null,
+            }));
+            const carrying = branchesByIndex.filter(entry => Array.isArray(entry.branches) && entry.branches.includes(String(name)));
+            return {
+                chatLength: chat.length,
+                branchesByIndex,
+                carrying,
+                matchedIndex: carrying[0]?.index ?? null,
+            };
+        }, expectedName ?? null).catch(error => ({ error: String(error?.message ?? error).slice(0, 200) }));
+        last = state;
+        if (state?.error) { await page.waitForTimeout(200); continue; }
+        if (Number.isInteger(state.matchedIndex)) {
+            return { ok: true, waitedMs: Date.now() - started, expectedName, index: state.matchedIndex, chatLength: state.chatLength, carrying: state.carrying, branchesByIndex: state.branchesByIndex };
+        }
+        await page.waitForTimeout(150);
+    }
+    return { ok: false, waitedMs: timeoutMs, expectedName, reason: 'the client never carried extra.branches for the created branch', last };
+}
+
+/**
+ * FLUSH THE MAIN CHAT THROUGH THE PRODUCT'S SAVE PATH AND CONFIRM THE BRANCH METADATA REACHED DISK. `saveChatConditional`
+ * (script.js:9412-9439) is the product's own write path that the probe already uses; the disk copy is polled because the
+ * save is an HTTP round trip. The verification is on the same field the durable comparator reads (`extra.branches`), so
+ * a subject that still loses it is RED by name instead of the run continuing on a branch-less file.
+ */
+async function flushMainChatAndVerifyBranchMetadata(page, dataRoot, { expectedIndex, expectedName, timeoutMs = 20000 } = {}) {
+    const saved = await saveConditional(page);
+    const started = Date.now();
+    let last = null;
+    while (Date.now() - started < timeoutMs) {
+        const files = await readJourneyChats(dataRoot);
+        const matches = [];
+        for (const [file, chatFile] of Object.entries(files)) {
+            (chatFile?.messages ?? []).forEach((message, index) => {
+                const branches = Array.isArray(message?.branches) ? message.branches.map(String) : null;
+                if (Array.isArray(branches) && branches.includes(String(expectedName))) matches.push({ file, index, branches });
+            });
+        }
+        const persistedBranchesByIndex = Object.entries(files).flatMap(([file, chatFile]) => (chatFile?.messages ?? []).map((message, index) => ({
+            file,
+            index,
+            branches: Array.isArray(message?.branches) ? message.branches.map(String) : (message?.branches ?? null),
+        }))).filter(entry => entry.branches !== null);
+        last = { files: Object.keys(files), matches, persistedBranchesByIndex, waitedMs: Date.now() - started };
+        if (matches.some(match => match.index === expectedIndex)) return { ok: true, saved, ...last };
+        await page.waitForTimeout(300);
+    }
+    return { ok: false, saved, ...last, reason: `the saved main chat has no extra.branches at index ${expectedIndex}` };
+}
+
 /** One user turn: baseline first, click the product's send control, wait for the page AND the peer to move. */
 async function turn(page, marker, caseName, { settleMs = 0 } = {}) {
     await waitForQuiet(page);
@@ -3301,11 +3371,27 @@ async function main() {
                 if (index < 0) return { created: false, reason: 'empty chat' };
                 try {
                     const name = await bookmarks.createBranch(index);
-                    return { created: Boolean(name), name: name ?? null, parentLength: chat.length };
+                    return { created: Boolean(name), name: name ?? null, index, parentLength: chat.length };
                 } catch (error) { return { created: false, reason: String(error?.message ?? error).slice(0, 300) }; }
             });
             report.browser.branch = branch;
             step('branch-created-through-frontend-bookmarks', branch.created === true, branch);
+            // THE BRANCH POINT'S `extra.branches` METADATA MUST REACH DISK BEFORE THE PAGE RELOADS (dispatch
+            // 42230495689). pinned `scripts/bookmarks.js` appends the branch name to the message's `extra.branches`
+            // at :237-243 AFTER its branch-file save (:224-234) and returns; the MAIN chat is not saved there, and the
+            // probe immediately reloads the page in the control segment. Whether the pending debounced save
+            // (`saveChatDebounced`, script.js:7361-7382) flushed before the reload was the race: pinned's main file
+            // carried `extra.branches` (branchCount 1 on message 4) and GoTavern's did not (null), and once the page
+            // reloaded, the in-memory chat came back from the branch-less file so no later save could recover it.
+            // The durable state must be made deterministic: wait for the CLIENT's own branch metadata to exist on the
+            // message the product branched (the same field bookmarks.js writes), then flush the MAIN chat through the
+            // product's save path and confirm the persisted file carries it before continuing to the reload.
+            const branchClient = await waitForClientBranchMetadata(page, { expectedName: branch.name });
+            const branchFlush = branchClient.ok
+                ? await flushMainChatAndVerifyBranchMetadata(page, dataRoot, { expectedIndex: branchClient.index, expectedName: branch.name })
+                : { ok: false, reason: 'the client never carried the branch metadata; the main chat was not flushed' };
+            report.browser.branchPersist = { ...branchClient, flush: branchFlush, settledAfterStep: 'branch-created-through-frontend-bookmarks' };
+            step('branch-metadata-persisted-before-reload', branchClient.ok === true && branchFlush.ok === true, report.browser.branchPersist);
 
             // ---- STEP 6: knob-off discriminations, each arm as its own reset segment ------------------
             const controlSegmentChat = (await readPageState(page)).chatId;
