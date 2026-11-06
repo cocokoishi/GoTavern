@@ -1,6 +1,6 @@
 # alpha.16 — Adversarial multi-environment qualification and evidence-driven architecture program
 
-> **Status: PROPOSED AGENT EXECUTION PLAN, NOT AN IMPLEMENTED FIX OR A RELEASE.** Prepared against main at 8f529cda4192acda680000f8c5fb4a025e27bfcc (2026-11-06). This document is a work order. It is deliberately separate from GOAL.md, the released alpha.15 tag and the current release manifest. All implementation decisions require the full M0 audit, executable red/green evidence and the pinned oracle.
+> **Status: PROPOSED AGENT EXECUTION PLAN, NOT AN IMPLEMENTED FIX OR A RELEASE.** Prepared against main at `8f529cd` (2026-11-06). This document is a work order. It is deliberately separate from GOAL.md, the released alpha.15 tag and the current release manifest. All implementation decisions require the full M0 audit, executable red/green evidence and the pinned oracle.
 >
 > **Owner instruction:** The coding agent should undertake the entire program rather than merely generate a large static fixture. Its objective is to create self-built, highly interactive, long-running SillyTavern installations, use those installations to discover real GoTavern failures, and refactor only the ownership boundaries supported by that evidence. No arbitrary mass rewrite and no self-reported “passed” without replayable artifacts.
 
