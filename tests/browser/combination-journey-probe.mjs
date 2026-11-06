@@ -2410,6 +2410,150 @@ async function flushMainChatAndVerifyBranchMetadata(page, dataRoot, { expectedIn
     return { ok: false, saved, ...last, reason: `the saved main chat has no extra.branches at index ${expectedIndex}` };
 }
 
+/**
+ * WAIT FOR THE PRODUCT'S OWN SWIPE STATE TO SETTLE BEFORE CLICKING (dispatch 42262745594/42267350955).
+ *
+ * The pinned frontend's swipe handler reads `chat[mesId].swipe_id` in `endSwipe` (`script.js:10052`, called from
+ * `swipe` at `:10416`) where `mesId` comes from the clicked element's `mesid` attribute (`:9971`). If the click lands
+ * while the rendered chat and the chat array disagree -- a generation/extension re-render in flight -- `chat[mesId]`
+ * is undefined and the handler throws `TypeError: Cannot read properties of undefined (reading 'swipe_id')`. That
+ * error appeared on the GoTavern leg only (a timing race, not a product difference) and made
+ * `page-errors-are-not-gotavern-specific` flaky at the final candidate.
+ *
+ * This waits (bounded) for every precondition the handler actually needs, read from the product itself: no active
+ * generation (`is_send_press`, `streamingProcessor`, `body[data-generating]`), a quiet window after the last
+ * GENERATION_ENDED, the last message is an assistant message with a NUMERIC `swipe_id` and at least one swipe, the DOM
+ * and the chat array agree (count and last `mesid`), exactly one `.last_mes`, and the swipe-right control is present,
+ * visible and enabled. The whole signature must be stable for `stableMs` so a re-render cannot be mid-flight.
+ */
+async function waitForSwipeReadiness(page, { timeoutMs = 45000, stableMs = 1200 } = {}) {
+    const started = Date.now();
+    let last = null;
+    let lastSignature = null;
+    let stableSince = Date.now();
+    while (Date.now() - started < timeoutMs) {
+        const state = await page.evaluate(async () => {
+            const script = await import('./script.js');
+            const chat = script.chat ?? [];
+            const tail = chat[chat.length - 1] ?? null;
+            const nodes = [...document.querySelectorAll('#chat .mes')];
+            const lastNode = nodes[nodes.length - 1] ?? null;
+            const control = lastNode?.querySelector('.swipe_right') ?? null;
+            const rect = control?.getBoundingClientRect?.() ?? null;
+            return {
+                chatLength: chat.length,
+                lastIsUser: tail?.is_user ?? null,
+                lastSwipeId: tail?.swipe_id ?? null,
+                lastSwipeIdType: typeof tail?.swipe_id,
+                lastSwipes: Array.isArray(tail?.swipes) ? tail.swipes.length : null,
+                lastText: String(tail?.mes ?? '').slice(0, 80),
+                isSendPress: script.is_send_press === true,
+                streamingProcessor: Boolean(script.streamingProcessor),
+                generatingFlag: document.body?.dataset?.generating ?? null,
+                swipingFlag: document.body?.dataset?.swiping ?? null,
+                domCount: nodes.length,
+                lastNodeMesId: lastNode?.getAttribute('mesid') ?? null,
+                lastMesNodes: document.querySelectorAll('#chat .mes.last_mes').length,
+                lastNodeIsLastMes: lastNode ? lastNode.classList.contains('last_mes') : null,
+                controlPresent: Boolean(control),
+                controlVisible: rect ? rect.width > 0 && rect.height > 0 : false,
+                controlDisabled: control ? (control.disabled === true || control.classList.contains('disabled') || control.getAttribute('aria-disabled') === 'true') : null,
+                controlPointerEvents: control ? getComputedStyle(control).pointerEvents : null,
+                isSwipingAllowed: typeof script.isSwipingAllowed === 'function' ? (() => { try { return script.isSwipingAllowed(); } catch { return null; } })() : null,
+                lastGenerationEndedAgo: Date.now() - (window.__combLastGenerationEnded ?? 0),
+            };
+        }).catch(error => ({ error: String(error?.message ?? error).slice(0, 200) }));
+        const signature = JSON.stringify({
+            chatLength: state?.chatLength, lastSwipeId: state?.lastSwipeId, lastSwipes: state?.lastSwipes, lastText: state?.lastText,
+            domCount: state?.domCount, lastNodeMesId: state?.lastNodeMesId, lastMesNodes: state?.lastMesNodes,
+        });
+        if (signature !== lastSignature) { lastSignature = signature; stableSince = Date.now(); }
+        const stableForMs = Date.now() - stableSince;
+        last = { ...state, stableForMs };
+        const ok = !state?.error
+            && Number.isInteger(state.lastSwipeId)
+            && state.lastIsUser === false
+            && Number.isInteger(state.lastSwipes) && state.lastSwipes >= 1
+            && state.isSendPress !== true && state.streamingProcessor !== true
+            && (state.generatingFlag === null || state.generatingFlag === 'false')
+            && state.chatLength > 0
+            && state.domCount === state.chatLength
+            && state.lastNodeMesId === String(state.chatLength - 1)
+            && state.lastMesNodes >= 1
+            && state.lastNodeIsLastMes === true
+            && state.controlPresent === true && state.controlVisible === true && state.controlDisabled !== true
+            && (state.controlPointerEvents === null || state.controlPointerEvents !== 'none')
+            && state.isSwipingAllowed !== false
+            && state.swipingFlag !== 'true'
+            && state.lastGenerationEndedAgo > 2000
+            && stableForMs >= stableMs;
+        if (ok) return { ok: true, waitedMs: Date.now() - started, state: last };
+        await page.waitForTimeout(150);
+    }
+    return { ok: false, waitedMs: timeoutMs, reason: 'the product swipe state never settled', state: last };
+}
+
+/**
+ * Click the last message's swipe-right control THE WAY THE PRODUCT DOES (`$(document).on('click', '.last_mes
+ * .swipe_right', ...)`, script.js:11146) but pass the message id from the CHAT ARRAY through the handler's `data`
+ * argument (`forceMesId`), so `endSwipe` cannot read a stale DOM `mesid`. The DOM/array coherence is re-checked
+ * immediately before the click (a re-render can happen between the readiness wait and this evaluate).
+ */
+async function clickSwipeControl(page) {
+    return page.evaluate(async () => {
+        const script = await import('./script.js');
+        const chat = script.chat ?? [];
+        const index = chat.length - 1;
+        const chatMessage = chat[index] ?? null;
+        if (!chatMessage || !Number.isInteger(chatMessage.swipe_id)) return { pressed: false, reason: 'the last chat message has no numeric swipe_id' };
+        const nodes = [...document.querySelectorAll('#chat .mes')];
+        const lastNode = nodes[nodes.length - 1] ?? null;
+        const mesId = lastNode?.getAttribute('mesid') ?? null;
+        if (nodes.length !== chat.length || mesId !== String(index)) {
+            return { pressed: false, reason: 'the rendered chat is not the chat array (count/mesid mismatch)', domCount: nodes.length, chatLength: chat.length, mesId, index };
+        }
+        if (document.querySelectorAll('#chat .mes.last_mes').length < 1 || lastNode?.classList.contains('last_mes') !== true) {
+            return { pressed: false, reason: 'the rendered last message is not the .last_mes swipe target', lastMesNodes: document.querySelectorAll('#chat .mes.last_mes').length, lastNodeIsLastMes: lastNode?.classList.contains('last_mes') ?? null };
+        }
+        const control = lastNode.querySelector('.swipe_right');
+        if (!control) return { pressed: false, reason: 'no swipe-right control on the last message' };
+        const jq = window.jQuery ?? window.$;
+        if (!jq) return { pressed: false, reason: 'jQuery is not available for the product control handler' };
+        jq(control).trigger('click', [{ forceMesId: index, message: chatMessage }]);
+        return { pressed: true, method: 'product delegated click with forceMesId from the chat array', index, domCount: nodes.length, mesId };
+    }).catch(error => ({ pressed: false, reason: `the swipe click threw: ${String(error?.message ?? error).slice(0, 200)}` }));
+}
+
+/** Wait for the swipe to move OR for the known endSwipe frontend error during the click window (bounded). */
+async function waitForSwipeOutcome(page, { before, errorIndex, timeoutMs = 90000, graceMs = 800 } = {}) {
+    const started = Date.now();
+    let last = null;
+    while (Date.now() - started < timeoutMs) {
+        const state = await page.evaluate(async () => {
+            const script = await import('./script.js');
+            const chat = script.chat ?? [];
+            const tail = chat[chat.length - 1] ?? null;
+            return {
+                chatLength: chat.length,
+                lastText: String(tail?.mes ?? ''),
+                lastSwipeId: tail?.swipe_id ?? null,
+                isSendPress: script.is_send_press === true,
+                streamingProcessor: Boolean(script.streamingProcessor),
+            };
+        }).catch(error => ({ error: String(error?.message ?? error).slice(0, 200) }));
+        const frontendError = report.pageErrors.slice(errorIndex ?? report.pageErrors.length).find(entry => /endSwipe|reading 'swipe_id'/.test(String(entry))) ?? null;
+        const moved = state && String(state.lastText ?? '') !== String(before?.lastText ?? '') && state.chatLength >= (before?.chatLength ?? 0);
+        last = { ...(state ?? {}), frontendError, moved, waitedMs: Date.now() - started };
+        if (frontendError !== null) return { ok: false, frontendError, state: last, waitedMs: Date.now() - started };
+        if (moved && state.isSendPress !== true && state.streamingProcessor !== true) {
+            if (graceMs > 0) { await page.waitForTimeout(graceMs); const lateError = report.pageErrors.slice(errorIndex ?? report.pageErrors.length).find(entry => /endSwipe|reading 'swipe_id'/.test(String(entry))) ?? null; if (lateError !== null) return { ok: false, frontendError: lateError, state: last, waitedMs: Date.now() - started, late: true }; }
+            return { ok: true, state: last, waitedMs: Date.now() - started };
+        }
+        await page.waitForTimeout(150);
+    }
+    return { ok: false, state: last, waitedMs: timeoutMs, reason: 'the swipe state never moved' };
+}
+
 /** One user turn: baseline first, click the product's send control, wait for the page AND the peer to move. */
 async function turn(page, marker, caseName, { settleMs = 0 } = {}) {
     await waitForQuiet(page);
@@ -3273,64 +3417,52 @@ async function main() {
             step('turn-2-history-carries-turn-1', String(turn2.requests[0]?.body ?? '').includes('COMB_TURN_1'), { bodyLength: turn2.requests[0]?.byteLength ?? null, found: String(turn2.requests[0]?.body ?? '').includes('COMB_TURN_1') });
 
             // ---- STEP 5: swipe / regenerate / continue / branch --------------------------------------
-            // A PAGE ERROR ON BOTH SUBJECTS IS STILL A HARNESS PRECONDITION: ubuntu run 41363205426 recorded
-            // "Cannot read properties of undefined (reading 'swipe_id')" on BOTH subjects, which means the swipe was
-            // pressed while the last message had no swipe state yet. Wait for the state a swipeable message has.
-            const swipeReady = await waitForCondition(page, async () => {
-                const script = await import('./script.js');
-                const chat = script.chat ?? [];
-                const last = chat[chat.length - 1] ?? null;
-                return {
-                    // endSwipe() awaits the in-flight generation and then indexes chat[mesId]; pressing while a
-                    // generation is still settling makes mesId stale when the chat array changes under it -- the
-                    // both-subject page error on ubuntu. Require a quiet window after the last GENERATION_ENDED too.
-                    ok: chat.length > 0 && last?.is_user === false && last?.swipe_id !== undefined
-                        && script.is_send_press !== true && (Date.now() - (window.__combLastGenerationEnded ?? 0)) > 1500,
-                    chatLength: chat.length,
-                    lastIsUser: last?.is_user ?? null,
-                    swipeId: last?.swipe_id ?? null,
-                };
-            }, { label: 'swipe-ready', timeoutMs: 30000 });
-            step('swipe-ready', swipeReady.ok === true, swipeReady.value ?? swipeReady);
+            // THE SWIPE IS CLICKED ONLY ONCE THE PRODUCT'S OWN STATE HAS SETTLED (dispatch 42262745594/42267350955).
+            // The pinned handler reads `chat[mesId].swipe_id` in endSwipe (script.js:10052) where mesId comes from the
+            // clicked element's DOM `mesid` (:9971); a click landing while a re-render/generation is in flight makes
+            // `chat[mesId]` undefined and throws the flaky TypeError on whichever subject loses that race. The old
+            // wait accepted any non-undefined swipe_id and only checked `is_send_press`; this waits for a numeric
+            // swipe_id, idle generation, a quiet window, DOM/array agreement, exactly one .last_mes and a
+            // rendered/enabled swipe control, stable for 1.2 s, and records all of it.
+            const swipeReady = await waitForSwipeReadiness(page);
+            report.browser.swipeReadiness = swipeReady;
+            step('swipe-ready', swipeReady.ok === true, swipeReady.state ? swipeReady : { ...swipeReady });
             const swipeBefore = await readPageState(page);
-            const swipe = await page.evaluate(async () => {
-                const script = await import('./script.js');
-                // THE RENDERED CHAT CAN LAG THE ARRAY ON THE LINUX BOOT: endSwipe() indexes chat[] with the DOM's
-                // message id, and a stale .mes node makes that index undefined -> the page error both subjects showed.
-                // If the counts disagree, reopen the active chat (a user-reachable sync) and wait for the DOM to agree.
-                const context = window.SillyTavern?.getContext?.();
-                const domCount = () => document.querySelectorAll('#chat .mes').length;
-                if (domCount() !== (script.chat ?? []).length && context?.chatId) {
-                    try { await script.openCharacterChat(context.chatId); } catch (error) { /* recorded below if it persists */ }
-                    const deadline = Date.now() + 15000;
-                    while (Date.now() < deadline && domCount() !== (script.chat ?? []).length) await new Promise(resolve => setTimeout(resolve, 100));
-                }
-                const chat = script.chat ?? [];
-                window.__combSwipeBefore = { chatLength: chat.length, lastText: String(chat[chat.length - 1]?.mes ?? '') };
-                const allowed = typeof script.isSwipingAllowed === 'function' ? script.isSwipingAllowed() : null;
-                // REBUILD THE RENDERED CHAT, THEN CLICK. The control click captures mesId from the rendered element and
-                // endSwipe() later indexes chat[mesId]; a rendered node that is not the chat array's node (or a stale
-                // node after the reload/return paths) makes that index undefined -- the endSwipe TypeError. Comparing
-                // counts was not enough (run 41370517073: counts agreed, GoTavern alone raised it). printMessages() is
-                // the frontend's own renderer, so after it returns the DOM ids ARE the chat indexes, and the click below
-                // sees a coherent state. (The /swipe slash command was tried first: it did not start a generation at all
-                // on either subject -- measured in run 41372041021 -- so the user-path control is kept, with its state
-                // made coherent first.)
-                await script.printMessages();
-                const container = document.querySelector('#chat .mes:last-child');
-                const control = container?.querySelector('.swipe_right') ?? container?.querySelector('[data-i18n="Right"]');
-                if (!control) return { pressed: false, allowed, reason: 'no swipe-right control on the last message' };
-                control.click();
-                return { pressed: true, allowed, method: 'dom-click-after-render' };
-            });
+            const swipeErrorIndex = report.pageErrors.length;
             const swipeRequestIndex = peerRequests().length;
-            const swipeSettled = await waitForCondition(page, async () => {
-                const script = await import('./script.js');
-                const chat = script.chat ?? [];
-                const before = window.__combSwipeBefore ?? { chatLength: 0, lastText: '' };
-                return { ok: chat.length >= before.chatLength && script.is_send_press !== true && String(chat[chat.length - 1]?.mes ?? '') !== before.lastText };
-            }, { label: 'swipe-settled', timeoutMs: 90000 });
-            await waitForPeerRequests(page, swipeRequestIndex + (swipe.pressed ? 1 : 0), 60000);
+            let swipe = await clickSwipeControl(page);
+            let swipeOutcome = await waitForSwipeOutcome(page, { before: { chatLength: swipeBefore.chatLength ?? null, lastText: swipeBefore.lastText ?? '' }, errorIndex: swipeErrorIndex });
+            let swipeRetry = null;
+            if (swipeOutcome.ok !== true) {
+                // THE KNOWN FRONTEND RACE FIRED (or the click never moved the chat): wait for the product to be idle
+                // and coherent again, then retry the swipe ONCE, recording the whole retry. A second failure is a NAMED
+                // harness failure (`swipe-frontend-race`) and the swipe steps below go red; nothing is filtered or
+                // weakened -- the page error remains in pageErrors for the parity guard.
+                const retryStarted = Date.now();
+                const retryIdle = await waitForSwipeReadiness(page, { stableMs: 600, timeoutMs: 30000 });
+                await waitForQuiet(page);
+                const retryErrorIndex = report.pageErrors.length;
+                const retryClick = await clickSwipeControl(page);
+                const retryOutcome = await waitForSwipeOutcome(page, { before: { chatLength: swipeBefore.chatLength ?? null, lastText: swipeBefore.lastText ?? '' }, errorIndex: retryErrorIndex });
+                swipeRetry = {
+                    attempt: 1,
+                    firstError: swipeOutcome.frontendError ?? null,
+                    firstOutcome: { ok: swipeOutcome.ok, reason: swipeOutcome.reason ?? null, waitedMs: swipeOutcome.waitedMs ?? null },
+                    waitedMs: Date.now() - retryStarted,
+                    idle: { ok: retryIdle.ok === true, waitedMs: retryIdle.waitedMs ?? null },
+                    click: retryClick,
+                    outcome: { ok: retryOutcome.ok === true, frontendError: retryOutcome.frontendError ?? null, reason: retryOutcome.reason ?? null, waitedMs: retryOutcome.waitedMs ?? null },
+                    succeeded: retryClick.pressed === true && retryOutcome.ok === true,
+                };
+                if (swipeRetry.succeeded === true) { swipe = retryClick; swipeOutcome = retryOutcome; }
+            }
+            const swipeSettled = swipeOutcome.ok === true
+                ? { ok: true, value: swipeOutcome.state }
+                : { ok: false, value: swipeOutcome.state, reason: swipeOutcome.frontendError ? 'swipe-frontend-race' : (swipeOutcome.reason ?? 'the swipe state never moved') };
+            const swipeRaceHandled = swipeSettled.ok === true && (swipeRetry === null || swipeRetry.succeeded === true);
+            report.browser.swipe = { readiness: swipeReady, before: { chatLength: swipeBefore.chatLength ?? null, lastSwipes: swipeBefore.lastSwipes ?? null, lastSwipeId: swipeBefore.lastSwipeId ?? null }, click: swipe, retry: swipeRetry, outcome: swipeOutcome, raceHandled: swipeRaceHandled };
+            step('swipe-frontend-race-handled', swipeRaceHandled === true, { readiness: swipeReady, click: swipe, retry: swipeRetry, outcome: { ok: swipeOutcome.ok, frontendError: swipeOutcome.frontendError ?? null, reason: swipeOutcome.reason ?? null }, attempts: swipeRetry === null ? 1 : 2 });
+            if (swipeSettled.ok === true) await waitForPeerRequests(page, swipeRequestIndex + (swipe.pressed ? 1 : 0), 60000);
             const swipeRequests = captureGeneration(swipeRequestIndex, 'swipe');
             report.requests.push(...swipeRequests);
             report.captures.push({ case: 'swipe', requestShas: swipeRequests.map(entry => entry.sha256) });

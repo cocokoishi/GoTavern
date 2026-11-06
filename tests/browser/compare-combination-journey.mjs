@@ -864,7 +864,7 @@ export function compareCombinationJourney({ goDrive, pinnedDrive, goRestart = nu
 
     // The verbs are only claimed where their own step fired on both subjects. A verb the harness could not drive
     // (a send swallowed by a page left busy by a PRESET SWITCH) is red here by name, never skipped.
-    for (const name of ['swipe-produced-a-request', 'swipe-state-moved', 'regenerate-produced-a-request', 'continue-produced-a-request',
+    for (const name of ['swipe-produced-a-request', 'swipe-state-moved', 'swipe-frontend-race-handled', 'regenerate-produced-a-request', 'continue-produced-a-request',
         'branch-created-through-frontend-bookmarks', 'group-chat-opened', 'group-turn-produced-request',
         'returned-to-journey-chat', 'final-turn-earned-request', 'journey-chat-written',
         'disk-chat-carries-regex-rewritten-reply', 'disk-chat-carries-branch-metadata']) observed(name);

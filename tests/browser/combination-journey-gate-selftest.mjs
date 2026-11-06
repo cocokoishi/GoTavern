@@ -188,6 +188,9 @@ function buildSyntheticProfileLegs() {
             // planted non-streaming case below can go red on exactly the guard that names it.
             { name: 'streaming-setting-armed-before-turn-1', ok: true, detail: { ok: true, expected: true, restored: false } },
             { name: 'turn-1-streaming-requested', ok: true, detail: { requestedStream: true, served: 'sse' } },
+            // THE SWIPE'S SETTLED-CLICK EVIDENCE (dispatch 42262745594/42267350955): no frontend race, one attempt,
+            // so the baseline is green and the planted retry-twice case below can go red on the guard that names it.
+            { name: 'swipe-frontend-race-handled', ok: true, detail: { attempts: 1, retry: null, outcome: { ok: true } } },
         ],
         // THE LEG-COMPLETION RECORD (dispatch 42203249658): a completed phase lists its landmarks; the probe emits
         // `leg-completed-all-expected-phases` and the comparator guard `legs-are-complete` requires this record.
@@ -650,6 +653,18 @@ syntheticMutation(
         durable: mutated.durable?.firstDifference ?? null,
     });
 }
+// 17c. A SWIPE THAT NEVER SETTLES (dispatch 42262745594/42267350955's failure mode): the frontend endSwipe race fired
+//      and the single retry did not settle the swipe. The comparator must fail by name on the settled-click guard, not
+//      bury the failure in downstream consequences, and the page errors themselves remain unfiltered evidence.
+syntheticMutation(
+    'A-SWIPE-THAT-NEVER-SETTLES goes RED by swipe-frontend-race-handled',
+    'swipe-frontend-race-handled',
+    legs => {
+        legs.pinned.steps = legs.pinned.steps.map(entry => entry.name === 'swipe-frontend-race-handled'
+            ? { name: entry.name, ok: false, detail: { attempts: 2, retry: { attempt: 1, firstError: "TypeError: Cannot read properties of undefined (reading 'swipe_id')", succeeded: false }, outcome: { ok: false, reason: 'swipe-frontend-race' } } }
+            : entry);
+    },
+);
 // 18. THE CAPTURE-MISMATCH DIAGNOSTIC: a body difference must produce a bounded, named diagnosis in
 //     `captures.mismatches[].firstDifference` (path, char offset, capped excerpts, at most 3 differences). Dispatch
 //     42178757887's 16-byte red was only readable by downloading and diffing 18 KB bodies by hand.
@@ -1131,6 +1146,7 @@ const requiredGreen = [
     'streaming-setting-armed-before-turn-1',
     'legs-are-complete',
     'branch-metadata-persisted',
+    'swipe-frontend-race-handled',
     'extension-quiet-generation-parity',
     'quiet-generation-extension-handled',
     'e03e04-profile-recorded',
