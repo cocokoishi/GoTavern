@@ -1,0 +1,1585 @@
+{
+    "schemaVersion":  1,
+    "lane":  "C",
+    "title":  "concurrency, lifetime, locks, timers, child processes, cache discipline",
+    "commit":  "c8472c14aef63e78a6249e29aae2ce95fc9c8ce9",
+    "notes":  [
+                  "Product tree is identical to the program base c256f21; the only delta at this commit is docs/alpha16/** and tools/alpha16-graph/**.",
+                  "Read-only lane. The only files written are docs/alpha16/audit/c-concurrency-lifecycle.md and this fragment.",
+                  "Counts are line matches produced by the commands in the report section 8; scope R = git ls-files \u0027*.go\u0027 restricted to ^internal/ or ^cmd/ and excluding _test.go (270 files)."
+              ],
+    "filesInspected":  [
+                           {
+                               "path":  "internal/server/settings_save.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "settingsSaveMu across disk persistence, AfterFunc backup timer, trailing-edge flush (the M0 candidate at :50-87)"
+                           },
+                           {
+                               "path":  "internal/server/settings_cache.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "identity-keyed settings/worldinfo response caches, bounds, eviction, digest protocol"
+                           },
+                           {
+                               "path":  "internal/server/settings_get.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "cache call site and the before/after identity re-check (:63-84)"
+                           },
+                           {
+                               "path":  "internal/server/worldinfo.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "second userMetadataCache call site (:230-248)"
+                           },
+                           {
+                               "path":  "internal/server/accounts.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "accountRuntime state owner (:85-103), login/recover/reset limiters (:115-200), stored-account cache (:240-357), clientIP key derivation (:1529-1545)"
+                           },
+                           {
+                               "path":  "internal/server/characters_card_cache.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "identity-keyed card-text cache, LRU bounds, the one-critical-section fix after the Linux -race finding"
+                           },
+                           {
+                               "path":  "internal/server/characters_card.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "cache call sites (:271-284) around os.ReadFile + PNG decode"
+                           },
+                           {
+                               "path":  "internal/server/cache_buster.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "process-wide consumed-key set, parity with pinned cacheBuster.js"
+                           },
+                           {
+                               "path":  "internal/server/chatsummary.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "replacement for whole-file chat reads; confirmed stateless (no lock, no cache, no goroutine)"
+                           },
+                           {
+                               "path":  "internal/server/data_maid.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "package-level token map with embedded mutex (:125-179), finalize path (:205-237)"
+                           },
+                           {
+                               "path":  "internal/server/panic_boundary.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "recover boundary on the outer handler; re-panic after headers; no shared state"
+                           },
+                           {
+                               "path":  "internal/server/extensions_git.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "the only server child-process family: context.Background + 5 min bound, per-route command chains, no per-repo serialization"
+                           },
+                           {
+                               "path":  "internal/server/extensions_fs.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "extension fs routes; direct grep for sync/goroutine/timer/exec = 0"
+                           },
+                           {
+                               "path":  "internal/server/extensions_static.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "extension static serving; direct grep for sync/goroutine/timer/exec = 0"
+                           },
+                           {
+                               "path":  "internal/server/backends_process.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "named \u0027process\u0027 but is /bias + /process prompt conversion; direct grep for exec/sync/goroutine = 0"
+                           },
+                           {
+                               "path":  "internal/server/sd_generate_comfy.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "detached interrupt/cancel goroutines (:335-349, :558-571), sdComfyDetached = context.Background (:147-149), unbounded poll loops (:391-419)"
+                           },
+                           {
+                               "path":  "internal/server/sd_generate_wave3.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "A1111 interrupt goroutine on request-context-done with a background-context POST (:196-205)"
+                           },
+                           {
+                               "path":  "internal/server/sd_webui.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "two-goroutine join (:103-119), ctx-aware poll sleep helper (:866-875)"
+                           },
+                           {
+                               "path":  "internal/server/sd_zai.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "detached poll sends with context.Background (:136,187,292,348); timer seam (:70-80)"
+                           },
+                           {
+                               "path":  "internal/server/google_video.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "bounded video poll loop contrast case (max 30 attempts :42, callerGone :161-165, background context :166)"
+                           },
+                           {
+                               "path":  "internal/server/openai_generate_video.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "same bounded video loop shape (:63-66, :137-158)"
+                           },
+                           {
+                               "path":  "internal/server/horde_generation.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "bounded poll (200 attempts :62) and the fresh-context DELETE on client exit (:505-518)"
+                           },
+                           {
+                               "path":  "internal/server/horde.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "two 60 s TTL body caches mirroring pinned new Cache(60*1000) (:52,71-105) and their call sites (:145-275)"
+                           },
+                           {
+                               "path":  "internal/server/nanogpt.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "the only WaitGroup: two request-scoped provider goroutines (:146-181)"
+                           },
+                           {
+                               "path":  "internal/server/tokenizers.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "package-level engine-set cache (:245-304) and a per-set mutex held across engine file reads/parse (:306-350)"
+                           },
+                           {
+                               "path":  "internal/server/access_log.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "process-wide knownIPs set and synchronous append; unbounded parity with pinned accessLogWriter.js"
+                           },
+                           {
+                               "path":  "internal/server/basic_auth.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "basic-auth rate windows: unbounded map with no sweeper (:20-105)"
+                           },
+                           {
+                               "path":  "internal/server/host_whitelist.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "warned-host set capped at 1000, parity with pinned\u0027s maxKnownHosts"
+                           },
+                           {
+                               "path":  "internal/server/pollinations_chat.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "package-level deterministic PRNG under a mutex (:84-93)"
+                           },
+                           {
+                               "path":  "internal/server/console.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "consoleMinLevelBits atomic.Uint64 (:57)"
+                           },
+                           {
+                               "path":  "internal/server/compression.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "gzip writer sync.Pool (:79) and confirmation no static response cache exists"
+                           },
+                           {
+                               "path":  "internal/server/backends_textgen_generate.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "koboldcpp abort watcher goroutine (:432-453) and background-context abort POST (:449)"
+                           },
+                           {
+                               "path":  "internal/server/backends_kobold_deferred.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "pinnedKoboldSendAbort on a fresh context (:82-96)"
+                           },
+                           {
+                               "path":  "internal/app/server.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "boot order, BeginBoot (:137-141), pinned Node http.Server timeouts (:77-118), Docker DNS bound (:358-397), RunningServer.Close (:429-446)"
+                           },
+                           {
+                               "path":  "internal/app/heartbeat.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "the one ticker + the one unbounded shutdown wait (:65-85); atomic heartbeat write with fsync"
+                           },
+                           {
+                               "path":  "internal/app/startup_trace.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "startup tracer mutex, boot-only scope"
+                           },
+                           {
+                               "path":  "cmd/gotavern/main.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "signal handling and the two Close call sites (:254-258, :333-374); forcedShutdown exit path"
+                           },
+                           {
+                               "path":  "cmd/gotavern/cli.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "forcedShutdown error type and exit code 130 (:377-384)"
+                           },
+                           {
+                               "path":  "cmd/gotavern/browser.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "the only CLI exec.Command (:54) and its fire-and-forget goroutine (:63)"
+                           },
+                           {
+                               "path":  "internal/lockacquire/lockacquire.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "bounded flock acquisition, process-wide atomic boot deadline, BusyError naming (rule 24)"
+                           },
+                           {
+                               "path":  "internal/outbound/transport.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "shared-client cache keyed by *tls.Config, production transport bounds, wire-exact selection once"
+                           },
+                           {
+                               "path":  "internal/outbound/raw.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "wire-exact connection goroutine released only by ctx/socket close (:167-175)"
+                           },
+                           {
+                               "path":  "internal/outbound/dnsorder.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "atomic DNS-order counter and a documented test seam resolver"
+                           },
+                           {
+                               "path":  "internal/outbound/privatefilter.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "atomic.Value private-address filter state"
+                           },
+                           {
+                               "path":  "internal/faultinject/faultinject.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "package-level hook func; nil unless the gotavern_faults build tag is set"
+                           },
+                           {
+                               "path":  "internal/faultinject/hook_faults.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "test-only init that installs the exit hook; cannot exist in a shipped binary"
+                           },
+                           {
+                               "path":  "internal/startup/settings_backup.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "SaveSettings/BackupUserSettings, the data-root flock acquisition, duplicate-aware snapshot, retention delete"
+                           },
+                           {
+                               "path":  "internal/startup/content.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "atomicReplace (temp + fsync + rename + dir fsync, :338-396) and acquireContentLock keyed on data root (:398-414)"
+                           },
+                           {
+                               "path":  "internal/startup/character_disk_cache.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "pinned _cache/characters: verify+removal pass implemented, no store path (GOAL.md :465-469)"
+                           },
+                           {
+                               "path":  "internal/startup/user_data_migration.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "pinned\u0027s 10 s legacy migration wait (:12,40)"
+                           },
+                           {
+                               "path":  "internal/server/server_soak_test.go",
+                               "kind":  "test",
+                               "depth":  "deep",
+                               "why":  "the leak gate: 200 requests, goroutine baseline+8, 4 MiB heap bound, fd bound where measurable"
+                           },
+                           {
+                               "path":  "internal/server/data_safety_concurrency_test.go",
+                               "kind":  "test",
+                               "depth":  "deep",
+                               "why":  "torn-write races for chat/settings/worldinfo/preset/image: one user tree, observable bytes; no cross-user leg"
+                           },
+                           {
+                               "path":  "internal/server/settings_save_test.go",
+                               "kind":  "test",
+                               "depth":  "deep",
+                               "why":  "pinned settings-save fixture and the trailing snapshot test that manually stops the timer (:202-243)"
+                           },
+                           {
+                               "path":  "internal/server/accounts_cache_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "6 cache tests including the same-size same-mtime atomic replacement red-then-green (:174) and the concurrent readers/writer test (:255)"
+                           },
+                           {
+                               "path":  "internal/server/characters_card_cache_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "encoding identity/bounds/concurrency and the documented residual test"
+                           },
+                           {
+                               "path":  "internal/server/settings_cache_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "7 tests: product-write invalidation, external modification, residual, bound/clone/oversize, byte-identical hits"
+                           },
+                           {
+                               "path":  "internal/server/server_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "TestStartHeartbeatMatchesPinnedNodeLifecycle (:329)  - the only lifecycle test for the heartbeat"
+                           },
+                           {
+                               "path":  "internal/server/startup_cases_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "many Close(context.Background()) call sites: an unbounded ctx is used in tests, never asserted"
+                           },
+                           {
+                               "path":  ".github/workflows/ci.yml",
+                               "kind":  "workflow",
+                               "depth":  "deep",
+                               "why":  "the race job (:656-683) and its package list; the only -race detector in the project"
+                           },
+                           {
+                               "path":  "docs/alpha16/source-graph.json",
+                               "kind":  "doc",
+                               "depth":  "mechanical",
+                               "why":  "AST floor: globals[] used for package-level state, facts[] cross-checked against grep; facts[] undercounts as documented in report 7.2"
+                           },
+                           {
+                               "path":  "docs/alpha16/README.md",
+                               "kind":  "doc",
+                               "depth":  "deep",
+                               "why":  "the M0 contract, schema, classification taxonomy"
+                           },
+                           {
+                               "path":  "docs/alpha16-agent-execution-plan.md",
+                               "kind":  "doc",
+                               "depth":  "deep",
+                               "why":  "M0 scope, R2 and R5 candidates, 9.A, immediate first task"
+                           },
+                           {
+                               "path":  "GOAL.md",
+                               "kind":  "doc",
+                               "depth":  "deep",
+                               "why":  "1b stable/clear-architecture, 15.3 cache discipline, 15.4 do-not-rewrite, 12, 11 M5/M6"
+                           },
+                           {
+                               "path":  "AGENTS.md",
+                               "kind":  "doc",
+                               "depth":  "deep",
+                               "why":  "rules 24, 33, 40, 104 and verification rules 1-20"
+                           },
+                           {
+                               "path":  "docs/development-loop.md",
+                               "kind":  "doc",
+                               "depth":  "deep",
+                               "why":  "tiers, CI jobs, what no local run can decide"
+                           },
+                           {
+                               "path":  "docs/audit-v0.1.0-alpha.15.md",
+                               "kind":  "doc",
+                               "depth":  "deep",
+                               "why":  "re-verification of B-07, B-09, B-10, B-17, C-14, F-03, F-04 against this tree"
+                           },
+                           {
+                               "path":  "..\\SillyTavern\\src\\endpoints\\settings.js",
+                               "kind":  "pinned",
+                               "depth":  "deep",
+                               "why":  "AUTOSAVE_INTERVAL, triggerAutoSave, synchronous save + backup, backup duplicate/retention logic  - the oracle for H2/H5"
+                           },
+                           {
+                               "path":  "..\\SillyTavern\\src\\server-main.js",
+                               "kind":  "pinned",
+                               "depth":  "deep",
+                               "why":  "500mb body parser (:110), cacheBuster mount, exitProcess/process.exit SIGINT path (:318-331)"
+                           },
+                           {
+                               "path":  "..\\SillyTavern\\src\\endpoints\\extensions.js",
+                               "kind":  "pinned",
+                               "depth":  "deep",
+                               "why":  "simple-git OPTIONS timeout block 5 min (:17) and the update/branches/switch call chains"
+                           },
+                           {
+                               "path":  "..\\SillyTavern\\node_modules\\simple-git\\dist\\cjs\\index.js",
+                               "kind":  "pinned",
+                               "depth":  "deep",
+                               "why":  "timeout.block kills the child (:1585-1613)  - falsifies the \u0027Go kills, pinned does not\u0027 hypothesis"
+                           },
+                           {
+                               "path":  "..\\SillyTavern\\node_modules\\rate-limiter-flexible\\lib\\component\\MemoryStorage\\MemoryStorage.js",
+                               "kind":  "pinned",
+                               "depth":  "deep",
+                               "why":  "per-key setTimeout eviction (:36-45)  - the oracle for H1"
+                           },
+                           {
+                               "path":  "..\\SillyTavern\\src\\middleware\\cacheBuster.js",
+                               "kind":  "pinned",
+                               "depth":  "deep",
+                               "why":  "unbounded module-level keys Set (:13,78-82)"
+                           },
+                           {
+                               "path":  "..\\SillyTavern\\src\\middleware\\accessLogWriter.js",
+                               "kind":  "pinned",
+                               "depth":  "deep",
+                               "why":  "unbounded module-level knownIPs Set (:8,38-40)"
+                           },
+                           {
+                               "path":  "..\\SillyTavern\\src\\middleware\\hostWhitelist.js",
+                               "kind":  "pinned",
+                               "depth":  "deep",
+                               "why":  "maxKnownHosts = 1000 (:5-6,27)  - parity for the Go cap"
+                           },
+                           {
+                               "path":  "..\\SillyTavern\\src\\middleware\\basicAuth.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "RateLimiterMemory basic-auth limiter (:18)"
+                           },
+                           {
+                               "path":  "..\\SillyTavern\\src\\endpoints\\users-public.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "login/recover RateLimiterMemory instances (:19-23)"
+                           },
+                           {
+                               "path":  "..\\SillyTavern\\src\\endpoints\\users-private.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "reset RateLimiterMemory (:22)"
+                           },
+                           {
+                               "path":  "..\\SillyTavern\\src\\endpoints\\stable-diffusion.js",
+                               "kind":  "pinned",
+                               "depth":  "deep",
+                               "why":  "unbounded comfy while(true) (:590-602) and RunPod (:710) poll loops  - oracle for H9"
+                           },
+                           {
+                               "path":  "..\\SillyTavern\\src\\endpoints\\data-maid.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "static TOKENS Map with per-handle replacement and no TTL (:92-94,653-666)"
+                           }
+                       ],
+    "packages":  [
+                     {
+                         "path":  "internal/server",
+                         "role":  "HTTP surface, persistence, response caches; owns the process-wide mutexes that matter (settingsSaveMu, cache mutexes, limiter state)",
+                         "entryPoints":  [
+                                             "internal/server/http.go:314"
+                                         ],
+                         "stateOwners":  [
+                                             "accountRuntime internal/server/accounts.go:85",
+                                             "settingsSaveMu internal/server/accounts.go:96",
+                                             "storedAccountCache internal/server/accounts.go:305",
+                                             "userMetadataCache internal/server/settings_cache.go:93",
+                                             "characterCardCache internal/server/characters_card_cache.go:109",
+                                             "tokenizerSetCache internal/server/tokenizers.go:253",
+                                             "dataMaidTokens internal/server/data_maid.go:134",
+                                             "hordeModels/hordeWorkers internal/server/horde.go:79"
+                                         ],
+                         "outbound":  [
+                                          "internal/outbound",
+                                          "git child process internal/server/extensions_git.go:56"
+                                      ],
+                         "writablePaths":  [
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/settings.json",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/backups/",
+                                               "\u003cdataRoot\u003e/_cache/**"
+                                           ],
+                         "failRetry":  "per-route; saves 500 on SaveSettings error; caches never fail a request (miss falls back to the uncached path)"
+                     },
+                     {
+                         "path":  "internal/app",
+                         "role":  "boot composition, listener lifecycle, heartbeat goroutine/ticker, shutdown",
+                         "entryPoints":  [
+                                             "internal/app/server.go:137"
+                                         ],
+                         "stateOwners":  [
+                                             "RunningServer internal/app/server.go:120",
+                                             "heartbeatWriter internal/app/heartbeat.go:19",
+                                             "startupTracer internal/app/startup_trace.go:32"
+                                         ],
+                         "outbound":  [
+
+                                      ],
+                         "writablePaths":  [
+                                               "\u003cdataRoot\u003e/heartbeat.json"
+                                           ],
+                         "failRetry":  "boot errors are named and fatal; heartbeat write failures are logged and continue"
+                     },
+                     {
+                         "path":  "internal/startup",
+                         "role":  "atomic write+lock core, settings save/backup, character disk-cache verify pass, startup mutations",
+                         "entryPoints":  [
+                                             "internal/startup/settings_backup.go:64",
+                                             "internal/startup/content.go:338"
+                                         ],
+                         "stateOwners":  [
+                                             "cross-process flock via internal/lockacquire"
+                                         ],
+                         "outbound":  [
+
+                                      ],
+                         "writablePaths":  [
+                                               "settings.json",
+                                               "backups/settings_*.json",
+                                               "_cache/characters/**"
+                                           ],
+                         "failRetry":  "atomic replace with bounded fsretry on rename; flock acquisition bounded and named"
+                     },
+                     {
+                         "path":  "internal/lockacquire",
+                         "role":  "bounded flock acquisition for the boot path and request-time save paths",
+                         "entryPoints":  [
+                                             "internal/lockacquire/lockacquire.go:103"
+                                         ],
+                         "stateOwners":  [
+                                             "bootDeadline internal/lockacquire/lockacquire.go:41",
+                                             "diagnosticsMu internal/lockacquire/lockacquire.go:43"
+                                         ],
+                         "outbound":  [
+
+                                      ],
+                         "writablePaths":  [
+                                               "\u003ctmp\u003e/gotavern-*/*.lock"
+                                           ],
+                         "failRetry":  "*BusyError names purpose/path/waited; never waits without a bound"
+                     },
+                     {
+                         "path":  "internal/outbound",
+                         "role":  "provider transport clients, timeouts, redirect policy, wire-exact observation client",
+                         "entryPoints":  [
+                                             "internal/outbound/transport.go:145"
+                                         ],
+                         "stateOwners":  [
+                                             "clients internal/outbound/transport.go:75",
+                                             "productionSettingsState internal/outbound/transport.go:80",
+                                             "requestProxy internal/outbound/transport.go:445"
+                                         ],
+                         "outbound":  [
+                                          "provider HTTP",
+                                          "wire-exact raw TCP when GOTAVERN_OUTBOUND_WIRE_EXACT=1"
+                                      ],
+                         "writablePaths":  [
+
+                                           ],
+                         "failRetry":  "no retry loop (pinned has none); bounds: connect 30s, TLS 15s, response header 120s"
+                     },
+                     {
+                         "path":  "internal/faultinject",
+                         "role":  "named crash seam for write-atomicity tests; nil hook in production builds",
+                         "entryPoints":  [
+                                             "internal/faultinject/faultinject.go:18"
+                                         ],
+                         "stateOwners":  [
+                                             "hook internal/faultinject/faultinject.go:15"
+                                         ],
+                         "outbound":  [
+
+                                      ],
+                         "writablePaths":  [
+
+                                           ],
+                         "failRetry":  "os.Exit(137) only under -tags gotavern_faults + armed env"
+                     },
+                     {
+                         "path":  "cmd/gotavern",
+                         "role":  "CLI, signal handling, browser launch, shutdown orchestration",
+                         "entryPoints":  [
+                                             "cmd/gotavern/main.go:36"
+                                         ],
+                         "stateOwners":  [
+
+                                         ],
+                         "outbound":  [
+                                          "exec.Command browser opener cmd/gotavern/browser.go:54"
+                                      ],
+                         "writablePaths":  [
+
+                                           ],
+                         "failRetry":  "first signal drains up to 10s; second returns forcedShutdown exit 130"
+                     }
+                 ],
+    "concurrency":  [
+                        {
+                            "id":  "L1-settings-save-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/server/accounts.go:96",
+                            "usedAt":  "internal/server/settings_save.go:51-52,78-79",
+                            "owner":  "accountRuntime (one per HTTP handler; process-wide in practice)",
+                            "lockOrder":  [
+                                              "settingsSaveMu",
+                                              "cross-process content flock (internal/startup/settings_backup.go:76 -\u003e internal/startup/content.go:409)"
+                                          ],
+                            "heldAcross":  "disk persistence + optional backup snapshot (internal/startup/content.go:338-396, internal/startup/settings_backup.go:152-227)",
+                            "cancellation":  "none: no request context exists on this path",
+                            "shutdown":  "not stopped or joined; no accountRuntime shutdown hook exists",
+                            "contention":  "all handles\u0027 settings saves serialize; narrower than pinned, which serializes every request on the event loop (pinned src/endpoints/settings.js:206-216)"
+                        },
+                        {
+                            "id":  "L2-create-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/server/accounts.go:91",
+                            "owner":  "accountRuntime",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "cancellation":  "request-scoped",
+                            "shutdown":  "n/a",
+                            "contention":  "user creation only"
+                        },
+                        {
+                            "id":  "L3-recovery-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/server/accounts.go:92",
+                            "owner":  "accountRuntime",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "cancellation":  "request-scoped",
+                            "shutdown":  "n/a",
+                            "contention":  "password recovery only"
+                        },
+                        {
+                            "id":  "L4-reset-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/server/accounts.go:94",
+                            "owner":  "accountRuntime",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "cancellation":  "request-scoped",
+                            "shutdown":  "n/a",
+                            "contention":  "data reset only"
+                        },
+                        {
+                            "id":  "L5-login-limiter-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/server/accounts.go:116",
+                            "owner":  "accountRuntime (3 instances, accounts.go:159-161)",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "cancellation":  "none",
+                            "shutdown":  "state lives until process exit",
+                            "contention":  "one small critical section per attempt; windows never evicted (C-H1)"
+                        },
+                        {
+                            "id":  "L6-basic-auth-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/server/basic_auth.go:21",
+                            "owner":  "handler",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "cancellation":  "none",
+                            "shutdown":  "process lifetime",
+                            "contention":  "windows never evicted (C-H1)"
+                        },
+                        {
+                            "id":  "L7-account-cache-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/server/accounts.go:306",
+                            "owner":  "package server",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "heldAcross":  "no I/O (stat precedes the lock)",
+                            "cancellation":  "n/a",
+                            "shutdown":  "process lifetime, re-derivable",
+                            "contention":  "one map lookup per authenticated request; clone under the lock\u0027s return path"
+                        },
+                        {
+                            "id":  "L8-metadata-cache-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/server/settings_cache.go:94",
+                            "owner":  "package server",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "heldAcross":  "no I/O (digest walk and body build outside)",
+                            "cancellation":  "n/a",
+                            "shutdown":  "process lifetime, bounded 64 entries / 64 MiB",
+                            "contention":  "two routes only"
+                        },
+                        {
+                            "id":  "L9-card-cache-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/server/characters_card_cache.go:110",
+                            "owner":  "package server",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "heldAcross":  "no I/O (read+decode outside)",
+                            "cancellation":  "n/a",
+                            "shutdown":  "process lifetime, bounded 65536 entries / 64 MiB LRU",
+                            "contention":  "all /api/characters/all requests"
+                        },
+                        {
+                            "id":  "L10-tokenizer-set-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/server/tokenizers.go:254",
+                            "owner":  "package server",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "heldAcross":  "no I/O (only builds an empty set)",
+                            "cancellation":  "n/a",
+                            "shutdown":  "process lifetime",
+                            "contention":  "configuration-derived key space, normally one entry"
+                        },
+                        {
+                            "id":  "L11-tokenizer-engine-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/server/tokenizers.go:265",
+                            "owner":  "per asset-root set",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "heldAcross":  "engine file read + parse (tokenizers.go:312,326,343)",
+                            "cancellation":  "n/a",
+                            "shutdown":  "process lifetime",
+                            "contention":  "cold load serialized across users; pinned loads on the event loop (worse)"
+                        },
+                        {
+                            "id":  "L12-horde-cache-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/server/horde.go:74",
+                            "owner":  "package server (two instances)",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "heldAcross":  "no",
+                            "cancellation":  "n/a",
+                            "shutdown":  "process lifetime, 60s TTL",
+                            "contention":  "two provider-list routes"
+                        },
+                        {
+                            "id":  "L13-cache-buster-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/server/cache_buster.go:75",
+                            "owner":  "per handler",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "heldAcross":  "no",
+                            "cancellation":  "n/a",
+                            "shutdown":  "process lifetime; ubounded set, parity with pinned",
+                            "contention":  "index page only"
+                        },
+                        {
+                            "id":  "L14-data-maid-tokens",
+                            "kind":  "mutex",
+                            "source":  "internal/server/data_maid.go:134-137",
+                            "owner":  "package server",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "heldAcross":  "no",
+                            "cancellation":  "n/a",
+                            "shutdown":  "process lifetime; replaced per handle",
+                            "contention":  "data-maid routes"
+                        },
+                        {
+                            "id":  "L15-access-log-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/server/access_log.go:45",
+                            "owner":  "per handler",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "heldAcross":  "no (append after unlock)",
+                            "cancellation":  "n/a",
+                            "shutdown":  "process lifetime; unbounded set parity with pinned",
+                            "contention":  "every request, one map lookup"
+                        },
+                        {
+                            "id":  "L16-host-whitelist-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/server/host_whitelist.go:16",
+                            "owner":  "per handler",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "heldAcross":  "no",
+                            "cancellation":  "n/a",
+                            "shutdown":  "process lifetime; capped 1000",
+                            "contention":  "untrusted-host warning path only"
+                        },
+                        {
+                            "id":  "L17-pollinations-seed-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/server/pollinations_chat.go:84",
+                            "owner":  "package server",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "heldAcross":  "no",
+                            "cancellation":  "n/a",
+                            "shutdown":  "process lifetime",
+                            "contention":  "one PRNG draw per request without a supplied seed"
+                        },
+                        {
+                            "id":  "L18-heartbeat-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/app/heartbeat.go:23",
+                            "owner":  "heartbeatWriter",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "heldAcross":  "atomic heartbeat write + fsync (heartbeat.go:127)",
+                            "cancellation":  "none",
+                            "shutdown":  "stop() waits on mutex then \u003c-done with NO bound (C-H6)",
+                            "contention":  "ticker vs shutdown only"
+                        },
+                        {
+                            "id":  "L19-startup-trace-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/app/startup_trace.go:32",
+                            "owner":  "startupTracer",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "heldAcross":  "trace writes",
+                            "cancellation":  "n/a",
+                            "shutdown":  "boot only",
+                            "contention":  "boot stages"
+                        },
+                        {
+                            "id":  "L20-lockacquire-diag-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/lockacquire/lockacquire.go:43",
+                            "owner":  "package",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "heldAcross":  "stderr write",
+                            "cancellation":  "n/a",
+                            "shutdown":  "n/a",
+                            "contention":  "contended-lock diagnostics only"
+                        },
+                        {
+                            "id":  "L21-outbound-clients-mu",
+                            "kind":  "mutex",
+                            "source":  "internal/outbound/transport.go:74",
+                            "owner":  "package",
+                            "lockOrder":  [
+                                              "leaf"
+                                          ],
+                            "heldAcross":  "no",
+                            "cancellation":  "n/a",
+                            "shutdown":  "resetProductionClients closes idle sockets",
+                            "contention":  "production has exactly one entry (nil tls.Config key)"
+                        },
+                        {
+                            "id":  "G1-heartbeat-goroutine",
+                            "kind":  "goroutine",
+                            "source":  "internal/app/heartbeat.go:47",
+                            "owner":  "heartbeatWriter",
+                            "cancellation":  "stopSignal closed by Close",
+                            "shutdown":  "app/server.go:431-433; unbounded wait (C-H6)",
+                            "contention":  "n/a",
+                            "lockOrder":  [
+
+                                          ]
+                        },
+                        {
+                            "id":  "G2-serve-goroutine",
+                            "kind":  "goroutine",
+                            "source":  "internal/app/server.go:464",
+                            "owner":  "RunningServer",
+                            "cancellation":  "http.Server.Shutdown(ctx) 10s",
+                            "shutdown":  "joined via Shutdown",
+                            "contention":  "n/a",
+                            "lockOrder":  [
+
+                                          ]
+                        },
+                        {
+                            "id":  "G3-shutdown-close-goroutine",
+                            "kind":  "goroutine",
+                            "source":  "cmd/gotavern/main.go:363",
+                            "owner":  "shutdownAfterSignal",
+                            "cancellation":  "10s ctx; second signal returns without waiting",
+                            "shutdown":  "the deferred Close at main.go:254-258 may run concurrently",
+                            "contention":  "no test, not in -race package list (C-H8)",
+                            "lockOrder":  [
+
+                                          ]
+                        },
+                        {
+                            "id":  "G5-nanogpt-waitgroup",
+                            "kind":  "goroutine",
+                            "source":  "internal/server/nanogpt.go:157,168",
+                            "owner":  "request",
+                            "cancellation":  "request.Context()",
+                            "shutdown":  "handler blocks until both finish; transport header timeout 120s",
+                            "contention":  "n/a",
+                            "lockOrder":  [
+
+                                          ]
+                        },
+                        {
+                            "id":  "G6-comfy-interrupt-watcher",
+                            "kind":  "goroutine",
+                            "source":  "internal/server/sd_generate_comfy.go:335",
+                            "owner":  "request",
+                            "cancellation":  "request.Context().Done() or handler return (finished)",
+                            "shutdown":  "handler-scoped",
+                            "contention":  "n/a",
+                            "lockOrder":  [
+
+                                          ]
+                        },
+                        {
+                            "id":  "G7-runpod-cancel-watcher",
+                            "kind":  "goroutine",
+                            "source":  "internal/server/sd_generate_comfy.go:558",
+                            "owner":  "request",
+                            "cancellation":  "request ctx / finished",
+                            "shutdown":  "handler-scoped",
+                            "contention":  "n/a",
+                            "lockOrder":  [
+
+                                          ]
+                        },
+                        {
+                            "id":  "G8-a1111-interrupt-watcher",
+                            "kind":  "goroutine",
+                            "source":  "internal/server/sd_generate_wave3.go:198",
+                            "owner":  "request",
+                            "cancellation":  "request ctx",
+                            "shutdown":  "handler-scoped",
+                            "contention":  "n/a",
+                            "lockOrder":  [
+
+                                          ]
+                        },
+                        {
+                            "id":  "G9-sd-upscaler-join",
+                            "kind":  "goroutine",
+                            "source":  "internal/server/sd_webui.go:111",
+                            "owner":  "request",
+                            "cancellation":  "request.Context()",
+                            "shutdown":  "joined via done channel (:117-119)",
+                            "contention":  "n/a",
+                            "lockOrder":  [
+
+                                          ]
+                        },
+                        {
+                            "id":  "G10-kobold-abort-watcher",
+                            "kind":  "goroutine",
+                            "source":  "internal/server/backends_textgen_generate.go:438",
+                            "owner":  "request",
+                            "cancellation":  "request ctx / finished",
+                            "shutdown":  "handler-scoped",
+                            "contention":  "n/a",
+                            "lockOrder":  [
+
+                                          ]
+                        },
+                        {
+                            "id":  "G11-wire-exact-closer",
+                            "kind":  "goroutine",
+                            "source":  "internal/outbound/raw.go:172",
+                            "owner":  "connection",
+                            "cancellation":  "ctx.Done() or socket close",
+                            "shutdown":  "wire-exact probe role only (GOTAVERN_OUTBOUND_WIRE_EXACT=1)",
+                            "contention":  "out-of-scope (C-H12)",
+                            "lockOrder":  [
+
+                                          ]
+                        },
+                        {
+                            "id":  "T1-settings-backup-timer",
+                            "kind":  "timer",
+                            "source":  "internal/server/settings_save.go:71",
+                            "owner":  "accountRuntime",
+                            "cancellation":  "none",
+                            "shutdown":  "never stopped or joined; a pending snapshot is lost (parity with pinned process.exit, C-H5)",
+                            "contention":  "callback waits on L1 without a bound",
+                            "lockOrder":  [
+
+                                          ]
+                        },
+                        {
+                            "id":  "T2-heartbeat-ticker",
+                            "kind":  "timer",
+                            "source":  "internal/app/heartbeat.go:53",
+                            "owner":  "heartbeatWriter",
+                            "cancellation":  "ticker.Stop() on stopSignal",
+                            "shutdown":  "stopped in run()",
+                            "contention":  "n/a",
+                            "lockOrder":  [
+
+                                          ]
+                        },
+                        {
+                            "id":  "T3-T7-poll-timers",
+                            "kind":  "timer",
+                            "source":  "internal/server/google_video.go:52, internal/server/openai_generate_video.go:64, internal/server/horde_generation.go:552, internal/server/sd_webui.go:870, internal/server/sd_zai.go:79",
+                            "owner":  "request",
+                            "cancellation":  "ctx-aware helpers return early on ctx.Done()",
+                            "shutdown":  "handler-scoped",
+                            "contention":  "n/a",
+                            "lockOrder":  [
+
+                                          ]
+                        },
+                        {
+                            "id":  "P1-git-child",
+                            "kind":  "child-process",
+                            "source":  "internal/server/extensions_git.go:56-73,77-95",
+                            "owner":  "extension route handler",
+                            "lockOrder":  [
+                                              "no in-process lock; Git\u0027s own index.lock can collide between concurrent updates"
+                                          ],
+                            "cancellation":  "DETACHED from the request: context.WithTimeout(context.Background(), 5min); the child is killed at the bound, matching simple-git timeout.block kill",
+                            "shutdown":  "a child outliving the 10s drain is orphaned at process exit (pinned orphans identically)",
+                            "contention":  "no per-repo queue; concurrent same-repo updates may 500 on index.lock in both implementations"
+                        },
+                        {
+                            "id":  "P2-browser-opener",
+                            "kind":  "child-process",
+                            "source":  "cmd/gotavern/browser.go:54",
+                            "owner":  "CLI startup",
+                            "lockOrder":  [
+                                              "none"
+                                          ],
+                            "cancellation":  "fire-and-forget",
+                            "shutdown":  "none",
+                            "contention":  "n/a"
+                        },
+                        {
+                            "id":  "U1-heartbeat-stop-unbounded",
+                            "kind":  "mutex",
+                            "source":  "internal/app/heartbeat.go:77-85",
+                            "owner":  "RunningServer.Close (internal/app/server.go:431-433)",
+                            "lockOrder":  [
+                                              "take heartbeat mu, then \u003c-writer.done"
+                                          ],
+                            "cancellation":  "the Close ctx is NOT applied",
+                            "shutdown":  "this IS the shutdown path; no bound, no named error",
+                            "contention":  "n/a"
+                        },
+                        {
+                            "id":  "U2-flush-lock-wait",
+                            "kind":  "timer",
+                            "source":  "internal/server/settings_save.go:77-80",
+                            "owner":  "settings backup timer",
+                            "lockOrder":  [
+                                              "settingsSaveMu"
+                                          ],
+                            "cancellation":  "none",
+                            "shutdown":  "detached goroutine, process exit abandons it",
+                            "contention":  "serialized with saves"
+                        },
+                        {
+                            "id":  "W11-save-flock",
+                            "kind":  "mutex",
+                            "source":  "internal/server/settings_save.go:51 -\u003e internal/startup/settings_backup.go:76 -\u003e internal/lockacquire/lockacquire.go:114-131",
+                            "owner":  "saveSettings",
+                            "lockOrder":  [
+                                              "settingsSaveMu then flock"
+                                          ],
+                            "cancellation":  "none",
+                            "shutdown":  "request-scoped 500 on *BusyError",
+                            "contention":  "data-root keyed: a second process stalls every user\u0027s save behind the 10s per-lock bound (C-H4)"
+                        }
+                    ],
+    "caches":  [
+                   {
+                       "name":  "stored-account-cache",
+                       "key":  "record path + mtime + size + change stamp (Unix ctime; Windows boundary)",
+                       "value":  "cloned storedAccount fields + found flag",
+                       "owner":  "package server, process-local",
+                       "lifetime":  "until identity change / map drop / restart",
+                       "capacity":  "256 entries",
+                       "eviction":  "whole-map drop when full (re-derivable)",
+                       "invalidation":  "stat mismatch on every read",
+                       "externalMod":  "mtime/size/ctime; same-size same-mtime closed on Unix, Windows boundary documented",
+                       "concurrency":  "one mutex, clone per caller",
+                       "rebuild":  "file read + bounded fsretry",
+                       "fallback":  "uncached read path, same errors",
+                       "measuredBenefit":  "loadStoredAccount was 40.4% cumulative CPU (comment internal/server/accounts.go:240-246); tests internal/server/accounts_cache_test.go:70-255",
+                       "source":  "internal/server/accounts.go:240-357"
+                   },
+                   {
+                       "name":  "settings-aggregation-response-cache",
+                       "key":  "kind settings-get + dataRoot + handle; identity sha256 over settings.json + preset dirs + world names + content dirs",
+                       "value":  "serialized HTTP body (copied on read)",
+                       "owner":  "package server, process-local",
+                       "lifetime":  "no TTL; until identity change / map drop / restart",
+                       "capacity":  "64 entries / 64 MiB",
+                       "eviction":  "whole-map drop",
+                       "invalidation":  "identity recomputed before and after the build",
+                       "externalMod":  "any size/mtime change is a miss; same-size+same-mtime external restore is the documented residual",
+                       "concurrency":  "one mutex, no lock during I/O",
+                       "rebuild":  "original uncached route, same 500 shape",
+                       "fallback":  "cache never fails a request",
+                       "measuredBenefit":  "5.9 ms/4.6 MB at 220 docs and 30 ms/23.6 MB at 1100 docs -\u003e stat+hash+copy (comment internal/server/settings_cache.go:4-10, CI 41758175427)",
+                       "source":  "internal/server/settings_cache.go:1-135, internal/server/settings_get.go:50-90"
+                   },
+                   {
+                       "name":  "worldinfo-list-response-cache",
+                       "key":  "kind worldinfo-list + dataRoot + handle; identity of the json names + file identities",
+                       "value":  "serialized listing body",
+                       "owner":  "package server",
+                       "lifetime":  "no TTL; identity-driven",
+                       "capacity":  "shares the 64 entries / 64 MiB budget",
+                       "eviction":  "whole-map drop",
+                       "invalidation":  "identity every request",
+                       "externalMod":  "same residual as the settings cache",
+                       "concurrency":  "one mutex",
+                       "rebuild":  "original route",
+                       "fallback":  "uncached errors unchanged",
+                       "measuredBenefit":  "22-64 ms/27-50 MB at 50-1000 world files -\u003e stat+hash (same comment)",
+                       "source":  "internal/server/settings_cache.go:289-315, internal/server/worldinfo.go:230-248"
+                   },
+                   {
+                       "name":  "character-card-text-cache",
+                       "key":  "absolute card path; identity type+size+mtime",
+                       "value":  "decoded card text (immutable string)",
+                       "owner":  "package server",
+                       "lifetime":  "until identity change / LRU eviction / restart (no TTL)",
+                       "capacity":  "65536 entries and 64 MiB",
+                       "eviction":  "LRU one entry at a time",
+                       "invalidation":  "identity stat every request; no post-read recheck (safe: worst case an extra miss)",
+                       "externalMod":  "mtime/size; same-size same-mtime residual documented and tested",
+                       "concurrency":  "one mutex, one critical section, I/O outside",
+                       "rebuild":  "os.ReadFile + PNG chunk/base64 decode",
+                       "fallback":  "uncached read/decode errors unchanged, nothing stored",
+                       "measuredBenefit":  "alpha.15 F-03: repeat path -17.4% time/-20.4% B/op; large-card-text -42.3%/-71.3%; cold first request +21% (docs/audit-v0.1.0-alpha.15.md F-03)",
+                       "source":  "internal/server/characters_card_cache.go:1-224, internal/server/characters_card.go:271-284"
+                   },
+                   {
+                       "name":  "horde-models-cache",
+                       "key":  "single slot \u0027models\u0027",
+                       "value":  "serialized provider body",
+                       "owner":  "package server",
+                       "lifetime":  "60s TTL",
+                       "capacity":  "1",
+                       "eviction":  "TTL expiry",
+                       "invalidation":  "TTL",
+                       "externalMod":  "n/a (provider body)",
+                       "concurrency":  "mutex",
+                       "rebuild":  "upstream fetch",
+                       "fallback":  "fetch error surfaces as the route\u0027s error",
+                       "measuredBenefit":  "pinned new Cache(60*1000) parity, one provider call per 60s",
+                       "source":  "internal/server/horde.go:52,71-99,145-179"
+                   },
+                   {
+                       "name":  "horde-workers-cache",
+                       "key":  "single slot \u0027workers\u0027",
+                       "value":  "serialized provider body",
+                       "owner":  "package server",
+                       "lifetime":  "60s TTL",
+                       "capacity":  "1",
+                       "eviction":  "TTL expiry",
+                       "invalidation":  "TTL",
+                       "externalMod":  "n/a",
+                       "concurrency":  "mutex",
+                       "rebuild":  "upstream fetch",
+                       "fallback":  "route error",
+                       "measuredBenefit":  "same pinned TTL parity",
+                       "source":  "internal/server/horde.go:79-81,225-275"
+                   },
+                   {
+                       "name":  "tokenizer-engine-set-cache",
+                       "key":  "asset root + cache dir + allowDownloads; engines keyed by model name",
+                       "value":  "loaded SentencePiece/Tiktoken/HF engines",
+                       "owner":  "package server",
+                       "lifetime":  "process lifetime (no eviction)",
+                       "capacity":  "key space is configuration-derived (normally one set); per-engine maps bounded by the model list",
+                       "eviction":  "none",
+                       "invalidation":  "none (vendored/binary assets; restart only)",
+                       "externalMod":  "not detected",
+                       "concurrency":  "package mutex for the set map; per-set mutex held across engine load",
+                       "rebuild":  "re-read + parse on miss",
+                       "fallback":  "uncached open error returned",
+                       "measuredBenefit":  "NOT MEASURED (GOAL 15.3 gap; comment internal/server/tokenizers.go:23-24 says the disk-cache switch is not projected)",
+                       "source":  "internal/server/tokenizers.go:245-350"
+                   },
+                   {
+                       "name":  "character-disk-cache-verify",
+                       "key":  "pinned node-persist filenames from (card path, mtimeMs)",
+                       "value":  "derived card records on disk",
+                       "owner":  "internal/startup boot pass",
+                       "lifetime":  "across restarts (disk)",
+                       "capacity":  "pinned\u0027s own",
+                       "eviction":  "pinned\u0027s verify() removal pass",
+                       "invalidation":  "filename-key comparison at boot",
+                       "externalMod":  "rebuilt by pinned on demand; Go has no consumer",
+                       "concurrency":  "boot only, under the content lock",
+                       "rebuild":  "not implemented (GOAL.md:465-469 records the absence as partial)",
+                       "fallback":  "n/a",
+                       "measuredBenefit":  "none (no consumer); the verify pass itself is tested (internal/startup/character_disk_cache_test.go:43)",
+                       "source":  "internal/startup/character_disk_cache.go:1-93"
+                   },
+                   {
+                       "name":  "outbound-client-cache",
+                       "key":  "*tls.Config pointer",
+                       "value":  "*http.Client",
+                       "owner":  "package outbound",
+                       "lifetime":  "until ConfigureProductionTransport resets it",
+                       "capacity":  "unbounded map but production uses only the nil key (tests are the only non-nil TLSConfig producers)",
+                       "eviction":  "reset closes idle sockets and replaces the map",
+                       "invalidation":  "resetProductionClients",
+                       "externalMod":  "n/a",
+                       "concurrency":  "mutex",
+                       "rebuild":  "buildProductionClient",
+                       "fallback":  "build on miss",
+                       "measuredBenefit":  "keep-alive connection reuse (D5); no growth vector in production",
+                       "source":  "internal/outbound/transport.go:64-81,102-177"
+                   },
+                   {
+                       "name":  "cache-buster-consumed-keys",
+                       "key":  "handle + \u0027-\u0027 + sha256(User-Agent)",
+                       "value":  "presence",
+                       "owner":  "per handler (pinned module singleton)",
+                       "lifetime":  "process lifetime",
+                       "capacity":  "UNBOUNDED",
+                       "eviction":  "none by design",
+                       "invalidation":  "none",
+                       "externalMod":  "n/a",
+                       "concurrency":  "mutex",
+                       "rebuild":  "n/a (state, not cache)",
+                       "fallback":  "n/a",
+                       "measuredBenefit":  "n/a; intentional parity with pinned #keys Set",
+                       "source":  "internal/server/cache_buster.go:69-130"
+                   },
+                   {
+                       "name":  "access-log-known-ips",
+                       "key":  "client IP",
+                       "value":  "presence",
+                       "owner":  "per handler",
+                       "lifetime":  "process lifetime",
+                       "capacity":  "UNBOUNDED",
+                       "eviction":  "none",
+                       "invalidation":  "none",
+                       "externalMod":  "n/a",
+                       "concurrency":  "mutex",
+                       "rebuild":  "n/a",
+                       "fallback":  "n/a",
+                       "measuredBenefit":  "n/a; intentional parity with pinned knownIPs Set",
+                       "source":  "internal/server/access_log.go:41-127"
+                   },
+                   {
+                       "name":  "host-whitelist-warned-hosts",
+                       "key":  "raw Host value",
+                       "value":  "presence",
+                       "owner":  "per handler",
+                       "lifetime":  "process lifetime",
+                       "capacity":  "bounded at 1000 (maximumScannedHosts)",
+                       "eviction":  "none (cap stops insertion)",
+                       "invalidation":  "none",
+                       "externalMod":  "n/a",
+                       "concurrency":  "mutex",
+                       "rebuild":  "n/a",
+                       "fallback":  "n/a",
+                       "measuredBenefit":  "n/a; parity with pinned maxKnownHosts",
+                       "source":  "internal/server/host_whitelist.go:12-18,49-70"
+                   },
+                   {
+                       "name":  "data-maid-tokens",
+                       "key":  "random 32-byte hex token",
+                       "value":  "handle + sanitized path list with per-path sha256",
+                       "owner":  "package server",
+                       "lifetime":  "until replaced for that handle or finalized; no TTL",
+                       "capacity":  "one per handle",
+                       "eviction":  "replacement per handle; delete on finalize",
+                       "invalidation":  "finalize",
+                       "externalMod":  "n/a",
+                       "concurrency":  "mutex",
+                       "rebuild":  "new /report",
+                       "fallback":  "403 on unknown token",
+                       "measuredBenefit":  "n/a; parity with pinned DataMaidService.TOKENS",
+                       "source":  "internal/server/data_maid.go:125-179"
+                   },
+                   {
+                       "name":  "login-rate-windows",
+                       "key":  "client IP (+ forwarded value when trusted) per limiter",
+                       "value":  "consumed points + resetAt",
+                       "owner":  "accountRuntime (3 limiters)",
+                       "lifetime":  "UNBOUNDED: entries are deleted only on same-key expiry or successful clear",
+                       "capacity":  "none",
+                       "eviction":  "none",
+                       "invalidation":  "lazy per-key expiry",
+                       "externalMod":  "n/a",
+                       "concurrency":  "mutex",
+                       "rebuild":  "n/a",
+                       "fallback":  "n/a",
+                       "measuredBenefit":  "n/a; DIVERGES from pinned (MemoryStorage per-key timeout)  - C-H1",
+                       "source":  "internal/server/accounts.go:115-120,171-200"
+                   },
+                   {
+                       "name":  "basic-auth-rate-windows",
+                       "key":  "client IP (+ forwarded value when trusted)",
+                       "value":  "consumed + expires",
+                       "owner":  "handler",
+                       "lifetime":  "UNBOUNDED: lazy per-key only",
+                       "capacity":  "none",
+                       "eviction":  "none",
+                       "invalidation":  "lazy per-key expiry / clear on success",
+                       "externalMod":  "n/a",
+                       "concurrency":  "mutex",
+                       "rebuild":  "n/a",
+                       "fallback":  "n/a",
+                       "measuredBenefit":  "n/a; DIVERGES from pinned  - C-H1",
+                       "source":  "internal/server/basic_auth.go:20-105"
+                   }
+               ],
+    "hypotheses":  [
+                       {
+                           "id":  "C-H1",
+                           "title":  "Rate-limit windows grow without eviction; pinned deletes each key on a per-key timeout",
+                           "classification":  "verified-risk",
+                           "surface":  "performance",
+                           "evidence":  [
+                                            "internal/server/accounts.go:115",
+                                            "internal/server/accounts.go:171",
+                                            "internal/server/basic_auth.go:20",
+                                            "..\\SillyTavern\\node_modules\\rate-limiter-flexible\\lib\\component\\MemoryStorage\\MemoryStorage.js:36",
+                                            "..\\SillyTavern\\src\\endpoints\\users-public.js:19",
+                                            "..\\SillyTavern\\src\\middleware\\basicAuth.js:18"
+                                        ],
+                           "impact":  "concurrency",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "in-package test: limiter.consume(key_i, t0) for 10000 distinct keys, advance past the window, then read len(entries) (test may live in package server); pinned\u0027s equivalent drops each key by timer. Today the map retains every key forever. Measure RSS in the M5 soak with a concurrent distinct-source load.",
+                           "strength":  4,
+                           "counterargument":  "keys are client IPs, so a flood needs many real sources unless rateLimiting.preferRealIpHeader is on (then the key embeds an attacker-controlled header, accounts.go:1531-1543); successful logins clear their own key. The 429 shape is unaffected, so this is a memory/stability risk rather than a wrong response."
+                       },
+                       {
+                           "id":  "C-H2",
+                           "title":  "Settings saves are process-wide serialized across disk I/O, but pinned serializes more (single event loop), so this is parity-or-better",
+                           "classification":  "intentional-parity",
+                           "surface":  "performance",
+                           "evidence":  [
+                                            "internal/server/accounts.go:96",
+                                            "internal/server/settings_save.go:51",
+                                            "internal/startup/content.go:338",
+                                            "..\\SillyTavern\\src\\endpoints\\settings.js:206",
+                                            "..\\SillyTavern\\src\\endpoints\\settings.js:118"
+                                        ],
+                           "impact":  "concurrency",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "recorded as the R2 counterargument: before proposing a per-user coordinator, measure Go p50/p95/p99 against pinned Node on the same host and load (C-H3) and show any user-visible timeout; the save-\u003ebackup ordering, duplicate-aware snapshot and 10-minute trailing edge must be preserved by any redesign.",
+                           "strength":  4,
+                           "counterargument":  "a per-user design would be LESS serialized than the oracle; the plan\u0027s R2 says only if red tests justify it, and no red test exists yet. The one cost not present in pinned is the cross-process flock (C-H4)."
+                       },
+                       {
+                           "id":  "C-H3",
+                           "title":  "Cross-user settings-save latency under contention is unmeasured; no test drives two handles concurrently",
+                           "classification":  "untested-hypothesis",
+                           "surface":  "performance",
+                           "evidence":  [
+                                            "internal/server/settings_save_test.go:49",
+                                            "internal/server/settings_save_test.go:202",
+                                            "internal/server/data_safety_concurrency_test.go:323"
+                                        ],
+                           "impact":  "concurrency",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "E06 leg: 8 synthetic users, one 5 MB settings body each, 200 concurrent saves per user against a real handler; record p50/p95/p99 per user and max queue depth; run the same load on pinned Node for the comparison C-H2 predicts. Pass: Go p99 \u003c= pinned p99 and no request exceeds pinned\u0027s own save block.",
+                           "strength":  3,
+                           "counterargument":  "the mechanism is source-proven; only the magnitude is unknown, and C-H2 predicts parity-or-better. If measured latency is worse than pinned\u0027s, that is the red test R2 needs."
+                       },
+                       {
+                           "id":  "C-H4",
+                           "title":  "settingsSaveMu is held while acquiring a data-root-wide flock bounded at 10s, so a second process stalls every user\u0027s save",
+                           "classification":  "verified-risk",
+                           "surface":  "performance",
+                           "evidence":  [
+                                            "internal/server/settings_save.go:51",
+                                            "internal/startup/settings_backup.go:76",
+                                            "internal/startup/content.go:398",
+                                            "internal/lockacquire/lockacquire.go:31",
+                                            "internal/lockacquire/lockacquire.go:114"
+                                        ],
+                           "impact":  "concurrency",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "two-process test (the pattern of alpha.15 B-07): process A holds the data-root flock (or sleeps inside the lock), process B posts settings/save for 3 users and measures per-user latency; assert the wait stays within the recorded budget and that a second process does not turn a 200 into an unbounded wait.",
+                           "strength":  3,
+                           "counterargument":  "pinned has no cross-process lock and silently tears settings (audit B-07); the lock is a deliberate data-safety addition. A redesign that releases L1 before the snapshot could shorten the queue without weakening the write lock, but must keep the duplicate check ordered after the write."
+                       },
+                       {
+                           "id":  "C-H5",
+                           "title":  "The trailing settings-backup timer is detached and never stopped/awaited on shutdown; a pending snapshot is lost, as in pinned",
+                           "classification":  "intentional-parity",
+                           "surface":  "persisted-bytes",
+                           "evidence":  [
+                                            "internal/server/settings_save.go:71",
+                                            "internal/server/settings_save.go:77",
+                                            "internal/server/settings_save_test.go:231",
+                                            "internal/app/server.go:429",
+                                            "..\\SillyTavern\\src\\server-main.js:318"
+                                        ],
+                           "impact":  "data-safety",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "if a later release decides to flush pending snapshots, the test is: save twice (second sets pending), stop the server, assert a backup exists. Today the test must STOP the timer manually (settings_save_test.go:231), which is the evidence that no shutdown path flushes it.",
+                           "strength":  3,
+                           "counterargument":  "settings.json is already persisted by the request; the snapshot is a duplicate-aware convenience. pinned\u0027s SIGINT path is process.exit() without flushing the throttle timer, so flushing would be a NEW guarantee, not parity."
+                       },
+                       {
+                           "id":  "C-H6",
+                           "title":  "Graceful shutdown has an unbounded wait: heartbeat.stop waits on the writer mutex and done channel outside the ctx",
+                           "classification":  "verified-risk",
+                           "surface":  "startup-state",
+                           "evidence":  [
+                                            "internal/app/heartbeat.go:77",
+                                            "internal/app/heartbeat.go:84",
+                                            "internal/app/heartbeat.go:127",
+                                            "internal/app/server.go:431",
+                                            "cmd/gotavern/main.go:360"
+                                        ],
+                           "impact":  "user-visible",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "add a heartbeat write seam (the project\u0027s existing test-seam pattern, e.g. internal/app/server.go:409-418) that a test can block; call RunningServer.Close with a 100ms ctx while the write is held; assert Close returns within a stated bound with a named error. Today it hangs.",
+                           "strength":  4,
+                           "counterargument":  "a local fsync rarely stalls, and the write is small; but AGENTS rule 24/Rule 33 say a wait without a named bound is the shape a user-visible hang takes, and this is the shutdown path a user triggers with Ctrl+C."
+                       },
+                       {
+                           "id":  "C-H7",
+                           "title":  "Second Ctrl+C promises \u0027in-flight requests are aborted\u0027 but only closes listeners; the deferred Close can still wait 10s",
+                           "classification":  "verified-risk",
+                           "surface":  "startup-state",
+                           "evidence":  [
+                                            "cmd/gotavern/main.go:367",
+                                            "cmd/gotavern/main.go:369",
+                                            "cmd/gotavern/main.go:254",
+                                            "internal/app/server.go:436"
+                                        ],
+                           "impact":  "user-visible",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "in-process test: handler blocks until released; start the server, deliver signal 1 then signal 2 through shutdownAfterSignal and measure the time until Close returns. Assert it is within a short bound and that the message matches behaviour (either close active connections or change the text).",
+                           "strength":  3,
+                           "counterargument":  "pinned\u0027s SIGINT is an immediate process.exit with no drain, so Go\u0027s 10s drain is already more graceful; the defect is the message/behaviour mismatch, not the drain itself. The process does exit 130."
+                       },
+                       {
+                           "id":  "C-H8",
+                           "title":  "The -race gate omits internal/app and internal/lockacquire; the real signal path has no test",
+                           "classification":  "verified-risk",
+                           "surface":  "startup-state",
+                           "evidence":  [
+                                            ".github/workflows/ci.yml:683",
+                                            ".github/workflows/ci.yml:665",
+                                            "internal/app/heartbeat.go:23",
+                                            "internal/app/server.go:429",
+                                            "cmd/gotavern/main.go:358",
+                                            "cmd/gotavern/cli_test.go:375"
+                                        ],
+                           "impact":  "concurrency",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "add ./internal/app ./internal/lockacquire to the race job\u0027s package list (cheap) and add the concurrent-Close/second-signal test from C-H7; run it in CI (this host cannot run -race: windows/arm64).",
+                           "strength":  3,
+                           "counterargument":  "http.Server.Shutdown, listener.Close and the heartbeat\u0027s sync.Once are idempotent by construction, so the concurrent Close is probably safe; but the gate\u0027s own comment says it covers the packages that own shared state, and internal/app owns a mutex+Once+goroutine. Rule 104 makes the detector the only oracle here."
+                       },
+                       {
+                           "id":  "C-H9",
+                           "title":  "Comfy/RunPod poll loops have no attempt bound and keep the handler goroutine after the client leaves (pinned parity)",
+                           "classification":  "intentional-parity",
+                           "surface":  "provider-wire",
+                           "evidence":  [
+                                            "internal/server/sd_generate_comfy.go:391",
+                                            "internal/server/sd_generate_comfy.go:416",
+                                            "internal/server/sd_generate_comfy.go:147",
+                                            "..\\SillyTavern\\src\\endpoints\\stable-diffusion.js:590",
+                                            "..\\SillyTavern\\src\\endpoints\\stable-diffusion.js:710",
+                                            "internal/server/google_video.go:42"
+                                        ],
+                           "impact":  "concurrency",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "M5 soak: pin one Comfy job that never completes, disconnect the client, and observe goroutine/RSS growth. Compare with pinned\u0027s promise chain on the same scenario; only a divergence would be a finding.",
+                           "strength":  3,
+                           "counterargument":  "pinned has while(true) too; the Go side actually frees the connection when the client leaves but keeps the handler. A bound would be a deliberate divergence, so it needs a product decision (like the docker-DNS bound)."
+                       },
+                       {
+                           "id":  "C-H10",
+                           "title":  "Two unbounded process-wide sets are reproduced from pinned (cache-buster keys, access-log IPs); the host-whitelist cap is parity too",
+                           "classification":  "intentional-parity",
+                           "surface":  "performance",
+                           "evidence":  [
+                                            "internal/server/cache_buster.go:75",
+                                            "internal/server/access_log.go:46",
+                                            "internal/server/host_whitelist.go:12",
+                                            "..\\SillyTavern\\src\\middleware\\cacheBuster.js:13",
+                                            "..\\SillyTavern\\src\\middleware\\accessLogWriter.js:8",
+                                            "..\\SillyTavern\\src\\middleware\\hostWhitelist.js:5"
+                                        ],
+                           "impact":  "concurrency",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "no reproducer needed for parity; if a later release hardens them, that is a visible product decision and needs a memory-bound + a test that the 304/header behaviour is unchanged.",
+                           "strength":  3,
+                           "counterargument":  "hard rule 5 says inherited weaknesses are reproduced and recorded rather than silently fixed; both sets are client-controlled, so growth is possible in both products equally."
+                       },
+                       {
+                           "id":  "C-H11",
+                           "title":  "The same-size+same-mtime residual is closed for the account cache with ctime on Unix but open in the two response caches although they already stat every input",
+                           "classification":  "verified-risk",
+                           "surface":  "browser-wire",
+                           "evidence":  [
+                                            "internal/server/accounts.go:274",
+                                            "internal/server/record_change_windows.go:39",
+                                            "internal/server/settings_cache.go:61",
+                                            "internal/server/settings_cache.go:188",
+                                            "internal/server/characters_card_cache.go:67",
+                                            "internal/server/characters_card_cache.go:92",
+                                            "internal/server/settings_cache_test.go:266"
+                                        ],
+                           "impact":  "user-visible",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "extend the existing residual tests: externally replace a preset/card with same-size content and os.Chtimes back to the original mtime, then GET through the route. On Unix the account cache already returns the new value (change stamp), while the response caches serve the old body. Decide: add the change stamp (no extra syscall) or record the difference as accepted.",
+                           "strength":  2,
+                           "counterargument":  "no product writer can produce it (atomicReplace moves mtime and, on Unix, ctime), and Windows has no stat-available change stamp so the boundary would remain there. The residual is already documented and pinned by tests, so this is a recorded decision unless the user-visible stale read is judged unacceptable."
+                       },
+                       {
+                           "id":  "C-H12",
+                           "title":  "internal/outbound wire-exact path starts one goroutine per connection released only by ctx/socket close; it is a probe client, not the production transport",
+                           "classification":  "out-of-scope",
+                           "surface":  "provider-wire",
+                           "evidence":  [
+                                            "internal/outbound/raw.go:172",
+                                            "internal/outbound/transport.go:132",
+                                            "internal/outbound/raw_test.go:168",
+                                            "AGENTS.md rule 30"
+                                        ],
+                           "impact":  "maintainability",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "no action in M0; if wire-exact mode is ever used for a long-running soak, pass a cancellable context and assert the goroutine count returns to baseline (server_soak_test.go is the template).",
+                           "strength":  1,
+                           "counterargument":  "the path is reachable only with GOTAVERN_OUTBOUND_WIRE_EXACT=1 and AGENTS rule 30 forbids it carrying user traffic; production uses the net/http client with bounded timeouts."
+                       }
+                   ],
+    "questions":  [
+                      "Can this lane\u0027s claims about the shutdown path be measured at all without a seam? H6/H7 need either a blocking-FS seam or a new test hook; M0 may not add one, so the reproducers are named but unrun. Lane E / the Lead should decide whether the shared seam belongs in alpha.16.",
+                      "Do we have a pinned oracle for the graceful-shutdown drain time? Pinned exits immediately on SIGINT (src/server-main.js:318-331), so Go\u0027s 10s drain has no pinned counterpart; H7\u0027s message should be judged as a GoTavern UX statement, not a parity claim.",
+                      "Should the rate-limit sweep (H1) be fixed in alpha.16 R5? It is the only found unbounded production map that is NOT pinned parity, and the fix is local (a sweep or a bounded map). It needs the Lead\u0027s priority call and a failing test per M0 rule 2.",
+                      "Tokenizer set caches (C7 / L11) have no measured benefit, which is a GOAL 15.3 gap. Is a before/after bench required before any change, or is \u0027vendored assets, no disk-cache switch\u0027 an acceptable recorded justification?",
+                      "The race job\u0027s package list (H8) is a decision for whoever owns .github/workflows/ci.yml; adding internal/app + internal/lockacquire is cheap but changes the gate, so it must be its own commit with a demonstrated red on a planted race.",
+                      "source-graph facts[] undercount primitives inside package-level var initializers and var type expressions (report 7.2). Does the Lead want the generator taught about those, or is globals[] + per-lane grep the accepted method for M0 coverage?"
+                  ]
+}

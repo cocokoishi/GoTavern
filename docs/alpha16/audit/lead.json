@@ -111,6 +111,24 @@
       "reproducerPlan": "D-H1: boot with --configPath elsewhere/config.yaml carrying requestOverrides, drive one chat completion, assert the peer received the override header. D-H2: a provider-wire scenario with backendConfig gemini.apiVersion v1, compare rawTarget. D-H3: a provider-wire scenario with claude-sonnet-4-6 and the stock config; pinned sends budget_tokens, Go sends the effort string. B-H3: pre-create dest/certs/server.pem, run migrate --force, assert the cert bytes survive. L-H1: already observed (run 42160109620).",
       "strength": 5,
       "counterargument": "None of the five is a data-loss or crash defect in the default install: D-H2's default equals the pinned default, D-H1 needs an explicit flag, D-H3 needs a 4-6 model, B-H3 needs an unusual destination shape, L-H1 is evidence machinery. They rank highest because each is source-proven, has a small discriminating reproducer, and defeats a claim the product currently makes (config-parity 'implemented', provider-wire equality, migration safety, M5 baseline)."
+    },
+    {
+      "id": "L-H4",
+      "title": "The pinned non-router HTTP surface /proxy/:url(*) is unimplemented and absent from the route-domain table, while the CSRF layer already special-cases it",
+      "classification": "verified-risk",
+      "surface": "browser-wire",
+      "impact": "user-visible",
+      "evidence": [
+        "../SillyTavern/src/server-main.js:257 mounts corsProxyMiddleware when cliArgs.enableCorsProxy; ../SillyTavern/src/middleware/corsProxy.js:1-40 forwards the request, strips credential headers, refuses circular requests",
+        "internal/server/csrf_session.go:192 exempts enableCorsProxy && strings.HasPrefix(path, \"/proxy/\") from CSRF, i.e. the product already assumes the route exists",
+        "internal/server/routes_registry.go:46-60 has no proxy row (grep '/proxy' over internal/ returns only csrf_session.go, options/help, and tests)",
+        "docs/api-inventory.md:413 lists /proxy/:url(*) under 'Non-router HTTP surface' with no implementation status; docs/compat-matrix.md has no proxy row",
+        "no /proxy/ call site in the bundled pinned frontend (grep over upstream/public/**/*.js: 0), so the bundled UI is unaffected; the feature is opt-in via corsProxy"
+      ],
+      "reproducer": "NONE",
+      "reproducerPlan": "Boot with corsProxy enabled and GET /proxy/<a controlled peer URL>; pinned proxies with the stripped-header set and the circular-request guard, Go answers the catch-all 404. Also assert the tool inventory: the route must appear in the route-domain table or the emitted 404/501 must name the exclusion (AGENTS rule 17).",
+      "strength": 3,
+      "counterargument": "It is flag-gated (corsProxy), the shipped bundled frontend never calls it, and external clients are the only users; low user impact in the default install. It matters as an inventory/coverage defect: a pinned built-in in the direct server-main surface is invisible to a gate that compares router.use mounts."
     }
   ],
   "refactorCandidates": [
@@ -121,6 +139,21 @@
     {"id": "R5", "candidate": "one cache framework for the identity-keyed caches", "evidenceFor": "three identity-keyed caches (accounts, settings/user-metadata, card text) share a key model and invalidation rule", "evidenceAgainst": "each documents its own bounds/eviction for a measured reason (settings drops the map, card cache LRU-evicts); merging them would create the generic abstraction the plan forbids; all three are tested including the documented residual window", "leadDisposition": "DECLINE; preserve"},
     {"id": "R6", "candidate": "split a concrete cross-domain responsibility from internal/server", "evidenceFor": "internal/server is 187 production files; the route-domain table already exists", "evidenceAgainst": "no measured coupling or ownership defect has been produced yet; GOAL.md 15.4 forbids rewrites chosen by file size; the ordered-JSON extraction is already refused with a measurement (152 files / 1,463 references)", "leadDisposition": "DECLINE unless a lane produces a measured seam; the source graph is the input to that decision"}
   ],
+  "fiveStrongest": [
+    {"rank": 1, "id": "D-H3", "lane": "D", "title": "claude.enableAdaptiveThinking has no Go reader: the shipped default is false but Go hardcodes adaptive, so a stock install diverges for claude-opus-4-6/sonnet-4-6", "classification": "confirmed-defect", "surface": "provider-wire", "impact": "user-visible", "why_ranked": "stock install, no operator edit, provider body differs from pinned; source-proven and no fixture covers the model generation"},
+    {"rank": 2, "id": "D-H1", "lane": "D", "title": "chat-path config readers ignore the resolved config path: --configPath (and a non-adjacent --dataRoot) silently default every provider-visible config key", "classification": "confirmed-defect", "surface": "provider-wire", "impact": "user-visible", "why_ranked": "a supported launch flag silently changes the provider request; the replay harness cannot see it because every fixture uses root/data + root/config.yaml"},
+    {"rank": 3, "id": "D-H2", "lane": "D", "title": "gemini.apiVersion is never read by the MAKERSUITE chat route while docs/config-parity.md claims it implemented", "classification": "confirmed-defect", "surface": "provider-wire", "impact": "user-visible", "why_ranked": "operator setting ignored, default equals pinned so CI is green; the inventory claim is ahead of the evidence (rule 36)"},
+    {"rank": 4, "id": "B-H3", "lane": "B", "title": "gotavern migrate --force backs up only config.yaml and data/; pre-existing certs/ and the global extension overlay are copied over in place", "classification": "verified-risk", "surface": "persisted-bytes", "impact": "data-safety", "why_ranked": "silent overwrite of destination user data, forbidden by AGENTS rule 28; source-proven with no test"},
+    {"rank": 5, "id": "L-H1", "lane": "Lead", "title": "the committed benchmark baseline predates the alpha.15 card cache, so the M2/M5 bench gate is red at the program base SHA on unchanged product code", "classification": "confirmed-defect", "surface": "performance", "impact": "performance", "why_ranked": "observed failure (run 42160109620) on an unchanged tree; blocks every M5 before/after claim until the baseline is deliberately regenerated"}
+  ],
+  "beyondFive": [
+    {"id": "C-H6", "why": "reliability runner-up: the only unbounded wait in the normal lifecycle (heartbeat.stop outside the Close context); needs a blocking-FS seam before it can be observed"},
+    {"id": "C-H1", "why": "the only unbounded map that diverges from pinned (rate-limit windows are never evicted; pinned deletes each key on a per-key timeout); cheap failing test"},
+    {"id": "A-H3", "why": "settings/save empty-body and error semantics differ (Go refuses 400 where pinned writes '{}' and answers 200); a data-safety divergence that may deserve a product decision rather than a parity fix"},
+    {"id": "B-H4", "why": "recursive destructive routes run outside the shared content lock; a crash/concurrency probe decides whether it is an observable difference or pinned parity"},
+    {"id": "E-H1/H2", "why": "release-evidence rails: a narrowed dispatch satisfies 10/13 gates and smoke metrics cannot fail on a performance regression"},
+    {"id": "A-H13/L-H4", "why": "the pinned non-router HTTP surface /proxy/:url(*) is unimplemented and absent from the route-domain table, while the CSRF layer already special-cases it"}
+  ],
   "baseline": {
     "record": "docs/alpha16/baseline/README.md",
     "tree": "c8472c1 (product code identical to f1396ce; diff is empty)",
@@ -129,7 +162,8 @@
     "conclusion": "The M0 engineering baseline is NOT usable as a baseline until the committed bench baseline is deliberately regenerated. No backward comparison may cite the alpha.15 baseline after cc72384 without that regeneration."
   },
   "questions": [
-    "Lane A and Lane C fragments were still in progress when this fragment was written; the union must merge their hypotheses before the five-strongest ranking is final.",
-    "Which of B-H1/B-H2 (console parity) closes as intentional-parity is an owner decision (GOAL.md 15.5 quiet-by-default vs AGENTS rule 13 startup mutations): the Lead takes the GOAL 15.5 side for the default first-run, and requires the pinned messages to be recorded as a documented divergence instead of silently omitted."
+    "All five lane fragments are now in; ownership-map.json is their union and source-audit.md carries the final ranking. The union's fiveStrongest is authoritative over per-lane rankings.",
+    "Which of B-H1/B-H2 (console parity) closes as intentional-parity is an owner decision (GOAL.md 15.5 quiet-by-default vs AGENTS rule 13 startup mutations): the Lead takes the GOAL 15.5 side for the default first-run, and requires the pinned messages to be recorded as a documented divergence instead of silently omitted.",
+    "L-H4 (the /proxy/:url(*) route) needs an owning milestone: it is a pinned built-in in the non-router surface, flag-gated by corsProxy, with no frontend call site in the bundled public/** but a real server feature. Unimplemented routes must answer a distinguishable status (AGENTS rule 17), and the inventory gate that compares router.use mounts cannot see server-main direct routes."
   ]
 }

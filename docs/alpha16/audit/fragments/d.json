@@ -1,0 +1,541 @@
+{
+  "schemaVersion": 1,
+  "lane": "D",
+  "title": "provider transport/wire, streaming and cancellation, chat-completion registry, tokenizer exactness, config->HTTPHandlerOptions translation",
+  "commit": "c8472c14aef63e78a6249e29aae2ce95fc9c8ce9",
+  "filesInspected": [
+    {"path": "internal/outbound/transport.go", "kind": "production", "depth": "deep", "why": "the production provider client: bounds, keep-alive, proxy, private-address filter on the dial, redirect limit and credential stripping, decompression, error taxonomy, streaming body attribution"},
+    {"path": "internal/outbound/raw.go", "kind": "production", "depth": "deep", "why": "the wire-exact oracle client: hand-written HTTP/1.1 head, raw target, response framing, Truncated flag"},
+    {"path": "internal/outbound/a15_redirect_semantics_test.go", "kind": "test", "depth": "deep", "why": "the only redirect coverage; all cases single-hop"},
+    {"path": "internal/outbound/a15_streaming_observables_test.go", "kind": "test", "depth": "deep", "why": "peer-observed cancellation, clean end, split frames, truncation control"},
+    {"path": "internal/outbound/transport_matrix_test.go", "kind": "test", "depth": "mechanical", "why": "decompression/keep-alive/redirect/status/secret-in-error matrix; function list read, bodies sampled"},
+    {"path": "internal/outbound/a15_transport_bounds_test.go", "kind": "test", "depth": "mechanical", "why": "stage-bound inventory and no-retry assertion"},
+    {"path": "internal/outbound/streaming_properties_test.go", "kind": "test", "depth": "mechanical", "why": "TLS-shutdown truncation, frame order, cancelled-stream prefix"},
+    {"path": "internal/outbound/raw_test.go", "kind": "test", "depth": "mechanical", "why": "wire-form capture and chunked/truncation framing tests"},
+    {"path": "internal/outbound/transport_internet_shape_test.go", "kind": "test", "depth": "mechanical", "why": "error naming for DNS/connect/proxy/untrusted cert"},
+    {"path": "internal/outbound/proxy_config_test.go", "kind": "test", "depth": "mechanical", "why": "configured proxy, bypass, environment fallback"},
+    {"path": "internal/outbound/privatefilter_test.go", "kind": "test", "depth": "mechanical", "why": "every-redirect-hop validation and v4-mapped-v6 divergence"},
+    {"path": "internal/outbound/dnsorder.go", "kind": "production", "depth": "mechanical", "why": "dnsPreferIPv6 resolution/dial order"},
+    {"path": "internal/outbound/privatefilter.go", "kind": "production", "depth": "mechanical", "why": "SSRF filter placement on the dialer"},
+    {"path": "internal/server/chat_completions.go", "kind": "production", "depth": "deep", "why": "route handler, dispatch, shared assembly, header framing, stream forwarder, shared response tails, per-source catches"},
+    {"path": "internal/server/chat_completions_registry.go", "kind": "production", "depth": "deep", "why": "the 24-row source registry and its three-behaviour contract"},
+    {"path": "internal/server/chat_completions_secrets.go", "kind": "production", "depth": "deep", "why": "per-request per-user secrets read, JS coercions, YAML include/exclude, JSON-schema flatten"},
+    {"path": "internal/server/pinned_chat_config.go", "kind": "production", "depth": "deep", "why": "the request-time config.yaml reader and its candidate-path heuristic; env precedence"},
+    {"path": "internal/server/request_overrides.go", "kind": "production", "depth": "deep", "why": "requestOverrides host matching and Object.assign semantics"},
+    {"path": "internal/server/claude_cache.go", "kind": "production", "depth": "deep", "why": "claude cache flags, cachingAtDepth walk, beta list"},
+    {"path": "internal/server/claude_chat.go", "kind": "production", "depth": "partial", "why": "model flags and the true-default adaptive thinking; header claims the cache keys are unpinnable (stale)"},
+    {"path": "internal/server/google_chat.go", "kind": "production", "depth": "partial", "why": "Gemini transport header; gemini.apiVersion hardcoded to the default"},
+    {"path": "internal/server/makersuite_chat.go", "kind": "production", "depth": "partial", "why": "MakerSuite/Vertex URL and credential layer"},
+    {"path": "internal/server/openrouter_chat.go", "kind": "production", "depth": "partial", "why": "OpenRouter body shaping; the missing claude-cache transform and the declared gemini-cache gap"},
+    {"path": "internal/server/openai_chat.go", "kind": "production", "depth": "partial", "why": "OPENAI/CUSTOM plans, openai.randomizeUserId"},
+    {"path": "internal/server/minimax_chat.go", "kind": "production", "depth": "partial", "why": "route-level MINIMAX dispatch and own transport"},
+    {"path": "internal/server/ai21_chat.go", "kind": "production", "depth": "partial", "why": "declared promptPlaceholder gap"},
+    {"path": "internal/server/cohere_chat.go", "kind": "production", "depth": "partial", "why": "declared promptPlaceholder gap"},
+    {"path": "internal/server/deepseek_chat.go", "kind": "production", "depth": "partial", "why": "declared promptPlaceholder gap"},
+    {"path": "internal/server/electronhub_chat.go", "kind": "production", "depth": "partial", "why": "declared claude-cache gap"},
+    {"path": "internal/server/nanogpt_chat.go", "kind": "production", "depth": "partial", "why": "declared claude-cache gap"},
+    {"path": "internal/server/compression.go", "kind": "production", "depth": "deep", "why": "pinned response compression; the one recorded br->gzip deviation; SSE never compressed"},
+    {"path": "internal/server/protocols.go", "kind": "production", "depth": "deep", "why": "protocol.ipv4/ipv6 auto-selection and listener families"},
+    {"path": "internal/server/response_time.go", "kind": "production", "depth": "deep", "why": "X-Response-Time wall-clock middleware, explicitly unpinnable"},
+    {"path": "internal/server/stream_truncation_teeth_test.go", "kind": "test", "depth": "deep", "why": "truncation/cancel teeth for textgen, novelai and ollama forwarders only"},
+    {"path": "internal/server/chat_completions_oracle_test.go", "kind": "test", "depth": "partial", "why": "provider-wire replay anchored on bodySha256/bodyLength; its harness builds dataRoot+config.yaml adjacent, which hides D-H1"},
+    {"path": "internal/server/chat_completion_capture_coverage_test.go", "kind": "test", "depth": "deep", "why": "every claimed source must have a provider-wire scenario; COMETAPI exemption"},
+    {"path": "internal/server/chat_completions_registry_test.go", "kind": "test", "depth": "deep", "why": "registry uniqueness, pinned-source membership, claimed-source closure, scan visibility"},
+    {"path": "internal/server/chat_completion_control_test.go", "kind": "test", "depth": "partial", "why": "claimed/unported source lists and 501-vs-400 route control"},
+    {"path": "internal/server/chat_completions_egress_test.go", "kind": "test", "depth": "deep", "why": "declared-peer egress gate and its stated blind spot"},
+    {"path": "internal/server/chat_completions_route_test.go", "kind": "test", "depth": "mechanical", "why": "secret array shape and rejected-source route cases"},
+    {"path": "internal/server/tokenizers.go", "kind": "production", "depth": "deep", "why": "tokenizer routes, asset resolution, exactness headers, the non-atomic _cache writer, engine caches"},
+    {"path": "internal/server/tokenizers_remote.go", "kind": "production", "depth": "partial", "why": "remote tokenizer passthrough and requestOverrides application"},
+    {"path": "internal/tokenizers/dispatch.go", "kind": "production", "depth": "deep", "why": "pinned tokenizer model selection and the openai substring chain"},
+    {"path": "internal/tokenizers/count.go", "kind": "production", "depth": "deep", "why": "openai/count arithmetic, per-model constants, Guesstimate"},
+    {"path": "internal/tokenizers/context_boundary_test.go", "kind": "test", "depth": "deep", "why": "rule-9 boundary properties and their stated non-claims"},
+    {"path": "internal/tokenizers/tiktoken.go", "kind": "production", "depth": "mechanical", "why": "tiktoken engine, encoding table, UTF-8 replacement"},
+    {"path": "internal/tokenizers/sentencepiece.go", "kind": "production", "depth": "mechanical", "why": "BPE + byte fallback engine"},
+    {"path": "internal/tokenizers/hftokenizer.go", "kind": "production", "depth": "mechanical", "why": "HF tokenizer.json parser and chunker"},
+    {"path": "internal/tokenizers/bytelevel.go", "kind": "production", "depth": "mechanical", "why": "ByteLevel alphabet"},
+    {"path": "internal/tokenizers/wtf8.go", "kind": "production", "depth": "mechanical", "why": "UTF-16/unpaired-surrogate handling"},
+    {"path": "internal/tokenizers/tiktoken_test.go", "kind": "test", "depth": "mechanical", "why": "oracle match and segment/rank tests"},
+    {"path": "internal/tokenizers/sentencepiece_test.go", "kind": "test", "depth": "mechanical", "why": "oracle match, tie-break, decode rules"},
+    {"path": "internal/tokenizers/hftokenizer_test.go", "kind": "test", "depth": "mechanical", "why": "oracle match, normalizer/added-token cases"},
+    {"path": "internal/commandline/options.go", "kind": "production", "depth": "deep", "why": "CLI option table, env-first config reads, JSON env parse for array defaults, JS coercions"},
+    {"path": "internal/commandline/paths.go", "kind": "production", "depth": "deep", "why": "--configPath/--dataRoot resolution and config init ordering"},
+    {"path": "internal/commandline/unimplemented_config.go", "kind": "production", "depth": "mechanical", "why": "accepted-but-unimplemented key warnings"},
+    {"path": "internal/configinit/config.go", "kind": "production", "depth": "deep", "why": "pinned create/migrate/defaultsDeep-merge/write-back semantics and its JS truthiness helpers"},
+    {"path": "internal/migrate/migrate.go", "kind": "production", "depth": "mechanical", "why": "copy-migration entry points; not this lane's provider surface"},
+    {"path": "internal/server/http.go", "kind": "production", "depth": "deep", "why": "HTTPHandlerOptions field set and HTTPHandlerOptionsFromCommandLine translation plus boolean coercion helpers"},
+    {"path": "internal/server/characters.go", "kind": "production", "depth": "partial", "why": "the sibling config-candidate helper that does include InstallRoot"},
+    {"path": "internal/server/google_config.go", "kind": "production", "depth": "partial", "why": "gemini.apiVersion read for media/tts routes (not chat)"},
+    {"path": "internal/app/server.go", "kind": "production", "depth": "partial", "why": "InstallRoot wiring and the documented 'explicit --configPath wins' rule"},
+    {"path": "internal/app/transport.go", "kind": "production", "depth": "partial", "why": "boot wiring of enableKeepAlive and dnsPreferIPv6"},
+    {"path": "../SillyTavern/src/endpoints/backends/chat-completions.js", "kind": "pinned", "depth": "deep", "why": "dispatch arms, module-load config reads, shared assembly, response tails, catch shapes"},
+    {"path": "../SillyTavern/src/util.js", "kind": "pinned", "depth": "deep", "why": "getConfigValue/getConfig caching and env semantics, forwardFetchResponse, toBoolean"},
+    {"path": "../SillyTavern/src/config-init.js", "kind": "pinned", "depth": "deep", "why": "key migration, defaultsDeep, write-back and addedKeys logic"},
+    {"path": "../SillyTavern/node_modules/node-fetch/src/index.js", "kind": "pinned", "depth": "deep", "why": "redirect follow default, per-hop sensitive-header deletion, method rewrite rules"},
+    {"path": "../SillyTavern/node_modules/node-fetch/src/request.js", "kind": "pinned", "depth": "partial", "why": "follow=20 default and Request construction"},
+    {"path": "../SillyTavern/src/endpoints/tokenizers.js", "kind": "pinned", "depth": "partial", "why": "Guesstimate uses, getPathToTokenizer atomic writes, tokenizer selection"},
+    {"path": "../SillyTavern/src/prompt-converters.js", "kind": "pinned", "depth": "partial", "why": "PROMPT_PLACEHOLDER, thoughtSignatures, mistral.enablePrefix module-load reads"},
+    {"path": "../SillyTavern/src/additional-headers.js", "kind": "pinned", "depth": "partial", "why": "getOverrideHeaders and the Object.assign insertion point"},
+    {"path": "docs/config-parity.md", "kind": "doc", "depth": "deep", "why": "existing per-key classification table re-verified against source for the chat-path keys"},
+    {"path": "docs/config-inventory.md", "kind": "doc", "depth": "partial", "why": "pinned default leaf values and static read sites used for the fallback comparison"},
+    {"path": "docs/api-inventory.md", "kind": "doc", "depth": "partial", "why": "existing provider-route rows re-read for the registry/status claims"},
+    {"path": "docs/tokenizer-parity-plan.md", "kind": "doc", "depth": "mechanical", "why": "tokenizer exactness boundaries and named oracle gaps"}
+  ],
+  "packages": [
+    {
+      "path": "internal/outbound",
+      "role": "the only server->provider transport: production net/http client, wire-exact oracle client, proxy, private-address filter, DNS family order, error taxonomy",
+      "entryPoints": ["internal/outbound/transport.go:144", "internal/outbound/transport.go:162", "internal/outbound/raw.go:81"],
+      "stateOwners": ["clients map[*tls.Config]*http.Client internal/outbound/transport.go:74-75", "productionSettingsState atomic.Value internal/outbound/transport.go:80", "requestProxy atomic.Value internal/outbound/transport.go:445", "wireExactMode sync.Once internal/outbound/transport.go:65-66"],
+      "outbound": [],
+      "writablePaths": [],
+      "failRetry": "no retry of provider statuses (transport_matrix_test.go:78); each failure stage is named by explainTransportError (transport.go:374-415); the caller's timeout is the only whole-exchange bound and chat passes 0"
+    },
+    {
+      "path": "internal/server (provider subdomain)",
+      "role": "chat-completion route, per-source converters, secrets read, response mapping, provider status arms",
+      "entryPoints": ["internal/server/chat_completions.go:98", "internal/server/chat_completions.go:229", "internal/server/chat_completions_registry.go:75"],
+      "stateOwners": ["pinnedChatCompletionSourceRows map internal/server/chat_completions_registry.go:232-238", "pinnedChatCompletionSources map internal/server/chat_completions.go:71-79"],
+      "outbound": ["internal/outbound"],
+      "writablePaths": [],
+      "failRetry": "per source: three catch shapes plus four special ones (chat_completions.go:120-157); no retry anywhere"
+    },
+    {
+      "path": "internal/tokenizers",
+      "role": "tokenizer engines (tiktoken, SentencePiece, HF) and the pinned dispatch/selection and openai/count arithmetic",
+      "entryPoints": ["internal/tokenizers/dispatch.go:61", "internal/tokenizers/dispatch.go:133", "internal/tokenizers/count.go:94"],
+      "stateOwners": ["engine sets are owned by internal/server tokenizerSet, not by this package (server/tokenizers.go:260-304)"],
+      "outbound": [],
+      "writablePaths": [],
+      "failRetry": "Guesstimate fallback is the pinned behaviour for a missing engine; no retry"
+    },
+    {
+      "path": "internal/commandline",
+      "role": "pinned CLI/config resolution: option table, env-first config reads, paths, unimplemented-key warnings, transport options",
+      "entryPoints": ["internal/commandline/options.go:203", "internal/commandline/paths.go:60"],
+      "stateOwners": ["cliOptionKinds map internal/commandline/options.go:164-196"],
+      "outbound": [],
+      "writablePaths": ["<configPath>/../.gotavern-config-*.tmp (configinit, called from paths.go:129)"],
+      "failRetry": "config read failure aborts boot (options.go:210-213); a config write failure aborts boot (paths.go:129-132)"
+    },
+    {
+      "path": "internal/configinit",
+      "role": "pinned config.yaml creation, key migration, defaults merge and write-back",
+      "entryPoints": ["internal/configinit/config.go:77"],
+      "stateOwners": ["migrations table internal/configinit/config.go:46-72"],
+      "outbound": [],
+      "writablePaths": ["config.yaml"],
+      "failRetry": "returns an error without replacing the input (config.go:74-76); atomic temp+rename (config.go:168-218)"
+    },
+    {
+      "path": "internal/migrate",
+      "role": "copy migration from an existing SillyTavern installation",
+      "entryPoints": ["internal/migrate/migrate.go"],
+      "stateOwners": [],
+      "outbound": [],
+      "writablePaths": ["destination data tree only; source is read-only"],
+      "failRetry": "not this lane's deep scope; covered mechanically"
+    }
+  ],
+  "requestPath": [
+    {"stage": "provider-route-registration", "source": "internal/server/chat_completions.go:98-106", "notes": "POST only; other methods fall to the 404 page"},
+    {"stage": "body-parse", "source": "internal/server/chat_completions.go:230-236", "notes": "pinned JSON parser; 400 status text on a malformed body"},
+    {"stage": "route-wide-prompt-post-processing", "source": "internal/server/chat_completions.go:207-227", "notes": "pinned :2246-2253, before dispatch, mutates messages"},
+    {"stage": "account-and-directories", "source": "internal/server/chat_completions.go:243-256", "notes": "403/500 status text"},
+    {"stage": "minimax-short-circuit", "source": "internal/server/chat_completions.go:263-266", "notes": "before the registry so the plan path keeps answering 501"},
+    {"stage": "source-resolve", "source": "internal/server/chat_completions.go:381-392", "notes": "routed / 501-with-zero-outbound / 400"},
+    {"stage": "plan", "source": "internal/server/chat_completions_registry.go:38-54", "notes": "one planner per row; ordered JSON body; pinned header framing"},
+    {"stage": "target-framing", "source": "internal/server/chat_completions.go:635-678", "notes": "apiURL+/chat/completions or /completions; sorted headers + Host + Connection: close"},
+    {"stage": "transport-select", "source": "internal/outbound/transport.go:128-141", "notes": "production unless GOTAVERN_OUTBOUND_WIRE_EXACT=1"},
+    {"stage": "production-send", "source": "internal/outbound/transport.go:253-303", "notes": "request ctx; no whole-exchange timeout from the chat route; net/http owns accept-encoding/host/content-length/connection"},
+    {"stage": "response-tail", "source": "internal/server/chat_completions.go:732-810", "notes": "shared tail vs the eight pass-through sources; per-source specials named in the registry"},
+    {"stage": "stream-forward", "source": "internal/server/chat_completions.go:299-349", "notes": "401->400, Vary: Origin, no content type, truncation waits for client disconnect"},
+    {"stage": "request-time-config-read", "source": "internal/server/pinned_chat_config.go:35-45", "notes": "config.yaml re-derived from <dataRoot>/.. on EVERY provider request (D-H1, D-H7)"},
+    {"stage": "tokenizer-count", "source": "internal/server/tokenizers.go:54-103", "notes": "exactness headers on every route; engines cached per (assets, cache, downloads)"}
+  ],
+  "writers": [
+    {
+      "surface": "tokenizer-cache-materialization",
+      "route": "POST /api/tokenizers/{claude,llama3,qwen2,command-r,command-a,nemo,deepseek}/{encode,decode}",
+      "writer": "internal/server/tokenizers.go:374-380 and :383-391",
+      "lock": "per-set mutex tokenizerSet.mu internal/server/tokenizers.go:265 held across webBytes (server/tokenizers.go:337-339); no cross-process lock",
+      "atomicity": "NONE: os.WriteFile truncates in place and the error is discarded (`_ =`); pinned uses writeFileAtomicSync for the same writes (../SillyTavern/src/endpoints/tokenizers.js:116, :136, :140). A torn write is then PREFERRED on later reads (server/tokenizers.go:370-373)",
+      "pathPolicy": "<DataRoot>/_cache/<model>.json; the .json.gz is removed after decompression (server/tokenizers.go:378); the directory is created with MkdirAll 0755 and the error discarded (:376, :387)",
+      "errorShape": "no error is surfaced to the caller: a failed write just means the next request re-derives the bytes; a torn file surfaces later as a ParseHF failure (a tokenizer-route error, not the pinned fallback)",
+      "probe": "NONE",
+      "probeState": "gap"
+    }
+  ],
+  "caches": [
+    {
+      "name": "outbound production http.Client cache",
+      "key": "the caller's *tls.Config (nil for production)",
+      "value": "*http.Client with one *http.Transport",
+      "owner": "internal/outbound/transport.go:74-75",
+      "lifetime": "process (rebuilt by ConfigureProductionTransport)",
+      "capacity": "unbounded map of distinct TLS configs; production uses one entry",
+      "eviction": "resetProductionClients closes idle conns and clears (transport.go:117-126)",
+      "invalidation": "ConfigureProductionTransport; proxy/keepalive settings are read per request or per build",
+      "externalMod": "n/a",
+      "concurrency": "clientsMu",
+      "rebuild": "buildProductionClient (transport.go:180-244)",
+      "fallback": "n/a",
+      "measuredBenefit": "keep-alive reuse asserted at the peer (transport_matrix_test.go:236)"
+    },
+    {
+      "name": "wire-exact mode latch",
+      "key": "GOTAVERN_OUTBOUND_WIRE_EXACT at first provider call",
+      "value": "bool",
+      "owner": "internal/outbound/transport.go:65-66, :131-141",
+      "lifetime": "process",
+      "capacity": "1",
+      "eviction": "none",
+      "invalidation": "none",
+      "externalMod": "environment only",
+      "concurrency": "sync.Once",
+      "rebuild": "none",
+      "fallback": "production",
+      "measuredBenefit": "prevents the replay from measuring the wrong client; TransportMode is asserted by tests"
+    },
+    {
+      "name": "tokenizer engine set cache",
+      "key": "{assets root, <DataRoot>/_cache, allowDownloads}",
+      "value": "loaded SentencePiece/Tiktoken/HF engines",
+      "owner": "internal/server/tokenizers.go:253-304",
+      "lifetime": "process",
+      "capacity": "one set per data root (plus tests)",
+      "eviction": "none",
+      "invalidation": "none (a vendored tree change needs a restart)",
+      "externalMod": "a manually dropped <DataRoot>/_cache/<model>.json is read once, then the parsed engine is cached (server/tokenizers.go:366-373)",
+      "concurrency": "tokenizerSetMu + per-set mu",
+      "rebuild": "lazy per engine on first use",
+      "fallback": "llama3.json for external models (server/tokenizers.go:394); Guesstimate when no tree resolves",
+      "measuredBenefit": "bounded by docs/perf-baseline.md; not measured by this lane"
+    }
+  ],
+  "concurrency": [
+    {"id": "outbound-client-cache", "kind": "mutex", "source": "internal/outbound/transport.go:74-75", "owner": "internal/outbound", "lockOrder": ["clientsMu"], "cancellation": "n/a", "shutdown": "resetProductionClients closes idle connections", "contention": "one lock acquisition per provider request"},
+    {"id": "tokenizer-set-cache", "kind": "global-cache", "source": "internal/server/tokenizers.go:253-256", "owner": "internal/server", "lockOrder": ["tokenizerSetMu", "tokenizerSet.mu"], "cancellation": "not context-aware: engine loading does not observe a cancelled request", "shutdown": "none needed", "contention": "one lock per tokenizer request; engine load (large JSON) happens under the per-set lock"},
+    {"id": "wire-exact-latch", "kind": "atomic", "source": "internal/outbound/transport.go:65-66", "owner": "internal/outbound", "lockOrder": [], "cancellation": "n/a", "shutdown": "n/a", "contention": "none"}
+  ],
+  "hypotheses": [
+    {
+      "id": "D-H1",
+      "title": "Chat-path config readers ignore the resolved config path: --configPath (and a non-adjacent --dataRoot) silently fall back to hardcoded defaults for every provider-visible config key",
+      "classification": "confirmed-defect",
+      "surface": "provider-wire",
+      "evidence": [
+        "internal/server/pinned_chat_config.go:35-45 (candidates are dir(<dataRoot>)/config.yaml and <dataRoot>/config.yaml only)",
+        "internal/server/pinned_chat_config.go:48-73 (first readable candidate wins; a miss is indistinguishable from an absent key)",
+        "internal/commandline/paths.go:108-112 and :125-133 (--configPath resolves and configinit runs on it)",
+        "internal/app/server.go:158-173 (an explicit --configPath/--dataRoot deliberately wins over the install-root chdir)",
+        "internal/server/characters.go:83-92 (the sibling helper DOES include InstallRoot/config.yaml, showing the omission is not a policy)",
+        "internal/server/request_overrides.go:77; internal/server/claude_cache.go:33-35; internal/server/pinned_chat_config.go:155-163; internal/server/mistral_chat.go:309; internal/server/openai_chat.go:66 (all consumers)",
+        "../SillyTavern/src/util.js:44-79 (pinned resolves getConfigValue from the CONFIG_PATH chosen at startup, independent of DATA_ROOT)",
+        "internal/server/chat_completions_oracle_test.go:322-333 (the replay harness builds exactly root/data + root/config.yaml, so no fixture can discriminate this)"
+      ],
+      "impact": "user-visible",
+      "reproducer": "NONE",
+      "reproducerPlan": "Boot with --configPath <tmp>/elsewhere/config.yaml containing requestOverrides (or promptPlaceholder/claude.enableSystemPromptCache), drive one chat-completion request at the recording peer, and assert the provider received the override header. It fails today; a second case uses --dataRoot <tmp>/mounted/data with config.yaml in the install root. The harness needs an InstallRoot/config candidate or the resolved ConfigFile threaded into HTTPHandlerOptions - the second is the design fix.",
+      "strength": 4,
+      "counterargument": "A default install launched from the install directory is byte-identical to pinned, and every recorded fixture uses exactly that layout, so nothing in CI moves. It is only a defect for a supported, documented launch flag; if the product decided --configPath is not supported for the chat route it would have to be refused rather than silently defaulted, and it is neither."
+    },
+    {
+      "id": "D-H2",
+      "title": "gemini.apiVersion is never read by the MAKERSUITE chat route (or its /status arm); the pinned default v1beta is hardcoded, and docs/config-parity.md claims the key is implemented",
+      "classification": "confirmed-defect",
+      "surface": "provider-wire",
+      "evidence": [
+        "internal/server/google_chat.go:67-68 (pinnedGoogleAPIVersion returns the constant; no config read)",
+        "internal/server/google_chat.go:32-34 (the gap is declared in a comment)",
+        "internal/server/google_chat.go:200 and :453 (the URL builders consume the constant)",
+        "internal/server/google_config.go:58-60 (a correct reader exists but is only used by media/tts routes)",
+        "internal/server/makersuite_chat.go:55-56, :105-117 (URL shape expects an apiVersion argument)",
+        "internal/server/makersuite_chat.go:166-180 (status-arm URL likewise)",
+        "../SillyTavern/src/endpoints/backends/chat-completions.js:679, :730, :1911 (getConfigValue('gemini.apiVersion','v1beta'))",
+        "docs/config-parity.md:89 (classified implemented, with makersuite_chat.go named as evidence)",
+        "docs/config-inventory.md:143 and docs/api-inventory.md:104 and :302 (the gap is recorded elsewhere, contradicting config-parity.md:89)"
+      ],
+      "impact": "user-visible",
+      "reproducer": "NONE",
+      "reproducerPlan": "Add a provider-wire scenario with backendConfig ['gemini:', '  apiVersion: v1'] for makersuite and compare the recorded provider rawTarget against the Go leg's. The scenario mechanism already supports config-driven scenarios (claude-placeholder-config.json), so this is a descriptor plus a recording, not new harness work.",
+      "strength": 4,
+      "counterargument": "The pinned default and the Go constant agree, so a stock install is byte-identical. A user who versions the Gemini API for a proxy or an enterprise endpoint gets /v1beta where pinned sends /v1, i.e. a 404 from the provider, and the failure is attributed to the provider."
+    },
+    {
+      "id": "D-H3",
+      "title": "claude.enableAdaptiveThinking has no Go reader: the true default is hardcoded, so 4-6-generation models stay adaptive when the operator turned the flag off",
+      "classification": "confirmed-defect",
+      "surface": "provider-wire",
+      "evidence": [
+        "internal/server/claude_chat.go:119-121 (adaptive = patterns OR 4-6 pattern, with the config default folded in as a comment)",
+        "internal/server/claude_chat.go:75-77 (the comment states the config default is folded in here)",
+        "grep over internal/server for enableAdaptiveThinking: comments only at claude_chat.go:76 and :119, no reader",
+        "internal/server/claude_chat.go:140-176 (adaptive vs budget-token thinking payloads differ)",
+        "../SillyTavern/src/endpoints/backends/chat-completions.js:112 (module-load read) and :260 (the flag gates the 4-6 pattern)",
+        "../SillyTavern/default/config.yaml:376 (the shipped value is FALSE)",
+        "all 20 claude provider-wire scenarios use claude-sonnet-4-5-20250929 (10) or claude-3-5-sonnet-20240620 (10); neither matches the adaptive or adaptive-4-6 pattern (grep over tests/provider-wire/scenarios/claude-*.json: no opus-4-6/sonnet-4-6/opus-4-7/opus-4-8 model)",
+        "docs/config-parity.md:56 (classified inherited/no evidence)"
+      ],
+      "impact": "user-visible",
+      "reproducer": "NONE",
+      "reproducerPlan": "A provider-wire scenario with model claude-sonnet-4-6 and the STOCK config (no backendConfig change): pinned reads enableAdaptiveThinking=false and sends thinking as budget_tokens, Go sends the effort string. A second scenario sets the flag true and must agree in the other direction - the pair is what makes the config the only explanation. The claude capture mechanism (module-load config, claude-placeholder-config.json) already proves config-write-before-boot works.",
+      "strength": 4,
+      "counterargument": "Only the 4-6 generation is affected (opus-4-7/4-8 stay adaptive in both), and no existing fixture uses a 4-6 model, so the claims in docs/config-parity.md:56 and claude_chat.go:119 ('defaults to TRUE') were never falsified. It is nevertheless a stock-install provider-body divergence, not an operator-edit case: the shipped key is present and false and the hardcoded branch is true."
+    },
+    {
+      "id": "D-H4",
+      "title": "SILLYTAVERN_REQUESTOVERRIDES is JSON-parsed by pinned and by Go's commandline reader, but NOT by the server reader that actually applies overrides, so the documented env override applies no headers",
+      "classification": "verified-risk",
+      "surface": "provider-wire",
+      "evidence": [
+        "internal/server/pinned_chat_config.go:78-87 (env value returned as a raw string)",
+        "internal/server/request_overrides.go:77-85 (value.([]any) fails for a string -> nil, no overrides)",
+        "internal/commandline/options.go:554-571 (the OTHER Go reader JSON-parses an env value whenever the fallback is an array)",
+        "../SillyTavern/src/util.js:88-98 (needsJsonParse = defaultValue && typeof defaultValue === 'object'; tryParse(envValue) ?? defaultValue)",
+        "docs/config-inventory.md:7 and :24 (env precedence documented as part of the contract)",
+        "internal/server/tokenizers_remote.go:291 (one call site whose differential cannot see the env path)"
+      ],
+      "impact": "user-visible",
+      "reproducer": "NONE",
+      "reproducerPlan": "Set SILLYTAVERN_REQUESTOVERRIDES to the JSON array for a hosts entry, drive /api/tokenizers/remote/textgenerationwebui/encode at a recording peer, and assert the override header arrived. It fails for the env form and passes for the config-file form, which isolates the reader.",
+      "strength": 4,
+      "counterargument": "An operator who uses config.yaml (the documented primary form) is unaffected, and the same divergence class would also hit any FUTURE object/array-valued key read through pinnedChatConfigValue. If the product declares 'env overrides are only supported for scalar keys' that decision must be recorded, and today it is not."
+    },
+    {
+      "id": "D-H5",
+      "title": "Redirect credential stripping is per-initial-request in Go but per-hop in pinned node-fetch; POST->GET redirects also keep the body headers in pinned and drop them in Go",
+      "classification": "verified-risk",
+      "surface": "provider-wire",
+      "evidence": [
+        "internal/outbound/transport.go:232-242 (CheckRedirect: only a scheme change against via[0])",
+        "internal/outbound/transport.go:246-251 (20-hop limit and the header list)",
+        "../SillyTavern/node_modules/node-fetch/src/index.js:199-212 (per-hop isDomainOrSubdomain(request.url, locationURL) || isSameProtocol(request.url, locationURL))",
+        "../SillyTavern/node_modules/node-fetch/src/index.js:221-226 (only content-length is deleted when POST becomes GET)",
+        "GOROOT/src/net/http/client.go:700-705 and :772-843 (headers are copied from the INITIAL request; stripSensitiveHeaders latches; body headers are stripped when includeBody is false)",
+        "internal/outbound/a15_redirect_semantics_test.go:110-323 (every redirect test is single-hop, so neither case can fail)"
+      ],
+      "impact": "user-visible",
+      "reproducer": "NONE",
+      "reproducerPlan": "Two controlled-peer cases: (1) chain https origin -> different host -> a subdomain of the origin, and assert the peer at hop 2 never sees Authorization (pinned deletes, Go re-copies); (2) a 302 on a POST and assert the GET at the target carries Content-Type: application/json as node-fetch does. Both are single-process httptest cases in the existing redirect test file.",
+      "strength": 3,
+      "counterargument": "The credential can only be re-sent to a domain that is still a domain/subdomain of the original provider, so the practical leak surface is the provider's own infrastructure, not a third party. The body-header half is cosmetic unless a provider/WAF distinguishes GET+Content-Type; both are parity defects rather than confirmed third-party leaks, which is why this is sixth rather than in the top five."
+    },
+    {
+      "id": "D-H6",
+      "title": "OpenRouter's claude prompt-cache transform is absent and undeclared: pinned stamps cache_control for anthropic/claude models under claude.enableSystemPromptCache/cachingAtDepth",
+      "classification": "verified-risk",
+      "surface": "provider-wire",
+      "evidence": [
+        "internal/server/openrouter_chat.go:94-196 (body params and the gemini branch; no claude caching call)",
+        "grep over internal/server for cachingSystemPromptForOpenRouter / cachingAtDepthForOpenRouterClaude: no production hits",
+        "internal/server/openrouter_chat.go:182-195 (declares only the gemini cache gap)",
+        "internal/server/claude_cache.go:32-67 (the equivalent claude-source implementation exists and is called at claude_chat.go:822)",
+        "../SillyTavern/src/endpoints/backends/chat-completions.js:2376-2384 (isClaude -> cachingSystemPromptForOpenRouter / cachingAtDepthForOpenRouterClaude using the module-load cacheTTL/cachingAtDepth)"
+      ],
+      "impact": "user-visible",
+      "reproducer": "NONE",
+      "reproducerPlan": "A provider-wire scenario for source openrouter, model anthropic/claude-*, with backendConfig enabling claude.enableSystemPromptCache and claude.cachingAtDepth; the recorded pinned body carries cache_control members that the Go leg omits. Requires a recording, not new machinery.",
+      "strength": 3,
+      "counterargument": "Both flags are default-off, so a stock install is byte-identical; the claude-source path (the common one) is implemented and fixture-backed. It is a body-parity gap only for an operator who turned prompt caching on AND routes claude through OpenRouter."
+    },
+    {
+      "id": "D-H7",
+      "title": "Config is re-read from disk per request (and per key) in the chat path, while pinned parses it once and caches it",
+      "classification": "untested-hypothesis",
+      "surface": "provider-wire",
+      "evidence": [
+        "internal/server/pinned_chat_config.go:48-73 (ReadFile + yaml.Unmarshal on every call, first readable candidate)",
+        "../SillyTavern/src/util.js:29 and :61-73 (CACHED_CONFIG: parsed once, never re-read)",
+        "internal/server/request_overrides.go:77 (one read per overridden request)",
+        "internal/server/azure_openai_chat.go:398 and internal/server/messages of the same shape (multiple keys per request where relevant)"
+      ],
+      "impact": "performance",
+      "reproducer": "NONE",
+      "reproducerPlan": "Mutate config.yaml between two identical requests on a running server: pinned (busy or captured) keeps the startup value, Go changes its provider body. Also measure the per-request ReadFile+Unmarshal cost with a benchmark on the existing assemble path.",
+      "strength": 2,
+      "counterargument": "Re-reading is arguably safer (a live edit is honoured) and the file is typically in the page cache; the divergence is observable only for a mid-run edit or a mid-run unreadable config, neither of which is a supported workflow. If pinned's own frontend never edits config.yaml at runtime the defect has no user."
+    },
+    {
+      "id": "D-H8",
+      "title": "promptPlaceholder is honoured only by the claude converter; ai21, cohere and deepseek hardcode the default placeholder",
+      "classification": "verified-risk",
+      "surface": "provider-wire",
+      "evidence": [
+        "internal/server/pinned_chat_config.go:153-157 (a reader exists)",
+        "internal/server/claude_chat.go:818 (only the claude plan uses it)",
+        "internal/server/ai21_chat.go:44-50 and :141 (hardcoded)",
+        "internal/server/cohere_chat.go:43-49, :75-79 and :144 (hardcoded)",
+        "internal/server/deepseek_chat.go:31-33 (declares the gap)",
+        "../SillyTavern/src/prompt-converters.js:4 (one module-load PROMPT_PLACEHOLDER shared by every converter)"
+      ],
+      "impact": "user-visible",
+      "reproducer": "NONE",
+      "reproducerPlan": "Scenario per source with backendConfig ['promptPlaceholder: \"probe marker\"'] and an empty messages array; pinned bodies carry the marker, the three Go bodies carry the default. claude-placeholder-config proves the recording pattern.",
+      "strength": 3,
+      "counterargument": "The shipped default matches what the three hardcoded constants say, so a stock install agrees. The empty-message arm is also rare in real chats; the failure needs both an operator-set placeholder and an empty context."
+    },
+    {
+      "id": "D-H9",
+      "title": "claude.cachingAtDepth truncates a non-integer value where pinned requires Number.isInteger and falls back to -1",
+      "classification": "verified-risk",
+      "surface": "provider-wire",
+      "evidence": [
+        "internal/server/pinned_chat_config.go:112-151 (string digits parsed to an int; float64 truncated by int(typed))",
+        "internal/server/claude_cache.go:35-39 (only a negative value is clamped; a truncated 2.5 becomes 2)",
+        "../SillyTavern/src/endpoints/backends/chat-completions.js:108-111 (Number.isInteger(value) && value >= 0 ? value : -1)"
+      ],
+      "impact": "user-visible",
+      "reproducer": "NONE",
+      "reproducerPlan": "Scenario with backendConfig ['claude:', '  cachingAtDepth: 2.5'] and stream false: pinned sends no cache_control and no prompt-caching beta values, Go stamps at depth 2 and adds both beta values. A string '2.5' is the second case (Go parses 2, pinned parseFloat 2.5 then isInteger false).",
+      "strength": 3,
+      "counterargument": "The documented value is an integer and the default is -1; a fractional depth is a user typo, and the pinned behaviour is to ignore it silently. Still a provider-body difference for a value the config accepts."
+    },
+    {
+      "id": "D-H10",
+      "title": "Nine config fallback defaults differ from the pinned defaults, and NaN boolean truthiness diverges (JS Boolean(NaN)=false, Go NaN != 0 = true)",
+      "classification": "untested-hypothesis",
+      "surface": "startup-state",
+      "evidence": [
+        "internal/commandline/options.go:214-316 (fallbacks) versus docs/config-inventory.md:31-149 (pinned defaults)",
+        "rows: enableForwardedWhitelist false/true, whitelist []/['::1','127.0.0.1'], hostWhitelist.scan false/true, browserLaunch.enabled false/true, basicAuthUser.username+password ''/'user'+'password', performance.requestCompression.timeout 3000/4000, requestProxy.url ''/placeholder, requestProxy.bypass []/['localhost','127.0.0.1'], cors.origin 'null'/['null']",
+        "internal/configinit/config.go:473-510 and :109-138 (defaults are merged into the file and written back, which is why these are latent)",
+        "internal/server/http.go:247-264 and internal/server/characters.go:95-118 (NaN -> true) versus ../SillyTavern/src/util.js:1107-1124 (Boolean(NaN)=false)",
+        "internal/configinit/config.go:719-738 (the config package gets NaN right, so the Go helpers disagree with each other)"
+      ],
+      "impact": "user-visible",
+      "reproducer": "NONE",
+      "reproducerPlan": "Two checks: (a) a read-only config.yaml missing hostWhitelist/enableForwardedWhitelist - boot both backends and compare /version-level behaviour and the whitelist decision; (b) config with claude.enableSystemPromptCache: .nan - pinned false, Go true. (a) needs the config-init write to fail, so it is gated on Lane B's write-versus-no-write question.",
+      "strength": 2,
+      "counterargument": "configinit writes the pinned default set into every writable config before the reader runs, so on every normal install the key is present and the fallback is dead code. If Lane B finds the write always succeeds and is never skipped, this row is unobservable and should be closed as such rather than fixed by changing the fallbacks (a change that would diverge from the file-merge contract)."
+    },
+    {
+      "id": "D-H11",
+      "title": "The wire-exact oracle client is selectable by an environment variable with no production guard; it has no proxy, no redirects, no decompression and no bounds",
+      "classification": "untested-hypothesis",
+      "surface": "provider-wire",
+      "evidence": [
+        "internal/outbound/transport.go:127-141 (TransportMode reads GOTAVERN_OUTBOUND_WIRE_EXACT once)",
+        "internal/outbound/raw.go:77-80 (the client deliberately lacks proxy/redirects/reuse/decoding/bounds)",
+        "internal/outbound/transport.go:27-29 (the design claim is 'nothing else sets it')",
+        "AGENTS.md rule 30 (the byte-exact client must not carry user traffic)"
+      ],
+      "impact": "user-visible",
+      "reproducer": "NONE",
+      "reproducerPlan": "Boot with GOTAVERN_OUTBOUND_WIRE_EXACT=1 and a provider behind a proxy or a redirect; observe the failure. The fix decision is whether to refuse the env var outside a test binary (a build tag or an explicit --wire-exact flag) rather than whether to change the client.",
+      "strength": 2,
+      "counterargument": "No documented workflow sets it, it is a test seam by convention, and a user who exports an undocumented GOTAVERN_ variable is already outside the contract. But rule 30 phrased it as a role separation, and role separation enforced only by convention is exactly the class of defect the rule was written about."
+    },
+    {
+      "id": "D-H12",
+      "title": "A streamed non-2xx provider answer forwards the body and status code but not the provider's reason phrase, which pinned sets as statusMessage",
+      "classification": "untested-hypothesis",
+      "surface": "browser-wire",
+      "evidence": [
+        "internal/server/chat_completions.go:299-319 (status written through w.WriteHeader; no reason phrase control)",
+        "../SillyTavern/src/util.js:733-746 (to.statusCode = statusCode; to.statusMessage = statusText)",
+        "internal/outbound/transport.go:286 and :427-432 (the provider reason phrase IS captured and used on the non-streaming path)",
+        "../SillyTavern/src/endpoints/backends/chat-completions.js:2705 (statusText is what the non-streaming error shape prints)"
+      ],
+      "impact": "user-visible",
+      "reproducer": "NONE",
+      "reproducerPlan": "A controlled peer answering a streamed request with HTTP/1.1 429 Custom Phrase, then compare the browser response status line on both legs over a raw socket (the existing kobold framing convention). Only a provider with a non-standard reason phrase can show it.",
+      "strength": 2,
+      "counterargument": "Go's http.Response.Status preserves a provider's custom reason phrase, so the non-streaming path is fine; the streaming path cannot express a custom reason phrase through net/http at all, so 'fixing' it would need Hijack and would break HTTP/2 - the honest resolution may be a recorded deviation rather than a fix."
+    },
+    {
+      "id": "D-H13",
+      "title": "The chat-completions stream forwarder has no truncation/cancel teeth test of its own",
+      "classification": "untested-hypothesis",
+      "surface": "streaming/cancel",
+      "evidence": [
+        "internal/server/chat_completions.go:343-348 (the pinned hang is reproduced, the branch is untested)",
+        "internal/server/stream_truncation_teeth_test.go:90-160 (tests for textgen, novelai and ollama only)",
+        "grep over internal/server/*_test.go for forwardPinnedChatCompletionStream: no hits",
+        "tests/provider-wire/scenarios/openai-reverse-proxy-midstream-truncation.json and openrouter-midstream-truncation.json (route-level capture coverage exists)"
+      ],
+      "impact": "user-visible",
+      "reproducer": "NONE",
+      "reproducerPlan": "Clone TestTextgenTruncatedStreamLeavesTheBrowserResponseOpen onto forwardPinnedChatCompletionStream with a truncatingStream and a cancellable request context; assert the handler is still blocked after the bytes stop and returns after the cancel.",
+      "strength": 2,
+      "counterargument": "The route-level truncation scenarios replay the observable end to end, so a regression that ended the response early might be caught by the capture comparison. They are weaker teeth than a named assertion on the branch, but the capability is not wholly unverified."
+    },
+    {
+      "id": "D-H14",
+      "title": "The production transport deliberately diverges from the captures (bounds, gzip-only, keep-alive, header case/order, br unsupported for response compression) and those divergences are recorded, not measured",
+      "classification": "intentional-parity",
+      "surface": "provider-wire",
+      "evidence": [
+        "internal/outbound/transport.go:15-29 (the declared list)",
+        "internal/outbound/transport.go:56-62 (bounds) and :210-217 (keep-alive, compression, HTTP/2)",
+        "internal/outbound/transport.go:305-328 (encoding decoding; br becomes a causal error)",
+        "internal/server/compression.go:22-26 (server->browser: gzip answers where pinned answers br)",
+        "internal/outbound/a15_transport_bounds_test.go:36 (stage bounds asserted) and :78 (no retry)"
+      ],
+      "impact": "user-visible",
+      "reproducer": "NONE",
+      "reproducerPlan": "No reproducer is needed; what IS owed is a product-contract row (like the auto-update one) stating that a stalled provider fails after 120 s here and never in pinned, and that a br-only client receives identity from the browser-facing compression middleware.",
+      "strength": 5,
+      "counterargument": "Rule 29 requires exactly these bounds and rule 30 forbids the wire-exact client carrying user traffic, so this is the sanctioned design. The risk is not the divergence but that it is only in code comments, so a reader of the compat matrix cannot see it."
+    },
+    {
+      "id": "D-H15",
+      "title": "MINIMAX has no registry row and COMETAPI has no transport; both are deliberate and asserted",
+      "classification": "intentional-parity",
+      "surface": "provider-wire",
+      "evidence": [
+        "internal/server/chat_completions_registry.go:27-29 and :25 (MINIMAX dispatched before the table)",
+        "internal/server/chat_completions.go:258-266 (route-level dispatch) and :381-392 (501 for a known unrouted source)",
+        "internal/server/chat_completion_control_test.go:78-133 (501-vs-400 control and the unported list)",
+        "internal/server/chat_completion_capture_coverage_test.go:42-46 (cometapi exemption with its reason)",
+        "../SillyTavern/src/endpoints/backends/chat-completions.js:2543 (cometapi arm throws before any fetch)"
+      ],
+      "impact": "maintainability",
+      "reproducer": "internal/server/chat_completion_control_test.go:113 (TestUnportedSourcesAnswer501AtTheRoute)",
+      "reproducerPlan": "none needed",
+      "strength": 5,
+      "counterargument": "None: this is the rule-17 pattern working. The only residual is that a reader must consult three files to see the 26->25->1 partition."
+    },
+    {
+      "id": "D-H16",
+      "title": "The zai image/video provider fetches are not request-scoped (context.Background) and are bounded by a wall-clock timeout instead; pinned has no abort signal there either",
+      "classification": "intentional-parity",
+      "surface": "provider-wire",
+      "evidence": [
+        "internal/server/sd_zai.go:183-191 (context.Background + sdZaiRequestTimeout, with the pinned reasoning in the comment)",
+        "internal/server/sd_zai.go:285-299 (the poll fetch deliberately carries no abort signal; the disconnect is noticed on the next iteration)",
+        "internal/server/sd_zai.go:348-352 (image content fetch, same shape)",
+        "internal/server/openai_generate_video.go:145-227 and google_video.go:167-310 (poll loops on a derived context)"
+      ],
+      "impact": "user-visible",
+      "reproducer": "NONE",
+      "reproducerPlan": "A controlled-peer case: disconnect the client during a zai image fetch and assert the provider still receives a completed exchange on BOTH legs (that is the pinned observable), plus assert the wall-clock bound fires in Go where pinned would wait. Needs the peer to record completion after the client left.",
+      "strength": 4,
+      "counterargument": "Reproducing a pinned missing-abort is correct for parity (rule 35 says name it, not fix it silently). The residual risk is billing: a provider keeps generating for a client that left, on both backends, and the Go wall-clock bound is a mitigation pinned lacks. Must be recorded as an inherited property, not treated as fixed."
+    },
+    {
+      "id": "D-H17",
+      "title": "Tokenizer cache materialization is non-atomic where pinned uses writeFileAtomicSync, and the torn file is then permanently preferred",
+      "classification": "verified-risk",
+      "surface": "persisted-bytes",
+      "evidence": [
+        "internal/server/tokenizers.go:374-380 (gunzip a manually placed .json.gz, os.MkdirAll/os.WriteFile with errors discarded, then remove the .gz)",
+        "internal/server/tokenizers.go:383-391 (vendored external asset materialized the same way)",
+        "internal/server/tokenizers.go:370-373 (the uncompressed cache file wins over the vendored asset on every later read)",
+        "../SillyTavern/src/endpoints/tokenizers.js:97-100 and :113-118 and :134-141 (mkdir recursive, writeFileAtomicSync for all three writes)",
+        "internal/server/tokenizers.go:265 and :337-339 (in-process serialization, so only a process-level fault reaches it)"
+      ],
+      "impact": "data-safety",
+      "reproducer": "NONE",
+      "reproducerPlan": "Using internal/faultinject (or a helper that writes the truncated bytes directly, since a crash cannot be scripted in a unit test), place a truncated <DataRoot>/_cache/<model>.json and issue one tokenizer request: ParseHF fails and every later request fails too, because the cache file is preferred and never re-validated. A control shows the pinned shape (decompress to a temp name, then rename) is immune.",
+      "strength": 3,
+      "counterargument": "It is a cache directory and the write only happens after an operator manually drops a .json.gz (or on the vendored-asset path at first use); in-process locking means only a crash/ENOSPC at that instant can tear it. Pinned's own cache dir is not part of the user's authored data either, so the practical exposure is one broken tokenizer route until the file is deleted, not user data loss."
+    }
+  ],
+  "questions": [
+    "D-H5 needs a multi-hop probe of pinned 1.19.0 (node-fetch per-hop deletion): does the recorded upstream really re-derive headers per hop? Decidable with a controlled peer chain A -> B -> sub(A); no existing test can.",
+    "Is the 120 s response-header bound and the no-whole-exchange-timeout split a recorded product decision? It changes what a user sees when a provider stalls; it belongs in the product-contract list, not only in transport.go comments.",
+    "Lane B: does configinit ever skip its defaults write (read-only directory, interrupted rename)? That gates whether D-H10's fallback table is observable, and whether the Go sequence-merge write decision diverges from pinned's addedKeys-only write.",
+    "Who owns fixing docs/config-parity.md for gemini.apiVersion (D-H2) and claude.enableAdaptiveThinking (D-H3)? It is generated from tools/inventories/config-parity.json, so the fix is an inventory edit plus the behaviour, in one change.",
+    "The /api/backends/chat-completions/status arm (makersuite status URL version, pinned :1908-1924) was covered mechanically; a deep read of backends_status.go per source remains for the backends domain."
+  ]
+}

@@ -1,0 +1,2116 @@
+{
+    "schemaVersion":  1,
+    "lane":  "B",
+    "title":  "persistence writers, startup mutations, migration/rollback, path policy",
+    "commit":  "c256f21ed9196b15569a1efcb480064d2fa8c664",
+    "baseline":  "SillyTavern 1.19.0 @ 06bde939fb1e9c4c8d8641d810f0a916b5bce127 (verified internal/startup/runtime_roundtrip_test.go:107)",
+    "readOnly":  true,
+    "filesInspected":  [
+                           {
+                               "path":  "internal/startup/user_content_file.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "shared per-user locked, containment-checked atomic read-modify-write; all JSON writers route through it"
+                           },
+                           {
+                               "path":  "internal/startup/user_data_lock.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "lock scope: one flock per data root, not per user"
+                           },
+                           {
+                               "path":  "internal/startup/content.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "atomicReplace/atomicCreate/acquireContentLock and content seeding; read in full"
+                           },
+                           {
+                               "path":  "internal/startup/storage.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "node-persist records, USER_DIRECTORY_TEMPLATE, private-dir creation, storage lock; read in full"
+                           },
+                           {
+                               "path":  "internal/startup/user_data_migration.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "legacy public data move, backup, source removal, ensureResolvedContained"
+                           },
+                           {
+                               "path":  "internal/startup/system_prompts.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "instruct template rewrite, backups, .migrated marker, ordered-JSON marshalling"
+                           },
+                           {
+                               "path":  "internal/startup/group_metadata.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "group file rewrite and group-chat JSONL header insertion with backups"
+                           },
+                           {
+                               "path":  "internal/startup/flat_secrets.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "secrets.json legacy migration with backup"
+                           },
+                           {
+                               "path":  "internal/startup/settings_backup.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "settings save and duplicate-aware snapshot/retention writer"
+                           },
+                           {
+                               "path":  "internal/startup/settings_snapshots.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "snapshot create/list/read/restore writers"
+                           },
+                           {
+                               "path":  "internal/startup/statistics.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "stats.json recompute and atomic rewrite"
+                           },
+                           {
+                               "path":  "internal/startup/access_log_migration.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "install access.log move to data root under two locks"
+                           },
+                           {
+                               "path":  "internal/startup/public_overrides.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "error page / user.css move out of the install tree"
+                           },
+                           {
+                               "path":  "internal/startup/upload_cleanup.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "_uploads deletion at boot"
+                           },
+                           {
+                               "path":  "internal/startup/character_disk_cache.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "disk cache dir creation and stale-record removal"
+                           },
+                           {
+                               "path":  "internal/startup/user_avatars.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "avatar delete + persona thumbnail invalidation; pinned MIME image extension set"
+                           },
+                           {
+                               "path":  "internal/startup/user_backgrounds.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "background delete/rename/install-upload and thumbnail invalidation; read in full"
+                           },
+                           {
+                               "path":  "internal/startup/user_files.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "user file save/delete, symlink-following write-through policy"
+                           },
+                           {
+                               "path":  "internal/startup/user_presets.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "quick reply / theme / moving UI preset writers and sanitize-filename port"
+                           },
+                           {
+                               "path":  "internal/startup/user_sprites.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "sprite delete under lock"
+                           },
+                           {
+                               "path":  "internal/startup/user_rename.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "crash-safe rename of a user content file"
+                           },
+                           {
+                               "path":  "internal/startup/secret.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "cookie-secret create/migrate with bounded lock"
+                           },
+                           {
+                               "path":  "internal/startup/secrets_state.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "secrets ordered-JSON read-modify-write: lock/read/save core and writer entry points read; 761-line file not line-by-line"
+                           },
+                           {
+                               "path":  "internal/startup/data_startup.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "the startup mutation order and its diagnostics boundary"
+                           },
+                           {
+                               "path":  "internal/configinit/config.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "config.yaml creation, legacy key migration, defaults insertion, atomic write, env migration; 777 lines read in full"
+                           },
+                           {
+                               "path":  "internal/configinit/lockpath.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "config lock path derivation"
+                           },
+                           {
+                               "path":  "internal/migrate/migrate.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "gotavern migrate: source-read-only plan, force backup, copy verification; read in full"
+                           },
+                           {
+                               "path":  "internal/lockacquire/lockacquire.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "bounded flock acquisition and named BusyError"
+                           },
+                           {
+                               "path":  "internal/fsretry/fsretry.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "bounded Windows sharing-violation retry for write and read"
+                           },
+                           {
+                               "path":  "internal/userdata/userdata.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "pinned sanitize-filename naming policy"
+                           },
+                           {
+                               "path":  "internal/commandline/paths.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "config init call site, data-root creation and the recorded divergence"
+                           },
+                           {
+                               "path":  "internal/app/server.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "startup trace wrapping and the second data-root creation; read the startup region 160-230"
+                           },
+                           {
+                               "path":  "internal/app/startup_trace.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "legacy-wait announcement, stage line policy"
+                           },
+                           {
+                               "path":  "internal/server/characters_write.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "1246 lines: write call sites, rename/delete/duplicate/import and the staged directory-copy core 1083-1163 read; rest not line-by-line"
+                           },
+                           {
+                               "path":  "internal/server/characters.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "character route table"
+                           },
+                           {
+                               "path":  "internal/server/characters_import.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "import dispatch and staged upload cleanup"
+                           },
+                           {
+                               "path":  "internal/server/characters_import_formats.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "CharX/BYAF/Risu import writers and swallowed per-asset failures"
+                           },
+                           {
+                               "path":  "internal/server/chats.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "chat save/get, JSONL rewrite, the recorded backup/integrity gap"
+                           },
+                           {
+                               "path":  "internal/server/chats_mutations.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "rename/delete writers"
+                           },
+                           {
+                               "path":  "internal/server/chats_group.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "group chat save/delete writers"
+                           },
+                           {
+                               "path":  "internal/server/chats_import.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "chat import writer"
+                           },
+                           {
+                               "path":  "internal/server/groups.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "group create/edit/delete writers incl. swallowed per-chat deletes"
+                           },
+                           {
+                               "path":  "internal/server/worldinfo.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "world info delete/import/edit writers"
+                           },
+                           {
+                               "path":  "internal/server/presets.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "preset save/delete/restore writers and folder mapping"
+                           },
+                           {
+                               "path":  "internal/server/quick_replies.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "quick reply save/delete handlers"
+                           },
+                           {
+                               "path":  "internal/server/themes.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "theme save/delete handlers"
+                           },
+                           {
+                               "path":  "internal/server/moving_ui.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "moving UI save handler"
+                           },
+                           {
+                               "path":  "internal/server/secrets.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "secrets route table"
+                           },
+                           {
+                               "path":  "internal/server/extensions.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "extension route table, removeExtensionTree, name sanitizing"
+                           },
+                           {
+                               "path":  "internal/server/extensions_fs.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "move/delete routes and copyExtensionTree"
+                           },
+                           {
+                               "path":  "internal/server/extensions_git.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "git child process bound, install/update/switch writers"
+                           },
+                           {
+                               "path":  "internal/server/extensions_static.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "static extension serving (no writes; checked for writes)"
+                           },
+                           {
+                               "path":  "internal/server/images.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "image upload/list/folders/delete and the atomic-write rationale"
+                           },
+                           {
+                               "path":  "internal/server/image_metadata_folder_create.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "image metadata index writer"
+                           },
+                           {
+                               "path":  "internal/server/image_metadata_folder_update.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "image metadata index writer"
+                           },
+                           {
+                               "path":  "internal/server/image_metadata_folder_delete.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "image metadata index writer"
+                           },
+                           {
+                               "path":  "internal/server/image_metadata_folder_assignments.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "image metadata index writer"
+                           },
+                           {
+                               "path":  "internal/server/image_metadata_folder_set_thumbnails.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "image metadata index writer"
+                           },
+                           {
+                               "path":  "internal/server/image_metadata_cleanup.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "image metadata index writer"
+                           },
+                           {
+                               "path":  "internal/server/image_metadata_generate.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "image metadata index writer"
+                           },
+                           {
+                               "path":  "internal/server/sprites_upload.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "sprite upload/zip under the content lock via an anchor sentinel"
+                           },
+                           {
+                               "path":  "internal/server/avatars_upload.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "persona avatar write and thumbnail invalidation"
+                           },
+                           {
+                               "path":  "internal/server/avatars.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "avatar get/delete route dispatch"
+                           },
+                           {
+                               "path":  "internal/server/backgrounds_upload.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "background upload handler"
+                           },
+                           {
+                               "path":  "internal/server/backgrounds_rename.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "background rename + index update"
+                           },
+                           {
+                               "path":  "internal/server/backgrounds_delete.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "background delete + index update"
+                           },
+                           {
+                               "path":  "internal/server/files_upload.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "user file upload handler"
+                           },
+                           {
+                               "path":  "internal/server/files_delete.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "user file delete handler"
+                           },
+                           {
+                               "path":  "internal/server/backups.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "chat backup delete/download writers"
+                           },
+                           {
+                               "path":  "internal/server/backups_chat_get.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "chat backup get (read)"
+                           },
+                           {
+                               "path":  "internal/server/assets.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "asset get/delete/character/download route table and index writer"
+                           },
+                           {
+                               "path":  "internal/server/assets_download.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "staged asset download and index writer"
+                           },
+                           {
+                               "path":  "internal/server/vector.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "vector index writers and purge"
+                           },
+                           {
+                               "path":  "internal/server/sd_comfy.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "comfy workflow save/delete/rename writers"
+                           },
+                           {
+                               "path":  "internal/server/tokenizers.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "tokenizer cache materialisation writes"
+                           },
+                           {
+                               "path":  "internal/server/access_log.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "access.log append writer"
+                           },
+                           {
+                               "path":  "internal/server/thumbnails.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "thumbnail cache write and invalidation"
+                           },
+                           {
+                               "path":  "internal/server/data_maid.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "data-maid token store and delete writer"
+                           },
+                           {
+                               "path":  "internal/server/account_backup.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "user full-backup ZIP stream"
+                           },
+                           {
+                               "path":  "internal/server/account_data_reset.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "destructive reset-step2 RemoveAll of the user root"
+                           },
+                           {
+                               "path":  "internal/server/account_reset.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "reset-settings remove + forced settings seeding"
+                           },
+                           {
+                               "path":  "internal/server/account_create.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "node-persist insert and directory creation for a new account"
+                           },
+                           {
+                               "path":  "internal/server/accounts.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "account record update/delete writers and user-root removal"
+                           },
+                           {
+                               "path":  "internal/server/settings_save.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "settings save mutex, snapshot throttle and timer"
+                           },
+                           {
+                               "path":  "internal/server/settings_cache.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "identity-keyed cache discipline and invalidation assumptions"
+                           },
+                           {
+                               "path":  "internal/server/characters_card_cache.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "card-text cache identity and residual staleness"
+                           },
+                           {
+                               "path":  "internal/server/http.go",
+                               "kind":  "production",
+                               "depth":  "mechanical",
+                               "why":  "route registrations cited in the writer matrix"
+                           },
+                           {
+                               "path":  "internal/server/chats_routes.go",
+                               "kind":  "production",
+                               "depth":  "deep",
+                               "why":  "chats/groups route table"
+                           },
+                           {
+                               "path":  "internal/startup/data_safety_atomic_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "atomic replace kill/disk-full probes listed"
+                           },
+                           {
+                               "path":  "internal/startup/storage_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "node-persist and seeding probe names listed"
+                           },
+                           {
+                               "path":  "internal/startup/runtime_roundtrip_test.go",
+                               "kind":  "test",
+                               "depth":  "deep",
+                               "why":  "Node-Go-Node fixture replay and its explicit assertion split; head 130 lines read"
+                           },
+                           {
+                               "path":  "internal/startup/config_idempotence_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "config idempotence probe located (file; function not re-read)"
+                           },
+                           {
+                               "path":  "internal/startup/settings_backup_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "settings backup probe names listed"
+                           },
+                           {
+                               "path":  "internal/server/data_safety_concurrency_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "torn-write probe names listed"
+                           },
+                           {
+                               "path":  "internal/server/data_safety_copy_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "staged directory copy probe names listed"
+                           },
+                           {
+                               "path":  "internal/server/data_safety_traversal_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "traversal probe located"
+                           },
+                           {
+                               "path":  "internal/server/data_safety_secret_leak_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "secret leak probe located"
+                           },
+                           {
+                               "path":  "tests/e2e/chat_crash_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "chat save/rename/delete/import/group crash probe names listed"
+                           },
+                           {
+                               "path":  "tests/e2e/a15_concurrent_writers_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "two-process whole-file probe names listed"
+                           },
+                           {
+                               "path":  "tests/e2e/a15_corrupt_data_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "corrupt-data boot preservation probe names listed"
+                           },
+                           {
+                               "path":  "tests/e2e/longlived_complex_writes_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "migration backup, read-only root, forced migration probes"
+                           },
+                           {
+                               "path":  "internal/adversarial/startup_cases_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "boot.legacy-migration-cost invariant and its corrected wording"
+                           },
+                           {
+                               "path":  "internal/adversarial/violations.golden",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "ratchet state; boot.legacy-migration-cost history"
+                           },
+                           {
+                               "path":  "tests/oracle/sillytavern-1.19.0-runtime-roundtrip.json",
+                               "kind":  "driver",
+                               "depth":  "mechanical",
+                               "why":  "round-trip fixture question/assertionSplit/comparisonExclusions/steps read"
+                           },
+                           {
+                               "path":  "tools/probe-runtime-roundtrip.mjs",
+                               "kind":  "driver",
+                               "depth":  "mechanical",
+                               "why":  "cross-subject claims and CI re-record requirement"
+                           },
+                           {
+                               "path":  ".github/workflows/node-stock-tree.yml",
+                               "kind":  "workflow",
+                               "depth":  "mechanical",
+                               "why":  "round-trip verdict assertions in release evidence"
+                           },
+                           {
+                               "path":  "internal/migrate/migrate_test.go",
+                               "kind":  "test",
+                               "depth":  "mechanical",
+                               "why":  "migrate probe names listed"
+                           },
+                           {
+                               "path":  "../SillyTavern/src/config-init.js",
+                               "kind":  "pinned",
+                               "depth":  "deep",
+                               "why":  "config creation, key migration, default insertion and the console messages pinned prints"
+                           },
+                           {
+                               "path":  "../SillyTavern/src/command-line.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "config init and data-root creation ordering"
+                           },
+                           {
+                               "path":  "../SillyTavern/src/users.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "migrateUserData banner/countdown, ensurePublicDirectoriesExist, migrateSystemPrompts, initUserStorage"
+                           },
+                           {
+                               "path":  "../SillyTavern/src/endpoints/content-manager.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "seedContent and content.log writes"
+                           },
+                           {
+                               "path":  "../SillyTavern/src/endpoints/characters.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "writeCharacterData swallow, create/rename/delete/CharX writers"
+                           },
+                           {
+                               "path":  "../SillyTavern/src/endpoints/chats.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "tryWriteFileSync, rename copy+unlink, import writers"
+                           },
+                           {
+                               "path":  "../SillyTavern/src/endpoints/worldinfo.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "writeFileAtomicSync and unlink semantics"
+                           },
+                           {
+                               "path":  "../SillyTavern/src/endpoints/groups.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "group writes and metadata migration"
+                           },
+                           {
+                               "path":  "../SillyTavern/src/endpoints/presets.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "preset write/delete"
+                           },
+                           {
+                               "path":  "../SillyTavern/src/endpoints/settings.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "settings save, snapshot backup, restore-snapshot rm+copy window"
+                           },
+                           {
+                               "path":  "../SillyTavern/src/endpoints/extensions.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "git clone/pull/checkout, move cpSync+rmSync"
+                           },
+                           {
+                               "path":  "../SillyTavern/src/endpoints/users-private.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "reset-settings, reset-step2 recursive removal"
+                           },
+                           {
+                               "path":  "../SillyTavern/src/server-main.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "startup promise chain and preSetupTasks order"
+                           },
+                           {
+                               "path":  "../SillyTavern/src/endpoints/secrets.js",
+                               "kind":  "pinned",
+                               "depth":  "mechanical",
+                               "why":  "migrateFlatSecrets"
+                           },
+                           {
+                               "path":  "docs/alpha16/README.md",
+                               "kind":  "doc",
+                               "depth":  "deep",
+                               "why":  "M0 contract, fragment schema, classifications"
+                           },
+                           {
+                               "path":  "docs/alpha16-agent-execution-plan.md",
+                               "kind":  "doc",
+                               "depth":  "deep",
+                               "why":  "section 2 M0 scope, 9.A, immediate first task"
+                           },
+                           {
+                               "path":  "GOAL.md",
+                               "kind":  "doc",
+                               "depth":  "deep",
+                               "why":  "section 3/4/5/6/12/14/15.3-15.4 phrase the bar this lane audits against"
+                           },
+                           {
+                               "path":  "AGENTS.md",
+                               "kind":  "doc",
+                               "depth":  "mechanical",
+                               "why":  "rules 11,12,13,14,18,26,27,28,40,51,56 and verification rules via grep"
+                           },
+                           {
+                               "path":  "docs/development-loop.md",
+                               "kind":  "doc",
+                               "depth":  "mechanical",
+                               "why":  "tiers and the private real-tree channel"
+                           },
+                           {
+                               "path":  "docs/audit-v0.1.0-alpha.15.md",
+                               "kind":  "doc",
+                               "depth":  "mechanical",
+                               "why":  "data-safety rows checked against this tree rather than quoted"
+                           }
+                       ],
+    "packages":  [
+                     {
+                         "path":  "internal/startup",
+                         "role":  "startup mutations and the shared atomic-write/lock core",
+                         "entryPoints":  [
+                                             "internal/startup/data_startup.go:61",
+                                             "internal/startup/user_content_file.go:13",
+                                             "internal/startup/secrets_state.go:738"
+                                         ],
+                         "stateOwners":  [
+                                             "content flock keyed by data root internal/startup/content.go:398",
+                                             "storage flock internal/startup/storage.go:430",
+                                             "config flock internal/configinit/config.go:156",
+                                             "cookie-secret flock internal/startup/secret.go:74"
+                                         ],
+                         "outbound":  [
+
+                                      ],
+                         "writablePaths":  [
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/**",
+                                               "\u003cdataRoot\u003e/_storage/**",
+                                               "\u003cdataRoot\u003e/cookie-secret.txt",
+                                               "\u003cdataRoot\u003e/content.log",
+                                               "\u003cdataRoot\u003e/access.log",
+                                               "\u003cdataRoot\u003e/_uploads/**",
+                                               "\u003cdataRoot\u003e/_cache/characters/**",
+                                               "\u003cinstall\u003e/public/**",
+                                               "\u003cinstall\u003e/backups/**",
+                                               "\u003cinstall\u003e/access.log"
+                                           ],
+                         "failRetry":  "atomicReplace/atomicCreate with Windows-only bounded fsretry; per-user failures collected as StartupDiagnostics and boot continues where pinned catches"
+                     },
+                     {
+                         "path":  "internal/configinit",
+                         "role":  "config.yaml creation, legacy key migration, defaults insertion",
+                         "entryPoints":  [
+                                             "internal/configinit/config.go:77"
+                                         ],
+                         "stateOwners":  [
+                                             "config flock internal/configinit/config.go:156"
+                                         ],
+                         "outbound":  [
+
+                                      ],
+                         "writablePaths":  [
+                                               "\u003cconfigPath\u003e"
+                                           ],
+                         "failRetry":  "atomic write, invalid YAML refused with pinned ParseError shape"
+                     },
+                     {
+                         "path":  "internal/migrate",
+                         "role":  "copy an existing SillyTavern runtime into a GoTavern install; source read-only",
+                         "entryPoints":  [
+                                             "internal/migrate/migrate.go:180"
+                                         ],
+                         "stateOwners":  [
+
+                                         ],
+                         "outbound":  [
+
+                                      ],
+                         "writablePaths":  [
+                                               "\u003cdest\u003e/config.yaml",
+                                               "\u003cdest\u003e/data/**",
+                                               "\u003cdest\u003e/certs/**",
+                                               "\u003cdest\u003e/public/scripts/extensions/third-party/**",
+                                               "\u003cdest\u003e/.migrate-backup/**"
+                                           ],
+                         "failRetry":  "plan-refuse by name; copy verified byte-for-byte"
+                     },
+                     {
+                         "path":  "internal/lockacquire",
+                         "role":  "bounded flock acquisition for the four boot-path locks",
+                         "entryPoints":  [
+                                             "internal/lockacquire/lockacquire.go:103"
+                                         ],
+                         "stateOwners":  [
+                                             "process-wide boot deadline internal/lockacquire/lockacquire.go:41"
+                                         ],
+                         "outbound":  [
+
+                                      ],
+                         "writablePaths":  [
+                                               "\u003ctmp\u003e/gotavern-*-locks/*.lock"
+                                           ],
+                         "failRetry":  "BusyError with purpose/path/waited; never deletes a lock file"
+                     },
+                     {
+                         "path":  "internal/fsretry",
+                         "role":  "bounded Windows sharing-violation tolerance around rename and read",
+                         "entryPoints":  [
+                                             "internal/fsretry/fsretry.go:34"
+                                         ],
+                         "stateOwners":  [
+
+                                         ],
+                         "outbound":  [
+
+                                      ],
+                         "writablePaths":  [
+
+                                           ],
+                         "failRetry":  "20 attempts x 10ms, last error returned"
+                     },
+                     {
+                         "path":  "internal/userdata",
+                         "role":  "pinned sanitize-filename naming policy",
+                         "entryPoints":  [
+                                             "internal/userdata/userdata.go:17"
+                                         ],
+                         "stateOwners":  [
+
+                                         ],
+                         "outbound":  [
+
+                                      ],
+                         "writablePaths":  [
+
+                                           ],
+                         "failRetry":  "none (pure)"
+                     },
+                     {
+                         "path":  "internal/server",
+                         "role":  "HTTP surface and every runtime persistence mutation",
+                         "entryPoints":  [
+                                             "internal/server/http.go:370-517"
+                                         ],
+                         "stateOwners":  [
+                                             "accountRuntime",
+                                             "settingsSaveMu internal/server/settings_save.go:51",
+                                             "identity-keyed caches internal/server/settings_cache.go"
+                                         ],
+                         "outbound":  [
+                                          "git subprocess internal/server/extensions_git.go:56"
+                                      ],
+                         "writablePaths":  [
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/characters/**",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/chats/**",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/group chats/**",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/groups/**",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/worlds/**",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/* Settings/**",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/themes/**",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/movingUI/**",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/QuickReplies/**",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/user/**",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/User Avatars/**",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/backgrounds/**",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/thumbnails/**",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/assets/**",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/vectors/**",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/backups/**",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/secrets.json",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/settings.json",
+                                               "\u003cdataRoot\u003e/\u003chandle\u003e/stats.json",
+                                               "\u003cinstall\u003e/public/scripts/extensions/third-party/**"
+                                           ],
+                         "failRetry":  "per-route 4xx/5xx shapes recorded in the writer matrix; no retry except fsretry on rename"
+                     }
+                 ],
+    "startupMutations":  [
+                             {
+                                 "id":  "S1",
+                                 "mutation":  "config.yaml creation from pinned-generated bytes",
+                                 "source":  "internal/configinit/config.go:88-99",
+                                 "pinned":  "../SillyTavern/src/config-init.js:168-171",
+                                 "atomic":  "atomicWrite",
+                                 "probe":  "internal/configinit/config_idempotence_test.go",
+                                 "probeState":  "covered"
+                             },
+                             {
+                                 "id":  "S2",
+                                 "mutation":  "config.yaml legacy key migration + recursive default insertion + env-var migration, written only when changed",
+                                 "source":  "internal/configinit/config.go:46-72,121-137,442-510,654-691",
+                                 "pinned":  "../SillyTavern/src/config-init.js:174-239",
+                                 "atomic":  "atomicWrite preserves existing mode",
+                                 "probe":  "internal/configinit/config_test.go; config_idempotence_test.go; config_interrupted_test.go; data_safety_empty_config_test.go; fuzz_config_test.go",
+                                 "probeState":  "covered",
+                                 "note":  "pinned prints the added/migrated key lists, Go prints nothing: B-H1"
+                             },
+                             {
+                                 "id":  "S3",
+                                 "mutation":  "cookie-secret.txt create or migrate from legacy config value",
+                                 "source":  "internal/startup/secret.go:32-72",
+                                 "pinned":  "../SillyTavern/src/users.js:589 and the pinned cookie-secret file creation",
+                                 "atomic":  "atomicReplace",
+                                 "probe":  "internal/startup/secret_test.go TestInitializeCookieSecretMatchesPinnedNode",
+                                 "probeState":  "covered"
+                             },
+                             {
+                                 "id":  "S4",
+                                 "mutation":  "data root directory creation",
+                                 "source":  "internal/commandline/paths.go:163-232; internal/app/server.go:214-224",
+                                 "pinned":  "../SillyTavern/src/command-line.js:288-297 (creation inside parse, before server.js chdir at :11)",
+                                 "atomic":  "mkdir, not a file write",
+                                 "probe":  "tests/e2e/startup_data_root_test.go TestBootCreatesTheDataDirectoryItServes",
+                                 "probeState":  "covered",
+                                 "note":  "deliberate divergence: only the runtime root is created and the discarded rendering is reported (AGENTS 27), recorded at internal/commandline/paths.go:163-180"
+                             },
+                             {
+                                 "id":  "S5",
+                                 "mutation":  "_uploads directory creation",
+                                 "source":  "internal/startup/data_startup.go:150-166",
+                                 "pinned":  "../SillyTavern/src/server-main.js:268; ../SillyTavern/src/users.js:200",
+                                 "atomic":  "mkdir",
+                                 "probe":  "internal/startup/data_startup_test.go TestInitializeDataStartupMatchesPinnedNodeFreshStartInventory",
+                                 "probeState":  "covered"
+                             },
+                             {
+                                 "id":  "S6",
+                                 "mutation":  "_storage node-persist default user record (only when no user:* key exists; refuses to replace)",
+                                 "source":  "internal/startup/storage.go:102-162",
+                                 "pinned":  "../SillyTavern/src/users.js:556 initUserStorage",
+                                 "atomic":  "atomicCreate",
+                                 "probe":  "internal/startup/storage_test.go TestInitializeUserStorageMatchesPinnedNodePersistRecord / PreservesExistingNodeRecords / DoesNotWriteAroundMalformedRecords / IsProcessSafe",
+                                 "probeState":  "covered"
+                             },
+                             {
+                                 "id":  "S7",
+                                 "mutation":  "public + per-user directory template creation (5 public keys, 31 user keys)",
+                                 "source":  "internal/startup/storage.go:353-383 (templates :57-97)",
+                                 "pinned":  "../SillyTavern/src/users.js:113-132 ensurePublicDirectoriesExist",
+                                 "atomic":  "mkdir only if missing",
+                                 "probe":  "internal/startup/storage_test.go TestEnsureDirectoriesMatchesPinnedDirectoryTemplate",
+                                 "probeState":  "covered"
+                             },
+                             {
+                                 "id":  "S8",
+                                 "mutation":  "legacy public data move: copy to user tree, copy to install backups/_migration/\u003cdate\u003e, remove source",
+                                 "source":  "internal/startup/user_data_migration.go:23-123 (copy :125-187)",
+                                 "pinned":  "../SillyTavern/src/users.js:232-431 migrateUserData (10s countdown :241-256; copy+backup+rmSync :401-418)",
+                                 "atomic":  "per-file atomicReplace; recursive delete for the source",
+                                 "probe":  "internal/startup/user_data_migration_test.go TestMigrateUserDataMatchesPinnedNode / RejectsTargetSymlinkEscapeAndContinues; tests/e2e/a15_migrate_crash_test.go",
+                                 "probeState":  "covered",
+                                 "note":  "console announcement differs: B-H2"
+                             },
+                             {
+                                 "id":  "S9",
+                                 "mutation":  "system-prompt migration: backup instruct files, strip system_prompt, write [Migrated] presets, .migrated marker",
+                                 "source":  "internal/startup/system_prompts.go:44-189",
+                                 "pinned":  "../SillyTavern/src/users.js:434+ migrateSystemPrompts (:466 backup)",
+                                 "atomic":  "atomicReplace per file",
+                                 "probe":  "internal/startup/system_prompts_test.go TestMigrateSystemPromptsMatchesPinnedNode",
+                                 "probeState":  "covered"
+                             },
+                             {
+                                 "id":  "S10",
+                                 "mutation":  "public override migration (4 error pages + user.css) with source removal",
+                                 "source":  "internal/startup/public_overrides.go:17-79",
+                                 "pinned":  "migratePublicOverrides in ../SillyTavern/src/users.js",
+                                 "atomic":  "atomicReplace + chmod",
+                                 "probe":  "internal/startup/public_overrides_test.go",
+                                 "probeState":  "covered"
+                             },
+                             {
+                                 "id":  "S11",
+                                 "mutation":  "group metadata migration: backup group file and group chats, insert chat_metadata header, strip group-level metadata",
+                                 "source":  "internal/startup/group_metadata.go:15-154",
+                                 "pinned":  "../SillyTavern/src/endpoints/groups.js:34+ (writes :186,199; unlink :221,230)",
+                                 "atomic":  "atomicReplace; backups before rewrite",
+                                 "probe":  "internal/startup/group_metadata_test.go; tests/e2e/a15_corrupt_data_test.go TestLegacyGroupMetadataMigrationBacksUpCorruptChatBeforeRewriting",
+                                 "probeState":  "covered"
+                             },
+                             {
+                                 "id":  "S12",
+                                 "mutation":  "content seeding: global content.log, _errors/, _css/, per-user targets, staged directory copies, content.log replace",
+                                 "source":  "internal/startup/content.go:70-124,154-219,255-303",
+                                 "pinned":  "../SillyTavern/src/endpoints/content-manager.js:135-215 (:179 content.log atomic; per-user :195, global :205)",
+                                 "atomic":  "atomicCreate for files, staged-dir + rename for directories, atomicReplace for content.log",
+                                 "probe":  "internal/startup/storage_test.go TestSeedDefaultContentMatchesPinnedNodeFreshStart / SkipAndExistingSettings",
+                                 "probeState":  "covered"
+                             },
+                             {
+                                 "id":  "S13",
+                                 "mutation":  "character disk-cache directory creation and stale-record removal (only when enabled)",
+                                 "source":  "internal/startup/character_disk_cache.go:13-93",
+                                 "pinned":  "DiskCache.verify() ../SillyTavern/src/endpoints/characters.js:36-159",
+                                 "atomic":  "mkdir; unlink for stale records",
+                                 "probe":  "internal/startup/character_disk_cache_test.go TestVerifyCharacterDiskCacheMatchesPinnedNode",
+                                 "probeState":  "covered",
+                                 "note":  "records are never written by GoTavern: B-H8"
+                             },
+                             {
+                                 "id":  "S14",
+                                 "mutation":  "flat secrets migration to the array shape with a timestamped backup",
+                                 "source":  "internal/startup/flat_secrets.go:17-150",
+                                 "pinned":  "../SillyTavern/src/endpoints/secrets.js:381-410,498-502",
+                                 "atomic":  "atomicReplace (+atomicSecretBackup)",
+                                 "probe":  "internal/startup/flat_secrets_test.go TestMigrateFlatSecretsMatchesPinnedNode",
+                                 "probeState":  "covered"
+                             },
+                             {
+                                 "id":  "S15",
+                                 "mutation":  "upload staging cleanup: unlink _uploads entries, stop at first failure",
+                                 "source":  "internal/startup/upload_cleanup.go:20-68",
+                                 "pinned":  "../SillyTavern/src/users.js:198 cleanUploads",
+                                 "atomic":  "unlink",
+                                 "probe":  "internal/startup/upload_cleanup_test.go TestCleanUploadsMatchesPinnedNode",
+                                 "probeState":  "covered"
+                             },
+                             {
+                                 "id":  "S16",
+                                 "mutation":  "access.log move from install root to data root when destination absent (both roots locked, ordered)",
+                                 "source":  "internal/startup/access_log_migration.go:32-102",
+                                 "pinned":  "migrateAccessLog called from ../SillyTavern/src/server-main.js:306",
+                                 "atomic":  "os.Rename",
+                                 "probe":  "internal/startup/access_log_migration_test.go TestMigrateAccessLogMatchesPinnedNode",
+                                 "probeState":  "covered"
+                             },
+                             {
+                                 "id":  "S17",
+                                 "mutation":  "startup settings backup (duplicate-aware) + retention",
+                                 "source":  "internal/startup/settings_backup.go:28-59,152-227",
+                                 "pinned":  "../SillyTavern/src/endpoints/settings.js:118+ backupSettings, called :380",
+                                 "atomic":  "atomicReplace",
+                                 "probe":  "internal/startup/settings_backup_test.go",
+                                 "probeState":  "covered"
+                             },
+                             {
+                                 "id":  "S18",
+                                 "mutation":  "statistics initialisation: keep valid stats.json, else recompute from chats and atomic write",
+                                 "source":  "internal/startup/statistics.go:33-69,95-174",
+                                 "pinned":  "statsInit/collectAndCreateStats/saveStatsToFile in ../SillyTavern/src/endpoints/stats.js",
+                                 "atomic":  "atomicReplace",
+                                 "probe":  "internal/startup/statistics_test.go",
+                                 "probeState":  "covered"
+                             },
+                             {
+                                 "id":  "S19",
+                                 "mutation":  "auto-update resolution: no boot write; ambiguous input resolves OFF and no extension git runs at boot",
+                                 "source":  "AGENTS rule 26; filesystem side asserted by internal/adversarial/extensions_cases_test.go case extensions.boot-runs-no-git",
+                                 "pinned":  "deliberate divergence from upstream/default/config.yaml:301,396; ../SillyTavern/src/plugin-loader.js:250 auto-updates server plugins",
+                                 "atomic":  "n/a (no write)",
+                                 "probe":  "internal/commandline/autoupdate_test.go; internal/adversarial/extensions_cases_test.go; tests/e2e long-lived extension tree unchanged assertion",
+                                 "probeState":  "covered"
+                             }
+                         ],
+    "writers":  [
+                    {
+                        "id":  "W01",
+                        "surface":  "settings-save",
+                        "route":  "POST /api/settings/save",
+                        "writer":  "internal/startup/settings_backup.go:61-99 via internal/server/settings_save.go:50-87",
+                        "lock":  "content flock (data root) + settingsSaveMu for the throttle map",
+                        "atomicity":  "atomicReplace; snapshot after the write; time.AfterFunc trailing snapshot",
+                        "pathPolicy":  "resolved containment of user root, settings path and backups dir",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/settings_save_test.go TestPinnedNodeSettingsSave; internal/server/data_safety_concurrency_test.go TestSettingsSaveNeverPublishesATornJSON",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W02",
+                        "surface":  "settings-snapshot-create",
+                        "route":  "POST /api/settings/make-snapshot",
+                        "writer":  "internal/startup/settings_snapshots.go:90-165",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace + retention unlink",
+                        "pathPolicy":  "resolved containment; retention refuses a directory",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/settings_save_test.go; internal/startup/settings_backup_test.go",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W03",
+                        "surface":  "settings-snapshot-restore",
+                        "route":  "POST /api/settings/restore-snapshot",
+                        "writer":  "internal/startup/settings_snapshots.go:169-214",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace; pinned rm+copy window (../SillyTavern/src/endpoints/settings.js:366-367) is not reproduced, divergence in the safe direction",
+                        "pathPolicy":  "resolved containment of snapshot and settings paths",
+                        "errorShape":  "404 missing / 500",
+                        "probe":  "internal/server/settings_save_test.go; no explicit restore-crash probe",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W04",
+                        "surface":  "settings-reset",
+                        "route":  "POST /api/users/reset-settings",
+                        "writer":  "internal/server/account_reset.go:51-76",
+                        "lock":  "none for the unlink; content for the forced settings seed",
+                        "atomicity":  "atomic unlink + atomicCreate seed",
+                        "pathPolicy":  "DirectoriesForUser; Lstat refuses a directory settings path",
+                        "errorShape":  "204 / 500",
+                        "probe":  "internal/server/account_reset_settings_test.go TestPinnedNodeAccountResetSettingsContract",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W05",
+                        "surface":  "account-data-reset",
+                        "route":  "POST /api/users/reset-step2",
+                        "writer":  "internal/server/account_data_reset.go:107-137",
+                        "lock":  "none (RemoveAll) then content for the seed",
+                        "atomicity":  "recursive delete then recreate; no staging, no backup",
+                        "pathPolicy":  "DirectoriesForUser rejects an escaping handle; no containment re-check before RemoveAll",
+                        "errorShape":  "204 / 500",
+                        "probe":  "internal/server/account_data_reset_test.go TestPinnedNodeAccountDataResetContract (contract only)",
+                        "probeState":  "covered",
+                        "note":  "no crash/concurrency probe: B-H4"
+                    },
+                    {
+                        "id":  "W06",
+                        "surface":  "node-persist-account-update",
+                        "route":  "internal (accounts.go:950,1091,1175,1285)",
+                        "writer":  "internal/startup/storage.go:167-215",
+                        "lock":  "storage flock",
+                        "atomicity":  "atomicReplace under the lock",
+                        "pathPolicy":  "storage dir canonicalised; filename = sha256(key)",
+                        "errorShape":  "500 at routes",
+                        "probe":  "internal/startup/storage_test.go TestUpdateNodePersistRecordPreservesFieldsAndSerializesConcurrentUpdates",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W07",
+                        "surface":  "node-persist-account-insert-delete",
+                        "route":  "POST /api/users/create; POST /api/users/delete",
+                        "writer":  "internal/startup/storage.go:221-304",
+                        "lock":  "storage flock",
+                        "atomicity":  "atomicCreate / atomicReplace / unlink + dir fsync",
+                        "pathPolicy":  "as W06",
+                        "errorShape":  "500",
+                        "probe":  "internal/startup/storage_test.go TestSetNodePersistRecordMatchesPinnedNodePersistSetItemShape; TestRemoveNodePersistRecordRemovesOnlyTheSelectedKey; internal/server/account_create_test.go TestPinnedNodeAccountCreationAndSlugifyContract",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W08",
+                        "surface":  "full-user-backup-zip",
+                        "route":  "POST /api/users/backup",
+                        "writer":  "internal/server/account_backup.go:52-78 (walk :89-158)",
+                        "lock":  "none (read-only)",
+                        "atomicity":  "temp file in os.TempDir; nothing written to the data root",
+                        "pathPolicy":  "WalkDir rooted at \u003cdataRoot\u003e/\u003chandle\u003e; secrets_migration backups excluded :157",
+                        "errorShape":  "403/400/500 pinned JSON",
+                        "probe":  "NONE - grepped internal/server for user.*backup/createBackupArchive",
+                        "probeState":  "gap"
+                    },
+                    {
+                        "id":  "W09",
+                        "surface":  "delete-user-recursive-removal",
+                        "route":  "POST /api/users/delete",
+                        "writer":  "internal/server/accounts.go:1340-1345",
+                        "lock":  "storage for the record only",
+                        "atomicity":  "os.RemoveAll of \u003cdataRoot\u003e/\u003chandle\u003e",
+                        "pathPolicy":  "DirectoriesForUser",
+                        "errorShape":  "500",
+                        "probe":  "NONE - grepped RemoveAll(userRoot)",
+                        "probeState":  "gap"
+                    },
+                    {
+                        "id":  "W10",
+                        "surface":  "startup-settings-backup",
+                        "route":  "boot (DataStartup)",
+                        "writer":  "internal/startup/settings_backup.go:28-59,152-227",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace",
+                        "pathPolicy":  "resolved containment of backups dir, settings and backup path",
+                        "errorShape":  "diagnostic recorded, boot continues",
+                        "probe":  "internal/startup/settings_backup_test.go TestBackupSettingsMatchesPinnedNode; TestBackupSettingsStopsAfterFirstUserError",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W11",
+                        "surface":  "character-create",
+                        "route":  "POST /api/characters/create",
+                        "writer":  "internal/server/characters_write.go:171-180 via :262 (error discarded)",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace of the PNG",
+                        "pathPolicy":  "SanitizeUserFilename name; fixed characters/ prefix",
+                        "errorShape":  "200 with the avatar name even when the write failed - pinned parity (../SillyTavern/src/endpoints/characters.js:220-259,1024-1049)",
+                        "probe":  "internal/server/characters_write_test.go TestPinnedNodeCharactersWrite",
+                        "probeState":  "covered",
+                        "note":  "intentional-parity, data-safety: B-H5"
+                    },
+                    {
+                        "id":  "W12",
+                        "surface":  "character-edit-family",
+                        "route":  "POST /api/characters/edit|edit-attribute|merge-attributes|edit-avatar",
+                        "writer":  "internal/server/characters_write.go:171-180",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace",
+                        "pathPolicy":  "sanitized name + core containment",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/characters_write_test.go TestPinnedNodeCharactersWrite",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W13",
+                        "surface":  "character-rename",
+                        "route":  "POST /api/characters/rename",
+                        "writer":  "internal/server/characters_write.go:329-351 (copyDirectoryAtomically :1120-1163, RemoveAll :337, DeleteUserFile :348)",
+                        "lock":  "content per step; the directory copy is not under it",
+                        "atomicity":  "staged directory published by one rename; card atomicReplace",
+                        "pathPolicy":  "sanitized old/new names under the user root",
+                        "errorShape":  "500, original kept on copy failure",
+                        "probe":  "internal/server/data_safety_copy_test.go TestCopyDirectoryAtomicallyPublishesNothingWhenTheCopyFailsMidway / RefusesAnExistingDestination",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W14",
+                        "surface":  "character-delete-with-chats",
+                        "route":  "POST /api/characters/delete",
+                        "writer":  "internal/server/characters_write.go:865,874-882",
+                        "lock":  "content for the card; none for the recursive chats delete (pinned parity, comment :875-876)",
+                        "atomicity":  "unlink + os.RemoveAll",
+                        "pathPolicy":  "SanitizeUserFilename(dirName)",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/characters_write_test.go covers the route; no test asserts the delete_chats branch",
+                        "probeState":  "gap"
+                    },
+                    {
+                        "id":  "W15",
+                        "surface":  "character-import",
+                        "route":  "POST /api/characters/import",
+                        "writer":  "internal/server/characters_import.go:62; characters_import_formats.go:249-253,468-506,1277-1418",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace per file; CharX auxiliary failures swallowed (pinned warns and continues)",
+                        "pathPolicy":  "sanitized preserved/file names; asset paths sanitized",
+                        "errorShape":  "400/500; aux-asset failure invisible (intentional parity)",
+                        "probe":  "internal/server/characters_import_test.go TestPinnedNodeCharactersImport",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W16",
+                        "surface":  "character-duplicate",
+                        "route":  "POST /api/characters/duplicate",
+                        "writer":  "internal/server/characters_write.go:950-980",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace",
+                        "pathPolicy":  "unique name search inside the characters dir",
+                        "errorShape":  "404 missing / 200 {error:true} pinned shape",
+                        "probe":  "internal/server/characters_write_test.go TestPinnedNodeCharactersWrite",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W17",
+                        "surface":  "sprites-upload-zip-delete",
+                        "route":  "POST /api/sprites/upload|upload-zip; POST /api/sprites/delete",
+                        "writer":  "internal/server/sprites_upload.go:159-168,192-211,351-357; startup/user_sprites.go:104-157",
+                        "lock":  "content via an anchor sentinel path (IfChanged callback returns shouldWrite=false)",
+                        "atomicity":  "temp + os.Rename; zip extracts per file",
+                        "pathPolicy":  "spritesResolvePath sanitizes each segment; core containment",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/sprites_upload_test.go TestPinnedNodeSpritesUpload; sprites_delete_test.go",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W18",
+                        "surface":  "persona-avatar-upload",
+                        "route":  "POST /api/avatars/upload",
+                        "writer":  "internal/server/avatars_upload.go:111 (startup.WriteFileAtomic)",
+                        "lock":  "none",
+                        "atomicity":  "atomicReplace",
+                        "pathPolicy":  "filename from overwrite_name/timestamp; pinned sanitize upstream; relies on DirectoriesForUser",
+                        "errorShape":  "500, staged upload removed on all failure branches",
+                        "probe":  "internal/server/avatars_upload_test.go TestPersonaAvatarUploadCreatesTheFile / HonoursOverwriteName / AppliesCrop",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W19",
+                        "surface":  "persona-avatar-delete",
+                        "route":  "POST /api/avatars/delete",
+                        "writer":  "internal/startup/user_avatars.go:48-104",
+                        "lock":  "content",
+                        "atomicity":  "unlink avatar + persona thumbnail",
+                        "pathPolicy":  "resolved containment of avatar and thumbnail dirs",
+                        "errorShape":  "500 / false",
+                        "probe":  "internal/server/avatars_delete_test.go TestPinnedNodePersonaAvatarDeletion",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W20",
+                        "surface":  "chat-save",
+                        "route":  "POST /api/chats/save",
+                        "writer":  "internal/server/chats.go:217-240 via startup.UpdateUserContentFile",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace of the whole JSONL (pinned tryWriteFileSync truncates, ../SillyTavern/src/endpoints/chats.js:541)",
+                        "pathPolicy":  "SanitizeUserFilename + pinnedPathUnderParent",
+                        "errorShape":  "pinned JSON error body, 500",
+                        "probe":  "internal/server/chats_test.go; data_safety_concurrency_test.go TestChatSaveNeverPublishesATornJSONL; tests/e2e/chat_crash_test.go; a15_concurrent_writers_test.go",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W21",
+                        "surface":  "chat-backup-throttle-and-integrity",
+                        "route":  "side effect of POST /api/chats/save",
+                        "writer":  "NOT IMPLEMENTED - recorded at internal/server/chats.go:16-23",
+                        "lock":  "n/a",
+                        "atomicity":  "n/a",
+                        "pathPolicy":  "n/a",
+                        "errorShape":  "no backup and no checkChatIntegrity side effects",
+                        "probe":  "none by construction; documented in docs/compat-matrix.md",
+                        "probeState":  "gap"
+                    },
+                    {
+                        "id":  "W22",
+                        "surface":  "chat-rename",
+                        "route":  "POST /api/chats/rename",
+                        "writer":  "internal/startup/user_rename.go:34-78",
+                        "lock":  "content",
+                        "atomicity":  "single os.Rename + Chtimes (pinned copy+unlink ../SillyTavern/src/endpoints/chats.js:644-645)",
+                        "pathPolicy":  "relative paths, Clean, containment + resolved containment for both names",
+                        "errorShape":  "false on missing source / 500",
+                        "probe":  "internal/server/chats_mutations_test.go; tests/e2e/chat_crash_test.go TestChatRenameDeterministicCrashPoints / RandomisedKills",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W23",
+                        "surface":  "chat-delete",
+                        "route":  "POST /api/chats/delete",
+                        "writer":  "internal/server/chats_mutations.go:199 (startup.DeleteUserFile)",
+                        "lock":  "content",
+                        "atomicity":  "unlink",
+                        "pathPolicy":  "resolved containment of the parent",
+                        "errorShape":  "500",
+                        "probe":  "tests/e2e/chat_crash_test.go TestChatDeleteDeterministicCrashPoint / RandomisedKills",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W24",
+                        "surface":  "chat-import",
+                        "route":  "POST /api/chats/import",
+                        "writer":  "internal/server/chats_import.go:158",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace",
+                        "pathPolicy":  "sanitized file name, relative path",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/chats_import_test.go; tests/e2e/chat_crash_test.go TestChatImportDeterministicCrashPoint / RandomisedKills",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W25",
+                        "surface":  "group-chat-save",
+                        "route":  "POST /api/chats/group/save",
+                        "writer":  "internal/server/chats_group.go:192,239",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace",
+                        "pathPolicy":  "sanitized chat name; MkdirAll parent",
+                        "errorShape":  "500",
+                        "probe":  "tests/e2e/chat_crash_test.go TestChatGroupSaveCrashAtomicity (no route-level oracle test file exists)",
+                        "probeState":  "gap"
+                    },
+                    {
+                        "id":  "W26",
+                        "surface":  "group-chat-delete",
+                        "route":  "POST /api/chats/group/delete",
+                        "writer":  "internal/server/chats_group.go:126",
+                        "lock":  "content",
+                        "atomicity":  "unlink",
+                        "pathPolicy":  "relative path",
+                        "errorShape":  "500",
+                        "probe":  "NONE - grepped chats_group in tests; only save covered at e2e",
+                        "probeState":  "gap"
+                    },
+                    {
+                        "id":  "W27",
+                        "surface":  "group-create-edit",
+                        "route":  "POST /api/groups/create|edit",
+                        "writer":  "internal/server/groups.go:194,275",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace (pinned writeFileAtomicSync ../SillyTavern/src/endpoints/groups.js:186,199)",
+                        "pathPolicy":  "sanitized group file name",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/groups_test.go TestPinnedNodeGroups",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W28",
+                        "surface":  "group-delete",
+                        "route":  "POST /api/groups/delete",
+                        "writer":  "internal/server/groups.go:315-345",
+                        "lock":  "content per file",
+                        "atomicity":  "unlink; per-chat delete errors swallowed (pinned catch)",
+                        "pathPolicy":  "sanitized chat names",
+                        "errorShape":  "200 {ok:true}",
+                        "probe":  "internal/server/groups_test.go TestPinnedNodeGroups (happy path only)",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W29",
+                        "surface":  "worldinfo-edit-import",
+                        "route":  "POST /api/worldinfo/edit|import",
+                        "writer":  "internal/server/worldinfo.go:446,498",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace (pinned ../SillyTavern/src/endpoints/worldinfo.js:130,154)",
+                        "pathPolicy":  "SanitizeUserFilename under worlds/",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/worldinfo_test.go; data_safety_concurrency_test.go TestWorldInfoEditNeverPublishesATornJSON",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W30",
+                        "surface":  "worldinfo-delete",
+                        "route":  "POST /api/worldinfo/delete",
+                        "writer":  "internal/server/worldinfo.go:376",
+                        "lock":  "content",
+                        "atomicity":  "unlink",
+                        "pathPolicy":  "worlds/\u003csanitized\u003e",
+                        "errorShape":  "500/404",
+                        "probe":  "internal/server/worldinfo_test.go TestPinnedNodeWorldInfoRoutes",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W31",
+                        "surface":  "presets-save-delete-restore",
+                        "route":  "POST /api/presets/save|delete|restore",
+                        "writer":  "internal/server/presets.go:225,265,278-311",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace (pinned ../SillyTavern/src/endpoints/presets.js:56)",
+                        "pathPolicy":  "apiId-\u003efolder mapping; sanitize-filename port for the name",
+                        "errorShape":  "500 non-string name / 400 otherwise",
+                        "probe":  "internal/server/presets_test.go; data_safety_concurrency_test.go TestPresetSaveNeverPublishesATornJSON",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W32",
+                        "surface":  "quick-replies-save-delete",
+                        "route":  "POST /api/quick-replies/save|delete",
+                        "writer":  "internal/startup/user_presets.go:31-64",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace",
+                        "pathPolicy":  "pinned SanitizeUserFilename + directory containment",
+                        "errorShape":  "500; missing delete is a 200 no-op",
+                        "probe":  "internal/server/quick_replies_test.go TestPinnedNodeQuickReplySaveAndDelete",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W33",
+                        "surface":  "themes-save-delete",
+                        "route":  "POST /api/themes/save|delete",
+                        "writer":  "internal/startup/user_presets.go:36-43,66-94",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace",
+                        "pathPolicy":  "as W32",
+                        "errorShape":  "500; 404 for a missing theme on delete",
+                        "probe":  "internal/server/themes_test.go TestPinnedNodeThemesSaveAndDelete",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W34",
+                        "surface":  "moving-ui-save",
+                        "route":  "POST /api/moving-ui/save",
+                        "writer":  "internal/startup/user_presets.go:41-43 via internal/server/moving_ui.go:10-40",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace",
+                        "pathPolicy":  "as W32",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/moving_ui_test.go TestPinnedNodeMovingUISave",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W35",
+                        "surface":  "user-file-upload",
+                        "route":  "POST /api/files/upload",
+                        "writer":  "internal/startup/user_files.go:11-55",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace; existing target resolved, so an in-root symlink is written through",
+                        "pathPolicy":  "containment + resolved containment; writes through an in-root symlink, refuses an escaping one",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/files_upload_test.go TestPinnedNodeFilesUpload",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W36",
+                        "surface":  "user-file-delete",
+                        "route":  "POST /api/files/delete",
+                        "writer":  "internal/startup/user_files.go:59-88",
+                        "lock":  "content",
+                        "atomicity":  "unlink",
+                        "pathPolicy":  "containment, resolved containment of the parent, directory refused",
+                        "errorShape":  "500 / false",
+                        "probe":  "internal/server/files_delete_test.go TestPinnedNodeFilesDelete",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W37",
+                        "surface":  "assets-delete",
+                        "route":  "POST /api/assets/delete",
+                        "writer":  "internal/server/assets.go:101-106,290",
+                        "lock":  "content for the file delete",
+                        "atomicity":  "unlink / os.Remove for an empty dir",
+                        "pathPolicy":  "assets/\u003ccategory\u003e/\u003cfilename\u003e",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/assets_test.go TestPinnedNodeAssetsRoutes",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W38",
+                        "surface":  "assets-download",
+                        "route":  "POST /api/assets/download",
+                        "writer":  "internal/server/assets_download.go:81,257",
+                        "lock":  "content for the index write only",
+                        "atomicity":  "atomicReplace for the index; download staged under assets/temp",
+                        "pathPolicy":  "staged path under the assets temp dir; relative index write",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/assets_download_test.go TestPinnedNodeAssetsDownload; TestAssetsDownloadRemovesTheTempPath",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W39",
+                        "surface":  "image-upload",
+                        "route":  "POST /api/images/upload",
+                        "writer":  "internal/server/images.go:138-149,217 (startup.WriteFileAtomic)",
+                        "lock":  "none",
+                        "atomicity":  "atomicReplace (rationale :138-146)",
+                        "pathPolicy":  "filename and ch_name passed through SanitizeUserFilename; base dir from the directory template",
+                        "errorShape":  "500 with pinned JSON error body",
+                        "probe":  "internal/server/images_test.go; data_safety_concurrency_test.go TestImageUploadOverwriteIsNeverObservedTorn",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W40",
+                        "surface":  "image-delete",
+                        "route":  "POST /api/images/delete",
+                        "writer":  "internal/server/images.go:440-470",
+                        "lock":  "none",
+                        "atomicity":  "unlink",
+                        "pathPolicy":  "path validated against the images root",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/images_test.go TestImagesRoutesMatchPinnedOracle",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W41",
+                        "surface":  "image-metadata-index",
+                        "route":  "POST /api/image-metadata, /folders/*, /cleanup",
+                        "writer":  "internal/server/image_metadata_folder_create.go:45; folder_update.go:43; folder_delete.go:31; folder_assignments.go:55; folder_set_thumbnails.go:43; image_metadata_cleanup.go:26; image_metadata_generate.go:548",
+                        "lock":  "content",
+                        "atomicity":  "atomicReplace; IfChanged avoids a needless rewrite",
+                        "pathPolicy":  "fixed index filename; folder/file names sanitized",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/image_metadata_*_test.go TestPinnedNodeImageMetadata*",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W42",
+                        "surface":  "background-upload",
+                        "route":  "POST /api/backgrounds/upload",
+                        "writer":  "internal/startup/user_backgrounds.go:202-270",
+                        "lock":  "content",
+                        "atomicity":  "copy to temp + Sync + Rename; thumbnail removed",
+                        "pathPolicy":  "staged upload must be under \u003cdataRoot\u003e/_uploads and inside the data root after resolution; target containment",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/backgrounds_upload_test.go TestPinnedNodeBackgroundUpload",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W43",
+                        "surface":  "background-rename",
+                        "route":  "POST /api/backgrounds/rename",
+                        "writer":  "internal/startup/user_backgrounds.go:98-157 + internal/server/backgrounds_rename.go:67",
+                        "lock":  "content",
+                        "atomicity":  "copy to temp + rename + remove old; index IfChanged",
+                        "pathPolicy":  "containment of old/new; source must be regular",
+                        "errorShape":  "500 / false",
+                        "probe":  "internal/server/backgrounds_rename_test.go TestPinnedNodeBackgroundRename",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W44",
+                        "surface":  "background-delete",
+                        "route":  "POST /api/backgrounds/delete",
+                        "writer":  "internal/startup/user_backgrounds.go:42-94 + internal/server/backgrounds_delete.go:70",
+                        "lock":  "content, taken twice (backgrounds then index)",
+                        "atomicity":  "unlink",
+                        "pathPolicy":  "containment; directory targets refused",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/backgrounds_delete_test.go TestPinnedNodeBackgroundDelete",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W45",
+                        "surface":  "secrets-write-family",
+                        "route":  "POST /api/secrets/write|delete|rotate|rename|settings",
+                        "writer":  "internal/startup/secrets_state.go:171-259,736-740",
+                        "lock":  "content held for the whole read-modify-write",
+                        "atomicity":  "atomicReplace",
+                        "pathPolicy":  "resolved containment of the secrets file in the user root; create writes the pinned {} bytes",
+                        "errorShape":  "500; malformed entry is a typed error",
+                        "probe":  "internal/server/secrets_routes_test.go TestSecretsRoutesMatchPinnedHTTPOracle / OracleFixtureIsDiscriminating; data_safety_secret_leak_test.go",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W46",
+                        "surface":  "extension-install",
+                        "route":  "POST /api/extensions/install",
+                        "writer":  "internal/server/extensions_git.go:685-706",
+                        "lock":  "none",
+                        "atomicity":  "git clone into a fresh path; rollback removes on error, not on SIGKILL",
+                        "pathPolicy":  "clone URL parsed with new URL semantics; target sanitized",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/extensions_test.go TestPinnedNodeExtensionRoutes; extensions_discovery_test.go",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W47",
+                        "surface":  "extension-update",
+                        "route":  "POST /api/extensions/update",
+                        "writer":  "internal/server/extensions_git.go:413-437",
+                        "lock":  "none",
+                        "atomicity":  "git pull/fetch; dirty worktree refused by git",
+                        "pathPolicy":  "git -C \u003cextension path\u003e; sanitized name",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/extensions_dirty_worktree_test.go TestExtensionUpdateRefusesADirtyWorktreeAndKeepsTheUserEdits",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W48",
+                        "surface":  "extension-switch",
+                        "route":  "POST /api/extensions/switch",
+                        "writer":  "internal/server/extensions_git.go:575-604",
+                        "lock":  "none",
+                        "atomicity":  "git checkout / checkout -b",
+                        "pathPolicy":  "sanitized name; branch validated",
+                        "errorShape":  "500",
+                        "probe":  "NONE for switch - grepped internal/server and tests for /api/extensions/switch and serveExtensionSwitch; extensions_test.go covers install/move/delete/version/discover only",
+                        "probeState":  "gap"
+                    },
+                    {
+                        "id":  "W49",
+                        "surface":  "extension-move",
+                        "route":  "POST /api/extensions/move",
+                        "writer":  "internal/server/extensions_fs.go:282-289,352-383",
+                        "lock":  "none",
+                        "atomicity":  "copy then RemoveAll - not atomic; partial destination + 409 on retry (pinned cpSync+rmSync ../SillyTavern/src/endpoints/extensions.js:366-367)",
+                        "pathPolicy":  "source/destination locations from the pinned location map; name sanitized",
+                        "errorShape":  "409/500",
+                        "probe":  "internal/server/extensions_test.go exercises /api/extensions/move (route list); no crash-window probe",
+                        "probeState":  "gap"
+                    },
+                    {
+                        "id":  "W50",
+                        "surface":  "extension-delete",
+                        "route":  "POST /api/extensions/delete",
+                        "writer":  "internal/server/extensions.go:259-268 via extensions_fs.go:324",
+                        "lock":  "none",
+                        "atomicity":  "os.RemoveAll, no backup",
+                        "pathPolicy":  "sanitized name, user/global location, admin for global",
+                        "errorShape":  "404/500/200 text",
+                        "probe":  "internal/server/extensions_test.go TestPinnedNodeExtensionRoutes",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W51",
+                        "surface":  "vector-index-writes",
+                        "route":  "POST /api/vector/insert|delete|purge-all|purge",
+                        "writer":  "internal/server/vector.go:224,256,295,303",
+                        "lock":  "content for the index",
+                        "atomicity":  "atomicReplace; purge is os.RemoveAll",
+                        "pathPolicy":  "pinned vector folder naming; MkdirAll",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/vector_test.go TestPinnedNodeVectorRoutes",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W52",
+                        "surface":  "sd-comfy-workflows",
+                        "route":  "POST /api/sd/comfy/save|save-workflow|delete|rename",
+                        "writer":  "internal/server/sd_comfy.go:179,213,263-265",
+                        "lock":  "content (rename performed inside the IfChanged callback under the lock)",
+                        "atomicity":  "atomicReplace; rename single os.Rename",
+                        "pathPolicy":  "sdUserRelativePath sanitized",
+                        "errorShape":  "500",
+                        "probe":  "internal/server/sd_workflows_test.go TestPinnedNodeSDComfyWorkflows",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W53",
+                        "surface":  "tokenizer-cache-write",
+                        "route":  "tokenizer routes materialise the cache",
+                        "writer":  "internal/server/tokenizers.go:374-390",
+                        "lock":  "none",
+                        "atomicity":  "os.WriteFile + os.Remove - not atomic",
+                        "pathPolicy":  "fixed model file names under the tokenizer cache dir",
+                        "errorShape":  "errors ignored; next read returns whatever bytes exist",
+                        "probe":  "NONE for corrupt-cache recovery - grepped tokenizers in tests",
+                        "probeState":  "gap"
+                    },
+                    {
+                        "id":  "W54",
+                        "surface":  "access-log-append",
+                        "route":  "middleware",
+                        "writer":  "internal/server/access_log.go:154-166",
+                        "lock":  "none",
+                        "atomicity":  "append; a partial line is possible on kill",
+                        "pathPolicy":  "filepath.Join(dataRoot, access.log)",
+                        "errorShape":  "stderr log only (pinned logs the same)",
+                        "probe":  "NONE - access-log migration test only",
+                        "probeState":  "gap"
+                    },
+                    {
+                        "id":  "W55",
+                        "surface":  "thumbnail-cache-write",
+                        "route":  "GET /thumbnail/\u003ccomputed\u003e",
+                        "writer":  "internal/server/thumbnails.go:324-328",
+                        "lock":  "none",
+                        "atomicity":  "atomicReplace (pinned writeFileAtomicSync)",
+                        "pathPolicy":  "thumbnail type + sanitized filename under the user thumbnails tree",
+                        "errorShape":  "falls back to the original / 404",
+                        "probe":  "internal/server/thumbnails_contract_test.go TestPinnedThumbnailServesTheObservableContract (route level; cache-write failure not probed)",
+                        "probeState":  "covered"
+                    },
+                    {
+                        "id":  "W56",
+                        "surface":  "data-maid-delete",
+                        "route":  "POST /api/data-maid/delete",
+                        "writer":  "internal/server/data_maid.go:302-361",
+                        "lock":  "none",
+                        "atomicity":  "unlink per file",
+                        "pathPolicy":  "only paths captured by finalize, re-checked under the user root",
+                        "errorShape":  "403 token mismatch / 500",
+                        "probe":  "internal/server/data_maid_test.go TestPinnedNodeDataMaidRoutes",
+                        "probeState":  "covered"
+                    }
+                ],
+    "concurrency":  [
+                        {
+                            "id":  "b-content-lock",
+                            "kind":  "mutex",
+                            "source":  "internal/startup/content.go:398-414 via internal/startup/user_data_lock.go:25",
+                            "owner":  "one flock per data root, shared by all users and all content routes",
+                            "lockOrder":  [
+                                              "content -\u003e nothing nested (single lock per operation)"
+                                          ],
+                            "cancellation":  "acquireContentLock uses lockacquire.Acquire: 10s per-lock bound at request time, boot budget 30s",
+                            "shutdown":  "released per operation via defer",
+                            "contention":  "cross-user by construction: two users writing presets serialise"
+                        },
+                        {
+                            "id":  "b-storage-lock",
+                            "kind":  "mutex",
+                            "source":  "internal/startup/storage.go:430-446",
+                            "owner":  "one flock per _storage dir",
+                            "lockOrder":  [
+                                              "storage is never taken while content is held, and vice versa"
+                                          ],
+                            "cancellation":  "bounded by lockacquire",
+                            "shutdown":  "per operation",
+                            "contention":  "account record writers"
+                        },
+                        {
+                            "id":  "b-config-lock",
+                            "kind":  "mutex",
+                            "source":  "internal/configinit/config.go:156-166 and lockpath.go:24-31",
+                            "owner":  "one flock per canonical config path, lock file in os.TempDir()",
+                            "lockOrder":  [
+                                              "config only"
+                                          ],
+                            "cancellation":  "bounded by lockacquire",
+                            "shutdown":  "defer close",
+                            "contention":  "two concurrent boots"
+                        },
+                        {
+                            "id":  "b-cookie-lock",
+                            "kind":  "mutex",
+                            "source":  "internal/startup/secret.go:74-90",
+                            "owner":  "one flock per cookie-secret path",
+                            "lockOrder":  [
+                                              "cookie secret only"
+                                          ],
+                            "cancellation":  "bounded",
+                            "shutdown":  "defer close",
+                            "contention":  "two concurrent boots"
+                        },
+                        {
+                            "id":  "b-settings-save-mu",
+                            "kind":  "timer",
+                            "source":  "internal/server/settings_save.go:50-87 (time.AfterFunc :71)",
+                            "owner":  "accountRuntime process-global",
+                            "lockOrder":  [
+                                              "settingsSaveMu -\u003e content flock (SaveSettings) -\u003e settingsSaveMu again in flush"
+                                          ],
+                            "cancellation":  "timer body re-locks; no shutdown cancellation found (Lane C)",
+                            "shutdown":  "not observed in this lane\u0027s read",
+                            "contention":  "all users share the mutex"
+                        },
+                        {
+                            "id":  "b-extension-git",
+                            "kind":  "child-process",
+                            "source":  "internal/server/extensions_git.go:39-95",
+                            "owner":  "per request",
+                            "lockOrder":  [
+
+                                          ],
+                            "cancellation":  "context.Background + 5 min timeout (pinnedGitBlockTimeout :40); not request-scoped",
+                            "shutdown":  "subprocess killed by timeout, not by shutdown",
+                            "contention":  "two extension updates on one repo are not serialised"
+                        },
+                        {
+                            "id":  "b-sprites-anchor",
+                            "kind":  "mutex",
+                            "source":  "internal/server/sprites_upload.go:159-168",
+                            "owner":  "content flock via a never-written anchor path",
+                            "lockOrder":  [
+
+                                          ],
+                            "cancellation":  "bounded",
+                            "shutdown":  "per operation",
+                            "contention":  "as content lock"
+                        },
+                        {
+                            "id":  "b-reset-limiter",
+                            "kind":  "global-cache",
+                            "source":  "internal/server/account_data_reset.go:84-96,133-136",
+                            "owner":  "accountRuntime",
+                            "lockOrder":  [
+
+                                          ],
+                            "cancellation":  "none",
+                            "shutdown":  "in-memory",
+                            "contention":  "per IP and handle"
+                        }
+                    ],
+    "caches":  [
+                   {
+                       "name":  "settings/worldinfo response cache",
+                       "key":  "\u003cdataRoot\u003e\\x00\u003chandle\u003e plus route; identity digest of path+mtime+size",
+                       "value":  "fully serialized response body bytes",
+                       "owner":  "internal/server, process-local",
+                       "lifetime":  "no TTL; identity recomputed per request",
+                       "capacity":  "entry and byte caps, whole-map drop on overflow",
+                       "eviction":  "whole map dropped",
+                       "invalidation":  "identity change; identity taken before and after the build so a concurrent write cannot be cached",
+                       "externalMod":  "normal external rewrite detected; same-size + restored-mtime rewrite is served stale (documented residual)",
+                       "concurrency":  "one package mutex; immutable byte slices; no lock during file IO",
+                       "rebuild":  "miss runs the original code path",
+                       "fallback":  "hash/serialize failure -\u003e no store",
+                       "measuredBenefit":  "internal/server/settings_cache.go:6-10 (5.9 ms/4.6 MB -\u003e stat+hash for 220 docs)"
+                   },
+                   {
+                       "name":  "card-text cache",
+                       "key":  "absolute card PNG path; identity path+type+size+mtime",
+                       "value":  "decoded card JSON text",
+                       "owner":  "internal/server",
+                       "lifetime":  "until identity changes",
+                       "capacity":  "capped entries and bytes",
+                       "eviction":  "same rule as above",
+                       "invalidation":  "identity change (every card write is an atomicReplace)",
+                       "externalMod":  "same residual window as the settings cache",
+                       "concurrency":  "package mutex over immutable strings",
+                       "rebuild":  "read + PNG chunk walk + base64 decode",
+                       "fallback":  "no store on failure",
+                       "measuredBenefit":  "internal/server/characters_card_cache.go:5-13 (1,438 ms/1.2 GB for 10k cards uncached)"
+                   },
+                   {
+                       "name":  "thumbnail disk cache",
+                       "key":  "user thumbnails dir + type + filename",
+                       "value":  "encoded thumbnail file",
+                       "owner":  "filesystem",
+                       "lifetime":  "until invalidated or re-encoded",
+                       "capacity":  "unbounded files",
+                       "eviction":  "writer invalidates on avatar/bg upload/delete/rename",
+                       "invalidation":  "explicit unlink by the mutation routes",
+                       "externalMod":  "an externally replaced thumbnail is served as-is",
+                       "concurrency":  "atomicReplace per file",
+                       "rebuild":  "regenerated from the original",
+                       "fallback":  "serve original / 404",
+                       "measuredBenefit":  "not measured in this lane"
+                   },
+                   {
+                       "name":  "tokenizer cache",
+                       "key":  "\u003ccache\u003e/\u003cmodel\u003e.json",
+                       "value":  "tokenizer JSON bytes",
+                       "owner":  "filesystem",
+                       "lifetime":  "until a manual change",
+                       "capacity":  "one file per model",
+                       "eviction":  "none",
+                       "invalidation":  "none (no versioning)",
+                       "externalMod":  "unreadable/corrupt content is not detected at read time",
+                       "concurrency":  "none; non-atomic writes",
+                       "rebuild":  "re-materialise from the vendored asset",
+                       "fallback":  "fallback model llama3.json",
+                       "measuredBenefit":  "n/a"
+                   }
+               ],
+    "hypotheses":  [
+                       {
+                           "id":  "B-H1",
+                           "title":  "Config migration/default insertion is silent, where pinned prints what it changed",
+                           "classification":  "verified-risk",
+                           "surface":  "startup-state",
+                           "evidence":  [
+                                            "internal/configinit/config.go:77-139",
+                                            "internal/commandline/paths.go:129-133",
+                                            "cmd/gotavern/main.go:70-79",
+                                            "../SillyTavern/src/config-init.js:169",
+                                            "../SillyTavern/src/config-init.js:232",
+                                            "../SillyTavern/src/config-init.js:236",
+                                            "../SillyTavern/src/config-init.js:250"
+                                        ],
+                           "impact":  "user-visible",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "Run the shipped binary over a config.yaml carrying one legacy key and one missing default; capture stdout; diff against a pinned boot on the same copy. Then port the two console.log lines and the creation warning with a recorded fixture.",
+                           "strength":  3,
+                           "counterargument":  "GOAL.md 15.5 wants a quiet default and internal/app/startup_trace.go:25-30 made stage timings opt-in; if the owners decide pinned\u0027s config-init messages are non-contract this closes as intentional-parity. Today AGENTS rule 13 says reproduce config creation/key migration/default insertion without naming the observable."
+                       },
+                       {
+                           "id":  "B-H2",
+                           "title":  "Legacy user-data migration announces a single line where pinned warns for ten seconds and offers cancellation",
+                           "classification":  "verified-risk",
+                           "surface":  "startup-state",
+                           "evidence":  [
+                                            "internal/startup/user_data_migration.go:37-40",
+                                            "internal/app/server.go:182-186",
+                                            "internal/app/startup_trace.go:112-120",
+                                            "../SillyTavern/src/users.js:241-254"
+                                        ],
+                           "impact":  "user-visible",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "Boot both subjects on a tree with public/characters present; capture stdout during the ten-second pause and compare line count and content. The adversarial case boot.legacy-migration-cost measures only that the pause is 10s once and announced; extend it to compare the announcement shape.",
+                           "strength":  3,
+                           "counterargument":  "internal/adversarial/violations.golden records the deliberate correction: the pause is pinned\u0027s warning period and the invariant is \u0027announced before spent\u0027. One line satisfies the letter of that invariant; the residual complaint is the missing countdown/cancel prompt, which the ratchet does not measure."
+                       },
+                       {
+                           "id":  "B-H3",
+                           "title":  "gotavern migrate --force backs up only config.yaml and data/; certs and the global extension overlay are truncated in place",
+                           "classification":  "verified-risk",
+                           "surface":  "persisted-bytes",
+                           "evidence":  [
+                                            "internal/migrate/migrate.go:191-209",
+                                            "internal/migrate/migrate.go:221-230",
+                                            "internal/migrate/migrate.go:432-436",
+                                            "internal/migrate/migrate.go:639-655"
+                                        ],
+                           "impact":  "data-safety",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "Pre-create \u003cdest\u003e/certs/server.pem with distinct bytes and no config.yaml/data; run gotavern migrate --from \u003csrc\u003e --dest \u003cdest\u003e; assert the pre-existing cert bytes are unchanged (today they are overwritten). Then add certs and the overlay path to Conflicts and to the force-backup loop and re-run.",
+                           "strength":  3,
+                           "counterargument":  "The destination shape (certs/overlay without config+data) is unusual and the command is GoTavern product behaviour, not pinned parity, so fixing it costs no compatibility; the likelihood is low but the overwrite is silent and forbidden by AGENTS rule 28."
+                       },
+                       {
+                           "id":  "B-H4",
+                           "title":  "The two recursive destructive routes run outside the shared content lock",
+                           "classification":  "verified-risk",
+                           "surface":  "persisted-bytes",
+                           "evidence":  [
+                                            "internal/server/account_data_reset.go:107-137",
+                                            "internal/server/characters_write.go:874-882",
+                                            "internal/server/accounts.go:1340-1345",
+                                            "internal/startup/user_data_lock.go:21-38"
+                                        ],
+                           "impact":  "data-safety",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "Fire a chat save (which holds the content lock) concurrently with POST /api/users/reset-step2 on both subjects; compare the surviving tree for a file recreated inside a tree the user asked to empty. Repeat with SIGKILL between RemoveAll and EnsureDirectories.",
+                           "strength":  3,
+                           "counterargument":  "Pinned\u0027s fsPromises.rm is async on a single event loop, so a concurrent request can interleave there too; taking the lock could be \u0027safer but different\u0027. The row is confirmed only if the two subjects produce different surviving trees; if they do not, record it as intentional-parity and keep the crash probe."
+                       },
+                       {
+                           "id":  "B-H5",
+                           "title":  "Swallowed card-write errors make characters/create answer 200 with no card, and this is pinned parity",
+                           "classification":  "intentional-parity",
+                           "surface":  "persisted-bytes",
+                           "evidence":  [
+                                            "internal/server/characters_write.go:262-263",
+                                            "../SillyTavern/src/endpoints/characters.js:220-259",
+                                            "../SillyTavern/src/endpoints/characters.js:1024-1049"
+                                        ],
+                           "impact":  "data-safety",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "chmod the characters/ directory read-only, POST /api/characters/create on both subjects, assert status 200 and the file absent on both; that is the discriminating parity capture. A later product decision may change it, but the parity capture comes first.",
+                           "strength":  4,
+                           "counterargument":  "This is inherited behaviour; changing it breaks drop-in parity (AGENTS boundary 5). The audit value is that no gate says the route can claim success with nothing written, so a user who loses a card has no error to point at."
+                       },
+                       {
+                           "id":  "B-H6",
+                           "title":  "gotavern migrate writes the destination config.yaml non-atomically",
+                           "classification":  "verified-risk",
+                           "surface":  "persisted-bytes",
+                           "evidence":  [
+                                            "internal/migrate/migrate.go:541"
+                                        ],
+                           "impact":  "data-safety",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "Kill the process during copyConfig on a large source; observe a truncated destination config, then a second run refusing as a conflict. Replace os.WriteFile with a temp+fsync+rename and re-run.",
+                           "strength":  2,
+                           "counterargument":  "Destination-only, recoverable with --force, and the plan is printed before writing; but it is a write-file-atomic-shaped gap in a tree that owns atomicReplace."
+                       },
+                       {
+                           "id":  "B-H7",
+                           "title":  "Tokenizer cache files are written non-atomically and a corrupt cache is not detected at read time",
+                           "classification":  "untested-hypothesis",
+                           "surface":  "persisted-bytes",
+                           "evidence":  [
+                                            "internal/server/tokenizers.go:374-390"
+                                        ],
+                           "impact":  "performance",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "Truncate a cached \u003cmodel\u003e.json, request a tokenizer route, assert a fallback/rebuild rather than a wrong count; then kill during materialisation and assert the cache is complete or absent.",
+                           "strength":  2,
+                           "counterargument":  "Pinned writes the cache the same way, so a mismatch would be a parity question; the cache is derived and deletable."
+                       },
+                       {
+                           "id":  "B-H8",
+                           "title":  "The character disk-cache directory is created and verified but cache records are never written",
+                           "classification":  "untested-hypothesis",
+                           "surface":  "startup-state",
+                           "evidence":  [
+                                            "internal/startup/character_disk_cache.go:13-93",
+                                            "GOAL.md:465-470"
+                                        ],
+                           "impact":  "performance",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "Boot both subjects with performance.useDiskCache true on a tree with cards; compare _cache/characters entry counts and whether pinned writes records here.",
+                           "strength":  2,
+                           "counterargument":  "GOAL.md already classifies the character disk cache as a derived, rebuildable parity/performance gap; nothing user-owned depends on it. What is still unrecorded is that the DIRECTORY exists-but-empty on the Go side."
+                       },
+                       {
+                           "id":  "B-H9",
+                           "title":  "Image and avatar uploads take no lock while every JSON write does",
+                           "classification":  "intentional-parity",
+                           "surface":  "persisted-bytes",
+                           "evidence":  [
+                                            "internal/server/avatars_upload.go:111",
+                                            "internal/server/images.go:217",
+                                            "internal/startup/secrets_state.go:736-740"
+                                        ],
+                           "impact":  "data-safety",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "Concurrent overwrite of the same image name from two requests; assert readers never see a torn file (atomicReplace guarantees it) and that last-writer-wins is the only outcome. Record the result so \u0027no lock\u0027 is not read as \u0027not atomic\u0027.",
+                           "strength":  2,
+                           "counterargument":  "The content lock protects read-modify-write sequences, not single replacements; adding it would only add contention."
+                       },
+                       {
+                           "id":  "B-H10",
+                           "title":  "Extension move is copy-then-delete with no staging",
+                           "classification":  "intentional-parity",
+                           "surface":  "persisted-bytes",
+                           "evidence":  [
+                                            "internal/server/extensions_fs.go:271-289",
+                                            "internal/server/extensions_fs.go:352-383",
+                                            "../SillyTavern/src/endpoints/extensions.js:366-367"
+                                        ],
+                           "impact":  "data-safety",
+                           "reproducer":  "NONE",
+                           "reproducerPlan":  "SIGKILL during the copy of a large extension; assert the source is intact and the destination partial, then that a retry answers 409. Record the inherited failure mode; a staging fix would be a deliberate divergence from pinned cpSync+rmSync.",
+                           "strength":  2,
+                           "counterargument":  "The user\u0027s source directory is intact after the crash, the state is recoverable by deleting the partial destination, and matching pinned is required."
+                       }
+                   ],
+    "questions":  [
+                      "Does pinned\u0027s config-init console output (creation warning, added-key list, migrated-key list, Using config path) count as contract for B-H1? GOAL.md 15.5 and AGENTS 13 point opposite ways; the Lead/owner must decide and, if it counts, a stdout port with a recorded fixture closes it.",
+                      "Is a pristine pre-boot copy byte-identical after a boot? No test copies a tree, boots, then re-hashes the copy. GOAL.md section 14 item 4 needs that; it is a scenario-design question for Lane E (the long-lived fixture has the copy but does not re-hash it after the journey).",
+                      "Does any GoTavern code read \u003cdataRoot\u003e/_cache/characters? The directory is created/verified (S13) but no reader or writer of cache records was found by grepping internal/ for _cache; confirming the negative needs the Lead\u0027s source graph rather than a bounded grep.",
+                      "Is Go\u0027s atomic restore-snapshot (W03) acceptable parity given pinned deletes settings.json before copying? Safer and unobservable except across a crash; parity policy, not filesystem behaviour.",
+                      "Cross-user contention on the single data-root content lock is Lane C\u0027s question; this lane records only that the lock is data-root-scoped and that every JSON writer depends on it."
+                  ]
+}
