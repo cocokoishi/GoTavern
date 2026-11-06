@@ -8,8 +8,8 @@
 #
 # regenerate: node scripts/bench-profiles.mjs --update-baseline --out-dir tests/perf/out
 #             (from a CLEAN tree, on the same host facts as the comparison; commit both files)
-# recordedAt: 2026-11-04T03:56:01.468Z
-# commit: ed75eeeb16c4cd0842dacd72127a72bf3a493533
+# recordedAt: 2026-11-06T04:52:04.438Z
+# commit: 05479faa5d5e9e4b65698a476db2bb7a5a2e2b2d
 # workingTree: clean
 # go: go version go1.27.3 linux/amd64
 # goos: linux
@@ -24,41 +24,38 @@
 # runnerOs: Linux
 # runnerImage: ubuntu26
 # runnerImageVersion: 20261101.186.1
-# runnerName: GitHub Actions 1000019345
-# regenerationRun: 41770073568 (GoTavern bench profiles, workflow_dispatch on m5/identity-caches at ed75eee, merged M3/M5a/M5b tree)
-# regenerationReason: M5b identity-keyed caches for settings aggregation and world-info listing, on the merged M3+M5a+M5b tree. The M2b baseline predated M5a/M5b and lacked the three M3 compression benchmarks; the dispatched comparisons reported the expected SPEEDUP rows and then only NEW BENCHMARK rows, so this file is the deliberate record of the new expected numbers.
-# hostRotationNote: GitHub rotates the ubuntu-latest image inside the same pool. Measured with IDENTICAL bytes: image 20261026.180.1 vs 20261101.186.1 moved CPU-bound ns/op by +75..+117% (B/op and allocs/op did not move at all). This baseline was recorded on the SLOWER observed image (20261101.186.1) deliberately: a later run on either observed image then falls inside the +/-60% ns/op tolerance (fast image ~-45%), while B/op and allocs/op stay exact. A ns/op difference is therefore a coarse signal; the exact gate is B/op + allocs/op.
+# runnerName: GitHub Actions 1000020321
 #
 # benchmark	metric=value per column; medians over --rounds rounds of `go test -bench` on this host
 
-BenchmarkCharactersAllScale/cards_10000_4KB_image	ns/op=1438262842	B/op=1200196984	allocs/op=7840285
-BenchmarkCharactersAllScale/cards_1000_32KB_image	ns/op=336444559	B/op=406965450	allocs/op=794266
-BenchmarkCharactersAllScale/cards_100_128KB_image	ns/op=45462121	B/op=61658332	allocs/op=79663
-BenchmarkCharactersAllScale/cards_100_640KB_image	ns/op=97246124	B/op=181622014	allocs/op=79864
-BenchmarkChatCompletionAssemble/largest_recorded	ns/op=58531	B/op=45233	allocs/op=727
-BenchmarkChatCompletionAssemble/scaled_1MB	ns/op=26288395	B/op=118743125	allocs/op=4969
-BenchmarkChatCompletionMarshal/largest_recorded	ns/op=40466	B/op=30597	allocs/op=569
-BenchmarkChatCompletionMarshal/scaled_1MB	ns/op=3605416	B/op=11600799	allocs/op=581
-BenchmarkChatSummary/chats_1000_x_16KB	ns/op=70189326	B/op=80420440	allocs/op=198294
-BenchmarkChatSummary/chats_100_x_256KB	ns/op=36620926	B/op=8484326	allocs/op=20076
-BenchmarkChatSummary/chats_10_x_2MB	ns/op=26539015	B/op=4968869	allocs/op=2244
-BenchmarkChatSummaryLargeCharacters	ns/op=4883056	B/op=4167186	allocs/op=60
-BenchmarkChatSummaryLargeCharactersMetadata	ns/op=4792336	B/op=4169893	allocs/op=106
-BenchmarkChatSummaryLargeRecent	ns/op=4587962	B/op=4171522	allocs/op=108
-BenchmarkChatSummaryLargeSearch	ns/op=5597731326	B/op=24545544	allocs/op=152160
-BenchmarkChatsRecent/chats_1000_x_16KB	ns/op=76826210	B/op=82620273	allocs/op=226336
-BenchmarkChatsRecent/chats_100_x_256KB	ns/op=37893152	B/op=8709950	allocs/op=22913
-BenchmarkChatsRecent/chats_10_x_2MB	ns/op=25809498	B/op=4993929	allocs/op=2558
-BenchmarkFrontendAsset	ns/op=42433	B/op=43169	allocs/op=84
-BenchmarkFrontendIndex	ns/op=85298	B/op=66059	allocs/op=220
-BenchmarkManyFrontendAssets	ns/op=298639	B/op=208852	allocs/op=906
-BenchmarkPageLoadGzip	ns/op=96886605	B/op=16610442	allocs/op=23137
-BenchmarkPageLoadIdentity	ns/op=17720072	B/op=24904510	allocs/op=21127
-BenchmarkScriptJSCompressed	ns/op=5465235	B/op=312609	allocs/op=108
-BenchmarkSettingsGetScale/files_per_dir_100	ns/op=5221463	B/op=3035272	allocs/op=6949
-BenchmarkSettingsGetScale/files_per_dir_20	ns/op=1360311	B/op=640181	allocs/op=1648
-BenchmarkStaticPageLoad	ns/op=252043386	B/op=8692232	allocs/op=42809
-BenchmarkVersion	ns/op=39133	B/op=23094	allocs/op=158
-BenchmarkWorldInfoList/worlds_1000_x_8KB	ns/op=3593801	B/op=932188	allocs/op=6856
-BenchmarkWorldInfoList/worlds_200_x_32KB	ns/op=707054	B/op=200011	allocs/op=1448
-BenchmarkWorldInfoList/worlds_50_x_128KB	ns/op=219296	B/op=72203	allocs/op=523
+BenchmarkCharactersAllScale/cards_10000_4KB_image	ns/op=1398657129	B/op=1205546920	allocs/op=7880340
+BenchmarkCharactersAllScale/cards_1000_32KB_image	ns/op=221516697	B/op=279898704	allocs/op=769461
+BenchmarkCharactersAllScale/cards_100_128KB_image	ns/op=22575583	B/op=26842542	allocs/op=76532
+BenchmarkCharactersAllScale/cards_100_640KB_image	ns/op=27743964	B/op=41035550	allocs/op=76629
+BenchmarkChatCompletionAssemble/largest_recorded	ns/op=53398	B/op=44791	allocs/op=727
+BenchmarkChatCompletionAssemble/scaled_1MB	ns/op=18127881	B/op=118382785	allocs/op=4915
+BenchmarkChatCompletionMarshal/largest_recorded	ns/op=37294	B/op=30592	allocs/op=569
+BenchmarkChatCompletionMarshal/scaled_1MB	ns/op=3129727	B/op=11600128	allocs/op=579
+BenchmarkChatSummary/chats_1000_x_16KB	ns/op=50762063	B/op=80395790	allocs/op=198274
+BenchmarkChatSummary/chats_100_x_256KB	ns/op=32417751	B/op=8468121	allocs/op=20054
+BenchmarkChatSummary/chats_10_x_2MB	ns/op=23720024	B/op=4959438	allocs/op=2230
+BenchmarkChatSummaryLargeCharacters	ns/op=4086596	B/op=4167184	allocs/op=60
+BenchmarkChatSummaryLargeCharactersMetadata	ns/op=4055382	B/op=4169888	allocs/op=106
+BenchmarkChatSummaryLargeRecent	ns/op=4023854	B/op=4171520	allocs/op=108
+BenchmarkChatSummaryLargeSearch	ns/op=5594888545	B/op=24545432	allocs/op=152160
+BenchmarkChatsRecent/chats_1000_x_16KB	ns/op=57903843	B/op=82599930	allocs/op=226316
+BenchmarkChatsRecent/chats_100_x_256KB	ns/op=32972724	B/op=8694173	allocs/op=22887
+BenchmarkChatsRecent/chats_10_x_2MB	ns/op=23775190	B/op=4983449	allocs/op=2539
+BenchmarkFrontendAsset	ns/op=44675	B/op=43193	allocs/op=85
+BenchmarkFrontendIndex	ns/op=90251	B/op=66070	allocs/op=221
+BenchmarkManyFrontendAssets	ns/op=317476	B/op=208913	allocs/op=911
+BenchmarkPageLoadGzip	ns/op=95997381	B/op=16436752	allocs/op=23364
+BenchmarkPageLoadIdentity	ns/op=16492513	B/op=24910050	allocs/op=21356
+BenchmarkScriptJSCompressed	ns/op=5684856	B/op=312640	allocs/op=109
+BenchmarkSettingsGetScale/files_per_dir_100	ns/op=5121390	B/op=3033962	allocs/op=6946
+BenchmarkSettingsGetScale/files_per_dir_20	ns/op=1155728	B/op=637446	allocs/op=1644
+BenchmarkStaticPageLoad	ns/op=208308678	B/op=8658491	allocs/op=42951
+BenchmarkVersion	ns/op=41610	B/op=23115	allocs/op=159
+BenchmarkWorldInfoList/worlds_1000_x_8KB	ns/op=3513019	B/op=923129	allocs/op=6833
+BenchmarkWorldInfoList/worlds_200_x_32KB	ns/op=715998	B/op=200095	allocs/op=1449
+BenchmarkWorldInfoList/worlds_50_x_128KB	ns/op=226448	B/op=72264	allocs/op=524

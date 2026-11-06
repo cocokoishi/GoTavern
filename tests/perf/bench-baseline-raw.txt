@@ -2,109 +2,107 @@ goos: linux
 goarch: amd64
 pkg: github.com/cocokoishi/gotavern/internal/server
 cpu: AMD EPYC 7763 64-Core Processor                
-BenchmarkPageLoadIdentity-4                     	      67	  17720072 ns/op	   8304085 wire-B/op	24904510 B/op	   21127 allocs/op
-BenchmarkPageLoadIdentity-4                     	      60	  17827183 ns/op	   8304085 wire-B/op	24904408 B/op	   21125 allocs/op
-BenchmarkPageLoadIdentity-4                     	      64	  16997250 ns/op	   8304085 wire-B/op	24904573 B/op	   21127 allocs/op
-BenchmarkPageLoadGzip-4                         	      12	  96886605 ns/op	   2855333 wire-B/op	16879588 B/op	   23142 allocs/op
-BenchmarkPageLoadGzip-4                         	      12	  96482903 ns/op	   2855333 wire-B/op	16610442 B/op	   23137 allocs/op
-BenchmarkPageLoadGzip-4                         	      12	 100562699 ns/op	   2855333 wire-B/op	16430742 B/op	   23131 allocs/op
-BenchmarkScriptJSCompressed-4                   	     198	   5958108 ns/op	  307671 B/op	     108 allocs/op
-BenchmarkScriptJSCompressed-4                   	     218	   5446675 ns/op	  312620 B/op	     108 allocs/op
-BenchmarkScriptJSCompressed-4                   	     218	   5465235 ns/op	  312609 B/op	     108 allocs/op
-BenchmarkVersion-4                              	   30502	     39024 ns/op	   23093 B/op	     158 allocs/op
-BenchmarkVersion-4                              	   30781	     39133 ns/op	   23094 B/op	     158 allocs/op
-BenchmarkVersion-4                              	   30734	     39476 ns/op	   23096 B/op	     158 allocs/op
-BenchmarkFrontendIndex-4                        	   14020	     84017 ns/op	   66054 B/op	     220 allocs/op
-BenchmarkFrontendIndex-4                        	   14134	     85298 ns/op	   66059 B/op	     220 allocs/op
-BenchmarkFrontendIndex-4                        	   13873	     85657 ns/op	   66068 B/op	     220 allocs/op
-BenchmarkFrontendAsset-4                        	   27979	     42378 ns/op	   43169 B/op	      84 allocs/op
-BenchmarkFrontendAsset-4                        	   28106	     42743 ns/op	   43169 B/op	      84 allocs/op
-BenchmarkFrontendAsset-4                        	   28380	     42433 ns/op	   43169 B/op	      84 allocs/op
-BenchmarkManyFrontendAssets-4                   	    3876	    301455 ns/op	  208852 B/op	     906 allocs/op
-BenchmarkManyFrontendAssets-4                   	    3961	    296027 ns/op	  208809 B/op	     906 allocs/op
-BenchmarkManyFrontendAssets-4                   	    3978	    298639 ns/op	  208854 B/op	     906 allocs/op
-BenchmarkCharactersAllScale/cards_100_128KB_image-4         	      25	  45785105 ns/op	61661602 B/op	   79663 allocs/op
-BenchmarkCharactersAllScale/cards_100_128KB_image-4         	      27	  44667828 ns/op	61658332 B/op	   79663 allocs/op
-BenchmarkCharactersAllScale/cards_100_128KB_image-4         	      25	  45462121 ns/op	61658140 B/op	   79662 allocs/op
-BenchmarkCharactersAllScale/cards_1000_32KB_image-4         	       3	 336444559 ns/op	406965450 B/op	  794266 allocs/op
-BenchmarkCharactersAllScale/cards_1000_32KB_image-4         	       3	 344872544 ns/op	406964568 B/op	  794266 allocs/op
-BenchmarkCharactersAllScale/cards_1000_32KB_image-4         	       4	 334813454 ns/op	406968120 B/op	  794270 allocs/op
-BenchmarkCharactersAllScale/cards_10000_4KB_image-4         	       1	1441950673 ns/op	1200196984 B/op	 7840286 allocs/op
-BenchmarkCharactersAllScale/cards_10000_4KB_image-4         	       1	1438262842 ns/op	1200199784 B/op	 7840285 allocs/op
-BenchmarkCharactersAllScale/cards_10000_4KB_image-4         	       1	1428847578 ns/op	1200191112 B/op	 7840274 allocs/op
-BenchmarkCharactersAllScale/cards_100_640KB_image-4         	      12	  97921793 ns/op	181622014 B/op	   79864 allocs/op
-BenchmarkCharactersAllScale/cards_100_640KB_image-4         	      12	  93241818 ns/op	181622866 B/op	   79866 allocs/op
-BenchmarkCharactersAllScale/cards_100_640KB_image-4         	      12	  97246124 ns/op	181618287 B/op	   79863 allocs/op
-BenchmarkChatSummary/chats_10_x_2MB-4                       	      44	  26578800 ns/op	 4971641 B/op	    2246 allocs/op
-BenchmarkChatSummary/chats_10_x_2MB-4                       	      43	  26539015 ns/op	 4968853 B/op	    2244 allocs/op
-BenchmarkChatSummary/chats_10_x_2MB-4                       	      43	  26401149 ns/op	 4968869 B/op	    2244 allocs/op
-BenchmarkChatSummary/chats_100_x_256KB-4                    	      31	  36670028 ns/op	 8484326 B/op	   20076 allocs/op
-BenchmarkChatSummary/chats_100_x_256KB-4                    	      32	  36620926 ns/op	 8484379 B/op	   20075 allocs/op
-BenchmarkChatSummary/chats_100_x_256KB-4                    	      31	  36507308 ns/op	 8484285 B/op	   20076 allocs/op
-BenchmarkChatSummary/chats_1000_x_16KB-4                    	      16	  69185838 ns/op	80420346 B/op	  198294 allocs/op
-BenchmarkChatSummary/chats_1000_x_16KB-4                    	      15	  70189326 ns/op	80420440 B/op	  198293 allocs/op
-BenchmarkChatSummary/chats_1000_x_16KB-4                    	      15	  70336632 ns/op	80420698 B/op	  198295 allocs/op
-BenchmarkChatsRecent/chats_10_x_2MB-4                       	      42	  25798143 ns/op	 4992760 B/op	    2556 allocs/op
-BenchmarkChatsRecent/chats_10_x_2MB-4                       	      44	  25809498 ns/op	 4994610 B/op	    2558 allocs/op
-BenchmarkChatsRecent/chats_10_x_2MB-4                       	      43	  25989721 ns/op	 4993929 B/op	    2558 allocs/op
-BenchmarkChatsRecent/chats_100_x_256KB-4                    	      30	  37893152 ns/op	 8709035 B/op	   22912 allocs/op
-BenchmarkChatsRecent/chats_100_x_256KB-4                    	      31	  37447024 ns/op	 8710474 B/op	   22913 allocs/op
-BenchmarkChatsRecent/chats_100_x_256KB-4                    	      30	  38237613 ns/op	 8709950 B/op	   22914 allocs/op
-BenchmarkChatsRecent/chats_1000_x_16KB-4                    	      14	  77454613 ns/op	82556110 B/op	  226336 allocs/op
-BenchmarkChatsRecent/chats_1000_x_16KB-4                    	      14	  76605341 ns/op	82623500 B/op	  226336 allocs/op
-BenchmarkChatsRecent/chats_1000_x_16KB-4                    	      14	  76826210 ns/op	82620273 B/op	  226334 allocs/op
-BenchmarkSettingsGetScale/files_per_dir_20-4                	     856	   1360311 ns/op	  640978 B/op	    1648 allocs/op
-BenchmarkSettingsGetScale/files_per_dir_20-4                	     826	   1387489 ns/op	  637534 B/op	    1649 allocs/op
-BenchmarkSettingsGetScale/files_per_dir_20-4                	     896	   1346302 ns/op	  640181 B/op	    1647 allocs/op
-BenchmarkSettingsGetScale/files_per_dir_100-4               	     218	   5221463 ns/op	 3023521 B/op	    6950 allocs/op
-BenchmarkSettingsGetScale/files_per_dir_100-4               	     232	   5362178 ns/op	 3036006 B/op	    6949 allocs/op
-BenchmarkSettingsGetScale/files_per_dir_100-4               	     231	   5177490 ns/op	 3035272 B/op	    6947 allocs/op
-BenchmarkWorldInfoList/worlds_50_x_128KB-4                  	    5412	    219341 ns/op	   72197 B/op	     523 allocs/op
-BenchmarkWorldInfoList/worlds_50_x_128KB-4                  	    5394	    218740 ns/op	   72205 B/op	     523 allocs/op
-BenchmarkWorldInfoList/worlds_50_x_128KB-4                  	    5394	    219296 ns/op	   72203 B/op	     523 allocs/op
-BenchmarkWorldInfoList/worlds_200_x_32KB-4                  	    1597	    722528 ns/op	  200943 B/op	    1449 allocs/op
-BenchmarkWorldInfoList/worlds_200_x_32KB-4                  	    1686	    703719 ns/op	  199867 B/op	    1448 allocs/op
-BenchmarkWorldInfoList/worlds_200_x_32KB-4                  	    1678	    707054 ns/op	  200011 B/op	    1448 allocs/op
-BenchmarkWorldInfoList/worlds_1000_x_8KB-4                  	     316	   3632397 ns/op	  934338 B/op	    6864 allocs/op
-BenchmarkWorldInfoList/worlds_1000_x_8KB-4                  	     319	   3593801 ns/op	  932188 B/op	    6856 allocs/op
-BenchmarkWorldInfoList/worlds_1000_x_8KB-4                  	     326	   3521157 ns/op	  927081 B/op	    6840 allocs/op
-BenchmarkStaticPageLoad-4                                   	       4	 259620649 ns/op	  34.92 MB/s	 8690490 B/op	   42806 allocs/op
+BenchmarkPageLoadIdentity-4                     	      70	  16492513 ns/op	   8304085 wire-B/op	24910050 B/op	   21356 allocs/op
+BenchmarkPageLoadIdentity-4                     	      69	  16376565 ns/op	   8304085 wire-B/op	24909947 B/op	   21356 allocs/op
+BenchmarkPageLoadIdentity-4                     	      66	  16822582 ns/op	   8304085 wire-B/op	24910152 B/op	   21357 allocs/op
+BenchmarkPageLoadGzip-4                         	      12	  96242371 ns/op	   2855333 wire-B/op	16436202 B/op	   23361 allocs/op
+BenchmarkPageLoadGzip-4                         	      12	  95671018 ns/op	   2855333 wire-B/op	16974410 B/op	   23369 allocs/op
+BenchmarkPageLoadGzip-4                         	      12	  95997381 ns/op	   2855333 wire-B/op	16436752 B/op	   23364 allocs/op
+BenchmarkScriptJSCompressed-4                   	     217	   5684856 ns/op	  312640 B/op	     109 allocs/op
+BenchmarkScriptJSCompressed-4                   	     204	   5694581 ns/op	  312969 B/op	     109 allocs/op
+BenchmarkScriptJSCompressed-4                   	     218	   5490811 ns/op	  312604 B/op	     109 allocs/op
+BenchmarkVersion-4                              	   29044	     41744 ns/op	   23118 B/op	     159 allocs/op
+BenchmarkVersion-4                              	   28838	     41610 ns/op	   23115 B/op	     159 allocs/op
+BenchmarkVersion-4                              	   29101	     41362 ns/op	   23114 B/op	     159 allocs/op
+BenchmarkFrontendIndex-4                        	   13058	     89667 ns/op	   66070 B/op	     221 allocs/op
+BenchmarkFrontendIndex-4                        	   13411	     90251 ns/op	   66064 B/op	     221 allocs/op
+BenchmarkFrontendIndex-4                        	   13092	     91834 ns/op	   66077 B/op	     221 allocs/op
+BenchmarkFrontendAsset-4                        	   26812	     49136 ns/op	   43192 B/op	      85 allocs/op
+BenchmarkFrontendAsset-4                        	   22701	     44495 ns/op	   43193 B/op	      85 allocs/op
+BenchmarkFrontendAsset-4                        	   27196	     44675 ns/op	   43193 B/op	      85 allocs/op
+BenchmarkManyFrontendAssets-4                   	    3706	    317476 ns/op	  208913 B/op	     911 allocs/op
+BenchmarkManyFrontendAssets-4                   	    3295	    318065 ns/op	  208917 B/op	     911 allocs/op
+BenchmarkManyFrontendAssets-4                   	    3478	    317163 ns/op	  208893 B/op	     911 allocs/op
+BenchmarkCharactersAllScale/cards_100_128KB_image-4         	      40	  25831346 ns/op	26995862 B/op	   76551 allocs/op
+BenchmarkCharactersAllScale/cards_100_128KB_image-4         	      48	  22575583 ns/op	26842542 B/op	   76532 allocs/op
+BenchmarkCharactersAllScale/cards_100_128KB_image-4         	      51	  22456378 ns/op	26802935 B/op	   76526 allocs/op
+BenchmarkCharactersAllScale/cards_1000_32KB_image-4         	       5	 227228135 ns/op	279898417 B/op	  769461 allocs/op
+BenchmarkCharactersAllScale/cards_1000_32KB_image-4         	       5	 213557512 ns/op	279898923 B/op	  769461 allocs/op
+BenchmarkCharactersAllScale/cards_1000_32KB_image-4         	       5	 221516697 ns/op	279898704 B/op	  769460 allocs/op
+BenchmarkCharactersAllScale/cards_10000_4KB_image-4         	       1	1409413001 ns/op	1205546920 B/op	 7880340 allocs/op
+BenchmarkCharactersAllScale/cards_10000_4KB_image-4         	       1	1358501498 ns/op	1204673384 B/op	 7880281 allocs/op
+BenchmarkCharactersAllScale/cards_10000_4KB_image-4         	       1	1398657129 ns/op	1205946840 B/op	 7880420 allocs/op
+BenchmarkCharactersAllScale/cards_100_640KB_image-4         	      42	  28412504 ns/op	40863981 B/op	   76625 allocs/op
+BenchmarkCharactersAllScale/cards_100_640KB_image-4         	      40	  27706354 ns/op	41035550 B/op	   76629 allocs/op
+BenchmarkCharactersAllScale/cards_100_640KB_image-4         	      39	  27743964 ns/op	41129062 B/op	   76633 allocs/op
+BenchmarkChatSummary/chats_10_x_2MB-4                       	      51	  23720024 ns/op	 4958890 B/op	    2229 allocs/op
+BenchmarkChatSummary/chats_10_x_2MB-4                       	      51	  23479805 ns/op	 4959438 B/op	    2230 allocs/op
+BenchmarkChatSummary/chats_10_x_2MB-4                       	      50	  23728659 ns/op	 4959472 B/op	    2230 allocs/op
+BenchmarkChatSummary/chats_100_x_256KB-4                    	      37	  32417751 ns/op	 8469368 B/op	   20054 allocs/op
+BenchmarkChatSummary/chats_100_x_256KB-4                    	      37	  32560897 ns/op	 8468121 B/op	   20055 allocs/op
+BenchmarkChatSummary/chats_100_x_256KB-4                    	      37	  32329972 ns/op	 8468104 B/op	   20053 allocs/op
+BenchmarkChatSummary/chats_1000_x_16KB-4                    	      21	  50471398 ns/op	80412535 B/op	  198275 allocs/op
+BenchmarkChatSummary/chats_1000_x_16KB-4                    	      22	  50762063 ns/op	80395394 B/op	  198274 allocs/op
+BenchmarkChatSummary/chats_1000_x_16KB-4                    	      21	  51128865 ns/op	80395790 B/op	  198274 allocs/op
+BenchmarkChatsRecent/chats_10_x_2MB-4                       	      51	  23695528 ns/op	 4982626 B/op	    2538 allocs/op
+BenchmarkChatsRecent/chats_10_x_2MB-4                       	      51	  23775190 ns/op	 4984314 B/op	    2540 allocs/op
+BenchmarkChatsRecent/chats_10_x_2MB-4                       	      51	  23846949 ns/op	 4983449 B/op	    2539 allocs/op
+BenchmarkChatsRecent/chats_100_x_256KB-4                    	      36	  33239472 ns/op	 8695348 B/op	   22888 allocs/op
+BenchmarkChatsRecent/chats_100_x_256KB-4                    	      36	  32972724 ns/op	 8694173 B/op	   22887 allocs/op
+BenchmarkChatsRecent/chats_100_x_256KB-4                    	      36	  32954634 ns/op	 8693733 B/op	   22886 allocs/op
+BenchmarkChatsRecent/chats_1000_x_16KB-4                    	      19	  57849675 ns/op	82596704 B/op	  226315 allocs/op
+BenchmarkChatsRecent/chats_1000_x_16KB-4                    	      18	  57903843 ns/op	82599930 B/op	  226320 allocs/op
+BenchmarkChatsRecent/chats_1000_x_16KB-4                    	      18	  58521466 ns/op	82613101 B/op	  226316 allocs/op
+BenchmarkSettingsGetScale/files_per_dir_20-4                	     921	   1203559 ns/op	  637469 B/op	    1644 allocs/op
+BenchmarkSettingsGetScale/files_per_dir_20-4                	     950	   1155728 ns/op	  637446 B/op	    1644 allocs/op
+BenchmarkSettingsGetScale/files_per_dir_20-4                	     940	   1149466 ns/op	  637433 B/op	    1644 allocs/op
+BenchmarkSettingsGetScale/files_per_dir_100-4               	     224	   5121390 ns/op	 3034095 B/op	    6947 allocs/op
+BenchmarkSettingsGetScale/files_per_dir_100-4               	     222	   5159136 ns/op	 3033962 B/op	    6946 allocs/op
+BenchmarkSettingsGetScale/files_per_dir_100-4               	     222	   5098265 ns/op	 3033956 B/op	    6946 allocs/op
+BenchmarkWorldInfoList/worlds_50_x_128KB-4                  	    5114	    227350 ns/op	   72470 B/op	     525 allocs/op
+BenchmarkWorldInfoList/worlds_50_x_128KB-4                  	    5284	    224987 ns/op	   72204 B/op	     524 allocs/op
+BenchmarkWorldInfoList/worlds_50_x_128KB-4                  	    5286	    226448 ns/op	   72264 B/op	     524 allocs/op
+BenchmarkWorldInfoList/worlds_200_x_32KB-4                  	    1640	    717832 ns/op	  200329 B/op	    1449 allocs/op
+BenchmarkWorldInfoList/worlds_200_x_32KB-4                  	    1660	    715998 ns/op	  200095 B/op	    1449 allocs/op
+BenchmarkWorldInfoList/worlds_200_x_32KB-4                  	    1672	    715085 ns/op	  199977 B/op	    1449 allocs/op
+BenchmarkWorldInfoList/worlds_1000_x_8KB-4                  	     328	   3513019 ns/op	  923129 B/op	    6833 allocs/op
+BenchmarkWorldInfoList/worlds_1000_x_8KB-4                  	     324	   3530342 ns/op	  925050 B/op	    6840 allocs/op
+BenchmarkWorldInfoList/worlds_1000_x_8KB-4                  	     331	   3473221 ns/op	  921910 B/op	    6827 allocs/op
+BenchmarkStaticPageLoad-4                                   	       6	 181894842 ns/op	  49.86 MB/s	 8658352 B/op	   42951 allocs/op
+--- BENCH: BenchmarkStaticPageLoad-4
+    bench_test.go:806: page-load manifest: 229 paths, 225 answered 2xx, non-2xx: [GET /backgrounds/__transparent.png -> 404 GET /css/user.css -> 404 GET /thumbnail?type=persona&file=user-default.png -> 404 POST /api/settings/get -> 500]
+    bench_test.go:806: page-load manifest: 229 paths, 225 answered 2xx, non-2xx: [GET /backgrounds/__transparent.png -> 404 GET /css/user.css -> 404 GET /thumbnail?type=persona&file=user-default.png -> 404 POST /api/settings/get -> 500]
+BenchmarkStaticPageLoad-4                                   	       7	 665772983 ns/op	  13.62 MB/s	 8663120 B/op	   42960 allocs/op
+--- BENCH: BenchmarkStaticPageLoad-4
+    bench_test.go:806: page-load manifest: 229 paths, 225 answered 2xx, non-2xx: [GET /backgrounds/__transparent.png -> 404 GET /css/user.css -> 404 GET /thumbnail?type=persona&file=user-default.png -> 404 POST /api/settings/get -> 500]
+    bench_test.go:806: page-load manifest: 229 paths, 225 answered 2xx, non-2xx: [GET /backgrounds/__transparent.png -> 404 GET /css/user.css -> 404 GET /thumbnail?type=persona&file=user-default.png -> 404 POST /api/settings/get -> 500]
+BenchmarkStaticPageLoad-4                                   	       5	 208308678 ns/op	  43.54 MB/s	 8658491 B/op	   42951 allocs/op
 --- BENCH: BenchmarkStaticPageLoad-4
     bench_test.go:806: page-load manifest: 229 paths, 225 answered 2xx, non-2xx: [GET /backgrounds/__transparent.png -> 404 GET /css/user.css -> 404 GET /thumbnail?type=persona&file=user-default.png -> 404 POST /api/settings/get -> 500]
     bench_test.go:806: page-load manifest: 229 paths, 225 answered 2xx, non-2xx: [GET /backgrounds/__transparent.png -> 404 GET /css/user.css -> 404 GET /thumbnail?type=persona&file=user-default.png -> 404 POST /api/settings/get -> 500]
     bench_test.go:806: page-load manifest: 229 paths, 225 answered 2xx, non-2xx: [GET /backgrounds/__transparent.png -> 404 GET /css/user.css -> 404 GET /thumbnail?type=persona&file=user-default.png -> 404 POST /api/settings/get -> 500]
-BenchmarkStaticPageLoad-4                                   	       5	 215800157 ns/op	  42.01 MB/s	 8692232 B/op	   42809 allocs/op
---- BENCH: BenchmarkStaticPageLoad-4
-    bench_test.go:806: page-load manifest: 229 paths, 225 answered 2xx, non-2xx: [GET /backgrounds/__transparent.png -> 404 GET /css/user.css -> 404 GET /thumbnail?type=persona&file=user-default.png -> 404 POST /api/settings/get -> 500]
-    bench_test.go:806: page-load manifest: 229 paths, 225 answered 2xx, non-2xx: [GET /backgrounds/__transparent.png -> 404 GET /css/user.css -> 404 GET /thumbnail?type=persona&file=user-default.png -> 404 POST /api/settings/get -> 500]
-    bench_test.go:806: page-load manifest: 229 paths, 225 answered 2xx, non-2xx: [GET /backgrounds/__transparent.png -> 404 GET /css/user.css -> 404 GET /thumbnail?type=persona&file=user-default.png -> 404 POST /api/settings/get -> 500]
-BenchmarkStaticPageLoad-4                                   	       5	 252043386 ns/op	  35.97 MB/s	 8698348 B/op	   42815 allocs/op
---- BENCH: BenchmarkStaticPageLoad-4
-    bench_test.go:806: page-load manifest: 229 paths, 225 answered 2xx, non-2xx: [GET /backgrounds/__transparent.png -> 404 GET /css/user.css -> 404 GET /thumbnail?type=persona&file=user-default.png -> 404 POST /api/settings/get -> 500]
-    bench_test.go:806: page-load manifest: 229 paths, 225 answered 2xx, non-2xx: [GET /backgrounds/__transparent.png -> 404 GET /css/user.css -> 404 GET /thumbnail?type=persona&file=user-default.png -> 404 POST /api/settings/get -> 500]
-    bench_test.go:806: page-load manifest: 229 paths, 225 answered 2xx, non-2xx: [GET /backgrounds/__transparent.png -> 404 GET /css/user.css -> 404 GET /thumbnail?type=persona&file=user-default.png -> 404 POST /api/settings/get -> 500]
-BenchmarkChatCompletionAssemble/largest_recorded-4          	   20464	     59048 ns/op	   9.99 MB/s	   45269 B/op	     727 allocs/op
-BenchmarkChatCompletionAssemble/largest_recorded-4          	   20618	     57942 ns/op	  10.18 MB/s	   45233 B/op	     727 allocs/op
-BenchmarkChatCompletionAssemble/largest_recorded-4          	   20808	     58531 ns/op	  10.08 MB/s	   45216 B/op	     727 allocs/op
-BenchmarkChatCompletionAssemble/scaled_1MB-4                	      39	  26116325 ns/op	  40.47 MB/s	118737120 B/op	    4969 allocs/op
-BenchmarkChatCompletionAssemble/scaled_1MB-4                	      45	  26288395 ns/op	  40.21 MB/s	118743125 B/op	    4969 allocs/op
-BenchmarkChatCompletionAssemble/scaled_1MB-4                	      43	  27431299 ns/op	  38.53 MB/s	118749349 B/op	    4970 allocs/op
-BenchmarkChatCompletionMarshal/largest_recorded-4           	   29172	     40466 ns/op	  22.44 MB/s	   30596 B/op	     569 allocs/op
-BenchmarkChatCompletionMarshal/largest_recorded-4           	   29559	     40597 ns/op	  22.37 MB/s	   30597 B/op	     569 allocs/op
-BenchmarkChatCompletionMarshal/largest_recorded-4           	   29631	     40321 ns/op	  22.52 MB/s	   30597 B/op	     569 allocs/op
-BenchmarkChatCompletionMarshal/scaled_1MB-4                 	     330	   3605416 ns/op	 291.91 MB/s	11600820 B/op	     582 allocs/op
-BenchmarkChatCompletionMarshal/scaled_1MB-4                 	     321	   3643294 ns/op	 288.88 MB/s	11600799 B/op	     581 allocs/op
-BenchmarkChatCompletionMarshal/scaled_1MB-4                 	     328	   3585304 ns/op	 293.55 MB/s	11600794 B/op	     581 allocs/op
-BenchmarkChatSummaryLargeCharactersMetadata-4               	     272	   4792336 ns/op	 710.82 MB/s	 4169893 B/op	     106 allocs/op
-BenchmarkChatSummaryLargeCharactersMetadata-4               	     267	   4591100 ns/op	 741.97 MB/s	 4169894 B/op	     106 allocs/op
-BenchmarkChatSummaryLargeCharactersMetadata-4               	     250	   4864582 ns/op	 700.26 MB/s	 4169891 B/op	     106 allocs/op
-BenchmarkChatSummaryLargeCharacters-4                       	     277	   4832904 ns/op	 704.85 MB/s	 4167186 B/op	      60 allocs/op
-BenchmarkChatSummaryLargeCharacters-4                       	     259	   4883056 ns/op	 697.61 MB/s	 4167186 B/op	      60 allocs/op
-BenchmarkChatSummaryLargeCharacters-4                       	     238	   4923912 ns/op	 691.82 MB/s	 4167184 B/op	      60 allocs/op
-BenchmarkChatSummaryLargeRecent-4                           	     255	   4824800 ns/op	 706.03 MB/s	 4171521 B/op	     108 allocs/op
-BenchmarkChatSummaryLargeRecent-4                           	     246	   4375332 ns/op	 778.56 MB/s	 4171522 B/op	     108 allocs/op
-BenchmarkChatSummaryLargeRecent-4                           	     241	   4587962 ns/op	 742.48 MB/s	 4171523 B/op	     108 allocs/op
-BenchmarkChatSummaryLargeSearch-4                           	       1	5597731326 ns/op	   0.61 MB/s	24545512 B/op	  152160 allocs/op
-BenchmarkChatSummaryLargeSearch-4                           	       1	5570191071 ns/op	   0.61 MB/s	24545576 B/op	  152160 allocs/op
-BenchmarkChatSummaryLargeSearch-4                           	       1	5633359010 ns/op	   0.60 MB/s	24545544 B/op	  152160 allocs/op
+BenchmarkChatCompletionAssemble/largest_recorded-4          	   21405	     54471 ns/op	  10.83 MB/s	   44791 B/op	     727 allocs/op
+BenchmarkChatCompletionAssemble/largest_recorded-4          	   21960	     53398 ns/op	  11.05 MB/s	   44792 B/op	     727 allocs/op
+BenchmarkChatCompletionAssemble/largest_recorded-4          	   21277	     52993 ns/op	  11.13 MB/s	   44789 B/op	     727 allocs/op
+BenchmarkChatCompletionAssemble/scaled_1MB-4                	      63	  17311198 ns/op	  61.06 MB/s	118379886 B/op	    4915 allocs/op
+BenchmarkChatCompletionAssemble/scaled_1MB-4                	      69	  18127881 ns/op	  58.31 MB/s	118388679 B/op	    4916 allocs/op
+BenchmarkChatCompletionAssemble/scaled_1MB-4                	      70	  18132377 ns/op	  58.29 MB/s	118382785 B/op	    4915 allocs/op
+BenchmarkChatCompletionMarshal/largest_recorded-4           	   29856	     37335 ns/op	  24.32 MB/s	   30592 B/op	     569 allocs/op
+BenchmarkChatCompletionMarshal/largest_recorded-4           	   31858	     37294 ns/op	  24.35 MB/s	   30592 B/op	     569 allocs/op
+BenchmarkChatCompletionMarshal/largest_recorded-4           	   32440	     36776 ns/op	  24.69 MB/s	   30592 B/op	     569 allocs/op
+BenchmarkChatCompletionMarshal/scaled_1MB-4                 	     333	   3166445 ns/op	 332.38 MB/s	11600129 B/op	     579 allocs/op
+BenchmarkChatCompletionMarshal/scaled_1MB-4                 	     374	   3129727 ns/op	 336.28 MB/s	11597328 B/op	     579 allocs/op
+BenchmarkChatCompletionMarshal/scaled_1MB-4                 	     381	   3114431 ns/op	 337.93 MB/s	11600128 B/op	     579 allocs/op
+BenchmarkChatSummaryLargeCharactersMetadata-4               	     288	   4040800 ns/op	 843.02 MB/s	 4169856 B/op	     106 allocs/op
+BenchmarkChatSummaryLargeCharactersMetadata-4               	     291	   4380961 ns/op	 777.56 MB/s	 4169888 B/op	     106 allocs/op
+BenchmarkChatSummaryLargeCharactersMetadata-4               	     290	   4055382 ns/op	 839.99 MB/s	 4169888 B/op	     106 allocs/op
+BenchmarkChatSummaryLargeCharacters-4                       	     292	   4103133 ns/op	 830.21 MB/s	 4167184 B/op	      60 allocs/op
+BenchmarkChatSummaryLargeCharacters-4                       	     286	   4086596 ns/op	 833.57 MB/s	 4167184 B/op	      60 allocs/op
+BenchmarkChatSummaryLargeCharacters-4                       	     291	   4056066 ns/op	 839.85 MB/s	 4167184 B/op	      60 allocs/op
+BenchmarkChatSummaryLargeRecent-4                           	     288	   4067788 ns/op	 837.43 MB/s	 4171520 B/op	     108 allocs/op
+BenchmarkChatSummaryLargeRecent-4                           	     296	   4014294 ns/op	 848.58 MB/s	 4171520 B/op	     108 allocs/op
+BenchmarkChatSummaryLargeRecent-4                           	     298	   4023854 ns/op	 846.57 MB/s	 4171520 B/op	     108 allocs/op
+BenchmarkChatSummaryLargeSearch-4                           	       1	5552388039 ns/op	   0.61 MB/s	24545416 B/op	  152160 allocs/op
+BenchmarkChatSummaryLargeSearch-4                           	       1	5594888545 ns/op	   0.61 MB/s	24545448 B/op	  152160 allocs/op
+BenchmarkChatSummaryLargeSearch-4                           	       1	5607310692 ns/op	   0.61 MB/s	24545432 B/op	  152160 allocs/op
 PASS
