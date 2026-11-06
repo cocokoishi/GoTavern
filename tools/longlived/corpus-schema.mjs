@@ -39,6 +39,331 @@ export const JS_GENERATOR = 'tools/build-longlived-corpus.mjs';
 export const SCHEMA_METADATA_NAMES = new Set(['manifest.json', 'corpus-schema.json']);
 
 // ---------------------------------------------------------------------------------------------------------------
+// THE OPTIONAL SCENARIO / INTERACTION BLOCK (alpha.16 M1, plan §3 and §9.B) -- the JS half of the contract.
+//
+// It is the SAME block internal/longlivedfixture/scenario.go defines, and the two field inventories are compared
+// by tests/e2e/longlived_schema_test.go (TestCorpusSchemaGoAndJSFieldInventoriesAgree), so a member added on one
+// side only fails that test. The block is OPTIONAL: `schemaVersion` stays 1, a manifest that omits it is the
+// pre-M1 v1 shape, and the verifier explicitly records the absent path (`scenario-block`). A PRESENT block is
+// validated and a malformed one is refused with a NAMED error on this side too.
+//
+// The recipe is DATA-LIGHT on purpose: counts, names and pinned commits -- never the generated content. The tree
+// is rebuilt from (seed, parameters) by `replayCommand`; `prebootTreeSha256` and `byteCensus` are the identity
+// of what those parameters produced.
+// ---------------------------------------------------------------------------------------------------------------
+
+export const SCENARIO_VERSION = 1;
+export const ENVIRONMENT_CLASSES = Object.freeze(['E01', 'E02', 'E03', 'E04', 'E05', 'E06', 'E07', 'E08', 'E09']);
+
+// Sorted inventories. `SCHEMA_FIELDS` is the same set the Go struct declares (reflection, sorted); the nested
+// inventories are the members each validator walks, so "the field is in the inventory" means "the validator
+// checks it", not merely "the generator writes it".
+export const SCHEMA_FIELDS = Object.freeze(['counts', 'features', 'files', 'generator', 'generatorVersion', 'markers', 'scenario', 'schema', 'schemaVersion', 'seed', 'size', 'tree']);
+export const SCENARIO_FIELDS = Object.freeze(['actionLog', 'byteCensus', 'environmentClass', 'prebootTreeSha256', 'recipe', 'replayCommand', 'scenarioVersion', 'seed']);
+export const SCENARIO_RECIPE_FIELDS = Object.freeze(['actions', 'books', 'cards', 'chats', 'extensions', 'faults', 'observables', 'prompts', 'resourceBounds', 'users']);
+export const SCENARIO_EXTENSION_FIELDS = Object.freeze(['commit', 'name']);
+export const SCENARIO_ACTION_FIELDS = Object.freeze(['id', 'index', 'kind', 'observable', 'source', 'target']);
+export const SCENARIO_BYTE_CENSUS_FIELDS = Object.freeze(['bytes', 'classes', 'files']);
+export const SCENARIO_RESOURCE_BOUND_FIELDS = Object.freeze(['maxBytes', 'maxFiles', 'maxProviderRequests', 'maxWallClockMs']);
+
+// The static prefix inventory of this side's named refusals, compared with the Go `ScenarioIssueNames`. Dynamic
+// names append a suffix (`scenario-version:2`), so equality is by prefix set.
+export const SCENARIO_ISSUE_NAMES = Object.freeze([
+    'scenario-action',
+    'scenario-action-duplicate-id',
+    'scenario-action-log-empty',
+    'scenario-actions-match-log',
+    'scenario-byte-census-bytes',
+    'scenario-byte-census-class',
+    'scenario-byte-census-field-missing',
+    'scenario-byte-census-files',
+    'scenario-byte-census-unknown-field',
+    'scenario-environment-class',
+    'scenario-field-missing',
+    'scenario-malformed',
+    'scenario-not-an-object',
+    'scenario-preboot-tree-mismatch',
+    'scenario-preboot-tree-sha256-shape',
+    'scenario-recipe-actions',
+    'scenario-recipe-books',
+    'scenario-recipe-cards',
+    'scenario-recipe-chats',
+    'scenario-recipe-extension',
+    'scenario-recipe-extensions',
+    'scenario-recipe-faults',
+    'scenario-recipe-field-missing',
+    'scenario-recipe-observables',
+    'scenario-recipe-prompts',
+    'scenario-recipe-resource-bounds',
+    'scenario-recipe-unknown-field',
+    'scenario-recipe-users',
+    'scenario-replay-command-placeholders',
+    'scenario-replay-command-seed',
+    'scenario-replay-command-shape',
+    'scenario-replay-command-tool',
+    'scenario-resource-bounds-bytes',
+    'scenario-resource-bounds-files',
+    'scenario-seed-empty',
+    'scenario-unknown-field',
+    'scenario-version',
+]);
+
+// The verifier's TREE-vs-block check names. They are reachable when a tree drifts away from an otherwise valid
+// schema, which is the real-world drift; schema-internal inconsistencies are refused at load instead.
+export const SCENARIO_TREE_CHECKS = Object.freeze([
+    'scenario-block',
+    'scenario-preboot-tree-matches-tree',
+    'scenario-tree-byte-census-bytes',
+    'scenario-tree-byte-census-classes',
+    'scenario-tree-byte-census-files',
+]);
+
+const HEX40 = /^[0-9a-f]{40}$/;
+const HEX64 = /^[0-9a-f]{64}$/;
+const REPLAY_COMMAND_TOOLS = Object.freeze({
+    [GO_GENERATOR]: 'go run ./cmd/build-longlived ',
+    [JS_GENERATOR]: 'node tools/build-longlived-corpus.mjs ',
+});
+
+function isPlainObject(value) {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isInteger(value) {
+    return typeof value === 'number' && Number.isInteger(value);
+}
+
+function unknownMembers(object, allowed) {
+    return Object.keys(object).filter(key => !allowed.includes(key)).sort();
+}
+
+function missingMembers(object, required) {
+    return required.filter(key => !Object.prototype.hasOwnProperty.call(object, key));
+}
+
+/**
+ * validateScenario validates the OPTIONAL block's presence-independent shape and its schema-internal
+ * consistency. Named errors only: the caller (loadSchema / verifyCorpusAgainstSchema) turns them into
+ * `schema-valid` evidence, and the Go teeth test asserts the names of the ones it produces. The ordering here
+ * mirrors the Go validator; a name added on one side only fails the cross-language inventory test.
+ */
+export function validateScenario(schema, errors) {
+    if (!schema || !Object.prototype.hasOwnProperty.call(schema, 'scenario')) return;
+    const scenario = schema.scenario;
+    if (scenario === null || scenario === undefined) return; // absent and null are the v1 backward-compatible path
+    if (!isPlainObject(scenario)) {
+        errors.push('scenario-not-an-object');
+        return;
+    }
+    for (const key of unknownMembers(scenario, SCENARIO_FIELDS)) errors.push(`scenario-unknown-field:${key}`);
+    for (const key of missingMembers(scenario, SCENARIO_FIELDS)) errors.push(`scenario-field-missing:${key}`);
+
+    if (Object.prototype.hasOwnProperty.call(scenario, 'scenarioVersion')) {
+        if (!isInteger(scenario.scenarioVersion)) errors.push('scenario-malformed:scenarioVersion');
+        else if (scenario.scenarioVersion !== SCENARIO_VERSION) errors.push(`scenario-version:${scenario.scenarioVersion}`);
+    }
+    if (Object.prototype.hasOwnProperty.call(scenario, 'environmentClass')) {
+        if (typeof scenario.environmentClass !== 'string') errors.push('scenario-malformed:environmentClass');
+        else if (!ENVIRONMENT_CLASSES.includes(scenario.environmentClass)) errors.push(`scenario-environment-class:${scenario.environmentClass}`);
+    }
+    if (Object.prototype.hasOwnProperty.call(scenario, 'seed')) {
+        if (typeof scenario.seed !== 'string') errors.push('scenario-malformed:seed');
+        else if (scenario.seed.trim() === '') errors.push('scenario-seed-empty');
+    }
+    if (Object.prototype.hasOwnProperty.call(scenario, 'recipe')) validateScenarioRecipe(scenario.recipe, errors);
+    if (Object.prototype.hasOwnProperty.call(scenario, 'prebootTreeSha256')) {
+        if (typeof scenario.prebootTreeSha256 !== 'string') errors.push('scenario-malformed:prebootTreeSha256');
+        else if (!HEX64.test(scenario.prebootTreeSha256)) errors.push('scenario-preboot-tree-sha256-shape');
+        else if (scenario.prebootTreeSha256 !== schema.tree?.sha256) errors.push('scenario-preboot-tree-mismatch');
+    }
+    if (Object.prototype.hasOwnProperty.call(scenario, 'actionLog')) validateScenarioActionLog(scenario, errors);
+    if (Object.prototype.hasOwnProperty.call(scenario, 'byteCensus')) validateScenarioByteCensus(schema, scenario, errors);
+    if (Object.prototype.hasOwnProperty.call(scenario, 'replayCommand')) validateScenarioReplayCommand(schema, scenario, errors);
+
+    const bounds = scenario.recipe?.resourceBounds;
+    const census = scenario.byteCensus;
+    if (isPlainObject(bounds) && isPlainObject(census)) {
+        if (isInteger(bounds.maxFiles) && bounds.maxFiles > 0 && isInteger(census.files) && bounds.maxFiles < census.files) errors.push('scenario-resource-bounds-files');
+        if (isInteger(bounds.maxBytes) && bounds.maxBytes > 0 && isInteger(census.bytes) && bounds.maxBytes < census.bytes) errors.push('scenario-resource-bounds-bytes');
+    }
+}
+
+function validateScenarioRecipe(recipe, errors) {
+    if (!isPlainObject(recipe)) {
+        errors.push('scenario-malformed:recipe');
+        return;
+    }
+    for (const key of unknownMembers(recipe, SCENARIO_RECIPE_FIELDS)) errors.push(`scenario-recipe-unknown-field:${key}`);
+    for (const key of missingMembers(recipe, SCENARIO_RECIPE_FIELDS)) errors.push(`scenario-recipe-field-missing:${key}`);
+    for (const [key, minimum] of [['users', 1], ['cards', 1], ['chats', 1], ['prompts', 0], ['books', 0]]) {
+        if (!Object.prototype.hasOwnProperty.call(recipe, key)) continue;
+        if (!isInteger(recipe[key])) errors.push(`scenario-malformed:recipe.${key}`);
+        else if (recipe[key] < minimum) errors.push(`scenario-recipe-${key}:${recipe[key]}`);
+    }
+    if (Object.prototype.hasOwnProperty.call(recipe, 'extensions')) {
+        if (!Array.isArray(recipe.extensions)) {
+            errors.push('scenario-malformed:recipe.extensions');
+        } else {
+            recipe.extensions.forEach((extension, index) => {
+                if (!isPlainObject(extension)) {
+                    errors.push(`scenario-malformed:recipe.extensions[${index}]`);
+                    return;
+                }
+                for (const key of unknownMembers(extension, SCENARIO_EXTENSION_FIELDS)) errors.push(`scenario-recipe-extension-${index}-unknown-field:${key}`);
+                for (const key of missingMembers(extension, SCENARIO_EXTENSION_FIELDS)) errors.push(`scenario-recipe-extension-${index}-field-missing:${key}`);
+                if (Object.prototype.hasOwnProperty.call(extension, 'name')) {
+                    if (typeof extension.name !== 'string') errors.push(`scenario-malformed:recipe.extensions[${index}].name`);
+                    else if (extension.name.trim() === '') errors.push(`scenario-recipe-extension-${index}-name-empty`);
+                }
+                if (Object.prototype.hasOwnProperty.call(extension, 'commit')) {
+                    if (typeof extension.commit !== 'string') errors.push(`scenario-malformed:recipe.extensions[${index}].commit`);
+                    else if (!HEX40.test(extension.commit)) errors.push(`scenario-recipe-extension-${index}-commit:${extension.commit}`);
+                }
+            });
+        }
+    }
+    if (Object.prototype.hasOwnProperty.call(recipe, 'actions')) {
+        if (!Array.isArray(recipe.actions)) {
+            errors.push('scenario-malformed:recipe.actions');
+        } else {
+            if (recipe.actions.length === 0) errors.push('scenario-recipe-actions-empty');
+            recipe.actions.forEach((action, index) => {
+                if (typeof action !== 'string') errors.push(`scenario-malformed:recipe.actions[${index}]`);
+                else if (action.trim() === '') errors.push(`scenario-recipe-actions-item-${index}`);
+            });
+        }
+    }
+    if (Object.prototype.hasOwnProperty.call(recipe, 'faults')) {
+        if (!Array.isArray(recipe.faults)) {
+            errors.push('scenario-malformed:recipe.faults');
+        } else {
+            recipe.faults.forEach((fault, index) => {
+                if (typeof fault !== 'string') errors.push(`scenario-malformed:recipe.faults[${index}]`);
+                else if (fault.trim() === '') errors.push(`scenario-recipe-faults-item-${index}`);
+            });
+        }
+    }
+    if (Object.prototype.hasOwnProperty.call(recipe, 'observables')) {
+        if (!Array.isArray(recipe.observables)) {
+            errors.push('scenario-malformed:recipe.observables');
+        } else {
+            if (recipe.observables.length === 0) errors.push('scenario-recipe-observables-empty');
+            recipe.observables.forEach((observable, index) => {
+                if (typeof observable !== 'string') errors.push(`scenario-malformed:recipe.observables[${index}]`);
+                else if (observable.trim() === '') errors.push(`scenario-recipe-observables-item-${index}`);
+            });
+            const sorted = [...recipe.observables].sort();
+            if (JSON.stringify(sorted) !== JSON.stringify(recipe.observables)) errors.push('scenario-recipe-observables-order');
+        }
+    }
+    if (Object.prototype.hasOwnProperty.call(recipe, 'resourceBounds')) {
+        const bounds = recipe.resourceBounds;
+        if (!isPlainObject(bounds)) {
+            errors.push('scenario-malformed:recipe.resourceBounds');
+        } else {
+            for (const key of unknownMembers(bounds, SCENARIO_RESOURCE_BOUND_FIELDS)) errors.push(`scenario-recipe-resource-bounds-unknown-field:${key}`);
+            for (const key of missingMembers(bounds, SCENARIO_RESOURCE_BOUND_FIELDS)) errors.push(`scenario-recipe-resource-bounds-field-missing:${key}`);
+            for (const [key, minimum] of [['maxFiles', 1], ['maxBytes', 1], ['maxProviderRequests', 0], ['maxWallClockMs', 1]]) {
+                if (!Object.prototype.hasOwnProperty.call(bounds, key)) continue;
+                if (!isInteger(bounds[key])) errors.push(`scenario-malformed:recipe.resourceBounds.${key}`);
+                else if (bounds[key] < minimum) errors.push(`scenario-recipe-resource-bounds-${key}:${bounds[key]}`);
+            }
+        }
+    }
+}
+
+function validateScenarioActionLog(scenario, errors) {
+    const log = scenario.actionLog;
+    if (!Array.isArray(log)) {
+        errors.push('scenario-malformed:actionLog');
+        return;
+    }
+    if (log.length === 0) errors.push('scenario-action-log-empty');
+    const seen = new Set();
+    const ids = [];
+    log.forEach((action, index) => {
+        if (!isPlainObject(action)) {
+            errors.push(`scenario-malformed:actionLog[${index}]`);
+            return;
+        }
+        for (const key of unknownMembers(action, SCENARIO_ACTION_FIELDS)) errors.push(`scenario-action-${index}-unknown-field:${key}`);
+        for (const key of missingMembers(action, SCENARIO_ACTION_FIELDS)) errors.push(`scenario-action-${index}-field-missing:${key}`);
+        if (Object.prototype.hasOwnProperty.call(action, 'index')) {
+            if (!isInteger(action.index)) errors.push(`scenario-malformed:actionLog[${index}].index`);
+            else if (action.index !== index) errors.push(`scenario-action-${index}-index:${action.index}`);
+        }
+        for (const key of ['id', 'kind', 'source', 'observable', 'target']) {
+            if (!Object.prototype.hasOwnProperty.call(action, key)) continue;
+            if (typeof action[key] !== 'string') {
+                errors.push(`scenario-malformed:actionLog[${index}].${key}`);
+            } else if (action[key].trim() === '') {
+                errors.push(`scenario-action-${index}-${key}-empty`);
+            }
+        }
+        if (typeof action.id === 'string' && action.id !== '') {
+            if (seen.has(action.id)) errors.push(`scenario-action-duplicate-id:${action.id}`);
+            seen.add(action.id);
+            ids.push(action.id);
+        }
+    });
+    const recipeActions = scenario.recipe?.actions;
+    if (Array.isArray(recipeActions) && JSON.stringify(recipeActions) !== JSON.stringify(ids)) errors.push('scenario-actions-match-log');
+}
+
+function validateScenarioByteCensus(schema, scenario, errors) {
+    const census = scenario.byteCensus;
+    if (!isPlainObject(census)) {
+        errors.push('scenario-malformed:byteCensus');
+        return;
+    }
+    for (const key of unknownMembers(census, SCENARIO_BYTE_CENSUS_FIELDS)) errors.push(`scenario-byte-census-unknown-field:${key}`);
+    for (const key of missingMembers(census, SCENARIO_BYTE_CENSUS_FIELDS)) errors.push(`scenario-byte-census-field-missing:${key}`);
+    if (Object.prototype.hasOwnProperty.call(census, 'files')) {
+        if (!isInteger(census.files)) errors.push('scenario-malformed:byteCensus.files');
+        else if (census.files !== schema.counts?.files || census.files !== (schema.files ?? []).length) errors.push(`scenario-byte-census-files:${census.files}`);
+    }
+    if (Object.prototype.hasOwnProperty.call(census, 'bytes')) {
+        if (!isInteger(census.bytes)) errors.push('scenario-malformed:byteCensus.bytes');
+        else if (census.bytes !== schema.counts?.bytes || census.bytes !== schema.tree?.bytes) errors.push(`scenario-byte-census-bytes:${census.bytes}`);
+    }
+    if (Object.prototype.hasOwnProperty.call(census, 'classes')) {
+        if (!isPlainObject(census.classes)) {
+            errors.push('scenario-malformed:byteCensus.classes');
+        } else {
+            const expected = {};
+            for (const [name, count] of Object.entries(schema.counts ?? {})) {
+                if (name.startsWith('class.')) expected[name.slice('class.'.length)] = count;
+            }
+            for (const [name, count] of Object.entries(census.classes)) {
+                if (!isInteger(count)) errors.push(`scenario-malformed:byteCensus.classes.${name}`);
+                else if (expected[name] !== count) errors.push(`scenario-byte-census-class:${name}`);
+            }
+            for (const name of Object.keys(expected)) {
+                if (!Object.prototype.hasOwnProperty.call(census.classes, name)) errors.push(`scenario-byte-census-class:${name}`);
+            }
+        }
+    }
+}
+
+function validateScenarioReplayCommand(schema, scenario, errors) {
+    const command = scenario.replayCommand;
+    if (typeof command !== 'string') {
+        errors.push('scenario-malformed:replayCommand');
+        return;
+    }
+    if (command === '' || command !== command.trim()) {
+        errors.push('scenario-replay-command-shape');
+        return;
+    }
+    if (/[\u0000-\u001f\u007f]/.test(command)) errors.push('scenario-replay-command-shape');
+    if (!command.includes('<out>') || !command.includes('<schema>')) errors.push('scenario-replay-command-placeholders');
+    if (typeof scenario.seed === 'string' && scenario.seed !== '' && !command.includes(scenario.seed)) errors.push('scenario-replay-command-seed');
+    const tool = REPLAY_COMMAND_TOOLS[schema.generator];
+    if (!tool || !command.startsWith(tool)) errors.push(`scenario-replay-command-tool:${schema.generator}`);
+}
+
+
+// ---------------------------------------------------------------------------------------------------------------
 // CLASSIFIER -- keep byte-for-byte equivalent to internal/longlivedfixture/corpus_schema.go.
 // ---------------------------------------------------------------------------------------------------------------
 
@@ -160,7 +485,7 @@ export function classCounts(files) {
  * counts and the tree digest are DERIVED from the walk and overwrite anything the caller supplied under
  * those keys. That split is what makes "the manifest describes the tree" checkable.
  */
-export async function buildSchemaFromTree({ root, generator, generatorVersion, size, seed, counts = {}, features = {}, markers = {} }) {
+export async function buildSchemaFromTree({ root, generator, generatorVersion, size, seed, counts = {}, features = {}, markers = {}, scenario = null }) {
     const files = await walkCorpus(root);
     const identity = treeIdentity(files);
     const classes = classCounts(files);
@@ -178,7 +503,7 @@ export async function buildSchemaFromTree({ root, generator, generatorVersion, s
     // capability from the FILES IT WROTE (an unknown-extension file, a backup) derives it here instead of
     // declaring a value it has not measured.
     const resolvedFeatures = typeof features === 'function' ? features(files, classes) : { ...features };
-    return {
+    const schema = {
         schema: SCHEMA_NAME,
         schemaVersion: SCHEMA_VERSION,
         generator,
@@ -191,6 +516,10 @@ export async function buildSchemaFromTree({ root, generator, generatorVersion, s
         tree: identity,
         files,
     };
+    // The optional scenario block is APPENDED after `files` (the same position it has in the Go struct), so a
+    // schema without one is byte-identical to the pre-M1 shape and a schema with one has a stable member order.
+    if (scenario) schema.scenario = scenario;
+    return schema;
 }
 
 export function schemaBytes(schema) {
@@ -215,6 +544,12 @@ export function validateSchema(schema) {
     if (!schema || typeof schema !== 'object') return ['schema-not-an-object'];
     if (schema.schema !== SCHEMA_NAME) errors.push(`schema-name:${schema.schema}`);
     if (schema.schemaVersion !== SCHEMA_VERSION) errors.push(`schema-version:${schema.schemaVersion}`);
+    // The top-level inventory is load-bearing: every declared member except the OPTIONAL `scenario` must be
+    // present, so a generator cannot silently stop emitting `markers` (or any future member) and have the
+    // verifier treat its absence as fine. `scenario` itself stays optional — that is the v1 read path.
+    for (const key of missingMembers(schema, SCHEMA_FIELDS.filter(name => name !== 'scenario'))) {
+        errors.push(`schema-field-missing:${key}`);
+    }
     if (!Array.isArray(schema.files) || schema.files.length === 0) errors.push('files-missing');
     if (!schema.tree || typeof schema.tree.sha256 !== 'string' || schema.tree.sha256.length !== 64) errors.push('tree-digest-missing');
     const seen = new Set();
@@ -235,6 +570,7 @@ export function validateSchema(schema) {
     for (const metadataName of SCHEMA_METADATA_NAMES) {
         if (seen.has(metadataName)) errors.push(`governance-manifest-in-inventory:${metadataName}`);
     }
+    validateScenario(schema, errors);
     return errors;
 }
 
@@ -294,9 +630,53 @@ export async function verifyCorpusAgainstSchema({ corpus, schema }) {
     }
     add('class-counts-match-schema', classDiffs.length === 0, classDiffs.slice(0, 10));
 
+    // ---- the OPTIONAL scenario block: TREE-vs-block checks ------------------------------------------------
+    //
+    // These are the reachable drift checks: a schema that is internally consistent is loaded (schema-internal
+    // inconsistencies are refused at load as named errors), and the tree is then compared to what the block
+    // says was generated. A byte changed in the tree and the block's preboot digest no longer names it; a tree
+    // that gained/lost files or bytes and the byte census no longer describes it. `scenario-block` records the
+    // ABSENT path explicitly, so "no block was declared" is an observed state rather than a silent pass.
+    const scenario = isPlainObject(schema.scenario) ? schema.scenario : null;
+    add('scenario-block', true, scenario
+        ? { scenarioVersion: scenario.scenarioVersion ?? null, environmentClass: scenario.environmentClass ?? null, seed: scenario.seed ?? null, replayCommand: scenario.replayCommand ?? null }
+        : 'absent (v1 backward-compatible read path)');
+    if (scenario) {
+        add('scenario-preboot-tree-matches-tree', identity.sha256 === scenario.prebootTreeSha256, {
+            schema: scenario.prebootTreeSha256 ?? null,
+            tree: identity.sha256,
+        });
+        const census = isPlainObject(scenario.byteCensus) ? scenario.byteCensus : {};
+        add('scenario-tree-byte-census-files', identity.files === census.files, { schema: census.files ?? null, tree: identity.files });
+        add('scenario-tree-byte-census-bytes', identity.bytes === census.bytes, { schema: census.bytes ?? null, tree: identity.bytes });
+        const censusClasses = isPlainObject(census.classes) ? census.classes : {};
+        const censusDiffs = [];
+        for (const name of new Set([...Object.keys(treeClasses), ...Object.keys(censusClasses)])) {
+            if ((treeClasses[name] ?? 0) !== (censusClasses[name] ?? 0)) {
+                censusDiffs.push({ class: name, census: censusClasses[name] ?? 0, tree: treeClasses[name] ?? 0 });
+            }
+        }
+        add('scenario-tree-byte-census-classes', censusDiffs.length === 0, censusDiffs.slice(0, 10));
+    }
+
     const ok = checks.every(check => check.ok);
     return {
-        schema: { name: schema.schema, version: schema.schemaVersion, generator: schema.generator, size: schema.size, seed: schema.seed },
+        schema: {
+            name: schema.schema,
+            version: schema.schemaVersion,
+            generator: schema.generator,
+            size: schema.size,
+            seed: schema.seed,
+            scenario: scenario
+                ? {
+                    scenarioVersion: scenario.scenarioVersion ?? null,
+                    environmentClass: scenario.environmentClass ?? null,
+                    seed: scenario.seed ?? null,
+                    prebootTreeSha256: scenario.prebootTreeSha256 ?? null,
+                    replayCommand: scenario.replayCommand ?? null,
+                }
+                : null,
+        },
         corpus: { root: path.resolve(corpus), files: identity.files, bytes: identity.bytes, treeSha256: identity.sha256 },
         checks,
         failed: checks.filter(check => !check.ok).map(check => check.name),
@@ -406,6 +786,30 @@ export function compareCorpora(left, right) {
         right: rightSizes[name] ?? null,
     }));
 
+    // The OPTIONAL scenario block is compared as its OWN difference class, never folded into files/bytes: the
+    // two corpora legitimately declare different E02 recipes (different generators, sizes and seeds), and the
+    // report must say WHICH declared fact differs instead of treating two different trees as equal.
+    const leftScenario = isPlainObject(left.scenario) ? left.scenario : null;
+    const rightScenario = isPlainObject(right.scenario) ? right.scenario : null;
+    const scenarioDifferences = [];
+    if (Boolean(leftScenario) !== Boolean(rightScenario)) {
+        scenarioDifferences.push({ name: 'scenario-presence', left: Boolean(leftScenario), right: Boolean(rightScenario) });
+    } else if (leftScenario && rightScenario) {
+        for (const key of ['scenarioVersion', 'environmentClass', 'seed']) {
+            if (JSON.stringify(leftScenario[key]) !== JSON.stringify(rightScenario[key])) {
+                scenarioDifferences.push({ name: `scenario:${key}`, left: leftScenario[key] ?? null, right: rightScenario[key] ?? null });
+            }
+        }
+        for (const key of ['users', 'cards', 'chats', 'prompts', 'books']) {
+            if (JSON.stringify(leftScenario.recipe?.[key]) !== JSON.stringify(rightScenario.recipe?.[key])) {
+                scenarioDifferences.push({ name: `scenario:recipe.${key}`, left: leftScenario.recipe?.[key] ?? null, right: rightScenario.recipe?.[key] ?? null });
+            }
+        }
+        if (leftScenario.prebootTreeSha256 !== rightScenario.prebootTreeSha256) {
+            scenarioDifferences.push({ name: 'scenario:prebootTreeSha256', left: leftScenario.prebootTreeSha256 ?? null, right: rightScenario.prebootTreeSha256 ?? null });
+        }
+    }
+
     const differenceClasses = [];
     differenceClasses.push({ name: 'generator-identity', left: left.generator, right: right.generator, detail: 'different builders; the trees cannot be claimed identical from the schema alone' });
     if (left.size !== right.size || left.seed !== right.seed) {
@@ -420,6 +824,7 @@ export function compareCorpora(left, right) {
     for (const row of markerDifferences) differenceClasses.push({ name: `marker:${row.marker}`, left: row.leftCount, right: row.rightCount });
     for (const row of classTable.filter(row => row.left !== row.right)) differenceClasses.push({ name: `class:${row.class}`, left: row.left, right: row.right });
     for (const row of classDisagreements) differenceClasses.push({ name: `class-disagreement:${row.path}`, left: row.left, right: row.right });
+    for (const row of scenarioDifferences) differenceClasses.push(row);
 
     const coverageOnlyLeft = featureDifferences.filter(row => row.left === true && row.right !== true).map(row => row.feature);
     const coverageOnlyRight = featureDifferences.filter(row => row.right === true && row.left !== true).map(row => row.feature);
@@ -432,8 +837,9 @@ export function compareCorpora(left, right) {
 
     return {
         schema: { name: left.schema, version: left.schemaVersion, shared: left.schema === right.schema && left.schemaVersion === right.schemaVersion },
-        left: { generator: left.generator, size: left.size, seed: left.seed, files: left.tree.files, bytes: left.tree.bytes, treeSha256: left.tree.sha256 },
-        right: { generator: right.generator, size: right.size, seed: right.seed, files: right.tree.files, bytes: right.tree.bytes, treeSha256: right.tree.sha256 },
+        left: { generator: left.generator, size: left.size, seed: left.seed, files: left.tree.files, bytes: left.tree.bytes, treeSha256: left.tree.sha256, scenario: leftScenario ? { scenarioVersion: leftScenario.scenarioVersion, environmentClass: leftScenario.environmentClass, seed: leftScenario.seed, prebootTreeSha256: leftScenario.prebootTreeSha256 } : null },
+        right: { generator: right.generator, size: right.size, seed: right.seed, files: right.tree.files, bytes: right.tree.bytes, treeSha256: right.tree.sha256, scenario: rightScenario ? { scenarioVersion: rightScenario.scenarioVersion, environmentClass: rightScenario.environmentClass, seed: rightScenario.seed, prebootTreeSha256: rightScenario.prebootTreeSha256 } : null },
+        scenario: { left: leftScenario, right: rightScenario, differences: scenarioDifferences },
         byteIdentical,
         identicalPaths: identicalPaths.length,
         sharedPaths: sharedPaths.length,

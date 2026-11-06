@@ -54,7 +54,9 @@ import {
     MANIFEST_NAME, UNICODE_MARKERS, buildManifest, createRng, encodePng, prose,
     walkTree, writeCardPng, writeTree,
 } from './longlived/corpus-lib.mjs';
-import { JS_GENERATOR, buildSchemaFromTree, writeSchema } from './longlived/corpus-schema.mjs';
+import {
+    JS_GENERATOR, SCENARIO_VERSION, buildSchemaFromTree, sha256, validateSchema, writeSchema,
+} from './longlived/corpus-schema.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(here, '..');
@@ -313,6 +315,80 @@ function generatedPreset({ rng, profile, index, promptCount }) {
         prompt_order: [{ character_id: 100001, order }],
         extensions: { longlived_legacy_preset: { schema: 1, note: `generated preset ${index}` } },
         promptCount,
+    };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// THE E02 PROTOTYPE SCENARIO (alpha.16 M1, plan §3 and §9.B).
+//
+// One prototype environment class is declared today: E02 (long-lived normal), because THIS generator already
+// builds that environment from (size, seed). The descriptor is data-light and derived, never typed-in prose:
+// the counts come from the manifest, the census and preboot digest from the walked tree, and the action targets
+// from the planted chats/presets/worlds selected by the seed. The replay command rebuilds the same tree from the
+// same seed and parameters, which is what makes the block a recipe rather than a snapshot.
+//
+// The Go half of this contract is internal/longlivedfixture/scenario.go; the field names are compared by
+// tests/e2e/longlived_schema_test.go and both loaders refuse a member the other side does not declare.
+// ---------------------------------------------------------------------------------------------------------------
+
+/** A seed-derived index in [0, size); deterministic and independent of slice order. */
+function scenarioSeedIndex(seed, size) {
+    if (size <= 0) return 0;
+    const digest = sha256(Buffer.from(String(seed), 'utf8'));
+    return parseInt(digest.slice(0, 8), 16) % size;
+}
+
+export function buildE02Scenario({ size, seed, planted, manifest, schema }) {
+    const chats = manifest.surfaces.chats;
+    if (!Array.isArray(chats) || chats.length === 0) throw new Error('the corpus planted no chats, so it is not an E02 environment');
+    let longest = chats[0];
+    for (const chat of chats) {
+        if (chat.messages > longest.messages || (chat.messages === longest.messages && chat.file < longest.file)) longest = chat;
+    }
+    const presetNames = [...new Set(planted.presets.map(preset => preset.name))].sort();
+    if (presetNames.length === 0) throw new Error('the corpus planted no presets, so it is not an E02 environment');
+    const preset = presetNames[scenarioSeedIndex(seed, presetNames.length)];
+    const worldNames = [...manifest.surfaces.worldNames].sort();
+    const world = worldNames.length > 0 ? `${'default-user'}/worlds/${worldNames[scenarioSeedIndex(seed, worldNames.length)]}.json` : '';
+    const actions = [
+        { index: 0, id: 'resume-longest-chat', kind: 'resume', source: 'browser:character-list', observable: 'chat-identity', target: longest.file },
+        { index: 1, id: 'swipe-last-reply', kind: 'swipe', source: 'browser:chat', observable: 'provider-wire', target: longest.file },
+        { index: 2, id: 'switch-preset', kind: 'preset-switch', source: 'browser:settings', observable: 'settings-persist', target: preset },
+        { index: 3, id: 'switch-world', kind: 'world-switch', source: 'browser:world-info', observable: 'settings-persist', target: world },
+        { index: 4, id: 'reload-page', kind: 'reload', source: 'browser:page', observable: 'browser-state', target: longest.file },
+        { index: 5, id: 'restart-process', kind: 'restart', source: 'process:restart', observable: 'persisted-bytes', target: longest.file },
+    ];
+    const classes = {};
+    for (const file of schema.files) classes[file.class] = (classes[file.class] ?? 0) + 1;
+    const census = { files: schema.tree.files, bytes: schema.tree.bytes, classes };
+    const providerRequestBound = actions.filter(action => action.observable === 'provider-wire').length;
+    return {
+        scenarioVersion: SCENARIO_VERSION,
+        environmentClass: 'E02',
+        seed,
+        recipe: {
+            users: 1, // the generator stages exactly one synthetic user tree (`default-user/`)
+            cards: manifest.counts.characters,
+            chats: manifest.counts.chats,
+            // `prompts` counts prompt-bearing documents (presets), not blocks: the 120-block stress profile is
+            // the E03 recipe, which this prototype does not claim.
+            prompts: manifest.counts.presets + (manifest.counts.textPresets ?? 0),
+            books: manifest.counts.worldbooks,
+            extensions: [], // E02 installs no third-party extensions; E04 owns that environment class
+            actions: actions.map(action => action.id),
+            faults: [],
+            observables: ['browser-state', 'disk-bytes', 'provider-wire'],
+            resourceBounds: {
+                maxFiles: Math.max(2 * schema.tree.files, schema.tree.files),
+                maxBytes: Math.max(4 * schema.tree.bytes, schema.tree.bytes),
+                maxProviderRequests: providerRequestBound,
+                maxWallClockMs: 600000,
+            },
+        },
+        prebootTreeSha256: schema.tree.sha256,
+        actionLog: actions,
+        byteCensus: census,
+        replayCommand: `node tools/build-longlived-corpus.mjs --size ${size} --out <out> --seed ${seed} --schema-out <schema> --force`,
     };
 }
 
@@ -843,9 +919,26 @@ export async function buildCorpus({ size, out, seed = 'corpus-v1', force = false
         root: out, generator: JS_GENERATOR, generatorVersion: Number(GENERATOR_VERSION) || 1,
         size, seed, counts: schemaCounts, features, markers,
     });
+    // buildSchemaFromTree needs the walked inventory for the census, so the scenario is derived once the walk is
+    // done; assigning it appends the member after `files` (the position the Go struct has), keeping the bytes of
+    // a schema WITHOUT a scenario identical to the pre-M1 shape.
+    schema.scenario = buildE02Scenario({ size, seed, planted, manifest, schema });
+    // The builder refuses to EMIT a manifest its own consumer would refuse: the same named validator the
+    // verifier runs decides whether these bytes may be written.
+    const schemaErrors = validateSchema(schema);
+    if (schemaErrors.length > 0) {
+        throw new Error(`the generated shared corpus schema is invalid: ${schemaErrors.join('; ')}`);
+    }
     manifest.corpusSchema = {
         schema: schema.schema, schemaVersion: schema.schemaVersion,
         treeSha256: schema.tree.sha256, files: schema.tree.files, bytes: schema.tree.bytes,
+        scenario: {
+            scenarioVersion: schema.scenario.scenarioVersion,
+            environmentClass: schema.scenario.environmentClass,
+            seed: schema.scenario.seed,
+            prebootTreeSha256: schema.scenario.prebootTreeSha256,
+            replayCommand: schema.scenario.replayCommand,
+        },
     };
     if (schemaOut) await writeSchema(schemaOut, schema);
     return manifest;
@@ -926,6 +1019,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
         files: manifest.tree.files,
         bytes: manifest.tree.bytes,
         counts: manifest.counts,
+        scenario: manifest.corpusSchema?.scenario ?? null,
         determinism,
     };
     console.log(JSON.stringify(summary));
@@ -933,6 +1027,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
         console.error(`long-lived corpus (${size}): ${manifest.tree.files} files, ${(manifest.tree.bytes / (1024 * 1024)).toFixed(2)} MiB, tree sha256 ${manifest.tree.sha256}`);
         for (const [name, count] of Object.entries(manifest.counts)) console.error(`  ${name}: ${count}`);
         if (determinism) console.error(`  deterministic rebuild: ${determinism.identical ? 'BYTE-IDENTICAL' : 'DIFFERENT'} (${determinism.rebuiltSha256})`);
-    if (manifest.corpusSchema) console.error(`  corpus schema: tree ${manifest.corpusSchema.treeSha256} (${manifest.corpusSchema.files} files)`);
+        if (manifest.corpusSchema) {
+            const scenario = manifest.corpusSchema.scenario;
+            console.error(`  corpus schema: tree ${manifest.corpusSchema.treeSha256} (${manifest.corpusSchema.files} files, scenario ${scenario?.environmentClass ?? 'absent'})`);
+        }
     }
 }

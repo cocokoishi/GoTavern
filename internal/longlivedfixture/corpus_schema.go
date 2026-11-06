@@ -71,6 +71,9 @@ const (
 	CorpusSchemaVersion = 1
 	// CorpusGeneratorGo identifies the Go generator in `generator`.
 	CorpusGeneratorGo = "internal/longlivedfixture"
+	// CorpusGeneratorJS identifies the JavaScript corpus generator in `generator`. The scenario block's
+	// replay command is checked against the generator identity it names, so both constants are shared.
+	CorpusGeneratorJS = "tools/build-longlived-corpus.mjs"
 	// CorpusGeneratorVersion is the Go generator's own version, bumped when its bytes change.
 	CorpusGeneratorVersion = 1
 )
@@ -100,7 +103,9 @@ type SchemaTree struct {
 }
 
 // CorpusSchema is the shared manifest. Field order is fixed by this struct and maps marshal in sorted key
-// order, so the JSON is byte-stable for the same tree.
+// order, so the JSON is byte-stable for the same tree. `Scenario` is the alpha.16 M1 extension: an OPTIONAL,
+// independently versioned scenario/interaction block appended after `files`. A manifest that omits it is the
+// pre-M1 v1 shape and marshals byte-identically, which is what makes the extension backward-compatible.
 type CorpusSchema struct {
 	Schema           string              `json:"schema"`
 	SchemaVersion    int                 `json:"schemaVersion"`
@@ -113,6 +118,7 @@ type CorpusSchema struct {
 	Markers          map[string][]string `json:"markers"`
 	Tree             SchemaTree          `json:"tree"`
 	Files            []SchemaFile        `json:"files"`
+	Scenario         *CorpusScenario     `json:"scenario,omitempty"`
 }
 
 // SchemaDifference is one named, measured drift between two schemas (or a schema and a tree). The name is
@@ -534,30 +540,95 @@ func WriteCorpusSchema(target string, schema *CorpusSchema) error {
 
 // LoadCorpusSchema reads and shape-checks a schema file. It refuses an unknown schema name or version: a
 // consumer that silently accepted a different manifest would be verifying nothing.
+//
+// The OPTIONAL scenario block (alpha.16 M1) is handled here: a manifest that omits it is the pre-M1 v1 shape and
+// loads exactly as before, while a PRESENT block is parsed and validated and a malformed one is refused with a
+// *ScenarioValidationError whose Names() are the stable assertions (`scenario-version:2`, …). The raw JSON is
+// read twice on purpose: the typed decode cannot distinguish a missing member from a zero value, and a
+// scenario member the shared schema does not declare is exactly the drift this contract must not ignore.
 func LoadCorpusSchema(target string) (*CorpusSchema, error) {
 	body, err := os.ReadFile(target)
 	if err != nil {
 		return nil, err
 	}
-	var schema CorpusSchema
-	if err := json.Unmarshal(body, &schema); err != nil {
+	return parseCorpusSchema(body, target)
+}
+
+// parseCorpusSchema decodes and validates schema bytes. It is shared by LoadCorpusSchema and by the builder,
+// so `BuildCorpusSchemaWithScenario` can require that the bytes it emits load back through the read path.
+func parseCorpusSchema(body []byte, source string) (*CorpusSchema, error) {
+	var top map[string]json.RawMessage
+	if err := json.Unmarshal(body, &top); err != nil {
+		return nil, fmt.Errorf("corpus schema %s is not a JSON object: %w", source, err)
+	}
+	scenarioRaw, hasScenario := top["scenario"]
+	delete(top, "scenario")
+	stripped, err := json.Marshal(top)
+	if err != nil {
 		return nil, err
+	}
+	var schema CorpusSchema
+	if err := json.Unmarshal(stripped, &schema); err != nil {
+		return nil, fmt.Errorf("corpus schema %s does not decode: %w", source, err)
 	}
 	if schema.Schema != CorpusSchemaName || schema.SchemaVersion != CorpusSchemaVersion {
 		return nil, fmt.Errorf("unexpected corpus schema %q v%d (want %q v%d)", schema.Schema, schema.SchemaVersion, CorpusSchemaName, CorpusSchemaVersion)
 	}
+	if hasScenario {
+		trimmed := bytes.TrimSpace(scenarioRaw)
+		if len(trimmed) > 0 && !bytes.Equal(trimmed, []byte("null")) {
+			if trimmed[0] != '{' {
+				return nil, &ScenarioValidationError{Source: source, Issues: []ScenarioIssue{{Name: "scenario-not-an-object"}}}
+			}
+			var scenario CorpusScenario
+			if err := json.Unmarshal(scenarioRaw, &scenario); err != nil {
+				return nil, &ScenarioValidationError{Source: source, Issues: []ScenarioIssue{{Name: "scenario-malformed", Detail: err.Error()}}}
+			}
+			schema.Scenario = &scenario
+			issues := rawScenarioIssues(scenarioRaw)
+			issues = append(issues, ValidateCorpusScenario(&schema)...)
+			if len(issues) > 0 {
+				return nil, &ScenarioValidationError{Source: source, Issues: issues}
+			}
+		}
+	}
 	if len(schema.Files) == 0 {
-		return nil, fmt.Errorf("corpus schema %s carries no files", target)
+		return nil, fmt.Errorf("corpus schema %s carries no files", source)
 	}
 	for index, file := range schema.Files {
 		if file.Path == "" || path.IsAbs(file.Path) || strings.Contains(file.Path, "\\") || strings.HasPrefix(file.Path, "../") {
-			return nil, fmt.Errorf("corpus schema %s row %d has an unsafe path %q", target, index, file.Path)
+			return nil, fmt.Errorf("corpus schema %s row %d has an unsafe path %q", source, index, file.Path)
 		}
 		if index > 0 && schema.Files[index-1].Path >= file.Path {
-			return nil, fmt.Errorf("corpus schema %s is not sorted at %q", target, file.Path)
+			return nil, fmt.Errorf("corpus schema %s is not sorted at %q", source, file.Path)
 		}
 	}
 	return &schema, nil
+}
+
+// BuildCorpusSchemaWithScenario builds the shared schema for a tree and declares the alpha.16 M1 E02 prototype
+// scenario descriptor. The emitted bytes are round-tripped back through the READ path before they are returned,
+// so the builder cannot mint a manifest its own consumers refuse — a green build is not allowed to be a manifest
+// a verifier would reject.
+func BuildCorpusSchemaWithScenario(root string, spec Spec, manifest *Manifest, sizeLabel, replayCommand string) (*CorpusSchema, error) {
+	schema, err := BuildCorpusSchema(root, spec, manifest, sizeLabel)
+	if err != nil {
+		return nil, err
+	}
+	scenario, err := BuildE02Scenario(spec, manifest, schema, replayCommand)
+	if err != nil {
+		return nil, err
+	}
+	schema.Scenario = scenario
+	body, err := MarshalCorpusSchema(schema)
+	if err != nil {
+		return nil, err
+	}
+	parsed, err := parseCorpusSchema(body, "<generated by "+CorpusGeneratorGo+">")
+	if err != nil {
+		return nil, fmt.Errorf("the builder emitted a corpus schema its own reader refuses: %w", err)
+	}
+	return parsed, nil
 }
 
 // DiffCorpusSchemas returns the named differences between two schemas. It is the Go side of the drift gate
@@ -603,6 +674,18 @@ func DiffCorpusSchemas(previous, next *CorpusSchema) []SchemaDifference {
 	}
 	if previous.Tree != next.Tree {
 		differences = append(differences, SchemaDifference{Name: "tree-identity", Left: previous.Tree.SHA256, Right: next.Tree.SHA256})
+	}
+	// The optional scenario block is part of the manifest's identity when present. Its absence is a VALID v1
+	// shape, so the diff names presence separately from a changed block: a consumer that dropped the block has
+	// lost the scenario description, and a consumer whose block changed has a non-deterministic descriptor.
+	if (previous.Scenario == nil) != (next.Scenario == nil) {
+		differences = append(differences, SchemaDifference{Name: "scenario-presence", Left: fmt.Sprint(previous.Scenario != nil), Right: fmt.Sprint(next.Scenario != nil)})
+	} else if previous.Scenario != nil {
+		leftBytes, leftErr := marshalScenario(previous.Scenario)
+		rightBytes, rightErr := marshalScenario(next.Scenario)
+		if leftErr != nil || rightErr != nil || !bytes.Equal(leftBytes, rightBytes) {
+			differences = append(differences, SchemaDifference{Name: "scenario-block", Left: digest(leftBytes), Right: digest(rightBytes)})
+		}
 	}
 	for key, leftValue := range previous.Counts {
 		if rightValue, exists := next.Counts[key]; !exists || rightValue != leftValue {

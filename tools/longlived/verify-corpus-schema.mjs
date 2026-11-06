@@ -44,11 +44,32 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     const reportPath = argument('--report', null);
     const quiet = process.argv.includes('--quiet');
     let report;
+    let schema = null;
     try {
-        const schema = await loadSchema(path.resolve(schemaPath));
-        report = await verifyCorpusAgainstSchema({ corpus: path.resolve(corpus), schema });
+        schema = await loadSchema(path.resolve(schemaPath));
     } catch (error) {
-        report = { ok: false, checks: [], failed: ['verify-harness-error'], error: String(error?.message ?? error) };
+        // A schema that does not LOAD is still a verifier verdict, not a harness crash: the load error carries
+        // the NAMED refusal (`scenario-version:2`, `scenario-byte-census-bytes:1`, …), and reporting it under
+        // `schema-valid` keeps the gate attributable instead of degrading it to `verify-harness-error`.
+        const message = String(error?.message ?? error);
+        report = {
+            // `schema: null` keeps the payload shape stable: the verifier normally reports the loaded schema
+            // summary here (it overrides the payload's tool identity in the spread below), and a malformed
+            // schema must not turn the report into a differently-shaped document.
+            schema: null,
+            corpus: null,
+            ok: false,
+            checks: [{ name: 'schema-valid', ok: false, detail: [message] }],
+            failed: ['schema-valid'],
+            error: message,
+        };
+    }
+    if (!report) {
+        try {
+            report = await verifyCorpusAgainstSchema({ corpus: path.resolve(corpus), schema });
+        } catch (error) {
+            report = { ok: false, checks: [], failed: ['verify-harness-error'], error: String(error?.message ?? error) };
+        }
     }
     const payload = {
         schema: 'gotavern-corpus-schema-verification',
