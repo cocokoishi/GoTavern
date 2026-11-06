@@ -33,12 +33,13 @@
 # decision about ONE tag. Written as equality tests on named constants the list graduates `v0.1.0-alpha.9` (the
 # historical first stable-channel release), `v0.1.0-alpha.12` (the production release of the 0.1.0 line),
 # `v0.1.0-alpha.13` (the third-party extension compatibility release), `v0.1.0-alpha.14` (the engineering-program
-# release) and `v0.1.0-alpha.15` (the evidence-rail release) and nothing else: v0.1.0-alpha.10,
-# v0.1.0-alpha.11, v0.1.0-alpha.16, v0.1.0-alpha.150, v0.1.0-alpha.15-rc1, v0.1.0-alpha.15+build.1,
-# v0.1.0-alpha.14-rc1, v0.1.0-alpha.140, v0.1.0-alpha.130, v0.1.0-alpha.13-rc1, v0.1.0-alpha.09,
-# v0.1.1-alpha.9 and v0.2.0-alpha.1 all stay prereleases, and each of those is an assertion in
-# scripts/test-classify-version-tag.sh so a future editor who turns the list into a regex, a prefix or a
-# "series >= N" rule breaks a named case instead of quietly graduating an unqualified tag.
+# release), `v0.1.0-alpha.15` (the evidence-rail release) and `v0.1.0-alpha.16` (the synthetic adversarial
+# qualification and release-rehearsal release) and nothing else: v0.1.0-alpha.10, v0.1.0-alpha.11,
+# v0.1.0-alpha.17, v0.1.0-alpha.160, v0.1.0-alpha.16-rc1, v0.1.0-alpha.16+build.1, v0.1.0-alpha.150,
+# v0.1.0-alpha.15-rc1, v0.1.0-alpha.15+build.1, v0.1.0-alpha.14-rc1, v0.1.0-alpha.140, v0.1.0-alpha.130,
+# v0.1.0-alpha.13-rc1, v0.1.0-alpha.09, v0.1.1-alpha.9 and v0.2.0-alpha.1 all stay prereleases, and each of
+# those is an assertion in scripts/test-classify-version-tag.sh so a future editor who turns the list into a
+# regex, a prefix or a "series >= N" rule breaks a named case instead of quietly graduating an unqualified tag.
 
 set -eu
 
@@ -59,7 +60,7 @@ fi
 # =============================================================================================================
 # THE GRADUATED TAGS: single-tag EQUALITY decisions, never a pattern.
 #
-# The general rule above calls a tag stable only when it is exactly v<major>.<minor>.<patch>. Five tags in this
+# The general rule above calls a tag stable only when it is exactly v<major>.<minor>.<patch>. Six tags in this
 # repository's history graduate to the stable channel while keeping their historical alpha-series names:
 #
 #   v0.1.0-alpha.9    the FIRST stable-channel release (historical; removing it would reclassify a published
@@ -80,16 +81,22 @@ fi
 #                     by its own commit, which cites the same-SHA qualification evidence for alpha.15 under those
 #                     rails: the release cannot be published without them, so the graduation and the evidence are
 #                     the same fact.
+#   v0.1.0-alpha.16   the SYNTHETIC ADVERSARIAL QUALIFICATION release: the alpha.16 program (M0 audit, M1 scenario
+#                     recipes, M2 E03+E04 real-browser journey, M3 recorded-oracle scenarios, M4 evidence-based
+#                     refusals, M5 both-direction performance, M6 release rails) plus the release-rehearsal record.
+#                     Its 13 required gates, the fail-closed verifier and the appended same-SHA evidence table are
+#                     the qualification; the release notes state every skipped or UNPROVEN scenario explicitly.
 #
 # THE LIST IS EQUALITY, NOT A RANGE. It cannot widen by accident: v0.1.0-alpha.10, v0.1.0-alpha.11,
-# v0.1.0-alpha.16, v0.1.0-alpha.150, v0.1.0-alpha.15-rc1, v0.1.0-alpha.15+build.1, v0.1.0-alpha.140,
-# v0.1.0-alpha.14-rc1, v0.1.0-alpha.130, v0.1.0-alpha.13-rc1, v0.1.0-alpha.09, v0.1.1-alpha.9 and
-# v0.1.0-alpha.13+build.1 all stay prereleases, and each of those is an assertion in
-# scripts/test-classify-version-tag.sh so a future editor who turns this into a regex, a prefix comparison
-# or a "series >= N" test breaks a named case instead of quietly graduating an unqualified tag. Each entry
-# is added by its own commit that cites the qualification evidence for that tag.
+# v0.1.0-alpha.17, v0.1.0-alpha.160, v0.1.0-alpha.16-rc1, v0.1.0-alpha.16+build.1, v0.1.0-alpha.150,
+# v0.1.0-alpha.15-rc1, v0.1.0-alpha.15+build.1, v0.1.0-alpha.140, v0.1.0-alpha.14-rc1, v0.1.0-alpha.130,
+# v0.1.0-alpha.13-rc1, v0.1.0-alpha.09, v0.1.1-alpha.9, v0.2.0-alpha.1 and v0.1.0-alpha.13+build.1 all stay
+# prereleases, and each of those is an assertion in scripts/test-classify-version-tag.sh so a future editor who
+# turns this into a regex, a prefix comparison or a "series >= N" test breaks a named case instead of quietly
+# graduating an unqualified tag. Each entry is added by its own commit that cites the qualification evidence for
+# that tag.
 # =============================================================================================================
-GRADUATED_STABLE_TAGS='v0.1.0-alpha.9 v0.1.0-alpha.12 v0.1.0-alpha.13 v0.1.0-alpha.14 v0.1.0-alpha.15'
+GRADUATED_STABLE_TAGS='v0.1.0-alpha.9 v0.1.0-alpha.12 v0.1.0-alpha.13 v0.1.0-alpha.14 v0.1.0-alpha.15 v0.1.0-alpha.16'
 
 for graduated_tag in $GRADUATED_STABLE_TAGS; do
   if [ "$tag" = "$graduated_tag" ]; then
