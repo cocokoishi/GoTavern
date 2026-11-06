@@ -140,36 +140,48 @@ release event making `main` red is a process defect, not a test defect.
 The tag itself never moves and no asset is re-uploaded: the generated-facts commit is a descendant of the released
 commit, on `main` only.
 
-## 4. Recorded platform limitations: the darwin/arm64 downgrade
+## 4. Recorded platform limitations: darwin/arm64 in two workflows
 
-**The gap.** `release.yml` used to have one job, `execute-darwin-arm64` on `runs-on: macos-14`, that ran the
-built darwin/arm64 archive and polled its own `/version`, and the publish job's `needs` list included it. That
-is the right shape for every other target: an archive that cannot be executed is not runtime-qualified. It
-became an unpassable gate on 2026-11-06: the runner was never assigned, the job was cancelled with zero steps,
-and the check-run annotation says `The configuration 'macos-14-arm64-us-default' is not supported`. The run
-cannot be published with a skipped `publish`, and the alternatives were a silent waiver (a hidden gap) or an
-unverified label guess. Both are refused.
+**The gap.** Two workflows depended on the GitHub-hosted arm64 macOS runner configuration (`runs-on: macos-14`)
+and both became unpassable on 2026-11-06 when the platform stopped provisioning it: the runner is never
+assigned, the job is cancelled with zero steps, and the check-run annotation says
+`The configuration 'macos-14-arm64-us-default' is not supported`. The alternatives were a silent waiver (a hidden
+gap) or an unverified label guess. Both are refused, in both workflows, by the same recorded-limitation pattern.
 
-**The evidence, re-readable.** The cancelled attempt is `GoTavern Release` run `42242191281`, job `127975851110`
-(labels `macos-14`, `runner_name` empty, `steps: []`, started `2026-11-06T15:22:23Z`, cancelled after 54 s); the
-alpha.15 release-candidate run `42113162581`, job `127552551348`, carries the same annotation. The same job
-executed successfully five times earlier on 2026-11-05: runs `42018112346`, `42035872824`, `42051271771`,
-`42061439366`, `42085159949` (`execute-darwin-arm64` completed/success with an assigned runner). So the job, the
-archive and the archive-inspection contract are not what changed: the platform's arm64 macOS runner configuration
-stopped being provisioned. The repository has no self-hosted runners (`GET /repos/{owner}/{repo}/actions/runners`
-answers zero) and is public, so the runner is GitHub-hosted and this was a platform-side unavailability. To
-re-read it:
+- **`release.yml`** used to have one job, `execute-darwin-arm64` on `runs-on: macos-14`, that ran the built
+  darwin/arm64 archive and polled its own `/version`, and the publish job's `needs` list included it. A skipped
+  `publish` cannot release.
+- **`third-party-extension-compat.yml`** used to have a third `cross-platform` matrix leg
+  (`os: macos-14` / `platform: macos-arm64`) in the same representative lifecycle differential as
+  windows-amd64 and macos-amd64. A cancelled job makes the workflow conclusion `cancelled`, so the release
+  manifest's gate #11 cannot be green. In run `42247719306` every other job succeeded (selftest, soak,
+  overhead, shards 1-4, corpus, aggregate, windows-amd64, macos-amd64); the arm64 leg was the ONLY cancelled job.
+
+**The evidence, re-readable.** The release-archive attempt is `GoTavern Release` run `42242191281`, job
+`127975851110` (labels `macos-14`, `runner_name` empty, `steps: []`, started `2026-11-06T15:22:23Z`, cancelled
+after 54 s); the alpha.15 release-candidate run `42113162581`, job `127552551348`, carries the same annotation. The
+same job executed successfully five times earlier on 2026-11-05: runs `42018112346`, `42035872824`, `42051271771`,
+`42061439366`, `42085159949` (`execute-darwin-arm64` completed/success with an assigned runner). For the
+extension gate the cancelled leg is job `127994821648` in run `42247719306` (started `2026-11-06T15:57:46Z`,
+cancelled 9 s later, zero steps, no runner), with the same annotation on the three re-dispatches `42237701919`,
+`42242177874` and `42247719306`; that leg ran green four times on 2026-11-05 (runs `42035843369`, `42051239530`,
+`42061390096`, `42085125376`). So neither the archive nor the extension harness is what changed: the platform's
+arm64 macOS runner configuration stopped being provisioned. The repository has no self-hosted runners
+(`GET /repos/{owner}/{repo}/actions/runners` answers zero) and is public, so the runner is GitHub-hosted and this
+was a platform-side unavailability. To re-read it:
 
 ```bash
 gh api repos/cocokoishi/GoTavern/actions/jobs/127975851110   # labels, empty runner, empty steps, cancelled
 gh api repos/cocokoishi/GoTavern/commits/a54db37/check-runs # annotations for that job
+gh api repos/cocokoishi/GoTavern/actions/jobs/127994821648   # the extension gate's arm64 leg
+gh api repos/cocokoishi/GoTavern/commits/b548687/check-runs # annotations for that job
 ```
 
 **Why not switch labels.** `macos-14` is the only arm64 macOS label this repository has ever used; `macos-15-intel`
 is already the x64 label, so `macos-15` is the only plausible existing arm64 alternative. Selecting it would be an
 unverified guess that only a dispatch can settle, and a release gate may not be moved to a guessed runner. It is
 recorded here as the restoration candidate instead: if an arm64 macOS runner is available again, restore the
-execution job (and its `executed`-mode marker/evidence) rather than weakening this gate.
+execution job/leg (and its `executed`-mode marker/evidence) rather than weakening the gate.
 
 **The mechanism.** The pure-execution job is replaced by `darwin-arm64-recorded-downgrade` on `ubuntu-latest`. It:
 
@@ -195,6 +207,22 @@ contract and records at least one real platform attempt, **and** a curated note 
 limitation line (the note must name `darwin/arm64` and say it is NOT runtime-qualified / not executed). A
 downgrade that is not stated in what users read is refused exactly like a missing marker.
 
+**The same limitation in the extension gate's evidence.** `third-party-extension-compat.yml` removes the
+`os: macos-14` / `platform: macos-arm64` matrix leg and replaces it with `macos-arm64-recorded-limitation` on
+`ubuntu-latest`. That job asserts the cross-platform matrix declares only the two remaining legs
+(`windows-amd64`, `macos-amd64`), then records `macos-arm64-platform-limitation.json` (schemaVersion 1, kind
+`gotavern-macos-arm64-platform-limitation`, workflow `Third-party extension compatibility`, target `macos/arm64`,
+`mode: recorded-limitation`, `execution: {performed: false}`, the matrix's present/removed legs and workflow
+sha256, and the recorded platform attempts with run/job ids and the platform annotation) and uploads it as the
+fixed-name artifact `macos-arm64-recorded-limitation`. The `aggregate` job — the one that writes the
+`extension-compat-evidence` artifact the release gate consumes — depends on that job, downloads the marker by
+fixed name (no `continue-on-error`), and runs `verify`. A marker that is absent, malformed, still claims the arm64
+leg, records a different workflow, or claims execution without evidence fails the aggregate; a workflow that still
+declares the arm64 leg fails the recorder and the verifier. `verify` writes the published record into the evidence
+directory, so the artifact gate #11 reads carries the limitation with it instead of hiding the removed leg. The
+two remaining legs are the cross-platform evidence that still exists; **macOS arm64 extension lifecycle remains
+UNPROVEN**, and the release notes' Known limitations section says so.
+
 **What blocks publication, by name** (each is a case in `scripts/release-governance/darwin-arm64-qualification.mjs
 --self-test`, run in the publish job before the real marker): a missing or unreadable marker (`missing-marker`);
 malformed JSON (`marker-invalid`); wrong schema/kind/target/archive/version; an archive whose sha256 differs from
@@ -206,18 +234,22 @@ evidence (`execution-evidence-missing`); and a curated note without the limitati
 (`notes-limitation-missing`). There is no override flag and no `continue-on-error`: the job is a normal required
 dependency of `publish`, and the marker check is a normal failing step.
 
-**What it does NOT prove.** Nothing here executes darwin/arm64. Dynamic linking, process and file semantics,
-startup latency and the `/version` handshake on an arm64 Mac remain **UNPROVEN**, and the release notes'
-Known limitations section must say so (and does, or `notes-limitation-missing` blocks the release). What is
-proven is narrower and stated as such: the published archive is a thin arm64 Mach-O built by this run, it carries
-this release's version and tokenizer tree, it was not swapped after inspection (sha256), and the platform's refusal
-to provide the runner was recorded with ids and re-read from the API rather than asserted in prose.
+**What it does NOT prove.** Nothing here executes darwin/arm64, and nothing here runs the extension lifecycle on
+macos/arm64. Dynamic linking, process and file semantics, startup latency and the `/version` handshake on an arm64
+Mac remain **UNPROVEN**, as does the extension install/activate/persist/disable/uninstall lifecycle on that
+platform. The release notes' Known limitations section must say so (and does, or `notes-limitation-missing` blocks
+the release). What is proven is narrower and stated as such: the published archive is a thin arm64 Mach-O built by
+this run, it carries this release's version and tokenizer tree, it was not swapped after inspection (sha256), the
+Windows and macOS-x64 extension legs still run, and the platform's refusal to provide the runner was recorded with
+ids and re-read from the API rather than asserted in prose.
 
-**Teeth.** `scripts/release-governance.test.mjs` includes the refusal cases and a workflow-wiring case that fails
-if the publish job stops waiting for the recorded-downgrade job, stops running `--self-test`, stops running
-`verify`, or if a pure-execution `execute-darwin-arm64` job is reintroduced without an execution marker. The
-planted program itself (`--self-test`, currently 11 cases) runs on every release, so the refusal path cannot rot
-into a step that only ever sees a good input.
+**Teeth.** `scripts/release-governance.test.mjs` includes the refusal cases and workflow-wiring cases that fail if
+the publish job stops waiting for the recorded-downgrade job or stops running `--self-test`/`verify`; if a
+pure-execution `execute-darwin-arm64` job is reintroduced without an execution marker; if the third-party workflow
+regains a `macos-arm64` execution leg; if its recorded-limitation job or aggregate `verify` step disappears; or if
+the aggregate stops copying the record into `extension-compat-evidence`. The planted programs themselves run on
+every release/aggregate (`darwin-arm64-qualification.mjs --self-test`, 11 cases; `macos-arm64-limitation.mjs
+--self-test`, 8 cases), so a refusal path cannot rot into a step that only ever sees a good input.
 
 ## 5. What this deliberately does not do
 

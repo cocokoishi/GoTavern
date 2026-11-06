@@ -220,6 +220,15 @@ Every skipped or UNPROVEN scenario is listed here; none is implied to be covered
   marker that claims execution without execution evidence, or a note that dropped this line. Restoring a real
   arm64 macOS runner switches the marker to execution mode, and the gate then requires execution evidence
   instead. The `darwin/arm64` target is **NOT runtime-qualified**; no claim in this note says otherwise.
+- **The extension-compatibility cross-platform evidence does not include macOS arm64.** The 20-extension corpus is
+  judged on Linux; the representative cross-platform lifecycle legs that still run are windows-amd64 and
+  macos-amd64. The macos-arm64 leg is a recorded platform limitation (the same arm64 macOS runner refusal: run
+  `42247719306`, job `127994821648`, cancelled with zero steps and `The configuration
+  'macos-14-arm64-us-default' is not supported`; that leg ran green on 2026-11-05 and has been refused since),
+  so the workflow records a machine-readable marker inside the `extension-compat-evidence` artifact and the
+  aggregate job refuses a missing or inconsistent record. macOS arm64 extension
+  install/activate/persist/disable/uninstall lifecycle is **UNPROVEN**; the Windows and macOS-x64 paths are
+  covered by the two remaining legs.
 - **`windows/arm64` remains BUILD-ONLY**: no hosted runner of that architecture exists, and the boundary job
   asserts that limitation instead of implying execution.
 - **Extension takeover and quiet-generation decisions are harness decisions, not product claims.** Configuring

@@ -293,7 +293,12 @@ jobs:
   # THE GATE. It does not trust the shards' conclusions: it requires the observed set to be exactly the
   # lock's 20, from one lock hash and one head SHA, with every capability verdict PASS or N/A.
   aggregate:
-    needs: shard
+    # THE RECORDED LIMITATION IS PART OF THE EVIDENCE CONTRACT. The aggregate job writes the artifact the release
+    # manifest's gate #11 consumes, so it must run AFTER the macos/arm64 limitation record exists and must refuse
+    # evidence whose removed cross-platform leg is not disclosed. `if: always()` keeps the upload path available
+    # for a partially failed corpus (so a red run leaves readable evidence), but the marker step below still fails
+    # the job when the marker is absent or inconsistent, so a missing limitation record can never be a green run.
+    needs: [shard, macos-arm64-recorded-limitation]
     if: always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode || 'full') == 'full'))
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -308,6 +313,13 @@ jobs:
           pattern: extension-compat-shard-*
           merge-multiple: true
           path: ${{ runner.temp }}/ext-compat
+      - name: Download the recorded macos/arm64 limitation marker
+        # NO CONTINUE-ON-ERROR: if the marker job failed, this download fails and the aggregate job fails. The
+        # marker is not optional evidence; it is what makes the missing arm64 leg a recorded fact instead of silence.
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-arm64-recorded-limitation
+          path: ${{ runner.temp }}/ext-compat/limitation
       - name: Aggregate the corpus (set, lock hash, SHA, capability verdicts)
         run: |
           set -euo pipefail
@@ -326,6 +338,17 @@ jobs:
           if [ -f "$RUNNER_TEMP/ext-compat/evidence/summary.json" ]; then
             cat "$RUNNER_TEMP/ext-compat/evidence/summary.json"
           fi
+      - name: The evidence must carry the recorded macos/arm64 platform limitation
+        # THE REFUSAL THAT PREVENTS A SILENT MISSING LEG. The marker must exist, match this workflow (no arm64
+        # leg still declared, the two remaining legs present), carry real platform attempts, and record
+        # execution.performed=false. The published record is written INTO the evidence directory, so the
+        # `extension-compat-evidence` artifact the release gate consumes carries the limitation with it.
+        run: |
+          set -euo pipefail
+          node scripts/release-governance/macos-arm64-limitation.mjs verify \
+            --marker "$RUNNER_TEMP/ext-compat/limitation/macos-arm64-platform-limitation.json" \
+            --workflow .github/workflows/third-party-extension-compat.yml \
+            --evidence-out "$RUNNER_TEMP/ext-compat/evidence/macos-arm64-platform-limitation.json"
       - name: Upload the release-gate evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -336,11 +359,19 @@ jobs:
           retention-days: 90
 
   # REPRESENTATIVE CROSS-PLATFORM COVERAGE. The full 20-extension corpus is judged on Linux (the
-  # reference platform). This job proves that the SAME lifecycle differential runs on Windows and on both
-  # macOS architectures, because path handling, extension directories, filesystem casing, executable
-  # naming, install scripts, browser startup and user-data locations are platform properties a Linux-only
-  # run cannot observe. Two representative extensions are enough to exercise those paths; the corpus
-  # itself stays on Linux so this job does not multiply the full cost by the runner matrix.
+  # reference platform). This job proves that the SAME lifecycle differential runs on Windows and on macOS
+  # x86_64, because path handling, extension directories, filesystem casing, executable naming, install
+  # scripts, browser startup and user-data locations are platform properties a Linux-only run cannot observe.
+  # Two representative extensions are enough to exercise those paths; the corpus itself stays on Linux so
+  # this job does not multiply the full cost by the runner matrix.
+  #
+  # macOS ARM64 IS A RECORDED PLATFORM LIMITATION, NOT A SKIPPED LEG. The third leg used to run on
+  # `runs-on: macos-14`; since 2026-11-05T21:42Z the platform refuses that runner configuration (the job is
+  # cancelled with zero steps and the annotation `The configuration 'macos-14-arm64-us-default' is not
+  # supported`; evidence in docs/release-governance.md section 4). The leg is REMOVED from this matrix and the
+  # `macos-arm64-recorded-limitation` job below records the machine-readable marker; the aggregate job refuses
+  # the evidence without it. NO continue-on-error is used, and macOS arm64 extension lifecycle remains
+  # UNPROVEN -- the two remaining legs are the cross-platform evidence that still exists.
   cross-platform:
     needs: selftest
     if: ${{ github.event_name == 'workflow_dispatch' && (inputs.mode || 'full') == 'full' }}
@@ -353,9 +384,6 @@ jobs:
             binary: gotavern.exe
           - os: macos-15-intel
             platform: macos-amd64
-            binary: gotavern
-          - os: macos-14
-            platform: macos-arm64
             binary: gotavern
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
@@ -445,6 +473,55 @@ jobs:
           path: ${{ runner.temp }}/ext-compat-${{ matrix.platform }}
           if-no-files-found: warn
           retention-days: 30
+
+  # ===================================================================================================
+  # macos/arm64: A RECORDED PLATFORM LIMITATION, NOT A WAIVED LEG (2026-11-06).
+  #
+  # The arm64 cross-platform leg is the same platform-side failure diagnosed for GoTavern Release
+  # (docs/release-governance.md section 4): the runner is never assigned, the job is cancelled with zero steps,
+  # and the annotation is `The configuration 'macos-14-arm64-us-default' is not supported`. Three consecutive
+  # re-dispatches show the ONLY failing job is this leg (runs 42237701919, 42242177874, 42247719306), while the
+  # same leg ran green four times on 2026-11-05 (runs 42035843369, 42051239530, 42061390096, 42085125376). A
+  # cancelled job makes the workflow conclusion `cancelled`, which blocks the release manifest's gate #11.
+  #
+  # This job is deliberately NOT a continue-on-error and does not fake an execution:
+  #   1. it asserts the cross-platform matrix no longer declares the arm64 leg (a record for a leg the
+  #      workflow still claims would be refused by the recorder);
+  #   2. it records a machine-readable marker with the recorded run/job/annotation evidence, the remaining
+  #      legs, and `execution.performed=false`;
+  #   3. the aggregate job REQUIRES the marker, fails by name without it, and copies it into the
+  #      `extension-compat-evidence` artifact so the release gate's evidence carries the disclosure.
+  # Restoring the real leg means adding the matrix entry back, deleting this job, and letting the aggregate
+  # verify a marker that says the leg ran -- the recorder refuses to invent that.
+  # ===================================================================================================
+  macos-arm64-recorded-limitation:
+    needs: selftest
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.mode || 'full') == 'full') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Record the machine-readable macos/arm64 platform limitation
+        run: |
+          set -euo pipefail
+          node scripts/release-governance/macos-arm64-limitation.mjs record \
+            --workflow .github/workflows/third-party-extension-compat.yml \
+            --out "${RUNNER_TEMP}/macos-arm64-platform-limitation.json" \
+            --evidence-out "${RUNNER_TEMP}/macos-arm64-limitation.txt"
+          echo "::notice::macos/arm64 extension cross-platform leg is NOT run; the platform limitation is recorded, not waived"
+      - name: Upload the limitation marker
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64-recorded-limitation
+          path: |
+            ${{ runner.temp }}/macos-arm64-platform-limitation.json
+            ${{ runner.temp }}/macos-arm64-limitation.txt
+          if-no-files-found: error
+          retention-days: 90
+
   # ALL-20 SIMULTANEOUS AND CAPABILITY-CLUSTER DIFFERENTIALS. The per-extension shards judge one extension at
   # a time; real ecosystems fail in combination. This job loads all 20 at once (boot, every module loaded on
   # both subjects, settings page, character load, new chat, send, cancel, reload, restart) and then runs one

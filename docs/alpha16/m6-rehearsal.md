@@ -50,6 +50,16 @@ smoke, helper state, third-party), 2 `queued` (browser differential, combination
 queue observation only; the `PENDING` column does not change because a run concluded — it changes when the
 verifier has read the row, the required job and the embedded evidence.
 
+**Gate #11's platform limitation (task-40).** The first rehearsal dispatch (`GoTavern third-party extension
+compatibility` run `42247719306`, `mode=full`) had every meaningful job green except the cross-platform
+`os: macos-14` / `platform: macos-arm64` leg, job `127994821648`, cancelled with zero steps and no runner
+(annotation: `The configuration 'macos-14-arm64-us-default' is not supported`). That cancelled job made the run
+conclusion `cancelled`, so gate #11 could not be green. The workflow now removes that leg, records the limitation
+in `macos-arm64-recorded-limitation` (marker carried inside `extension-compat-evidence` by the aggregate job), and
+the aggregate refuses a missing or inconsistent record. The row above is therefore expected to be green on the
+re-dispatch at the frozen candidate, with the two remaining legs (`windows-amd64`, `macos-amd64`) as the
+cross-platform evidence; its verdict stays `PENDING` until the verifier reads the new run.
+
 ## 3. The verifier command and the expected output
 
 The publish job runs this exact program (`release.yml`'s publish step; the curated-note path reaches it
@@ -142,13 +152,28 @@ After the gate verdict is PASS, the remaining release-rehearsal steps (each `PEN
   name (`notes-limitation-missing`, `missing-marker`, `mach-o-not-arm64`). The tar executable-bit assertion is
   enforced on the Linux runner; this Windows host cannot represent Unix mode bits on disk, so the local run
   records that limitation instead of manufacturing a red.
-- **Release governance suite:** `node --test scripts/release-governance.test.mjs` passes 61/61, including the
-  five new darwin/arm64 refusal/wiring cases and the planted-cases case.
+- **Release governance suite:** `node --test scripts/release-governance.test.mjs` passes 69/69, including the
+  darwin/arm64 refusal/wiring cases, the third-party macos/arm64 refusal/wiring cases, and both planted-cases
+  cases.
 - **Publish-gate step simulation:** the publish job's marker step was extracted from `release.yml`, evaluated
   with `workflow_dispatch` and the candidate version substituted, and run locally against the synthetic
   marker/archive and the committed note: exit 0. With the marker removed it refuses with
   `::error::missing-marker` (exit 1). The tag-only note-from-`origin/main` branch of that step was not
   exercised locally (it needs a tag checkout) and stays `PENDING` for the dry run.
+- **Third-party limitation record:** `node scripts/release-governance/macos-arm64-limitation.mjs --self-test`
+  holds 8/8 planted cases (missing marker, invalid JSON, arm64 leg still claimed, missing cross-platform leg,
+  execution claimed without evidence, workflow still declaring the leg, missing limitation job, and the valid
+  control). `record` against the real workflow exits 0 and writes a marker with
+  `matrix.crossPlatformPresent = [windows-amd64, macos-amd64]`, `matrix.removed = [macos-arm64]`,
+  `matrix.arm64LegPresent = false`, three recorded cancelled attempts (run/job/annotation), and
+  `execution.performed = false`; `verify` exits 0 and writes the published record into the evidence directory.
+  An aggregate-step simulation of the verify block passes with the marker and refuses with
+  `::error::missing-marker` (exit 1) without it.
+- **third-party-extension-compat.yml sanity:** YAML parses; the cross-platform matrix is exactly
+  `windows-amd64` + `macos-amd64` (no `os: macos-14` / `platform: macos-arm64` leg); the
+  `macos-arm64-recorded-limitation` job exists and uploads the fixed-name artifact; `aggregate.needs` includes
+  it and its verify step writes the record into `$RUNNER_TEMP/ext-compat/evidence/`; no `continue-on-error` key
+  is added.
 - **release.yml sanity:** YAML parses; the job list is `build`, `execute-linux-arm64`, `execute-darwin-amd64`,
   `darwin-arm64-recorded-downgrade`, `windows-arm64-boundary`, `prepublish-qualification`, `publish`,
   `post-release-facts`; `publish.needs` includes `darwin-arm64-recorded-downgrade`; no `execute-darwin-arm64`
@@ -167,6 +192,10 @@ After the gate verdict is PASS, the remaining release-rehearsal steps (each `PEN
   `PENDING` until the re-dispatched dry run is read. If the platform ever provides an arm64 macOS runner, the
   job is restored to execution mode and the gate then requires execution evidence
   (`docs/release-governance.md` §4); no claim of darwin/arm64 runtime qualification exists until then.
+- Gate #11 (`Third-party extension compatibility`) is no longer blocked by the cancelled arm64 leg: the
+  re-dispatched run must be `completed/success` with `macos-arm64-recorded-limitation` and `aggregate` green,
+  and the `extension-compat-evidence` artifact must contain `macos-arm64-platform-limitation.json`. `PENDING`
+  until the new run is read; if the marker or the aggregate check is missing, the aggregate job fails by name.
 - The soak row (`M5 measurements`) is **not** one of the 13 required gates and is not part of this rehearsal's
   pass condition; its corrected statistic and the real-leak question are recorded in
   `docs/alpha16/m5-evidence.md` and the release notes' Known limitations.

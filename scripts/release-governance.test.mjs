@@ -20,6 +20,11 @@ import { EVIDENCE_MEMBER, parseReleaseEvidence, validateReleaseEvidence } from '
 import { assembleReleaseBody } from './assemble-release-body.mjs';
 import { validateReleaseNotes } from './release-governance/notes.mjs';
 import { evaluateMarker, selfTest as darwinArm64SelfTest } from './release-governance/darwin-arm64-qualification.mjs';
+import {
+    evaluateLimitation as evaluateMacosArm64Limitation,
+    parseCrossPlatform as parseThirdPartyCrossPlatform,
+    selfTest as macosArm64LimitationSelfTest,
+} from './release-governance/macos-arm64-limitation.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -872,4 +877,106 @@ test('darwin/arm64: the workflow wires the recorded downgrade into the publish g
 
 test('darwin/arm64: the planted limitation cases hold', () => {
     assert.equal(darwinArm64SelfTest(), 0);
+});
+
+// ---- third-party extension compatibility: the macos/arm64 recorded platform limitation ---------------------------
+// Gate #11 was blocked by the ONLY cancelled job in run 42247719306: the cross-platform macos-14 arm64 leg. The
+// workflow now records the limitation instead of claiming the leg, and the aggregate job (which writes the
+// extension-compat-evidence artifact the release gate consumes) refuses evidence without that record. These cases
+// plant the refusals: a workflow that still executes the leg, an aggregate without the marker, a marker that
+// claims the leg ran, and the wiring that keeps the disclosure inside the evidence artifact.
+const THIRD_PARTY_WORKFLOW = path.join(ROOT, '.github', 'workflows', 'third-party-extension-compat.yml');
+
+test('third-party: the workflow no longer declares a macos-14 arm64 cross-platform execution leg', () => {
+    const workflow = readFileSync(THIRD_PARTY_WORKFLOW, 'utf8');
+    const parsed = parseThirdPartyCrossPlatform(workflow);
+    assert.equal(parsed.ok, true);
+    assert.deepEqual(parsed.platforms, ['windows-amd64', 'macos-amd64'], 'the cross-platform matrix must keep only the two runnable legs');
+    assert.equal(parsed.hasArm64Leg, false, 'the workflow still declares os: macos-14 / platform: macos-arm64');
+    assert.doesNotMatch(workflow, /^\s+platform: macos-arm64\s*$/m, 'a macos-arm64 matrix leg is still present');
+});
+
+test('third-party: the recorded-limitation job records a marker and the aggregate requires it', () => {
+    const workflow = readFileSync(THIRD_PARTY_WORKFLOW, 'utf8');
+    assert.match(workflow, /^  macos-arm64-recorded-limitation:/m, 'the recorded-limitation job is missing');
+    assert.match(workflow, /macos-arm64-limitation\.mjs record/, 'the recorded-limitation job no longer records a marker');
+    const aggregate = workflow.slice(workflow.indexOf('  aggregate:'), workflow.indexOf('  cross-platform:'));
+    assert.match(aggregate, /needs: \[shard, macos-arm64-recorded-limitation\]/, 'the aggregate no longer depends on the limitation record');
+    assert.match(aggregate, /name: macos-arm64-recorded-limitation/, 'the aggregate no longer downloads the limitation record');
+    assert.match(aggregate, /macos-arm64-limitation\.mjs verify/, 'the aggregate no longer verifies the limitation record');
+    assert.match(
+        aggregate,
+        /evidence-out "\$RUNNER_TEMP\/ext-compat\/evidence\/macos-arm64-platform-limitation\.json"/,
+        'the limitation record is no longer copied into the extension-compat-evidence directory',
+    );
+});
+
+function macosArm64Marker(overrides = {}) {
+    return JSON.stringify({
+        schemaVersion: 1,
+        kind: 'gotavern-macos-arm64-platform-limitation',
+        workflow: 'Third-party extension compatibility',
+        target: 'macos/arm64',
+        mode: 'recorded-limitation',
+        reasonCode: 'platform-runner-unavailable',
+        matrix: { crossPlatformPresent: ['windows-amd64', 'macos-amd64'], removed: ['macos-arm64'], arm64LegPresent: false },
+        platformEvidence: {
+            attempts: [
+                {
+                    runId: '42247719306',
+                    jobId: '127994821648',
+                    conclusion: 'cancelled',
+                    annotation: "The configuration 'macos-14-arm64-us-default' is not supported",
+                },
+            ],
+        },
+        execution: { performed: false, evidence: null },
+        ...overrides,
+    });
+}
+
+test('third-party: a missing macos/arm64 limitation record is refused by name', () => {
+    const verdict = evaluateMacosArm64Limitation({ markerText: '', workflowText: readFileSync(THIRD_PARTY_WORKFLOW, 'utf8') });
+    assert.equal(verdict.ok, false);
+    assert.ok(verdict.problems.some((problem) => problem.includes('missing-marker')), JSON.stringify(verdict.problems));
+});
+
+test('third-party: a limitation record that still claims the arm64 leg is refused', () => {
+    const marker = macosArm64Marker({ matrix: { crossPlatformPresent: ['windows-amd64', 'macos-amd64'], removed: [], arm64LegPresent: true } });
+    const verdict = evaluateMacosArm64Limitation({ markerText: marker, workflowText: readFileSync(THIRD_PARTY_WORKFLOW, 'utf8') });
+    assert.equal(verdict.ok, false);
+    assert.ok(verdict.problems.some((problem) => problem.includes('arm64-leg-still-claimed')), JSON.stringify(verdict.problems));
+});
+
+test('third-party: a limitation record claiming execution without evidence is refused', () => {
+    const marker = macosArm64Marker({ execution: { performed: true, evidence: {} } });
+    const verdict = evaluateMacosArm64Limitation({ markerText: marker, workflowText: readFileSync(THIRD_PARTY_WORKFLOW, 'utf8') });
+    assert.equal(verdict.ok, false);
+    assert.ok(verdict.problems.some((problem) => problem.includes('execution-claim-without-evidence')), JSON.stringify(verdict.problems));
+});
+
+test('third-party: a workflow that still declares the arm64 leg is refused even with a marker', () => {
+    // Normalise a CRLF work tree before the structural edit: the assertion is about the workflow's shape, not about
+    // the checkout's line endings.
+    const workflow = readFileSync(THIRD_PARTY_WORKFLOW, 'utf8')
+        .replace(/\r\n/g, '\n')
+        .replace(
+            '          - os: macos-15-intel\n            platform: macos-amd64',
+            '          - os: macos-15-intel\n            platform: macos-amd64\n          - os: macos-14\n            platform: macos-arm64',
+        );
+    const verdict = evaluateMacosArm64Limitation({ markerText: macosArm64Marker(), workflowText: workflow });
+    assert.equal(verdict.ok, false);
+    assert.ok(verdict.problems.some((problem) => problem.includes('workflow-still-has-arm64-leg')), JSON.stringify(verdict.problems));
+});
+
+test('third-party: a valid recorded limitation is accepted with the real workflow', () => {
+    const verdict = evaluateMacosArm64Limitation({
+        markerText: macosArm64Marker(),
+        workflowText: readFileSync(THIRD_PARTY_WORKFLOW, 'utf8'),
+    });
+    assert.equal(verdict.ok, true, JSON.stringify(verdict.problems));
+});
+
+test('third-party: the planted limitation cases hold', () => {
+    assert.equal(macosArm64LimitationSelfTest(), 0);
 });
