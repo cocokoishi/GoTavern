@@ -1,8 +1,9 @@
 # Release governance: machine gates, not a remembered checklist
 
-This document records the two process gaps alpha.10 closes, the mechanism that closes each, and the one lifecycle
-event that used to make `main` red after every release. Everything here is enforced by a program that runs in the
-publish path, and every refusal has a named test case.
+This document records the process gaps the release path closes (the same-SHA required gates, release-body
+validation, the generated-facts lifecycle and the recorded darwin/arm64 platform limitation), the mechanism that
+closes each, and the one lifecycle event that used to make `main` red after every release. Everything here is
+enforced by a program that runs in the publish path, and every refusal has a named test case.
 
 ## 1. Same-SHA required gates (the release stops being a human memory)
 
@@ -139,7 +140,86 @@ release event making `main` red is a process defect, not a test defect.
 The tag itself never moves and no asset is re-uploaded: the generated-facts commit is a descendant of the released
 commit, on `main` only.
 
-## 4. What this deliberately does not do
+## 4. Recorded platform limitations: the darwin/arm64 downgrade
+
+**The gap.** `release.yml` used to have one job, `execute-darwin-arm64` on `runs-on: macos-14`, that ran the
+built darwin/arm64 archive and polled its own `/version`, and the publish job's `needs` list included it. That
+is the right shape for every other target: an archive that cannot be executed is not runtime-qualified. It
+became an unpassable gate on 2026-11-06: the runner was never assigned, the job was cancelled with zero steps,
+and the check-run annotation says `The configuration 'macos-14-arm64-us-default' is not supported`. The run
+cannot be published with a skipped `publish`, and the alternatives were a silent waiver (a hidden gap) or an
+unverified label guess. Both are refused.
+
+**The evidence, re-readable.** The cancelled attempt is `GoTavern Release` run `42242191281`, job `127975851110`
+(labels `macos-14`, `runner_name` empty, `steps: []`, started `2026-11-06T15:22:23Z`, cancelled after 54 s); the
+alpha.15 release-candidate run `42113162581`, job `127552551348`, carries the same annotation. The same job
+executed successfully five times earlier on 2026-11-05: runs `42018112346`, `42035872824`, `42051271771`,
+`42061439366`, `42085159949` (`execute-darwin-arm64` completed/success with an assigned runner). So the job, the
+archive and the archive-inspection contract are not what changed: the platform's arm64 macOS runner configuration
+stopped being provisioned. The repository has no self-hosted runners (`GET /repos/{owner}/{repo}/actions/runners`
+answers zero) and is public, so the runner is GitHub-hosted and this was a platform-side unavailability. To
+re-read it:
+
+```bash
+gh api repos/cocokoishi/GoTavern/actions/jobs/127975851110   # labels, empty runner, empty steps, cancelled
+gh api repos/cocokoishi/GoTavern/commits/a54db37/check-runs # annotations for that job
+```
+
+**Why not switch labels.** `macos-14` is the only arm64 macOS label this repository has ever used; `macos-15-intel`
+is already the x64 label, so `macos-15` is the only plausible existing arm64 alternative. Selecting it would be an
+unverified guess that only a dispatch can settle, and a release gate may not be moved to a guessed runner. It is
+recorded here as the restoration candidate instead: if an arm64 macOS runner is available again, restore the
+execution job (and its `executed`-mode marker/evidence) rather than weakening this gate.
+
+**The mechanism.** The pure-execution job is replaced by `darwin-arm64-recorded-downgrade` on `ubuntu-latest`. It:
+
+1. extracts the archive this run built and **proves the Mach-O CPU type is arm64**: magic `0xfeedfacf`
+   (`MH_MAGIC_64`) and cputype `0x0100000c` (`CPU_TYPE_ARM64`), parsed from the binary header, not read from a
+   label or a `file` string;
+2. re-asserts the build+archive inspection contract the build job asserts: `LICENSE`, `THIRD_PARTY_NOTICES.txt`,
+   `BUILD-INFO.txt` naming the release and `target darwin`, the version string inside the shipped binary bytes,
+   the `src/tokenizers/` tree with a non-empty `llama.model`, no duplicate root `tokenizers/`, no shipped runtime
+   state (`config.yaml`, `data`, `extensions`, `certs`, `_storage`, `cookie-secret.txt`, `secrets.json`), and the
+   tar executable bits on the Linux runner;
+3. writes `darwin-arm64-platform-limitation.json` (schemaVersion 1, kind `gotavern-darwin-arm64-platform-limitation`,
+   target `darwin/arm64`, archive sha256 and size, the Mach-O proof, the build-info target, the recorded platform
+   attempts with run/job ids and the platform annotation, and `execution: {performed: false}`) and uploads it as
+   the fixed-name artifact `darwin-arm64-platform-limitation`.
+
+The publish job downloads that artifact, runs the gate's planted cases first (`--self-test`), then runs `verify`
+with the archive it is about to publish and the resolved curated notes (the candidate/tag version first from the
+tree, then from `origin/main` when a curated body lives there). `verify` accepts **either** an `executed`-mode
+marker carrying real execution evidence (uname `arm64`/`aarch64`, the `gotavern version` output, and the pinned
+`"pkgVersion":"1.19.0"` record) **or** a `recorded-downgrade` marker that proves the arm64 Mach-O and the build
+contract and records at least one real platform attempt, **and** a curated note that carries the published
+limitation line (the note must name `darwin/arm64` and say it is NOT runtime-qualified / not executed). A
+downgrade that is not stated in what users read is refused exactly like a missing marker.
+
+**What blocks publication, by name** (each is a case in `scripts/release-governance/darwin-arm64-qualification.mjs
+--self-test`, run in the publish job before the real marker): a missing or unreadable marker (`missing-marker`);
+malformed JSON (`marker-invalid`); wrong schema/kind/target/archive/version; an archive whose sha256 differs from
+the marker (`archive-sha-mismatch`); an unexplained downgrade (`reason-code-unknown`); a marker without the arm64
+Mach-O proof (`mach-o-not-arm64`) or without the darwin/arm64 build-info target; a downgrade with no recorded
+platform attempt (`platform-evidence-missing`); a `recorded-downgrade` marker claiming execution
+(`execution-claim-without-evidence`); an unknown mode (`unknown-mode`); an executed marker without execution
+evidence (`execution-evidence-missing`); and a curated note without the limitation line
+(`notes-limitation-missing`). There is no override flag and no `continue-on-error`: the job is a normal required
+dependency of `publish`, and the marker check is a normal failing step.
+
+**What it does NOT prove.** Nothing here executes darwin/arm64. Dynamic linking, process and file semantics,
+startup latency and the `/version` handshake on an arm64 Mac remain **UNPROVEN**, and the release notes'
+Known limitations section must say so (and does, or `notes-limitation-missing` blocks the release). What is
+proven is narrower and stated as such: the published archive is a thin arm64 Mach-O built by this run, it carries
+this release's version and tokenizer tree, it was not swapped after inspection (sha256), and the platform's refusal
+to provide the runner was recorded with ids and re-read from the API rather than asserted in prose.
+
+**Teeth.** `scripts/release-governance.test.mjs` includes the refusal cases and a workflow-wiring case that fails
+if the publish job stops waiting for the recorded-downgrade job, stops running `--self-test`, stops running
+`verify`, or if a pure-execution `execute-darwin-arm64` job is reintroduced without an execution marker. The
+planted program itself (`--self-test`, currently 11 cases) runs on every release, so the refusal path cannot rot
+into a step that only ever sees a good input.
+
+## 5. What this deliberately does not do
 
 - It does not decide the channel from the tag name in the release workflow; `scripts/classify-version-tag.sh`
   remains the single answer shared with `docker.yml` and both installers.

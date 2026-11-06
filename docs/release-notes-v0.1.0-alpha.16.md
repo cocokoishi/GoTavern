@@ -208,13 +208,18 @@ Every skipped or UNPROVEN scenario is listed here; none is implied to be covered
   than a 10% mean rise or a 4 MiB floor rise over 45 minutes would pass by design.
 - **Smoke-metrics p99 is NOT collected.** The harness records median, p95, max and mean; p99 for the version
   route and the shell route is UNPROVEN on both sides of the comparison.
-- **macOS ARM64 remains a runner blocker, with a recorded downgrade.** The `darwin/arm64` archive is built and
-  archive-inspected but is **NOT executed**: this repository's runner platform answers that the arm64 macOS
-  runner configuration is unsupported and cancels the job, as recorded at alpha.15 after three attempts. The
-  publish job depends on that execution job, so on this platform the publish job does not run; alpha.15 was
-  published by running the release workflow's own programs against that run's artifacts, and the release body
-  recorded the consequence. The downgrade is transparent and there is no `continue-on-error` loophole; the
-  darwin/arm64 target is NOT runtime-qualified.
+- **macOS ARM64 runtime execution is NOT qualified; the release path records a platform limitation instead of
+  waiving it.** The `darwin/arm64` archive is built and archive-inspected, and it is proved to be a thin
+  arm64 Mach-O executable (magic `0xfeedfacf`, cputype `0x0100000c`) whose shipped bytes carry this release and
+  whose tokenizer tree and archive contract pass the build inspection, but it is **NOT executed**. From
+  2026-11-05T21:42Z the platform stopped provisioning the arm64 macOS runner configuration
+  (`The configuration 'macos-14-arm64-us-default' is not supported`), after five release runs earlier that day
+  executed the same job successfully. The publish job therefore requires a machine-readable
+  platform-limitation marker (target, archive sha256, Mach-O CPU type, build-info target and the recorded
+  platform attempts) **and** this limitation line, and refuses to publish with a missing or unknown marker, a
+  marker that claims execution without execution evidence, or a note that dropped this line. Restoring a real
+  arm64 macOS runner switches the marker to execution mode, and the gate then requires execution evidence
+  instead. The `darwin/arm64` target is **NOT runtime-qualified**; no claim in this note says otherwise.
 - **`windows/arm64` remains BUILD-ONLY**: no hosted runner of that architecture exists, and the boundary job
   asserts that limitation instead of implying execution.
 - **Extension takeover and quiet-generation decisions are harness decisions, not product claims.** Configuring

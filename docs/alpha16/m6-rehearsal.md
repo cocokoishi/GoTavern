@@ -95,10 +95,23 @@ After the gate verdict is PASS, the remaining release-rehearsal steps (each `PEN
 2. **Checksums.** `bash scripts/release-assemble-checksums.sh dist` — validates the six canonical archives and
    writes `dist/checksums.txt`; expected six entries.
 3. **Dispatch dry run.** `gh workflow run release.yml --ref main -f ref="$(git rev-parse 9f6a76e)"
-   -f candidate_version=v0.1.0-alpha.16` — builds the six archives, runs the cross-platform execution jobs the
-   runner platform supports, classifies `candidate_version`, validates notes and feeds the bare installers
-   through `scripts/qualify-prepublish.sh`. A dispatch never publishes (`release.yml` publish is tag-gated).
-   Expected: run `completed/success` with the publish job skipped by design; `PENDING` until observed.
+   -f candidate_version=v0.1.0-alpha.16` — builds the six archives, runs the cross-platform jobs the runner
+   platform supports, classifies `candidate_version`, validates notes and feeds the bare installers through
+   `scripts/qualify-prepublish.sh`. A dispatch never publishes (`release.yml` publish is tag-gated).
+   **The 2026-11-06 attempt was cancelled at the darwin/arm64 step:** `GoTavern Release` run `42242191281`
+   (ref `a54db37`, `candidate_version=v0.1.0-alpha.16`) built and archive-inspected all six archives and ran
+   `execute-darwin-amd64`, `execute-linux-arm64`, `windows-arm64-boundary` and `prepublish-qualification` green,
+   then `execute-darwin-arm64` (labels `macos-14`, `timeout-minutes: 20`) was **cancelled after 54 s** with
+   **zero steps**, **no assigned runner**, and the check-run annotation `The configuration
+   'macos-14-arm64-us-default' is not supported`; `publish` was skipped because its dependency did not succeed,
+   so the run ended cancelled. (An earlier dispatch at `9f6a76e`, run `42240357384`, failed in the build jobs'
+   checkout and never reached the darwin/arm64 step.) The replacement job `darwin-arm64-recorded-downgrade` runs
+   on `ubuntu-latest`, proves the archive is a thin arm64 Mach-O, records the limitation marker, and the publish
+   job gates on that marker plus the notes limitation line. Expected on the re-dispatch: **all build jobs green,
+   `execute-darwin-amd64` / `execute-linux-arm64` / `windows-arm64-boundary` green,
+   `darwin-arm64-recorded-downgrade` green (not cancelled), `prepublish-qualification` green, and `publish`
+   green with its tag-only steps skipped and no release created**, with the `darwin-arm64-platform-limitation`
+   artifact present. `PENDING` until read.
 4. **Verifier on the dry run's artifacts.** The verifier above is the same one; its `PASS` is the gate result
    this rehearsal records. `PENDING`.
 5. **Post-publication checks** (installer smoke over TLS, published-extension journey, container pull-back,
@@ -107,8 +120,8 @@ After the gate verdict is PASS, the remaining release-rehearsal steps (each `PEN
 
 ## 5. Local validations already completed (not gate verdicts)
 
-- **Notes verifier dry run** on the committed note with no checksums file: exit 0, `release notes OK`, 22,699
-  bytes, observation `no checksums.txt supplied: digest membership was not checked`.
+- **Notes verifier dry run** on the committed note with no checksums file: exit 0, `release notes OK` (well above
+  the 1,500-byte minimum), observation `no checksums.txt supplied: digest membership was not checked`.
 - **Notes verifier with a synthetic placeholder checksums file** (six canonical asset names, sha256 of
   placeholder payloads, no release build): exit 0, `0 cited digest(s) checked against 6 asset(s)`.
 - **Planted negative control for the notes digest rule:** a temporary copy citing a repeated 64-hex value was
@@ -117,6 +130,31 @@ After the gate verdict is PASS, the remaining release-rehearsal steps (each `PEN
 - **Classifier table test:** `scripts/test-classify-version-tag.sh` passes 64 cases after the alpha.16
   graduation; direct checks return `stable` for `v0.1.0-alpha.16` and `prerelease` for `v0.1.0-alpha.160`,
   `v0.1.0-alpha.16-rc1` and `v0.1.0-alpha.17`.
+- **darwin/arm64 recorded-downgrade gate:** `node scripts/release-governance/darwin-arm64-qualification.mjs
+  --self-test` holds 11/11 planted cases (missing marker, unknown mode, recorded downgrade without the notes
+  limitation line, downgrade without the arm64 Mach-O proof, downgrade with no platform evidence, a
+  recorded-downgrade marker claiming execution, an archive-sha mismatch, an executed marker without execution
+  evidence, and both positive controls).
+- **darwin/arm64 inspection, locally on a synthetic archive:** a tar.gz whose `gotavern` carries a real arm64
+  Mach-O header (`0xfeedfacf` / `0x0100000c`) plus the contract members was inspected: exit 0, marker written
+  with the archive sha256 and the Mach-O/build-info proof; `verify` against the committed note's limitation
+  line: exit 0; a note without the line, a missing marker, and an x86_64-header archive were each refused by
+  name (`notes-limitation-missing`, `missing-marker`, `mach-o-not-arm64`). The tar executable-bit assertion is
+  enforced on the Linux runner; this Windows host cannot represent Unix mode bits on disk, so the local run
+  records that limitation instead of manufacturing a red.
+- **Release governance suite:** `node --test scripts/release-governance.test.mjs` passes 61/61, including the
+  five new darwin/arm64 refusal/wiring cases and the planted-cases case.
+- **Publish-gate step simulation:** the publish job's marker step was extracted from `release.yml`, evaluated
+  with `workflow_dispatch` and the candidate version substituted, and run locally against the synthetic
+  marker/archive and the committed note: exit 0. With the marker removed it refuses with
+  `::error::missing-marker` (exit 1). The tag-only note-from-`origin/main` branch of that step was not
+  exercised locally (it needs a tag checkout) and stays `PENDING` for the dry run.
+- **release.yml sanity:** YAML parses; the job list is `build`, `execute-linux-arm64`, `execute-darwin-amd64`,
+  `darwin-arm64-recorded-downgrade`, `windows-arm64-boundary`, `prepublish-qualification`, `publish`,
+  `post-release-facts`; `publish.needs` includes `darwin-arm64-recorded-downgrade`; no `execute-darwin-arm64`
+  job remains; the new run blocks pass `bash -n`; no `continue-on-error` key is added; the prepublish and
+  publish artifact downloads use `pattern: gotavern-*`, so the platform-limitation marker artifact cannot leak
+  into `dist` beside the six canonical archives.
 
 ## 6. What remains blocked on run completion
 
@@ -124,10 +162,11 @@ After the gate verdict is PASS, the remaining release-rehearsal steps (each `PEN
   long browser/gate runs and the long-lived and CI runs), not a judgement about the candidate.
 - The curated-note path additionally needs the publish dry run's `dist/checksums.txt` and the notes check
   (§4); neither exists until that run builds the archives.
-- The `darwin/arm64` execution job is blocked by the runner platform (it has been reported unsupported and
-  cancelled on this repository; recorded at alpha.15). The publish job depends on that execution job, so this
-  is a known publish-path blocker for this candidate as well; the release body records it and the target stays
-  built + archive-inspected, not executed.
+- `darwin/arm64` is no longer an execution job: the recorded-downgrade job must come back green and its
+  `darwin-arm64-platform-limitation` marker must pass the publish gate together with the notes limitation line.
+  `PENDING` until the re-dispatched dry run is read. If the platform ever provides an arm64 macOS runner, the
+  job is restored to execution mode and the gate then requires execution evidence
+  (`docs/release-governance.md` §4); no claim of darwin/arm64 runtime qualification exists until then.
 - The soak row (`M5 measurements`) is **not** one of the 13 required gates and is not part of this rehearsal's
   pass condition; its corrected statistic and the real-leak question are recorded in
   `docs/alpha16/m5-evidence.md` and the release notes' Known limitations.

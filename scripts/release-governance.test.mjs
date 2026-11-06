@@ -19,6 +19,7 @@ import { evaluateGates, fetchRunsFromApi, renderEvidence, validateManifest, vali
 import { EVIDENCE_MEMBER, parseReleaseEvidence, validateReleaseEvidence } from './release-governance/artifact-evidence.mjs';
 import { assembleReleaseBody } from './assemble-release-body.mjs';
 import { validateReleaseNotes } from './release-governance/notes.mjs';
+import { evaluateMarker, selfTest as darwinArm64SelfTest } from './release-governance/darwin-arm64-qualification.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
@@ -797,4 +798,78 @@ test('notes: a stub body, or one without the required sections, is refused', () 
     });
     assert.equal(missing.ok, false);
     assert.ok(missing.problems.some((problem) => /Known limitations/.test(problem)), JSON.stringify(missing.problems));
+});
+
+// ---- darwin/arm64 recorded platform limitation --------------------------------------------------------------------
+// The publish gate must REFUSE a darwin/arm64 archive whose execution is neither proven nor recorded, and it must
+// refuse a recorded downgrade that is not stated in the release notes. These planted cases exercise the same
+// `evaluateMarker` the publish job runs; `darwinArm64SelfTest` is the program the publish job runs before it reads
+// the real marker, and the wiring case below keeps the workflow from quietly dropping either step.
+const DOWNGRADE_DIGEST = 'c'.repeat(64);
+const PLATFORM_ANNOTATION = "The configuration 'macos-14-arm64-us-default' is not supported";
+
+function downgradeMarker(overrides = {}) {
+    return JSON.stringify({
+        schemaVersion: 1,
+        kind: 'gotavern-darwin-arm64-platform-limitation',
+        target: 'darwin/arm64',
+        version: 'v0.1.0-alpha.16',
+        archive: 'gotavern-darwin-arm64.tar.gz',
+        archiveSha256: DOWNGRADE_DIGEST,
+        mode: 'recorded-downgrade',
+        reasonCode: 'platform-runner-unavailable',
+        inspection: {
+            machO: { magic: '0xfeedfacf', cpuType: '0x0100000c', cpuTypeName: 'arm64' },
+            buildInfo: { goos: 'darwin', goarch: 'arm64' },
+        },
+        platformEvidence: {
+            attempts: [{ runId: '42242191281', jobId: '127975851110', conclusion: 'cancelled', annotation: PLATFORM_ANNOTATION }],
+        },
+        execution: { performed: false, evidence: null },
+        ...overrides,
+    });
+}
+
+const LIMITATION_NOTES = '## Known limitations\n\nThe darwin/arm64 target is NOT runtime-qualified; runtime execution is not qualified.\n';
+const NO_LIMITATION_NOTES = '## Known limitations\n\nNothing to report.\n';
+
+test('darwin/arm64: a missing platform-limitation marker is refused by name', () => {
+    const verdict = evaluateMarker({ markerText: '', notesText: LIMITATION_NOTES, archiveSha256: DOWNGRADE_DIGEST });
+    assert.equal(verdict.ok, false);
+    assert.ok(verdict.problems.some((problem) => problem.includes('missing-marker')), JSON.stringify(verdict.problems));
+});
+
+test('darwin/arm64: a recorded downgrade without the release-notes limitation line is refused', () => {
+    const verdict = evaluateMarker({ markerText: downgradeMarker(), notesText: NO_LIMITATION_NOTES, archiveSha256: DOWNGRADE_DIGEST });
+    assert.equal(verdict.ok, false);
+    assert.ok(verdict.problems.some((problem) => problem.includes('notes-limitation-missing')), JSON.stringify(verdict.problems));
+});
+
+test('darwin/arm64: a recorded downgrade with the marker and the published note line is accepted', () => {
+    const verdict = evaluateMarker({ markerText: downgradeMarker(), notesText: LIMITATION_NOTES, archiveSha256: DOWNGRADE_DIGEST });
+    assert.equal(verdict.ok, true, JSON.stringify(verdict.problems));
+});
+
+test('darwin/arm64: a marker claiming execution without execution evidence is refused', () => {
+    const claimed = downgradeMarker({ mode: 'executed', execution: { performed: true, evidence: null } });
+    const verdict = evaluateMarker({ markerText: claimed, notesText: LIMITATION_NOTES, archiveSha256: DOWNGRADE_DIGEST });
+    assert.equal(verdict.ok, false);
+    assert.ok(verdict.problems.some((problem) => problem.includes('execution-evidence-missing')), JSON.stringify(verdict.problems));
+});
+
+test('darwin/arm64: the workflow wires the recorded downgrade into the publish gate', () => {
+    const workflow = readFileSync(path.join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
+    assert.match(workflow, /^  darwin-arm64-recorded-downgrade:/m, 'the recorded-downgrade job is missing');
+    assert.match(
+        workflow,
+        /needs: \[[^\]]*darwin-arm64-recorded-downgrade[^\]]*\]/,
+        'the publish job no longer waits for the recorded-downgrade job',
+    );
+    assert.match(workflow, /darwin-arm64-qualification\.mjs --self-test/, 'the publish job no longer runs the planted cases');
+    assert.match(workflow, /darwin-arm64-qualification\.mjs verify/, 'the publish job no longer verifies the marker');
+    assert.doesNotMatch(workflow, /^  execute-darwin-arm64:/m, 'a pure-execution darwin/arm64 job is back without an execution marker');
+});
+
+test('darwin/arm64: the planted limitation cases hold', () => {
+    assert.equal(darwinArm64SelfTest(), 0);
 });

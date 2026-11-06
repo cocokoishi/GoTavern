@@ -45,9 +45,14 @@ name: GoTavern Release
 #                  and dropin-qualification.yml's dropin-windows, against archives those jobs build.
 #   linux/arm64    BUILD + ARCHIVE-INSPECTED here; EXECUTED under QEMU by this workflow's execute-linux-arm64
 #                  (the archive is extracted, run, and its /version polled inside an arm64 container).
-#   darwin/amd64, darwin/arm64
-#                  BUILD + ARCHIVE-INSPECTED here; EXECUTED on native macOS runners by this workflow's
-#                  execute-darwin-amd64 / execute-darwin-arm64 jobs against the archives this run built.
+#   darwin/amd64   BUILD + ARCHIVE-INSPECTED here; EXECUTED on a native x86_64 macOS runner by this workflow's
+#                  execute-darwin-amd64 job against the archive this run built.
+#   darwin/arm64   BUILD + ARCHIVE-INSPECTED here; runtime execution is a RECORDED PLATFORM LIMITATION: the
+#                  arm64 macOS runner configuration is refused by this platform (docs/release-governance.md
+#                  section 4). darwin-arm64-recorded-downgrade proves the archive is a thin arm64 Mach-O and
+#                  records the limitation marker the publish gate requires, together with the release-notes
+#                  limitation line. NOT runtime-qualified until a marker in execution mode carries execution
+#                  evidence.
 #   windows/arm64  BUILD + ARCHIVE-INSPECTED only: no windows/arm64 hosted runner exists. The
 #                  windows-arm64-boundary job asserts this boundary stays stated rather than implied.
 
@@ -110,7 +115,7 @@ jobs:
             archive: gotavern-darwin-arm64.tar.gz
             kind: tar
             launcher: start.sh
-            execution: 'BUILT + ARCHIVE-INSPECTED here; EXECUTED on a native arm64 macOS runner by this workflow execute-darwin-arm64 (archive extracted, launched, /version polled)'
+            execution: 'BUILT + ARCHIVE-INSPECTED here; NOT EXECUTED: the arm64 macOS runner configuration is refused by this platform (recorded platform limitation, docs/release-governance.md section 4); the archive is proved to be a thin arm64 Mach-O by darwin-arm64-recorded-downgrade, but runtime execution is NOT runtime-qualified'
           - goos: windows
             goarch: amd64
             archive: gotavern-windows-amd64.zip
@@ -294,7 +299,7 @@ jobs:
           if-no-files-found: error
 
   # ===================================================================================================
-  # CROSS-PLATFORM EXECUTION: THE ARCHIVES THIS RUN BUILT ARE RUN ON arm64 LINUX AND BOTH macOS ARCHES.
+  # CROSS-PLATFORM EXECUTION: THE ARCHIVES THIS RUN BUILT ARE RUN ON arm64 LINUX AND macOS x86_64.
   #
   # Until these jobs existed, release.yml's own matrix said linux/arm64 and both darwin arches were
   # "BUILT + ARCHIVE-INSPECTED only, NOT runtime-qualified": the repository had no runner for them. They
@@ -303,8 +308,10 @@ jobs:
   # execution claim covers the artefact a user downloads on those platforms.
   #
   # linux/arm64 RUNS UNDER QEMU on the ubuntu runner: the binary is CGO_ENABLED=0, so it is a static
-  # executable and qemu-user is a faithful execution of the same bytes. d?rw??n stays NOT EXECUTED: there
-  # is no windows/arm64 hosted runner, so that boundary is asserted below rather than faked.
+  # executable and qemu-user is a faithful execution of the same bytes. darwin/amd64 runs on a native
+  # x86_64 macOS runner. darwin/arm64 is a RECORDED PLATFORM LIMITATION (the arm64 macOS runner
+  # configuration is refused by this platform -- see the job below and docs/release-governance.md section 4),
+  # and windows/arm64 is an asserted boundary rather than a faked execution.
   # ===================================================================================================
   execute-linux-arm64:
     needs: build
@@ -386,33 +393,76 @@ jobs:
           grep -q '"pkgVersion":"1.19.0"' "$work/version.json" || { echo "::error::darwin/amd64 /version did not report the pinned SillyTavern version"; cat "$work/version.json"; exit 1; }
           echo "ok: darwin/amd64 archive executed on $(uname -m) and answered /version"
 
-  execute-darwin-arm64:
+  # ===================================================================================================
+  # darwin/arm64: A RECORDED PLATFORM LIMITATION, NOT A WAIVED EXECUTION (2026-11-06).
+  #
+  # This was a pure-execution job on `runs-on: macos-14` until the platform stopped provisioning that runner
+  # configuration: the job is cancelled after ~54 s with ZERO steps, no assigned runner, and the check-run
+  # annotation `The configuration 'macos-14-arm64-us-default' is not supported` (GoTavern Release run
+  # 42242191281, job 127975851110; the same annotation on run 42113162581). The SAME job executed successfully
+  # five times earlier on 2026-11-05 (runs 42018112346, 42035872824, 42051271771, 42061439366, 42085159949),
+  # so this is platform-side unavailability of the arm64 macOS runner configuration, not a misconfiguration in
+  # this tree, and it cannot be fixed here. `macos-15` is the only plausible existing arm64 macOS label
+  # (the repository already uses `macos-15-intel` for x64), but selecting it would be an unverified guess that
+  # only a dispatch can test, so it is documented as the restoration candidate rather than shipped as the gate.
+  #
+  # The replacement is deliberately NOT a continue-on-error: it runs on a runner that exists and (1) proves the
+  # archive is a THIN ARM64 MACH-O executable (magic 0xfeedfacf, cputype 0x0100000c), (2) re-asserts the
+  # build+archive inspection contract (members, BUILD-INFO version/target, version string in the binary bytes,
+  # tokenizer tree, no shipped runtime state, tar executable bits on Linux), and (3) writes a machine-readable
+  # marker that the publish job REQUIRES together with the release-notes limitation line. The publish job runs
+  # the gate's planted cases first, then refuses a missing/unknown marker, an archive-sha mismatch, a marker
+  # that claims execution without execution evidence, or a note that dropped the limitation line.
+  # Restoring real execution means producing a marker in `executed` mode with execution evidence; the validator
+  # then requires that evidence instead of the note line (docs/release-governance.md section 4).
+  # ===================================================================================================
+  darwin-arm64-recorded-downgrade:
     needs: build
-    runs-on: macos-14
-    timeout-minutes: 20
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       - uses: actions/download-artifact@v4
         with:
           name: gotavern-darwin-arm64.tar.gz
           path: archive
-      - name: Execute the darwin/arm64 archive and poll its /version
+      - name: The darwin/arm64 matrix row still states the recorded limitation, not execution
+        # A DOWNGRADE IS ONLY HONEST IF THE CLAIM MATCHES IT. Flattening the matrix row back to "EXECUTED"
+        # without a real execution job (and a marker that carries execution evidence) fails here.
         run: |
           set -euo pipefail
-          work="$(mktemp -d)"
-          tar -xzf archive/gotavern-darwin-arm64.tar.gz -C "$work"
-          test -x "$work/gotavern" || { echo "::error::the darwin/arm64 archive has no executable gotavern"; exit 1; }
-          "$work/gotavern" version | tee "$work/version.txt"
-          mkdir -p "$work/tree"
-          ( cd "$work/tree" && "$work/gotavern" start --port 8833 --browserLaunchEnabled false > "$work/server.log" 2>&1 ) &
-          ready=0
-          for attempt in $(seq 1 240); do
-            code="$(curl -sS -o "$work/version.json" -w '%{http_code}' http://127.0.0.1:8833/version || true)"
-            if [ "$code" = "200" ]; then ready=1; break; fi
-            sleep 0.25
-          done
-          if [ "$ready" -ne 1 ]; then echo "::error::darwin/arm64 did not answer /version within the bound"; tail -80 "$work/server.log"; exit 1; fi
-          grep -q '"pkgVersion":"1.19.0"' "$work/version.json" || { echo "::error::darwin/arm64 /version did not report the pinned SillyTavern version"; cat "$work/version.json"; exit 1; }
-          echo "ok: darwin/arm64 archive executed on $(uname -m) and answered /version"
+          python3 - <<'PY'
+          import re, sys
+          text = open('.github/workflows/release.yml', encoding='utf-8').read()
+          match = re.search(r'- goos: darwin\n\s+goarch: arm64\n(?:.*\n)*?\s+execution: (.*)', text)
+          if not match:
+              sys.exit('release.yml has no darwin/arm64 matrix row')
+          execution = match.group(1)
+          if 'NOT EXECUTED' not in execution or 'recorded platform limitation' not in execution:
+              sys.exit(f'darwin/arm64 execution string no longer states the recorded limitation: {execution}')
+          print('ok: darwin/arm64 is still BUILT + ARCHIVE-INSPECTED, with the platform limitation recorded')
+          PY
+      - name: Prove the archive is a thin arm64 Mach-O and record the platform limitation
+        env:
+          VERSION: ${{ inputs.candidate_version || github.ref_name }}
+        run: |
+          set -eu
+          node scripts/release-governance/darwin-arm64-qualification.mjs inspect \
+            --archive archive/gotavern-darwin-arm64.tar.gz \
+            --version "${VERSION}" \
+            --out "${RUNNER_TEMP}/darwin-arm64-platform-limitation.json" \
+            --evidence-out "${RUNNER_TEMP}/darwin-arm64-inspection.txt"
+          echo "::notice::darwin/arm64 runtime execution is NOT qualified; the platform limitation is recorded, not waived"
+      - name: Upload the machine-readable platform-limitation marker
+        uses: actions/upload-artifact@v4
+        with:
+          name: darwin-arm64-platform-limitation
+          path: |
+            ${{ runner.temp }}/darwin-arm64-platform-limitation.json
+            ${{ runner.temp }}/darwin-arm64-inspection.txt
+          if-no-files-found: error
 
   windows-arm64-boundary:
     needs: build
@@ -475,6 +525,12 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
+          # THE PATTERN KEEPS `dist` TO THE SIX CANONICAL ARCHIVES. The darwin/arm64 job uploads a
+          # platform-limitation marker artifact in the same run; without this filter it would be merged into
+          # `dist` and every later `dist` step would be operating on a directory that is not the release set.
+          # `release-assemble-checksums.sh` only reads *.tar.gz/*.zip, but "tolerated" is not "clean": the
+          # publish upload is explicit and the prepublish qualification should qualify the six archives alone.
+          pattern: gotavern-*
           path: dist
           merge-multiple: true
 
@@ -535,10 +591,15 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   publish:
-    # CROSS-PLATFORM EXECUTION IS A PRECONDITION OF PUBLISHING: a release whose arm64-Linux or macOS
+    # CROSS-PLATFORM EXECUTION IS A PRECONDITION OF PUBLISHING: a release whose arm64-Linux or macOS x86_64
     # archives were never executed cannot be a release, so the publish job waits for those jobs instead of
     # treating their green as optional post-hoc evidence.
-    needs: [build, prepublish-qualification, execute-linux-arm64, execute-darwin-amd64, execute-darwin-arm64, windows-arm64-boundary]
+    #
+    # darwin/arm64 is the recorded platform limitation: the job that must succeed is the one that PROVES the
+    # archive's Mach-O CPU type is arm64 and records the limitation marker. The publish steps below run the
+    # gate's planted cases and then refuse to continue without a valid marker plus the release-notes limitation
+    # line -- a missing/unknown marker still blocks, and a dispatch still never publishes.
+    needs: [build, prepublish-qualification, execute-linux-arm64, execute-darwin-amd64, darwin-arm64-recorded-downgrade, windows-arm64-boundary]
     runs-on: ubuntu-latest
     # Publishing is a few API calls; anything longer is a wedged runner.
     timeout-minutes: 15
@@ -555,6 +616,12 @@ jobs:
           ref: ${{ inputs.ref || github.ref }}
       - uses: actions/download-artifact@v4
         with:
+          # THE PATTERN KEEPS `dist` TO THE SIX CANONICAL ARCHIVES. The darwin/arm64 job uploads a
+          # platform-limitation marker artifact in the same run; without this filter it would be merged into
+          # `dist` and every later `dist` step would be operating on a directory that is not the release set.
+          # `release-assemble-checksums.sh` only reads *.tar.gz/*.zip, but "tolerated" is not "clean": the
+          # publish upload is explicit and the prepublish qualification should qualify the six archives alone.
+          pattern: gotavern-*
           path: dist
           merge-multiple: true
 
@@ -565,6 +632,54 @@ jobs:
         # one entry per name. The filename must NOT carry a "./" prefix: install.sh matches
         # `awk '$2 == asset ...'`, so `sha256sum ./*.tar.gz` would write "./name" and parse to no entry.
         run: bash scripts/release-assemble-checksums.sh dist
+
+      - name: Download the recorded darwin/arm64 platform-limitation marker
+        # THE MARKER IS AN ARTIFACT OF THE JOB THE PUBLISH JOB ALREADY WAITS FOR. If that job failed, this job
+        # does not run; if the marker is absent, the next step refuses. There is no optional path here.
+        uses: actions/download-artifact@v4
+        with:
+          name: darwin-arm64-platform-limitation
+          path: ${{ runner.temp }}/darwin-arm64-limitation
+
+      - name: Prove the darwin/arm64 publish gate has teeth (planted limitation cases)
+        # The refusal path is exercised on EVERY publish run. The cases include a missing marker, an unknown
+        # mode, a marker that claims execution without execution evidence, and a note that dropped the
+        # limitation line -- a case that stops refusing fails this step, so the gate cannot rot into a step
+        # that only ever sees a good input.
+        run: node scripts/release-governance/darwin-arm64-qualification.mjs --self-test
+
+      - name: darwin/arm64 must be executed OR recorded as a platform limitation, with the note line published
+        # THE PUBLISH GATE for the one target this platform cannot execute. A missing marker, an unknown mode, a
+        # marker with no arm64 Mach-O proof, an archive-sha mismatch, a claim of execution without execution
+        # evidence, or a curated note without the limitation line all refuse with a named error.
+        # docs/release-governance.md section 4 records the decision, the platform evidence and the restoration
+        # path, and the release notes' Known limitations section carries the published line the gate requires.
+        env:
+          VERSION: ${{ inputs.candidate_version || github.ref_name }}
+        run: |
+          set -eu
+          # Resolve the curated notes exactly as the body step does: the tag's tree first, then origin/main (the
+          # body may be written after the tag; the limitation line is release metadata and must be read from the
+          # history that will carry it, or the downgrade would be invisible in what users read).
+          notes_file=''
+          for candidate in "docs/releases/${VERSION}.md" "docs/release-notes-${VERSION}.md"; do
+            if [ -s "$candidate" ]; then notes_file="$candidate"; break; fi
+          done
+          if [ -z "${notes_file}" ] && [ "${{ github.ref_type }}" = "tag" ]; then
+            git fetch --no-tags origin main
+            for candidate in "docs/releases/${VERSION}.md" "docs/release-notes-${VERSION}.md"; do
+              if git cat-file -e "origin/main:${candidate}" 2>/dev/null; then
+                git show "origin/main:${candidate}" > "${RUNNER_TEMP}/curated-notes.md"
+                notes_file="${RUNNER_TEMP}/curated-notes.md"
+                break
+              fi
+            done
+          fi
+          node scripts/release-governance/darwin-arm64-qualification.mjs verify \
+            --marker "${RUNNER_TEMP}/darwin-arm64-limitation/darwin-arm64-platform-limitation.json" \
+            --archive dist/gotavern-darwin-arm64.tar.gz \
+            --version "${VERSION}" \
+            --notes "${notes_file}"
 
       - name: Verify the same-SHA required gates and assemble the release body (fail closed)
         # TWO FAIL-CLOSED CHECKS AND THE BODY ASSEMBLY, IN ONE STEP SO THEY CANNOT DISAGREE.
