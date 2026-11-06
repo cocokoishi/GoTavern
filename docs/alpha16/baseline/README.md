@@ -1,6 +1,6 @@
 # alpha.16 M0 resource baseline (the "before" record for M5)
 
-**Status: the engineering record FAILED (L-H1, stale committed baseline) and the product record is pending.** This directory is the M0 baseline that M5 compares against.
+**Status: BOTH records are green as of 2026-11-06 — the engineering record was deliberately regenerated and re-verified (L-H1 closed in §9), and the product record is measured in §8.** This directory is the M0 baseline that M5 compares against.
 Its job is to record the numbers **before** any M4/M5 change exists, on a named tree, with the raw artifact
 named — so a later "before/after" is a comparison of two records rather than of two memories.
 
@@ -169,5 +169,29 @@ still `CI-PENDING` (§4 item 3). The paired record's own notes say a paired medi
 "evidence for a report, not a release gate" — consistent with L/E-H2, which records that the smoke-metrics
 release gate asserts no performance number.
 
-**Baseline status:** the product half is recorded and green; the engineering half is still red until the
-committed bench baseline is deliberately regenerated (§7).
+**Baseline status:** the product half is recorded and green; the engineering half is now also green — see §9.
+
+## 9. L-H1 closed (2026-11-06): the baseline was deliberately regenerated, then a normal comparison passed
+
+The engineering record failed in §7 because the committed baseline predated an accepted product change (the
+alpha.15 card-text cache). Closing it required an explicit regeneration, not a code change and not a tolerance
+widening. The workflow now has a `workflow_dispatch` boolean input `update_baseline` (default **false**) and
+`.github/workflows/bench-profiles.yml` uploads the two rewritten baseline files as the fixed-name artifact
+`bench-baseline-candidate`; CI never commits them.
+
+| step | run | result |
+|---|---|---|
+| regenerate on the Linux baseline host (`update_baseline=true`, rounds=3) | `GoTavern bench profiles` **42164978648** at `05479fa` | **success**; artifact `bench-baseline-candidate` (baseline header names commit `05479fa`, runnerImage `20261101.186.1`, 4 vCPU) |
+| commit the downloaded candidate with its raw run | lane commit `39cec62` | `tests/perf/bench-baseline.txt` + `bench-baseline-raw.txt`; e.g. `cards_100_640KB_image` B/op 181,622,014 → 41,035,550 (−77.4 %), ns/op 97,246,124 → 27,743,964 (−71.5 %) |
+| normal comparison at the same tree (no `update_baseline`) | `GoTavern bench profiles` **42165562517** at `39cec62` | **success**; artifact `verdict.txt`: `comparison: passed`, `failures: 0`; all 31 benchmarks PASS, deltas −8.1 % … +1.6 % |
+
+The observation legitimately changed because the cache changed the work the warm rows measure; the change that
+altered the observation (the cache) and the change that recorded it are different commits, and the green
+comparison at `39cec62` is the evidence that the regenerated baseline describes the tree it names. This is the
+only sanctioned way to move this baseline: `--update-baseline` refuses a dirty tree, the dispatch is explicit,
+and a normal comparison run must follow.
+
+**What is still open after this closure:** the committed set still has **no cold-guard row** (it lives in
+`scripts/a15-bench-p1-arms.mjs`); the 30–60 minute soak from §4 item 3 is still `CI-PENDING`; and a future
+change to a benchmark input or subject must regenerate the baseline again rather than edit tolerances. L-H1 is
+closed as an evidence-machinery defect, not as a performance claim.
