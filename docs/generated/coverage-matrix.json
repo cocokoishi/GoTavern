@@ -268,6 +268,8 @@
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
         "scenarioNames": [
           "claude-abort",
+          "claude-adaptive-thinking-disabled",
+          "claude-adaptive-thinking-enabled",
           "claude-cache-extended-ttl",
           "claude-cache-off",
           "claude-caching-at-depth",
@@ -288,7 +290,7 @@
           "claude-thinking",
           "claude-tools"
         ],
-        "scenarios": 20,
+        "scenarios": 22,
         "status": "yes"
       },
       "cancellation": {
@@ -567,6 +569,8 @@
       "P": {
         "fixture": "tests/oracle/sillytavern-1.19.0-provider-wire.json",
         "scenarioNames": [
+          "makersuite-api-version-generate",
+          "makersuite-api-version-status",
           "makersuite-error-status",
           "makersuite-inline-audio",
           "makersuite-inline-image",
@@ -577,7 +581,7 @@
           "makersuite-stream-control-nonstream",
           "makersuite-thinking"
         ],
-        "scenarios": 9,
+        "scenarios": 11,
         "status": "yes"
       },
       "cancellation": {
