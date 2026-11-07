@@ -25,10 +25,10 @@ package server
 //     THROWN fetch (:956-962 -- `response.send` with no status, which is the branch an implementer
 //     copying CLAUDE would get wrong).
 //
-// NOT COVERED, stated rather than silently different: `mistral.enablePrefix` (prompt-converters.js:709,
-// default false) marks a trailing assistant turn with `prefix: true`. It is CONFIG-GATED and OFF by
-// default, and the mistral config key is not projected into HTTPHandlerOptions, so a default request
-// can never reach it. Every other member of this route is implemented.
+// CONFIG: `mistral.enablePrefix` (prompt-converters.js:709, default false) marks a trailing assistant turn
+// with `prefix: true`. It is read from the startup-resolved config.yaml through the same pinned_chat_config.go
+// view as the other chat-path keys (D-H1), so --configPath / a non-adjacent --dataRoot reaches it. Every other
+// member of this route is implemented.
 //
 // REUSED, not re-ported: `pinnedClaudeNamesFor`/`startsWithGroupName` (getPromptNames,
 // prompt-converters.js:49 is source-neutral) and `pinnedClaudeJSString` (JavaScript String()).
@@ -282,8 +282,10 @@ func pinnedMistralCatchFailure() *pinnedChatCompletionFailure {
 	return pinnedChatCompletionJSONFailure(http.StatusOK, pinnedChatCompletionErrorFlag())
 }
 
-// pinnedMistralPlan is the plan for the MISTRAL source.
-func pinnedMistralPlan(body orderedNodeJSON, directories startup.UserDirectories) (*outbound.Request, *pinnedChatCompletionFailure) {
+// pinnedMistralPlan is the plan for the MISTRAL source. It takes the config view because
+// `mistral.enablePrefix` is provider-visible and must come from the startup-resolved config.yaml (D-H1).
+func pinnedMistralPlan(body orderedNodeJSON, config pinnedChatConfigSource) (*outbound.Request, *pinnedChatCompletionFailure) {
+	directories := config.directories
 	apiURL := pinnedMistralBaseURL()
 	apiKey := nodeUndefined()
 	if reverseProxy, exists := body.member("reverse_proxy"); exists && pinnedJSTruthy(reverseProxy) {
@@ -306,7 +308,7 @@ func pinnedMistralPlan(body orderedNodeJSON, directories startup.UserDirectories
 		// :885-888, BEFORE the try.
 		return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
 	}
-	payload, failure := pinnedMistralPayload(body, pinnedChatConfigBool(directories, []string{"mistral", "enablePrefix"}, false))
+	payload, failure := pinnedMistralPayload(body, config.boolValue([]string{"mistral", "enablePrefix"}, false))
 	if failure != nil {
 		return nil, failure
 	}

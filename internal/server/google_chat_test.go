@@ -41,7 +41,9 @@ func googleTestDirectories(t *testing.T) startup.UserDirectories {
 func googlePlanFor(t *testing.T, directories startup.UserDirectories, raw string, useVertexAI bool) (*outbound.Request, *pinnedChatCompletionFailure) {
 	t.Helper()
 	body := googleTestBody(t, raw)
-	return pinnedGooglePlan(body, directories, useVertexAI)
+	// No startup-resolved config file here: this helper drives the plan directly, so the reader keeps its
+	// documented directory fallback (pinned_chat_config.go).
+	return pinnedGooglePlan(body, pinnedChatConfigFromDirectories(directories), useVertexAI)
 }
 
 func googleHeader(request *outbound.Request, name string) string {

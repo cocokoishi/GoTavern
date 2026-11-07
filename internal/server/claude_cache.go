@@ -17,8 +17,6 @@ package server
 //     `extended-cache-ttl-2025-04-11` to the anthropic-beta list (:334-337), AFTER the `tools-2024-05-16`
 //     token the tools path pushes at :290 -- that order is part of the compared header.
 
-import "github.com/cocokoishi/gotavern/internal/startup"
-
 // pinnedClaudeCacheControl is `{ type: 'ephemeral', ttl }`, always with type first.
 func pinnedClaudeCacheControl(ttl string) orderedNodeJSON {
 	control := nodeObject()
@@ -28,11 +26,13 @@ func pinnedClaudeCacheControl(ttl string) orderedNodeJSON {
 }
 
 // pinnedClaudeApplyCaching reproduces :281-283, :297-299, :330-332 and :334-337 in that order, mutating the
-// payload the caller already built and returning the extended beta list.
-func pinnedClaudeApplyCaching(payload *orderedNodeJSON, directories startup.UserDirectories, betaHeaders []string) []string {
-	enableSystemPromptCache := pinnedChatConfigBool(directories, []string{"claude", "enableSystemPromptCache"}, false)
-	extendedTTL := pinnedChatConfigBool(directories, []string{"claude", "extendedTTL"}, false)
-	cachingAtDepth := pinnedChatConfigNumber(directories, []string{"claude", "cachingAtDepth"}, -1)
+// payload the caller already built and returning the extended beta list. The three keys are provider-visible
+// config (D-H1), so they come from the startup-resolved config file the claude planner threaded in, not from a
+// path derived at the data root.
+func pinnedClaudeApplyCaching(payload *orderedNodeJSON, config pinnedChatConfigSource, betaHeaders []string) []string {
+	enableSystemPromptCache := config.boolValue([]string{"claude", "enableSystemPromptCache"}, false)
+	extendedTTL := config.boolValue([]string{"claude", "extendedTTL"}, false)
+	cachingAtDepth := config.numberValue([]string{"claude", "cachingAtDepth"}, -1)
 	if cachingAtDepth < 0 {
 		// :110 -- `Number.isInteger(value) && value >= 0 ? value : -1`.
 		cachingAtDepth = -1

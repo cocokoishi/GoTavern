@@ -63,7 +63,7 @@ func pinnedOpenAIChatPlan(request chatCompletionRequest) (*outbound.Request, *pi
 	//
 	// Its bytes cannot be compared with a capture -- they are random by design -- so the test asserts the
 	// SHAPE and that the value is fresh per request, which is what a user observes.
-	if pinnedChatConfigBool(request.directories, []string{"openai", "randomizeUserId"}, false) {
+	if request.config().boolValue([]string{"openai", "randomizeUserId"}, false) {
 		bodyParams.setMember("user", nodeString(pinnedRandomUUIDv4()))
 	}
 

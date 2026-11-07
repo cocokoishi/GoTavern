@@ -16,6 +16,16 @@ package server
 // none of them carries the JS literal. `backendsPromptPlaceholder` already encodes that effective default
 // for the process routes; these helpers let the chat converters read the same value, and an operator's
 // explicit setting, through one path rather than three.
+//
+// THE FILE IS THE STARTUP-RESOLVED ONE, NOT A GUESS (D-H1). The pinned server reads `CONFIG_PATH` once at
+// startup (src/util.js:44-79) and getConfigValue then consults that parsed object. GoTavern resolves the
+// same path in internal/commandline (Paths.ConfigFile, absolute, after configinit has run on it) and now
+// threads it through HTTPHandlerOptions -> chatCompletionRequest -> the planners that read a config key.
+// An explicit --configPath, or a --dataRoot that is not adjacent to the config file, therefore reaches the
+// provider request instead of silently defaulting every key. The old candidate derivation below survives
+// ONLY for direct planner tests, which build startup.UserDirectories without an HTTP handler; it is never a
+// second source in production and it must not be consulted when a resolved file exists, because a decoy
+// config.yaml at the guessed location would otherwise override the operator's real file.
 
 import (
 	"os"
@@ -27,12 +37,35 @@ import (
 	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
-// pinnedConfigCandidates finds the runtime config.yaml from what a chat-completion planner has: the per-user
-// directories, whose "root" is `<dataRoot>/<handle>`, so the data root's parent is the install root -- which
-// is where the probe writes it (`--dataRoot <runtimeRoot>/data` with `<runtimeRoot>/config.yaml`) and where
-// a real install keeps it. These are the same two candidates `charactersConfigCandidates` derives from
-// HTTPHandlerOptions, reached without threading the options struct through the shared planner signature.
-func pinnedConfigCandidates(directories startup.UserDirectories) []string {
+// pinnedChatConfigSource is everything a chat-path reader may consult for a provider-visible key: the
+// runtime config.yaml the startup chain resolved, and the per-user directories a direct planner test has.
+type pinnedChatConfigSource struct {
+	file        string
+	directories startup.UserDirectories
+}
+
+// pinnedChatConfigFromDirectories is the legacy view for the converters whose planners have not been
+// threaded with the resolved path (claude caching, mistral, openai, requestOverrides): it derives the file
+// from the data root exactly as before. It is NOT used by the four provider-visible helpers below.
+func pinnedChatConfigFromDirectories(directories startup.UserDirectories) pinnedChatConfigSource {
+	return pinnedChatConfigSource{directories: directories}
+}
+
+// pinnedConfigCandidates lists the config file(s) a reader will try, in order. An explicit resolved path is
+// THE file and is returned alone: the reader then reads that file or nothing. It is deliberately not
+// filtered on readability, because an unreadable resolved file must fall through to the caller's effective
+// default, NOT to a guessed location -- a resolved path that is present but cannot be read is still not
+// permission to read somebody else's config.yaml.
+//
+// Without a resolved path the historical derivation is the fallback: the per-user directories' "root" is
+// `<dataRoot>/<handle>`, so the data root's parent is the install root -- where the probe writes the file
+// (`--dataRoot <runtimeRoot>/data` with `<runtimeRoot>/config.yaml`) and where a real install keeps it.
+// These are the two candidates `charactersConfigCandidates` derives from HTTPHandlerOptions; they are
+// reached here without threading options through the shared planner signature.
+func pinnedConfigCandidates(configFile string, directories startup.UserDirectories) []string {
+	if configFile != "" {
+		return []string{configFile}
+	}
 	root := directories["root"]
 	if root == "" {
 		return nil
@@ -44,9 +77,9 @@ func pinnedConfigCandidates(directories startup.UserDirectories) []string {
 	}
 }
 
-// pinnedChatConfigFileValue walks a dotted key through the runtime config.yaml.
-func pinnedChatConfigFileValue(directories startup.UserDirectories, path []string) (any, bool) {
-	for _, candidate := range pinnedConfigCandidates(directories) {
+// fileValue walks a dotted key through the runtime config.yaml, without the environment override.
+func (source pinnedChatConfigSource) fileValue(path []string) (any, bool) {
+	for _, candidate := range pinnedConfigCandidates(source.file, source.directories) {
 		body, err := os.ReadFile(candidate)
 		if err != nil {
 			continue
@@ -72,10 +105,10 @@ func pinnedChatConfigFileValue(directories startup.UserDirectories, path []strin
 	return nil, false
 }
 
-// pinnedChatConfigValue resolves a dotted key the way the pinned getConfigValue does (src/util.js:88-98):
-// the `SILLYTAVERN_<KEY_WITH_UNDERSCORES>` override wins whenever it is PRESENT -- including when it is set
-// to the empty string, which is an override to "", not an absence -- then the runtime config file.
-func pinnedChatConfigValue(directories startup.UserDirectories, path []string) (any, bool) {
+// value resolves a dotted key the way the pinned getConfigValue does (src/util.js:88-98): the
+// `SILLYTAVERN_<KEY_WITH_UNDERSCORES>` override wins whenever it is PRESENT -- including when it is set to
+// the empty string, which is an override to "", not an absence -- then the runtime config file.
+func (source pinnedChatConfigSource) value(path []string) (any, bool) {
 	if len(path) == 0 {
 		return nil, false
 	}
@@ -83,13 +116,13 @@ func pinnedChatConfigValue(directories startup.UserDirectories, path []string) (
 	if raw, exists := os.LookupEnv(environment); exists {
 		return raw, true
 	}
-	return pinnedChatConfigFileValue(directories, path)
+	return source.fileValue(path)
 }
 
-// pinnedChatConfigString is a string-valued key. A key that is absent everywhere takes the caller's
-// effective default, which for a config-init-inserted key is the default/config.yaml value, not the JS one.
-func pinnedChatConfigString(directories startup.UserDirectories, path []string, fallback string) string {
-	value, exists := pinnedChatConfigValue(directories, path)
+// stringValue is a string-valued key. A key that is absent everywhere takes the caller's effective
+// default, which for a config-init-inserted key is the default/config.yaml value, not the JS one.
+func (source pinnedChatConfigSource) stringValue(path []string, fallback string) string {
+	value, exists := source.value(path)
 	if !exists {
 		return fallback
 	}
@@ -99,20 +132,20 @@ func pinnedChatConfigString(directories startup.UserDirectories, path []string, 
 	return fallback
 }
 
-// pinnedChatConfigBool is `getConfigValue(key, fallback, 'boolean')`: the pinned conversion (util.js
-// toBoolean) applied to whatever the file or the environment supplied.
-func pinnedChatConfigBool(directories startup.UserDirectories, path []string, fallback bool) bool {
-	value, exists := pinnedChatConfigValue(directories, path)
+// boolValue is `getConfigValue(key, fallback, 'boolean')`: the pinned conversion (util.js toBoolean)
+// applied to whatever the file or the environment supplied.
+func (source pinnedChatConfigSource) boolValue(path []string, fallback bool) bool {
+	value, exists := source.value(path)
 	if !exists {
 		return fallback
 	}
 	return pinnedToBoolean(value)
 }
 
-// pinnedChatConfigNumber is `getConfigValue(key, fallback, 'number')`, which is `parseFloat`-shaped: a value
-// that does not start with a number keeps the fallback.
-func pinnedChatConfigNumber(directories startup.UserDirectories, path []string, fallback int) int {
-	value, exists := pinnedChatConfigValue(directories, path)
+// numberValue is `getConfigValue(key, fallback, 'number')`, which is `parseFloat`-shaped: a value that does
+// not start with a number keeps the fallback.
+func (source pinnedChatConfigSource) numberValue(path []string, fallback int) int {
+	value, exists := source.value(path)
 	if !exists {
 		return fallback
 	}
@@ -150,14 +183,22 @@ func pinnedChatConfigNumber(directories startup.UserDirectories, path []string, 
 	}
 }
 
+// pinnedChatConfigValue is the directory-only view still used by requestOverrides.go, which belongs to the
+// text-completion backends rather than to this route. It is intentionally NOT given the resolved path: the
+// chat-completion route's readers all take a pinnedChatConfigSource now (claude, google, openrouter, mistral
+// and the OpenAI randomizeUserId arm), and requestOverrides is the residual named in the fix's commit.
+func pinnedChatConfigValue(directories startup.UserDirectories, path []string) (any, bool) {
+	return pinnedChatConfigFromDirectories(directories).value(path)
+}
+
 // pinnedChatPromptPlaceholder is `PROMPT_PLACEHOLDER` (prompt-converters.js:4) with the config-init merge
 // applied: an operator value wins, otherwise the default install's value, otherwise the JS literal.
-func pinnedChatPromptPlaceholder(directories startup.UserDirectories) string {
-	return pinnedChatConfigString(directories, []string{"promptPlaceholder"}, backendsPromptPlaceholder)
+func pinnedChatPromptPlaceholder(config pinnedChatConfigSource) string {
+	return config.stringValue([]string{"promptPlaceholder"}, backendsPromptPlaceholder)
 }
 
 // pinnedThoughtSignatures is `!!getConfigValue('gemini.thoughtSignatures', true, 'boolean')`
 // (prompt-converters.js:34). The pinned default is TRUE (default/config.yaml:382).
-func pinnedThoughtSignatures(directories startup.UserDirectories) bool {
-	return pinnedChatConfigBool(directories, []string{"gemini", "thoughtSignatures"}, true)
+func pinnedThoughtSignatures(config pinnedChatConfigSource) bool {
+	return config.boolValue([]string{"gemini", "thoughtSignatures"}, true)
 }
