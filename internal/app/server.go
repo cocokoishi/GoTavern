@@ -428,10 +428,15 @@ func (running *RunningServer) Listeners() []net.Listener {
 
 // Close gracefully stops all listeners. It may be called more than once.
 func (running *RunningServer) Close(ctx context.Context) error {
-	if running.heartbeat != nil {
-		running.heartbeat.stop()
-	}
 	var errs []error
+	// The heartbeat join is bounded by the SAME caller context as the HTTP drain, and it never waits on
+	// the writer's IO mutex, so a stalled heartbeat write is reported as ErrHeartbeatStopTimeout instead
+	// of hanging shutdown before the HTTP deadline even applies.
+	if running.heartbeat != nil {
+		if err := running.heartbeat.stop(ctx); err != nil {
+			errs = append(errs, err)
+		}
+	}
 	for index := len(running.httpServers) - 1; index >= 0; index-- {
 		if err := running.httpServers[index].Shutdown(ctx); err != nil {
 			errs = append(errs, err)

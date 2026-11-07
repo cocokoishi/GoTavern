@@ -680,4 +680,4 @@ jobs:
       - name: Race detector over the packages that own shared state
         run: |
           set -euo pipefail
-          go test -race -count=1 ./internal/server ./internal/outbound ./internal/fsretry ./internal/startup ./tests/egressguard
+          go test -race -count=1 ./internal/server ./internal/outbound ./internal/fsretry ./internal/startup ./internal/app ./internal/lockacquire ./tests/egressguard

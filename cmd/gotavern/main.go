@@ -352,10 +352,23 @@ func boundAddresses(running *app.RunningServer) []net.Addr {
 	return addresses
 }
 
+// shutdownServer is the part of *app.RunningServer the signal path needs. It is an interface so the
+// second-signal behaviour can be tested against a drain the test controls, without booting a server.
+type shutdownServer interface {
+	Close(context.Context) error
+	Listeners() []net.Listener
+}
+
 // shutdownAfterSignal prints the friendly first-signal message, then drains for up to the pinned ten
-// seconds. A SECOND signal during the drain force-closes the listeners (in-flight requests are aborted)
-// instead of being ignored, and exits 130 (128+SIGINT) through forcedShutdown.
-func shutdownAfterSignal(running *app.RunningServer, received os.Signal, signals <-chan os.Signal, stderr io.Writer) error {
+// seconds. A SECOND signal during the drain closes the listeners and exits 130 (128+SIGINT) through
+// forcedShutdown.
+//
+// WHAT IT DOES NOT DO, verified by TestListenerCloseDoesNotAbortInFlightRequest: closing a listener only
+// stops accepting new connections and closes idle sockets; an established connection whose handler is
+// still running keeps running. So the second signal cannot abort in-flight requests, and the old message
+// claimed it did. The abort happens later, when the deferred drain ends and main calls os.Exit(130)
+// (TestProcessExitAbortsInFlightRequest pins that half). The message below states exactly that.
+func shutdownAfterSignal(running shutdownServer, received os.Signal, signals <-chan os.Signal, stderr io.Writer) error {
 	fmt.Fprintln(stderr, shutdownNotice(received))
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -365,7 +378,7 @@ func shutdownAfterSignal(running *app.RunningServer, received os.Signal, signals
 	case closeErr := <-closed:
 		return closeErr
 	case again := <-signals:
-		fmt.Fprintf(stderr, "Force closing after %s: closing listeners now (in-flight requests are aborted)\n", again)
+		fmt.Fprintf(stderr, "Force closing after %s: closing listeners now; in-flight requests continue until the drain ends (up to 10s), then the process exits 130 and aborts them\n", again)
 		for _, listener := range running.Listeners() {
 			_ = listener.Close()
 		}

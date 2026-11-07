@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -11,18 +12,31 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 const maxNodeTimerDurationMilliseconds = 1<<31 - 1
+
+// ErrHeartbeatStopTimeout is the named failure returned when the heartbeat goroutine has not joined
+// within the caller's shutdown deadline. It is a sentinel so a caller can distinguish "the writer could
+// not stop" from any other shutdown error, and its message names what the operator is left with.
+var ErrHeartbeatStopTimeout = errors.New("heartbeat writer did not stop within the shutdown deadline; a heartbeat write may still be running")
 
 type heartbeatWriter struct {
 	path       string
 	stopSignal chan struct{}
 	done       chan struct{}
 	mu         sync.Mutex
-	stopped    bool
-	once       sync.Once
+	// stopped is published BEFORE stopSignal is closed, without the IO mutex, so stop never waits behind
+	// a write that is inside fsync. write() re-checks it under the IO mutex: a write that passed the
+	// unsynchronised check cannot then start after stop has published the flag.
+	stopped  atomic.Bool
+	stopOnce sync.Once
+	// writeFile is the heartbeat write, injectable so a test can hold the write inside its fsync and prove
+	// the shutdown wait is bounded. It is set by startHeartbeat in production and only a test changes it
+	// (the same seam pattern as `runningInDocker` in internal/app/server.go:409-418).
+	writeFile func(string, []byte) error
 }
 
 func parsedHeartbeatInterval(value any) time.Duration {
@@ -42,6 +56,7 @@ func startHeartbeat(dataRoot string, interval time.Duration) *heartbeatWriter {
 		path:       filepath.Join(dataRoot, "heartbeat.json"),
 		stopSignal: make(chan struct{}),
 		done:       make(chan struct{}),
+		writeFile:  atomicWriteHeartbeat,
 	}
 	writer.write()
 	go writer.run(interval)
@@ -53,6 +68,13 @@ func (writer *heartbeatWriter) run(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
+		// Prioritise the stop signal so a closed stopSignal cannot be starved by a ticker whose channel is
+		// also ready: at most one no-op write attempt follows stopped being published.
+		select {
+		case <-writer.stopSignal:
+			return
+		default:
+		}
 		select {
 		case <-ticker.C:
 			writer.write()
@@ -63,25 +85,48 @@ func (writer *heartbeatWriter) run(interval time.Duration) {
 }
 
 func (writer *heartbeatWriter) write() {
+	// No write may START once stop has published `stopped`; the check is repeated under the IO mutex so a
+	// writer that passed the first check cannot slip past a concurrent stop.
+	if writer.stopped.Load() {
+		return
+	}
 	writer.mu.Lock()
 	defer writer.mu.Unlock()
-	if writer.stopped {
+	if writer.stopped.Load() {
 		return
 	}
 	body := []byte(`{"timestamp":` + strconv.FormatInt(time.Now().UnixMilli(), 10) + `}`)
-	if err := atomicWriteHeartbeat(writer.path, body); err != nil {
+	writeFile := writer.writeFile
+	if writeFile == nil {
+		writeFile = atomicWriteHeartbeat
+	}
+	if err := writeFile(writer.path, body); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to write heartbeat file at %s: %s\n", writer.path, err)
 	}
 }
 
-func (writer *heartbeatWriter) stop() {
-	writer.once.Do(func() {
-		writer.mu.Lock()
-		writer.stopped = true
+// stop signals the heartbeat writer and joins its goroutine under the caller's bounded context.
+//
+// It NEVER takes the IO mutex, so a write stuck inside fsync cannot block the caller behind an fsync:
+// previously stop waited for that mutex and then for <-done with no bound, so a stalled filesystem hung
+// Ctrl+C forever (AGENTS rule 24/33). The guarantee stop returns with is: no heartbeat write starts after
+// it reports success. A write that was already inside writeFile when stop was called may finish after
+// stop's deadline (documented, not hidden) -- stop reports ErrHeartbeatStopTimeout in that case and the
+// caller decides how to end the process.
+//
+// Double-stop is safe: the first call publishes stopped and closes stopSignal exactly once; every call
+// only waits for done, so a second call on a stopped writer returns immediately.
+func (writer *heartbeatWriter) stop(ctx context.Context) error {
+	writer.stopOnce.Do(func() {
+		writer.stopped.Store(true)
 		close(writer.stopSignal)
-		writer.mu.Unlock()
 	})
-	<-writer.done
+	select {
+	case <-writer.done:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("%w: %v", ErrHeartbeatStopTimeout, ctx.Err())
+	}
 }
 
 func atomicWriteHeartbeat(target string, body []byte) error {
