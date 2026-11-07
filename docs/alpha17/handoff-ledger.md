@@ -107,6 +107,10 @@ the notes commit and its result is recorded in §5.
 - **Post-release facts.** the release workflow's `post-release-facts` job regenerated the generated facts
   for the published tag and committed `3cf519b` ("chore(docs): regenerate the generated facts for the
   published v0.1.0-alpha.17 tag") to `main`, and dispatched `GoTavern CI` **42395084857** at that commit.
+  That dispatch was superseded (cancelled by the CI concurrency group) when the publication-record docs
+  commit was pushed; the live `main` CI run for the final record commit is **42396177093**, and it is a
+  post-publication documentation check, not a release gate (the release gates are the thirteen dispatched
+  runs at the tag target).
 
 ## 6. Residuals (unchanged or newly recorded)
 
