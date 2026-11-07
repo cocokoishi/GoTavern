@@ -27,14 +27,19 @@ name: M5 measurements
 #
 # THE BEFORE/AFTER PAIR (the M5 procedure, made mechanical)
 #   BEFORE: dispatch with `thresholds_from_run` EMPTY. The `m5-eight-users-evidence` artifact carries
-#           report.json, which becomes the baseline for the next run.
-#   AFTER:  dispatch at the change under test with `thresholds_from_run=<BEFORE run id>`. The job downloads
-#           that run's artifact and passes it as `--thresholds-json`; the harness derives each route's
-#           ceiling as previous p95 x 1.25 and fails closed by name (`threshold/<route>-p95`) when the after
-#           run is above it (tests/perf/m5-eight-users.mjs:155-177, :1044-1054). A missing BEFORE artifact is
-#           a named failure, never a run with no threshold.
+#           report.json, which becomes one baseline for the next run. A RATIFICATION SERIES dispatches several
+#           BEFORE runs on the same tree and keeps every report.
+#   AFTER:  dispatch at the change under test with `thresholds_from_run=<run id>[,<run id>...]`. The job
+#           downloads every cited artifact and passes each as `--thresholds-json`; the harness takes each
+#           route's ceiling as the WORST p95 observed for THAT route across the supplied reports x 1.25 and
+#           fails closed by name (`threshold/<route>-p95`) when the after run is above it. The per-route
+#           maximum matters: the 2026-11-07 repeats had settingsSave, settingsGet and chatsSave each peak in a
+#           different run, so a single report taken for all three routes under-covered settingsGet. The job also
+#           refuses a host whose typical sync write is outside the worst recorded disk fingerprint
+#           (`threshold/host-disk`, a named refusal, never a pass). A missing BEFORE artifact, or a cited run
+#           whose own report is not ok, is a named failure, never a run with no threshold.
 #   NO THRESHOLD IS INVENTED: the first run of a row has no noise estimate, so it reports and fails only on
-#   correctness; the second run is where a latency regression can turn the job red.
+#   correctness; the AFTER run against the repeated baselines is where a latency regression can turn it red.
 #
 # WHAT THIS WORKFLOW DOES NOT PROVE (mirrored into every artifact)
 #   - absolute numbers are comparable only within one runner image label+version; each artifact records both;
@@ -81,7 +86,7 @@ on:
         type: string
         default: ''
       thresholds_from_run:
-        description: 'A previous m5-measurements run id whose m5-eight-users-evidence is the BEFORE report; the AFTER run then fails closed above previous p95 x 1.25'
+        description: 'One or more previous m5-measurements run ids, comma-separated, whose m5-eight-users-evidence artifacts form the BEFORE baseline; each route then fails closed above the WORST p95 observed for that route across them x1.25, and a host outside the worst recorded disk fingerprint is refused by name'
         type: string
         default: ''
 
@@ -159,28 +164,47 @@ jobs:
           go build -trimpath -o .perf-bin/gotavern ./cmd/gotavern
           .perf-bin/gotavern version --json | tee "$RUNNER_TEMP/m5-eight-users/subject-version.json"
 
-      - name: Download the BEFORE report
+      - name: Download the BEFORE report(s)
         if: ${{ inputs.thresholds_from_run != '' }}
-        uses: actions/download-artifact@v4
-        with:
-          name: m5-eight-users-evidence
-          run-id: ${{ inputs.thresholds_from_run }}
-          github-token: ${{ github.token }}
-          path: ${{ runner.temp }}/m5-before
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/m5-before"
+          mkdir -p "$root"
+          index=0
+          IFS=',' read -ra runs <<< "${{ inputs.thresholds_from_run }}"
+          for run in "${runs[@]}"; do
+            run="$(echo "$run" | tr -d '[:space:]')"
+            [ -n "$run" ] || continue
+            gh run download "$run" -R "$GITHUB_REPOSITORY" -n m5-eight-users-evidence -D "$root/$index"
+            index=$((index+1))
+          done
+          echo "downloaded $index BEFORE report(s) under $root"
 
       # FAIL CLOSED: an AFTER run with no BEFORE report would assert nothing, so it is refused by name rather
-      # than run as an unthresholded "after".
-      - name: Require the BEFORE report (fail closed)
+      # than run as an unthresholded "after". With repeated baselines, EVERY cited report must exist and be ok;
+      # one unusable baseline would silently narrow the per-route ceilings to the remaining runs.
+      - name: Require the BEFORE report(s) (fail closed)
         if: ${{ inputs.thresholds_from_run != '' }}
         run: |
           set -euo pipefail
-          before="$RUNNER_TEMP/m5-before/report.json"
-          if [ ! -s "$before" ]; then
-            echo "::error::m5-8users/before-report: run ${{ inputs.thresholds_from_run }} carries no m5-eight-users-evidence/report.json; an AFTER run without a BEFORE report cannot assert a threshold (fail closed)"
+          root="$RUNNER_TEMP/m5-before"
+          count=0
+          for dir in "$root"/*/; do
+            before="${dir}report.json"
+            if [ ! -s "$before" ]; then
+              echo "::error::m5-8users/before-report: a cited BEFORE run carries no m5-eight-users-evidence/report.json; an AFTER run without a BEFORE report cannot assert a threshold (fail closed)"
+              exit 1
+            fi
+            echo "BEFORE report: $before"
+            node -e "const fs=require('node:fs');const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));console.log('before ok='+r.ok+' users='+r?.parameters?.users+' waves='+r?.parameters?.waves+' diskMedian='+(r?.environment?.disk?.p50 ?? 'none'));if(r.ok!==true){console.error('::error::m5-8users/before-report: the BEFORE run itself was not ok; refusing to derive thresholds from it');process.exit(1)}" "$before"
+            count=$((count+1))
+          done
+          if [ "$count" -eq 0 ]; then
+            echo "::error::m5-8users/before-report: no BEFORE report was downloaded; refusing to run an unthresholded AFTER (fail closed)"
             exit 1
           fi
-          echo "BEFORE report: $before"
-          node -e "const fs=require('node:fs');const r=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));console.log('before ok='+r.ok+' users='+r?.parameters?.users+' waves='+r?.parameters?.waves);if(r.ok!==true){console.error('::error::m5-8users/before-report: the BEFORE run itself was not ok; refusing to derive thresholds from it');process.exit(1)}" "$before"
 
       - name: Run the 8-user row
         env:
@@ -194,7 +218,9 @@ jobs:
           args=(--binary "$PWD/.perf-bin/gotavern" --report "$dir/report.json"
                 --users "$USERS" --waves "$WAVES" --body-bytes 49152 --max-seconds 180)
           if [ -n "$LOAD_LABEL" ]; then args+=(--load-label "$LOAD_LABEL"); fi
-          if [ -n "$THRESHOLDS_FROM_RUN" ]; then args+=(--thresholds-json "$RUNNER_TEMP/m5-before/report.json"); fi
+          if [ -n "$THRESHOLDS_FROM_RUN" ]; then
+            for before in "$RUNNER_TEMP"/m5-before/*/report.json; do args+=(--thresholds-json "$before"); done
+          fi
           node tests/perf/m5-eight-users.mjs "${args[@]}"
 
       # The harness exits 1 on a named failure, but this step is the explicit fail-closed gate: a report that
@@ -216,7 +242,7 @@ jobs:
             const routes = Object.entries(report?.results?.routes ?? {}).map(([route, s]) => `${route} n=${s.count} p50=${s.p50} p95=${s.p95} p99=${s.p99} max=${s.max}`).join("; ");
             console.log(`m5-8users: ok=${report.ok} users=${report?.parameters?.users} waves=${report?.parameters?.waves} ops=${report?.results?.operations} throughput=${report?.results?.throughputOpsPerSec}/s`);
             console.log(`m5-8users routes: ${routes || "(none)"}`);
-            console.log(`m5-8users thresholds: ${report?.thresholds ? "applied from the BEFORE report" : "none (this run is the BEFORE)"}`);
+            console.log(`m5-8users thresholds: ${report?.thresholds ? "applied from the BEFORE report(s)" : "none (this run is a BEFORE)"}`);
             if (report.ok !== true) {
               console.error(`::error::m5-8users/verdict: report.ok=${report.ok} failure=${JSON.stringify(report.failure)} (fail closed)`);
               process.exit(1);
