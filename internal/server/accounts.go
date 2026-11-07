@@ -112,11 +112,46 @@ type loginAttemptWindow struct {
 	resetAt  time.Time
 }
 
+// loginAttemptExpiry is one entry in the limiter's FIFO of window creations. It records the window's
+// resetAt so a stale record (the key was cleared or restarted) is recognised and ignored.
+type loginAttemptExpiry struct {
+	key     string
+	resetAt time.Time
+}
+
 type memoryLoginLimiter struct {
 	mu       sync.Mutex
 	points   float64
 	duration time.Duration
 	entries  map[string]loginAttemptWindow
+	// expiries orders window creations by resetAt so pruneLocked can drop every expired window in one
+	// pass. Callers pass time.Now(), whose monotonic reading makes resetAt non-decreasing; a record whose
+	// resetAt no longer matches its map entry is stale and is skipped, so an out-of-order or cleared key
+	// cannot delete a live window.
+	//
+	// THIS IS THE PINNED EVICTION. rate-limiter-flexible's MemoryStorage deletes each key with a per-key
+	// setTimeout(duration) when the window is created
+	// (SillyTavern/node_modules/rate-limiter-flexible/lib/component/MemoryStorage/MemoryStorage.js:30-50),
+	// so pinned's retained state is bounded by the windows created in the last `duration`. Without this
+	// queue the Go map kept every key for the process lifetime.
+	expiries []loginAttemptExpiry
+}
+
+// pruneLocked deletes entries whose window has ended. Pinned frees each key at its own timeout; a lazy
+// sweep on every limiter operation gives the same bound with amortised O(1) cost (each key is pushed once
+// and popped once).
+func (limiter *memoryLoginLimiter) pruneLocked(now time.Time) {
+	index := 0
+	for index < len(limiter.expiries) && !now.Before(limiter.expiries[index].resetAt) {
+		expired := limiter.expiries[index]
+		index++
+		if window, found := limiter.entries[expired.key]; found && window.resetAt.Equal(expired.resetAt) {
+			delete(limiter.entries, expired.key)
+		}
+	}
+	if index > 0 {
+		limiter.expiries = limiter.expiries[index:]
+	}
 }
 
 func newAccountRuntime(options HTTPHandlerOptions) *accountRuntime {
@@ -171,9 +206,11 @@ func newAccountRuntime(options HTTPHandlerOptions) *accountRuntime {
 func (limiter *memoryLoginLimiter) consume(key string, now time.Time) (bool, time.Duration) {
 	limiter.mu.Lock()
 	defer limiter.mu.Unlock()
+	limiter.pruneLocked(now)
 	window, found := limiter.entries[key]
 	if !found || !now.Before(window.resetAt) {
 		window = loginAttemptWindow{resetAt: now.Add(limiter.duration)}
+		limiter.expiries = append(limiter.expiries, loginAttemptExpiry{key: key, resetAt: window.resetAt})
 	}
 	window.consumed++
 	limiter.entries[key] = window
@@ -192,6 +229,7 @@ func (limiter *memoryLoginLimiter) clear(key string) {
 func (limiter *memoryLoginLimiter) exceeded(key string, now time.Time) (bool, time.Duration) {
 	limiter.mu.Lock()
 	defer limiter.mu.Unlock()
+	limiter.pruneLocked(now)
 	window, found := limiter.entries[key]
 	if !found || !now.Before(window.resetAt) || float64(window.consumed) <= limiter.points {
 		return false, 0
