@@ -157,21 +157,26 @@ check 'evidence-rail-graduation' 'v0.1.0-alpha.15' stable 0
 check_one_word_on_stdout 'evidence-rail-graduation-one-word' 'v0.1.0-alpha.15' stable
 check 'synthetic-qualification-rehearsal-graduation' 'v0.1.0-alpha.16' stable 0
 check_one_word_on_stdout 'synthetic-qualification-rehearsal-graduation-one-word' 'v0.1.0-alpha.16' stable
+check 'niche-qualification-graduation' 'v0.1.0-alpha.17' stable 0
+check_one_word_on_stdout 'niche-qualification-graduation-one-word' 'v0.1.0-alpha.17' stable
 
 # ---- THE EXCEPTION MUST NOT WIDEN ---------------------------------------------------------------------------------
 # Each of these is one plausible wrong implementation of "the graduated tags graduate": a family prefix
 # (`>= alpha.9`), a regex (`alpha\.9` matching `alpha.9x`/`alpha.09`), a series bump (`alpha.N >= 9`), a different
 # patch, or the exception leaking into build-metadata tags. None of them has been qualified, so each must stay a
-# prerelease. The alpha.16 neighbours are the sharpest cases now: a prefix/range rule would graduate alpha.160 and
-# alpha.16-rc1, a build-metadata-insensitive rule would graduate alpha.16+build.1, and a "current series" rule would
-# graduate alpha.17.
+# prerelease. The alpha.17 neighbours are the sharpest cases now: a prefix/range rule would graduate alpha.170 and
+# alpha.17-rc1, a build-metadata-insensitive rule would graduate alpha.17+build.1, and a "current series" rule would
+# graduate alpha.18.
 check 'alpha-before-graduation' 'v0.1.0-alpha.8' prerelease 0
 check 'alpha-after-graduation-in-series' 'v0.1.0-alpha.10' prerelease 0
 check 'alpha-before-previous-graduation' 'v0.1.0-alpha.11' prerelease 0
-check 'alpha-after-latest-graduation' 'v0.1.0-alpha.17' prerelease 0
-check 'latest-graduated-tag-with-a-longer-number' 'v0.1.0-alpha.160' prerelease 0
-check 'latest-graduated-tag-with-a-release-candidate-suffix' 'v0.1.0-alpha.16-rc1' prerelease 0
-check 'latest-graduated-tag-with-build-metadata' 'v0.1.0-alpha.16+build.1' prerelease 0
+check 'alpha-after-latest-graduation' 'v0.1.0-alpha.18' prerelease 0
+check 'latest-graduated-tag-with-a-longer-number' 'v0.1.0-alpha.170' prerelease 0
+check 'latest-graduated-tag-with-a-release-candidate-suffix' 'v0.1.0-alpha.17-rc1' prerelease 0
+check 'latest-graduated-tag-with-build-metadata' 'v0.1.0-alpha.17+build.1' prerelease 0
+check 'previous-graduated-tag-with-a-longer-number' 'v0.1.0-alpha.160' prerelease 0
+check 'previous-graduated-tag-with-a-release-candidate-suffix' 'v0.1.0-alpha.16-rc1' prerelease 0
+check 'previous-graduated-tag-with-build-metadata' 'v0.1.0-alpha.16+build.1' prerelease 0
 check 'previous-graduated-tag-with-a-longer-number' 'v0.1.0-alpha.150' prerelease 0
 check 'previous-graduated-tag-with-a-release-candidate-suffix' 'v0.1.0-alpha.15-rc1' prerelease 0
 check 'previous-graduated-tag-with-build-metadata' 'v0.1.0-alpha.15+build.1' prerelease 0
@@ -247,4 +252,4 @@ if [ "$failed" -ne 0 ]; then
   echo "FAIL: ${failed} of $((passed + failed)) version-classification cases did not hold" >&2
   exit 1
 fi
-echo "version-tag classification is correct for ${passed} cases: v0.1.0-alpha.9 (historical), v0.1.0-alpha.12 (the line that graduated the 0.1.0 series), v0.1.0-alpha.13 (the third-party extension compatibility release), v0.1.0-alpha.14 (the engineering-program release), v0.1.0-alpha.15 (the evidence-rail release) and v0.1.0-alpha.16 (the synthetic adversarial qualification and release-rehearsal release) are the six documented equality-based graduations to the stable channel, every neighbouring alpha (including alpha.17, alpha.160, alpha.16-rc1, alpha.16+build.1, alpha.150, alpha.15-rc1 and alpha.15+build.1) is still a prerelease, stable tags are otherwise exactly v<major>.<minor>.<patch>, nothing else version-shaped is stable, and a non-version tag is refused with exit 2 and nothing on stdout"
+echo "version-tag classification is correct for ${passed} cases: v0.1.0-alpha.9 (historical), v0.1.0-alpha.12 (the line that graduated the 0.1.0 series), v0.1.0-alpha.13 (the third-party extension compatibility release), v0.1.0-alpha.14 (the engineering-program release), v0.1.0-alpha.15 (the evidence-rail release), v0.1.0-alpha.16 (the synthetic adversarial qualification and release-rehearsal release) and v0.1.0-alpha.17 (the niche qualification and performance release) are the seven documented equality-based graduations to the stable channel, every neighbouring alpha (including alpha.18, alpha.170, alpha.17-rc1, alpha.17+build.1, alpha.160, alpha.16-rc1, alpha.16+build.1, alpha.150, alpha.15-rc1 and alpha.15+build.1) is still a prerelease, stable tags are otherwise exactly v<major>.<minor>.<patch>, nothing else version-shaped is stable, and a non-version tag is refused with exit 2 and nothing on stdout"

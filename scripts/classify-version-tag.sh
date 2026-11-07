@@ -33,13 +33,15 @@
 # decision about ONE tag. Written as equality tests on named constants the list graduates `v0.1.0-alpha.9` (the
 # historical first stable-channel release), `v0.1.0-alpha.12` (the production release of the 0.1.0 line),
 # `v0.1.0-alpha.13` (the third-party extension compatibility release), `v0.1.0-alpha.14` (the engineering-program
-# release), `v0.1.0-alpha.15` (the evidence-rail release) and `v0.1.0-alpha.16` (the synthetic adversarial
-# qualification and release-rehearsal release) and nothing else: v0.1.0-alpha.10, v0.1.0-alpha.11,
-# v0.1.0-alpha.17, v0.1.0-alpha.160, v0.1.0-alpha.16-rc1, v0.1.0-alpha.16+build.1, v0.1.0-alpha.150,
-# v0.1.0-alpha.15-rc1, v0.1.0-alpha.15+build.1, v0.1.0-alpha.14-rc1, v0.1.0-alpha.140, v0.1.0-alpha.130,
-# v0.1.0-alpha.13-rc1, v0.1.0-alpha.09, v0.1.1-alpha.9 and v0.2.0-alpha.1 all stay prereleases, and each of
-# those is an assertion in scripts/test-classify-version-tag.sh so a future editor who turns the list into a
-# regex, a prefix or a "series >= N" rule breaks a named case instead of quietly graduating an unqualified tag.
+# release), `v0.1.0-alpha.15` (the evidence-rail release), `v0.1.0-alpha.16` (the synthetic adversarial
+# qualification and release-rehearsal release) and `v0.1.0-alpha.17` (the niche qualification and performance
+# release) and nothing else: v0.1.0-alpha.10, v0.1.0-alpha.11, v0.1.0-alpha.18, v0.1.0-alpha.170,
+# v0.1.0-alpha.17-rc1, v0.1.0-alpha.17+build.1, v0.1.0-alpha.160, v0.1.0-alpha.16-rc1,
+# v0.1.0-alpha.16+build.1, v0.1.0-alpha.150, v0.1.0-alpha.15-rc1, v0.1.0-alpha.15+build.1,
+# v0.1.0-alpha.14-rc1, v0.1.0-alpha.140, v0.1.0-alpha.130, v0.1.0-alpha.13-rc1, v0.1.0-alpha.09,
+# v0.1.1-alpha.9 and v0.2.0-alpha.1 all stay prereleases, and each of those is an assertion in
+# scripts/test-classify-version-tag.sh so a future editor who turns the list into a regex, a prefix or a
+# "series >= N" rule breaks a named case instead of quietly graduating an unqualified tag.
 
 set -eu
 
@@ -86,17 +88,25 @@ fi
 #                     refusals, M5 both-direction performance, M6 release rails) plus the release-rehearsal record.
 #                     Its 13 required gates, the fail-closed verifier and the appended same-SHA evidence table are
 #                     the qualification; the release notes state every skipped or UNPROVEN scenario explicitly.
+#   v0.1.0-alpha.17   the NICHE QUALIFICATION AND PERFORMANCE release: the refreshed M0 audit at the current tree,
+#                     a >=150-scenario deduplicated niche catalogue with a computed gap matrix and executed
+#                     negative-controlled tests, R1-R6 re-decided on evidence (REFUSE), one process-level hotspot
+#                     with same-input before/after in both directions, a 10-14 KB README with detailed performance
+#                     evidence in docs/performance.md and a checker with teeth, and a unified machine-verifiable
+#                     release evidence contract. Its own 13-gate same-SHA wave plus the published archive and
+#                     container digest verification are the qualification.
 #
 # THE LIST IS EQUALITY, NOT A RANGE. It cannot widen by accident: v0.1.0-alpha.10, v0.1.0-alpha.11,
-# v0.1.0-alpha.17, v0.1.0-alpha.160, v0.1.0-alpha.16-rc1, v0.1.0-alpha.16+build.1, v0.1.0-alpha.150,
-# v0.1.0-alpha.15-rc1, v0.1.0-alpha.15+build.1, v0.1.0-alpha.140, v0.1.0-alpha.14-rc1, v0.1.0-alpha.130,
-# v0.1.0-alpha.13-rc1, v0.1.0-alpha.09, v0.1.1-alpha.9, v0.2.0-alpha.1 and v0.1.0-alpha.13+build.1 all stay
+# v0.1.0-alpha.18, v0.1.0-alpha.170, v0.1.0-alpha.17-rc1, v0.1.0-alpha.17+build.1, v0.1.0-alpha.160,
+# v0.1.0-alpha.16-rc1, v0.1.0-alpha.16+build.1, v0.1.0-alpha.150, v0.1.0-alpha.15-rc1,
+# v0.1.0-alpha.15+build.1, v0.1.0-alpha.140, v0.1.0-alpha.14-rc1, v0.1.0-alpha.130, v0.1.0-alpha.13-rc1,
+# v0.1.0-alpha.09, v0.1.1-alpha.9, v0.2.0-alpha.1 and v0.1.0-alpha.13+build.1 all stay
 # prereleases, and each of those is an assertion in scripts/test-classify-version-tag.sh so a future editor who
 # turns this into a regex, a prefix comparison or a "series >= N" test breaks a named case instead of quietly
 # graduating an unqualified tag. Each entry is added by its own commit that cites the qualification evidence for
 # that tag.
 # =============================================================================================================
-GRADUATED_STABLE_TAGS='v0.1.0-alpha.9 v0.1.0-alpha.12 v0.1.0-alpha.13 v0.1.0-alpha.14 v0.1.0-alpha.15 v0.1.0-alpha.16'
+GRADUATED_STABLE_TAGS='v0.1.0-alpha.9 v0.1.0-alpha.12 v0.1.0-alpha.13 v0.1.0-alpha.14 v0.1.0-alpha.15 v0.1.0-alpha.16 v0.1.0-alpha.17'
 
 for graduated_tag in $GRADUATED_STABLE_TAGS; do
   if [ "$tag" = "$graduated_tag" ]; then
