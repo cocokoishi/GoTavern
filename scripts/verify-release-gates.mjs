@@ -23,6 +23,7 @@
 
 import { readFileSync, appendFileSync, existsSync, writeFileSync } from 'node:fs';
 import { evaluateGates, evidenceQueryNeeds, fetchRunsFromApi, renderEvidence, validateManifest, validateManifestAgainstWorkflowNames } from './release-governance/gates.mjs';
+import { emitReleaseEvidence } from './release-governance/release-evidence.mjs';
 
 const args = process.argv.slice(2);
 function valueOf(flag, fallback = null) {
@@ -35,6 +36,11 @@ const sha = valueOf('--sha');
 const manifestPath = valueOf('--manifest', 'docs/release-manifest.json');
 const runsJsonPath = valueOf('--runs-json');
 const evidenceOut = valueOf('--evidence-out');
+const releaseEvidenceOut = valueOf('--release-evidence-out');
+const releaseEvidenceMdOut = valueOf('--release-evidence-md-out');
+const workflowName = valueOf('--workflow', process.env.GITHUB_WORKFLOW ?? null);
+const eventName = valueOf('--event', process.env.GITHUB_EVENT_NAME ?? null);
+const pinnedSha = valueOf('--pinned-sha');
 const repo = process.env.GITHUB_REPOSITORY ?? '';
 const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? '';
 
@@ -135,6 +141,34 @@ if (verdict.ok && evidenceOut) {
     const evidence = renderEvidence({ rows: verdict.rows, sha, repo: repo || 'cocokoishi/GoTavern' });
     writeFileSync(evidenceOut, evidence, 'utf8');
     console.log(`wrote same-SHA qualification evidence to ${evidenceOut}`);
+}
+
+// WRITE THE UNIFIED RELEASE EVIDENCE CONTRACT (JSON + Markdown) when the publish path asks for it. The emitter shares
+// this run's queries and decision function and REFUSES to write a PASS document if any gate failed; on a failing wave
+// this branch never runs because the process exits non-zero below. Every field the Actions API cannot answer is written
+// as null with `derived: false` and a reason -- never invented.
+if (releaseEvidenceOut || releaseEvidenceMdOut) {
+    if (!verdict.ok) {
+        for (const problem of verdict.problems) console.error(`::error::refusing to write a release-evidence document: ${problem}`);
+    } else {
+        const { doc } = await emitReleaseEvidence({
+            manifest,
+            sha,
+            repo: repo || 'cocokoishi/GoTavern',
+            token,
+            runs,
+            workflow: workflowName,
+            event: eventName,
+            pinnedSha,
+            pinnedShaSource: pinnedSha ? '--pinned-sha (the release baseline policy)' : null,
+            outPath: releaseEvidenceOut,
+            markdownOutPath: releaseEvidenceMdOut,
+        });
+        if (releaseEvidenceOut) {
+            console.log(`wrote unified release evidence to ${releaseEvidenceOut} (overall ${doc.overall.result}, ${doc.overall.passed}/${doc.overall.gates} gates)`);
+        }
+        if (releaseEvidenceMdOut) console.log(`wrote the release-evidence table to ${releaseEvidenceMdOut}`);
+    }
 }
 
 if (!verdict.ok) {

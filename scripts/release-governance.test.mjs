@@ -980,3 +980,222 @@ test('third-party: a valid recorded limitation is accepted with the real workflo
 test('third-party: the planted limitation cases hold', () => {
     assert.equal(macosArm64LimitationSelfTest(), 0);
 });
+
+// ===================================================================================================================
+// UNIFIED EVIDENCE CONTRACT + ALPHA.17 RAILS.
+//
+// Every gate below names ONE new rail and requires the refusal by name, because a rail that has never refused is
+// indistinguishable from one that cannot refuse (this file's opening rule). The emitter is exercised on the SAME
+// synthetic runs the gate judges, so the document can be shown to agree with the verdict.
+// ===================================================================================================================
+
+const { buildReleaseEvidence, emitReleaseEvidence, renderReleaseEvidenceMarkdown, serializeReleaseEvidence, RELEASE_EVIDENCE_KIND } = await import('./release-governance/release-evidence.mjs');
+const PINNED = '06bde939fb1e9c4c8d8641d810f0a916b5bce127';
+
+function selectionGate(selection, extra = {}) {
+    return gateManifest({ requiredSelection: selection, ...extra });
+}
+
+test('selection: a required job set that is green in the cited run proves the full selection', () => {
+    const verdict = evaluateGates({ manifest: selectionGate({ jobs: ['medium-corpus'] }), sha: SHA, runs: [longRun()] });
+    assert.equal(verdict.ok, true, JSON.stringify(verdict.problems));
+    assert.equal(verdict.rows[0].selection.provenBy, 'jobs');
+});
+
+test('selection: a SKIPPED job in the required selection is a narrowed dispatch, refused by name', () => {
+    const verdict = evaluateGates({
+        manifest: selectionGate({ jobs: ['medium-corpus'] }),
+        sha: SHA,
+        runs: [longRun({ jobs: [{ name: 'medium-corpus', status: 'completed', conclusion: 'skipped' }] })],
+    });
+    assert.equal(verdict.ok, false);
+    assert.ok(verdict.problems.some((problem) => /narrowed-selection/.test(problem) && /medium-corpus/.test(problem)), JSON.stringify(verdict.problems));
+});
+
+test('selection: embedded evidence proves the selection, and a mismatched member NARROWS it by name', () => {
+    const entry = gateManifest({
+        requiredArtifact: 'longlived-medium-evidence',
+        requiredEvidence: { kind: LONG_EVIDENCE_KIND },
+        requiredSelection: { evidence: [{ path: 'size', equals: 'medium' }] },
+    });
+    const good = evaluateGates({ manifest: entry, sha: SHA, runs: [longRun()] });
+    assert.equal(good.ok, true, JSON.stringify(good.problems));
+    assert.equal(good.rows[0].selection.provenBy, 'evidence');
+    const narrowed = evaluateGates({
+        manifest: entry,
+        sha: SHA,
+        runs: [longRun({ artifacts: [{ name: 'longlived-medium-evidence', expired: false, evidence: goodLongEvidence({ size: 'small' }) }] })],
+    });
+    assert.equal(narrowed.ok, false);
+    assert.ok(
+        narrowed.problems.some((problem) => /narrowed-selection/.test(problem) && /size=.*"small"/.test(problem)),
+        JSON.stringify(narrowed.problems),
+    );
+});
+
+test('selection: a selection whose proof sources cannot be read is selection-unverifiable, never accepted', () => {
+    // No job list was fetched and no evidence document is attached: the gate cannot PROVE the full selection. The
+    // refusal must say so instead of treating an absent observation as a passing one.
+    const verdict = evaluateGates({
+        manifest: selectionGate({ jobs: ['medium-corpus'], titleIncludes: ['full'] }),
+        sha: SHA,
+        runs: [{ ...longRun({ jobs: null }), display_title: '' }],
+    });
+    assert.equal(verdict.ok, false);
+    assert.ok(verdict.problems.some((problem) => /selection-unverifiable/.test(problem) && /no declared proof source/.test(problem)), JSON.stringify(verdict.problems));
+});
+
+test('selection: the run display title can prove a selection, and a missing title is unverifiable', () => {
+    const entry = selectionGate({ titleIncludes: ['tier=full'] });
+    const proven = evaluateGates({ manifest: entry, sha: SHA, runs: [{ ...longRun(), display_title: 'long-lived tier=full corpus' }] });
+    assert.equal(proven.ok, true, JSON.stringify(proven.problems));
+    assert.equal(proven.rows[0].selection.provenBy, 'display-title');
+    const unprovable = evaluateGates({ manifest: entry, sha: SHA, runs: [longRun()] });
+    assert.equal(unprovable.ok, false);
+    assert.ok(unprovable.problems.some((problem) => /selection-unverifiable/.test(problem)), JSON.stringify(unprovable.problems));
+});
+
+test('pinnedSha: an embedded document that omits the pinned commit is refused by name', () => {
+    const entry = gateManifest({
+        requiredArtifact: 'longlived-medium-evidence',
+        requiredEvidence: { kind: LONG_EVIDENCE_KIND },
+        requiredPinnedSha: PINNED,
+    });
+    const missing = evaluateGates({ manifest: entry, sha: SHA, runs: [longRun()] });
+    assert.equal(missing.ok, false);
+    assert.ok(missing.problems.some((problem) => /pinned-sha-missing/.test(problem) && /06bde939/.test(problem)), JSON.stringify(missing.problems));
+});
+
+test('pinnedSha: an embedded document naming ANOTHER pinned commit is refused by name, the right one passes', () => {
+    const entry = gateManifest({
+        requiredArtifact: 'longlived-medium-evidence',
+        requiredEvidence: { kind: LONG_EVIDENCE_KIND },
+        requiredPinnedSha: PINNED,
+    });
+    const wrong = evaluateGates({
+        manifest: entry,
+        sha: SHA,
+        runs: [longRun({ artifacts: [{ name: 'longlived-medium-evidence', expired: false, evidence: goodLongEvidence({ pinnedSha: OTHER_SHA }) }] })],
+    });
+    assert.equal(wrong.ok, false);
+    assert.ok(wrong.problems.some((problem) => /pinned-sha-mismatch/.test(problem) && problem.includes(OTHER_SHA)), JSON.stringify(wrong.problems));
+    const right = evaluateGates({
+        manifest: entry,
+        sha: SHA,
+        runs: [longRun({ artifacts: [{ name: 'longlived-medium-evidence', expired: false, evidence: goodLongEvidence({ pinnedSha: PINNED }) }] })],
+    });
+    assert.equal(right.ok, true, JSON.stringify(right.problems));
+});
+
+test('stale artifact: an artifact belonging to an OLDER run is refused by name', () => {
+    const entry = gateManifest({
+        requiredArtifact: 'longlived-medium-evidence',
+        requiredEvidence: { kind: LONG_EVIDENCE_KIND },
+        requiredArtifactFresh: true,
+    });
+    const stale = evaluateGates({
+        manifest: entry,
+        sha: SHA,
+        runs: [longRun({ artifacts: [{ name: 'longlived-medium-evidence', expired: false, evidence: goodLongEvidence(), workflow_run: { id: 999, head_sha: SHA } }] })],
+    });
+    assert.equal(stale.ok, false);
+    assert.ok(stale.problems.some((problem) => /stale-artifact/.test(problem) && /belongs to run 999/.test(problem)), JSON.stringify(stale.problems));
+    const fresh = evaluateGates({ manifest: entry, sha: SHA, runs: [longRun({ artifacts: [{ name: 'longlived-medium-evidence', expired: false, evidence: goodLongEvidence(), workflow_run: { id: 51, head_sha: SHA }, created_at: '2026-11-05T00:05:00Z' }] })] });
+    assert.equal(fresh.ok, true, JSON.stringify(fresh.problems));
+});
+
+test('stale artifact: an artifact created BEFORE the cited run started is refused by name', () => {
+    const entry = gateManifest({ requiredArtifact: 'longlived-medium-evidence', requiredEvidence: { kind: LONG_EVIDENCE_KIND }, requiredArtifactFresh: true });
+    const stale = evaluateGates({
+        manifest: entry,
+        sha: SHA,
+        runs: [longRun({ artifacts: [{ name: 'longlived-medium-evidence', expired: false, evidence: goodLongEvidence(), workflow_run: { id: 51, head_sha: SHA }, created_at: '2026-11-04T23:00:00Z' }] })],
+    });
+    assert.equal(stale.ok, false);
+    assert.ok(stale.problems.some((problem) => /stale-artifact/.test(problem) && /BEFORE the cited run/.test(problem)), JSON.stringify(stale.problems));
+});
+
+test('artifact digest: a required sha256 digest that the API does not expose is refused by name', () => {
+    const entry = gateManifest({ requiredArtifact: 'longlived-medium-evidence', requiredEvidence: { kind: LONG_EVIDENCE_KIND }, requireArtifactDigest: true });
+    const missing = evaluateGates({ manifest: entry, sha: SHA, runs: [longRun()] });
+    assert.equal(missing.ok, false);
+    assert.ok(missing.problems.some((problem) => /artifact-digest-missing/.test(problem) && /sha256:<64-hex>/.test(problem)), JSON.stringify(missing.problems));
+    const bound = evaluateGates({
+        manifest: entry,
+        sha: SHA,
+        runs: [longRun({ artifacts: [{ name: 'longlived-medium-evidence', expired: false, evidence: goodLongEvidence(), digest: `sha256:${'e'.repeat(64)}` }] })],
+    });
+    assert.equal(bound.ok, true, JSON.stringify(bound.problems));
+    assert.equal(bound.rows[0].artifactDigest, `sha256:${'e'.repeat(64)}`);
+});
+
+test('evidence fields: a required member that is absent is refused by name', () => {
+    const entry = gateManifest({
+        requiredArtifact: 'longlived-medium-evidence',
+        requiredEvidence: { kind: LONG_EVIDENCE_KIND, requireFields: ['mode', 'tier'] },
+    });
+    const verdict = evaluateGates({ manifest: entry, sha: SHA, runs: [longRun()] });
+    assert.equal(verdict.ok, false);
+    assert.ok(verdict.problems.some((problem) => /evidence-mismatch/.test(problem) && /evidence mode is missing/.test(problem)), JSON.stringify(verdict.problems));
+});
+
+test('selection: manifest validation refuses a selection requirement that cannot be checked', () => {
+    const noSource = validateManifest(gateManifest({ requiredSelection: {} }));
+    assert.ok(noSource.some((problem) => /names no proof source/.test(problem)), JSON.stringify(noSource));
+    const typo = validateManifest(gateManifest({ requiredSelection: { jobz: ['a'] } }));
+    assert.ok(typo.some((problem) => /not a known selection source/.test(problem)), JSON.stringify(typo));
+    const badEvidence = validateManifest(gateManifest({ requiredSelection: { evidence: [{ path: 'm' }] } }));
+    assert.ok(badEvidence.some((problem) => /names no expected value/.test(problem)), JSON.stringify(badEvidence));
+    const badPinned = validateManifest(gateManifest({ requiredPinnedSha: 'nope', requiredEvidence: { kind: LONG_EVIDENCE_KIND }, requiredArtifact: 'a' }));
+    assert.ok(badPinned.some((problem) => /requiredPinnedSha.*40-hex/.test(problem)), JSON.stringify(badPinned));
+    const badFresh = validateManifest(gateManifest({ requiredArtifactFresh: 'yes' }));
+    assert.ok(badFresh.some((problem) => /requiredArtifactFresh.*exactly true/.test(problem)), JSON.stringify(badFresh));
+    const contradictory = validateManifest({ schemaVersion: 1, sameShaRequired: true, pinnedSha: OTHER_SHA, requiredGates: [{ workflow: 'A', why: 'x', requiredEvent: 'workflow_dispatch', requiredArtifact: 'a', requiredEvidence: { kind: 'k' }, requiredPinnedSha: PINNED }] });
+    assert.ok(contradictory.some((problem) => /contradicts the manifest's pinnedSha/.test(problem)), JSON.stringify(contradictory));
+    // Backward compatibility: the committed manifest must still validate, because alpha.16's wave is historical evidence.
+    assert.deepEqual(validateManifest(JSON.parse(readFileSync(path.join(ROOT, 'docs', 'release-manifest.json'), 'utf8'))), []);
+});
+
+test('emitter: a passing wave produces ONE deterministic document, with unprovable fields null+reason', () => {
+    const runs = [run('Workflow A', { id: 11 }), run('Workflow B', { id: 12 })];
+    const first = buildReleaseEvidence({ manifest: manifest(), runs, sha: SHA, repo: 'owner/repo', workflow: 'GoTavern Release', event: 'push', pinnedSha: PINNED, pinnedShaSource: '--pinned-sha' });
+    const second = buildReleaseEvidence({ manifest: manifest(), runs, sha: SHA, repo: 'owner/repo', workflow: 'GoTavern Release', event: 'push', pinnedSha: PINNED, pinnedShaSource: '--pinned-sha' });
+    assert.deepEqual(first, second, 'the document must be deterministic');
+    assert.equal(first.schemaVersion, 1);
+    assert.equal(first.kind, RELEASE_EVIDENCE_KIND);
+    assert.equal(first.headSha.value, SHA);
+    assert.equal(first.headSha.derived, true);
+    assert.equal(first.pinnedSha.value, PINNED);
+    assert.equal(first.overall.result, 'PASS');
+    assert.equal(first.publishable, true);
+    // THE HONEST HALF: fields the API cannot answer are null with a reason, never a plausible value.
+    for (const name of ['dispatchInputs', 'selectedTests', 'executedTests', 'unexecutedTests', 'tier']) {
+        assert.equal(first[name].derived, false, `${name} must not claim to be derived`);
+        assert.equal(first[name].value, null, `${name} must not carry an invented value`);
+        assert.equal(typeof first[name].reason, 'string', `${name} must explain why it is absent`);
+    }
+    assert.deepEqual(first.selection.proven, [], 'no gate names requiredSelection, so nothing is proven');
+    assert.deepEqual(first.selection.unverifiable, ['Workflow A', 'Workflow B']);
+    const markdown = renderReleaseEvidenceMarkdown(first);
+    assert.match(markdown, /Unified release evidence contract/);
+    assert.match(markdown, /\*\*Overall: PASS\*\*/);
+    assert.match(markdown, /unverifiable \(derived:false\)/);
+    assert.match(markdown, /dispatchInputs/);
+    // Serialisation is deterministic too (no clock, no ordering drift).
+    assert.equal(serializeReleaseEvidence(first), serializeReleaseEvidence(second));
+});
+
+test('emitter: a failing wave is NOT publishable and writes no evidence file', async () => {
+    const doc = buildReleaseEvidence({ manifest: manifest(), runs: [run('Workflow A', { id: 11 })], sha: SHA });
+    assert.equal(doc.overall.result, 'FAIL');
+    assert.equal(doc.publishable, false);
+    assert.ok(doc.overall.problems.some((problem) => /Workflow B: missing/.test(problem)), JSON.stringify(doc.overall.problems));
+    const outPath = path.join(ROOT, 'node_modules', '.tmp-release-evidence-should-not-exist.json');
+    const result = await emitReleaseEvidence({ manifest: manifest(), sha: SHA, runs: [run('Workflow A', { id: 11 })], outPath });
+    assert.equal(result.ok, false);
+    assert.equal(result.jsonPath, null);
+    assert.match(renderReleaseEvidenceMarkdown(doc), /this document is NOT publishable/);
+    const { existsSync } = await import('node:fs');
+    assert.equal(existsSync(outPath), false, 'a FAIL document must never be written where a publish path could read it');
+});
+

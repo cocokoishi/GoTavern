@@ -1,0 +1,601 @@
+{
+  "schemaVersion": 1,
+  "kind": "gotavern-release-evidence",
+  "workflow": {
+    "value": "GoTavern Release",
+    "derived": true,
+    "source": "the publish step (GITHUB_WORKFLOW / --workflow)"
+  },
+  "headSha": {
+    "value": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+    "derived": true,
+    "source": "the commit the gate judged (--sha)"
+  },
+  "pinnedSha": {
+    "value": "06bde939fb1e9c4c8d8641d810f0a916b5bce127",
+    "derived": true,
+    "source": "--pinned-sha (the release baseline policy)"
+  },
+  "event": {
+    "value": "workflow_dispatch",
+    "derived": true,
+    "source": "the publishing run (GITHUB_EVENT_NAME / --event)"
+  },
+  "dispatchInputs": {
+    "value": null,
+    "derived": false,
+    "reason": "the Actions runs API exposes no dispatch inputs for a run: the workflow_run object has no `inputs` member (verified against GitHub API run 42340311363 on 2026-11-07) and display_title carries the workflow name, not the inputs. The dispatch selection is therefore proven from required jobs / embedded evidence where the manifest names a requiredSelection, and recorded as unverifiable otherwise -- never inferred from a title or invented"
+  },
+  "selectedTests": {
+    "value": null,
+    "derived": false,
+    "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+  },
+  "executedTests": {
+    "value": null,
+    "derived": false,
+    "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+  },
+  "unexecutedTests": {
+    "value": null,
+    "derived": false,
+    "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+  },
+  "tier": {
+    "value": null,
+    "derived": false,
+    "reason": "the release has no single tier: the combination journey requires tier=full and the long-lived corpus requires medium, while other gates have none. Per-gate tiers are recorded under gates[].tier only where an embedded evidence document names them; a single release-wide value would be invented"
+  },
+  "seed": {
+    "derived": true,
+    "source": "the embedded evidence document of Combination journey differential (run 42340307249)"
+  },
+  "selection": {
+    "proven": [],
+    "unverifiable": [
+      "GoTavern CI",
+      "GoTavern whole-session differential",
+      "GoTavern world-info slot ordering",
+      "GoTavern drop-in qualification",
+      "Browser differential",
+      "GoTavern release qualification",
+      "GoTavern smoke metrics",
+      "GoTavern Docker image",
+      "Helper state differential",
+      "Combination journey differential",
+      "Third-party extension compatibility",
+      "GoTavern long-lived corpus qualification",
+      "GoTavern Node stock tree round trip"
+    ],
+    "narrowed": []
+  },
+  "artifactDigests": [
+    {
+      "workflow": "Combination journey differential",
+      "runId": 42340307249,
+      "name": "combination-journey-evidence",
+      "digest": "sha256:563213e79cf449905bc80e4368a14b977ab81f145efafed9e90a8d341c2cd66a",
+      "digestDerived": true,
+      "createdAt": "2026-11-07T05:09:16Z",
+      "expired": false
+    },
+    {
+      "workflow": "Third-party extension compatibility",
+      "runId": 42340309242,
+      "name": "extension-compat-evidence",
+      "digest": "sha256:f7e29b4f48304de6775a4e010a1c4eb4e1b60ec5ced418e75dc96aaae9b2cad6",
+      "digestDerived": true,
+      "createdAt": "2026-11-07T05:07:35Z",
+      "expired": false
+    },
+    {
+      "workflow": "GoTavern long-lived corpus qualification",
+      "runId": 42340311363,
+      "name": "longlived-medium-evidence",
+      "digest": "sha256:4b8e0ca43feee02f9e8bb935e06789844c7905742778cf5ff6f9c0ed2b0412ad",
+      "digestDerived": true,
+      "createdAt": "2026-11-07T04:55:31Z",
+      "expired": false
+    },
+    {
+      "workflow": "GoTavern Node stock tree round trip",
+      "runId": 42340313131,
+      "name": "node-stock-tree-evidence",
+      "digest": "sha256:aa9e64a4141a3f351ce81938b0633c14d5783686df1f13b54ab3f078225f8697",
+      "digestDerived": true,
+      "createdAt": "2026-11-07T04:54:53Z",
+      "expired": false
+    }
+  ],
+  "negativeControl": {
+    "value": null,
+    "derived": false,
+    "reason": "no gate on this wave is required to carry a negative-control/teeth member in its embedded evidence, and the Actions API does not expose one"
+  },
+  "gates": [
+    {
+      "workflow": "GoTavern CI",
+      "runId": 42340290230,
+      "headSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+      "event": "workflow_dispatch",
+      "status": "completed",
+      "conclusion": "success",
+      "verdict": "success",
+      "detail": "1 completed success run(s) at the target SHA with event workflow_dispatch",
+      "requiredJobs": [],
+      "jobs": [],
+      "selection": {
+        "status": "unverifiable",
+        "derived": false,
+        "reason": "the manifest names no requiredSelection for this gate, so the dispatch selection is not proved by the Actions API"
+      },
+      "artifact": null,
+      "embeddedEvidence": null,
+      "tests": {
+        "selected": null,
+        "executed": null,
+        "unexecuted": null,
+        "derived": false,
+        "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+      },
+      "negativeControl": null
+    },
+    {
+      "workflow": "GoTavern whole-session differential",
+      "runId": 42340292267,
+      "headSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+      "event": "workflow_dispatch",
+      "status": "completed",
+      "conclusion": "success",
+      "verdict": "success",
+      "detail": "1 completed success run(s) at the target SHA with event workflow_dispatch",
+      "requiredJobs": [],
+      "jobs": [],
+      "selection": {
+        "status": "unverifiable",
+        "derived": false,
+        "reason": "the manifest names no requiredSelection for this gate, so the dispatch selection is not proved by the Actions API"
+      },
+      "artifact": null,
+      "embeddedEvidence": null,
+      "tests": {
+        "selected": null,
+        "executed": null,
+        "unexecuted": null,
+        "derived": false,
+        "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+      },
+      "negativeControl": null
+    },
+    {
+      "workflow": "GoTavern world-info slot ordering",
+      "runId": 42340294045,
+      "headSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+      "event": "workflow_dispatch",
+      "status": "completed",
+      "conclusion": "success",
+      "verdict": "success",
+      "detail": "1 completed success run(s) at the target SHA with event workflow_dispatch",
+      "requiredJobs": [],
+      "jobs": [],
+      "selection": {
+        "status": "unverifiable",
+        "derived": false,
+        "reason": "the manifest names no requiredSelection for this gate, so the dispatch selection is not proved by the Actions API"
+      },
+      "artifact": null,
+      "embeddedEvidence": null,
+      "tests": {
+        "selected": null,
+        "executed": null,
+        "unexecuted": null,
+        "derived": false,
+        "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+      },
+      "negativeControl": null
+    },
+    {
+      "workflow": "GoTavern drop-in qualification",
+      "runId": 42340295948,
+      "headSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+      "event": "workflow_dispatch",
+      "status": "completed",
+      "conclusion": "success",
+      "verdict": "success",
+      "detail": "1 completed success run(s) at the target SHA with event workflow_dispatch",
+      "requiredJobs": [],
+      "jobs": [],
+      "selection": {
+        "status": "unverifiable",
+        "derived": false,
+        "reason": "the manifest names no requiredSelection for this gate, so the dispatch selection is not proved by the Actions API"
+      },
+      "artifact": null,
+      "embeddedEvidence": null,
+      "tests": {
+        "selected": null,
+        "executed": null,
+        "unexecuted": null,
+        "derived": false,
+        "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+      },
+      "negativeControl": null
+    },
+    {
+      "workflow": "Browser differential",
+      "runId": 42340297957,
+      "headSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+      "event": "workflow_dispatch",
+      "status": "completed",
+      "conclusion": "success",
+      "verdict": "success",
+      "detail": "1 completed success run(s) at the target SHA with event workflow_dispatch",
+      "requiredJobs": [],
+      "jobs": [],
+      "selection": {
+        "status": "unverifiable",
+        "derived": false,
+        "reason": "the manifest names no requiredSelection for this gate, so the dispatch selection is not proved by the Actions API"
+      },
+      "artifact": null,
+      "embeddedEvidence": null,
+      "tests": {
+        "selected": null,
+        "executed": null,
+        "unexecuted": null,
+        "derived": false,
+        "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+      },
+      "negativeControl": null
+    },
+    {
+      "workflow": "GoTavern release qualification",
+      "runId": 42340299880,
+      "headSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+      "event": "workflow_dispatch",
+      "status": "completed",
+      "conclusion": "success",
+      "verdict": "success",
+      "detail": "1 completed success run(s) at the target SHA with event workflow_dispatch",
+      "requiredJobs": [],
+      "jobs": [],
+      "selection": {
+        "status": "unverifiable",
+        "derived": false,
+        "reason": "the manifest names no requiredSelection for this gate, so the dispatch selection is not proved by the Actions API"
+      },
+      "artifact": null,
+      "embeddedEvidence": null,
+      "tests": {
+        "selected": null,
+        "executed": null,
+        "unexecuted": null,
+        "derived": false,
+        "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+      },
+      "negativeControl": null
+    },
+    {
+      "workflow": "GoTavern smoke metrics",
+      "runId": 42340301718,
+      "headSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+      "event": "workflow_dispatch",
+      "status": "completed",
+      "conclusion": "success",
+      "verdict": "success",
+      "detail": "1 completed success run(s) at the target SHA with event workflow_dispatch",
+      "requiredJobs": [],
+      "jobs": [],
+      "selection": {
+        "status": "unverifiable",
+        "derived": false,
+        "reason": "the manifest names no requiredSelection for this gate, so the dispatch selection is not proved by the Actions API"
+      },
+      "artifact": null,
+      "embeddedEvidence": null,
+      "tests": {
+        "selected": null,
+        "executed": null,
+        "unexecuted": null,
+        "derived": false,
+        "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+      },
+      "negativeControl": null
+    },
+    {
+      "workflow": "GoTavern Docker image",
+      "runId": 42340303463,
+      "headSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+      "event": "workflow_dispatch",
+      "status": "completed",
+      "conclusion": "success",
+      "verdict": "success",
+      "detail": "1 completed success run(s) at the target SHA with event workflow_dispatch",
+      "requiredJobs": [],
+      "jobs": [],
+      "selection": {
+        "status": "unverifiable",
+        "derived": false,
+        "reason": "the manifest names no requiredSelection for this gate, so the dispatch selection is not proved by the Actions API"
+      },
+      "artifact": null,
+      "embeddedEvidence": null,
+      "tests": {
+        "selected": null,
+        "executed": null,
+        "unexecuted": null,
+        "derived": false,
+        "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+      },
+      "negativeControl": null
+    },
+    {
+      "workflow": "Helper state differential",
+      "runId": 42340305321,
+      "headSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+      "event": "workflow_dispatch",
+      "status": "completed",
+      "conclusion": "success",
+      "verdict": "success",
+      "detail": "1 completed success run(s) at the target SHA with event workflow_dispatch",
+      "requiredJobs": [],
+      "jobs": [],
+      "selection": {
+        "status": "unverifiable",
+        "derived": false,
+        "reason": "the manifest names no requiredSelection for this gate, so the dispatch selection is not proved by the Actions API"
+      },
+      "artifact": null,
+      "embeddedEvidence": null,
+      "tests": {
+        "selected": null,
+        "executed": null,
+        "unexecuted": null,
+        "derived": false,
+        "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+      },
+      "negativeControl": null
+    },
+    {
+      "workflow": "Combination journey differential",
+      "runId": 42340307249,
+      "headSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+      "event": "workflow_dispatch",
+      "status": "completed",
+      "conclusion": "success",
+      "verdict": "success",
+      "detail": "1 completed success run(s) at the target SHA with event workflow_dispatch, carrying artifact \"combination-journey-evidence\", required job(s) combination-journey green, evidence kind \"combination-journey-evidence\" with the candidate head SHA and tier marker",
+      "requiredJobs": [
+        "combination-journey"
+      ],
+      "jobs": [
+        {
+          "name": "combination-journey",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "selection": {
+        "status": "unverifiable",
+        "derived": false,
+        "reason": "the manifest names no requiredSelection for this gate, so the dispatch selection is not proved by the Actions API"
+      },
+      "artifact": {
+        "name": "combination-journey-evidence",
+        "digest": "sha256:563213e79cf449905bc80e4368a14b977ab81f145efafed9e90a8d341c2cd66a",
+        "createdAt": "2026-11-07T05:09:16Z",
+        "expiresAt": "2026-11-21T05:09:16Z",
+        "workflowRunId": 42340307249
+      },
+      "embeddedEvidence": {
+        "kind": "combination-journey-evidence",
+        "tier": "full",
+        "headSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+        "pinnedSha": "06bde939fb1e9c4c8d8641d810f0a916b5bce127",
+        "presentFields": [
+          "documents",
+          "extensionTier",
+          "guards",
+          "headSha",
+          "interactingScenario",
+          "kind",
+          "kit",
+          "legs",
+          "notes",
+          "ok",
+          "pinnedSha",
+          "profile",
+          "run",
+          "schemaVersion",
+          "seed",
+          "teeth",
+          "tier",
+          "verdict"
+        ]
+      },
+      "tests": {
+        "selected": null,
+        "executed": null,
+        "unexecuted": null,
+        "derived": false,
+        "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+      },
+      "negativeControl": null
+    },
+    {
+      "workflow": "Third-party extension compatibility",
+      "runId": 42340309242,
+      "headSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+      "event": "workflow_dispatch",
+      "status": "completed",
+      "conclusion": "success",
+      "verdict": "success",
+      "detail": "1 completed success run(s) at the target SHA with event workflow_dispatch, carrying artifact \"extension-compat-evidence\"",
+      "requiredJobs": [],
+      "jobs": [],
+      "selection": {
+        "status": "unverifiable",
+        "derived": false,
+        "reason": "the manifest names no requiredSelection for this gate, so the dispatch selection is not proved by the Actions API"
+      },
+      "artifact": {
+        "name": "extension-compat-evidence",
+        "digest": "sha256:f7e29b4f48304de6775a4e010a1c4eb4e1b60ec5ced418e75dc96aaae9b2cad6",
+        "createdAt": "2026-11-07T05:07:35Z",
+        "expiresAt": "2027-02-05T04:52:24Z",
+        "workflowRunId": 42340309242
+      },
+      "embeddedEvidence": null,
+      "tests": {
+        "selected": null,
+        "executed": null,
+        "unexecuted": null,
+        "derived": false,
+        "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+      },
+      "negativeControl": null
+    },
+    {
+      "workflow": "GoTavern long-lived corpus qualification",
+      "runId": 42340311363,
+      "headSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+      "event": "workflow_dispatch",
+      "status": "completed",
+      "conclusion": "success",
+      "verdict": "success",
+      "detail": "1 completed success run(s) at the target SHA with event workflow_dispatch, carrying artifact \"longlived-medium-evidence\", required job(s) medium-corpus green, evidence kind \"gotavern-longlived-corpus-evidence\" with the candidate head SHA and tier marker",
+      "requiredJobs": [
+        "medium-corpus"
+      ],
+      "jobs": [
+        {
+          "name": "medium-corpus",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "selection": {
+        "status": "unverifiable",
+        "derived": false,
+        "reason": "the manifest names no requiredSelection for this gate, so the dispatch selection is not proved by the Actions API"
+      },
+      "artifact": {
+        "name": "longlived-medium-evidence",
+        "digest": "sha256:4b8e0ca43feee02f9e8bb935e06789844c7905742778cf5ff6f9c0ed2b0412ad",
+        "createdAt": "2026-11-07T04:55:31Z",
+        "expiresAt": "2027-02-05T04:52:26Z",
+        "workflowRunId": 42340311363
+      },
+      "embeddedEvidence": {
+        "kind": "gotavern-longlived-corpus-evidence",
+        "tier": "medium",
+        "headSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+        "pinnedSha": null,
+        "presentFields": [
+          "comparator",
+          "comparatorTeeth",
+          "corpus",
+          "event",
+          "headSha",
+          "kind",
+          "legs",
+          "ok",
+          "pinnedExtensions",
+          "runAttempt",
+          "runId",
+          "schemaVersion",
+          "size",
+          "workflow"
+        ]
+      },
+      "tests": {
+        "selected": null,
+        "executed": null,
+        "unexecuted": null,
+        "derived": false,
+        "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+      },
+      "negativeControl": null
+    },
+    {
+      "workflow": "GoTavern Node stock tree round trip",
+      "runId": 42340313131,
+      "headSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+      "event": "workflow_dispatch",
+      "status": "completed",
+      "conclusion": "success",
+      "verdict": "success",
+      "detail": "1 completed success run(s) at the target SHA with event workflow_dispatch, carrying artifact \"node-stock-tree-evidence\", required job(s) node-stock-tree green, evidence kind \"gotavern-node-stock-tree-evidence\" with the candidate head SHA and tier marker",
+      "requiredJobs": [
+        "node-stock-tree"
+      ],
+      "jobs": [
+        {
+          "name": "node-stock-tree",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "selection": {
+        "status": "unverifiable",
+        "derived": false,
+        "reason": "the manifest names no requiredSelection for this gate, so the dispatch selection is not proved by the Actions API"
+      },
+      "artifact": {
+        "name": "node-stock-tree-evidence",
+        "digest": "sha256:aa9e64a4141a3f351ce81938b0633c14d5783686df1f13b54ab3f078225f8697",
+        "createdAt": "2026-11-07T04:54:53Z",
+        "expiresAt": "2026-12-07T04:54:53Z",
+        "workflowRunId": 42340313131
+      },
+      "embeddedEvidence": {
+        "kind": "gotavern-node-stock-tree-evidence",
+        "tier": null,
+        "headSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+        "pinnedSha": "06bde939fb1e9c4c8d8641d810f0a916b5bce127",
+        "presentFields": [
+          "assertions",
+          "deterministic",
+          "event",
+          "failedAssertions",
+          "gracefulShutdown",
+          "headSha",
+          "kind",
+          "manifestEntries",
+          "manifestSha256",
+          "normalisedTreeSha256",
+          "ok",
+          "pinnedCommit",
+          "roundTripOk",
+          "runAttempt",
+          "runId",
+          "schemaVersion",
+          "treeBytes",
+          "treeFiles",
+          "treeSha256",
+          "workflow"
+        ]
+      },
+      "tests": {
+        "selected": null,
+        "executed": null,
+        "unexecuted": null,
+        "derived": false,
+        "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+      },
+      "negativeControl": null
+    }
+  ],
+  "overall": {
+    "result": "PASS",
+    "gates": 13,
+    "passed": 13,
+    "problems": [],
+    "derived": true,
+    "source": "evaluateGates over the Actions API runs/jobs/artifacts at the candidate SHA"
+  },
+  "publishable": true,
+  "repo": "cocokoishi/GoTavern",
+  "judgedSha": "c1886d70db0342e09c6fdd3225909cae900c15c9",
+  "runsFixture": null
+}

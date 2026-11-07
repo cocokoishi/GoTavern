@@ -144,6 +144,15 @@ export function validateReleaseEvidence({ evidence, spec, sha, artifactName }) {
             problems.push(`evidence ${path} is ${JSON.stringify(memberAt(evidence, path))}, expected exactly true`);
         }
     }
+    // A NAMED MEMBER THAT IS ABSENT IS A REFUSAL BY NAME. `requireTruthy` catches a missing boolean, but a document can
+    // be missing a non-boolean field the contract depends on (a tier marker of another shape, a mode string, a run id).
+    // Presence means "not undefined"; null is present but still subject to requireTruthy/requireSha256 when those name it.
+    for (const path of spec.requireFields ?? []) {
+        const value = memberAt(evidence, path);
+        if (value === undefined) {
+            problems.push(`evidence ${path} is missing, expected the document to carry it`);
+        }
+    }
     for (const path of spec.requireSha256 ?? []) {
         const value = memberAt(evidence, path);
         if (typeof value !== 'string' || !/^[0-9a-f]{64}$/.test(value)) {

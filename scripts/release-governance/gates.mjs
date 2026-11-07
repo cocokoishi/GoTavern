@@ -46,6 +46,14 @@ export function validateManifest(manifest) {
     if (manifest.sameShaRequired !== true) {
         problems.push('sameShaRequired must be exactly true; a release gate that does not require one SHA is not a gate');
     }
+    // The release policy's pinned baseline, when it names one. Recorded in the unified evidence document and inherited by
+    // no gate implicitly: a gate that must prove it names `requiredPinnedSha` itself, so a gate whose artifact carries no
+    // pinned-baseline record can stay un-named instead of failing for a field its producer does not write yet.
+    if (manifest.pinnedSha !== undefined) {
+        if (typeof manifest.pinnedSha !== 'string' || !/^[0-9a-f]{40}$/.test(manifest.pinnedSha)) {
+            problems.push(`pinnedSha, when present, must be a 40-hex commit id (the pinned oracle commit, e.g. 06bde939fb1e9c4c8d8641d810f0a916b5bce127)`);
+        }
+    }
     if (!Array.isArray(manifest.requiredGates) || manifest.requiredGates.length === 0) {
         problems.push('requiredGates must be a non-empty array');
         return problems;
@@ -97,6 +105,102 @@ export function validateManifest(manifest) {
                 }
             }
         }
+        // THE ARTIFACT MUST BELONG TO THE CITED RUN, NOT TO AN OLDER ATTEMPT. A fixed-name artifact can be attached to
+        // a run whose head_sha matches while the BYTES were uploaded by another run (a re-run, an earlier dispatch at
+        // another commit, or a retried attempt). `requiredArtifactFresh` makes the verifier compare the artifact's
+        // created_at and workflow_run identity against the cited run; absent evidence of freshness is a refusal, not an
+        // assumption. Declarative and optional: a manifest that does not name it is judged exactly as before.
+        if (entry.requiredArtifactFresh !== undefined) {
+            if (entry.requiredArtifactFresh !== true) {
+                problems.push(`requiredGates[${index}].requiredArtifactFresh, when present, must be exactly true (an optional rail that can be set false is not a rail)`);
+            }
+            if (typeof entry.requiredArtifact !== 'string' || entry.requiredArtifact.trim() === '') {
+                problems.push(`requiredGates[${index}].requiredArtifactFresh requires requiredArtifact: there is no artifact to freshness-check`);
+            }
+        }
+        // A DIGEST BINDS THE BYTES. When named, the Actions API's artifact `digest` member (`sha256:<64 hex>`) must exist
+        // and be well-formed, so the evidence document records the exact bytes the gate consumed instead of a name.
+        if (entry.requireArtifactDigest !== undefined) {
+            if (entry.requireArtifactDigest !== true) {
+                problems.push(`requiredGates[${index}].requireArtifactDigest, when present, must be exactly true`);
+            }
+            if (typeof entry.requiredArtifact !== 'string' || entry.requiredArtifact.trim() === '') {
+                problems.push(`requiredGates[${index}].requireArtifactDigest requires requiredArtifact: there is no artifact whose digest could be bound`);
+            }
+        }
+        // PINNED-SHA BINDING. The embedded evidence may name the pinned oracle commit the run was produced against; a
+        // gate naming `requiredPinnedSha` refuses evidence that omits it or names another commit. This is the baseline
+        // rule (SillyTavern 1.19.0 at 06bde939...) applied to the CONTENT, so a run at the right candidate SHA cannot
+        // satisfy it with a document recorded against a different oracle.
+        if (entry.requiredPinnedSha !== undefined) {
+            if (typeof entry.requiredPinnedSha !== 'string' || !/^[0-9a-f]{40}$/.test(entry.requiredPinnedSha)) {
+                problems.push(`requiredGates[${index}].requiredPinnedSha, when present, must be a 40-hex commit id (the pinned oracle commit)`);
+            }
+            if (entry.requiredEvidence === undefined) {
+                problems.push(`requiredGates[${index}].requiredPinnedSha requires requiredEvidence: the pinned commit is read from the artifact's embedded evidence document`);
+            }
+            if (typeof manifest.pinnedSha === 'string' && entry.requiredPinnedSha !== manifest.pinnedSha) {
+                problems.push(`requiredGates[${index}].requiredPinnedSha ${JSON.stringify(entry.requiredPinnedSha)} contradicts the manifest's pinnedSha ${JSON.stringify(manifest.pinnedSha)}`);
+            }
+        }
+        // NARROWED-DISPATCH PROOF. A dispatched run can still be narrowed: a workflow input may select `small` instead of
+        // `medium`, `mode=smoke` instead of `mode=all`, or a `fast` combination tier instead of `full`. The run's
+        // conclusion cannot see that, and neither can the job list when the narrowed branch runs the SAME job with fewer
+        // steps. `requiredSelection` names what must be true for the selection to be the full one, and the verifier may
+        // prove it from (a) a required job set, (b) embedded evidence members, or (c) the run's display title. If none of
+        // the declared sources can be read for the run, the gate is `selection-unverifiable` and REFUSES -- a selection
+        // that cannot be proved is not accepted silently.
+        if (entry.requiredSelection !== undefined) {
+            const selection = entry.requiredSelection;
+            if (!selection || typeof selection !== 'object' || Array.isArray(selection)) {
+                problems.push(`requiredGates[${index}].requiredSelection, when present, must be an object`);
+            } else {
+                const allowed = new Set(['jobs', 'evidence', 'titleIncludes']);
+                for (const key of Object.keys(selection)) {
+                    if (!allowed.has(key)) {
+                        problems.push(`requiredGates[${index}].requiredSelection.${key} is not a known selection source (known: ${[...allowed].sort().join(', ')})`);
+                    }
+                }
+                let sources = 0;
+                if (selection.jobs !== undefined) {
+                    sources += 1;
+                    if (!Array.isArray(selection.jobs) || selection.jobs.length === 0 || selection.jobs.some((job) => typeof job !== 'string' || job.trim() === '')) {
+                        problems.push(`requiredGates[${index}].requiredSelection.jobs, when present, must be a non-empty array of job names`);
+                    }
+                }
+                if (selection.evidence !== undefined) {
+                    sources += 1;
+                    if (!Array.isArray(selection.evidence) || selection.evidence.length === 0) {
+                        problems.push(`requiredGates[${index}].requiredSelection.evidence, when present, must be a non-empty array of {path, equals} members`);
+                    } else {
+                        for (const [memberIndex, member] of selection.evidence.entries()) {
+                            if (!member || typeof member !== 'object' || Array.isArray(member)) {
+                                problems.push(`requiredGates[${index}].requiredSelection.evidence[${memberIndex}] is not an object`);
+                                continue;
+                            }
+                            if (typeof member.path !== 'string' || member.path.trim() === '') {
+                                problems.push(`requiredGates[${index}].requiredSelection.evidence[${memberIndex}].path is not a non-empty member path`);
+                            }
+                            if (!Object.prototype.hasOwnProperty.call(member, 'equals')) {
+                                problems.push(`requiredGates[${index}].requiredSelection.evidence[${memberIndex}] names no expected value (equals)`);
+                            }
+                        }
+                    }
+                    if (typeof entry.requiredArtifact !== 'string' || entry.requiredArtifact.trim() === '') {
+                        problems.push(`requiredGates[${index}].requiredSelection.evidence requires requiredArtifact: the selection fields are read from the artifact's embedded evidence document`);
+                    }
+                }
+                if (selection.titleIncludes !== undefined) {
+                    sources += 1;
+                    if (!Array.isArray(selection.titleIncludes) || selection.titleIncludes.length === 0 || selection.titleIncludes.some((text) => typeof text !== 'string' || text === '')) {
+                        problems.push(`requiredGates[${index}].requiredSelection.titleIncludes, when present, must be a non-empty array of non-empty strings`);
+                    }
+                }
+                if (sources === 0) {
+                    problems.push(`requiredGates[${index}].requiredSelection names no proof source; a selection requirement that cannot be checked is not a rail`);
+                }
+            }
+        }
         // THE ARTIFACT'S CONTENT IS PART OF THE CONTRACT. `requiredEvidence` describes the release-evidence document
         // the fixed-name artifact must contain: its kind, the tier marker that separates a default small run from the
         // qualified medium one, the embedded HEAD SHA (the same-SHA property applied to the CONTENT), and the fields
@@ -115,7 +219,10 @@ export function validateManifest(manifest) {
                 if (spec.tierField !== undefined && (typeof spec.tierField !== 'string' || spec.tierField.trim() === '')) {
                     problems.push(`requiredGates[${index}].requiredEvidence.tierField, when present, must be a non-empty member path`);
                 }
-                for (const fieldName of ['requireTruthy', 'requireSha256']) {
+                if (spec.pinnedShaField !== undefined && (typeof spec.pinnedShaField !== 'string' || spec.pinnedShaField.trim() === '')) {
+                    problems.push(`requiredGates[${index}].requiredEvidence.pinnedShaField, when present, must be a non-empty member path (the member that carries the pinned oracle commit, e.g. pinnedSha or pinnedCommit)`);
+                }
+                for (const fieldName of ['requireTruthy', 'requireSha256', 'requireFields']) {
                     const list = spec[fieldName];
                     if (list === undefined) continue;
                     if (!Array.isArray(list) || list.length === 0 || list.some((value) => typeof value !== 'string' || value.trim() === '')) {
@@ -152,14 +259,91 @@ function recordOf(run) {
     };
 }
 
-// THE THREE EVIDENCE RAILS, checked against ONE candidate run. A run can be green and still fail any of them, and each
+// Read one member by dotted path out of an embedded evidence document. Kept here (not imported from
+// artifact-evidence.mjs) because a gate's `requiredSelection` compares ARBITRARY member paths and the two modules must
+// not drift on what a path means.
+function memberAt(value, dottedPath) {
+    let current = value;
+    for (const key of String(dottedPath).split('.')) {
+        if (current === null || current === undefined || typeof current !== 'object') return undefined;
+        current = current[key];
+    }
+    return current;
+}
+
+// THE NARROWED-DISPATCH RAIL. A dispatched run can still be narrowed by an input (`size=small`, `mode=smoke`,
+// `tier=fast`), and the run's conclusion and even its job list can look identical when the narrowed branch runs the same
+// job with fewer steps. `requiredSelection` names what must be true of the FULL selection and lets the verifier prove it
+// from exactly three API-visible sources: the run's jobs, the artifact's embedded evidence, or the run's display title.
+// The order of outcomes matters:
+//   * a source PROVES it        -> pass, recording which source proved it;
+//   * a source DISPROVES it     -> `narrowed-selection` (a definite observation, refused by name);
+//   * only unavailable sources  -> `selection-unverifiable` (refused: a selection that cannot be proved is not accepted
+//                                  silently, which is the whole point of this rail).
+function checkSelectionRail(entry, run, sha, evidence) {
+    const selection = entry.requiredSelection;
+    if (!selection) return { ok: true, declared: false };
+    const unavailable = [];
+    const failures = [];
+    if (Array.isArray(selection.jobs) && selection.jobs.length > 0) {
+        if (!Array.isArray(run.jobs)) {
+            unavailable.push(`the job list for run ${run.id} was not retrieved`);
+        } else {
+            const bad = [];
+            for (const requiredJob of selection.jobs) {
+                const job = run.jobs.find((candidate) => candidate?.name === requiredJob);
+                if (!job) bad.push(`${JSON.stringify(requiredJob)} absent`);
+                else if (job.status !== 'completed' || job.conclusion !== 'success') bad.push(`${JSON.stringify(requiredJob)} ${job.status}/${job.conclusion ?? 'no conclusion'}`);
+            }
+            if (bad.length === 0) return { ok: true, declared: true, provenBy: 'jobs' };
+            failures.push(`required selection job(s) not green in run ${run.id}: ${bad.join(', ')}`);
+        }
+    }
+    if (Array.isArray(selection.evidence) && selection.evidence.length > 0) {
+        if (!evidence) {
+            unavailable.push(`artifact ${JSON.stringify(entry.requiredArtifact)} carries no readable embedded evidence document`);
+        } else {
+            const bad = selection.evidence
+                .filter((member) => memberAt(evidence, member.path) !== member.equals)
+                .map((member) => `${member.path}=${JSON.stringify(memberAt(evidence, member.path))} (required ${JSON.stringify(member.equals)})`);
+            if (bad.length === 0) return { ok: true, declared: true, provenBy: 'evidence' };
+            failures.push(`embedded evidence does not prove the full selection: ${bad.join(', ')}`);
+        }
+    }
+    if (Array.isArray(selection.titleIncludes) && selection.titleIncludes.length > 0) {
+        const title = run.display_title;
+        if (typeof title !== 'string' || title.trim() === '') {
+            unavailable.push(`run ${run.id} carries no display title to read`);
+        } else {
+            const missing = selection.titleIncludes.filter((text) => !title.includes(text));
+            if (missing.length === 0) return { ok: true, declared: true, provenBy: 'display-title' };
+            failures.push(`run display title ${JSON.stringify(title)} does not contain ${missing.map((text) => JSON.stringify(text)).join(', ')}`);
+        }
+    }
+    if (failures.length > 0) {
+        return { ok: false, declared: true, verdict: 'narrowed-selection', detail: failures.join('; ') };
+    }
+    return {
+        ok: false,
+        declared: true,
+        verdict: 'selection-unverifiable',
+        detail: `the manifest requires the full dispatch selection but no declared proof source can be read from the Actions API for run ${run.id}: ${unavailable.join('; ')}`,
+    };
+}
+
+// THE EVIDENCE RAILS, checked against ONE candidate run. A run can be green and still fail any of them, and each
 // refusal names the rail that broke so a mutation is localised:
 //
 //   jobs      every `requiredJobs` entry must be completed/success IN THIS RUN (a skipped job is not success);
 //   artifact  the fixed-name artifact must be attached to this run and not expired;
+//   fresh     the artifact must belong to THIS run/attempt, not an older one (opt-in per gate);
+//   digest    the API's sha256 artifact digest must exist and be 64-hex (opt-in per gate);
 //   evidence  the artifact must CONTAIN a release-evidence document whose kind, embedded head SHA, tier marker and
-//             required fields match the manifest (a name is not content).
+//             required fields match the manifest (a name is not content);
+//   pinned    embedded evidence must name the pinned oracle commit (opt-in per gate);
+//   selection the full dispatch selection must be provable (opt-in per gate; narrowed/unprovable refuse).
 function checkEvidenceRails(entry, run, sha) {
+    const facts = { jobDetails: [], artifact: null, evidence: null };
     if (Array.isArray(entry.requiredJobs) && entry.requiredJobs.length > 0) {
         if (!Array.isArray(run.jobs)) {
             return {
@@ -178,6 +362,7 @@ function checkEvidenceRails(entry, run, sha) {
                     detail: `required job ${JSON.stringify(requiredJob)} is absent from run ${run.id} (jobs: ${observed.length === 0 ? 'none' : observed.join(', ')})`,
                 };
             }
+            facts.jobDetails.push({ name: job.name, status: job.status, conclusion: job.conclusion });
             if (job.status !== 'completed' || job.conclusion !== 'success') {
                 return {
                     ok: false,
@@ -188,6 +373,8 @@ function checkEvidenceRails(entry, run, sha) {
         }
     }
 
+    let artifact = null;
+    let evidence = null;
     if (entry.requiredArtifact) {
         if (!Array.isArray(run.artifacts)) {
             return {
@@ -196,7 +383,7 @@ function checkEvidenceRails(entry, run, sha) {
                 detail: `the runs query did not retrieve artifacts for run ${run.id}, so the required artifact ${JSON.stringify(entry.requiredArtifact)} cannot be asserted`,
             };
         }
-        const artifact = run.artifacts.find((candidate) => candidate?.name === entry.requiredArtifact);
+        artifact = run.artifacts.find((candidate) => candidate?.name === entry.requiredArtifact);
         if (!artifact || artifact.expired === true) {
             const observed = [...new Set(run.artifacts.map((candidate) => candidate?.name).filter(Boolean))];
             return {
@@ -204,6 +391,59 @@ function checkEvidenceRails(entry, run, sha) {
                 verdict: 'missing-artifact',
                 detail: `the successful run(s) at the target SHA do not carry the required artifact ${JSON.stringify(entry.requiredArtifact)}${artifact?.expired === true ? ' (the artifact is EXPIRED)' : ''} (observed: ${observed.join(', ') || 'none'})`,
             };
+        }
+        facts.artifact = artifact;
+        // The embedded document is carried on the facts even when the gate's spec does not require it, so the unified
+        // evidence document can report what the artifact actually said instead of only the fields a spec happened to name.
+        if (artifact.evidence) {
+            evidence = artifact.evidence;
+            facts.evidence = artifact.evidence;
+        }
+        // A FIXED NAME IS NOT AN IDENTITY. The same fixed-name artifact can be attached to a run whose head_sha matches
+        // while its bytes were uploaded by another run or an earlier attempt. Freshness is checked only where the
+        // manifest names it, and an artifact that cannot be shown to belong to THIS run is refused rather than assumed.
+        if (entry.requiredArtifactFresh === true) {
+            const identity = artifact.workflow_run;
+            if (identity && identity.id !== undefined && identity.id !== run.id) {
+                return {
+                    ok: false,
+                    verdict: 'stale-artifact',
+                    detail: `artifact ${JSON.stringify(entry.requiredArtifact)} in run ${run.id} belongs to run ${identity.id} (an older attempt or another run); a reused artifact is not evidence for this run`,
+                };
+            }
+            if (identity && typeof identity.head_sha === 'string' && identity.head_sha !== sha) {
+                return {
+                    ok: false,
+                    verdict: 'stale-artifact',
+                    detail: `artifact ${JSON.stringify(entry.requiredArtifact)} in run ${run.id} records head_sha ${identity.head_sha}, not the candidate ${sha}`,
+                };
+            }
+            const artifactCreated = Date.parse(artifact.created_at ?? '');
+            const runCreated = Date.parse(run.created_at ?? '');
+            if (Number.isNaN(artifactCreated) || Number.isNaN(runCreated)) {
+                return {
+                    ok: false,
+                    verdict: 'stale-artifact',
+                    detail: `artifact ${JSON.stringify(entry.requiredArtifact)} in run ${run.id} carries no comparable created_at (artifact ${JSON.stringify(artifact.created_at ?? null)}, run ${JSON.stringify(run.created_at ?? null)}), so it cannot be shown to belong to this run`,
+                };
+            }
+            if (artifactCreated < runCreated) {
+                return {
+                    ok: false,
+                    verdict: 'stale-artifact',
+                    detail: `artifact ${JSON.stringify(entry.requiredArtifact)} in run ${run.id} was created at ${artifact.created_at}, BEFORE the cited run started at ${run.created_at}`,
+                };
+            }
+        }
+        if (entry.requireArtifactDigest === true) {
+            const digest = artifact.digest;
+            if (typeof digest !== 'string' || !/^sha256:[0-9a-f]{64}$/.test(digest)) {
+                return {
+                    ok: false,
+                    verdict: 'artifact-digest-missing',
+                    detail: `artifact ${JSON.stringify(entry.requiredArtifact)} in run ${run.id} carries digest ${JSON.stringify(digest)}; the manifest requires the Actions API's sha256:<64-hex> digest so the evidence binds the bytes, not the name`,
+                };
+            }
         }
         if (entry.requiredEvidence) {
             if (!artifact.evidence) {
@@ -213,6 +453,8 @@ function checkEvidenceRails(entry, run, sha) {
                     detail: `artifact ${JSON.stringify(entry.requiredArtifact)} in run ${run.id} carries no readable release-evidence document (${artifact.evidenceError ?? 'the content was not fetched'})`,
                 };
             }
+            evidence = artifact.evidence;
+            facts.evidence = evidence;
             const evidenceProblems = validateReleaseEvidence({
                 evidence: artifact.evidence,
                 spec: entry.requiredEvidence,
@@ -227,8 +469,34 @@ function checkEvidenceRails(entry, run, sha) {
                 };
             }
         }
+        // THE PINNED BASELINE IS PART OF THE CONTENT. Where the manifest names it, an embedded document that omits it or
+        // names another commit is refused with its own verdict, so the baseline rule has teeth instead of prose.
+        if (typeof entry.requiredPinnedSha === 'string') {
+            const pinnedField = entry.requiredEvidence?.pinnedShaField ?? 'pinnedSha';
+            const observed = evidence ? memberAt(evidence, pinnedField) : undefined;
+            if (observed === undefined || observed === null) {
+                return {
+                    ok: false,
+                    verdict: 'pinned-sha-missing',
+                    detail: `artifact ${JSON.stringify(entry.requiredArtifact)} in run ${run.id} carries no embedded ${pinnedField}; the manifest requires the pinned oracle commit ${entry.requiredPinnedSha}`,
+                };
+            }
+            if (observed !== entry.requiredPinnedSha) {
+                return {
+                    ok: false,
+                    verdict: 'pinned-sha-mismatch',
+                    detail: `artifact ${JSON.stringify(entry.requiredArtifact)} in run ${run.id} records pinnedSha ${JSON.stringify(observed)}, not the required pinned oracle commit ${entry.requiredPinnedSha}`,
+                };
+            }
+        }
     }
-    return { ok: true };
+
+    const selectionRail = checkSelectionRail(entry, run, sha, evidence);
+    if (!selectionRail.ok) {
+        return { ok: false, verdict: selectionRail.verdict, detail: selectionRail.detail };
+    }
+    facts.selection = selectionRail;
+    return { ok: true, facts };
 }
 
 // Pick one run per required workflow. Preference is: a completed successful run at the target SHA that SATISFIES its
@@ -275,12 +543,26 @@ export function evaluateGates({ manifest, runs, sha }) {
                 const rail = checkEvidenceRails(entry, run, sha);
                 if (rail.ok) {
                     blocked = null;
+                    const facts = rail.facts ?? {};
+                    const tierField = entry.requiredEvidence ? (entry.requiredEvidence.tierField ?? 'tier') : null;
+                    const tierValue = tierField !== null && facts.evidence ? memberAt(facts.evidence, tierField) : undefined;
                     rows.push({
                         ...recordOf(run),
                         verdict: 'success',
                         artifact: entry.requiredArtifact,
-                        evidence: entry.requiredEvidence?.kind,
+                        evidence: entry.requiredEvidence?.kind ?? facts.evidence?.kind ?? null,
                         requiredJobs: entry.requiredJobs,
+                        jobDetails: facts.jobDetails ?? [],
+                        selection: facts.selection ?? { declared: false },
+                        artifactDigest: facts.artifact?.digest ?? null,
+                        artifactCreatedAt: facts.artifact?.created_at ?? null,
+                        artifactExpiresAt: facts.artifact?.expires_at ?? null,
+                        artifactWorkflowRunId: facts.artifact?.workflow_run?.id ?? null,
+                        tier: tierValue === undefined ? null : tierValue,
+                        evidencePinnedSha: facts.evidence?.pinnedSha ?? facts.evidence?.pinnedCommit ?? null,
+                        evidenceHeadSha: facts.evidence?.headSha ?? null,
+                        evidenceDocument: facts.evidence ?? null,
+                        evidenceFields: facts.evidence ? Object.keys(facts.evidence).sort() : null,
                         detail: `${completedSuccess.length} completed success run(s) at the target SHA with event ${entry.requiredEvent ?? 'any'}${entry.requiredArtifact ? `, carrying artifact ${JSON.stringify(entry.requiredArtifact)}` : ''}${entry.requiredJobs ? `, required job(s) ${entry.requiredJobs.join(', ')} green` : ''}${entry.requiredEvidence ? `, evidence kind ${JSON.stringify(entry.requiredEvidence.kind)} with the candidate head SHA and tier marker` : ''}`,
                     });
                     break;
@@ -338,10 +620,13 @@ export function evaluateGates({ manifest, runs, sha }) {
 // pass on a workflow conclusion; that split is why this is a single function.
 export function evidenceQueryNeeds(manifest) {
     const gates = manifest?.requiredGates ?? [];
+    const selection = (entry) => entry?.requiredSelection ?? {};
     return {
-        includeArtifacts: gates.some((entry) => entry.requiredArtifact || entry.requiredJobs || entry.requiredEvidence),
-        includeJobs: gates.some((entry) => entry.requiredJobs),
-        includeEvidence: gates.some((entry) => entry.requiredEvidence),
+        // The artifact LISTS are needed by anything that reads a required artifact, its content, its freshness, its
+        // digest, or a selection proof read out of its evidence.
+        includeArtifacts: gates.some((entry) => entry.requiredArtifact || entry.requiredJobs || entry.requiredEvidence || entry.requiredArtifactFresh || entry.requireArtifactDigest || entry.requiredPinnedSha || entry.requiredSelection),
+        includeJobs: gates.some((entry) => entry.requiredJobs || selection(entry).jobs),
+        includeEvidence: gates.some((entry) => entry.requiredEvidence || entry.requiredPinnedSha || selection(entry).evidence),
         artifactNames: [...new Set(gates.map((entry) => entry.requiredArtifact).filter(Boolean))],
     };
 }
@@ -402,7 +687,20 @@ export async function fetchRunsFromApi({
                     continue;
                 }
                 const payload = await response.json();
-                run.artifacts = (payload.artifacts ?? []).map((artifact) => ({ id: artifact.id, name: artifact.name, expired: artifact.expired, sizeInBytes: artifact.size_in_bytes }));
+                run.artifacts = (payload.artifacts ?? []).map((artifact) => ({
+                    id: artifact.id,
+                    name: artifact.name,
+                    expired: artifact.expired,
+                    sizeInBytes: artifact.size_in_bytes,
+                    // THE IDENTITY OF THE BYTES. The freshness/digest rails compare these against the cited run, so the
+                    // query must carry them; a field that was never fetched cannot be asserted later.
+                    digest: artifact.digest ?? null,
+                    createdAt: artifact.created_at ?? null,
+                    created_at: artifact.created_at ?? null,
+                    expires_at: artifact.expires_at ?? null,
+                    updated_at: artifact.updated_at ?? null,
+                    workflow_run: artifact.workflow_run ? { id: artifact.workflow_run.id, head_sha: artifact.workflow_run.head_sha } : null,
+                }));
             } catch {
                 run.artifacts = null;
             }
@@ -459,6 +757,7 @@ export async function fetchRunsFromApi({
 // tagged commit would change the commit those runs judged. The section is a measurement written at publish time.
 export function renderEvidence({ rows, sha, repo }) {
     const lines = [];
+    const hasSelection = rows.some((row) => row.selection?.declared === true);
     lines.push('');
     lines.push('---');
     lines.push('');
@@ -466,13 +765,18 @@ export function renderEvidence({ rows, sha, repo }) {
     lines.push('');
     lines.push(`Every workflow below has a completed, successful run whose \`head_sha\` is this release tag's target commit \`${sha}\`. The table is generated from the GitHub Actions API by \`scripts/assemble-release-body.mjs\` immediately before publication, so it is a measurement of this tag, not a hand-copied list.`);
     lines.push('');
-    lines.push('| workflow | run id | event | conclusion | required jobs | artifact (evidence) |');
-    lines.push('|---|---|---|---|---|---|');
+    lines.push(hasSelection
+        ? '| workflow | run id | event | conclusion | required jobs | selection proof | artifact (evidence) |'
+        : '| workflow | run id | event | conclusion | required jobs | artifact (evidence) |');
+    lines.push(hasSelection ? '|---|---|---|---|---|---|---|' : '|---|---|---|---|---|---|');
     for (const row of rows) {
         const link = repo ? `[${row.runId}](https://github.com/${repo}/actions/runs/${row.runId})` : String(row.runId);
         const jobs = Array.isArray(row.requiredJobs) && row.requiredJobs.length > 0 ? row.requiredJobs.join(', ') : '-';
         const artifact = row.artifact ? `${row.artifact}${row.evidence ? ` (${row.evidence})` : ''}` : '-';
-        lines.push(`| ${row.workflow} | ${link} | ${row.event ?? '-'} | ${row.conclusion ?? '-'} | ${jobs} | ${artifact} |`);
+        const selection = row.selection?.declared === true ? (row.selection.provenBy ?? row.selection.verdict ?? 'unverified') : '-';
+        lines.push(hasSelection
+            ? `| ${row.workflow} | ${link} | ${row.event ?? '-'} | ${row.conclusion ?? '-'} | ${jobs} | ${selection} | ${artifact} |`
+            : `| ${row.workflow} | ${link} | ${row.event ?? '-'} | ${row.conclusion ?? '-'} | ${jobs} | ${artifact} |`);
     }
     lines.push('');
     lines.push('The `required jobs` column names the jobs that had to be completed/success IN the cited run, not merely present in a green workflow; the `artifact (evidence)` column names the fixed-name evidence bundle the verifier downloaded and the document kind whose embedded head SHA and tier marker it checked (`-` means the gate is judged by its own conclusion).');
