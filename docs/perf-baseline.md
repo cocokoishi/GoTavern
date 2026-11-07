@@ -85,6 +85,9 @@ retyped). The numbers live in exactly two kinds of committed surface, both recom
   byte-compared in CI.
 
 The unit rule those surfaces use is stated in §2; the identity a new baseline must match is in §1 and §8.
+The detailed, human-readable narrative — method, before/after records, resource analysis, reproduction
+commands and the explicit UNPROVEN rows — is [`docs/performance.md`](performance.md); it restates the same
+artifact and is checked by the same gate, so the detail is not duplicated here.
 
 ## 5. Current metric coverage
 

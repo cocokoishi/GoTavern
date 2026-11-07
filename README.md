@@ -1,15 +1,13 @@
 # GoTavern
 
-**SillyTavern 1.19.0's server, rewritten in Go: one binary, no Node.js, the same unmodified frontend and the same `data/` layout.**
+**SillyTavern 1.19.0's server, rewritten in Go: one prebuilt binary, no Node.js on the host, the unmodified upstream frontend and the same `data/` layout.**
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/benchmark.svg">
   <img src="docs/assets/benchmark-light.svg" alt="Paired benchmark, one GitHub runner, both servers from the same checkout: GoTavern cold-starts in 165 ms against Node's 14,515 ms (87.97x faster), holds 40.5 MB RSS against 915 MB (22.60x lighter), answers GET /version in 0.429 ms against 65.55 ms (152.9x faster) and GET / in 8.59 ms against 13.78 ms (1.60x faster). Each row has its own zero-based axis whose maximum is printed; method and caveats are in the Performance section." width="1200">
 </picture>
 
-Medians of 3 alternating rounds on ONE shared GitHub runner, both servers from the same checkout. The figure ships in
-dark and light variants, chosen by GitHub's own colour scheme; the [Performance](#performance) section repeats every
-number as text for screen readers and small screens, with the caveats that make the comparison honest.
+Medians of 3 alternating rounds on ONE shared GitHub runner, both servers from the same checkout, regenerated from one recorded artifact. Continue to [Compatibility](#compatibility) · [Performance](#performance) · [Install](#install) · [Development](#development).
 
 ## Start in 30 seconds
 
@@ -21,7 +19,7 @@ curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.sh
 ./start.sh
 ```
 
-**Windows (PowerShell)**
+**Windows (PowerShell 5.1+)**
 
 ```powershell
 mkdir GoTavern; cd GoTavern
@@ -30,34 +28,95 @@ irm https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.ps1 -OutF
 .\Start.cmd
 ```
 
-Both installers download a **prebuilt archive** — nothing compiles on your machine — and install into the current
-directory. An unpinned install resolves `releases/latest`; pin any version for a reproducible deployment. Docker,
-manual downloads and the archive matrix are in [Install](#install).
+Both installers download a **prebuilt archive** — nothing compiles on your machine — into the current directory. A production host needs no Go, Node.js, npm, Python or compiler. Docker, manual downloads, updates, rollback and migration are in [Install](#install).
 
-## Where compatibility stands
+## Compatibility
 
-**The strong drop-in claim in [`GOAL.md` §14](GOAL.md) is not met yet, and this README does not make it.** The evidence
-that exists covers a **synthetic** long-lived tree, a committed synthetic corpus, and a packaged archive over a stock
-SillyTavern tree. It does not cover a long-lived tree that a real user has actually used. Response compression — one of
-the two concrete gaps the previous release named — is now implemented and gated against a recorded pinned contract; the
-character-card disk cache pinned maintains is still created at startup but not used on the request path, and that
-remains a named gap. The full list of what is and is not demonstrated, question by question, is in
-[Compatibility](#compatibility); the decisions behind the explicit exclusions are in [What won't work](#what-wont-work).
+**The strong drop-in bar in [`GOAL.md` §14](GOAL.md) is NOT MET, and this README does not claim it.** The strongest executed claim is a **synthetic adversarial qualification**: an audit of the production code, a deterministic scenario factory, and real-browser differentials over a Go-synthesised long-lived tree, a stock SillyTavern tree and a packaged archive. No real, long-used user directory has been qualified; that channel's disposition is `PRIVATE_NOT_RUN`.
 
-What the tested scope shows: the unmodified pinned frontend is served over the pinned route surface (`0` unknown
-surfaces in the derived coverage inventory), provider-wire captures exist for every implemented chat-completion source,
-20 pinned third-party extensions each install, activate, persist a setting across a restart and uninstall on both
-subjects, and startup/rollback/migration paths run against prebuilt archives. Node server plugins and SillyTavern's
-local in-process ML are excluded by decision, not by omission.
+Upstream is the oracle. Baseline: SillyTavern `1.19.0` at commit `06bde939fb1e9c4c8d8641d810f0a916b5bce127`. A claim is checked on five observer surfaces, and "it opens and chats" is not evidence:
 
-## Learn more
+- browser→server requests and responses, and the provider stream and errors→browser;
+- server→provider request bytes;
+- filesystem and startup side effects, and the browser final state and events.
 
-- **[Performance](#performance)** — the table, how the numbers were measured, the ten-minute soak, and the provenance of the figure.
-- **[Compatibility](#compatibility)** — the evidence table, coverage numbers, the 20-extension corpus, and the words each status carries.
-- **[Install](#install)** — every platform, pinning, Docker, updates, rollback, and migrating an existing SillyTavern.
-- **[What won't work](#what-wont-work)** — explicit exclusions with their reasons.
-- **[How we decide something is compatible](#how-we-decide-something-is-compatible)** — the five observation surfaces and the four rules that make a green mean something.
-- **[Development](#development)** — local verification and the gates CI keeps. Deeper references: [`ARCHITECTURE.md`](ARCHITECTURE.md), [`GOAL.md`](GOAL.md), [`docs/`](docs/).
+Three rules make a green mean something:
+
+1. Upstream capture is the oracle; when outputs differ, check the probe, the fixture and the gate's teeth before suspecting the Go code.
+2. A run proves only the commit it judged.
+3. Every gate has teeth, shown by a mutation that goes red by name; the test inventory comes from upstream's own route and URL lists, not from whatever a probe happened to touch.
+
+Mock-only observations are `unverified`. What the executed scope covers:
+
+- the unmodified pinned frontend over the pinned route surface (**0** unknown surfaces);
+- provider-wire captures for every implemented chat-completion source;
+- 20 pinned third-party extensions that each install, activate, persist a setting across a restart and uninstall on both subjects;
+- the whole-session and hand-back differentials, plus startup, rollback and migration paths against prebuilt archives.
+
+| Limit | State, dated 2026-11-07 |
+|---|---|
+| Real, long-used user directory (`GOAL.md` §14) | **NOT MET** — private channel `PRIVATE_NOT_RUN` |
+| macOS ARM64 runtime | **UNVERIFIED** — archive built and inspected; the arm64 macOS runner has been unavailable since 2026-11-05 |
+| `windows/arm64` | **BUILD-ONLY** — no hosted runner of that architecture exists |
+| 8-user concurrent-write latency | **REPORT-ONLY** — same-code spread 1.95x/2.29x tracks each host's sync-write tail; no graded number claimed |
+| Soak real-leak question | **UNPROVEN** — the GC-robust rule is a detection floor (10% third-mean rise / 4 MiB floor over 45 min) |
+| Real kernel ENOSPC | **UNPROVEN** — the chaos proof covers errno classification, not a real full disk |
+| Streaming-cancellation and provider-relay p99 | **UNPROVEN** — no time-to-first-byte, inter-frame or relay-under-load metric exists |
+| Page-init egress hermeticity | **OPEN** — some browser page initialisation still reaches the live network |
+
+Machine truth per fact: [docs/goal-scorecard.md](docs/goal-scorecard.md) (22 user questions), [docs/compatibility-matrix.md](docs/compatibility-matrix.md) (22 capability areas, generated), [docs/compat-matrix.md](docs/compat-matrix.md) and [docs/surface-coverage.md](docs/surface-coverage.md) (per-route ledgers). The pass standard is [docs/SEMANTIC-COMPATIBILITY.md](docs/SEMANTIC-COMPATIBILITY.md).
+
+## Performance
+
+| Metric | Pinned Node SillyTavern | GoTavern | How it was measured |
+|---|---|---|---|
+| Cold start to first `/version` 200 | 14,515 ms | **165 ms** | median of 3 alternating rounds on ONE shared runner, fresh data root each round, no `config.yaml` |
+| Steady-state RSS (`VmRSS` from `/proc`) | 915 MB | **40.5 MB** | median of 6 samples after readiness and 30 requests per path (60 per round) |
+| `GET /version` latency | 65.55 ms | **0.429 ms** | median of 90 sequential requests (p95: 70.33 / 0.596) |
+| `GET /` latency (HTML shell) | 13.78 ms | **8.59 ms** | median of 90 sequential requests; GoTavern's number includes gzip CPU |
+
+Memory is decimal MB (1 MB = 1,000,000 bytes); every other number is milliseconds. One committed artifact, [`tests/perf/q22-baseline.json`](tests/perf/q22-baseline.json), is the source of this table, both figure variants and the [provenance record](docs/assets/benchmark.svg.provenance.md); `tools/check-perf-docs.mjs` recomputes all of them in CI. The record is `GoTavern smoke metrics` run `42012475880` (success) at commit `f1396ce`, one shared runner, both servers booted from the same pinned checkout; read it as a same-machine comparison, not a promise.
+
+- **Regressions are shown, not hidden.** `/` carries gzip CPU because the HTML shell is compressed, and this release does not claim an improvement in these four headline metrics — every delta from the previous record is 1-6%, inside this harness's run-to-run variation.
+- A ten-minute soak per subject recorded GoTavern RSS drift `-0.1 MB` and p95 `+0.35 ms` (pinned: `-571 MB` RSS, `-3.29 ms` p95). The methodology, the shipped optimization's on/off arms with the cost beside the gain, the resource analysis, the reproduction commands and the explicit UNPROVEN rows are in **[docs/performance.md](docs/performance.md)**.
+
+## Install
+
+Everything below downloads a **prebuilt archive**; nothing compiles on your machine. The two one-line installs are in [Start in 30 seconds](#start-in-30-seconds) — this section covers the rest.
+
+Six canonical archives are published: linux and darwin (amd64, arm64) and Windows (amd64, arm64), each with `checksums.txt` and `BUILD-INFO.txt`. **Every published archive except `windows/arm64` is executed by release CI**: linux/amd64 and windows/amd64 boot against a stock tree, linux/arm64 runs under QEMU, darwin/amd64 runs on a native macOS runner, and darwin/arm64 is built and archive-inspected but **not executed** (recorded platform limitation). Tokenizer data ships in `src/tokenizers/` so counts are exact, not estimated.
+
+- **Docker:** `docker pull ghcr.io/cocokoishi/gotavern:latest` (linux/amd64). `:latest` moves only when a stable tag is published, and never for a prerelease.
+- **Manual:** download `gotavern-<os>-<arch>.tar.gz` (`.zip` on Windows) from the [releases page](https://github.com/cocokoishi/GoTavern/releases), verify it against `checksums.txt`, unpack anywhere writable, run `./start.sh` / `Start.cmd`.
+- **Update / rollback:** re-run the installer or unpack a newer archive over the old install. The binary, launchers and `src/tokenizers/` are replaced; `config.yaml`, `data/`, `extensions/` and `certs/` are never touched. Rollback is the same operation with an older archive and is tested across baselines.
+- **Migrate an existing SillyTavern:** point GoTavern at the existing directory, or run `gotavern migrate`. The source is strictly read-only during a copy migration, symlinks are refused rather than followed, and a destination holding runtime state is refused unless `--force` moves it to `.migrate-backup/` first. Auto-update resolves to OFF for every ambiguous input. GoTavern reads and writes SillyTavern's own files: unknown fields and unknown files are preserved, there is no conversion layer and no private database, and the do-not-rewrite boundaries in [`GOAL.md` §15.4](GOAL.md) stay intact.
+
+Full platform matrix, installer behaviour, preflight refusals and acceptance evidence: **[docs/INSTALLATION.md](docs/INSTALLATION.md)**.
+
+## What works, what is partial, what is not implemented
+
+| Area | State |
+|---|---|
+| Pinned frontend, static assets, startup/config/data semantics | implemented and differentially gated |
+| World info; streaming SSE framing, incremental render and cancellation | **PASS** in the capability matrix; every other capability row is `PARTIAL` with its gap named in the row, not implied |
+| Chat-completion providers | <!-- BEGIN GENERATED: provider-wire.summary -->`25` sources with recorded provider-wire captures; `262` recorded scenarios.<!-- END GENERATED: provider-wire.summary --> |
+| Browser differential legs | <!-- BEGIN GENERATED: browser.sources -->`15`<!-- END GENERATED: browser.sources --> source pairs carry both a generation and a streaming comparison artefact |
+| Startup differential | over <!-- BEGIN GENERATED: startup.requests -->`353`<!-- END GENERATED: startup.requests --> recorded requests, with replay fixtures for characters, chats, groups, world info, settings and secrets |
+
+**Not implemented, by recorded decision rather than omission:**
+
+| Exclusion | Reason |
+|---|---|
+| Arbitrary Node.js server plugins | the one explicit ecosystem exclusion; never emulated |
+| Local in-process ML (`/api/extra/{caption,classify}`, `/api/speech/*`, local embeddings) | would need an ONNX runtime and break the single-binary, `CGO_ENABLED=0` design |
+| Remote provider embeddings | the routes exist and answer an unimplemented status rather than an empty vector |
+| Jimp byte-equal image re-encoding | `/thumbnail` serves real images at pinned dimensions; byte equality is not claimed |
+| Wire formats owned by third-party npm packages (Google voice `batchexecute`, `/api/translate/{google,bing}`) | owning an undocumented protocol is a product decision, not an accident |
+| `git.backend: builtin` | the system-git path is used, with a clear error if git is absent |
+| Per-chat backups (`backups.chat.*`) | no per-chat restore safety net; chat writes stay atomic and whole-file |
+| VERTEXAI service-account ("full") mode | answers the pinned error shape instead of fabricating a credential |
+
+Inherited upstream weaknesses are reproduced and recorded, not silently fixed — content-import host matching keeps upstream's substring test (`chub.ai.attacker.example` is treated as chub).
 
 ## Release status
 
@@ -65,247 +124,25 @@ local in-process ML are excluded by decision, not by omission.
 [![Latest release](https://img.shields.io/github/v/release/cocokoishi/GoTavern?label=release)](https://github.com/cocokoishi/GoTavern/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-`v0.1.0-alpha.15` is the current **stable release**: GitHub publishes it as a full release (not a pre-release),
-`releases/latest` serves it, a bare installer with no version argument installs it, and Docker `:latest` points at
-`ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.15`. `v0.1.0-alpha.14`, `v0.1.0-alpha.13` and `v0.1.0-alpha.12` were
-earlier stable releases and stay downloadable by explicit `--version v0.1.0-alpha.14` (Windows:
-`-Version v0.1.0-alpha.14`); `v0.1.0-alpha.9` was the first stable-channel release. alpha.10/alpha.11 remain
-available as prereleases by explicit version or `docker pull ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11`. The
-channel rule is one script, [`scripts/classify-version-tag.sh`](scripts/classify-version-tag.sh), shared by the
-release workflow, the Docker workflow and both installers. Back up any data directory you can't afford to lose.
+**`v0.1.0-alpha.17` is the release this tree ships.** It is built and published by the release workflow from this tree's commit, and the [releases page](https://github.com/cocokoishi/GoTavern/releases/latest) is authoritative for what is published right now. An unpinned install resolves `releases/latest`; pin a version for a reproducible deployment or a rollback target.
 
-## What it is
-
-GoTavern is a replacement for the **SillyTavern 1.19.0 server**: it serves the unmodified upstream frontend over the
-same routes, reads the same `config.yaml` and the same on-disk layout, so characters, chats, groups, world info,
-presets, Quick Replies, secrets, themes and frontend extensions keep working — no conversion, no private database.
-That is the shape of the product; it is **not a claim that every part of it has been proven on a real user's tree**.
-The scope of what has actually been demonstrated is in [Where compatibility stands](#where-compatibility-stands), and
-the open strong claim is recorded in [`GOAL.md` §14](GOAL.md).
-
-## Install
-
-Everything below downloads a **prebuilt archive**. Nothing compiles on your machine.
-
-> **No version argument needed.** An unpinned install resolves `releases/latest`, which serves the stable
-> `v0.1.0-alpha.13` release. Install an older release explicitly with `--version v0.1.0-alpha.12` (`-Version` on
-> Windows); pin any version for a reproducible deployment or a rollback target.
-
-> **Both installers install into the current directory.** Create a folder, `cd` into it, run the installer. `--dir` /
-> `-InstallDir` exist as an advanced override. The script comes from `main` because that is where the
-> current-directory default lives.
-
-**Linux / macOS**
-
-```sh
-mkdir GoTavern
-cd GoTavern
-
-curl -fsSL https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.sh | sh
-./start.sh
-```
-
-To pin a specific release: `sh install.sh --version v0.1.0-alpha.12` (or the stable `v0.1.0-alpha.13`).
-
-**Windows (PowerShell)**
-
-```powershell
-mkdir GoTavern
-cd GoTavern
-
-irm https://raw.githubusercontent.com/cocokoishi/GoTavern/main/install.ps1 -OutFile install.ps1
-.\install.ps1
-.\Start.cmd
-```
-
-To pin a specific release: `.\install.ps1 -Version v0.1.0-alpha.12` (or the stable `v0.1.0-alpha.13`). To install somewhere else:
-`.\install.ps1 -InstallDir "D:\Servers\GoTavern"`. `Start.cmd` finds its own location, so you can launch it from any
-shell.
-
-**Docker**
-
-```bash
-docker pull ghcr.io/cocokoishi/gotavern:latest
-```
-
-`ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.13` is the stable image addressed by tag; pin it when you need a
-reproducible deployment. `:latest` only moves when a **stable** tag is published, and it now points at
-`v0.1.0-alpha.13` (digest `sha256:5b2149a4c10b12192da0fe330363df60fb562f09a1bbb2b8ec9ba92474ba7264`); older
-prerelease images such as `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.11` are addressed explicitly. The image is
-linux/amd64.
-
-**Manual:** download `gotavern-<os>-<arch>.tar.gz` (`.zip` on Windows) from the [releases page](https://github.com/cocokoishi/GoTavern/releases), check it against `checksums.txt`, unpack anywhere writable, run `./start.sh` / `Start.cmd`.
-
-**Requirements:** a 64-bit Linux, macOS or Windows machine. Six prebuilt archives are published: linux and
-darwin (amd64 and arm64) and Windows (amd64 and arm64). **Every published archive except windows/arm64 is executed
-by release CI against the archive it ships**: linux/amd64 and windows/amd64 are extracted, launched and booted
-against a stock tree by the drop-in and release-qualification gates; linux/arm64 is executed under QEMU (the archive
-extracted, run and its `/version` polled inside an arm64 container) and both darwin archives are executed on native
-macOS runners by `release.yml`'s cross-platform execution jobs. windows/arm64 stays **built and structurally
-inspected, not executed**, because no windows/arm64 hosted runner exists; that boundary is asserted in the release
-workflow instead of implied. The frontend, default content and tokenizer manifest are embedded in the binary. The
-tokenizer *data* ships in `src/tokenizers/` (the same path upstream uses), because token counts have to be exact
-rather than estimated.
-
-### Updating and rolling back
-
-Re-run the installer, or unpack a newer archive over the old install. The binary, the launcher and `src/tokenizers/` get replaced. `config.yaml`, `data/`, `extensions/` and `certs/` are never touched. Rolling back is the same operation with an older archive, and CI tests it across baselines.
-
-### Migrating from an existing SillyTavern
-
-Point GoTavern at your existing directory and start it. Auto-update resolves to OFF for every ambiguous input, and CI hashes the extension tree before and after boot to check nothing was modified.
-
-## Performance
-
-| Metric | Pinned Node SillyTavern | GoTavern | How it was measured |
-|---|---|---|---|
-| Cold start to first `/version` 200 | 14,515 ms | **165 ms** | median of 3 alternating rounds on ONE runner, fresh data root each round, no `config.yaml` |
-| Steady-state RSS (`VmRSS` from `/proc`) | 915 MB | **40.5 MB** | median of 6 samples, after readiness and 30 requests per path (60 per round) |
-| `GET /version` latency | 65.55 ms | **0.429 ms** | median of 90 sequential requests (p95: 70.33 / 0.596) |
-| `GET /` latency (HTML shell) | 13.78 ms | **8.59 ms** | median of 90 sequential requests; GoTavern's number includes gzip CPU |
-
-Memory is decimal MB (1 MB = 1,000,000 bytes); every other number is milliseconds. The table, the figure and
-[`docs/assets/benchmark.svg.provenance.md`](docs/assets/benchmark.svg.provenance.md) are restatements of one committed
-artefact, [`tests/perf/q22-baseline.json`](tests/perf/q22-baseline.json), and `tools/check-perf-docs.mjs` fails CI when
-any of them disagrees with it. The figure is generated in two variants — `docs/assets/benchmark.svg` for dark GitHub and
-`docs/assets/benchmark-light.svg` for light — because one palette cannot be legible on both canvases; the table above is
-the same data for a screen reader, a small screen, or a reader who wants to check the arithmetic.
-
-**Read these as a same-machine comparison, not a promise.** They come from `GoTavern smoke metrics` run `42012475880` (success), the code-complete commit `f1396ce` (v0.1.0-alpha.15), on one shared GitHub runner: both servers booted from the same pinned checkout, same seeding, same port allocator, in three alternating rounds. Expect different absolute numbers on your hardware. A ten-minute soak per subject in the same run showed no sustained GoTavern growth (RSS drift -0.1 MB, p95 drift +0.35 ms); pinned's RSS fell from its startup peak (-571 MB) and its p95 drifted -3.29 ms over the window. **One cost is shown rather than hidden:** `/` carries gzip CPU because the HTML shell is compressed, which is why its median rose from the pre-compression release while a full page load's wire bytes fell 67.4% (measured in the compression work). A fast server that assembles a different prompt would be a bug, which is why the compatibility gates run on the same commit. The published release body appends the same-SHA run-id table, so the numbers above and the gate run that produced them are checkable together.
-
-**The alpha.14 comparison, stated rather than implied.** alpha.14's record (`GoTavern smoke metrics` run `41777492725`, commit `4fd8ed7`) measured 163 ms / 39.8 MB / 0.403 ms / 8.28 ms for the same four metrics on the same runner class. alpha.15's are 165 ms / 40.5 MB / 0.429 ms / 8.59 ms — every difference is between 1% and 6%, which is the order of run-to-run variation this harness has recorded for the same runner class (the provenance note lists historical boot medians for one subject spanning 8.8-14.6 s), so **this release does not claim an improvement in these four headline metrics**: they are published as measured.
-
-### The optimization this release ships, measured where it lands
-
-These four headline metrics are dominated by boot and an empty `/version`; they cannot show a change to a
-card-heavy data route. `v0.1.0-alpha.15` ships one measured optimization — an identity-keyed cache of the
-decoded card text for `/api/characters/all`, keyed by absolute path plus file identity, with every per-request
-projection still running — and it was measured with on/off arms that differ only in the read function (two test
-binaries, three alternating rounds, a quiet host):
-
-| row | cold first request | repeat path | repeat allocations |
-|---|---|---|---|
-| 10,000 cards | 5.39 → 6.53 s (**+21%**, the cache adds a stat per card) | 4.96 → 4.10 s (**−17.4%**) | 1,216 → 968 MB (**−20.4%**) |
-| 100 cards / 640 KB text | 166 → 128 ms | 170 → 98 ms (**−42.3%**) | 182 → 52 MB (**−71.3%**) |
-
-Both halves are reported: the cache wins on repeats and allocations and loses on the cold first request. The
-paired CI record above does not drive that route, so the release claims no headline-metric improvement — the
-claim is the repeat-path CPU and allocation reduction, stated with the cost beside it. The full record,
-including the soak (roughly half the GC work at the same RSS drift) and the concurrency measurements that
-showed no headline difference, is `docs/perf-baseline.md` §10.
-
-### A profile-driven fix
-
-The paired benchmark says "cheaper than Node". It can't say "which function allocates". `internal/server/bench_test.go` can: it builds a real handler, does the product's own CSRF and login handshake, and measures a tiny route, the HTML shell, a static asset, settings aggregation and the character list.
-
-The first profile found a real problem. Serving `/script.js` (497,669 bytes) allocated 1,010,107 B/op, and 66% of that was one `embed.FS.ReadFile` per request. A page load asks for about 229 assets, so the server was copying every asset into the heap every time. Static serving now resolves content lazily and streams the slice it already declared, with a re-read fallback so a failure can't send a short body under a declared `Content-Length`. Two benchmarks were added with teeth: `BenchmarkFrontendAsset` (one asset) and `BenchmarkManyFrontendAssets` (a page load's worth), plus `BenchmarkVersion` as the control.
-
-| Benchmark | `ns/op` before → after | `B/op` before → after | `B/op` change |
-|---|---:|---:|---:|
-| `GET /script.js` (497,669 B) | 478,654 → **170,644** | 1,010,107 → **43,347** | **−95.7%** |
-| `GET /` (HTML shell) | 662,703 → **408,641** | 773,647 → **68,060** | **−91.2%** |
-| five assets (one page load) | 2,339,272 → **1,791,303** | 1,909,012 → **219,880** | **−88.5%** |
-| `GET /version` (control, no asset) | 315,372 → 310,424 | 25,145 → 25,145 | 0% |
-
-These are local, single-machine numbers (Windows/arm64, Go 1.27), before and after on the same machine, from `go test ./internal/server/ -run '^$' -bench Benchmark -benchmem -benchtime 300x`. They're an engineering baseline, not a product comparison. The `/version` row is the control: it serves no asset and didn't move, so the change was confined to static serving.
-
-A second round removed per-request work from the authenticated path: the user record was re-read and re-parsed from disk on every request (40.4% of a request's CPU in the profile), so it is now cached against the file's own identity (absolute path, mtime, size — never a timeout) and re-read whenever that identity changes. Measured on the same host and session: `BenchmarkManyFrontendAssets` 1,888,743 → **1,288,362 ns/op** (−32%) and 1,116 → **900 allocs/op** (−19%).
-
-## Compatibility
-
-**Upstream is the oracle.** Baseline: SillyTavern `1.19.0`, commit `06bde939fb1e9c4c8d8641d810f0a916b5bce127`. Every claim below is checked against a pinned Node SillyTavern, never against memory or a mock of our own.
-
-This table states only what a fresh run on the current commit shows. The repository history was rewritten on 2026-10-29 to normalise commit identities, which orphaned every commit that earlier CI runs had judged, so older evidence can't be attached to this tree. Everything here is anchored to [`docs/goal-scorecard.md`](docs/goal-scorecard.md), re-derived against the rewritten lineage.
-
-| Question | State | Evidence |
-|---|---|---|
-| Does a long-lived SillyTavern directory start directly? | **verified** | packaged archive over a stock tree (`GoTavern drop-in qualification` at the released commit (the release body's evidence table names the run), success); a synthesised long-lived tree asserted file-identical after boot (`tests/e2e/longlived_test.go`, `GoTavern CI` at the released commit). **The tree is synthesised, not a user's** — see [`GOAL.md` §14](GOAL.md) |
-| Are my data and extensions left alone? | **verified** | auto-update resolves OFF for every ambiguous input; the long-lived leg hashes the extension tree before and after boot |
-| Do avatars, card images, in-chat avatars, personas and thumbnails show up? | **verified** | `Browser differential` at the released commit: every image decoded on both subjects, no failed request, no console load failure. `/thumbnail` serves real thumbnails at pinned paths and dimensions from a pure-Go codec. **Byte equality with Jimp is not claimed.** |
-| Do backgrounds display as in the original? | **partially verified** | the gallery renders and stages tiles on both subjects, and 40 UI elements are reachable identically across four viewport sizes. **Paint/behaviour is not measured:** the pinned frontend's own binding is absent on both subjects, so the differential is silent rather than negative. |
-| Does 酒馆助手 / JS-Slash-Runner work? | **verified** | `Browser differential` at the released commit (helper, helper-generation, helper-variable and REAL-preset legs): the iframe boots, the bridge reaches host modules, `generateRaw` is byte-identical on both subjects, a variable's resolved value reaches the final request and survives a restart, and a preset mutated in `in_use` changes the next request identically |
-| Does *every* feature of that extension work? | **partially verified** | only the interactions above are proven. Its own UI, script editor and anything implemented purely inside the iframe aren't covered. |
-| Do other real third-party extensions work? | **verified for a pinned corpus** | `Third-party extension compatibility` at the released commit: exactly 20 popular, SFW client extensions pinned by full commit in [`tests/browser/third-party-extensions.lock.json`](tests/browser/third-party-extensions.lock.json), each installed, activated, its own setting persisted across a real server restart, disabled, re-enabled and uninstalled on stock SillyTavern and on GoTavern; generation-capable ones are additionally judged on the provider-bound request. All 20 PASS. **Not a claim about the ecosystem:** it is the 20 pinned workloads in the covered scenarios -- methodology, taxonomy and limits in [`docs/compatibility/third-party-extensions.md`](docs/compatibility/third-party-extensions.md) |
-| Does a complex preset change the model context exactly as upstream does? | **verified** | `Browser differential` at the released commit (`mode: all`): `Node(A) == Go(A)`, `Node(B) == Go(B)`, and A ≠ B within one implementation -- the three conditions that make a preset differential mean something |
-| World info, Author's Note depth, token truncation? | **verified** (truncation: at the measured boundary) | provider-wire replay for world info; the Q17 sweep for Author's Note; both subjects keep and drop the same turns in the same order. A dedicated differential asserts that the `before`, `after` and `atDepth` world-info slots reach the FINAL provider request in pinned's order (`GoTavern world-info slot ordering` at the released commit, 21/21 guards). Truncation is **not** proven in general: upstream's total message count isn't monotone in `openai_max_context`. |
-| Streaming and cancellation? | **verified** | request bytes and frame terminators across a real TCP middle (`Browser differential` at the released commit), and a mid-stream cut releases the same partial text on both subjects. The transport properties have their own tests: frame ORDER, a graceful TLS shutdown mid-frame reaching the caller as a truncation error, and a cancelled stream arriving as an ordered prefix (`GoTavern CI` at the released commit). |
-| Reload, swipe, regenerate, continue? | **verified** | `Browser differential` at the released commit (`mode: all`, success). Four verbs, each with its own comparator. The save/reload/swipe leg proves the two subjects were fed *different* bytes at a position neither compared request carries; the continue request is selected by the product's own nudge marker, not by position. |
-| One real session rather than eight experiments? | **verified** | `GoTavern whole-session differential` at the released commit (success): one stock tree per subject, one page lineage, and one journey -- load, settings read/change/save, characters, open chat, send, stream, save, reload, swipe, regenerate, continue, restart the server on the same tree, keep working -- with browser state, provider bytes and disk state all compared (39/39 guards) and eleven mutations proving the gate red. |
-| Can I hand a GoTavern-written tree back to Node, and back again? | **verified** | `Browser differential` at the released commit: the external judge printed **hand-back verdict: match** in both directions with every count non-zero (GoTavern leg 5/5, pinned leg 17/17). **Limit:** the fixture is a synthetic derivation, so its own chunk relations are unproven. |
-| Is it cheaper to run than Node? | **verified** | `GoTavern smoke metrics` at the released commit (success), see [Performance](#performance) |
-| After a restart, does a resumed turn carry the restored conversation history? | **verified** | `GoTavern whole-session differential`: the resumed SEND's own request is selected by the provider peer's ordinal, carries the turn-one/turn-two markers and the restored replies, and is byte-identical between GoTavern and pinned. A commit that makes the preset's prompt order omit the chat history is classified as a preset property, must still be byte-identical, and cannot pass silently. The alpha.9 "OPEN" observation was a probe measurement defect (it read *the last completion* rather than *the send's*); the root cause and evidence are in [`docs/persistence-resume.md`](docs/persistence-resume.md) |
-| Was the Q21 hand-back flake fixed rather than tolerated? | **verified** | the flake was a harness race: the pinned leg's "reply landed" wait matched a *colliding reply text* from the GoTavern-handback tree, so the CONTINUE click was refused by the frontend's own guard and the send's late reply was misread as a continuation. The hand-back probe now waits on nine named conditions, tags each subject's replies, reads the press acceptance synchronously and refuses a non-accepted press. A repeated-stability campaign ran the hand-back leg **20/20 green** on one commit (per-iteration conditions + continue-request counts in [`docs/browser-stability.md`](docs/browser-stability.md)) |
-| Does a long-lived, messy user tree keep working? | **verified** | a new deterministic synthetic corpus (unicode/CJK/emoji cards, long chats with swipes/edits/branches, groups, multiple worlds, the committed complex-preset derivation, themes/assets/Quick Replies, legacy keys) is qualified at three sizes by `GoTavern long-lived corpus qualification`: fresh install, long-lived browser journey, restart + resume, published `alpha.9 -> alpha.11` upgrade, fresh-install-over-corpus and SillyTavern-data-copy drop-in |
-| Can I upgrade from alpha.10 and keep my data? | **verified** | the release qualification downloads the **published** `v0.1.0-alpha.10` linux-amd64 archive, verifies its published checksum, installs it, seeds the corpus, boots it, upgrades the same tree to alpha.11 through the installer, continues the same chat (save + restart + read-back), restores the pre-upgrade backup and boots alpha.10 over it again. No undocumented manual migration; every runtime path alpha.11 writes is classified |
-| Is the backend surface coverage still complete? | **verified** | `docs/surface-coverage.md` is derived from the oracle's own lists: every URL the pinned frontend builds, every pinned route and redirect alias, and every Go registration is classified implemented / intentionally-passthrough / not-applicable / unsupported-with-reason -- 573 frontend surfaces, 384 Go registrations, **0 unknown** -- and a drift gate fails CI when a new frontend request shape or Go route appears without a classification |
-| Does the published Windows install work on a normal Windows shell? | **verified** | `GoTavern published-release install smoke` runs the checkout's `install.ps1 -Version <tag>` over real TLS under **Windows PowerShell 5.1** (the default Windows shell), verifies the published checksum, boots the installed `gotavern.exe`, requires `/version` and real tokenizer ids from `src/tokenizers`. That job also catches the 5.1 download stall (`$ProgressPreference`; >5 min with zero bytes before the fix, 3.9 s for the whole install in CI afterwards) |
-
-### Coverage numbers
-
-These are computed from the tree by `tools/generate-doc-facts.mjs` on every CI run. A mismatch fails the build.
-
-### Third-party extension corpus
-
-The repository used to prove extension support with two pinned canaries it had chosen itself. Since alpha.13 it also runs an **external corpus**: exactly 20 real, popular, SFW third-party SillyTavern client extensions, selected from a 101-repository GitHub snapshot by a documented ranking (stars, forks, recent maintenance, official/community listings), with every exclusion recorded and Tavern Helper excluded in every form. Each extension is pinned by full commit and run on **both** subjects with the same probe, data root, `config.yaml` bytes, browser and timeouts: install, activate, change the extension's own setting, restart the server, verify the setting survived, disable, re-enable, uninstall. Generation-capable extensions additionally run the generation drive and their provider-bound request is compared byte-for-byte. The gate is a same-SHA release requirement and its aggregator requires the observed set to equal the lock's 20. Read the selection methodology in [`docs/compatibility/extension-selection.md`](docs/compatibility/extension-selection.md) and the harness, taxonomy and limitations in [`docs/compatibility/third-party-extensions.md`](docs/compatibility/third-party-extensions.md). The claim is the 20 pinned workloads, not "every SillyTavern extension works".
-
-| Area | State |
-|---|---|
-| Chat-completion providers | Every implemented pinned source except COMETAPI has recorded provider-wire captures (pinned itself refuses COMETAPI before sending any request). <!-- BEGIN GENERATED: provider-wire.summary -->`25` sources with recorded provider-wire captures; `262` recorded scenarios.<!-- END GENERATED: provider-wire.summary --> |
-| Provider wire | Each claimed source is compared against captures: target, method, header set, body bytes (SHA-256), chunked framing, client disconnect. A control test fails if a source is claimed without a capture. |
-| Browser legs | **<!-- BEGIN GENERATED: browser.sources -->`15`<!-- END GENERATED: browser.sources --> sources** carry both a generation and a streaming comparison artefact, enforced by `tools/verify-browser-comparisons.mjs`. |
-| Startup | Differential over <!-- BEGIN GENERATED: startup.requests -->`353`<!-- END GENERATED: startup.requests --> requests. Characters, chats, groups, world info, settings and secrets have replay fixtures. |
-| Release path | Fresh install, idempotent re-install, tampered-archive refusal, update and cross-baseline rollback run in CI against the real `install.sh` / `install.ps1`, plus the Windows-only installer behaviours. |
-
-## What won't work
-
-These are decisions, not bugs waiting to be fixed. Each one is `not implemented` for a stated reason. Full reasons live in [`docs/config-inventory.md`](docs/config-inventory.md) and `AGENTS.md`.
-
-- **Arbitrary Node.js server plugins.** The one explicit ecosystem exclusion. Not emulated, not faked.
-- **Local in-process ML** (`/api/extra/{caption,classify}`, `/api/speech/*`, local embeddings). It would need an ONNX runtime, which contradicts the single-binary, `CGO_ENABLED=0` design. Captioning, classification and speech via SillyTavern's built-in local models won't work.
-- **Remote provider embeddings.** Every remote embedding source answers an "unimplemented" status instead of returning an empty vector. The routes exist, and local or body-supplied vectors work.
-- **Jimp byte-equal image re-encoding.** `/thumbnail` serves the observable contract (real images at pinned dimensions); `/api/avatars/upload` keeps the bounded pixel path.
-- **Wire formats inside third-party npm packages** (Google voice `batchexecute`, `/api/translate/{google,bing}`). Owning an undocumented protocol is a product decision, not an accident.
-- **`git.backend: builtin`.** Upstream's builtin backend means isomorphic-git semantics, and a pure-Go equivalent is a large dependency with its own divergence. The value is accepted, the system-git path is used, and you get a clear error if git is absent.
-- **Per-chat backups** (`backups.chat.*`). Upstream's throttled snapshot/prune subsystem isn't reproduced. Chat writes are atomic and whole-file, so a corrupt write isn't the risk, but there's no per-chat restore safety net.
-- **VERTEXAI service-account ("full") mode.** Answers the pinned error shape rather than fabricating a credential.
-- **Inherited upstream weaknesses are reproduced, not silently fixed.** Content-import host matching uses the same substring test upstream does, so `chub.ai.attacker.example` is treated as chub. A "safer but different" backend would break parity as badly as a worse one.
-
-## How we decide something is compatible
-
-"It opens and chats" doesn't count. Every claim is checked against a pinned Node SillyTavern on five surfaces: browser→server HTTP, server→provider request bytes, provider stream→browser, filesystem/startup side effects, and browser final state. Anything verified only against our own mock is `unverified`, whatever the fixture says.
-
-Four rules, each born from a green check that proved nothing:
-
-1. **Upstream is the oracle.** When outputs differ, check in this order: pinned capture → is the probe faithful → is the fixture discriminating → does the gate have teeth → only then suspect the Go code.
-2. **Citations are ancestry-checked.** A run proves something only about the commit it judged. `internal/fixtures/documents_test.go` rejects a citation whose `head_sha` isn't an ancestor of the described commit, and a run id that isn't in `tests/docs/run-manifest.json`.
-3. **Every gate has teeth.** Each comparator has a self-test that mutates what it guards and requires the named assertion to go red. `tools/verify-browser-comparisons.mjs` rejects an artefact whose required guards are false, missing or contradicted by its own `unproven` list.
-4. **Tests come from upstream's own lists.** Every `router.use(...)` mount, endpoint router and frontend-built URL is an inventory row, diffed against the Go registrations. Per-route discovery is how three mounts stayed missing through months of green runs.
-
-Where something can't be observed, the row says so instead of going green by omission. That's what `partial` and `unproven` mean.
-
-### Where the status words live
-
-One machine truth per fact:
-
-| Layer | File | Granularity |
-|---|---|---|
-| User questions | [`docs/goal-scorecard.md`](docs/goal-scorecard.md) | 22 rows. `proven` means a cited run on the current lineage, or a committed artefact, shows it. |
-| Capability matrix | [`docs/compatibility-matrix.md`](docs/compatibility-matrix.md) (generated) | 22 capability areas: `PASS` / `PARTIAL` / `FAIL` / `NOT_APPLICABLE`. A `PASS` row can't carry an evidence gap. |
-| Per-route ledgers | [`docs/api-inventory.md`](docs/api-inventory.md), [`docs/surface-coverage.md`](docs/surface-coverage.md), [`docs/compat-matrix.md`](docs/compat-matrix.md) | every route / provider / fixture, with the fixture that pins it |
-
-A capability can be `proven` for a narrow question and `PARTIAL` as an area; that's not a contradiction. If two layers disagree about the *same* fact, one is wrong, and that's a defect.
+- The channel rule is one script, [`scripts/classify-version-tag.sh`](scripts/classify-version-tag.sh), shared by the release workflow, the Docker workflow and both installers: only a stable tag moves `:latest` and `releases/latest`.
+- `v0.1.0-alpha.16` was the previous stable-channel release; earlier releases stay downloadable by explicit version. Back up any data directory you cannot afford to lose before upgrading.
+- The [release notes](docs/release-notes-v0.1.0-alpha.16.md) carry the same limits; this README states them up front rather than below the fold.
 
 ## Development
 
-See `docs/development-loop.md` for tiers and measurements. `AGENTS.md`'s "Working mode" lists host artefacts to exclude first (a `gofmt -l` that flags the whole tree under `core.autocrlf=true`, and a Windows-only environment-variable case difference).
+Development and CI use Go 1.27+ and Node 24; production does not. Quick local loop:
 
 ```bash
 node scripts/dev-verify.mjs          # ~7 s: gofmt + build + the tests your change can break
 node scripts/dev-verify.mjs --full   # ~2 min: the whole Go suite, including every fixture replay
 ```
 
-CI keeps the expensive gates: the full Go suite, `go vet`, `go test -race` over the packages that own shared mutable state, cross-compiles, the browser comparison, the packaged-artifact drop-in qualification, and the Linux oracle that re-records every fixture and requires a zero diff.
+CI keeps the expensive gates: the full Go suite, `go vet`, `go test -race` over the packages that own shared mutable state, cross-compiles, the browser comparison, the packaged-artifact drop-in qualification, and the Linux oracle that re-records every fixture and requires a zero diff. A local green is not the CI gate; the two measured Windows host artefacts to exclude first are in [docs/development-loop.md](docs/development-loop.md) and `AGENTS.md` ("Working mode").
+
+Detailed documentation: [docs/performance.md](docs/performance.md) · [docs/SEMANTIC-COMPATIBILITY.md](docs/SEMANTIC-COMPATIBILITY.md) · [docs/goal-scorecard.md](docs/goal-scorecard.md) · [docs/compatibility-matrix.md](docs/compatibility-matrix.md) · [docs/INSTALLATION.md](docs/INSTALLATION.md) · [docs/development-loop.md](docs/development-loop.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [AGENTS.md](AGENTS.md) · [docs/](docs/).
 
 ## License
 
-**AGPL-3.0**, consistent with the SillyTavern frontend it serves. The root `LICENSE` is copied from the pinned SillyTavern source, and `THIRD_PARTY_NOTICES.txt` ships in every release archive.
+**AGPL-3.0**, consistent with the SillyTavern frontend it serves. The root [`LICENSE`](LICENSE) is copied from the pinned SillyTavern source, and `THIRD_PARTY_NOTICES.txt` ships in every release archive.
