@@ -419,13 +419,16 @@ func TestNicheFSEightSessionsCreateChatsWithoutLoss(t *testing.T) {
 	}
 }
 
-// FS-008: a SYMLINKED settings.json is FOLLOWED for reads and REPLACED (not followed) by the writer's
-// rename. POSIX-only semantics: creating a symlink needs Developer Mode or elevation on Windows, and a
-// Windows host that cannot create one takes the DECLARED skip below rather than passing silently.
-func TestNicheFSSymlinkedSettingsFileIsFollowedForReadAndReplacedOnWrite(t *testing.T) {
+// FS-008: a settings.json SYMLINK whose target is OUTSIDE the user tree is FOLLOWED for reads but
+// REFUSED for writes. Pinned's write-file-atomic resolves the link and writes THROUGH it, modifying a file
+// outside the user's directory; GoTavern's SaveSettings resolves the destination and refuses when it
+// escapes the resolved user root (ensureResolvedContained, internal/startup/settings_backup.go), answering
+// 500 and leaving the link and its target byte-identical. This is a DELIBERATE safer-than-pinned
+// containment divergence recorded in docs/SEMANTIC-COMPATIBILITY.md section 18. The read half is pinned
+// parity (os.ReadFile follows the link as pinned's fs.readFile does) and is asserted too, so the refusal
+// cannot be implemented by refusing to read the file.
+func TestNicheFSSymlinkedSettingsFileOutsideTheUserRootIsRefused(t *testing.T) {
 	tree := newNicheTree(t)
-	// The link target lives OUTSIDE the user tree, which is what makes "followed for read, replaced by
-	// rename" observable: a writer that opened the link path for writing would corrupt the target.
 	targetRoot := t.TempDir()
 	target := filepath.Join(targetRoot, "outside-settings.json")
 	original := []byte(`{"marker":"NICHE-FS-008-LINK-TARGET"}`)
@@ -435,24 +438,24 @@ func TestNicheFSSymlinkedSettingsFileIsFollowedForReadAndReplacedOnWrite(t *test
 	}
 	booted := tree.boot(t, nil)
 	if served := nicheSettingsServed(t, booted.client); !strings.Contains(served, "NICHE-FS-008-LINK-TARGET") {
-		t.Fatalf("the boot did not follow the symlinked settings.json; served: %s", truncateForLog(served, 200))
+		t.Fatalf("the boot did not follow the symlinked settings.json for READS; served: %s", truncateForLog(served, 200))
 	}
-	if status, body := nicheSaveSettings(t, booted.client, `{"marker":"NICHE-FS-008-NEW-FILE"}`); status != 200 {
-		t.Fatalf("settings/save over a symlinked settings.json = %d: %s", status, truncateForLog(body, 200))
+	if status, body := nicheSaveSettings(t, booted.client, `{"marker":"NICHE-FS-008-NEW-FILE"}`); status != 500 {
+		t.Fatalf("settings/save over a settings.json symlink whose target ESCAPES the user root = %d: %s; the containment guard must refuse this write (deliberate safer-than-pinned divergence, SEMANTIC-COMPATIBILITY.md section 18)", status, truncateForLog(body, 200))
 	}
 	after, err := os.ReadFile(target)
 	if err != nil || !bytes.Equal(after, original) {
-		t.Fatalf("the write followed the symlink and modified its TARGET outside the user tree (target now %q): %v", truncateForLog(string(after), 160), err)
+		t.Fatalf("the refused save modified the link TARGET outside the user tree (target now %q): %v", truncateForLog(string(after), 160), err)
 	}
 	linkInfo, err := os.Lstat(tree.settingsPath())
 	if err != nil {
-		t.Fatalf("lstat settings.json after the save: %v", err)
+		t.Fatalf("lstat settings.json after the refused save: %v", err)
 	}
-	if linkInfo.Mode()&os.ModeSymlink != 0 {
-		t.Fatalf("the save left settings.json as a symlink; an atomic rename must replace the LINK entry")
+	if linkInfo.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("the refused save replaced the symlink entry; a refusal must leave the user's tree unchanged")
 	}
-	if served := nicheSettingsServed(t, booted.client); !strings.Contains(served, "NICHE-FS-008-NEW-FILE") {
-		t.Fatalf("the replaced settings file is not served: %s", truncateForLog(served, 200))
+	if served := nicheSettingsServed(t, booted.client); !strings.Contains(served, "NICHE-FS-008-LINK-TARGET") {
+		t.Fatalf("the settings served after the refused save are not the original link target: %s", truncateForLog(served, 200))
 	}
 }
 
