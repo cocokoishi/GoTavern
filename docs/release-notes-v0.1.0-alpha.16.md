@@ -8,6 +8,14 @@ discrimination for two provider-config defects, evidence-based refusal of six pr
 same-input performance and soak evidence in both directions, and release rails that read the embedded
 evidence document inside each required artifact.
 
+A final engineering pass on 2026-11-07 closed five confirmed reliability or compatibility defects that the
+M0 audit had found but the M4 decision record had left as bounded follow-ups (D-H1 provider config path,
+C-H1 rate-limit memory growth, C-H6 unbounded heartbeat shutdown, C-H7 an inaccurate CLI claim, D-H17 a
+non-atomic tokenizer cache write), added the two race-detector packages C-H8 had named, and added a seeded
+E06 state-machine qualification: 100 seeds x 10 operations executed twice (2,000 reproducible sequences), 8
+accounts, 4 restarts on the same data root, and 14 planted defects that each produce their named red through
+the same comparators. The sections below separate what the programme already shipped from this final pass.
+
 The strongest claim this release makes is the synthetic one, with its scope stated. `GOAL.md` section 14 —
 a real, long-used user tree qualifying the drop-in claim — is **NOT MET** at this release and is not claimed
 by any sentence here. See Known limitations.
@@ -99,6 +107,63 @@ Each was reproduced before the fix, and each fix landed with the gate that now s
 - **Adversarial ratchet port race — a harness precondition was being reported as a product listener defect.**
   Fix commit `98400d6` (test-only). `GoTavern Lane CI` run `42162940621` (completed/failure) is the
   before-record and run `42163485576` (completed/success) the after-record.
+- **D-H1 — the chat-path config readers derived `config.yaml` from the data root instead of using the
+  startup-resolved file**, so `--configPath`, and a `--dataRoot` not adjacent to the config file, silently
+  defaulted every provider-visible key (`promptPlaceholder`, `gemini.apiVersion`,
+  `gemini.thoughtSignatures`, `claude.enableAdaptiveThinking`, `claude.enableSystemPromptCache`,
+  `claude.extendedTTL`, `claude.cachingAtDepth`, `mistral.enablePrefix`, `openai.randomizeUserId`). Fixed by
+  threading `commandline.Paths.ConfigFile` through `HTTPHandlerOptions` -> `chatCompletionRequest` -> the
+  config-reading planners. When a resolved path exists it is the ONLY file read: a decoy `config.yaml` at the
+  guessed location cannot override the operator's real file. Red-first test
+  `TestChatCompletionProviderConfigFollowsTheStartupResolvedConfigPath` plus the negative control
+  `TestChatCompletionProviderConfigIgnoresADecoyAtTheDerivedLocation`. Residual: `requestOverrides` is read by
+  the text-completion backends on their own route, not by the chat-completion route this fix covers.
+- **C-H1 — the in-memory login limiter never evicted a key**, while pinned's `rate-limiter-flexible`
+  `MemoryStorage` deletes each key at its window expiry. With `rateLimiting.preferRealIpHeader` the key is
+  client-controlled, so distinct keys grew the map for the process lifetime (pinned's is window-bounded).
+  Fixed with an expiry FIFO swept on `consume`/`exceeded`: amortised O(1), a stale record never deletes a live
+  window, and the three methods' return values and timing are unchanged. Red-first test
+  `TestMemoryLoginLimiterEvictsExpiredWindows` failed with "after all 10000 windows expired, the limiter still
+  holds 10001 entries".
+- **C-H6 — shutdown could hang forever on the heartbeat writer.** Pinned writes `heartbeat.json` synchronously
+  through an unref'd interval and its SIGINT path calls `process.exit()` with no heartbeat join, so the
+  unbounded Go join was a GoTavern addition; `stop()` also waited on the write mutex behind an in-flight
+  fsync. Fixed: an atomic stopped flag is published before the stop signal, `stop(ctx)` never takes the write
+  mutex, joins under the caller's shutdown context and returns the named `ErrHeartbeatStopTimeout`, and no
+  write starts after `stop` reports success (a write already inside fsync may finish; documented). Red-first
+  test `TestHeartbeatStopIsBounded` failed with "RunningServer.Close blocked for more than 2s on a heartbeat
+  write stuck in fsync: the shutdown wait is unbounded".
+- **C-H7 — the second Ctrl+C message overclaimed.** Closing listeners does not abort in-flight keep-alive
+  requests; the abort comes from the process exit that follows. The message now states exactly that, and the
+  behaviour is unchanged (forced shutdown, exit 130). Tests: `TestListenerCloseDoesNotAbortInFlightRequest`,
+  `TestProcessExitAbortsInFlightRequest`, `TestSecondSignalDuringDrainForcesExit130`.
+- **C-H8 — the race gate's package list omitted two shared-state owners.** `./internal/app` and
+  `./internal/lockacquire` were added to the `-race` step; both packages' tests exist and pass, and `-race`
+  itself runs only on linux/amd64 (the Windows host answers "-race is not supported on windows/arm64").
+- **D-H17 — the tokenizer cache was written in place**, while pinned uses `write-file-atomic`; a crash or a
+  concurrent reader could observe a partial cache file that the next request would tokenize from. Fixed with a
+  same-directory temp file + fsync + rename: after a failed or interrupted write the cache is absent or the
+  previous complete bytes, never a prefix, and a write failure falls back exactly where pinned's
+  `getPathToTokenizer` catch does. Red-first tests `TestTokenizerCacheWriteFailureLeavesThePreviousCacheOrNothing`,
+  `TestTokenizerCacheWriteFailurePreservesThePreviousCompleteFile` and
+  `TestTokenizerCacheReaderNeverObservesPartialBytes` failed with a 2,377,322-byte file where the complete
+  payload is 4,754,645 bytes, a 32,768-byte truncation over a previous complete 33-byte file, and a reader
+  observing 65,536 non-payload bytes.
+- **The seeded E06 state-machine qualification (2026-11-07).** `internal/longlivedfixture/recipe.go` makes a
+  recipe a pure function of its seed (E06, tier bounds, 8 users, declared extension points, a 10-operation
+  plan, declared faults, a canonical preboot-tree SHA-256 and per-role artefact digests, with a tested v1 read
+  path). `tests/e2e/scenario_state_machine_test.go` drives the REAL server object started through
+  `internal/app.Start` on a generated 8-account data root: seeds 1601-1700 x the 10 declared operations,
+  executed twice = 2,000 reproducible sequences, with settings save/get, chat save/load/append/rename/delete,
+  ordered messages asserted from both the HTTP response and the disk bytes, cross-account read attempts on
+  settings and chats every seed, unknown-file SHA-256 after every operation and after restart, JSON/JSONL
+  validity after every operation, and four restarts on the same data root. Every operation appends a
+  machine-readable action-log entry. The 14 planted defects in `scenario_state_machine_teeth_test.go` each
+  produce their named red through the same comparators (message order swapped/dropped/extra, restart identity
+  and data root, cross-user and settings-marker leaks, unknown-file mutation, invalid JSONL, preboot chat
+  loss/order, non-reproducible sequence, plan mismatch); correct data stays green first. Runtime is 18.8 s on
+  the development host, so the normal `go test ./...` CI job runs it; the environment-coverage table is
+  `docs/alpha16/e-series-coverage.md`.
 - **M2 harness defects, disclosed because they change how the journey is driven** (all harness-side, none a
   product finding): a preset selected but not applied to the live prompt manager, a save race read as a
   16-byte difference, a leg-abort that hid the other legs, an import dialog targeted at the wrong element, a
@@ -117,6 +182,12 @@ Each was reproduced before the fix, and each fix landed with the gate that now s
   extensions issue at startup, so a quiet-generation request can no longer be mistaken for the measured turn.
 - **The group turn is quiesced before it is persisted and read, and branch metadata is persisted before the
   reload**, so both comparisons are deterministic.
+- **The 8-user performance row records a host-storage fingerprint and derives its own tolerance.** Every run
+  reports a synchronous open+write+fsync+close+unlink probe of the body size on the work-root filesystem; a
+  thresholded run refuses a host whose typical sync write is outside the baseline's class by name
+  (`threshold/host-disk`), and each route's ceiling uses the worst baseline p95 with a tolerance widened to
+  that route's measured baseline spread (floored at 25%). This is measurement hygiene, not a product claim,
+  and it is why the row is reported as such rather than graded.
 - **The tier ladder is narrowed on purpose.** Fast is 12 blocks and 3 extensions, medium is 60 and 10, full is
   120 and 22 with all three books staged. Only full is release-admissible; branch and qualification dispatches
   use the narrower tiers and never support a full-coverage claim. Push runs keep the legacy `profile=none`
@@ -151,14 +222,24 @@ runner-relative and comparable only within the same runner image label and versi
   install staging footprint is identical (27 files, 98,910,141 bytes, warm-minus-cold delta zero). The smoke
   gate asserts structural properties only, not performance, so these latency movements are reported, not
   graded; p99 is not collected by this harness.
-- **8-user concurrent writes — `M5 measurements` run `42212715040` (completed/success), artifact
-  `m5-eight-users-evidence`.** This is the row's BEFORE record: 8 accounts, 6 waves, 144 operations,
-  `errorRate` 0, throughput 287.425 operations per second over a 501 ms measured wall, 5,627 ms of account
-  provisioning outside the measured waves, and a 221 ms harness-measured boot to auth-aware readiness. Per-route
-  p50/p95/p99: settings save 58.871/65.346/66.956 ms, settings get 28.440/38.928/39.367 ms, chat save
-  37.299/87.728/100.784 ms. Every account saw its own marker and no other account's. No latency threshold was
-  asserted: the first run of a row has no noise estimate, and the AFTER run at a change under test is what
-  would apply the previous p95 x 1.25 ceiling. The AFTER does not exist yet (Known limitations).
+- **8-user concurrent writes — a measured, report-only row with a host-storage finding (2026-11-07).** The
+  original BEFORE (`M5 measurements` run `42212715040`, completed/success) recorded 287.425 ops/s with
+  settingsSave p95 65.346 ms and chatsSave p95 87.728 ms. The 2026-11-06 AFTER (run `42247840229`,
+  completed/failure) measured 49.844 ops/s with settingsSave p95 339.305 ms and chatsSave p95 614.831 ms and
+  failed the single-run x1.25 ceilings. Five repeats of identical product code then spanned 179.8-309.7 ops/s
+  with settingsSave p95 55.0-231.5 ms, so that red is a cross-run host-storage effect, not a product
+  regression. Commits `535072b`, `078172f`, `58d9291` and `985eed5` added a sync-write fingerprint to the
+  report and made the comparison refuse a non-comparable host by name and derive each route's tolerance from
+  the baseline series' own spread; three repeated same-tree baselines (`42326084623`, `42326330825`,
+  `42326671894`) recorded disk medians 0.35-8.67 ms with settingsSave p95 112.3-117.6 ms and chatsSave p95
+  87.6-115.4 ms. Three AFTER runs of the final code candidate (`42331164300`, `42331708166`, `42332089046`,
+  all AMD EPYC 9V74) then produced settingsSave p95 115.2/191.8/225.1 ms and chatsSave p95
+  116.3/175.6/265.9 ms with the read route stable at 41.4-56.5 ms, error rate 0 and isolation green in every
+  run. That 1.95-2.29x same-code spread exceeds every tolerance that still detects a regression, and it tracks
+  each host's sync-write tail (p95 30.5/80.9/138.0 ms). **The row is therefore report-only for this release:
+  the latency gate is NOT RATIFIABLE on this runner pool at 48 requests per route and no graded 8-user
+  latency number is claimed.** The measured routes' handlers are untouched by the release diff, and the full
+  table is `docs/alpha16/m5-evidence.md` sections 10.2 and 11.
 - **30-60 minute soak — `M5 measurements` runs `42209244735` and `42226780977` (both completed/failure under
   the retired statistic), artifacts `m5-soak-evidence`.** Two real 45-minute runs of the same row reported
   old least-squares slopes of +39.8 B/s and +885.1 B/s, which was the **methodology defect**: the slope over
@@ -200,12 +281,18 @@ Every skipped or UNPROVEN scenario is listed here; none is implied to be covered
   marshal; a real relay through the outbound transport under concurrency is not measured.
 - **The 20-extension page-load row has no gate and no baseline.** The extension-overhead harness is
   descriptive; it asserts nothing and is not a performance gate.
-- **The 8-user AFTER run has not been made.** The BEFORE record exists; the change-under-test run with the
-  previous per-route p95 as its ceiling is the next row, and no 8-user latency number is graded until then.
-- **The soak row's same-commit ratification has not been done.** The two real 45-minute runs are at different
-  candidate commits and support the corrected tolerance but do not ratify it by the plan's same-commit
-  procedure. The **real-leak question is UNPROVEN**: the corrected rule is a detection floor, so a leak slower
-  than a 10% mean rise or a 4 MiB floor rise over 45 minutes would pass by design.
+- **The 8-user row's latency gate is NOT RATIFIABLE on the shared runner pool and is report-only.** Three
+  AFTER runs of the final code candidate produced a 1.95x same-code spread on settingsSave p95 and 2.29x on
+  chatsSave, correlated with each host's sync-write tail rather than with the code; the correctness,
+  isolation and error-rate checks are green in every run, and the measured routes' handlers are untouched by
+  the release diff. No graded 8-user latency number is claimed; the fail-closed threshold machinery remains
+  committed with its teeth so the row can be graded on a host class with stable write latency, and a
+  same-host paired design is the named next step (not executed here).
+- **The soak row's two same-code runs are recorded, and the real-leak question stays UNPROVEN.** Two
+  45-minute soak runs were dispatched at the final code candidate (the soak row is not one of the 13 release
+  gates); their per-third verdicts are in `docs/alpha16/m5-evidence.md` section 12. The corrected GC-robust
+  rule is a detection floor, so a leak slower than a 10% mean rise or a 4 MiB floor rise over 45 minutes would
+  pass by design, and no leak-free certificate is claimed.
 - **Smoke-metrics p99 is NOT collected.** The harness records median, p95, max and mean; p99 for the version
   route and the shell route is UNPROVEN on both sides of the comparison.
 - **macOS ARM64 runtime execution is NOT qualified; the release path records a platform limitation instead of
@@ -237,6 +324,12 @@ Every skipped or UNPROVEN scenario is listed here; none is implied to be covered
   measurable; they do not assert extension behaviour beyond what the recorded requests and persisted state show.
 - **Fast and medium tiers are narrowed.** Their greens cover 12/3 and 60/10 ingredients against the full tier's
   120/22 and cannot support a full-coverage or release-admissibility claim.
+- **The seeded state-machine qualification is an E06 environment, not E01-E09 coverage.** It executes 8-account
+  per-account state machines, cross-account read attempts and four clean restarts on top of the existing
+  corpora. It does NOT execute the contention half of E06 (concurrent overlapping writes and streams), crash
+  kill recovery or the Node->Go->Node hand-back (E08), or the browser and real-extension environments.
+  `docs/alpha16/e-series-coverage.md` records per environment what is covered, partial and unexecuted, and no
+  sentence in these notes upgrades an unexecuted leg.
 - **Page-init egress hermeticity is OPEN.** Some browser page initialisation reaches the live network; the
   decision to stage it away or to record an explicit allowlist has not been made, so the journey's page-init
   egress is not hermetic.

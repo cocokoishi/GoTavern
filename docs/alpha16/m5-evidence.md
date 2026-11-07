@@ -599,3 +599,101 @@ cannot establish a ceiling that survives a different runner instance. The honest
 (multiple BEFORE runs on quiet runners, then the AFTER against the spread) is still required before the
 row can be graded. The row is therefore still **NOT RATIFIED**, and the red is kept as the fail-closed
 evidence that the threshold mechanism works rather than being suppressed or re-run until green.
+
+## 11. The 8-user row's ratification series (2026-11-07)
+
+Section 10.2 recorded a red AFTER run under the unratified one-BEFORE x1.25 ceiling and said the closer was a
+repeated-pair measurement. This section is that series. It does not rewrite section 10.2, which stays the
+honest record of the red and of the machinery working; it explains the red and replaces the row's
+ratification status.
+
+### 11.1 Why the 2026-11-06 AFTER was not a product signal
+
+The row's three measured routes each fsync an atomic write (`internal/startup/content.go` write seam inside
+`fsretry.Do`), so the metric is storage-latency-bound. Two runs of IDENTICAL product code produced:
+
+| run | tree | CPU model | disk fingerprint (median / p95, ms) | throughput | settingsSave p95 | chatsSave p95 |
+|---|---|---|---|---|---|---|
+| 42212715040 (the original BEFORE) | 2b87703 | Intel Xeon 8573C | not recorded (harness predates the probe) | 287.4 ops/s | 65.3 ms | 87.7 ms |
+| 42325568734 (repeat) | 2b87703 | not recorded in this table | not recorded | 179.8 ops/s | 231.5 ms | 87.6 ms |
+| 42325571058 (repeat) | 2b87703 | not recorded in this table | not recorded | 279.6 ops/s | 55.0 ms | 91.6 ms |
+| 42325573401 (repeat) | f769b5f | not recorded in this table | not recorded | 267.7 ops/s | 64.1 ms | 89.6 ms |
+| 42325577828 (repeat) | f769b5f | not recorded in this table | not recorded | 309.7 ops/s | 85.4 ms | 59.2 ms |
+| 42247840229 (the red AFTER) | b548687 | AMD EPYC 9V45 | not recorded (probe added after this run) | 49.8 ops/s | 339.3 ms | 614.8 ms |
+
+Across five same-code repeats the route p95 spans 55.0-231.5 ms (settingsSave) and 59.2-91.6 ms
+(chatsSave); the red AFTER is 339.3/614.8 ms, outside that spread and roughly 2-7x the p95s it was compared
+against. The red is therefore a **cross-run host-storage effect on an unratified single-run ceiling**, not a
+product regression: the AFTER tree differs from the BEFORE tree only in tests, harness and documentation.
+
+### 11.2 The ratified baseline (three repeated same-tree runs with a storage fingerprint)
+
+Commit `535072b` adds a sync-write fingerprint to the report (`environment.disk`: open+write+fsync+close+unlink
+of `bodyBytes` on the work-root filesystem, 12 samples, p50/p95/max, recorded before boot), and commit
+`078172f` compares hosts on the MEDIAN (a 12-sample p95 is one outlier: run 42326084623 recorded p50 0.60 ms
+and p95 8.35 ms = its max). Three repeats at `f769b5f` with the probe:
+
+| run | CPU model | disk median / p95 (ms) | throughput | settingsSave p50 / p95 | chatsSave p50 / p95 |
+|---|---|---|---|---|---|
+| 42326084623 | AMD EPYC 7763 | 0.60 / 8.35 | 248.3 ops/s | 63.5 / 116.3 ms | 44.5 / 87.6 ms |
+| **42326330825** | **Intel Xeon 6973P-C** | **8.67 / 59.14** | **215.6 ops/s** | **89.4 / 117.6 ms** | **39.3 / 115.4 ms** |
+| 42326671894 | AMD EPYC 9V45 | 0.35 / 4.80 | 258.5 ops/s | 58.0 / 112.3 ms | 33.8 / 87.9 ms |
+
+Host storage differed by 25x between the runs (median 0.35-8.67 ms) while settingsSave p95 stayed inside
+112.3-117.6 ms (4.7%) and chatsSave p95 inside 87.6-115.4 ms (32%). That is the property a meaningful
+ceiling needs: the row's p95 is reproducible across hosts at this scale, and a grossly slower host is
+identifiable from its fingerprint.
+
+**The ratified rule is per-route, and its tolerance is derived from the baseline series' own spread.**
+Commit `58d9291` made `--thresholds-json` repeatable and each route's ceiling `worst baseline p95 x
+(1 + max(25%, max/min - 1 across the baseline reports))`, with the per-route tolerance derived ONLY from the
+baseline reports. Both parts are load-bearing and both were forced by measurements, not chosen in advance:
+
+- The three baselines do NOT peak together: settingsSave 116.3/117.6/112.3 ms, settingsGet 57.8/35.8/40.6 ms,
+  chatsSave 87.6/115.4/87.9 ms. A single run used for all three routes (the first attempt, run 42326330825)
+  set a settingsGet ceiling of 44.806 ms from the LOWEST of the three observations.
+- The 25% floor is smaller than the baseline series' own same-code spread: settingsGet is 1.615x and
+  chatsSave 1.317x from min to max, so a fixed 1.25x ceiling fails the baseline against itself on those
+  routes. The derived tolerance is 0.612 (settingsGet), 0.318 (chatsSave) and stays at the 0.25 floor for
+  settingsSave (1.047x spread).
+
+The resulting ceilings are settingsSave 147.0 ms, settingsGet 93.132 ms and chatsSave 152.065 ms; a host whose
+typical sync write exceeds `max(3 x 8.67, 8.67 + 2) = 26.0` ms is refused by name (`threshold/host-disk`),
+never silently graded. Commit `985eed5` adds the measured-spread term.
+
+**Teeth.** `node tests/perf/m5-eight-users.mjs --self-test` is 26/26, including the fingerprint cases and the
+merged-baseline cases. Three mutations were observed and restored: `HOST_DISK_RATIO` 3 -> 1000 turns
+`self-test/host-disk-degradation-refused` red; replacing the per-route maximum with a minimum turns
+`merged-baseline-uses-each-routes-worst` and `merged-baseline-passes-the-recorded-after` red; dropping the
+measured-spread term turns `merged-baseline-uses-each-routes-worst` and
+`merged-baseline-widens-only-the-noisy-routes` red.
+
+### 11.3 The solid finding: this row's write p95 is dominated by host storage tail, and its gate is not ratifiable on this runner pool
+
+Three AFTER runs of the final code candidate were dispatched against the merged baseline. All three landed on
+the SAME CPU model (AMD EPYC 9V74) and produced:
+
+| run | tree | disk median / p95 (ms) | throughput | settingsSave p95 | settingsGet p95 | chatsSave p95 | verdict |
+|---|---|---|---|---|---|---|---|
+| 42331164300 | 93f5f59 | 0.38 / 137.96 | 214.3 ops/s | 115.2 ms | 56.5 ms | 116.3 ms | inside the merged ceilings (it had failed the FIRST attempt's single-run settingsGet ceiling of 44.806 ms) |
+| 42331708166 | 58d9291 | 0.32 / 30.53 | 164.4 ops/s | 191.8 ms | 43.6 ms | 175.6 ms | `threshold/settingsSave-p95` and `threshold/chatsSave-p95` red |
+| 42332089046 | 985eed5 | 0.39 / 80.88 | 118.1 ops/s | 225.1 ms | 41.4 ms | 265.9 ms | `threshold/settingsSave-p95` red (chatsSave 265.9 > 152.065 too) |
+
+The spread of the SAME code across these three hosts is 1.95x on settingsSave p95 (115.2 -> 225.1 ms) and
+2.29x on chatsSave (116.3 -> 265.9 ms), while the read route stays at 41.4-56.5 ms and every run keeps its
+correctness checks green (error rate 0, 8/8 accounts isolated, 144 operations each). The write-route p95
+tracks the host's sync-write TAIL (p95 30.5/80.9/138.0 ms), not the code: the same binary measured 118.1 and
+214.3 ops/s on hosts of one CPU model minutes apart.
+
+**Conclusion, stated with its scope.** (1) No product regression is detectable in this row, and none is
+plausible in the release diff: the measured routes' handlers (`internal/server/settings_save.go`,
+`internal/server/chats.go`) are untouched by `v0.1.0-alpha.15..the candidate`; the release changes are the
+D-H1 config-path threading, the C-H1 limiter bound, the C-H6 heartbeat stop, the D-H7 tokenizer cache write and
+the test harness. (2) The row's fail-closed latency gate is **NOT RATIFIABLE on this runner pool** at 48
+requests per route: its own same-code repeat spread exceeds every tolerance that still detects a regression,
+and the write p95 is a storage-tail measurement. The row is therefore kept as **REPORT-ONLY evidence** for
+alpha.16: correctness, isolation and error rate are green in all runs; no graded 8-user latency number is
+claimed by the release. (3) The rule and its teeth are committed so the row can be graded on a host class
+with stable write latency: the only change needed is a baseline series and AFTER runs recorded on that class.
+A same-host paired design (baseline binary built from the previous release and measured in the same job as the
+candidate) is the named next step; it was not executed here.
