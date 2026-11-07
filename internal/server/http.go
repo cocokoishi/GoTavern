@@ -42,8 +42,13 @@ type versionResponse struct {
 // HTTP middleware. A nil session timeout means SillyTavern's default of -1
 // (400 days).
 type HTTPHandlerOptions struct {
-	InstallRoot                      string
-	DataRoot                         string
+	InstallRoot string
+	DataRoot    string
+	// ConfigPath is the runtime config.yaml the startup chain resolved and parsed (commandline.Paths.ConfigFile,
+	// absolute, after configinit.Initialize has run on it). The chat-completion converters read provider-visible
+	// keys through it; without it a --configPath launch, or a --dataRoot not adjacent to the config file, leaves
+	// every one of those keys at its default. SEE pinned_chat_config.go and the D-H1 finding.
+	ConfigPath                       string
 	CookieSecret                     string
 	DisableCSRF                      bool
 	EnableCorsProxy                  bool

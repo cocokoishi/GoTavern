@@ -70,18 +70,18 @@ func TestPinnedThoughtSignaturesResolution(t *testing.T) {
 	writeOpenRouterTestConfig(t, directories, "enableUserAccounts: true\nskipContentCheck: true\ngemini:\n  thoughtSignatures: false\n")
 
 	unsetEnvForTest(t, "SILLYTAVERN_GEMINI_THOUGHTSIGNATURES")
-	if pinnedThoughtSignatures(directories) {
+	if pinnedThoughtSignatures(pinnedChatConfigFromDirectories(directories)) {
 		t.Fatalf("gemini.thoughtSignatures: false in the config file was read as true")
 	}
 
 	t.Setenv("SILLYTAVERN_GEMINI_THOUGHTSIGNATURES", "true")
-	if !pinnedThoughtSignatures(directories) {
+	if !pinnedThoughtSignatures(pinnedChatConfigFromDirectories(directories)) {
 		t.Fatalf("the environment override must win over the file")
 	}
 
 	unsetEnvForTest(t, "SILLYTAVERN_GEMINI_THOUGHTSIGNATURES")
 	writeOpenRouterTestConfig(t, directories, "enableUserAccounts: true\n")
-	if !pinnedThoughtSignatures(directories) {
+	if !pinnedThoughtSignatures(pinnedChatConfigFromDirectories(directories)) {
 		t.Fatalf("an absent gemini section must take the pinned default, true (default/config.yaml:382)")
 	}
 }

@@ -292,6 +292,10 @@ func Start(options StartOptions) (*RunningServer, error) {
 	trace.begin("routes")
 	handlerOptions := server.HTTPHandlerOptionsFromCommandLine(parsed)
 	handlerOptions.InstallRoot = options.InstallRoot
+	// The runtime config.yaml startup resolved and parsed. The chat-completion converters read provider-visible
+	// keys from it; deriving it again from the data root silently defaults every one of them when --configPath
+	// names another file or --dataRoot is not adjacent to it (D-H1).
+	handlerOptions.ConfigPath = parsed.Paths.ConfigFile
 	handlerOptions.Whitelist = loadWhitelistPatterns(handlerOptions.Whitelist, options.InstallRoot)
 	handlerOptions.ForbiddenPage = whitelistPage
 	handlerOptions.PreserveForbiddenPage = true

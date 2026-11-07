@@ -70,6 +70,17 @@ func pinnedChatCompletionPlanWithoutAffinity(plan func(orderedNodeJSON, startup.
 	}
 }
 
+// pinnedChatCompletionPlanWithConfig adapts a planner that reads provider-visible CONFIG keys, so it receives
+// the startup-resolved config.yaml alongside the per-user directories. It exists as a second adapter rather
+// than as a wider planner signature because D-H1's bounded fix touches only the planners that read a config
+// key (claude and mistral today); every other row keeps pinnedChatCompletionPlanWithoutAffinity, and a planner
+// that silently stopped receiving the resolved path would be a defect this narrowness makes visible.
+func pinnedChatCompletionPlanWithConfig(plan func(orderedNodeJSON, pinnedChatConfigSource) (*outbound.Request, *pinnedChatCompletionFailure)) chatCompletionPlanner {
+	return func(request chatCompletionRequest) (*outbound.Request, *pinnedChatCompletionFailure) {
+		return plan(request.body, request.config())
+	}
+}
+
 // pinnedChatCompletionSourceRegistry is every source this route routes. Order is not observable (the lookup
 // is by name) and is alphabetical only so a reader can find a row.
 var pinnedChatCompletionSourceRegistry = []chatCompletionSource{
@@ -103,7 +114,7 @@ var pinnedChatCompletionSourceRegistry = []chatCompletionSource{
 	),
 	newChatCompletionSource(
 		chatCompletionSourceClaude,
-		pinnedChatCompletionPlanWithoutAffinity(pinnedClaudePlan),
+		pinnedChatCompletionPlanWithConfig(pinnedClaudePlan),
 		// CLAUDE is structurally special: the content[0].text rewrap with an optional member. Its catch is
 		// 500 {error:true}, NOT the shared 502.
 		serveClaudeChatCompletionResponse,
@@ -156,7 +167,7 @@ var pinnedChatCompletionSourceRegistry = []chatCompletionSource{
 	),
 	newChatCompletionSource(
 		chatCompletionSourceMistral,
-		pinnedChatCompletionPlanWithoutAffinity(pinnedMistralPlan),
+		pinnedChatCompletionPlanWithConfig(pinnedMistralPlan),
 		servePinnedChatCompletionPassThroughResponse,
 		pinnedChatCompletionTransportErrorFlagOK,
 	),

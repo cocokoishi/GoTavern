@@ -265,7 +265,7 @@ func (runtime *accountRuntime) serveChatCompletionGenerate(w http.ResponseWriter
 		return
 	}
 
-	row, plan, failure := pinnedChatCompletionResolve(body, directories, runtime.options.CookieSecret)
+	row, plan, failure := pinnedChatCompletionResolve(body, directories, runtime.options.CookieSecret, runtime.options.ConfigPath)
 	if failure != nil {
 		if failure.payload == nil {
 			httpx.WriteStatusText(w, failure.status)
@@ -378,7 +378,7 @@ func pinnedChatCompletionQuotaError(providerBody []byte) bool {
 //   - a name the pinned matrix knows but this route has no row for (cometapi): 501, NO request. This is
 //     the "not written yet" gap, and answering it as a 400 would make it indistinguishable from a refusal;
 //   - a name the pinned matrix does not know: 400 {"error":true}, which is the pinned closing else.
-func pinnedChatCompletionResolve(body orderedNodeJSON, directories startup.UserDirectories, affinityKey string) (chatCompletionSource, *outbound.Request, *pinnedChatCompletionFailure) {
+func pinnedChatCompletionResolve(body orderedNodeJSON, directories startup.UserDirectories, affinityKey string, configPath ...string) (chatCompletionSource, *outbound.Request, *pinnedChatCompletionFailure) {
 	sourceName := pinnedChatCompletionSourceName(body)
 	row, routed := pinnedChatCompletionSourceByName(sourceName)
 	if !routed {
@@ -397,6 +397,7 @@ func pinnedChatCompletionResolve(body orderedNodeJSON, directories startup.UserD
 	request := chatCompletionRequest{
 		body:             body,
 		directories:      directories,
+		configPath:       pinnedChatCompletionConfigPath(configPath),
 		affinityKey:      affinityKey,
 		isTextCompletion: pinnedChatCompletionIsTextCompletion(body),
 	}
@@ -410,9 +411,22 @@ func pinnedChatCompletionResolve(body orderedNodeJSON, directories startup.UserD
 // pinnedChatCompletionPlan resolves the pinned target selection and request body for the sources this route
 // implements. It is the plan half of pinnedChatCompletionResolve, kept as its own entry point because the
 // per-source tests drive the plan directly and need the failure rather than the row.
-func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDirectories, affinityKey string) (*outbound.Request, *pinnedChatCompletionFailure) {
-	_, plan, failure := pinnedChatCompletionResolve(body, directories, affinityKey)
+//
+// The optional configPath is the startup-resolved runtime config.yaml (HTTPHandlerOptions.ConfigPath). It is
+// optional so the per-source planner tests, which construct directories without a handler, keep exercising
+// the documented directory fallback; the route always passes it. SEE pinned_chat_config.go for why a
+// resolved path must be THE file rather than a first guess.
+func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDirectories, affinityKey string, configPath ...string) (*outbound.Request, *pinnedChatCompletionFailure) {
+	_, plan, failure := pinnedChatCompletionResolve(body, directories, affinityKey, configPath...)
 	return plan, failure
+}
+
+// pinnedChatCompletionConfigPath reads the optional startup-resolved config-file argument.
+func pinnedChatCompletionConfigPath(optional []string) string {
+	if len(optional) == 0 {
+		return ""
+	}
+	return optional[0]
 }
 
 // chatCompletionRequest is everything a planner needs that is not specific to its source, resolved once by
@@ -420,10 +434,20 @@ func pinnedChatCompletionPlan(body orderedNodeJSON, directories startup.UserDire
 type chatCompletionRequest struct {
 	body        orderedNodeJSON
 	directories startup.UserDirectories
+	// configPath is the runtime config.yaml the startup chain resolved and parsed (absolute). When set it
+	// is the ONLY config file the provider-visible readers consult; empty means a direct planner test with
+	// no handler, where the readers fall back to deriving the path from directories.
+	configPath  string
 	affinityKey string
 	// isTextCompletion is `TEXT_COMPLETION_MODELS.includes(body.model) || typeof body.messages === 'string'`
 	// (:2279), evaluated ONCE against the request body before the planner can mutate it.
 	isTextCompletion bool
+}
+
+// config is the config view the provider-visible helpers read. It carries the resolved file when there is
+// one, plus the directories the credential helpers keep using.
+func (request chatCompletionRequest) config() pinnedChatConfigSource {
+	return pinnedChatConfigSource{file: request.configPath, directories: request.directories}
 }
 
 // chatCompletionPlanInputs is what a shared-path source's planner hands the assembler: the request body it

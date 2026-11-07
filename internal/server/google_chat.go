@@ -72,8 +72,8 @@ func pinnedGoogleAPIName(useVertexAI bool) string {
 // DEFAULT INSTALL ends up with. The last step is `v1beta` here because that is both the pinned default and
 // the shipped/inserted value (default/config.yaml:380, recorded in the config-init fresh install), so a
 // stock install is unchanged while an operator's `v1` reaches the URL.
-func pinnedGoogleAPIVersion(directories startup.UserDirectories) string {
-	return pinnedChatConfigString(directories, []string{"gemini", "apiVersion"}, pinnedGeminiDefaultAPIVersion)
+func pinnedGoogleAPIVersion(config pinnedChatConfigSource) string {
+	return config.stringValue([]string{"gemini", "apiVersion"}, pinnedGeminiDefaultAPIVersion)
 }
 
 // pinnedGoogleRegion is `request.body.vertexai_region || 'us-central1'` (:691, :716).
@@ -127,8 +127,10 @@ func pinnedGoogleSourceName(body orderedNodeJSON) (useVertexAI bool, isGoogle bo
 	return false, false
 }
 
-// pinnedGooglePlan assembles the outbound request for either Google source.
-func pinnedGooglePlan(body orderedNodeJSON, directories startup.UserDirectories, useVertexAI bool) (*outbound.Request, *pinnedChatCompletionFailure) {
+// pinnedGooglePlan assembles the outbound request for either Google source. It takes the config view because
+// `gemini.apiVersion` is provider-visible and must be read from the startup-resolved config.yaml (D-H1/D-H2).
+func pinnedGooglePlan(body orderedNodeJSON, config pinnedChatConfigSource, useVertexAI bool) (*outbound.Request, *pinnedChatCompletionFailure) {
+	directories := config.directories
 	model := pinnedGoogleModel(body)
 	stream := pinnedChatCompletionStreams(body)
 
@@ -206,7 +208,7 @@ func pinnedGooglePlan(body orderedNodeJSON, directories startup.UserDirectories,
 				keyText = pinnedClaudeJSString(apiKey)
 			}
 		}
-		endpointURL = pinnedMakerSuiteGenerateURL(base, pinnedGoogleAPIVersion(directories), model, stream, keyText)
+		endpointURL = pinnedMakerSuiteGenerateURL(base, pinnedGoogleAPIVersion(config), model, stream, keyText)
 	}
 
 	payload := pinnedGoogleBody(body, useVertexAI)
@@ -459,7 +461,7 @@ func (runtime *accountRuntime) serveMakerSuiteChatCompletionStatus(w http.Respon
 			keyText = pinnedClaudeJSString(apiKey)
 		}
 	}
-	modelsURL := pinnedMakerSuiteStatusURL(base, pinnedGoogleAPIVersion(directories), keyText, proxyTruthy)
+	modelsURL := pinnedMakerSuiteStatusURL(base, pinnedGoogleAPIVersion(pinnedChatConfigSource{file: runtime.options.ConfigPath, directories: directories}), keyText, proxyTruthy)
 	models, fetchErr := pinnedGoogleFetchModels(request.Context(), modelsURL, proxyTruthy, keyText)
 	if fetchErr != nil {
 		searchGoogleStatusFailure(w)
@@ -486,11 +488,11 @@ func searchGoogleStatusFailure(w http.ResponseWriter) {
 // the registry row must name a real function: a nil or half-bound callback would let a source lose its plan
 // without a compile error. Both call the one pinned function.
 func pinnedMakerSuitePlan(request chatCompletionRequest) (*outbound.Request, *pinnedChatCompletionFailure) {
-	return pinnedGooglePlan(request.body, request.directories, false)
+	return pinnedGooglePlan(request.body, request.config(), false)
 }
 
 func pinnedVertexAIPlan(request chatCompletionRequest) (*outbound.Request, *pinnedChatCompletionFailure) {
-	return pinnedGooglePlan(request.body, request.directories, true)
+	return pinnedGooglePlan(request.body, request.config(), true)
 }
 
 // serveMakerSuiteChatCompletionResponse and serveVertexAIChatCompletionResponse are the two response rows,

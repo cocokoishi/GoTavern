@@ -80,7 +80,7 @@ func pinnedOpenRouterChatPlan(request chatCompletionRequest) (*outbound.Request,
 	// chat-completions.js:2372-2374, in the pinned order: the body parameters are assembled first, then the
 	// media and signature transforms mutate `request.body.messages` BEFORE the assembly copies them into the
 	// outbound body. See openrouter_media.go for the semantics and why each is where it is.
-	pinnedChatCompletionOpenRouterMessageTransforms(&body, pinnedThoughtSignatures(request.directories))
+	pinnedChatCompletionOpenRouterMessageTransforms(&body, pinnedThoughtSignatures(request.config()))
 
 	return pinnedChatCompletionAssemble(chatCompletionSourceOpenRtr, request, chatCompletionPlanInputs{
 		body:          body,

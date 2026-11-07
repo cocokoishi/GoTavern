@@ -21,12 +21,10 @@ package server
 //   - :441-446 a thrown fetch (or a JSON parse failure, which throws inside the same try) answers
 //     500 {"error":true} while the headers have not been sent.
 //
-// NOT COVERED, stated rather than silently different: the config-gated caching helpers
-// (claude.enableSystemPromptCache, claude.cachingAtDepth, claude.extendedTTL -- :106-112, :281-283,
-// :297-299, :330-337) are OFF by DEFAULT, are never reached by a default request, and the claude
-// config keys are not projected into HTTPHandlerOptions, so their two extra beta values and their
-// cache_control members cannot be pinned here. `promptPlaceholder` is the same shape of gap: the
-// pinned value comes from config.yaml and this route uses the pinned default.
+// CONFIG: the caching helpers (claude.enableSystemPromptCache, claude.cachingAtDepth, claude.extendedTTL --
+// :106-112, :281-283, :297-299, :330-337) and `promptPlaceholder` are provider-visible config keys. They are
+// read from the startup-resolved config.yaml through pinned_chat_config.go (D-H1), so --configPath / a
+// non-adjacent --dataRoot reaches them; the default-install values keep the pinned defaults.
 
 import (
 	"errors"
@@ -39,7 +37,6 @@ import (
 	"strings"
 
 	"github.com/cocokoishi/gotavern/internal/outbound"
-	"github.com/cocokoishi/gotavern/internal/startup"
 )
 
 const (
@@ -567,8 +564,8 @@ func pinnedClaudeIsJSSpace(character rune) bool {
 // config-init inserts it into every fresh runtime config (the committed
 // tests/oracle/sillytavern-1.19.0-config-init.json records it in the fresh install's output), so a stock
 // install observes false and only an explicit operator/true override observes true.
-func pinnedClaudeAdaptiveThinking(directories startup.UserDirectories) bool {
-	return pinnedChatConfigBool(directories, []string{"claude", "enableAdaptiveThinking"}, false)
+func pinnedClaudeAdaptiveThinking(config pinnedChatConfigSource) bool {
+	return config.boolValue([]string{"claude", "enableAdaptiveThinking"}, false)
 }
 
 // pinnedClaudePayload builds the pinned requestBody (:269-406) and the anthropic-beta list that goes with
@@ -803,8 +800,12 @@ func pinnedClaudeLessThanOne(value orderedNodeJSON) bool {
 	return number < 1
 }
 
-// pinnedClaudePlan is the plan for the CLAUDE source: its own URL, key, header set and body.
-func pinnedClaudePlan(body orderedNodeJSON, directories startup.UserDirectories) (*outbound.Request, *pinnedChatCompletionFailure) {
+// pinnedClaudePlan is the plan for the CLAUDE source: its own URL, key, header set and body. It takes the
+// pinnedChatConfigSource rather than bare directories because promptPlaceholder and
+// claude.enableAdaptiveThinking are provider-visible config keys (D-H1): the resolved config.yaml must reach
+// them, and only a resolved path makes that true when --configPath / a non-adjacent --dataRoot is in use.
+func pinnedClaudePlan(body orderedNodeJSON, config pinnedChatConfigSource) (*outbound.Request, *pinnedChatCompletionFailure) {
+	directories := config.directories
 	apiURL := pinnedClaudeBaseURL()
 	apiKey := nodeUndefined()
 	if reverseProxy, exists := body.member("reverse_proxy"); exists && pinnedJSTruthy(reverseProxy) {
@@ -830,11 +831,11 @@ func pinnedClaudePlan(body orderedNodeJSON, directories startup.UserDirectories)
 		return nil, pinnedChatCompletionJSONFailure(http.StatusBadRequest, pinnedChatCompletionErrorFlag())
 	}
 
-	payload, betaHeaders, failure := pinnedClaudePayload(body, pinnedChatPromptPlaceholder(directories), pinnedClaudeAdaptiveThinking(directories))
+	payload, betaHeaders, failure := pinnedClaudePayload(body, pinnedChatPromptPlaceholder(config), pinnedClaudeAdaptiveThinking(config))
 	// :281-283, :297-299, :330-332, then :334-337 -- the caching mutations happen on the built payload and the
 	// beta list grows by two tokens when either branch is active. Config read per request for the reason
 	// pinned_chat_config.go states.
-	betaHeaders = pinnedClaudeApplyCaching(&payload, directories, betaHeaders)
+	betaHeaders = pinnedClaudeApplyCaching(&payload, config, betaHeaders)
 	if failure != nil {
 		return nil, failure
 	}
