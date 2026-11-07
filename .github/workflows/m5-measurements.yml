@@ -30,14 +30,15 @@ name: M5 measurements
 #           report.json, which becomes one baseline for the next run. A RATIFICATION SERIES dispatches several
 #           BEFORE runs on the same tree and keeps every report.
 #   AFTER:  dispatch at the change under test with `thresholds_from_run=<run id>[,<run id>...]`. The job
-#           downloads every cited artifact and passes each as `--thresholds-json`; the harness takes each
-#           route's ceiling as the WORST p95 observed for THAT route across the supplied reports x 1.25 and
-#           fails closed by name (`threshold/<route>-p95`) when the after run is above it. The per-route
-#           maximum matters: the 2026-11-07 repeats had settingsSave, settingsGet and chatsSave each peak in a
-#           different run, so a single report taken for all three routes under-covered settingsGet. The job also
-#           refuses a host whose typical sync write is outside the worst recorded disk fingerprint
-#           (`threshold/host-disk`, a named refusal, never a pass). A missing BEFORE artifact, or a cited run
-#           whose own report is not ok, is a named failure, never a run with no threshold.
+#           downloads every cited artifact and passes each as `--thresholds-json`; the harness sets each
+#           route's ceiling to its WORST p95 across the supplied reports x (1 + max(25%, that route's measured
+#           spread across those reports)) and fails closed by name (`threshold/<route>-p95`) when the after run
+#           is above it. Both parts come from the baseline series alone: the 2026-11-07 repeats had each route
+#           peak in a different run and the same-code spread reached 1.615x, so neither a single-run baseline
+#           nor a fixed 1.25x ceiling is a valid gate for this row. The job also refuses a host whose typical
+#           sync write is outside the worst recorded disk fingerprint (`threshold/host-disk`, a named refusal,
+#           never a pass). A missing BEFORE artifact, or a cited run whose own report is not ok, is a named
+#           failure, never a run with no threshold.
 #   NO THRESHOLD IS INVENTED: the first run of a row has no noise estimate, so it reports and fails only on
 #   correctness; the AFTER run against the repeated baselines is where a latency regression can turn it red.
 #
@@ -86,7 +87,7 @@ on:
         type: string
         default: ''
       thresholds_from_run:
-        description: 'One or more previous m5-measurements run ids, comma-separated, whose m5-eight-users-evidence artifacts form the BEFORE baseline; each route then fails closed above the WORST p95 observed for that route across them x1.25, and a host outside the worst recorded disk fingerprint is refused by name'
+        description: 'One or more previous m5-measurements run ids, comma-separated, whose m5-eight-users-evidence artifacts form the BEFORE baseline; each route then fails closed above its WORST baseline p95 x (1 + max(25%, that route measured baseline spread)), and a host outside the worst recorded disk fingerprint is refused by name'
         type: string
         default: ''
 
