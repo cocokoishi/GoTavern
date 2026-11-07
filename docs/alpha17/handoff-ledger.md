@@ -44,12 +44,25 @@ nothing here is a PASS until its evidence exists.
 | 4 | `GoTavern drop-in qualification` 42375608158 failed the Q21 packaged hand-back judge (`pinnedReadGotavernsTurn`: `chatId: null`) | harness/browser race, not product: the same workflow passed at `1b099e9` and at `db7d87d`, and the only change in between was a gofmt-only test edit the workflow does not use | no code change; the gate is re-dispatched at the candidate SHA (see §4) | 42375608158 (failure) vs 42376248471 / 42373831363 (success) |
 | 5 | local process-level harness aborted after 7 scales (`scripts/a15-bench-suite.mjs` complex-preset entry has no `scaleArgs`) | harness defect; `scripts/**` was outside the perf lane's write scope | recorded as reported, not patched; the baseline covers the 7 measured scales and names the missing ones | `docs/alpha17/perf/README.md`, `perf-hotspot.md` |
 
-## 4. The same-SHA gate wave
+## 4. The same-SHA gate wave — PASS 13/13 (EXECUTED)
 
-The thirteen required workflows and the pre-tag rehearsal were dispatched at `9b99fde0b0a9be0665cd93bc2143a3f495af31c2`;
-the run ids and the verifier verdict are recorded in `docs/alpha17/same-sha-evidence.md`. The wave is the
-gate: a run that was not dispatched at that SHA, that is not completed/success, or whose required job or
-embedded evidence is missing is a refusal, and the release does not happen.
+The thirteen required workflows were dispatched at `9b99fde0b0a9be0665cd93bc2143a3f495af31c2` with their
+full selections; every one reached `completed`/`success`. The official verifier (the same script the publish
+job runs) read them and printed:
+
+```
+**PASS**: 13/13 required workflow(s) are green at this SHA.
+```
+
+Run ids, the verifier table (`docs/alpha17/same-sha-verifier-table.md`) and the unified evidence document
+(`docs/alpha17/release-evidence.json`, overall PASS) are in `docs/alpha17/same-sha-evidence.md` §2-§3. The
+wave is the gate: a run that was not dispatched at that SHA, that is not completed/success, or whose required
+job or embedded evidence is missing is a refusal, and the release does not happen.
+
+The first pre-tag rehearsal (`GoTavern Release` 42378606389) was dispatched before the curated notes were on
+`main` and was refused by the darwin/arm64 limitation rail (a downgrade that is not stated in the note is
+refused); a dispatch never publishes, so no release state was touched. The rehearsal was re-dispatched after
+the notes commit and its result is recorded in §5.
 
 ## 5. Release publication and post-publication verification
 

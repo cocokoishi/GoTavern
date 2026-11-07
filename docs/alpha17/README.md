@@ -17,7 +17,7 @@ claims ahead of a run is a report defect, not progress (`AGENTS.md` rule 36).
 | pinned oracle | SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127` in `../SillyTavern` | `git -C ../SillyTavern rev-parse HEAD` |
 | Go toolchain | `go1.27.3 windows/arm64` from `go.mod` | `go version`, `go.mod` |
 | tree census | 2,376 git-tracked files: `internal/` 556, `tests/` 619, `docs/` 97, `upstream/` 828, `tools/` 186, `scripts/` 40, `.github/` 22, `cmd/` 10 | `git ls-files | Measure-Object -Line` and per-directory counts |
-| Go suite census (recomputed at HEAD) | 618 tracked `*.go` files outside `upstream/`; 321 `*_test.go` files; 978 top-level `Test|Benchmark|Fuzz` functions | `git ls-files '*.go'`, `Select-String '^func (Test|Benchmark|Fuzz)[A-Z]'` |
+| Go suite census (recomputed at the round-start tree) | 618 tracked `*.go` files outside `upstream/`; 321 `*_test.go` files; 978 top-level `Test|Benchmark|Fuzz` functions, plus the 33 new alpha.17 niche test functions in this round | `git ls-files '*.go'`, `Select-String '^func (Test|Benchmark|Fuzz)[A-Z]'` |
 | required release gates | 13 entries in `docs/release-manifest.json` (`requiredGates`), all `requiredEvent: workflow_dispatch` | `node -e "…requiredGates.length"` |
 
 **Version discipline.** `v0.1.0-alpha.16` is a published GitHub Release and its tag must never be

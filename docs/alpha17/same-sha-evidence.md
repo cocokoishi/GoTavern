@@ -50,3 +50,50 @@ gh workflow run release.yml --ref main -f ref=9b99fde0b0a9be0665cd93bc2143a3f495
 each run reaches a terminal state and `scripts/verify-release-gates.mjs` has read them; a run that is still in
 progress, cancelled, skipped or narrowed is a refusal, never a PASS. The release is not tagged while this file
 says DRAFT.
+
+## 3. Verdict — the official verifier read the wave (EXECUTED)
+
+Command (the same one the publish job runs, with the evidence outputs added):
+
+```bash
+GH_TOKEN=… GITHUB_REPOSITORY=cocokoishi/GoTavern node scripts/verify-release-gates.mjs \
+  --sha 9b99fde0b0a9be0665cd93bc2143a3f495af31c2 --manifest docs/release-manifest.json \
+  --evidence-out docs/alpha17/same-sha-verifier-table.md \
+  --release-evidence-out docs/alpha17/release-evidence.json \
+  --release-evidence-md-out docs/alpha17/release-evidence.md \
+  --workflow 'GoTavern Release' --event workflow_dispatch \
+  --pinned-sha 06bde939fb1e9c4c8d8641d810f0a916b5bce127
+```
+
+Result (2026-11-07): every one of the thirteen required workflows has a **completed / success
+`workflow_dispatch`** run at `9b99fde…`, and the verifier printed:
+
+```
+**PASS**: 13/13 required workflow(s) are green at this SHA.
+```
+
+The machine-readable table is `docs/alpha17/same-sha-verifier-table.md`; the unified evidence document the new
+emitter produced from the same queries is `docs/alpha17/release-evidence.json` (overall `PASS`, 13/13 gates)
+with its rendered table `docs/alpha17/release-evidence.md`. The four artifact gates show their required job
+**and** embedded evidence kind in the table (combination `tier=full`; long-lived `size=medium`; Node stock
+tree tree/manifest digests; extension corpus). Required jobs were present and not skipped; no run at another
+SHA, no push run and no narrowed selection was counted.
+
+## 4. The pre-tag rehearsal: one real refusal, and its fix
+
+The first rehearsal (`GoTavern Release` 42378606389, dispatched at the candidate **before** the curated notes
+existed on `main`) failed at the `darwin/arm64 must be executed OR recorded as a platform limitation, with the
+note line published` rail: the publish job reads the curated note from the tag tree, then falls back to
+`origin/main`, and at dispatch time neither carried `docs/release-notes-v0.1.0-alpha.17.md`, so the limitation
+line could not be found. That is the gate doing its job (a downgrade that is not stated is refused). The
+rehearsal is re-dispatched after the notes commit is pushed and its result is recorded in
+`handoff-ledger.md` §5; a dispatch never publishes, so no release state was touched by the red rehearsal.
+
+## 5. What this PASS does not claim
+
+The gate proves that the required runs executed at the candidate SHA with their required jobs/artifacts and
+that the embedded evidence is internally consistent. It does not turn any UNPROVEN row into a proof: §14 of
+`GOAL.md` remains NOT MET, darwin/arm64 runtime and the macOS arm64 extension lifecycle remain UNVERIFIED,
+windows/arm64 remains BUILD-ONLY, and the 8-user/soak/ENOSPC/relay/streaming-cancellation page-load rows keep
+their recorded states. The release notes state the same boundaries.
+
