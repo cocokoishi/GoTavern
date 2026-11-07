@@ -1,0 +1,76 @@
+# `docs/alpha17/perf/` — raw process-level baseline artifacts (LOCAL, Windows arm64)
+
+**These are Layer A (local development host) artifacts. They are triage evidence, not Linux CI release
+evidence.** The alpha.17 release performance claim comes from the existing `GoTavern smoke metrics` CI
+gate; no number in this directory is spliced into that record.
+
+All artifacts were produced in one time-boxed window on 2026-11-07 on this host:
+
+| fact | value |
+|---|---|
+| OS | Windows 11 24H2, build 10.0.26100.9711 (from `cmd /c ver`) |
+| CPU / cores | `virt-7.2`, 2 logical cores |
+| RAM | 12,879,790,080 B |
+| GOMAXPROCS | 2 (unset; Go default = logical cores) |
+| Go / Node | go1.27.3 windows/arm64 / v24.19.0 |
+| subject binary | local `go build -trimpath -ldflags="-s -w"` of `./cmd/gotavern`, sha256 `7ae492913fd46d0a02d10c51f0237a62ebaac881c81e8945be3f333f7e4fc131`, 60,789,248 B |
+| repository commit | `fd40ef7e2325834cc9fffa46d94c200e2114253c` + other lanes' modified files (dirty; recorded per artifact) |
+| sync-write fingerprint | p50 2.889 ms / p95 7.218 ms (12 samples, 48 KiB, open+write+fsync+close+unlink on the work root) |
+| host load | shared 2-core host, other lanes may have been active — every artifact carries the `--load-label` |
+
+## Index
+
+| file | size | what it is |
+|---|---|---|
+| `runner-fingerprint.json` | 2,398 B | OS build, CPU, RAM, GOMAXPROCS, Go/Node, git HEAD, build flags, binary sha256/size, sync-write fingerprint (12 samples + p50/p95/max), comparability rule |
+| `baseline-summary.json` | 37,444 B | mechanical extract of every record from the 9 harness artifacts below (no new numbers); each record keeps boot/RSS/peak/CPU/GC/latency and its source artifact name |
+| `a15/smoke-2026-11-07T13-14-03-881Z.json` | 39,716 B | **100 cards, `/api/characters/all`, 3 cold + 3 warm boots, 50 requests/path**, `GODEBUG=gctrace=1`; boot to first `/version` 200, RSS ready/steady/final, peak RSS, CPU user+system, GC count/pause/heap goal, p50/p95/p99 for `/version`, `/`, and the data route |
+| `a15/scale-2026-11-07T13-20-32-786Z.json` | 10,867 B | 1,000 cards (1,002 files / 9,664,626 B), data route `/api/characters/all` |
+| `a15/scale-2026-11-07T13-21-47-605Z.json` | 10,941 B | 10,000 cards (10,002 files / 96,640,626 B), data route `/api/characters/all` |
+| `a15/scale-2026-11-07T13-21-53-047Z.json` | 10,888 B | 100 × 256 KB chats, data route `/api/characters/chats` |
+| `a15/scale-2026-11-07T13-21-57-105Z.json` | 10,845 B | 2,400-message chat history (`chats-large`), data route `/api/characters/chats` |
+| `a15/scale-2026-11-07T13-22-02-048Z.json` | 10,896 B | 1,000 world books × 8 KB, data route `/api/worldinfo/list` |
+| `a15/scale-2026-11-07T13-22-07-666Z.json` | 10,982 B | 1,100 settings documents, data route `/api/settings/get` |
+| `a15/scale-2026-11-07T13-22-11-825Z.json` | 10,484 B | complex preset tree, data route `/api/settings/get` |
+| `a15/scale-2026-11-07T13-22-24-397Z.json` | 10,940 B | mixed large tree (2,533 files / 51,041,806 B), data route `/api/characters/all` |
+
+Every harness artifact is self-describing: `environment` (harness, git commit/branch/dirty count, Go, Node,
+CPU model/cores/RAM, GOMAXPROCS, build flags, load label, run mode, rounds, requests per path, data scale,
+work dir, started-at), `subjects` (binary path, sha256, size, version identity), `parameters`, and
+`payload.records[]` with every raw sample. `payload.records[].stop.mode` is `abrupt-windows` for every
+Windows boot (recorded, not hidden).
+
+## How these were produced (exact commands)
+
+```powershell
+# 1. build the subject (exit 0, 2,866 ms)
+go build -trimpath -ldflags="-s -w" -o "$env:TEMP\gotavern-a17\gotavern.exe" ./cmd/gotavern
+
+# 2. runner fingerprint + sync-write fingerprint (12 samples, 48 KiB, work root)
+node tools/perf/fingerprint.mjs --out docs/alpha17/perf/runner-fingerprint.json `
+  --work-root "$env:TEMP\gotavern-a17\work" --binary "$env:TEMP\gotavern-a17\gotavern.exe" `
+  --build-command 'go build -trimpath -ldflags="-s -w" -o <tmp>/gotavern.exe ./cmd/gotavern'
+
+# 3. process-level smoke baseline: 100 cards, 3 cold + 3 warm boots, 50 requests/path
+node scripts/a15-bench-suite.mjs --mode smoke --subject "a17=$env:TEMP\gotavern-a17\gotavern.exe" `
+  --scale cards --rounds 3 --requests 50 --data-route characters `
+  --work-dir "$env:TEMP\gotavern-a17\work" --out docs/alpha17/perf/a15 `
+  --load-label "LOCAL alpha17 baseline smoke: Windows arm64 dev host, single sequential agent, no other lane"
+
+# 4. process-level scale rows (one invocation per scale; see performance-plan.md §11.2 defect 1)
+node scripts/a15-bench-suite.mjs --mode scale --subject "a17=$env:TEMP\gotavern-a17\gotavern.exe" `
+  --scale cards --scale-args "--cards,10000" --requests 3 --data-route characters ...
+#   (the other rows: --scale cards|chats|chats-large|worlds|settings|complex-preset|mixed-large with the
+#    fixturegen arguments listed in performance-plan.md §4, data route chats|worlds|settings|characters)
+```
+
+Data trees were generated by `tests/perf/fixturegen` under `%TEMP%\gotavern-a17\work\trees\`, outside the
+repository, and removed by the harness after each row (`--keep-trees` was not passed). No generated data
+tree is committed and none of its bytes are printed here; only file/byte counts are recorded.
+
+## What is deliberately absent (UNEXECUTED, not "zero")
+
+`--mode assets` (229-path page load), `--mode concurrency` (8-user / in-flight), `--mode soak` (30–60 min),
+provider relay, streaming cancellation, 20-extension page load, the cold-cache guard benchmark, and any
+pprof capture were **not run in this window**. See `docs/alpha17/performance-plan.md` §9 for the row-by-row
+matrix and the named reason for each. A missing artifact is never reported as a zero or as a pass.

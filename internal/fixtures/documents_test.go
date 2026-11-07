@@ -213,6 +213,9 @@ func contractDocumentFiles() []string {
 		// pin spelling / encoding / mojibake are checked like the others. A document that names the pin
 		// and is outside this list is one nothing checks (TestDocumentGateCoversTheContract).
 		filepath.Join("docs", "alpha17", "README.md"),
+		// The alpha.17 evidence-contract record names the pinned baseline and the alpha.16 candidate it was
+		// validated against, so it is a contract document and gets the same encoding/pin checks.
+		filepath.Join("docs", "alpha17", "evidence-contract.md"),
 	}
 }
 
@@ -615,6 +618,11 @@ var declaredOtherPins = map[string]string{
 	"c02eed109ceba32ba710948a0420425f8ce58b1f": "alpha.17 round-start main HEAD (two documentation commits after the alpha.16 release commit) - the tree the refreshed M0 audit, ownership map and source graph were produced at",
 	"b7d81cd1296e842d79997ea70c49dabeed04da31": "v0.1.0-alpha.16 annotated tag object - recorded by the alpha.17 contract to make 'the alpha.16 tag was not moved' checkable (it must keep peeling to c1886d7)",
 	"c1886d70db0342e09c6fdd3225909cae900c15c9": "v0.1.0-alpha.16 product-code commit and tag target - the published release this round must not re-create, move or delete",
+	// THE alpha.17 LOCAL BASELINE TREE. docs/alpha17/performance-plan.md names the commit its process-level
+	// (LOCAL Windows arm64) measurements were taken at; the tree was dirty (six files owned by other lanes),
+	// which the artifact records. This is a MEASUREMENT ANCHOR, not a baseline claim, and it is declared by
+	// value AND named for the same reason the historical measurement anchors above are.
+	"fd40ef7e2325834cc9fffa46d94c200e2114253c": "alpha.17 process-level performance baseline measured tree (docs/alpha17/performance-plan.md; LOCAL Windows arm64, dirty working tree recorded in the artifact), not a CI or release claim",
 }
 
 // checkPinnedCommitStrings is the gate body, extracted so the red-path test can drive it against a
