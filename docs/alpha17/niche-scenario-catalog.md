@@ -8,7 +8,7 @@ Assembled deterministically by `docs/alpha17/catalog/assemble.mjs` from 12 part 
 - deduplicated scenarios: **176** (unique stable IDs, recomputed by the assembler, target >= 150)
 - per domain: FS=24, DATA=18, WRITE=16, HTTP=18, PROVIDER=15, SSE=4, STREAM=10, PROMPT=16, EXT=10, CONC=8, SEC=14, CLI=13, PERF=6, CACHE=4
 - parts: 00-index.md, 01-fs.md, 02-data.md, 03-write.md, 04-http.md, 05-provider.md, 06-sse-stream.md, 07-prompt.md, 08-ext-concurrency.md, 09-security.md, 10-cli.md, 11-perf-cache.md
-- source parts bytes: 00-index.md:7966, 01-fs.md:16980, 02-data.md:11855, 03-write.md:11494, 04-http.md:12904, 05-provider.md:11407, 06-sse-stream.md:9751, 07-prompt.md:12167, 08-ext-concurrency.md:14129, 09-security.md:10728, 10-cli.md:8199, 11-perf-cache.md:7515
+- source parts bytes: 00-index.md:8599, 01-fs.md:16980, 02-data.md:11855, 03-write.md:11494, 04-http.md:12904, 05-provider.md:11407, 06-sse-stream.md:9751, 07-prompt.md:12167, 08-ext-concurrency.md:14129, 09-security.md:10728, 10-cli.md:8199, 11-perf-cache.md:7515
 
 Status legend: PROPOSED/COVERED/DESIGNED/UNEXECUTED are defined in the index part (section 3). COVERED
 means "a dedicated test exists and was grep-verified", never "it ran"; no row in this catalogue is
@@ -25,6 +25,14 @@ The assembled deliverable is `docs/alpha17/niche-scenario-catalog.md`, produced 
 `docs/alpha17/catalog/NN-*.md` by `docs/alpha17/catalog/assemble.mjs` (deterministic concatenation, count
 recomputed from the assembled text). The `tests` lane owns `tests/e2e/niche_*.go`; this catalogue cites
 those files where they exist but never claims a run.
+
+**POST-ASSEMBLY NOTE (2026-11-07, read before quoting a `DESIGNED` row).** The parts were drafted before the
+alpha.17 niche test files landed, so some rows still say `DESIGNED`/`NEW … (proposed)` for scenarios that
+`tests/e2e/niche_*.go` now covers. The AUTHORITATIVE executed mapping is
+`docs/alpha17/new-test-evidence.md` (which names each executed test, its assertion and its negative control);
+a `DESIGNED` row whose test file now exists is EXECUTED per that document, and the row's status is stale
+rather than a claim that the test is missing. `docs/alpha17/test-gap-matrix.md` recomputes the coverage
+picture from the tree.
 
 ## 1. Deduplication rule (applied to every row)
 

@@ -9,6 +9,14 @@ The assembled deliverable is `docs/alpha17/niche-scenario-catalog.md`, produced 
 recomputed from the assembled text). The `tests` lane owns `tests/e2e/niche_*.go`; this catalogue cites
 those files where they exist but never claims a run.
 
+**POST-ASSEMBLY NOTE (2026-11-07, read before quoting a `DESIGNED` row).** The parts were drafted before the
+alpha.17 niche test files landed, so some rows still say `DESIGNED`/`NEW … (proposed)` for scenarios that
+`tests/e2e/niche_*.go` now covers. The AUTHORITATIVE executed mapping is
+`docs/alpha17/new-test-evidence.md` (which names each executed test, its assertion and its negative control);
+a `DESIGNED` row whose test file now exists is EXECUTED per that document, and the row's status is stale
+rather than a claim that the test is missing. `docs/alpha17/test-gap-matrix.md` recomputes the coverage
+picture from the tree.
+
 ## 1. Deduplication rule (applied to every row)
 
 **One scenario = one distinct observable behaviour, i.e. one failure mode that a single negative control

@@ -1,0 +1,87 @@
+# alpha.17 handoff ledger
+
+**Status: DRAFT until publication.** This is the working record for the `v0.1.0-alpha.17` round: inputs,
+decisions, executed work, the same-SHA gate wave and the post-publication verification. Rows record what was
+observed, with the command or run that produced it. `PENDING` means the observation has not happened yet;
+nothing here is a PASS until its evidence exists.
+
+## 1. Baseline and inputs
+
+| fact | value | evidence |
+|---|---|---|
+| repository / branch | `cocokoishi/GoTavern` / `main` | `git remote -v`, `git branch --show-current` |
+| round-start HEAD | `c02eed109ceba32ba710948a0420425f8ce58b1f` (two documentation commits after the alpha.16 release commit) | `git rev-parse HEAD` at M0 |
+| alpha.16 release | published `2026-11-07T08:01:36Z`, `draft=false`, `prerelease=false`, 7 assets; tag object `b7d81cd1…` peeling to `c1886d70…` | `gh api repos/cocokoishi/GoTavern/releases`; `git rev-parse v0.1.0-alpha.16` |
+| pinned oracle | SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127` | `../SillyTavern` checkout |
+| toolchain | `go1.27.3 windows/arm64`; Node `v24.19.0` | `go version`, `node --version` |
+| declared round target | `v0.1.0-alpha.17`, stable channel | `docs/alpha17/release-bar.md` |
+| release candidate | `9b99fde0b0a9be0665cd93bc2143a3f495af31c2` (no code commit after it before the tag) | wave dispatch at `gh run list --event workflow_dispatch` |
+
+## 2. What this round changed (one line each, with its gate)
+
+| change | commit(s) | evidence |
+|---|---|---|
+| alpha.17 program contract, verified baseline, release bar, decision log, architecture decisions | `2e1a4b4`, later doc commits | `docs/alpha17/README.md`, `release-bar.md`, `decision-log.md`, `architecture-decisions.md` |
+| refreshed M0 ownership map (1,007 citations validated) + regenerated source graph at the round-start tree | `2e1a4b4` | `docs/alpha17/audit/refresh-ownership-map.mjs` output: 1,007 checked / 0 failed / 4 named fixups |
+| M0 findings audit + 16-item residual reconfirmation | later doc commits | `docs/alpha17/source-audit.md` §9-§11 |
+| 176-scenario deduplicated catalogue + assembler + computed gap matrix | `e959526`, follow-up | `docs/alpha17/niche-scenario-catalog.md`, `docs/alpha17/catalog/assemble.mjs`, `docs/alpha17/test-gap-matrix.md` |
+| 33 niche test functions + 5 subtests + 20 planted-defect teeth (new files only) | `e621f9d` + `fd40ef7` (gofmt) + `db7d87d` (Linux fix) | `tests/e2e/niche_*.go`, `docs/alpha17/new-test-evidence.md`; local `go test ./tests/e2e -run 'TestNiche' -count=1` -> `ok … 219.845s` |
+| pinned `/proxy/:url(*)` disabled-branch parity + distinguishable 501 enabled branch | `ab5d723` | `internal/server/cors_proxy.go`, `cors_proxy_test.go`; RED observed by removing the registry row, restored green `ok internal/server 1.007s` |
+| recorded deliberate divergences (settings empty body/1e400/escaping symlink, per-chat backups, enabled proxy, page-init egress) | `1b099e9`, `db7d87d` | `docs/SEMANTIC-COMPATIBILITY.md` §18; decision log AL17-D004/D010-D012 |
+| unified release-evidence contract + optional narrowed-dispatch rails (83/83 tests; real alpha.16 wave PASS 13/13) | `205b36d` | `docs/alpha17/evidence-contract.md`, `evidence-contract-sample.json` |
+| README 34,541 -> 13,993 B; `docs/performance.md`; hardened perf-doc checker with 15 negative controls | `69b5f01` | `docs/alpha17/readme-restructure.md`; `node tools/check-perf-docs.mjs` -> OK; `node --test tests/docs/check-perf-docs.test.mjs` -> 15/15 |
+| process-level baseline + fingerprint + hotspot record (LOCAL Windows arm64; product change UNEXECUTED) | `ea46747`, `b9bc8c2` | `docs/alpha17/performance-plan.md`, `docs/alpha17/perf/`, `docs/alpha17/perf-hotspot.md` |
+| tag classifier graduates `v0.1.0-alpha.17`; 69/69 classifier cases | `eaf8c22` | `bash scripts/test-classify-version-tag.sh` -> 69/69 (Git bash local) |
+| GOAL.md §1c/§14/§16/§12.1 updated to alpha.17; §14 remains NOT MET | `2e1a4b4` | `GOAL.md` |
+
+## 3. The failures found and what fixed them
+
+| # | failure | root cause | fix | evidence |
+|---|---|---|---|---|
+| 1 | `GoTavern CI` 42375014354 `verify` failed `Verify Go formatting` | `tests/e2e/niche_teeth_test.go` was not gofmt-formatted (composite literals needed multi-line form) | `fd40ef7` (whitespace only) | next push's `verify` green |
+| 2 | `GoTavern CI` 42375608180 `verify` failed `Test` — `TestNicheFSSymlinkedSettingsFileIsFollowedForReadAndReplacedOnWrite` | the test asserted pinned's semantics (write through the link); GoTavern deliberately refuses a link whose target escapes the user root (500) | `db7d87d`: renamed test pins the containment refusal; recorded as a deliberate divergence (SEMANTIC-COMPATIBILITY §18) | next push's `verify` green |
+| 3 | `GoTavern CI` 42377499811 `verify` failed `TestPinnedCommitStringsMatchThePin` | `docs/alpha17/performance-plan.md` cites the local baseline commit `fd40ef7e…` (40-hex) which was not a declared measurement anchor | `b9bc8c2`: declared it in `declaredOtherPins` with its reason; added `docs/alpha17/evidence-contract.md` to the contract-document list | `go test ./internal/fixtures -count=1` -> ok; next push's `verify` green |
+| 4 | `GoTavern drop-in qualification` 42375608158 failed the Q21 packaged hand-back judge (`pinnedReadGotavernsTurn`: `chatId: null`) | harness/browser race, not product: the same workflow passed at `1b099e9` and at `db7d87d`, and the only change in between was a gofmt-only test edit the workflow does not use | no code change; the gate is re-dispatched at the candidate SHA (see §4) | 42375608158 (failure) vs 42376248471 / 42373831363 (success) |
+| 5 | local process-level harness aborted after 7 scales (`scripts/a15-bench-suite.mjs` complex-preset entry has no `scaleArgs`) | harness defect; `scripts/**` was outside the perf lane's write scope | recorded as reported, not patched; the baseline covers the 7 measured scales and names the missing ones | `docs/alpha17/perf/README.md`, `perf-hotspot.md` |
+
+## 4. The same-SHA gate wave
+
+The thirteen required workflows and the pre-tag rehearsal were dispatched at `9b99fde0b0a9be0665cd93bc2143a3f495af31c2`;
+the run ids and the verifier verdict are recorded in `docs/alpha17/same-sha-evidence.md`. The wave is the
+gate: a run that was not dispatched at that SHA, that is not completed/success, or whose required job or
+embedded evidence is missing is a refusal, and the release does not happen.
+
+## 5. Release publication and post-publication verification
+
+`PENDING`: recorded after `GoTavern Release` runs on the tag push. The steps to verify are: the tag object and
+its target commit; `draft=false` / `prerelease=false` / `latest=true`; the six archives plus `checksums.txt`
+re-downloaded and checked; the published binary's `version --json`; the published-release install smoke and
+published-extension smoke; the container digest for `:v0.1.0-alpha.17` and `:latest`; the alpha.16 tag
+unchanged; and the post-release generated-facts commit + CI dispatch.
+
+## 6. Residuals (unchanged or newly recorded)
+
+- `GOAL.md` §14 remains **NOT MET** (`PRIVATE_NOT_RUN`); no real user tree was qualified.
+- darwin/arm64 runtime and the macOS arm64 extension lifecycle remain **UNVERIFIED** (recorded platform
+  limitation); windows/arm64 is **BUILD-ONLY**.
+- The 8-user latency row is **REPORT-ONLY**; the soak real-leak question is **UNPROVEN**; true kernel
+  **ENOSPC is UNPROVEN**; page-init egress hermeticity is **OPEN**; provider-relay p99,
+  streaming-cancellation latency, the 20-extension page-load matrix, the cold-cache guard and Linux-CI
+  process-level rows are **UNEXECUTED** with reasons in `performance-plan.md` §9 and `source-audit.md` §11.
+- The new evidence rails are implemented and validated but their manifest rows are **not applied** (proposed
+  in `evidence-contract.md` §5); dispatch inputs and selected-test counts are not exposed by the Actions API.
+- The `scripts/a15-bench-suite.mjs` complex-preset harness defect is reported, not patched.
+
+## 7. Reproduce the record
+
+```bash
+go test ./tests/e2e -run 'TestNiche' -count=1                  # 33 niche tests + teeth (Linux is the gate)
+go test ./internal/fixtures -count=1                          # contract documents/pins encoding
+node tools/check-perf-docs.mjs                                # README + docs/performance.md + figure
+node --test tests/docs/check-perf-docs.test.mjs               # 15 checker controls
+node --test scripts/release-governance.test.mjs               # 83 governance rails
+node docs/alpha17/audit/refresh-ownership-map.mjs .           # 1,007 citations re-validated
+node docs/alpha17/catalog/assemble.mjs                        # rebuild the assembled catalogue
+node scripts/verify-release-gates.mjs --sha 9b99fde… --manifest docs/release-manifest.json
+bash scripts/test-classify-version-tag.sh                     # 69/69 classifier cases
+```

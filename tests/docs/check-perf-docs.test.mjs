@@ -118,9 +118,9 @@ test('a tampered baseline copy propagates to the README table check', () => {
     expectNamedFailure(runChecker(['--baseline', baselineCopy]), 'README-TABLE-PINNED');
 });
 
-test('a cold-guard row with no recorded artifact and no pending note is refused', () => {
-    // The perf lane has produced no docs/alpha17/perf/ record in this tree, so the document must say the row is
-    // pending. Removing that word must fail rather than silently reading as proven.
-    const performanceDoc = mutatedCopy('performance-cold-guard.md', 'docs/performance.md', text => text.replace('pending', 'settled'));
+test('a cold-guard row that stops pointing at the perf lane record is refused', () => {
+    // The perf lane now HAS a docs/alpha17/perf/ record, so the document must point at it. Removing that
+    // pointer must fail by name rather than reading as if the cold-guard row were settled or absent.
+    const performanceDoc = mutatedCopy('performance-cold-guard.md', 'docs/performance.md', text => text.replace('docs/alpha17/perf/', 'the performance lane'));
     expectNamedFailure(runChecker(['--performance-doc', performanceDoc]), 'PERF-DOC-COLD-GUARD');
 });
