@@ -1,0 +1,76 @@
+{
+  "schema": "gotavern.alpha17.runner-fingerprint/1",
+  "layer": "LOCAL (Windows arm64 development host) — triage, NOT Linux CI release evidence",
+  "label": "LOCAL alpha17 baseline, quiet-window check: single-agent sequential runs",
+  "generatedAt": "2026-11-07T13:12:01.124Z",
+  "host": {
+    "platform": "win32",
+    "arch": "arm64",
+    "release": "10.0.26100",
+    "version": "Windows 11 Enterprise LTSC 2024",
+    "windows": {
+      "cmdVer": "Microsoft Windows [Version 10.0.26100.9711]",
+      "currentBuildNumber": "26100",
+      "ubr": null,
+      "displayVersion": "24H2",
+      "osBuild": "26100"
+    },
+    "cpuModel": "virt-7.2",
+    "logicalCores": 2,
+    "totalMemoryBytes": 12879790080,
+    "freeMemoryBytes": 6504988672,
+    "gomaxprocs": {
+      "environmentValue": null,
+      "effective": 2,
+      "source": "unset; Go defaults to the logical CPU count recorded here"
+    },
+    "nodeVersion": "v24.19.0",
+    "go": {
+      "version": "go version go1.27.3 windows/arm64",
+      "env": {
+        "GOOS": "windows",
+        "GOARCH": "arm64",
+        "CGO_ENABLED": "0",
+        "GOMAXPROCS": ""
+      }
+    }
+  },
+  "repository": {
+    "commit": "fd40ef7e2325834cc9fffa46d94c200e2114253c",
+    "dirty": true,
+    "dirtyFileCount": 3,
+    "module": "github.com/cocokoishi/gotavern"
+  },
+  "build": {
+    "command": "go build -trimpath -ldflags=-s",
+    "flags": "-trimpath -ldflags=\"-s -w\"",
+    "binary": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\gotavern.exe",
+    "sha256": "7ae492913fd46d0a02d10c51f0237a62ebaac881c81e8945be3f333f7e4fc131",
+    "sizeBytes": 60789248
+  },
+  "diskFingerprint": {
+    "ok": true,
+    "method": "open+write+fsync+close+unlink of 48 KiB on the work-root filesystem, synchronous, once before any boot",
+    "bytes": 49152,
+    "count": 12,
+    "min": 2.74916,
+    "p50": 2.88912,
+    "p95": 7.2176,
+    "max": 7.2176,
+    "samples": [
+      4.601,
+      7.218,
+      3.022,
+      2.87,
+      3.043,
+      2.855,
+      2.749,
+      2.889,
+      2.77,
+      3.104,
+      2.831,
+      3.738
+    ]
+  },
+  "comparabilityRule": "Two runs may be compared only when host.platform/arch, CPU model, effective GOMAXPROCS, Go version, build.flags, build.sha256 and the data scale/parameters are identical, and diskFingerprint.p50 is within max(3x, +2 ms) of the other run (the alpha.16 rule derived in docs/alpha16/m5-evidence.md 11.2)."
+}

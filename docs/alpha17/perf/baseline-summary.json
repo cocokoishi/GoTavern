@@ -1,0 +1,1386 @@
+{
+  "schema": "gotavern.alpha17.baseline-summary/1",
+  "layer": "LOCAL (Windows arm64), not Linux CI",
+  "sourceDir": "docs/alpha17/perf/a15",
+  "artifacts": [
+    {
+      "file": "scale-2026-11-07T13-20-32-786Z.json",
+      "mode": "scale",
+      "artifactBytes": 10867,
+      "startedAt": "2026-11-07T13:20:33.182Z",
+      "loadLabel": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active",
+      "git": {
+        "commit": "db7d87d98a9a2fe80a7a1152db8c473cb6468844",
+        "branch": "main",
+        "dirty": true,
+        "dirtyFileCount": 6
+      },
+      "subjects": [
+        {
+          "name": "a17",
+          "kind": "gotavern",
+          "binary": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\gotavern.exe",
+          "sourceRoot": null,
+          "sha256": "7ae492913fd46d0a02d10c51f0237a62ebaac881c81e8945be3f333f7e4fc131",
+          "sizeBytes": 60789248,
+          "version": "GoTavern 0.0.0-dev",
+          "provenance": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active"
+        }
+      ]
+    },
+    {
+      "file": "scale-2026-11-07T13-21-47-605Z.json",
+      "mode": "scale",
+      "artifactBytes": 10941,
+      "startedAt": "2026-11-07T13:21:47.977Z",
+      "loadLabel": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active",
+      "git": {
+        "commit": "db7d87d98a9a2fe80a7a1152db8c473cb6468844",
+        "branch": "main",
+        "dirty": true,
+        "dirtyFileCount": 6
+      },
+      "subjects": [
+        {
+          "name": "a17",
+          "kind": "gotavern",
+          "binary": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\gotavern.exe",
+          "sourceRoot": null,
+          "sha256": "7ae492913fd46d0a02d10c51f0237a62ebaac881c81e8945be3f333f7e4fc131",
+          "sizeBytes": 60789248,
+          "version": "GoTavern 0.0.0-dev",
+          "provenance": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active"
+        }
+      ]
+    },
+    {
+      "file": "scale-2026-11-07T13-21-53-047Z.json",
+      "mode": "scale",
+      "artifactBytes": 10888,
+      "startedAt": "2026-11-07T13:21:53.439Z",
+      "loadLabel": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active",
+      "git": {
+        "commit": "db7d87d98a9a2fe80a7a1152db8c473cb6468844",
+        "branch": "main",
+        "dirty": true,
+        "dirtyFileCount": 6
+      },
+      "subjects": [
+        {
+          "name": "a17",
+          "kind": "gotavern",
+          "binary": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\gotavern.exe",
+          "sourceRoot": null,
+          "sha256": "7ae492913fd46d0a02d10c51f0237a62ebaac881c81e8945be3f333f7e4fc131",
+          "sizeBytes": 60789248,
+          "version": "GoTavern 0.0.0-dev",
+          "provenance": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active"
+        }
+      ]
+    },
+    {
+      "file": "scale-2026-11-07T13-21-57-105Z.json",
+      "mode": "scale",
+      "artifactBytes": 10845,
+      "startedAt": "2026-11-07T13:21:57.492Z",
+      "loadLabel": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active",
+      "git": {
+        "commit": "db7d87d98a9a2fe80a7a1152db8c473cb6468844",
+        "branch": "main",
+        "dirty": true,
+        "dirtyFileCount": 6
+      },
+      "subjects": [
+        {
+          "name": "a17",
+          "kind": "gotavern",
+          "binary": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\gotavern.exe",
+          "sourceRoot": null,
+          "sha256": "7ae492913fd46d0a02d10c51f0237a62ebaac881c81e8945be3f333f7e4fc131",
+          "sizeBytes": 60789248,
+          "version": "GoTavern 0.0.0-dev",
+          "provenance": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active"
+        }
+      ]
+    },
+    {
+      "file": "scale-2026-11-07T13-22-02-048Z.json",
+      "mode": "scale",
+      "artifactBytes": 10896,
+      "startedAt": "2026-11-07T13:22:02.427Z",
+      "loadLabel": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active",
+      "git": {
+        "commit": "db7d87d98a9a2fe80a7a1152db8c473cb6468844",
+        "branch": "main",
+        "dirty": true,
+        "dirtyFileCount": 6
+      },
+      "subjects": [
+        {
+          "name": "a17",
+          "kind": "gotavern",
+          "binary": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\gotavern.exe",
+          "sourceRoot": null,
+          "sha256": "7ae492913fd46d0a02d10c51f0237a62ebaac881c81e8945be3f333f7e4fc131",
+          "sizeBytes": 60789248,
+          "version": "GoTavern 0.0.0-dev",
+          "provenance": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active"
+        }
+      ]
+    },
+    {
+      "file": "scale-2026-11-07T13-22-07-666Z.json",
+      "mode": "scale",
+      "artifactBytes": 10982,
+      "startedAt": "2026-11-07T13:22:08.046Z",
+      "loadLabel": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active",
+      "git": {
+        "commit": "db7d87d98a9a2fe80a7a1152db8c473cb6468844",
+        "branch": "main",
+        "dirty": true,
+        "dirtyFileCount": 6
+      },
+      "subjects": [
+        {
+          "name": "a17",
+          "kind": "gotavern",
+          "binary": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\gotavern.exe",
+          "sourceRoot": null,
+          "sha256": "7ae492913fd46d0a02d10c51f0237a62ebaac881c81e8945be3f333f7e4fc131",
+          "sizeBytes": 60789248,
+          "version": "GoTavern 0.0.0-dev",
+          "provenance": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active"
+        }
+      ]
+    },
+    {
+      "file": "scale-2026-11-07T13-22-11-825Z.json",
+      "mode": "scale",
+      "artifactBytes": 10484,
+      "startedAt": "2026-11-07T13:22:12.229Z",
+      "loadLabel": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active",
+      "git": {
+        "commit": "db7d87d98a9a2fe80a7a1152db8c473cb6468844",
+        "branch": "main",
+        "dirty": true,
+        "dirtyFileCount": 6
+      },
+      "subjects": [
+        {
+          "name": "a17",
+          "kind": "gotavern",
+          "binary": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\gotavern.exe",
+          "sourceRoot": null,
+          "sha256": "7ae492913fd46d0a02d10c51f0237a62ebaac881c81e8945be3f333f7e4fc131",
+          "sizeBytes": 60789248,
+          "version": "GoTavern 0.0.0-dev",
+          "provenance": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active"
+        }
+      ]
+    },
+    {
+      "file": "scale-2026-11-07T13-22-24-397Z.json",
+      "mode": "scale",
+      "artifactBytes": 10940,
+      "startedAt": "2026-11-07T13:22:24.779Z",
+      "loadLabel": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active",
+      "git": {
+        "commit": "db7d87d98a9a2fe80a7a1152db8c473cb6468844",
+        "branch": "main",
+        "dirty": true,
+        "dirtyFileCount": 7
+      },
+      "subjects": [
+        {
+          "name": "a17",
+          "kind": "gotavern",
+          "binary": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\gotavern.exe",
+          "sourceRoot": null,
+          "sha256": "7ae492913fd46d0a02d10c51f0237a62ebaac881c81e8945be3f333f7e4fc131",
+          "sizeBytes": 60789248,
+          "version": "GoTavern 0.0.0-dev",
+          "provenance": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active"
+        }
+      ]
+    },
+    {
+      "file": "smoke-2026-11-07T13-14-03-881Z.json",
+      "mode": "smoke",
+      "artifactBytes": 39716,
+      "startedAt": "2026-11-07T13:14:04.261Z",
+      "loadLabel": "LOCAL alpha17 baseline smoke: Windows arm64 dev host, single sequential agent, no other lane",
+      "git": {
+        "commit": "fd40ef7e2325834cc9fffa46d94c200e2114253c",
+        "branch": "main",
+        "dirty": true,
+        "dirtyFileCount": 5
+      },
+      "subjects": [
+        {
+          "name": "a17",
+          "kind": "gotavern",
+          "binary": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\gotavern.exe",
+          "sourceRoot": null,
+          "sha256": "7ae492913fd46d0a02d10c51f0237a62ebaac881c81e8945be3f333f7e4fc131",
+          "sizeBytes": 60789248,
+          "version": "GoTavern 0.0.0-dev",
+          "provenance": "LOCAL alpha17 baseline smoke: Windows arm64 dev host, single sequential agent, no other lane"
+        }
+      ]
+    }
+  ],
+  "records": [
+    {
+      "artifact": "scale-2026-11-07T13-20-32-786Z.json",
+      "mode": "scale",
+      "subject": "a17",
+      "bootKind": "scale",
+      "scale": "cards",
+      "fixture": {
+        "generator": "tests/perf/fixturegen",
+        "scale": "cards",
+        "dataRoot": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\work\\trees\\scale-0-cards-a17\\data",
+        "files": 1002,
+        "bytes": 9664626,
+        "byArea": {
+          "characters": 1000
+        }
+      },
+      "scaleArgs": [
+        "--cards",
+        "1000"
+      ],
+      "dataRoute": "characters",
+      "bootMs": 2966.70816,
+      "rssSteadyBytes": 91197440,
+      "rssFinalBytes": 83857408,
+      "peakRssBytes": 95662080,
+      "cpu": {
+        "userMs": 781,
+        "systemMs": 391,
+        "absoluteUserMs": 1890,
+        "absoluteSystemMs": 3562,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+      },
+      "gc": {
+        "count": 75,
+        "pauseMs": 293.36999999999995,
+        "lastHeap": {
+          "beforeMb": 46,
+          "goalMb": 28
+        }
+      },
+      "latency": {
+        "version": {
+          "ms": {
+            "count": 3,
+            "min": 10.11012,
+            "median": 12.14356,
+            "max": 19.2834,
+            "p95": 19.2834,
+            "p99": 19.2834
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 168
+        },
+        "root": {
+          "ms": {
+            "count": 3,
+            "min": 22.37644,
+            "median": 36.61928,
+            "max": 42.91776,
+            "p95": 42.91776,
+            "p99": 42.91776
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 734837
+        },
+        "data": {
+          "ms": {
+            "count": 3,
+            "min": 497.95508,
+            "median": 511.53928,
+            "max": 513.62612,
+            "p95": 513.62612,
+            "p99": 513.62612
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 11694716
+        }
+      },
+      "version": null,
+      "logTail": null
+    },
+    {
+      "artifact": "scale-2026-11-07T13-21-47-605Z.json",
+      "mode": "scale",
+      "subject": "a17",
+      "bootKind": "scale",
+      "scale": "cards",
+      "fixture": {
+        "generator": "tests/perf/fixturegen",
+        "scale": "cards",
+        "dataRoot": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\work\\trees\\scale-0-cards-a17\\data",
+        "files": 10002,
+        "bytes": 96640626,
+        "byArea": {
+          "characters": 10000
+        }
+      },
+      "scaleArgs": [
+        "--cards",
+        "10000"
+      ],
+      "dataRoute": "characters",
+      "bootMs": 27099.22732,
+      "rssSteadyBytes": 925212672,
+      "rssFinalBytes": 1020354560,
+      "peakRssBytes": 1024180224,
+      "cpu": {
+        "userMs": 8281,
+        "systemMs": 5890,
+        "absoluteUserMs": 20359,
+        "absoluteSystemMs": 33546,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+      },
+      "gc": {
+        "count": 146,
+        "pauseMs": 2426.86,
+        "lastHeap": {
+          "beforeMb": 440,
+          "goalMb": 348
+        }
+      },
+      "latency": {
+        "version": {
+          "ms": {
+            "count": 3,
+            "min": 7.00748,
+            "median": 9.36068,
+            "max": 13.13652,
+            "p95": 13.13652,
+            "p99": 13.13652
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 168
+        },
+        "root": {
+          "ms": {
+            "count": 3,
+            "min": 21.07524,
+            "median": 22.13944,
+            "max": 30.22004,
+            "p95": 30.22004,
+            "p99": 30.22004
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 734837
+        },
+        "data": {
+          "ms": {
+            "count": 3,
+            "min": 5192.31164,
+            "median": 5481.25852,
+            "max": 6304.97968,
+            "p95": 6304.97968,
+            "p99": 6304.97968
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 116947513
+        }
+      },
+      "version": null,
+      "logTail": null
+    },
+    {
+      "artifact": "scale-2026-11-07T13-21-53-047Z.json",
+      "mode": "scale",
+      "subject": "a17",
+      "bootKind": "scale",
+      "scale": "chats",
+      "fixture": {
+        "generator": "tests/perf/fixturegen",
+        "scale": "chats",
+        "dataRoot": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\work\\trees\\scale-0-chats-a17\\data",
+        "files": 103,
+        "bytes": 26132544,
+        "byArea": {
+          "chats": 100
+        }
+      },
+      "scaleArgs": [
+        "--chats",
+        "100",
+        "--chat-bytes",
+        "262144"
+      ],
+      "dataRoute": "chats",
+      "bootMs": 705.225,
+      "rssSteadyBytes": 24731648,
+      "rssFinalBytes": 24260608,
+      "peakRssBytes": 26255360,
+      "cpu": {
+        "userMs": 172,
+        "systemMs": 125,
+        "absoluteUserMs": 718,
+        "absoluteSystemMs": 296,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+      },
+      "gc": {
+        "count": 75,
+        "pauseMs": 117.10000000000001,
+        "lastHeap": {
+          "beforeMb": 3,
+          "goalMb": 1
+        }
+      },
+      "latency": {
+        "version": {
+          "ms": {
+            "count": 3,
+            "min": 17.53652,
+            "median": 19.02084,
+            "max": 24.77428,
+            "p95": 24.77428,
+            "p99": 24.77428
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 168
+        },
+        "root": {
+          "ms": {
+            "count": 3,
+            "min": 16.76652,
+            "median": 20.3982,
+            "max": 29.23372,
+            "p95": 29.23372,
+            "p99": 29.23372
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 734837
+        },
+        "data": {
+          "ms": {
+            "count": 3,
+            "min": 80.17684,
+            "median": 82.0798,
+            "max": 90.74232,
+            "p95": 90.74232,
+            "p99": 90.74232
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 41201
+        }
+      },
+      "version": null,
+      "logTail": null
+    },
+    {
+      "artifact": "scale-2026-11-07T13-21-57-105Z.json",
+      "mode": "scale",
+      "subject": "a17",
+      "bootKind": "scale",
+      "scale": "chats-large",
+      "fixture": {
+        "generator": "tests/perf/fixturegen",
+        "scale": "chats-large",
+        "dataRoot": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\work\\trees\\scale-0-chats-large-a17\\data",
+        "files": 13,
+        "bytes": 9446877,
+        "byArea": {
+          "chats": 10
+        }
+      },
+      "scaleArgs": [
+        "--chat-messages",
+        "2400"
+      ],
+      "dataRoute": "chats",
+      "bootMs": 383.01736,
+      "rssSteadyBytes": 26247168,
+      "rssFinalBytes": 24731648,
+      "peakRssBytes": 27537408,
+      "cpu": {
+        "userMs": 78,
+        "systemMs": 16,
+        "absoluteUserMs": 281,
+        "absoluteSystemMs": 187,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+      },
+      "gc": {
+        "count": 39,
+        "pauseMs": 73.07999999999998,
+        "lastHeap": {
+          "beforeMb": 5,
+          "goalMb": 1
+        }
+      },
+      "latency": {
+        "version": {
+          "ms": {
+            "count": 3,
+            "min": 5.75772,
+            "median": 9.0054,
+            "max": 12.43636,
+            "p95": 12.43636,
+            "p99": 12.43636
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 168
+        },
+        "root": {
+          "ms": {
+            "count": 3,
+            "min": 20.65248,
+            "median": 34.46836,
+            "max": 35.6184,
+            "p95": 35.6184,
+            "p99": 35.6184
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 734837
+        },
+        "data": {
+          "ms": {
+            "count": 3,
+            "min": 33.80468,
+            "median": 37.24848,
+            "max": 48.68408,
+            "p95": 48.68408,
+            "p99": 48.68408
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 4131
+        }
+      },
+      "version": null,
+      "logTail": null
+    },
+    {
+      "artifact": "scale-2026-11-07T13-22-02-048Z.json",
+      "mode": "scale",
+      "subject": "a17",
+      "bootKind": "scale",
+      "scale": "worlds",
+      "fixture": {
+        "generator": "tests/perf/fixturegen",
+        "scale": "worlds",
+        "dataRoot": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\work\\trees\\scale-0-worlds-a17\\data",
+        "files": 1002,
+        "bytes": 8192626,
+        "byArea": {
+          "worlds": 1000
+        }
+      },
+      "scaleArgs": [
+        "--worlds",
+        "1000",
+        "--world-bytes",
+        "8192"
+      ],
+      "dataRoute": "worlds",
+      "bootMs": 236.53884,
+      "rssSteadyBytes": 24981504,
+      "rssFinalBytes": 26206208,
+      "peakRssBytes": 26206208,
+      "cpu": {
+        "userMs": 31,
+        "systemMs": 0,
+        "absoluteUserMs": 171,
+        "absoluteSystemMs": 187,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+      },
+      "gc": {
+        "count": 27,
+        "pauseMs": 72.34000000000002,
+        "lastHeap": {
+          "beforeMb": 5,
+          "goalMb": 3
+        }
+      },
+      "latency": {
+        "version": {
+          "ms": {
+            "count": 3,
+            "min": 5.89988,
+            "median": 5.94312,
+            "max": 10.60296,
+            "p95": 10.60296,
+            "p99": 10.60296
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 168
+        },
+        "root": {
+          "ms": {
+            "count": 3,
+            "min": 19.95696,
+            "median": 36.65956,
+            "max": 39.04336,
+            "p95": 39.04336,
+            "p99": 39.04336
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 734837
+        },
+        "data": {
+          "ms": {
+            "count": 3,
+            "min": 15.10576,
+            "median": 17.18368,
+            "max": 20.57432,
+            "p95": 20.57432,
+            "p99": 20.57432
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 69069
+        }
+      },
+      "version": null,
+      "logTail": null
+    },
+    {
+      "artifact": "scale-2026-11-07T13-22-07-666Z.json",
+      "mode": "scale",
+      "subject": "a17",
+      "bootKind": "scale",
+      "scale": "settings",
+      "fixture": {
+        "generator": "tests/perf/fixturegen",
+        "scale": "settings",
+        "dataRoot": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\work\\trees\\scale-0-settings-a17\\data",
+        "files": 1102,
+        "bytes": 4506226,
+        "byArea": {
+          "settings": 1100
+        }
+      },
+      "scaleArgs": [
+        "--files-per-dir",
+        "100",
+        "--file-bytes",
+        "4096"
+      ],
+      "dataRoute": "settings",
+      "bootMs": 232.70568,
+      "rssSteadyBytes": 50794496,
+      "rssFinalBytes": 47894528,
+      "peakRssBytes": 51458048,
+      "cpu": {
+        "userMs": 78,
+        "systemMs": 109,
+        "absoluteUserMs": 218,
+        "absoluteSystemMs": 484,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+      },
+      "gc": {
+        "count": 10,
+        "pauseMs": 74.7,
+        "lastHeap": {
+          "beforeMb": 27,
+          "goalMb": 11
+        }
+      },
+      "latency": {
+        "version": {
+          "ms": {
+            "count": 3,
+            "min": 6.57024,
+            "median": 11.55132,
+            "max": 22.83064,
+            "p95": 22.83064,
+            "p99": 22.83064
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 168
+        },
+        "root": {
+          "ms": {
+            "count": 3,
+            "min": 23.09668,
+            "median": 35.53956,
+            "max": 47.17752,
+            "p95": 47.17752,
+            "p99": 47.17752
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 734837
+        },
+        "data": {
+          "ms": {
+            "count": 3,
+            "min": 88.74652,
+            "median": 93.69884,
+            "max": 116.42796,
+            "p95": 116.42796,
+            "p99": 116.42796
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 4516104
+        }
+      },
+      "version": null,
+      "logTail": null
+    },
+    {
+      "artifact": "scale-2026-11-07T13-22-11-825Z.json",
+      "mode": "scale",
+      "subject": "a17",
+      "bootKind": "scale",
+      "scale": "complex-preset",
+      "fixture": {
+        "generator": "tests/perf/fixturegen",
+        "scale": "complex-preset",
+        "dataRoot": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\work\\trees\\scale-0-complex-preset-a17\\data",
+        "files": 120,
+        "bytes": 2455783,
+        "byArea": {
+          "chats": 1,
+          "complex-config": 1,
+          "settings": 110
+        }
+      },
+      "scaleArgs": [],
+      "dataRoute": "settings",
+      "bootMs": 319.66872,
+      "rssSteadyBytes": 28295168,
+      "rssFinalBytes": 30400512,
+      "peakRssBytes": 30859264,
+      "cpu": {
+        "userMs": 46,
+        "systemMs": 47,
+        "absoluteUserMs": 171,
+        "absoluteSystemMs": 250,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+      },
+      "gc": {
+        "count": 6,
+        "pauseMs": 41.88,
+        "lastHeap": {
+          "beforeMb": 9,
+          "goalMb": 4
+        }
+      },
+      "latency": {
+        "version": {
+          "ms": {
+            "count": 3,
+            "min": 1.94164,
+            "median": 7.36828,
+            "max": 8.37868,
+            "p95": 8.37868,
+            "p99": 8.37868
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 168
+        },
+        "root": {
+          "ms": {
+            "count": 3,
+            "min": 28.31608,
+            "median": 32.3306,
+            "max": 33.00356,
+            "p95": 33.00356,
+            "p99": 33.00356
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 734837
+        },
+        "data": {
+          "ms": {
+            "count": 3,
+            "min": 11.40824,
+            "median": 20.26364,
+            "max": 28.32856,
+            "p95": 28.32856,
+            "p99": 28.32856
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 524813
+        }
+      },
+      "version": null,
+      "logTail": null
+    },
+    {
+      "artifact": "scale-2026-11-07T13-22-24-397Z.json",
+      "mode": "scale",
+      "subject": "a17",
+      "bootKind": "scale",
+      "scale": "mixed-large",
+      "fixture": {
+        "generator": "tests/perf/fixturegen",
+        "scale": "mixed-large",
+        "dataRoot": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\work\\trees\\scale-0-mixed-large-a17\\data",
+        "files": 2533,
+        "bytes": 51041806,
+        "byArea": {
+          "characters": 1000,
+          "chats": 102,
+          "complex-config": 1,
+          "settings": 1210,
+          "worlds": 200
+        }
+      },
+      "scaleArgs": [],
+      "dataRoute": "characters",
+      "bootMs": 3371.30336,
+      "rssSteadyBytes": 90353664,
+      "rssFinalBytes": 92864512,
+      "peakRssBytes": 93429760,
+      "cpu": {
+        "userMs": 891,
+        "systemMs": 594,
+        "absoluteUserMs": 2437,
+        "absoluteSystemMs": 3531,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+      },
+      "gc": {
+        "count": 136,
+        "pauseMs": 302.8499999999999,
+        "lastHeap": {
+          "beforeMb": 41,
+          "goalMb": 34
+        }
+      },
+      "latency": {
+        "version": {
+          "ms": {
+            "count": 3,
+            "min": 5.47592,
+            "median": 15.97936,
+            "max": 21.01952,
+            "p95": 21.01952,
+            "p99": 21.01952
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 168
+        },
+        "root": {
+          "ms": {
+            "count": 3,
+            "min": 19.78872,
+            "median": 26.3038,
+            "max": 37.15428,
+            "p95": 37.15428,
+            "p99": 37.15428
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 734837
+        },
+        "data": {
+          "ms": {
+            "count": 3,
+            "min": 515.5278,
+            "median": 531.20208,
+            "max": 538.00704,
+            "p95": 538.00704,
+            "p99": 538.00704
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 11697753
+        }
+      },
+      "version": null,
+      "logTail": null
+    },
+    {
+      "artifact": "smoke-2026-11-07T13-14-03-881Z.json",
+      "mode": "smoke",
+      "subject": "a17",
+      "bootKind": "cold",
+      "scale": null,
+      "fixture": null,
+      "scaleArgs": null,
+      "dataRoute": "characters",
+      "bootMs": 470.6172,
+      "rssSteadyBytes": 30474240,
+      "rssFinalBytes": 32923648,
+      "peakRssBytes": 38711296,
+      "cpu": {
+        "userMs": 1781,
+        "systemMs": 1688,
+        "absoluteUserMs": 2234,
+        "absoluteSystemMs": 2375,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+      },
+      "gc": {
+        "count": 316,
+        "pauseMs": 512.9800000000001,
+        "lastHeap": {
+          "beforeMb": 6,
+          "goalMb": 4
+        }
+      },
+      "latency": {
+        "version": {
+          "ms": {
+            "count": 50,
+            "min": 1.1904,
+            "median": 11.08752,
+            "max": 19.8626,
+            "p95": 17.67776,
+            "p99": 19.8626
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 168
+        },
+        "root": {
+          "ms": {
+            "count": 50,
+            "min": 13.28804,
+            "median": 28.43512,
+            "max": 45.6386,
+            "p95": 39.54552,
+            "p99": 45.6386
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 734837
+        },
+        "data": {
+          "ms": {
+            "count": 50,
+            "min": 59.71876,
+            "median": 70.71632,
+            "max": 94.9984,
+            "p95": 87.30548,
+            "p99": 94.9984
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 1169469
+        }
+      },
+      "version": null,
+      "logTail": null
+    },
+    {
+      "artifact": "smoke-2026-11-07T13-14-03-881Z.json",
+      "mode": "smoke",
+      "subject": "a17",
+      "bootKind": "warm",
+      "scale": null,
+      "fixture": null,
+      "scaleArgs": null,
+      "dataRoute": "characters",
+      "bootMs": 136.887,
+      "rssSteadyBytes": 31481856,
+      "rssFinalBytes": 29847552,
+      "peakRssBytes": 37801984,
+      "cpu": {
+        "userMs": 1844,
+        "systemMs": 1563,
+        "absoluteUserMs": 2250,
+        "absoluteSystemMs": 2031,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+      },
+      "gc": {
+        "count": 323,
+        "pauseMs": 544.1800000000002,
+        "lastHeap": {
+          "beforeMb": 6,
+          "goalMb": 3
+        }
+      },
+      "latency": {
+        "version": {
+          "ms": {
+            "count": 50,
+            "min": 1.0632,
+            "median": 6.45196,
+            "max": 25.01576,
+            "p95": 19.79852,
+            "p99": 25.01576
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 168
+        },
+        "root": {
+          "ms": {
+            "count": 50,
+            "min": 14.09568,
+            "median": 28.16636,
+            "max": 48.3848,
+            "p95": 44.55692,
+            "p99": 48.3848
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 734837
+        },
+        "data": {
+          "ms": {
+            "count": 50,
+            "min": 54.0964,
+            "median": 66.62448,
+            "max": 93.0122,
+            "p95": 84.62388,
+            "p99": 93.0122
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 1169469
+        }
+      },
+      "version": null,
+      "logTail": null
+    },
+    {
+      "artifact": "smoke-2026-11-07T13-14-03-881Z.json",
+      "mode": "smoke",
+      "subject": "a17",
+      "bootKind": "cold",
+      "scale": null,
+      "fixture": null,
+      "scaleArgs": null,
+      "dataRoute": "characters",
+      "bootMs": 433.22412,
+      "rssSteadyBytes": 29601792,
+      "rssFinalBytes": 30666752,
+      "peakRssBytes": 36995072,
+      "cpu": {
+        "userMs": 1766,
+        "systemMs": 1594,
+        "absoluteUserMs": 2250,
+        "absoluteSystemMs": 2265,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+      },
+      "gc": {
+        "count": 314,
+        "pauseMs": 602.2500000000005,
+        "lastHeap": {
+          "beforeMb": 7,
+          "goalMb": 4
+        }
+      },
+      "latency": {
+        "version": {
+          "ms": {
+            "count": 50,
+            "min": 0.9868,
+            "median": 6.87136,
+            "max": 21.58352,
+            "p95": 17.59448,
+            "p99": 21.58352
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 168
+        },
+        "root": {
+          "ms": {
+            "count": 50,
+            "min": 14.51352,
+            "median": 29.42952,
+            "max": 52.23596,
+            "p95": 45.8126,
+            "p99": 52.23596
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 734837
+        },
+        "data": {
+          "ms": {
+            "count": 50,
+            "min": 56.50704,
+            "median": 68.52184,
+            "max": 88.76852,
+            "p95": 82.77788,
+            "p99": 88.76852
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 1169479
+        }
+      },
+      "version": null,
+      "logTail": null
+    },
+    {
+      "artifact": "smoke-2026-11-07T13-14-03-881Z.json",
+      "mode": "smoke",
+      "subject": "a17",
+      "bootKind": "warm",
+      "scale": null,
+      "fixture": null,
+      "scaleArgs": null,
+      "dataRoute": "characters",
+      "bootMs": 152.8534,
+      "rssSteadyBytes": 29736960,
+      "rssFinalBytes": 30380032,
+      "peakRssBytes": 36167680,
+      "cpu": {
+        "userMs": 1672,
+        "systemMs": 1672,
+        "absoluteUserMs": 2078,
+        "absoluteSystemMs": 2078,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+      },
+      "gc": {
+        "count": 322,
+        "pauseMs": 503.55999999999983,
+        "lastHeap": {
+          "beforeMb": 7,
+          "goalMb": 4
+        }
+      },
+      "latency": {
+        "version": {
+          "ms": {
+            "count": 50,
+            "min": 0.9104,
+            "median": 7.77432,
+            "max": 18.94128,
+            "p95": 17.21124,
+            "p99": 18.94128
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 168
+        },
+        "root": {
+          "ms": {
+            "count": 50,
+            "min": 13.7744,
+            "median": 29.0788,
+            "max": 56.0776,
+            "p95": 38.55352,
+            "p99": 56.0776
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 734837
+        },
+        "data": {
+          "ms": {
+            "count": 50,
+            "min": 53.99052,
+            "median": 65.9028,
+            "max": 92.31104,
+            "p95": 78.17588,
+            "p99": 92.31104
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 1169479
+        }
+      },
+      "version": null,
+      "logTail": null
+    },
+    {
+      "artifact": "smoke-2026-11-07T13-14-03-881Z.json",
+      "mode": "smoke",
+      "subject": "a17",
+      "bootKind": "cold",
+      "scale": null,
+      "fixture": null,
+      "scaleArgs": null,
+      "dataRoute": "characters",
+      "bootMs": 445.15612,
+      "rssSteadyBytes": 30044160,
+      "rssFinalBytes": 30674944,
+      "peakRssBytes": 37404672,
+      "cpu": {
+        "userMs": 1656,
+        "systemMs": 1593,
+        "absoluteUserMs": 2062,
+        "absoluteSystemMs": 2218,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+      },
+      "gc": {
+        "count": 300,
+        "pauseMs": 629.2100000000004,
+        "lastHeap": {
+          "beforeMb": 7,
+          "goalMb": 4
+        }
+      },
+      "latency": {
+        "version": {
+          "ms": {
+            "count": 50,
+            "min": 0.87604,
+            "median": 8.39328,
+            "max": 26.38156,
+            "p95": 17.62892,
+            "p99": 26.38156
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 168
+        },
+        "root": {
+          "ms": {
+            "count": 50,
+            "min": 14.60844,
+            "median": 29.19092,
+            "max": 42.13104,
+            "p95": 38.78064,
+            "p99": 42.13104
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 734837
+        },
+        "data": {
+          "ms": {
+            "count": 50,
+            "min": 53.66376,
+            "median": 65.63,
+            "max": 108.54076,
+            "p95": 85.74284,
+            "p99": 108.54076
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 1169472
+        }
+      },
+      "version": null,
+      "logTail": null
+    },
+    {
+      "artifact": "smoke-2026-11-07T13-14-03-881Z.json",
+      "mode": "smoke",
+      "subject": "a17",
+      "bootKind": "warm",
+      "scale": null,
+      "fixture": null,
+      "scaleArgs": null,
+      "dataRoute": "characters",
+      "bootMs": 117.65188,
+      "rssSteadyBytes": 35749888,
+      "rssFinalBytes": 30928896,
+      "peakRssBytes": 36634624,
+      "cpu": {
+        "userMs": 1609,
+        "systemMs": 1547,
+        "absoluteUserMs": 2062,
+        "absoluteSystemMs": 1750,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+      },
+      "gc": {
+        "count": 277,
+        "pauseMs": 1061.0999999999992,
+        "lastHeap": {
+          "beforeMb": 5,
+          "goalMb": 3
+        }
+      },
+      "latency": {
+        "version": {
+          "ms": {
+            "count": 50,
+            "min": 0.92264,
+            "median": 7.3772,
+            "max": 54.68012,
+            "p95": 20.90788,
+            "p99": 54.68012
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 168
+        },
+        "root": {
+          "ms": {
+            "count": 50,
+            "min": 14.19776,
+            "median": 32.9946,
+            "max": 65.326,
+            "p95": 49.74448,
+            "p99": 65.326
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 734837
+        },
+        "data": {
+          "ms": {
+            "count": 50,
+            "min": 56.14096,
+            "median": 74.11732,
+            "max": 136.37404,
+            "p95": 112.18392,
+            "p99": 136.37404
+          },
+          "status": [
+            200
+          ],
+          "bytesMedian": 1169472
+        }
+      },
+      "version": null,
+      "logTail": null
+    }
+  ]
+}

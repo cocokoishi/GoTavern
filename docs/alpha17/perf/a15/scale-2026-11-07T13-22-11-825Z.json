@@ -1,0 +1,294 @@
+{
+  "schemaVersion": 1,
+  "mode": "scale",
+  "environment": {
+    "harness": "scripts/a15-bench-suite.mjs",
+    "git": {
+      "commit": "db7d87d98a9a2fe80a7a1152db8c473cb6468844",
+      "branch": "main",
+      "dirty": true,
+      "dirtyFileCount": 6
+    },
+    "go": {
+      "version": "go version go1.27.3 windows/arm64"
+    },
+    "node": "v24.19.0",
+    "cpu": {
+      "model": "virt-7.2",
+      "logicalCores": 2,
+      "totalMemoryBytes": 12879790080,
+      "platform": "win32",
+      "release": "10.0.26100",
+      "arch": "arm64"
+    },
+    "GOMAXPROCS": null,
+    "buildFlags": {
+      "gotavern": "CGO_ENABLED=0, -trimpath, -ldflags \"-s -w\" (locally rebuilt subjects); published subjects are the release archives (BUILD-INFO.txt read and recorded per subject)"
+    },
+    "loadLabel": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active",
+    "runMode": "scale",
+    "rounds": 3,
+    "requestsPerPath": 3,
+    "inflight": [
+      32,
+      128
+    ],
+    "dataScale": "complex-preset",
+    "concurrency": null,
+    "startedAt": "2026-11-07T13:22:12.229Z"
+  },
+  "subjects": [
+    {
+      "name": "a17",
+      "kind": "gotavern",
+      "binary": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\gotavern.exe",
+      "sourceRoot": null,
+      "sha256": "7ae492913fd46d0a02d10c51f0237a62ebaac881c81e8945be3f333f7e4fc131",
+      "sizeBytes": 60789248,
+      "version": "GoTavern 0.0.0-dev",
+      "provenance": "LOCAL alpha17 baseline scale: shared 2-core host, other lanes may be active"
+    }
+  ],
+  "parameters": {
+    "mode": "scale",
+    "rounds": 3,
+    "requestsPerPath": 3,
+    "inflight": [
+      32,
+      128
+    ],
+    "durationSeconds": 10,
+    "soakMinutes": 10,
+    "soakRate": 4,
+    "dataRoute": "settings",
+    "scale": "complex-preset",
+    "scaleArgs": [],
+    "dataRootSupplied": null,
+    "gcTrace": true,
+    "workDir": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\work"
+  },
+  "artifactPath": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\docs\\alpha17\\perf\\a15\\scale-2026-11-07T13-22-11-825Z.json",
+  "payload": {
+    "records": [
+      {
+        "subject": "a17",
+        "kind": "gotavern",
+        "origin": "http://127.0.0.1:58235",
+        "pid": 4772,
+        "bootMs": 319.66872,
+        "bootError": null,
+        "bootToReadyMs": 319.66872,
+        "samples": [
+          {
+            "at": "ready",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 4772,
+            "rssBytes": 25579520,
+            "peakRssBytes": 25579520,
+            "cpuUserMs": 93,
+            "cpuSystemMs": 140,
+            "handles": null,
+            "note": "pageFaults=6565 privateUsage=58191872"
+          },
+          {
+            "at": "steady-after-warmup",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 4772,
+            "rssBytes": 28295168,
+            "peakRssBytes": 28295168,
+            "cpuUserMs": 125,
+            "cpuSystemMs": 203,
+            "handles": null,
+            "note": "pageFaults=7454 privateUsage=59396096"
+          },
+          {
+            "at": "final",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 4772,
+            "rssBytes": 30400512,
+            "peakRssBytes": 30859264,
+            "cpuUserMs": 171,
+            "cpuSystemMs": 250,
+            "handles": null,
+            "note": "pageFaults=8081 privateUsage=61718528"
+          }
+        ],
+        "latency": {
+          "version": {
+            "ms": {
+              "count": 3,
+              "min": 1.94164,
+              "median": 7.36828,
+              "max": 8.37868,
+              "p95": 8.37868,
+              "p99": 8.37868
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 168
+          },
+          "root": {
+            "ms": {
+              "count": 3,
+              "min": 28.31608,
+              "median": 32.3306,
+              "max": 33.00356,
+              "p95": 33.00356,
+              "p99": 33.00356
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 734837
+          },
+          "data": {
+            "ms": {
+              "count": 3,
+              "min": 11.40824,
+              "median": 20.26364,
+              "max": 28.32856,
+              "p95": 28.32856,
+              "p99": 28.32856
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 524813
+          }
+        },
+        "gc": {
+          "gcCount": 6,
+          "gcPauseMs": 41.88,
+          "gcLastHeap": {
+            "beforeMb": 9,
+            "goalMb": 4
+          },
+          "method": "GODEBUG=gctrace=1 stderr parse (count, pause sum, last heap)"
+        },
+        "stop": {
+          "mode": "abrupt-windows",
+          "platform": "win32"
+        },
+        "logTail": "gc 1 @0.103s 0%: 0+0.58+0 ms clock, 0+0/0.58/0+0 ms cpu, 4->4->2 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 2 @0.105s 0%: 0+0.65+0.72 ms clock, 0+0/0.65/0+1.4 ms cpu, 5->5->3 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 3 @0.185s 0%: 0+5.5+0 ms clock, 0+0/1.7/0+0 ms cpu, 6->7->2 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\nGoTavern: tokenizer-guesstimate: no tokenizer tree under \"C:\\\\Users\\\\koishi\\\\AppData\\\\Local\\\\Temp\\\\gotavern-a17\" (tried C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\src\\tokenizers, C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\tokenizers, C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\upstream\\tokenizers); /api/tokenizers answers estimated counts, so a context boundary measured against this server is not exact\nGoTavern 0.0.0-dev (SillyTavern 1.19.0 baseline, 06bde939fb1e9c4c8d8641d810f0a916b5bce127)\nInstall root: C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\nConfig file:  C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\work\\trees\\scale-0-complex-preset-a17\\config.yaml\nData root:    C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\work\\trees\\scale-0-complex-preset-a17\\data\nGoTavern is listening on IPv4: 127.0.0.1:58235\nGo to: http://127.0.0.1:58235/ to open GoTavern\nReady: GoTavern is serving at http://127.0.0.1:58235/\ngc 4 @0.328s 1%: 3.8+18+0 ms clock, 7.6+0/4.5/0+0 ms cpu, 5->5->1 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 5 @0.395s 2%: 0+7.2+0.73 ms clock, 0+0.51/2.1/0+1.4 ms cpu, 4->7->5 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 6 @0.744s 1%: 0+4.7+0 ms clock, 0+0.40/0.51/0+0 ms cpu, 9->10->4 MB, 11 MB goal, 0 MB stacks, 0 MB globals, 2 P\n",
+        "rssSteadyBytes": 28295168,
+        "cpuAtSteady": {
+          "userMs": 125,
+          "systemMs": 203
+        },
+        "rssFinalBytes": 30400512,
+        "peakRssBytes": 30859264,
+        "cpu": {
+          "userMs": 46,
+          "systemMs": 47,
+          "absoluteUserMs": 171,
+          "absoluteSystemMs": 250,
+          "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+        },
+        "scale": "complex-preset",
+        "scaleArgs": [],
+        "fixture": {
+          "generator": "tests/perf/fixturegen",
+          "scale": "complex-preset",
+          "dataRoot": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\work\\trees\\scale-0-complex-preset-a17\\data",
+          "files": 120,
+          "bytes": 2455783,
+          "byArea": {
+            "chats": 1,
+            "complex-config": 1,
+            "settings": 110
+          }
+        }
+      }
+    ],
+    "summary": {
+      "a17": {
+        "records": 1,
+        "bootMs": {
+          "count": 1,
+          "min": 319.66872,
+          "median": 319.66872,
+          "max": 319.66872,
+          "p95": 319.66872,
+          "p99": 319.66872
+        },
+        "bootMsCold": null,
+        "bootMsWarm": null,
+        "rssSteadyBytes": {
+          "count": 1,
+          "min": 28295168,
+          "median": 28295168,
+          "max": 28295168,
+          "p95": 28295168,
+          "p99": 28295168
+        },
+        "peakRssBytes": {
+          "count": 1,
+          "min": 30859264,
+          "median": 30859264,
+          "max": 30859264,
+          "p95": 30859264,
+          "p99": 30859264
+        },
+        "cpuUserMs": {
+          "count": 1,
+          "min": 46,
+          "median": 46,
+          "max": 46,
+          "p95": 46,
+          "p99": 46
+        },
+        "cpuSystemMs": {
+          "count": 1,
+          "min": 47,
+          "median": 47,
+          "max": 47,
+          "p95": 47,
+          "p99": 47
+        },
+        "gcCount": {
+          "count": 1,
+          "min": 6,
+          "median": 6,
+          "max": 6,
+          "p95": 6,
+          "p99": 6
+        },
+        "versionMedianMs": {
+          "count": 3,
+          "min": 7.36828,
+          "median": 8.37868,
+          "max": 8.37868,
+          "p95": 8.37868,
+          "p99": 8.37868
+        },
+        "rootMedianMs": {
+          "count": 3,
+          "min": 32.3306,
+          "median": 33.00356,
+          "max": 33.00356,
+          "p95": 33.00356,
+          "p99": 33.00356
+        },
+        "dataMedianMs": {
+          "count": 3,
+          "min": 20.26364,
+          "median": 28.32856,
+          "max": 28.32856,
+          "p95": 28.32856,
+          "p99": 28.32856
+        }
+      }
+    }
+  },
+  "notes": [
+    "Absolute milliseconds on a shared host are comparable only WITHIN this run (same host, same data, alternating or same-order rounds); the --load-label field says whether the host was quiet.",
+    "Windows cannot deliver SIGTERM to a console process, so Windows stops are abrupt (recorded in each record.stop).",
+    "Go allocation totals are not observable from outside a process; gctrace gives GC count/pause/heap-goal. B/op remains the in-process benchmark number (scripts/bench-profiles.mjs).",
+    "pinned Node GC counters are only recorded when Node emits --trace-gc lines; otherwise null, never zero.",
+    "This harness changes no product code and caches nothing."
+  ]
+}

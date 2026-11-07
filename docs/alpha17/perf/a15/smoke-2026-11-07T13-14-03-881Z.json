@@ -1,0 +1,895 @@
+{
+  "schemaVersion": 1,
+  "mode": "smoke",
+  "environment": {
+    "harness": "scripts/a15-bench-suite.mjs",
+    "git": {
+      "commit": "fd40ef7e2325834cc9fffa46d94c200e2114253c",
+      "branch": "main",
+      "dirty": true,
+      "dirtyFileCount": 5
+    },
+    "go": {
+      "version": "go version go1.27.3 windows/arm64"
+    },
+    "node": "v24.19.0",
+    "cpu": {
+      "model": "virt-7.2",
+      "logicalCores": 2,
+      "totalMemoryBytes": 12879790080,
+      "platform": "win32",
+      "release": "10.0.26100",
+      "arch": "arm64"
+    },
+    "GOMAXPROCS": null,
+    "buildFlags": {
+      "gotavern": "CGO_ENABLED=0, -trimpath, -ldflags \"-s -w\" (locally rebuilt subjects); published subjects are the release archives (BUILD-INFO.txt read and recorded per subject)"
+    },
+    "loadLabel": "LOCAL alpha17 baseline smoke: Windows arm64 dev host, single sequential agent, no other lane",
+    "runMode": "smoke",
+    "rounds": 3,
+    "requestsPerPath": 50,
+    "inflight": [
+      32,
+      128
+    ],
+    "dataScale": "cards",
+    "concurrency": null,
+    "startedAt": "2026-11-07T13:14:04.261Z"
+  },
+  "subjects": [
+    {
+      "name": "a17",
+      "kind": "gotavern",
+      "binary": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\gotavern.exe",
+      "sourceRoot": null,
+      "sha256": "7ae492913fd46d0a02d10c51f0237a62ebaac881c81e8945be3f333f7e4fc131",
+      "sizeBytes": 60789248,
+      "version": "GoTavern 0.0.0-dev",
+      "provenance": "LOCAL alpha17 baseline smoke: Windows arm64 dev host, single sequential agent, no other lane"
+    }
+  ],
+  "parameters": {
+    "mode": "smoke",
+    "rounds": 3,
+    "requestsPerPath": 50,
+    "inflight": [
+      32,
+      128
+    ],
+    "durationSeconds": 10,
+    "soakMinutes": 10,
+    "soakRate": 4,
+    "dataRoute": "characters",
+    "scale": "cards",
+    "scaleArgs": [],
+    "dataRootSupplied": null,
+    "gcTrace": true,
+    "workDir": "C:\\Users\\koishi\\AppData\\Local\\Temp\\gotavern-a17\\work"
+  },
+  "artifactPath": "C:\\Users\\koishi\\Desktop\\GoTavern\\gotavern\\docs\\alpha17\\perf\\a15\\smoke-2026-11-07T13-14-03-881Z.json",
+  "payload": {
+    "records": [
+      {
+        "subject": "a17",
+        "kind": "gotavern",
+        "origin": "http://127.0.0.1:56071",
+        "pid": 10920,
+        "bootMs": 470.6172,
+        "bootError": null,
+        "bootToReadyMs": 470.6172,
+        "samples": [
+          {
+            "at": "ready",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 10920,
+            "rssBytes": 20750336,
+            "peakRssBytes": 20750336,
+            "cpuUserMs": 0,
+            "cpuSystemMs": 250,
+            "handles": null,
+            "note": "pageFaults=5212 privateUsage=53211136"
+          },
+          {
+            "at": "steady-after-warmup",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 10920,
+            "rssBytes": 30474240,
+            "peakRssBytes": 31166464,
+            "cpuUserMs": 453,
+            "cpuSystemMs": 687,
+            "handles": null,
+            "note": "pageFaults=13201 privateUsage=61124608"
+          },
+          {
+            "at": "final",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 10920,
+            "rssBytes": 32923648,
+            "peakRssBytes": 38711296,
+            "cpuUserMs": 2234,
+            "cpuSystemMs": 2375,
+            "handles": null,
+            "note": "pageFaults=44684 privateUsage=63578112"
+          }
+        ],
+        "latency": {
+          "version": {
+            "ms": {
+              "count": 50,
+              "min": 1.1904,
+              "median": 11.08752,
+              "max": 19.8626,
+              "p95": 17.67776,
+              "p99": 19.8626
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 168
+          },
+          "root": {
+            "ms": {
+              "count": 50,
+              "min": 13.28804,
+              "median": 28.43512,
+              "max": 45.6386,
+              "p95": 39.54552,
+              "p99": 45.6386
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 734837
+          },
+          "data": {
+            "ms": {
+              "count": 50,
+              "min": 59.71876,
+              "median": 70.71632,
+              "max": 94.9984,
+              "p95": 87.30548,
+              "p99": 94.9984
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 1169469
+          }
+        },
+        "gc": {
+          "gcCount": 316,
+          "gcPauseMs": 512.9800000000001,
+          "gcLastHeap": {
+            "beforeMb": 6,
+            "goalMb": 4
+          },
+          "method": "GODEBUG=gctrace=1 stderr parse (count, pause sum, last heap)"
+        },
+        "stop": {
+          "mode": "abrupt-windows",
+          "platform": "win32"
+        },
+        "logTail": "lock, 0+0/0.99/0+0 ms cpu, 5->6->3 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 300 @6.740s 2%: 0+1.5+0 ms clock, 0+0/1.5/0+0 ms cpu, 7->7->4 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 301 @6.818s 2%: 0+0.91+0 ms clock, 0+0/0.59/0+0 ms cpu, 9->9->3 MB, 9 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 302 @6.837s 2%: 0+1.6+0 ms clock, 0+0.54/1.0/0+0 ms cpu, 7->7->2 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 303 @6.846s 2%: 0+1.0+0.63 ms clock, 0+0/1.0/0.52+1.2 ms cpu, 4->5->3 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 304 @6.850s 2%: 0+8.0+0 ms clock, 0+0/1.0/0+0 ms cpu, 5->10->7 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 305 @6.932s 2%: 0+2.2+0 ms clock, 0+0/2.2/0.51+0 ms cpu, 13->13->4 MB, 15 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 306 @6.949s 2%: 0+0.92+0 ms clock, 0+0/1.2/0+0 ms cpu, 7->7->2 MB, 8 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 307 @6.953s 2%: 0+11+0 ms clock, 0+0/1.0/0+0 ms cpu, 4->12->9 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 308 @7.050s 2%: 0+0+0 ms clock, 0+0/0/0+0 ms cpu, 17->17->3 MB, 20 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 309 @7.050s 2%: 0+5.2+0 ms clock, 0+0/5.2/0+0 ms cpu, 6->6->3 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 310 @7.055s 2%: 0+0+0 ms clock, 0+0/0/0+0 ms cpu, 7->7->4 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 311 @7.127s 2%: 0+1.1+0 ms clock, 0+0/1.6/0+0 ms cpu, 8->8->2 MB, 9 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 312 @7.144s 2%: 0+1.5+0 ms clock, 0+0/1.0/0+0 ms cpu, 4->4->1 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 313 @7.155s 2%: 0.51+1.3+0 ms clock, 1.0+0/0.55/0+0 ms cpu, 4->4->2 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 314 @7.162s 2%: 0+1.0+0 ms clock, 0+0.52/0.52/0+0 ms cpu, 4->5->2 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 315 @7.165s 2%: 0+1.2+0 ms clock, 0+0/1.1/0+0 ms cpu, 5->5->3 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 316 @7.168s 2%: 0+0.51+0.96 ms clock, 0+0/1.0/0+1.9 ms cpu, 6->6->4 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\n",
+        "rssSteadyBytes": 30474240,
+        "cpuAtSteady": {
+          "userMs": 453,
+          "systemMs": 687
+        },
+        "rssFinalBytes": 32923648,
+        "peakRssBytes": 38711296,
+        "cpu": {
+          "userMs": 1781,
+          "systemMs": 1688,
+          "absoluteUserMs": 2234,
+          "absoluteSystemMs": 2375,
+          "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+        },
+        "bootKind": "cold"
+      },
+      {
+        "subject": "a17",
+        "kind": "gotavern",
+        "origin": "http://127.0.0.1:56082",
+        "pid": 12048,
+        "bootMs": 136.887,
+        "bootError": null,
+        "bootToReadyMs": 136.887,
+        "samples": [
+          {
+            "at": "ready",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 12048,
+            "rssBytes": 18784256,
+            "peakRssBytes": 18784256,
+            "cpuUserMs": 31,
+            "cpuSystemMs": 46,
+            "handles": null,
+            "note": "pageFaults=4720 privateUsage=52228096"
+          },
+          {
+            "at": "steady-after-warmup",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 12048,
+            "rssBytes": 31481856,
+            "peakRssBytes": 36880384,
+            "cpuUserMs": 406,
+            "cpuSystemMs": 468,
+            "handles": null,
+            "note": "pageFaults=13542 privateUsage=62291968"
+          },
+          {
+            "at": "final",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 12048,
+            "rssBytes": 29847552,
+            "peakRssBytes": 37801984,
+            "cpuUserMs": 2250,
+            "cpuSystemMs": 2031,
+            "handles": null,
+            "note": "pageFaults=45397 privateUsage=61079552"
+          }
+        ],
+        "latency": {
+          "version": {
+            "ms": {
+              "count": 50,
+              "min": 1.0632,
+              "median": 6.45196,
+              "max": 25.01576,
+              "p95": 19.79852,
+              "p99": 25.01576
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 168
+          },
+          "root": {
+            "ms": {
+              "count": 50,
+              "min": 14.09568,
+              "median": 28.16636,
+              "max": 48.3848,
+              "p95": 44.55692,
+              "p99": 48.3848
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 734837
+          },
+          "data": {
+            "ms": {
+              "count": 50,
+              "min": 54.0964,
+              "median": 66.62448,
+              "max": 93.0122,
+              "p95": 84.62388,
+              "p99": 93.0122
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 1169469
+          }
+        },
+        "gc": {
+          "gcCount": 323,
+          "gcPauseMs": 544.1800000000002,
+          "gcLastHeap": {
+            "beforeMb": 6,
+            "goalMb": 3
+          },
+          "method": "GODEBUG=gctrace=1 stderr parse (count, pause sum, last heap)"
+        },
+        "stop": {
+          "mode": "abrupt-windows",
+          "platform": "win32"
+        },
+        "logTail": "MB stacks, 0 MB globals, 2 P\ngc 306 @6.047s 3%: 0+1.1+0 ms clock, 0+0.50/0/0+0 ms cpu, 4->4->2 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 307 @6.050s 3%: 0+1.1+0 ms clock, 0+0/1.0/0+0 ms cpu, 5->5->3 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 308 @6.054s 3%: 0+1.0+0 ms clock, 0+0/0.53/0+0 ms cpu, 6->6->3 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 309 @6.087s 3%: 0+1.2+0 ms clock, 0+0/0.71/0+0 ms cpu, 7->7->3 MB, 8 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 310 @6.145s 3%: 0+1.1+0 ms clock, 0+0/0.52/0+0 ms cpu, 7->7->3 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 311 @6.156s 3%: 0+0+0 ms clock, 0+0/0/0+0 ms cpu, 6->6->2 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 312 @6.158s 3%: 0+0+0 ms clock, 0+0/0/0+0 ms cpu, 5->5->3 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 313 @6.161s 3%: 0+0+0 ms clock, 0+0/0/0+0 ms cpu, 6->6->4 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 314 @6.224s 3%: 0+1.3+0 ms clock, 0+0/0.54/0+0 ms cpu, 9->9->2 MB, 9 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 315 @6.240s 3%: 0+1.5+0 ms clock, 0+0/1.2/0+0 ms cpu, 6->6->2 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 316 @6.251s 3%: 0+1.5+0 ms clock, 0+0/0/0+0 ms cpu, 5->5->2 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 317 @6.256s 3%: 0+0+0 ms clock, 0+0/0/0+0 ms cpu, 6->6->3 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 318 @6.258s 3%: 0+0+0 ms clock, 0+0/0/0+0 ms cpu, 6->6->3 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 319 @6.318s 3%: 0+1.1+0 ms clock, 0+0/1.0/0+0 ms cpu, 7->7->2 MB, 8 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 320 @6.335s 3%: 0+1.0+0 ms clock, 0+0/1.0/0+0 ms cpu, 6->6->2 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 321 @6.340s 3%: 0+1.0+0 ms clock, 0+0/0/0+0 ms cpu, 4->4->2 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 322 @6.343s 3%: 0+0+0 ms clock, 0+0/0/0+0 ms cpu, 5->6->3 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 323 @6.346s 3%: 0+0+0 ms clock, 0+0/0/0+0 ms cpu, 6->6->3 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\n",
+        "rssSteadyBytes": 31481856,
+        "cpuAtSteady": {
+          "userMs": 406,
+          "systemMs": 468
+        },
+        "rssFinalBytes": 29847552,
+        "peakRssBytes": 37801984,
+        "cpu": {
+          "userMs": 1844,
+          "systemMs": 1563,
+          "absoluteUserMs": 2250,
+          "absoluteSystemMs": 2031,
+          "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+        },
+        "bootKind": "warm"
+      },
+      {
+        "subject": "a17",
+        "kind": "gotavern",
+        "origin": "http://127.0.0.1:56089",
+        "pid": 15188,
+        "bootMs": 433.22412,
+        "bootError": null,
+        "bootToReadyMs": 433.22412,
+        "samples": [
+          {
+            "at": "ready",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 15188,
+            "rssBytes": 20787200,
+            "peakRssBytes": 20787200,
+            "cpuUserMs": 62,
+            "cpuSystemMs": 296,
+            "handles": null,
+            "note": "pageFaults=5222 privateUsage=53620736"
+          },
+          {
+            "at": "steady-after-warmup",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 15188,
+            "rssBytes": 29601792,
+            "peakRssBytes": 34639872,
+            "cpuUserMs": 484,
+            "cpuSystemMs": 671,
+            "handles": null,
+            "note": "pageFaults=13597 privateUsage=60497920"
+          },
+          {
+            "at": "final",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 15188,
+            "rssBytes": 30666752,
+            "peakRssBytes": 36995072,
+            "cpuUserMs": 2250,
+            "cpuSystemMs": 2265,
+            "handles": null,
+            "note": "pageFaults=45797 privateUsage=61714432"
+          }
+        ],
+        "latency": {
+          "version": {
+            "ms": {
+              "count": 50,
+              "min": 0.9868,
+              "median": 6.87136,
+              "max": 21.58352,
+              "p95": 17.59448,
+              "p99": 21.58352
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 168
+          },
+          "root": {
+            "ms": {
+              "count": 50,
+              "min": 14.51352,
+              "median": 29.42952,
+              "max": 52.23596,
+              "p95": 45.8126,
+              "p99": 52.23596
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 734837
+          },
+          "data": {
+            "ms": {
+              "count": 50,
+              "min": 56.50704,
+              "median": 68.52184,
+              "max": 88.76852,
+              "p95": 82.77788,
+              "p99": 88.76852
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 1169479
+          }
+        },
+        "gc": {
+          "gcCount": 314,
+          "gcPauseMs": 602.2500000000005,
+          "gcLastHeap": {
+            "beforeMb": 7,
+            "goalMb": 4
+          },
+          "method": "GODEBUG=gctrace=1 stderr parse (count, pause sum, last heap)"
+        },
+        "stop": {
+          "mode": "abrupt-windows",
+          "platform": "win32"
+        },
+        "logTail": "+0 ms clock, 0+0/0/0+0 ms cpu, 5->5->3 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 298 @6.541s 3%: 0+2.0+0 ms clock, 0+0/4.0/0+0 ms cpu, 7->7->4 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 299 @6.627s 3%: 0+1.0+0 ms clock, 0+0/1.0/0+0 ms cpu, 8->8->2 MB, 10 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 300 @6.642s 3%: 0+1.5+0 ms clock, 0+0/1.0/0+0 ms cpu, 4->5->1 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 301 @6.651s 3%: 0+1.4+0 ms clock, 0+0/1.0/0+0 ms cpu, 3->4->2 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 302 @6.657s 3%: 0+1.0+0 ms clock, 0+0/1.0/0+0 ms cpu, 4->5->3 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 303 @6.661s 3%: 0+1.0+0 ms clock, 0+0/2.0/0+0 ms cpu, 5->6->3 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 304 @6.664s 3%: 0+1.5+0 ms clock, 0+0/0/0+0 ms cpu, 6->6->3 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 305 @6.724s 3%: 0+0.54+0.60 ms clock, 0+0/1.0/0+1.2 ms cpu, 7->7->2 MB, 8 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 306 @6.738s 3%: 0+1.9+0 ms clock, 0+0/0.53/0+0 ms cpu, 5->5->2 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 307 @6.752s 3%: 0+1.0+0.47 ms clock, 0+0/1.0/0+0.94 ms cpu, 4->5->3 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 308 @6.757s 3%: 0+1.0+0 ms clock, 0+0/1.0/0+0 ms cpu, 6->7->3 MB, 8 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 309 @6.760s 3%: 0+3.4+0 ms clock, 0+0/0/0+0 ms cpu, 6->7->4 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 310 @6.838s 3%: 0+1.9+0 ms clock, 0+0/0.54/0+0 ms cpu, 8->9->3 MB, 10 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 311 @6.851s 3%: 0+1.4+0 ms clock, 0+0/1.0/0.97+0 ms cpu, 5->5->2 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 312 @6.861s 3%: 1.0+1.0+0 ms clock, 2.0+0/1.1/0+0 ms cpu, 4->5->3 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 313 @6.865s 3%: 0+3.3+0 ms clock, 0+1.0/0.52/0+0 ms cpu, 5->6->4 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 314 @6.872s 3%: 0+0.52+0.60 ms clock, 0+0/1.0/0+1.2 ms cpu, 7->7->4 MB, 8 MB goal, 0 MB stacks, 0 MB globals, 2 P\n",
+        "rssSteadyBytes": 29601792,
+        "cpuAtSteady": {
+          "userMs": 484,
+          "systemMs": 671
+        },
+        "rssFinalBytes": 30666752,
+        "peakRssBytes": 36995072,
+        "cpu": {
+          "userMs": 1766,
+          "systemMs": 1594,
+          "absoluteUserMs": 2250,
+          "absoluteSystemMs": 2265,
+          "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+        },
+        "bootKind": "cold"
+      },
+      {
+        "subject": "a17",
+        "kind": "gotavern",
+        "origin": "http://127.0.0.1:56106",
+        "pid": 4700,
+        "bootMs": 152.8534,
+        "bootError": null,
+        "bootToReadyMs": 152.8534,
+        "samples": [
+          {
+            "at": "ready",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 4700,
+            "rssBytes": 18825216,
+            "peakRssBytes": 18825216,
+            "cpuUserMs": 31,
+            "cpuSystemMs": 46,
+            "handles": null,
+            "note": "pageFaults=4728 privateUsage=52256768"
+          },
+          {
+            "at": "steady-after-warmup",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 4700,
+            "rssBytes": 29736960,
+            "peakRssBytes": 31653888,
+            "cpuUserMs": 406,
+            "cpuSystemMs": 406,
+            "handles": null,
+            "note": "pageFaults=13780 privateUsage=60604416"
+          },
+          {
+            "at": "final",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 4700,
+            "rssBytes": 30380032,
+            "peakRssBytes": 36167680,
+            "cpuUserMs": 2078,
+            "cpuSystemMs": 2078,
+            "handles": null,
+            "note": "pageFaults=45340 privateUsage=61325312"
+          }
+        ],
+        "latency": {
+          "version": {
+            "ms": {
+              "count": 50,
+              "min": 0.9104,
+              "median": 7.77432,
+              "max": 18.94128,
+              "p95": 17.21124,
+              "p99": 18.94128
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 168
+          },
+          "root": {
+            "ms": {
+              "count": 50,
+              "min": 13.7744,
+              "median": 29.0788,
+              "max": 56.0776,
+              "p95": 38.55352,
+              "p99": 56.0776
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 734837
+          },
+          "data": {
+            "ms": {
+              "count": 50,
+              "min": 53.99052,
+              "median": 65.9028,
+              "max": 92.31104,
+              "p95": 78.17588,
+              "p99": 92.31104
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 1169479
+          }
+        },
+        "gc": {
+          "gcCount": 322,
+          "gcPauseMs": 503.55999999999983,
+          "gcLastHeap": {
+            "beforeMb": 7,
+            "goalMb": 4
+          },
+          "method": "GODEBUG=gctrace=1 stderr parse (count, pause sum, last heap)"
+        },
+        "stop": {
+          "mode": "abrupt-windows",
+          "platform": "win32"
+        },
+        "logTail": "/0+0 ms cpu, 7->7->4 MB, 8 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 306 @6.108s 3%: 0+1.4+0 ms clock, 0+0/1.0/0+0 ms cpu, 8->9->2 MB, 10 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 307 @6.119s 3%: 0+1.4+0 ms clock, 0+0/1.0/0+0 ms cpu, 5->5->2 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 308 @6.129s 3%: 0+1.1+0 ms clock, 0+0/1.0/0.58+0 ms cpu, 3->4->2 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 309 @6.133s 3%: 0+1.5+0 ms clock, 0+0/1.0/1.0+0 ms cpu, 4->5->3 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 310 @6.136s 3%: 0+0+0 ms clock, 0+0/0/0+0 ms cpu, 6->6->3 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 311 @6.140s 3%: 0+0+0 ms clock, 0+0/0/0+0 ms cpu, 5->5->3 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 312 @6.177s 3%: 1.1+8.8+0 ms clock, 2.2+0/2.0/0+0 ms cpu, 6->6->2 MB, 8 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 313 @6.234s 3%: 0+1.2+0.52 ms clock, 0+0/0.51/0+1.0 ms cpu, 4->4->2 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 314 @6.246s 3%: 0+0.52+0.80 ms clock, 0+0/0.52/0+1.6 ms cpu, 5->5->2 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 315 @6.252s 3%: 0.51+0.57+0.97 ms clock, 1.0+0/0.57/0+1.9 ms cpu, 4->5->3 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 316 @6.257s 3%: 0+1.7+0 ms clock, 0+0/1.2/0+0 ms cpu, 6->6->3 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 317 @6.260s 3%: 0+2.4+0 ms clock, 0+0/1.0/0.53+0 ms cpu, 6->7->4 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 318 @6.312s 3%: 0+6.3+0 ms clock, 0+0/0.54/5.3+0 ms cpu, 8->8->2 MB, 10 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 319 @6.329s 3%: 0+0.56+0.56 ms clock, 0+0/1.1/0+1.1 ms cpu, 5->5->2 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 320 @6.335s 3%: 0+0.52+0 ms clock, 0+0/0/0+0 ms cpu, 4->4->2 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 321 @6.338s 3%: 0+1.2+0 ms clock, 0+1.2/1.2/0+0 ms cpu, 5->5->3 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 322 @6.342s 3%: 0.51+1.9+0 ms clock, 1.0+0/1.0/0+0 ms cpu, 7->7->4 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\n",
+        "rssSteadyBytes": 29736960,
+        "cpuAtSteady": {
+          "userMs": 406,
+          "systemMs": 406
+        },
+        "rssFinalBytes": 30380032,
+        "peakRssBytes": 36167680,
+        "cpu": {
+          "userMs": 1672,
+          "systemMs": 1672,
+          "absoluteUserMs": 2078,
+          "absoluteSystemMs": 2078,
+          "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+        },
+        "bootKind": "warm"
+      },
+      {
+        "subject": "a17",
+        "kind": "gotavern",
+        "origin": "http://127.0.0.1:56113",
+        "pid": 11388,
+        "bootMs": 445.15612,
+        "bootError": null,
+        "bootToReadyMs": 445.15612,
+        "samples": [
+          {
+            "at": "ready",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 11388,
+            "rssBytes": 21123072,
+            "peakRssBytes": 21123072,
+            "cpuUserMs": 78,
+            "cpuSystemMs": 234,
+            "handles": null,
+            "note": "pageFaults=5304 privateUsage=53698560"
+          },
+          {
+            "at": "steady-after-warmup",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 11388,
+            "rssBytes": 30044160,
+            "peakRssBytes": 36691968,
+            "cpuUserMs": 406,
+            "cpuSystemMs": 625,
+            "handles": null,
+            "note": "pageFaults=13664 privateUsage=60989440"
+          },
+          {
+            "at": "final",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 11388,
+            "rssBytes": 30674944,
+            "peakRssBytes": 37404672,
+            "cpuUserMs": 2062,
+            "cpuSystemMs": 2218,
+            "handles": null,
+            "note": "pageFaults=44032 privateUsage=61399040"
+          }
+        ],
+        "latency": {
+          "version": {
+            "ms": {
+              "count": 50,
+              "min": 0.87604,
+              "median": 8.39328,
+              "max": 26.38156,
+              "p95": 17.62892,
+              "p99": 26.38156
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 168
+          },
+          "root": {
+            "ms": {
+              "count": 50,
+              "min": 14.60844,
+              "median": 29.19092,
+              "max": 42.13104,
+              "p95": 38.78064,
+              "p99": 42.13104
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 734837
+          },
+          "data": {
+            "ms": {
+              "count": 50,
+              "min": 53.66376,
+              "median": 65.63,
+              "max": 108.54076,
+              "p95": 85.74284,
+              "p99": 108.54076
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 1169472
+          }
+        },
+        "gc": {
+          "gcCount": 300,
+          "gcPauseMs": 629.2100000000004,
+          "gcLastHeap": {
+            "beforeMb": 7,
+            "goalMb": 4
+          },
+          "method": "GODEBUG=gctrace=1 stderr parse (count, pause sum, last heap)"
+        },
+        "stop": {
+          "mode": "abrupt-windows",
+          "platform": "win32"
+        },
+        "logTail": "+0 ms clock, 0+0/0.54/0+0 ms cpu, 4->4->2 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 284 @6.522s 3%: 0+0+2.3 ms clock, 0+0/0/0+4.6 ms cpu, 5->5->3 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 285 @6.527s 3%: 0+1.7+0 ms clock, 0+0.39/0.51/0+0 ms cpu, 6->7->5 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 286 @6.580s 3%: 0+1.3+0 ms clock, 0+0/1.0/0+0 ms cpu, 9->9->3 MB, 10 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 287 @6.596s 3%: 0+1.4+0 ms clock, 0+0/1.0/0+0 ms cpu, 7->7->2 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 288 @6.612s 3%: 0+3.7+0 ms clock, 0+0/0/0+0 ms cpu, 4->4->3 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 289 @6.619s 3%: 2.0+0.78+0 ms clock, 4.0+0/1.5/0+0 ms cpu, 5->5->3 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 290 @6.624s 3%: 0.52+0.54+0 ms clock, 1.0+0/1.0/0+0 ms cpu, 7->7->4 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 291 @6.701s 3%: 0+0.93+0 ms clock, 0+0/1.1/0+0 ms cpu, 9->9->2 MB, 9 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 292 @6.712s 3%: 0+2.8+0 ms clock, 0+0/2.4/0+0 ms cpu, 5->5->2 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 293 @6.724s 3%: 0+1.2+0 ms clock, 0+0/1.2/0+0 ms cpu, 3->4->2 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 294 @6.729s 3%: 2.0+3.3+0 ms clock, 4.0+2.0/0/0+0 ms cpu, 6->6->3 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 295 @6.738s 3%: 0+1.0+0 ms clock, 0+0/1.0/0+0 ms cpu, 7->7->4 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 296 @6.797s 3%: 0+1.0+0 ms clock, 0+0/0/0+0 ms cpu, 9->9->3 MB, 9 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 297 @6.815s 3%: 0.54+1.3+0 ms clock, 1.0+0/0.59/0+0 ms cpu, 7->7->2 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 298 @6.825s 3%: 0+1.6+0 ms clock, 0+0/1.0/1.0+0 ms cpu, 4->5->3 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 299 @6.828s 3%: 0+1.5+0 ms clock, 0+0/1.0/0+0 ms cpu, 5->6->3 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 300 @6.833s 3%: 0+1.1+0 ms clock, 0+0/1.1/0+0 ms cpu, 7->7->4 MB, 8 MB goal, 0 MB stacks, 0 MB globals, 2 P\n",
+        "rssSteadyBytes": 30044160,
+        "cpuAtSteady": {
+          "userMs": 406,
+          "systemMs": 625
+        },
+        "rssFinalBytes": 30674944,
+        "peakRssBytes": 37404672,
+        "cpu": {
+          "userMs": 1656,
+          "systemMs": 1593,
+          "absoluteUserMs": 2062,
+          "absoluteSystemMs": 2218,
+          "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+        },
+        "bootKind": "cold"
+      },
+      {
+        "subject": "a17",
+        "kind": "gotavern",
+        "origin": "http://127.0.0.1:56132",
+        "pid": 11100,
+        "bootMs": 117.65188,
+        "bootError": null,
+        "bootToReadyMs": 117.65188,
+        "samples": [
+          {
+            "at": "ready",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 11100,
+            "rssBytes": 18763776,
+            "peakRssBytes": 18763776,
+            "cpuUserMs": 0,
+            "cpuSystemMs": 46,
+            "handles": null,
+            "note": "pageFaults=4715 privateUsage=52260864"
+          },
+          {
+            "at": "steady-after-warmup",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 11100,
+            "rssBytes": 35749888,
+            "peakRssBytes": 36208640,
+            "cpuUserMs": 453,
+            "cpuSystemMs": 203,
+            "handles": null,
+            "note": "pageFaults=13821 privateUsage=66932736"
+          },
+          {
+            "at": "final",
+            "ok": true,
+            "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+            "pid": 11100,
+            "rssBytes": 30928896,
+            "peakRssBytes": 36634624,
+            "cpuUserMs": 2062,
+            "cpuSystemMs": 1750,
+            "handles": null,
+            "note": "pageFaults=41842 privateUsage=61898752"
+          }
+        ],
+        "latency": {
+          "version": {
+            "ms": {
+              "count": 50,
+              "min": 0.92264,
+              "median": 7.3772,
+              "max": 54.68012,
+              "p95": 20.90788,
+              "p99": 54.68012
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 168
+          },
+          "root": {
+            "ms": {
+              "count": 50,
+              "min": 14.19776,
+              "median": 32.9946,
+              "max": 65.326,
+              "p95": 49.74448,
+              "p99": 65.326
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 734837
+          },
+          "data": {
+            "ms": {
+              "count": 50,
+              "min": 56.14096,
+              "median": 74.11732,
+              "max": 136.37404,
+              "p95": 112.18392,
+              "p99": 136.37404
+            },
+            "status": [
+              200
+            ],
+            "bytesMedian": 1169472
+          }
+        },
+        "gc": {
+          "gcCount": 277,
+          "gcPauseMs": 1061.0999999999992,
+          "gcLastHeap": {
+            "beforeMb": 5,
+            "goalMb": 3
+          },
+          "method": "GODEBUG=gctrace=1 stderr parse (count, pause sum, last heap)"
+        },
+        "stop": {
+          "mode": "abrupt-windows",
+          "platform": "win32"
+        },
+        "logTail": "+0 ms clock, 1.0+0/0/0+0 ms cpu, 4->4->2 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 261 @7.160s 3%: 0+1.3+0 ms clock, 0+0/1.0/0+0 ms cpu, 4->5->3 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 262 @7.164s 3%: 0+8.2+0 ms clock, 0+0/1.1/0+0 ms cpu, 6->10->7 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 263 @7.249s 3%: 0+3.9+0 ms clock, 0+0/0.54/0+0 ms cpu, 12->13->3 MB, 15 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 264 @7.259s 3%: 0+0+0 ms clock, 0+0/0/0+0 ms cpu, 5->5->2 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 265 @7.263s 3%: 0+0+0 ms clock, 0+0/0/0+0 ms cpu, 5->5->3 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 266 @7.265s 3%: 0+2.7+0 ms clock, 0+0/4.9/0+0 ms cpu, 7->7->4 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 267 @7.347s 3%: 0+4.8+0.60 ms clock, 0+2.3/0/0+1.2 ms cpu, 8->9->3 MB, 10 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 268 @7.369s 3%: 0+1.8+0 ms clock, 0+0.54/0.86/0.82+0 ms cpu, 5->6->2 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 269 @7.378s 3%: 0+1.0+0 ms clock, 0+0/1.0/0.55+0 ms cpu, 4->4->2 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 270 @7.382s 3%: 0+1.1+0 ms clock, 0+0/1.0/0+0 ms cpu, 5->6->3 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 271 @7.385s 3%: 0+1.6+0 ms clock, 0+0/1.2/0+0 ms cpu, 7->7->5 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 272 @7.440s 3%: 0+1.8+0 ms clock, 0+0/0.50/0+0 ms cpu, 9->9->3 MB, 10 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 273 @7.460s 3%: 0+1.2+0 ms clock, 0+0/1.0/0.71+0 ms cpu, 6->6->2 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 274 @7.470s 3%: 0+1.6+0 ms clock, 0+0.51/1.0/0+0 ms cpu, 3->4->2 MB, 4 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 275 @7.474s 3%: 0+2.2+0 ms clock, 0+0/1.0/0+0 ms cpu, 4->5->3 MB, 5 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 276 @7.480s 3%: 0+1.1+0 ms clock, 0+1.1/0.51/0+0 ms cpu, 6->7->3 MB, 7 MB goal, 0 MB stacks, 0 MB globals, 2 P\ngc 277 @7.482s 3%: 0+6.8+0 ms clock, 0+0/1.5/4.0+0 ms cpu, 5->5->3 MB, 6 MB goal, 0 MB stacks, 0 MB globals, 2 P\n",
+        "rssSteadyBytes": 35749888,
+        "cpuAtSteady": {
+          "userMs": 453,
+          "systemMs": 203
+        },
+        "rssFinalBytes": 30928896,
+        "peakRssBytes": 36634624,
+        "cpu": {
+          "userMs": 1609,
+          "systemMs": 1547,
+          "absoluteUserMs": 2062,
+          "absoluteSystemMs": 1750,
+          "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION"
+        },
+        "bootKind": "warm"
+      }
+    ],
+    "summary": {
+      "a17": {
+        "records": 6,
+        "bootMs": {
+          "count": 6,
+          "min": 117.65188,
+          "median": 433.22412,
+          "max": 470.6172,
+          "p95": 470.6172,
+          "p99": 470.6172
+        },
+        "bootMsCold": {
+          "count": 3,
+          "min": 433.22412,
+          "median": 445.15612,
+          "max": 470.6172,
+          "p95": 470.6172,
+          "p99": 470.6172
+        },
+        "bootMsWarm": {
+          "count": 3,
+          "min": 117.65188,
+          "median": 136.887,
+          "max": 152.8534,
+          "p95": 152.8534,
+          "p99": 152.8534
+        },
+        "rssSteadyBytes": {
+          "count": 6,
+          "min": 29601792,
+          "median": 30474240,
+          "max": 35749888,
+          "p95": 35749888,
+          "p99": 35749888
+        },
+        "peakRssBytes": {
+          "count": 6,
+          "min": 36167680,
+          "median": 37404672,
+          "max": 38711296,
+          "p95": 38711296,
+          "p99": 38711296
+        },
+        "cpuUserMs": {
+          "count": 6,
+          "min": 1609,
+          "median": 1766,
+          "max": 1844,
+          "p95": 1844,
+          "p99": 1844
+        },
+        "cpuSystemMs": {
+          "count": 6,
+          "min": 1547,
+          "median": 1594,
+          "max": 1688,
+          "p95": 1688,
+          "p99": 1688
+        },
+        "gcCount": {
+          "count": 6,
+          "min": 277,
+          "median": 316,
+          "max": 323,
+          "p95": 323,
+          "p99": 323
+        },
+        "versionMedianMs": {
+          "count": 18,
+          "min": 6.45196,
+          "median": 17.67776,
+          "max": 54.68012,
+          "p95": 54.68012,
+          "p99": 54.68012
+        },
+        "rootMedianMs": {
+          "count": 18,
+          "min": 28.16636,
+          "median": 42.13104,
+          "max": 65.326,
+          "p95": 65.326,
+          "p99": 65.326
+        },
+        "dataMedianMs": {
+          "count": 18,
+          "min": 65.63,
+          "median": 85.74284,
+          "max": 136.37404,
+          "p95": 136.37404,
+          "p99": 136.37404
+        }
+      }
+    }
+  },
+  "notes": [
+    "Absolute milliseconds on a shared host are comparable only WITHIN this run (same host, same data, alternating or same-order rounds); the --load-label field says whether the host was quiet.",
+    "Windows cannot deliver SIGTERM to a console process, so Windows stops are abrupt (recorded in each record.stop).",
+    "Go allocation totals are not observable from outside a process; gctrace gives GC count/pause/heap-goal. B/op remains the in-process benchmark number (scripts/bench-profiles.mjs).",
+    "pinned Node GC counters are only recorded when Node emits --trace-gc lines; otherwise null, never zero.",
+    "This harness changes no product code and caches nothing."
+  ]
+}

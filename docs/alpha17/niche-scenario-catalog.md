@@ -8,7 +8,7 @@ Assembled deterministically by `docs/alpha17/catalog/assemble.mjs` from 12 part 
 - deduplicated scenarios: **176** (unique stable IDs, recomputed by the assembler, target >= 150)
 - per domain: FS=24, DATA=18, WRITE=16, HTTP=18, PROVIDER=15, SSE=4, STREAM=10, PROMPT=16, EXT=10, CONC=8, SEC=14, CLI=13, PERF=6, CACHE=4
 - parts: 00-index.md, 01-fs.md, 02-data.md, 03-write.md, 04-http.md, 05-provider.md, 06-sse-stream.md, 07-prompt.md, 08-ext-concurrency.md, 09-security.md, 10-cli.md, 11-perf-cache.md
-- source parts bytes: 00-index.md:7799, 01-fs.md:16980, 02-data.md:11855, 03-write.md:11224, 04-http.md:12904, 05-provider.md:11407, 06-sse-stream.md:9751, 07-prompt.md:12167, 08-ext-concurrency.md:14129, 09-security.md:10728, 10-cli.md:8199, 11-perf-cache.md:7515
+- source parts bytes: 00-index.md:7966, 01-fs.md:16980, 02-data.md:11855, 03-write.md:11494, 04-http.md:12904, 05-provider.md:11407, 06-sse-stream.md:9751, 07-prompt.md:12167, 08-ext-concurrency.md:14129, 09-security.md:10728, 10-cli.md:8199, 11-perf-cache.md:7515
 
 Status legend: PROPOSED/COVERED/DESIGNED/UNEXECUTED are defined in the index part (section 3). COVERED
 means "a dedicated test exists and was grep-verified", never "it ran"; no row in this catalogue is
@@ -98,36 +98,37 @@ Abbreviations used in cells: `RT` round-trip; `WB` world book; `WI` world info; 
 4. The catalogue does not modify `tests/`, `internal/` or `upstream/`; test ownership stays with the
    `tests` lane (README §4).
 
-## 5. ID scheme and planned deduplicated counts
+## 5. Deduplicated counts (computed, not planned)
 
-| domain | prefix | planned rows | part file |
+The assembler recomputes these from the part files; the assembled header is authoritative. Last run:
+`node docs/alpha17/catalog/assemble.mjs` → **176 unique scenarios**, 135,966 bytes, first byte `0x23` (no BOM).
+
+| domain | prefix | rows | part file |
 |---|---|---|---|
-| filesystem | `FS-###` | 23 | `01-fs.md`, `02-fs2.md` |
-| data / JSON / JSONL / YAML | `DATA-###` | 15 | `03-data.md` |
-| persistent writes / recovery | `WRITE-###` | 16 | `04-write.md` |
-| HTTP surface | `HTTP-###` | 14 | `05-http.md` |
-| provider transport / relay | `PROVIDER-###` | 14 | `06-provider.md` |
-| SSE / streaming | `SSE-###`, `STREAM-###` | 14 | `07-sse-stream.md` |
-| prompt / tokenizer / WI / regex | `PROMPT-###` | 14 | `08-prompt.md` |
-| extensions | `EXT-###` | 10 | `09-ext.md` |
-| concurrency | `CONC-###` | 8 | `10-concurrency.md` |
-| security | `SEC-###` | 12 | `11-security.md` |
-| CLI / installer / Docker / OS | `CLI-###` | 12 | `12-cli.md` |
-| performance / cache | `PERF-###`, `CACHE-###` | 10 | `13-perf-cache.md` |
-| **total** | | **162** | |
+| filesystem | `FS-###` | 24 | `01-fs.md` |
+| data / JSON / JSONL | `DATA-###` | 18 | `02-data.md` |
+| persistent writes / recovery | `WRITE-###` | 16 | `03-write.md` |
+| HTTP surface | `HTTP-###` | 18 | `04-http.md` |
+| provider transport / relay | `PROVIDER-###` | 15 | `05-provider.md` |
+| SSE / streaming | `SSE-###`, `STREAM-###` | 14 | `06-sse-stream.md` |
+| prompt / tokenizer / WI / regex | `PROMPT-###` | 16 | `07-prompt.md` |
+| extensions + concurrency | `EXT-###`, `CONC-###` | 18 | `08-ext-concurrency.md` |
+| security | `SEC-###` | 14 | `09-security.md` |
+| CLI / installer / Docker / OS | `CLI-###` | 13 | `10-cli.md` |
+| performance / cache | `PERF-###`, `CACHE-###` | 10 | `11-perf-cache.md` |
+| **total** | | **176** | 11 domain parts + index |
 
-Planned ≠ actual: `assemble.mjs` recomputes the unique-ID count from the assembled document and writes
-the real total into its header. If a domain shrinks during writing (a variant merged), the index table is
-updated by the same script's reported count, and the assembled header is authoritative.
+A domain may shrink during review only by merging a row into another row's parameter table; the assembler
+refuses duplicate IDs and refuses a total below 150, so the target cannot silently regress.
 
 ## 6. Part map
 
-`01-fs.md` FS-001–FS-012 · `02-fs2.md` FS-013–FS-023 · `03-data.md` DATA-001–DATA-015 ·
-`04-write.md` WRITE-001–WRITE-016 · `05-http.md` HTTP-001–HTTP-014 · `06-provider.md`
-PROVIDER-001–PROVIDER-014 · `07-sse-stream.md` SSE-001–SSE-004 + STREAM-001–STREAM-010 ·
-`08-prompt.md` PROMPT-001–PROMPT-014 · `09-ext.md` EXT-001–EXT-010 · `10-concurrency.md`
-CONC-001–CONC-008 · `11-security.md` SEC-001–SEC-012 · `12-cli.md` CLI-001–CLI-012 ·
-`13-perf-cache.md` PERF-001–PERF-006 + CACHE-001–CACHE-004.
+`01-fs.md` FS-001–FS-024 · `02-data.md` DATA-001–DATA-018 · `03-write.md` WRITE-001–WRITE-016 ·
+`04-http.md` HTTP-001–HTTP-018 · `05-provider.md` PROVIDER-001–PROVIDER-015 · `06-sse-stream.md`
+SSE-001–SSE-004 + STREAM-001–STREAM-010 · `07-prompt.md` PROMPT-001–PROMPT-016 · `08-ext-concurrency.md`
+EXT-001–EXT-010 + CONC-001–CONC-008 · `09-security.md` SEC-001–SEC-014 · `10-cli.md` CLI-001–CLI-013 ·
+`11-perf-cache.md` PERF-001–PERF-006 + CACHE-001–CACHE-004. Assembly: `assemble.mjs` (fixed order list; a
+missing part, a duplicate ID or a total below 150 fails closed).
 
 ---
 
@@ -209,14 +210,14 @@ dir fsync.
 | ID | Name | Risk | Pre | Input | Ops | Pinned basis | Pinned exp | Go exp | Neg control | Test | Cmd | CI | Status | Residual |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | WRITE-001 | Settings save is atomic: old-or-new, never mixed | P0 | booted server, 200 KiB settings | A/B documents alternating | save → get → disk, 100 rounds | `src/endpoints/settings.js:206` | old or new whole document; no mixed body | same; response 200 only when the new bytes are durable | in-place `O_TRUNC` write (mixed body served) | `tests/e2e/a15_settings_crash_test.go:154` | `go test ./tests/e2e -run TestSettingsCrash -count=1` | GoTavern CI | PARTIAL | crash legs only; response-before-durability not asserted |
-| WRITE-002 | Fault injection at the ten persistence stages | P0 | injectable FS seam | failure at each stage (table below) | one save per stage → read/restart | `src/endpoints/chats.js:9`; `settings.js:206` | pinned lib: stage failure surfaces an error; on-disk state is old or new, temp may remain (version-dependent) | each stage: error answer; old document intact OR new document complete; temp residue named; restart recovers one whole state | report 200 at any failed stage (silent loss) | `NEW: tests/e2e/niche_write_faults_test.go` (proposed) | `go test ./tests/e2e -run TestNicheWriteFaultStages -count=1` | GoTavern CI | DESIGNED | the 10-stage seam must be built (internal/faultinject exists but its stage coverage is unverified); pinned temp-residue rule needs a capture |
-| WRITE-003 | Chat save and append (one JSON object per line, ordered) | P0 | card + chat | 2400 messages, append-only, UTF-8 | save → append → get → disk | `src/endpoints/chats.js:545` | one object per line, order preserved, exactly one trailing newline per message | same bytes (modulo JSON key order rule) | buffer lines and join without separators (one giant line) | `tests/e2e/chat_crash_harness_test.go:214` | `go test ./tests/e2e -run TestChatCrash -count=1` | GoTavern CI | PARTIAL | append-vs-full-rewrite choice is not observable here; 2400-message ordering is PERF-004 |
+| WRITE-002 | Fault injection at the ten persistence stages | P0 | injectable FS seam | failure at each stage (table below) | one save per stage → read/restart | `src/endpoints/chats.js:9`; `settings.js:206` | pinned lib: stage failure surfaces an error; on-disk state is old or new, temp may remain (version-dependent) | each stage: error answer; old document intact OR new document complete; temp residue named; restart recovers one whole state | report 200 at any failed stage (silent loss) | `tests/e2e/niche_persistence_test.go:159` (settings crash stages), `:252` (chat crash stages) | `go test ./tests/e2e -run TestNichePersistenceSettingsSaveCrashStages -count=1` | GoTavern CI | COVERED | the committed stages are KILL-based, not injected fsync/rename/close syscall failures; the 10-stage table is the design, only its kill-shaped subset exists |
+| WRITE-003 | Chat save and append (one JSON object per line, ordered) | P0 | card + chat | 2400 messages, append-only, UTF-8 | save → append → get → disk | `src/endpoints/chats.js:545` | one object per line, order preserved, exactly one trailing newline per message | same bytes (modulo JSON key order rule) | buffer lines and join without separators (one giant line) | `tests/e2e/chat_crash_harness_test.go:214`; `niche_persistence_test.go:252` | `go test ./tests/e2e -run 'TestChatCrash|TestNichePersistenceChatSaveCrashStages' -count=1` | GoTavern CI | PARTIAL | append-vs-full-rewrite choice is not observable here; 2400-message ordering is PERF-003 |
 | WRITE-004 | Chat rename (old name gone, new name whole, metadata follows) | P1 | card with chat `a.jsonl` | rename `a`→`b`, target exists / missing | rename → list → get a / get b | `src/endpoints/chats.js:621` | `b.jsonl` holds the document; `a` no longer served; pinned refuses an existing target per its handler | same; no duplicate state; unknown trailing files untouched | copy-then-delete leaving both names (duplicate visible) | `tests/e2e/scenario_state_machine_test.go:674` | `go test ./tests/e2e -run TestSeededStateMachine -count=1` | GoTavern CI | PARTIAL | rename-over-existing and rename-across-directory cases not asserted |
 | WRITE-005 | Chat delete and bulk `delete_chats` | P0 | card with several chats | delete one; delete all | delete → list → disk | `src/endpoints/chats.js:654` | one file removed; backup copy may exist by pinned policy; others intact | same; a failed delete does not report success | delete the directory (loses sibling chats) | `NEW: tests/e2e/niche_write_test.go` (proposed) | `go test ./tests/e2e -run TestNicheChatDelete -count=1` | GoTavern CI | DESIGNED | bulk-delete response shape needs a pinned capture |
 | WRITE-006 | Character delete and rename (avatar + chats ownership) | P0 | one card with chats | rename card; delete card | rename/delete → list/get | `src/endpoints/characters.js:1053`,`:1416` | rename moves avatar/data; delete removes the card and its chat directory per handler | same; no orphan half-state; refusal keeps both intact | delete only the PNG (orphan chats) or leave the avatar (ghost card) | `NEW: tests/e2e/niche_write_test.go` (proposed) | `go test ./tests/e2e -run 'TestNicheCharacter(Rename|Delete)' -count=1` | GoTavern CI | DESIGNED | pinned's exact orphan policy (chats deleted or retained) must be read from the handler before writing |
 | WRITE-007 | Account reset (settings reset steps) | P0 | one user with custom settings | reset-step1 (request code) → reset-step2 | reset → login → settings/get | `src/endpoints/users-private.js:234`,`:261` (two-step), `:184` (reset-settings) | pinned two-step reset; user files under the account are not wholesale deleted | same sequence; refusal leaves the old settings intact; data files preserved | single-step reset (skips the code) or delete the user directory (data loss) | `NEW: tests/e2e/niche_write_test.go` (proposed) | `go test ./tests/e2e -run TestNicheAccountReset -count=1` | GoTavern CI | DESIGNED | no test in the tree asserts the two-step reset contract |
 | WRITE-008 | Delete-user (admin) | P0 | admin + target user with data | delete user; delete self; delete missing | delete → login as target → disk | `src/endpoints/users-admin.js:219` | target's tree removed/moved per handler; session invalidated; admin cannot delete self if pinned refuses | same; no cross-user removal | delete by prefix (`user2` matches `user20`) — sibling data loss | `NEW: tests/e2e/niche_write_test.go` (proposed) | `go test ./tests/e2e -run TestNicheDeleteUser -count=1` | GoTavern CI | DESIGNED | prefix/self-delete/refusal cases need a pinned capture |
-| WRITE-009 | Import (character card, chat, world) | P0 | multipart request | valid PNG card + JSON; chat JSONL; world JSON | import → list → get | `src/endpoints/characters.js:1560`; `chats.js:771`; `worldinfo.js:99` | imported entity listed and readable; unknown fields in the card preserved | same; no temp file leak; refusal writes nothing | partial write then 500 (half a card on disk) | `tests/e2e/chat_crash_harness_test.go:438` | `go test ./tests/e2e -run TestChatCrash -count=1` | GoTavern CI | PARTIAL | chat import path covered; card/world import round-trip not asserted |
+| WRITE-009 | Import (character card, chat, world) | P0 | multipart request | valid PNG card + JSON; chat JSONL; world JSON | import → list → get | `src/endpoints/characters.js:1560`; `chats.js:771`; `worldinfo.js:99` | imported entity listed and readable; unknown fields in the card preserved | same; no temp file leak; refusal writes nothing | partial write then 500 (half a card on disk) | `tests/e2e/chat_crash_harness_test.go:438`; `niche_persistence_test.go:338` (chat import crash stage) | `go test ./tests/e2e -run 'TestChatCrash|TestNichePersistenceChatImportCrashStage' -count=1` | GoTavern CI | PARTIAL | chat import path covered (incl. a crash stage); card/world import round-trip not asserted |
 | WRITE-010 | Migration from a source installation is read-only on the source | P0 | source tree + destination root | 64 MiB settings, chats, cards | migrate → compare source digests | `src/endpoints/backups.js` (NOT-RE-VERIFIED); AGENTS rule 14 | source bytes unchanged; destination complete | source digest set unchanged; destination serves the data; crash resumes | mutate the source tree (digest mismatch) | `tests/e2e/a15_migrate_crash_test.go:191` | `go test ./tests/e2e -run TestMigrateCrash -count=1` | GoTavern CI | PARTIAL | migration crash/resume covered; full Node->Go data-shape equality is `q21-data-handback.mjs` (browser gate) |
 | WRITE-011 | Rollback / snapshot restore | P1 | snapshots enabled | make snapshot; modify; load/restore snapshot | snapshot → edit → restore → get | `src/endpoints/settings.js:298`,`:316`,`:340`,`:350` | restore returns the snapshot document exactly; snapshot files retained per pinned naming | same; a stale snapshot cannot resurrect a deleted chat | restore writes a partial document (mixed) | `NEW: tests/e2e/niche_write_test.go` (proposed) | `go test ./tests/e2e -run 'TestNicheSnapshot' -count=1` | GoTavern CI | DESIGNED | snapshot file naming/retention policy needs a pinned capture |
 | WRITE-012 | Backup (settings snapshots, chat backups, chat restore) | P1 | backups enabled in config | 3 chat saves; backup list; download | save ×3 → backups/chat/get → restore | `src/endpoints/chats.js:59` (`backupChat`), `:27` (config), `backups.js:9` | backup file named `chat_<key>_<timestamp>.jsonl`; backup enabled by default; pruning per config | same naming family and enabled-by-default; download bytes parse | ignore the config toggle (backup silently disabled) | `tests/browser/q21-data-handback.mjs` (recorded handback fixture) | `node tests/browser/q21-data-handback.mjs` | Browser differential (browser-differential.yml) | DESIGNED | browser leg not run this round; no Go backup test found |
