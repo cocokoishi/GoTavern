@@ -10,7 +10,138 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-11-05: `v0.1.0-alpha.15` -- THE FINAL ENGINEERING-AUDIT RELEASE
+## Latest checkpoint - 2026-11-07: `v0.1.0-alpha.16` -- THE SYNTHETIC ADVERSARIAL QUALIFICATION RELEASE
+
+`v0.1.0-alpha.16` closes the alpha.16 programme (M0-M6: full-code audit, scenario factory, real-browser
+E03+E04 journey, recorded-oracle discrimination, refactor refusals, performance evidence, release rails) and
+adds a final engineering pass that closed five confirmed defects the audit had left as bounded follow-ups. The
+SillyTavern 1.19.0 baseline is unchanged. The release candidate is `c1886d7`
+(`c1886d7`); the 13 required workflows were re-run at it and the release was published from that tag target.
+
+### A. Architecture: what was actually wrong, and what was NOT moved
+
+The M4 decision record refused all six proposed refactor boundaries (R1-R6) on audit evidence; that decision
+stands. The final pass fixed six ownership DEFECTS inside the existing boundaries, each with its own red test,
+rather than moving a boundary:
+
+| problem (original ownership) | change | why it is better |
+|---|---|---|
+| the chat-completion converters read provider-visible config by deriving `config.yaml` from the per-user data root (`pinned_chat_config.go`), so `--configPath` and non-adjacent `--dataRoot` silently defaulted nine keys | the startup chain's resolved `Paths.ConfigFile` is threaded through `HTTPHandlerOptions.ConfigPath` -> `chatCompletionRequest.configPath` into a `pinnedChatConfigSource`; a non-empty resolved path is the ONLY file read | one owner for config identity (the startup resolver), no second derivation, no decoy path, and provider-wire keys now follow the operator's file |
+| the in-memory login limiter kept every key for the process lifetime while pinned deletes each at its window expiry | an expiry FIFO swept on consume/exceeded (amortised O(1), stale-safe) | memory is bounded by the active window set, exactly as pinned; key is client-controlled so this was a real DoS lever |
+| heartbeat shutdown joined the writer with no bound and could block on the IO mutex behind an fsync | atomic stopped flag published before the stop signal; `stop(ctx)` never takes the write mutex, joins under the caller's shutdown context and returns the named `ErrHeartbeatStopTimeout`; `RunningServer.Close` joins the error | shutdown has a named, bounded failure instead of an unbounded join that was not in pinned at all |
+| the tokenizer cache was written in place (`os.WriteFile`, O_TRUNC) while pinned uses `write-file-atomic` | same-directory O_CREATE|O_EXCL temp -> fsync -> rename (fsretry) -> directory fsync; destination never truncated; a cache-write failure falls back where pinned's catch does | the cache is only ever absent or complete, so a crash or concurrent reader cannot tokenize a prefix |
+| the second-SIGINT message claimed listener close aborts in-flight requests | measured with a real keep-alive request and a re-exec exit; message corrected, behaviour unchanged (exit 130) | the CLI no longer overclaims what the product does |
+| the e2e harness could fail a boot on a cross-package loopback port collision | bounded retry ONLY on the child's own bind-collision message, fresh kernel-assigned port, with a classification teeth test | the measured flake (CI 42332590427 verify) is fixed at the harness instead of retried until green; every other failure still fails |
+
+Data flow / lifecycle summary: startup resolves and parses one config file (its path now reaches the provider
+planners); background heartbeat has an explicit stop with a caller deadline; limiter state has a bounded
+lifetime; derived tokenizer data has atomic publication; no new package, no new interface layer, no change to
+middleware order, `orderedNodeJSON`, provider codecs, tokenizers, migration or the pinned frontend.
+
+### B. Defects found and fixed in this pass (each red-first)
+
+| id | reproducer | observed red | fix | residual |
+|---|---|---|---|---|
+| D-H1 | `TestChatCompletionProviderConfigFollowsTheStartupResolvedConfigPath` (+ decoy control) | 7 subtests red with the old derivation (decoy placeholder, adaptive vs budget_tokens, `/v1beta/`, spurious reasoning_details, missing cache_control, missing mistral prefix, missing OpenAI uuid); decoy test red | `acad078` | `requestOverrides` is text-completion-backend-only, unchanged |
+| C-H1 | `TestMemoryLoginLimiterEvictsExpiredWindows` | "after all 10000 windows expired, the limiter still holds 10001 entries" | `a2fc2e5` | lazy eviction (no timer/goroutine) |
+| C-H6 | `TestHeartbeatStopIsBounded` | "RunningServer.Close blocked for more than 2s on a heartbeat write stuck in fsync" | `a2fc2e5` | a wedged fsync still pins the goroutine; shutdown reports it by name |
+| C-H7 | `TestSecondSignalDuringDrainForcesExit130` + listener/exit tests | "still claims closing listeners aborts in-flight requests" | `a2fc2e5` | second Ctrl+C does not shorten the 10 s drain |
+| C-H8 | race package list | `internal/app` and `internal/lockacquire` missing from `-race` | `a2fc2e5` | `-race` is linux-only (host cannot run it) |
+| D-H17 | 3 tokenizer cache atomicity tests | 2,377,322-byte file where the payload is 4,754,645; 33-byte complete file replaced by 32,768; reader saw 65,536 non-payload bytes | `2b43f33` | Windows-only silent fallback log / ignored .gz unlink (documented) |
+| e2e port flake | CI 42332590427 verify | child bind: "address already in use" at 127.0.0.1:39195 | `654a7fe` | retry only on the measured collision class |
+| derived counts | CI verify at 654a7fe | committed 947 test functions vs 948 measured | `8e151ce`, `c1886d7` | regeneration must follow any test addition |
+
+B-H4 (concurrent account reset vs saves) was PROBED, not changed: three seeds x eight goroutines x 48 saves
+against the real reset route produced no corruption, no cross-user data and pinned-parity interleaving, so no
+lock was added (`docs/alpha16/storage-probe.md`).
+
+### C. Compatibility evidence actually executed for this release
+
+- **Same-SHA required gates (13/13, `workflow_dispatch` at `c1886d7`)**: GoTavern CI (verify, race, oracle full
+  sweep, crash-gate, browser-evidence), whole-session differential, world-info slot ordering, drop-in
+  qualification, Browser differential `mode=all`, release qualification, smoke metrics `requests=50`, Docker
+  image, Helper state differential, Combination journey `profile=e03e04 tier=full`, Third-party extension
+  compatibility `mode=full` (20 pinned extensions), long-lived corpus `size=medium`, Node stock-tree round trip.
+  The official verifier printed PASS 13/13; the table is `docs/alpha16/same-sha-evidence.md` and is appended to
+  the published release body.
+- **Seeded E06 state machine (new)**: 100 seeds x 10 declared operations x 2 executions = 2,000 reproducible
+  sequences against the real in-process server, 8 accounts, 4 same-data-root restarts, cross-account reads,
+  unknown-file hashes, JSON/JSONL validity, machine-readable action log; 14 planted defects each produce their
+  named red. E01-E09 coverage honestly in `docs/alpha16/e-series-coverage.md` (E06 executed-partial, E08
+  partial, E05/E01 partial; E02/E03/E04/E07/E09 unexecuted by this lane and covered elsewhere or not at all).
+- **Node -> Go -> Node**: the Node stock-tree round-trip gate is green at the candidate (tree hash, manifest,
+  unknown-file preservation, restart, hand-back).
+- **Not executed / not claimed**: a real private user tree (GOAL.md §14 remains NOT MET), real-browser
+  extension interaction beyond the re-run combination/third-party gates, crash-kill recovery beyond the
+  existing chaos gates, and the newly seeded lane's unexecuted legs.
+
+### D. Stability
+
+Race packages now include `internal/app` and `internal/lockacquire`; the candidate's CI race job is green.
+Crash-atomicity and fault-injection gates are green (crash-gate). M3b keeps the ENOSPC/EFBIG property proof
+(neither errno retried, identity preserved) while a real kernel ENOSPC remains UNPROVEN. The B-H4 probe found no
+data destruction. Two 45-minute soaks at the final code candidate both pass the GC-robust per-third rule.
+No goroutine/FD leak was observed in the runs; the heartbeat's wedged-fsync case is reported by name and is the
+only known bounded leak path (the goroutine cannot be killed). One Windows-only residual is recorded: an
+account reset racing an in-flight save can answer 500 because Go opens without `FILE_SHARE_DELETE` while Node's
+rm succeeds (not data destruction; Linux CI unaffected).
+
+### E. Performance (measured, both directions, no invented numbers)
+
+- Bench profiles: 31/31 benchmarks PASS against the regenerated baseline (`GoTavern bench profiles`
+  `42200357353`), improvements e.g. static page load -10.8%, assembly 1MB -6.8%, with small regressions inside
+  the ratified tolerances.
+- Smoke metrics: cold start to `/version` 917.25 -> 273.59 ms (-70.2%) versus the M0 record, cold to listener
+  -78.6%, while `/version` p50 +25.7% and `/` p50 +23.3% are reported, not hidden; the fresh-install seed is
+  byte-identical.
+- 8-user concurrent writes: REPORT-ONLY. Three repeated baselines and three identical-code AFTER runs showed a
+  1.95x (settingsSave) / 2.29x (chatsSave) same-code spread tracking each host's sync-write tail; the row's
+  latency gate is not ratifiable on the shared runner pool and no graded 8-user number is claimed. Correctness,
+  isolation and error rate are green in every run; the measured routes' handlers are untouched by the diff.
+  Harness commits `535072b`, `078172f`, `58d9291`, `985eed5`; full tables in `docs/alpha16/m5-evidence.md`.
+- Soak: two 45-minute runs of the final code candidate pass; real-leak question remains UNPROVEN (detection
+  floor).
+
+### F. Release identity
+
+### F. Release identity
+
+- **tag** `v0.1.0-alpha.16` (annotated object `b7d81cd`) points at commit
+  `c1886d7`; it was not moved. `scripts/classify-version-tag.sh` classifies it
+  **stable**, so the release was published without `--prerelease`, with `--latest`, and `releases/latest`
+  resolves to this tag.
+- **Release**: https://github.com/cocokoishi/GoTavern/releases/tag/v0.1.0-alpha.16 -- `draft=false`,
+  `prerelease=false`, published `2026-11-07T08:01:36Z`, **7 assets** (six canonical archives +
+  `checksums.txt`). Publication run: `GoTavern Release` **42353529322** (tag push, completed/success; six
+  build legs, the execution legs, the darwin/arm64 recorded downgrade, prepublish qualification, publish and
+  post-release facts all green). The release body carries the generated same-SHA qualification table for the
+  13 required gates.
+- **checksums re-verified after publication**: all six archives were downloaded again and compared against the
+  release's own `checksums.txt` -- 6/6 OK, 0 failures.
+- **published binary executed locally**: the `windows-amd64` archive unpacked on this host;
+  `gotavern version --json` -> `gotavern_version: v0.1.0-alpha.16`, `sillytavern_version: 1.19.0`,
+  `sillytavern_commit: 06bde939...`; `BUILD-INFO.txt` names the release and `target windows`; the extracted
+  `src/tokenizers` tree has 10 files; a fresh-install boot answered `GET /version` 200 (pinned SillyTavern
+  identity) and `GET /` 200 (734,837 bytes).
+- **installer + published-extension smoke**: `GoTavern published-release install smoke` **42354487423**
+  completed/success (real TLS installs with `install.sh` on linux-amd64 and `install.ps1` on windows-amd64,
+  boot, tag and tokenizer assertions); `GoTavern published-extension smoke` **42354438296** completed/success
+  (`releases/latest` resolves to the tag, published archive and BOTH container tags verified as one image, the
+  container boots, and the published-extension journey passes).
+- **container**: `ghcr.io/cocokoishi/gotavern:v0.1.0-alpha.16` and `:latest` are the SAME digest
+  `sha256:37a7f69f7fee090c58bbfd859ffbbd2ce50e9b3ec69482f91c95e5ef47eb1ea3` (the stable channel moves
+  `latest`); alpha.15's `sha256:28fd03f4...` is unchanged. The tag-triggered `GoTavern Docker image` run
+  **42353529367** and the verification dispatch **42354440669** are green.
+- **tag target unchanged**: `git ls-remote origin` answers the tag object above peeling to `c1886d7`; the
+  release workflow's `post-release-facts` job regenerated the generated facts for the published tag
+  (commit `00828eb`) and dispatched `GoTavern CI` **42353714945** at that commit.
+- **same-SHA evidence**: the official verifier printed `PASS: 13/13 required workflow(s) are green at this SHA`
+  (exit 0) at the tag target; the committed table is `docs/alpha16/same-sha-evidence.md`, and the publish job
+  re-ran the same program itself before creating the release.
+
+---
+
+## HISTORY - 2026-11-05: `v0.1.0-alpha.15` -- THE FINAL ENGINEERING-AUDIT RELEASE
 
 `v0.1.0-alpha.15` is the stable-channel release that ends the 0.1.0 line's engineering program with an
 audit. Its defining rule was **prove the gate can fail before trusting it**: every gate added this round has a

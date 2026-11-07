@@ -697,3 +697,22 @@ claimed by the release. (3) The rule and its teeth are committed so the row can 
 with stable write latency: the only change needed is a baseline series and AFTER runs recorded on that class.
 A same-host paired design (baseline binary built from the previous release and measured in the same job as the
 candidate) is the named next step; it was not executed here.
+## 12. The two same-code 45-minute soak runs (2026-11-07)
+
+Row 8 was run twice at the final code candidate: `M5 measurements` **42331166962** (tree 93f5f59) and
+**42332431109** (tree 8e151ce), both completed/success with `load_label` `a16-final-code-candidate-soak-1` /
+`-soak-2` on the same runner image (`ubuntu26` `20261101.186.1`, 4 vCPU, 15,983 MiB). The binary's product
+code is identical to the release candidate `654a7fe`: `git diff --name-only 93f5f59..654a7fe -- cmd internal`
+contains ZERO non-test files, and the only differences in that range are the harness, workflow, generated
+docs and tests/e2e changes.
+
+| run | tree | soak | requests | third means (MB) | third minima (MB) | RSS drift | retired LS slope | verdict |
+|---|---|---|---|---|---|---|---|---|
+| 42331166962 | 93f5f59 | 45 min | 13,501 | 44.39 / 43.73 / 44.64 | 33.58 / 32.35 / 37.05 | +0.89 MB | +274.64 B/s | **passed** (meanOk, floorOk; 0 violations) |
+| 42332431109 | 8e151ce | 45 min | 13,500 | 43.24 / 43.28 / 43.14 | 36.33 / 33.92 / 33.04 | -0.41 MB | -292.22 B/s | **passed** (meanOk, floorOk; 0 violations) |
+
+Both runs pass the corrected per-third mean/floor rule, and the retired least-squares slope moves SIGN
+between two runs of the same binary (+274.64 then -292.22 B/s), which is the phase-aliasing defect
+section 4.10 records rather than a leak signal. What the pair still does NOT establish: the rule is a
+detection floor, so a leak slower than a 10% mean rise or a 4 MiB floor rise over 45 minutes would pass by
+design; the real-leak question remains **UNPROVEN**. The soak row is not one of the 13 release gates.

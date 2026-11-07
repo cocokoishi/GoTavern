@@ -1,5 +1,13 @@
 # The evidence ledger: one row per user question, and the run that proves it
 
+**alpha.16 note (2026-11-07).** The rows below are the `v0.1.0-alpha.15` record and remain admissible for
+every capability they name: alpha.16 keeps the same baseline and contract, and its final pass closed five
+confirmed defects (D-H1 provider config path, C-H1 rate-limit memory, C-H6 heartbeat shutdown, C-H7 CLI claim,
+D-H17 tokenizer cache atomicity) plus one Windows-only residual. The alpha.16 programme and its same-SHA
+release evidence are `docs/alpha16/handoff-ledger.md` and `docs/alpha16/same-sha-evidence.md`; the release
+notes list every scope limit (GOAL.md section 14 stays NOT MET, darwin/arm64 runtime UNPROVEN, the 8-user
+performance row report-only). No row below is upgraded by alpha.16, and Q22's figures are unchanged by it.
+
 Describes: commit `f1396ce` (`main`, 2026-11-05, the code-complete commit of the `v0.1.0-alpha.15` final
 engineering-audit release; its documentation pass is the commit after it). Every run cited below judged a commit
 that is an ancestor of it, and the fresh same-SHA gate runs for the release are carried in its published release

@@ -1,8 +1,11 @@
 # alpha.16 handoff ledger (plan section 9.E)
 
-**Status: the alpha.16 release bar is MET at candidate `6e96959` within the synthetic adversarial qualification
-scope. NO tag was created or moved and NO release was published.** This ledger is documentation only: no
-workflow was dispatched and no git operation was run by the task that wrote it. Tree read: `6e96959`
+**Status: PUBLISHED. The alpha.16 release bar is MET at the final candidate `c1886d7` within the synthetic
+adversarial qualification scope, and `v0.1.0-alpha.16` was tagged and published from it. Sections 1-10 record
+the programme as it stood at the earlier candidate `6e96959` (a rehearsal target that the final engineering
+pass superseded); section 11 records that pass and section 12 records the final 13/13 gate wave, the tag, the
+release and the post-release verification.** This ledger is documentation only: no workflow is dispatched by
+writing it. Tree read: `6e96959`
 (`main`, the frozen candidate, 2026-11-06); program base `c256f21`. Pinned oracle: SillyTavern `1.19.0` @
 `06bde939fb1e9c4c8d8641d810f0a916b5bce127` (`upstream/SILLYTAVERN_COMMIT`; `docs/alpha16/README.md:4`).
 
@@ -766,3 +769,171 @@ committed from them before they expire.
 - **Patch hygiene:** `git diff --check` (no whitespace errors). No git commit was made by this task; the Lead
   commits. No workflow was dispatched by this task; all run ids cited here are recorded from the committed
   verifier table and the run records named beside them.
+
+## 11. The final engineering pass (2026-11-07): five defects closed, one qualification lane added
+
+Sections 1-10 record the alpha.16 programme as a qualification that stopped before publication. This section
+records the final pass that closed the defects the M0 audit had left as bounded follow-ups, added the seeded
+E06 state-machine lane, and produced the candidate that was released. Every fix below was red-first in its
+own lane worktree; the merges are on `main` and the per-lane commits are named.
+
+### 11.1 Confirmed defects closed
+
+| id | file:line (pre-fix) | observed red (test, exact failure) | fix | green | residual |
+|---|---|---|---|---|---|
+| D-H1 | `internal/server/pinned_chat_config.go:35-45` derived config.yaml from the data root | `TestChatCompletionProviderConfigFollowsTheStartupResolvedConfigPath` 7 subtests red with the old derivation: decoy placeholder in the claude body, `thinking {"type":"enabled","budget_tokens":1024}` instead of adaptive, google target `/v1beta/` instead of `/v1/`, spurious `reasoning_details`, no `cache_control`, no mistral `prefix:true`, no OpenAI uuid; `...IgnoresADecoyAtTheDerivedLocation` red with "carries the DECOY config.yaml" | thread `commandline.Paths.ConfigFile` through `HTTPHandlerOptions.ConfigPath` -> `chatCompletionRequest.configPath` -> the config-reading planners; a non-empty resolved path is the ONLY file read; second registry adapter feeds claude+mistral, google/openrouter/openai read `request.config()`; claude caching knobs take the same view | commit `acad078`; `go test ./internal/server ./internal/app -count=1` green (217.0 s / 79.2 s) | `requestOverrides` still reads the directory view, but it serves the text-completion backends, not the chat route |
+| C-H1 | `internal/server/accounts.go:115-200` never evicted a limiter key | `TestMemoryLoginLimiterEvictsExpiredWindows` red: "after all 10000 windows expired, the limiter still holds 10001 entries"; pinned's `rate-limiter-flexible` MemoryStorage deletes each key with a per-key timeout (`node_modules/rate-limiter-flexible/lib/component/MemoryStorage/MemoryStorage.js:30-50,68-82`) | expiry FIFO swept on consume/exceeded (amortised O(1), stale-record safe); consume/exceeded/clear return values and timing unchanged | commit `a2fc2e5`; 10k-key bound + honest-window/clear regression green | eviction is lazy: a process with no further limiter traffic keeps one expired window set until the next operation (bounded by the previous window's key set, no timer or goroutine added) |
+| C-H6 | `internal/app/heartbeat.go:68-85` `stop()` took the IO mutex and joined with no bound | `TestHeartbeatStopIsBounded` red: "RunningServer.Close blocked for more than 2s on a heartbeat write stuck in fsync: the shutdown wait is unbounded"; pinned writes heartbeat.json synchronously with an unref'd interval and its SIGINT path is `process.exit()` with no join (`src/server-main.js:316-331,397-417`), so the join was a GoTavern addition | atomic stopped flag published before the stop signal; `stop(ctx)` never takes the write mutex, joins under the caller's shutdown context and returns the named `ErrHeartbeatStopTimeout`; `RunningServer.Close` passes its ctx and joins the error; no write starts after stop reports success | commit `a2fc2e5`; bounded named failure + 20-cycle prompt stop + fast double-stop + goroutine bound + no-write-after-stop, all green | a truly wedged fsync still pins the single writer goroutine; shutdown now reports it by name and ends instead of hanging |
+| C-H7 | `cmd/gotavern/main.go:355-382` message overclaimed | `TestSecondSignalDuringDrainForcesExit130` red: "still claims closing listeners aborts in-flight requests"; `TestListenerCloseDoesNotAbortInFlightRequest` shows the keep-alive request completes after listener.Close, `TestProcessExitAbortsInFlightRequest` shows the exit 130 aborts it | message corrected to say listeners close now, requests continue until the up-to-10 s drain, then exit 130 aborts them; behaviour (forcedShutdown/130) unchanged | commit `a2fc2e5`; all three tests green | a second Ctrl+C still does not shorten the deferred 10 s drain; the fix is the message, not an invented behaviour |
+| C-H8 | `.github/workflows/ci.yml:683` race package list | the list omitted the two packages that own shared state | `./internal/app` and `./internal/lockacquire` added | commit `a2fc2e5`; both packages' tests pass; `-race` runs on linux/amd64 only (this host answers "-race is not supported on windows/arm64"), so the Linux CI race job is the gate | none |
+| D-H17 | `internal/server/tokenizers.go:371-390` wrote the cache in place | `TestTokenizerCacheWriteFailureLeavesThePreviousCacheOrNothing` red: "a failed tokenizer cache write left a 2377322-byte file ...; the complete payload is 4754645 bytes"; `...PreservesThePreviousCompleteFile` red: "replaced the previous complete 33-byte file with 32768 bytes"; `...ReaderNeverObservesPartialBytes` red: "a concurrent reader observed 65536 cache bytes that are not a complete payload"; pinned uses `write-file-atomic` (`src/endpoints/tokenizers.js:9,116,136,140`) | unique same-directory temp O_CREATE|O_EXCL -> seam write -> fsync -> close -> rename (via fsretry) -> directory fsync; destination never opened for truncation; a cache-write failure falls back to llama3 exactly where pinned's `getPathToTokenizer` catch does (`:144-146`) | commits `2b43f33` (fix) and `0e3bec1` (B-H4 probe); tokenizer suite 27.4 s green, full `internal/server` 283.6 s green | Windows-only: the pinned console.error on the fallback is not emitted (the tokenizer path carries no logger); `.gz` unlink failure is ignored instead of falling back (both documented in source) |
+
+### 11.2 The B-H4 probe: no lock added, because no Go-only divergence was shown
+
+`internal/server/account_reset_save_race_test.go` races eight settings/chats writer goroutines for two users
+against the real `/api/users/reset-step2` over three seeds, with a concurrent reader (opened with Node's own
+share modes after the first probe version manufactured the very reset failure it measured) and out-of-tree
+sentinels. Result: no torn or corrupt JSON/JSONL during or after the storm, no cross-user data, the account
+store and unrelated files byte-identical, only the reset user's tree removed, every save answered 200 or 500,
+post-reset saves 200 for both users. Pinned's reset is `await fsPromises.rm(root,{recursive:true,force:true})`
+plus reseed (`src/endpoints/users-private.js:288-292`) while saves are synchronous atomic writes
+(`settings.js:206-214`, `chats.js:541,545-566`), so the same rm-then-repopulate window exists upstream: verdict
+**pinned-parity interleaving, NO locking added** (R3's bar is a Go-only data-destruction difference).
+`docs/alpha16/storage-probe.md` records the design, citations, numbers, the probe-faithfulness correction and
+the residuals (a Windows-only reset 500 while an in-flight save temp is open, because Go opens without
+`FILE_SHARE_DELETE` while Node's rm succeeds; not data destruction; Linux CI unaffected).
+
+### 11.3 The seeded E06 state-machine qualification
+
+Commit `f8d0ae3` adds the lane the plan's M1/M2 asked for, at a size the normal suite can run:
+
+- `internal/longlivedfixture/recipe.go` - a recipe is a pure function of its seed: E06, tier bounds, 8 users,
+  declared extension points, a 10-operation plan, declared faults, observables, a canonical preboot-tree
+  SHA-256 and per-role artefact digests, with a tested v1 backward-compatible read and named refusals.
+- `tests/e2e/scenario_state_machine_test.go` - the REAL server object through `internal/app.Start` on a
+  generated 8-account data root: seeds 1601-1700 x 10 declared operations, executed twice = **2,000
+  reproducible operation sequences**; settings save/get, chat save/load/append/rename/delete, ordered messages
+  from BOTH the HTTP response and the disk bytes, cross-account reads every seed, unknown-file SHA-256 after
+  every operation and after restart, JSON/JSONL validity after every operation, and four restarts on the same
+  data root. Every operation appends a machine-readable action-log entry. 18.8 s on the development host, so
+  `go test ./...` runs it in CI.
+- `tests/e2e/scenario_state_machine_teeth_test.go` - 14 planted defects through the SAME comparators, each
+  producing its named red (message order swapped/dropped/extra, restart identity and data root, cross-user and
+  settings-marker leaks, unknown-file mutation, invalid JSONL, preboot chat loss/order, non-reproducible
+  sequence, plan mismatch); correct data stays green first.
+- `docs/alpha16/e-series-coverage.md` - the honest E01-E09 table: E06 executed here (isolation + per-account
+  state machine, NOT concurrent overlapping writes/streams), E08 partial (clean object restart, not SIGKILL /
+  EFBIG / hand-back), E05/E01 partial, E02/E03/E04/E07/E09 unexecuted by this lane.
+
+### 11.4 The 8-user performance row: a measured report-only conclusion, not a graded green
+
+The 2026-11-06 red AFTER under a single-run x1.25 ceiling was investigated with a repeat series. Commits
+`535072b`, `078172f`, `58d9291` and `985eed5` add a sync-write disk fingerprint to every report, refuse a
+non-comparable host by name (`threshold/host-disk`), and derive each route's ceiling from the WORST p95 across
+the repeated baselines widened by that route's measured baseline spread (floored at 25%). Three repeated
+same-tree baselines recorded disk medians 0.35-8.67 ms with settingsSave p95 112.3-117.6 ms and chatsSave p95
+87.6-115.4 ms. Three AFTER runs of the final code candidate then produced settingsSave p95 115.2/191.8/225.1 ms
+and chatsSave p95 116.3/175.6/265.9 ms on hosts whose sync-write tails were 30.5/80.9/138.0 ms, with the read
+route stable at 41.4-56.5 ms and correctness/isolation green in every run. The same-code spread (1.95x/2.29x)
+exceeds every tolerance that still detects a regression and tracks the host storage tail, so the row is
+**REPORT-ONLY for alpha.16**: no graded 8-user latency number is claimed, the measured routes' handlers are
+untouched by the release diff, and the named next step is a same-host paired design. Full tables:
+`docs/alpha16/m5-evidence.md` sections 10-12. Two 45-minute soak runs at the final code candidate
+(`42331166962` at `93f5f59`, `42332431109` at `8e151ce`; zero non-test product files differ from the release
+candidate) both pass the GC-robust per-third rule (section 12); the real-leak question remains UNPROVEN
+because the rule is a detection floor.
+## 12. Publication (2026-11-07): `v0.1.0-alpha.16`
+
+### 12.1 The final candidate and the 13-gate wave
+
+The final candidate is `c1886d7` (`c1886d7`): `main` with the final
+engineering pass (section 11), the seeded E06 lane, the measurement changes and the two harness-integrity fixes.
+Every one of the 13 required workflows was DISPATCHED AGAIN at that commit; the same-SHA rule allowed no run
+from the earlier candidates to carry over. The official fail-closed verifier (the program the publish job
+itself runs) printed **PASS: 13/13 required workflow(s) are green at this SHA** with exit status 0; the
+committed table is `docs/alpha16/same-sha-evidence.md`.
+
+| # | required workflow | run id | event | conclusion | required job / artifact rail |
+|---|---|---|---|---|---|
+| 1 | GoTavern CI | 42340290230 | workflow_dispatch | success | verify, race, oracle full sweep, crash-gate, browser-evidence, changes |
+| 2 | GoTavern whole-session differential | 42340292267 | workflow_dispatch | success | - |
+| 3 | GoTavern world-info slot ordering | 42340294045 | workflow_dispatch | success | - |
+| 4 | GoTavern drop-in qualification | 42340295948 | workflow_dispatch | success | - |
+| 5 | Browser differential | 42340297957 | workflow_dispatch | success | mode=all |
+| 6 | GoTavern release qualification | 42340299880 | workflow_dispatch | success | - |
+| 7 | GoTavern smoke metrics | 42340301718 | workflow_dispatch | success | requests=50 |
+| 8 | GoTavern Docker image | 42340303463 | workflow_dispatch | success | - |
+| 9 | Helper state differential | 42340305321 | workflow_dispatch | success | - |
+| 10 | Combination journey differential | 42340307249 | workflow_dispatch | success | combination-journey + combination-journey-evidence (full tier, embedded evidence) |
+| 11 | Third-party extension compatibility | 42340309242 | workflow_dispatch | success | mode=full + extension-compat-evidence (20 extensions, macos-arm64 limitation marker) |
+| 12 | GoTavern long-lived corpus qualification | 42340311363 | workflow_dispatch | success | medium-corpus + longlived-medium-evidence |
+| 13 | GoTavern Node stock tree round trip | 42340313131 | workflow_dispatch | success | node-stock-tree + node-stock-tree-evidence |
+| - | GoTavern Release (dry run, dispatch) | 42340315205 | workflow_dispatch | success | six archives built/archive-inspected, execution legs, darwin-arm64 recorded downgrade, prepublish qualification; publish steps skipped, no release created |
+
+The runs that FAILED on the road to this wave are recorded rather than hidden: `GoTavern CI` `42332590427` at
+`bb34788` failed `verify` on a cross-package loopback port collision in
+`TestTwoProcessesOneDataRootSettingsWritesStayWhole` (fixed by commit `654a7fe`, a named-only retry plus a
+classification teeth test); `GoTavern CI` `42335401136` at `654a7fe` failed `verify` on a stale derived
+`goTestFunctions` count (947 committed vs 948 measured after that fix's teeth test; fixed by regeneration in
+commit `c1886d7`). Both failures were fixed at their cause and the whole wave was re-dispatched, not retried
+until green.
+### 12.2 The tag and the published release
+
+- **Tag**: annotated `v0.1.0-alpha.16`, object `b7d81cd`, peeling to
+  `c1886d7`. Created only after the verifier PASS, and not moved.
+  `scripts/classify-version-tag.sh` classifies it **stable** (the graduated equality list), so the release path
+  published WITHOUT `--prerelease`, WITH `--latest`, and `releases/latest` now resolves to it.
+- **Release**: https://github.com/cocokoishi/GoTavern/releases/tag/v0.1.0-alpha.16 - `draft=false`,
+  `prerelease=false`, published `2026-11-07T08:01:36Z`, **7 assets**: the six canonical archives plus
+  `checksums.txt` (linux/amd64 61,292,084 B; linux/arm64 60,537,075 B; darwin/amd64 61,386,764 B;
+  darwin/arm64 61,102,292 B; windows/amd64 61,413,379 B; windows/arm64 60,594,549 B).
+- **Publication run**: `GoTavern Release` **42353529322** (tag push, completed/success). Its jobs:
+  six `build` legs, `execute-linux-arm64`, `execute-darwin-amd64`, `windows-arm64-boundary`,
+  `darwin-arm64-recorded-downgrade`, `prepublish-qualification`, `publish`, `post-release-facts` - all success.
+  The publish job ran the fail-closed verifier (13/13) and the notes/marker checks before `gh release create`;
+  the release body carries the generated same-SHA qualification table (`## Qualification evidence (same-SHA
+  required gates)`, 13 rows, measured from the Actions API at publish time).
+- **Platform limitation, recorded not waived**: darwin/arm64 was built, archive-inspected and proved a thin
+  arm64 Mach-O, and its runtime execution is a recorded platform limitation (`macos-14-arm64-us-default` is not
+  supported by the platform); windows/arm64 is BUILD-ONLY. The release notes state both.
+
+### 12.3 Post-release independent verification (not the publish job's own claims)
+
+- **Downloaded every asset again** and verified the release's own `checksums.txt`: 6/6 archives OK,
+  0 failures.
+- **Executed the published binary**: the `windows-amd64` archive unpacked on this host; `gotavern version
+  --json` printed `gotavern_version: v0.1.0-alpha.16`, `sillytavern_version: 1.19.0`, `sillytavern_commit:
+  06bde939...`; `BUILD-INFO.txt` names `GoTavern release v0.1.0-alpha.16` / `target windows`; the extracted
+  `src/tokenizers` tree carries 10 files; a fresh-install boot of the published exe answered `GET /version`
+  200 with the pinned SillyTavern identity and `GET /` 200 (734,837 bytes).
+- **Installer path**: `GoTavern published-release install smoke` **42354487423** completed/success - it
+  installs the published artifacts over real TLS with `install.sh` (linux-amd64) and `install.ps1`
+  (windows-amd64), boots them, and asserts the tag, the tokenizers layout and real tokenizer route ids.
+- **Published artifact + container extension journey**: `GoTavern published-extension smoke` **42354438296**
+  completed/success - it resolves `releases/latest` over public HTTPS to this tag, unpacks the archive, runs
+  `gotavern version`, pulls BOTH the `:v0.1.0-alpha.16` and `:latest` container manifests and proves they are
+  the same image, boots it, and drives the published-extension journey.
+- **Container identity**: GHCR reports digest
+  `sha256:37a7f69f7fee090c58bbfd859ffbbd2ce50e9b3ec69482f91c95e5ef47eb1ea3` carrying BOTH tags
+  `v0.1.0-alpha.16` and `latest` (one image, one digest); alpha.15's digest `28fd03f4...` is unchanged. The
+  tag-triggered `GoTavern Docker image` run **42353529367** (completed/success) built, pushed, pulled back and
+  re-verified it, and a dispatch **42354440669** re-ran the build verification.
+- **Tag target unchanged**: `git ls-remote origin` still answers tag object
+  `b7d81cd` peeling to `c1886d7`; there is no second tag object for this name.
+- **Post-release facts**: the release workflow's `post-release-facts` job regenerated the generated facts for
+  the published tag and committed `00828eb` ("chore(docs): regenerate the generated facts for the published
+  v0.1.0-alpha.16 tag") to `main`, and dispatched `GoTavern CI` **42353714945** at that commit.
+
+### 12.4 Residuals after publication (unchanged, restated)
+
+- `GOAL.md` section 14 (a real, long-used private user tree) remains **NOT MET**; alpha.16 claims a synthetic
+  adversarial qualification with the scope in `docs/alpha16/e-series-coverage.md`, not universal drop-in proof.
+- darwin/arm64 runtime execution and the macos-arm64 extension lifecycle remain **UNPROVEN** (recorded platform
+  limitation); windows/arm64 remains BUILD-ONLY.
+- The 8-user latency row is **report-only** (not ratifiable on the shared runner pool; `docs/alpha16/m5-evidence.md`
+  sections 10-12); the soak's real-leak question remains **UNPROVEN** (detection floor).
+- A real kernel ENOSPC remains **UNPROVEN** (M3b proves only that ENOSPC and EFBIG are not conflated).
+- Page-init egress hermeticity for browser probes remains **OPEN**; the E-series browser/real-extension legs
+  beyond the re-run gates were not newly executed.
+- The Windows-only account-reset-vs-save sharing-violation 500 (`docs/alpha16/storage-probe.md`) remains a
+  recorded residual, not data destruction and not reproduced on Linux.

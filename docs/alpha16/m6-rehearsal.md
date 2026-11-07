@@ -141,3 +141,18 @@ same-commit table to the release; this file and `docs/alpha16/same-sha-evidence.
 record of the same program's output at the frozen candidate. If the tag target differs by even one
 commit, the verifier refuses (it requires `head_sha` equal to the target), which is the fail-closed
 property this rehearsal exists to prove.
+
+## 6. Final wave (2026-11-07): the published candidate `c1886d7`
+
+The candidate in sections 1-5 (`6e96959`) is a SUPERSEDED rehearsal target: after it, the final engineering
+pass landed D-H1 (config-path threading), C-H1 (bounded limiter), C-H6 (bounded heartbeat stop), C-H7
+(corrected second-SIGINT message), C-H8 (race packages), D-H17 (atomic tokenizer cache), the B-H4 probe, the
+seeded E06 state-machine lane, the 8-user measurement changes and two harness-integrity fixes. The release
+candidate became `c1886d7` (`c1886d7`), and every one of the 13 required
+workflows was DISPATCHED AGAIN at it (same-SHA rule; no run cited in sections 1-5 is evidence for the final
+candidate). The authoritative table is `docs/alpha16/same-sha-evidence.md`; the dry run at the final candidate
+is `GoTavern Release` **42340315205** (completed/success: six archives built and archive-inspected,
+`execute-linux-arm64` / `execute-darwin-amd64` / `windows-arm64-boundary` / `darwin-arm64-recorded-downgrade`
+/ `prepublish-qualification` / `publish` all green, every tag-only publish step skipped, no release created by
+the dry run). The tag and the published release are recorded in `docs/alpha16/handoff-ledger.md` section 12
+and in `HANDOFF.md`.
