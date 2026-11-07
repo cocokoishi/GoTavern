@@ -101,8 +101,8 @@ a written finding and its red evidence; tests, docs and governance changes are t
 | `performance-plan.md`, `perf/**`, `perf-hotspot.md` | perf | **PARTIALLY EXECUTED** — runner fingerprint + process-level baseline (LOCAL Windows arm64) and artifacts executed; the hotspot candidate is measured but the product change is **UNEXECUTED** (no patch, no before/after) |
 | `readme-restructure.md`, `docs/performance.md`, checker | docs | **EXECUTED** — README 34,541 -> 13,993 B; 15 checker negative-control tests; local commands green |
 | `evidence-contract.md`, verifier rails | ci | **EXECUTED** — new optional rails (83/83 tests) and a real alpha.16 wave PASS 13/13; the manifest-row wiring is proposed, not applied |
-| `release-bar.md`, `decision-log.md`, `handoff-ledger.md`, `same-sha-evidence.md` | Lead | **DRAFT** until the 13-gate wave at the candidate SHA is recorded |
-| `v0.1.0-alpha.17` release | Lead | **NOT PUBLISHED** until §7 holds on one commit |
+| `release-bar.md`, `decision-log.md`, `handoff-ledger.md`, `same-sha-evidence.md` | Lead | **EXECUTED** — the candidate `9b99fde` passed 13/13 same-SHA required gates, the pre-tag rehearsal was green, and the publication record is `handoff-ledger.md` §5 with `same-sha-evidence.md` §3 |
+| `v0.1.0-alpha.17` release | Lead | **PUBLISHED 2026-11-07T17:11:18Z** — `draft=false`, `prerelease=false`, `latest=true`, 7 assets, `GoTavern Release` 42394884973 success; published bytes, checksums, container digest and post-publication smokes verified (`handoff-ledger.md` §5) |
 
 ## 6. Order of work (M0–M8)
 

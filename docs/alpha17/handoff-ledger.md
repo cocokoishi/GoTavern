@@ -64,13 +64,49 @@ The first pre-tag rehearsal (`GoTavern Release` 42378606389) was dispatched befo
 refused); a dispatch never publishes, so no release state was touched. The rehearsal was re-dispatched after
 the notes commit and its result is recorded in §5.
 
-## 5. Release publication and post-publication verification
+## 5. Release publication and post-publication verification (EXECUTED)
 
-`PENDING`: recorded after `GoTavern Release` runs on the tag push. The steps to verify are: the tag object and
-its target commit; `draft=false` / `prerelease=false` / `latest=true`; the six archives plus `checksums.txt`
-re-downloaded and checked; the published binary's `version --json`; the published-release install smoke and
-published-extension smoke; the container digest for `:v0.1.0-alpha.17` and `:latest`; the alpha.16 tag
-unchanged; and the post-release generated-facts commit + CI dispatch.
+- **Tag.** Annotated `v0.1.0-alpha.17` object `7eed8eed49515176e210b2c30b63bac5380c5b70`, peeling to
+  `9b99fde0b0a9be0665cd93bc2143a3f495af31c2` (the frozen candidate every gate judged). Created only after
+  the verifier PASS and the pre-tag rehearsal, and not moved.
+- **Release.** https://github.com/cocokoishi/GoTavern/releases/tag/v0.1.0-alpha.17 — `draft=false`,
+  `prerelease=false`, published `2026-11-07T17:11:18Z`, **7 assets**: the six canonical archives plus
+  `checksums.txt`. `releases/latest` now resolves to `v0.1.0-alpha.17`.
+- **Publication run.** `GoTavern Release` **42394884973** (tag push, completed/success): six build legs,
+  `execute-linux-arm64`, `execute-darwin-amd64`, `windows-arm64-boundary`,
+  `darwin-arm64-recorded-downgrade`, `prepublish-qualification`, `publish`, `post-release-facts` all
+  success. The publish job ran the fail-closed verifier at the tag target and the notes/marker checks before
+  `gh release create`; the release body carries the generated same-SHA qualification table.
+- **Pre-tag rehearsal (re-run).** `GoTavern Release` **42394446263** (dispatch, success) built and
+  archive-inspected the six archives, executed the arm64-Linux and darwin/amd64 legs, passed
+  `prepublish-qualification` and the darwin/arm64 limitation+notes gate, and published nothing. The two
+  earlier rehearsal attempts are recorded with their refusals in `same-sha-evidence.md` §4.
+- **Published bytes verified independently (not the publish job's own claims).**
+  - all seven assets downloaded again; the release's own `checksums.txt` verified **6/6 archives OK, 0
+    failures** (sha256 of each downloaded archive compared locally);
+  - the published `windows-amd64` archive unpacked and executed: `gotavern version --json` prints
+    `gotavern_version: v0.1.0-alpha.17`, `sillytavern_version: 1.19.0`, `sillytavern_commit: 06bde939…`;
+    `BUILD-INFO.txt` names `GoTavern release v0.1.0-alpha.17` / `target windows`; the extracted
+    `src/tokenizers` tree carries 10 files;
+  - a fresh-install boot of the published `.exe` answered `GET /version` 200 with the pinned SillyTavern
+    identity and `GET /` 200 (734,837 bytes);
+  - **installer path**: `GoTavern published-release install smoke` **42395444168** (dispatch,
+    completed/success) installs the published artifacts over real TLS with `install.sh`/`install.ps1`, boots
+    them, and asserts the tag, the tokenizer layout and real tokenizer route ids;
+  - **published artifact + container extension journey**: `GoTavern published-extension smoke`
+    **42395446647** (dispatch, completed/success) resolves `releases/latest` over HTTPS to this tag,
+    unpacks the archive, runs `gotavern version`, pulls BOTH the `:v0.1.0-alpha.17` and `:latest` container
+    manifests and proves they are the same image, boots it, and drives the published-extension journey.
+- **Container identity.** GHCR reports digest `sha256:2b029cc2c361240303e0abc36f40d31e805c3a6e798508854639848224f30fc1`
+  carrying BOTH tags `v0.1.0-alpha.17` and `latest` (one image, one digest); alpha.16's digest
+  `sha256:37a7f69f…` and alpha.15's `sha256:28fd03f4…` are unchanged. The tag-triggered `GoTavern Docker
+  image` run **42394885111** (completed/success) built, pushed and re-verified it.
+- **Tag target unchanged.** `git ls-remote origin refs/tags/v0.1.0-alpha.17` answers tag object `7eed8ee`;
+  the alpha.16 tag still answers object `b7d81cd1296e842d79997ea70c49dabeed04da31` (target unchanged); no
+  force push and no `--no-verify` were used.
+- **Post-release facts.** the release workflow's `post-release-facts` job regenerated the generated facts
+  for the published tag and committed `3cf519b` ("chore(docs): regenerate the generated facts for the
+  published v0.1.0-alpha.17 tag") to `main`, and dispatched `GoTavern CI` **42395084857** at that commit.
 
 ## 6. Residuals (unchanged or newly recorded)
 

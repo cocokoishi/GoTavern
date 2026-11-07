@@ -216,6 +216,12 @@ func contractDocumentFiles() []string {
 		// The alpha.17 evidence-contract record names the pinned baseline and the alpha.16 candidate it was
 		// validated against, so it is a contract document and gets the same encoding/pin checks.
 		filepath.Join("docs", "alpha17", "evidence-contract.md"),
+		// The alpha.17 same-SHA and unified-evidence records carry the candidate commit id and the pinned
+		// baseline, so they are contract documents too and get the encoding/pin checks.
+		filepath.Join("docs", "alpha17", "same-sha-evidence.md"),
+		filepath.Join("docs", "alpha17", "release-evidence.md"),
+		filepath.Join("docs", "alpha17", "handoff-ledger.md"),
+		filepath.Join("docs", "release-notes-v0.1.0-alpha.17.md"),
 	}
 }
 
@@ -623,6 +629,16 @@ var declaredOtherPins = map[string]string{
 	// which the artifact records. This is a MEASUREMENT ANCHOR, not a baseline claim, and it is declared by
 	// value AND named for the same reason the historical measurement anchors above are.
 	"fd40ef7e2325834cc9fffa46d94c200e2114253c": "alpha.17 process-level performance baseline measured tree (docs/alpha17/performance-plan.md; LOCAL Windows arm64, dirty working tree recorded in the artifact), not a CI or release claim",
+	// THE alpha.17 REHEARSAL REF. The pre-tag rehearsal was dispatched at the full SHA of the docs commit that
+	// carries the seeded release notes (the publish path reads notes from the tag tree, then origin/main); the
+	// note is release metadata written after the frozen candidate, so the rehearsal ref is an IDENTITY, not a
+	// product claim. Declared by value AND named for the same reason as the other measurement/rehearsal anchors.
+	"f1444ee896d48f81fff572271405dc36f1320e2b": "alpha.17 pre-tag rehearsal ref (docs commit carrying the seeded release notes); rehearsal run 42394446263 succeeded and published nothing",
+	// THE alpha.17 CANDIDATE AND ITS TAG OBJECT. The frozen candidate every required gate judged, and the
+	// annotated tag object that peels to it; the alpha.17 contract records both so "the tag was not moved" and
+	// "the evidence is at the tag target" are checkable claims. Identity values, not baseline claims.
+	"9b99fde0b0a9be0665cd93bc2143a3f495af31c2": "v0.1.0-alpha.17 release candidate and tag target - the SHA every required release gate was dispatched at and the published release's target commit",
+	"7eed8eed49515176e210b2c30b63bac5380c5b70": "v0.1.0-alpha.17 annotated tag object - recorded so 'the tag was not moved' is checkable (it must keep peeling to 9b99fde)",
 }
 
 // checkPinnedCommitStrings is the gate body, extracted so the red-path test can drive it against a

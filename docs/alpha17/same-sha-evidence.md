@@ -79,15 +79,28 @@ with its rendered table `docs/alpha17/release-evidence.md`. The four artifact ga
 tree tree/manifest digests; extension corpus). Required jobs were present and not skipped; no run at another
 SHA, no push run and no narrowed selection was counted.
 
-## 4. The pre-tag rehearsal: one real refusal, and its fix
+## 4. The pre-tag rehearsal: three attempts, one green, and what they taught
 
-The first rehearsal (`GoTavern Release` 42378606389, dispatched at the candidate **before** the curated notes
-existed on `main`) failed at the `darwin/arm64 must be executed OR recorded as a platform limitation, with the
-note line published` rail: the publish job reads the curated note from the tag tree, then falls back to
-`origin/main`, and at dispatch time neither carried `docs/release-notes-v0.1.0-alpha.17.md`, so the limitation
-line could not be found. That is the gate doing its job (a downgrade that is not stated is refused). The
-rehearsal is re-dispatched after the notes commit is pushed and its result is recorded in
-`handoff-ledger.md` §5; a dispatch never publishes, so no release state was touched by the red rehearsal.
+The rehearsal is a `workflow_dispatch` of `GoTavern Release`: it builds and archive-inspects the six
+archives, executes the arm64-Linux and darwin/amd64 legs, runs `prepublish-qualification` and the
+darwin/arm64 limitation+notes gate, and never publishes.
+
+1. **42378606389 (ref = frozen candidate, before the curated notes existed) — REFUSED** by the
+   `darwin/arm64 must be executed OR recorded as a platform limitation, with the note line published` rail:
+   a dispatch runs on the `main` branch, the publish path's notes fallback to `origin/main` applies only to
+   a **tag** ref, and the candidate tree has no notes file (release notes are metadata written after the
+   candidate). The refusal is the gate working: an unstated downgrade must not publish.
+2. **42394008103 (ref = 7-character `f1444ee`) — REFUSED at checkout:** `actions/checkout` treats a short
+   SHA as a branch name (`refs/heads/f1444ee`) and the fetch fails. Recorded so the next rehearsal passes a
+   **full 40-hex** SHA.
+3. **42394446263 (ref = full `f1444ee896d48f81fff572271405dc36f1320e2b`, the docs commit that carries the
+   seeded notes) — SUCCESS.** Every build, execution and prepublish step and the notes/limitation rail pass;
+   publish is skipped by the dispatch guard. This is the publish-path rehearsal: its source differs from the
+   frozen candidate only in documentation, and the tag-path publish run reads the same seeded notes through
+   the `origin/main` fallback.
+
+The release was then tagged at the frozen candidate `9b99fde…`, whose publish run **42394884973** re-ran
+the fail-closed verifier at the tag target and published; see `handoff-ledger.md` §5.
 
 ## 5. What this PASS does not claim
 

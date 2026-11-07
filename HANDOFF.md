@@ -10,7 +10,94 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-11-07: `v0.1.0-alpha.16` -- THE SYNTHETIC ADVERSARIAL QUALIFICATION RELEASE
+## Latest checkpoint - 2026-11-07: `v0.1.0-alpha.17` -- THE NICHE QUALIFICATION, EVIDENCE AND PERFORMANCE RELEASE
+
+`v0.1.0-alpha.17` closes the alpha.17 programme (M0 refreshed read-only audit, M1 scenario catalogue and
+computed gap matrix, M2 executed niche tests with planted-defect teeth, M3 one evidence-driven product fix,
+M4 architecture re-decision, M5 process-level performance record, M6 residual stability, M7
+README/performance documentation, M8 same-SHA acceptance and publication) on top of the published alpha.16
+release. The SillyTavern 1.19.0 baseline (`06bde939fb1e9c4c8d8641d810f0a916b5bce127`) is unchanged. The
+release candidate is `9b99fde`; the thirteen required workflows were deliberately dispatched at it and every
+one is completed/success (`PASS: 13/13`, recorded in `docs/alpha17/same-sha-evidence.md` §3). The annotated tag
+`v0.1.0-alpha.17` (object `7eed8ee`) peels to `9b99fde`, and `GoTavern Release` run **42394884973** published
+the stable-channel release at 2026-11-07T17:11:18Z: `draft=false`, `prerelease=false`, `latest=true`, six
+archives plus `checksums.txt`, container tags `:v0.1.0-alpha.17` and `:latest` on the same digest
+`sha256:2b029cc2…`. The post-publication verification (checksums 6/6, published binary boot, install smoke
+42395444168, published-extension smoke 42395446647, alpha.16 tag unchanged) is `docs/alpha17/handoff-ledger.md`
+§5.
+
+### A. What this round actually changed
+
+- **M0 audit refreshed, not quoted.** `docs/alpha17/source-audit.md` re-reads the current tree (package graph
+  18/20, request/startup lifecycles, write/concurrency/cache ownership, provider path, observability);
+  `docs/alpha17/ownership-map.json` re-validated **1,007 `path:line` citations** (0 failures, 4 named
+  basename fixups) and `docs/alpha17/source-graph.json` regenerated at the round-start tree. The 16 residual
+  items are re-confirmed one by one in `source-audit.md` §11 with state, evidence, missing test and action.
+- **176 deduplicated niche scenarios + computed gap matrix.** `docs/alpha17/niche-scenario-catalog.md`
+  (assembled from 12 part files by `docs/alpha17/catalog/assemble.mjs`) with the fifteen required fields and
+  an honest status taxonomy (56 COVERED, 8 EXECUTED, 115 DESIGNED, 3 UNEXECUTED); `test-gap-matrix.md`
+  recomputes every count from the tree and ranks the top-30 gaps.
+- **33 new test functions + 20 planted-defect controls** in `tests/e2e/niche_*.go` (filesystem/name extremes,
+  JSON/JSONL extremes, HTTP boundaries, SSE chunk-boundary torture + cancel, persistence crash stages, and a
+  teeth file proving every comparator fails by name). Locally green; the Linux CI run found two
+  host-semantics differences, both resolved honestly rather than skipped (a gofmt-only fix and the
+  settings-symlink containment divergence below).
+- **One bounded product fix, from the audit's own ranking.** `internal/server/cors_proxy.go` registers the
+  pinned `/proxy/:url(*)` domain: the disabled branch reproduces pinned's exact 404 body and
+  `text/html; charset=utf-8`; the enabled branch answers 501 with a named "not implemented" reason instead
+  of an indistinguishable 404 (AGENTS rule 17). Route goldens 54->55, surface coverage classifies it
+  `unsupported-with-reason`, three tests pin both branches, and the RED was observed by removing the
+  registry row.
+- **R1-R6 REFUSE on re-measurement.** `docs/alpha17/architecture-decisions.md` re-derives the decision with
+  HEAD measurements (18 packages / 20 edges; ordered-JSON 115 files / 1,290 references / 1,284
+  private-member reads; 43 shared-write call sites) and states the four reopening conditions as falsifiers.
+- **Two divergences found by executing tests, recorded not silently changed**
+  (`docs/SEMANTIC-COMPATIBILITY.md` §18): the settings/save empty-body wipe and 1e400 refusal (safer than
+  pinned), and the escaping-settings-symlink containment refusal (pinned writes through the link; GoTavern
+  refuses). Per-chat backups remain an explicitly recorded unsupported surface; the enabled CORS proxy is a
+  recorded 501. A stale project claim is corrected: pinned's extension-version route fetches twice, so
+  GoTavern's two fetches are PARITY.
+- **Unified release evidence contract.** `scripts/release-governance/release-evidence.mjs` emits one
+  machine-readable document (headSha, pinnedSha, event, per-gate jobs/artifacts/digests/embedded evidence,
+  overall) and the verifier gains optional declarative rails (required pinned commit, artifact digest,
+  artifact freshness, narrowed-dispatch `requiredSelection`). Backward compatible: the real alpha.16 wave
+  still printed `PASS: 13/13`; governance tests 83/83 (was 69). Dispatch inputs and per-gate test counts are
+  not exposed by the Actions API and are written `null` with `derived:false` -- no invented values.
+- **README and performance documentation restructured.** README 34,541 -> 13,993 bytes with no stale release
+  text and every limit kept; detailed method/before-after/UNPROVEN table moved to `docs/performance.md`;
+  `tools/check-perf-docs.mjs` validates both documents and 15 tampered-copy negative controls pin the
+  checker's teeth.
+- **Process-level performance record (LOCAL).** `docs/alpha17/performance-plan.md`,
+  `docs/alpha17/perf/` and `docs/alpha17/perf-hotspot.md` record a runner fingerprint and scale baseline
+  (100 -> 10,000 cards, large chat trees, 2,400-message history, 1,000 world-info, 1,100 settings, mixed
+  tree) measured on this Windows/arm64 host, labelled LOCAL triage, with the 10,000-card hotspot measured
+  and the product change explicitly UNEXECUTED (pprof + ABBA next steps named). The release performance
+  claim remains the same-SHA `GoTavern smoke metrics` gate (42378592778).
+
+### B. What is NOT proven (unchanged, and disclosed in the release notes)
+
+`GOAL.md` §14 remains **NOT MET** (no real private user tree; `PRIVATE_NOT_RUN`). darwin/arm64 runtime and
+the macOS arm64 extension lifecycle are **UNVERIFIED** (recorded platform limitation); windows/arm64 is
+**BUILD-ONLY**. The 8-user latency row is **REPORT-ONLY**; the soak's real-leak question is **UNPROVEN**; a
+true kernel ENOSPC is **UNPROVEN** (EFBIG substitute only); page-init egress hermeticity is **OPEN**;
+provider-relay p99, streaming-cancellation latency, the 20-extension page-load matrix, the cold-cache guard
+and the process-level rows on Linux CI are **UNEXECUTED** with named reasons. The evidence rails are
+implemented and validated but their manifest rows are **not applied**.
+
+### C. Where the evidence lives
+
+`docs/alpha17/` is the round index: `README.md` (program contract, verified baseline, lane scopes),
+`source-audit.md` + `ownership-map.json` + `source-graph.json` (M0), `niche-scenario-catalog.md` +
+`test-gap-matrix.md` (M1), `new-test-evidence.md` (M2 executed tests), `architecture-decisions.md` (M4),
+`performance-plan.md` + `perf/` + `perf-hotspot.md` (M5), `evidence-contract.md` (M8 rails),
+`readme-restructure.md` (M7), `release-bar.md`, `decision-log.md`, `same-sha-evidence.md` (PASS 13/13),
+`handoff-ledger.md` (this round's working record and the publication verification) and
+`docs/release-notes-v0.1.0-alpha.17.md` (the published note). `HANDOFF.md` history below this checkpoint is
+the alpha.16 and earlier record; a history section is never evidence for a current claim. The per-question ledger `docs/goal-scorecard.md` is not rewritten by this round: alpha.17 adds synthetic/adversarial and performance evidence, no Q answer changes, and §14 remains NOT MET.
+
+---
+
+## History - 2026-11-07: `v0.1.0-alpha.16` -- THE SYNTHETIC ADVERSARIAL QUALIFICATION RELEASE
 
 `v0.1.0-alpha.16` closes the alpha.16 programme (M0-M6: full-code audit, scenario factory, real-browser
 E03+E04 journey, recorded-oracle discrimination, refactor refusals, performance evidence, release rails) and
