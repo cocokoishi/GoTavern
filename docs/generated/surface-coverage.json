@@ -4144,7 +4144,7 @@
       "classification": "implemented",
       "reason": null,
       "evidence": [
-        "internal/server/http.go:523"
+        "internal/server/http.go:528"
       ],
       "reachesGo": true,
       "sources": [
@@ -6947,7 +6947,7 @@
       "path": "/",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:532"
+      "evidence": "internal/server/http.go:537"
     },
     {
       "pattern": "/api/anthropic/caption-image",
@@ -7211,7 +7211,7 @@
       "path": "/api/backgrounds/all",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:409"
+      "evidence": "internal/server/http.go:414"
     },
     {
       "pattern": "/api/backgrounds/delete",
@@ -7219,7 +7219,7 @@
       "path": "/api/backgrounds/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:416"
+      "evidence": "internal/server/http.go:421"
     },
     {
       "pattern": "/api/backgrounds/folders",
@@ -7227,7 +7227,7 @@
       "path": "/api/backgrounds/folders",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:437"
+      "evidence": "internal/server/http.go:442"
     },
     {
       "pattern": "/api/backgrounds/rename",
@@ -7235,7 +7235,7 @@
       "path": "/api/backgrounds/rename",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:423"
+      "evidence": "internal/server/http.go:428"
     },
     {
       "pattern": "/api/backgrounds/upload",
@@ -7243,7 +7243,7 @@
       "path": "/api/backgrounds/upload",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:430"
+      "evidence": "internal/server/http.go:435"
     },
     {
       "pattern": "/api/backups/chat/delete",
@@ -7739,7 +7739,7 @@
       "path": "/api/image-metadata",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:514"
+      "evidence": "internal/server/http.go:519"
     },
     {
       "pattern": "/api/image-metadata/{$}",
@@ -7747,7 +7747,7 @@
       "path": "/api/image-metadata/",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:515"
+      "evidence": "internal/server/http.go:520"
     },
     {
       "pattern": "/api/image-metadata/all",
@@ -7755,7 +7755,7 @@
       "path": "/api/image-metadata/all",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:451"
+      "evidence": "internal/server/http.go:456"
     },
     {
       "pattern": "/api/image-metadata/cleanup",
@@ -7763,7 +7763,7 @@
       "path": "/api/image-metadata/cleanup",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:500"
+      "evidence": "internal/server/http.go:505"
     },
     {
       "pattern": "/api/image-metadata/folders/assign",
@@ -7771,7 +7771,7 @@
       "path": "/api/image-metadata/folders/assign",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:486"
+      "evidence": "internal/server/http.go:491"
     },
     {
       "pattern": "/api/image-metadata/folders/create",
@@ -7779,7 +7779,7 @@
       "path": "/api/image-metadata/folders/create",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:458"
+      "evidence": "internal/server/http.go:463"
     },
     {
       "pattern": "/api/image-metadata/folders/delete",
@@ -7787,7 +7787,7 @@
       "path": "/api/image-metadata/folders/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:479"
+      "evidence": "internal/server/http.go:484"
     },
     {
       "pattern": "/api/image-metadata/folders/get",
@@ -7795,7 +7795,7 @@
       "path": "/api/image-metadata/folders/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:444"
+      "evidence": "internal/server/http.go:449"
     },
     {
       "pattern": "/api/image-metadata/folders/set-thumbnails",
@@ -7803,7 +7803,7 @@
       "path": "/api/image-metadata/folders/set-thumbnails",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:465"
+      "evidence": "internal/server/http.go:470"
     },
     {
       "pattern": "/api/image-metadata/folders/unassign",
@@ -7811,7 +7811,7 @@
       "path": "/api/image-metadata/folders/unassign",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:493"
+      "evidence": "internal/server/http.go:498"
     },
     {
       "pattern": "/api/image-metadata/folders/update",
@@ -7819,7 +7819,7 @@
       "path": "/api/image-metadata/folders/update",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:472"
+      "evidence": "internal/server/http.go:477"
     },
     {
       "pattern": "/api/images/delete",
@@ -8811,7 +8811,7 @@
       "path": "/api/tokenizers/claude/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/claude/decode",
@@ -8819,7 +8819,7 @@
       "path": "/api/tokenizers/claude/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/claude/encode",
@@ -8827,7 +8827,7 @@
       "path": "/api/tokenizers/claude/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/claude/encode",
@@ -8835,7 +8835,7 @@
       "path": "/api/tokenizers/claude/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/command-a/decode",
@@ -8843,7 +8843,7 @@
       "path": "/api/tokenizers/command-a/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/command-a/decode",
@@ -8851,7 +8851,7 @@
       "path": "/api/tokenizers/command-a/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/command-a/encode",
@@ -8859,7 +8859,7 @@
       "path": "/api/tokenizers/command-a/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/command-a/encode",
@@ -8867,7 +8867,7 @@
       "path": "/api/tokenizers/command-a/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/command-r/decode",
@@ -8875,7 +8875,7 @@
       "path": "/api/tokenizers/command-r/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/command-r/decode",
@@ -8883,7 +8883,7 @@
       "path": "/api/tokenizers/command-r/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/command-r/encode",
@@ -8891,7 +8891,7 @@
       "path": "/api/tokenizers/command-r/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/command-r/encode",
@@ -8899,7 +8899,7 @@
       "path": "/api/tokenizers/command-r/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/deepseek/decode",
@@ -8907,7 +8907,7 @@
       "path": "/api/tokenizers/deepseek/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/deepseek/decode",
@@ -8915,7 +8915,7 @@
       "path": "/api/tokenizers/deepseek/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/deepseek/encode",
@@ -8923,7 +8923,7 @@
       "path": "/api/tokenizers/deepseek/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/deepseek/encode",
@@ -8931,7 +8931,7 @@
       "path": "/api/tokenizers/deepseek/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/gemma/decode",
@@ -8939,7 +8939,7 @@
       "path": "/api/tokenizers/gemma/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/gemma/decode",
@@ -8947,7 +8947,7 @@
       "path": "/api/tokenizers/gemma/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/gemma/encode",
@@ -8955,7 +8955,7 @@
       "path": "/api/tokenizers/gemma/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/gemma/encode",
@@ -8963,7 +8963,7 @@
       "path": "/api/tokenizers/gemma/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/gpt2/decode",
@@ -8971,7 +8971,7 @@
       "path": "/api/tokenizers/gpt2/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:88"
+      "evidence": "internal/server/tokenizers.go:93"
     },
     {
       "pattern": "/api/tokenizers/gpt2/encode",
@@ -8979,7 +8979,7 @@
       "path": "/api/tokenizers/gpt2/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:87"
+      "evidence": "internal/server/tokenizers.go:92"
     },
     {
       "pattern": "/api/tokenizers/jamba/decode",
@@ -8987,7 +8987,7 @@
       "path": "/api/tokenizers/jamba/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/jamba/decode",
@@ -8995,7 +8995,7 @@
       "path": "/api/tokenizers/jamba/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/jamba/encode",
@@ -9003,7 +9003,7 @@
       "path": "/api/tokenizers/jamba/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/jamba/encode",
@@ -9011,7 +9011,7 @@
       "path": "/api/tokenizers/jamba/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/llama/decode",
@@ -9019,7 +9019,7 @@
       "path": "/api/tokenizers/llama/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/llama/decode",
@@ -9027,7 +9027,7 @@
       "path": "/api/tokenizers/llama/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/llama/encode",
@@ -9035,7 +9035,7 @@
       "path": "/api/tokenizers/llama/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/llama/encode",
@@ -9043,7 +9043,7 @@
       "path": "/api/tokenizers/llama/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/llama3/decode",
@@ -9051,7 +9051,7 @@
       "path": "/api/tokenizers/llama3/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/llama3/decode",
@@ -9059,7 +9059,7 @@
       "path": "/api/tokenizers/llama3/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/llama3/encode",
@@ -9067,7 +9067,7 @@
       "path": "/api/tokenizers/llama3/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/llama3/encode",
@@ -9075,7 +9075,7 @@
       "path": "/api/tokenizers/llama3/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/mistral/decode",
@@ -9083,7 +9083,7 @@
       "path": "/api/tokenizers/mistral/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/mistral/decode",
@@ -9091,7 +9091,7 @@
       "path": "/api/tokenizers/mistral/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/mistral/encode",
@@ -9099,7 +9099,7 @@
       "path": "/api/tokenizers/mistral/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/mistral/encode",
@@ -9107,7 +9107,7 @@
       "path": "/api/tokenizers/mistral/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/nemo/decode",
@@ -9115,7 +9115,7 @@
       "path": "/api/tokenizers/nemo/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/nemo/decode",
@@ -9123,7 +9123,7 @@
       "path": "/api/tokenizers/nemo/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/nemo/encode",
@@ -9131,7 +9131,7 @@
       "path": "/api/tokenizers/nemo/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/nemo/encode",
@@ -9139,7 +9139,7 @@
       "path": "/api/tokenizers/nemo/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/nerdstash_v2/decode",
@@ -9147,7 +9147,7 @@
       "path": "/api/tokenizers/nerdstash_v2/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/nerdstash_v2/decode",
@@ -9155,7 +9155,7 @@
       "path": "/api/tokenizers/nerdstash_v2/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/nerdstash_v2/encode",
@@ -9163,7 +9163,7 @@
       "path": "/api/tokenizers/nerdstash_v2/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/nerdstash_v2/encode",
@@ -9171,7 +9171,7 @@
       "path": "/api/tokenizers/nerdstash_v2/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/nerdstash/decode",
@@ -9179,7 +9179,7 @@
       "path": "/api/tokenizers/nerdstash/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/nerdstash/decode",
@@ -9187,7 +9187,7 @@
       "path": "/api/tokenizers/nerdstash/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/nerdstash/encode",
@@ -9195,7 +9195,7 @@
       "path": "/api/tokenizers/nerdstash/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/nerdstash/encode",
@@ -9203,7 +9203,7 @@
       "path": "/api/tokenizers/nerdstash/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/openai/count",
@@ -9211,7 +9211,7 @@
       "path": "/api/tokenizers/openai/count",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:100"
+      "evidence": "internal/server/tokenizers.go:105"
     },
     {
       "pattern": "/api/tokenizers/openai/decode",
@@ -9219,7 +9219,7 @@
       "path": "/api/tokenizers/openai/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:99"
+      "evidence": "internal/server/tokenizers.go:104"
     },
     {
       "pattern": "/api/tokenizers/openai/encode",
@@ -9227,7 +9227,7 @@
       "path": "/api/tokenizers/openai/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:98"
+      "evidence": "internal/server/tokenizers.go:103"
     },
     {
       "pattern": "/api/tokenizers/qwen2/decode",
@@ -9235,7 +9235,7 @@
       "path": "/api/tokenizers/qwen2/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/qwen2/decode",
@@ -9243,7 +9243,7 @@
       "path": "/api/tokenizers/qwen2/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/qwen2/encode",
@@ -9251,7 +9251,7 @@
       "path": "/api/tokenizers/qwen2/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/qwen2/encode",
@@ -9259,7 +9259,7 @@
       "path": "/api/tokenizers/qwen2/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:89"
+      "evidence": "internal/server/tokenizers.go:94"
     },
     {
       "pattern": "/api/tokenizers/remote/kobold/count",
@@ -9267,7 +9267,7 @@
       "path": "/api/tokenizers/remote/kobold/count",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:101"
+      "evidence": "internal/server/tokenizers.go:106"
     },
     {
       "pattern": "/api/tokenizers/remote/textgenerationwebui/encode",
@@ -9275,7 +9275,7 @@
       "path": "/api/tokenizers/remote/textgenerationwebui/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:102"
+      "evidence": "internal/server/tokenizers.go:107"
     },
     {
       "pattern": "/api/tokenizers/yi/decode",
@@ -9283,7 +9283,7 @@
       "path": "/api/tokenizers/yi/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/yi/decode",
@@ -9291,7 +9291,7 @@
       "path": "/api/tokenizers/yi/decode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/yi/encode",
@@ -9299,7 +9299,7 @@
       "path": "/api/tokenizers/yi/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/tokenizers/yi/encode",
@@ -9307,7 +9307,7 @@
       "path": "/api/tokenizers/yi/encode",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/tokenizers.go:78"
+      "evidence": "internal/server/tokenizers.go:83"
     },
     {
       "pattern": "/api/translate/deepl",
@@ -9923,7 +9923,7 @@
       "path": "/api/sprites/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:516"
+      "evidence": "internal/server/http.go:521"
     },
     {
       "pattern": "GET /api/users/me",
@@ -9931,7 +9931,7 @@
       "path": "/api/users/me",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:373"
+      "evidence": "internal/server/http.go:378"
     },
     {
       "pattern": "GET /callback",
@@ -9939,7 +9939,7 @@
       "path": "/callback",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:523"
+      "evidence": "internal/server/http.go:528"
     },
     {
       "pattern": "GET /callback/",
@@ -9947,7 +9947,7 @@
       "path": "/callback/",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:526"
+      "evidence": "internal/server/http.go:531"
     },
     {
       "pattern": "GET /csrf-token",
@@ -9955,7 +9955,7 @@
       "path": "/csrf-token",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:367"
+      "evidence": "internal/server/http.go:372"
     },
     {
       "pattern": "GET /login",
@@ -9963,7 +9963,7 @@
       "path": "/login",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:364"
+      "evidence": "internal/server/http.go:369"
     },
     {
       "pattern": "GET /version",
@@ -9971,7 +9971,7 @@
       "path": "/version",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:363"
+      "evidence": "internal/server/http.go:368"
     },
     {
       "pattern": "POST /api/avatars/delete",
@@ -9979,7 +9979,7 @@
       "path": "/api/avatars/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:403"
+      "evidence": "internal/server/http.go:408"
     },
     {
       "pattern": "POST /api/avatars/get",
@@ -9987,7 +9987,7 @@
       "path": "/api/avatars/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:402"
+      "evidence": "internal/server/http.go:407"
     },
     {
       "pattern": "POST /api/avatars/upload",
@@ -9995,7 +9995,7 @@
       "path": "/api/avatars/upload",
       "classification": "implemented",
       "reason": "AGENTS.md boundary 3, DECIDED 2026-10-29: the pinned route stores a Jimp output file, and GoTavern serves the OBSERVABLE contract from a pure-Go codec -- status, MIME/original-name behaviour, decodability, exact dimensions, the pinned 512x768 want_resize box, cover-not-stretch geometry, PNG output whatever was uploaded, and cache behaviour. Byte equality with Jimp is explicitly not claimed. The inventory row still says 'not implemented: boundary 3', which predates the decision; the explicit decision outranks it, which is exactly what this exception is for.",
-      "evidence": "internal/server/http.go:404"
+      "evidence": "internal/server/http.go:409"
     },
     {
       "pattern": "POST /api/data-maid/delete",
@@ -10027,7 +10027,7 @@
       "path": "/api/files/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:407"
+      "evidence": "internal/server/http.go:412"
     },
     {
       "pattern": "POST /api/files/sanitize-filename",
@@ -10035,7 +10035,7 @@
       "path": "/api/files/sanitize-filename",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:405"
+      "evidence": "internal/server/http.go:410"
     },
     {
       "pattern": "POST /api/files/upload",
@@ -10043,7 +10043,7 @@
       "path": "/api/files/upload",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:406"
+      "evidence": "internal/server/http.go:411"
     },
     {
       "pattern": "POST /api/files/verify",
@@ -10051,7 +10051,7 @@
       "path": "/api/files/verify",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:408"
+      "evidence": "internal/server/http.go:413"
     },
     {
       "pattern": "POST /api/moving-ui/save",
@@ -10059,7 +10059,7 @@
       "path": "/api/moving-ui/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:401"
+      "evidence": "internal/server/http.go:406"
     },
     {
       "pattern": "POST /api/ping",
@@ -10067,7 +10067,7 @@
       "path": "/api/ping",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:520"
+      "evidence": "internal/server/http.go:525"
     },
     {
       "pattern": "POST /api/quick-replies/delete",
@@ -10075,7 +10075,7 @@
       "path": "/api/quick-replies/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:398"
+      "evidence": "internal/server/http.go:403"
     },
     {
       "pattern": "POST /api/quick-replies/save",
@@ -10083,7 +10083,7 @@
       "path": "/api/quick-replies/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:397"
+      "evidence": "internal/server/http.go:402"
     },
     {
       "pattern": "POST /api/settings/get",
@@ -10091,7 +10091,7 @@
       "path": "/api/settings/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:392"
+      "evidence": "internal/server/http.go:397"
     },
     {
       "pattern": "POST /api/settings/get-snapshots",
@@ -10099,7 +10099,7 @@
       "path": "/api/settings/get-snapshots",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:391"
+      "evidence": "internal/server/http.go:396"
     },
     {
       "pattern": "POST /api/settings/load-snapshot",
@@ -10107,7 +10107,7 @@
       "path": "/api/settings/load-snapshot",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:394"
+      "evidence": "internal/server/http.go:399"
     },
     {
       "pattern": "POST /api/settings/make-snapshot",
@@ -10115,7 +10115,7 @@
       "path": "/api/settings/make-snapshot",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:395"
+      "evidence": "internal/server/http.go:400"
     },
     {
       "pattern": "POST /api/settings/restore-snapshot",
@@ -10123,7 +10123,7 @@
       "path": "/api/settings/restore-snapshot",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:396"
+      "evidence": "internal/server/http.go:401"
     },
     {
       "pattern": "POST /api/settings/save",
@@ -10131,7 +10131,7 @@
       "path": "/api/settings/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:393"
+      "evidence": "internal/server/http.go:398"
     },
     {
       "pattern": "POST /api/sprites/delete",
@@ -10139,7 +10139,7 @@
       "path": "/api/sprites/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:517"
+      "evidence": "internal/server/http.go:522"
     },
     {
       "pattern": "POST /api/themes/delete",
@@ -10147,7 +10147,7 @@
       "path": "/api/themes/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:400"
+      "evidence": "internal/server/http.go:405"
     },
     {
       "pattern": "POST /api/themes/save",
@@ -10155,7 +10155,7 @@
       "path": "/api/themes/save",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:399"
+      "evidence": "internal/server/http.go:404"
     },
     {
       "pattern": "POST /api/users/backup",
@@ -10163,7 +10163,7 @@
       "path": "/api/users/backup",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:377"
+      "evidence": "internal/server/http.go:382"
     },
     {
       "pattern": "POST /api/users/change-avatar",
@@ -10171,7 +10171,7 @@
       "path": "/api/users/change-avatar",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:374"
+      "evidence": "internal/server/http.go:379"
     },
     {
       "pattern": "POST /api/users/change-name",
@@ -10179,7 +10179,7 @@
       "path": "/api/users/change-name",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:375"
+      "evidence": "internal/server/http.go:380"
     },
     {
       "pattern": "POST /api/users/change-password",
@@ -10187,7 +10187,7 @@
       "path": "/api/users/change-password",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:376"
+      "evidence": "internal/server/http.go:381"
     },
     {
       "pattern": "POST /api/users/create",
@@ -10195,7 +10195,7 @@
       "path": "/api/users/create",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:382"
+      "evidence": "internal/server/http.go:387"
     },
     {
       "pattern": "POST /api/users/delete",
@@ -10203,7 +10203,7 @@
       "path": "/api/users/delete",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:388"
+      "evidence": "internal/server/http.go:393"
     },
     {
       "pattern": "POST /api/users/demote",
@@ -10211,7 +10211,7 @@
       "path": "/api/users/demote",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:387"
+      "evidence": "internal/server/http.go:392"
     },
     {
       "pattern": "POST /api/users/disable",
@@ -10219,7 +10219,7 @@
       "path": "/api/users/disable",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:384"
+      "evidence": "internal/server/http.go:389"
     },
     {
       "pattern": "POST /api/users/enable",
@@ -10227,7 +10227,7 @@
       "path": "/api/users/enable",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:385"
+      "evidence": "internal/server/http.go:390"
     },
     {
       "pattern": "POST /api/users/get",
@@ -10235,7 +10235,7 @@
       "path": "/api/users/get",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:381"
+      "evidence": "internal/server/http.go:386"
     },
     {
       "pattern": "POST /api/users/list",
@@ -10243,7 +10243,7 @@
       "path": "/api/users/list",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:370"
+      "evidence": "internal/server/http.go:375"
     },
     {
       "pattern": "POST /api/users/login",
@@ -10251,7 +10251,7 @@
       "path": "/api/users/login",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:371"
+      "evidence": "internal/server/http.go:376"
     },
     {
       "pattern": "POST /api/users/logout",
@@ -10259,7 +10259,7 @@
       "path": "/api/users/logout",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:372"
+      "evidence": "internal/server/http.go:377"
     },
     {
       "pattern": "POST /api/users/promote",
@@ -10267,7 +10267,7 @@
       "path": "/api/users/promote",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:386"
+      "evidence": "internal/server/http.go:391"
     },
     {
       "pattern": "POST /api/users/recover-step1",
@@ -10275,7 +10275,7 @@
       "path": "/api/users/recover-step1",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:389"
+      "evidence": "internal/server/http.go:394"
     },
     {
       "pattern": "POST /api/users/recover-step2",
@@ -10283,7 +10283,7 @@
       "path": "/api/users/recover-step2",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:390"
+      "evidence": "internal/server/http.go:395"
     },
     {
       "pattern": "POST /api/users/reset-settings",
@@ -10291,7 +10291,7 @@
       "path": "/api/users/reset-settings",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:378"
+      "evidence": "internal/server/http.go:383"
     },
     {
       "pattern": "POST /api/users/reset-step1",
@@ -10299,7 +10299,7 @@
       "path": "/api/users/reset-step1",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:379"
+      "evidence": "internal/server/http.go:384"
     },
     {
       "pattern": "POST /api/users/reset-step2",
@@ -10307,7 +10307,7 @@
       "path": "/api/users/reset-step2",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:380"
+      "evidence": "internal/server/http.go:385"
     },
     {
       "pattern": "POST /api/users/slugify",
@@ -10315,7 +10315,7 @@
       "path": "/api/users/slugify",
       "classification": "implemented",
       "reason": null,
-      "evidence": "internal/server/http.go:383"
+      "evidence": "internal/server/http.go:388"
     }
   ],
   "redirectAliases": [
