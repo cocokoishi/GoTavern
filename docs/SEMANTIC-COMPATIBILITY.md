@@ -672,3 +672,24 @@ Examples of meaningful evidence:
 - Node can read and further mutate Go-written data without loss.
 
 That is the standard required before the project calls itself drop-in compatible.
+
+## 18. Recorded deliberate divergences and unsupported surfaces (alpha.17)
+
+A drop-in replacement must reproduce pinned behaviour, but a small number of pinned behaviours are unsafe
+to reproduce or are recorded product exclusions. Each one is listed here with its scope words so a reader
+never has to discover it from a user report. A row here is NOT a pass and NOT covered compatibility: the
+status word is part of the contract.
+
+| surface | pinned behaviour | GoTavern behaviour | decision and evidence |
+|---|---|---|---|
+| `POST /api/settings/save` with an empty or whitespace-only body | body-parser yields `{}`; `writeFileAtomicSync(JSON.stringify({}))` **replaces settings.json with `{}`** and answers `{result:"ok"}` (`src/endpoints/settings.js:206-211`) | answers **400**, leaves the existing settings.json intact (`internal/server/settings_save.go:34-37`) | **Deliberate safer-than-pinned divergence**, alpha.17 (decision-log AL17-D004). Reproducing the wipe would destroy user settings; a save with no body is not a user path the pinned frontend takes. |
+| `POST /api/settings/save` when the write fails | catches the error and answers HTTP **200** with the serialised `Error` object (`settings.js:212-215`) | answers **500** | **Deliberate divergence**: a 200-with-an-error-body is unpinned-parity noise that hides a failed save from every client. Recorded, not silently changed. |
+| `POST /api/settings/save` with a JSON number that overflows float64 (`{"f":1e400}`) | `JSON.parse` yields `Infinity`; `JSON.stringify` writes `null`; answers 200 and stores `{"f":null}` (measured by `tests/e2e/niche_data_test.go` on Node v24.19.0) | answers **400** (the decoder refuses the non-representable number) | **Deliberate safer-than-pinned divergence** (DEF-001, decision-log AL17-D004 family): storing a silent `null` in place of a user value is data loss. No pinned frontend path emits such a number. |
+| per-chat backups on chat save | `backups.chat.enabled` defaults **true**: `saveChat` schedules a throttled backup outside the chat directory, with retention and an integrity check (`src/endpoints/chats.js:27-32,52-...`) | **not implemented** (`internal/server/chats.go:18-23` records the gap); the chat itself is still saved atomically | **Unsupported surface** for alpha.17, recorded here so a user who relied on the backup safety net knows. Implementation is a candidate for the next round. |
+| `POST /api/extensions/version` fetches twice | fetches at `src/endpoints/extensions.js:423` and again inside `checkIfRepoIsUpToDate` (`:43`, called at `:425`) | fetches twice (`internal/server/extensions_git.go:362`, `:205`) | **Parity, not a divergence**: the alpha.16 HANDOFF next-action claimed pinned fetches once; the pinned source shows two, so GoTavern's two fetches are correct. Recorded to stop a future reader "fixing" parity. |
+| `/proxy/:url(*)` with `enableCorsProxy` false | 404 with the message "CORS proxy is disabled. Enable it in config.yaml or use the --corsProxy flag." (`src/server-main.js:259-264`) | **implemented**: same 404, same body, `text/html; charset=utf-8` (`internal/server/cors_proxy.go`) | **Parity for the disabled branch** (alpha.17, commit `ab5d723`). |
+| `/proxy/:url(*)` with `enableCorsProxy` true | proxies the requested URL | **501** with a named "not implemented" reason; no request is proxied (`internal/server/cors_proxy.go`) | **Unsupported surface** (alpha.17): GoTavern deliberately does not run an in-process CORS proxy. Answering 501 rather than 404 keeps the unimplemented branch distinguishable from the policy refusal (AGENTS.md rule 17); classified `unsupported-with-reason` in the generated surface coverage. |
+| page-init external network requests from the pinned frontend | the pinned frontend code builds those requests; they are part of its behaviour | unchanged (same frontend); browser probes are made hermetic with an explicit egress allowlist/refusal rather than by blocking requests the page makes | **Test-harness decision, not a product divergence** (decision-log AL17-D005). The allowlist is pinned-version-specific and must be re-derived on a baseline bump. |
+
+Rows that are NOT here must be assumed covered by the ordinary contract above; a surface missing from both
+this section and the evidence ledger is a documentation defect, not "probably fine".

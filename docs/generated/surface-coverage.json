@@ -8,12 +8,12 @@
   "sources": {
     "pinnedInventoryRows": 342,
     "pinnedRedirectAliases": 50,
-    "goRegistrationFiles": 187,
-    "goRegistrations": 422,
+    "goRegistrationFiles": 188,
+    "goRegistrations": 423,
     "frontendFiles": 68,
     "startupObservedRequests": 229,
     "extensionRouteRows": 17,
-    "classificationExceptions": 27
+    "classificationExceptions": 28
   },
   "classificationCounts": {
     "surfaces": 573,
@@ -23,11 +23,11 @@
     "unsupported-with-reason": 18
   },
   "goClassificationCounts": {
-    "routes": 422,
+    "routes": 423,
     "implemented": 414,
     "intentionally-passthrough": 8,
     "not-applicable": 0,
-    "unsupported-with-reason": 0
+    "unsupported-with-reason": 1
   },
   "redirectAliasCounts": {
     "aliases": 50,
@@ -9756,6 +9756,14 @@
       "classification": "implemented",
       "reason": "the pinned server registers this as a method-preserving 308 alias of /api/images/list/:folder (src/server-startup.js:128)",
       "evidence": "internal/server/redirect_aliases.go:143"
+    },
+    {
+      "pattern": "/proxy/",
+      "method": null,
+      "path": "/proxy/",
+      "classification": "unsupported-with-reason",
+      "reason": "The pinned /proxy/:url(*) mount (src/server-main.js:257-265) proxies arbitrary URLs when enableCorsProxy is set. GoTavern does not implement an in-process CORS proxy, and it is a recorded product decision not to fabricate one. The route IS registered so the DISABLED branch reproduces pinned's exact 404 message and the ENABLED branch answers 501 with a named reason (AGENTS.md rule 17), which is why it is in the Go route set without being a pinned-inventory route.",
+      "evidence": "internal/server/cors_proxy.go:35"
     },
     {
       "pattern": "/recreatestats",
