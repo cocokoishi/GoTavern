@@ -243,50 +243,20 @@ func freePort(t *testing.T) int {
 	return address.Port
 }
 
-// bootServer boots the real binary into a release-shaped install root and waits until GET /version is
-// served. The flags are the recipe the shipped probes use for both backends (tools/
-// probe-provider-wire.mjs:331-335, tools/probe-runtime-roundtrip.mjs:276-284): loopback only, no
-// browser launch, and no heartbeat, so nothing outside this test can move.
-func bootServer(t *testing.T, extraEnvironment map[string]string) *serverProcess {
-	t.Helper()
-	installRoot := t.TempDir()
-	return bootServerAt(t, installRoot, filepath.Join(installRoot, "data"), extraEnvironment)
-}
+// portCollisionAttempts bounds the ONE retryable boot failure: the loopback port freePort just released
+// was taken by another binder before the child could bind it. `go test ./...` runs packages in parallel,
+// so a concurrent package's server can win that window; measured in GoTavern CI 42332590427 verify, where
+// TestTwoProcessesOneDataRootSettingsWritesStayWhole failed with "listen tcp4 127.0.0.1:39195: bind:
+// address already in use". The retry is NOT a masked product failure: a collision is recognised only from
+// the child's own bind error, a fresh port is reserved, and every other exit (and every readiness timeout)
+// still fails the test with the child's output.
+const portCollisionAttempts = 3
 
-// bootServerAt is bootServer with the roots chosen by the caller, so a test can boot the shipped binary
-// against a tree it built itself -- tests/e2e/longlived_test.go's long-lived user directory -- instead of
-// the freshly seeded one this harness invents. Every other caller keeps using bootServer.
-func bootServerAt(t *testing.T, installRoot, dataRoot string, extraEnvironment map[string]string) *serverProcess {
-	t.Helper()
-	return bootServerIn(t, installRoot, installRoot, dataRoot, extraEnvironment)
-}
-
-// bootServerIn boots the binary into installRoot while the PROCESS starts in workingDirectory, and hands it
-// an absolute --dataRoot. That is the layout `cd /srv && /srv/gotavern --dataRoot <abs>`: the launch
-// directory and the install tree are different, and the data root is named outright.
-//
-// WHY A CASE NEEDS THIS. Two startup questions cannot be asked with bootServerAt, because it makes CWD ==
-// install root and passes an absolute dataRoot:
-//
-//   - does a FOREIGN working directory change where anything is created or written? (it must not)
-//   - does an absolute --dataRoot still win over a config file's relative `dataRoot`?
-//
-// and for the second one the answer only means something if the case can name the config whose value is
-// being overridden -- bootServerConfigIn.
-func bootServerIn(t *testing.T, installRoot, workingDirectory, dataRoot string, extraEnvironment map[string]string) *serverProcess {
-	t.Helper()
-	server := bootServerCommand(t, installRoot, workingDirectory, extraEnvironment, []string{"--dataRoot", dataRoot})
-	server.dataRoot = dataRoot
-	return server
-}
-
-// bootServerConfigIn boots with NO --dataRoot, naming only the config file, so the data root is whatever
-// that document resolves to -- exactly as it is for a user who edits config.yaml and runs the binary. The
-// caller asserts the resolution it expects against the tree and the warnings; this function supplies no
-// expectation of its own, because a harness that predicted the answer could not detect a wrong one.
-func bootServerConfigIn(t *testing.T, installRoot, workingDirectory, configPath string, extraEnvironment map[string]string) *serverProcess {
-	t.Helper()
-	return bootServerCommand(t, installRoot, workingDirectory, extraEnvironment, []string{"--configPath", configPath})
+// isLoopbackPortCollision recognises only the child's port-in-use bind failure, which is the one
+// environmental race this harness retries.
+func isLoopbackPortCollision(diagnostic string) bool {
+	return strings.Contains(diagnostic, "listen port is already in use") ||
+		(strings.Contains(diagnostic, "bind:") && strings.Contains(diagnostic, "address already in use"))
 }
 
 // bootServerCommand is the single boot implementation. pathsArguments is everything the case says about
@@ -297,6 +267,23 @@ func bootServerConfigIn(t *testing.T, installRoot, workingDirectory, configPath 
 func bootServerCommand(t *testing.T, installRoot, workingDirectory string, extraEnvironment map[string]string, pathsArguments []string) *serverProcess {
 	t.Helper()
 	binary := resolveBinary(t, installRoot)
+	for attempt := 1; ; attempt++ {
+		server, collision := bootServerCommandAttempt(t, binary, installRoot, workingDirectory, extraEnvironment, pathsArguments)
+		if collision && attempt < portCollisionAttempts {
+			t.Logf("attempt %d lost its reserved loopback port to a concurrent binder (%s); reserving a fresh port (attempt %d/%d)", attempt, server.diagnostic(), attempt+1, portCollisionAttempts)
+			continue
+		}
+		if collision {
+			t.Fatalf("could not boot the server: %d attempts each lost their reserved loopback port to a concurrent binder\n%s", attempt, server.diagnostic())
+		}
+		return server
+	}
+}
+
+// bootServerCommandAttempt is one boot attempt. It returns the process and, when the child exited ONLY
+// because its port was taken, collision=true so the caller can retry on a fresh port.
+func bootServerCommandAttempt(t *testing.T, binary, installRoot, workingDirectory string, extraEnvironment map[string]string, pathsArguments []string) (*serverProcess, bool) {
+	t.Helper()
 	port := freePort(t)
 
 	arguments := []string{"start"}
@@ -345,6 +332,9 @@ func bootServerCommand(t *testing.T, installRoot, workingDirectory string, extra
 	deadline := time.Now().Add(bootDeadline)
 	for {
 		if err, exited := server.exitState(); exited {
+			if isLoopbackPortCollision(server.diagnostic()) {
+				return server, true
+			}
 			t.Fatalf("the server exited before it answered GET %s (%v)\n%s", readinessPath, err, server.diagnostic())
 		}
 		response, err := client.Get(server.origin + readinessPath)
@@ -353,7 +343,7 @@ func bootServerCommand(t *testing.T, installRoot, workingDirectory string, extra
 			_ = response.Body.Close()
 			if readErr == nil && response.StatusCode == http.StatusOK && len(payload) > 0 {
 				t.Logf("server ready at %s after GET %s answered %d %q", server.origin, readinessPath, response.StatusCode, payload)
-				return server
+				return server, false
 			}
 		}
 		if time.Now().After(deadline) {
@@ -361,6 +351,52 @@ func bootServerCommand(t *testing.T, installRoot, workingDirectory string, extra
 		}
 		time.Sleep(bootPollInterval)
 	}
+}
+
+// bootServer boots the real binary into a release-shaped install root and waits until GET /version is
+// served. The flags are the recipe the shipped probes use for both backends (tools/
+// probe-provider-wire.mjs:331-335, tools/probe-runtime-roundtrip.mjs:276-284): loopback only, no
+// browser launch, and no heartbeat, so nothing outside this test can move.
+func bootServer(t *testing.T, extraEnvironment map[string]string) *serverProcess {
+	t.Helper()
+	installRoot := t.TempDir()
+	return bootServerAt(t, installRoot, filepath.Join(installRoot, "data"), extraEnvironment)
+}
+
+// bootServerAt is bootServer with the roots chosen by the caller, so a test can boot the shipped binary
+// against a tree it built itself -- tests/e2e/longlived_test.go's long-lived user directory -- instead of
+// the freshly seeded one this harness invents. Every other caller keeps using bootServer.
+func bootServerAt(t *testing.T, installRoot, dataRoot string, extraEnvironment map[string]string) *serverProcess {
+	t.Helper()
+	return bootServerIn(t, installRoot, installRoot, dataRoot, extraEnvironment)
+}
+
+// bootServerIn boots the binary into installRoot while the PROCESS starts in workingDirectory, and hands it
+// an absolute --dataRoot. That is the layout `cd /srv && /srv/gotavern --dataRoot <abs>`: the launch
+// directory and the install tree are different, and the data root is named outright.
+//
+// WHY A CASE NEEDS THIS. Two startup questions cannot be asked with bootServerAt, because it makes CWD ==
+// install root and passes an absolute dataRoot:
+//
+//   - does a FOREIGN working directory change where anything is created or written? (it must not)
+//   - does an absolute --dataRoot still win over a config file's relative `dataRoot`?
+//
+// and for the second one the answer only means something if the case can name the config whose value is
+// being overridden -- bootServerConfigIn.
+func bootServerIn(t *testing.T, installRoot, workingDirectory, dataRoot string, extraEnvironment map[string]string) *serverProcess {
+	t.Helper()
+	server := bootServerCommand(t, installRoot, workingDirectory, extraEnvironment, []string{"--dataRoot", dataRoot})
+	server.dataRoot = dataRoot
+	return server
+}
+
+// bootServerConfigIn boots with NO --dataRoot, naming only the config file, so the data root is whatever
+// that document resolves to -- exactly as it is for a user who edits config.yaml and runs the binary. The
+// caller asserts the resolution it expects against the tree and the warnings; this function supplies no
+// expectation of its own, because a harness that predicted the answer could not detect a wrong one.
+func bootServerConfigIn(t *testing.T, installRoot, workingDirectory, configPath string, extraEnvironment map[string]string) *serverProcess {
+	t.Helper()
+	return bootServerCommand(t, installRoot, workingDirectory, extraEnvironment, []string{"--configPath", configPath})
 }
 
 // session is a browser-equivalent session: the CSRF token and the signed cookie the frontend holds.
@@ -506,4 +542,27 @@ func marshalJSON(value any) (string, error) {
 		return "", err
 	}
 	return string(encoded), nil
+}
+
+// TestLoopbackPortCollisionClassificationHasTeeth guards the ONE retryable boot failure. The measured CI
+// message (GoTavern CI 42332590427 verify) must be recognised, and a generic readiness/exit failure must
+// NOT be, because misclassifying the latter would retry a real product failure and turn it into a pass.
+func TestLoopbackPortCollisionClassificationHasTeeth(t *testing.T) {
+	measured := "gotavern: Error: Startup aborted because IPv4 is the only enabled protocol and its listen port is already in use.: listen tcp4 127.0.0.1:39195: bind: address already in use"
+	if !isLoopbackPortCollision(measured) {
+		t.Fatalf("the measured CI bind-collision message is not classified as retryable:\n%s", measured)
+	}
+	for _, notCollision := range []string{
+		"the server did not answer GET /version with 200 within 30s",
+		"gotavern: Error: read config.yaml: permission denied",
+		"listen tcp4 127.0.0.1:39195: bind: cannot assign requested address",
+		"gotavern: Error: config.yaml is not valid YAML",
+	} {
+		if isLoopbackPortCollision(notCollision) {
+			t.Errorf("a non-collision failure is classified as retryable, so a real boot failure would be retried away: %q", notCollision)
+		}
+	}
+	if portCollisionAttempts < 2 {
+		t.Fatalf("portCollisionAttempts=%d; a retry needs at least one retry", portCollisionAttempts)
+	}
 }
