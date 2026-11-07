@@ -27,16 +27,21 @@ package server
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/cocokoishi/gotavern/internal/httpx"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 
+	"github.com/cocokoishi/gotavern/internal/fsretry"
+	"github.com/cocokoishi/gotavern/internal/httpx"
 	"github.com/cocokoishi/gotavern/internal/tokenizers"
 )
 
@@ -363,6 +368,17 @@ const tokenizerFallbackModel = "llama3"
 // obtained, which GoTavern serves from the vendored asset instead of the network; and any
 // failure falls back to llama3.json, which is what the pinned capture shows for a cold cache
 // with downloads disabled.
+//
+// CACHE-WRITE FAILURE SEMANTICS (D-H17). Pinned's cache writes are writeFileAtomicSync calls
+// inside getPathToTokenizer's try block (tokenizers.js:9,116,136,140); when one throws, the
+// catch logs and RETURNS THE FALLBACK MODEL (tokenizers.js:144-146), so the route answers with
+// llama3's tokenization rather than the tokenizer that could not be cached. The Go side ignores
+// the write error today, so it would answer with the tokenizer it failed to persist -- a
+// parity difference AND a data-safety one (the cache may be a truncated file the next request
+// reads as a tokenizer). This now falls back to llama3 on a cache-write failure, matching
+// pinned. Deliberate residual difference: pinned logs `console.error` on the fallback and the
+// Go tokenizer path is silent on every fallback (the pre-existing cold-cache fallback is silent
+// too); adding a logger here would need the options writer that tokenizerSet does not carry.
 func (set *tokenizerSet) webBytes(model string) ([]byte, error) {
 	if !isTokenizerExternalAsset(model) {
 		return os.ReadFile(filepath.Join(set.assets, model+".json"))
@@ -373,8 +389,16 @@ func (set *tokenizerSet) webBytes(model string) ([]byte, error) {
 		}
 		if compressed, err := os.ReadFile(filepath.Join(set.cache, model+".json.gz")); err == nil {
 			if raw, err := gunzipBytes(compressed); err == nil {
-				_ = os.MkdirAll(set.cache, 0o755)
-				_ = os.WriteFile(filepath.Join(set.cache, model+".json"), raw, 0o644)
+				if err := set.publishCacheFile(model+".json", raw); err != nil {
+					return set.webBytes(tokenizerFallbackModel)
+				}
+				// Deliberate difference from pinned: pinned's `await fs.promises.unlink(...)`
+				// (tokenizers.js:117) inside the try means an unlink failure ALSO falls back to
+				// llama3. GoTavern ignores the unlink failure and uses the bytes it just cached
+				// successfully -- the uncompressed cache file now exists, so the next request
+				// uses it either way, and a failed cleanup is not a tokenizer resolution
+				// failure. Nothing observable differs unless unlink fails, in which case the
+				// pinned and Go answers diverge for one request.
 				_ = os.Remove(filepath.Join(set.cache, model+".json.gz"))
 				return raw, nil
 			}
@@ -384,14 +408,101 @@ func (set *tokenizerSet) webBytes(model string) ([]byte, error) {
 		if compressed, err := os.ReadFile(filepath.Join(set.assets, "external", model+".json.gz")); err == nil {
 			if raw, err := gunzipBytes(compressed); err == nil {
 				if set.cache != "" {
-					_ = os.MkdirAll(set.cache, 0o755)
-					_ = os.WriteFile(filepath.Join(set.cache, model+".json"), raw, 0o644)
+					if err := set.publishCacheFile(model+".json", raw); err != nil {
+						return set.webBytes(tokenizerFallbackModel)
+					}
 				}
 				return raw, nil
 			}
 		}
 	}
 	return set.webBytes(tokenizerFallbackModel)
+}
+
+// publishCacheFile materializes one decompressed tokenizer into <DataRoot>/_cache, which the
+// pinned getPathToTokenizer does with `fs.mkdirSync(CACHE_PATH, {recursive:true})`
+// (tokenizers.js:97-99) and then writeFileAtomicSync (tokenizers.js:9,116,136,140).
+func (set *tokenizerSet) publishCacheFile(name string, body []byte) error {
+	if set.cache == "" {
+		return nil
+	}
+	if err := os.MkdirAll(set.cache, 0o755); err != nil {
+		return err
+	}
+	return writeTokenizerCacheFile(filepath.Join(set.cache, name), body)
+}
+
+// writeTokenizerCacheFile publishes the tokenizer cache bytes so the destination is only ever
+// ABSENT or COMPLETE, which is what pinned's writeFileAtomicSync guarantees for the same files
+// (tokenizers.js:9,116,136,140).
+//
+// THE HAZARD THIS REMOVES (D-H17). The old body was a single `os.WriteFile(target, ...)`: Go
+// opens the destination with O_TRUNC and writes in place, so a full disk, a killed process or a
+// mid-write failure left a TRUNCATED file where the tokenizer cache used to be, and a
+// concurrent reader could observe that prefix and read it as a tokenizer. Measured pre-fix with
+// the failure seam below: a 4,754,645-byte payload left a 2,377,322-byte `qwen2.json`, and an
+// overwrite replaced a 33-byte complete file with a 32,768-byte prefix.
+//
+// THE SHAPE. A unique temporary file in the SAME directory (O_CREATE|O_EXCL), write, fsync,
+// close, then rename over the destination; the destination itself is never opened for
+// truncation, and the temporary is removed on every error path. The rename is retried through
+// internal/fsretry because Windows refuses it while a concurrent reader holds the destination
+// (fsretry's package comment measures that), and the directory is fsynced so the rename is
+// durable. The algorithm is the one internal/startup's atomicReplace already uses; this helper
+// does not forward to startup.WriteFileAtomic because (a) the cache directory may not exist yet
+// and pinned mkdirs it first, and (b) the red-first test needs the write step as a seam, and
+// startup's seam is deliberately unexported in a package that is do-not-refactor.
+//
+// tokenizerCacheTempWrite is a variable only so a test can inject the mid-write failure, the
+// same pattern as internal/startup's atomicTempWrite. Production code never replaces it.
+func writeTokenizerCacheFile(target string, body []byte) error {
+	directory := filepath.Dir(target)
+	var temporary *os.File
+	var tempName string
+	for attempt := 0; attempt < 8; attempt++ {
+		token := make([]byte, 16)
+		if _, err := rand.Read(token); err != nil {
+			return err
+		}
+		tempName = filepath.Join(directory, ".gotavern-tokenizer-"+hex.EncodeToString(token)+".tmp")
+		file, err := os.OpenFile(tempName, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if errors.Is(err, fs.ErrExist) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		temporary = file
+		break
+	}
+	if temporary == nil {
+		return errors.New("could not allocate a unique tokenizer-cache temporary file")
+	}
+	defer os.Remove(tempName)
+	if err := tokenizerCacheTempWrite(temporary, body); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Sync(); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	if err := fsretry.Do(func() error { return os.Rename(tempName, target) }); err != nil {
+		return err
+	}
+	if directoryFile, err := os.Open(directory); err == nil {
+		_ = directoryFile.Sync()
+		_ = directoryFile.Close()
+	}
+	return nil
+}
+
+var tokenizerCacheTempWrite = func(file *os.File, body []byte) error {
+	_, err := file.Write(body)
+	return err
 }
 
 func isTokenizerExternalAsset(model string) bool {
