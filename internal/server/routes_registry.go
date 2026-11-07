@@ -57,6 +57,7 @@ func routeDomainTable() []routeDomain {
 		{name: "chats", register: registerChatRoutes},
 		{name: "chats-groups", register: registerChatAndGroupRoutes},
 		{name: "content", register: registerContentRoutes},
+		{name: "cors-proxy", register: registerCorsProxyRoutes},
 		{name: "data-maid", register: registerDataMaidRoutes},
 		{name: "extensions", register: registerExtensionsRoutes},
 		{name: "extensions-static", register: registerExtensionStaticRoutes},

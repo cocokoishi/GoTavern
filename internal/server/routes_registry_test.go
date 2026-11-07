@@ -21,7 +21,12 @@ import (
 // registrar functions, not just a count) so a domain cannot leave the server
 // by accident, and the representative-route test below proves that every
 // pinned domain still registers at least one route.
-const expectedRouteDomainCount = 54
+//
+// ALPHA.17: the count is 55, not 54. The extra row is "cors-proxy", the pinned
+// /proxy/:url(*) mount (server-main.js:257-265) that GoTavern did not register
+// at all; it is a deliberate ADD, recorded here and in docs/api-inventory.md, and
+// it is why this constant moved in its own commit with the new row.
+const expectedRouteDomainCount = 55
 
 // expectedRouteRegistrars is the sorted set of registrar functions that were
 // effectively registered when M4a started (measured from the 54 init() appends).
@@ -41,6 +46,7 @@ var expectedRouteRegistrars = []string{
 	"registerChatCompletionRoutes",
 	"registerChatRoutes",
 	"registerContentRoutes",
+	"registerCorsProxyRoutes",
 	"registerDataMaidRoutes",
 	"registerDeprecatedRedirectAliases",
 	"registerExtensionStaticRoutes",
@@ -112,6 +118,7 @@ var routeDomainProbes = map[string]routeDomainProbe{
 	"registerChatCompletionRoutes":          {http.MethodPost, "/api/backends/chat-completions/generate"},
 	"registerChatRoutes":                    {http.MethodPost, "/api/chats/save"},
 	"registerContentRoutes":                 {http.MethodPost, "/api/content/importURL"},
+	"registerCorsProxyRoutes":               {http.MethodPost, "/proxy/https://example.invalid/x"},
 	"registerDataMaidRoutes":                {http.MethodPost, "/api/data-maid/report"},
 	"registerDeprecatedRedirectAliases":     {http.MethodGet, "/createcharacter"},
 	"registerExtensionStaticRoutes":         {http.MethodGet, "/scripts/extensions/third-party/probe.js"},
@@ -203,6 +210,7 @@ var expectedRouteDomainNames = []string{
 	"chats",
 	"chats-groups",
 	"content",
+	"cors-proxy",
 	"data-maid",
 	"extensions",
 	"extensions-static",
