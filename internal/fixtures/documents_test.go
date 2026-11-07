@@ -209,6 +209,10 @@ func contractDocumentFiles() []string {
 		filepath.Join("docs", "gate-blindspots.md"),
 		filepath.Join("docs", "real-user-input-audit.md"),
 		filepath.Join("docs", "browser-stability.md"),
+		// The alpha.17 program contract names the pinned baseline, so it is a contract document and its
+		// pin spelling / encoding / mojibake are checked like the others. A document that names the pin
+		// and is outside this list is one nothing checks (TestDocumentGateCoversTheContract).
+		filepath.Join("docs", "alpha17", "README.md"),
 	}
 }
 
@@ -603,6 +607,14 @@ var declaredOtherPins = map[string]string{
 	// named rather than left as an unexplained 40-hex string in a document. The tag object is NOT declared: only
 	// this commit and the code-complete tree above are cited.
 	"95638da72cdb85d58f73adff244040dc6b8669f3": "v0.1.0-alpha.15 stable release commit (tag v0.1.0-alpha.15) - HANDOFF.md current checkpoint, the SHA all thirteen required release gates ran at, and the published release's target commit",
+	// THE alpha.16 BASELINE AND THE alpha.17 ROUND HEAD. The alpha.17 program contract records the tree
+	// this round starts from and the identity of the published alpha.16 release it must not disturb. These
+	// are baseline/identity values, not the SillyTavern pin; declared by value AND named because an
+	// allowlist entry with no reason is exactly where a mistyped pin would hide. The alpha.16 tag OBJECT
+	// (not just its target commit) is recorded so "the tag was not moved" is a checkable claim.
+	"c02eed109ceba32ba710948a0420425f8ce58b1f": "alpha.17 round-start main HEAD (two documentation commits after the alpha.16 release commit) - the tree the refreshed M0 audit, ownership map and source graph were produced at",
+	"b7d81cd1296e842d79997ea70c49dabeed04da31": "v0.1.0-alpha.16 annotated tag object - recorded by the alpha.17 contract to make 'the alpha.16 tag was not moved' checkable (it must keep peeling to c1886d7)",
+	"c1886d70db0342e09c6fdd3225909cae900c15c9": "v0.1.0-alpha.16 product-code commit and tag target - the published release this round must not re-create, move or delete",
 }
 
 // checkPinnedCommitStrings is the gate body, extracted so the red-path test can drive it against a
