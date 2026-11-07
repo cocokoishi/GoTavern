@@ -73,11 +73,12 @@
 // and asserts the new p95 does not exceed it. Without that file nothing is asserted about latency, and the
 // report says so.
 //
-// THE HOST MUST BE COMPARABLE FIRST. If the previous report carries `environment.disk.p95` and this host's
-// fingerprint is more than max(3x, +2 ms) worse, the run fails closed with `threshold/host-disk` and the
-// per-route ceilings are NOT applied: a route p95 measured on degraded storage says nothing about the product.
-// The rule is a REFUSAL to grade, not a widening of the tolerance -- a real regression on a comparable host is
-// still red at the same 25 % ceiling.
+// THE HOST MUST BE COMPARABLE FIRST. If the previous report carries `environment.disk.p50` (the host's TYPICAL
+// sync-write, which is the stable part of the distribution; p95 of a 12-sample probe is one outlier) and this
+// host's typical sync write is more than max(3x, +2 ms) worse, the run fails closed with `threshold/host-disk`
+// and the per-route ceilings are NOT applied: a route p95 measured on degraded storage says nothing about the
+// product. The rule is a REFUSAL to grade, not a widening of the tolerance -- a real regression on a comparable
+// host is still red at the same 25 % ceiling.
 
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -176,7 +177,7 @@ function deriveThresholds(previousReport, tolerance = DEFAULT_THRESHOLD_TOLERANC
         ceilings[route] = Math.round(p95 * (1 + tolerance) * 1000) / 1000;
     }
     if (Object.keys(ceilings).length === 0) return null;
-    const diskP95 = Number(previousReport?.environment?.disk?.p95);
+    const diskMedian = Number(previousReport?.environment?.disk?.p50);
     return {
         source: 'previous report of this row',
         tolerance,
@@ -184,7 +185,7 @@ function deriveThresholds(previousReport, tolerance = DEFAULT_THRESHOLD_TOLERANC
         maxErrorRate: 0,
         // null means "the previous report predates the disk fingerprint"; the host check is then not asserted
         // and the report says so, rather than inventing a comparability claim from a missing measurement.
-        diskP95Ms: Number.isFinite(diskP95) && diskP95 > 0 ? diskP95 : null,
+        diskMedianMs: Number.isFinite(diskMedian) && diskMedian > 0 ? diskMedian : null,
     };
 }
 
@@ -228,9 +229,11 @@ function measureDiskFingerprint(directory, bodyBytes, samples = 12) {
     };
 }
 
-// A comparison is refused when this host's storage p95 is more than HOST_DISK_RATIO times the recorded one
-// AND more than HOST_DISK_ABSOLUTE_SLACK_MS slower. The slack keeps a sub-millisecond baseline from making
-// normal jitter look like a different host; the ratio covers the multi-fold differences actually observed.
+// A comparison is refused when this host's TYPICAL storage latency (median) is more than HOST_DISK_RATIO times
+// the recorded one AND more than HOST_DISK_ABSOLUTE_SLACK_MS slower. The median is used because the probe's p95
+// over 12 samples is a single slow sync, and a single outlier must not decide that a host is different. The slack
+// keeps a sub-millisecond baseline from making normal jitter look like a different host; the ratio covers the
+// multi-fold differences actually observed.
 const HOST_DISK_RATIO = 3;
 const HOST_DISK_ABSOLUTE_SLACK_MS = 2;
 
@@ -242,10 +245,10 @@ const HOST_DISK_ABSOLUTE_SLACK_MS = 2;
 function evaluateThresholds(report, thresholds) {
     const problems = [];
     if (!thresholds) return problems;
-    const baselineDisk = Number(thresholds.diskP95Ms);
-    const observedDisk = Number(report?.environment?.disk?.p95);
+    const baselineDisk = Number(thresholds.diskMedianMs);
+    const observedDisk = Number(report?.environment?.disk?.p50);
     if (Number.isFinite(baselineDisk) && baselineDisk > 0 && !Number.isFinite(observedDisk)) {
-        problems.push({ check: 'threshold/host-disk', detail: `the previous report recorded a disk fingerprint p95 of ${baselineDisk} ms but this run recorded none, so its route timings cannot be compared across hosts` });
+        problems.push({ check: 'threshold/host-disk', detail: `the previous report recorded a disk fingerprint median of ${baselineDisk} ms but this run recorded none, so its route timings cannot be compared across hosts` });
         return problems;
     }
     if (Number.isFinite(baselineDisk) && baselineDisk > 0 && Number.isFinite(observedDisk)) {
@@ -253,7 +256,7 @@ function evaluateThresholds(report, thresholds) {
         if (observedDisk > ceiling) {
             problems.push({
                 check: 'threshold/host-disk',
-                detail: `this host's sync-write p95 is ${observedDisk} ms, above the comparable ceiling ${Math.round(ceiling * 1000) / 1000} ms derived from the previous run's ${baselineDisk} ms; the route p95 ceilings were NOT applied because this row is fsync-bound and a slower host measures the disk, not the product - re-run on a comparable host or record a new baseline`,
+                detail: `this host's typical sync-write is ${observedDisk} ms, above the comparable ceiling ${Math.round(ceiling * 1000) / 1000} ms derived from the previous run's ${baselineDisk} ms; the route p95 ceilings were NOT applied because this row is fsync-bound and a slower host measures the disk, not the product - re-run on a comparable host or record a new baseline`,
             });
             return problems;
         }
@@ -938,15 +941,15 @@ async function runSelfTest() {
     } finally {
         await fs.rm(diskDirectory, { recursive: true, force: true });
     }
-    const comparablePrevious = { environment: { disk: { p95: 4 } }, results: { routes: { settingsSave: { p95: 100 } } } };
+    const comparablePrevious = { environment: { disk: { p50: 1 } }, results: { routes: { settingsSave: { p95: 100 } } } };
     const comparableThresholds = deriveThresholds(comparablePrevious, 0.25);
-    record('disk-fingerprint-carried-into-thresholds', comparableThresholds?.diskP95Ms === 4, comparableThresholds);
-    const degradedProblems = evaluateThresholds({ environment: { disk: { p95: 40 } }, results: { routes: { settingsSave: { p95: 1 } }, errorRate: 0 } }, comparableThresholds);
+    record('disk-fingerprint-carried-into-thresholds', comparableThresholds?.diskMedianMs === 1, comparableThresholds);
+    const degradedProblems = evaluateThresholds({ environment: { disk: { p50: 40 } }, results: { routes: { settingsSave: { p95: 1 } }, errorRate: 0 } }, comparableThresholds);
     record('host-disk-degradation-refused', degradedProblems.length === 1 && degradedProblems[0].check === 'threshold/host-disk' && degradedProblems[0].detail.includes('40'), degradedProblems);
-    const comparableProblems = evaluateThresholds({ environment: { disk: { p95: 5 } }, results: { routes: { settingsSave: { p95: 126 } }, errorRate: 0 } }, comparableThresholds);
+    const comparableProblems = evaluateThresholds({ environment: { disk: { p50: 1.2 } }, results: { routes: { settingsSave: { p95: 126 } }, errorRate: 0 } }, comparableThresholds);
     record('comparable-host-still-grades-routes', comparableProblems.length === 1 && comparableProblems[0].check === 'threshold/settingsSave-p95', comparableProblems);
     const preFingerprintThresholds = deriveThresholds({ results: { routes: { settingsSave: { p95: 100 } } } }, 0.25);
-    record('missing-disk-fingerprint-is-not-invented', preFingerprintThresholds?.diskP95Ms === null, preFingerprintThresholds);
+    record('missing-disk-fingerprint-is-not-invented', preFingerprintThresholds?.diskMedianMs === null, preFingerprintThresholds);
 
     // 3. cleanup guard refuses a path it did not create.
     await expectFailure('cleanup-refuses-outside-tmp', 'cleanup/guard', async () => guardCleanupRoot(path.join(process.cwd(), 'not-a-m5-work-dir')));
