@@ -36,9 +36,14 @@
 // again. Every stage fails by name rather than timing out anonymously.
 //
 // WHAT IT DOES NOT PROVE (recorded in the report's `unproven` array):
-//   * the absolute numbers are only comparable WITHIN one runner image; this harness therefore records
-//     provenance and refuses to compare across a host fingerprint (the report carries the fingerprint; a
-//     future gate is the thing that compares two reports);
+//   * the absolute numbers are only comparable WITHIN one runner image AND one host disk performance class.
+//     This row's measured routes are fsync-bound (every save is an atomic write), so a host whose storage is
+//     slower by several times can move p95 by several times with NO product difference -- measured 2026-11-06:
+//     the same product code produced 287.4 ops/s on an Intel Xeon 8573C host and 49.8 ops/s on an AMD EPYC 9V45
+//     host, with chat-save p95 87.7 ms vs 614.8 ms. The report therefore carries a DISK FINGERPRINT
+//     (sync-write p50/p95/max over the same filesystem and body size the row writes) and, when a threshold
+//     file carries one, a cross-host comparison is REFUSED by name instead of grading routes on a host whose
+//     storage is not comparable. A refusal is a red run, never a silent pass;
 //   * it does not drive delete/rename/import (E06's remaining verbs) - this row is the write/load/isolation
 //     cost row, not the whole E06 matrix;
 //   * no threshold is asserted unless one is supplied (M5_8USER_MAX_P95_MS). The first run of a new row has
@@ -67,11 +72,17 @@
 // per route, multiplies by the M5 tolerance (default 25 %, justified in docs/alpha16/m5-measurement-plan.md)
 // and asserts the new p95 does not exceed it. Without that file nothing is asserted about latency, and the
 // report says so.
+//
+// THE HOST MUST BE COMPARABLE FIRST. If the previous report carries `environment.disk.p95` and this host's
+// fingerprint is more than max(3x, +2 ms) worse, the run fails closed with `threshold/host-disk` and the
+// per-route ceilings are NOT applied: a route p95 measured on degraded storage says nothing about the product.
+// The rule is a REFUSAL to grade, not a widening of the tolerance -- a real regression on a comparable host is
+// still red at the same 25 % ceiling.
 
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, openSync, writeSync, fsyncSync, closeSync, unlinkSync, mkdirSync } from 'node:fs';
 import http from 'node:http';
 import net from 'node:net';
 import os from 'node:os';
@@ -151,6 +162,8 @@ function summarise(values) {
 /**
  * Thresholds are a SEPARATE decision from the observation. `deriveThresholds` turns a previous report of this
  * row into per-route ceilings, or returns null when there is no previous report (then the row reports only).
+ * It also carries the previous run's disk fingerprint when that report recorded one, so a cross-host
+ * comparison can be refused rather than misread.
  */
 function deriveThresholds(previousReport, tolerance = DEFAULT_THRESHOLD_TOLERANCE) {
     if (!previousReport || typeof previousReport !== 'object') return null;
@@ -163,21 +176,88 @@ function deriveThresholds(previousReport, tolerance = DEFAULT_THRESHOLD_TOLERANC
         ceilings[route] = Math.round(p95 * (1 + tolerance) * 1000) / 1000;
     }
     if (Object.keys(ceilings).length === 0) return null;
+    const diskP95 = Number(previousReport?.environment?.disk?.p95);
     return {
         source: 'previous report of this row',
         tolerance,
         routeP95Ms: ceilings,
         maxErrorRate: 0,
+        // null means "the previous report predates the disk fingerprint"; the host check is then not asserted
+        // and the report says so, rather than inventing a comparability claim from a missing measurement.
+        diskP95Ms: Number.isFinite(diskP95) && diskP95 > 0 ? diskP95 : null,
     };
 }
 
 /**
+ * A host-storage fingerprint: the same 48 KiB-ish sync write the measured routes perform, on the same
+ * filesystem the row writes to. Absolute values are host-relative; the number exists only to decide whether
+ * two reports may be compared. Synchronous on purpose: the probe must not be perturbed by the event loop.
+ */
+function measureDiskFingerprint(directory, bodyBytes, samples = 12) {
+    const probeDirectory = path.join(directory, '.m5-disk-fingerprint');
+    const timings = [];
+    const payload = Buffer.alloc(Math.max(1, Math.trunc(bodyBytes)), 0x61);
+    try {
+        mkdirSync(probeDirectory, { recursive: true });
+        for (let index = 0; index < samples; index += 1) {
+            const target = path.join(probeDirectory, `probe-${process.pid}-${index}.bin`);
+            const startedAt = process.hrtime.bigint();
+            const descriptor = openSync(target, 'w');
+            try {
+                writeSync(descriptor, payload);
+                fsyncSync(descriptor);
+            } finally {
+                closeSync(descriptor);
+            }
+            timings.push(Number(process.hrtime.bigint() - startedAt) / 1e6);
+            unlinkSync(target);
+        }
+    } catch (error) {
+        return { ok: false, error: String(error?.message ?? error), samples: [], p50: null, p95: null, max: null };
+    }
+    const summary = summarise(timings);
+    return {
+        ok: true,
+        method: 'open+write+fsync+close+unlink of bodyBytes on the work-root filesystem, synchronous, once before boot',
+        bytes: payload.length,
+        count: summary.count,
+        p50: summary.p50,
+        p95: summary.p95,
+        max: summary.max,
+        samples: timings.map(value => Math.round(value * 1000) / 1000),
+    };
+}
+
+// A comparison is refused when this host's storage p95 is more than HOST_DISK_RATIO times the recorded one
+// AND more than HOST_DISK_ABSOLUTE_SLACK_MS slower. The slack keeps a sub-millisecond baseline from making
+// normal jitter look like a different host; the ratio covers the multi-fold differences actually observed.
+const HOST_DISK_RATIO = 3;
+const HOST_DISK_ABSOLUTE_SLACK_MS = 2;
+
+/**
  * Evaluate the supplied thresholds. Every problem NAMES the route and both numbers, because "the p95 was too
- * high" is not a finding a reader can check.
+ * high" is not a finding a reader can check. A host-storage mismatch is checked FIRST and, when it fires, the
+ * route ceilings are not applied -- they would measure the host, not the product.
  */
 function evaluateThresholds(report, thresholds) {
     const problems = [];
     if (!thresholds) return problems;
+    const baselineDisk = Number(thresholds.diskP95Ms);
+    const observedDisk = Number(report?.environment?.disk?.p95);
+    if (Number.isFinite(baselineDisk) && baselineDisk > 0 && !Number.isFinite(observedDisk)) {
+        problems.push({ check: 'threshold/host-disk', detail: `the previous report recorded a disk fingerprint p95 of ${baselineDisk} ms but this run recorded none, so its route timings cannot be compared across hosts` });
+        return problems;
+    }
+    if (Number.isFinite(baselineDisk) && baselineDisk > 0 && Number.isFinite(observedDisk)) {
+        const ceiling = Math.max(baselineDisk * HOST_DISK_RATIO, baselineDisk + HOST_DISK_ABSOLUTE_SLACK_MS);
+        if (observedDisk > ceiling) {
+            problems.push({
+                check: 'threshold/host-disk',
+                detail: `this host's sync-write p95 is ${observedDisk} ms, above the comparable ceiling ${Math.round(ceiling * 1000) / 1000} ms derived from the previous run's ${baselineDisk} ms; the route p95 ceilings were NOT applied because this row is fsync-bound and a slower host measures the disk, not the product - re-run on a comparable host or record a new baseline`,
+            });
+            return problems;
+        }
+    }
     for (const [route, ceiling] of Object.entries(thresholds.routeP95Ms ?? {})) {
         const observed = report?.results?.routes?.[route]?.p95;
         if (!Number.isFinite(observed)) {
@@ -847,6 +927,27 @@ async function runSelfTest() {
     const problems = evaluateThresholds({ results: { routes: { settingsSave: { p95: 126 }, chatsSave: { p95: 10 } }, errorRate: 0 } }, thresholds);
     record('threshold-exceeded-names-the-route', problems.length === 1 && problems[0].check === 'threshold/settingsSave-p95' && problems[0].detail.includes('126'), problems);
 
+    // 2b. HOST-STORAGE FINGERPRINT. The row is fsync-bound: a host with several-times-slower storage moved the
+    // same code from 287.4 to 49.8 ops/s (2026-11-06), so a cross-host comparison must be REFUSED by name and
+    // must not secretly grade the route ceilings. Both directions are planted: degraded => host-disk refusal,
+    // comparable => the normal route ceiling still fires.
+    const diskDirectory = await fs.mkdtemp(path.join(os.tmpdir(), 'gotavern-m5-disk-probe-'));
+    try {
+        const fingerprint = measureDiskFingerprint(diskDirectory, 4096, 4);
+        record('disk-fingerprint-measured', fingerprint.ok === true && fingerprint.count === 4 && Number.isFinite(fingerprint.p95) && fingerprint.p95 > 0, fingerprint);
+    } finally {
+        await fs.rm(diskDirectory, { recursive: true, force: true });
+    }
+    const comparablePrevious = { environment: { disk: { p95: 4 } }, results: { routes: { settingsSave: { p95: 100 } } } };
+    const comparableThresholds = deriveThresholds(comparablePrevious, 0.25);
+    record('disk-fingerprint-carried-into-thresholds', comparableThresholds?.diskP95Ms === 4, comparableThresholds);
+    const degradedProblems = evaluateThresholds({ environment: { disk: { p95: 40 } }, results: { routes: { settingsSave: { p95: 1 } }, errorRate: 0 } }, comparableThresholds);
+    record('host-disk-degradation-refused', degradedProblems.length === 1 && degradedProblems[0].check === 'threshold/host-disk' && degradedProblems[0].detail.includes('40'), degradedProblems);
+    const comparableProblems = evaluateThresholds({ environment: { disk: { p95: 5 } }, results: { routes: { settingsSave: { p95: 126 } }, errorRate: 0 } }, comparableThresholds);
+    record('comparable-host-still-grades-routes', comparableProblems.length === 1 && comparableProblems[0].check === 'threshold/settingsSave-p95', comparableProblems);
+    const preFingerprintThresholds = deriveThresholds({ results: { routes: { settingsSave: { p95: 100 } } } }, 0.25);
+    record('missing-disk-fingerprint-is-not-invented', preFingerprintThresholds?.diskP95Ms === null, preFingerprintThresholds);
+
     // 3. cleanup guard refuses a path it did not create.
     await expectFailure('cleanup-refuses-outside-tmp', 'cleanup/guard', async () => guardCleanupRoot(path.join(process.cwd(), 'not-a-m5-work-dir')));
 
@@ -902,6 +1003,9 @@ async function runProduct(options) {
     const workRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'gotavern-m5-eight-users-'));
     guardCleanupRoot(workRoot);
     const environment = await environmentFacts({ binary, loadLabel: options.loadLabel });
+    // BEFORE boot: the row's measured routes are fsync-bound, so the report must say what the host's storage
+    // looked like. This is the fingerprint the threshold gate refuses a cross-host comparison on.
+    environment.disk = measureDiskFingerprint(workRoot, options.bodyBytes);
     const startedAt = Date.now();
     let subject = null;
     let report = null;
@@ -954,7 +1058,7 @@ async function runProduct(options) {
                 { name: 'isolation/read-own', ok: true, detail: `${measurement.handles.length} accounts served their own document` },
             ],
             unproven: [
-                'absolute numbers are comparable only within one runner image; the report carries the fingerprint, the gate that compares two reports is a later change',
+                'absolute numbers are comparable only within one runner image AND one host-storage class; the report carries the runner fingerprint and a sync-write disk fingerprint, and a threshold run refuses a cross-host comparison by name (threshold/host-disk) instead of grading the routes',
                 'delete/rename/import were not driven: this row is the write/load/isolation cost row, not E06 in full',
                 'no latency threshold was asserted unless `thresholds` is non-null (see docs/alpha16/m5-measurement-plan.md)',
             ],
