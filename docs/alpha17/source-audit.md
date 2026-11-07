@@ -163,9 +163,35 @@ One **correction to HANDOFF's next-actions list**: the claim that `POST /api/ext
 (`internal/server/extensions_git.go:362` and `:205`) are **pinned parity**, not a defect. It is recorded here so
 the next reader does not "fix" parity.
 
-## 11. Residual unknowns
+## 11. The 16-item residual reconfirmation
 
-`docs/alpha17/defect-reconfirmation.md` is the item-by-item ledger (16 rows). The categories: real-tree
-qualification (`GOAL.md` §14, PRIVATE_NOT_RUN), kernel ENOSPC, macOS arm64 runtime + extension lifecycle,
-windows/arm64 runtime, 8-user latency (report-only), soak leak (unproven), page-init egress (open), CORS/proxy
-surface gaps above, and the release-evidence selection rails (`docs/alpha17/evidence-contract.md`).
+Each item was re-read in the current code and in the latest evidence (not quoted from an older audit).
+`UNPROVEN` means no measurement exists; `RECORDED` means the behaviour is a deliberate, documented divergence.
+
+| # | item | state at HEAD | evidence (file:line / run) | missing test | alpha.17 action |
+|---|---|---|---|---|---|
+| 1 | Windows reset-vs-save sharing violation | **OPEN, data-safe** | `docs/alpha16/storage-probe.md` §2; B-H4 probe (no torn/cross-user data; a Windows-only 500 when an in-flight save temp is open) | Windows-only concurrent reset+save asserting no destruction | recorded residual; no product change |
+| 2 | Cache same-size+same-mtime external replacement | **PINNED BY TEST, residual documented** | `internal/server/settings_cache.go:188`; `settings_cache_test.go:266`; the alpha.17 niche FS-004 asserts the residual both ways | a change-stamp witness (would cost a stat per file) | unchanged; documented |
+| 3 | Settings-save error state vs pinned | **RECORDED deliberately different** | pinned `settings.js:206-215` (empty body wipes settings; write failure answers 200 with the Error) vs `internal/server/settings_save.go:34-46` (400/500) | contract test pinning the refusal (niche data suite) | `SEMANTIC-COMPATIBILITY.md` §18; also the 1e400 divergence recorded |
+| 4 | Page-init egress | **OPEN (harness hermeticity)** | existing browser egress guards; decision recorded in `SEMANTIC-COMPATIBILITY.md` §18 | explicit allowlist per probe | recorded decision; no page change |
+| 5 | 8-user performance row | **REPORT-ONLY** | `docs/alpha16/m5-evidence.md` §10-§12 (same-code spread 1.95x/2.29x tracks host storage tail) | same-host paired design (named next step) | unchanged; no graded number claimed |
+| 6 | Streaming cancellation performance | **UNPROVEN (latency); behaviour covered** | niche streaming suite asserts cancel reaches the mock + liveness; `tests/browser/*streaming*` cancellation guards | cancel-to-idle/TTFB measurements | local perf plan names it UNEXECUTED |
+| 7 | Real provider-relay p99 | **UNPROVEN** | `scripts/smoke-metrics.mjs` measures boot/RSS/latency, not relay p99; local plan UNEXECUTED (no controlled peer harness on this host) | dedicated relay benchmark | UNEXECUTED, named |
+| 8 | 20-extension page-load performance | **UNPROVEN** | third-party-extension-compat workflow drives lifecycle, not a page-load timing matrix | browser page-load timings with the corpus | UNEXECUTED (needs browser + pinned Node) |
+| 9 | Process-level scale | **EXECUTED LOCALLY (triage)** | `docs/alpha17/perf/a15/scale-*.json`; 10k cards: boot 27,099 ms, RSS 925 MB, characters p50 5,481 ms | same rows on a Linux CI runner | local baseline recorded; not a CI claim |
+| 10 | Cold-cache benchmark guard | **UNEXECUTED** | `docs/alpha17/perf/README.md`; baseline README named it absent | cold/warm bench pair with a committed baseline | proposal recorded, not built |
+| 11 | Soak ratification | **UNPROVEN (real leak)** | `docs/alpha16/m5-evidence.md` §12 (two 45-min runs pass the detection floor; leak below the floor unknown) | longer/ratified soak | unchanged |
+| 12 | True kernel ENOSPC | **UNPROVEN** | EFBIG substitute only (`a15_efbig_*`); needs a privileged small mount | privileged ENOSPC run | unchanged; not relabelled |
+| 13 | macOS ARM64 runtime | **UNPROVEN (recorded limitation)** | `docs/release-governance.md` §4; darwin/arm64 archive is Mach-O-inspected, not executed | a supported arm64 macOS runner | disclosed in release notes |
+| 14 | macOS ARM64 extension lifecycle | **UNPROVEN (recorded limitation)** | `third-party-extension-compat.yml` macos-arm64 recorded-downgrade marker | same | disclosed |
+| 15 | Windows ARM64 runtime boundary | **BUILD-ONLY (recorded)** | `release.yml` `windows-arm64-boundary` job inspects the archive, never executes it | a Windows arm64 runner | disclosed |
+| 16 | Release verifier narrowed-dispatch detection | **EXECUTED (hardened)** | `docs/alpha17/evidence-contract.md`; real alpha.16 wave PASS 13/13; 83/83 governance tests; new optional `requiredSelection`/digest/pinned rails | apply the proposed manifest rows | rails implemented, wiring proposed |
+
+## 12. Residual unknowns
+
+`GOAL.md` §14 remains NOT MET (no real private tree qualified; `PRIVATE_NOT_RUN`). Kernel ENOSPC, the
+macOS/arm64 runtime and extension lifecycle, windows/arm64 runtime, the 8-user graded latency, the soak's
+real-leak question, page-load timings for the 20-extension corpus, provider-relay p99, streaming-cancellation
+latency and the cold-cache guard remain UNPROVEN/UNEXECUTED with the reasons above. The release-evidence
+selection rails are implemented and validated against the real alpha.16 wave; their manifest wiring is
+proposed in `docs/alpha17/evidence-contract.md` and not applied in this round.

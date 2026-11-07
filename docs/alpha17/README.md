@@ -94,15 +94,15 @@ a written finding and its red evidence; tests, docs and governance changes are t
 
 | artefact | owner | state (updated as work executes) |
 |---|---|---|
-| `source-audit.md`, `ownership-map.json`, `source-graph.json`, `defect-reconfirmation.md` | audit | DRAFT |
-| `niche-scenario-catalog.md`, `test-gap-matrix.md` | scenarios | PROPOSED |
-| `new-test-evidence.md` + `tests/e2e/niche_*.go` | tests | IN PROGRESS |
-| `architecture-decisions.md` | Lead | DRAFT |
-| `performance-plan.md`, `perf/**`, `perf-hotspot.md` | perf | PROPOSED |
-| `readme-restructure.md`, `docs/performance.md`, checker | docs | IN PROGRESS |
-| `evidence-contract.md`, verifier rails | ci | IN PROGRESS |
-| `release-bar.md`, `decision-log.md`, `handoff-ledger.md`, `same-sha-evidence.md` | Lead | DRAFT |
-| `v0.1.0-alpha.17` release | Lead | NOT PUBLISHED |
+| `source-audit.md`, `ownership-map.json`, `source-graph.json`, `defect-reconfirmation.md` | audit | **EXECUTED** (map/graph at `c02eed1`, 1,007 citations validated; source audit and 16-item reconfirmation written at the candidate; `defect-reconfirmation.md` consolidated into `source-audit.md` §10 + `SEMANTIC-COMPATIBILITY.md` §18 where the item became a recorded divergence) |
+| `niche-scenario-catalog.md`, `test-gap-matrix.md` | scenarios | **EXECUTED** — 176 unique scenario IDs assembled from 12 part files; gap matrix computed from the tree |
+| `new-test-evidence.md` + `tests/e2e/niche_*.go` | tests | **EXECUTED locally (Windows arm64) and re-run by GoTavern CI on Linux**; 33 test functions + 5 subtests + 20 planted-defect teeth; two Linux-only failures found and fixed/recorded |
+| `architecture-decisions.md` | Lead | **EXECUTED** — R1–R6 REFUSE with HEAD measurements |
+| `performance-plan.md`, `perf/**`, `perf-hotspot.md` | perf | **PARTIALLY EXECUTED** — runner fingerprint + process-level baseline (LOCAL Windows arm64) and artifacts executed; the hotspot candidate is measured but the product change is **UNEXECUTED** (no patch, no before/after) |
+| `readme-restructure.md`, `docs/performance.md`, checker | docs | **EXECUTED** — README 34,541 -> 13,993 B; 15 checker negative-control tests; local commands green |
+| `evidence-contract.md`, verifier rails | ci | **EXECUTED** — new optional rails (83/83 tests) and a real alpha.16 wave PASS 13/13; the manifest-row wiring is proposed, not applied |
+| `release-bar.md`, `decision-log.md`, `handoff-ledger.md`, `same-sha-evidence.md` | Lead | **DRAFT** until the 13-gate wave at the candidate SHA is recorded |
+| `v0.1.0-alpha.17` release | Lead | **NOT PUBLISHED** until §7 holds on one commit |
 
 ## 6. Order of work (M0–M8)
 
