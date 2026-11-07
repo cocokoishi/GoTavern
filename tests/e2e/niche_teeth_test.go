@@ -61,8 +61,10 @@ func TestNicheTeeth(t *testing.T) {
 	// ---------------------------------------------------------------- planted defects must produce the NAME
 	cases := []nicheTeethCase{
 		{
-			name:         "message-order-swapped",
-			mutation:     func() error { return nicheCheckOrderedChat("planted", []string{correctChat[0], correctChat[2], correctChat[1]}, correctChat) },
+			name: "message-order-swapped",
+			mutation: func() error {
+				return nicheCheckOrderedChat("planted", []string{correctChat[0], correctChat[2], correctChat[1]}, correctChat)
+			},
 			wantContains: "message-order-swapped:",
 		},
 		{
@@ -71,8 +73,10 @@ func TestNicheTeeth(t *testing.T) {
 			wantContains: "message-dropped:",
 		},
 		{
-			name:         "message-extra",
-			mutation:     func() error { return nicheCheckOrderedChat("planted", append(append([]string{}, correctChat...), "m3"), correctChat) },
+			name: "message-extra",
+			mutation: func() error {
+				return nicheCheckOrderedChat("planted", append(append([]string{}, correctChat...), "m3"), correctChat)
+			},
 			wantContains: "message-extra:",
 		},
 		{
@@ -141,8 +145,10 @@ func TestNicheTeeth(t *testing.T) {
 			wantContains: "cache-identity-mismatch:",
 		},
 		{
-			name:         "partial-crash-state",
-			mutation:     func() error { return nicheCheckCrashState("planted", []byte(`{"marker":"OL`), oldDocument, newDocument) },
+			name: "partial-crash-state",
+			mutation: func() error {
+				return nicheCheckCrashState("planted", []byte(`{"marker":"OL`), oldDocument, newDocument)
+			},
 			wantContains: "crash-state-partial:",
 		},
 		{
