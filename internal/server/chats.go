@@ -15,14 +15,21 @@ import (
 
 // This file implements the pinned chat save/load routes.
 //
-// Known gap: the pinned /api/chats/save also schedules a throttled chat backup
+// The pinned /api/chats/save also schedules a throttled chat backup
 // (src/endpoints/chats.js getBackupFunction -> lodash throttle(backupChat,
-// backups.chat.throttleInterval) with leading and trailing edges) and runs
-// checkChatIntegrity when the chat carries a chat_metadata.integrity slug. Both
-// write outside the chat directory and are time-dependent, so they are not
-// reproduced here. See docs/compat-matrix.md for the recorded gap.
+// backups.chat.throttleInterval) with leading and trailing edges). That is
+// IMPLEMENTED in chat_backup.go: the manager is built once per handler (the pinned
+// config is read at module load, so at boot), scheduled after a successful write
+// with exactly the bytes that were written, and flushed on graceful shutdown like
+// pinned's process 'exit' handler.
+//
+// The pinned checkChatIntegrity (400 {"error":"integrity"} unless body.force) is
+// still a recorded gap. See docs/compat-matrix.md and the chat-backup report.
 
 func registerChatRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPage []byte, options HTTPHandlerOptions) {
+	// The pinned module reads backups.chat.* once at load time, so this snapshot is
+	// taken once per handler construction (boot) and never per request.
+	backups := newChatBackupManager(chatBackupSettingsForOptions(options))
 	// The pinned routes are POST-only, and Express answers any other method with
 	// the final 404 rather than a 405, so dispatch manually.
 	mux.HandleFunc("/api/chats/save", func(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +37,7 @@ func registerChatRoutes(mux *http.ServeMux, accounts *accountRuntime, notFoundPa
 			serveStatic(w, r, notFoundPage, options)
 			return
 		}
-		accounts.serveChatsSave(w, r)
+		accounts.serveChatsSave(w, r, backups)
 	})
 	mux.HandleFunc("/api/chats/get", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -153,7 +160,7 @@ func (value orderedNodeJSON) nodeTruthy() bool {
 	}
 }
 
-func (runtime *accountRuntime) serveChatsSave(w http.ResponseWriter, request *http.Request) {
+func (runtime *accountRuntime) serveChatsSave(w http.ResponseWriter, request *http.Request, backups *chatBackupManager) {
 	account, ok := runtime.settingsRequestAccount(w, request)
 	if !ok {
 		return
@@ -226,9 +233,12 @@ func (runtime *accountRuntime) serveChatsSave(w http.ResponseWriter, request *ht
 		return
 	}
 	faultinject.Hit("chats.save.before-write")
+	// The backup body is the exact jsonlData trySaveChat hands to writeFileAtomic:
+	// JSON.stringify per message joined with '\n', no trailing newline.
+	jsonlData := strings.Join(lines, "\n")
 	err = startup.UpdateUserContentFile(runtime.options.DataRoot, account.string("handle"), relativePath,
 		func([]byte) ([]byte, error) {
-			return []byte(strings.Join(lines, "\n")), nil
+			return []byte(jsonlData), nil
 		})
 	if err == nil {
 		faultinject.Hit("chats.save.after-write")
@@ -238,6 +248,10 @@ func (runtime *accountRuntime) serveChatsSave(w http.ResponseWriter, request *ht
 			map[string]string{"error": "An error has occurred, see the console logs for more information."})
 		return
 	}
+	// Pinned trySaveChat schedules the backup AFTER the write succeeds, so a failed
+	// write never produces one. record() swallows every backup error: the response
+	// below is the save's own outcome and must not depend on the backup.
+	backups.record(account.string("handle"), cardName, directories["backups"], jsonlData)
 	respondJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 

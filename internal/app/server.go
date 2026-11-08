@@ -451,6 +451,10 @@ func (running *RunningServer) Close(ctx context.Context) error {
 			errs = append(errs, err)
 		}
 	}
+	// Pinned flushes every pending trailing chat backup on its process 'exit' event
+	// (src/endpoints/chats.js:118-122). The HTTP drain above means the pending state is
+	// final; the flush writes local files only and a second Close cannot repeat a write.
+	server.FlushChatBackups()
 	return errors.Join(errs...)
 }
 
