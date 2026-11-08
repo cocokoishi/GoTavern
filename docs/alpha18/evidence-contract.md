@@ -190,6 +190,42 @@ evidence/tier, pinned member, artifact digest and freshness all satisfied by the
 rail working: a wave that cannot prove its full selection is not accepted, and the next wave (dispatched after the
 `run-name` commit) is the first that can.
 
+### 3.3b A REAL narrowed browser dispatch is REFUSED — run **42439335334**
+
+After the run-name change was committed (`e40314f`), `gh workflow run browser-differential.yml --ref main -f mode=assets`
+produced run **42439335334** at `e40314f`: `event=workflow_dispatch`, `conclusion=success`,
+`display_title="Browser differential mode=assets"`. The sibling push run **42439299625** of the same workflow reports
+`display_title="Browser differential mode=auto"`, so the input interpolation AND the non-dispatch guard are both
+measured, not assumed. The verifier refuses the dispatch by name:
+
+```
+| required workflow | run | event | status | conclusion | required jobs | evidence | verdict |
+| Browser differential | 42439335334 | workflow_dispatch | completed | success | differential | - | narrowed-selection |
+
+- Browser differential: **narrowed-selection** — run display title "Browser differential mode=assets" does not contain "mode=all"
+
+**FAIL**: 1 problem(s)
+```
+
+Exit status `1`. The run's job list (`differential=success`, `handback-stability=skipped`, `publish-preset=skipped`) has
+the SAME shape as a `mode=all` dispatch — the measured reason the job-set rail cannot prove this gate and the run-name is
+the only API source. A `mode=all` dispatch of the final wave must instead pass the same rail.
+
+### 3.3c MEASURED REGRESSION AND FIX: `run-name` becomes the run object's `name`
+
+When the deployed `run-name` took effect, the runs API reported `name: "Browser differential mode=assets"` (not the
+workflow display name) while `path` remained `.github/workflows/browser-differential.yml`. The verifier matched runs by
+`name`, so it reported **`no run of this workflow exists`** for a legitimate dispatch at the right SHA — a false refusal
+that would have blocked the release. This is recorded because it was caused by this round's own workflow change.
+
+Fix (this round, applied): `evaluateGates` accepts an optional workflow-name -> workflow-file-path map built from the
+checked-out workflow files (`workflowPathMapFromFiles`); a run belongs to a gate when its `name` OR its stable `path`
+matches, and every row names the MANIFEST workflow rather than the evaluated run-name. Both publish paths pass the map —
+`verify-release-gates.mjs` and `assemble-release-body.mjs` (the curated-body path would otherwise have broken too).
+Regression test `manifest matching: a run whose API name is its run-name is matched by workflow path` reproduces the
+breakage without the map and proves the fix, and re-asserts that path matching does NOT weaken the event rail. After the
+fix the real run above refuses with `narrowed-selection` (the right verdict), and the alpha.17 wave still reads 11/13.
+
 ### 3.4 Wrong/SHA-missing refusal (real API)
 
 A 40-hex commit with no runs (`ffff…`) is refused by every gate, e.g.:
@@ -208,7 +244,7 @@ its job:
 
 ## 4. Local test evidence
 
-`node --test scripts/release-governance.test.mjs` → **87 tests, 87 pass, 0 fail** (alpha.17: 83; alpha.16: 69). New
+`node --test scripts/release-governance.test.mjs` → **88 tests, 88 pass, 0 fail** (alpha.17: 83; alpha.16: 69). New
 cases this round:
 
 | case | what it pins |
@@ -217,6 +253,7 @@ cases this round:
 | `selection: a legacy run whose display title predates the run-name is refused as narrowed-selection` | the measured alpha.17 refusal shape for CI and Browser, plus the positive control with the run-name |
 | `pinnedSha: requiredEvidence.pinnedShaField reads the producer's differently named member` | `pinnedCommit` is read for the Node gate; missing member refuses `pinned-sha-missing` naming the member |
 | `emitter: a title-proven gate is recorded in selection.proven, not in the unverifiable list` | the unified document reports `display-title` proof and does not list the gate as unverifiable |
+| `manifest matching: a run whose API name is its run-name is matched by workflow path` | the measured `run-name` regression (§3.3c): no map -> `missing`, map -> matched by `path`, wrong-event still refused |
 
 ## 5. Fail-closed classes that cannot be produced with a real run (UNEXECUTED, and why)
 
@@ -310,5 +347,28 @@ The pinned baseline comes from `manifest.pinnedSha`, so the command has no basel
 - `docs/release-manifest.json` — `pinnedSha` + the rails in §1 (policy change, applied).
 - `.github/workflows/ci.yml`, `.github/workflows/browser-differential.yml` — `run-name` from the dispatch input.
 - `.github/workflows/release.yml` — fail-closed unified-evidence step, checkout==tag-target assertion, artifact upload.
-- `scripts/release-governance.test.mjs` — 4 new teeth cases (83 → 87).
+- `scripts/release-governance/gates.mjs` — `workflowPathMapFromFiles` + name-OR-path run matching (§3.3c); rows name the
+  manifest workflow.
+- `scripts/release-governance/release-evidence.mjs` — passes the workflow-path map through to the emitter's own verdict.
+- `scripts/verify-release-gates.mjs` — builds the map from the checkout and passes it to the verdict and the emitter;
+  `--pinned-sha` defaults to `manifest.pinnedSha`.
+- `scripts/assemble-release-body.mjs` — builds the same map for the curated-body path (otherwise it would hit §3.3c too).
+- `scripts/release-governance.test.mjs` — 5 new teeth cases (83 → 88).
 - `docs/alpha18/evidence-contract.md` (this file) + `docs/alpha18/release-evidence-docker-smoke.json` (real sample).
+
+## 10. Release-path checks requested by the Lead
+
+- **Publish checkout has the tag object, so the tag-target assertion cannot false-block.** `release.yml`'s publish job
+  checks out with `ref: ${{ inputs.ref || github.ref }}`; on a tag push `github.ref` is `refs/tags/<tag>`, which
+  `actions/checkout` fetches as that tag ref, so `git rev-parse "${GITHUB_REF_NAME}^{commit}"` resolves locally. This is
+  not a new assumption: the pre-existing body step in the SAME job already runs that exact rev-parse (with `set -eu`,
+  so a failure exits non-zero) and both real tag-publish runs succeeded — alpha.16 `GoTavern Release` `42353529322` and
+  alpha.17 `42394884973`. No checkout change was needed.
+- **Final-wave invocation (re-confirmed with the committed manifest):**
+  `node scripts/verify-release-gates.mjs --sha "$CANDIDATE" --manifest docs/release-manifest.json --release-evidence-out … --release-evidence-md-out … --workflow 'GoTavern Release' --event workflow_dispatch`
+  — the pinned baseline is read from `manifest.pinnedSha`. On the real alpha.17 wave this command exits `1` with the two
+  expected title refusals (measured above); with a real accepted run it exits `0` and writes the document (§3.1). It is
+  the same command the publish step runs.
+- **The final wave must be dispatched from `main` at the frozen candidate SHA, after the final product commit and before
+  tagging**: every gate is matched `head_sha == candidate`, and `gh workflow run … --ref main` dispatches at `main`'s
+  tip. Tagging a different commit would leave every gate at another SHA and the publish step would refuse.

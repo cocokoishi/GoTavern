@@ -22,7 +22,7 @@
 // names the exact run ids the tag is resting on instead of implying them.
 
 import { readFileSync, appendFileSync, existsSync, writeFileSync } from 'node:fs';
-import { evaluateGates, evidenceQueryNeeds, fetchRunsFromApi, renderEvidence, validateManifest, validateManifestAgainstWorkflowNames } from './release-governance/gates.mjs';
+import { evaluateGates, evidenceQueryNeeds, fetchRunsFromApi, renderEvidence, validateManifest, validateManifestAgainstWorkflowNames, workflowPathMapFromFiles } from './release-governance/gates.mjs';
 import { emitReleaseEvidence } from './release-governance/release-evidence.mjs';
 
 const args = process.argv.slice(2);
@@ -68,16 +68,22 @@ if (manifestProblems.length > 0) {
 
 // The workflow-name cross-check needs the workflow files, which are in the checkout this step runs in. It is a
 // second opinion beside the runtime query: the runtime query catches a missing run, this catches a manifest entry
-// that could never match anything.
+// that could never match anything. The same files also produce the NAME -> FILE PATH map: a workflow that sets
+// `run-name` reports the evaluated run-name in the run object's `name` (measured on run 42439335334), so the runtime
+// query must be able to match a required workflow by the run's stable `path` as well as by its name.
 const workflowNames = [];
+let workflowPaths = null;
 if (existsSync('.github/workflows')) {
     const { readdirSync } = await import('node:fs');
+    const workflowFiles = [];
     for (const name of readdirSync('.github/workflows')) {
         if (!/\.ya?ml$/.test(name)) continue;
         const text = readFileSync(`.github/workflows/${name}`, 'utf8');
+        workflowFiles.push({ path: `.github/workflows/${name}`, text });
         const match = text.match(/^name:\s*(.+?)\s*$/m);
         if (match) workflowNames.push(match[1].replace(/^['"]|['"]$/g, ''));
     }
+    workflowPaths = workflowPathMapFromFiles(workflowFiles);
     const nameProblems = validateManifestAgainstWorkflowNames(manifest, workflowNames);
     if (nameProblems.length > 0) {
         for (const problem of nameProblems) console.error(`::error::manifest: ${problem}`);
@@ -102,7 +108,7 @@ async function fetchRuns() {
 }
 
 const runs = await fetchRuns();
-const verdict = evaluateGates({ manifest, runs, sha });
+const verdict = evaluateGates({ manifest, runs, sha, workflowPaths });
 
 const lines = [];
 lines.push(`## Same-SHA release gate for \`${sha}\``);
@@ -159,6 +165,7 @@ if (releaseEvidenceOut || releaseEvidenceMdOut) {
             runs,
             workflow: workflowName,
             event: eventName,
+            workflowPaths,
             // THE MANIFEST IS THE POLICY SOURCE. An explicit --pinned-sha wins for ad-hoc/local runs; otherwise the
             // baseline recorded in docs/release-manifest.json (`pinnedSha`) is used, so the publish path does not need a
             // second literal that could drift from the policy. Neither present -> null + derived:false + reason.

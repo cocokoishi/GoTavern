@@ -15,7 +15,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deflateRawSync, inflateRawSync } from 'node:zlib';
-import { evaluateGates, fetchRunsFromApi, renderEvidence, validateManifest, validateManifestAgainstWorkflowNames } from './release-governance/gates.mjs';
+import { evaluateGates, fetchRunsFromApi, renderEvidence, validateManifest, validateManifestAgainstWorkflowNames, workflowPathMapFromFiles } from './release-governance/gates.mjs';
 import { EVIDENCE_MEMBER, parseReleaseEvidence, validateReleaseEvidence } from './release-governance/artifact-evidence.mjs';
 import { assembleReleaseBody } from './assemble-release-body.mjs';
 import { validateReleaseNotes } from './release-governance/notes.mjs';
@@ -1313,5 +1313,38 @@ test('emitter: a title-proven gate is recorded in selection.proven, not in the u
     assert.equal(doc.gates[0].selection.status, 'proven');
     assert.equal(doc.gates[0].selection.provenBy, 'display-title');
     assert.match(renderReleaseEvidenceMarkdown(doc), /proven \(display-title\)/);
+});
+
+// ---- MEASURED ALPHA.18 REGRESSION: a workflow's `run-name` becomes the run object's `name` ------------------------
+// Run 42439335334 (Browser differential, dispatched `-f mode=assets` after the run-name change) reported
+// `name: "Browser differential mode=assets"` and `path: ".github/workflows/browser-differential.yml"`. Matching a
+// manifest workflow by `name` alone then found NO run at the right SHA ("no run of this workflow exists") and would
+// have refused a legitimate dispatch. The gate must also match the run's stable `path`, built from the checkout, and
+// every row must name the MANIFEST workflow rather than the evaluated run-name.
+test('manifest matching: a run whose API name is its run-name is matched by workflow path', () => {
+    const dispatch = { ...run('Browser differential mode=assets', { id: 42439335334 }), path: '.github/workflows/browser-differential.yml', display_title: 'Browser differential mode=assets' };
+    // Without the checkout-derived map the measured breakage is reproduced: the gate cannot find its run.
+    const withoutMap = evaluateGates({ manifest: manifest(['Browser differential']), sha: SHA, runs: [dispatch] });
+    assert.equal(withoutMap.ok, false);
+    assert.ok(withoutMap.problems.some((problem) => /missing/.test(problem) && /no run of this workflow exists/.test(problem)), JSON.stringify(withoutMap.problems));
+    // With it, the dispatch is found and the row names the manifest workflow, not the run-name.
+    const workflowPaths = workflowPathMapFromFiles([
+        { path: '.github/workflows/browser-differential.yml', text: 'name: Browser differential\n\non:\n  workflow_dispatch:\n' },
+    ]);
+    const withMap = evaluateGates({ manifest: manifest(['Browser differential']), sha: SHA, runs: [dispatch], workflowPaths });
+    assert.equal(withMap.ok, true, JSON.stringify(withMap.problems));
+    assert.equal(withMap.rows[0].workflow, 'Browser differential');
+    assert.equal(withMap.rows[0].runId, 42439335334);
+    // A run of the SAME workflow file at the right SHA but with the WRONG event is still refused: path matching must not
+    // weaken the event rail.
+    const pushed = { ...run('Browser differential mode=auto', { id: 42439299625, event: 'push' }), path: '.github/workflows/browser-differential.yml' };
+    const narrowed = evaluateGates({
+        manifest: { schemaVersion: 1, sameShaRequired: true, requiredGates: [{ workflow: 'Browser differential', why: 'x', requiredEvent: 'workflow_dispatch' }] },
+        sha: SHA,
+        runs: [pushed],
+        workflowPaths,
+    });
+    assert.equal(narrowed.ok, false);
+    assert.ok(narrowed.problems.some((problem) => /missing/.test(problem) && /push/.test(problem)), JSON.stringify(narrowed.problems));
 });
 

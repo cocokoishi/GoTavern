@@ -11,14 +11,14 @@
 // written after those runs, and editing it would change the commit under judgement. That is why the note is release
 // metadata read at publish time and the evidence table is generated here, from the runs at the tag's own commit.
 
-import { readFileSync } from 'node:fs';
-import { evaluateGates, renderEvidence, validateManifest } from './release-governance/gates.mjs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { evaluateGates, renderEvidence, validateManifest, workflowPathMapFromFiles } from './release-governance/gates.mjs';
 import { validateReleaseNotes } from './release-governance/notes.mjs';
 
 /**
  * @returns {{ ok: boolean, body: string|null, problems: string[], observations: string[], gateRows: object[] }}
  */
-export function assembleReleaseBody({ notesText = null, tag, checksumsText = null, runs = null, manifest = null, sha, repo = '' }) {
+export function assembleReleaseBody({ notesText = null, tag, checksumsText = null, runs = null, manifest = null, sha, repo = '', workflowPaths = null }) {
     const problems = [];
     const observations = [];
 
@@ -26,7 +26,7 @@ export function assembleReleaseBody({ notesText = null, tag, checksumsText = nul
         // A prerelease without a curated note is allowed a generated body, but then no evidence table can be attached
         // (gh --generate-notes writes its own body). The caller reports that; this function does not invent a note.
         if (runs !== null) {
-            const verdict = evaluateGates({ manifest, runs, sha });
+            const verdict = evaluateGates({ manifest, runs, sha, workflowPaths });
             for (const row of verdict.rows) observations.push(`${row.workflow}: ${row.verdict}`);
             if (!verdict.ok) problems.push(...verdict.problems);
         }
@@ -47,7 +47,7 @@ export function assembleReleaseBody({ notesText = null, tag, checksumsText = nul
             const manifestProblems = validateManifest(manifest);
             problems.push(...manifestProblems);
             if (manifestProblems.length === 0) {
-                const verdict = evaluateGates({ manifest, runs, sha });
+                const verdict = evaluateGates({ manifest, runs, sha, workflowPaths });
                 gateRows = verdict.rows;
                 problems.push(...verdict.problems);
                 for (const row of verdict.rows) observations.push(`${row.workflow}: ${row.verdict}${row.runId === null ? '' : ` (run ${row.runId})`}`);
@@ -109,7 +109,21 @@ async function main() {
         runs = await fetchRunsFromApi({ sha, repo, token, ...evidenceQueryNeeds(manifest) });
     }
 
-    const result = assembleReleaseBody({ notesText, tag, checksumsText, runs, manifest, sha, repo });
+    // A WORKFLOW THAT SETS `run-name` REPORTS THE RUN-NAME IN THE RUN OBJECT'S `name`, so the curated-body path must
+    // match required workflows by the run's stable file path too (same map as verify-release-gates.mjs). The publish
+    // job checks out the tag tree, so this reads the workflow files of the commit being released.
+    const workflowFiles = [];
+    try {
+        for (const name of readdirSync('.github/workflows')) {
+            if (!/\.ya?ml$/.test(name)) continue;
+            workflowFiles.push({ path: `.github/workflows/${name}`, text: readFileSync(`.github/workflows/${name}`, 'utf8') });
+        }
+    } catch {
+        // No checkout with workflows (e.g. an offline fixture caller): fall back to name-only matching rather than failing.
+    }
+    const workflowPaths = workflowPathMapFromFiles(workflowFiles);
+
+    const result = assembleReleaseBody({ notesText, tag, checksumsText, runs, manifest, sha, repo, workflowPaths });
     for (const observation of result.observations) console.log(`  note: ${observation}`);
     if (!result.ok) {
         for (const problem of result.problems) console.error(`::error::${problem}`);

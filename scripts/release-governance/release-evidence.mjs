@@ -110,8 +110,8 @@ function negativeControlOf(row) {
  * Build the unified evidence document from the SAME manifest + runs + SHA the gate judged.
  * `verdict` is computed here with `evaluateGates` so the document cannot disagree with the verdict.
  */
-export function buildReleaseEvidence({ manifest, runs, sha, repo = '', workflow = null, event = null, pinnedSha = null, pinnedShaSource = null, runsFixture = null }) {
-    const verdict = evaluateGates({ manifest, runs, sha });
+export function buildReleaseEvidence({ manifest, runs, sha, repo = '', workflow = null, event = null, pinnedSha = null, pinnedShaSource = null, runsFixture = null, workflowPaths = null }) {
+    const verdict = evaluateGates({ manifest, runs, sha, workflowPaths });
     const rows = verdict.rows ?? [];
 
     // The evidence documents themselves are needed for per-gate content fields, and they are attached to the artifact
@@ -299,6 +299,7 @@ export async function emitReleaseEvidence({
     pinnedShaSource = null,
     outPath = null,
     markdownOutPath = null,
+    workflowPaths = null,
     fetchImpl = fetch,
 }) {
     let resolvedRuns = runs;
@@ -310,7 +311,7 @@ export async function emitReleaseEvidence({
             resolvedRuns = await fetchRunsFromApi({ sha, repo, token, fetchImpl, ...evidenceQueryNeeds(manifest) });
         }
     }
-    const doc = buildReleaseEvidence({ manifest, runs: resolvedRuns, sha, repo, workflow, event, pinnedSha, pinnedShaSource });
+    const doc = buildReleaseEvidence({ manifest, runs: resolvedRuns, sha, repo, workflow, event, pinnedSha, pinnedShaSource, workflowPaths });
     const problems = doc.publishable ? [] : [...doc.overall.problems, `overall result is ${doc.overall.result}, so no PASS evidence document is written`];
     if (!doc.publishable) return { ok: false, doc, problems, jsonPath: null, markdownPath: null };
     if (outPath) writeFileSync(outPath, serializeReleaseEvidence(doc), 'utf8');

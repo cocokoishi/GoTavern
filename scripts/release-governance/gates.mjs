@@ -499,10 +499,37 @@ function checkEvidenceRails(entry, run, sha) {
     return { ok: true, facts };
 }
 
+// A WORKFLOW'S `run-name` CHANGES THE RUN OBJECT'S `name`, AND THAT BROKE NAME MATCHING.
+//
+// Measured on real run 42439335334 (`Browser differential`, dispatched with `-f mode=assets` after the alpha.18
+// run-name change): the runs API reported `name: "Browser differential mode=assets"` and
+// `display_title: "Browser differential mode=assets"` -- NOT the workflow's display name -- while `path` remained
+// `.github/workflows/browser-differential.yml`. A gate matched by `name` alone therefore found NO run ("no run of this
+// workflow exists") even though the dispatch was right there at the right SHA. The run's `path` is the stable identity.
+//
+// This map (workflow display name -> workflow file path, as the API reports it) is built from the CHECKED-OUT workflow
+// files by the callers that have a filesystem; a run belongs to a gate when EITHER its `name` matches the manifest
+// workflow OR its `path` matches. The parameter is optional: a caller that passes no map keeps the old name-only
+// behaviour, and the synthetic tests exercise both sides.
+export function workflowPathMapFromFiles(files) {
+    const map = new Map();
+    for (const file of files ?? []) {
+        const text = String(file?.text ?? '');
+        const match = text.match(/^name:\s*(.+?)\s*$/m);
+        if (!match) continue;
+        const name = match[1].replace(/^['"]|['"]$/g, '');
+        const relative = String(file?.path ?? '').replace(/\\/g, '/');
+        if (relative === '') continue;
+        const path = relative.startsWith('.github/workflows/') ? relative : `.github/workflows/${relative.split('/').pop()}`;
+        map.set(name, path);
+    }
+    return map;
+}
+
 // Pick one run per required workflow. Preference is: a completed successful run at the target SHA that SATISFIES its
 // evidence rails wins; otherwise the newest run at the target SHA is reported as the blocking observation. Runs at a
 // different SHA are counted and reported, never accepted -- that is the whole same-SHA property.
-export function evaluateGates({ manifest, runs, sha }) {
+export function evaluateGates({ manifest, runs, sha, workflowPaths = null }) {
     const problems = validateManifest(manifest);
     if (!Array.isArray(runs)) problems.push('runs is not an array');
     if (typeof sha !== 'string' || !/^[0-9a-f]{40}$/.test(sha)) problems.push(`sha ${JSON.stringify(sha)} is not a 40-hex commit`);
@@ -510,19 +537,19 @@ export function evaluateGates({ manifest, runs, sha }) {
     const rows = [];
     if (problems.length > 0) return { ok: false, sha: sha ?? null, rows, problems };
 
-    const byName = new Map();
-    for (const run of runs) {
-        if (!run || typeof run !== 'object') continue;
-        const name = run.name;
-        if (typeof name !== 'string') continue;
-        if (!byName.has(name)) byName.set(name, []);
-        byName.get(name).push(run);
-    }
+    // The workflow file path each manifest entry resolves to, when the caller could read the checkout.
+    const pathByName = workflowPaths instanceof Map ? workflowPaths : new Map(Object.entries(workflowPaths ?? {}));
+    const belongsTo = (run, workflowName) => {
+        if (!run || typeof run !== 'object') return false;
+        if (run.name === workflowName) return true;
+        const expectedPath = pathByName.get(workflowName);
+        return expectedPath !== undefined && run.path === expectedPath;
+    };
 
     const newest = (list) => [...list].sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))[0] ?? null;
 
     for (const entry of manifest.requiredGates) {
-        const candidates = byName.get(entry.workflow) ?? [];
+        const candidates = runs.filter((run) => belongsTo(run, entry.workflow));
         // A NARROWED RUN IS NOT THE RELEASE GATE. `ci.yml` on a push selects its oracle probes from the changed
         // paths, so a push run at the candidate SHA can be green having executed a SUBSET (measured: run
         // 41210334467 at 0985be42 skipped the oracle entirely and still concluded success). A release therefore
@@ -548,6 +575,7 @@ export function evaluateGates({ manifest, runs, sha }) {
                     const tierValue = tierField !== null && facts.evidence ? memberAt(facts.evidence, tierField) : undefined;
                     rows.push({
                         ...recordOf(run),
+                        workflow: entry.workflow, // the MANIFEST name, never a run-name the workflow evaluated
                         verdict: 'success',
                         artifact: entry.requiredArtifact,
                         evidence: entry.requiredEvidence?.kind ?? facts.evidence?.kind ?? null,
@@ -572,6 +600,7 @@ export function evaluateGates({ manifest, runs, sha }) {
             if (!blocked) continue;
             rows.push({
                 ...recordOf(blocked.run),
+                workflow: entry.workflow,
                 verdict: blocked.rail.verdict,
                 artifact: entry.requiredArtifact,
                 evidence: entry.requiredEvidence?.kind,
@@ -600,6 +629,7 @@ export function evaluateGates({ manifest, runs, sha }) {
         const blockedRun = newest(atSha);
         rows.push({
             ...recordOf(blockedRun),
+            workflow: entry.workflow,
             verdict: 'not-green',
             detail: `newest run at the target SHA is ${blockedRun.status}/${blockedRun.conclusion ?? 'no conclusion'}`,
         });
