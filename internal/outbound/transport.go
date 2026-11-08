@@ -470,6 +470,31 @@ func ConfigureRequestProxy(enabled bool, rawURL string, bypass []string) error {
 	return nil
 }
 
+// UserURLDialContext returns the production transport's CONNECTION policy for a caller that owns its own
+// request encoding and response decoding — currently the CORS proxy (/proxy/:url(*)).
+//
+// WHY THIS EXISTS: pinned installs its configured request proxy and its private request filter on the
+// GLOBAL http and https agents (src/request-proxy.js:49-55, src/private-request-filter.js:252-255), so
+// every outbound request in the pinned server — provider traffic AND the CORS proxy — honours both. A
+// caller-owned client that built its own dialer would silently bypass an operator's
+// privateAddressWhitelist for /proxy, which is a security divergence in the unsafe direction. Returning
+// closures instead of a client keeps the caller in charge of HTTP/1.1, redirects and decompression while
+// sharing the policy, and the policy is read at dial time so a late ConfigurePrivateAddressFilter /
+// ConfigureRequestProxy still takes effect.
+func UserURLDialContext() func(ctx context.Context, network, address string) (net.Conn, error) {
+	baseDialer := &net.Dialer{
+		Timeout:   productionConnectTimeout,
+		KeepAlive: 30 * time.Second,
+	}
+	return dnsOrderedDialContext(privateAddressDialContext(baseDialer), baseDialer)
+}
+
+// UserURLProxy is the proxy half of UserURLDialContext: the operator's requestProxy.* settings with the
+// process environment as fallback, exactly as provider traffic resolves it.
+func UserURLProxy() func(*http.Request) (*url.URL, error) {
+	return providerProxy
+}
+
 // providerProxy is what http.Transport calls for each request.
 func providerProxy(request *http.Request) (*url.URL, error) {
 	stored, _ := requestProxy.Load().(requestProxyConfig)
