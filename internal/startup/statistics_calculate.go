@@ -3,7 +3,6 @@ package startup
 import (
 	"crypto/sha256"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/fs"
 	"math"
@@ -59,19 +58,41 @@ var statisticsMonths = map[string]time.Month{
 	"october": time.October, "november": time.November, "december": time.December,
 }
 
-func calculateCharacterStatistics(chatsDirectory, characterItem string) (characterStatistics, error) {
+// calculateCharacterStatisticsFromListing is calculateCharacterStatistics with the character's chats-root
+// directory entry supplied by the caller's single chats-root listing. `chatEntry` is the entry whose Name()
+// equals the character's chat directory name, or nil with chatExists=false. The per-card os.Stat this replaces
+// only answered "does it exist, and is it a directory?", which the listing already says; only a symlink needs
+// the stat because the listing type describes the link while readdir follows it.
+func calculateCharacterStatisticsFromListing(chatsDirectory, characterItem string, chatEntry fs.DirEntry, chatExists bool) (characterStatistics, error) {
 	stats := characterStatistics{dateFirstChat: statisticsFirstChatTime}
+	if !chatExists {
+		return stats, nil
+	}
 	characterName := strings.Replace(characterItem, ".png", "", 1)
 	chatDirectory := filepath.Join(chatsDirectory, characterName)
-	chatInfo, err := os.Stat(chatDirectory)
-	if errors.Is(err, fs.ErrNotExist) {
-		return stats, nil
-	}
-	if err != nil {
-		// The pinned existsSync(chatDirectory) treats inaccessible paths as absent.
-		return stats, nil
-	}
-	if !chatInfo.IsDir() {
+	if chatEntry.Type()&os.ModeSymlink != 0 {
+		// Resolve the link and keep the pinned "path under the user root" contract, which the old
+		// per-character ensureResolvedContained enforced for every card.
+		resolved, err := resolveExistingPathPrefix(chatDirectory)
+		if err != nil {
+			return stats, nil
+		}
+		resolvedRoot, err := resolveExistingPathPrefix(chatsDirectory)
+		if err != nil {
+			return stats, nil
+		}
+		if err := ensureContained(resolvedRoot, resolved); err != nil {
+			return stats, fmt.Errorf("character chat directory escapes user root: %w", err)
+		}
+		linkInfo, err := os.Stat(chatDirectory)
+		if err != nil {
+			// The pinned existsSync(chatDirectory) treats inaccessible paths as absent.
+			return stats, nil
+		}
+		if !linkInfo.IsDir() {
+			return stats, fmt.Errorf("character chat path %s is not a directory", characterName)
+		}
+	} else if !chatEntry.IsDir() {
 		return stats, fmt.Errorf("character chat path %s is not a directory", characterName)
 	}
 	chats, err := readDirectoryInNativeOrder(chatDirectory)

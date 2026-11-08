@@ -73,7 +73,7 @@ func (runtime *accountRuntime) serveCharactersAll(w http.ResponseWriter, request
 		if !strings.HasSuffix(entry.Name(), ".png") {
 			continue
 		}
-		character := processCharacter(entry.Name(), directories, lazyLoadCharacters)
+		character := processCharacterForDirEntry(entry, directories, lazyLoadCharacters)
 		if jsTruthy(nodeGet(character, "name")) {
 			characters = append(characters, character)
 		}

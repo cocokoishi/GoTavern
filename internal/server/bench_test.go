@@ -671,6 +671,25 @@ func BenchmarkCharactersAllScale(b *testing.B) {
 
 // BenchmarkChatSummary is the M0 "chat summary whole-file read" hypothesis made measurable: N chats x M bytes
 // behind one character, answered by /api/characters/chats (getChatInfo per file).
+// BenchmarkCharactersAllCold is the cold-cache half of the alpha.15 card-text-cache precedent: each iteration
+// empties the memoised card text first, so the measured request pays the PNG read + chunk walk + base64 decode
+// for every card, which is what the FIRST /api/characters/all after a boot pays. It has its own row so the
+// hot/cold trade-off is measured instead of asserted (the alpha.16 record noted a cold regression that no
+// benchmark could show). The reset reuses the existing map/list storage, so it is excluded from the timed
+// region's allocations by construction (it allocates nothing).
+func BenchmarkCharactersAllCold(b *testing.B) {
+	env := newBenchEnvWithTree(b, func(tb testing.TB, dataRoot string) {
+		plantCharacterTree(tb, dataRoot, 10000, 4<<10, 2<<10)
+	})
+	env.requireAuth(b)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		resetCharacterCardCache()
+		benchRequest(b, env.handler, http.MethodPost, "/api/characters/all", env.cookie, env.token, []byte(`{}`))
+	}
+}
+
 func BenchmarkChatSummary(b *testing.B) {
 	cases := []struct {
 		name         string

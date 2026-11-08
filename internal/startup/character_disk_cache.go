@@ -46,6 +46,14 @@ func VerifyCharacterDiskCache(dataRoot string, directories []UserDirectories, en
 			if filepath.Ext(file.Name()) != ".png" {
 				continue
 			}
+			// One metadata read per card, taken from the DIRECTORY LISTING. os.ReadDir already returns
+			// size/type/mtime with the entry (on Windows without a syscall per file; on POSIX the listing's
+			// Info is one lstat), so the separate os.Stat this loop used to perform doubled both the syscall
+			// count and — measured on the 10,000-card fixture after a fresh write — the boot cost, because
+			// every per-file metadata read of an unscanned file pays the host's on-access scanner. The entry is
+			// checked regular first, exactly like the isFile() dirent filter in the pinned
+			// DiskCache.verify (src/endpoints/characters.js:136), and for a regular file lstat and stat agree
+			// on size and mtime, so the cache key is the same key the stat produced.
 			entryInfo, err := file.Info()
 			if err != nil {
 				return []error{fmt.Errorf("inspect character card entry %s: %w", filepath.Join(characterDirectory, file.Name()), err)}
@@ -54,11 +62,7 @@ func VerifyCharacterDiskCache(dataRoot string, directories []UserDirectories, en
 				continue
 			}
 			filePath := filepath.Join(characterDirectory, file.Name())
-			info, err := os.Stat(filePath)
-			if err != nil {
-				return []error{fmt.Errorf("stat character card %s: %w", filePath, err)}
-			}
-			cacheKey := filePath + "-" + javascriptNumberString(float64(info.ModTime().UnixNano())/1e6)
+			cacheKey := filePath + "-" + javascriptNumberString(float64(entryInfo.ModTime().UnixNano())/1e6)
 			validKeys[storeFilename(cacheKey)] = struct{}{}
 		}
 	}

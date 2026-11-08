@@ -142,17 +142,38 @@ func (target *statisticsTarget) recompute(now time.Time) (json.RawMessage, error
 	if err != nil {
 		return nil, fmt.Errorf("read character directory for %s: %w", filepath.Base(target.userRoot), err)
 	}
+	// ONE listing of the chats root replaces the per-character os.Stat existence probe (10,000 of them for a
+	// 10,000-card library). This is the same question — "does a directory named after this card exist?" — and
+	// on the first boot over a freshly copied library every per-card probe was a separate directory lookup;
+	// the listing answers all of them from one read. A name that is not a directory keeps its pinned error,
+	// and a SYMLINK entry is resolved with a stat because the listing's type describes the link, while
+	// pinned's existsSync/readdir follow it.
+	absoluteChatsDirectory, err := filepath.Abs(target.chatsDir)
+	if err != nil {
+		return nil, fmt.Errorf("resolve chat directory: %w", err)
+	}
+	if err := ensureResolvedContained(target.userRoot, absoluteChatsDirectory); err != nil {
+		return nil, fmt.Errorf("chat directory escapes user root: %w", err)
+	}
+	chatEntries, err := readDirectoryInNativeOrder(target.chatsDir)
+	if err != nil {
+		// The previous per-character os.Stat treated EVERY chats-root failure as "no chat directory", so a
+		// missing or unreadable chats root produced zero statistics for every card rather than an error.
+		// Keep that observable: the listing failing is treated as an empty chats root.
+		chatEntries = nil
+	}
+	chatEntryByName := make(map[string]fs.DirEntry, len(chatEntries))
+	for _, entry := range chatEntries {
+		chatEntryByName[entry.Name()] = entry
+	}
 	characters := make([]characterStatisticsEntry, 0)
 	for _, entry := range characterEntries {
 		if !strings.HasSuffix(entry.Name(), ".png") {
 			continue
 		}
 		characterName := strings.Replace(entry.Name(), ".png", "", 1)
-		chatPath := filepath.Join(target.chatsDir, characterName)
-		if err := ensureResolvedContained(target.userRoot, chatPath); err != nil {
-			return nil, fmt.Errorf("character chat directory escapes user root: %w", err)
-		}
-		characterStatistics, err := calculateCharacterStatistics(target.chatsDir, entry.Name())
+		chatEntry, chatExists := chatEntryByName[characterName]
+		characterStatistics, err := calculateCharacterStatisticsFromListing(target.chatsDir, entry.Name(), chatEntry, chatExists)
 		if err != nil {
 			return nil, fmt.Errorf("calculate statistics for %s: %w", entry.Name(), err)
 		}

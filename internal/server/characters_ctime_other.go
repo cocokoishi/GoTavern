@@ -12,6 +12,15 @@ import (
 // the Stat_t Ctim/Ctimespec field. The field name differs between the BSD and
 // Linux syscall structs, so it is located reflectively.
 func nodeFileCtimeMilliseconds(_ string, fileInfo os.FileInfo) float64 {
+	return nodeFileCtimeMillisecondsFromOpenFile(nil, fileInfo)
+}
+
+// nodeFileCtimeMillisecondsFromOpenFile takes the already-open file so the shared caller signature works on
+// every platform; these platforms read the ctime from the FileInfo, not the handle.
+func nodeFileCtimeMillisecondsFromOpenFile(_ *os.File, fileInfo os.FileInfo) float64 {
+	if fileInfo == nil {
+		return 0
+	}
 	value := reflect.ValueOf(fileInfo.Sys())
 	if value.Kind() == reflect.Pointer {
 		if value.IsNil() {

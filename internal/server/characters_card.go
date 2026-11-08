@@ -13,12 +13,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"hash/crc32"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-	"unicode/utf16"
+	"unicode/utf8"
 )
 
 const (
@@ -268,7 +269,7 @@ func readCharacterData(filePath string) (string, bool) {
 func readCharacterDataStrict(filePath string) (string, error) {
 	info, statErr := os.Stat(filePath)
 	if statErr == nil {
-		if cached, ok := loadCharacterCardTextCache(filePath, identityForCharacterCardFile(info)); ok {
+		if cached, _, ok := loadCharacterCardTextCache(filePath, identityForCharacterCardFile(info)); ok {
 			return cached, nil
 		}
 	}
@@ -281,9 +282,54 @@ func readCharacterDataStrict(filePath string) (string, error) {
 		return "", err
 	}
 	if statErr == nil {
-		storeCharacterCardTextCache(filePath, identityForCharacterCardFile(info), text)
+		storeCharacterCardTextCache(filePath, identityForCharacterCardFile(info), text,
+			nodeFileCtimeMilliseconds(filePath, info))
 	}
 	return text, nil
+}
+
+// readCharacterDataStrictWithIdentity is readCharacterDataStrict with the identity supplied by the caller —
+// /api/characters/all takes it from the os.ReadDir listing, which the cache contract already accepts as the
+// "stat before the read" identity — and with the card's ctime (Node fs.Stats.ctimeMs) returned alongside the
+// text. On a hit this performs NO filesystem operation for the card; on a miss it opens the file once and
+// reads the ctime from that same handle on Windows, where ctime needs a handle of its own.
+//
+// IMPLEMENTATION NOTE, because the identity and the handle could disagree: if the file is replaced between
+// the listing and the open, the entry is stored with the LISTING identity and the newer text. The next
+// request's listing yields the newer identity, so that entry is a miss and is replaced — never a stale hit.
+func readCharacterDataStrictWithIdentity(filePath string, identity characterCardIdentity) (string, float64, error) {
+	if cached, ctimeMs, ok := loadCharacterCardTextCache(filePath, identity); ok {
+		return cached, ctimeMs, nil
+	}
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", 0, err
+	}
+	image, readErr := io.ReadAll(file)
+	ctimeMs := 0.0
+	if statErr := func() error {
+		info, statErr := file.Stat()
+		if statErr != nil {
+			return statErr
+		}
+		ctimeMs = nodeFileCtimeMillisecondsFromOpenFile(file, info)
+		return nil
+	}(); statErr != nil {
+		_ = file.Close()
+		return "", 0, statErr
+	}
+	if closeErr := file.Close(); closeErr != nil && readErr == nil {
+		return "", 0, closeErr
+	}
+	if readErr != nil {
+		return "", 0, readErr
+	}
+	text, err := readPngCardText(image)
+	if err != nil {
+		return "", 0, err
+	}
+	storeCharacterCardTextCache(filePath, identity, text, ctimeMs)
+	return text, ctimeMs, nil
 }
 
 // errorCharacter is the object pinned processCharacter returns after any
@@ -315,7 +361,47 @@ func processCharacter(item string, directories map[string]string, shallow bool) 
 	if err != nil {
 		return errorCharacter()
 	}
-	ctimeMs := nodeFileCtimeMilliseconds(imgFile, info)
+	return finishCharacterProjection(item, directories, jsonObject, nodeFileCtimeMilliseconds(imgFile, info), shallow)
+}
+
+// processCharacterForDirEntry is processCharacter for the /api/characters/all listing. The listing has already
+// read each entry's metadata (os.ReadDir returns it), so a cache hit needs no per-card stat and a miss opens
+// the file once for both the read and the ctime, instead of stat + read + stat + ctime-open. A SYMLINK falls
+// back to processCharacter because the listing's metadata describes the link while pinned's stat and read
+// follow it: caching the link's identity against the target's text would be a stale-entry hole.
+func processCharacterForDirEntry(entry os.DirEntry, directories map[string]string, shallow bool) orderedNodeJSON {
+	item := entry.Name()
+	if entry.Type()&os.ModeSymlink != 0 {
+		return processCharacter(item, directories, shallow)
+	}
+	info, err := entry.Info()
+	if err != nil {
+		// Pinned's processCharacter answers the error object when fs.statSync throws, and a listing entry
+		// whose Info fails is the same vanished/replaced file.
+		return errorCharacter()
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		// Some filesystems report an unknown Type() at listing time but the resolved mode still says symlink.
+		return processCharacter(item, directories, shallow)
+	}
+	imgFile := filepath.Join(directories["characters"], item)
+	imgData, ctimeMs, err := readCharacterDataStrictWithIdentity(imgFile, identityForCharacterCardFile(info))
+	if err != nil {
+		return errorCharacter()
+	}
+	parsed, err := decodeOrderedNodeJSON([]byte(imgData))
+	if err != nil {
+		return errorCharacter()
+	}
+	jsonObject := getCharaCardV2(parsed, directories, false)
+	nodeSet(&jsonObject, []string{"avatar"}, nodeString(item))
+	nodeSet(&jsonObject, []string{"json_data"}, nodeString(imgData))
+	return finishCharacterProjection(item, directories, jsonObject, ctimeMs, shallow)
+}
+
+// finishCharacterProjection is the tail of pinned processCharacter, shared by the stat path and the listing
+// path so the two cannot diverge: date_added/create_date from the ctime, then the chat-directory summary.
+func finishCharacterProjection(item string, directories map[string]string, jsonObject orderedNodeJSON, ctimeMs float64, shallow bool) orderedNodeJSON {
 	nodeSet(&jsonObject, []string{"date_added"}, nodeNumber(ctimeMs))
 	createDate := nodeGet(jsonObject, "create_date")
 	if !createDate.truthy() {
@@ -406,7 +492,27 @@ func characterStringLength(value orderedNodeJSON) (float64, error) {
 		return 0, errJavaScriptRange
 	}
 	// JavaScript string length counts UTF-16 code units.
-	return float64(len(utf16.Encode([]rune(text)))), nil
+	return float64(javaScriptStringLength(text)), nil
+}
+
+// javaScriptStringLength counts the UTF-16 code units of a Go string without materialising the
+// utf16.Encode([]rune(text)) pair that utf16.Encode needs. It is exactly equivalent: every rune below
+// U+10000 encodes to one code unit and every rune at or above U+10000 to two, and utf8.DecodeRuneInString
+// turns each invalid byte into U+FFFD, which is one unit in utf16.Encode too. /api/characters/all measures
+// this for every field of every card, so the two transient slices were 380 MB of the 10,000-card request's
+// allocations.
+func javaScriptStringLength(text string) int {
+	units := 0
+	for index := 0; index < len(text); {
+		runeValue, size := utf8.DecodeRuneInString(text[index:])
+		if runeValue >= 0x10000 {
+			units += 2
+		} else {
+			units++
+		}
+		index += size
+	}
+	return units
 }
 
 // toShallow mirrors pinned toShallow.

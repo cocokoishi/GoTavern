@@ -38,6 +38,17 @@ func nodeFileCtimeMilliseconds(filePath string, _ os.FileInfo) float64 {
 		return 0
 	}
 	defer file.Close()
+	return nodeFileCtimeMillisecondsFromOpenFile(file, nil)
+}
+
+// nodeFileCtimeMillisecondsFromOpenFile reads the ctime from a handle the caller
+// already holds. /api/characters/all opens the card to read it, so this makes the
+// listing path one open per card instead of one open for the read plus another
+// for the ctime.
+func nodeFileCtimeMillisecondsFromOpenFile(file *os.File, _ os.FileInfo) float64 {
+	if file == nil {
+		return 0
+	}
 	var info fileBasicInfo
 	result, _, _ := procGetFileInformationByHandleEx.Call(
 		file.Fd(),

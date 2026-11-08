@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf16"
+	"unicode/utf8"
 )
 
 // nodeUndefinedKind marks a member whose JavaScript value is `undefined`.
@@ -223,11 +224,7 @@ func writeCharacterJSON(body *bytes.Buffer, value orderedNodeJSON) error {
 				body.WriteByte(',')
 			}
 			written++
-			keyBytes, err := marshalNodeJSONString(entry.key)
-			if err != nil {
-				return err
-			}
-			body.Write(keyBytes)
+			writeCharacterJSONString(body, entry.key)
 			body.WriteByte(':')
 			if err := writeCharacterJSON(body, entry.value); err != nil {
 				return err
@@ -250,11 +247,7 @@ func writeCharacterJSON(body *bytes.Buffer, value orderedNodeJSON) error {
 		}
 		body.WriteByte(']')
 	case 's':
-		encoded, err := marshalNodeJSONString(value.scalar.(string))
-		if err != nil {
-			return err
-		}
-		body.Write(encoded)
+		writeCharacterJSONString(body, value.scalar.(string))
 	case 'h':
 		unit := value.scalar.(uint16)
 		hex := strconv.FormatUint(uint64(unit), 16)
@@ -275,6 +268,61 @@ func writeCharacterJSON(body *bytes.Buffer, value orderedNodeJSON) error {
 		body.Write(encoded)
 	}
 	return nil
+}
+
+// writeCharacterJSONString appends the JSON string encoding of value, byte-identical to
+// marshalNodeJSONString(value): the escapes encoding/json emits with SetEscapeHTML(false) (short forms \b \t
+// \n \f \r, \u00XX for the other C0 controls, \" and \\), U+2028/U+2029 left RAW (marshalNodeJSONString
+// un-escapes them because JSON.stringify emits them raw), and each invalid UTF-8 byte replaced by U+FFFD.
+// It exists because /api/characters/all encodes tens of thousands of strings per request and the reference
+// path built an encoder plus two ReplaceAll passes for every one of them; this was 30% of the 10,000-card
+// request's allocations. The differential test characterJSONStringEncodingMatchesReference pins the two.
+func writeCharacterJSONString(body *bytes.Buffer, value string) {
+	const hexDigits = "0123456789abcdef"
+	body.WriteByte('"')
+	start := 0
+	for index := 0; index < len(value); index++ {
+		character := value[index]
+		if character < utf8.RuneSelf {
+			if character >= 0x20 && character != '"' && character != '\\' {
+				continue
+			}
+			body.WriteString(value[start:index])
+			switch character {
+			case '"':
+				body.WriteString(`\"`)
+			case '\\':
+				body.WriteString(`\\`)
+			case '\b':
+				body.WriteString(`\b`)
+			case '\t':
+				body.WriteString(`\t`)
+			case '\n':
+				body.WriteString(`\n`)
+			case '\f':
+				body.WriteString(`\f`)
+			case '\r':
+				body.WriteString(`\r`)
+			default:
+				body.WriteString(`\u00`)
+				body.WriteByte(hexDigits[character>>4])
+				body.WriteByte(hexDigits[character&0xF])
+			}
+			start = index + 1
+			continue
+		}
+		runeValue, size := utf8.DecodeRuneInString(value[index:])
+		if runeValue == utf8.RuneError && size == 1 {
+			// encoding/json replaces each invalid byte with U+FFFD and keeps scanning at the next byte.
+			body.WriteString(value[start:index])
+			body.WriteString("\uFFFD")
+			start = index + 1
+			continue
+		}
+		index += size - 1
+	}
+	body.WriteString(value[start:])
+	body.WriteByte('"')
 }
 
 // deepMerge mirrors the pinned util.js deepMerge: plain objects merge

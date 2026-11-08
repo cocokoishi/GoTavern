@@ -22,7 +22,14 @@ package server
 //
 //   - key: the card file's resolved absolute path (`filepath.Abs` + Clean), because that is the identity a
 //     caller can hold; the map is keyed by it so a same-path replacement cannot leave two entries behind.
-//   - value: the decoded card JSON text (the string readPngCardText returns), stored as an immutable string.
+//   - value: the decoded card JSON text (the string readPngCardText returns), stored as an immutable string,
+//     plus the card file's ctime in milliseconds (Node's fs.Stats.ctimeMs), which /api/characters/all reports
+//     as `date_added`. The ctime is cached because on Windows reading it needs a file HANDLE, so the listing
+//     path (readCharacterDataStrictWithIdentity) fetches it from the handle it already opened for the read;
+//     a hit then costs no filesystem operation for that card at all. The ctime is NOT part of the identity
+//     tuple, so this inherits the same residual window: an attribute-only change that leaves type, size and
+//     mtime alone (e.g. a chmod) does not refresh `date_added` until one of those three moves. Content
+//     changes always move mtime, and card writes here replace the file through the atomic writer.
 //   - owner: this package, process-local, per data root implicitly (the absolute path is inside it). No
 //     file, no shared memory, no cross-process state, no second database: every entry is re-derivable from
 //     the card PNG at any moment and a restart starts empty.
@@ -103,6 +110,7 @@ type characterCardCacheEntry struct {
 	key      string
 	identity characterCardIdentity
 	text     string
+	ctimeMs  float64
 	element  *list.Element
 }
 
@@ -123,32 +131,33 @@ func characterCardCachePath(filePath string) (string, bool) {
 	return filepath.Clean(absolute), true
 }
 
-// loadCharacterCardTextCache returns the cached text when the stored identity equals the identity of the
-// stat the caller just performed. A miss returns ok=false and the caller does the uncached work.
+// loadCharacterCardTextCache returns the cached text (and the cached ctime) when the stored identity equals
+// the identity of the stat the caller just performed. A miss returns ok=false and the caller does the
+// uncached work.
 //
 // ONE CRITICAL SECTION, because the entry's fields are MUTABLE: `store` replaces `identity` and `text` on a
 // re-read, so reading them after dropping the lock is a data race (found by the Linux `-race` job, which this
 // host cannot run -- `-race` is unsupported on windows/arm64). The lock covers only the map, the LRU list and
-// two field reads: the caller's file I/O happens outside it.
-func loadCharacterCardTextCache(filePath string, identity characterCardIdentity) (string, bool) {
+// three field reads: the caller's file I/O happens outside it.
+func loadCharacterCardTextCache(filePath string, identity characterCardIdentity) (string, float64, bool) {
 	key, ok := characterCardCachePath(filePath)
 	if !ok {
-		return "", false
+		return "", 0, false
 	}
 	characterCardCacheMu.Lock()
 	defer characterCardCacheMu.Unlock()
 	entry, exists := characterCardCache[key]
 	if !exists || entry.identity != identity {
-		return "", false
+		return "", 0, false
 	}
 	// The entry is in the list while the lock is held, so the move cannot act on an evicted element.
 	characterCardCacheLRU.MoveToFront(entry.element)
-	return entry.text, true
+	return entry.text, entry.ctimeMs, true
 }
 
 // storeCharacterCardTextCache inserts or replaces one entry and evicts least-recently-used entries until
 // both bounds hold. The text is treated as immutable from here on.
-func storeCharacterCardTextCache(filePath string, identity characterCardIdentity, text string) {
+func storeCharacterCardTextCache(filePath string, identity characterCardIdentity, text string, ctimeMs float64) {
 	key, ok := characterCardCachePath(filePath)
 	if !ok {
 		return
@@ -166,12 +175,13 @@ func storeCharacterCardTextCache(filePath string, identity characterCardIdentity
 		characterCardCacheTextBytes -= len(existing.text)
 		existing.identity = identity
 		existing.text = text
+		existing.ctimeMs = ctimeMs
 		characterCardCacheTextBytes += len(text)
 		characterCardCacheLRU.MoveToFront(existing.element)
 		evictCharacterCardEntriesLocked()
 		return
 	}
-	entry := &characterCardCacheEntry{key: key, identity: identity, text: text}
+	entry := &characterCardCacheEntry{key: key, identity: identity, text: text, ctimeMs: ctimeMs}
 	entry.element = characterCardCacheLRU.PushFront(entry)
 	characterCardCache[key] = entry
 	characterCardCacheTextBytes += len(text)
