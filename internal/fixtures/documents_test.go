@@ -666,6 +666,11 @@ var declaredOtherPins = map[string]string{
 	// and superseded by a417721. Declared because the same-SHA evidence records the refusal by SHA; it is
 	// NOT a release identity.
 	"2216617cdbdd2c64220b6f865fc0228126efcf27": "alpha.18 release-record commit whose first wave was refused and superseded - cited by docs/alpha18/same-sha-evidence.md section 4",
+	// THE alpha.18 TAG OBJECT and the post-release-facts commit. HANDOFF.md and the handoff ledger name the
+	// annotated tag object so "the tag was not moved" is a checkable claim, and name the facts commit the
+	// release workflow pushed to main after publication. Identity values, not baseline claims.
+	"bc1289be633cffbf4808fd544bad6741757fc00c": "v0.1.0-alpha.18 annotated tag object - recorded so 'the tag was not moved' is checkable (it must keep peeling to a417721)",
+	"81d70dc": "chore(docs): regenerate the generated facts for the published v0.1.0-alpha.18 tag - the post-release-facts commit cited by docs/alpha18/handoff-ledger.md",
 	"481d6ee326b9eb79246b104dc5d739a7b8cf6a0c": "alpha.18 CORS proxy commit - cited by docs/alpha18/handoff-ledger.md and the release notes as the implemented enabled branch",
 	"eb46485f6fd89759629357ef562d2772c9d6ed92": "alpha.18 chat auto-backup commit - cited by docs/alpha18/handoff-ledger.md and the release notes",
 	"ef2f69adce87be1446a81db6c02f842bf68d0710": "alpha.18 streaming/cancellation coverage commit - cited by docs/alpha18/handoff-ledger.md and the release notes",

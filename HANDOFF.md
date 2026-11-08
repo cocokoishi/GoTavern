@@ -12,7 +12,12 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ## Latest checkpoint - 2026-11-07: `v0.1.0-alpha.18` — THE DEEP PRODUCT-ENGINEERING RELEASE
 
-`v0.1.0-alpha.18` is the product round that closes the gaps alpha.17 recorded without changing them. The
+`v0.1.0-alpha.18` is the product round that closes the gaps alpha.17 recorded without changing them, and it is
+**PUBLISHED**: the annotated tag `v0.1.0-alpha.18` (object `bc1289be`) peels to the gated candidate
+`a417721`, and `GoTavern Release` run **42477164985** created
+https://github.com/cocokoishi/GoTavern/releases/tag/v0.1.0-alpha.18 at 2026-11-08T11:48:35Z with
+`draft=false`, `prerelease=false`, `latest=true`, the six canonical archives plus `checksums.txt`, and the
+same-SHA 13-gate table appended to its body. The
 SillyTavern `1.19.0` baseline (`06bde939fb1e9c4c8d8641d810f0a916b5bce127`) is unchanged, the compatibility
 contract is unchanged, and `GOAL.md` §14 remains **NOT MET** (no real user directory on this host;
 `PRIVATE_NOT_RUN`). Status at this checkpoint is **TAGGING, after a PASS**: the frozen candidate

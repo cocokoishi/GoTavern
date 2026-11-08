@@ -1,0 +1,3141 @@
+{
+  "harness": "tools/perf/a18-soak.mjs",
+  "label": "published windows/arm64 v0.1.0-alpha.18",
+  "run": {
+    "startedAt": "2026-11-08T11:50:51.366Z",
+    "endedAt": "2026-11-08T11:52:53.858Z",
+    "plannedMinutes": 2,
+    "measuredMinutes": 2.01,
+    "endedBy": "deadline",
+    "abortDetail": null,
+    "warmupRequests": 10,
+    "pacingBehindEvents": 3,
+    "achievedRequestsPerSecond": 2.737,
+    "finalisationMs": 1909,
+    "wallMinutes": 2.123
+  },
+  "environment": {
+    "os": "Windows_NT 10.0.26100",
+    "platform": "win32",
+    "arch": "arm64",
+    "cpuModel": "virt-7.2",
+    "cpuCount": 2,
+    "totalMemBytes": 12879790080,
+    "hostname": "DESKTOP-9433SQI",
+    "goVersion": "go version go1.27.3 windows/arm64",
+    "goVersionError": null,
+    "nodeVersion": "v24.19.0",
+    "gitHead": "c7655a9b884d7349fdc392e135887a9982352906",
+    "gitHeadError": null,
+    "gitHeadAtArtifactTime": "c7655a9b884d7349fdc392e135887a9982352906",
+    "gitWorktreeEntryCount": 0,
+    "gitWorktreeEntryCountAtArtifactTime": 0,
+    "binaryPath": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18verify\\run\\gotavern.exe",
+    "binaryBytes": 60860928,
+    "binarySha256": "3ef37a2a09683f468b7f947584fc086f8082589b50dbcd9f984b03323083d0e9",
+    "binaryVersionIdentity": {
+      "gotavern_version": "v0.1.0-alpha.18",
+      "sillytavern_version": "1.19.0",
+      "sillytavern_commit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
+    },
+    "binaryVersionError": null,
+    "procstatPath": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18-soak-2026-11-08T11-50-46-170Z\\bin\\a15-procstat.exe",
+    "procstatMethod": "tests/perf/procstat (GetProcessMemoryInfo/GetProcessTimes on Windows); handles is null there",
+    "dataRoot": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18-postverify\\tree\\data",
+    "dataRootFilesBefore": 2405,
+    "dataRootBytesBefore": 48421068,
+    "dataRootFilesAfter": 2411,
+    "dataRootBytesAfter": 48675800,
+    "dataRootFileDelta": 6,
+    "dataRootByteDelta": 254732,
+    "dataRootCreatedCount": 6,
+    "dataRootRemovedCount": 0,
+    "dataRootCreatedFiles": [
+      "cookie-secret.txt",
+      "_storage/3a5bb37ab86ac047d8ef481ee2e7bd3683d694ff8502a7cfe6951af849015dcc",
+      "default-user/stats.json",
+      "default-user/sysprompt/.migrated",
+      "default-user/chats/A15 Character/A18 Soak.jsonl",
+      "default-user/backups/settings_default-user_20261108-035048.json"
+    ],
+    "dataRootRemovedFiles": [],
+    "dataRootDeltaNote": "files created by the product during the run (startup scaffolding such as cookie-secret.txt, stats.json, _storage/ and .migrated markers, plus the chat this harness saves) and files removed; the harness itself only writes the saved chat and the card mtime",
+    "configPath": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18-postverify\\tree\\config.yaml",
+    "workDir": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18-soak-2026-11-08T11-50-46-170Z",
+    "leftoverProcessesAfterRun": [],
+    "leftoverCheck": "tasklist /FI \"IMAGENAME eq <binary basename>\" after the final stop; empty means no orphan of this binary survived the run",
+    "logFiles": [
+      "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18-soak-2026-11-08T11-50-46-170Z\\boot-00.log",
+      "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18-soak-2026-11-08T11-50-46-170Z\\boot-01.log"
+    ]
+  },
+  "parameters": {
+    "minutes": 2,
+    "rate": 3,
+    "restartEveryMinutes": 1,
+    "port": "every boot: a fresh free loopback port",
+    "requestTimeoutSeconds": 30,
+    "bootTimeoutSeconds": 180,
+    "metricsIntervalSeconds": 15,
+    "probeIntervalSeconds": 60,
+    "seed": 20261107,
+    "binary": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18verify\\run\\gotavern.exe",
+    "dataRoot": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18-postverify\\tree\\data",
+    "configPath": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18-postverify\\tree\\config.yaml",
+    "out": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18verify\\published-soak.json",
+    "workDir": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18-soak-2026-11-08T11-50-46-170Z",
+    "weights": [
+      {
+        "route": "GET /version",
+        "weight": 12,
+        "share": 0.12
+      },
+      {
+        "route": "GET /",
+        "weight": 8,
+        "share": 0.08
+      },
+      {
+        "route": "POST /api/characters/all",
+        "weight": 12,
+        "share": 0.12
+      },
+      {
+        "route": "POST /api/characters/chats",
+        "weight": 10,
+        "share": 0.1
+      },
+      {
+        "route": "POST /api/settings/get",
+        "weight": 10,
+        "share": 0.1
+      },
+      {
+        "route": "POST /api/worldinfo/list",
+        "weight": 10,
+        "share": 0.1
+      },
+      {
+        "route": "POST /api/chats/save",
+        "weight": 16,
+        "share": 0.16
+      },
+      {
+        "route": "POST /api/chats/get (saved)",
+        "weight": 12,
+        "share": 0.12
+      },
+      {
+        "route": "POST /api/chats/get",
+        "weight": 10,
+        "share": 0.1
+      }
+    ],
+    "savedChatFile": "A18 Soak",
+    "cardAvatar": "A15 Character.png",
+    "realChatFileId": "A15 Chat 0000",
+    "warmupRequestsOnFirstBoot": 10,
+    "calibrationRequest": "one POST /api/characters/all before the soak clock, to learn the probe card's real name",
+    "concurrency": "one request in flight; the loop never pipelines and resynchronises instead of bursting"
+  },
+  "samples": [
+    {
+      "atMs": 289,
+      "label": "segment-start",
+      "pid": 14400,
+      "segment": 0,
+      "rssBytes": 78876672,
+      "peakRssBytes": 78876672,
+      "cpuUserMs": 875,
+      "cpuSystemMs": 937,
+      "handles": null,
+      "ok": true
+    },
+    {
+      "atMs": 15353,
+      "label": "periodic",
+      "pid": 14400,
+      "segment": 0,
+      "rssBytes": 62709760,
+      "peakRssBytes": 103862272,
+      "cpuUserMs": 2109,
+      "cpuSystemMs": 1796,
+      "handles": null,
+      "ok": true
+    },
+    {
+      "atMs": 30339,
+      "label": "periodic",
+      "pid": 14400,
+      "segment": 0,
+      "rssBytes": 78409728,
+      "peakRssBytes": 103862272,
+      "cpuUserMs": 3328,
+      "cpuSystemMs": 2812,
+      "handles": null,
+      "ok": true
+    },
+    {
+      "atMs": 48845,
+      "label": "periodic",
+      "pid": 14400,
+      "segment": 0,
+      "rssBytes": 80289792,
+      "peakRssBytes": 103862272,
+      "cpuUserMs": 4437,
+      "cpuSystemMs": 3421,
+      "handles": null,
+      "ok": true
+    },
+    {
+      "atMs": 60150,
+      "label": "segment-end",
+      "pid": 14400,
+      "segment": 0,
+      "rssBytes": 108322816,
+      "peakRssBytes": 114008064,
+      "cpuUserMs": 5921,
+      "cpuSystemMs": 4078,
+      "handles": null,
+      "ok": true
+    },
+    {
+      "atMs": 61980,
+      "label": "segment-start",
+      "pid": 12376,
+      "segment": 1,
+      "rssBytes": 20623360,
+      "peakRssBytes": 20623360,
+      "cpuUserMs": 31,
+      "cpuSystemMs": 62,
+      "handles": null,
+      "ok": true
+    },
+    {
+      "atMs": 62038,
+      "label": "periodic",
+      "pid": 12376,
+      "segment": 1,
+      "rssBytes": 20836352,
+      "peakRssBytes": 20836352,
+      "cpuUserMs": 31,
+      "cpuSystemMs": 62,
+      "handles": null,
+      "ok": true
+    },
+    {
+      "atMs": 75247,
+      "label": "periodic",
+      "pid": 12376,
+      "segment": 1,
+      "rssBytes": 86118400,
+      "peakRssBytes": 100855808,
+      "cpuUserMs": 875,
+      "cpuSystemMs": 1906,
+      "handles": null,
+      "ok": true
+    },
+    {
+      "atMs": 90262,
+      "label": "periodic",
+      "pid": 12376,
+      "segment": 1,
+      "rssBytes": 86269952,
+      "peakRssBytes": 104108032,
+      "cpuUserMs": 1703,
+      "cpuSystemMs": 2968,
+      "handles": null,
+      "ok": true
+    },
+    {
+      "atMs": 105257,
+      "label": "periodic",
+      "pid": 12376,
+      "segment": 1,
+      "rssBytes": 66011136,
+      "peakRssBytes": 104108032,
+      "cpuUserMs": 2593,
+      "cpuSystemMs": 3718,
+      "handles": null,
+      "ok": true
+    },
+    {
+      "atMs": 120578,
+      "label": "final",
+      "pid": 12376,
+      "segment": 1,
+      "rssBytes": 76435456,
+      "peakRssBytes": 104108032,
+      "cpuUserMs": 3625,
+      "cpuSystemMs": 4703,
+      "handles": null,
+      "ok": true
+    },
+    {
+      "atMs": 120613,
+      "label": "segment-end",
+      "pid": 12376,
+      "segment": 1,
+      "rssBytes": 76435456,
+      "peakRssBytes": 104108032,
+      "cpuUserMs": 3625,
+      "cpuSystemMs": 4703,
+      "handles": null,
+      "ok": true
+    }
+  ],
+  "requests": {
+    "attempted": 330,
+    "succeeded": 330,
+    "errors": 0,
+    "errorClasses": {},
+    "statusClasses": {},
+    "latencyMs": {
+      "count": 330,
+      "min": 1.56,
+      "p50": 32.43,
+      "p95": 346.91,
+      "p99": 1093.28,
+      "max": 5470.65,
+      "mean": 126.955
+    },
+    "byRoute": {
+      "GET /version": {
+        "share": 0.12,
+        "attempted": 27,
+        "ok": 27,
+        "statuses": [
+          200
+        ],
+        "latencyMs": {
+          "count": 27,
+          "min": 1.56,
+          "p50": 17.09,
+          "p95": 28.27,
+          "p99": 52.52,
+          "max": 52.52,
+          "mean": 18.549
+        }
+      },
+      "GET /": {
+        "share": 0.08,
+        "attempted": 33,
+        "ok": 33,
+        "statuses": [
+          200
+        ],
+        "latencyMs": {
+          "count": 33,
+          "min": 20.45,
+          "p50": 31.05,
+          "p95": 919.22,
+          "p99": 5470.65,
+          "max": 5470.65,
+          "mean": 225.686
+        }
+      },
+      "POST /api/characters/all": {
+        "share": 0.12,
+        "attempted": 35,
+        "ok": 35,
+        "statuses": [
+          200
+        ],
+        "latencyMs": {
+          "count": 35,
+          "min": 259.9,
+          "p50": 326.27,
+          "p95": 629,
+          "p99": 4472.21,
+          "max": 4472.21,
+          "mean": 464.667
+        }
+      },
+      "POST /api/characters/chats": {
+        "share": 0.1,
+        "attempted": 37,
+        "ok": 37,
+        "statuses": [
+          200
+        ],
+        "latencyMs": {
+          "count": 37,
+          "min": 87.61,
+          "p50": 101.34,
+          "p95": 202.89,
+          "p99": 673.24,
+          "max": 673.24,
+          "mean": 123.149
+        }
+      },
+      "POST /api/settings/get": {
+        "share": 0.1,
+        "attempted": 36,
+        "ok": 36,
+        "statuses": [
+          200
+        ],
+        "latencyMs": {
+          "count": 36,
+          "min": 79.05,
+          "p50": 99.61,
+          "p95": 236.79,
+          "p99": 1093.28,
+          "max": 1093.28,
+          "mean": 138.378
+        }
+      },
+      "POST /api/worldinfo/list": {
+        "share": 0.1,
+        "attempted": 34,
+        "ok": 34,
+        "statuses": [
+          200
+        ],
+        "latencyMs": {
+          "count": 34,
+          "min": 3.58,
+          "p50": 19.62,
+          "p95": 116.02,
+          "p99": 296.82,
+          "max": 296.82,
+          "mean": 30.092
+        }
+      },
+      "POST /api/chats/save": {
+        "share": 0.16,
+        "attempted": 48,
+        "ok": 48,
+        "statuses": [
+          200
+        ],
+        "latencyMs": {
+          "count": 48,
+          "min": 13.79,
+          "p50": 27.95,
+          "p95": 39.48,
+          "p99": 49.1,
+          "max": 49.1,
+          "mean": 28.961
+        }
+      },
+      "POST /api/chats/get (saved)": {
+        "share": 0.12,
+        "attempted": 40,
+        "ok": 40,
+        "statuses": [
+          200
+        ],
+        "latencyMs": {
+          "count": 40,
+          "min": 2.49,
+          "p50": 17.93,
+          "p95": 24.01,
+          "p99": 28.98,
+          "max": 28.98,
+          "mean": 16.337
+        }
+      },
+      "POST /api/chats/get": {
+        "share": 0.1,
+        "attempted": 29,
+        "ok": 29,
+        "statuses": [
+          200
+        ],
+        "latencyMs": {
+          "count": 29,
+          "min": 53.03,
+          "p50": 76.5,
+          "p95": 93.27,
+          "p99": 180.61,
+          "max": 180.61,
+          "mean": 78.807
+        }
+      },
+      "probe:POST /api/characters/all (after utimes)": {
+        "share": null,
+        "attempted": 1,
+        "ok": 1,
+        "statuses": [
+          200
+        ],
+        "latencyMs": {
+          "count": 1,
+          "min": 2428.35,
+          "p50": 2428.35,
+          "p95": 2428.35,
+          "p99": 2428.35,
+          "max": 2428.35,
+          "mean": 2428.35
+        }
+      },
+      "availability:GET /version": {
+        "share": null,
+        "attempted": 7,
+        "ok": 7,
+        "statuses": [
+          200
+        ],
+        "latencyMs": {
+          "count": 7,
+          "min": 2.01,
+          "p50": 5.9,
+          "p95": 11.34,
+          "p99": 11.34,
+          "max": 11.34,
+          "mean": 6.077
+        }
+      },
+      "final:GET /version": {
+        "share": null,
+        "attempted": 2,
+        "ok": 2,
+        "statuses": [
+          200
+        ],
+        "latencyMs": {
+          "count": 2,
+          "min": 2.76,
+          "p50": 2.76,
+          "p95": 16.31,
+          "p99": 16.31,
+          "max": 16.31,
+          "mean": 9.535
+        }
+      },
+      "final:POST /api/characters/all": {
+        "share": null,
+        "attempted": 1,
+        "ok": 1,
+        "statuses": [
+          200
+        ],
+        "latencyMs": {
+          "count": 1,
+          "min": 303.2,
+          "p50": 303.2,
+          "p95": 303.2,
+          "p99": 303.2,
+          "max": 303.2,
+          "mean": 303.2
+        }
+      }
+    },
+    "raw": [
+      {
+        "t": 406,
+        "route": "POST /api/worldinfo/list",
+        "ms": 116.02,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 713,
+        "route": "POST /api/chats/get",
+        "ms": 87.25,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 975,
+        "route": "POST /api/chats/save",
+        "ms": 17.44,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 1320,
+        "route": "POST /api/chats/save",
+        "ms": 27.77,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 1645,
+        "route": "POST /api/worldinfo/list",
+        "ms": 19.67,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 1972,
+        "route": "POST /api/chats/save",
+        "ms": 13.79,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 2307,
+        "route": "POST /api/chats/save",
+        "ms": 15.64,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 2682,
+        "route": "GET /",
+        "ms": 57.44,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 3095,
+        "route": "POST /api/characters/chats",
+        "ms": 124.09,
+        "status": 200,
+        "bytes": 45595
+      },
+      {
+        "t": 3338,
+        "route": "POST /api/chats/save",
+        "ms": 39.48,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 3693,
+        "route": "POST /api/chats/get",
+        "ms": 62.13,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 4456,
+        "route": "POST /api/characters/all",
+        "ms": 492.64,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 4481,
+        "route": "POST /api/chats/save",
+        "ms": 25.39,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 4645,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 18.46,
+        "status": 200,
+        "bytes": 223
+      },
+      {
+        "t": 5321,
+        "route": "POST /api/characters/all",
+        "ms": 360.17,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 5442,
+        "route": "POST /api/settings/get",
+        "ms": 120.03,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 5663,
+        "route": "POST /api/chats/save",
+        "ms": 39.33,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 6368,
+        "route": "POST /api/characters/all",
+        "ms": 412.79,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 6770,
+        "route": "POST /api/characters/all",
+        "ms": 401.52,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 6775,
+        "route": "POST /api/worldinfo/list",
+        "ms": 4.93,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 7058,
+        "route": "POST /api/chats/get",
+        "ms": 93.27,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 7314,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 15.76,
+        "status": 200,
+        "bytes": 223
+      },
+      {
+        "t": 7925,
+        "route": "POST /api/characters/all",
+        "ms": 297.24,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 8061,
+        "route": "POST /api/characters/chats",
+        "ms": 103.89,
+        "status": 200,
+        "bytes": 45595
+      },
+      {
+        "t": 8322,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 17.94,
+        "status": 200,
+        "bytes": 223
+      },
+      {
+        "t": 8672,
+        "route": "POST /api/worldinfo/list",
+        "ms": 34.4,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 8991,
+        "route": "POST /api/worldinfo/list",
+        "ms": 20.39,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 9308,
+        "route": "POST /api/worldinfo/list",
+        "ms": 18.56,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 9666,
+        "route": "GET /",
+        "ms": 43,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 10003,
+        "route": "GET /",
+        "ms": 33.16,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 10306,
+        "route": "GET /version",
+        "ms": 17.09,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 10719,
+        "route": "POST /api/chats/get",
+        "ms": 82.18,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 11000,
+        "route": "POST /api/chats/save",
+        "ms": 30.46,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 11376,
+        "route": "POST /api/chats/get",
+        "ms": 70.1,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 11676,
+        "route": "POST /api/chats/save",
+        "ms": 34.86,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 12068,
+        "route": "POST /api/characters/chats",
+        "ms": 95.69,
+        "status": 200,
+        "bytes": 45595
+      },
+      {
+        "t": 12317,
+        "route": "GET /version",
+        "ms": 16.73,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 12651,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 12.57,
+        "status": 200,
+        "bytes": 223
+      },
+      {
+        "t": 12996,
+        "route": "POST /api/chats/save",
+        "ms": 27.05,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 13431,
+        "route": "POST /api/characters/chats",
+        "ms": 124.11,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 13845,
+        "route": "POST /api/settings/get",
+        "ms": 212.72,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 13992,
+        "route": "POST /api/worldinfo/list",
+        "ms": 25.33,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 14460,
+        "route": "POST /api/settings/get",
+        "ms": 159.9,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 14839,
+        "route": "POST /api/characters/chats",
+        "ms": 202.89,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 15012,
+        "route": "GET /",
+        "ms": 45.33,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 15365,
+        "route": "availability:GET /version",
+        "ms": 11.34,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 15456,
+        "route": "POST /api/characters/chats",
+        "ms": 90.79,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 15740,
+        "route": "POST /api/characters/chats",
+        "ms": 108.61,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 16074,
+        "route": "POST /api/characters/chats",
+        "ms": 110.23,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 16313,
+        "route": "GET /version",
+        "ms": 17.43,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 16986,
+        "route": "POST /api/characters/all",
+        "ms": 355.79,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 17051,
+        "route": "GET /",
+        "ms": 65.29,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 17313,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 19.09,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 17658,
+        "route": "GET /",
+        "ms": 32.29,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 17977,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 17.93,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 18327,
+        "route": "POST /api/chats/save",
+        "ms": 34.31,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 18643,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 18.46,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 18976,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 17.84,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 19310,
+        "route": "POST /api/worldinfo/list",
+        "ms": 17.19,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 19651,
+        "route": "POST /api/chats/save",
+        "ms": 28.19,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 19972,
+        "route": "GET /version",
+        "ms": 1.56,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 20391,
+        "route": "POST /api/chats/get",
+        "ms": 83.4,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 20657,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 28.98,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 20999,
+        "route": "POST /api/chats/save",
+        "ms": 30.08,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 21326,
+        "route": "GET /version",
+        "ms": 20.39,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 21754,
+        "route": "POST /api/characters/chats",
+        "ms": 122.92,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 21995,
+        "route": "POST /api/chats/save",
+        "ms": 30.98,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 22401,
+        "route": "POST /api/characters/chats",
+        "ms": 103.77,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 22975,
+        "route": "POST /api/characters/all",
+        "ms": 346.91,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 23003,
+        "route": "GET /version",
+        "ms": 28.27,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 23313,
+        "route": "POST /api/worldinfo/list",
+        "ms": 20.23,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 23958,
+        "route": "POST /api/characters/all",
+        "ms": 332,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 23967,
+        "route": "POST /api/worldinfo/list",
+        "ms": 8.98,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 24338,
+        "route": "GET /",
+        "ms": 36.26,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 24655,
+        "route": "POST /api/worldinfo/list",
+        "ms": 19.75,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 25099,
+        "route": "POST /api/settings/get",
+        "ms": 128.85,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 25390,
+        "route": "POST /api/chats/get",
+        "ms": 88.42,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 25947,
+        "route": "POST /api/characters/all",
+        "ms": 312.03,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 26088,
+        "route": "POST /api/characters/chats",
+        "ms": 121.98,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 26427,
+        "route": "POST /api/characters/chats",
+        "ms": 131.43,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 26665,
+        "route": "GET /",
+        "ms": 29.52,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 26980,
+        "route": "GET /version",
+        "ms": 21.03,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 27312,
+        "route": "GET /version",
+        "ms": 20.49,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 27647,
+        "route": "POST /api/worldinfo/list",
+        "ms": 22.69,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 27990,
+        "route": "POST /api/chats/save",
+        "ms": 33.82,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 28825,
+        "route": "POST /api/characters/all",
+        "ms": 520.64,
+        "status": 200,
+        "bytes": 11697768
+      },
+      {
+        "t": 28927,
+        "route": "POST /api/characters/chats",
+        "ms": 101.34,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 28986,
+        "route": "POST /api/worldinfo/list",
+        "ms": 23.02,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 29317,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 21.59,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 29653,
+        "route": "POST /api/worldinfo/list",
+        "ms": 24.03,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 29982,
+        "route": "GET /version",
+        "ms": 20.34,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 30341,
+        "route": "availability:GET /version",
+        "ms": 2.01,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 30346,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 4.76,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 30758,
+        "route": "POST /api/characters/chats",
+        "ms": 130.52,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 31035,
+        "route": "POST /api/chats/get",
+        "ms": 76.5,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 31647,
+        "route": "POST /api/characters/all",
+        "ms": 344.12,
+        "status": 200,
+        "bytes": 11697768
+      },
+      {
+        "t": 31668,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 21.17,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 31983,
+        "route": "GET /version",
+        "ms": 16.97,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 32412,
+        "route": "POST /api/settings/get",
+        "ms": 113.97,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 32657,
+        "route": "POST /api/chats/save",
+        "ms": 29.71,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 33049,
+        "route": "POST /api/chats/get",
+        "ms": 89.12,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 33329,
+        "route": "GET /",
+        "ms": 35.16,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 33645,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 19.02,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 34285,
+        "route": "POST /api/characters/all",
+        "ms": 326.27,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 34307,
+        "route": "POST /api/worldinfo/list",
+        "ms": 11.73,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 34717,
+        "route": "POST /api/chats/get",
+        "ms": 80.69,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 35057,
+        "route": "POST /api/characters/chats",
+        "ms": 88.36,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 35633,
+        "route": "POST /api/characters/all",
+        "ms": 332.89,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 35656,
+        "route": "POST /api/chats/save",
+        "ms": 22.83,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 35995,
+        "route": "POST /api/chats/save",
+        "ms": 31.05,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 36624,
+        "route": "POST /api/characters/all",
+        "ms": 327.18,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 37094,
+        "route": "POST /api/characters/all",
+        "ms": 469.3,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 37121,
+        "route": "POST /api/chats/save",
+        "ms": 27.75,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 37321,
+        "route": "GET /version",
+        "ms": 18.38,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 43276,
+        "route": "GET /",
+        "ms": 5470.65,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 44195,
+        "route": "GET /",
+        "ms": 919.22,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 44244,
+        "route": "POST /api/chats/save",
+        "ms": 49.1,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 44261,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 16.96,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 48761,
+        "route": "POST /api/characters/all",
+        "ms": 4472.21,
+        "status": 200,
+        "bytes": 11697768
+      },
+      {
+        "t": 48850,
+        "route": "availability:GET /version",
+        "ms": 5.01,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 48898,
+        "route": "POST /api/chats/save",
+        "ms": 47.31,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 49284,
+        "route": "POST /api/chats/get",
+        "ms": 180.61,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 49451,
+        "route": "GET /version",
+        "ms": 17.94,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 50446,
+        "route": "POST /api/characters/chats",
+        "ms": 673.24,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 50533,
+        "route": "POST /api/settings/get",
+        "ms": 86.65,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 50565,
+        "route": "POST /api/chats/save",
+        "ms": 32.53,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 50824,
+        "route": "GET /version",
+        "ms": 52.52,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 51120,
+        "route": "POST /api/worldinfo/list",
+        "ms": 18.55,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 51462,
+        "route": "GET /",
+        "ms": 34.36,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 51791,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 15.23,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 52448,
+        "route": "POST /api/characters/all",
+        "ms": 339.56,
+        "status": 200,
+        "bytes": 11697768
+      },
+      {
+        "t": 52477,
+        "route": "POST /api/chats/save",
+        "ms": 28.43,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 53045,
+        "route": "POST /api/characters/all",
+        "ms": 275.95,
+        "status": 200,
+        "bytes": 11697768
+      },
+      {
+        "t": 53123,
+        "route": "POST /api/chats/save",
+        "ms": 27.06,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 53695,
+        "route": "POST /api/characters/all",
+        "ms": 265.34,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 54411,
+        "route": "POST /api/characters/all",
+        "ms": 629,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 54429,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 17.98,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 54961,
+        "route": "POST /api/characters/all",
+        "ms": 531.42,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 55056,
+        "route": "POST /api/settings/get",
+        "ms": 94.56,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 55123,
+        "route": "POST /api/chats/save",
+        "ms": 27.49,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 55689,
+        "route": "POST /api/characters/all",
+        "ms": 259.9,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 55774,
+        "route": "POST /api/worldinfo/list",
+        "ms": 13.27,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 56194,
+        "route": "POST /api/settings/get",
+        "ms": 97.41,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 56447,
+        "route": "POST /api/worldinfo/list",
+        "ms": 18.72,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 57185,
+        "route": "POST /api/characters/all",
+        "ms": 423.48,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 57422,
+        "route": "POST /api/settings/get",
+        "ms": 236.79,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 57559,
+        "route": "POST /api/characters/chats",
+        "ms": 118.94,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 57790,
+        "route": "POST /api/worldinfo/list",
+        "ms": 19.97,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 58132,
+        "route": "POST /api/chats/save",
+        "ms": 28.15,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 58467,
+        "route": "POST /api/chats/save",
+        "ms": 28.33,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 58790,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 19.82,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 59123,
+        "route": "POST /api/worldinfo/list",
+        "ms": 18.28,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 59713,
+        "route": "POST /api/characters/all",
+        "ms": 275.45,
+        "status": 200,
+        "bytes": 11697767
+      },
+      {
+        "t": 59785,
+        "route": "POST /api/worldinfo/list",
+        "ms": 17.43,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 62044,
+        "route": "availability:GET /version",
+        "ms": 5.95,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 64474,
+        "route": "probe:POST /api/characters/all (after utimes)",
+        "ms": 2428.35,
+        "status": 200,
+        "bytes": 11697767
+      },
+      {
+        "t": 64533,
+        "route": "GET /",
+        "ms": 25.47,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 64830,
+        "route": "POST /api/worldinfo/list",
+        "ms": 296.82,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 64898,
+        "route": "GET /version",
+        "ms": 17.9,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 65319,
+        "route": "POST /api/characters/chats",
+        "ms": 103.13,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 65564,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 17.39,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 65907,
+        "route": "POST /api/chats/save",
+        "ms": 25.32,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 67307,
+        "route": "POST /api/settings/get",
+        "ms": 1093.28,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 67338,
+        "route": "POST /api/chats/save",
+        "ms": 30.93,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 67437,
+        "route": "POST /api/settings/get",
+        "ms": 98.56,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 67702,
+        "route": "POST /api/characters/all",
+        "ms": 264.5,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 67798,
+        "route": "POST /api/characters/chats",
+        "ms": 96.42,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 67950,
+        "route": "POST /api/chats/get",
+        "ms": 70,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 68233,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 20.05,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 68678,
+        "route": "POST /api/settings/get",
+        "ms": 132.45,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 68972,
+        "route": "POST /api/settings/get",
+        "ms": 94.14,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 69254,
+        "route": "GET /",
+        "ms": 42.07,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 69563,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 20.14,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 69906,
+        "route": "POST /api/chats/save",
+        "ms": 26.64,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 70501,
+        "route": "POST /api/characters/all",
+        "ms": 290.85,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 70649,
+        "route": "POST /api/settings/get",
+        "ms": 110.49,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 70989,
+        "route": "POST /api/characters/chats",
+        "ms": 120.06,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 71277,
+        "route": "POST /api/chats/get",
+        "ms": 74.73,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 71564,
+        "route": "GET /",
+        "ms": 30.29,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 71905,
+        "route": "GET /",
+        "ms": 39.04,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 72228,
+        "route": "POST /api/chats/save",
+        "ms": 27.58,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 72551,
+        "route": "GET /version",
+        "ms": 17.1,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 72888,
+        "route": "POST /api/worldinfo/list",
+        "ms": 18.9,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 73222,
+        "route": "POST /api/worldinfo/list",
+        "ms": 19.08,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 73564,
+        "route": "POST /api/chats/save",
+        "ms": 27.47,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 73976,
+        "route": "POST /api/settings/get",
+        "ms": 104.2,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 74495,
+        "route": "POST /api/characters/all",
+        "ms": 293.1,
+        "status": 200,
+        "bytes": 11697768
+      },
+      {
+        "t": 74559,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 23.66,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 74892,
+        "route": "POST /api/worldinfo/list",
+        "ms": 22.75,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 75252,
+        "route": "availability:GET /version",
+        "ms": 4.85,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 75256,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 3.96,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 75563,
+        "route": "POST /api/chats/save",
+        "ms": 26.89,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 75888,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 16.92,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 76222,
+        "route": "GET /version",
+        "ms": 17.48,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 76641,
+        "route": "POST /api/settings/get",
+        "ms": 101.92,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 76982,
+        "route": "POST /api/settings/get",
+        "ms": 110.4,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 77303,
+        "route": "POST /api/characters/chats",
+        "ms": 99.54,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 77541,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 7.25,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 77965,
+        "route": "POST /api/characters/chats",
+        "ms": 96.8,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 78496,
+        "route": "POST /api/characters/all",
+        "ms": 295.1,
+        "status": 200,
+        "bytes": 11697768
+      },
+      {
+        "t": 78578,
+        "route": "GET /",
+        "ms": 30.33,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 79146,
+        "route": "POST /api/characters/all",
+        "ms": 264.39,
+        "status": 200,
+        "bytes": 11697768
+      },
+      {
+        "t": 79241,
+        "route": "POST /api/chats/save",
+        "ms": 28.18,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 79579,
+        "route": "GET /",
+        "ms": 31.05,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 79909,
+        "route": "GET /",
+        "ms": 30.38,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 80312,
+        "route": "POST /api/settings/get",
+        "ms": 98.88,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 80641,
+        "route": "POST /api/characters/chats",
+        "ms": 96.63,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 80954,
+        "route": "POST /api/chats/get",
+        "ms": 78.11,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 81238,
+        "route": "POST /api/chats/save",
+        "ms": 27.87,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 81644,
+        "route": "POST /api/characters/chats",
+        "ms": 97.83,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 81908,
+        "route": "GET /",
+        "ms": 31.88,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 82309,
+        "route": "POST /api/settings/get",
+        "ms": 99,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 82645,
+        "route": "POST /api/characters/chats",
+        "ms": 105.19,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 82966,
+        "route": "POST /api/characters/chats",
+        "ms": 92.7,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 83233,
+        "route": "POST /api/chats/save",
+        "ms": 28.11,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 83559,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 18.64,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 83983,
+        "route": "POST /api/settings/get",
+        "ms": 110.44,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 84301,
+        "route": "POST /api/settings/get",
+        "ms": 94.97,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 84557,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 18.22,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 84889,
+        "route": "GET /version",
+        "ms": 15.03,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 85212,
+        "route": "POST /api/worldinfo/list",
+        "ms": 3.58,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 85559,
+        "route": "POST /api/worldinfo/list",
+        "ms": 18.07,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 85971,
+        "route": "POST /api/settings/get",
+        "ms": 96.96,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 86323,
+        "route": "POST /api/characters/chats",
+        "ms": 116.07,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 86555,
+        "route": "GET /version",
+        "ms": 16.84,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 86889,
+        "route": "GET /version",
+        "ms": 16.83,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 87223,
+        "route": "GET /version",
+        "ms": 16.48,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 87557,
+        "route": "GET /version",
+        "ms": 17.07,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 87968,
+        "route": "POST /api/chats/get",
+        "ms": 92.9,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 88490,
+        "route": "POST /api/characters/all",
+        "ms": 283.97,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 88630,
+        "route": "POST /api/settings/get",
+        "ms": 95.14,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 88905,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 24.01,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 89232,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 15.77,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 89576,
+        "route": "POST /api/chats/save",
+        "ms": 25.66,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 89966,
+        "route": "POST /api/settings/get",
+        "ms": 99.61,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 90268,
+        "route": "availability:GET /version",
+        "ms": 5.9,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 90272,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 4.13,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 90612,
+        "route": "POST /api/chats/get",
+        "ms": 61.72,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 90907,
+        "route": "GET /",
+        "ms": 27.28,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 91316,
+        "route": "POST /api/settings/get",
+        "ms": 106.62,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 91566,
+        "route": "POST /api/worldinfo/list",
+        "ms": 25.15,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 91878,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 3.05,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 92528,
+        "route": "POST /api/characters/all",
+        "ms": 318.26,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 92640,
+        "route": "POST /api/characters/chats",
+        "ms": 100.02,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 92892,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 20.11,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 93208,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 2.49,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 93821,
+        "route": "POST /api/characters/all",
+        "ms": 282.38,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 93968,
+        "route": "POST /api/characters/chats",
+        "ms": 99.6,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 94232,
+        "route": "POST /api/chats/save",
+        "ms": 29.49,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 94558,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 20.56,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 94893,
+        "route": "POST /api/worldinfo/list",
+        "ms": 20.82,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 95499,
+        "route": "POST /api/characters/all",
+        "ms": 292.19,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 95565,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 27.12,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 95898,
+        "route": "POST /api/chats/save",
+        "ms": 26.97,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 96272,
+        "route": "POST /api/chats/get",
+        "ms": 67.3,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 96556,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 17.4,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 96902,
+        "route": "GET /",
+        "ms": 29.97,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 97312,
+        "route": "POST /api/settings/get",
+        "ms": 106.71,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 97568,
+        "route": "GET /",
+        "ms": 30.5,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 97888,
+        "route": "GET /version",
+        "ms": 16.55,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 98286,
+        "route": "POST /api/chats/get",
+        "ms": 81.62,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 98566,
+        "route": "GET /",
+        "ms": 30.32,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 98976,
+        "route": "POST /api/characters/chats",
+        "ms": 105.76,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 99221,
+        "route": "POST /api/worldinfo/list",
+        "ms": 19.05,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 99567,
+        "route": "GET /",
+        "ms": 29.12,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 99905,
+        "route": "GET /",
+        "ms": 32.33,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 100230,
+        "route": "POST /api/chats/save",
+        "ms": 23.84,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 100633,
+        "route": "POST /api/characters/chats",
+        "ms": 96.11,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 100897,
+        "route": "POST /api/chats/save",
+        "ms": 24.36,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 101223,
+        "route": "GET /",
+        "ms": 20.45,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 101570,
+        "route": "POST /api/chats/save",
+        "ms": 33.98,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 101902,
+        "route": "POST /api/chats/save",
+        "ms": 32.43,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 102272,
+        "route": "POST /api/chats/get",
+        "ms": 68.86,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 102551,
+        "route": "GET /version",
+        "ms": 17.27,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 102896,
+        "route": "POST /api/worldinfo/list",
+        "ms": 27.74,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 103235,
+        "route": "POST /api/chats/save",
+        "ms": 32.27,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 103635,
+        "route": "POST /api/settings/get",
+        "ms": 99.11,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 103886,
+        "route": "POST /api/worldinfo/list",
+        "ms": 17.73,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 104274,
+        "route": "POST /api/chats/get",
+        "ms": 72.11,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 104610,
+        "route": "POST /api/chats/get",
+        "ms": 77.28,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 104988,
+        "route": "POST /api/settings/get",
+        "ms": 103.7,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 105265,
+        "route": "availability:GET /version",
+        "ms": 7.48,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 105353,
+        "route": "POST /api/characters/chats",
+        "ms": 87.61,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 105575,
+        "route": "GET /",
+        "ms": 30.88,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 105984,
+        "route": "POST /api/settings/get",
+        "ms": 106.84,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 106307,
+        "route": "POST /api/settings/get",
+        "ms": 97.86,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 106809,
+        "route": "POST /api/characters/all",
+        "ms": 268.25,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 106895,
+        "route": "POST /api/chats/save",
+        "ms": 23.68,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 107222,
+        "route": "GET /version",
+        "ms": 16.92,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 107640,
+        "route": "POST /api/settings/get",
+        "ms": 100.58,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 107884,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 13.04,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 108301,
+        "route": "POST /api/characters/chats",
+        "ms": 96.45,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 108605,
+        "route": "POST /api/chats/get",
+        "ms": 68.03,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 108938,
+        "route": "POST /api/chats/get",
+        "ms": 66.47,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 109229,
+        "route": "POST /api/chats/save",
+        "ms": 25.19,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 109552,
+        "route": "GET /version",
+        "ms": 16.81,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 109951,
+        "route": "POST /api/settings/get",
+        "ms": 79.05,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 110246,
+        "route": "GET /",
+        "ms": 40.12,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 110569,
+        "route": "GET /",
+        "ms": 29.12,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 110939,
+        "route": "POST /api/chats/get",
+        "ms": 64.05,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 111233,
+        "route": "POST /api/chats/save",
+        "ms": 27,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 111555,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 15.83,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 111974,
+        "route": "POST /api/settings/get",
+        "ms": 97.59,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 112300,
+        "route": "POST /api/characters/chats",
+        "ms": 94.46,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 112555,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 19.64,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 112890,
+        "route": "POST /api/worldinfo/list",
+        "ms": 20.69,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 113301,
+        "route": "POST /api/characters/chats",
+        "ms": 99.62,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 113604,
+        "route": "POST /api/chats/get",
+        "ms": 68.61,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 113899,
+        "route": "GET /",
+        "ms": 29.93,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 114208,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 3.49,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 114567,
+        "route": "POST /api/chats/save",
+        "ms": 27.95,
+        "status": 200,
+        "bytes": 11
+      },
+      {
+        "t": 114968,
+        "route": "POST /api/settings/get",
+        "ms": 98.28,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 115508,
+        "route": "POST /api/characters/all",
+        "ms": 306.57,
+        "status": 200,
+        "bytes": 11697769
+      },
+      {
+        "t": 115550,
+        "route": "POST /api/worldinfo/list",
+        "ms": 19.62,
+        "status": 200,
+        "bytes": 13931
+      },
+      {
+        "t": 115877,
+        "route": "GET /version",
+        "ms": 12.59,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 116267,
+        "route": "POST /api/chats/get",
+        "ms": 67.72,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 116632,
+        "route": "POST /api/characters/chats",
+        "ms": 101.15,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 116894,
+        "route": "POST /api/chats/get (saved)",
+        "ms": 17.04,
+        "status": 200,
+        "bytes": 225
+      },
+      {
+        "t": 117306,
+        "route": "POST /api/settings/get",
+        "ms": 95.11,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 117625,
+        "route": "POST /api/chats/get",
+        "ms": 81.57,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 117928,
+        "route": "POST /api/chats/get",
+        "ms": 53.03,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 118306,
+        "route": "POST /api/settings/get",
+        "ms": 98.85,
+        "status": 200,
+        "bytes": 4592363
+      },
+      {
+        "t": 118564,
+        "route": "GET /",
+        "ms": 24.92,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 118889,
+        "route": "GET /version",
+        "ms": 16.81,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 119237,
+        "route": "GET /",
+        "ms": 30.51,
+        "status": 200,
+        "bytes": 734837
+      },
+      {
+        "t": 119640,
+        "route": "POST /api/characters/chats",
+        "ms": 98.57,
+        "status": 200,
+        "bytes": 45596
+      },
+      {
+        "t": 119951,
+        "route": "POST /api/chats/get",
+        "ms": 77.61,
+        "status": 200,
+        "bytes": 1725280
+      },
+      {
+        "t": 120223,
+        "route": "final:GET /version",
+        "ms": 16.31,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 120226,
+        "route": "final:GET /version",
+        "ms": 2.76,
+        "status": 200,
+        "bytes": 168
+      },
+      {
+        "t": 120529,
+        "route": "final:POST /api/characters/all",
+        "ms": 303.2,
+        "status": 200,
+        "bytes": 11697769
+      }
+    ]
+  },
+  "restarts": {
+    "count": 1,
+    "scheduledEveryMinutes": 1,
+    "stopModeNote": "Windows has no SIGTERM delivery to a console process: taskkill /T is attempted first and /T /F only if the process survives. The exact mode per restart is in restarts[].stopMode, so a graceful-drain claim cannot be made from this artifact.",
+    "entries": [
+      {
+        "index": 1,
+        "atMs": 60100,
+        "stoppedPid": 14400,
+        "stopMode": "taskkill /T refused (exit 128: ERROR: The process with PID 2580 (child process of PID 14400) could not be terminated. Reason: This process can only be terminated forcefully (with /F option). ); forced with taskkill /T /F",
+        "stopMs": 1649,
+        "orphanAfterStop": false,
+        "pid": 12376,
+        "port": 54399,
+        "bootMs": 131,
+        "downtimeMs": 1881,
+        "integrity": {
+          "phase": "after-restart-1",
+          "atMs": 61981,
+          "savedSeq": 27,
+          "httpStatus": 200,
+          "httpMatches": true,
+          "messageCount": 2,
+          "diskPath": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18-postverify\\tree\\data\\default-user\\chats\\A15 Character\\A18 Soak.jsonl",
+          "diskSha256": "53fb8400ff85e0ccbf9d24814a6776a3f76c980a7a12180490ee28a6a1295972",
+          "diskBytes": 223,
+          "expectedSha256": "53fb8400ff85e0ccbf9d24814a6776a3f76c980a7a12180490ee28a6a1295972",
+          "diskMatches": true,
+          "ok": true
+        },
+        "ok": true
+      }
+    ]
+  },
+  "segments": [
+    {
+      "index": 0,
+      "pid": 14400,
+      "bootMs": 914,
+      "startedAtMs": 0,
+      "endedAtMs": 60150,
+      "stop": {
+        "mode": "taskkill /T refused (exit 128: ERROR: The process with PID 2580 (child process of PID 14400) could not be terminated. Reason: This process can only be terminated forcefully (with /F option). ); forced with taskkill /T /F",
+        "ms": 1649,
+        "orphanAfterStop": false
+      },
+      "sampleCount": 5,
+      "firstRssBytes": 78876672,
+      "lastRssBytes": 108322816,
+      "peakRssBytes": 114008064,
+      "cpu": {
+        "userMs": 5046,
+        "systemMs": 3141
+      },
+      "rssTrend": {
+        "sampleCount": 5,
+        "firstBytes": 78876672,
+        "lastBytes": 108322816,
+        "deltaBytes": 29446144,
+        "slopeBytesPerMinute": 28946297,
+        "windowMinutes": 1,
+        "verdict": "UNPROVEN",
+        "reason": "RSS is the only external memory observable; live heap and Go allocator retention are not separable from outside, so an upward RSS slope is not evidence of a leak"
+      }
+    },
+    {
+      "index": 1,
+      "pid": 12376,
+      "bootMs": 131,
+      "startedAtMs": 61940,
+      "endedAtMs": 120613,
+      "stop": {
+        "mode": "taskkill /T refused (exit 128: ERROR: The process with PID 6840 (child process of PID 12376) could not be terminated. Reason: This process can only be terminated forcefully (with /F option). ); forced with taskkill /T /F",
+        "ms": 1463,
+        "orphanAfterStop": false
+      },
+      "sampleCount": 7,
+      "firstRssBytes": 20623360,
+      "lastRssBytes": 76435456,
+      "peakRssBytes": 104108032,
+      "cpu": {
+        "userMs": 3594,
+        "systemMs": 4641
+      },
+      "rssTrend": {
+        "sampleCount": 7,
+        "firstBytes": 20623360,
+        "lastBytes": 76435456,
+        "deltaBytes": 55812096,
+        "slopeBytesPerMinute": 44893636,
+        "windowMinutes": 0.98,
+        "verdict": "UNPROVEN",
+        "reason": "RSS is the only external memory observable; live heap and Go allocator retention are not separable from outside, so an upward RSS slope is not evidence of a leak"
+      }
+    }
+  ],
+  "integrity": {
+    "savedChat": {
+      "avatar": "A15 Character.png",
+      "fileId": "A18 Soak",
+      "path": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18-postverify\\tree\\data\\default-user\\chats\\A15 Character\\A18 Soak.jsonl",
+      "lastSavedSeq": 48,
+      "saveCount": 48,
+      "lastSaveAtMs": 114567,
+      "checks": [
+        {
+          "phase": "after-restart-1",
+          "atMs": 61981,
+          "savedSeq": 27,
+          "httpStatus": 200,
+          "httpMatches": true,
+          "messageCount": 2,
+          "diskPath": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18-postverify\\tree\\data\\default-user\\chats\\A15 Character\\A18 Soak.jsonl",
+          "diskSha256": "53fb8400ff85e0ccbf9d24814a6776a3f76c980a7a12180490ee28a6a1295972",
+          "diskBytes": 223,
+          "expectedSha256": "53fb8400ff85e0ccbf9d24814a6776a3f76c980a7a12180490ee28a6a1295972",
+          "diskMatches": true,
+          "ok": true
+        },
+        {
+          "phase": "final",
+          "atMs": 120529,
+          "savedSeq": 48,
+          "httpStatus": 200,
+          "httpMatches": true,
+          "messageCount": 2,
+          "diskPath": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18-postverify\\tree\\data\\default-user\\chats\\A15 Character\\A18 Soak.jsonl",
+          "diskSha256": "ae66ef8be9ce3f536a4fcd0ce0836ffdb0e30eb1bd560bf92a9cdd3f8b18872f",
+          "diskBytes": 223,
+          "expectedSha256": "ae66ef8be9ce3f536a4fcd0ce0836ffdb0e30eb1bd560bf92a9cdd3f8b18872f",
+          "diskMatches": true,
+          "ok": true
+        }
+      ],
+      "passed": 2,
+      "failed": 0
+    },
+    "fixtureChat": {
+      "path": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18-postverify\\tree\\data\\default-user\\chats\\A15 Character\\A15 Chat 0000.jsonl",
+      "present": true,
+      "sha256Before": "ac19a794ff363bc10339aa6d30310577e450c0422c0100ba6c421807fc82292f",
+      "sha256After": "ac19a794ff363bc10339aa6d30310577e450c0422c0100ba6c421807fc82292f",
+      "unchanged": true
+    },
+    "probeCard": {
+      "path": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a18-postverify\\tree\\data\\default-user\\characters\\A15 Card 00000.png",
+      "sha256Before": "ec4c572df227ada003184b703bf17a94826dee3ff8275360c69aade741acb2fd",
+      "sha256After": "ec4c572df227ada003184b703bf17a94826dee3ff8275360c69aade741acb2fd",
+      "bytesUnchanged": true
+    }
+  },
+  "externalModification": {
+    "exercised": true,
+    "probes": 1,
+    "passed": 1,
+    "failed": 0,
+    "card": "A15 Card 00000.png",
+    "calibration": {
+      "card": "A15 Card 00000.png",
+      "status": 200,
+      "found": true,
+      "name": "A15 Card"
+    },
+    "method": "fs.utimes on one card PNG (bytes untouched), then POST /api/characters/all; assert 200 and the card avatar/name still present",
+    "results": [
+      {
+        "atMs": 62045,
+        "card": "A15 Card 00000.png",
+        "mtimeBeforeMs": 1794138643840.1782,
+        "mtimeAfterMs": 1794138652742,
+        "mtimeChanged": true,
+        "status": 200,
+        "ms": 2428.35,
+        "bytes": 11697767,
+        "cardCount": 1001,
+        "cardPresent": true,
+        "namePresent": true,
+        "ok": true
+      }
+    ]
+  },
+  "availability": {
+    "checks": 7,
+    "ok": 7,
+    "failed": 0,
+    "samples": [
+      {
+        "atMs": 15365,
+        "status": 200,
+        "ms": 11.34,
+        "error": null
+      },
+      {
+        "atMs": 30341,
+        "status": 200,
+        "ms": 2.01,
+        "error": null
+      },
+      {
+        "atMs": 48850,
+        "status": 200,
+        "ms": 5.01,
+        "error": null
+      },
+      {
+        "atMs": 62044,
+        "status": 200,
+        "ms": 5.95,
+        "error": null
+      },
+      {
+        "atMs": 75252,
+        "status": 200,
+        "ms": 4.85,
+        "error": null
+      },
+      {
+        "atMs": 90268,
+        "status": 200,
+        "ms": 5.9,
+        "error": null
+      },
+      {
+        "atMs": 105265,
+        "status": 200,
+        "ms": 7.48,
+        "error": null
+      }
+    ]
+  },
+  "memory": {
+    "peakRssBytes": 114008064,
+    "perSegment": [
+      {
+        "index": 0,
+        "firstRssBytes": 78876672,
+        "lastRssBytes": 108322816,
+        "peakRssBytes": 114008064,
+        "sampleCount": 5,
+        "rssTrend": {
+          "sampleCount": 5,
+          "firstBytes": 78876672,
+          "lastBytes": 108322816,
+          "deltaBytes": 29446144,
+          "slopeBytesPerMinute": 28946297,
+          "windowMinutes": 1,
+          "verdict": "UNPROVEN",
+          "reason": "RSS is the only external memory observable; live heap and Go allocator retention are not separable from outside, so an upward RSS slope is not evidence of a leak"
+        }
+      },
+      {
+        "index": 1,
+        "firstRssBytes": 20623360,
+        "lastRssBytes": 76435456,
+        "peakRssBytes": 104108032,
+        "sampleCount": 7,
+        "rssTrend": {
+          "sampleCount": 7,
+          "firstBytes": 20623360,
+          "lastBytes": 76435456,
+          "deltaBytes": 55812096,
+          "slopeBytesPerMinute": 44893636,
+          "windowMinutes": 0.98,
+          "verdict": "UNPROVEN",
+          "reason": "RSS is the only external memory observable; live heap and Go allocator retention are not separable from outside, so an upward RSS slope is not evidence of a leak"
+        }
+      }
+    ],
+    "crossRestartComparable": false,
+    "crossRestartNote": "RSS is not comparable across restarts: each boot starts a new process with an empty heap, so first/last/trend are reported PER SEGMENT and never pooled.",
+    "leakVerdict": "UNPROVEN",
+    "leakVerdictReason": "RSS is the only external memory observable. Live heap and Go allocator retention are not separable from outside the process, so neither an upward slope nor a plateau proves or disproves a leak. A leak claim needs an in-process heap profile (not exposed by this binary).",
+    "handles": null,
+    "handlesReason": "procstat reports handles=null on Windows (GetProcessHandleCount is not sampled); no handle/FD count is claimed anywhere in this artifact."
+  },
+  "cpu": {
+    "userMs": 8640,
+    "systemMs": 7782,
+    "perSegment": [
+      {
+        "index": 0,
+        "userMs": 5046,
+        "systemMs": 3141
+      },
+      {
+        "index": 1,
+        "userMs": 3594,
+        "systemMs": 4641
+      }
+    ],
+    "method": "procstat GetProcessTimes deltas per segment (first vs last sample of that boot)"
+  },
+  "failures": [],
+  "notes": [
+    "handles/FDs are NOT measured: procstat reports handles=null on Windows and no GetProcessHandleCount sample exists, so this artifact claims no FD count.",
+    "goroutine count is NOT measured: it is not observable from outside the process and the product exposes no pprof endpoint; adding one would change the binary under test.",
+    "provider streaming/generation is NOT measured: the soak drives storage and settings routes only, issues no provider request and consumes no SSE stream. A provider soak needs a controlled peer plus credentials.",
+    "graceful shutdown is NOT measured: Windows cannot deliver SIGTERM to a console process, so the stop is taskkill /T (forced /T /F when refused); shutdown-flush behaviour is therefore not exercised by this artifact.",
+    "a LEAK is UNPROVEN: RSS is the only external memory observable, and live heap vs allocator retention cannot be separated from it.",
+    "same-port restart is NOT measured: every boot takes a fresh loopback port, so TCP state or a pooled connection to the previous origin cannot manufacture a restart failure.",
+    "the chat-save integrity check compares the last successfully saved array to the HTTP read-back AND to the on-disk bytes; a mismatch aborts the run rather than overwriting the evidence.",
+    "latencies are loopback and include harness-side body consumption; on a shared host they are not an SLO. The sample count is stated beside every percentile."
+  ]
+}

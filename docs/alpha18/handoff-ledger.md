@@ -74,24 +74,52 @@ was fixed and the fixture re-recorded in `a417721` (test infrastructure only; th
 unchanged), all thirteen gates were re-dispatched, and the full wave is green there. No product claim rests
 on the refused wave.
 
-## 5. Release rehearsal, tag and publication
+## 5. Release rehearsal, tag and publication — PUBLISHED
 
 - **Pre-tag rehearsal.** `GoTavern Release` **42465398892** (workflow_dispatch, completed/success) built and
   archive-inspected the six archives, executed the linux/arm64 and darwin/amd64 legs, recorded the
   darwin/arm64 limitation and the windows/arm64 boundary, and passed `prepublish-qualification`; it
   published nothing (a dispatch cannot publish). It ran at the same frozen candidate `a417721`.
-- **Benchmark comparison.** `GoTavern bench profiles` **42465401011** (workflow_dispatch, success) compared
-  the candidate against the regenerated committed baseline: `comparison: passed`, `failures: 0`.
-- **Tag.** PENDING — annotated tag `v0.1.0-alpha.18` created at `a417721` only after this PASS.
-- **Publication.** PENDING — `GoTavern Release` tag-push run, release flags, assets and body.
-- **Post-publication verification.** PENDING — see §6.
-
-## 5. Release rehearsal, tag and publication
-
-PENDING: rehearsal run id, the annotated tag object and its peeled commit, `GoTavern Release` run id,
-publication timestamp and flags, asset list, Docker digest, and the post-publication verification (checksums
-6/6 re-downloaded, published binary `version`, unpacked run with a real data request and a write/read closure,
-install smoke, published-extension smoke, `releases/latest`, alpha.16/alpha.17 tags unchanged).
+- **Benchmark comparison.** `GoTavern bench profiles` **42465401011** (workflow_dispatch, success):
+  `comparison: passed`, `failures: 0` against the regenerated committed baseline.
+- **Tag.** annotated `v0.1.0-alpha.18`, tag object **`bc1289be633cffbf4808fd544bad6741757fc00c`**, peeling to
+  the frozen gated candidate **`a41772152a76cd3c42c52b63f2a377e2963de6fd`**. Created only after the
+  verifier's PASS 13/13; never moved.
+- **Publication.** `GoTavern Release` **42477164985** (tag push, completed/success; all thirteen jobs green:
+  six builds, `execute-linux-arm64`, `execute-darwin-amd64`, `darwin-arm64-recorded-downgrade`,
+  `windows-arm64-boundary`, `prepublish-qualification`, `publish`, `post-release-facts`).
+  https://github.com/cocokoishi/GoTavern/releases/tag/v0.1.0-alpha.18 — `draft=false`, `prerelease=false`,
+  published **2026-11-08T11:48:35Z**, **7 assets** (six canonical archives + `checksums.txt`), and the publish
+  job appended the 13-gate same-SHA table (the body names target commit `a417721`).
+  `releases/latest` resolves to `v0.1.0-alpha.18`.
+- **Independent post-publication verification (not the publish job's own claims).**
+  - all seven assets downloaded again; the release's own `checksums.txt` verified **6/6 archives OK, 0
+    failures**;
+  - the published `windows-arm64` archive unpacked and executed: `gotavern version --json` prints
+    `gotavern_version: v0.1.0-alpha.18`, `sillytavern_version: 1.19.0`, `sillytavern_commit: 06bde939…`;
+    `BUILD-INFO.txt` names `GoTavern release v0.1.0-alpha.18` / `target windows`; the extracted
+    `src/tokenizers` tree carries 23 files;
+  - a **real run of the published binary** (unpacked, fresh data root): a 2-minute mixed-route soak —
+    330 requests, **0 errors**, one restart, saved-chat integrity 2/2 across the restart, 7/7 availability
+    checks, no orphan process; artifact `docs/alpha18/evidence/published-soak.json`;
+  - **installer path**: `GoTavern published-release install smoke` **42477554149** (dispatch,
+    completed/success) installs the published artifacts over real TLS, boots them and asserts the tag and
+    tokenizer layout;
+  - **published artifact + container extension journey**: `GoTavern published-extension smoke`
+    **42477517830** — result recorded in §6 after it completed (it was still running when this ledger was
+    written; the container leg completed successfully and is cited under container identity below);
+  - **Container identity.** GHCR reports digest
+    `sha256:2e1836748d7a430c81e921454ef823ae1902e0b07f3d5361c6abdf5c1c823a08` carrying BOTH
+    `v0.1.0-alpha.18` and `latest` (one image, one digest); alpha.17's digest `sha256:2b029cc2…` and
+    alpha.16's `sha256:37a7f69f…` are unchanged (queried from the registry, not assumed);
+  - **tags unchanged.** `git ls-remote` answers alpha.18 object `bc1289be…`, alpha.17 object
+    `7eed8eed49515176e210b2c30b63bac5380c5b70` and alpha.16 object
+    `b7d81cd1296e842d79997ea70c49dabeed04da31` — neither older tag moved; no force push, no `--no-verify`.
+- **Post-release facts.** the release workflow's `post-release-facts` job regenerated the generated facts for
+  the published tag and committed **`81d70dc`** ("chore(docs): regenerate the generated facts for the
+  published v0.1.0-alpha.18 tag") to `main` and dispatched `GoTavern CI` **42477379808** at that commit —
+  a post-publication documentation check, not a release gate (the release gates are the thirteen dispatched
+  runs at the tag target).
 
 ## 6. Post-release evidence
 
@@ -102,6 +130,9 @@ install smoke, published-extension smoke, `releases/latest`, alpha.16/alpha.17 t
   consistent with a bounded cache fill and is not claimed as leak-free). The first attempt
   (`soak-60min-attempt1.json`) is kept because its single failure was an unrelated leftover `gotavern.exe`
   from an earlier local e2e run that the harness correctly refused to ignore.
+- **Published-binary soak (post-publication).** `docs/alpha18/evidence/published-soak.json`: the unpacked
+  published `windows/arm64` archive served the same mixed routes for 2 minutes — 330 requests, 0 errors,
+  integrity 2/2 across a restart, 7/7 availability, no orphan.
 - **Process-level paired ABBA.** `docs/alpha18/perf/abba-process.json` (published alpha.17 binary vs this
   candidate, four alternating rounds): 10,000-card boot 28,017 -> 351 ms, list median 5,744 -> 2,739 ms
   (-52.3%), 1,000 cards 2,956 -> 192 ms / 533 -> 247 ms, mixed-large 3,132 -> 804 ms / 529 -> 257 ms.

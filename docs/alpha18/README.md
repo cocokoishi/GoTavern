@@ -1,6 +1,6 @@
 # alpha.18 program — contract, state and pointers
 
-**Status: WAVE PASS 13/13 at the frozen candidate `a41772152a76cd3c42c52b63f2a377e2963de6fd`; the tag and publication are the remaining steps (records: `docs/alpha18/same-sha-evidence.md`, `docs/alpha18/handoff-ledger.md`, `docs/alpha18/release-evidence.json`).** Alpha.18 is the deep product-engineering round: it fixes the
+**Status: PUBLISHED.** `v0.1.0-alpha.18` was published 2026-11-08T11:48:35Z (`draft=false`, `prerelease=false`, 7 assets, `releases/latest`) from the frozen candidate `a41772152a76cd3c42c52b63f2a377e2963de6fd`, which carries the 13/13 same-SHA wave. Records: `docs/alpha18/same-sha-evidence.md`, `docs/alpha18/release-evidence.json`, `docs/alpha18/handoff-ledger.md`, `docs/alpha18/evidence/published-soak.json`. Alpha.18 is the deep product-engineering round: it fixes the
 10,000-card performance hotspot alpha.17 profiled, implements the two product capability gaps alpha.17
 recorded (real CORS proxy, pinned chat auto-backups), verifies streaming cancellation with real sockets, runs
 a 60-minute soak, applies the alpha.17 release-evidence rails to the release chain, and publishes through the
