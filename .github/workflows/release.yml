@@ -747,6 +747,56 @@ jobs:
             echo "body=generated" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Emit the unified release evidence contract (same-SHA, fail closed)
+        # THE RELEASE CONSUMES THE SAME UNIFIED EVIDENCE THE VERIFIER READS. This step runs the official verifier
+        # once more with the evidence outputs enabled, so publication rests on ONE machine-readable document
+        # (release-evidence.json + .md) covering all thirteen gates: per-gate run id/event/headSha, required-job
+        # statuses (including SKIPPED detection), artifact names + API sha256 digests, embedded evidence
+        # kind/tier/headSha, pinned-oracle binding, and the selection proof. Fields the Actions API cannot answer are
+        # written as null with derived:false and a reason -- never invented.
+        #
+        # IT FAILS CLOSED: a failing or unprovable gate makes this step exit non-zero before `gh release create`
+        # (which is the next step), and no PASS document is written. It also asserts that the tree this job is
+        # publishing is the tag target the runs were judged at, so the artifacts downloaded above and the verifier's
+        # same-SHA query cannot come from different commits.
+        if: github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v')
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          target="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"
+          checkout_sha="$(git rev-parse HEAD)"
+          if [ "${checkout_sha}" != "${target}" ]; then
+            echo "::error::the publish checkout is ${checkout_sha}, not the tag target ${target}; refusing to publish evidence for a tree the runs did not judge" >&2
+            exit 1
+          fi
+          node scripts/verify-release-gates.mjs \
+            --sha "${target}" --manifest docs/release-manifest.json \
+            --release-evidence-out "${RUNNER_TEMP}/release-evidence.json" \
+            --release-evidence-md-out "${RUNNER_TEMP}/release-evidence.md" \
+            --workflow "${GITHUB_WORKFLOW}" --event "${GITHUB_EVENT_NAME}"
+          # The pinned oracle baseline is read from docs/release-manifest.json (`pinnedSha`) by the verifier, so this
+          # workflow does not repeat the literal: one policy source, and a baseline bump is one manifest edit.
+          {
+            echo
+            echo "## Unified release evidence contract"
+            echo
+            cat "${RUNNER_TEMP}/release-evidence.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the unified release evidence contract
+        # The contract is published evidence, so it is retained as an artifact of the publish run (same retention as
+        # the release archives' provenance needs) and its absence is an error, not a silent skip.
+        if: github.ref_type == 'tag' && startsWith(github.ref, 'refs/tags/v') && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-contract
+          path: |
+            ${{ runner.temp }}/release-evidence.json
+            ${{ runner.temp }}/release-evidence.md
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Publish the release
         # A DISPATCH NEVER PUBLISHES. The workflow can be run manually on ANY candidate SHA; only a push
         # of a version TAG can create a release, and this condition is that gate (not a step that could be

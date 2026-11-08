@@ -42,6 +42,15 @@
 
 name: Browser differential
 
+# THE RUN NAME IS RELEASE EVIDENCE, not decoration. The `mode` input selects which browser surfaces are driven
+# (mode=all is the release selection; generation/stream/cancel/preset/regex/assets/helper are narrowed), but every
+# mode runs the SAME `differential` job, so neither the job list nor any artifact distinguishes them and the Actions
+# API exposes no dispatch inputs. This run-name is evaluated from the input and becomes the run's `display_title`,
+# which the manifest's `requiredSelection.titleIncludes: ["mode=all"]` reads: a narrowed dispatch says mode=<surface>
+# and is refused, and a push-labelled run says `auto` (the push path drives the assets surface only) because a push
+# run can never satisfy a requiredEvent: workflow_dispatch gate.
+run-name: Browser differential mode=${{ github.event_name == 'workflow_dispatch' && (inputs.mode || 'all') || 'auto' }}
+
 on:
   # A PUSH THAT CHANGES THE ASSET GATE MUST PROVE THE ASSET GATE. The picture surface has its own files and
   # its own cheap drive (two browser boots and one comparison, ~5 minutes), and it is the ONE surface whose

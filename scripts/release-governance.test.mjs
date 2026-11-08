@@ -1199,3 +1199,119 @@ test('emitter: a failing wave is NOT publishable and writes no evidence file', a
     assert.equal(existsSync(outPath), false, 'a FAIL document must never be written where a publish path could read it');
 });
 
+// ===================================================================================================================
+// ALPHA.18: THE RAILS ARE APPLIED TO THE COMMITTED MANIFEST, AND THE WORKFLOWS PROVE WHAT THEY CLAIM.
+//
+// Alpha.17 added the rails but left the manifest unchanged, so nothing enforced them. These cases pin the APPLIED
+// state: every gate must carry a selection requirement, the four artifact gates must bind bytes and identity, the two
+// gates whose producer writes a differently named pinned member must name that member, and the job names must be the
+// ACTUAL display names the Actions API reports (never a matrix-generated name, which would make the manifest brittle).
+// ===================================================================================================================
+
+test('manifest: the applied alpha.18 rails are present on all thirteen gates', () => {
+    const committed = JSON.parse(readFileSync(path.join(ROOT, 'docs', 'release-manifest.json'), 'utf8'));
+    assert.deepEqual(validateManifest(committed), []);
+    assert.equal(committed.pinnedSha, PINNED, 'the release policy must name the pinned oracle commit');
+    assert.equal(committed.requiredGates.length, 13);
+    const byWorkflow = Object.fromEntries(committed.requiredGates.map((gate) => [gate.workflow, gate]));
+    // Every gate proves its selection somehow; a gate with no selection requirement is the narrowed-dispatch hole.
+    for (const gate of committed.requiredGates) {
+        assert.ok(gate.requiredSelection, `${gate.workflow}: no requiredSelection`);
+        assert.ok(Object.keys(gate.requiredSelection).length > 0, `${gate.workflow}: empty requiredSelection`);
+        assert.equal(gate.requiredEvent, 'workflow_dispatch', `${gate.workflow}: release evidence must be a deliberate dispatch`);
+    }
+    // The two gates whose full selection is NOT visible in a job list must read the run-name (display_title) that the
+    // workflow itself sets from the dispatch input.
+    assert.deepEqual(byWorkflow['GoTavern CI'].requiredSelection, { titleIncludes: ['probes=full'] });
+    assert.deepEqual(byWorkflow['Browser differential'].requiredSelection, { titleIncludes: ['mode=all'] });
+    // The outcome-defined gates prove it from their content instead.
+    assert.deepEqual(byWorkflow['Combination journey differential'].requiredSelection.evidence, [
+        { path: 'profile', equals: 'e03e04' },
+        { path: 'tier', equals: 'full' },
+    ]);
+    assert.deepEqual(byWorkflow['GoTavern long-lived corpus qualification'].requiredSelection.evidence, [{ path: 'size', equals: 'medium' }]);
+    // Pinned-oracle binding where the producer actually writes a pinned member; the Node gate's producer calls it
+    // pinnedCommit, so the manifest names that member rather than pretending every producer uses the same field name.
+    assert.equal(byWorkflow['Combination journey differential'].requiredPinnedSha, PINNED);
+    assert.equal(byWorkflow['GoTavern Node stock tree round trip'].requiredPinnedSha, PINNED);
+    assert.equal(byWorkflow['GoTavern Node stock tree round trip'].requiredEvidence.pinnedShaField, 'pinnedCommit');
+    // The four artifact gates bind the bytes (API sha256 digest) and the run identity (freshness).
+    for (const workflow of [
+        'Combination journey differential',
+        'Third-party extension compatibility',
+        'GoTavern long-lived corpus qualification',
+        'GoTavern Node stock tree round trip',
+    ]) {
+        const gate = byWorkflow[workflow];
+        assert.ok(gate.requiredArtifact, `${workflow}: no requiredArtifact`);
+        assert.equal(gate.requireArtifactDigest, true, `${workflow}: artifact digest not bound`);
+        assert.equal(gate.requiredArtifactFresh, true, `${workflow}: artifact freshness not bound`);
+    }
+    // JOB NAMES MUST BE THE API DISPLAY NAMES. Matrix-generated names carry their values ("shard (1)",
+    // "cross-platform (os, platform, binary)") and would break on a matrix change; the helper-state job's display name
+    // is not its job id, which is the only place the mapping needs recording.
+    for (const gate of committed.requiredGates) {
+        for (const job of gate.requiredJobs ?? []) {
+            assert.doesNotMatch(job, /^(shard|cross-platform) \(/, `${gate.workflow}: matrix-generated job name ${JSON.stringify(job)} must not be required`);
+        }
+    }
+    const helperWorkflow = readFileSync(path.join(ROOT, '.github', 'workflows', 'helper-state.yml'), 'utf8');
+    assert.match(helperWorkflow, /^    name: helper state differential \(ubuntu, bounded\)\s*$/m, 'the helper-state job display name moved; the manifest name would silently stop matching');
+    assert.deepEqual(byWorkflow['Helper state differential'].requiredJobs, ['helper state differential (ubuntu, bounded)']);
+});
+
+test('selection: a legacy run whose display title predates the run-name is refused as narrowed-selection', () => {
+    // THIS IS THE MEASURED SHAPE of the alpha.17 CI/Browser refusals: the historical wave's display_title is just the
+    // workflow name because the workflow did not set run-name yet. The rail must refuse both by name rather than
+    // treating "no title evidence" as a pass, and the positive control must pass with the run-name the workflow sets.
+    for (const [workflowName, marker] of [['GoTavern CI', 'probes=full'], ['Browser differential', 'mode=all']]) {
+        const entry = {
+            schemaVersion: 1,
+            sameShaRequired: true,
+            requiredGates: [{ workflow: workflowName, why: 'alpha.18 selection rail', requiredEvent: 'workflow_dispatch', requiredSelection: { titleIncludes: [marker] } }],
+        };
+        const legacy = evaluateGates({ manifest: entry, sha: SHA, runs: [{ ...run(workflowName, { id: 81 }), display_title: workflowName }] });
+        assert.equal(legacy.ok, false, `${workflowName}: a title without ${marker} must not pass`);
+        assert.ok(legacy.problems.some((problem) => /narrowed-selection/.test(problem) && problem.includes(marker)), JSON.stringify(legacy.problems));
+        const named = evaluateGates({ manifest: entry, sha: SHA, runs: [{ ...run(workflowName, { id: 82 }), display_title: `${workflowName} ${marker}` }] });
+        assert.equal(named.ok, true, JSON.stringify(named.problems));
+        assert.equal(named.rows[0].selection.provenBy, 'display-title');
+    }
+});
+
+test('pinnedSha: requiredEvidence.pinnedShaField reads the producer\'s differently named member', () => {
+    const entry = gateManifest({
+        requiredArtifact: 'node-stock-tree-evidence',
+        requiredEvidence: { kind: NODE_EVIDENCE_KIND, pinnedShaField: 'pinnedCommit' },
+        requiredPinnedSha: PINNED,
+    });
+    const evidence = (extra = {}) => ({ schemaVersion: 1, kind: NODE_EVIDENCE_KIND, headSha: SHA, ok: true, roundTripOk: true, pinnedCommit: PINNED, ...extra });
+    const runWith = (evidenceDoc) => ({ ...run('Workflow A', { id: 83 }), artifacts: [{ name: 'node-stock-tree-evidence', expired: false, evidence: evidenceDoc }] });
+    const right = evaluateGates({ manifest: entry, sha: SHA, runs: [runWith(evidence())] });
+    assert.equal(right.ok, true, JSON.stringify(right.problems));
+    const missing = evaluateGates({ manifest: entry, sha: SHA, runs: [runWith(evidence({ pinnedCommit: undefined }))] });
+    assert.equal(missing.ok, false);
+    assert.ok(missing.problems.some((problem) => /pinned-sha-missing/.test(problem) && /pinnedCommit/.test(problem)), JSON.stringify(missing.problems));
+});
+
+test('emitter: a title-proven gate is recorded in selection.proven, not in the unverifiable list', () => {
+    const entry = {
+        schemaVersion: 1,
+        sameShaRequired: true,
+        requiredGates: [{ workflow: 'Browser differential', why: 'alpha.18 selection rail', requiredEvent: 'workflow_dispatch', requiredSelection: { titleIncludes: ['mode=all'] } }],
+    };
+    const doc = buildReleaseEvidence({
+        manifest: entry,
+        sha: SHA,
+        runs: [{ ...run('Browser differential', { id: 84 }), display_title: 'Browser differential mode=all' }],
+        pinnedSha: PINNED,
+        pinnedShaSource: 'manifest.pinnedSha',
+    });
+    assert.equal(doc.overall.result, 'PASS');
+    assert.deepEqual(doc.selection.proven, ['Browser differential']);
+    assert.deepEqual(doc.selection.unverifiable, []);
+    assert.equal(doc.gates[0].selection.status, 'proven');
+    assert.equal(doc.gates[0].selection.provenBy, 'display-title');
+    assert.match(renderReleaseEvidenceMarkdown(doc), /proven \(display-title\)/);
+});
+

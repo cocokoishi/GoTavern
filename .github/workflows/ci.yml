@@ -1,5 +1,15 @@
 name: GoTavern CI
 
+# THE RUN NAME IS RELEASE EVIDENCE, not decoration. `scripts/verify-release-gates.mjs` must prove that the
+# RELEASE-SELECTED oracle sweep ran, and the Actions API exposes no dispatch inputs for a run. The `probes`
+# input narrows the sweep (`-f probes=<list>`) while the SAME jobs stay green, so a job list alone cannot
+# tell a full sweep from a narrowed one. This run-name is evaluated from the dispatch input and becomes the
+# run's `display_title`, which the manifest's `requiredSelection.titleIncludes: ["probes=full"]` reads: an
+# empty dispatch (`-f probes=`) says probes=full; a narrowed dispatch says probes=<list> and is refused.
+# Non-dispatch triggers (push) say `auto`: they can never satisfy a `requiredEvent: workflow_dispatch` gate,
+# and the label must not claim a full sweep the automatic path did not run.
+run-name: GoTavern CI probes=${{ github.event_name == 'workflow_dispatch' && (inputs.probes || 'full') || 'auto' }}
+
 on:
   push:
     branches: [main]

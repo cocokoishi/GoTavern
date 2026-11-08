@@ -1,98 +1,272 @@
 {
   "schemaVersion": 1,
   "sameShaRequired": true,
-  "comment": "The required gates for a GoTavern release. scripts/verify-release-gates.mjs runs inside the publish job BEFORE gh release create and fails closed unless every workflow named here has a completed successful run whose head_sha is the commit the release tag points at. This file is hand-maintained on purpose (it is the release policy); the gate that consumes it is machine-enforced. GoTavern Release itself is NOT listed: a workflow cannot be its own precondition. The publishing run supplies its own build + prepublish qualification at the same tag commit, and the prepublish job executes the bare installers against the archives this very run built. A requiredEvent of workflow_dispatch means an automatically-triggered run (a push/PR run, which narrows its oracle probe set by changed paths) cannot satisfy the gate: the release evidence must come from a run a release manager deliberately dispatched with the full selection at the candidate SHA. THREE FURTHER RAILS may be named per gate, and any gate naming one MUST name its requiredEvent too so a push run cannot carry the same fixed-name artifact past the gate: requiredJobs (each named job must be completed/success IN the cited run -- the runs API reports a workflow as success even when a job's `if:` evaluated false, which is exactly how a default small dispatch of the long-lived workflow is green while medium-corpus is SKIPPED); requiredArtifact (the fixed-name uploaded evidence bundle must be attached to the cited run and not expired); requiredEvidence (the content contract for that artifact: its kind, the required tier marker, the embedded head SHA which must equal the candidate, plus required truthy fields and 64-hex digests). A gate whose requiredEvent is `schedule` is satisfied only by a scheduled/cron run at the candidate SHA, never by a dispatch.",
+  "comment": "The required gates for a GoTavern release. scripts/verify-release-gates.mjs runs inside the publish job BEFORE gh release create and fails closed unless every workflow named here has a completed successful run whose head_sha is the commit the release tag points at. This file is hand-maintained on purpose (it is the release policy); the gate that consumes it is machine-enforced. GoTavern Release itself is NOT listed: a workflow cannot be its own precondition. The publishing run supplies its own build + prepublish qualification at the same tag commit, and the prepublish job executes the bare installers against the archives this very run built. A requiredEvent of workflow_dispatch means an automatically-triggered run (a push/PR run, which narrows its oracle probe set by changed paths) cannot satisfy the gate: the release evidence must come from a run a release manager deliberately dispatched with the full selection at the candidate SHA. THREE FURTHER RAILS may be named per gate, and any gate naming one MUST name its requiredEvent too so a push run cannot carry the same fixed-name artifact past the gate: requiredJobs (each named job must be completed/success IN the cited run -- the runs API reports a workflow as success even when a job's `if:` evaluated false, which is exactly how a default small dispatch of the long-lived workflow is green while medium-corpus is SKIPPED); requiredArtifact (the fixed-name uploaded evidence bundle must be attached to the cited run and not expired); requiredEvidence (the content contract for that artifact: its kind, the required tier marker, the embedded head SHA which must equal the candidate, plus required truthy fields and 64-hex digests). A gate whose requiredEvent is `schedule` is satisfied only by a scheduled/cron run at the candidate SHA, never by a dispatch. EIGHT FURTHER RAILS are applied per gate where a REAL API source can prove them: requiredSelection (narrowed-dispatch refusal from required jobs, embedded evidence members, or the run display title that the workflow's own run-name sets from its dispatch input), requiredPinnedSha (the embedded evidence must name the pinned oracle commit; requiredEvidence.pinnedShaField names the member when a producer writes it as pinnedCommit), requireArtifactDigest (the Actions API sha256:<64hex> artifact digest must exist, binding the gate to the bytes it consumed) and requiredArtifactFresh (the artifact must belong to the cited run/attempt, not an older one). A gate may name requiredSelection.evidence only when its artifact's release-evidence.json actually carries the member, and titleIncludes only when the workflow sets run-name from the dispatch input; everything the API cannot prove stays un-named and is recorded as selection-unverifiable in the unified release-evidence document instead of being assumed.",
   "requiredGates": [
     {
       "workflow": "GoTavern CI",
-      "why": "verify (gofmt, generated facts, compatibility matrix, classifier table, Go suite, vet, build, assets verify), race, browser evidence and the oracle sweep",
-      "requiredEvent": "workflow_dispatch"
+      "why": "verify (gofmt, generated facts, compatibility matrix, classifier table, Go suite, vet, build, assets verify), race, browser evidence and the oracle sweep RAIL: the six named jobs must be green IN the cited run (a push/PR run leaves oracle SKIPPED, which is why the dispatch event rail is load-bearing), and the run-name the workflow sets from its probes input must say probes=full -- a `-f probes=<list>` dispatch narrows the oracle sweep while the same jobs stay green, so only the title proves the full selection.",
+      "requiredEvent": "workflow_dispatch",
+      "requiredJobs": [
+        "changes",
+        "browser-evidence",
+        "verify",
+        "crash-gate",
+        "race",
+        "oracle"
+      ],
+      "requiredSelection": {
+        "titleIncludes": [
+          "probes=full"
+        ]
+      }
     },
     {
       "workflow": "GoTavern whole-session differential",
-      "why": "one stock tree per subject, one browser lineage, restart on the same tree, and the 39-guard judgement",
-      "requiredEvent": "workflow_dispatch"
+      "why": "one stock tree per subject, one browser lineage, restart on the same tree, and the 39-guard judgement RAIL: the single whole-session job is the whole selection; a skipped/absent job is refused.",
+      "requiredEvent": "workflow_dispatch",
+      "requiredJobs": [
+        "whole-session"
+      ],
+      "requiredSelection": {
+        "jobs": [
+          "whole-session"
+        ]
+      }
     },
     {
       "workflow": "GoTavern world-info slot ordering",
-      "why": "before/after/atDepth world-info slots reach the final provider request in pinned's order",
-      "requiredEvent": "workflow_dispatch"
+      "why": "before/after/atDepth world-info slots reach the final provider request in pinned's order RAIL: the single worldinfo-slots job is the whole selection.",
+      "requiredEvent": "workflow_dispatch",
+      "requiredJobs": [
+        "worldinfo-slots"
+      ],
+      "requiredSelection": {
+        "jobs": [
+          "worldinfo-slots"
+        ]
+      }
     },
     {
       "workflow": "GoTavern drop-in qualification",
-      "why": "the packaged archive boots against a stock SillyTavern tree on Linux and Windows",
-      "requiredEvent": "workflow_dispatch"
+      "why": "the packaged archive boots against a stock SillyTavern tree on Linux and Windows RAIL: all three packaging jobs must be green; the Windows job is the half that a Linux-only dispatch would leave out.",
+      "requiredEvent": "workflow_dispatch",
+      "requiredJobs": [
+        "dropin-current-head",
+        "windows-inputs",
+        "dropin-windows"
+      ],
+      "requiredSelection": {
+        "jobs": [
+          "dropin-current-head",
+          "windows-inputs",
+          "dropin-windows"
+        ]
+      }
     },
     {
       "workflow": "Browser differential",
-      "why": "the pinned frontend's real journeys against a real browser, including the Q21 hand-back judge",
-      "requiredEvent": "workflow_dispatch"
+      "why": "the pinned frontend's real journeys against a real browser, including the Q21 hand-back judge RAIL: only the differential job is required (handback-stability and publish-preset are LEGITIMATELY skipped in a mode=all dispatch -- stability_runs=0 and commit_artifacts=false), and the run-name the workflow sets from its mode input must say mode=all; mode=generation/stream/cancel/preset runs the SAME differential job with fewer surfaces, so the run-name is the only API-visible proof of the full selection.",
+      "requiredEvent": "workflow_dispatch",
+      "requiredJobs": [
+        "differential"
+      ],
+      "requiredSelection": {
+        "titleIncludes": [
+          "mode=all"
+        ]
+      }
     },
     {
       "workflow": "GoTavern release qualification",
-      "why": "fresh install, idempotence, update/rollback and cross-baseline data survival from the extracted archive",
-      "requiredEvent": "workflow_dispatch"
+      "why": "fresh install, idempotence, update/rollback and cross-baseline data survival from the extracted archive RAIL: all five qualification jobs are the selection; a skipped job (a narrowed/re-run pipeline) is refused.",
+      "requiredEvent": "workflow_dispatch",
+      "requiredJobs": [
+        "qualify-linux-amd64",
+        "qualify-windows-amd64",
+        "qualify-dropin-linux",
+        "qualify-published-alpha9-upgrade",
+        "qualify-upgrade-rollback"
+      ],
+      "requiredSelection": {
+        "jobs": [
+          "qualify-linux-amd64",
+          "qualify-windows-amd64",
+          "qualify-dropin-linux",
+          "qualify-published-alpha9-upgrade",
+          "qualify-upgrade-rollback"
+        ]
+      }
     },
     {
       "workflow": "GoTavern smoke metrics",
-      "why": "the paired performance record and the soak",
-      "requiredEvent": "workflow_dispatch"
+      "why": "the paired performance record and the soak RAIL: both measurement jobs must be green; the paired record is half the gate.",
+      "requiredEvent": "workflow_dispatch",
+      "requiredJobs": [
+        "measure-linux-amd64",
+        "paired-linux-amd64"
+      ],
+      "requiredSelection": {
+        "jobs": [
+          "measure-linux-amd64",
+          "paired-linux-amd64"
+        ]
+      }
     },
     {
       "workflow": "GoTavern Docker image",
-      "why": "the container image builds, verifies its tokenizer assets and smokes a pinned route",
-      "requiredEvent": "workflow_dispatch"
+      "why": "the container image builds, verifies its tokenizer assets and smokes a pinned route RAIL: the single docker job (build + verify + pinned-route smoke) is the selection.",
+      "requiredEvent": "workflow_dispatch",
+      "requiredJobs": [
+        "docker"
+      ],
+      "requiredSelection": {
+        "jobs": [
+          "docker"
+        ]
+      }
     },
     {
       "workflow": "Helper state differential",
-      "why": "the pinned Tavern Helper's second-order state (scoped variables, in-use preset mutation, lifecycle events, iframe->bridge->disk->next-request closure) on both subjects with a 30-guard judge and teeth",
-      "requiredEvent": "workflow_dispatch"
+      "why": "the pinned Tavern Helper's second-order state (scoped variables, in-use preset mutation, lifecycle events, iframe->bridge->disk->next-request closure) on both subjects with a 30-guard judge and teeth RAIL: requiredJobs matches the job's DISPLAY name exactly as the Actions API reports it (the workflow job id is helper-state but the job sets name: helper state differential (ubuntu, bounded)); a rename must be accompanied by a manifest update, which validateManifestAgainstWorkflowNames cannot catch for jobs and the test suite's real-name assertion does.",
+      "requiredEvent": "workflow_dispatch",
+      "requiredJobs": [
+        "helper state differential (ubuntu, bounded)"
+      ],
+      "requiredSelection": {
+        "jobs": [
+          "helper state differential (ubuntu, bounded)"
+        ]
+      }
     },
     {
       "workflow": "Combination journey differential",
-      "why": "one composed session (character x complex preset x 酒馆助手 x world info x variables x regex x Quick Reply x streaming x save/reload/swipe/regenerate/continue/group/restart) on both subjects, byte-equal per capture, with the five-leg matrix, restart, hand-back and the gate self-test; this is GOAL.md section 9 combination rule evidence and must be green at the release commit. RELEASE RAIL (M6b): the cited run must carry the combination-journey-evidence artifact whose root release-evidence.json states profile=e03e04, interactingScenario=true and tier=full with the candidate head SHA and the five leg digests; a legacy profile=none run (no evidence document) or a narrowed fast/medium dispatch cannot satisfy this gate.",
+      "why": "one composed session (character x complex preset x 酒馆助手 x world info x variables x regex x Quick Reply x streaming x save/reload/swipe/regenerate/continue/group/restart) on both subjects, byte-equal per capture, with the five-leg matrix, restart, hand-back and the gate self-test; this is GOAL.md section 9 combination rule evidence and must be green at the release commit. RELEASE RAIL (M6b): the cited run must carry the combination-journey-evidence artifact whose root release-evidence.json states profile=e03e04, interactingScenario=true and tier=full with the candidate head SHA and the five leg digests; a legacy profile=none run (no evidence document) or a narrowed fast/medium dispatch cannot satisfy this gate. RAIL: the embedded document must additionally state profile=e03e04 and tier=full (a profile=none legacy dispatch writes a document without them, and a fast/medium tier dispatch writes a smaller tier), name the pinned oracle commit, and be the artifact OF THIS RUN with an API sha256 digest -- a copied or reused bundle is refused.",
       "requiredEvent": "workflow_dispatch",
-      "requiredJobs": ["combination-journey"],
+      "requiredJobs": [
+        "combination-journey"
+      ],
       "requiredArtifact": "combination-journey-evidence",
       "requiredEvidence": {
         "kind": "combination-journey-evidence",
         "tierField": "tier",
         "tier": "full",
-        "requireTruthy": ["interactingScenario", "ok", "legs.allRecorded", "teeth.ok", "kit.ok"],
-        "requireSha256": ["documents.go-drive.sha256", "documents.pinned-drive.sha256", "documents.go-restart.sha256", "documents.pinned-restart.sha256", "documents.pinned-handback.sha256"]
-      }
+        "requireTruthy": [
+          "interactingScenario",
+          "ok",
+          "legs.allRecorded",
+          "teeth.ok",
+          "kit.ok"
+        ],
+        "requireSha256": [
+          "documents.go-drive.sha256",
+          "documents.pinned-drive.sha256",
+          "documents.go-restart.sha256",
+          "documents.pinned-restart.sha256",
+          "documents.pinned-handback.sha256"
+        ]
+      },
+      "requiredSelection": {
+        "evidence": [
+          {
+            "path": "profile",
+            "equals": "e03e04"
+          },
+          {
+            "path": "tier",
+            "equals": "full"
+          }
+        ]
+      },
+      "requiredPinnedSha": "06bde939fb1e9c4c8d8641d810f0a916b5bce127",
+      "requireArtifactDigest": true,
+      "requiredArtifactFresh": true
     },
     {
       "workflow": "Third-party extension compatibility",
-      "why": "exactly 20 real, popular, SFW third-party SillyTavern client extensions pinned by commit: each one installed, activated, setting persisted across a real server restart, disabled, re-enabled and uninstalled on stock SillyTavern and on GoTavern, judged by a taxonomy (PASS/FAIL/UPSTREAM_FAIL/N/A). The aggregator requires the observed set to equal the lock's 20 and requires the lock SHA-256, the head SHA and the capability verdicts, so a skipped shard or a dropped extension cannot pass",
+      "why": "exactly 20 real, popular, SFW third-party SillyTavern client extensions pinned by commit: each one installed, activated, setting persisted across a real server restart, disabled, re-enabled and uninstalled on stock SillyTavern and on GoTavern, judged by a taxonomy (PASS/FAIL/UPSTREAM_FAIL/N/A). The aggregator requires the observed set to equal the lock's 20 and requires the lock SHA-256, the head SHA and the capability verdicts, so a skipped shard or a dropped extension cannot pass RAIL: aggregate/corpus/soak/overhead are ONLY scheduled when mode=full (a sentinel dispatch leaves them SKIPPED and runs sentinel instead), so their green IN the cited run proves mode=full; the matrix job names (shard (n), cross-platform (...)) are deliberately NOT required because their names carry matrix values and would make the manifest brittle. The extension-compat-evidence artifact is bound by its API digest and freshness; it carries no release-evidence.json member, so no requiredEvidence content contract is named (absence stated rather than assumed).",
       "requiredEvent": "workflow_dispatch",
-      "requiredArtifact": "extension-compat-evidence"
+      "requiredArtifact": "extension-compat-evidence",
+      "requiredJobs": [
+        "selftest",
+        "aggregate",
+        "corpus",
+        "soak",
+        "overhead",
+        "macos-arm64-recorded-limitation"
+      ],
+      "requiredSelection": {
+        "jobs": [
+          "aggregate",
+          "corpus",
+          "soak",
+          "overhead"
+        ]
+      },
+      "requireArtifactDigest": true,
+      "requiredArtifactFresh": true
     },
     {
       "workflow": "GoTavern long-lived corpus qualification",
-      "why": "LONG-LIVED SESSION DATA at the MEDIUM tier: a deterministic synthetic corpus (~50 MB, 2400-message histories) generated and re-walked, then booted as two subject copies and driven through resume -> send -> swipe -> switch preset/world/character/temperature -> reload repeatedly -> save -> restart -> resume -> continue, judged by a legs comparator with a named-mutation teeth proof, while the 20 pinned third-party extensions are installed on the complex instance and their manifest digest is recorded. INDEPENDENCE: whole-session proves a fresh-install journey, drop-in proves a packaged-archive boot and extension-compat proves the 20-client roster on a fresh tree; NONE of them exercises an existing multi-thousand-message history across a restart with a long context, so this gate buys evidence no other manifest entry produces. THE MEDIUM TIER IS THE REQUIREMENT, because the workflow's default dispatch runs SMALL only and leaves the medium job SKIPPED while the RUN concludes success -- the gate therefore requires the medium-corpus job green AND the fixed-name longlived-medium-evidence artifact whose embedded tier marker is `medium`, whose head SHA is the candidate, and whose extension-manifest digest is a recorded SHA-256. The LARGE tier is a nightly/large-dispatch RAIL (generator determinism + loader + Go boot; the browser driver refuses large by design) and is NOT a same-SHA release gate: a nightly run predates the release candidate and cannot be same-SHA by construction.",
+      "why": "LONG-LIVED SESSION DATA at the MEDIUM tier: a deterministic synthetic corpus (~50 MB, 2400-message histories) generated and re-walked, then booted as two subject copies and driven through resume -> send -> swipe -> switch preset/world/character/temperature -> reload repeatedly -> save -> restart -> resume -> continue, judged by a legs comparator with a named-mutation teeth proof, while the 20 pinned third-party extensions are installed on the complex instance and their manifest digest is recorded. INDEPENDENCE: whole-session proves a fresh-install journey, drop-in proves a packaged-archive boot and extension-compat proves the 20-client roster on a fresh tree; NONE of them exercises an existing multi-thousand-message history across a restart with a long context, so this gate buys evidence no other manifest entry produces. THE MEDIUM TIER IS THE REQUIREMENT, because the workflow's default dispatch runs SMALL only and leaves the medium job SKIPPED while the RUN concludes success -- the gate therefore requires the medium-corpus job green AND the fixed-name longlived-medium-evidence artifact whose embedded tier marker is `medium`, whose head SHA is the candidate, and whose extension-manifest digest is a recorded SHA-256. The LARGE tier is a nightly/large-dispatch RAIL (generator determinism + loader + Go boot; the browser driver refuses large by design) and is NOT a same-SHA release gate: a nightly run predates the release candidate and cannot be same-SHA by construction. RAIL: the embedded size marker must state medium (the medium job already must be green, but the marker is the second, independent proof), and the medium evidence bundle must be this run's bytes (API sha256 digest) and this run's artifact (freshness), so a small dispatch's green run -- which leaves medium-corpus SKIPPED and uploads no medium evidence -- cannot satisfy the gate.",
       "requiredEvent": "workflow_dispatch",
-      "requiredJobs": ["medium-corpus"],
+      "requiredJobs": [
+        "medium-corpus"
+      ],
       "requiredArtifact": "longlived-medium-evidence",
       "requiredEvidence": {
         "kind": "gotavern-longlived-corpus-evidence",
         "tierField": "size",
         "tier": "medium",
-        "requireTruthy": ["ok", "comparatorTeeth.ok"],
-        "requireSha256": ["pinnedExtensions.manifestSha256", "corpus.treeSha256"]
-      }
+        "requireTruthy": [
+          "ok",
+          "comparatorTeeth.ok"
+        ],
+        "requireSha256": [
+          "pinnedExtensions.manifestSha256",
+          "corpus.treeSha256"
+        ]
+      },
+      "requiredSelection": {
+        "evidence": [
+          {
+            "path": "size",
+            "equals": "medium"
+          }
+        ]
+      },
+      "requireArtifactDigest": true,
+      "requiredArtifactFresh": true
     },
     {
       "workflow": "GoTavern Node stock tree round trip",
-      "why": "the INPUT half of the stock-tree claim: a tree RECORDED BY the pinned Node server (its own routes create every user-data surface; tools/build-node-stock-tree.mjs) is hashed, then Node writes -> GoTavern reads -> GoTavern mutates -> restart -> mutate -> pinned Node reads and continues -> GoTavern reads the Node mutation, asserting whole-tree preservation of unrelated files, unknown fields, filename bytes, modes and JSON/JSONL validity. INDEPENDENCE: drop-in qualification boots a PACKAGED ARCHIVE against a DERIVED stock tree (scripts/build-stock-tree.sh) and release qualification installs the archive; neither proves that a tree ORIGINATED BY pinned Node is accepted, nor that pinned Node accepts a tree GoTavern wrote. This is the only gate whose subject-tree origin is Node, so it duplicates no other entry's proof. The run also records the graceful-shutdown claim on POSIX only; the Windows abrupt-stop limitation is stated in docs/node-stock-tree.md rather than hidden. The gate requires the node-stock-tree job green and the fixed-name node-stock-tree-evidence artifact whose embedded head SHA is the candidate and whose tree/manifest digests are recorded SHA-256 values; the workflow also uploads this artifact on push runs, which is why the requiredEvent rail (dispatch only) is load-bearing here.",
+      "why": "the INPUT half of the stock-tree claim: a tree RECORDED BY the pinned Node server (its own routes create every user-data surface; tools/build-node-stock-tree.mjs) is hashed, then Node writes -> GoTavern reads -> GoTavern mutates -> restart -> mutate -> pinned Node reads and continues -> GoTavern reads the Node mutation, asserting whole-tree preservation of unrelated files, unknown fields, filename bytes, modes and JSON/JSONL validity. INDEPENDENCE: drop-in qualification boots a PACKAGED ARCHIVE against a DERIVED stock tree (scripts/build-stock-tree.sh) and release qualification installs the archive; neither proves that a tree ORIGINATED BY pinned Node is accepted, nor that pinned Node accepts a tree GoTavern wrote. This is the only gate whose subject-tree origin is Node, so it duplicates no other entry's proof. The run also records the graceful-shutdown claim on POSIX only; the Windows abrupt-stop limitation is stated in docs/node-stock-tree.md rather than hidden. The gate requires the node-stock-tree job green and the fixed-name node-stock-tree-evidence artifact whose embedded head SHA is the candidate and whose tree/manifest digests are recorded SHA-256 values; the workflow also uploads this artifact on push runs, which is why the requiredEvent rail (dispatch only) is load-bearing here. RAIL: the round-trip job must be green, the embedded document must name the pinned oracle commit in its pinnedCommit member (the producer's field name, recorded via requiredEvidence.pinnedShaField), and the evidence bundle must be this run's bytes and identity.",
       "requiredEvent": "workflow_dispatch",
-      "requiredJobs": ["node-stock-tree"],
+      "requiredJobs": [
+        "node-stock-tree"
+      ],
       "requiredArtifact": "node-stock-tree-evidence",
       "requiredEvidence": {
         "kind": "gotavern-node-stock-tree-evidence",
-        "requireTruthy": ["ok", "roundTripOk"],
-        "requireSha256": ["treeSha256", "manifestSha256"]
-      }
+        "requireTruthy": [
+          "ok",
+          "roundTripOk"
+        ],
+        "requireSha256": [
+          "treeSha256",
+          "manifestSha256"
+        ],
+        "pinnedShaField": "pinnedCommit"
+      },
+      "requiredSelection": {
+        "jobs": [
+          "node-stock-tree"
+        ]
+      },
+      "requiredPinnedSha": "06bde939fb1e9c4c8d8641d810f0a916b5bce127",
+      "requireArtifactDigest": true,
+      "requiredArtifactFresh": true
     }
-  ]
+  ],
+  "pinnedSha": "06bde939fb1e9c4c8d8641d810f0a916b5bce127"
 }

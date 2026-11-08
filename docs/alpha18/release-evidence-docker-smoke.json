@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "kind": "gotavern-release-evidence",
+  "workflow": {
+    "value": "GoTavern Release",
+    "derived": true,
+    "source": "the publish step (GITHUB_WORKFLOW / --workflow)"
+  },
+  "headSha": {
+    "value": "336ba48dab8aa124e0eff55e1cf352c495d8f6eb",
+    "derived": true,
+    "source": "the commit the gate judged (--sha)"
+  },
+  "pinnedSha": {
+    "value": "06bde939fb1e9c4c8d8641d810f0a916b5bce127",
+    "derived": true,
+    "source": "manifest.pinnedSha (the release baseline policy)"
+  },
+  "event": {
+    "value": "workflow_dispatch",
+    "derived": true,
+    "source": "the publishing run (GITHUB_EVENT_NAME / --event)"
+  },
+  "dispatchInputs": {
+    "value": null,
+    "derived": false,
+    "reason": "the Actions runs API exposes no dispatch inputs for a run: the workflow_run object has no `inputs` member (verified against GitHub API run 42340311363 on 2026-11-07) and display_title carries the workflow name, not the inputs. The dispatch selection is therefore proven from required jobs / embedded evidence where the manifest names a requiredSelection, and recorded as unverifiable otherwise -- never inferred from a title or invented"
+  },
+  "selectedTests": {
+    "value": null,
+    "derived": false,
+    "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+  },
+  "executedTests": {
+    "value": null,
+    "derived": false,
+    "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+  },
+  "unexecutedTests": {
+    "value": null,
+    "derived": false,
+    "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+  },
+  "tier": {
+    "value": null,
+    "derived": false,
+    "reason": "the release has no single tier: the combination journey requires tier=full and the long-lived corpus requires medium, while other gates have none. Per-gate tiers are recorded under gates[].tier only where an embedded evidence document names them; a single release-wide value would be invented"
+  },
+  "seed": {
+    "value": null,
+    "derived": false,
+    "reason": "no gate on this wave is required to record a seed, and the Actions API exposes none; a gate whose embedded evidence carries `seed` is recorded under gates[].seed and any first such value is also surfaced here, but this wave carries none"
+  },
+  "selection": {
+    "proven": [
+      "GoTavern Docker image"
+    ],
+    "unverifiable": [],
+    "narrowed": []
+  },
+  "artifactDigests": [],
+  "negativeControl": {
+    "value": null,
+    "derived": false,
+    "reason": "no gate on this wave is required to carry a negative-control/teeth member in its embedded evidence, and the Actions API does not expose one"
+  },
+  "gates": [
+    {
+      "workflow": "GoTavern Docker image",
+      "runId": 42438088879,
+      "headSha": "336ba48dab8aa124e0eff55e1cf352c495d8f6eb",
+      "event": "workflow_dispatch",
+      "status": "completed",
+      "conclusion": "success",
+      "verdict": "success",
+      "detail": "1 completed success run(s) at the target SHA with event workflow_dispatch, required job(s) docker green",
+      "requiredJobs": [
+        "docker"
+      ],
+      "jobs": [
+        {
+          "name": "docker",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "selection": {
+        "status": "proven",
+        "derived": true,
+        "provenBy": "jobs"
+      },
+      "artifact": null,
+      "embeddedEvidence": null,
+      "tests": {
+        "selected": null,
+        "executed": null,
+        "unexecuted": null,
+        "derived": false,
+        "reason": "per-gate test selection/execution counts are not exposed by the Actions API; they live in each run log, which this document does not parse. Where a gate's embedded evidence document carries a count it is recorded under gates[].tests with its source; otherwise it stays null"
+      },
+      "negativeControl": null
+    }
+  ],
+  "overall": {
+    "result": "PASS",
+    "gates": 1,
+    "passed": 1,
+    "problems": [],
+    "derived": true,
+    "source": "evaluateGates over the Actions API runs/jobs/artifacts at the candidate SHA"
+  },
+  "publishable": true,
+  "repo": "cocokoishi/GoTavern",
+  "judgedSha": "336ba48dab8aa124e0eff55e1cf352c495d8f6eb",
+  "runsFixture": null
+}

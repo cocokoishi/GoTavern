@@ -159,8 +159,13 @@ if (releaseEvidenceOut || releaseEvidenceMdOut) {
             runs,
             workflow: workflowName,
             event: eventName,
-            pinnedSha,
-            pinnedShaSource: pinnedSha ? '--pinned-sha (the release baseline policy)' : null,
+            // THE MANIFEST IS THE POLICY SOURCE. An explicit --pinned-sha wins for ad-hoc/local runs; otherwise the
+            // baseline recorded in docs/release-manifest.json (`pinnedSha`) is used, so the publish path does not need a
+            // second literal that could drift from the policy. Neither present -> null + derived:false + reason.
+            pinnedSha: pinnedSha ?? manifest.pinnedSha ?? null,
+            pinnedShaSource: pinnedSha
+                ? '--pinned-sha (explicit command-line override)'
+                : (manifest.pinnedSha ? 'manifest.pinnedSha (the release baseline policy)' : null),
             outPath: releaseEvidenceOut,
             markdownOutPath: releaseEvidenceMdOut,
         });

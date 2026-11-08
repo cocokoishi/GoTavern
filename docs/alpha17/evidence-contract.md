@@ -6,6 +6,10 @@ manifest rows proposed for the next round. It is written against the real alpha.
 thirteen run ids in `docs/alpha16/same-sha-evidence.md`) because a rail that has only synthetic tests is a
 claim, not a measurement.
 
+> **alpha.18 supersedes the "proposed" status:** the rails in §2 are now APPLIED in `docs/release-manifest.json`,
+> the publish path emits the unified document (`.github/workflows/release.yml`), and two workflows set `run-name`
+> so their selection is API-visible. See [`../alpha18/evidence-contract.md`](../alpha18/evidence-contract.md).
+
 ## 1. What was already there (alpha.15/16) and stayed
 
 The existing verifier (`scripts/verify-release-gates.mjs`, decision function in
