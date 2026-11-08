@@ -1,0 +1,679 @@
+{
+  "schema": "alpha18-inprocess-abba-v1",
+  "question": "Does the alpha.18 characters/all + startup change improve the 10,000-card card-list request, cold and hot, at 100/1000/10000 cards and 640KB-image scale, without a regression?",
+  "method": {
+    "protocol": "ABBA: three rounds with the subject order flipped each round (round0 A,B; round1 B,A; round2 A,B) = 3 paired observations per subject; in-process Go benchmarks over identical generated fixtures; 3 iterations per benchmark run (benchtime=3x), count=1; no other measurement process of this lane on the host",
+    "subjectCandidate": "working tree at product commit 5aef3db (docs-only changes uncommitted at run time)",
+    "subjectBaseline": "clean git worktree of the alpha.17 product commit 9b99fde (git worktree; the same bench_test.go was copied in so both subjects run the identical benchmark harness)",
+    "command": "go test ./internal/server -run=NONE -bench=<arm> -benchmem -benchtime=3x -count=1 -timeout=900s",
+    "arms": [
+      "BenchmarkCharactersAllScale/cards_10000_4KB_image",
+      "BenchmarkCharactersAllCold (10,000 cards, cache emptied before each iteration)",
+      "BenchmarkCharactersAllScale/cards_1000_32KB_image",
+      "BenchmarkCharactersAllScale/cards_100_128KB_image"
+    ],
+    "parsing": "the benchmark name line can carry a product log line, so a result is read from the following numbers line; the run refused to report unless every arm produced a row"
+  },
+  "host": {
+    "os": "Windows 11 24H2 10.0.26100 arm64",
+    "cpu": "virt-7.2, 2 logical cores",
+    "go": "go1.27.3 windows/arm64",
+    "node": "v24.19.0",
+    "gomaxprocs": "unset (2)",
+    "loadLabel": "LOCAL: single sequential agent; GitHub CI bench run 42441324943 executed remotely and does not consume this host"
+  },
+  "rows": [
+    {
+      "round": 0,
+      "subject": "baseline-a17",
+      "arm": "scale_10000",
+      "durationMs": 59526,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_10000_4KB_image",
+          "nsPerOp": 5734945627,
+          "bytesPerOp": 1038643154,
+          "allocsPerOp": 7797012
+        }
+      ]
+    },
+    {
+      "round": 0,
+      "subject": "candidate-a18",
+      "arm": "scale_10000",
+      "durationMs": 34983,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_10000_4KB_image",
+          "nsPerOp": 2246653893,
+          "bytesPerOp": 619915154,
+          "allocsPerOp": 3193667
+        }
+      ]
+    },
+    {
+      "round": 0,
+      "subject": "baseline-a17",
+      "arm": "cold_10000",
+      "durationMs": 44394,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllCold",
+          "nsPerOp": 6127871253,
+          "bytesPerOp": 1234568624,
+          "allocsPerOp": 8030352
+        }
+      ]
+    },
+    {
+      "round": 0,
+      "subject": "candidate-a18",
+      "arm": "cold_10000",
+      "durationMs": 53297,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllCold",
+          "nsPerOp": 5542885173,
+          "bytesPerOp": 879837282,
+          "allocsPerOp": 3500341
+        }
+      ]
+    },
+    {
+      "round": 0,
+      "subject": "baseline-a17",
+      "arm": "scale_1000",
+      "durationMs": 9820,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_1000_32KB_image",
+          "nsPerOp": 696737800,
+          "bytesPerOp": 303987600,
+          "allocsPerOp": 786644
+        }
+      ]
+    },
+    {
+      "round": 0,
+      "subject": "candidate-a18",
+      "arm": "scale_1000",
+      "durationMs": 8186,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_1000_32KB_image",
+          "nsPerOp": 416970413,
+          "bytesPerOp": 167573354,
+          "allocsPerOp": 324970
+        }
+      ]
+    },
+    {
+      "round": 0,
+      "subject": "baseline-a17",
+      "arm": "scale_100",
+      "durationMs": 4386,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_100_128KB_image",
+          "nsPerOp": 75101840,
+          "bytesPerOp": 38288520,
+          "allocsPerOp": 78928
+        }
+      ]
+    },
+    {
+      "round": 0,
+      "subject": "candidate-a18",
+      "arm": "scale_100",
+      "durationMs": 4891,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_100_128KB_image",
+          "nsPerOp": 58686440,
+          "bytesPerOp": 28742834,
+          "allocsPerOp": 32859
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "subject": "candidate-a18",
+      "arm": "scale_10000",
+      "durationMs": 38891,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_10000_4KB_image",
+          "nsPerOp": 3029151787,
+          "bytesPerOp": 619914714,
+          "allocsPerOp": 3193667
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "subject": "baseline-a17",
+      "arm": "scale_10000",
+      "durationMs": 73276,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_10000_4KB_image",
+          "nsPerOp": 9126720400,
+          "bytesPerOp": 1038645421,
+          "allocsPerOp": 7797018
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "subject": "candidate-a18",
+      "arm": "cold_10000",
+      "durationMs": 80481,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllCold",
+          "nsPerOp": 8683035387,
+          "bytesPerOp": 879037792,
+          "allocsPerOp": 3500337
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "subject": "baseline-a17",
+      "arm": "cold_10000",
+      "durationMs": 64500,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllCold",
+          "nsPerOp": 9076936093,
+          "bytesPerOp": 1234565984,
+          "allocsPerOp": 8030350
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "subject": "candidate-a18",
+      "arm": "scale_1000",
+      "durationMs": 10465,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_1000_32KB_image",
+          "nsPerOp": 402346507,
+          "bytesPerOp": 167573984,
+          "allocsPerOp": 324975
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "subject": "baseline-a17",
+      "arm": "scale_1000",
+      "durationMs": 7760,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_1000_32KB_image",
+          "nsPerOp": 605084173,
+          "bytesPerOp": 303985896,
+          "allocsPerOp": 786642
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "subject": "candidate-a18",
+      "arm": "scale_100",
+      "durationMs": 4427,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_100_128KB_image",
+          "nsPerOp": 55645000,
+          "bytesPerOp": 28743669,
+          "allocsPerOp": 32866
+        }
+      ]
+    },
+    {
+      "round": 1,
+      "subject": "baseline-a17",
+      "arm": "scale_100",
+      "durationMs": 4342,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_100_128KB_image",
+          "nsPerOp": 138173173,
+          "bytesPerOp": 38288117,
+          "allocsPerOp": 78927
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "subject": "baseline-a17",
+      "arm": "scale_10000",
+      "durationMs": 41125,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_10000_4KB_image",
+          "nsPerOp": 4963891240,
+          "bytesPerOp": 1038645456,
+          "allocsPerOp": 7797016
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "subject": "candidate-a18",
+      "arm": "scale_10000",
+      "durationMs": 31391,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_10000_4KB_image",
+          "nsPerOp": 2295914627,
+          "bytesPerOp": 619915157,
+          "allocsPerOp": 3193668
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "subject": "baseline-a17",
+      "arm": "cold_10000",
+      "durationMs": 42220,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllCold",
+          "nsPerOp": 5394974627,
+          "bytesPerOp": 1234566464,
+          "allocsPerOp": 8030352
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "subject": "candidate-a18",
+      "arm": "cold_10000",
+      "durationMs": 35525,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllCold",
+          "nsPerOp": 3845227267,
+          "bytesPerOp": 879838666,
+          "allocsPerOp": 3500344
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "subject": "baseline-a17",
+      "arm": "scale_1000",
+      "durationMs": 7590,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_1000_32KB_image",
+          "nsPerOp": 606755467,
+          "bytesPerOp": 303986546,
+          "allocsPerOp": 786647
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "subject": "candidate-a18",
+      "arm": "scale_1000",
+      "durationMs": 6945,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_1000_32KB_image",
+          "nsPerOp": 347921733,
+          "bytesPerOp": 167575736,
+          "allocsPerOp": 324975
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "subject": "baseline-a17",
+      "arm": "scale_100",
+      "durationMs": 3968,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_100_128KB_image",
+          "nsPerOp": 69457827,
+          "bytesPerOp": 38290362,
+          "allocsPerOp": 78934
+        }
+      ]
+    },
+    {
+      "round": 2,
+      "subject": "candidate-a18",
+      "arm": "scale_100",
+      "durationMs": 3994,
+      "rows": [
+        {
+          "benchmark": "BenchmarkCharactersAllScale/cards_100_128KB_image",
+          "nsPerOp": 51649947,
+          "bytesPerOp": 28742826,
+          "allocsPerOp": 32858
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "scale_10000": {
+      "baseline-a17": {
+        "nsPerOp": {
+          "n": 3,
+          "min": 4963891240,
+          "median": 5734945627,
+          "max": 9126720400,
+          "series": [
+            4963891240,
+            5734945627,
+            9126720400
+          ]
+        },
+        "bytesPerOp": {
+          "n": 3,
+          "min": 1038643154,
+          "median": 1038645421,
+          "max": 1038645456,
+          "series": [
+            1038643154,
+            1038645421,
+            1038645456
+          ]
+        },
+        "allocsPerOp": {
+          "n": 3,
+          "min": 7797012,
+          "median": 7797016,
+          "max": 7797018,
+          "series": [
+            7797012,
+            7797016,
+            7797018
+          ]
+        }
+      },
+      "candidate-a18": {
+        "nsPerOp": {
+          "n": 3,
+          "min": 2246653893,
+          "median": 2295914627,
+          "max": 3029151787,
+          "series": [
+            2246653893,
+            2295914627,
+            3029151787
+          ]
+        },
+        "bytesPerOp": {
+          "n": 3,
+          "min": 619914714,
+          "median": 619915154,
+          "max": 619915157,
+          "series": [
+            619914714,
+            619915154,
+            619915157
+          ]
+        },
+        "allocsPerOp": {
+          "n": 3,
+          "min": 3193667,
+          "median": 3193667,
+          "max": 3193668,
+          "series": [
+            3193667,
+            3193667,
+            3193668
+          ]
+        }
+      },
+      "change": {
+        "nsPerOp": -0.5996623549156449,
+        "bytesPerOp": -0.40315035192361376,
+        "allocsPerOp": -0.5903988141104238
+      }
+    },
+    "cold_10000": {
+      "baseline-a17": {
+        "nsPerOp": {
+          "n": 3,
+          "min": 5394974627,
+          "median": 6127871253,
+          "max": 9076936093,
+          "series": [
+            5394974627,
+            6127871253,
+            9076936093
+          ]
+        },
+        "bytesPerOp": {
+          "n": 3,
+          "min": 1234565984,
+          "median": 1234566464,
+          "max": 1234568624,
+          "series": [
+            1234565984,
+            1234566464,
+            1234568624
+          ]
+        },
+        "allocsPerOp": {
+          "n": 3,
+          "min": 8030350,
+          "median": 8030352,
+          "max": 8030352,
+          "series": [
+            8030350,
+            8030352,
+            8030352
+          ]
+        }
+      },
+      "candidate-a18": {
+        "nsPerOp": {
+          "n": 3,
+          "min": 3845227267,
+          "median": 5542885173,
+          "max": 8683035387,
+          "series": [
+            3845227267,
+            5542885173,
+            8683035387
+          ]
+        },
+        "bytesPerOp": {
+          "n": 3,
+          "min": 879037792,
+          "median": 879837282,
+          "max": 879838666,
+          "series": [
+            879037792,
+            879837282,
+            879838666
+          ]
+        },
+        "allocsPerOp": {
+          "n": 3,
+          "min": 3500337,
+          "median": 3500341,
+          "max": 3500344,
+          "series": [
+            3500337,
+            3500341,
+            3500344
+          ]
+        }
+      },
+      "change": {
+        "nsPerOp": -0.09546318058063157,
+        "bytesPerOp": -0.28733097191922424,
+        "allocsPerOp": -0.5641111373449134
+      }
+    },
+    "scale_1000": {
+      "baseline-a17": {
+        "nsPerOp": {
+          "n": 3,
+          "min": 605084173,
+          "median": 606755467,
+          "max": 696737800,
+          "series": [
+            605084173,
+            606755467,
+            696737800
+          ]
+        },
+        "bytesPerOp": {
+          "n": 3,
+          "min": 303985896,
+          "median": 303986546,
+          "max": 303987600,
+          "series": [
+            303985896,
+            303986546,
+            303987600
+          ]
+        },
+        "allocsPerOp": {
+          "n": 3,
+          "min": 786642,
+          "median": 786644,
+          "max": 786647,
+          "series": [
+            786642,
+            786644,
+            786647
+          ]
+        }
+      },
+      "candidate-a18": {
+        "nsPerOp": {
+          "n": 3,
+          "min": 347921733,
+          "median": 402346507,
+          "max": 416970413,
+          "series": [
+            347921733,
+            402346507,
+            416970413
+          ]
+        },
+        "bytesPerOp": {
+          "n": 3,
+          "min": 167573354,
+          "median": 167573984,
+          "max": 167575736,
+          "series": [
+            167573354,
+            167573984,
+            167575736
+          ]
+        },
+        "allocsPerOp": {
+          "n": 3,
+          "min": 324970,
+          "median": 324975,
+          "max": 324975,
+          "series": [
+            324970,
+            324975,
+            324975
+          ]
+        }
+      },
+      "change": {
+        "nsPerOp": -0.3368885343722828,
+        "bytesPerOp": -0.4487453928306419,
+        "allocsPerOp": -0.5868842831064623
+      }
+    },
+    "scale_100": {
+      "baseline-a17": {
+        "nsPerOp": {
+          "n": 3,
+          "min": 69457827,
+          "median": 75101840,
+          "max": 138173173,
+          "series": [
+            69457827,
+            75101840,
+            138173173
+          ]
+        },
+        "bytesPerOp": {
+          "n": 3,
+          "min": 38288117,
+          "median": 38288520,
+          "max": 38290362,
+          "series": [
+            38288117,
+            38288520,
+            38290362
+          ]
+        },
+        "allocsPerOp": {
+          "n": 3,
+          "min": 78927,
+          "median": 78928,
+          "max": 78934,
+          "series": [
+            78927,
+            78928,
+            78934
+          ]
+        }
+      },
+      "candidate-a18": {
+        "nsPerOp": {
+          "n": 3,
+          "min": 51649947,
+          "median": 55645000,
+          "max": 58686440,
+          "series": [
+            51649947,
+            55645000,
+            58686440
+          ]
+        },
+        "bytesPerOp": {
+          "n": 3,
+          "min": 28742826,
+          "median": 28742834,
+          "max": 28743669,
+          "series": [
+            28742826,
+            28742834,
+            28743669
+          ]
+        },
+        "allocsPerOp": {
+          "n": 3,
+          "min": 32858,
+          "median": 32859,
+          "max": 32866,
+          "series": [
+            32858,
+            32859,
+            32866
+          ]
+        }
+      },
+      "change": {
+        "nsPerOp": -0.25907274708582373,
+        "bytesPerOp": -0.24930934912083308,
+        "allocsPerOp": -0.5836838637745794
+      }
+    }
+  },
+  "notes": [
+    "In-process evidence is Layer A (this host) and is NOT Linux CI evidence.",
+    "The cold arm empties the decoded card-text cache before each iteration; the OS page cache stays warm, so it measures the product cold path, not a disk-cold boot.",
+    "ns/op on a shared 2-core host is noisy (the 10,000-card baseline arm ranged 4.96-9.13 s); every round is reported and the claim rests on the non-overlap of the two subjects, not on one median.",
+    "bytes/op and allocs/op are deterministic for the same input bytes, so their tiny spread is measurement rounding, not host noise."
+  ]
+}

@@ -40,27 +40,28 @@ light, fast, stable, understandable and pleasant to start:
 - **honest README and figure**: the first screen says what GoTavern is, why it is lighter and how to
   start it; every number in it is generated from a recorded artifact and gated against it (§15.6).
 
-**1c. The release this program ships.** The current deliverable is `v0.1.0-alpha.17` as a **formal,
+**1c. The release this program ships.** The current deliverable is `v0.1.0-alpha.18` as a **formal,
 stable-channel release**: same-SHA gates green, release notes not ahead of evidence, published
 artifacts verified after publication (§16). No tag is created and no channel is moved until §16 holds
-and the evidence table names every gate run. `v0.1.0-alpha.16` is already published and its tag is
-immutable.
+and the evidence table names every gate run. `v0.1.0-alpha.16` and `v0.1.0-alpha.17` are already
+published and their tags are immutable.
 
-alpha.17 is a **deep niche qualification and performance** release, not a redesign, and its additional
-obligation is not a feature: it must widen what the project can *prove* at the edges before it claims to
-be faster. It ships (a) a refreshed read-only M0 audit at the current tree (source graph, ownership map,
-findings, residual reconfirmation) so no claim rests on a previous round's line numbers; (b) a
-deduplicated catalogue of at least 150 extreme/rare/boundary/interaction scenarios plus a computed
-test-gap matrix, and real negative-controlled tests for the highest-value gaps; (c) an evidence-based
-re-evaluation of the architecture candidates (R1–R6 stay REFUSE unless a new red exists) and bounded fixes
-or recorded product decisions only where an executed reproducer demands one; (d) a process-level
-performance baseline and one measured same-input optimization, reported in both directions and guarded by
-the existing compatibility gates; (e) a 10–14 KB README with the detailed performance evidence moved to
-`docs/performance.md` and a documentation checker with real teeth; and (f) a unified machine-verifiable
-release evidence contract with a narrowed-dispatch refusal rail. The strong drop-in bar in §14 is **not**
-part of alpha.17's deliverable and is not claimed by it. The alpha.15 engineering-audit release and the
-alpha.16 synthetic adversarial qualification remain the historical record of their own rounds; their
-evidence lives in `docs/alpha16/` and the published release notes, and this file does not rewrite it.
+alpha.18 is a **deep product-engineering release**, and the standard it is judged by is what a user can
+observe, not how much analysis was produced. It ships: (a) the completed root-cause analysis and a
+same-input, paired, reproducible improvement of the 10,000-card card-list and startup hotspot (profile,
+production change, ABBA measurement, regression gate), (b) the two product capability gaps alpha.17
+recorded as open — a REAL CORS proxy enabled branch and the pinned chat auto-backup semantics — verified
+against real local upstreams and against the pinned source/probes, (c) real-socket evidence that
+streaming cancellation releases the upstream connection, goroutines and buffers, (d) a 60-minute
+mixed-load soak on the final candidate with honest RSS/heap/goroutine/error/latency trends, (e) the
+release-evidence rails APPLIED to the real release chain with narrowed-dispatch refusal proven by real
+workflow runs, and (f) publishing with the same-SHA 13-gate wave, independent post-publication artifact
+verification and release notes that list every unproven item. The strong drop-in bar in §14 is **not**
+part of alpha.18's deliverable and is not claimed by it: no real long-lived user directory is present on
+the qualification host, so §14 stays NOT MET. The alpha.15 engineering-audit release, the alpha.16
+synthetic adversarial qualification and the alpha.17 niche/performance round remain the historical record
+of their own rounds; their evidence lives in `docs/alpha15/`, `docs/alpha16/`, `docs/alpha17/` and the
+published release notes, and this file does not rewrite it.
 
 The goal is met only when all of the following are demonstrated with the shipped artifact:
 
@@ -385,7 +386,12 @@ optimize with measurement, and re-run every gate at one candidate SHA so the rel
 commit rather than on alpha.14's. A ticked box names the evidence in `HANDOFF.md`'s current
 checkpoint; an unticked box is an open obligation, not a style note.
 
-**Update, 2026-11-07 (`v0.1.0-alpha.16` published; `v0.1.0-alpha.17` in progress).** alpha.16 closed M8
+**Update, 2026-11-07 (`v0.1.0-alpha.17` published; `v0.1.0-alpha.18` in progress).** alpha.18's obligation
+is §1c's and it does not add a milestone box: close the 10,000-card hotspot with a measured paired
+improvement, ship the CORS proxy enabled branch and the pinned chat auto-backup, prove streaming
+cancellation resource release, run a 60-minute soak, apply the release-evidence rails, and re-run every
+required gate at one candidate SHA. The boxes below are not rewritten by this note, and M4 stays unticked
+by decision exactly as alpha.15 left it. (Historical note: alpha.16 closed M8
 again on its own commit and added the synthetic adversarial qualification recorded in `docs/alpha16/`;
 the boxes below are not rewritten by this note. alpha.17's obligation is §1c's: refresh the M0 audit at the
 current tree, build and execute the niche scenario catalogue with negative controls, re-decide R1–R6 on
@@ -466,12 +472,15 @@ of the following have run on ONE commit, on ONE real tree, with the result recor
    product "drop-in", "compatible", "safe" or "stable" must state in the same place which of 1-5 have
    run and which have not; a claim resting on a synthetic tree or a derivation says so.
 
-**Current state, dated 2026-11-07 (`v0.1.0-alpha.16` published; `v0.1.0-alpha.17` in progress): NOT MET
+**Current state, dated 2026-11-07 (`v0.1.0-alpha.17` published; `v0.1.0-alpha.18` in progress): NOT MET
 for the strong form.** The evidence that exists covers a Go-synthesised long-lived tree
 (`tests/e2e/longlived_*`), the committed synthetic browser corpus, a packaged archive over a stock tree, the
 20 pinned third-party extensions and the browser/provider-wire differentials, plus alpha.16's synthetic
-adversarial qualification (E03+E04 browser journey, seeded E06 state machine, evidence-rail release gates).
-No real, long-used user directory has been qualified: the local private channel of
+adversarial qualification (E03+E04 browser journey, seeded E06 state machine, evidence-rail release gates)
+and alpha.17's niche scenario catalogue, native tests, refresh audit and process-level performance baseline.
+alpha.18 adds product capability (a real CORS proxy, pinned chat auto-backups), a measured 10,000-card
+performance improvement and a 60-minute soak, all on synthetic or generated data — which is exactly why the
+bar stays unmet. No real, long-used user directory has been qualified: the local private channel of
 `docs/development-loop.md` §4 was **canaried, never run against real originals**, and the disposition remains
 `PRIVATE_NOT_RUN` because no authorised original is present on the qualification host.
 `docs/goal-scorecard.md` §3 says the same in one line: Q1's tree is synthesised, not the user's. alpha.17
@@ -551,46 +560,59 @@ render without a run id and a commit. A gate compares the committed README table
 provenance against the artifact, so a number cannot drift from the run that produced it. Regressions
 are shown, not hidden.
 
-## 16. The `v0.1.0-alpha.17` release bar
+## 16. The `v0.1.0-alpha.18` release bar
 
-`v0.1.0-alpha.17` is the formal (stable-channel) release this program ships at the end of the niche
-qualification and performance round. It may be tagged only when ALL of the following hold, on ONE commit.
-The checkable, machine-consumed form is `docs/alpha17/release-bar.md`; this section is the goal-level
-statement it must not contradict. `v0.1.0-alpha.16` is already published and its tag is immutable.
+`v0.1.0-alpha.18` is the formal (stable-channel) release this program ships at the end of the deep
+product-engineering round. It may be tagged only when ALL of the following hold, on ONE commit. The
+checkable, machine-consumed form is `docs/release-manifest.json` plus the unified evidence emitted by
+`scripts/verify-release-gates.mjs`; this section is the goal-level statement they must not contradict.
+`v0.1.0-alpha.16` and `v0.1.0-alpha.17` are already published and their tags are immutable.
 
 1. every required gate in `docs/release-manifest.json` has a completed/success `workflow_dispatch` run
-   whose `head_sha` is the candidate, including the third-party extension corpus with its
-   `extension-compat-evidence` artifact, the combination journey at full tier with its evidence artifact,
-   the long-lived corpus at its `medium` tier (a default `small` dispatch that leaves `medium-corpus`
-   skipped must NOT satisfy it), and the Node stock-tree round trip with its dedicated evidence artifact;
-2. the unified evidence contract validates all 13 rows and **refuses a narrowed dispatch by name**: a wrong
-   SHA, a wrong event, a skipped required job, a missing/expired artifact, a missing or inconsistent
-   embedded evidence field, a stale artifact from another attempt, or a selection that cannot be proved;
-3. the README performance table and dark/light figure are generated from the recorded artifact whose
-   `provenance.commit` is the code-complete commit the release descends from (the artifact cannot name the
-   commit that contains it, so the recorded commit is an ancestor by construction), the documentation
-   checker is green at the candidate, and the same-SHA `GoTavern smoke metrics` gate is ALSO green at the
-   tag commit; alpha.16's numbers are never spliced into alpha.17's claim;
-4. `scripts/classify-version-tag.sh` classifies `v0.1.0-alpha.17` stable, its equality list gains the tag in
-   the same change, and `scripts/test-classify-version-tag.sh` proves the new tag stable while every
-   version-shaped neighbour (`v0.1.0-alpha.16`, `v0.1.0-alpha.170`, `v0.1.0-alpha.17-rc1`,
-   `v0.1.0-alpha.16+build.1`, `v0.1.0-alpha.150`, …) stays prerelease;
-5. `docs/release-notes-v0.1.0-alpha.17.md` is generated from / checked against the evidence, states every
-   boundary and every unproven item (§14, §13, and the round's residual list), and does not claim ahead of a
-   gate;
-6. the audit and qualification obligation is met and RECORDED: the refreshed M0 audit, the ≥150-scenario
-   deduplicated catalogue and gap matrix, and the new negative-controlled tests exist in the repository;
-   every new gate has a demonstrated mutation (planted defect → named assertion red → restored green), and
-   every real defect found has a reproducer plus the fix or the recorded product decision that resolves it;
-7. the release publishes with `draft=false`, `prerelease=false`, `latest=true`, six canonical archives plus
-   `checksums.txt`, and the release body carries the same-SHA evidence table;
-8. Docker `:v0.1.0-alpha.17` and `:latest` are published and resolve to the same digest;
-9. after publication the published bytes are verified independently: installers over real TLS, checksums,
-   the published binary's own `version`, the published extension journey, and a local archive check;
-10. no force push, no tag move (the alpha.16 tag is unchanged), no `--no-verify`, no private data in any
-    artifact, and every commit identity normalised;
-11. `GOAL.md` §14 remains **NOT MET** and no document upgrades it on synthetic evidence.
+   whose `head_sha` is the candidate, and the rebuilt unified evidence contract PASSES 13/13 at that one
+   SHA — including the three selection proofs applied this round (CI `probes=full`, Browser
+   `mode=all`, and the full-job selections of the multi-job gates), the tier markers read from embedded
+   evidence, and the artifact digest/freshness/pinned-SHA rails;
+2. the contract **refuses a narrowed dispatch by name**, demonstrated with REAL workflow runs: a
+   `-f size=small` long-lived dispatch whose `medium-corpus` job is skipped is refused, and a narrowed
+   selection/title/artifact is refused rather than silently accepted; a wrong SHA, wrong event, missing
+   or expired artifact, and a skipped required job all block publication before `gh release create`;
+3. the performance claim is real and current: the 10,000-card hotspot has a recorded root cause, a
+   production change, and a same-host/same-input PAIRED measurement (alternating rounds, published
+   medians and spread, both directions) showing a statistically discernible improvement of at least 20%
+   in the key request p50 or peak RSS, with no material regression in the other key metrics; the
+   release performance record still comes from the same-SHA `GoTavern smoke metrics` gate and no alpha.17
+   number is spliced into alpha.18's claim;
+4. the product capability gaps alpha.17 recorded are closed or explicitly still open: the CORS proxy
+   enabled branch proxies real requests from a real local upstream (disabled branch byte-identical) and
+   its SSRF policy/divergences are recorded; the pinned chat auto-backup semantics are implemented and
+   tested (config precedence, throttle, retention, failure, restart, multi-user); the streaming/cancel
+   resource-release evidence exists from real sockets; every fixed defect has a RED reproducer and a
+   GREEN after-fix run, and anything unproven is labelled UNEXECUTED/UNPROVEN in the release notes;
+5. a 60-minute mixed-load soak ran on the final candidate and is recorded with request counts, error
+   counts, latency distribution, RSS/peak/CPU samples, restart integrity and the explicit limits of the
+   measurement (a trend is not a leak proof; the leak verdict says UNPROVEN if resolution is
+   insufficient);
+6. `scripts/classify-version-tag.sh` classifies `v0.1.0-alpha.18` stable, its equality list gains the tag
+   in the same change, and `scripts/test-classify-version-tag.sh` proves the new tag stable while every
+   version-shaped neighbour (`v0.1.0-alpha.17`, `v0.1.0-alpha.180`, `v0.1.0-alpha.18-rc1`,
+   `v0.1.0-alpha.17+build.1`, `v0.1.0-alpha.170`, …) stays prerelease;
+7. `docs/release-notes-v0.1.0-alpha.18.md` is generated from / checked against the evidence, states every
+   boundary and every unproven item (§14, §13, and the round's residual list: the still-unimplemented
+   `chat_metadata.integrity` check, the group-save backup scheduling gap, no brotli decoder, macOS-arm64
+   runtime UNVERIFIED, real-user directory NOT RUN), and does not claim ahead of a gate;
+8. the release publishes with `draft=false`, `prerelease=false`, `latest=true`, six canonical archives
+   plus `checksums.txt`, and the release body carries the same-SHA evidence table;
+9. Docker `:v0.1.0-alpha.18` and `:latest` are published and resolve to the same digest, and older
+   images are unchanged;
+10. after publication the published bytes are verified INDEPENDENTLY: all six archives re-downloaded and
+    checksummed, the published binary's own `version`, an unpacked run against a fresh directory with
+    `/version`, `/` and at least one real data request plus one write/read closure, the published-release
+    installer smoke and the published-extension smoke, and `releases/latest` pointing at alpha.18;
+11. no force push, no tag move (the alpha.16 and alpha.17 tags are unchanged), no `--no-verify`, no
+    private data in any artifact;
+12. `GOAL.md` §14 remains **NOT MET** and no document upgrades it on synthetic evidence.
 
-If any of 1-10 cannot be met, the release does not happen and the reason is recorded in
-`docs/alpha17/handoff-ledger.md` as `BLOCKED` with the failing requirement and the run that showed it. A
+If any of 1-11 cannot be met, the release does not happen and the reason is recorded in
+`docs/alpha18/handoff-ledger.md` as `BLOCKED` with the failing requirement and the run that showed it. A
 formal release is a claim about the artifact, not about the intention.

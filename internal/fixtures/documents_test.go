@@ -222,6 +222,19 @@ func contractDocumentFiles() []string {
 		filepath.Join("docs", "alpha17", "release-evidence.md"),
 		filepath.Join("docs", "alpha17", "handoff-ledger.md"),
 		filepath.Join("docs", "release-notes-v0.1.0-alpha.17.md"),
+		// The alpha.18 program/contract records name the pinned baseline (or the candidate identities), so
+		// they are contract documents and get the same pin/encoding checks as every other one. A document
+		// that names the pin outside this list is itself red (TestDocumentGateCoversTheContract).
+		filepath.Join("docs", "alpha18", "README.md"),
+		filepath.Join("docs", "alpha18", "evidence-contract.md"),
+		filepath.Join("docs", "alpha18", "release-bar.md"),
+		filepath.Join("docs", "alpha18", "decision-log.md"),
+		filepath.Join("docs", "alpha18", "handoff-ledger.md"),
+		filepath.Join("docs", "alpha18", "same-sha-evidence.md"),
+		filepath.Join("docs", "alpha18", "performance-plan.md"),
+		filepath.Join("docs", "alpha18", "perf-hotspot.md"),
+		filepath.Join("docs", "alpha18", "perf", "README.md"),
+		filepath.Join("docs", "release-notes-v0.1.0-alpha.18.md"),
 	}
 }
 
@@ -639,6 +652,17 @@ var declaredOtherPins = map[string]string{
 	// "the evidence is at the tag target" are checkable claims. Identity values, not baseline claims.
 	"9b99fde0b0a9be0665cd93bc2143a3f495af31c2": "v0.1.0-alpha.17 release candidate and tag target - the SHA every required release gate was dispatched at and the published release's target commit",
 	"7eed8eed49515176e210b2c30b63bac5380c5b70": "v0.1.0-alpha.17 annotated tag object - recorded so 'the tag was not moved' is checkable (it must keep peeling to 9b99fde)",
+	// THE alpha.18 PRODUCT COMMITS AND THE alpha.17 RELEASE HEAD. The alpha.18 program contract,
+	// evidence contract, release bar, decision log, handoff ledger, performance records and release
+	// notes name the real runs/commits their claims rest on. These are IDENTITIES and MEASUREMENT
+	// ANCHORS, not baseline claims; declared by value AND named because an allowlist entry with no
+	// reason is exactly where a mistyped pin would hide.
+	"336ba48dab8aa124e0eff55e1cf352c495d8f6eb": "v0.1.0-alpha.17 release MAIN HEAD - the SHA the alpha.18 release-governance accept/refuse runs were validated at (docs/alpha18/evidence-contract.md)",
+	"5aef3db5de4171455fa2ab3cd8775d0b65c68c06": "alpha.18 10,000-card performance commit - the product tree the paired in-process ABBA, boot attribution and Linux CI bench-baseline regeneration measured (docs/alpha18/perf/, docs/alpha18/handoff-ledger.md)",
+	"481d6ee326b9eb79246b104dc5d739a7b8cf6a0c": "alpha.18 CORS proxy commit - cited by docs/alpha18/handoff-ledger.md and the release notes as the implemented enabled branch",
+	"eb46485f6fd89759629357ef562d2772c9d6ed92": "alpha.18 chat auto-backup commit - cited by docs/alpha18/handoff-ledger.md and the release notes",
+	"ef2f69adce87be1446a81db6c02f842bf68d0710": "alpha.18 streaming/cancellation coverage commit - cited by docs/alpha18/handoff-ledger.md and the release notes",
+	"e40314f9b5d84366b207085bda787b479519b80e": "alpha.18 applied release-evidence rails commit - cited by docs/alpha18/evidence-contract.md and docs/alpha18/handoff-ledger.md",
 }
 
 // checkPinnedCommitStrings is the gate body, extracted so the red-path test can drive it against a

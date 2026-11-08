@@ -52,9 +52,15 @@
     },
     {
       "pattern": "/proxy/",
-      "classification": "unsupported-with-reason",
-      "reason": "The pinned /proxy/:url(*) mount (src/server-main.js:257-265) proxies arbitrary URLs when enableCorsProxy is set. GoTavern does not implement an in-process CORS proxy, and it is a recorded product decision not to fabricate one. The route IS registered so the DISABLED branch reproduces pinned's exact 404 message and the ENABLED branch answers 501 with a named reason (AGENTS.md rule 17), which is why it is in the Go route set without being a pinned-inventory route.",
-      "evidence": "internal/server/cors_proxy.go; internal/server/cors_proxy_test.go; docs/alpha17/source-audit.md finding 3 (PROXY-ROUTE); decision-log AL17-D010"
+      "classification": "implemented",
+      "reason": "The pinned /proxy/:url(*) mount (src/server-main.js:257-265) proxies arbitrary URLs when enableCorsProxy is set. alpha.18 implements it: the disabled branch keeps pinned's exact 404 message byte-for-byte, and the enabled branch performs a real proxy through the product's bounded transport (pinned's header-removal list, forced accept-encoding, JSON.stringify(req.body) for POST/PUT/PATCH, no upstream response headers copied, 401->400, node-fetch's redirect contract, gzip/deflate decoding). Deliberate divergences are recorded: bounded timeouts where node-fetch has none; a br reply to GET/HEAD is retried once without br (no brotli decoder, no dependency) while a side-effecting method is refused with the pinned-shaped 500; cloud metadata endpoints are always refused; loopback/RFC1918 stay allowed and the operator's requestProxy.* / privateAddressWhitelist.* apply via outbound.UserURLDialContext. Evidence: internal/server/cors_proxy.go, cors_proxy_transport.go, cors_proxy_test.go; docs/SEMANTIC-COMPATIBILITY.md section 18; docs/alpha18/README.md.",
+      "evidence": "internal/server/cors_proxy.go; internal/server/cors_proxy_transport.go; internal/server/cors_proxy_test.go (35 local-upstream tests); docs/alpha18/README.md"
+    },
+    {
+      "pattern": "/proxy",
+      "classification": "implemented",
+      "reason": "express's `/proxy/:url(*)` mount does NOT match the bare /proxy path: a probe of the pinned middleware stack answered the pinned 404 page there, so GoTavern registers the bare path explicitly and answers it through the same static/404 chain every other unmatched path uses. Without that registration Go's ServeMux would answer a 301 redirect to /proxy/, which pinned never sends.",
+      "evidence": "internal/server/cors_proxy.go; TestCorsProxyBarePathIsNotTheProxyMount"
     }
   ],
   "frontendExceptions": [

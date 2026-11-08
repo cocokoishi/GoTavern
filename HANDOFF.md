@@ -10,7 +10,76 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-11-07: `v0.1.0-alpha.17` -- THE NICHE QUALIFICATION, EVIDENCE AND PERFORMANCE RELEASE
+## Latest checkpoint - 2026-11-07: `v0.1.0-alpha.18` — THE DEEP PRODUCT-ENGINEERING RELEASE
+
+`v0.1.0-alpha.18` is the product round that closes the gaps alpha.17 recorded without changing them. The
+SillyTavern `1.19.0` baseline (`06bde939fb1e9c4c8d8641d810f0a916b5bce127`) is unchanged, the compatibility
+contract is unchanged, and `GOAL.md` §14 remains **NOT MET** (no real user directory on this host;
+`PRIVATE_NOT_RUN`). Status at this checkpoint is **PRE-RELEASE**: the candidate commit is frozen after this
+document, the thirteen required gates are then dispatched at it, and the tag is created only when the
+verifier prints PASS 13/13. The publish facts are appended below after the release.
+
+### A. What this round actually changed
+
+- **The 10,000-card hotspot is FIXED, not just profiled.** alpha.17 recorded 5,481 ms p50 / 27,099 ms boot
+  and changed no code. This round profiled it (`docs/alpha18/perf/profiles/`), attributed the boot cost to
+  30,000 avoidable per-card file touches (`docs/alpha18/perf/README.md` §3), and removed the work: the card
+  list takes its cache identity from the `os.ReadDir` entry and the ctime from the read handle (symlinks
+  keep the stat path), strings are encoded by a differentially-pinned direct escaper, JS string length is
+  computed without rune/UTF-16 arrays, and startup uses listing metadata in `DiskCache.verify` plus one
+  chats-root listing in statistics. Paired ABBA (`docs/alpha18/perf/abba-inprocess.json`): 10,000-card list
+  **−60.0% ns/op, −40.3% B/op, −59.0% allocs/op**; 1,000 cards −33.7%; 100 cards −26.0%; 10,000-card cold
+  boot 30,757 → 3,661 ms and warm 633 → 165 ms on the same generation protocol (LOCAL Layer A; the CI
+  release claim is the same-SHA `GoTavern smoke metrics` gate).
+- **The CORS proxy enabled branch is REAL.** `internal/server/cors_proxy.go` + `cors_proxy_transport.go`
+  implement the pinned middleware (13-name header removal, forced accept-encoding, JSON.stringify bodies,
+  no upstream response headers copied, 401→400, node-fetch redirects, gzip/deflate) with bounded timeouts,
+  metadata-endpoint refusal, DNS-rebinding closure and the operator's `privateAddressWhitelist.*`/
+  `requestProxy.*` applied through new `outbound.UserURLDialContext`/`UserURLProxy`. 35 local-upstream
+  tests, one mutation RED; the pinned observables came from mounting the PINNED middleware under Node.
+- **Chat auto-backups match pinned.** `internal/server/chat_backup.go`: boot-time config snapshot, pinned
+  `getBackupKey` (UTF-16 code-unit sanitisation, non-ASCII sha256 suffix), local-timestamp filenames, atomic
+  writes of the exact saved bytes, per-chat + optional global retention, leading+trailing throttle,
+  shutdown flush; a failure never changes the save response. 49 tests incl. the pinned-Node key oracle and
+  two mutation REDs. `chat_metadata.integrity` and the group-save backup schedule remain recorded gaps.
+- **Streaming/cancellation: real sockets, no invented fix.** 13 tests in
+  `tests/e2e/streaming_cancel_socket_test.go` prove byte transparency across 46 write-boundary shapes,
+  incremental flush, gzip decode, clean EOF without `[DONE]`, pinned truncation hold-open, provider close on
+  cancel/body-close in 10-21 ms, 50 sequential + 8 concurrent cancels with no goroutine/socket leak, and
+  bounded slow-client behaviour. No production defect was proven, so none was changed; two COVERAGE defects
+  were fixed (the suite moved to `tests/e2e` because `internal/server` pins the wire-exact client, and the
+  always-skipping gzip gate moved to `internal/outbound` where it runs).
+- **Release rails APPLIED.** `docs/release-manifest.json` now carries `requiredJobs` on all 13 gates,
+  `requiredSelection` (CI `probes=full`, Browser `mode=all`, full-job selections), `pinnedSha`,
+  `requiredPinnedSha` on two gates and artifact digest/freshness on four; `release.yml` emits and uploads the
+  unified evidence before publishing and asserts the publish checkout is the tag target. Real evidence:
+  Docker full-selection run accepted, `-f size=small` long-lived dispatch refused for skipped
+  `medium-corpus`, alpha.17 wave re-judged 11/13 with the two pre-run-name titles refused.
+- **60-minute soak harness** `tools/perf/a18-soak.mjs` (mixed storage routes, write→restart→read integrity,
+  external card-modification probe, RSS/CPU sampling, honest UNPROVEN leak verdict) with two validated
+  2-minute runs before the release run.
+
+### B. Verification state
+
+- Full `internal/server` suite green; `internal/startup` suite green; CORS 35/35; chat-backup 49/49;
+  streaming 13/13; `go vet ./internal/server ./internal/outbound` clean; classifier suite 74/74;
+  `node --test scripts/release-governance.test.mjs` 87/87; `node --test tests/docs/check-perf-docs.test.mjs`
+  15/15 and `node tools/check-perf-docs.mjs` green at the candidate docs.
+- `-race` is unavailable on windows/arm64; the Linux CI `race` job is the concurrency gate.
+- **PENDING at this checkpoint:** the 13-gate same-SHA wave, the release rehearsal, the tag/publish, the
+  60-minute soak artifact, the process-level ABBA artifact, and the independent post-publication verification.
+  Each is recorded in `docs/alpha18/same-sha-evidence.md` / `docs/alpha18/handoff-ledger.md` when it exists.
+
+### C. Named next candidates (not this release)
+
+`chat_metadata.integrity` enforcement (pinned 400 `{"error":"integrity"}` unless `force`), backup scheduling
+on `/api/chats/group/save`, a brotli decoder (or a documented accept-encoding divergence instead of the
+retry), and the §14 real-user-directory qualification. Nothing else is proposed as "next round" to hide an
+unfinished alpha.18 obligation.
+
+---
+
+## History - 2026-11-07: `v0.1.0-alpha.17` — THE NICHE QUALIFICATION, EVIDENCE AND PERFORMANCE RELEASE
 
 `v0.1.0-alpha.17` closes the alpha.17 programme (M0 refreshed read-only audit, M1 scenario catalogue and
 computed gap matrix, M2 executed niche tests with planted-defect teeth, M3 one evidence-driven product fix,

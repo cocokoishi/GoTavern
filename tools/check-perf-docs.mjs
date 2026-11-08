@@ -75,9 +75,9 @@ const svgLightPath = path.resolve(argument('--svg-light', path.join(ROOT, 'docs'
 const provenancePath = path.resolve(argument('--provenance', path.join(ROOT, 'docs', 'assets', 'benchmark.svg.provenance.md')));
 const baselineDocPath = path.resolve(argument('--baseline-doc', path.join(ROOT, 'docs', 'perf-baseline.md')));
 const generatorPath = path.resolve(argument('--generator', path.join(ROOT, 'tools', 'benchmark-svg.mjs')));
-const alpha17Dir = path.join(ROOT, 'docs', 'alpha17');
-const perfLaneDir = path.join(alpha17Dir, 'perf');
-const RELEASE_VERSION = argument('--release', 'v0.1.0-alpha.17');
+const alpha18Dir = path.join(ROOT, 'docs', 'alpha18');
+const perfLaneDir = path.join(alpha18Dir, 'perf');
+const RELEASE_VERSION = argument('--release', 'v0.1.0-alpha.18');
 const RELEASES_LATEST = 'https://github.com/cocokoishi/GoTavern/releases/latest';
 // Known-stale release tokens: text that was true once and must never be presented as the current release.
 // It may still appear in a historical sentence ("was the previous release"), never as "current"/"latest".
@@ -525,13 +525,13 @@ if (performanceDoc !== null) {
         if (!performanceDoc.toLowerCase().includes(needle.toLowerCase())) problem('PERF-DOC-UNPROVEN', performanceDocPath, null, `does not contain ${JSON.stringify(needle)} (${why})`);
     }
     // COLD-GUARD: while the perf lane has produced no record, this document must say so; once a record exists
-    // under docs/alpha17/perf/, the document must point at it instead of claiming it is pending.
+    // under docs/alpha18/perf/, the document must point at it instead of claiming it is pending.
     expectContains('PERF-DOC-COLD-GUARD', performanceDocPath, performanceDoc, 'cold-guard', 'must name the cold-guard row');
     const perfLaneHasArtifacts = existsSync(perfLaneDir) && statSync(perfLaneDir).isDirectory();
     if (perfLaneHasArtifacts) {
-        expectContains('PERF-DOC-COLD-GUARD', performanceDocPath, performanceDoc, 'docs/alpha17/perf/', 'the perf lane now has records; the document must point at docs/alpha17/perf/');
+        expectContains('PERF-DOC-COLD-GUARD', performanceDocPath, performanceDoc, 'docs/alpha18/perf/', 'the perf lane now has records; the document must point at docs/alpha18/perf/');
     } else if (!/pending/i.test(performanceDoc)) {
-        problem('PERF-DOC-COLD-GUARD', performanceDocPath, null, 'the cold-guard row has no record in docs/alpha17/perf/ and the document does not say it is pending');
+        problem('PERF-DOC-COLD-GUARD', performanceDocPath, null, 'the cold-guard row has no record in docs/alpha18/perf/ and the document does not say it is pending');
     }
     checkVersionText('PERF-DOC', performanceDocPath, performanceDoc);
     checkLinks('PERF-DOC-LINK', performanceDocPath, performanceDoc, path.join(ROOT, 'docs'));

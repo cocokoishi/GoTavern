@@ -43,14 +43,14 @@ and `check.mjs` could report green on a red derivation. Both are fixed and both 
 scenario.
 
 <<<<<<< HEAD
-<!-- BEGIN GENERATED: surface.drift -->Frontend-derived backend surfaces: **573** classified (implemented 308, intentionally-passthrough 230, not-applicable 17, unsupported-with-reason 18); **0 unknown**. Go registrations: **423** classified (implemented 414, intentionally-passthrough 8, not-applicable 0, unsupported-with-reason 1). Pinned redirect aliases: **50** registered, **0** open gap(s). Inputs: 68 pinned frontend module(s), 229 observed startup request(s), 17 extension-dependency row(s), 342 pinned route(s), 423 Go registration(s) in 188 file(s). A new frontend route/request shape, a new Go route with no classification, or a new unregistered pinned redirect alias fails `node tools/compat-matrix/surface-coverage.mjs --check` (run by `tools/compat-matrix/check.mjs` in `ci.yml#verify`), which is the drift gate rule 43 requires.
+<!-- BEGIN GENERATED: surface.drift -->Frontend-derived backend surfaces: **573** classified (implemented 308, intentionally-passthrough 230, not-applicable 17, unsupported-with-reason 18); **0 unknown**. Go registrations: **424** classified (implemented 416, intentionally-passthrough 8, not-applicable 0, unsupported-with-reason 0). Pinned redirect aliases: **50** registered, **0** open gap(s). Inputs: 68 pinned frontend module(s), 229 observed startup request(s), 17 extension-dependency row(s), 342 pinned route(s), 424 Go registration(s) in 190 file(s). A new frontend route/request shape, a new Go route with no classification, or a new unregistered pinned redirect alias fails `node tools/compat-matrix/surface-coverage.mjs --check` (run by `tools/compat-matrix/check.mjs` in `ci.yml#verify`), which is the drift gate rule 43 requires.
 
 | Classification | Frontend surfaces | Go registrations |
 |---|---|---|
-| implemented | 308 | 414 |
+| implemented | 308 | 416 |
 | intentionally-passthrough | 230 | 8 |
 | not-applicable | 17 | 0 |
-| unsupported-with-reason | 18 | 1 |
+| unsupported-with-reason | 18 | 0 |
 | **unknown** | **0** | **0** |<!-- END GENERATED: surface.drift -->
 
 ## Computed chat-completion coverage

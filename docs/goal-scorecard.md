@@ -153,7 +153,9 @@ A behaviour the product will not have, decided rather than pending:
 | image re-encoding that claims Jimp byte equality | architecture boundary 3: `/thumbnail` serves the observable contract; `/api/avatars/upload` keeps the boundary |
 | private third-party wire formats inside npm packages | architecture boundary 4 |
 | inherited substring hostname matching in content import | architecture boundary 5: reproduced AND recorded |
-| `git.backend: builtin`, per-chat backups, VertexAI service-account mode, remote provider embeddings | recorded in `docs/config-inventory.md` with the pinned source, why a pure-Go port is out of scope, and what a user sees |
+| `git.backend: builtin`, VertexAI service-account mode, remote provider embeddings | recorded in `docs/config-inventory.md` with the pinned source, why a pure-Go port is out of scope, and what a user sees |
+
+Per-chat chat backups are NOT a boundary any more: alpha.18 implements pinned's throttled backup semantics (`internal/server/chat_backup.go`, 49 tests); the still-open pieces are `chat_metadata.integrity` enforcement and backup scheduling on `/api/chats/group/save`, both recorded in `docs/SEMANTIC-COMPATIBILITY.md` §18.
 
 ## 3. What a reader of the rows above could misread
 

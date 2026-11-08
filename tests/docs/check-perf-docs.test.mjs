@@ -57,7 +57,7 @@ test('README table cell that disagrees with the artifact names README-TABLE-PINN
 });
 
 test('a known-stale release token is refused by name', () => {
-    const readme = mutatedCopy('readme-stale.md', 'README.md', text => text.replaceAll('v0.1.0-alpha.17', 'v0.1.0-alpha.15'));
+    const readme = mutatedCopy('readme-stale.md', 'README.md', text => text.replaceAll('v0.1.0-alpha.18', 'v0.1.0-alpha.15'));
     expectNamedFailure(runChecker(['--readme', readme]), 'README-STALE-VERSION');
 });
 
@@ -119,8 +119,8 @@ test('a tampered baseline copy propagates to the README table check', () => {
 });
 
 test('a cold-guard row that stops pointing at the perf lane record is refused', () => {
-    // The perf lane now HAS a docs/alpha17/perf/ record, so the document must point at it. Removing that
+    // The perf lane now HAS a docs/alpha18/perf/ record, so the document must point at it. Removing that
     // pointer must fail by name rather than reading as if the cold-guard row were settled or absent.
-    const performanceDoc = mutatedCopy('performance-cold-guard.md', 'docs/performance.md', text => text.replace('docs/alpha17/perf/', 'the performance lane'));
+    const performanceDoc = mutatedCopy('performance-cold-guard.md', 'docs/performance.md', text => text.replaceAll('docs/alpha18/perf/', 'the performance lane'));
     expectNamedFailure(runChecker(['--performance-doc', performanceDoc]), 'PERF-DOC-COLD-GUARD');
 });

@@ -38,9 +38,9 @@ package server
 
 import (
 	"bytes"
-	"context"
 	"compress/gzip"
 	"compress/zlib"
+	"context"
 	"io"
 	"mime"
 	"net/http"

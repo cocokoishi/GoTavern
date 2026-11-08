@@ -95,9 +95,17 @@ fi
 #                     evidence in docs/performance.md and a checker with teeth, and a unified machine-verifiable
 #                     release evidence contract. Its own 13-gate same-SHA wave plus the published archive and
 #                     container digest verification are the qualification.
+#   v0.1.0-alpha.18   the DEEP PRODUCT-ENGINEERING release: the 10,000-card request/startup hotspot profiled to
+#                     its roots and fixed with a paired measured improvement, the real CORS proxy enabled branch,
+#                     the pinned chat auto-backup semantics, real-socket streaming/cancellation resource-release
+#                     evidence, a 60-minute soak, and the release-evidence rails APPLIED to the release chain with
+#                     a real narrowed-dispatch refusal. Its own 13-gate same-SHA wave, the published archive
+#                     checksums, the unpacked-binary data request and the container digest verification are the
+#                     qualification.
 #
 # THE LIST IS EQUALITY, NOT A RANGE. It cannot widen by accident: v0.1.0-alpha.10, v0.1.0-alpha.11,
-# v0.1.0-alpha.18, v0.1.0-alpha.170, v0.1.0-alpha.17-rc1, v0.1.0-alpha.17+build.1, v0.1.0-alpha.160,
+# v0.1.0-alpha.19, v0.1.0-alpha.180, v0.1.0-alpha.18-rc1, v0.1.0-alpha.18+build.1, v0.1.0-alpha.170,
+# v0.1.0-alpha.17-rc1, v0.1.0-alpha.17+build.1, v0.1.0-alpha.160,
 # v0.1.0-alpha.16-rc1, v0.1.0-alpha.16+build.1, v0.1.0-alpha.150, v0.1.0-alpha.15-rc1,
 # v0.1.0-alpha.15+build.1, v0.1.0-alpha.140, v0.1.0-alpha.14-rc1, v0.1.0-alpha.130, v0.1.0-alpha.13-rc1,
 # v0.1.0-alpha.09, v0.1.1-alpha.9, v0.2.0-alpha.1 and v0.1.0-alpha.13+build.1 all stay
@@ -106,7 +114,7 @@ fi
 # graduating an unqualified tag. Each entry is added by its own commit that cites the qualification evidence for
 # that tag.
 # =============================================================================================================
-GRADUATED_STABLE_TAGS='v0.1.0-alpha.9 v0.1.0-alpha.12 v0.1.0-alpha.13 v0.1.0-alpha.14 v0.1.0-alpha.15 v0.1.0-alpha.16 v0.1.0-alpha.17'
+GRADUATED_STABLE_TAGS='v0.1.0-alpha.9 v0.1.0-alpha.12 v0.1.0-alpha.13 v0.1.0-alpha.14 v0.1.0-alpha.15 v0.1.0-alpha.16 v0.1.0-alpha.17 v0.1.0-alpha.18'
 
 for graduated_tag in $GRADUATED_STABLE_TAGS; do
   if [ "$tag" = "$graduated_tag" ]; then

@@ -124,11 +124,11 @@ Inherited upstream weaknesses are reproduced and recorded, not silently fixed â€
 [![Latest release](https://img.shields.io/github/v/release/cocokoishi/GoTavern?label=release)](https://github.com/cocokoishi/GoTavern/releases)
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-**`v0.1.0-alpha.17` is the release this tree ships.** It is built and published by the release workflow from this tree's commit, and the [releases page](https://github.com/cocokoishi/GoTavern/releases/latest) is authoritative for what is published right now. An unpinned install resolves `releases/latest`; pin a version for a reproducible deployment or a rollback target.
+**`v0.1.0-alpha.18` is the release this tree ships.** It is built and published by the release workflow from this tree's commit, and the [releases page](https://github.com/cocokoishi/GoTavern/releases/latest) is authoritative for what is published right now. An unpinned install resolves `releases/latest`; pin a version for a reproducible deployment or a rollback target.
 
 - The channel rule is one script, [`scripts/classify-version-tag.sh`](scripts/classify-version-tag.sh), shared by the release workflow, the Docker workflow and both installers: only a stable tag moves `:latest` and `releases/latest`.
-- `v0.1.0-alpha.16` was the previous stable-channel release; earlier releases stay downloadable by explicit version. Back up any data directory you cannot afford to lose before upgrading.
-- The [release notes](docs/release-notes-v0.1.0-alpha.16.md) carry the same limits; this README states them up front rather than below the fold.
+- `v0.1.0-alpha.17` was the previous stable-channel release; earlier releases stay downloadable by explicit version. Back up any data directory you cannot afford to lose before upgrading.
+- The [release notes](docs/release-notes-v0.1.0-alpha.18.md) carry the same limits; this README states them up front rather than below the fold.
 
 ## Development
 

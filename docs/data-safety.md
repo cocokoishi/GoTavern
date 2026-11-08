@@ -33,7 +33,7 @@ runs the caller's read-modify-write, and re-checks containment before writing.
 | avatar / background / sprite uploads | `server.avatars_upload.go:110`, `startup/user_backgrounds.go`, `server/sprites_upload.go:spritesAtomicWrite` | `startup.WriteFileAtomic` / own temp+fsync+rename | none | `src/endpoints/avatars.js:58` `writeFileAtomicSync` |
 | image upload (`/api/images/upload`) | `server.images.go:writeUserImageFile` | `startup.WriteFileAtomic` — **fixed in `f584570`**; was `os.WriteFile` | none after fix | `src/endpoints/images.js:72` `fs.promises.writeFile` — **pinned is non-atomic**; hardening recorded in §3 |
 | stats (`stats.json`), tokenizer metadata, thumbnails, content log | `startup.WriteFileAtomic` / `atomicReplace` | temp + fsync + rename | none | mixed; derived data, not user-authored |
-| chat backups (`backups/chat_*`) | **not implemented** (recorded gap in `server/chats.go:14-21`) | — | — | `src/endpoints/chats.js` throttled `backupChat` |
+| chat backups (`backups/chat_*`) | `server/chat_backup.go` (alpha.18) | `startup.WriteFileAtomic` (temp + fsync + rename), separate file per backup | a killed process can leave at most one complete backup or none; the chat file itself is untouched | `src/endpoints/chats.js` throttled `backupChat` |
 | access log append | `server/access_log.go:157` `O_APPEND` | append-only log line | a killed process may drop the last line | `fs.appendFile` — same class, not user data |
 
 Verified positives (no change needed, proven by the tests in §2): settings, chats, cards, world info,

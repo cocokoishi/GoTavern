@@ -64,7 +64,7 @@ default. Section 5 lists those verified-sound items so the operator is not guess
 | `sessionTimeout` | a positive number, e.g. `86400` | `-1` (the default, `upstream/default/config.yaml:178`) means a **400-day** cookie; see F5. |
 | `enableDiscreetLogin` | `true` | Strongly recommended. Without it `POST /api/users/list` anonymously returns every enabled account's handle and a boolean saying whether it has a password — an attacker's shortlist. With it the route answers a bare `204` (F11). |
 | `ssl.enabled` | `true` (with a cert), **or** a proxy on a private network | Default `false` (`upstream/default/config.yaml:50`). It is the only way the session cookie gets `Secure`; see F3. |
-| `enableCorsProxy` | `false` (leave as shipped) | Default `false`. Not registered in GoTavern at all (see F7), so this is doubly moot here. |
+| `enableCorsProxy` | `false` (leave as shipped) | Default `false`. The route exists in alpha.18 and, when enabled, proxies authenticated users' requests; see F7 for the SSRF surface and the two recorded hardenings. |
 | TLS | terminate at GoTavern, or accept that the cookie lacks `Secure` | See F3. |
 
 ---
@@ -248,7 +248,7 @@ the recorded oracle `tests/oracle/sillytavern-1.19.0-account-session.json:66-71`
 "Forbidden"`). So the route that advertises the product version is deliberate parity, not a leak, and it exposes
 only static build identity (`internal/server/http.go:660-679`) when reached authenticated.
 
-**The user-data routes the question asked about are all behind the gate**: `/proxy/` does not exist (F7), the
+**The user-data routes the question asked about are all behind the gate**: `/proxy/` sits behind the same login gate (F7), the
 extension trees are served statically but the *install/update* calls are POSTs on the mux, and every
 `/api/**` user-data route (characters, chats, worldinfo, presets, secrets, settings, images, files, sprites) is
 registered on the same mux and therefore gated.
@@ -256,29 +256,38 @@ registered on the same mux and therefore gated.
 Classification: **`inherited-pinned-behaviour`, no finding.** I found **no unauthenticated route that reads or
 writes user data.** This was the single most important thing to establish and it holds.
 
-### F7 — SSRF: `/proxy/` is not implemented here, so the classic vector is absent
+### F7 — SSRF: `/proxy/` exists in alpha.18, requires authentication, and carries two recorded hardenings
 
 Pinned registers `app.use('/proxy/:url(*)', corsProxyMiddleware)` and it is **gated by `requireLoginMiddleware`**
 because it registers after it (`src/server-main.js:248`, `:257-265`), and it is disabled unless
 `enableCorsProxy` is set (`upstream/default/config.yaml:76`, default `false`).
 
-**GoTavern registers no `/proxy` handler at all** — `git grep 'HandleFunc(".*proxy'` over `internal/` returns
-nothing, and `internal/server/csrf_session.go:191` only *names* the path for a CSRF exemption when
-`EnableCorsProxy` is set. So the CORS-proxy SSRF vector does not exist in this implementation. When it is
-implemented it will need to reproduce pinned's behaviour, which does **not** block cloud metadata
-(`169.254.169.254`), loopback, or RFC1918 — pinned forwards whatever URL it is given. That is a
-**future** finding, not a current one, and it is worth recording so the implementer sees it before shipping the
-route.
+**GoTavern registers the mount in both branches since alpha.18** (`internal/server/cors_proxy.go`). The disabled
+branch answers pinned's exact 404. When enabled the route is a real proxy, reachable only by an authenticated
+user through the same login gate as pinned (and CSRF-exempt for `/proxy/` only when `EnableCorsProxy` is set,
+which is also pinned's rule). The SSRF surface is therefore the AUTHENTICATED proxy that pinned already ships:
+it fetches any http/https URL, including loopback and RFC1918 targets (a legitimate use — local model servers),
+and it applies the operator's `privateAddressWhitelist.*` and `requestProxy.*` through the same outbound policy
+as provider traffic (`outbound.UserURLDialContext` / `UserURLProxy`), so an operator who has locked private
+targets down gets the same protection on `/proxy`.
+
+Two deliberate hardenings BEYOND pinned are recorded in `docs/SEMANTIC-COMPATIBILITY.md` §18: the cloud metadata
+endpoints (`169.254.169.254`, `169.254.170.2`, `fd00:ec2::254`, `100.100.100.200`, and v4-mapped forms) are
+always refused with the pinned-shaped 500, and DNS rebinding is closed by resolving once and dialling only an
+address that was checked. Waits are bounded (connect/TLS/response-header/body-silence), the pinned request-header
+removal list strips the CSRF token, cookie, origin, referer and forwarded-IP headers before forwarding, and a
+`br` reply is retried without `br` for GET/HEAD (no brotli decoder) while a mutating request is refused rather
+than re-sent.
+
+**No SSRF is reachable without authentication.** Classification: **`inherited-pinned-behaviour`**
+(authenticated arbitrary-URL fetch, exactly as pinned) **with two recorded hardenings**; severity: requires
+auth first, and an operator turns it on explicitly by setting `enableCorsProxy: true`.
 
 **For an authenticated user**, provider calls and content import do fetch arbitrary URLs — that is the product's
 job. Content import validates the host against `whitelistImportDomains` for the generic branch
 (`internal/server/content.go:12,233`) and reproduces pinned's substring-matching weakness on provider branches
 (recorded as an inherited property in `AGENTS.md` "Architecture boundaries" §5). Provider URL overrides
 (`GOTAVERN_*_URL`) are process-environment settings, not user-settable, so they are not an SSRF path.
-
-**No SSRF is reachable without authentication.** Classification: **`govern-difference`(route absent),
-severity none today.**
-
 ### F8 — Authenticated user → server-side code execution: **not possible**, because no JS runs on the server
 
 Extension install writes files and runs `git`; it does **not** execute extension JavaScript on the server. GoTavern

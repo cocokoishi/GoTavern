@@ -1,0 +1,960 @@
+{
+  "schema": "alpha18-process-paired-abba-v1",
+  "question": "Published alpha.17 binary vs the alpha.18 candidate: boot, steady/peak RSS, and /api/characters/all latency on identical freshly generated trees at 100 / 1,000 / 10,000 cards and a mixed-large tree.",
+  "protocol": {
+    "harness": "scripts/a15-bench-suite.mjs --mode paired",
+    "command": "node scripts/a15-bench-suite.mjs --mode paired --subject a17=<published alpha.17> --subject a18=<candidate> --scale <cards|mixed-large> --rounds 4 --requests 6 --data-route characters",
+    "ordering": "each round generates a FRESH identical tree per subject and alternates the subject order (A,B / B,A / A,B / B,A)",
+    "samples": "bootMs and RSS are one measurement per round (4 rounds); dataMedianMs is the median of the 6 measured requests per round (24 requests per subject per scale)",
+    "layer": "LOCAL Windows arm64 Layer A; NOT Linux CI evidence"
+  },
+  "rows": [
+    {
+      "scale": "cards",
+      "scaleArgs": [
+        "--cards",
+        "10000"
+      ],
+      "route": "characters",
+      "rounds": 4,
+      "requestsPerPath": 6,
+      "environment": {
+        "git": {
+          "commit": "5aef3db5de4171455fa2ab3cd8775d0b65c68c06",
+          "branch": "main",
+          "dirty": true,
+          "dirtyFileCount": 35
+        },
+        "cpu": {
+          "model": "virt-7.2",
+          "logicalCores": 2,
+          "totalMemoryBytes": 12879790080,
+          "platform": "win32",
+          "release": "10.0.26100",
+          "arch": "arm64"
+        },
+        "go": "go version go1.27.3 windows/arm64",
+        "node": "v24.19.0",
+        "loadLabel": "LOCAL alpha18 process ABBA (10000-cards): Windows arm64, 2 cores, candidate built from product commit 5aef3db; single sequential agent"
+      },
+      "subjects": [
+        {
+          "name": "a17",
+          "kind": "gotavern",
+          "sha256": "0d96c0abab4debaf478a80efec6b57ef39186c98dd745111317111c5bef124e8",
+          "sizeBytes": 60789248,
+          "version": "GoTavern v0.1.0-alpha.17"
+        },
+        {
+          "name": "a18",
+          "kind": "gotavern",
+          "sha256": "be4b7c024834392d50ee37b8c2c632bb95566a0d8bdf4005d90497c4c8626428",
+          "sizeBytes": 60860928,
+          "version": "GoTavern 0.0.0-dev"
+        }
+      ],
+      "summary": {
+        "a17": {
+          "bootMs": {
+            "count": 4,
+            "min": 26816.57512,
+            "median": 28016.91828,
+            "max": 28095.8584,
+            "p95": 28095.8584,
+            "p99": 28095.8584
+          },
+          "rssSteadyBytes": {
+            "count": 4,
+            "min": 933945344,
+            "median": 1023545344,
+            "max": 1027887104,
+            "p95": 1027887104,
+            "p99": 1027887104
+          },
+          "peakRssBytes": {
+            "count": 4,
+            "min": 1032241152,
+            "median": 1040007168,
+            "max": 1144516608,
+            "p95": 1144516608,
+            "p99": 1144516608
+          },
+          "dataMedianMs": {
+            "count": 12,
+            "min": 4994.14204,
+            "median": 5744.38108,
+            "max": 7293.2806,
+            "p95": 7293.2806,
+            "p99": 7293.2806
+          },
+          "cpuUserMs": {
+            "count": 4,
+            "min": 16016,
+            "median": 16140,
+            "max": 16203,
+            "p95": 16203,
+            "p99": 16203
+          },
+          "cpuSystemMs": {
+            "count": 4,
+            "min": 10953,
+            "median": 10969,
+            "max": 11078,
+            "p95": 11078,
+            "p99": 11078
+          },
+          "gcCount": {
+            "count": 4,
+            "min": 188,
+            "median": 193,
+            "max": 196,
+            "p95": 196,
+            "p99": 196
+          }
+        },
+        "a18": {
+          "bootMs": {
+            "count": 4,
+            "min": 283.80816,
+            "median": 350.72256,
+            "max": 584.87464,
+            "p95": 584.87464,
+            "p99": 584.87464
+          },
+          "rssSteadyBytes": {
+            "count": 4,
+            "min": 891056128,
+            "median": 986234880,
+            "max": 993796096,
+            "p95": 993796096,
+            "p99": 993796096
+          },
+          "peakRssBytes": {
+            "count": 4,
+            "min": 1005752320,
+            "median": 1107558400,
+            "max": 1142972416,
+            "p95": 1142972416,
+            "p99": 1142972416
+          },
+          "dataMedianMs": {
+            "count": 12,
+            "min": 2247.0348,
+            "median": 2738.68288,
+            "max": 3089.3872,
+            "p95": 3089.3872,
+            "p99": 3089.3872
+          },
+          "cpuUserMs": {
+            "count": 4,
+            "min": 8594,
+            "median": 8797,
+            "max": 9000,
+            "p95": 9000,
+            "p99": 9000
+          },
+          "cpuSystemMs": {
+            "count": 4,
+            "min": 2250,
+            "median": 2547,
+            "max": 2672,
+            "p95": 2672,
+            "p99": 2672
+          },
+          "gcCount": {
+            "count": 4,
+            "min": 68,
+            "median": 74,
+            "max": 79,
+            "p95": 79,
+            "p99": 79
+          }
+        }
+      },
+      "change": {
+        "bootMedian": -0.9874817581114779,
+        "dataMedian": -0.5232414350894701,
+        "rssSteadyMedian": -0.0364521847700379,
+        "peakRssMedian": 0.06495266001858942
+      },
+      "perRound": [
+        {
+          "subject": "a17",
+          "bootMs": 28016.91828,
+          "rssSteadyBytes": 1027887104,
+          "peakRssBytes": 1039335424,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a18",
+          "bootMs": 350.72256,
+          "rssSteadyBytes": 925970432,
+          "peakRssBytes": 1044811776,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a18",
+          "bootMs": 315.64364,
+          "rssSteadyBytes": 986234880,
+          "peakRssBytes": 1005752320,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a17",
+          "bootMs": 26816.57512,
+          "rssSteadyBytes": 973996032,
+          "peakRssBytes": 1144516608,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a17",
+          "bootMs": 28095.8584,
+          "rssSteadyBytes": 933945344,
+          "peakRssBytes": 1032241152,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a18",
+          "bootMs": 584.87464,
+          "rssSteadyBytes": 993796096,
+          "peakRssBytes": 1142972416,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a18",
+          "bootMs": 283.80816,
+          "rssSteadyBytes": 891056128,
+          "peakRssBytes": 1107558400,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a17",
+          "bootMs": 26942.93144,
+          "rssSteadyBytes": 1023545344,
+          "peakRssBytes": 1040007168,
+          "dataMedianMs": null,
+          "gcCount": null
+        }
+      ],
+      "artifact": "docs\\alpha18\\perf\\a15\\paired-2026-11-08T03-20-37-991Z.json"
+    },
+    {
+      "scale": "cards",
+      "scaleArgs": [
+        "--cards",
+        "1000"
+      ],
+      "route": "characters",
+      "rounds": 4,
+      "requestsPerPath": 6,
+      "environment": {
+        "git": {
+          "commit": "8f36c458eb158a0db8ca40d9c32a5bdbd7425b71",
+          "branch": "main",
+          "dirty": true,
+          "dirtyFileCount": 29
+        },
+        "cpu": {
+          "model": "virt-7.2",
+          "logicalCores": 2,
+          "totalMemoryBytes": 12879790080,
+          "platform": "win32",
+          "release": "10.0.26100",
+          "arch": "arm64"
+        },
+        "go": "go version go1.27.3 windows/arm64",
+        "node": "v24.19.0",
+        "loadLabel": "LOCAL alpha18 process ABBA (1000-cards): Windows arm64, 2 cores, candidate built from product commit 5aef3db; single sequential agent"
+      },
+      "subjects": [
+        {
+          "name": "a17",
+          "kind": "gotavern",
+          "sha256": "0d96c0abab4debaf478a80efec6b57ef39186c98dd745111317111c5bef124e8",
+          "sizeBytes": 60789248,
+          "version": "GoTavern v0.1.0-alpha.17"
+        },
+        {
+          "name": "a18",
+          "kind": "gotavern",
+          "sha256": "be4b7c024834392d50ee37b8c2c632bb95566a0d8bdf4005d90497c4c8626428",
+          "sizeBytes": 60860928,
+          "version": "GoTavern 0.0.0-dev"
+        }
+      ],
+      "summary": {
+        "a17": {
+          "bootMs": {
+            "count": 4,
+            "min": 2600.842,
+            "median": 2956.01236,
+            "max": 3382.876,
+            "p95": 3382.876,
+            "p99": 3382.876
+          },
+          "rssSteadyBytes": {
+            "count": 4,
+            "min": 89260032,
+            "median": 94359552,
+            "max": 95010816,
+            "p95": 95010816,
+            "p99": 95010816
+          },
+          "peakRssBytes": {
+            "count": 4,
+            "min": 92622848,
+            "median": 96899072,
+            "max": 99573760,
+            "p95": 99573760,
+            "p99": 99573760
+          },
+          "dataMedianMs": {
+            "count": 12,
+            "min": 517.68308,
+            "median": 533.12204,
+            "max": 777.01936,
+            "p95": 777.01936,
+            "p99": 777.01936
+          },
+          "cpuUserMs": {
+            "count": 4,
+            "min": 1515,
+            "median": 1734,
+            "max": 1812,
+            "p95": 1812,
+            "p99": 1812
+          },
+          "cpuSystemMs": {
+            "count": 4,
+            "min": 1015,
+            "median": 1266,
+            "max": 1312,
+            "p95": 1312,
+            "p99": 1312
+          },
+          "gcCount": {
+            "count": 4,
+            "min": 130,
+            "median": 132,
+            "max": 132,
+            "p95": 132,
+            "p99": 132
+          }
+        },
+        "a18": {
+          "bootMs": {
+            "count": 4,
+            "min": 179.61904,
+            "median": 192.13056,
+            "max": 362.43728,
+            "p95": 362.43728,
+            "p99": 362.43728
+          },
+          "rssSteadyBytes": {
+            "count": 4,
+            "min": 89800704,
+            "median": 100634624,
+            "max": 107986944,
+            "p95": 107986944,
+            "p99": 107986944
+          },
+          "peakRssBytes": {
+            "count": 4,
+            "min": 97464320,
+            "median": 101318656,
+            "max": 110002176,
+            "p95": 110002176,
+            "p99": 110002176
+          },
+          "dataMedianMs": {
+            "count": 12,
+            "min": 240.67184,
+            "median": 246.78032,
+            "max": 256.35952,
+            "p95": 256.35952,
+            "p99": 256.35952
+          },
+          "cpuUserMs": {
+            "count": 4,
+            "min": 828,
+            "median": 891,
+            "max": 891,
+            "p95": 891,
+            "p99": 891
+          },
+          "cpuSystemMs": {
+            "count": 4,
+            "min": 235,
+            "median": 266,
+            "max": 344,
+            "p95": 344,
+            "p99": 344
+          },
+          "gcCount": {
+            "count": 4,
+            "min": 57,
+            "median": 58,
+            "max": 63,
+            "p95": 63,
+            "p99": 63
+          }
+        }
+      },
+      "change": {
+        "bootMedian": -0.9350034652764442,
+        "dataMedian": -0.5371035119838603,
+        "rssSteadyMedian": 0.06650171463298173,
+        "peakRssMedian": 0.045610178805427566
+      },
+      "perRound": [
+        {
+          "subject": "a17",
+          "bootMs": 2734.14032,
+          "rssSteadyBytes": 95010816,
+          "peakRssBytes": 99573760,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a18",
+          "bootMs": 362.43728,
+          "rssSteadyBytes": 100634624,
+          "peakRssBytes": 101093376,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a18",
+          "bootMs": 186.27296,
+          "rssSteadyBytes": 89800704,
+          "peakRssBytes": 97464320,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a17",
+          "bootMs": 2956.01236,
+          "rssSteadyBytes": 94359552,
+          "peakRssBytes": 96043008,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a17",
+          "bootMs": 3382.876,
+          "rssSteadyBytes": 89260032,
+          "peakRssBytes": 96899072,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a18",
+          "bootMs": 179.61904,
+          "rssSteadyBytes": 107986944,
+          "peakRssBytes": 110002176,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a18",
+          "bootMs": 192.13056,
+          "rssSteadyBytes": 96260096,
+          "peakRssBytes": 101318656,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a17",
+          "bootMs": 2600.842,
+          "rssSteadyBytes": 90771456,
+          "peakRssBytes": 92622848,
+          "dataMedianMs": null,
+          "gcCount": null
+        }
+      ],
+      "artifact": "docs\\alpha18\\perf\\a15\\paired-2026-11-08T03-21-48-860Z.json"
+    },
+    {
+      "scale": "cards",
+      "scaleArgs": [
+        "--cards",
+        "100"
+      ],
+      "route": "characters",
+      "rounds": 4,
+      "requestsPerPath": 6,
+      "environment": {
+        "git": {
+          "commit": "8f36c458eb158a0db8ca40d9c32a5bdbd7425b71",
+          "branch": "main",
+          "dirty": true,
+          "dirtyFileCount": 30
+        },
+        "cpu": {
+          "model": "virt-7.2",
+          "logicalCores": 2,
+          "totalMemoryBytes": 12879790080,
+          "platform": "win32",
+          "release": "10.0.26100",
+          "arch": "arm64"
+        },
+        "go": "go version go1.27.3 windows/arm64",
+        "node": "v24.19.0",
+        "loadLabel": "LOCAL alpha18 process ABBA (100-cards): Windows arm64, 2 cores, candidate built from product commit 5aef3db; single sequential agent"
+      },
+      "subjects": [
+        {
+          "name": "a17",
+          "kind": "gotavern",
+          "sha256": "0d96c0abab4debaf478a80efec6b57ef39186c98dd745111317111c5bef124e8",
+          "sizeBytes": 60789248,
+          "version": "GoTavern v0.1.0-alpha.17"
+        },
+        {
+          "name": "a18",
+          "kind": "gotavern",
+          "sha256": "be4b7c024834392d50ee37b8c2c632bb95566a0d8bdf4005d90497c4c8626428",
+          "sizeBytes": 60860928,
+          "version": "GoTavern 0.0.0-dev"
+        }
+      ],
+      "summary": {
+        "a17": {
+          "bootMs": {
+            "count": 4,
+            "min": 400.81904,
+            "median": 454.26268,
+            "max": 533.36992,
+            "p95": 533.36992,
+            "p99": 533.36992
+          },
+          "rssSteadyBytes": {
+            "count": 4,
+            "min": 29036544,
+            "median": 29548544,
+            "max": 32149504,
+            "p95": 32149504,
+            "p99": 32149504
+          },
+          "peakRssBytes": {
+            "count": 4,
+            "min": 30527488,
+            "median": 35569664,
+            "max": 38432768,
+            "p95": 38432768,
+            "p99": 38432768
+          },
+          "dataMedianMs": {
+            "count": 12,
+            "min": 73.1402,
+            "median": 85.82952,
+            "max": 95.75124,
+            "p95": 95.75124,
+            "p99": 95.75124
+          },
+          "cpuUserMs": {
+            "count": 4,
+            "min": 156,
+            "median": 203,
+            "max": 250,
+            "p95": 250,
+            "p99": 250
+          },
+          "cpuSystemMs": {
+            "count": 4,
+            "min": 156,
+            "median": 219,
+            "max": 297,
+            "p95": 297,
+            "p99": 297
+          },
+          "gcCount": {
+            "count": 4,
+            "min": 52,
+            "median": 67,
+            "max": 70,
+            "p95": 70,
+            "p99": 70
+          }
+        },
+        "a18": {
+          "bootMs": {
+            "count": 4,
+            "min": 177.08412,
+            "median": 182.92492,
+            "max": 203.6242,
+            "p95": 203.6242,
+            "p99": 203.6242
+          },
+          "rssSteadyBytes": {
+            "count": 4,
+            "min": 29585408,
+            "median": 31297536,
+            "max": 31866880,
+            "p95": 31866880,
+            "p99": 31866880
+          },
+          "peakRssBytes": {
+            "count": 4,
+            "min": 32215040,
+            "median": 33869824,
+            "max": 34992128,
+            "p95": 34992128,
+            "p99": 34992128
+          },
+          "dataMedianMs": {
+            "count": 12,
+            "min": 45.66212,
+            "median": 69.70364,
+            "max": 178.76912,
+            "p95": 178.76912,
+            "p99": 178.76912
+          },
+          "cpuUserMs": {
+            "count": 4,
+            "min": 125,
+            "median": 157,
+            "max": 219,
+            "p95": 219,
+            "p99": 219
+          },
+          "cpuSystemMs": {
+            "count": 4,
+            "min": 78,
+            "median": 109,
+            "max": 110,
+            "p95": 110,
+            "p99": 110
+          },
+          "gcCount": {
+            "count": 4,
+            "min": 23,
+            "median": 30,
+            "max": 31,
+            "p95": 31,
+            "p99": 31
+          }
+        }
+      },
+      "change": {
+        "bootMedian": -0.5973146638416346,
+        "dataMedian": -0.1878826771954452,
+        "rssSteadyMedian": 0.059190462988633216,
+        "peakRssMedian": -0.0477890373099954
+      },
+      "perRound": [
+        {
+          "subject": "a17",
+          "bootMs": 454.26268,
+          "rssSteadyBytes": 29036544,
+          "peakRssBytes": 35569664,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a18",
+          "bootMs": 182.92492,
+          "rssSteadyBytes": 31866880,
+          "peakRssBytes": 32374784,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a18",
+          "bootMs": 177.08412,
+          "rssSteadyBytes": 30056448,
+          "peakRssBytes": 32215040,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a17",
+          "bootMs": 400.81904,
+          "rssSteadyBytes": 29548544,
+          "peakRssBytes": 38432768,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a17",
+          "bootMs": 440.83148,
+          "rssSteadyBytes": 29376512,
+          "peakRssBytes": 30527488,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a18",
+          "bootMs": 178.30988,
+          "rssSteadyBytes": 29585408,
+          "peakRssBytes": 33869824,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a18",
+          "bootMs": 203.6242,
+          "rssSteadyBytes": 31297536,
+          "peakRssBytes": 34992128,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a17",
+          "bootMs": 533.36992,
+          "rssSteadyBytes": 32149504,
+          "peakRssBytes": 33148928,
+          "dataMedianMs": null,
+          "gcCount": null
+        }
+      ],
+      "artifact": "docs\\alpha18\\perf\\a15\\paired-2026-11-08T03-22-09-594Z.json"
+    },
+    {
+      "scale": "mixed-large",
+      "scaleArgs": [],
+      "route": "characters",
+      "rounds": 4,
+      "requestsPerPath": 6,
+      "environment": {
+        "git": {
+          "commit": "8f36c458eb158a0db8ca40d9c32a5bdbd7425b71",
+          "branch": "main",
+          "dirty": true,
+          "dirtyFileCount": 30
+        },
+        "cpu": {
+          "model": "virt-7.2",
+          "logicalCores": 2,
+          "totalMemoryBytes": 12879790080,
+          "platform": "win32",
+          "release": "10.0.26100",
+          "arch": "arm64"
+        },
+        "go": "go version go1.27.3 windows/arm64",
+        "node": "v24.19.0",
+        "loadLabel": "LOCAL alpha18 process ABBA (mixed-large): Windows arm64, 2 cores, candidate built from product commit 5aef3db; single sequential agent"
+      },
+      "subjects": [
+        {
+          "name": "a17",
+          "kind": "gotavern",
+          "sha256": "0d96c0abab4debaf478a80efec6b57ef39186c98dd745111317111c5bef124e8",
+          "sizeBytes": 60789248,
+          "version": "GoTavern v0.1.0-alpha.17"
+        },
+        {
+          "name": "a18",
+          "kind": "gotavern",
+          "sha256": "be4b7c024834392d50ee37b8c2c632bb95566a0d8bdf4005d90497c4c8626428",
+          "sizeBytes": 60860928,
+          "version": "GoTavern 0.0.0-dev"
+        }
+      ],
+      "summary": {
+        "a17": {
+          "bootMs": {
+            "count": 4,
+            "min": 3004.93852,
+            "median": 3131.94268,
+            "max": 3259.66436,
+            "p95": 3259.66436,
+            "p99": 3259.66436
+          },
+          "rssSteadyBytes": {
+            "count": 4,
+            "min": 89071616,
+            "median": 90423296,
+            "max": 92868608,
+            "p95": 92868608,
+            "p99": 92868608
+          },
+          "peakRssBytes": {
+            "count": 4,
+            "min": 95232000,
+            "median": 99823616,
+            "max": 100151296,
+            "p95": 100151296,
+            "p99": 100151296
+          },
+          "dataMedianMs": {
+            "count": 12,
+            "min": 506.43924,
+            "median": 529.06076,
+            "max": 840.3554,
+            "p95": 840.3554,
+            "p99": 840.3554
+          },
+          "cpuUserMs": {
+            "count": 4,
+            "min": 1625,
+            "median": 1672,
+            "max": 1688,
+            "p95": 1688,
+            "p99": 1688
+          },
+          "cpuSystemMs": {
+            "count": 4,
+            "min": 1281,
+            "median": 1375,
+            "max": 1438,
+            "p95": 1438,
+            "p99": 1438
+          },
+          "gcCount": {
+            "count": 4,
+            "min": 179,
+            "median": 182,
+            "max": 183,
+            "p95": 183,
+            "p99": 183
+          }
+        },
+        "a18": {
+          "bootMs": {
+            "count": 4,
+            "min": 710.45848,
+            "median": 804.17248,
+            "max": 1136.29316,
+            "p95": 1136.29316,
+            "p99": 1136.29316
+          },
+          "rssSteadyBytes": {
+            "count": 4,
+            "min": 94498816,
+            "median": 98136064,
+            "max": 98963456,
+            "p95": 98963456,
+            "p99": 98963456
+          },
+          "peakRssBytes": {
+            "count": 4,
+            "min": 98545664,
+            "median": 100626432,
+            "max": 102617088,
+            "p95": 102617088,
+            "p99": 102617088
+          },
+          "dataMedianMs": {
+            "count": 12,
+            "min": 244.18276,
+            "median": 256.64264,
+            "max": 410.21336,
+            "p95": 410.21336,
+            "p99": 410.21336
+          },
+          "cpuUserMs": {
+            "count": 4,
+            "min": 844,
+            "median": 1000,
+            "max": 1016,
+            "p95": 1016,
+            "p99": 1016
+          },
+          "cpuSystemMs": {
+            "count": 4,
+            "min": 250,
+            "median": 266,
+            "max": 390,
+            "p95": 390,
+            "p99": 390
+          },
+          "gcCount": {
+            "count": 4,
+            "min": 110,
+            "median": 117,
+            "max": 118,
+            "p95": 118,
+            "p99": 118
+          }
+        }
+      },
+      "change": {
+        "bootMedian": -0.7432352497587854,
+        "dataMedian": -0.5149089492102948,
+        "rssSteadyMedian": 0.08529624932052908,
+        "peakRssMedian": 0.008042345410528907
+      },
+      "perRound": [
+        {
+          "subject": "a17",
+          "bootMs": 3259.66436,
+          "rssSteadyBytes": 92868608,
+          "peakRssBytes": 100151296,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a18",
+          "bootMs": 1136.29316,
+          "rssSteadyBytes": 94498816,
+          "peakRssBytes": 98545664,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a18",
+          "bootMs": 710.45848,
+          "rssSteadyBytes": 98963456,
+          "peakRssBytes": 102617088,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a17",
+          "bootMs": 3004.93852,
+          "rssSteadyBytes": 89071616,
+          "peakRssBytes": 95232000,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a17",
+          "bootMs": 3131.94268,
+          "rssSteadyBytes": 90423296,
+          "peakRssBytes": 95412224,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a18",
+          "bootMs": 804.17248,
+          "rssSteadyBytes": 98136064,
+          "peakRssBytes": 98553856,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a18",
+          "bootMs": 769.3086,
+          "rssSteadyBytes": 96956416,
+          "peakRssBytes": 100626432,
+          "dataMedianMs": null,
+          "gcCount": null
+        },
+        {
+          "subject": "a17",
+          "bootMs": 3053.71572,
+          "rssSteadyBytes": 90394624,
+          "peakRssBytes": 99823616,
+          "dataMedianMs": null,
+          "gcCount": null
+        }
+      ],
+      "artifact": "docs\\alpha18\\perf\\a15\\paired-2026-11-08T03-23-34-413Z.json"
+    }
+  ],
+  "notes": [
+    "The published alpha.17 binary is the release archive binary (sha256 0d96c0ab…); the candidate is a local build from product commit 5aef3db (sha256 be4b7c02…), both recorded in each artifact.",
+    "The cold-boot improvement is dominated by removing per-card file access from startup (see docs/alpha18/perf/README.md §3); it is a first-touch host effect reproduced identically for both subjects because each round regenerates the tree.",
+    "Steady RSS moves a few percent in both directions; with 4 samples per subject that is inside this host’s spread and is reported as such, not as a regression or an improvement.",
+    "The data-route latency median is the harness median of 6 requests per round; the in-process ABBA (24 paired benchmark observations) is the stronger latency evidence and is recorded in abba-inprocess.json."
+  ]
+}
