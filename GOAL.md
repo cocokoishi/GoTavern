@@ -386,7 +386,7 @@ optimize with measurement, and re-run every gate at one candidate SHA so the rel
 commit rather than on alpha.14's. A ticked box names the evidence in `HANDOFF.md`'s current
 checkpoint; an unticked box is an open obligation, not a style note.
 
-**Update, 2026-11-07 (`v0.1.0-alpha.17` published; `v0.1.0-alpha.18` in progress).** alpha.18's obligation
+**Update, 2026-11-08 (`v0.1.0-alpha.18` published).** alpha.18's obligation
 is §1c's and it does not add a milestone box: close the 10,000-card hotspot with a measured paired
 improvement, ship the CORS proxy enabled branch and the pinned chat auto-backup, prove streaming
 cancellation resource release, run a 60-minute soak, apply the release-evidence rails, and re-run every
@@ -472,7 +472,7 @@ of the following have run on ONE commit, on ONE real tree, with the result recor
    product "drop-in", "compatible", "safe" or "stable" must state in the same place which of 1-5 have
    run and which have not; a claim resting on a synthetic tree or a derivation says so.
 
-**Current state, dated 2026-11-07 (`v0.1.0-alpha.17` published; `v0.1.0-alpha.18` in progress): NOT MET
+**Current state, dated 2026-11-08 (`v0.1.0-alpha.18` published): NOT MET
 for the strong form.** The evidence that exists covers a Go-synthesised long-lived tree
 (`tests/e2e/longlived_*`), the committed synthetic browser corpus, a packaged archive over a stock tree, the
 20 pinned third-party extensions and the browser/provider-wire differentials, plus alpha.16's synthetic
