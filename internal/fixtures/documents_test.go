@@ -659,6 +659,13 @@ var declaredOtherPins = map[string]string{
 	// reason is exactly where a mistyped pin would hide.
 	"336ba48dab8aa124e0eff55e1cf352c495d8f6eb": "v0.1.0-alpha.17 release MAIN HEAD - the SHA the alpha.18 release-governance accept/refuse runs were validated at (docs/alpha18/evidence-contract.md)",
 	"5aef3db5de4171455fa2ab3cd8775d0b65c68c06": "alpha.18 10,000-card performance commit - the product tree the paired in-process ABBA, boot attribution and Linux CI bench-baseline regeneration measured (docs/alpha18/perf/, docs/alpha18/handoff-ledger.md)",
+	// THE alpha.18 CANDIDATE. The frozen SHA the thirteen required gates were dispatched at, the tag
+	// target and the SHA the release-evidence document records. Identity values, not baseline claims.
+	"a41772152a76cd3c42c52b63f2a377e2963de6fd": "v0.1.0-alpha.18 release candidate and tag target - the SHA every required gate was dispatched at (docs/alpha18/same-sha-evidence.md, release-evidence.json)",
+	// The RECORD candidate: the wave at this SHA was REFUSED (oracle nondeterminism + browser driver fault)
+	// and superseded by a417721. Declared because the same-SHA evidence records the refusal by SHA; it is
+	// NOT a release identity.
+	"2216617cdbdd2c64220b6f865fc0228126efcf27": "alpha.18 release-record commit whose first wave was refused and superseded - cited by docs/alpha18/same-sha-evidence.md section 4",
 	"481d6ee326b9eb79246b104dc5d739a7b8cf6a0c": "alpha.18 CORS proxy commit - cited by docs/alpha18/handoff-ledger.md and the release notes as the implemented enabled branch",
 	"eb46485f6fd89759629357ef562d2772c9d6ed92": "alpha.18 chat auto-backup commit - cited by docs/alpha18/handoff-ledger.md and the release notes",
 	"ef2f69adce87be1446a81db6c02f842bf68d0710": "alpha.18 streaming/cancellation coverage commit - cited by docs/alpha18/handoff-ledger.md and the release notes",

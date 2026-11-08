@@ -15,9 +15,10 @@ this repository at `../SillyTavern` and is READ-ONLY.
 `v0.1.0-alpha.18` is the product round that closes the gaps alpha.17 recorded without changing them. The
 SillyTavern `1.19.0` baseline (`06bde939fb1e9c4c8d8641d810f0a916b5bce127`) is unchanged, the compatibility
 contract is unchanged, and `GOAL.md` §14 remains **NOT MET** (no real user directory on this host;
-`PRIVATE_NOT_RUN`). Status at this checkpoint is **PRE-RELEASE**: the candidate commit is frozen after this
-document, the thirteen required gates are then dispatched at it, and the tag is created only when the
-verifier prints PASS 13/13. The publish facts are appended below after the release.
+`PRIVATE_NOT_RUN`). Status at this checkpoint is **TAGGING, after a PASS**: the frozen candidate
+`a41772152a76cd3c42c52b63f2a377e2963de6fd` carries the thirteen-gate wave `PASS 13/13` from the official
+verifier, a successful pre-tag rehearsal and a passed benchmark comparison. The tag is created at that
+candidate and the publish facts are appended below after the release.
 
 ### A. What this round actually changed
 
@@ -66,9 +67,13 @@ verifier prints PASS 13/13. The publish facts are appended below after the relea
   `node --test scripts/release-governance.test.mjs` 87/87; `node --test tests/docs/check-perf-docs.test.mjs`
   15/15 and `node tools/check-perf-docs.mjs` green at the candidate docs.
 - `-race` is unavailable on windows/arm64; the Linux CI `race` job is the concurrency gate.
-- **PENDING at this checkpoint:** the 13-gate same-SHA wave, the release rehearsal, the tag/publish, the
-  60-minute soak artifact, the process-level ABBA artifact, and the independent post-publication verification.
-  Each is recorded in `docs/alpha18/same-sha-evidence.md` / `docs/alpha18/handoff-ledger.md` when it exists.
+- **Wave: PASS 13/13 at `a417721`** (`docs/alpha18/same-sha-evidence.md`, `docs/alpha18/release-evidence.json`);
+  rehearsal `42465398892` success; benchmark comparison `42465401011` passed; 60-minute soak 0 errors and
+  leak UNPROVEN (`docs/alpha18/perf/soak-60min.json`). The first wave at `2216617` was refused by the oracle
+  (chat-backup timestamp nondeterminism) and the browser driver, fixed/re-run and recorded rather than hidden.
+- **PENDING at this checkpoint:** the tag, the publication, and the independent post-publication
+  verification (checksums 6/6, unpacked published binary run with a write/read closure, installer smoke,
+  published-extension smoke, GHCR digest equality, `releases/latest`, unchanged alpha.16/alpha.17 tags).
 
 ### C. Named next candidates (not this release)
 

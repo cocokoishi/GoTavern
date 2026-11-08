@@ -106,13 +106,30 @@ Filled from `soak-60min.json` after the run: `tools/perf/a18-soak.mjs --minutes 
 --restart-every-minutes 10` on a generated mixed-large tree, with write→restart→read integrity checks, an
 external card-modification probe each minute, and 15 s RSS/CPU sampling.
 
-The 60-minute run is executed on the frozen candidate after this commit (the 60-minute duration cannot fit
-inside the commit that must exist before the run); its artifact `soak-60min.json` and the summary below are
-added in the post-wave documentation commit, which does not move the tag.
+Run on the frozen candidate (`2216617`, local build sha256 `7B2EFD6B…C93CE`) on a clean host state:
+60.0 min measured, ~8.0 req/s, five restarts, one request in flight. Artifact: `soak-60min.json`;
+the first attempt (which ended with one failure) is kept as `soak-60min-attempt1.json` because its
+single failure was an UNRELATED leftover `gotavern.exe` from the earlier local e2e run that the
+harness correctly refused to ignore — the clean re-run is the candidate evidence.
 
 | metric | value |
 |---|---|
-| PENDING | filled from `soak-60min.json` after the 60-minute run on the frozen candidate |
+| requests | 28,932 attempted / 28,932 ok / **0 errors** |
+| latency | p50 **28.87 ms**, p95 254.12 ms, p99 271.05 ms, max 825.47 ms |
+| restarts | 5 (stop path: `taskkill /T` is refused by a console binary, then `/T /F`; recorded, not hidden) |
+| integrity | saved-chat 6/6 checks (sha256 + HTTP content across every restart), fixture chat unchanged, probe card bytes unchanged |
+| external modification | 59/59 `utimes` probes observed through `POST /api/characters/all` |
+| availability | 239/239 `GET /version` checks ok |
+| RSS | peak **122.6 MB**; each post-restart segment starts ~20 MB and ends 76-106 MB within 10 min (slope 2.4-2.8 MB/min) |
+| leak verdict | **UNPROVEN** — RSS only; live heap/live objects are not observable from outside, so "the heap is bounded" is NOT claimed |
+| orphans | none (no process running the binary after the final stop) |
+| data root | 2411 files / 48.7 MB, delta 6 files (cookie secret, storage secret, stats, sysprompt marker, the saved chat, one settings backup) |
+
+Reading the RSS series honestly: the per-segment growth is consistent with filling the decoded-card
+cache (1,001 cards) and the segment tails cluster at 76-106 MB rather than climbing across restarts, so
+it is NOT evidence of a leak — but "UNPROVEN" is the verdict this artifact carries, because proving a
+bound needs live-heap observability this host does not provide. An unmodified harness detail: RSS is
+sampled every 15 s while traffic runs, and one request is in flight by design.
 
 ## 6. What is NOT measured here
 

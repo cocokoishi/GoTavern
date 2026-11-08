@@ -1,6 +1,6 @@
 # alpha.18 program — contract, state and pointers
 
-**Status: PRE-RELEASE at this commit.** Alpha.18 is the deep product-engineering round: it fixes the
+**Status: WAVE PASS 13/13 at the frozen candidate `a41772152a76cd3c42c52b63f2a377e2963de6fd`; the tag and publication are the remaining steps (records: `docs/alpha18/same-sha-evidence.md`, `docs/alpha18/handoff-ledger.md`, `docs/alpha18/release-evidence.json`).** Alpha.18 is the deep product-engineering round: it fixes the
 10,000-card performance hotspot alpha.17 profiled, implements the two product capability gaps alpha.17
 recorded (real CORS proxy, pinned chat auto-backups), verifies streaming cancellation with real sockets, runs
 a 60-minute soak, applies the alpha.17 release-evidence rails to the release chain, and publishes through the
@@ -26,6 +26,16 @@ form; `docs/alpha18/same-sha-evidence.md` and `docs/alpha18/handoff-ledger.md` c
 | streaming/cancellation | 13 real-socket tests (byte transparency, flush, cancel closes upstream, no leaks, backpressure); no production defect proven, so no product change; one dead gate moved into `internal/outbound` | `tests/e2e/streaming_cancel_socket_test.go` |
 | release governance | `requiredJobs`/`requiredSelection`/`pinnedSha`/digest/freshness rails applied; release emits unified evidence; workflow-path matching fix for run-name runs | `docs/alpha18/evidence-contract.md`, `scripts/release-governance.test.mjs` 88/88 |
 | soak | `tools/perf/a18-soak.mjs` (mixed storage routes, restart integrity, external card modification, honest UNPROVEN leak verdict) | run artifact added post-wave as `docs/alpha18/perf/soak-60min.json` |
+
+## Same-SHA wave at the frozen candidate
+
+All thirteen required workflows were dispatched from `main` at `a417721` and the official verifier prints
+`PASS: 13/13 required workflow(s) are green at this SHA` (table and selection proofs in
+`docs/alpha18/same-sha-evidence.md`; machine evidence in `docs/alpha18/release-evidence.json`). The first wave
+at `2216617` was refused by the oracle (chat-backup filename nondeterminism) and the browser driver, and is
+recorded with its run ids rather than hidden. A pre-tag rehearsal (`42465398892`) built and qualified the six
+archives and published nothing; the benchmark comparison (`42465401011`) passed against the regenerated CI
+baseline; the 60-minute soak recorded 28,932 requests / 0 errors with the leak verdict stated as UNPROVEN.
 
 ## Local verification at this commit
 
