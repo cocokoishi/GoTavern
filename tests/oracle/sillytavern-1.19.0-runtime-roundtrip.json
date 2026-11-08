@@ -30,6 +30,7 @@
     "data/_webpack/**": "Webpack cache is runtime-generated; size and contents vary between starts",
     "data/<handle>/stats.json": "startup statistics are time-dependent",
     "data/<handle>/backups/settings_<handle>_<timestamp>.json": "the upstream startup backup name contains a local timestamp; the path is normalised to <timestamp> and the content hash is retained",
+    "data/<handle>/backups/chat_<key>_<timestamp>.jsonl": "the pinned chat auto-backup name contains a local timestamp; the path is normalised to <timestamp> and the content hash is retained",
     "data/<handle>/characters/*.png": "the import route rewrites the stored card with a generated `chat` name (ending YYYY-MM-DD@HHhMMmSSsMMMms) and an ISO `create_date`, both from the current time; the size is recorded, the bytes are not, and the card content is recorded by reading it back through pinned",
     "data/_cache/characters/**": "the character disk cache. Its file name is a hash of the character, which embeds the generated chat name and create_date above, so the key differs on every run; reported as a count in the read-back delta rather than as paths"
   },
@@ -73,6 +74,13 @@
       "bytes": 62,
       "sha256": "9679bcc725add239637efae0950d87cb59906d665c8a0e58211a8ef0c0db6bff",
       "bodyBase64": "ewogICAgInRlbXBlcmF0dXJlIjogMC41LAogICAgInByb21wdCI6ICJhIHN5bnRoZXRpYyBwcmVzZXQiCn0=",
+      "writtenBy": "gotavern"
+    },
+    {
+      "path": "default-user/backups/chat_round_trip_probe_<timestamp>.jsonl",
+      "bytes": 228,
+      "sha256": "70cff2d5e3cf35c776725b9fb54f97e4f913d1edfe9ac0af57ebac6643f9f273",
+      "bodyBase64": "eyJuYW1lIjoiVXNlciIsImlzX3VzZXIiOnRydWUsInNlbmRfZGF0ZSI6IkphbnVhcnkgMSwgMjAyNSAxMjowMGFtIiwibWVzIjoiSGVsbG8uIiwiZXh0cmEiOnt9fQp7Im5hbWUiOiJSb3VuZCBUcmlwIFByb2JlIiwiaXNfdXNlciI6ZmFsc2UsInNlbmRfZGF0ZSI6IkphbnVhcnkgMSwgMjAyNSAxMjowMGFtIiwibWVzIjoiSGVsbG8gZnJvbSB0aGUgcm91bmQgdHJpcCBwcm9iZS4iLCJleHRyYSI6e319",
       "writtenBy": "gotavern"
     },
     {
@@ -3442,6 +3450,12 @@
           "type": "directory"
         },
         {
+          "path": "default-user/backups/chat_round_trip_probe_<timestamp>.jsonl",
+          "type": "file",
+          "bytes": 228,
+          "sha256": "70cff2d5e3cf35c776725b9fb54f97e4f913d1edfe9ac0af57ebac6643f9f273"
+        },
+        {
           "path": "default-user/backups/settings_default-user_<timestamp>.json",
           "type": "file",
           "bytes": 26732,
@@ -4914,6 +4928,12 @@
           "type": "directory"
         },
         {
+          "path": "default-user/backups/chat_round_trip_probe_<timestamp>.jsonl",
+          "type": "file",
+          "bytes": 228,
+          "sha256": "70cff2d5e3cf35c776725b9fb54f97e4f913d1edfe9ac0af57ebac6643f9f273"
+        },
+        {
           "path": "default-user/backups/settings_default-user_<timestamp>.json",
           "type": "file",
           "bytes": 26732,
@@ -6344,6 +6364,12 @@
         {
           "path": "default-user/backups/_sysprompt",
           "type": "directory"
+        },
+        {
+          "path": "default-user/backups/chat_round_trip_probe_<timestamp>.jsonl",
+          "type": "file",
+          "bytes": 228,
+          "sha256": "70cff2d5e3cf35c776725b9fb54f97e4f913d1edfe9ac0af57ebac6643f9f273"
         },
         {
           "path": "default-user/backups/settings_default-user_<timestamp>.json",
@@ -8765,6 +8791,7 @@
     "userDataWritten": {
       "added": [
         "default-user/OpenAI Settings/round-trip-preset.json",
+        "default-user/backups/chat_round_trip_probe_<timestamp>.jsonl",
         "default-user/characters/Round Trip Probe.png",
         "default-user/chats/Round Trip Probe",
         "default-user/chats/Round Trip Probe/round-trip-probe.jsonl",

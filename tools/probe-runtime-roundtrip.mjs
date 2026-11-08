@@ -89,6 +89,12 @@ const NORMALIZATION = {
     'data/_webpack/**': 'Webpack cache is runtime-generated; size and contents vary between starts',
     'data/<handle>/stats.json': 'startup statistics are time-dependent',
     'data/<handle>/backups/settings_<handle>_<timestamp>.json': 'the upstream startup backup name contains a local timestamp; the path is normalised to <timestamp> and the content hash is retained',
+    // alpha.18 implements pinned's chat auto-backups, so the runtime round trip now observes the
+    // per-chat backup file the product writes with the SAME pinned naming rule
+    // (`chat_<key>_<YYYYMMDD-HHmmss>.jsonl`). Two runs save the same chat seconds apart, so the NAME
+    // carries a different local timestamp while the CONTENT is identical; the path is normalised to
+    // <timestamp> and the content hash is retained, exactly like the settings backup above.
+    'data/<handle>/backups/chat_<key>_<timestamp>.jsonl': 'the pinned chat auto-backup name contains a local timestamp; the path is normalised to <timestamp> and the content hash is retained',
     // MEASURED, not assumed: two consecutive recordings disagreed on this file's sha256, and decoding
     // the embedded card showed why. The import route REWRITES the card it stores with `chat`
     // ("<name> - YYYY-MM-DD@HHhMMmSSsMMMms") and `create_date` (an ISO timestamp), both stamped from
@@ -108,7 +114,27 @@ const sha256 = value => createHash('sha256').update(value).digest('hex');
 function normalizePath(relative) {
     // EXACTLY fresh-start's rule: only the timestamp becomes a placeholder, the handle stays
     // literal, so the two fixtures record the same path for the same file.
-    return relative.replace(/(settings_[^/]+_)\d{8}-\d{6}(?=\.json$)/, '$1<timestamp>');
+    const withSettings = relative.replace(/(settings_[^/]+_)\d{8}-\d{6}(?=\.json$)/, '$1<timestamp>');
+    // The per-chat auto-backup has pinned's own timestamped naming rule; see the NORMALIZATION entry.
+    return withSettings.replace(/(chat_[^/]+_)\d{8}-\d{6}(?=\.jsonl$)/, '$1<timestamp>');
+}
+
+// resolveRecordedPath turns a RECORDED path back into the file on disk. A path whose filename was
+// normalised to <timestamp> (the settings and per-chat auto-backups) does not exist literally, so the
+// timestamp segment is matched against the directory; exactly one file must match, otherwise the probe
+// refuses instead of guessing which backup it observed.
+function resolveRecordedPath(root, recordedPath) {
+    const literal = path.join(root, ...recordedPath.split('/'));
+    if (!recordedPath.includes('<timestamp>')) return literal;
+    const directory = path.dirname(literal);
+    const base = path.basename(literal);
+    const escaped = base.split('<timestamp>').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const pattern = new RegExp(`^${escaped.join('\\d{8}-\\d{6}')}$`);
+    const matches = readdirSync(directory).filter(name => pattern.test(name));
+    if (matches.length !== 1) {
+        throw new Error(`cannot resolve the recorded path ${JSON.stringify(recordedPath)}: ${matches.length} file(s) in ${directory} match the normalised name`);
+    }
+    return path.join(directory, matches[0]);
 }
 
 function isWebpackPath(relative) {
@@ -633,7 +659,7 @@ async function main() {
                             });
                             continue;
                         }
-                        const body = readFileSync(path.join(runtimeRoot, "data", ...entry.path.split("/")));
+                        const body = readFileSync(resolveRecordedPath(path.join(runtimeRoot, "data"), entry.path));
                         writes.push({
                             path: entry.path,
                             bytes: body.length,
