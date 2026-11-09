@@ -1171,20 +1171,73 @@ async function createGroupThroughPanel(page, { name, memberNames, activationStra
             }
         }
         if (!ready) return { ok: false, reason: 'the group panel listed no characters' };
-        // THE FILTER MUST BE EMPTY: a leftover members filter hides candidates, which is how a zero-member
-        // group could be submitted while the requested names were "available".
-        const filter = document.querySelector('#rm_group_members_filter');
-        if (filter) {
-            filter.value = '';
-            filter.dispatchEvent(new Event('input', { bubbles: true }));
-            filter.dispatchEvent(new Event('change', { bubbles: true }));
-            await new Promise(resolve => setTimeout(resolve, 250));
-        }
+        // PAGINATION IS THE REAL CONSTRAINT. Pinned renders only the CURRENT PAGE of candidates
+        // (pageSize default 5, `#rm_group_add_members` holds that page; the filter input is `#rm_group_filter`).
+        // Wave 8's red was `availableNames` = literally page 1 while the requested names existed on later
+        // pages. So: raise the page size once through the product's own size changer, then filter PER MEMBER
+        // and wait for the named row before clicking Add.
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+        const filterInput = () => document.querySelector('#rm_group_filter') ?? document.querySelector('#rm_group_members_filter');
+        const setFilter = async value => {
+            const field = filterInput();
+            if (!field) return false;
+            field.value = value;
+            field.dispatchEvent(new Event('input', { bubbles: true }));
+            field.dispatchEvent(new Event('change', { bubbles: true }));
+            await sleep(200);
+            return true;
+        };
         const memberBlocks = () => [...document.querySelectorAll('#rm_group_add_members .group_member')];
-        const availableNames = memberBlocks().map(element => normalise(element.querySelector('.ch_name')?.textContent ?? element.textContent));
+        const pageNames = () => memberBlocks().map(element => normalise(element.querySelector('.ch_name')?.textContent ?? element.textContent));
+        let paginationUsed = null;
+        const raisePageSize = async () => {
+            const select = document.querySelector('#rm_group_add_members_pagination select');
+            if (select) {
+                const options = [...select.options];
+                const option = options.find(candidate => Number(candidate.value) >= 1000) ?? options[options.length - 1];
+                if (option) {
+                    select.value = option.value;
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    await sleep(600);
+                    paginationUsed = String(option.value);
+                    return true;
+                }
+            }
+            try {
+                const { accountStorage } = await import('./scripts/util/AccountStorage.js');
+                accountStorage.setItem('GroupCandidates_PerPage', '1000');
+                await setFilter('');
+                await sleep(600);
+                paginationUsed = '1000 (accountStorage)';
+                return true;
+            } catch {
+                return false;
+            }
+        };
+        await raisePageSize();
+        await setFilter('');
+        const availableNames = pageNames();
+        const waitForRow = async (member, timeoutMs) => {
+            const wanted = normalise(member);
+            const deadline = Date.now() + timeoutMs;
+            while (Date.now() < deadline) {
+                const block = memberBlocks().find(element => normalise(element.querySelector('.ch_name')?.textContent ?? element.textContent) === wanted);
+                if (block) return block;
+                await sleep(150);
+            }
+            return null;
+        };
         const added = [];
+        const misses = [];
         for (const member of inputs.memberNames) {
-            const block = memberBlocks().find(element => normalise(element.querySelector('.ch_name')?.textContent ?? element.textContent) === normalise(member));
+            await setFilter(member);
+            let block = await waitForRow(member, 5000);
+            if (!block) {
+                // ONE bounded second chance: the size changer may only take effect on the next render.
+                await raisePageSize();
+                await setFilter(member);
+                block = await waitForRow(member, 5000);
+            }
             if (block) {
                 // THE ADD ACTION IS THE BLOCK'S ACTION BUTTON ("data-action=add"), NOT THE BLOCK ITSELF:
                 // the document-delegated `onGroupActionClick` handler is what pushes into newGroupMembers.
@@ -1192,14 +1245,18 @@ async function createGroupThroughPanel(page, { name, memberNames, activationStra
                 if (action) action.click();
                 else block.click();
                 added.push(member);
-                await new Promise(resolve => setTimeout(resolve, 400));
+                await sleep(400);
+            } else {
+                misses.push({ member, pageNames: pageNames() });
             }
+            await setFilter('');
+            await sleep(150);
         }
         // THE GUARD: NEVER SUBMIT A DIALOG THAT DID NOT ACCEPT EVERY REQUESTED MEMBER. A zero-member group was
         // submitted in CI because the add buttons were clicked but the dialog had no rows for those names;
         // the target counter then counted a group nobody could chat in.
         if (added.length !== inputs.memberNames.length) {
-            return { ok: false, reason: 'the create-group dialog did not list every requested member', added, requested: inputs.memberNames, availableNames };
+            return { ok: false, reason: 'the create-group dialog did not list every requested member', added, requested: inputs.memberNames, availableNames: pageNames(), misses, paginationUsed, pageNamesAtFailure: pageNames() };
         }
         const setValue = (selector, value, events = ['input', 'change']) => {
             const field = document.querySelector(selector);
@@ -1212,7 +1269,7 @@ async function createGroupThroughPanel(page, { name, memberNames, activationStra
         if (inputs.activationStrategy !== undefined) setValue('#rm_group_activation_strategy', inputs.activationStrategy);
         if (inputs.generationMode !== undefined) setValue('#rm_group_generation_mode', inputs.generationMode);
         const submit = document.querySelector('#rm_group_submit');
-        if (!submit) return { ok: false, reason: 'no #rm_group_submit control', added, availableNames };
+        if (!submit) return { ok: false, reason: 'no #rm_group_submit control', added, availableNames, paginationUsed };
         submit.click();
         const createDeadline = Date.now() + 30000;
         let group = null;
@@ -1239,7 +1296,7 @@ async function createGroupThroughPanel(page, { name, memberNames, activationStra
             } catch { deleted = false; }
             return { ok: false, reason: 'the product created a ZERO-MEMBER group; it was deleted through /api/groups/delete', added, availableNames, deletedEmptyGroup: deleted, group: summary };
         }
-        return { ok: true, added, memberCount, group: summary, availableNames };
+        return { ok: true, added, memberCount, group: summary, availableNames, paginationUsed };
     }, { name, memberNames, activationStrategy, generationMode });
 }
 
