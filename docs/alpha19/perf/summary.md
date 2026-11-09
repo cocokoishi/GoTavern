@@ -104,7 +104,25 @@ with two other lanes' Node/Chromium work and the alpha.19 warm-boot spread (167.
 runs of one binary) makes any unpaired number meaningless. **Peak RSS remains UNPROVEN until these rows exist**, and
 the C1+C4 "peak-RSS half" in `changes.md` stays labelled UNPROVEN regardless of what these rows later show.
 
-## 5. Node control (pinned-vs-Go same-load comparison) — **NOT YET MEASURED**
+## 5. Node control (pinned-vs-Go same-load comparison) — measured in one shared window
+
+`tests/perf/q22-paired-benchmark.mjs` (unmodified), candidate binary = HEAD build (sha256 `BF7F7FD6…`, product code
+identical to the frozen `bfe6e80`), 3 alternating rounds × 30 requests plus the harness's own bounded 10-minute
+soak window per subject. Artifact: `raw/node-control.json` (committed `cb7080f`). Structural assertions all true,
+zero failures. **Duration 1,424.2 s**, dominated by pinned's per-boot webpack compile and the two soak windows.
+
+| measurement (median over 3 rounds) | pinned Node 1.19.0 | GoTavern | 
+|---|---:|---:|
+| boot, spawn → ready | 34,598 ms (incl. per-boot webpack compile) | **1,088 ms** |
+| `GET /version` | 812.88 ms (p95 995.60, 90 samples) | **15.31 ms (p95 21.20, 90 samples)** |
+| `GET /` | 36.72 ms | 32.05 ms |
+| 10-min soak, request median (20 samples × 20 req) | ~735–849 ms, p95 785–1514 ms, p95Drift +249.7 ms | **15.1–15.9 ms**, p95 ~20–31 ms, p95Drift −0.8 ms |
+
+**RSS IS NULL IN THIS ARTIFACT** (`/proc/<pid>/status` VmRSS is Linux-only; the harness reports `null` with that
+reason, `samples.rss = 0` for both subjects). Therefore this row supports boot/latency comparison ONLY: **the
+long-run MEMORY trend remains UNPROVEN** and may not be claimed from it. The harness itself says a paired median
+on a shared runner is evidence for a report, not a gate; the pinned boot number legitimately includes its boot-time
+frontend compile.
 
 Same quiet-window dependency: pinned must be booted (webpack compile included) on the same machine while GoTavern
 serves the same generated tree. The C2 probe's pinned boots prove the harness can drive pinned unmodified; the

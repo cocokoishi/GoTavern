@@ -74,8 +74,26 @@ May say (each already evidenced above, Layer A labelled):
 4. the C2 behaviour change as a PARITY fix (runtime `config.yaml` edits are not observed without a restart, as in
    pinned — probe artifact `raw/../profiles/c2-pinned-config-refresh.json`).
 
+## Table E — Node control (one shared window, NOT an ABBA pair)
+
+Artifact `raw/node-control.json` (commit `cb7080f`); harness `tests/perf/q22-paired-benchmark.mjs`, 3 alternating
+rounds × 30 requests + its own 10-minute soak window per subject; zero assertion failures.
+
+| measurement | pinned Node 1.19.0 | GoTavern |
+|---|---:|---:|
+| boot, spawn → ready | 34,598 ms (includes per-boot webpack compile) | 1,088 ms |
+| `GET /version` median / p95 | 812.88 ms / 995.60 ms | 15.31 ms / 21.20 ms |
+| `GET /` | 36.72 ms | 32.05 ms |
+| 10-min soak request median | ~735–849 ms (p95Drift +249.7 ms) | 15.1–15.9 ms (p95Drift −0.8 ms) |
+
+Quote as: *"In one shared window on the development host, GoTavern booted in 1.1 s against pinned's 34.6 s
+(which includes pinned's boot-time frontend compile) and answered `GET /version` in 15.3 ms against 812.9 ms, with
+the 10-minute soak window flat on both sides; RSS was not measurable on this host (the harness reads Linux
+`/proc`), so no memory comparison is claimed."* Layer A, not the release gate.
+
 May NOT say yet (not measured at this commit):
-- a Node/pinned comparison under the same load (Node control did not run in the quiet window);
+- any long-run MEMORY comparison: the Node control artifact's RSS is `null` because the harness reads Linux
+  `/proc`, so there is no memory row from it;
 - ≥8-user concurrency or long-run resource trend (harness reuse plan exists in `summary.md` §8, nothing ran);
 - p99 over the real-UI corpus, or any real-provider latency;
 - any boot-time improvement or regression (all boot rows are not separable);
