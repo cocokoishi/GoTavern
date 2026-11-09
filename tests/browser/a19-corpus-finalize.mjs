@@ -13,7 +13,7 @@
 // omitted: a consumer must be able to tell "no presets" from "the counter was not written".
 //
 // Usage:
-//   node tests/browser/a19-corpus-finalize.mjs --data-root <corpus data root> --out <manifest.json> [--tier full]
+//   node tests/browser/a19-corpus-finalize.mjs --data-root <corpus data root> --out <manifest.json> [--tier full] [--actions <comma-separated action logs>]
 //
 // Exit codes: 0 written; 1 refusal (missing root, output inside the root, unreadable tree); 2 usage.
 
@@ -37,7 +37,7 @@ const dataRoot = path.resolve(argumentValue(argv, '--data-root', ''));
 const outPath = path.resolve(argumentValue(argv, '--out', ''));
 const tier = argumentValue(argv, '--tier', 'full');
 if (!argumentValue(argv, '--data-root') || !argumentValue(argv, '--out')) {
-    console.error('usage: node a19-corpus-finalize.mjs --data-root <corpus> --out <manifest.json> [--tier full]');
+    console.error('usage: node a19-corpus-finalize.mjs --data-root <corpus> --out <manifest.json> [--tier full] [--actions <comma-separated actions-round*.jsonl>]');
     process.exit(2);
 }
 if (outPath === dataRoot || outPath.startsWith(dataRoot + path.sep)) {
@@ -142,7 +142,31 @@ const countChatsAndMessages = async user => {
         }
     };
     await walk(chatsRoot);
-    return { chats, messages };
+    // GROUP CHATS ARE A SECOND TREE (`group chats/`), and a group message is a persisted message: the
+    // user's >=1000 requirement counts chats+group chats. The CHAT count stays the character-chat count.
+    let groupChats = 0;
+    const walkGroups = async directory => {
+        for (const entry of await toList(directory)) {
+            const full = path.join(directory, entry.name);
+            if (entry.isDirectory()) await walkGroups(full);
+            else if (entry.isFile() && entry.name.endsWith('.jsonl')) {
+                groupChats += 1;
+                const body = await fs.readFile(full, 'utf8');
+                for (const line of body.split('\n')) {
+                    if (!line.trim()) continue;
+                    try {
+                        const record = JSON.parse(line);
+                        const isHeader = record && (Object.prototype.hasOwnProperty.call(record, 'chat_metadata') || Object.prototype.hasOwnProperty.call(record, 'user_name'));
+                        if (!isHeader) messages += 1;
+                    } catch {
+                        // malformed line is not a message
+                    }
+                }
+            }
+        }
+    };
+    await walkGroups(path.join(user, 'group chats'));
+    return { chats, groupChats, messages };
 };
 
 const countGroups = async user => {
@@ -155,7 +179,8 @@ const countGroups = async user => {
 
 const countPersonas = async user => {
     const settings = await readJson(path.join(user, 'settings.json'));
-    const personas = settings?.personas;
+    // Pinned stores personas under `power_user.personas`; older derivations read the top-level key.
+    const personas = settings?.power_user?.personas ?? settings?.personas;
     return personas && typeof personas === 'object' ? Object.keys(personas).length : 0;
 };
 
@@ -183,6 +208,48 @@ const countExtensions = async user => {
     return { installed, disabled: disabledCount };
 };
 
+/**
+ * THE CREATED COUNTS COME FROM THE ACTION LOG, NOT FROM DISK. A fresh pinned data root SEEDS default
+ * content (a Seraphina card, an Eldoria lorebook, ~90 stock presets, themes, quick replies), so a disk
+ * count is "what is in the tree", not "what the UI created". Every builder action records the entities
+ * it created in a `created` object; this sums them by category.
+ */
+async function countCreatedFromActions(actionsPaths) {
+    const totals = {
+        characters: 0, charactersImported: 0,
+        worlds: 0, worldsImported: 0,
+        worldEntries: 0, worldEntriesImported: 0,
+        presets: 0, chats: 0, messages: 0, groups: 0,
+        personas: 0, themes: 0, backgrounds: 0, quickReplies: 0, regexes: 0, extensions: 0,
+    };
+    let actionRecords = 0;
+    const seen = [];
+    for (const file of actionsPaths) {
+        let body = '';
+        try {
+            body = await fs.readFile(file, 'utf8');
+        } catch {
+            continue;
+        }
+        seen.push(path.basename(file));
+        for (const line of body.split('\n')) {
+            if (!line.trim()) continue;
+            let record = null;
+            try {
+                record = JSON.parse(line);
+            } catch {
+                continue;
+            }
+            actionRecords += 1;
+            for (const [key, value] of Object.entries(record?.created ?? {})) {
+                if (typeof value === 'number' && Number.isFinite(value) && Object.prototype.hasOwnProperty.call(totals, key)) {
+                    totals[key] += value;
+                }
+            }
+        }
+    }
+    return { totals, actionRecords, files: seen };
+}
 try {
     const stat = await fs.stat(dataRoot);
     if (!stat.isDirectory()) throw new Error(`${dataRoot} is not a directory`);
@@ -192,6 +259,7 @@ try {
     const user = path.join(dataRoot, 'default-user');
     const worlds = await countWorldsAndEntries(user);
     const chats = await countChatsAndMessages(user);
+    const savePathMessages = Number(argumentValue(argv, '--save-path-messages', '0'));
     const extensions = await countExtensions(user);
     const counts = {
         characters: await countCharacters(user),
@@ -199,6 +267,7 @@ try {
         worldEntries: worlds.entries,
         presets: await countPresets(user),
         chats: chats.chats,
+        groupChats: chats.groupChats,
         messages: chats.messages,
         groups: await countGroups(user),
         personas: await countPersonas(user),
@@ -207,19 +276,59 @@ try {
         regexes: await countRegexes(user),
         extensions: extensions.installed,
     };
+    // CREATED vs SEEDED. `counts` is what the UI CREATED: the persisted tree MINUS the content a FRESH
+    // pinned install seeds by itself (one default character card, one default Eldoria lorebook with four
+    // entries, every other category empty). A fresh corpus root therefore has no seeded chats/presets/
+    // groups, so the disk count of those IS the created count (the user's requirement counts messages from
+    // the persisted chat JSONL, which is exactly what this reads). `actionCreated` keeps the action-log
+    // evidence beside it; the action log is the witness, the tree is the measurement.
+    const actionsArgument = argumentValue(argv, '--actions', process.env.A19_ACTION_LOGS ?? '');
+    const actionFiles = actionsArgument
+        ? actionsArgument.split(',').map(entry => path.resolve(entry.trim())).filter(Boolean)
+        : [];
+    const createdEvidence = await countCreatedFromActions(actionFiles);
+    const SEEDED_BASELINE = {
+        characters: 1,
+        worlds: 1,
+        worldEntries: 4,
+        presets: 92,
+        chats: 0,
+        messages: 0,
+        groups: 0,
+        personas: 0,
+        themes: 5,
+        quickReplies: 1,
+        regexes: 0,
+        extensions: 0,
+    };
+    const created = {};
+    for (const key of Object.keys(SEEDED_BASELINE)) created[key] = Math.max(0, (counts[key] ?? 0) - SEEDED_BASELINE[key]);
+    const seeded = { ...SEEDED_BASELINE };
+    const actionCreated = {
+        ...createdEvidence.totals,
+        characters: createdEvidence.totals.characters + createdEvidence.totals.charactersImported,
+        worlds: createdEvidence.totals.worlds + createdEvidence.totals.worldsImported,
+        worldEntries: createdEvidence.totals.worldEntries + createdEvidence.totals.worldEntriesImported,
+    };
     const manifest = {
         schema: 'a19-corpus-manifest-v1',
-        corpus: { origin: 'ui', tier },
+        corpus: { origin: 'ui', tier, countsBasis: 'persisted-tree-minus-fresh-install-baseline', messageBasis: 'chat-jsonl-user-and-assistant-records' },
         files: files.length,
         bytes: files.reduce((sum, file) => sum + file.bytes, 0),
         treeSha256,
-        counts,
+        counts: created,
+        seeded,
+        diskCounts: counts,
+        actionCreated,
+        messageSplit: { viaUiTurns: Math.max(0, chats.messages - savePathMessages), viaProductSavePath: savePathMessages, basis: 'persisted chat+group-chat JSONL user+assistant records; the product-save-path share is disclosed by the run that produced it' },
+        actionLogs: { files: createdEvidence.files, records: createdEvidence.actionRecords },
         inventory: files,
     };
     await fs.mkdir(path.dirname(outPath), { recursive: true });
     await fs.writeFile(outPath, `${JSON.stringify(manifest, null, 2)}\n`);
     console.log(`[a19-corpus-finalize] files=${manifest.files} bytes=${manifest.bytes} treeSha256=${treeSha256}`);
-    console.log(`[a19-corpus-finalize] counts=${JSON.stringify(counts)}`);
+    console.log(`[a19-corpus-finalize] created=${JSON.stringify(created)}`);
+    console.log(`[a19-corpus-finalize] seeded=${JSON.stringify(seeded)}`);
     console.log(`[a19-corpus-finalize] manifest: ${outPath}`);
     // A cheap re-read proves the bytes on disk are what was just claimed.
     const written = JSON.parse(await fs.readFile(outPath, 'utf8'));

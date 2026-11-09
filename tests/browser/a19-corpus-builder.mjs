@@ -53,6 +53,7 @@ import {
     summariseRecording,
     waitInPage,
 } from './a19-corpus-kit.mjs';
+import { runRound, runTopUp, runUsePhase, runRestartPhase } from './a19-corpus-journeys.mjs';
 
 function argumentValue(argv, name, fallback = null) {
     const index = argv.indexOf(name);
@@ -63,6 +64,9 @@ function argumentValue(argv, name, fallback = null) {
 const argv = process.argv.slice(2);
 const round = Number(argumentValue(argv, '--round', '0'));
 const smoke = argv.includes('--smoke');
+const topup = argv.includes('--topup');
+const usePhase = argv.includes('--use');
+const restartPhase = argv.includes('--restart');
 const baseURL = process.env.PROBE_BASE_URL ?? argumentValue(argv, '--base-url', null);
 const dataRoot = path.resolve(process.env.A19_DATA_ROOT ?? argumentValue(argv, '--data-root', ''));
 if (!baseURL) {
@@ -268,12 +272,39 @@ async function smokeJourney(page) {
 }
 
 try {
-    provider = await startProvider({ roundDir: paths.roundDir, round: report.round, label: smoke ? 'provider-smoke' : `provider-round${round}` });
+    provider = await startProvider({ roundDir: paths.roundDir, round: report.round, label: smoke ? 'provider-smoke' : (topup ? 'provider-topup' : 'provider-round' + round), wire: smoke ? 'sse' : 'json' });
     report.notes.push(`provider recorder ${provider.recorderUrl} control ${provider.controlUrl} binary ${provider.binary}`);
 
     browser = await openBrowser({ profileDir: paths.profileDir, tracePath: paths.trace });
     const page = browser.page;
-    const loaded = await openPage(page, baseURL);
+    // WARM THE FRONTEND BUILD BEFORE THE PAGE LOADS IT. A fresh data root has no `_webpack` bundle; the
+    // first request triggers pinned's library compile, and a browser that receives the page while that
+    // compile is happening can wait past openPage's bounded preloader wait (measured: 120 s timeout on a
+    // cold corpus root). One plain fetch from Node pays the compile cost outside the page's deadline.
+    const warmDeadline = Date.now() + 180000;
+    let warmed = null;
+    while (Date.now() < warmDeadline) {
+        try {
+            const response = await fetch(`${baseURL}/`);
+            if (response.ok) {
+                const body = await response.text();
+                warmed = { status: response.status, bytes: Buffer.byteLength(body) };
+                break;
+            }
+        } catch {
+            // server still starting the compile; retry
+        }
+        await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    report.notes.push(`frontend warm-up ${JSON.stringify(warmed)}`);
+    let loaded = await openPage(page, baseURL).catch(() => false);
+    if (loaded !== true) {
+        // ONE bounded retry: the browser context survives a page that never became ready (previous legs in
+        // this repository have re-navigated after a slow first load).
+        report.note('openPage did not report readiness on the first attempt; retrying once after a settle');
+        await page.waitForTimeout(5000);
+        loaded = await openPage(page, baseURL).catch(() => false);
+    }
     const readiness = await readReadiness(page);
     await act({ page: 'app', control: 'window.load / APP_READY', field: 'readiness', action: 'load the pinned frontend at ' + baseURL, result: readiness });
     report.step('page-loaded', loaded === true && readiness?.settingsReady === true, readiness);
@@ -281,8 +312,23 @@ try {
 
     if (smoke) {
         await smokeJourney(page);
+    } else if (topup) {
+        const summary = await runTopUp(page, { dataRoot, paths, report, act: entry => act(entry), provider, streaming: false });
+        report.counts.topUp = summary;
+        report.notes.push(`top-up completed: ${JSON.stringify(summary)}`);
+    } else if (usePhase) {
+        const summary = await runUsePhase(page, { dataRoot, paths, report, act: entry => act(entry), provider, streaming: false });
+        report.counts.usePhase = summary;
+        report.notes.push(`use phase completed: ${JSON.stringify(summary)}`);
+    } else if (restartPhase) {
+        const summary = await runRestartPhase(page, { dataRoot, paths, report, act: entry => act(entry), provider, streaming: false });
+        report.counts.restartPhase = summary;
+        report.notes.push(`restart phase completed: ${JSON.stringify(summary)}`);
     } else {
-        throw new Error(`round ${round} journey is not implemented yet; use --smoke for the environment proof`);
+        if (![1, 2, 3].includes(round)) throw new Error(`--round must be 1, 2 or 3 (got ${round})`);
+        const summary = await runRound(page, { dataRoot, paths, report, act: entry => act(entry), provider, streaming: false }, round);
+        report.counts.roundSummary = summary;
+        report.notes.push(`round ${round} completed: ${JSON.stringify(summary)}`);
     }
 
     const disk = await census(path.join(dataRoot, 'default-user'));

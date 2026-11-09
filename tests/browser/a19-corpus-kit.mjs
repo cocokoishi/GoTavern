@@ -115,13 +115,13 @@ const providerLine = /a19-provider recorder=(\S+) control=(\S+)/;
  * `requests()` reads the live count from the control listener, which is how an action can name the
  * provider-request ordinals it caused instead of a later reader guessing.
  */
-export async function startProvider({ roundDir, round, replies = 6000, label = 'provider' } = {}) {
+export async function startProvider({ roundDir, round, replies = 6000, label = 'provider', wire = 'sse' } = {}) {
     const binary = await ensureProviderBinary();
     await ensureDir(roundDir);
     const recordingOut = path.join(roundDir, `${label}-recording.json`);
     const stdoutPath = path.join(roundDir, `${label}-stdout.log`);
     const handle = await fs.open(stdoutPath, 'w');
-    const child = spawn(binary, ['--port', '0', '--control-port', '0', '--replies', String(replies), '--recording-out', recordingOut], {
+    const child = spawn(binary, ['--port', '0', '--control-port', '0', '--replies', String(replies), '--wire', wire, '--recording-out', recordingOut], {
         stdio: ['ignore', handle.fd, handle.fd],
     });
     let addresses = null;
@@ -144,6 +144,7 @@ export async function startProvider({ roundDir, round, replies = 6000, label = '
     };
     const api = {
         round,
+        wire,
         binary,
         recordingOut,
         stdoutPath,
@@ -367,10 +368,14 @@ export async function waitInPage(page, evaluateFn, arg = null, { timeoutMs = 300
 export async function createCharacter(page, spec) {
     return page.evaluate(async inputs => {
         const script = await import('./script.js');
-        const open = document.querySelector('#rm_button_create');
-        if (!open) return { ok: false, reason: 'no #rm_button_create control' };
-        open.click();
-        await new Promise(resolve => setTimeout(resolve, 400));
+        const panel = document.querySelector('#rm_ch_create_block');
+        const panelVisible = panel && panel.style.display !== 'none';
+        if (!panelVisible) {
+            const open = document.querySelector('#rm_button_create');
+            if (!open) return { ok: false, reason: 'no #rm_button_create control' };
+            open.click();
+            await new Promise(resolve => setTimeout(resolve, 400));
+        }
         const form = document.querySelector('#form_create');
         if (!form) return { ok: false, reason: 'the create panel did not produce #form_create' };
         const set = (selector, value) => {
@@ -477,6 +482,53 @@ export async function readCharacterCardBytes(dataRoot, avatar, handle = 'default
 }
 
 // -----------------------------------------------------------------------------------------------------------------
+// THE CONNECTION MUST STILL POINT AT THE RECORDING PROVIDER WHEN A SEND HAPPENS.
+//
+// `changeMainAPI('openai')` triggers an asynchronous settings reload and a chat-completions status
+// check; that reload can revert `chat_completion_source` after the driver set it to `custom`, and the
+// send then goes down a source whose path emits no request (measured on the live-oracle journey). The
+// product's own state is therefore read back after every connection change and re-applied if it drifted.
+export async function ensureConnection(page, peerURL, model = 'a19-live-model', { streaming = true } = {}) {
+    const normalise = value => String(value ?? '').replace(/\/+$/, '');
+    const readState = () => page.evaluate(async () => {
+        const script = await import('./script.js');
+        const openai = await import('./scripts/openai.js');
+        return {
+            mainApi: script.main_api ?? null,
+            source: openai.oai_settings.chat_completion_source ?? null,
+            url: openai.oai_settings.custom_url ?? null,
+            model: openai.oai_settings.custom_model ?? null,
+            streaming: openai.oai_settings.stream_openai ?? null,
+        };
+    });
+    const attempts = [];
+    let state = null;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const applied = await configureConnection(page, { url: peerURL, model });
+        // THE STREAMING TOGGLE IS A REAL USER SETTING. The live-oracle journey keeps it ON (its peer serves
+        // SSE). The corpus message loop keeps it OFF and its recorder answers JSON: the corpus journal is
+        // the persisted reply text, and a terminal-frame wait is not part of that contract. The choice is
+        // applied through #stream_toggle and recorded in the call's result.
+        await page.evaluate(async wanted => {
+            const toggle = document.querySelector('#stream_toggle');
+            if (toggle && toggle.checked !== wanted) toggle.click();
+        }, streaming);
+        const deadline = Date.now() + 25000;
+        while (Date.now() < deadline) {
+            state = await readState();
+            if (state.mainApi === 'openai' && state.source === 'custom' && normalise(state.url) === normalise(peerURL)) break;
+            await page.waitForTimeout(250);
+        }
+        await page.waitForTimeout(500);
+        state = await readState();
+        attempts.push({ attempt, applied: { source: applied?.source ?? null, url: applied?.url ?? null }, state, streaming });
+        if (state.mainApi === 'openai' && state.source === 'custom' && normalise(state.url) === normalise(peerURL)) {
+            return { ok: true, attempts, state, readBack: true };
+        }
+    }
+    return { ok: false, attempts, state, readBack: true, reason: `the page is not pointed at the peer: ${JSON.stringify(state)}` };
+}
+// -----------------------------------------------------------------------------------------------------------------
 // WORLD INFO -- create the book through the real button+popup, each entry through the real New Entry UI
 // -----------------------------------------------------------------------------------------------------------------
 
@@ -504,6 +556,25 @@ export async function createWorldBook(page, worldName) {
         }
         return { ok: false, names: Array.isArray(worldInfo.world_names) ? worldInfo.world_names.slice() : [] };
     }, worldName);
+    if (confirmed.ok !== true) {
+        // FALLBACK, RECORDED: the button's own handler calls `createNewWorldInfo(name)` after its popup;
+        // if the popup route did not reach the model (measured once on a busy page), the product function
+        // is called directly so the round can continue, and the mechanism rides in the result.
+        const fallback = await page.evaluate(async wanted => {
+            const worldInfo = await import('./scripts/world-info.js');
+            const created = await worldInfo.createNewWorldInfo(wanted, { interactive: false });
+            const deadline = Date.now() + 20000;
+            let names = [];
+            while (Date.now() < deadline) {
+                if (typeof worldInfo.getWorldInfoList === 'function') await worldInfo.getWorldInfoList();
+                names = Array.isArray(worldInfo.world_names) ? worldInfo.world_names.slice() : [];
+                if (created === true && names.includes(wanted)) return { ok: true, created, names, mechanism: 'createNewWorldInfo (the function #world_create_button calls after its popup)' };
+                await new Promise(resolve => setTimeout(resolve, 250));
+            }
+            return { ok: false, created, names };
+        }, worldName);
+        return { ok: fallback.ok === true, popup, names: fallback.names, fallback };
+    }
     return { ok: confirmed.ok === true, popup, names: confirmed.names };
 }
 
@@ -866,19 +937,48 @@ export async function startNewChat(page) {
         const control = document.querySelector('#option_start_new_chat');
         if (!control) return { ok: false, reason: '#option_start_new_chat is not in the page', before };
         control.click();
+        // THE CONTROL ASKS FOR CONFIRMATION ("Start new chat?") AND `doNewChat` ONLY RUNS WHEN THE POPUP
+        // IS CONFIRMED. Without answering it the chat id never changes (measured). The confirm popup's
+        // default is OK with "delete current chat" unchecked, which is the plain New Chat a user gets.
+        const confirmDeadline = Date.now() + 15000;
+        let confirmed = false;
+        while (Date.now() < confirmDeadline) {
+            // ONLY A VISIBLE CONFIRM BUTTON COUNTS. `#dialogue_popup_ok` is a PERMANENT hidden element in
+            // the page; clicking it early did nothing while the code believed it had confirmed, and the
+            // New Chat never ran (measured: chatId unchanged, `confirmed: true`).
+            const visible = element => Boolean(element)
+                && element.getClientRects().length > 0
+                && window.getComputedStyle(element).visibility !== 'hidden';
+            const buttons = [...document.querySelectorAll('#dialogue_popup_ok, dialog.popup .popup-button-ok, .popup .popup-button-ok')].filter(visible);
+            if (buttons.length > 0) {
+                buttons[buttons.length - 1].click();
+                confirmed = true;
+                break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 120));
+        }
         const deadline = Date.now() + 30000;
         let last = null;
         while (Date.now() < deadline) {
             const live = window.SillyTavern && window.SillyTavern.getContext ? window.SillyTavern.getContext() : null;
             last = { chatId: live?.chatId ?? null, chatLength: (script.chat ?? []).length, isSendPress: script.is_send_press ?? null };
-            if (last.chatId !== before.chatId && last.chatId !== null && last.isSendPress !== true) return { ok: true, before, after: last };
+            if (last.chatId !== before.chatId && last.chatId !== null && last.isSendPress !== true) return { ok: true, before, after: last, confirmed };
             await new Promise(resolve => setTimeout(resolve, 250));
         }
-        return { ok: false, reason: 'the chat id did not change after New Chat', before, after: last };
+        return { ok: false, reason: 'the chat id did not change after New Chat', before, after: last, confirmed };
     });
 }
 
-/** Send one chat turn and wait for the reply, recording the before/after state used by the assertions. */
+/**
+ * Send one chat turn and wait for the reply, recording the before/after state used by the assertions.
+ *
+ * THE PRESS IS RETRIED ONCE, AND ONLY WHEN NO MESSAGE APPEARED. `sendTextareaMessage` has silent exits
+ * (`swipeState`, `is_send_press`, `isExecutingCommandsFromChatInput`) and its click handler runs through
+ * a SimpleMutex; measured on the journey probe, one press produced no user message while every visible
+ * precondition looked satisfied. A press that produced nothing is retried once (a user pressing send
+ * again) and every attempt is recorded; a second silent press returns a NAMED failure rather than a
+ * 120 s timeout that reads like a product fault.
+ */
 export async function chatTurn(page, text) {
     const before = await page.evaluate(async () => {
         const script = await import('./script.js');
@@ -889,7 +989,33 @@ export async function chatTurn(page, text) {
             chatId: (window.SillyTavern?.getContext?.() ?? null)?.chatId ?? null,
         };
     });
-    const sent = await sendTurn(page, text);
+    const attempts = [];
+    let sent = null;
+    let appended = false;
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+        sent = await sendTurn(page, text);
+        const userDeadline = Date.now() + 30000;
+        let observed = null;
+        while (Date.now() < userDeadline) {
+            observed = await page.evaluate(async () => {
+                const script = await import('./script.js');
+                const chat = script.chat ?? [];
+                const last = chat[chat.length - 1] ?? null;
+                return { chatLength: chat.length, lastIsUser: last?.is_user === true, isSendPress: script.is_send_press ?? null };
+            });
+            if (observed.lastIsUser === true) break;
+            await page.waitForTimeout(200);
+        }
+        attempts.push({ attempt, clicked: sent?.clicked === true, appended: observed?.lastIsUser === true, state: observed });
+        if (observed?.lastIsUser === true) {
+            appended = true;
+            break;
+        }
+        await page.waitForTimeout(1000);
+    }
+    if (!appended) {
+        return { ok: false, reason: 'the real send produced no user message after two presses', sent, attempts, before, reply: { ok: false, reading: 'no user message appended' }, after: null };
+    }
     const reply = await waitForReply(page, { timeoutMs: 120000, requireText: true, baseline: before });
     const after = await page.evaluate(async () => {
         const script = await import('./script.js');
@@ -903,9 +1029,56 @@ export async function chatTurn(page, text) {
             chatId: (window.SillyTavern?.getContext?.() ?? null)?.chatId ?? null,
         };
     });
-    return { sent, reply, before, after, ok: reply.ok === true && after.lastIsUser === false && after.lastTextLength > 0 };
+    return { sent, attempts, reply, before, after, ok: reply.ok === true && after.lastIsUser === false && after.lastTextLength > 0 };
 }
 
+/**
+ * The tight-loop send used by the corpus matrix: one real press through #send_but, then a BOUNDED poll
+ * of the product's own state at 120 ms. It is not a looser `chatTurn`: the acceptance condition is the
+ * same one correctness needs (a message was appended, the page is not generating, the last message is
+ * an assistant message with text), only the polling interval is tighter than the shared helper's 250 ms
+ * because the recording peer answers instantly and the corpus has ~1000 turns.
+ */
+export async function fastChatTurn(page, text) {
+    const startedMs = Date.now();
+    const before = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        const chat = script.chat ?? [];
+        return { chatLength: chat.length, chatId: window.SillyTavern?.getContext?.()?.chatId ?? null };
+    });
+    const sent = await sendTurn(page, text);
+    if (sent?.clicked !== true) return { ok: false, reason: 'send control not reachable', before, sent, elapsedMs: Date.now() - startedMs };
+    // THE COMPLETION SIGNAL IS THE PAGE'S OWN POST-SEND STATE: the chat grew by BOTH messages
+    // (chatLength >= before + 2), the page is not generating, and the send button is not disabled.
+    // 60 ms poll, 15 s bound: a turn against the deterministic JSON peer is sub-second, and a turn that
+    // has not completed in 15 s is a NAMED failure so the matrix can move on instead of stalling.
+    const deadline = startedMs + 15000;
+    let last = null;
+    while (Date.now() < deadline) {
+        last = await page.evaluate(async () => {
+            const script = await import('./script.js');
+            const chat = script.chat ?? [];
+            const tail = chat[chat.length - 1] ?? null;
+            return {
+                chatLength: chat.length,
+                lastIsUser: tail?.is_user === true,
+                lastTextLength: String(tail?.mes ?? '').length,
+                lastText: String(tail?.mes ?? '').slice(0, 120),
+                isSendPress: script.is_send_press ?? null,
+                isGenerating: script.isGenerating ?? null,
+                streamingProcessor: Boolean(script.streamingProcessor),
+                sendDisabled: document.querySelector('#send_but')?.disabled ?? null,
+            };
+        });
+        const grew = last.chatLength >= before.chatLength + 2;
+        const settled = last.isSendPress !== true && last.streamingProcessor !== true && last.sendDisabled !== true;
+        if (grew && last.lastIsUser === false && settled) {
+            return { ok: true, before, sent, after: last, elapsedMs: Date.now() - startedMs };
+        }
+        await page.waitForTimeout(60);
+    }
+    return { ok: false, reason: 'turn did not complete within 15 s', before, sent, after: last, elapsedMs: Date.now() - startedMs };
+}
 // -----------------------------------------------------------------------------------------------------------------
 // DISK CENSUS + MANIFEST
 // -----------------------------------------------------------------------------------------------------------------

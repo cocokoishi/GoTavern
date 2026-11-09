@@ -66,12 +66,38 @@ var replyTemplates = []string{
 // (`oai_settings.stream_openai` defaults true), and a peer that answers JSON to a `stream: true`
 // request makes the page store an EMPTY assistant message. The driver records `requestedStream` for
 // every request, so a non-streaming request would be visible as a mismatch rather than inferred.
-func buildReplies(count int) []mockprovider.Response {
+func buildReplies(count int, wire string) []mockprovider.Response {
 	replies := make([]mockprovider.Response, 0, count)
 	for index := 0; index < count; index++ {
 		n := index + 1
 		template := replyTemplates[index%len(replyTemplates)]
 		text := strings.ReplaceAll(template, "{n}", strconv.Itoa(n))
+		// JSON WIRE: used for the corpus message loop. The peer is a deterministic recorder, so the
+		// terminal-frame wait of an SSE stream is not part of correctness there; the persisted reply
+		// text is. Streaming remains the default (`sse`) and is what the live-oracle journey uses.
+		if wire == "json" {
+			payload, _ := json.Marshal(map[string]any{
+				"id":      fmt.Sprintf("a19-json-%d", n),
+				"object":  "chat.completion",
+				"created": 1730000000,
+				"model":   "a19-deterministic",
+				"choices": []any{map[string]any{
+					"index":         0,
+					"message":       map[string]any{"role": "assistant", "content": text},
+					"finish_reason": "stop",
+				}},
+				"usage": map[string]any{"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+			})
+			replies = append(replies, mockprovider.Response{
+				Status: 200,
+				Headers: []mockprovider.Header{
+					{Name: "Content-Type", Value: "application/json"},
+					{Name: "Access-Control-Allow-Origin", Value: "*"},
+				},
+				Body: string(payload),
+			})
+			continue
+		}
 		content, _ := json.Marshal(map[string]any{
 			"id":      fmt.Sprintf("a19-chunk-%d", n),
 			"object":  "chat.completion.chunk",
@@ -129,6 +155,7 @@ func main() {
 	port := flag.Int("port", 0, "recorder loopback port; 0 asks the kernel")
 	controlPort := flag.Int("control-port", 0, "control loopback port; 0 asks the kernel")
 	replies := flag.Int("replies", 6000, "how many scripted chat-completion responses to pre-generate")
+	wire := flag.String("wire", "sse", "chat-completion response framing: sse or json (the corpus message loop uses json; the live-oracle journey uses sse)")
 	recordingOut := flag.String("recording-out", "", "path written by /__mock/dump and on SIGTERM")
 	flag.Parse()
 
@@ -140,7 +167,7 @@ func main() {
 	script := map[string][]mockprovider.Response{
 		"GET /v1/models":             repeat(modelsResponse(), 64),
 		"GET /models":                repeat(modelsResponse(), 64),
-		"POST /v1/chat/completions":  buildReplies(*replies),
+		"POST /v1/chat/completions":  buildReplies(*replies, *wire),
 	}
 	recorder := mockprovider.NewKeyed(script)
 	address, err := recorder.Listen(*port)
