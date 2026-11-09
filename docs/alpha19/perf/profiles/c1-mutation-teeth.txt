@@ -1,0 +1,38 @@
+﻿target: C:\Users\koishi\Desktop\GoTavern\gotavern\internal\server\image_metadata_index.go
+original sha256: 380354846BAE23934CF15628910078D283FB9DA6A999B22D9C6DDFF8522E15D1
+
+=== mutation: boundary: treat 4294967295 as an array index ===
+exit=1
+--- FAIL: TestA19OrderedJSONFastPathMatchesNodeStringify (0.00s)
+    --- FAIL: TestA19OrderedJSONFastPathMatchesNodeStringify/boundary_4294967295_is_not_an_index (0.00s)
+--- FAIL: TestA19EntriesFastPathMatchesReferenceBytes (0.00s)
+    --- FAIL: TestA19EntriesFastPathMatchesReferenceBytes/doc_06 (0.00s)
+--- FAIL: TestA19NodeArrayIndexMatchesReference (0.00s)
+    a19_perf_pins_test.go:400: nodeArrayIndex("4294967295") = (4294967295, true), reference = (0, false)
+FAIL
+FAIL	github.com/cocokoishi/gotavern/internal/server	18.972s
+FAIL
+restored sha256: 380354846BAE23934CF15628910078D283FB9DA6A999B22D9C6DDFF8522E15D1 (matches=True)
+
+=== mutation: fast path: never sort even when a key is an array index ===
+exit=1
+FAIL	github.com/cocokoishi/gotavern/internal/server [build failed]
+FAIL
+restored sha256: 380354846BAE23934CF15628910078D283FB9DA6A999B22D9C6DDFF8522E15D1 (matches=True)
+
+final sha256: 380354846BAE23934CF15628910078D283FB9DA6A999B22D9C6DDFF8522E15D1
+=== mutation B: array-index keys no longer move ahead of insertion keys ===
+exit=1
+--- FAIL: TestA19OrderedJSONFastPathMatchesNodeStringify (0.00s)
+    --- FAIL: TestA19OrderedJSONFastPathMatchesNodeStringify/mixed_keys (0.00s)
+    --- FAIL: TestA19OrderedJSONFastPathMatchesNodeStringify/numeric_ascending (0.00s)
+    --- FAIL: TestA19OrderedJSONFastPathMatchesNodeStringify/leading_zeroes (0.00s)
+    --- FAIL: TestA19OrderedJSONFastPathMatchesNodeStringify/array_index_boundary (0.00s)
+    --- FAIL: TestA19OrderedJSONFastPathMatchesNodeStringify/boundary_4294967294_is_an_index (0.00s)
+    --- FAIL: TestA19OrderedJSONFastPathMatchesNodeStringify/unicode_keys (0.00s)
+    --- FAIL: TestA19OrderedJSONFastPathMatchesNodeStringify/array_of_objects (0.00s)
+--- FAIL: TestA19EntriesFastPathMatchesReferenceBytes (0.00s)
+    --- FAIL: TestA19EntriesFastPathMatchesReferenceBytes/doc_02 (0.00s)
+    --- FAIL: TestA19EntriesFastPathMatchesReferenceBytes/doc_03 (0.00s)
+    --- FAIL: TestA19EntriesFastPathMatchesReferenceBytes/doc_04 (0.00s)
+restored sha256: 380354846BAE23934CF15628910078D283FB9DA6A999B22D9C6DDFF8522E15D1 (matches=True)
