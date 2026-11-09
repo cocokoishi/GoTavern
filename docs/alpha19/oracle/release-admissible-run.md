@@ -17,7 +17,7 @@ re-ran the whole oracle on the fixed tree.
 | field | value |
 |---|---|
 | run | release-admissible run 8 (`--corpus-origin ui --mode all --run-label release-admissible`) |
-| candidate code SHA | `762b668cfcf7cd034bee24c4c1b674942b7327c1`; clean worktree `a19-release`, `git status` 0 lines |
+| candidate code SHA | `762b668` (short form; the full 40-hex SHA is in `a19-diff/release8/run-facts.txt`); clean worktree `a19-release`, `git status` 0 lines |
 | subject binary | `e671d114a5cc426250b50efb902338d9e7d32977205674e837ed449f525b702c` (`-trimpath`, built at `d63e8fe`; `d63e8fe` and `762b668` are tests/docs-only commits, so the product tree is identical across them) |
 | corpus | `C:\Users\koishi\Desktop\GoTavern\a19-oracle\corpus` — 978 files / 49,898,769 B / tree `06d68e057085abad28d4e3bfc19df71cf91d9ea612ad6907bd67b38784d3a2ba`, re-censused unchanged before and after the run |
 | corpus manifest | `corpus-manifest-v2.json`, sha256 `25caa60c871cde4348c22ed24baac18aaf6911ebc065d3e6ba74d95fcc61b1d9` |
