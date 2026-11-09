@@ -302,7 +302,9 @@ async function runLeg({ subject, phase, tree, corpusCensus, persistenceBaseline,
         // image-metadata addedTimestamp) to these documents; without the text it would fall back to raw digests
         // that differ for harness reasons.
         const jsonFiles = [];
-        for (const relative of ['default-user/settings.json', 'default-user/image-metadata.json']) {
+        // secrets.json belongs here: the connection configuration writes an api_key_custom entry in each leg, so
+        // the file's only legitimate difference is the run-created ids/labels that the named projection removes.
+        for (const relative of ['default-user/settings.json', 'default-user/image-metadata.json', 'default-user/secrets.json']) {
             try {
                 const text = await fs.readFile(path.join(tree, relative), 'utf8');
                 if (text.length <= 4 * 1024 * 1024) jsonFiles.push({ path: relative, text });
@@ -352,6 +354,9 @@ async function main() {
     const mode = argument('--mode', selfCheck ? 'self-check' : 'all');
     if (mode !== 'all' && !selfCheck) throw new Error(`--mode ${JSON.stringify(mode)} is not accepted: release evidence requires --mode all (a narrowed oracle must not ship as the full one)`);
     const skipPinned = hasFlag('--skip-pinned');
+    // A NARROWED triage run may skip the two hand-back legs; the artifact then says so (and is only ever used for
+    // triage, never as release evidence).
+    const skipHandback = hasFlag('--skip-handback');
     const phases = (argument('--phases', 'drive,restart') ?? 'drive,restart').split(',').map(value => value.trim()).filter(Boolean);
     const goBinary = process.env.GOTAVERN_BINARY ?? '';
     if (!goBinary) throw new Error('GOTAVERN_BINARY is required: this driver boots the CANDIDATE binary');
@@ -463,7 +468,7 @@ async function main() {
 
     // ---- 5. HAND-BACKS: each subject boots a COPY of the OTHER subject's written tree and resumes it.
     const handback = {};
-    if (!skipPinned) {
+    if (!skipPinned && !skipHandback) {
         const handbackDir = path.join(subjectsDir, 'handback');
         const directions = [
             { name: 'pinned-reads-gotavern-tree', subject: 'pinned', source: goTree, prefix: 'A19HB_P_' },

@@ -175,7 +175,14 @@ record('http-live-egress-etag-differs-survives', ['http-bodies-equal'], dir => {
     }
     writeLeg(dir, 'a19-drive-pinned.json', leg);
 }, { survivor: true });
-record('http-tokenizer-scheduling-survives', ['http-bodies-equal'], dir => {
+record('http-tokenizer-body-unavailable-survives', ['http-bodies-equal'], dir => {
+    // A body the recorder could not read is a recording fact (it races a navigation); every READABLE shared count is
+    // still compared by the tokenizer-count-body tooth.
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const entry = (leg.layers.http.requests ?? []).find(request => String(request.path) === '/api/tokenizers/openai/count');
+    if (entry) { entry.responseBodyText = null; entry.responseBodySha256 = null; }
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+}, { survivor: true });record('http-tokenizer-scheduling-survives', ['http-bodies-equal'], dir => {
     // A tokenizer count request present on only one leg is load-timing (which messages each pass held); the shared
     // identities' counts are still compared by the tokenizer-count-body tooth.
     const leg = readLeg(dir, 'a19-drive-pinned.json');
