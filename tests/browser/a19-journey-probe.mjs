@@ -44,8 +44,10 @@ import {
     openPage,
     readReadiness,
     readChatFiles,
+    sendTurn,
+    waitForReply,
 } from './q20-persistence-drive.mjs';
-import { chatTurn, saveConditional } from './a19-corpus-kit.mjs';
+import { saveConditional } from './a19-corpus-kit.mjs';
 
 const sha256 = value => createHash('sha256').update(value).digest('hex');
 
@@ -502,6 +504,50 @@ async function selectWorld(page, worldName) {
 }
 
 // -----------------------------------------------------------------------------------------------------------------
+// THE CONNECTION MUST STILL POINT AT THE DRIVER'S PEER WHEN THE SEND HAPPENS.
+//
+// Measured by B on the plumbing run: pinned's status calls were `custom(portA) -> openai(400) ->
+// custom(portB)` while GoTavern's were `custom(portA) -> custom(portB)`. `changeMainAPI('openai')`
+// (script.js) triggers a chat-completions status check AND an asynchronous settings reload; if that
+// reload lands after our `#chat_completion_source=custom` assignment, the page reverts to a source
+// whose generation path emits no request for this peer, and the send times out with the reply never
+// even being asked for. The page's OWN state is therefore read back and, if it drifted, re-applied;
+// the last read-back is recorded so a future red names the state instead of the symptom.
+async function ensureConnection(page, peerURL) {
+    const normalise = value => String(value ?? '').replace(/\/+$/, '');
+    const readState = () => page.evaluate(async () => {
+        const script = await import('./script.js');
+        const openai = await import('./scripts/openai.js');
+        return {
+            mainApi: script.main_api ?? null,
+            source: openai.oai_settings.chat_completion_source ?? null,
+            url: openai.oai_settings.custom_url ?? null,
+            model: openai.oai_settings.custom_model ?? null,
+            streaming: openai.oai_settings.stream_openai ?? null,
+        };
+    });
+    const attempts = [];
+    let state = null;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const applied = await configureConnection(page, { url: peerURL, model: 'a19-live-model' });
+        // The status check and the settings reload are asynchronous; give them room to land, then read
+        // the product's own state and re-apply once if it drifted.
+        const deadline = Date.now() + 25000;
+        while (Date.now() < deadline) {
+            state = await readState();
+            if (state.mainApi === 'openai' && state.source === 'custom' && normalise(state.url) === normalise(peerURL)) break;
+            await page.waitForTimeout(250);
+        }
+        await page.waitForTimeout(500);
+        state = await readState();
+        attempts.push({ attempt, applied: { source: applied?.source ?? null, url: applied?.url ?? null }, state });
+        if (state.mainApi === 'openai' && state.source === 'custom' && normalise(state.url) === normalise(peerURL)) {
+            return { ok: true, attempts, state, readBack: true };
+        }
+    }
+    return { ok: false, attempts, state, readBack: true, reason: `the page is not pointed at the peer: ${JSON.stringify(state)}` };
+}
+// -----------------------------------------------------------------------------------------------------------------
 // THE PAGE, READY THE WAY THE PRODUCT DECIDES IT IS READY (used again after a reload).
 // -----------------------------------------------------------------------------------------------------------------
 async function waitForPageReady(page, timeoutMs = 180000) {
@@ -524,10 +570,99 @@ async function waitForPageReady(page, timeoutMs = 180000) {
 }
 
 /**
- * After a reload the product restores the active character and its chat ON ITS OWN; the restore is
- * asynchronous (characters -> chats -> messages), so the reload fact is judged after readiness AND a
- * bounded wait for the chat identity, not after a fixed sleep.
+ * ONE TURN THROUGH THE REAL SEND, REQUIRING A NEW MESSAGE TO APPEAR, WITH ONE RETRY.
+ *
+ * WHY NOT `chatTurn` ALONE (measured, three runs): `sendTextareaMessage` has silent exits
+ * (`swipeState`, `is_send_press`, `isExecutingCommandsFromChatInput`) and a `SimpleMutex` around
+ * the click handler. In one run the click produced NO user message at all — the artefact showed a
+ * baseline that was still satisfied (7 messages, last text length 36) and `waitForReply` timed out
+ * against a baseline the page had never been asked to move past. The contract this probe needs is
+ * stronger than "the reply eventually exists": after the click a NEW message must be appended
+ * (`chatLength > before.chatLength`), and only then is the reply waited for. A click that produced
+ * nothing is retried ONCE (a user pressing send again), with the attempt recorded; a second silent
+ * click is a red step, never a quiet pass.
  */
+async function sendJourneyTurn(page, text) {
+    // THE PAGE MUST BE FREE BEFORE THE CLICK: a chat that is still loading or still generating is a
+    // state a user's click would be refused in, and the refusal is silent.
+    const freeDeadline = Date.now() + 60000;
+    let free = null;
+    while (Date.now() < freeDeadline) {
+        free = await page.evaluate(async () => {
+            const script = await import('./script.js');
+            return {
+                chatId: window.SillyTavern?.getContext?.()?.chatId ?? null,
+                chatLength: (script.chat ?? []).length,
+                isSendPress: script.is_send_press ?? null,
+                streamingProcessor: Boolean(script.streamingProcessor),
+                swipeState: script.swipeState ?? null,
+            };
+        });
+        if (free.chatId !== null && free.chatLength > 0 && free.isSendPress !== true && free.streamingProcessor !== true) break;
+        await page.waitForTimeout(200);
+    }
+    await page.waitForTimeout(600);
+    const attempts = [];
+    let afterUser = null;
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+        const sent = await sendTurn(page, text);
+        const userDeadline = Date.now() + 30000;
+        let observed = null;
+        while (Date.now() < userDeadline) {
+            observed = await page.evaluate(async () => {
+                const script = await import('./script.js');
+                const chat = script.chat ?? [];
+                const last = chat[chat.length - 1] ?? null;
+                return {
+                    chatLength: chat.length,
+                    lastIsUser: last?.is_user === true,
+                    lastTextLength: String(last?.mes ?? '').length,
+                    isSendPress: script.is_send_press ?? null,
+                    streamingProcessor: Boolean(script.streamingProcessor),
+                };
+            });
+            if (observed.lastIsUser === true) break;
+            await page.waitForTimeout(200);
+        }
+        attempts.push({ attempt, sent, observed });
+        if (observed?.lastIsUser === true) {
+            afterUser = observed;
+            break;
+        }
+        await page.waitForTimeout(1000);
+    }
+    const before = { chatLength: free?.chatLength ?? null, lastTextLength: null };
+    if (afterUser === null) {
+        return {
+            ok: false,
+            reason: 'the real send click produced no user message after two attempts',
+            free,
+            attempts,
+            before,
+            reply: null,
+            after: null,
+        };
+    }
+    const reply = await waitForReply(page, {
+        timeoutMs: 120000,
+        requireText: true,
+        baseline: { chatLength: before.chatLength ?? 0, lastTextLength: null },
+    });
+    const after = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        const chat = script.chat ?? [];
+        const last = chat[chat.length - 1] ?? null;
+        return {
+            chatLength: chat.length,
+            lastIsUser: last?.is_user === true,
+            lastText: String(last?.mes ?? '').slice(0, 2000),
+            lastTextLength: String(last?.mes ?? '').length,
+            chatId: window.SillyTavern?.getContext?.()?.chatId ?? null,
+        };
+    });
+    const appended = after.chatLength > (before.chatLength ?? 0);
+    return { ok: reply.ok === true && appended && after.lastIsUser === false && after.lastTextLength > 0, free, attempts, before, reply, after };
+}
 async function waitForChatRestore(page, timeoutMs = 120000) {
     const deadline = Date.now() + timeoutMs;
     let last = null;
@@ -603,7 +738,7 @@ try {
     };
 
     // POINT AT THE DRIVER'S PEER THROUGH THE FRONTEND'S OWN CONTROLS.
-    const connection = await configureConnection(page, { url: peerURL, model: 'a19-live-model' });
+    const connection = await ensureConnection(page, peerURL);
     // `configureConnection` changes the source to custom; keep streaming ON so the peer serves SSE for
     // a stream:true request (a JSON answer to a streaming request stores an empty reply).
     const streaming = await page.evaluate(async () => {
@@ -612,7 +747,7 @@ try {
         if (toggle && !toggle.checked) toggle.click();
         return { streamOpenai: openai.oai_settings.stream_openai ?? null, toggle: toggle ? toggle.checked : null };
     });
-    step('connection-configured', connection.source === 'custom' && String(connection.url ?? '').startsWith('http'), { connection, streaming });
+    step('connection-configured', connection.ok === true, { connection, streaming });
 
     // CHOOSE THE CARD BY SORTED ROSTER NAME (never directory order).
     const roster = await sortedRoster(page);
@@ -646,9 +781,9 @@ try {
     step('preset-selected', preset.ok === true, preset);
     // A PRESET CAN CARRY a provider URL of its own; re-apply the peer connection after selection so the
     // page is definitely pointed at the driver's peer for the generation below.
-    await configureConnection(page, { url: peerURL, model: 'a19-live-model' });
+    const connectionAfterPreset = await ensureConnection(page, peerURL);
     const world = await selectWorld(page, worldArg);
-    step('world-selected', world.ok === true, world);
+    step('world-selected', world.ok === true, { world, connectionAfterPreset });
 
     let driveResult = null;
     if (phase === 'drive') {
@@ -702,7 +837,7 @@ try {
             };
         });
         const consoleMark = consoleAll.length;
-        const turn = await chatTurn(page, marker);
+        const turn = await sendJourneyTurn(page, marker);
         const diagnosis = await page.evaluate(async () => {
             const script = await import('./script.js');
             return {
@@ -719,13 +854,18 @@ try {
             before,
             instrumentation,
             preSendState,
-            sent: turn.sent,
-            reply: { ok: turn.reply.ok, reading: turn.reply.reading ?? null, state: turn.reply.state ?? null, waitedMs: turn.reply.waitedMs ?? null },
+            turn: {
+                ok: turn.ok,
+                reason: turn.reason ?? null,
+                free: turn.free ?? null,
+                attempts: turn.attempts ?? null,
+                reply: turn.reply ? { ok: turn.reply.ok, reading: turn.reply.reading ?? null, state: turn.reply.state ?? null, waitedMs: turn.reply.waitedMs ?? null } : null,
+                after: turn.after ?? null,
+            },
             diagnosis,
             consoleDuringSend: consoleAll.slice(consoleMark).filter(entry => entry.type === 'error' || /Generate|error|Error|abort|Abort/i.test(entry.text)).slice(0, 30),
-            after: turn.after,
         };
-        step('one-turn-through-the-real-send', turn.ok === true, driveResult);
+        step('one-turn-through-the-real-send', turn.ok === true && turn.after !== null && turn.after.chatLength > before.chatLength, driveResult);
         await settleHttp();
         await saveConditional(page);
 
