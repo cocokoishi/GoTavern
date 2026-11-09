@@ -8,12 +8,12 @@ prompt verbatim, the measured starting state, the final goal and the acceptance 
 
 | field | value |
 |---|---|
-| stage | **P0 — oracle + harness boot proven, release gate armed (14 required gates); P1 (real-UI corpus) in progress** |
+| stage | **P1 corpus finalized (v2); P2 five-layer release-admissible run in progress; gate 14 armed** |
 | branch | `alpha19/program` (from `52883e8`) |
-| candidate | none yet |
+| candidate | not frozen yet (last suite-green SHA `78272e7`; corpus run at `f311b1a`) |
 | subagents | `oracle-ui` (A), `compat-diff` (B), `perf-stability` (C) — exactly three, long-lived |
-| corpus | not yet finalized (A's smoke journey is producing real UI data; rounds in progress) |
-| CI gates | **14 required gates armed** in `docs/release-manifest.json`; the new gate has not been dispatched yet |
+| corpus | **v2 finalized** (outside repo): 978 files / 49,898,769 B / tree `06d68e05…`; created 32 cards, 9 worlds/154 entries, 10 presets, 51 chats, 5 groups, 1 extension; 1,168 messages (396 UI turns + 772 product-save-path, disclosed) |
+| CI gates | **14 required gates armed**; none dispatched yet |
 
 ## Evidence index (live)
 
@@ -26,10 +26,10 @@ prompt verbatim, the measured starting state, the final goal and the acceptance 
 | decisions and rejected options | [`decision-log.md`](decision-log.md) | live |
 | alpha.19 evidence artifact contract (for the new CI gate) | [`evidence-contract.md`](evidence-contract.md) | applied (verifier + gate rails) |
 | real-UI oracle CI gate (workflow + manifest entry + governance rails + evidence verifier) | [`.github/workflows/real-ui-oracle.yml`](../../.github/workflows/real-ui-oracle.yml), [`evidence-contract.md`](evidence-contract.md), `docs/release-manifest.json` gate 14, [`scripts/verify-a19-evidence.mjs`](../../scripts/verify-a19-evidence.mjs) | **armed** (14 gates; governance 88/88; verifier 16/16); first dispatch pending A's finalizer + B's driver |
-| real-UI corpus (originals + manifest + action log) | outside the repo: `C:\Users\koishi\Desktop\GoTavern\a19-oracle` (A); summary will be copied here | in progress (smoke journey has created a real card/lorebook/chat through the pinned UI) |
-| five-layer differential | A's corpus + B's comparator | not started |
-| findings (RED/GREEN) | `findings/` | release-selection-rail defect found + fixed (RED observed, 89/89 green) |
-| performance | `perf/` (C) | not started |
+| real-UI corpus (v2 manifest + provenance) | outside: `a19-oracle/manifest/corpus-manifest-v2.json` (sha256 `25caa60c…`, tree `06d68e05…`); committed copy + `oracle/corpus.md` being added | finalized |
+| five-layer differential | B's `a19-live-oracle.mjs` release-admissible run | in progress |
+| findings (RED/GREEN) | `findings/` | 6 records: release-selection-rail, layer-b-conditional-get, reset-save-test-flake, self-check-runs, plus product fixes in commit history |
+| performance | `perf/` (C) | C1/C4/C3/C5/C2 measured; cumulative summary committed; ABBA/Node-control pending quiet window |
 | same-SHA CI evidence | `same-sha-evidence.md` | not started |
 | release evidence | `release-evidence.md` | not started |
 
