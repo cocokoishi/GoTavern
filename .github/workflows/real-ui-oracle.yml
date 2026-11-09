@@ -1,0 +1,246 @@
+# THE alpha.19 REAL-UI ORACLE GATE: a corpus produced by real headless-browser user actions against the
+# UNMODIFIED pinned SillyTavern is replayed on BOTH subjects and compared on five observable layers.
+#
+# WHAT THIS IS NOT. It is not another synthetic-corpus journey. `tests/browser/a19-corpus-builder.mjs` drives the
+# pinned UI (create panel, world-info editor, preset controls, chat send/swipe/regenerate/continue, group chat,
+# settings, extensions) over one data root in three rounds; the data it leaves behind IS the input. The builder
+# writes no product files: every card, world book, preset and chat is created through the product's own controls or
+# the frontend functions those controls call.
+#
+# WHY A SEPARATE WORKFLOW. The existing `Browser differential` job already carries a 150-minute timeout and a
+# recorded history of cancellation at 90 minutes. Booting pinned, building a corpus and then driving four legs for a
+# five-layer comparison does not fit inside it without risking that whole gate. This workflow is one job, one
+# artifact, one selection (mode=all), and it is wired into docs/release-manifest.json as a required gate ONLY after
+# it has run green locally and at a candidate SHA.
+#
+# THE SELECTION IS RELEASE EVIDENCE, NOT DECORATION. The run-name carries the mode; the release manifest requires
+# `titleIncludes: ["mode=all"]` AND `selection.mode === "all"` inside the artifact AND `corpus.origin === "ui"`.
+# A narrowed dispatch, a generated corpus, or a push-triggered run cannot satisfy the gate.
+#
+# READINESS: pinned SillyTavern compiles its frontend libraries on first boot. Measured on the alpha.19 development
+# host: a 90 s readiness deadline TIMED OUT while the compile was still running; 300 s was ready. The bound is
+# generous on purpose and readiness is identity-bound (version + listener pid), never `response.ok`.
+#
+# WHAT THE GATE DOES NOT PROVE: a real human's private long-lived directory (GOAL.md section 14(1)'s stronger
+# form); every provider/extension/platform; or performance. Those keep their own evidence and exclusions.
+
+name: GoTavern real-UI oracle differential
+
+run-name: GoTavern real-UI oracle differential mode=${{ github.event_name == 'workflow_dispatch' && (inputs.mode || 'all') || 'auto' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'all = the full five-layer real-UI oracle. Narrowed modes are refused by the release gate.'
+        required: false
+        default: all
+        type: choice
+        options:
+          - all
+
+# A dispatch must never be cancelled by an unrelated push. There is no push trigger here on purpose: a push run
+# could never satisfy a requiredEvent: workflow_dispatch gate, and carrying no push run keeps the artifact name
+# unambiguous.
+concurrency:
+  group: real-ui-oracle-${{ github.workflow }}-${{ github.ref }}-${{ github.event.inputs.mode || github.event_name }}
+  cancel-in-progress: false
+
+env:
+  # The oracle identity is the commit SHA. `./.github/actions/checkout-pinned` asserts it against
+  # upstream/SILLYTAVERN_COMMIT and refuses a tree that resolves anywhere else.
+  PINNED_BASELINE_COMMIT: 06bde939fb1e9c4c8d8641d810f0a916b5bce127
+  # Pinned compiles its frontend libraries on first boot; 90 s is NOT enough (measured: ready at 300 s on the
+  # development host under load). Do not lower this to make a red go away.
+  PINNED_READY_MS: '300000'
+  A19_SCRATCH: ${{ github.workspace }}/.a19-scratch
+
+jobs:
+  real-ui-oracle:
+    name: real-ui-oracle
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      # The pinned oracle, at the baseline commit AGENTS.md names. Same composite action as every other oracle
+      # job, so a mistranscribed pin fails here by name rather than downstream.
+      - uses: ./.github/actions/checkout-pinned
+        with:
+          commit: ${{ env.PINNED_BASELINE_COMMIT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Setup is persisted, not repeated: each key proves which install it restores (pinned commit + that
+      # checkout's lockfile; harness lockfile; harness lockfile for the browser bundle). No restore-keys.
+      - name: Cache the pinned server's node_modules
+        id: cache-pinned-modules
+        uses: actions/cache@v4
+        with:
+          path: .reference/SillyTavern/node_modules
+          key: ${{ runner.os }}-pinned-node-modules-${{ env.PINNED_BASELINE_COMMIT }}-${{ hashFiles('.reference/SillyTavern/package-lock.json') }}
+
+      - name: Cache the harness node_modules
+        id: cache-harness-modules
+        uses: actions/cache@v4
+        with:
+          path: tests/browser/node_modules
+          key: ${{ runner.os }}-harness-node-modules-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Cache the Playwright browser download
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ hashFiles('tests/browser/package-lock.json') }}
+
+      - name: Install the pinned server's dependencies
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-pinned-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "pinned server node_modules: CACHE HIT for ${{ env.PINNED_BASELINE_COMMIT }} -- install SKIPPED"
+          else
+            echo "pinned server node_modules: cache MISS -- installing from the pinned checkout's own manifest"
+            (cd .reference/SillyTavern && if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi)
+          fi
+
+      - name: Install the browser harness
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.cache-harness-modules.outputs.cache-hit }}" = "true" ]; then
+            echo "tests/browser/node_modules: CACHE HIT -- npm ci SKIPPED"
+          else
+            echo "tests/browser/node_modules: cache MISS -- npm ci"
+            (cd tests/browser && npm ci --no-audit --no-fund)
+          fi
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            echo "playwright chromium: CACHE HIT -- browser download SKIPPED, OS packages still ensured"
+            (cd tests/browser && npx playwright install-deps chromium)
+          else
+            echo "playwright chromium: cache MISS -- downloading the browser and its OS packages"
+            (cd tests/browser && npx playwright install --with-deps chromium)
+          fi
+
+      - name: Which setup branches this run took
+        run: |
+          echo "pinned server node_modules cache-hit: ${{ steps.cache-pinned-modules.outputs.cache-hit }}"
+          echo "harness node_modules cache-hit:       ${{ steps.cache-harness-modules.outputs.cache-hit }}"
+          echo "playwright browsers cache-hit:        ${{ steps.cache-playwright.outputs.cache-hit }}"
+          echo "(true = the install above was skipped; false or empty = it ran)"
+
+      # THE SUBJECT. `bootSubject` (q20-leg-runtime.mjs) installs the release tokenizer tree beside the binary
+      # precisely so the subject counts tokens exactly; a bare binary in a scratch directory would silently use the
+      # Guesstimate fallback and make the comparison a different subject (measured: whole-session 41015209900).
+      - name: Build the GoTavern subject
+        run: |
+          set -euo pipefail
+          mkdir -p .browser-bin
+          go build -trimpath -ldflags="-s -w" -o .browser-bin/gotavern ./cmd/gotavern
+          sha256sum .browser-bin/gotavern | tee .browser-bin/gotavern.sha256
+          ./.browser-bin/gotavern version | tee .browser-bin/version.txt
+
+      # THE CORPUS PROVIDER is a thin main over the repo's raw recorder (tests/mockprovider) in KEYED mode: a
+      # corpus of a thousand messages cannot use a positional script. `go run` is fine here, but building once keeps
+      # the rounds from recompiling it three times.
+      - name: Build the corpus recording provider
+        run: |
+          set -euo pipefail
+          mkdir -p "$A19_SCRATCH/bin"
+          go build -trimpath -ldflags="-s -w" -o "$A19_SCRATCH/bin/a19-provider" ./tools/a19-corpus/provider
+
+      # ROUNDS. Each invocation is a FRESH pinned process over the SAME data root: round 1 creates, round 2 keeps
+      # using and edits, round 3 is the restart-and-continue round. The wrapper owns the pinned process, seeds the
+      # pinned default config and passes the leased port; readiness is identity-bound.
+      - name: Build the real-UI corpus (three rounds, fresh pinned process over one data root)
+        env:
+          A19_DATA_ROOT: ${{ env.A19_SCRATCH }}/corpus
+          A19_SCRATCH: ${{ env.A19_SCRATCH }}
+          A19_PROVIDER_BINARY: ${{ env.A19_SCRATCH }}/bin/a19-provider
+        run: |
+          set -euo pipefail
+          mkdir -p "$A19_SCRATCH/corpus" "$A19_SCRATCH/rounds"
+          for round in 1 2 3; do
+            echo "::group::corpus round ${round}"
+            node tests/browser/run-against-pinned.mjs a19-corpus-builder.mjs \
+              --data-root "$A19_DATA_ROOT" -- \
+              --round "$round" --data-root "$A19_DATA_ROOT" \
+              2>&1 | tee "$A19_SCRATCH/rounds/round-${round}.log"
+            echo "::endgroup::"
+          done
+
+      # THE IMMUTABLE INPUT. The finalize step writes the manifest the comparator verifies before it copies the
+      # corpus: relative paths + sha256 per file, file/byte counts, tree digest, and the category counts claimed by
+      # the round reports.
+      - name: Finalize the corpus manifest
+        env:
+          A19_DATA_ROOT: ${{ env.A19_SCRATCH }}/corpus
+        run: |
+          set -euo pipefail
+          node tests/browser/a19-corpus-finalize.mjs \
+            --data-root "$A19_DATA_ROOT" \
+            --out "$A19_SCRATCH/corpus-manifest.json"
+          node -e "const m = require(process.argv[1]); console.log(JSON.stringify({ files: m.files, bytes: m.bytes, treeSha256: m.treeSha256, counts: m.counts }, null, 2));" "$A19_SCRATCH/corpus-manifest.json"
+
+      # ONE INVOCATION OWNS ALL LEGS. The driver copies the immutable corpus once per subject (never boots the
+      # originals, never runs two servers on one writable dir), drives the SAME journey probe on both subjects, then
+      # restarts and hand-backs, and writes the release-evidence document plus every leg artefact.
+      - name: Run the five-layer live oracle (both subjects, restart, hand-back)
+        env:
+          GOTAVERN_BINARY: ${{ github.workspace }}/.browser-bin/gotavern
+          PINNED_READY_MS: '300000'
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/a19-evidence"
+          node tests/browser/a19-live-oracle.mjs \
+            --corpus "$A19_SCRATCH/corpus" \
+            --corpus-manifest "$A19_SCRATCH/corpus-manifest.json" \
+            --journey tests/browser/a19-journey-probe.mjs \
+            --out "$RUNNER_TEMP/a19-evidence" \
+            --head-sha "$GITHUB_SHA" \
+            --mode all \
+            2>&1 | tee "$RUNNER_TEMP/a19-evidence/live-oracle.log"
+
+      # THE CONTRACT, NOT JUST THE EXIT CODE. The self-test proves the verifier can fail; the evidence run proves
+      # this artifact says what the gate requires (five layers match, origin ui, candidate SHA, pinned commit,
+      # no broad normalisation). A green driver with a malformed document must fail HERE.
+      - name: Verify the evidence contract (self-test, then this run's document)
+        run: |
+          set -euo pipefail
+          node scripts/verify-a19-evidence.mjs --self-test | tee "$RUNNER_TEMP/a19-evidence/verifier-selftest.json"
+          node scripts/verify-a19-evidence.mjs \
+            --evidence "$RUNNER_TEMP/a19-evidence/release-evidence.json" \
+            --sha "$GITHUB_SHA" \
+            --pinned "$PINNED_BASELINE_COMMIT" \
+            | tee "$RUNNER_TEMP/a19-evidence/verifier-verdict.json"
+
+      - name: Record the evidence summary
+        if: always()
+        run: |
+          set -euo pipefail
+          echo "## GoTavern real-UI oracle differential" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "candidate: \`$GITHUB_SHA\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "pinned oracle: \`$PINNED_BASELINE_COMMIT\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "selection: mode=all" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$RUNNER_TEMP/a19-evidence/release-evidence.json" ]; then
+            node -e "const e = require(process.argv[1]); const lines = ['ok: ' + e.ok, 'corpus: ' + JSON.stringify(e.corpus), 'layers: ' + JSON.stringify(Object.fromEntries(Object.entries(e.layers || {}).map(([k, v]) => [k, v.verdict]))) , 'normalisations: ' + (e.normalisations || []).length, 'notCompared: ' + (e.notCompared || []).length]; console.log(lines.map(l => '- ' + l).join('\n'));" "$RUNNER_TEMP/a19-evidence/release-evidence.json" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "no release-evidence.json was produced" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # FIXED NAME + MEMBER AT THE ARTIFACT ROOT. `scripts/release-governance/artifact-evidence.mjs` reads exactly
+      # `release-evidence.json`; uploading `dir/*` makes that file the root member. `error`, not `warn`: a green job
+      # with no artifact would mean the evidence this workflow exists to produce was never written.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: a19-real-ui-oracle-evidence
+          path: ${{ runner.temp }}/a19-evidence/*
+          retention-days: 30
+          if-no-files-found: error

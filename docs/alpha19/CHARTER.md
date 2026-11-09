@@ -50,7 +50,7 @@
 | 项目 | 实测值 | 核验方式 |
 |---|---|---|
 | 工作目录 | `C:\Users\koishi\Desktop\GoTavern\gotavern` | 会话工作目录 |
-| HEAD | `52883e8a048e4f29f6f574529d2491339106fe28` | `git rev-parse HEAD` |
+| HEAD | `52883e8` | `git rev-parse HEAD` |
 | HEAD 标题 | `docs(goal): record that v0.1.0-alpha.18 is published (GOAL section 14 stays NOT MET)` | `git log -1` |
 | 当前分支 | `main` | `git status -sb` |
 | 与远端关系 | `## main...origin/main`（无 ahead / 无 behind） | `git status -sb` |
@@ -1613,7 +1613,7 @@ git rev-parse --show-toplevel        # C:/Users/koishi/Desktop/GoTavern/gotavern
 git status --short                   # （无输出：工作树干净）
 git log --oneline -10                # 52883e8 ... alpha.18 发布记录
 git remote -v                        # origin https://github.com/cocokoishi/GoTavern.git
-git rev-parse HEAD                   # 52883e8a048e4f29f6f574529d2491339106fe28
+git rev-parse HEAD                   # 52883e8
 git tag --sort=-creatordate | head   # v0.1.0-alpha.18 ... v0.1.0-alpha.9
 git branch -a                        # main 领先，无 alpha19 分支
 git status -sb                       # ## main...origin/main（无 ahead/behind）
