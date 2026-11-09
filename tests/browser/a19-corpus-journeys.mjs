@@ -818,7 +818,15 @@ async function runChats(page, ctx, round, plan, cards, presets, presetWireProof)
     for (let chatIndex = 0; chatIndex < plan.chats; chatIndex += 1) {
         const card = cards[chatIndex % cards.length];
         if (!card) break;
-        const opened = await openCardAndNewChat(page, card.name);
+        let opened = await openCardAndNewChat(page, card.name);
+        // ONE BOUNDED RETRY: opening a card whose store has no chat auto-creates a greeting chat, and New
+        // Chat on that just-opened state occasionally confirmed while the id did not change (measured once
+        // on a fresh root: `confirmed:true`, same chatId). Re-open and press New Chat again, exactly like a
+        // user would, before recording a failure.
+        if (!opened.ok) {
+            await openCharacter(page, card.name).catch(() => null);
+            opened = await openCardAndNewChat(page, card.name);
+        }
         if (!opened.ok) {
             ctx.report.step(`chat-opened-r${round}-${chatIndex}`, false, opened);
             continue;
@@ -891,6 +899,20 @@ async function runChats(page, ctx, round, plan, cards, presets, presetWireProof)
         if (chatIndex % 5 === 4) {
             const reload = await reloadAndReopen(page, card.name, chatChoiceCandidate(opened, file));
             ctx.report.step(`reload-r${round}-${chatIndex}`, reload.ok === true, reload);
+            // A RELOAD REVERTS THE ASYNC SETTINGS LOAD. Measured on a fresh root: every send AFTER the first
+            // reload silently exited (main_api still openai, chatLength unchanged) because
+            // `chat_completion_source`/custom_url came back from settings.json, not from the recorder
+            // configuration. Re-apply and read back after every reload; refuse quietly to continue blind.
+            const reassert = await ensureConnection(page, ctx.provider.baseURL, 'a19-live-model', { streaming: ctx.streaming !== false });
+            const reassertState = await page.evaluate(async () => {
+                const script = await import('./script.js');
+                const openai = await import('./scripts/openai.js');
+                return { mainApi: script.main_api ?? null, source: openai.oai_settings?.chat_completion_source ?? null, customUrl: openai.oai_settings?.custom_url ?? null };
+            });
+            const reloadOk = reassert.ok === true && reassertState.mainApi === 'openai' && reassertState.source === 'custom';
+            await ctx.act({ page: 'AI Response Configuration', control: '#main_api + #chat_completion_source + #custom_api_url_text', field: 'post-reload connection re-assert', action: 're-apply and read back the recorder connection after the page reload', result: { ok: reloadOk, state: reassertState, expectedBaseURL: ctx.provider.baseURL } });
+            ctx.report.step(`provider-still-connected-after-reload-r${round}-${chatIndex}`, reloadOk, { state: reassertState });
+            if (!reloadOk) ctx.report.note(`chat matrix continues after a reload WITHOUT the recorder connection (mainApi=${reassertState.mainApi}, source=${reassertState.source})`);
         }
     }
     return chats;
@@ -1167,6 +1189,17 @@ async function openGroup(page, groupId, newChat = true) {
 
 async function runGroups(page, ctx, round, plan, cards) {
     const groups = [];
+    // PRE-GROUPS RE-ASSERT: the chats phase may have reloaded the page and the groups phase must not start
+    // on a drifted recorder connection (measured: every group send silently exited after the chats reload).
+    const preGroups = await ensureConnection(page, ctx.provider.baseURL, 'a19-live-model', { streaming: ctx.streaming !== false });
+    const preGroupsState = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        const openai = await import('./scripts/openai.js');
+        return { mainApi: script.main_api ?? null, source: openai.oai_settings?.chat_completion_source ?? null, customUrl: openai.oai_settings?.custom_url ?? null };
+    });
+    const preGroupsOk = preGroups.ok === true && preGroupsState.mainApi === 'openai' && preGroupsState.source === 'custom';
+    await ctx.act({ page: 'AI Response Configuration', control: '#main_api + #chat_completion_source + #custom_api_url_text', field: 'pre-groups connection re-assert', action: 're-apply and read back the recorder connection before the group chats', result: { ok: preGroupsOk, state: preGroupsState, expectedBaseURL: ctx.provider.baseURL } });
+    ctx.report.step(`provider-still-connected-before-groups-r${round}`, preGroupsOk, { state: preGroupsState });
     for (let groupIndex = 0; groupIndex < plan.groups; groupIndex += 1) {
         const memberCount = 3 + (groupIndex % 3);
         const memberNames = cards.slice(groupIndex * 2, groupIndex * 2 + memberCount).map(card => card.name);
@@ -1225,6 +1258,14 @@ async function runGroups(page, ctx, round, plan, cards) {
             return { ok: false, ...(last ?? {}) };
         }, created.group.id);
         ctx.report.step(`group-reload-r${round}-${groupIndex}`, reopened.ok === true, reopened);
+        // The group reload is a page reload too: restore the recorder before the next group's turns.
+        const groupReassert = await ensureConnection(page, ctx.provider.baseURL, 'a19-live-model', { streaming: ctx.streaming !== false });
+        const groupReassertState = await page.evaluate(async () => {
+            const script = await import('./script.js');
+            const openai = await import('./scripts/openai.js');
+            return { mainApi: script.main_api ?? null, source: openai.oai_settings?.chat_completion_source ?? null };
+        });
+        ctx.report.step(`provider-still-connected-after-group-reload-r${round}-${groupIndex}`, groupReassert.ok === true && groupReassertState.mainApi === 'openai' && groupReassertState.source === 'custom', { state: groupReassertState });
     }
     return groups;
 }
