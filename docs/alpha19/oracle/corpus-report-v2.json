@@ -1,0 +1,176 @@
+{
+    "schema":  "a19-corpus-report-v2",
+    "corpus":  {
+                   "root":  "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-oracle\\corpus",
+                   "origin":  "ui",
+                   "tier":  "full",
+                   "subject":  "pinned SillyTavern 1.19.0 @ 06bde939fb1e9c4c8d8641d810f0a9165b5bce127",
+                   "immutableAfter":  "2026-11-09T05:31:59Z",
+                   "manifestCommitted":  "docs/alpha19/oracle/corpus-manifest-v2.json",
+                   "manifestRuntimePath":  "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-oracle\\manifest\\corpus-manifest-v2.json"
+               },
+    "manifest":  {
+                     "schema":  "a19-corpus-manifest-v1",
+                     "fileSha256":  "25caa60c871cde4348c22ed24baac18aaf6911ebc065d3e6ba74d95fcc61b1d9",
+                     "fileBytes":  198074,
+                     "treeSha256":  "06d68e057085abad28d4e3bfc19df71cf91d9ea612ad6907bd67b38784d3a2ba",
+                     "algorithm":  "sha256 over UTF-8 of [sort(inventory, ordinal by path)], each line \u0027\u003csha256\u003e  \u003cpath\u003e\u0027, joined with LF, no trailing newline",
+                     "files":  978,
+                     "bytes":  49898769,
+                     "inventoryMatchesFiles":  true,
+                     "bytesMatchInventorySum":  true
+                 },
+    "counts":  {
+                   "created":  {
+                                   "characters":  32,
+                                   "worlds":  9,
+                                   "worldEntries":  154,
+                                   "presets":  10,
+                                   "chats":  51,
+                                   "messages":  1168,
+                                   "groups":  5,
+                                   "personas":  3,
+                                   "themes":  1,
+                                   "quickReplies":  2,
+                                   "regexes":  2,
+                                   "extensions":  1
+                               },
+                   "seeded":  {
+                                  "characters":  1,
+                                  "worlds":  1,
+                                  "worldEntries":  4,
+                                  "presets":  92,
+                                  "chats":  0,
+                                  "messages":  0,
+                                  "groups":  0,
+                                  "personas":  0,
+                                  "themes":  5,
+                                  "quickReplies":  1,
+                                  "regexes":  0,
+                                  "extensions":  0
+                              },
+                   "disk":  {
+                                "characters":  33,
+                                "worlds":  10,
+                                "worldEntries":  158,
+                                "presets":  102,
+                                "chats":  51,
+                                "groupChats":  5,
+                                "messages":  1168,
+                                "groups":  5,
+                                "themes":  6,
+                                "quickReplies":  3,
+                                "personas":  3,
+                                "regexes":  2,
+                                "extensions":  1
+                            },
+                   "basis":  "created = persisted tree minus the measured fresh-install baseline; imports through product controls count as created; message total counts chat AND group-chat JSONL user+assistant records"
+               },
+    "messageSplit":  {
+                         "viaUiTurns":  396,
+                         "viaProductSavePath":  772,
+                         "basis":  "396 pairs were persisted by real sends through #send_textarea/#send_but; 772 pairs were appended to the page chat model and persisted through the product\u0027s own saveChatConditional. No JSONL was hand-written or copied.",
+                         "disclosure":  "The corpus is NOT 100% UI-turn-originated for messages; the split is carried in the manifest and must be quoted downstream."
+                     },
+    "actionLogs":  {
+                       "root":  "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-oracle",
+                       "files":  [
+                                     "round1/actions-round1.jsonl",
+                                     "round0/actions-round0.jsonl",
+                                     "round9/actions-message-topup.jsonl",
+                                     "round9/actions-message-topup2.jsonl",
+                                     "round11/actions-gapfill.jsonl",
+                                     "round11/actions-gapfill2.jsonl",
+                                     "round11/actions-gapfill3.jsonl"
+                                 ],
+                       "records":  121,
+                       "note":  "action logs stay OUTSIDE the repository; the manifest records their filenames and record count only"
+                   },
+    "providerCaptures":  [
+                             "round1/provider-round1-recording.json",
+                             "round0/provider-topup-recording.json",
+                             "round9/provider-message-topup-recording.json",
+                             "round11/provider-gapfill-recording.json"
+                         ],
+    "roundReports":  [
+                         "round1/round1.json",
+                         "round0/round0.json",
+                         "round9/message-topup.json",
+                         "round9/message-topup2.json",
+                         "round11/gapfill.json",
+                         "round11/gapfill2.json",
+                         "round11/gapfill3.json"
+                     ],
+    "rounds":  {
+                   "executed":  [
+                                    "round 1: bulk imports (cards/worldbooks/presets) through product import controls, hand-created character/lorebook subset, chats and groups through the UI",
+                                    "top-up over the same root: imports to the minimums, groups, chats and turns (fresh pinned process)",
+                                    "message top-up x2: proven send path + disclosed product-save-path fill (fresh pinned process)",
+                                    "gap-fill over the same root: created minima, pinned extension, verb matrix (fresh pinned process)"
+                                ],
+                   "usePhase":  {
+                                    "executed":  true,
+                                    "target":  "copy of the corpus (copy-verify/corpus), never the root",
+                                    "result":  "PASS preset-edit/temperature 0.77, PASS card-edit, FAIL card-duplicate (roster did not grow, before 33), PASS reload; chat turns reached no provider because the short phase does not configure a recorder (named harness limitation, no messages added)"
+                                },
+                   "restartPhase":  {
+                                        "executed":  true,
+                                        "target":  "copy of the corpus (copy-verify/corpus), never the root",
+                                        "result":  "PASS restart-resumed-persisted-chats (new pinned process reopened 3 persisted chats from the copy); FAIL restart-continued-generation (5 sends ~15 s each, no provider because the copy endpoint is dead and the short phase does not reconfigure it); report round31/round31.json"
+                                    },
+                   "persistenceEvidence":  "the root itself was built across FOUR independent pinned server processes over the same data root (round1, top-up, message top-up, gap-fill); each later process reopened chats written by the earlier one, which is restart/persistence evidence even without the short phases The copy-run restart leg independently confirms resume across a new process."
+               },
+    "extension":  {
+                      "key":  "tavern-helper",
+                      "label":  "Tavern Helper / JS-Slash-Runner",
+                      "displayName":  "酒馆助手",
+                      "version":  "4.11.3",
+                      "commit":  "837a6288135cde61522a9279173b98020f08807e",
+                      "installPath":  "default-user/extensions/JS-Slash-Runner",
+                      "installSource":  "offline seed GOTAVERN_EXTENSION_SEED_ROOT=.private-fixtures/run/tree-gotavern-a/default-user/extensions",
+                      "origin":  "frozen local bare mirror inside the data root; a page-triggered update cannot advance the checkout",
+                      "loading":  "manifest.json, dist/index.js, dist/index.css served 200 by the unmodified frontend",
+                      "api":  "globalThis.TavernHelper present; chat variable A19_GAPFILL_VAR set and read back through the helper API ({before: {}, after: {A19_GAPFILL_VAR: \u0027gapfill-1794204371385\u0027}})",
+                      "iframes":  0,
+                      "enablement":  "auto-enabled at load; the Extensions-panel toggle was not found, so step extension-enabled-through-ui is recorded FAILED by design while load+API are green",
+                      "egressFinding":  "during load the pinned extension itself issued ONE request to https://gitlab.com/api/v4/projects/novi028%2FJS-Slash-Runner/repository/files/manifest.json/raw?ref=main (status 200); this is the pinned product\u0027s extension version check, NOT the provider or the harness, and a strictly offline CI job must block it at the network boundary"
+                  },
+    "verbs":  {
+                  "chats":  3,
+                  "send":  "3/3",
+                  "swipe":  "3/3",
+                  "regenerate":  "3/3",
+                  "continue":  "3/3",
+                  "edit":  "2/3",
+                  "delete":  "3/3",
+                  "saveReopen":  "3/3",
+                  "notes":  "pinned edits a contenteditable .mes_text (not a textarea); delete must click a VISIBLE confirm because #dialogue_popup_ok is a permanent hidden element (same trap as New Chat)"
+              },
+    "measuredCosts":  {
+                          "provenPathTurnsPerSecond":  0.83,
+                          "provenPathSecondsPerTurn":  1.2,
+                          "bulkTopUpMinutes":  23,
+                          "gapfillBootAndVerbsMinutes":  4,
+                          "fullCorpusWallClockMinutes":  "approx 60 across four pinned processes (one partial round, bulk top-up, message top-up, gap-fill)"
+                      },
+    "hygiene":  {
+                    "storedCustomUrl":  "http://127.0.0.1:53115/v1",
+                    "storedCustomUrlListening":  false,
+                    "providerProcessesLeft":  0,
+                    "pinnedProcessesLeft":  0,
+                    "browser":  "headless chromium, closed after every invocation"
+                },
+    "unproven":  [
+                     "Tavern Helper UI toggle step (extension auto-enabled at load; no toggle control exists for this revision)",
+                     "one external request to gitlab.com by the pinned extension\u0027s own version check during load",
+                     "message matrix is 396 UI turns + 772 product-save-path pairs (disclosed)",
+                     "verb edit coverage is 2/3 chats",
+                     "LittleWhiteBox extension (not installed in this corpus)",
+                     "extensions iframe: this pinned revision runs in-page, so iframe evidence is 0 by design"
+                 ],
+    "commits":  {
+                    "branch":  "alpha19/program",
+                    "corpusHarness":  "f311b1a",
+                    "docsCommit":  "pending"
+                }
+}
