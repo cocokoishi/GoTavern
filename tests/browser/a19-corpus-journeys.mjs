@@ -305,6 +305,11 @@ export async function importWorldBooks(page, ctx, round, plan, startBookIndex) {
             if (typeof worldInfo.getWorldInfoList === 'function') await worldInfo.getWorldInfoList();
             return Array.isArray(worldInfo.world_names) ? worldInfo.world_names.length : 0;
         });
+        const beforeNames = await page.evaluate(async () => {
+            const worldInfo = await import('./scripts/world-info.js');
+            if (typeof worldInfo.getWorldInfoList === 'function') await worldInfo.getWorldInfoList();
+            return Array.isArray(worldInfo.world_names) ? worldInfo.world_names.slice() : [];
+        });
         await page.setInputFiles('#world_import_file', file);
         const deadline = Date.now() + 40000;
         let names = [];
@@ -317,13 +322,17 @@ export async function importWorldBooks(page, ctx, round, plan, startBookIndex) {
             });
             if (names.length > before) break;
         }
-        const importedName = names.find(name => name === worldName) ?? names.find(name => /Imported Lore/.test(name));
+        // THE NAME IS READ BACK FROM THE PANEL, NEVER ASSUMED. A fresh install imports a book under the
+        // FILE stem (`a19-world-r1-s0-0`); A's old root happened to carry display names, so an expectation
+        // built on the display name failed on EVERY fresh root (CI round 1: worlds-selected-r1 red).
+        const newNames = names.filter(name => !beforeNames.includes(name));
+        const importedName = newNames[0] ?? worldName;
         const ok = names.length > before;
         const disk = importedName ? await readWorldBookFile(ctx.dataRoot, importedName).catch(() => null) : null;
-        const result = { ok, before, after: names.length, importedName: importedName ?? null, entriesOnDisk: disk?.entryCount ?? null, file: path.basename(file) };
+        const result = { ok, before, after: names.length, importedName, actualNames: newNames, entriesOnDisk: disk?.entryCount ?? null, file: path.basename(file), expectedDisplayName: worldName };
         await ctx.act({ page: 'World Info drawer', control: '#world_import_file', field: `imported lorebook ${worldName}`, action: 'pick the generated world-book JSON in the Import World Info control', result, created: ok ? { worldsImported: 1, worldEntriesImported: disk?.entryCount ?? specs.length } : undefined });
         ctx.report.step(`world-imported-r${round}-${bookIndex}`, ok, result);
-        if (ok) imported.push({ name: importedName ?? worldName, entries: disk?.entryCount ?? null });
+        if (ok) imported.push({ name: importedName, entries: disk?.entryCount ?? null });
     }
     return imported;
 }
@@ -675,15 +684,32 @@ async function createWorldBooks(page, ctx, round, plan, startBookIndex) {
  * product's own preset select and read the selection back.
  */
 async function importPreset(page, ctx, presetPath, presetName) {
-    await page.setInputFiles('#openai_preset_import_file', presetPath);
-    const deadline = Date.now() + 30000;
-    let listed = false;
-    while (Date.now() < deadline) {
-        listed = await page.evaluate(name => [...document.querySelectorAll('#settings_preset_openai option')].some(option => option.textContent.trim() === name), presetName);
-        if (listed) break;
+    // THE IMPORT CONTROL ONLY EXISTS/ACCEPTS WORK WHEN THE OPENAI SOURCE IS ACTIVE. On a fresh root the
+    // page boots on another main API, so `#openai_preset_import_file` was inert and every preset step
+    // failed (CI round 1: preset-imported-r1-0/1/2). Point the page at the recorder FIRST, then wait for
+    // the control rather than assuming it is ready.
+    await ensureConnection(page, ctx.provider.baseURL, 'a19-live-model', { streaming: ctx.streaming !== false });
+    const readyDeadline = Date.now() + 30000;
+    while (Date.now() < readyDeadline) {
+        const present = await page.evaluate(() => Boolean(document.querySelector('#openai_preset_import_file')) && Boolean(document.querySelector('#settings_preset_openai')));
+        if (present) break;
         await page.waitForTimeout(250);
     }
-    if (!listed) return { ok: false, reason: `imported preset ${presetName} never appeared in #settings_preset_openai` };
+    const beforeOptions = await page.evaluate(() => [...document.querySelectorAll('#settings_preset_openai option')].map(option => option.textContent.trim()));
+    await page.setInputFiles('#openai_preset_import_file', presetPath);
+    const deadline = Date.now() + (Number(process.env.A19_IMPORT_TIMEOUT_MS ?? '30000') || 30000);
+    let actualName = null;
+    let optionNames = [];
+    while (Date.now() < deadline) {
+        optionNames = await page.evaluate(() => [...document.querySelectorAll('#settings_preset_openai option')].map(option => option.textContent.trim()));
+        // THE PRODUCT DECIDES THE NAME. A fresh install may name the preset from the file rather than the
+        // JSON's display name, exactly like imported lorebooks; read the NEW option instead of matching the
+        // name we hoped for (the assumed-name check was the CI failure).
+        actualName = optionNames.find(name => !beforeOptions.includes(name) && name !== '');
+        if (actualName) break;
+        await page.waitForTimeout(250);
+    }
+    if (!actualName) return { ok: false, reason: `imported preset ${presetName} never appeared in #settings_preset_openai`, beforeOptions, afterOptions: optionNames };
     const selected = await page.evaluate(async name => {
         const select = document.querySelector('#settings_preset_openai');
         const option = [...select.options].find(candidate => candidate.textContent.trim() === name);
@@ -698,8 +724,8 @@ async function importPreset(page, ctx, presetPath, presetName) {
             await new Promise(resolve => setTimeout(resolve, 200));
         }
         return { ok: false, reason: 'preset never became selected', observed };
-    }, presetName);
-    return selected;
+    }, actualName);
+    return { ...selected, actualName, requestedName: presetName, beforeOptions, afterOptions: optionNames };
 }
 
 async function importPresets(page, ctx, round, plan, presetStartIndex) {
@@ -711,6 +737,7 @@ async function importPresets(page, ctx, round, plan, presetStartIndex) {
         const name = `A19Preset r${round} ${index0 + 1}`;
         const file = await writePresetFile(path.join(presetDir, `a19-preset-r${round}-${index0 + 1}.json`), index0);
         const result = await importPreset(page, ctx, file, name);
+        const actualName = result.actualName ?? name;
         if (result.ok) {
             // EDIT THROUGH THE UI AND SAVE WITH THE PRESET'S OWN "Update current preset" BUTTON: one field
             // changed through the real control and persisted through the product's own save path.
@@ -725,9 +752,9 @@ async function importPresets(page, ctx, round, plan, presetStartIndex) {
             }, Number((0.5 + (index0 % 5) * 0.1).toFixed(2)));
             await page.waitForTimeout(400);
             const connection = await ensureConnection(page, ctx.provider.baseURL, 'a19-live-model', { streaming: ctx.streaming !== false });
-            await ctx.act({ page: 'AI Response Configuration', control: '#openai_preset_import_file + #settings_preset_openai + #temp_openai + #update_oai_preset', field: `preset ${name}`, action: 'import the preset file through the real import input, select it, edit temperature through the slider and press Update current preset', result: { import: result, edited, connection: connection.ok === true, connectionState: connection.state ?? null }, created: { presets: 1 } });
-            ctx.report.step(`preset-imported-r${round}-${index}`, connection.ok === true, { name, edited, connectionState: connection.state ?? null });
-            imported.push({ name, file: path.basename(file) });
+            await ctx.act({ page: 'AI Response Configuration', control: '#openai_preset_import_file + #settings_preset_openai + #temp_openai + #update_oai_preset', field: `preset ${actualName}`, action: 'import the preset file through the real import input, select the option the product created, edit temperature through the slider and press Update current preset', result: { import: result, edited, connection: connection.ok === true, connectionState: connection.state ?? null }, created: { presets: 1 } });
+            ctx.report.step(`preset-imported-r${round}-${index}`, connection.ok === true, { requestedName: name, actualName, edited, connectionState: connection.state ?? null });
+            imported.push({ name: actualName, file: path.basename(file) });
         } else {
             await ctx.act({ page: 'AI Response Configuration', control: '#openai_preset_import_file', field: `preset ${name}`, action: 'import the preset file through the real import input', result });
             ctx.report.step(`preset-imported-r${round}-${index}`, false, result);

@@ -47,6 +47,7 @@ import {
     saveSettingsNow,
     screenshot,
     selectWorldGlobally,
+    ensureConnection,
     sha256,
     startNewChat,
     startProvider,
@@ -309,6 +310,35 @@ try {
     await act({ page: 'app', control: 'window.load / APP_READY', field: 'readiness', action: 'load the pinned frontend at ' + baseURL, result: readiness });
     report.step('page-loaded', loaded === true && readiness?.settingsReady === true, readiness);
     if (loaded !== true) throw new Error(`the page was not ready: ${JSON.stringify(readiness)}`);
+
+    // THE PAGE MUST BE POINTED AT THE RECORDING PROVIDER BEFORE THE FIRST TURN.
+    //
+    // MEASURED ON A FRESH DATA ROOT (CI run 42586257973, reproduced locally): a fresh pinned page boots on
+    // `main_api: koboldhorde`, so every send took `silentExitInputs.mainApi: "koboldhorde"` and produced no
+    // user message, while the 15 s per-turn bound turned that into a wall of "turn did not complete"
+    // failures (16 min of round 1 in CI). The smoke journey configured the connection itself, which is why
+    // A's old root hid the defect: its settings already said openai. Configure ONCE here, READ IT BACK
+    // (main_api, source, custom_url against the live recorder URL), and refuse to start the matrix on a
+    // mismatch instead of producing 79 misleading steps.
+    const recorderConnection = await ensureConnection(page, provider.baseURL, 'a19-live-model', { streaming: false });
+    const connectionState = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        const openai = await import('./scripts/openai.js');
+        return {
+            mainApi: script.main_api ?? null,
+            source: openai.oai_settings?.chat_completion_source ?? null,
+            customUrl: openai.oai_settings?.custom_url ?? null,
+            streamOpenai: openai.oai_settings?.stream_openai ?? null,
+        };
+    });
+    const connectionOk = recorderConnection.ok === true
+        && connectionState.mainApi === 'openai'
+        && connectionState.source === 'custom'
+        && String(connectionState.customUrl ?? '').replace(/\/+$/, '') === String(provider.baseURL).replace(/\/+$/, '');
+    await act({ page: 'AI Response Configuration', control: '#main_api + #chat_completion_source + #custom_api_url_text + #stream_toggle', field: 'recording provider connection', action: 'point a fresh page at the live recorder through the product connection controls and read the stored settings back', result: { recorderConnection, connectionState, expectedBaseURL: provider.baseURL, ok: connectionOk } });
+    report.step('provider-connected-before-matrix', connectionOk, { connectionState, expectedBaseURL: provider.baseURL, attempts: recorderConnection.attempts ?? null });
+    report.counts.connection = { ok: connectionOk, state: connectionState, recorder: provider.baseURL };
+    if (!connectionOk) throw new Error(`the page is not connected to the recorder (mainApi=${connectionState.mainApi}, source=${connectionState.source}, customUrl=${connectionState.customUrl})`);
 
     if (smoke) {
         await smokeJourney(page);
