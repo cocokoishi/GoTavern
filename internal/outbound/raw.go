@@ -21,6 +21,7 @@ import (
 	"io"
 	"net"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -62,6 +63,13 @@ type Response struct {
 	// an end of stream. Pinned node-fetch surfaces the same distinction as an
 	// error on the response body stream.
 	Truncated bool
+
+	// TruncatedBy names WHICH framing check set Truncated, for diagnosis only. It is never emitted on the wire
+	// and no caller branches on it: the boolean above is the contract. It exists because the alpha.19 full-suite
+	// hang was a stream a CLEAN provider produced but the reader reported as truncated, and "truncated" alone
+	// cannot say whether the provider cut the frame, the chunk-size line failed, or the terminal CRLF was
+	// missing. Values are stable labels such as "chunk-size-line:EOF", "content-length:short", "chunk-terminal-crlf:err".
+	TruncatedBy string
 }
 
 // Header returns the first value for a header name, case-insensitively.
@@ -288,7 +296,7 @@ func (body *bodyReader) Read(target []byte) (int, error) {
 		if body.remaining > 0 && err != nil {
 			// The provider declared more bytes than it sent: the reply was cut
 			// off rather than finished.
-			body.response.Truncated = true
+			body.markTruncated("content-length:short", err)
 			body.markDone()
 		}
 		return count, err
@@ -300,7 +308,7 @@ func (body *bodyReader) Read(target []byte) (int, error) {
 	if errors.Is(err, io.EOF) {
 		body.markDone()
 	} else if err != nil {
-		body.response.Truncated = true
+		body.markTruncated("connection-close:err", err)
 		body.markDone()
 	}
 	return count, err
@@ -312,7 +320,7 @@ func (body *bodyReader) readChunked(target []byte) (int, error) {
 		if err != nil {
 			// A chunk header (or the terminal zero-length chunk) was expected,
 			// so the provider stopped mid-frame.
-			body.response.Truncated = true
+			body.markTruncated("chunk-size-line:"+errorClass(err), err)
 			body.markDone()
 			return 0, err
 		}
@@ -322,7 +330,7 @@ func (body *bodyReader) readChunked(target []byte) (int, error) {
 		}
 		size, err := strconv.ParseInt(sizeLine, 16, 64)
 		if err != nil {
-			body.response.Truncated = true
+			body.markTruncated("chunk-size-line:malformed", err)
 			body.markDone()
 			return 0, fmt.Errorf("malformed provider chunk size %q", sizeLine)
 		}
@@ -338,14 +346,14 @@ func (body *bodyReader) readChunked(target []byte) (int, error) {
 	count, err := body.reader.Read(target)
 	body.remaining -= int64(count)
 	if body.remaining > 0 && err != nil {
-		body.response.Truncated = true
+		body.markTruncated("chunk-data:short", err)
 		body.markDone()
 		return count, err
 	}
 	if body.remaining == 0 {
 		// Consume the CRLF that terminates the chunk.
 		if _, err := body.reader.ReadString('\n'); err != nil {
-			body.response.Truncated = true
+			body.markTruncated("chunk-terminal-crlf:"+errorClass(err), err)
 			body.markDone()
 			if errors.Is(err, io.EOF) {
 				return count, nil
@@ -354,6 +362,25 @@ func (body *bodyReader) readChunked(target []byte) (int, error) {
 		}
 	}
 	return count, err
+}
+
+// markTruncated records a truncation with the framing check that made the decision and the underlying error
+// class (EOF vs a transport error), for diagnosis only. Truncated remains the contract; TruncatedBy never
+// changes a caller's behaviour and is never emitted on the wire.
+func (body *bodyReader) markTruncated(reason string, err error) {
+	body.response.Truncated = true
+	body.response.TruncatedBy = reason
+	if os.Getenv("GOTAVERN_TRUNCATION_TRACE") != "" {
+		fmt.Fprintf(os.Stderr, "gotavern: response truncated by %s (err=%v)\n", reason, err)
+	}
+}
+
+// errorClass collapses a read error to a stable label for the diagnostic: EOF vs anything else.
+func errorClass(err error) string {
+	if errors.Is(err, io.EOF) {
+		return "EOF"
+	}
+	return "err"
 }
 
 // markDone records the end of the body and releases the cancellation watcher. The boolean result of the stop

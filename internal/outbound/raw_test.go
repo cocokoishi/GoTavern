@@ -250,7 +250,13 @@ func TestSendDistinguishesATruncatedBodyFromAFinishedOne(t *testing.T) {
 			t.Fatalf("%s: body %q is missing %q", scenario.name, body, scenario.expect)
 		}
 		if response.Truncated != scenario.want {
-			t.Errorf("%s: Truncated = %t, want %t", scenario.name, response.Truncated, scenario.want)
+			t.Errorf("%s: Truncated = %t, want %t (TruncatedBy=%q)", scenario.name, response.Truncated, scenario.want, response.TruncatedBy)
+		}
+		if scenario.want && response.TruncatedBy == "" {
+			t.Errorf("%s: Truncated is true but TruncatedBy is empty; the diagnostic must name the framing check", scenario.name)
+		}
+		if !scenario.want && response.TruncatedBy != "" {
+			t.Errorf("%s: a finished stream has TruncatedBy=%q; only a truncation may set it", scenario.name, response.TruncatedBy)
 		}
 	}
 }
@@ -310,6 +316,9 @@ func TestSendReportsAShortDeclaredBody(t *testing.T) {
 	}
 	if !response.Truncated {
 		t.Error("a body shorter than its declared Content-Length must report Truncated")
+	}
+	if response.TruncatedBy != "content-length:short" {
+		t.Errorf("TruncatedBy = %q, want %q: the diagnostic must name the framing check", response.TruncatedBy, "content-length:short")
 	}
 }
 
