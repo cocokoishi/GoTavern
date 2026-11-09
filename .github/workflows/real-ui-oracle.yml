@@ -157,35 +157,73 @@ jobs:
       # ROUNDS. Each invocation is a FRESH pinned process over the SAME data root: round 1 creates, round 2 keeps
       # using and edits, round 3 is the restart-and-continue round. The wrapper owns the pinned process, seeds the
       # pinned default config and passes the leased port; readiness is identity-bound.
-      - name: Build the real-UI corpus (three rounds, fresh pinned process over one data root)
+      # THE CORPUS, in the phases A's builder implements (each invocation is a FRESH pinned process over the SAME
+      # data root, so generation spans several independent server lifetimes and the persisted chats prove it):
+      #   round1  bulk imports through the real import controls + the hand-created subset
+      #   topup   bulk top-up of the resources the matrix needs
+      #   use     the use/edit/swipe/regenerate/continue/delete verbs against existing chats
+      #   restart a fresh process that resumes the tree the previous phases wrote
+      # Readiness is 300 s because pinned compiles its frontend on first boot (measured: 90 s is not enough).
+      - name: Build the real-UI corpus (four phases, fresh pinned process over one data root)
         env:
           A19_DATA_ROOT: ${{ env.A19_SCRATCH }}/corpus
           A19_SCRATCH: ${{ env.A19_SCRATCH }}
           A19_PROVIDER_BINARY: ${{ env.A19_SCRATCH }}/bin/a19-provider
+          PINNED_READY_MS: '300000'
         run: |
           set -euo pipefail
-          mkdir -p "$A19_SCRATCH/corpus" "$A19_SCRATCH/rounds"
-          for round in 1 2 3; do
-            echo "::group::corpus round ${round}"
+          mkdir -p "$A19_DATA_ROOT" "$A19_SCRATCH/rounds" "$RUNNER_TEMP/a19-evidence"
+          run_phase() {
+            label="$1"; shift
+            echo "::group::corpus ${label}"
             node tests/browser/run-against-pinned.mjs a19-corpus-builder.mjs \
-              --data-root "$A19_DATA_ROOT" -- \
-              --round "$round" --data-root "$A19_DATA_ROOT" \
-              2>&1 | tee "$A19_SCRATCH/rounds/round-${round}.log"
+              --data-root "$A19_DATA_ROOT" -- "$@" \
+              2>&1 | tee "$A19_SCRATCH/rounds/${label}.log"
             echo "::endgroup::"
-          done
+          }
+          run_phase round1  --round 1
+          run_phase topup   --round 0 --topup
+          run_phase use     --round 0 --use
+          run_phase restart --round 0 --restart
+
+      # THE MESSAGE MINIMUM. The proven UI-turn path runs first; if it cannot reach the target inside the budget, the
+      # run appends the remainder through the product's own save path and RECORDS the split in its report and in the
+      # manifest (`messageSplit`). A hand-written JSONL is never used.
+      - name: Reach the message minimum through the proven turn path
+        env:
+          A19_DATA_ROOT: ${{ env.A19_SCRATCH }}/corpus
+          PINNED_READY_MS: '300000'
+        run: |
+          set -euo pipefail
+          mkdir -p "$A19_SCRATCH/round9"
+          node tests/browser/run-against-pinned.mjs a19-message-topup.mjs \
+            --data-root "$A19_DATA_ROOT" -- \
+            --report "$A19_SCRATCH/round9/message-topup.json" \
+            --actions "$A19_SCRATCH/round9/actions-message-topup.jsonl" \
+            --target 1000 --budget-ms 240000 \
+            --add-cards 4 --add-chats 20 --turns-per-chat 5 \
+            2>&1 | tee "$A19_SCRATCH/round9/message-topup.log"
 
       # THE IMMUTABLE INPUT. The finalize step writes the manifest the comparator verifies before it copies the
-      # corpus: relative paths + sha256 per file, file/byte counts, tree digest, and the category counts claimed by
-      # the round reports.
+      # corpus: relative paths + sha256 per file, file/byte counts, tree digest, created-vs-seeded counts and the
+      # message split. The save-path share is read out of the top-up report, not guessed.
       - name: Finalize the corpus manifest
         env:
           A19_DATA_ROOT: ${{ env.A19_SCRATCH }}/corpus
+          A19_EVIDENCE: ${{ runner.temp }}/a19-evidence
         run: |
           set -euo pipefail
+          ACTIONS="$(find "$A19_SCRATCH" -type f -name 'actions-*.jsonl' | sort | paste -sd, -)"
+          SAVE_PATH_MESSAGES="$(node -e "const r=require(process.argv[1]); const m=r.messageSplit||{}; console.log(m.viaProductSavePath ?? r.savePathMessages ?? 0)" "$A19_SCRATCH/round9/message-topup.json")"
+          echo "actions logs: $ACTIONS"
+          echo "product-save-path messages: $SAVE_PATH_MESSAGES"
           node tests/browser/a19-corpus-finalize.mjs \
             --data-root "$A19_DATA_ROOT" \
-            --out "$A19_SCRATCH/corpus-manifest.json"
-          node -e "const m = require(process.argv[1]); console.log(JSON.stringify({ files: m.files, bytes: m.bytes, treeSha256: m.treeSha256, counts: m.counts }, null, 2));" "$A19_SCRATCH/corpus-manifest.json"
+            --out "$A19_EVIDENCE/corpus-manifest.json" \
+            --tier full \
+            --actions "$ACTIONS" \
+            --save-path-messages "$SAVE_PATH_MESSAGES"
+          node -e "const m = require(process.argv[1]); console.log(JSON.stringify({ files: m.files, bytes: m.bytes, treeSha256: m.treeSha256, counts: m.counts, seeded: m.seeded, messageSplit: m.messageSplit }, null, 2));" "$A19_EVIDENCE/corpus-manifest.json" | tee "$A19_EVIDENCE/corpus-summary.json"
 
       # ONE INVOCATION OWNS ALL LEGS. The driver copies the immutable corpus once per subject (never boots the
       # originals, never runs two servers on one writable dir), drives the SAME journey probe on both subjects, then
@@ -199,11 +237,12 @@ jobs:
           mkdir -p "$RUNNER_TEMP/a19-evidence"
           node tests/browser/a19-live-oracle.mjs \
             --corpus "$A19_SCRATCH/corpus" \
-            --corpus-manifest "$A19_SCRATCH/corpus-manifest.json" \
+            --corpus-manifest "$RUNNER_TEMP/a19-evidence/corpus-manifest.json" \
             --journey tests/browser/a19-journey-probe.mjs \
             --out "$RUNNER_TEMP/a19-evidence" \
             --head-sha "$GITHUB_SHA" \
             --mode all \
+            --run-label release-admissible \
             2>&1 | tee "$RUNNER_TEMP/a19-evidence/live-oracle.log"
 
       # THE CONTRACT, NOT JUST THE EXIT CODE. The self-test proves the verifier can fail; the evidence run proves
