@@ -1,0 +1,225 @@
+﻿=== RUN   TestBackendsTextgenGenerateStreamsWithoutBuffering
+GoTavern: tokenizer-guesstimate: no tokenizer tree under "C:\\Users\\koishi\\AppData\\Local\\Temp\\TestBackendsTextgenGenerateStreamsWithoutBuffering3093931536\\001" (tried C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering3093931536\001\src\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering3093931536\001\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering3093931536\001\upstream\tokenizers); /api/tokenizers answers estimated counts, so a context boundary measured against this server is not exact
+--- PASS: TestBackendsTextgenGenerateStreamsWithoutBuffering (0.01s)
+=== RUN   TestBackendsTextgenGenerateStreamsWithoutBuffering
+GoTavern: tokenizer-guesstimate: no tokenizer tree under "C:\\Users\\koishi\\AppData\\Local\\Temp\\TestBackendsTextgenGenerateStreamsWithoutBuffering2235885836\\001" (tried C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering2235885836\001\src\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering2235885836\001\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering2235885836\001\upstream\tokenizers); /api/tokenizers answers estimated counts, so a context boundary measured against this server is not exact
+--- PASS: TestBackendsTextgenGenerateStreamsWithoutBuffering (0.01s)
+=== RUN   TestBackendsTextgenGenerateStreamsWithoutBuffering
+GoTavern: tokenizer-guesstimate: no tokenizer tree under "C:\\Users\\koishi\\AppData\\Local\\Temp\\TestBackendsTextgenGenerateStreamsWithoutBuffering4014737362\\001" (tried C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering4014737362\001\src\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering4014737362\001\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering4014737362\001\upstream\tokenizers); /api/tokenizers answers estimated counts, so a context boundary measured against this server is not exact
+--- PASS: TestBackendsTextgenGenerateStreamsWithoutBuffering (0.01s)
+=== RUN   TestBackendsTextgenGenerateStreamsWithoutBuffering
+GoTavern: tokenizer-guesstimate: no tokenizer tree under "C:\\Users\\koishi\\AppData\\Local\\Temp\\TestBackendsTextgenGenerateStreamsWithoutBuffering1798552259\\001" (tried C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering1798552259\001\src\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering1798552259\001\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering1798552259\001\upstream\tokenizers); /api/tokenizers answers estimated counts, so a context boundary measured against this server is not exact
+--- PASS: TestBackendsTextgenGenerateStreamsWithoutBuffering (0.01s)
+=== RUN   TestBackendsTextgenGenerateStreamsWithoutBuffering
+GoTavern: tokenizer-guesstimate: no tokenizer tree under "C:\\Users\\koishi\\AppData\\Local\\Temp\\TestBackendsTextgenGenerateStreamsWithoutBuffering1844487956\\001" (tried C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering1844487956\001\src\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering1844487956\001\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering1844487956\001\upstream\tokenizers); /api/tokenizers answers estimated counts, so a context boundary measured against this server is not exact
+--- PASS: TestBackendsTextgenGenerateStreamsWithoutBuffering (0.02s)
+=== RUN   TestBackendsTextgenGenerateStreamsWithoutBuffering
+GoTavern: tokenizer-guesstimate: no tokenizer tree under "C:\\Users\\koishi\\AppData\\Local\\Temp\\TestBackendsTextgenGenerateStreamsWithoutBuffering80850583\\001" (tried C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering80850583\001\src\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering80850583\001\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering80850583\001\upstream\tokenizers); /api/tokenizers answers estimated counts, so a context boundary measured against this server is not exact
+--- PASS: TestBackendsTextgenGenerateStreamsWithoutBuffering (0.02s)
+=== RUN   TestBackendsTextgenGenerateStreamsWithoutBuffering
+GoTavern: tokenizer-guesstimate: no tokenizer tree under "C:\\Users\\koishi\\AppData\\Local\\Temp\\TestBackendsTextgenGenerateStreamsWithoutBuffering1565161200\\001" (tried C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering1565161200\001\src\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering1565161200\001\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering1565161200\001\upstream\tokenizers); /api/tokenizers answers estimated counts, so a context boundary measured against this server is not exact
+--- PASS: TestBackendsTextgenGenerateStreamsWithoutBuffering (0.01s)
+=== RUN   TestBackendsTextgenGenerateStreamsWithoutBuffering
+GoTavern: tokenizer-guesstimate: no tokenizer tree under "C:\\Users\\koishi\\AppData\\Local\\Temp\\TestBackendsTextgenGenerateStreamsWithoutBuffering4077567818\\001" (tried C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering4077567818\001\src\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering4077567818\001\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering4077567818\001\upstream\tokenizers); /api/tokenizers answers estimated counts, so a context boundary measured against this server is not exact
+--- PASS: TestBackendsTextgenGenerateStreamsWithoutBuffering (0.01s)
+=== RUN   TestBackendsTextgenGenerateStreamsWithoutBuffering
+GoTavern: tokenizer-guesstimate: no tokenizer tree under "C:\\Users\\koishi\\AppData\\Local\\Temp\\TestBackendsTextgenGenerateStreamsWithoutBuffering2292487161\\001" (tried C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering2292487161\001\src\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering2292487161\001\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering2292487161\001\upstream\tokenizers); /api/tokenizers answers estimated counts, so a context boundary measured against this server is not exact
+--- PASS: TestBackendsTextgenGenerateStreamsWithoutBuffering (0.01s)
+=== RUN   TestBackendsTextgenGenerateStreamsWithoutBuffering
+GoTavern: tokenizer-guesstimate: no tokenizer tree under "C:\\Users\\koishi\\AppData\\Local\\Temp\\TestBackendsTextgenGenerateStreamsWithoutBuffering4277213779\\001" (tried C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering4277213779\001\src\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering4277213779\001\tokenizers, C:\Users\koishi\AppData\Local\Temp\TestBackendsTextgenGenerateStreamsWithoutBuffering4277213779\001\upstream\tokenizers); /api/tokenizers answers estimated counts, so a context boundary measured against this server is not exact
+panic: test timed out after 45s
+	running tests:
+		TestBackendsTextgenGenerateStreamsWithoutBuffering (45s)
+
+goroutine 109 [running]:
+testing.(*M).startAlarm.func1()
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/testing/testing.go:2961 +0x2c4
+created by time.goFunc
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/time/sleep.go:182 +0x38
+
+goroutine 1 [chan receive]:
+testing.(*T).Run(0x301263774c00, {0x7ff7d8fb37d3?, 0x301263901a38?}, 0x7ff7dc30ac18)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/testing/testing.go:2268 +0x3b8
+testing.runTests.func1(0x301263774c00)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/testing/testing.go:2744 +0x38
+testing.tRunner(0x301263774c00, 0x301263901b68)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/testing/testing.go:2195 +0xac
+testing.runTests({0x7ff7d8f8549f, 0x1e}, {0x7ff7d8faab61, 0x2e}, 0x30126362a5a0, {0x7ff7dc4cc690, 0x275, 0x275}, {0x30126365bbe8?, 0x7ff7d8613900?, ...})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/testing/testing.go:2742 +0x3f8
+testing.(*M).Run(0x30126385a780)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/testing/testing.go:2602 +0x578
+github.com/cocokoishi/gotavern/internal/server.TestMain(0x30126385a780)
+	C:/Users/koishi/Desktop/GoTavern/a19-base-52883e8/internal/server/transport_mode_test.go:30 +0x44
+main.main()
+	_testmain.go:1358 +0x88
+
+goroutine 116 [IO wait]:
+internal/poll.runtime_pollWait(0x15b9bdc2e00, 0x72)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x1d4?, 0x7ff7dc1a13e0?, 0x0)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*FD).waitIO(0x3012638680e0, 0x301263716030)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_windows.go:233 +0x3c
+internal/poll.(*FD).execIO(0x3012638680e0, 0x72, 0x301263a45880, {0x301263a45840, 0x1, 0x100?})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_windows.go:310 +0x1fc
+internal/poll.(*FD).Read(0x3012638680e0, {0x301263b13000, 0x1000, 0x1000})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_windows.go:633 +0x18c
+net.(*netFD).Read(0x3012638680e0, {0x301263b13000?, 0x84888ecda394e4cb?, 0x7ff7d85aee34?})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x3012636268a0, {0x301263b13000?, 0x301263a45a58?, 0x7ff7d88bcefc?})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/net.go:196 +0x34
+net/http.(*persistConn).Read(0x30126385e500, {0x301263b13000?, 0x301263700008?, 0x3012636fa120?})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/transport.go:2300 +0x48
+bufio.(*Reader).fill(0x3012636d1bc0)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/bufio/bufio.go:113 +0xdc
+bufio.(*Reader).ReadSlice(0x3012636d1bc0, 0xa)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/bufio/bufio.go:377 +0x30
+net/http/internal.readChunkLine(0x301263a45ad8?)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/internal/chunked.go:156 +0x20
+net/http/internal.(*chunkedReader).beginChunk(0x30126370cff0)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/internal/chunked.go:49 +0x24
+net/http/internal.(*chunkedReader).Read(0x30126370cff0, {0x301263a4e000?, 0x301263a45bd8?, 0x7ff7dc4f6cc0?})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/internal/chunked.go:125 +0x120
+net/http.(*body).readLocked(0x3012639a0af0, {0x301263a4e000?, 0x301263a45c08?, 0x7ff7d85b729c?})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/transfer.go:864 +0x34
+net/http.(*body).Read(0x301263a45c88?, {0x301263a4e000?, 0x15b9bb109e0?, 0x41?})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/transfer.go:856 +0x108
+net/http.(*bodyEOFSignal).Read(0x3012638b3a80, {0x301263a4e000, 0x1000, 0x1000})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/transport.go:3261 +0x14c
+bufio.(*Reader).Read(0x3012636d1ce0, {0x301263696c00, 0x400, 0x0?})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/bufio/bufio.go:245 +0x188
+github.com/cocokoishi/gotavern/internal/server.readAllStringFrom(0x3012636d1ce0)
+	C:/Users/koishi/Desktop/GoTavern/a19-base-52883e8/internal/server/backends_textgen_generate_test.go:304 +0x5c
+github.com/cocokoishi/gotavern/internal/server.TestBackendsTextgenGenerateStreamsWithoutBuffering(0x301263774e00)
+	C:/Users/koishi/Desktop/GoTavern/a19-base-52883e8/internal/server/backends_textgen_generate_test.go:291 +0x504
+testing.tRunner(0x301263774e00, 0x7ff7dc30ac18)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/testing/testing.go:2195 +0xac
+created by testing.(*T).Run in goroutine 1
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/testing/testing.go:2260 +0x3a4
+
+goroutine 117 [IO wait]:
+internal/poll.runtime_pollWait(0x15b9bdc3200, 0x72)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x301200000074?, 0x7ff7d86103e0?, 0x0)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*FD).waitIO(0x301263720b60, 0x301263716060)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_windows.go:233 +0x3c
+internal/poll.(*FD).execIO(0x301263720b60, 0x72, 0x301263683ba0, {0x0, 0x0, 0x8100000000?})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_windows.go:310 +0x1fc
+internal/poll.(*FD).acceptOne(0x301263720b60, 0x1a4, {0x301263ace4b0?, 0x15b9bf86b08?, 0x15b9bb109e0?})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_windows.go:1133 +0x70
+internal/poll.(*FD).Accept(0x301263720b60, 0x301263683d98)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_windows.go:1168 +0x130
+net.(*netFD).accept(0x301263720b60)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/fd_windows.go:201 +0x3c
+net.(*TCPListener).accept(0x301263aa92c0)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/tcpsock_posix.go:159 +0x24
+net.(*TCPListener).Accept(0x301263aa92c0)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/tcpsock.go:387 +0x2c
+net/http.(*Server).Serve(0x30126372dcc0, {0x7ff7dc307d58, 0x301263aa92c0})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/server.go:3574 +0x2a8
+net/http/httptest.(*Server).goServe.func1()
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/httptest/server.go:586 +0x54
+created by net/http/httptest.(*Server).goServe in goroutine 116
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/httptest/server.go:584 +0x8c
+
+goroutine 121 [select]:
+net/http.(*persistConn).readLoop(0x30126385e500)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/transport.go:2616 +0xa24
+created by net/http.(*Transport).dialConn in goroutine 119
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/transport.go:2123 +0x14d8
+
+goroutine 108 [IO wait]:
+internal/poll.runtime_pollWait(0x15b9bdc2c00, 0x72)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x1e0?, 0x7ff7dc30ca30?, 0x0)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*FD).waitIO(0x3012638681c0, 0x30126363e600)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_windows.go:233 +0x3c
+internal/poll.(*FD).execIO(0x3012638681c0, 0x72, 0x3012639f7e80, {0x3012639f7e40, 0x1, 0x7ff7dbe778b8?})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_windows.go:310 +0x1fc
+internal/poll.(*FD).Read(0x3012638681c0, {0x3012638b3861, 0x1, 0x1})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_windows.go:633 +0x18c
+net.(*netFD).Read(0x3012638681c0, {0x3012638b3861?, 0x7ff7d86bf170?, 0x3012639f7f50?})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/fd_posix.go:68 +0x28
+net.(*conn).Read(0x301263626898, {0x3012638b3861?, 0x7ff7d86c4950?, 0x301263774e00?})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/net.go:196 +0x34
+net/http.(*connReader).backgroundRead(0x3012638b3840)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/server.go:746 +0x38
+created by net/http.(*connReader).startBackgroundRead in goroutine 120
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/server.go:742 +0xc0
+
+goroutine 120 [chan receive]:
+github.com/cocokoishi/gotavern/internal/server.forwardBackendsTextgenStream({0x7ff7dc307a28, 0x301263aac090}, 0x30126372c000, 0x3012636d1c80)
+	C:/Users/koishi/Desktop/GoTavern/a19-base-52883e8/internal/server/backends_textgen_generate.go:255 +0x28c
+github.com/cocokoishi/gotavern/internal/server.(*accountRuntime).serveBackendsTextCompletionGenerate(0x3012636baa88, {0x7ff7dc307a28, 0x301263aac090}, 0x30126372c000)
+	C:/Users/koishi/Desktop/GoTavern/a19-base-52883e8/internal/server/backends_textgen_generate.go:511 +0x15e4
+github.com/cocokoishi/gotavern/internal/server.registerBackendsTextgenGenerateRoutes.func1({0x7ff7dc307a28?, 0x301263aac090?}, 0x7ff7dc308de0?)
+	C:/Users/koishi/Desktop/GoTavern/a19-base-52883e8/internal/server/backends_textgen_generate.go:60 +0xcc
+net/http.HandlerFunc.ServeHTTP(0x3012636a5680?, {0x7ff7dc307a28?, 0x301263aac090?}, 0x7ff7dc308da8?)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/server.go:2358 +0x38
+net/http.(*ServeMux).ServeHTTP(0x30126385e780?, {0x7ff7dc307a28, 0x301263aac090}, 0x30126372c000)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/server.go:2923 +0x194
+github.com/cocokoishi/gotavern/internal/server.newHTTPHandlerWithRouteDomains.func22({0x7ff7dc307a28, 0x301263aac090}, 0x30126385e780)
+	C:/Users/koishi/Desktop/GoTavern/a19-base-52883e8/internal/server/http.go:631 +0xa7c
+net/http.HandlerFunc.ServeHTTP(0x7ff7dc307a88?, {0x7ff7dc307a28?, 0x301263aac090?}, 0x7ff7d8e8112c?)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/server.go:2358 +0x38
+github.com/cocokoishi/gotavern/internal/server.pinnedResponseTimeMiddleware.func1({0x7ff7dc307a88?, 0x301263aa8000?}, 0x30126385e780)
+	C:/Users/koishi/Desktop/GoTavern/a19-base-52883e8/internal/server/response_time.go:32 +0x60
+net/http.HandlerFunc.ServeHTTP(0x38?, {0x7ff7dc307a88?, 0x301263aa8000?}, 0x301263a0c8f8?)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/server.go:2358 +0x38
+github.com/cocokoishi/gotavern/internal/server.pinnedCompressionMiddleware.func1({0x7ff7dc307a58, 0x30126362a270}, 0x30126385e780)
+	C:/Users/koishi/Desktop/GoTavern/a19-base-52883e8/internal/server/compression.go:60 +0xb8
+net/http.HandlerFunc.ServeHTTP(0x18?, {0x7ff7dc307a58?, 0x30126362a270?}, 0x30126365bad8?)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/server.go:2358 +0x38
+github.com/cocokoishi/gotavern/internal/server.pinnedPanicBoundary.func1({0x7ff7dc307cc8, 0x301263a84000}, 0x30126385e780)
+	C:/Users/koishi/Desktop/GoTavern/a19-base-52883e8/internal/server/panic_boundary.go:175 +0xf4
+net/http.HandlerFunc.ServeHTTP(0x1000000000000?, {0x7ff7dc307cc8?, 0x301263a84000?}, 0x30126365bae0?)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/server.go:2358 +0x38
+net/http.serverHandler.ServeHTTP({0x10?}, {0x7ff7dc307cc8?, 0x301263a84000?}, 0x1?)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/server.go:3436 +0xb0
+net/http.(*conn).serve(0x3012636fa3f0, {0x7ff7dc308da8, 0x30126370cae0})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/server.go:2157 +0x5a0
+created by net/http.(*Server).Serve in goroutine 118
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/server.go:3604 +0x3e8
+
+goroutine 118 [IO wait]:
+internal/poll.runtime_pollWait(0x15b9bdc3000, 0x72)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x301200000074?, 0x7ff7d86103e0?, 0x0)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*FD).waitIO(0x301263868000, 0x30126363eba0)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_windows.go:233 +0x3c
+internal/poll.(*FD).execIO(0x301263868000, 0x72, 0x301263acbba0, {0x0, 0x0, 0x8100000000?})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_windows.go:310 +0x1fc
+internal/poll.(*FD).acceptOne(0x301263868000, 0x1a0, {0x301263ace3c0?, 0x15b9bf86b08?, 0x15b9bb109e0?})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_windows.go:1133 +0x70
+internal/poll.(*FD).Accept(0x301263868000, 0x301263acbd98)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/internal/poll/fd_windows.go:1168 +0x130
+net.(*netFD).accept(0x301263868000)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/fd_windows.go:201 +0x3c
+net.(*TCPListener).accept(0x3012638b36c0)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/tcpsock_posix.go:159 +0x24
+net.(*TCPListener).Accept(0x3012638b36c0)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/tcpsock.go:387 +0x2c
+net/http.(*Server).Serve(0x30126385e000, {0x7ff7dc307d58, 0x3012638b36c0})
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/server.go:3574 +0x2a8
+net/http/httptest.(*Server).goServe.func1()
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/httptest/server.go:586 +0x54
+created by net/http/httptest.(*Server).goServe in goroutine 116
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/httptest/server.go:584 +0x8c
+
+goroutine 122 [select]:
+net/http.(*persistConn).writeLoop(0x30126385e500)
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/transport.go:2833 +0x98
+created by net/http.(*Transport).dialConn in goroutine 119
+	C:/Users/koishi/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.windows-arm64/src/net/http/transport.go:2124 +0x1528
+
+goroutine 124 [chan receive]:
+github.com/cocokoishi/gotavern/internal/outbound.sendWireExactStreaming.func1()
+	C:/Users/koishi/Desktop/GoTavern/a19-base-52883e8/internal/outbound/raw.go:173 +0x38
+created by github.com/cocokoishi/gotavern/internal/outbound.sendWireExactStreaming in goroutine 120
+	C:/Users/koishi/Desktop/GoTavern/a19-base-52883e8/internal/outbound/raw.go:172 +0x794
+FAIL	github.com/cocokoishi/gotavern/internal/server	46.821s
+FAIL
+
