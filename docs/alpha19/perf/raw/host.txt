@@ -1,0 +1,15 @@
+collected_at: 2026-11-08T17:43:19.9085261-08:00
+git_head: 07af095d058f9a5d5dd1ca0f594c69f97874929c
+git_branch: alpha19/program
+git_status: ?? docs/alpha19/oracle-pin.json;?? docs/alpha19/oracle-pin.sha256
+go_version: go version go1.27.3 windows/arm64
+node_version: v24.19.0
+gopath: C:\Users\koishi\go
+gomaxprocs_env: []
+goos: windows goarch: arm64
+cpus: 2
+os: Microsoft Windows 11 Enterprise LTSC version 10.0.26100 build 26100 arch ARM 64-bit Processor
+manufacturer: QEMU model: KVM Virtual Machine
+total_ram_bytes: 12879790080
+cpu: virt-7.2 (cores=2, logical=2, maxclock=2996)
+ps_version: 5.1.26100.9711

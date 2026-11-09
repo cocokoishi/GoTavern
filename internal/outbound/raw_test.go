@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -249,7 +250,13 @@ func TestSendDistinguishesATruncatedBodyFromAFinishedOne(t *testing.T) {
 			t.Fatalf("%s: body %q is missing %q", scenario.name, body, scenario.expect)
 		}
 		if response.Truncated != scenario.want {
-			t.Errorf("%s: Truncated = %t, want %t", scenario.name, response.Truncated, scenario.want)
+			t.Errorf("%s: Truncated = %t, want %t (TruncatedBy=%q)", scenario.name, response.Truncated, scenario.want, response.TruncatedBy)
+		}
+		if scenario.want && response.TruncatedBy == "" {
+			t.Errorf("%s: Truncated is true but TruncatedBy is empty; the diagnostic must name the framing check", scenario.name)
+		}
+		if !scenario.want && response.TruncatedBy != "" {
+			t.Errorf("%s: a finished stream has TruncatedBy=%q; only a truncation may set it", scenario.name, response.TruncatedBy)
 		}
 	}
 }
@@ -310,6 +317,9 @@ func TestSendReportsAShortDeclaredBody(t *testing.T) {
 	if !response.Truncated {
 		t.Error("a body shorter than its declared Content-Length must report Truncated")
 	}
+	if response.TruncatedBy != "content-length:short" {
+		t.Errorf("TruncatedBy = %q, want %q: the diagnostic must name the framing check", response.TruncatedBy, "content-length:short")
+	}
 }
 
 // TestSendReportsTruncatedStreams pins that a provider dying mid-stream is
@@ -354,4 +364,74 @@ func TestSendReportsTruncatedStreams(t *testing.T) {
 	if readErr == nil {
 		t.Fatal("a truncated stream must surface as an error, not a clean end")
 	}
+}
+
+// TestStreamingSendWithBackgroundContextDoesNotLeakWatchdog is the alpha.19 RED for the cancel-watcher leak.
+//
+// WHY THIS EXISTS. sendWireExactStreaming used to start `go func(){ <-ctx.Done(); connection.Close() }()`. When
+// the context has no Done channel (context.Background and every context derived from it with
+// WithValue/WithoutCancel), `<-ctx.Done()` receives from a NIL channel and blocks forever: one leaked goroutine
+// per streaming send. The alpha.19 full-suite dump showed dozens of these at 39 minutes
+// (`sendWireExactStreaming.func1 [chan receive (nil chan)]`), and the pinned-parity HTTP routes use background
+// contexts for streaming, so this is a product leak, not a test artefact.
+//
+// The test is deliberately about GOROUTINE COUNT, not timing: 50 streaming sends with a background context, every
+// body fully read and closed, then a bounded wait for the count to fall back. On the unfixed client this fails
+// with a leaked count of about 50; each iteration completes cleanly, so a failure cannot be a slow provider.
+func TestStreamingSendWithBackgroundContextDoesNotLeakWatchdog(t *testing.T) {
+	const sends = 50
+	responses := make([]mockprovider.Response, sends)
+	for index := range responses {
+		responses[index] = mockprovider.Response{
+			Status:  200,
+			Headers: []mockprovider.Header{{Name: "Content-Type", Value: "text/event-stream"}},
+			Stream:  []string{"data: {\"delta\":\"one\"}\n\n", "data: [DONE]\n\n"},
+		}
+	}
+	recorder := mockprovider.New(responses)
+	address, err := recorder.Listen(0)
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	t.Cleanup(func() { _ = recorder.Close() })
+
+	// Settle the runtime and the recorder's accept loop before the baseline is taken, so the comparison is about
+	// the sends below and not about package initialisation.
+	time.Sleep(50 * time.Millisecond)
+	runtime.GC()
+	time.Sleep(50 * time.Millisecond)
+	baseline := runtime.NumGoroutine()
+
+	for index := 0; index < sends; index++ {
+		response, err := sendWireExactStreaming(context.Background(), Request{
+			URL:     "http://" + address.String() + "/v1/chat/completions",
+			Method:  "POST",
+			Headers: []Header{{Name: "content-length", Value: "2"}, {Name: "Connection", Value: "close"}},
+			Body:    []byte("{}"),
+		}, 10*time.Second)
+		if err != nil {
+			t.Fatalf("send %d: %v", index, err)
+		}
+		if _, err := io.ReadAll(response.Stream); err != nil {
+			t.Fatalf("read %d: %v", index, err)
+		}
+		if err := response.Stream.Close(); err != nil {
+			t.Fatalf("close %d: %v", index, err)
+		}
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	settled := runtime.NumGoroutine()
+	for time.Now().Before(deadline) {
+		runtime.GC()
+		settled = runtime.NumGoroutine()
+		if settled <= baseline+2 {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("%d streaming sends with a background context leaked goroutines: baseline %d, still %d after 5 s (leak %d). "+
+		"The cancel-watcher goroutine in sendWireExactStreaming blocks on a nil ctx.Done(); it must not be started for a context that can never be cancelled, "+
+		"and it must be stopped when the body reaches EOF or is closed",
+		sends, baseline, settled, settled-baseline)
 }

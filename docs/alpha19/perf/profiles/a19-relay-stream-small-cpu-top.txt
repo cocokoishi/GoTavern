@@ -1,0 +1,35 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: cpu
+Time: 2026-11-08 18:25:30 PST
+Duration: 5.82s, Total samples = 3.80s (65.25%)
+Active filters:
+   focus=serveChatCompletionGenerate
+Showing nodes accounting for 0.93s, 24.47% of 3.80s total
+Showing top 25 nodes out of 198
+      flat  flat%   sum%        cum   cum%
+     0.28s  7.37%  7.37%      0.28s  7.37%  runtime.cgocall
+     0.12s  3.16% 10.53%      0.12s  3.16%  runtime.asyncPreempt
+     0.05s  1.32% 11.84%      0.12s  3.16%  gopkg.in/yaml%2ev3.yaml_parser_scan_plain_scalar
+     0.04s  1.05% 12.89%      0.10s  2.63%  gopkg.in/yaml%2ev3.(*decoder).mapping
+     0.04s  1.05% 13.95%      0.04s  1.05%  runtime.markBits.setMarked (inline)
+     0.03s  0.79% 14.74%      0.24s  6.32%  gopkg.in/yaml%2ev3.peek_token
+     0.03s  0.79% 15.53%      0.05s  1.32%  gopkg.in/yaml%2ev3.width (inline)
+     0.03s  0.79% 16.32%      0.21s  5.53%  gopkg.in/yaml%2ev3.yaml_parser_fetch_next_token
+     0.02s  0.53% 16.84%      0.02s  0.53%  bytes.Index
+     0.02s  0.53% 17.37%      0.02s  0.53%  internal/reflectlite.Value.Len
+     0.02s  0.53% 17.89%      0.02s  0.53%  io.NopCloser
+     0.02s  0.53% 18.42%      0.04s  1.05%  net/http.(*body).readLocked
+     0.02s  0.53% 18.95%      0.05s  1.32%  net/http.(*bodyEOFSignal).Read
+     0.02s  0.53% 19.47%      0.05s  1.32%  path/filepath.join
+     0.02s  0.53% 20.00%      0.02s  0.53%  reflect.flag.mustBeAssignable (inline)
+     0.02s  0.53% 20.53%      0.02s  0.53%  runtime.(*_panic).nextDefer
+     0.02s  0.53% 21.05%      0.02s  0.53%  runtime.(*wbBuf).get2 (inline)
+     0.02s  0.53% 21.58%      0.11s  2.89%  runtime.mallocgc
+     0.02s  0.53% 22.11%      0.02s  0.53%  runtime.mallocgcSmallNoScanSlowPath
+     0.02s  0.53% 22.63%      0.06s  1.58%  runtime.newobject
+     0.02s  0.53% 23.16%      0.02s  0.53%  runtime.typePointers.next
+     0.02s  0.53% 23.68%      0.05s  1.32%  syscall.readFile
+     0.01s  0.26% 23.95%      0.03s  0.79%  bytes.growSlice
+     0.01s  0.26% 24.21%      0.02s  0.53%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+     0.01s  0.26% 24.47%      0.84s 22.11%  github.com/cocokoishi/gotavern/internal/server.pinnedOpenAIChatPlan

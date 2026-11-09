@@ -1,0 +1,32 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: alloc_space
+Time: 2026-11-08 18:22:04 PST
+Showing nodes accounting for 19928.02kB, 100% of 19928.02kB total
+Showing top 25 nodes out of 67
+      flat  flat%   sum%        cum   cum%
+ 3624.91kB 18.19% 18.19% 10352.61kB 51.95%  github.com/cocokoishi/gotavern/internal/startup.VerifyCharacterDiskCache
+ 2154.28kB 10.81% 29.00%  4308.56kB 21.62%  github.com/cocokoishi/gotavern/internal/startup.initializeUserStatistics
+ 2154.28kB 10.81% 39.81%  2154.28kB 10.81%  os.readFileContents
+ 2048.38kB 10.28% 50.09%  2048.38kB 10.28%  strings.(*Builder).WriteString (inline)
+ 2048.12kB 10.28% 60.37%  2048.12kB 10.28%  encoding/hex.EncodeToString (inline)
+ 1024.12kB  5.14% 65.51%  3072.25kB 15.42%  github.com/cocokoishi/gotavern/internal/startup.storeFilename
+  655.29kB  3.29% 68.79%   655.29kB  3.29%  compress/flate.NewWriter (inline)
+  583.01kB  2.93% 71.72%  1607.07kB  8.06%  os.(*File).readdir
+     515kB  2.58% 74.30%      515kB  2.58%  regexp/syntax.(*compiler).inst (inline)
+  512.12kB  2.57% 76.87%  1024.16kB  5.14%  net/http.(*ServeMux).registerErr
+  512.10kB  2.57% 79.44%   512.10kB  2.57%  net/http.init
+  512.08kB  2.57% 82.01%   512.08kB  2.57%  compress/gzip.NewWriterLevel
+  512.07kB  2.57% 84.58%   512.07kB  2.57%  syscall.UTF16FromString
+  512.06kB  2.57% 87.15%  1024.12kB  5.14%  regexp/syntax.parse
+  512.05kB  2.57% 89.72%   512.05kB  2.57%  os.newFileStatFromFileIDBothDirInfo (inline)
+  512.05kB  2.57% 92.29%   512.05kB  2.57%  regexp/syntax.(*parser).newRegexp (inline)
+  512.04kB  2.57% 94.86%   512.04kB  2.57%  net/http.(*routingNode).addChild
+  512.03kB  2.57% 97.43%   512.03kB  2.57%  github.com/cocokoishi/gotavern/internal/server.registerDeprecatedRedirectAliases
+  512.01kB  2.57%   100%   512.01kB  2.57%  syscall.UTF16ToString
+         0     0%   100%   655.29kB  3.29%  compress/gzip.(*Writer).Write
+         0     0%   100% 16709.42kB 83.85%  github.com/cocokoishi/gotavern/internal/app.Start
+         0     0%   100%  1536.19kB  7.71%  github.com/cocokoishi/gotavern/internal/server.NewHTTPHandlerWithOptions
+         0     0%   100%  1539.12kB  7.72%  github.com/cocokoishi/gotavern/internal/server.init
+         0     0%   100%  1536.19kB  7.71%  github.com/cocokoishi/gotavern/internal/server.newHTTPHandler
+         0     0%   100%  1536.19kB  7.71%  github.com/cocokoishi/gotavern/internal/server.newHTTPHandlerWithRouteDomains

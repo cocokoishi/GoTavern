@@ -1,0 +1,91 @@
+{
+    "collectedAt":  "2026-11-08T18:32:27-08:00",
+    "host":  [
+                 "collected_at: 2026-11-08T17:43:19.9085261-08:00",
+                 "git_head: 07af095d058f9a5d5dd1ca0f594c69f97874929c",
+                 "git_branch: alpha19/program",
+                 "git_status: ?? docs/alpha19/oracle-pin.json;?? docs/alpha19/oracle-pin.sha256",
+                 "go_version: go version go1.27.3 windows/arm64",
+                 "node_version: v24.19.0",
+                 "gopath: C:\\Users\\koishi\\go",
+                 "gomaxprocs_env: []",
+                 "goos: windows goarch: arm64",
+                 "cpus: 2",
+                 "os: Microsoft Windows 11 Enterprise LTSC version 10.0.26100 build 26100 arch ARM 64-bit Processor",
+                 "manufacturer: QEMU model: KVM Virtual Machine",
+                 "total_ram_bytes: 12879790080",
+                 "cpu: virt-7.2 (cores=2, logical=2, maxclock=2996)",
+                 "ps_version: 5.1.26100.9711"
+             ],
+    "command":  "go test ./internal/server -run \u0027^$\u0027 -bench \u0027BenchmarkCharactersAllScale|BenchmarkCharactersAllCold\u0027 -benchmem -benchtime=3x -count=1 -timeout=2400s  (GOMAXPROCS=2)",
+    "loadLabel":  "shared host: other alpha.19 lanes active (node/chrome observed); CPU load sampled at 100% during the run; absolute ns/op is inflated and is NOT a claim",
+    "rows":  [
+                 {
+                     "benchmark":  "BenchmarkCharactersAllScale/cards_100_128KB_image-2",
+                     "iterations":  3,
+                     "nsPerOp":  "56109320",
+                     "bytesPerOp":  "28743157",
+                     "allocsPerOp":  "32860"
+                 },
+                 {
+                     "benchmark":  "BenchmarkCharactersAllScale/cards_1000_32KB_image-2",
+                     "iterations":  3,
+                     "nsPerOp":  "418831813",
+                     "bytesPerOp":  "167573736",
+                     "allocsPerOp":  "324973"
+                 },
+                 {
+                     "benchmark":  "BenchmarkCharactersAllScale/cards_10000_4KB_image-2",
+                     "iterations":  3,
+                     "nsPerOp":  "4827079027",
+                     "bytesPerOp":  "619914794",
+                     "allocsPerOp":  "3193663"
+                 },
+                 {
+                     "benchmark":  "BenchmarkCharactersAllScale/cards_100_640KB_image-2",
+                     "iterations":  3,
+                     "nsPerOp":  "464743533",
+                     "bytesPerOp":  "90694058",
+                     "allocsPerOp":  "33140"
+                 },
+                 {
+                     "benchmark":  "BenchmarkCharactersAllCold-2",
+                     "iterations":  3,
+                     "nsPerOp":  "8872990760",
+                     "bytesPerOp":  "879836722",
+                     "allocsPerOp":  "3500332"
+                 }
+             ],
+    "alpha18Recorded":  {
+                            "BenchmarkCharactersAllScale/cards_100_128KB_image-2":  {
+                                                                                        "nsPerOp":  "55600000",
+                                                                                        "bytesPerOp":  "28700000",
+                                                                                        "allocsPerOp":  null,
+                                                                                        "note":  "alpha.18 README: 55.6 ms, 28.7 MB"
+                                                                                    },
+                            "BenchmarkCharactersAllScale/cards_1000_32KB_image-2":  {
+                                                                                        "nsPerOp":  "402300000",
+                                                                                        "bytesPerOp":  "167600000",
+                                                                                        "allocsPerOp":  null,
+                                                                                        "note":  "alpha.18 README: 402.3 ms, 167.6 MB"
+                                                                                    },
+                            "BenchmarkCharactersAllScale/cards_10000_4KB_image-2":  {
+                                                                                        "nsPerOp":  "2295900000",
+                                                                                        "bytesPerOp":  "619900000",
+                                                                                        "allocsPerOp":  "3193667",
+                                                                                        "note":  "alpha.18 README: 2295.9 ms, 619.9 MB, 3,193,667 allocs"
+                                                                                    },
+                            "BenchmarkCharactersAllScale/cards_100_640KB_image-2":  {
+                                                                                        "nsPerOp":  null,
+                                                                                        "bytesPerOp":  null,
+                                                                                        "allocsPerOp":  null,
+                                                                                        "note":  "alpha.18 README has no 640KB row"
+                                                                                    },
+                            "BenchmarkCharactersAllCold-2":  {
+                                                                 "nsPerOp":  "5542900000",
+                                                                 "bytesPerOp":  "879000000",
+                                                                 "allocsPerOp":  "3500341",
+                                                                 "note":  "alpha.18: 5542.9 ms, 879.0 MB, 3,500,341 allocs (cold time not claimed, inside arm noise)"
+                                                             }
+                        }
+}

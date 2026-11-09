@@ -1,0 +1,50 @@
+{
+  "harness": "tools/perf/a19-pinned-config-refresh.mjs",
+  "mode": "gotavern",
+  "question": "Does GoTavern observe a config.yaml mutation made while the process is running? (pinned does NOT: startup-only)",
+  "startedAt": "2026-11-09T05:39:52.354Z",
+  "subject": {
+    "path": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\bin\\gotavern-after-c2.exe",
+    "binarySha256": "86b17f8ce324a6914c5d83ef2ab2325376ddce29bb72d711aaaafe457a646176",
+    "version": "{\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"gitRevision\":\"06bde939f\",\"gitBranch\":\"release\",\"commitDa",
+    "restartedVersion": "{\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"gitRevision\":\"06bde939f\",\"gitBranch\":\"release\",\"commitDa"
+  },
+  "legs": {
+    "leg1_baseline": {
+      "httpStatus": 200,
+      "httpBodyHead": "{\"results\":[{\"text\":\"ok\"}]}",
+      "providerRequestSeen": true,
+      "providerRequestTarget": "/v1/generate",
+      "probeHeader": "baseline",
+      "recordedRequestCount": 1
+    },
+    "leg2_mutated_while_running": {
+      "httpStatus": 200,
+      "httpBodyHead": "{\"results\":[{\"text\":\"ok\"}]}",
+      "providerRequestSeen": true,
+      "providerRequestTarget": "/v1/generate",
+      "probeHeader": "baseline",
+      "recordedRequestCount": 2
+    },
+    "leg3_control_restarted_with_mutated_config": {
+      "httpStatus": 200,
+      "httpBodyHead": "{\"results\":[{\"text\":\"ok\"}]}",
+      "providerRequestSeen": true,
+      "providerRequestTarget": "/v1/generate",
+      "probeHeader": "mutated",
+      "recordedRequestCount": 3
+    }
+  },
+  "verdict": "STARTUP-ONLY (pinned parity): the mutation made while the process runs was NOT seen by the next request",
+  "notes": [
+    "Same three-leg shape as the pinned probe, driven through GoTaavern's kobold generate route, which reads requestOverrides through pinnedChatConfigValue while building its provider request.",
+    "Pre-C2 expectation (the divergence): leg 2 sees \"mutated\", because the reader parsed config.yaml per request.",
+    "Post-C2 expectation (pinned parity): leg 2 still sees \"baseline\", because the parsed document is cached for the process lifetime.",
+    "Leg 3 (restart with the mutated config) must see \"mutated\"; it proves the key is observable through this route, so a stale leg 2 is a cache and not an unread key."
+  ],
+  "mockProvider": {
+    "origin": "http://127.0.0.1:62198"
+  },
+  "runningObservedHeader": "baseline",
+  "finishedAt": "2026-11-09T05:40:01.238Z"
+}

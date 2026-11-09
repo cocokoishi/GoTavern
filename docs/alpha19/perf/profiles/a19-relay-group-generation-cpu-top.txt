@@ -1,0 +1,35 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: cpu
+Time: 2026-11-08 18:25:37 PST
+Duration: 2.71s, Total samples = 1.73s (63.78%)
+Active filters:
+   focus=serveChatCompletionGenerate
+Showing nodes accounting for 0.39s, 22.54% of 1.73s total
+Showing top 25 nodes out of 161
+      flat  flat%   sum%        cum   cum%
+     0.07s  4.05%  4.05%      0.07s  4.05%  runtime.asyncPreempt
+     0.04s  2.31%  6.36%      0.04s  2.31%  runtime.memclrNoHeapPointers
+     0.03s  1.73%  8.09%      0.06s  3.47%  encoding/json/internal/jsonwire.AppendQuote
+     0.03s  1.73%  9.83%      0.03s  1.73%  reflect.unsafe_New
+     0.03s  1.73% 11.56%      0.03s  1.73%  runtime.cgocall
+     0.02s  1.16% 12.72%      0.04s  2.31%  runtime.(*mcache).nextFree
+     0.01s  0.58% 13.29%      0.01s  0.58%  encoding/json/internal/jsonwire.ConsumeStringResumable.func1
+     0.01s  0.58% 13.87%      0.07s  4.05%  encoding/json/v2.makeStringArshaler.func1
+     0.01s  0.58% 14.45%      0.03s  1.73%  gopkg.in/yaml%2ev3.(*Node).indicatedString
+     0.01s  0.58% 15.03%      0.01s  0.58%  gopkg.in/yaml%2ev3.read
+     0.01s  0.58% 15.61%      0.05s  2.89%  gopkg.in/yaml%2ev3.yaml_parser_scan_plain_scalar
+     0.01s  0.58% 16.18%      0.03s  1.73%  gopkg.in/yaml%2ev3.yaml_parser_update_buffer
+     0.01s  0.58% 16.76%      0.01s  0.58%  internal/runtime/atomic.(*Uint32).CompareAndSwap (inline)
+     0.01s  0.58% 17.34%      0.01s  0.58%  reflect.Value.assignTo
+     0.01s  0.58% 17.92%      0.01s  0.58%  runtime.(*mheap).initSpan
+     0.01s  0.58% 18.50%      0.01s  0.58%  runtime.(*mspan).nextFreeIndex
+     0.01s  0.58% 19.08%      0.01s  0.58%  runtime.funcInfo.entry (inline)
+     0.01s  0.58% 19.65%      0.01s  0.58%  runtime.getGCMask
+     0.01s  0.58% 20.23%      0.01s  0.58%  runtime.makeslice
+     0.01s  0.58% 20.81%      0.01s  0.58%  runtime.mallocgcSmallScanNoHeaderSC5
+     0.01s  0.58% 21.39%      0.01s  0.58%  runtime.mapaccess2_faststr
+     0.01s  0.58% 21.97%      0.01s  0.58%  runtime.markBits.setMarked
+     0.01s  0.58% 22.54%      0.01s  0.58%  runtime.scanblock
+         0     0% 22.54%      0.01s  0.58%  bufio.(*Reader).Read
+         0     0% 22.54%      0.02s  1.16%  bytes.(*Buffer).Write

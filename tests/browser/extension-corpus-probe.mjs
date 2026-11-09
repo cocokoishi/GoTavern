@@ -31,6 +31,7 @@ import { loadLock } from './third-party-extensions.mjs';
 import { namesForLockSet } from './extension-corpus-clusters.mjs';
 import http from 'node:http';
 import { configureConnection, openCharacter, sendTurn, waitForReply } from './q20-persistence-drive.mjs';
+import { settleWithEgressClassification, waitForNetworkQuiet } from './extension-corpus-netquiet.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const playwrightModule = await import('@playwright/test');
@@ -148,6 +149,9 @@ const baseURL = process.env.PROBE_BASE_URL ?? argument('--base-url', null);
 const subject = argument('--subject', process.env.PROBE_SUBJECT ?? 'gotavern');
 const serverPid = process.env.PROBE_SERVER_PID ? Number(process.env.PROBE_SERVER_PID) : null;
 if (!baseURL) throw new Error('PROBE_BASE_URL is required: the runner owns the subject process so a restart is a real restart');
+// The subject's own origin, computed once: every page request is classified against it, so "same-origin"
+// is the SUBJECT's origin and not "not the peer's port".
+const subjectOrigin = new URL(baseURL).origin;
 if (!['gotavern', 'pinned'].includes(subject)) throw new Error(`--subject must be gotavern or pinned; got ${JSON.stringify(subject)}`);
 
 const lockInfo = loadLock(argument('--lock', path.join(here, 'third-party-extensions.lock.json')));
@@ -283,20 +287,6 @@ const latencyOf = list => {
     return { samples: sorted.length, p50: at(0.5), p95: at(0.95), p99: at(0.99), max: sorted.length ? sorted[sorted.length - 1] : null };
 };
 
-async function waitForNetworkQuiet(entries, { quietMs = 2500, deadlineMs = 45000 } = {}) {
-    const started = Date.now();
-    let lastCount = entries.length;
-    let lastChange = Date.now();
-    while (Date.now() - started < deadlineMs) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        if (entries.length !== lastCount) { lastCount = entries.length; lastChange = Date.now(); }
-        if (!entries.some(entry => entry.status === null) && Date.now() - lastChange >= quietMs) {
-            return { quiet: true, waitedMs: Date.now() - started, requests: entries.length };
-        }
-    }
-    return { quiet: false, waitedMs: Date.now() - started, requests: entries.length, unresolved: entries.filter(entry => entry.status === null).map(entry => entry.path).slice(0, 10) };
-}
-
 let browser = null;
 let peer = null;
 let page = null;
@@ -314,6 +304,13 @@ try {
         const url = new URL(request.url());
         const entry = {
             method: request.method(), path: url.pathname + url.search, status: null, contentType: '',
+            // THE ORIGIN IS RECORDED so a request that never settled can be classified by HOST rather than by
+            // path shape. Measured defect (runs 42478967874 and 42477517830): the unresolved request was
+            // reported as a bare `/repos/...` path, and "which host was this?" had to be inferred. A
+            // page-originated request to a third-party origin is not the subject's behaviour; a same-origin
+            // request is.
+            origin: url.origin,
+            sameOrigin: url.origin === subjectOrigin,
             bodyLength: null, bodySha256: null, bodyShape: null, liveEgress: url.pathname.startsWith('/api/horde/'), startedAt: Date.now(), latencyMs: null,
         };
         pending.set(request, entry);
@@ -423,7 +420,7 @@ try {
             const openai = await import('./scripts/openai.js');
             openai.oai_settings.stream_openai = true;
         });
-        await waitForNetworkQuiet(requests, { quietMs: 1200, deadlineMs: 30000 });
+        await waitForNetworkQuiet(requests, { quietMs: 1200, deadlineMs: 30000, subjectOrigin });
     }
 
     // THE PAGE CAN BE MID-GENERATION WHEN THE NEXT SOAK STEP RUNS. A send clicked while the frontend is
@@ -520,8 +517,26 @@ try {
     const extensionFacts = await waitForExtensions(names);
     report.extensions = extensionFacts;
     record('extension-assets-settled', true, { loaded: extensionFacts.filter(entry => entry.loaded).length, total: names.length });
-    const settle = await waitForNetworkQuiet(requests, { quietMs: 2500, deadlineMs: 120000 });
-    record('network-quiet', settle.quiet === true, settle);
+    // THE DRIVE GUARD WATCHES THE SUBJECT'S OWN ORIGIN. External egress is classified against the DECLARED
+    // origin set: a stalled declared origin is recorded (it is runner network weather -- runs 42478967874 and
+    // 42477517830 failed this leg and the PINNED oracle leg identically on one), while an UNDECLARED origin is
+    // a named drive failure. Both facts are steps, so the split is visible in the emitted evidence.
+    const classified = await settleWithEgressClassification(requests, { subjectOrigin, quietMs: 2500, deadlineMs: 120000 });
+    record('network-quiet', classified.quiet.quiet === true, classified.quiet);
+    record('external-egress-classified', classified.external.unexpected.length === 0, {
+        origins: Object.keys(classified.external.origins),
+        unexpected: classified.external.unexpected,
+        pending: classified.external.pending,
+        byOrigin: classified.external.origins,
+    });
+    report.externalEgress = classified.external;
+    report.networkClassification = {
+        quiet: classified.quiet.quiet === true,
+        sameOriginScope: classified.quiet.scope,
+        unresolvedSameOrigin: classified.quiet.unresolved ?? [],
+        external: classified.external,
+    };
+    console.error(`[${subject}/${phase}] network-classification :: ${JSON.stringify({ sameOriginQuiet: classified.quiet.quiet === true, unresolvedSameOrigin: classified.quiet.unresolved ?? [], origins: Object.keys(classified.external.origins), unexpected: classified.external.unexpected, pending: classified.external.pending })}`);
 
     const opened = await openCharacter(page, cardName);
     record('character-opened', opened?.opened === true, opened);
@@ -651,7 +666,7 @@ try {
     report.finalState = await readFinalState();
     record('final-state-read', report.finalState !== null, report.finalState);
     report.rows = requests.map(entry => ({
-        method: entry.method, path: entry.path.split('?')[0], status: entry.status, contentType: entry.contentType,
+        method: entry.method, origin: entry.origin, sameOrigin: entry.sameOrigin === true, path: entry.path.split('?')[0], status: entry.status, contentType: entry.contentType,
         bodyLength: entry.bodyLength, bodySha256: entry.bodySha256, bodyShape: entry.bodyShape, liveEgress: entry.liveEgress,
         latencyMs: entry.latencyMs,
     }));
@@ -664,7 +679,7 @@ try {
     // state. Without this a preloader timeout is a bare string and the next fix starts from a guess.
     try {
         const requestsSeen = typeof requests !== 'undefined' ? requests : [];
-        report.rows = requestsSeen.map(entry => ({ method: entry.method, path: entry.path.split('?')[0], status: entry.status, contentType: entry.contentType, bodyLength: entry.bodyLength, bodySha256: entry.bodySha256, bodyShape: entry.bodyShape, liveEgress: entry.liveEgress, latencyMs: entry.latencyMs }));
+        report.rows = requestsSeen.map(entry => ({ method: entry.method, origin: entry.origin, sameOrigin: entry.sameOrigin === true, path: entry.path.split('?')[0], status: entry.status, contentType: entry.contentType, bodyLength: entry.bodyLength, bodySha256: entry.bodySha256, bodyShape: entry.bodyShape, liveEgress: entry.liveEgress, latencyMs: entry.latencyMs }));
         report.unresolvedRequests = requestsSeen.filter(entry => entry.status === null).map(entry => ({ method: entry.method, path: entry.path, startedAt: entry.startedAt }));
         report.finalState = await readFinalState().catch(() => null);
     } catch (secondary) {

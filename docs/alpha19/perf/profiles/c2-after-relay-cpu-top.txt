@@ -1,0 +1,33 @@
+﻿File: a19profile-afterc2.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile-afterc2.exe2026-11-08 21:40:19.0422641 -0800 PST
+Type: cpu
+Time: 2026-11-08 21:40:30 PST
+Duration: 766.29ms, Total samples = 780ms (101.79%)
+Showing nodes accounting for 720ms, 92.31% of 780ms total
+Showing top 25 nodes out of 268
+      flat  flat%   sum%        cum   cum%
+     380ms 48.72% 48.72%      380ms 48.72%  runtime.cgocall
+      80ms 10.26% 58.97%       80ms 10.26%  runtime.osyield.func1
+      20ms  2.56% 61.54%       20ms  2.56%  internal/runtime/maps.(*Map).Delete
+      20ms  2.56% 64.10%       20ms  2.56%  runtime.netpollopen
+      20ms  2.56% 66.67%       20ms  2.56%  runtime.spanClass.sizeclass
+      10ms  1.28% 67.95%       10ms  1.28%  encoding/json/jsontext.(*stateMachine).appendString
+      10ms  1.28% 69.23%       10ms  1.28%  github.com/cocokoishi/gotavern/internal/server.pinnedChatCompletionApplyCustomPromptPostProcessing
+      10ms  1.28% 70.51%       10ms  1.28%  internal/runtime/atomic.(*Uint8).Load
+      10ms  1.28% 71.79%       10ms  1.28%  internal/runtime/maps.(*Iter).Next
+      10ms  1.28% 73.08%       10ms  1.28%  internal/runtime/maps.memHash64AES
+      10ms  1.28% 74.36%       10ms  1.28%  internal/stringslite.Index
+      10ms  1.28% 75.64%       40ms  5.13%  net/http.(*Client).do
+      10ms  1.28% 76.92%       10ms  1.28%  net/http.(*bodyEOFSignal).Read
+      10ms  1.28% 78.21%       10ms  1.28%  net/textproto.canonicalMIMEHeaderKey
+      10ms  1.28% 79.49%       10ms  1.28%  net/url.ParseRequestURI
+      10ms  1.28% 80.77%       10ms  1.28%  runtime.(*maybeTraceableChan).get
+      10ms  1.28% 82.05%       10ms  1.28%  runtime.(*stkframe).getStackMap
+      10ms  1.28% 83.33%       10ms  1.28%  runtime.(*timers).cleanHead
+      10ms  1.28% 84.62%       10ms  1.28%  runtime.casgstatus
+      10ms  1.28% 85.90%       10ms  1.28%  runtime.findfunc
+      10ms  1.28% 87.18%       10ms  1.28%  runtime.gcTrigger.test
+      10ms  1.28% 88.46%       10ms  1.28%  runtime.lock2
+      10ms  1.28% 89.74%       20ms  2.56%  runtime.mallocgcSmallNoscan
+      10ms  1.28% 91.03%       10ms  1.28%  runtime.mallocgcSmallScanNoHeaderSC5
+      10ms  1.28% 92.31%       10ms  1.28%  runtime.mapaccess2_faststr

@@ -39,6 +39,12 @@ func (runtimeServer *accountRuntime) serveImageMetadataCleanup(w http.ResponseWr
 			return nil, false, errors.New("image metadata index images are not enumerable")
 		}
 		changed := false
+		// MUTATION HAZARD: this loop DELETES from `images` while iterating its members. entries() returns a
+		// read-only view of the object's own member slice (alpha.19 C1), so iterating it while deleting shifts the
+		// backing array under the range and skips members -- observed as the pinned fixture's "../escape.webp"
+		// entry surviving cleanup. Pinned iterates `Object.keys(...)`, which is a SNAPSHOT, so taking a private
+		// snapshot here is the faithful translation and restores the pre-change behaviour exactly.
+		entries = append([]orderedNodeJSONEntry(nil), entries...)
 		for entryIndex, entry := range entries {
 			fullPath, resolveErr := nodeResolvePath(userRoot, entry.key)
 			if resolveErr != nil {

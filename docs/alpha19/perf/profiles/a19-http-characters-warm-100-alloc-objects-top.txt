@@ -1,0 +1,35 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: alloc_objects
+Time: 2026-11-08 18:25:20 PST
+Active filters:
+   focus=serveCharactersAll
+Showing nodes accounting for 198561, 66.90% of 296822 total
+Dropped 20 nodes (cum <= 1484)
+Showing top 25 nodes out of 63
+      flat  flat%   sum%        cum   cum%
+     65538 22.08% 22.08%      98306 33.12%  strconv.syntaxError (inline)
+     32768 11.04% 33.12%      32768 11.04%  internal/stringslite.Clone (inline)
+     24039  8.10% 41.22%      37294 12.56%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+     23075  7.77% 48.99%     121381 40.89%  github.com/cocokoishi/gotavern/internal/server.orderedNodeJSON.entries
+      9363  3.15% 52.15%       9363  3.15%  os.newFileStatFromFileIDBothDirInfo (inline)
+      8492  2.86% 55.01%       8492  2.86%  strings.(*Builder).WriteByte (inline)
+      6917  2.33% 57.34%       6917  2.33%  encoding/json/jsontext.(*decoderState).fetch
+      6338  2.14% 59.47%       6338  2.14%  encoding/json/jsontext.Token.String (inline)
+      5252  1.77% 61.24%       5252  1.77%  syscall.UTF16FromString
+      5042  1.70% 62.94%       7563  2.55%  syscall.FullPath
+      4916  1.66% 64.60%       4916  1.66%  encoding/json/jsontext.NewDecoder (inline)
+      3277  1.10% 65.70%       3277  1.10%  strings.(*Builder).WriteString (inline)
+      1709  0.58% 66.28%       1709  0.58%  github.com/cocokoishi/gotavern/internal/server.(*orderedNodeJSON).setMember (inline)
+      1126  0.38% 66.66%       1126  0.38%  io.ReadAll
+       709  0.24% 66.90%      68086 22.94%  github.com/cocokoishi/gotavern/internal/server.processCharacterForDirEntry
+         0     0% 66.90%      13255  4.47%  encoding/json.(*Decoder).Token
+         0     0% 66.90%       4916  1.66%  encoding/json.NewDecoder
+         0     0% 66.90%       6917  2.33%  encoding/json/jsontext.(*Decoder).ReadToken (inline)
+         0     0% 66.90%       6917  2.33%  encoding/json/jsontext.(*decoderState).ReadToken
+         0     0% 66.90%       6917  2.33%  encoding/json/jsontext.(*decoderState).consumeString
+         0     0% 66.90%     198950 67.03%  github.com/cocokoishi/gotavern/internal/server.(*accountRuntime).serveCharactersAll
+         0     0% 66.90%       2731  0.92%  github.com/cocokoishi/gotavern/internal/server.calculateChatSize
+         0     0% 66.90%       7563  2.55%  github.com/cocokoishi/gotavern/internal/server.characterCardCachePath
+         0     0% 66.90%      42210 14.22%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSON
+         0     0% 66.90%       8492  2.86%  github.com/cocokoishi/gotavern/internal/server.decodePngText

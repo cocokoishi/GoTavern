@@ -1,0 +1,52 @@
+{
+  "harness": "tools/perf/a19-pinned-config-refresh.mjs",
+  "question": "Does pinned SillyTavern observe a config.yaml mutation made while the process is running?",
+  "pinned": {
+    "path": "C:\\Users\\koishi\\Desktop\\GoTavern\\SillyTavern",
+    "serverJsSha256": "cf0bf95e2172de47dccbc194d7aaefa7546774ad86cc4a49dcecdb97c4d3f58a",
+    "version": "{\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"gitRevision\":\"06bde939f\",\"gitBranch\":\"release\",\"commitDa",
+    "restartedVersion": "{\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"gitRevision\":\"06bde939f\",\"gitBranch\":\"release\",\"commitDa"
+  },
+  "startedAt": "2026-11-09T05:26:23.120Z",
+  "legs": {
+    "leg1_baseline": {
+      "pinnedVersion": "{\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"gitRevision\":\"06bde939f\",\"gitBranch\":\"release\",\"commitDa",
+      "httpStatus": 200,
+      "httpBodyHead": "{\"results\":[{\"text\":\"ok\"}]}",
+      "providerRequestSeen": true,
+      "providerRequestTarget": "/v1/completions",
+      "probeHeader": "baseline",
+      "recordedRequestCount": 1
+    },
+    "leg2_mutated_while_running": {
+      "pinnedVersion": "{\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"gitRevision\":\"06bde939f\",\"gitBranch\":\"release\",\"commitDa",
+      "httpStatus": 200,
+      "httpBodyHead": "{\"results\":[{\"text\":\"ok\"}]}",
+      "providerRequestSeen": true,
+      "providerRequestTarget": "/v1/completions",
+      "probeHeader": "baseline",
+      "recordedRequestCount": 2
+    },
+    "leg3_control_restarted_with_mutated_config": {
+      "pinnedVersion": "{\"agent\":\"SillyTavern:1.19.0:Cohee#1207\",\"pkgVersion\":\"1.19.0\",\"gitRevision\":\"06bde939f\",\"gitBranch\":\"release\",\"commitDa",
+      "httpStatus": 200,
+      "httpBodyHead": "{\"results\":[{\"text\":\"ok\"}]}",
+      "providerRequestSeen": true,
+      "providerRequestTarget": "/v1/completions",
+      "probeHeader": "mutated",
+      "recordedRequestCount": 3
+    }
+  },
+  "verdict": "STARTUP-ONLY: pinned observed the value it parsed at startup; a config.yaml mutation made while the process runs was NOT seen by the next request",
+  "notes": [
+    "The observed value is an outbound provider request HEADER (x-a19-probe) captured by a recording mock provider, not a browser observation.",
+    "The key is requestOverrides, which pinned reads per request through getConfigValue; a stale value therefore shows the config FILE is cached process-wide.",
+    "Leg 3 is the control: it proves the mutated value would be observed by a fresh process, so a stale leg 2 cannot be an unread key.",
+    "Pinned is booted from its checkout without modification; data root and config are in the scratch directory."
+  ],
+  "mockProvider": {
+    "origin": "http://127.0.0.1:52218"
+  },
+  "runningObservedHeader": "baseline",
+  "finishedAt": "2026-11-09T05:34:22.434Z"
+}

@@ -1,0 +1,11 @@
+{
+    "schema":  "alpha19-oracle-pin-v1",
+    "commit":  "06bde939fb1e9c4c8d8641d810f0a916b5bce127",
+    "gitStatusClean":  true,
+    "gitStatusLines":  0,
+    "files":  906,
+    "bytes":  61049059,
+    "treeSha256":  "41d91cd619536319fbff2b3a3e6abaaa2cfc14dc870ffc2179e3648e41c8aedf",
+    "manifest":  "docs/alpha19/oracle-pin.sha256",
+    "generatedAt":  "2026-11-08T17:43:03.2089594-08:00"
+}

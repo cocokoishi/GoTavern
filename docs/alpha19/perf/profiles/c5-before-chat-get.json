@@ -1,0 +1,89 @@
+{
+  "label": "c5-before-chat-get",
+  "mode": "http",
+  "goVersion": "go1.27.3",
+  "goos": "windows",
+  "goarch": "arm64",
+  "gomaxprocs": 2,
+  "dataRoot": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\work-chats2\\data",
+  "configPath": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\work-chats2\\config.yaml",
+  "route": "chat-get",
+  "requests": 5,
+  "warmup": 1,
+  "startupMs": 149.296,
+  "readyMs": 0,
+  "startupStageLines": [
+    "gotavern: startup.command-line took 15ms (total 15ms)",
+    "gotavern: startup.data-startup took 112ms (total 127ms)",
+    "gotavern: startup.listeners took 17ms (total 144ms)",
+    "gotavern: startup.routes took 6ms (total 149ms)",
+    "gotavern: startup.ready took 0s (total 149ms)"
+  ],
+  "requestRows": [
+    {
+      "index": 0,
+      "kind": "warmup",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 58.837,
+      "route": "/api/chats/get",
+      "inProfileWindow": false
+    },
+    {
+      "index": 0,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 47.134,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 1,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 40.113,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 2,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 42.528,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 3,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 47.075,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 4,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 32.251,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    }
+  ],
+  "cpuProfile": "c5-before-chat-get-cpu.pb.gz",
+  "heapProfile": "c5-before-chat-get-heap.pb.gz",
+  "cpuProfileRateHz": 100,
+  "notes": [
+    "CPU profile rate is Go's default 100 Hz; short windows carry few samples and are reported with their sample counts.",
+    "Heap profile carries alloc_space/alloc_objects (cumulative) and inuse_space/inuse_objects (after a forced GC at capture); the two are never mixed.",
+    "All OCUMULATIVE allocation totals include the startup path and the warmup requests; a warm-window claim is about the SHAPE of the profile, and the per-request allocation numbers come from internal/server/bench_test.go.",
+    "This helper calls internal/app.Start in-process; it is not the packaged binary and does not measure process exec/init cost (tools/perf/a19-boot.mjs does that)."
+  ],
+  "startedAt": "2026-11-09T03:57:44Z",
+  "finishedAt": "2026-11-09T03:57:44Z"
+}

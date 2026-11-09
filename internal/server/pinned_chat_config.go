@@ -31,6 +31,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"gopkg.in/yaml.v3"
 
@@ -77,15 +78,64 @@ func pinnedConfigCandidates(configFile string, directories startup.UserDirectori
 	}
 }
 
+// pinnedChatConfigDocument is the PARSED config document cached per resolved path for the lifetime of the
+// process, matching pinned's getConfig(): `CACHED_CONFIG` is set by the first successful parse and returned
+// afterwards (src/util.js:61-73), so pinned never observes a config.yaml edit made while it runs.
+//
+// THIS IS A PARITY FIX AS MUCH AS A PERFORMANCE FIX. The alpha.19 pinned probe observed the startup-only
+// behaviour directly (docs/alpha19/perf/profiles/c2-pinned-config-refresh.json: a request-time reader saw the
+// OLD value after a live config.yaml mutation, and the restarted control saw the NEW value), while the profiled
+// GoTavern handler was spending ~67% of its CPU re-reading and YAML-parsing the file per request AND diverging
+// from pinned by treating live edits as visible. Both go away with this cache; the runtime-mutation behaviour
+// change is recorded in docs/alpha19/perf/changes.md as the parity fix it is.
+//
+// Only SUCCESSFUL parses are cached: an unreadable or malformed file keeps the old per-call fallback, so the
+// environment override and the candidate order behave exactly as before (and a file that appears later is still
+// found -- pinned would have exited at startup, which is outside this helper's contract).
+var (
+	pinnedChatConfigDocumentsMu sync.Mutex
+	pinnedChatConfigDocuments   = map[string]pinnedChatConfigDocument{}
+)
+
+type pinnedChatConfigDocument struct {
+	parsed map[string]any
+	ok     bool
+}
+
+func parsedPinnedChatConfigDocument(candidate string) (map[string]any, bool) {
+	pinnedChatConfigDocumentsMu.Lock()
+	cached, exists := pinnedChatConfigDocuments[candidate]
+	pinnedChatConfigDocumentsMu.Unlock()
+	if exists {
+		return cached.parsed, cached.ok
+	}
+	body, err := os.ReadFile(candidate)
+	if err != nil {
+		return nil, false
+	}
+	var parsed map[string]any
+	if yaml.Unmarshal(body, &parsed) != nil {
+		return nil, false
+	}
+	pinnedChatConfigDocumentsMu.Lock()
+	pinnedChatConfigDocuments[candidate] = pinnedChatConfigDocument{parsed: parsed, ok: true}
+	pinnedChatConfigDocumentsMu.Unlock()
+	return parsed, true
+}
+
+// resetPinnedChatConfigCacheForTesting clears the process cache so a test can model a RESTART (pinned re-reads
+// the file only in a new process). It is not used by any route.
+func resetPinnedChatConfigCacheForTesting() {
+	pinnedChatConfigDocumentsMu.Lock()
+	defer pinnedChatConfigDocumentsMu.Unlock()
+	pinnedChatConfigDocuments = map[string]pinnedChatConfigDocument{}
+}
+
 // fileValue walks a dotted key through the runtime config.yaml, without the environment override.
 func (source pinnedChatConfigSource) fileValue(path []string) (any, bool) {
 	for _, candidate := range pinnedConfigCandidates(source.file, source.directories) {
-		body, err := os.ReadFile(candidate)
-		if err != nil {
-			continue
-		}
-		var parsed map[string]any
-		if yaml.Unmarshal(body, &parsed) != nil {
+		parsed, ok := parsedPinnedChatConfigDocument(candidate)
+		if !ok {
 			continue
 		}
 		var current any = parsed

@@ -1,0 +1,35 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: alloc_objects
+Time: 2026-11-08 18:25:40 PST
+Active filters:
+   focus=serveChatCompletionGenerate
+Showing nodes accounting for 236718, 80.49% of 294106 total
+Dropped 6 nodes (cum <= 1470)
+Showing top 25 nodes out of 56
+      flat  flat%   sum%        cum   cum%
+     36355 12.36% 12.36%      36355 12.36%  encoding/json/jsontext.Token.String (inline)
+     32866 11.17% 23.54%     101989 34.68%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+     32768 11.14% 34.68%      69123 23.50%  encoding/json.(*Decoder).Token
+     32768 11.14% 45.82%      79003 26.86%  github.com/cocokoishi/gotavern/internal/server.marshalNodeJSONString
+     29493 10.03% 55.85%      40416 13.74%  gopkg.in/yaml%2ev3.(*parser).node
+     16384  5.57% 61.42%      25325  8.61%  bytes.(*Buffer).grow
+     10923  3.71% 65.13%      39402 13.40%  github.com/cocokoishi/gotavern/internal/server.marshalNodeJSON
+     10923  3.71% 68.85%      10923  3.71%  strconv.syntaxError (inline)
+      9362  3.18% 72.03%       9362  3.18%  encoding/json/v2.JoinOptions (inline)
+      8941  3.04% 75.07%       8941  3.04%  bytes.growSlice
+      6833  2.32% 77.39%       6833  2.32%  bytes.Replace
+      5461  1.86% 79.25%       5461  1.86%  internal/reflectlite.unsafe_New
+      3641  1.24% 80.49%       3641  1.24%  net/url.(*URL).Clone (inline)
+         0     0% 80.49%      25325  8.61%  bytes.(*Buffer).Write
+         0     0% 80.49%       6833  2.32%  bytes.ReplaceAll (inline)
+         0     0% 80.49%      19117  6.50%  encoding/json.(*Encoder).Encode
+         0     0% 80.49%       9362  3.18%  encoding/json.(*Encoder).SetEscapeHTML
+         0     0% 80.49%       3641  1.24%  github.com/cocokoishi/gotavern/internal/outbound.SendStreaming
+         0     0% 80.49%       3641  1.24%  github.com/cocokoishi/gotavern/internal/outbound.sendProductionStreaming
+         0     0% 80.49%     237649 80.80%  github.com/cocokoishi/gotavern/internal/server.(*accountRuntime).serveChatCompletionGenerate
+         0     0% 80.49%     101989 34.68%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSON
+         0     0% 80.49%      90672 30.83%  github.com/cocokoishi/gotavern/internal/server.marshalOrderedNodeJSON
+         0     0% 80.49%     237649 80.80%  github.com/cocokoishi/gotavern/internal/server.newHTTPHandlerWithRouteDomains.func22
+         0     0% 80.49%       5461  1.86%  github.com/cocokoishi/gotavern/internal/server.orderedNodeJSON.entries
+         0     0% 80.49%      90672 30.83%  github.com/cocokoishi/gotavern/internal/server.pinnedChatCompletionAssemble

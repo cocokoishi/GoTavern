@@ -17,6 +17,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -361,7 +362,80 @@ func processCharacter(item string, directories map[string]string, shallow bool) 
 	if err != nil {
 		return errorCharacter()
 	}
-	return finishCharacterProjection(item, directories, jsonObject, nodeFileCtimeMilliseconds(imgFile, info), shallow)
+	return finishCharacterProjection(item, directories, jsonObject, nodeFileCtimeMilliseconds(imgFile, info), shallow, nil)
+}
+
+// chatRootListing is ONE listing of the chats root, taken once per /api/characters/all request. Pinned's
+// calculateChatSize performs `fs.readdirSync(path.join(chats, name))` for EVERY card, so a library with 10,000
+// cards and few chat directories paid ~10,000 failing directory opens per request (8.29 s of os.ReadDir in the
+// alpha.19 mixed profile). The root listing answers "does this card have a chat directory?" for all of them in
+// one call. It is a per-request value, never cached, so a chat directory created between two requests is seen by
+// the second one exactly as the old per-card listing saw it.
+//
+// EXACT-NESS RULE: a name MISS is not proof that the directory is absent on a case-insensitive filesystem
+// (Windows), so a miss falls back to the old per-card os.ReadDir. The same fallback covers a symlinked entry, a
+// non-directory entry (pinned's ReadDir would fail with ENOTDIR), and a failed root listing (the old behaviour is
+// then reproduced card by card). Only the common "no such directory" case skips the syscall.
+type chatRootListing struct {
+	root    string
+	entries map[string]os.DirEntry
+	// folded is the case-insensitive view used only on a case-insensitive platform (Windows, macOS). On those
+	// filesystems the old per-card os.ReadDir resolves a differently-cased directory, so an exact name miss is
+	// NOT proof of absence and must consult this map first. A name that appears more than once under folding
+	// (possible where per-directory case sensitivity is enabled) is marked in foldedAmbiguous and falls back.
+	folded          map[string]os.DirEntry
+	foldedAmbiguous map[string]bool
+	caseInsensitive bool
+	ok              bool
+	// rootMissing is true when the chats ROOT does not exist. That case is decidable without per-card syscalls:
+	// the old code's os.ReadDir(chatsRoot/name) would also return ENOENT for every card, which it answers 0,0 --
+	// so the listing answers the same thing for all of them (the request that motivated the optimization, a
+	// 10,000-card library with no chats root at all, was still paying 10,000 failing opens before this branch).
+	rootMissing bool
+}
+
+// platformCaseInsensitive reports whether this platform's default path resolution ignores case. Windows and
+// macOS do; Linux does not. It is a package variable only so a test can pin both branches on one host.
+var platformCaseInsensitive = runtime.GOOS == "windows" || runtime.GOOS == "darwin"
+
+func readChatRootListing(chatsRoot string) *chatRootListing {
+	listing := &chatRootListing{root: chatsRoot}
+	if platformCaseInsensitive {
+		listing.caseInsensitive = true
+		listing.folded = map[string]os.DirEntry{}
+		listing.foldedAmbiguous = map[string]bool{}
+	}
+	entries, err := os.ReadDir(chatsRoot)
+	if err != nil {
+		listing.rootMissing = errors.Is(err, os.ErrNotExist)
+		return listing
+	}
+	listing.ok = true
+	listing.entries = make(map[string]os.DirEntry, len(entries))
+	for _, entry := range entries {
+		listing.entries[entry.Name()] = entry
+		if !listing.caseInsensitive {
+			continue
+		}
+		key := strings.ToLower(entry.Name())
+		if _, exists := listing.folded[key]; exists {
+			listing.foldedAmbiguous[key] = true
+			continue
+		}
+		listing.folded[key] = entry
+	}
+	return listing
+}
+
+// characterDirectoryInsideRoot reports whether the chat directory the per-card path would have read is still
+// inside the chats root. It guards the root-missing fast path: a name that resolves outside the root (a crafted
+// card name, or a non-suffix replacement) must be answered by the real call, not assumed absent.
+func (listing *chatRootListing) characterDirectoryInsideRoot(charDir string) bool {
+	relative, err := filepath.Rel(listing.root, charDir)
+	if err != nil || filepath.IsAbs(relative) {
+		return false
+	}
+	return relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
 // processCharacterForDirEntry is processCharacter for the /api/characters/all listing. The listing has already
@@ -369,7 +443,7 @@ func processCharacter(item string, directories map[string]string, shallow bool) 
 // the file once for both the read and the ctime, instead of stat + read + stat + ctime-open. A SYMLINK falls
 // back to processCharacter because the listing's metadata describes the link while pinned's stat and read
 // follow it: caching the link's identity against the target's text would be a stale-entry hole.
-func processCharacterForDirEntry(entry os.DirEntry, directories map[string]string, shallow bool) orderedNodeJSON {
+func processCharacterForDirEntry(entry os.DirEntry, directories map[string]string, shallow bool, chatListing *chatRootListing) orderedNodeJSON {
 	item := entry.Name()
 	if entry.Type()&os.ModeSymlink != 0 {
 		return processCharacter(item, directories, shallow)
@@ -396,20 +470,21 @@ func processCharacterForDirEntry(entry os.DirEntry, directories map[string]strin
 	jsonObject := getCharaCardV2(parsed, directories, false)
 	nodeSet(&jsonObject, []string{"avatar"}, nodeString(item))
 	nodeSet(&jsonObject, []string{"json_data"}, nodeString(imgData))
-	return finishCharacterProjection(item, directories, jsonObject, ctimeMs, shallow)
+	return finishCharacterProjection(item, directories, jsonObject, ctimeMs, shallow, chatListing)
 }
 
 // finishCharacterProjection is the tail of pinned processCharacter, shared by the stat path and the listing
 // path so the two cannot diverge: date_added/create_date from the ctime, then the chat-directory summary.
-func finishCharacterProjection(item string, directories map[string]string, jsonObject orderedNodeJSON, ctimeMs float64, shallow bool) orderedNodeJSON {
+func finishCharacterProjection(item string, directories map[string]string, jsonObject orderedNodeJSON, ctimeMs float64, shallow bool, chatListing *chatRootListing) orderedNodeJSON {
 	nodeSet(&jsonObject, []string{"date_added"}, nodeNumber(ctimeMs))
 	createDate := nodeGet(jsonObject, "create_date")
 	if !createDate.truthy() {
 		nodeSet(&jsonObject, []string{"create_date"}, nodeString(isoStringFromMilliseconds(ctimeMs)))
 	}
 
-	chatsDirectory := filepath.Join(directories["chats"], strings.Replace(item, ".png", "", 1))
-	chatSize, dateLastChat, err := calculateChatSize(chatsDirectory)
+	characterDirectoryName := strings.Replace(item, ".png", "", 1)
+	chatsDirectory := filepath.Join(directories["chats"], characterDirectoryName)
+	chatSize, dateLastChat, err := calculateChatSizeForRequest(chatsDirectory, characterDirectoryName, chatListing)
 	if err != nil {
 		return errorCharacter()
 	}
@@ -431,15 +506,66 @@ func finishCharacterProjection(item string, directories map[string]string, jsonO
 // calculateChatSize mirrors pinned calculateChatSize. Directories count too,
 // because the pinned implementation stats every directory entry.
 func calculateChatSize(charDir string) (float64, float64, error) {
-	chatSize := 0.0
-	dateLastChat := 0.0
 	entries, err := os.ReadDir(charDir)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return chatSize, dateLastChat, nil
+			return 0, 0, nil
 		}
 		return 0, 0, err
 	}
+	return sumChatDirectoryEntries(charDir, entries)
+}
+
+// calculateChatSizeForRequest answers the same question as calculateChatSize but uses the request's single
+// chats-root listing to skip the per-card os.ReadDir for a card that has no chat directory. Every case the
+// listing cannot decide falls back to calculateChatSize, so the error classification (ENOENT => 0,0; any other
+// read error => the route's error object) is exactly the old one.
+func calculateChatSizeForRequest(charDir, characterDirectoryName string, listing *chatRootListing) (float64, float64, error) {
+	if listing == nil {
+		return calculateChatSize(charDir)
+	}
+	if !listing.ok {
+		if listing.rootMissing && listing.characterDirectoryInsideRoot(charDir) {
+			// The chats root is absent, so the old per-card os.ReadDir would return ENOENT (answered 0,0) for this
+			// character as well; answering it here removes 10,000 failing opens from a large library's request.
+			return 0, 0, nil
+		}
+		return calculateChatSize(charDir)
+	}
+	entry, exists := listing.entries[characterDirectoryName]
+	if !exists {
+		if listing.caseInsensitive {
+			foldedKey := strings.ToLower(characterDirectoryName)
+			if foldedEntry, foldedExists := listing.folded[foldedKey]; foldedExists && !listing.foldedAmbiguous[foldedKey] {
+				// The directory exists under a different case; the OLD per-card path resolves that (and stats the
+				// real entries), so take the same path instead of reporting 0,0.
+				_ = foldedEntry
+				return calculateChatSize(charDir)
+			}
+		}
+		if listing.characterDirectoryInsideRoot(charDir) {
+			// No directory with this name (in any case on a case-insensitive platform): the old per-card
+			// os.ReadDir would have returned ENOENT and answered 0,0. This is the case the listing exists to
+			// answer without a syscall.
+			return 0, 0, nil
+		}
+		return calculateChatSize(charDir)
+	}
+	if entry.Type()&os.ModeSymlink != 0 || !entry.IsDir() {
+		// A symlink is followed by the old ReadDir. A non-directory entry is where the old ReadDir fails with
+		// ENOTDIR and the route answers its error object; both decisions stay in calculateChatSize.
+		return calculateChatSize(charDir)
+	}
+	// The directory exists: the response's chat_size/date_last_chat still need each entry's size and mtime, which
+	// is the same per-entry work the old implementation did after its ReadDir.
+	return calculateChatSize(charDir)
+}
+
+// sumChatDirectoryEntries is the per-entry half of calculateChatSize, shared so the listing path and the fallback
+// cannot diverge.
+func sumChatDirectoryEntries(charDir string, entries []os.DirEntry) (float64, float64, error) {
+	chatSize := 0.0
+	dateLastChat := 0.0
 	for _, entry := range entries {
 		info, err := os.Stat(filepath.Join(charDir, entry.Name()))
 		if err != nil {

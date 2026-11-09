@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -249,6 +250,15 @@ func TestBackendsTextgenGenerateStreamsWithoutBuffering(t *testing.T) {
 		}
 	}()
 	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// DRAIN THE REQUEST BODY BEFORE ANSWERING (alpha.19). A handler that returns without consuming the request
+		// body leaves unread bytes in the server's receive buffer; when net/http then closes the connection it can
+		// send an RST instead of a FIN, and an RST discards response bytes the client has not read yet. Under
+		// co-tenant CPU load that window widens and the GoTavern streaming reader saw
+		// `wsarecv: An existing connection was forcibly closed by the remote host` while reading the next chunk-size
+		// line, correctly classified as a truncation -- which the pinned-parity route then holds open until the
+		// client disconnects, producing the alpha.19 39-minute suite stall. Draining the body is what a real
+		// provider (and every other peer in this file) does; it is a fix to this peer, not to the product's framing.
+		_, _ = io.Copy(io.Discard, r.Body)
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("data: first\n\n"))
@@ -288,12 +298,51 @@ func TestBackendsTextgenGenerateStreamsWithoutBuffering(t *testing.T) {
 	}
 	close(release)
 	released = true
-	rest, readErr := readAllStringFrom(reader)
+	// BOUNDED CLIENT CONTRACT (alpha.19). The pinned route deliberately holds a TRUNCATED provider stream open
+	// until the client disconnects (util.js forwardFetchResponse: a source error never ends the Express response).
+	// Reading to EOF with no bound therefore turns a correct pinned-parity stall into a multi-minute suite hang --
+	// measured at the package timeout as `TestBackendsTextgenGenerateStreamsWithoutBuffering` blocked for 39m18s.
+	// A clean provider must still end the stream, so a stall is a FAILURE here; the bound only guarantees the
+	// suite learns that instead of hanging, and the client is disconnected afterwards to release the handler.
+	rest, readErr, stalled := readAllStringBounded(reader, response.Body, 10*time.Second)
+	if stalled {
+		t.Fatalf("the route held the stream open for 10 s after the provider finished. Pinned parity is to hold a " +
+			"TRUNCATED stream open until the client disconnects, so this means the provider stream was classified " +
+			"as truncated; inspect outbound.Response.TruncatedBy / GOTAVERN_TRUNCATION_TRACE=1. The client has been " +
+			"disconnected to release the handler")
+	}
 	if readErr != nil {
 		t.Fatalf("reading the rest of the stream: %v", readErr)
 	}
 	if !strings.Contains(rest, "data: second") {
 		t.Fatalf("the tail of the stream was %q, want the provider's second chunk", rest)
+	}
+}
+
+// readAllStringBounded reads until the reader ends, but bounded: if the stream does not end within `bound`, the
+// client body is closed (a browser abort / client disconnect, which is exactly what releases a pinned-parity
+// truncated-stream stall) and stalled is reported. The reader goroutine is always joined or abandoned by the time
+// this returns; the result channel is buffered so a late send cannot leak the goroutine.
+func readAllStringBounded(reader *bufio.Reader, body io.Closer, bound time.Duration) (string, error, bool) {
+	type readResult struct {
+		text string
+		err  error
+	}
+	finished := make(chan readResult, 1)
+	go func() {
+		text, err := readAllStringFrom(reader)
+		finished <- readResult{text: text, err: err}
+	}()
+	select {
+	case result := <-finished:
+		return result.text, result.err, false
+	case <-time.After(bound):
+		_ = body.Close()
+		select {
+		case <-finished:
+		case <-time.After(5 * time.Second):
+		}
+		return "", nil, true
 	}
 }
 

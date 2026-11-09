@@ -1,0 +1,33 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: cpu
+Time: 2026-11-08 18:22:00 PST
+Duration: 2.02s, Total samples = 1.31s (64.77%)
+Showing nodes accounting for 1.31s, 100% of 1.31s total
+Showing top 25 nodes out of 163
+      flat  flat%   sum%        cum   cum%
+     0.62s 47.33% 47.33%      0.62s 47.33%  runtime.cgocall
+     0.08s  6.11% 53.44%      0.11s  8.40%  runtime.lock2
+     0.08s  6.11% 59.54%      0.08s  6.11%  runtime.osyield.func1
+     0.07s  5.34% 64.89%      0.07s  5.34%  runtime.(*spanInlineMarkBits).init
+     0.07s  5.34% 70.23%      0.07s  5.34%  runtime.unlock2
+     0.06s  4.58% 74.81%      0.06s  4.58%  internal/runtime/atomic.(*Uint32).CompareAndSwap (inline)
+     0.04s  3.05% 77.86%      0.04s  3.05%  runtime.(*sysMemStat).add
+     0.04s  3.05% 80.92%      0.04s  3.05%  runtime.(*timeHistogram).record
+     0.03s  2.29% 83.21%      0.03s  2.29%  internal/runtime/atomic.(*Int32).Add (inline)
+     0.02s  1.53% 84.73%      0.02s  1.53%  runtime.(*m).clearAllpSnapshot
+     0.02s  1.53% 86.26%      0.02s  1.53%  runtime.mallocgcSmallNoScanSC7
+     0.02s  1.53% 87.79%      0.02s  1.53%  runtime.memmove
+     0.02s  1.53% 89.31%      0.02s  1.53%  runtime.preemptM
+     0.02s  1.53% 90.84%      0.17s 12.98%  runtime.schedule
+     0.02s  1.53% 92.37%      0.02s  1.53%  runtime.semasleep
+     0.01s  0.76% 93.13%      0.18s 13.74%  github.com/cocokoishi/gotavern/internal/startup.VerifyCharacterDiskCache
+     0.01s  0.76% 93.89%      0.01s  0.76%  internal/runtime/atomic.(*Int32).CompareAndSwap (inline)
+     0.01s  0.76% 94.66%      0.01s  0.76%  internal/strconv.fmtEFG
+     0.01s  0.76% 95.42%      0.01s  0.76%  runtime.(*activeSweep).isDone
+     0.01s  0.76% 96.18%      0.01s  0.76%  runtime.(*gcControllerState).heapGoalInternal
+     0.01s  0.76% 96.95%      0.01s  0.76%  runtime.gogo
+     0.01s  0.76% 97.71%      0.01s  0.76%  runtime.mallocgcSmallNoScanSlowPath
+     0.01s  0.76% 98.47%      0.01s  0.76%  runtime.mallocgcSmallScanNoHeader
+     0.01s  0.76% 99.24%      0.33s 25.19%  runtime.mcall
+     0.01s  0.76%   100%      0.08s  6.11%  runtime.unlock (inline)

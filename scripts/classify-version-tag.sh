@@ -62,7 +62,7 @@ fi
 # =============================================================================================================
 # THE GRADUATED TAGS: single-tag EQUALITY decisions, never a pattern.
 #
-# The general rule above calls a tag stable only when it is exactly v<major>.<minor>.<patch>. Six tags in this
+# The general rule above calls a tag stable only when it is exactly v<major>.<minor>.<patch>. Nine tags in this
 # repository's history graduate to the stable channel while keeping their historical alpha-series names:
 #
 #   v0.1.0-alpha.9    the FIRST stable-channel release (historical; removing it would reclassify a published
@@ -102,9 +102,17 @@ fi
 #                     a real narrowed-dispatch refusal. Its own 13-gate same-SHA wave, the published archive
 #                     checksums, the unpacked-binary data request and the container digest verification are the
 #                     qualification.
+#   v0.1.0-alpha.19   the REAL-INTERACTION ORACLE release: a Node-UI-Originated Complex User Corpus built by
+#                     driving the unmodified pinned UI through real browser actions, a five-layer live oracle over
+#                     that corpus (browser/HTTP/provider-wire/persistence/lifecycle), a new FOURTEENTH required
+#                     release gate that runs that oracle in CI with a mutation-tested evidence verifier, real
+#                     product fixes found by the oracle (conditional GET/304 on the JSON routes, the pinned config
+#                     startup cache, a streaming cancel-watchdog goroutine leak), and measured performance work
+#                     with before/after profiles. Its own 14-gate same-SHA wave, the published archive checksums,
+#                     the unpacked-binary data request and the container digest verification are the qualification.
 #
 # THE LIST IS EQUALITY, NOT A RANGE. It cannot widen by accident: v0.1.0-alpha.10, v0.1.0-alpha.11,
-# v0.1.0-alpha.19, v0.1.0-alpha.180, v0.1.0-alpha.18-rc1, v0.1.0-alpha.18+build.1, v0.1.0-alpha.170,
+# v0.1.0-alpha.190, v0.1.0-alpha.180, v0.1.0-alpha.18-rc1, v0.1.0-alpha.18+build.1, v0.1.0-alpha.170,
 # v0.1.0-alpha.17-rc1, v0.1.0-alpha.17+build.1, v0.1.0-alpha.160,
 # v0.1.0-alpha.16-rc1, v0.1.0-alpha.16+build.1, v0.1.0-alpha.150, v0.1.0-alpha.15-rc1,
 # v0.1.0-alpha.15+build.1, v0.1.0-alpha.140, v0.1.0-alpha.14-rc1, v0.1.0-alpha.130, v0.1.0-alpha.13-rc1,
@@ -114,7 +122,7 @@ fi
 # graduating an unqualified tag. Each entry is added by its own commit that cites the qualification evidence for
 # that tag.
 # =============================================================================================================
-GRADUATED_STABLE_TAGS='v0.1.0-alpha.9 v0.1.0-alpha.12 v0.1.0-alpha.13 v0.1.0-alpha.14 v0.1.0-alpha.15 v0.1.0-alpha.16 v0.1.0-alpha.17 v0.1.0-alpha.18'
+GRADUATED_STABLE_TAGS='v0.1.0-alpha.9 v0.1.0-alpha.12 v0.1.0-alpha.13 v0.1.0-alpha.14 v0.1.0-alpha.15 v0.1.0-alpha.16 v0.1.0-alpha.17 v0.1.0-alpha.18 v0.1.0-alpha.19'
 
 for graduated_tag in $GRADUATED_STABLE_TAGS; do
   if [ "$tag" = "$graduated_tag" ]; then

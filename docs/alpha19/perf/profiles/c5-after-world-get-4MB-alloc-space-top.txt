@@ -1,0 +1,15 @@
+﻿go : Focus expression matched no samples
+At line:4 char:4
++   (go tool pprof -top -nodecount=25 -sample_index=alloc_space -focus= ...
++    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Focus expression matched no samples:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+File: a19profile-c5.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile-c5.exe2026-11-08 20:13:25.7988485 -0800 PST
+Type: alloc_space
+Time: 2026-11-08 20:13:29 PST
+Active filters:
+   focus=$focus
+Showing nodes accounting for 0, 0% of 256.46MB total
+      flat  flat%   sum%        cum   cum%

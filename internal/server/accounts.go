@@ -1029,7 +1029,7 @@ func (runtime *accountRuntime) serveUserMe(w http.ResponseWriter, request *http.
 		httpx.WriteStatusText(w, http.StatusForbidden)
 		return
 	}
-	respondJSON(w, http.StatusOK, accountMeViewModel{
+	respondJSONConditional(w, request, http.StatusOK, accountMeViewModel{
 		Handle:   account.raw("handle"),
 		Name:     account.raw("name"),
 		Avatar:   runtime.userAvatar(*account),
@@ -1636,6 +1636,19 @@ func marshalNodeJSON(value any) ([]byte, error) {
 		return nil, err
 	}
 	return bytes.TrimSuffix(body.Bytes(), []byte{'\n'}), nil
+}
+
+// respondJSONConditional is respondJSON plus the pinned stack's conditional-GET face: express answers 304 for a
+// fresh GET/HEAD (the same res.send/req.fresh rule measured on /api/extensions/discover, /api/sprites/get and
+// /api/users/me), so a revalidating frontend does not re-download the body. A non-fresh request gets the
+// byte-identical respondJSON response.
+func respondJSONConditional(w http.ResponseWriter, r *http.Request, status int, value any) {
+	body, err := marshalNodeJSON(value)
+	if err != nil {
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	httpx.WriteJSONBytesConditional(w, r, status, body)
 }
 
 func respondJSON(w http.ResponseWriter, status int, value any) {

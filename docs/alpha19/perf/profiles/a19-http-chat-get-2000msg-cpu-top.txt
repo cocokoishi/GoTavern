@@ -1,0 +1,35 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: cpu
+Time: 2026-11-08 18:25:20 PST
+Duration: 825.20ms, Total samples = 760ms (92.10%)
+Active filters:
+   focus=serveChats
+Showing nodes accounting for 300ms, 39.47% of 760ms total
+Showing top 25 nodes out of 124
+      flat  flat%   sum%        cum   cum%
+      40ms  5.26%  5.26%       40ms  5.26%  runtime.markBits.setMarked
+      20ms  2.63%  7.89%       20ms  2.63%  reflect.Value.String
+      20ms  2.63% 10.53%       20ms  2.63%  runtime.nextFreeFast (inline)
+      20ms  2.63% 13.16%       20ms  2.63%  runtime.spanInlineMarkBitsFromBase (inline)
+      10ms  1.32% 14.47%       10ms  1.32%  bytes.(*Reader).Read
+      10ms  1.32% 15.79%       10ms  1.32%  bytes.Count
+      10ms  1.32% 17.11%       40ms  5.26%  bytes.Replace
+      10ms  1.32% 18.42%       30ms  3.95%  bytes.growSlice
+      10ms  1.32% 19.74%       80ms 10.53%  encoding/json.(*Encoder).Encode
+      10ms  1.32% 21.05%       10ms  1.32%  encoding/json/internal/jsonopts.GetOption[go.shape.bool]
+      10ms  1.32% 22.37%       10ms  1.32%  encoding/json/jsontext.(*encoderState).reset
+      10ms  1.32% 23.68%       20ms  2.63%  encoding/json/jsontext.export.GetBufferedEncoder (inline)
+      10ms  1.32% 25.00%       20ms  2.63%  encoding/json/v2.lookupArshaler
+      10ms  1.32% 26.32%       10ms  1.32%  gcWriteBarrier
+      10ms  1.32% 27.63%       40ms  5.26%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+      10ms  1.32% 28.95%       10ms  1.32%  internal/bytealg.IndexByteString
+      10ms  1.32% 30.26%       10ms  1.32%  internal/sync.(*HashTrieMap[go.shape.interface {},go.shape.interface {}]).Load
+      10ms  1.32% 31.58%       10ms  1.32%  runtime.alignDown
+      10ms  1.32% 32.89%       10ms  1.32%  runtime.cgocall
+      10ms  1.32% 34.21%       10ms  1.32%  runtime.getGCMask (inline)
+      10ms  1.32% 35.53%       10ms  1.32%  runtime.memclrNoHeapPointers
+      10ms  1.32% 36.84%       10ms  1.32%  runtime.scanblock
+      10ms  1.32% 38.16%       10ms  1.32%  runtime.spanClass.sizeclass (inline)
+      10ms  1.32% 39.47%       20ms  2.63%  runtime.typedmemmove
+         0     0% 39.47%       30ms  3.95%  bytes.(*Buffer).Write

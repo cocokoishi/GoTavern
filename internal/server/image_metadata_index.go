@@ -253,6 +253,24 @@ func (value *orderedNodeJSON) deleteMember(key string) bool {
 func (value orderedNodeJSON) entries() ([]orderedNodeJSONEntry, bool) {
 	switch value.kind {
 	case 'o':
+		// FAST PATH (alpha.19): when no member key is an array index, `JSON.stringify` emits every member in
+		// insertion order, and the stable sort below would be the identity permutation. Returning the object's
+		// own slice avoids one copy plus a comparison-sort per object per marshal -- /api/characters/all
+		// marshals ~4-5 objects per card, and this was 44% of that route's allocation objects. The result is a
+		// READ-ONLY VIEW: a caller that deletes or reorders members of THIS object while ranging over the result
+		// must snapshot the slice first (deleting shifts the shared backing array and the range skips members;
+		// image_metadata_cleanup.go does exactly that and now takes a snapshot, which is also what pinned's
+		// Object.keys() iteration does).
+		hasArrayIndex := false
+		for index := range value.object {
+			if _, isIndex := nodeArrayIndex(value.object[index].key); isIndex {
+				hasArrayIndex = true
+				break
+			}
+		}
+		if !hasArrayIndex {
+			return value.object, true
+		}
 		entries := append([]orderedNodeJSONEntry(nil), value.object...)
 		sort.SliceStable(entries, func(i, j int) bool {
 			iIndex, iIsIndex := nodeArrayIndex(entries[i].key)
@@ -288,12 +306,34 @@ func (value orderedNodeJSON) entries() ([]orderedNodeJSONEntry, bool) {
 	}
 }
 
+// nodeArrayIndex reports whether a member key is a JavaScript array index, i.e. whether JSON.stringify emits it
+// in the numeric-key block (ascending) ahead of the insertion-order block.
+//
+// It is EXACTLY equivalent to `index, err := strconv.ParseUint(key, 10, 32); err == nil && index != 4294967295
+// && strconv.FormatUint(index, 10) == key`, which is what it replaces, but it cannot allocate: ParseUint returns
+// a *strconv.NumError for every non-numeric key, and this predicate runs once per key per object per marshal
+// (24.5% of /api/characters/all's allocation objects in the alpha.19 profile). The equivalence cases are:
+//   - "" and any key containing a non-ASCII-digit byte -> not an index (ParseUint rejects them);
+//   - more than 10 digits -> out of uint32 range (ParseUint reports ErrRange);
+//   - a leading zero with length > 1 ("007") -> ParseUint accepts it but FormatUint(7) != "007";
+//   - "4294967295" -> explicitly excluded by the original predicate; anything larger is out of range;
+//   - "0" -> index 0; "4294967294" -> index 4294967294.
 func nodeArrayIndex(key string) (uint64, bool) {
-	if key == "" {
+	if key == "" || len(key) > 10 {
 		return 0, false
 	}
-	index, err := strconv.ParseUint(key, 10, 32)
-	if err != nil || index == 4294967295 || strconv.FormatUint(index, 10) != key {
+	if len(key) > 1 && key[0] == '0' {
+		return 0, false
+	}
+	var index uint64
+	for offset := 0; offset < len(key); offset++ {
+		character := key[offset]
+		if character < '0' || character > '9' {
+			return 0, false
+		}
+		index = index*10 + uint64(character-'0')
+	}
+	if index >= 4294967295 {
 		return 0, false
 	}
 	return index, true
@@ -424,14 +464,23 @@ func (value orderedNodeJSON) javascriptString() (string, error) {
 	}
 }
 
+// marshalNodeJSONString is the JSON string encoding for the GENERIC ordered-JSON routes (world info, chats,
+// image metadata). It used to build an encoding/json v2 encoder and then run two bytes.ReplaceAll passes over
+// its output; the character domain's escaper (writeCharacterJSONString) was differentially pinned to exactly
+// that output in alpha.18 (single-byte controls, \b\t\n\f\r, quote/backslash, U+2028/U+2029 emitted RAW,
+// invalid UTF-8 replaced with U+FFFD) and is now shared here, so the generic routes stop paying one encoder
+// allocation plus two whole-string copies per string. In alpha.19 the 4 MB world-info response spent 48.5 MB
+// (14.5% of its allocation window) in bytes.Replace for this path.
+//
+// KEEPING THE PIN HONEST: the differential test that proves this equivalence must compare against an
+// encoder-based REFERENCE, not against the production function itself. The reference lives in
+// a19_perf_pins_test.go (a19ReferenceMarshalNodeJSONStringEncoder) and characters_scale_optimization_test.go
+// was updated to use it, so the comparison still has teeth.
 func marshalNodeJSONString(value string) ([]byte, error) {
-	encoded, err := marshalNodeJSON(value)
-	if err != nil {
-		return nil, err
-	}
-	encoded = bytes.ReplaceAll(encoded, []byte(`\u2028`), []byte("\u2028"))
-	encoded = bytes.ReplaceAll(encoded, []byte(`\u2029`), []byte("\u2029"))
-	return encoded, nil
+	var body bytes.Buffer
+	body.Grow(len(value) + 2)
+	writeCharacterJSONString(&body, value)
+	return body.Bytes(), nil
 }
 
 func marshalECMAScriptNumber(value float64) ([]byte, error) {

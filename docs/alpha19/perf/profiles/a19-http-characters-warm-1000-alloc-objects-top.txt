@@ -1,0 +1,35 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: alloc_objects
+Time: 2026-11-08 18:25:14 PST
+Active filters:
+   focus=serveCharactersAll
+Showing nodes accounting for 1606053, 95.79% of 1676680 total
+Dropped 26 nodes (cum <= 8383)
+Showing top 25 nodes out of 70
+      flat  flat%   sum%        cum   cum%
+    404153 24.10% 24.10%     633531 37.78%  strconv.syntaxError (inline)
+    294915 17.59% 41.69%     560333 33.42%  encoding/json.(*Decoder).Token
+    229378 13.68% 55.37%     229378 13.68%  internal/stringslite.Clone (inline)
+    169106 10.09% 65.46%     169106 10.09%  encoding/json/jsontext.Token.String (inline)
+     65536  3.91% 69.37%      65536  3.91%  encoding/json/jsontext.(*objectNameStack).push (inline)
+     58816  3.51% 72.88%     736038 43.90%  github.com/cocokoishi/gotavern/internal/server.orderedNodeJSON.entries
+     56448  3.37% 76.24%     616781 36.79%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+     54613  3.26% 79.50%      76458  4.56%  github.com/cocokoishi/gotavern/internal/server.marshalECMAScriptNumber
+     32769  1.95% 81.45%      43691  2.61%  internal/reflectlite.Swapper
+     32768  1.95% 83.41%      44727  2.67%  github.com/cocokoishi/gotavern/internal/server.readFromV2
+     30776  1.84% 85.24%      30776  1.84%  encoding/json/jsontext.(*decoderState).fetch
+     21845  1.30% 86.55%      21845  1.30%  internal/strconv.FormatFloat
+     20755  1.24% 87.79%      20755  1.24%  strings.(*Builder).WriteString (inline)
+     17778  1.06% 88.85%      17778  1.06%  github.com/cocokoishi/gotavern/internal/server.(*orderedNodeJSON).setMember (inline)
+     17647  1.05% 89.90%      27370  1.63%  syscall.FullPath
+     16384  0.98% 90.88%      16471  0.98%  bytes.(*Buffer).grow
+     14141  0.84% 91.72%      14141  0.84%  strings.(*Builder).WriteByte (inline)
+     10923  0.65% 92.37%      15839  0.94%  encoding/json.NewDecoder
+     10923  0.65% 93.02%      16385  0.98%  os.openFileNolog
+     10922  0.65% 93.67%      10922  0.65%  internal/reflectlite.unsafe_New
+     10504  0.63% 94.30%      10504  0.63%  syscall.UTF16FromString
+     10108   0.6% 94.90%      10108   0.6%  io.ReadAll
+      9363  0.56% 95.46%       9363  0.56%  encoding/json/v2.JoinOptions
+      5482  0.33% 95.79%     782407 46.66%  github.com/cocokoishi/gotavern/internal/server.processCharacterForDirEntry
+         0     0% 95.79%      16384  0.98%  bytes.(*Buffer).Write

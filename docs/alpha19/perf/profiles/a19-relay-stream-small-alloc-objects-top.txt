@@ -1,0 +1,35 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: alloc_objects
+Time: 2026-11-08 18:25:36 PST
+Active filters:
+   focus=serveChatCompletionGenerate
+Showing nodes accounting for 763158, 88.73% of 860127 total
+Dropped 35 nodes (cum <= 4300)
+Showing top 25 nodes out of 79
+      flat  flat%   sum%        cum   cum%
+    131073 15.24% 15.24%     131073 15.24%  gopkg.in/yaml%2ev3.(*decoder).scalar
+    114690 13.33% 28.57%     114690 13.33%  gopkg.in/yaml%2ev3.read
+    104869 12.19% 40.77%     203174 23.62%  gopkg.in/yaml%2ev3.(*parser).node
+     98305 11.43% 52.19%      98305 11.43%  gopkg.in/yaml%2ev3.resolve
+     98304 11.43% 63.62%      98304 11.43%  reflect.unsafe_New
+     54613  6.35% 69.97%     244679 28.45%  gopkg.in/yaml%2ev3.(*parser).scalar
+     32768  3.81% 73.78%      34962  4.06%  bytes.(*Buffer).grow
+     21846  2.54% 76.32%      21846  2.54%  reflect.makemap
+     19662  2.29% 78.61%      19662  2.29%  strings.(*Builder).WriteString (inline)
+     18725  2.18% 80.79%      18725  2.18%  encoding/json/v2.JoinOptions (inline)
+     16384  1.90% 82.69%      16384  1.90%  gopkg.in/yaml%2ev3.(*decoder).sequence
+     12973  1.51% 84.20%      12973  1.51%  reflect.mapassign_faststr0
+     10923  1.27% 85.47%      10923  1.27%  context.(*cancelCtx).propagateCancel
+     10923  1.27% 86.74%      54224  6.30%  github.com/cocokoishi/gotavern/internal/server.marshalNodeJSON
+      9363  1.09% 87.83%       9363  1.09%  context.(*cancelCtx).Done
+      5461  0.63% 88.46%       5461  0.63%  internal/reflectlite.unsafe_New
+      2048  0.24% 88.70%     374525 43.54%  gopkg.in/yaml%2ev3.(*parser).parseChild
+       228 0.027% 88.73%      19890  2.31%  github.com/cocokoishi/gotavern/internal/startup.DirectoriesForUser
+         0     0% 88.73%      26770  3.11%  bytes.(*Buffer).Write
+         0     0% 88.73%       8192  0.95%  bytes.(*Buffer).WriteByte
+         0     0% 88.73%      10923  1.27%  context.WithCancelCause
+         0     0% 88.73%      10923  1.27%  context.withCancel (inline)
+         0     0% 88.73%      24576  2.86%  encoding/json.(*Encoder).Encode
+         0     0% 88.73%      18725  2.18%  encoding/json.(*Encoder).SetEscapeHTML
+         0     0% 88.73%      31522  3.66%  github.com/cocokoishi/gotavern/internal/outbound.SendStreaming

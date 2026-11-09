@@ -1,0 +1,43 @@
+﻿File: server.test.exe
+Build ID: C:\Users\koishi\AppData\Local\Temp\go-build3529737322\b001\server.test.exe2026-11-08 17:47:25.4144456 -0800 PST
+Type: alloc_objects
+Time: 2026-11-08 17:50:18 PST
+Showing nodes accounting for 11096238, 94.74% of 11712269 total
+Dropped 123 nodes (cum <= 58561)
+Showing top 35 nodes out of 93
+      flat  flat%   sum%        cum   cum%
+   2621552 22.38% 22.38%    4320048 36.88%  strconv.syntaxError (inline)
+   1698496 14.50% 36.88%    1698496 14.50%  internal/stringslite.Clone (inline)
+   1474579 12.59% 49.47%    2879480 24.59%  encoding/json.(*Decoder).Token
+   1044657  8.92% 58.39%    3924137 33.50%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+   1021347  8.72% 67.11%    1021347  8.72%  encoding/json/jsontext.Token.String (inline)
+    262147  2.24% 69.35%     517553  4.42%  github.com/cocokoishi/gotavern/internal/server.readFromV2
+    257457  2.20% 71.55%    4883356 41.69%  github.com/cocokoishi/gotavern/internal/server.orderedNodeJSON.entries
+    248538  2.12% 73.67%     248538  2.12%  syscall.UTF16FromString
+    199174  1.70% 75.37%     199174  1.70%  io.ReadAll
+    188655  1.61% 76.98%     188655  1.61%  strings.(*Builder).WriteByte (inline)
+    175863  1.50% 78.49%     175863  1.50%  strings.(*Builder).WriteString (inline)
+    163846  1.40% 79.88%     305851  2.61%  internal/reflectlite.Swapper
+    155850  1.33% 81.22%     155850  1.33%  github.com/cocokoishi/gotavern/internal/server.extractPngChunks
+    154178  1.32% 82.53%     186946  1.60%  encoding/json/jsontext.(*decoderState).fetch
+    142005  1.21% 83.74%     142005  1.21%  internal/reflectlite.unsafe_New
+    135764  1.16% 84.90%     135764  1.16%  encoding/json/v2.JoinOptions (inline)
+    131072  1.12% 86.02%     131072  1.12%  github.com/cocokoishi/gotavern/internal/server.nodeString (inline)
+    112664  0.96% 86.98%     112664  0.96%  github.com/cocokoishi/gotavern/internal/server.(*orderedNodeJSON).setMember (inline)
+    107426  0.92% 87.90%     249447  2.13%  syscall.FullPath
+     98305  0.84% 88.74%      98305  0.84%  time.Time.Format
+     98304  0.84% 89.58%      98304  0.84%  encoding/json/jsontext.(*stateMachine).pushObject (inline)
+     87384  0.75% 90.33%     260705  2.23%  github.com/cocokoishi/gotavern/internal/server.marshalNodeJSON
+     77553  0.66% 90.99%      77553  0.66%  runtime/pprof.allFrames
+     76462  0.65% 91.64%     133822  1.14%  encoding/json.NewDecoder
+     65543  0.56% 92.20%      65543  0.56%  syscall.UTF16ToString
+     65538  0.56% 92.76%      65587  0.56%  bytes.(*Buffer).grow
+     65536  0.56% 93.32%      65536  0.56%  encoding/json/jsontext.(*objectNameStack).push (inline)
+     54613  0.47% 93.79%      76458  0.65%  github.com/cocokoishi/gotavern/internal/server.marshalECMAScriptNumber
+     49153  0.42% 94.21%     147458  1.26%  github.com/cocokoishi/gotavern/internal/server.humanizedDateTime
+     42835  0.37% 94.57%    6032922 51.51%  github.com/cocokoishi/gotavern/internal/server.processCharacterForDirEntry
+     19739  0.17% 94.74%     155310  1.33%  github.com/cocokoishi/gotavern/internal/server.storeCharacterCardTextCache
+         3 2.6e-05% 94.74%   11291386 96.41%  github.com/cocokoishi/gotavern/internal/server.(*accountRuntime).serveCharactersAll
+         0     0% 94.74%      65538  0.56%  bytes.(*Buffer).Write
+         0     0% 94.74%      65646  0.56%  encoding/json.(*Encoder).Encode
+         0     0% 94.74%     107675  0.92%  encoding/json.(*Encoder).SetEscapeHTML

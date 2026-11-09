@@ -1,0 +1,33 @@
+﻿File: a19profile-beforec2.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile-beforec2.exe2026-11-08 21:40:15.2490551 -0800 PST
+Type: cpu
+Time: 2026-11-08 21:40:27 PST
+Duration: 1.17s, Total samples = 1.25s (107.12%)
+Showing nodes accounting for 0.98s, 78.40% of 1.25s total
+Showing top 25 nodes out of 334
+      flat  flat%   sum%        cum   cum%
+     0.50s 40.00% 40.00%      0.51s 40.80%  runtime.cgocall
+     0.17s 13.60% 53.60%      0.17s 13.60%  runtime.osyield.func1
+     0.04s  3.20% 56.80%      0.06s  4.80%  runtime.netpoll
+     0.03s  2.40% 59.20%      0.03s  2.40%  runtime.preemptM
+     0.02s  1.60% 60.80%      0.06s  4.80%  gopkg.in/yaml%2ev3.yaml_parser_scan_plain_scalar
+     0.02s  1.60% 62.40%      0.09s  7.20%  runtime.mallocgc
+     0.02s  1.60% 64.00%      0.02s  1.60%  runtime.netpollQueueTimer
+     0.01s   0.8% 64.80%      0.01s   0.8%  bytes.TrimLeft
+     0.01s   0.8% 65.60%      0.01s   0.8%  context.parentCancelCtx
+     0.01s   0.8% 66.40%      0.01s   0.8%  encoding/json/internal/jsonwire.ConsumeStringResumable
+     0.01s   0.8% 67.20%      0.05s  4.00%  gopkg.in/yaml%2ev3.(*decoder).mapping
+     0.01s   0.8% 68.00%      0.01s   0.8%  gopkg.in/yaml%2ev3.(*decoder).scalar
+     0.01s   0.8% 68.80%      0.12s  9.60%  gopkg.in/yaml%2ev3.peek_token
+     0.01s   0.8% 69.60%      0.02s  1.60%  gopkg.in/yaml%2ev3.read
+     0.01s   0.8% 70.40%      0.02s  1.60%  gopkg.in/yaml%2ev3.read_line
+     0.01s   0.8% 71.20%      0.01s   0.8%  gopkg.in/yaml%2ev3.yaml_event_delete
+     0.01s   0.8% 72.00%      0.11s  8.80%  gopkg.in/yaml%2ev3.yaml_parser_fetch_more_tokens
+     0.01s   0.8% 72.80%      0.01s   0.8%  gopkg.in/yaml%2ev3.yaml_parser_parse_node
+     0.01s   0.8% 73.60%      0.01s   0.8%  gopkg.in/yaml%2ev3.yaml_parser_scan_to_next_token
+     0.01s   0.8% 74.40%      0.01s   0.8%  internal/poll.canSkipCompletionPortOnSuccess
+     0.01s   0.8% 75.20%      0.01s   0.8%  internal/runtime/atomic.(*Uint32).CompareAndSwap
+     0.01s   0.8% 76.00%      0.01s   0.8%  internal/runtime/atomic.(*Uint8).Store
+     0.01s   0.8% 76.80%      0.01s   0.8%  internal/runtime/atomic.(*UnsafePointer).StoreNoWB (inline)
+     0.01s   0.8% 77.60%      0.01s   0.8%  internal/runtime/maps.(*Map).directoryAt
+     0.01s   0.8% 78.40%      0.01s   0.8%  internal/runtime/maps.memHashAES
