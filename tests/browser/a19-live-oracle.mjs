@@ -297,6 +297,18 @@ async function runLeg({ subject, phase, tree, corpusCensus, persistenceBaseline,
     // The persistence layer's DIFF against the immutable corpus census: created/modified/deleted, named.
     if (leg.layers.persistence?.tree) {
         leg.persistenceDiff = censusDiff(persistenceBaseline ?? corpusCensus, leg.layers.persistence.tree);
+        // THE PRODUCT-SURFACE JSON TEXT, enriched by the driver because the journey probe records only the tree
+        // census. The comparator applies its NAMED projections (per-leg peer endpoint, random ids, timings,
+        // image-metadata addedTimestamp) to these documents; without the text it would fall back to raw digests
+        // that differ for harness reasons.
+        const jsonFiles = [];
+        for (const relative of ['default-user/settings.json', 'default-user/image-metadata.json']) {
+            try {
+                const text = await fs.readFile(path.join(tree, relative), 'utf8');
+                if (text.length <= 4 * 1024 * 1024) jsonFiles.push({ path: relative, text });
+            } catch { /* absent is reported by the guards */ }
+        }
+        if (leg.layers.persistence) leg.layers.persistence.jsonFiles = jsonFiles;
     }
     leg.pinnedCommit = subject === 'pinned' ? pinnedCommitHash : null;
     leg.finishedAt = new Date().toISOString();
