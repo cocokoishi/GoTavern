@@ -67,7 +67,36 @@ with the same default settings, so changing it would change bytes on the wire ra
 | the 39-minute full-suite hang: the test provider answered without reading the POST body → RST discarded unread response bytes → a *legitimate* truncation → the client waited for EOF (pinned-parity stall) | **TEST defect presenting as a product hang** | bounded read + peer body drain; 80/80 bounded repetitions pass where 3/6 batches hung before, commit `28831ed`, findings in `../findings/a19-textgen-stream-stall.md` |
 | C1 changed `entries()` from a defensive copy to a read-only view; the image-metadata cleanup loop deleted members while ranging over it | **PRODUCT regression caught by the full suite** | pinned differential `TestPinnedNodeImageMetadataCleanup` red on C1 only (bisect PASS/FAIL/PASS/FAIL); one-line snapshot + read-only contract + 13-call-site audit; teeth shown, commit `27f504e` |
 
-## 4. ABBA rows (process-level latency + RSS) — **NOT YET MEASURED**
+## 4. ABBA rows (process-level latency + RSS) — measured in one quiet window
+
+Same-host, same generated 10,000-card tree, order-alternated (A,B / B,A / A,B), three rounds per subject; the
+same-binary self-test ran FIRST and came out all-not-separable (`raw/abba-self-test-quiet.json`), which is the
+gate that licenses reading the A/B rows. Subjects: `base` = clean tree at `52883e8`
+(`gotavern-52883e8.exe`, sha256 `261d42e7…`), `cand` = current HEAD (`gotavern-quiet.exe`, sha256 `BF7F7FD6…`).
+Artifact: `raw/abba-cumulative.json` (per-metric series, spreads, effect sizes, effect floors).
+Lower is better; the effect floor is 5% for latency, 15% ready RSS, 25% peak RSS.
+
+| metric | base median | cand median | effect | verdict |
+|---|---:|---:|---:|---|
+| warm data-request p50 (`/api/characters/all`, 10k cards) | 1,692.26 ms | **1,139.65 ms** | **−32.7%** | candidate-better (series 1562/1692/1714 vs 1118/1140/1150 — every candidate round faster) |
+| warm data-request max | 1,823.26 ms | **1,223.44 ms** | **−32.9%** | candidate-better |
+| cold PEAK RSS (procstat, 10k tree) | 628.07 MB | **361.89 MB** | **−42.4%** | candidate-better (every candidate round below every baseline round; spreads 10.1% / 5.4%) |
+| cold boot (spawn → first `/version` 200) | 542.2 ms | 543.1 ms | +0.2% | not separable (candidate had one 932 ms outlier round; spread 73.8% → the gate refuses) |
+| warm boot | 160.2 ms | 170.1 ms | +6.2% | not separable (spreads 12.9% / 13.8%) |
+| cold first data request | 5,661.0 ms | 5,254.3 ms | −7.2% | not separable (candidate spread 14.7%) |
+| RSS at cold readiness | 32.19 MB | 40.62 MB | +26.2% | not separable (candidate spread 47.4%) |
+| RSS at warm readiness | 28.24 MB | 26.80 MB | −5.1% | not separable (below the 15% floor) |
+
+**What this changes:** the warm-request latency claim is now process-level-paired (~−33% p50 on the 10k arm), and
+the C1+C4 "peak-RSS half" that was labelled UNPROVEN now has a paired observation: **−42.4% cold peak RSS**
+(628 MB → 362 MB). The claim is Layer A on a quiet 2-core host, in one window, with the self-test gate in front of
+it; it is still not the release gate. Peak RSS is no longer "unproven" for this arm, but it stays labelled Layer A
+and the report must quote the artifact rather than the summary. Startup/RSS-at-readiness rows did NOT separate and
+must not be quoted as either improved or regressed.
+
+**Still NOT measured at this commit:** Node control (pinned vs Go on one box), 8-user concurrency, long-run soak.
+Those need their own window/dispatch; `raw/` will gain `node-control.json`, `eight-users.json`,
+`soak-*.json` only if they actually run, and the release notes must say which did.
 
 `tools/perf/a19-abba.mjs` is written and its same-binary self-test is the first step (identical subjects must come
 out "not separable", otherwise the harness is reported as broken). Both need a quiet window: the host is shared
@@ -100,7 +129,7 @@ control rows belong in a `vs-node.md` with per-route p50/p95, not in this file.
 2. Cold and warm are separate rows. CPU and memory are separate rows. **Never report B/op as Peak RSS.**
 3. A regression is listed even when the cumulative number improved.
 4. Local numbers are Layer A; the release claim cites the Linux `GoTavern smoke metrics` paired gate.
-5. `unproven` stays `unproven`: peak RSS, p99 under the real UI corpus, Node control, real-provider latency.
+5. `unproven` stays `unproven`. Peak RSS now has ONE quiet-window paired row (10,000-card cumulative arm, §4) and is still Layer A; p99 over the real UI corpus, the Node control and real-provider latency have not been measured and must not be implied.
 
 ## 8. 8-user concurrency + long-run trend — harness reuse plan (prepared, NOT run)
 
