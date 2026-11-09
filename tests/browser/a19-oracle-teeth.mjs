@@ -175,7 +175,32 @@ record('http-live-egress-etag-differs-survives', ['http-bodies-equal'], dir => {
     }
     writeLeg(dir, 'a19-drive-pinned.json', leg);
 }, { survivor: true });
-record('http-tokenizer-exactness-headers-survives', ['http-bodies-equal'], dir => {
+record('http-tokenizer-scheduling-survives', ['http-bodies-equal'], dir => {
+    // A tokenizer count request present on only one leg is load-timing (which messages each pass held); the shared
+    // identities' counts are still compared by the tokenizer-count-body tooth.
+    const leg = readLeg(dir, 'a19-drive-pinned.json');
+    leg.layers.http.requests = (leg.layers.http.requests ?? []).filter(request => !(String(request.path) === '/api/tokenizers/openai/count' && String(request.query ?? '').includes('model=')));
+    writeLeg(dir, 'a19-drive-pinned.json', leg);
+}, { survivor: true });
+record('http-char-list-chat-size-survives', ['http-bodies-equal'], dir => {
+    // chat_size is derived from the chat JSONL, whose wall-clock members have variable digit counts; the chat
+    // semantics are compared separately, so a size-only change survives.
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const entry = (leg.layers.http.requests ?? []).find(request => request.path === '/api/characters/all' && typeof request.responseBodyText === 'string');
+    if (entry) {
+        const body = JSON.parse(entry.responseBodyText);
+        body[0].chat_size = (body[0].chat_size ?? 0) + 2;
+        entry.responseBodyText = JSON.stringify(body);
+        entry.responseBodySha256 = 'e'.repeat(64);
+    }
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+}, { survivor: true });
+record('persistence-chat-text-changed', ['persistence-chat-semantics-equal'], dir => {
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const chat = (leg.layers.persistence.chatMessages ?? [])[0];
+    if (chat && chat.messages && chat.messages.length > 0) chat.messages[0].mesSha256Stripped = 'f'.repeat(64);
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});record('http-tokenizer-exactness-headers-survives', ['http-bodies-equal'], dir => {
     // The two RECORDED GoTavern-only headers may differ when pinned lacks them (the decision removes only those).
     const leg = readLeg(dir, 'a19-drive-gotavern.json');
     const entry = (leg.layers.http.requests ?? []).find(request => request.path === '/api/tokenizers/openai/count');

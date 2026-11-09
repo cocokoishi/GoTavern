@@ -153,16 +153,26 @@ function startHttpCapture(page) {
         };
         const contentType = String(record.contentType ?? '');
         const collect = (async () => {
+            // A BODY READ CAN THROW TRANSIENTLY (a response racing a navigation, or a cached response whose body is
+            // being replaced). One retry after the response FINISHES distinguishes that from a real absence; a body
+            // that still cannot be read stays null (absence is recorded), never a guessed value.
+            const readBody = async () => {
+                try { return await response.text(); } catch (error) {
+                    try { await response.finished(); } catch { /* navigation already gone */ }
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                    return await response.text();
+                }
+            };
             try {
                 if (contentType.includes('text/event-stream')) {
-                    const text = await response.text();
+                    const text = await readBody();
                     const frameBytes = text.split(/\r\n\r\n|\n\n/).filter(frame => frame.startsWith('data:')).map(frame => Buffer.byteLength(`${frame}\n\n`));
                     record.responseBodyText = text.length <= 4 * 1024 * 1024 ? text : null;
                     record.responseBodySha256 = sha256(Buffer.from(text, 'utf8'));
                     record.responseBodyLength = Buffer.byteLength(text);
                     record.sseFrameBytes = frameBytes;
                 } else if (origin === 'subject') {
-                    const text = await response.text();
+                    const text = await readBody();
                     record.responseBodyText = text.length <= 4 * 1024 * 1024 ? text : null;
                     record.responseBodySha256 = sha256(Buffer.from(text, 'utf8'));
                     record.responseBodyLength = Buffer.byteLength(text);

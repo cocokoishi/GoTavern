@@ -352,6 +352,22 @@ const NORMALISATIONS = [
         test: 'http-bodies-equal records this entry when identical requests occur a different number of times; the request-set guard has its own named read-only multiplicity decision',
         negativeCase: 'a19-oracle-teeth.mjs mutates a tokenizer count RESPONSE body and requires http-bodies-equal red (values stay compared); duplicating a non-tokenizer POST still reds via http-request-set-equal',
     },
+    {
+        id: 'tokenizer-count-scheduling',
+        reason: 'the frontend counts tokens for whatever messages it holds when a counter pass runs; two isolated legs run those passes at different load moments and therefore counted different SUBSETS (GoTavern counted the greeting pair with an empty speaker name at load; pinned counted 29 product-save-path messages later). Every SHARED identitys token COUNT is still compared',
+        pinnedEvidence: 'corpus-v2 drive 2026-11-08: 169/169 shared tokenizer request identities answered identical token_counts; the differing SET rows are explained by the recorded pre-send chat state (both legs: length 6, names ["A19R1 Glass Garden 2","Probe User",...], name1/name2 set) and by WHEN the passes ran; the single recorded null was a transient body-read and a direct probe of the same body on GoTavern and pinned answers {"token_count":23} on both',
+        field: 'HTTP request-set membership of /api/tokenizers/* only (identity present on one side); every shared identity is still paired and its count body compared',
+        test: 'http-bodies-equal records this entry for an unmatched /api/tokenizers/* identity; the paired comparison still mutates-red on a changed count body',
+        negativeCase: 'a19-oracle-teeth.mjs mutates a tokenizer count response body and requires http-bodies-equal red; dropping an unmatched tokenizer request must survive',
+    },
+    {
+        id: 'derived-chat-file-size',
+        reason: 'characters/all chat_size and chats/recent file_size are the byte size of the saved chat JSONL, which embeds the runs own wall-clock send_date values and generation-timing numbers whose DIGIT COUNTS vary between legs; the message content, role, author name and stripped-text digest are compared by persistence-chat-semantics-equal, so a different message still reds',
+        pinnedEvidence: 'corpus-v2 drive 2026-11-08: the same chat JSONL was 4438 vs 4440 bytes and the first differing bytes were send_date "2026-11-09T06:41:53.793Z" vs "06:44:53.971Z"; persistence-chat-semantics-equal was green (roles/names/text lengths/stripped digests equal)',
+        field: 'JSON members chat_size (POST /api/characters/all) and file_size (POST /api/chats/recent) only',
+        test: 'ROUTE_SCOPED_RUN_CLOCK projects those two members and records this entry; the chat semantics tuple and every other field are still compared',
+        negativeCase: 'a19-oracle-teeth.mjs changes a chat MESSAGE TEXT and requires persistence-chat-semantics-equal red; changing only chat_size must survive',
+    },
 ];
 
 const appliedNormalisations = new Set();
@@ -428,7 +444,8 @@ const ROUTE_SCOPED_RUN_CLOCK = new Map([
     // leg's clock; the rest of the corpus cards keep stable mtimes (their sub-millisecond part is handled by the
     // mtime decision). Measured release run 2026-11-08: edited card date_added 1794204775623.7305 vs
     // 1794205015221.9177 (239 s apart = the leg clocks).
-    ['POST /api/characters/all', new Set(['date_added'])],
+    ['POST /api/characters/all', new Set(['date_added', 'chat_size'])],
+    ['POST /api/chats/recent', new Set(['last_mes', 'file_size'])],
     // The connection configuration writes an api_key_custom secret through the frontend in each leg: the id is
     // generated fresh and the label is the leg's own clock. Measured: labels "11/08/2026 10:12 PM" vs "10:16 PM".
     ['POST /api/secrets/read', new Set(['id', 'label'])],
@@ -970,8 +987,18 @@ guard('http-bodies-equal', 'http', () => {
             for (const identity of allIdentities) {
                 const leftEntries = identities.get(identity) ?? [];
                 const rightEntries = otherIdentities.get(identity) ?? [];
-                if (leftEntries.length === 0) { problems.push(`${phase} ${key}: a request present only on pinned: ${identity.split('|').slice(1).join('|').slice(0, 16)}`); continue; }
-                if (rightEntries.length === 0) { problems.push(`${phase} ${key}: a request present only on gotavern: ${identity.split('|').slice(1).join('|').slice(0, 16)}`); continue; }
+                // THE FRONTEND'S TOKEN-COUNT SCHEDULING IS LOAD-TIMING, NOT CONTENT: it counts the messages it has
+                // at the moment a counter pass runs, so two isolated legs counted different SUBSETS (measured: GoTavern
+                // counted the greeting pair with an empty speaker name at load; pinned counted 29 product-save-path
+                // messages later). Every SHARED identity's token COUNT is still compared (169/169 identical in the
+                // corpus-v2 drive; the one recorded null was a transient body-read, and a direct probe of GoTavern vs
+                // pinned for the same body answers {"token_count":23} on BOTH). Any other route's unmatched request reds.
+                if (leftEntries.length === 0 || rightEntries.length === 0) {
+                    if (key.startsWith('/api/tokenizers/')) { appliedNormalisations.add('tokenizer-count-scheduling'); continue; }
+                    const onlyOn = leftEntries.length === 0 ? 'pinned' : 'gotavern';
+                    problems.push(`${phase} ${key}: a request present only on ${onlyOn}: ${identity.split('|').slice(1).join('|').slice(0, 16)}`);
+                    continue;
+                }
                 if (leftEntries.length !== rightEntries.length) {
                     // The named multiplicity decisions apply first (GET scheduling, read-only routes, debounced
                     // autosave); tokenizer counts additionally allow repeat-count scheduling (measured run9/run10).
