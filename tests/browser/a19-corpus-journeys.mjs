@@ -1137,7 +1137,7 @@ async function reloadAndReopen(page, cardName, chatFile) {
 // GROUPS
 // -----------------------------------------------------------------------------------------------------------------
 
-async function createGroupThroughPanel(page, { name, memberNames, activationStrategy, generationMode }) {
+export async function createGroupThroughPanel(page, { name, memberNames, activationStrategy, generationMode }) {
     return page.evaluate(async inputs => {
         const normalise = value => String(value ?? '').replace(/\s+/g, ' ').trim();
         // DETERMINISTIC OPEN: one click on the Group Chats control, then wait for the create dialog's member
@@ -1215,48 +1215,89 @@ async function createGroupThroughPanel(page, { name, memberNames, activationStra
             }
         };
         await raisePageSize();
-        await setFilter('');
-        const availableNames = pageNames();
-        const waitForRow = async (member, timeoutMs) => {
-            const wanted = normalise(member);
+        // THE RACE IS REMOVED STRUCTURALLY: after the size change, WAIT for the UNFILTERED candidate page to
+        // be non-empty before touching the filter. Iterating filter timing was the previous red: the filter
+        // debounce fired against the re-render and the first member missed.
+        const waitForUnfilteredRows = async (timeoutMs, minimum = 1) => {
             const deadline = Date.now() + timeoutMs;
             while (Date.now() < deadline) {
-                const block = memberBlocks().find(element => normalise(element.querySelector('.ch_name')?.textContent ?? element.textContent) === wanted);
+                if (memberBlocks().length >= minimum) return true;
+                await sleep(150);
+            }
+            return memberBlocks().length >= minimum;
+        };
+        // Normal path: with pageSize 1000 EVERY candidate is visible, so a member is matched DIRECTLY against
+        // the unfiltered rows (normalised exact name, then substring). The filter is a FALLBACK only.
+        const findVisibleBlock = member => {
+            const wanted = normalise(member);
+            const rows = memberBlocks();
+            const named = row => normalise(row.querySelector('.ch_name')?.textContent ?? row.textContent);
+            return rows.find(row => named(row) === wanted) ?? rows.find(row => named(row).includes(wanted)) ?? null;
+        };
+        const membersPanelCount = () => document.querySelectorAll('.rm_group_members .group_member').length;
+        const clickAdd = block => {
+            // THE ADD ACTION IS THE BLOCK'S ACTION BUTTON ("data-action=add"), NOT THE BLOCK ITSELF:
+            // the document-delegated `onGroupActionClick` handler is what pushes into newGroupMembers.
+            const action = block.querySelector('.right_menu_button[data-action="add"]') ?? block.querySelector('.right_menu_button');
+            if (action) action.click();
+            else block.click();
+        };
+        const setFilterAndSettle = async value => {
+            await setFilter(value);
+            await sleep(450);
+        };
+        const waitForRow = async (member, timeoutMs) => {
+            const deadline = Date.now() + timeoutMs;
+            while (Date.now() < deadline) {
+                const block = findVisibleBlock(member);
                 if (block) return block;
                 await sleep(150);
             }
             return null;
         };
+        await waitForUnfilteredRows(5000, 1);
+        const availableNames = pageNames();
         const added = [];
         const misses = [];
         for (const member of inputs.memberNames) {
-            await setFilter(member);
-            let block = await waitForRow(member, 5000);
+            // 1) DIRECT match on the unfiltered page (page size is 1000).
+            let block = findVisibleBlock(member);
+            let viaFilter = false;
+            // 2) FALLBACK ONLY: clear -> set -> poll -> match, bounded retries with a settle between renders.
             if (!block) {
-                // ONE bounded second chance: the size changer may only take effect on the next render.
-                await raisePageSize();
-                await setFilter(member);
-                block = await waitForRow(member, 5000);
+                for (let attempt = 0; attempt < 3 && !block; attempt += 1) {
+                    await setFilterAndSettle('');
+                    await waitForUnfilteredRows(3000, 1);
+                    await setFilterAndSettle(member);
+                    block = await waitForRow(member, 2500);
+                }
+                await setFilterAndSettle('');
+                await waitForUnfilteredRows(3000, 1);
+                viaFilter = Boolean(block);
             }
             if (block) {
-                // THE ADD ACTION IS THE BLOCK'S ACTION BUTTON ("data-action=add"), NOT THE BLOCK ITSELF:
-                // the document-delegated `onGroupActionClick` handler is what pushes into newGroupMembers.
-                const action = block.querySelector('.right_menu_button[data-action="add"]') ?? block.querySelector('.right_menu_button');
-                if (action) action.click();
-                else block.click();
-                added.push(member);
-                await sleep(400);
+                const beforeMembers = membersPanelCount();
+                clickAdd(block);
+                // VERIFY THE ADD LANDED: the row leaves the candidate page and/or the members panel grows.
+                const verifyDeadline = Date.now() + 3000;
+                let verified = false;
+                while (Date.now() < verifyDeadline) {
+                    const stillVisible = Boolean(findVisibleBlock(member));
+                    if (!stillVisible || membersPanelCount() > beforeMembers) { verified = true; break; }
+                    await sleep(150);
+                }
+                added.push({ member, verified, viaFilter });
+                await sleep(250);
             } else {
-                misses.push({ member, pageNames: pageNames() });
+                misses.push({ member, pageNames: pageNames(), pageSize: paginationUsed });
             }
-            await setFilter('');
-            await sleep(150);
         }
         // THE GUARD: NEVER SUBMIT A DIALOG THAT DID NOT ACCEPT EVERY REQUESTED MEMBER. A zero-member group was
         // submitted in CI because the add buttons were clicked but the dialog had no rows for those names;
         // the target counter then counted a group nobody could chat in.
-        if (added.length !== inputs.memberNames.length) {
-            return { ok: false, reason: 'the create-group dialog did not list every requested member', added, requested: inputs.memberNames, availableNames: pageNames(), misses, paginationUsed, pageNamesAtFailure: pageNames() };
+        const verifiedAll = added.length === inputs.memberNames.length && added.every(entry => entry.verified === true);
+        if (!verifiedAll) {
+            return { ok: false, reason: 'the create-group dialog did not accept every requested member (or the add could not be verified)', added, addedNames: added.map(entry => entry.member), requested: inputs.memberNames, availableNames: pageNames(), misses, paginationUsed, pageNamesAtFailure: pageNames() };
         }
         const setValue = (selector, value, events = ['input', 'change']) => {
             const field = document.querySelector(selector);
