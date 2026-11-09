@@ -85,7 +85,9 @@ release-admissible oracle run and its artifact paths are recorded in `docs/alpha
   ran; p99 on the real-UI corpus is not measured. Local ABBA numbers are Layer A; the release claim is the Linux
   `GoTavern smoke metrics` gate.
 - **Platforms.** `-race` is unavailable on the Windows development host (the Linux CI `race` job is the
-  concurrency gate); darwin/arm64 runtime remains the previously recorded downgrade, not a pass.
+  concurrency gate). **darwin/arm64 runtime execution is not qualified** — the archive is built and
+  archive-inspected by the release workflow but NOT EXECUTED, so the platform limitation is recorded rather than
+  waived and the previously recorded downgrade stands (it is not a pass). **windows/arm64 is build-only.**
 
 ## Artifacts
 
