@@ -258,6 +258,7 @@ jobs:
       - name: Run the five-layer live oracle (both subjects, restart, hand-back)
         env:
           GOTAVERN_BINARY: ${{ github.workspace }}/.browser-bin/gotavern
+          GOTAVERN_REFERENCE: ${{ github.workspace }}/.reference/SillyTavern
           PINNED_READY_MS: '300000'
         run: |
           set -euo pipefail
@@ -269,6 +270,7 @@ jobs:
             --out "$RUNNER_TEMP/a19-evidence" \
             --head-sha "$GITHUB_SHA" \
             --mode all \
+            --corpus-origin ui \
             --run-label release-admissible \
             2>&1 | tee "$RUNNER_TEMP/a19-evidence/live-oracle.log"
 
