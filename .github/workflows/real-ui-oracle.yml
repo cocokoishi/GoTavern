@@ -161,10 +161,11 @@ jobs:
       # data root, so generation spans several independent server lifetimes and the persisted chats prove it):
       #   round1  bulk imports through the real import controls + the hand-created subset
       #   topup   bulk top-up of the resources the matrix needs
-      #   use     the use/edit/swipe/regenerate/continue/delete verbs against existing chats
-      #   restart a fresh process that resumes the tree the previous phases wrote
+      # The explicit `--use`/`--restart` short phases are NOT run here: restart persistence is exercised by the
+      # oracle's own restart + hand-back legs on this corpus, and the corpus already spans multiple fresh pinned
+      # processes. The verb matrix is exercised by the gapfill phase below.
       # Readiness is 300 s because pinned compiles its frontend on first boot (measured: 90 s is not enough).
-      - name: Build the real-UI corpus (four phases, fresh pinned process over one data root)
+      - name: Build the real-UI corpus (round1 + resource top-up, fresh pinned process over one data root)
         env:
           A19_DATA_ROOT: ${{ env.A19_SCRATCH }}/corpus
           A19_SCRATCH: ${{ env.A19_SCRATCH }}
@@ -181,10 +182,36 @@ jobs:
               2>&1 | tee "$A19_SCRATCH/rounds/${label}.log"
             echo "::endgroup::"
           }
-          run_phase round1  --round 1
-          run_phase topup   --round 0 --topup
-          run_phase use     --round 0 --use
-          run_phase restart --round 0 --restart
+          run_phase round1 --round 1
+          run_phase topup  --round 0 --topup
+
+      # THE PINNED EXTENSION, installed the way the product installs it: a checkout at the pinned commit, with the
+      # origin frozen to a local mirror so a later update check cannot move the corpus under the oracle. CI has no
+      # private seed, so the installer fetches the pinned commit itself.
+      - name: Install the pinned Tavern Helper extension (fixed commit, no auto-update)
+        env:
+          A19_DATA_ROOT: ${{ env.A19_SCRATCH }}/corpus
+        run: |
+          set -euo pipefail
+          node tests/browser/install-pinned-extension.mjs \
+            --extension tavern-helper \
+            --data-root "$A19_DATA_ROOT" \
+            2>&1 | tee "$A19_SCRATCH/rounds/extension-install.log"
+
+      # THE VERB MATRIX + the extension's own API round-trip: swipe, regenerate, continue, edit, delete, reopen on
+      # existing chats, and one chat variable set/read through globalThis.TavernHelper.
+      - name: Exercise the corpus verb matrix and the extension API
+        env:
+          A19_DATA_ROOT: ${{ env.A19_SCRATCH }}/corpus
+          PINNED_READY_MS: '300000'
+        run: |
+          set -euo pipefail
+          mkdir -p "$A19_SCRATCH/round11"
+          node tests/browser/run-against-pinned.mjs a19-corpus-gapfill.mjs \
+            --data-root "$A19_DATA_ROOT" -- \
+            --report "$A19_SCRATCH/round11/gapfill.json" \
+            --actions "$A19_SCRATCH/round11/actions-gapfill.jsonl" \
+            2>&1 | tee "$A19_SCRATCH/round11/gapfill.log"
 
       # THE MESSAGE MINIMUM. The proven UI-turn path runs first; if it cannot reach the target inside the budget, the
       # run appends the remainder through the product's own save path and RECORDS the split in its report and in the
