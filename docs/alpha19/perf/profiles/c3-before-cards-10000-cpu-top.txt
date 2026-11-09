@@ -1,0 +1,31 @@
+﻿File: a19profile-beforec3.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile-beforec3.exe2026-11-08 20:42:34.0482691 -0800 PST
+Type: cpu
+Time: 2026-11-08 20:46:44 PST
+Duration: 4.88s, Total samples = 5.24s (107.43%)
+Active filters:
+   focus=serveCharactersAll
+Showing nodes accounting for 3.35s, 63.93% of 5.24s total
+Dropped 144 nodes (cum <= 0.03s)
+Showing top 20 nodes out of 140
+      flat  flat%   sum%        cum   cum%
+     1.34s 25.57% 25.57%      1.34s 25.57%  runtime.cgocall
+     0.56s 10.69% 36.26%      0.63s 12.02%  github.com/cocokoishi/gotavern/internal/server.writeCharacterJSONString
+     0.42s  8.02% 44.27%      0.66s 12.60%  compress/flate.(*fastEncL6).encode
+     0.13s  2.48% 46.76%      0.13s  2.48%  encoding/json/internal/jsonwire.ConsumeSimpleString (inline)
+     0.12s  2.29% 49.05%      0.12s  2.29%  compress/flate.loadLE64[go.shape.int32] (inline)
+     0.11s  2.10% 51.15%      0.11s  2.10%  crypto/sha1.sha1block
+     0.09s  1.72% 52.86%      0.09s  1.72%  runtime.memmove
+     0.07s  1.34% 54.20%      0.07s  1.34%  compress/flate.hashLen (inline)
+     0.06s  1.15% 55.34%      0.79s 15.08%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+     0.06s  1.15% 56.49%      0.07s  1.34%  github.com/cocokoishi/gotavern/internal/server.orderedNodeJSON.entries
+     0.06s  1.15% 57.63%      0.06s  1.15%  runtime.nextFreeFast (inline)
+     0.05s  0.95% 58.59%      0.07s  1.34%  encoding/json/internal/jsonwire.ConsumeStringResumable
+     0.04s  0.76% 59.35%      0.04s  0.76%  compress/flate.loadLE64[go.shape.int] (inline)
+     0.04s  0.76% 60.11%      0.05s  0.95%  encoding/json/jsontext.(*decoderState).PeekKind
+     0.04s  0.76% 60.88%      0.12s  2.29%  runtime.convTstring
+     0.04s  0.76% 61.64%      0.04s  0.76%  runtime.memequal
+     0.03s  0.57% 62.21%      0.04s  0.76%  compress/flate.(*huffmanBitWriter).writeTokens
+     0.03s  0.57% 62.79%      0.28s  5.34%  encoding/json/jsontext.(*decoderState).ReadToken
+     0.03s  0.57% 63.36%      0.04s  0.76%  gcWriteBarrier
+     0.03s  0.57% 63.93%      0.03s  0.57%  hash/crc32.ieeeUpdate

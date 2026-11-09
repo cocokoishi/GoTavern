@@ -1,0 +1,31 @@
+﻿File: a19profile-afterc3c.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile-afterc3c.exe2026-11-08 20:55:06.2115385 -0800 PST
+Type: cpu
+Time: 2026-11-08 20:58:38 PST
+Duration: 11.23s, Total samples = 10.88s (96.87%)
+Active filters:
+   focus=serveCharactersAll
+Showing nodes accounting for 6.89s, 63.33% of 10.88s total
+Dropped 139 nodes (cum <= 0.05s)
+Showing top 20 nodes out of 162
+      flat  flat%   sum%        cum   cum%
+     1.61s 14.80% 14.80%      1.61s 14.80%  runtime.asyncPreempt
+     1.08s  9.93% 24.72%      1.58s 14.52%  github.com/cocokoishi/gotavern/internal/server.writeCharacterJSONString
+        1s  9.19% 33.92%      2.07s 19.03%  compress/flate.(*fastEncL6).encode
+     0.58s  5.33% 39.25%      0.58s  5.33%  crypto/sha1.sha1block
+     0.45s  4.14% 43.38%      0.63s  5.79%  encoding/json/internal/jsonwire.ConsumeSimpleString
+     0.27s  2.48% 45.86%      0.34s  3.12%  compress/flate.loadLE64[go.shape.int32] (inline)
+     0.22s  2.02% 47.89%      0.27s  2.48%  runtime.cgocall
+     0.20s  1.84% 49.72%      0.31s  2.85%  compress/flate.hashLen (inline)
+     0.19s  1.75% 51.47%      0.19s  1.75%  runtime.memmove
+     0.15s  1.38% 52.85%      0.18s  1.65%  internal/filepathlite.(*lazybuf).append
+     0.15s  1.38% 54.23%      0.15s  1.38%  runtime.memclrNoHeapPointers
+     0.14s  1.29% 55.51%      0.16s  1.47%  unicode/utf8.DecodeRuneInString (inline)
+     0.13s  1.19% 56.71%      0.24s  2.21%  encoding/json/internal/jsonwire.ConsumeStringResumable
+     0.12s  1.10% 57.81%      2.16s 19.85%  github.com/cocokoishi/gotavern/internal/server.writeCharacterJSON
+     0.12s  1.10% 58.92%      0.12s  1.10%  runtime.markBits.setMarked (inline)
+     0.11s  1.01% 59.93%      0.27s  2.48%  runtime.mallocgcSmallScanNoHeaderSC2
+     0.10s  0.92% 60.85%      0.33s  3.03%  github.com/cocokoishi/gotavern/internal/server.javaScriptStringLength
+     0.09s  0.83% 61.67%      0.10s  0.92%  compress/flate.loadLE64[go.shape.int] (inline)
+     0.09s  0.83% 62.50%      0.15s  1.38%  github.com/cocokoishi/gotavern/internal/server.nodeGet
+     0.09s  0.83% 63.33%      0.09s  0.83%  hash/crc32.ieeeUpdate

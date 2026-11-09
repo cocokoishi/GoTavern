@@ -180,4 +180,49 @@ writer (`writeCharacterJSONString` is unchanged) and by `marshalOrderedNodeJSON`
 the provider-wire replay remain the guard, and the targeted oracle subset was re-run green (55.8 s for the C5 pin
 set + JSON tests).
 
+## C3 — one chats-root listing per `/api/characters/all` request (commit `<filled at commit>`)
+
+**Files:** `internal/server/characters_card.go` (listing + fallbacks), `internal/server/characters_read.go` (one
+listing per request), `internal/server/a19_perf_pins_test.go` (equivalence + root-failure tests).
+**What changed:** pinned's `calculateChatSize` performs `fs.readdirSync(chatsRoot/name)` for EVERY card. The route
+now takes ONE `os.ReadDir(chatsRoot)` and answers a card from it, with these EXACT fallbacks so the classification
+cannot change: an exact name hit that is a directory still goes through the same per-entry stat loop; a symlink or
+non-directory entry falls back to the old `calculateChatSize` (ENOTDIR/ErrNotExist classification preserved); a
+failed root listing falls back per card; a missing root (ENOENT) answers 0,0 for every card whose directory is
+inside the root, because the old per-card call would also have returned ENOENT; and on case-insensitive platforms
+(Windows/macOS) an exact miss consults a case-folded map first, so a differently-cased directory is still resolved
+by the old path rather than reported absent. A name that appears twice under folding falls back. Per-request
+value; never cached.
+
+**Before/after CPU profile** (same 10,000-card tree, same harness; before = worktree at `65834ec`, after = the C3
+tree; both windows are startup + 1 warmup + 3 profiled requests, focus `serveCharactersAll`):
+
+| measurement | BEFORE (`65834ec`) | AFTER (C3) | note |
+|---|---:|---:|---|
+| `calculateChatSize` / `calculateChatSizeForRequest` cumulative CPU | **1.21 s of 5.24 s samples (23.1%)** | **0.08 s of 10.88 s samples (0.74%)** | the request no longer opens 10,000 directories |
+| `os.ReadDir` cumulative CPU | 1.27 s (24.2%) | 0.12 s (1.1%) | the remaining 0.12 s is the one root listing plus the two cards that really have chat directories |
+| `runtime.cgocall` share (filesystem syscalls) | 25.6% | 2.5% (this window) | host load differed between the two runs; the shares above are the claim, not absolute ms |
+
+**First cut rejected (recorded, not hidden):** the first C3 version fell back to the per-card `os.ReadDir` on every
+exact miss to be safe about case-insensitive filesystems. On a library whose chats root is an EMPTY directory every
+card is a miss, so the profile still showed `calculateChatSize` at ~14.5% of the window and the optimization bought
+nothing. The shipped version decides the miss without a syscall (case-folded lookup on case-insensitive platforms,
+containment-checked 0,0 otherwise). Artifacts: `profiles/c3-before-cards-10000-*`,
+`profiles/c3-after-cards-10000-*` (rejected first cut), `profiles/c3-after3-cards-10000-*` (shipped).
+
+**Allocations** (deterministic, same command): 10,000 cards 406,486,229 → **403,148,557 B/op (−0.8%)** and
+1,753,641 → **1,733,652 allocs/op (−1.1%)** (removing 10,000 failing opens removes their `*PathError` allocations);
+1,000 cards 134,470,965 → 134,135,309 B/op; 100 cards 24,181,629 → 24,124,301; cold 10,000 666,431,621 →
+663,713,360. No arm regressed. Response bytes are unchanged by construction and pinned by the equivalence test.
+
+**Equivalence test** `TestA19ChatListingMatchesPerCardReads` builds a tree with: two cards whose chat directories
+contain two JSONL files each (asserts the exact `chat_size` sum and `date_last_chat` maximum), one card whose chats
+entry is a FILE (platform-dependent classification — the test asserts EQUALITY with the per-card path, not a fixed
+count, because Windows maps the failed open to ErrNotExist while Linux answers ENOTDIR), one differently-cased
+directory (Windows resolves it, Linux does not), and six cards with no chat directory. It asserts the route
+response, the listing projection and the per-card projection are byte-identical.
+`TestA19ChatListingFallsBackWhenTheChatsRootCannotBeListed` pins the failed-root branch by making the chats path a
+FILE and asserting the listing reports `ok=false` and the projection equals the per-card path.
+
+
 

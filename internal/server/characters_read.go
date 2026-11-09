@@ -69,6 +69,10 @@ func (runtime *accountRuntime) serveCharactersAll(w http.ResponseWriter, request
 		return
 	}
 	characters := make([]orderedNodeJSON, 0, len(entries))
+	// ONE chats-root listing for the whole response: without it every card pays a failing directory open in
+	// calculateChatSize (10,000 os.ReadDir calls for a 10,000-card library with no chat directories -- 8.29 s of
+	// os.ReadDir in the alpha.19 mixed profile). A per-request value, never cached.
+	chatListing := readChatRootListing(directories["chats"])
 	// The response repeats each card's text as `json_data` and again as the projected fields, so the card text
 	// length is a direct lower bound on that card's contribution. Measured bodies: 10,000 cards / 2 KB text =
 	// 58,887,196 B (2.88x the text), 1,000 cards / 8 KB text = 23,296,711 B (2.84x), 100 cards / 8 KB text =
@@ -81,7 +85,7 @@ func (runtime *accountRuntime) serveCharactersAll(w http.ResponseWriter, request
 		if !strings.HasSuffix(entry.Name(), ".png") {
 			continue
 		}
-		character := processCharacterForDirEntry(entry, directories, lazyLoadCharacters)
+		character := processCharacterForDirEntry(entry, directories, lazyLoadCharacters, chatListing)
 		if jsTruthy(nodeGet(character, "name")) {
 			characters = append(characters, character)
 			cardTextBytes := 0

@@ -1,0 +1,71 @@
+{
+  "label": "c3-before-cards-10000",
+  "mode": "http",
+  "goVersion": "go1.27.3",
+  "goos": "windows",
+  "goarch": "arm64",
+  "gomaxprocs": 2,
+  "dataRoot": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\work-c3-before\\data",
+  "configPath": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\work-c3-before\\config.yaml",
+  "route": "characters",
+  "requests": 3,
+  "warmup": 1,
+  "startupMs": 229.467,
+  "readyMs": 0.634,
+  "startupStageLines": [
+    "gotavern: startup.command-line took 10ms (total 10ms)",
+    "gotavern: startup.data-startup took 197ms (total 206ms)",
+    "gotavern: startup.listeners took 18ms (total 224ms)",
+    "gotavern: startup.routes took 6ms (total 229ms)",
+    "gotavern: startup.ready took 0s (total 229ms)"
+  ],
+  "requestRows": [
+    {
+      "index": 0,
+      "kind": "warmup",
+      "status": 200,
+      "bytes": 58887145,
+      "ms": 5112.409,
+      "route": "/api/characters/all",
+      "inProfileWindow": false
+    },
+    {
+      "index": 0,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 58887145,
+      "ms": 1774.395,
+      "route": "/api/characters/all",
+      "inProfileWindow": true
+    },
+    {
+      "index": 1,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 58887145,
+      "ms": 1495.985,
+      "route": "/api/characters/all",
+      "inProfileWindow": true
+    },
+    {
+      "index": 2,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 58887145,
+      "ms": 1607.355,
+      "route": "/api/characters/all",
+      "inProfileWindow": true
+    }
+  ],
+  "cpuProfile": "c3-before-cards-10000-cpu.pb.gz",
+  "heapProfile": "c3-before-cards-10000-heap.pb.gz",
+  "cpuProfileRateHz": 100,
+  "notes": [
+    "CPU profile rate is Go's default 100 Hz; short windows carry few samples and are reported with their sample counts.",
+    "Heap profile carries alloc_space/alloc_objects (cumulative) and inuse_space/inuse_objects (after a forced GC at capture); the two are never mixed.",
+    "All OCUMULATIVE allocation totals include the startup path and the warmup requests; a warm-window claim is about the SHAPE of the profile, and the per-request allocation numbers come from internal/server/bench_test.go.",
+    "This helper calls internal/app.Start in-process; it is not the packaged binary and does not measure process exec/init cost (tools/perf/a19-boot.mjs does that)."
+  ],
+  "startedAt": "2026-11-09T04:46:39Z",
+  "finishedAt": "2026-11-09T04:46:49Z"
+}

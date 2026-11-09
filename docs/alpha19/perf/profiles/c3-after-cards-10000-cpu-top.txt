@@ -1,0 +1,31 @@
+﻿File: a19profile-afterc3.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile-afterc3.exe2026-11-08 20:44:55.6279416 -0800 PST
+Type: cpu
+Time: 2026-11-08 20:47:59 PST
+Duration: 20.53s, Total samples = 18.86s (91.85%)
+Active filters:
+   focus=serveCharactersAll
+Showing nodes accounting for 12.24s, 64.90% of 18.86s total
+Dropped 224 nodes (cum <= 0.09s)
+Showing top 20 nodes out of 155
+      flat  flat%   sum%        cum   cum%
+     3.25s 17.23% 17.23%      3.25s 17.23%  runtime.asyncPreempt
+     2.75s 14.58% 31.81%      2.80s 14.85%  runtime.cgocall
+     1.21s  6.42% 38.23%      1.99s 10.55%  github.com/cocokoishi/gotavern/internal/server.writeCharacterJSONString
+     0.99s  5.25% 43.48%      2.29s 12.14%  compress/flate.(*fastEncL6).encode
+     0.56s  2.97% 46.45%      0.56s  2.97%  runtime.memmove
+     0.51s  2.70% 49.15%      0.84s  4.45%  encoding/json/internal/jsonwire.ConsumeSimpleString (inline)
+     0.43s  2.28% 51.43%      0.43s  2.28%  crypto/sha1.sha1block
+     0.36s  1.91% 53.34%      0.50s  2.65%  compress/flate.loadLE64[go.shape.int32] (inline)
+     0.25s  1.33% 54.67%      0.37s  1.96%  runtime.mallocgcSmallScanNoHeaderSC2
+     0.23s  1.22% 55.89%      4.07s 21.58%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+     0.21s  1.11% 57.00%      0.21s  1.11%  runtime.memclrNoHeapPointers
+     0.20s  1.06% 58.06%      0.34s  1.80%  encoding/json/internal/jsonwire.ConsumeStringResumable.func1 (inline)
+     0.19s  1.01% 59.07%      0.65s  3.45%  encoding/json/internal/jsonwire.ConsumeStringResumable
+     0.19s  1.01% 60.07%      0.56s  2.97%  github.com/cocokoishi/gotavern/internal/server.javaScriptStringLength
+     0.19s  1.01% 61.08%      0.37s  1.96%  internal/filepathlite.(*lazybuf).append
+     0.18s  0.95% 62.04%      0.30s  1.59%  github.com/cocokoishi/gotavern/internal/server.orderedNodeJSON.member
+     0.15s   0.8% 62.83%      0.21s  1.11%  compress/flate.hashLen (inline)
+     0.15s   0.8% 63.63%      0.31s  1.64%  unicode/utf8.DecodeRuneInString (inline)
+     0.13s  0.69% 64.32%      0.15s   0.8%  compress/flate.loadLE64[go.shape.int] (inline)
+     0.11s  0.58% 64.90%      0.22s  1.17%  github.com/cocokoishi/gotavern/internal/server.orderedNodeJSON.entries
