@@ -789,6 +789,32 @@ function turnTextFor(round, chatIndex, turnIndex) {
  */
 async function runChats(page, ctx, round, plan, cards, presets, presetWireProof) {
     const chats = [];
+    // PRE-CHATS RE-ASSERT. The connection is configured once after readiness, but preset import +
+    // `#update_oai_preset` + saveSettingsNow can trigger the ASYNC settings reload that reverts
+    // `chat_completion_source`; on a slower runner the drift is invisible until every send fails with a
+    // silent exit. Re-assert immediately before the first chat, record a NAMED step with the read-back,
+    // and refuse to run the chat matrix on a mismatch (fail fast, as the matrix would only produce noise).
+    const preChats = await ensureConnection(page, ctx.provider.baseURL, 'a19-live-model', { streaming: ctx.streaming !== false });
+    const preChatsState = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        const openai = await import('./scripts/openai.js');
+        return {
+            mainApi: script.main_api ?? null,
+            source: openai.oai_settings?.chat_completion_source ?? null,
+            customUrl: openai.oai_settings?.custom_url ?? null,
+        };
+    });
+    const expectedURL = String(ctx.provider.baseURL ?? '').replace(/\/+$/, '');
+    const preChatsOk = preChats.ok === true
+        && preChatsState.mainApi === 'openai'
+        && preChatsState.source === 'custom'
+        && String(preChatsState.customUrl ?? '').replace(/\/+$/, '') === expectedURL;
+    await ctx.act({ page: 'AI Response Configuration', control: '#main_api + #chat_completion_source + #custom_api_url_text', field: 'pre-chats connection re-assert', action: 're-apply and read back the recorder connection immediately before the chat matrix', result: { ok: preChatsOk, state: preChatsState, expectedBaseURL: ctx.provider.baseURL, attempts: preChats.attempts ?? null } });
+    ctx.report.step(`provider-still-connected-before-chats-r${round}`, preChatsOk, { state: preChatsState, expectedBaseURL: ctx.provider.baseURL });
+    if (!preChatsOk) {
+        ctx.report.note(`chat matrix refused: the recorder connection drifted before chats (mainApi=${preChatsState.mainApi}, source=${preChatsState.source}, customUrl=${preChatsState.customUrl})`);
+        return chats;
+    }
     for (let chatIndex = 0; chatIndex < plan.chats; chatIndex += 1) {
         const card = cards[chatIndex % cards.length];
         if (!card) break;
