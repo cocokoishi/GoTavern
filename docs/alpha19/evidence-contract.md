@@ -27,7 +27,7 @@ the artifact alone.
   "pinnedCommit": "06bde939fb1e9c4c8d8641d810f0a916b5bce127",
   "ok": true,
   "selection": { "mode": "all", "dispatch": "workflow_dispatch", "corpusTier": "full" },
-  "corpus": { "origin": "ui", "manifestSha256": "<64-hex>", "files": 0, "bytes": 0 },
+  "corpus": { "origin": "ui", "manifestSha256": "<64-hex>", "files": 0, "bytes": 0, "detail": { "treeSha256": "<64-hex>", "manifestVerification": true } },
   "layers": {
     "browser":      { "ok": true, "verdict": "match", "guards": [] },
     "http":         { "ok": true, "verdict": "match", "guards": [] },
@@ -47,6 +47,11 @@ the artifact alone.
 - `headSha` must equal the candidate the release tag points at.
 - `pinnedCommit` must equal the baseline above; a different pin is a different oracle and must be refused.
 - `corpus.origin` must be `ui`; a corpus built by a generator must be refused by the gate.
+- `corpus.manifestSha256` is the SHA-256 of the **manifest file bytes** the driver read;
+  `corpus.detail.treeSha256` is the **walked corpus tree digest** (SHA-256 of the sorted `"<sha256>  <path>"`
+  inventory lines joined with LF, no trailing newline); `corpus.detail.manifestVerification` must be exactly
+  `true`, meaning the driver recomputed the walk and the manifest agreed. A manifest that disagrees with the
+  walk, or a tree that moved after the manifest was written, must be refused rather than recorded.
 - Every verdict is the taxonomy in `AGENTS.md` differential doctrine 5. `not-observed` and
   `pinned-unreachable` are **not** passes; they must appear in `notCompared` with a reason.
 - `normalisations` must be empty unless each entry names its reason, pinned evidence, field path, test and
@@ -97,7 +102,7 @@ the artifact alone.
   `scripts/verify-a19-evidence.mjs` (five named layers all `match`, `ok === true`, normalisations carry all
   five required members, `notCompared` rows name surface and reason, selection is `all` +
   `workflow_dispatch`). Its own teeth are `node scripts/verify-a19-evidence.mjs --self-test`: one valid
-  baseline plus 13 mutations, each of which must produce its named problem.
+  baseline plus 15 mutations, each of which must produce its named problem.
 
 ## 4. What the gate does NOT prove
 

@@ -92,6 +92,21 @@ export function validateA19Evidence(evidence, { sha, pinned = PINNED_BASELINE } 
         if (!Number.isInteger(corpus.bytes) || corpus.bytes <= 0) {
             fail(`corpus.bytes is ${JSON.stringify(corpus.bytes)}, expected a positive integer`);
         }
+        // THE TREE IDENTITY IS SEPARATE FROM THE MANIFEST-FILE IDENTITY. `manifestSha256` pins the manifest bytes the
+        // driver read; `detail.treeSha256` is the walked corpus tree digest, and `manifestVerification` is the driver's
+        // own statement that it recomputed the walk and the manifest agreed. Without both, an artifact could name a
+        // digest of a document whose inventory describes a different tree.
+        const detail = corpus.detail;
+        if (!detail || typeof detail !== 'object' || Array.isArray(detail)) {
+            fail('corpus.detail is missing; the tree digest and the manifest-vs-walk verification are not recorded');
+        } else {
+            if (!isSha256(detail.treeSha256)) {
+                fail(`corpus.detail.treeSha256 is ${JSON.stringify(detail.treeSha256)}, expected a lowercase 64-hex digest`);
+            }
+            if (detail.manifestVerification !== true) {
+                fail(`corpus.detail.manifestVerification is ${JSON.stringify(detail.manifestVerification)}, expected exactly true (the driver must recompute the corpus walk and refuse a manifest that disagrees)`);
+            }
+        }
     }
 
     // THE FIVE LAYERS ARE THE OBSERVABLE CONTRACT. `not-observed` and `pinned-unreachable` are NOT passes
@@ -186,7 +201,7 @@ function validEvidence(sha) {
         headSha: sha,
         pinnedCommit: PINNED_BASELINE,
         ok: true,
-        corpus: { origin: 'ui', manifestSha256: 'a'.repeat(64), files: 200, bytes: 1234567 },
+        corpus: { origin: 'ui', manifestSha256: 'a'.repeat(64), files: 200, bytes: 1234567, detail: { treeSha256: 'e'.repeat(64), manifestVerification: true } },
         selection: { mode: 'all', dispatch: 'workflow_dispatch', corpusTier: 'full' },
         layers: Object.fromEntries(LAYERS.map(layer => [layer, { ok: true, verdict: 'match', guards: [] }])),
         normalisations: [],
@@ -213,6 +228,8 @@ function selfTest() {
         ['overall-not-ok', doc => { doc.ok = false; }, /ok is false, expected exactly true/],
         ['normalisation-without-evidence', doc => { doc.normalisations = [{ reason: 'timestamps vary' }]; }, /normalisations\[0\]\.pinnedEvidence/],
         ['corpus-digest-malformed', doc => { doc.corpus.manifestSha256 = 'not-a-digest'; }, /corpus\.manifestSha256/],
+        ['tree-digest-malformed', doc => { doc.corpus.detail.treeSha256 = 'not-a-digest'; }, /corpus\.detail\.treeSha256/],
+        ['manifest-not-verified', doc => { doc.corpus.detail.manifestVerification = false; }, /corpus\.detail\.manifestVerification/],
         ['narrowed-selection', doc => { doc.selection.mode = 'browser-only'; }, /selection\.mode/],
         ['push-run-selection', doc => { doc.selection.dispatch = 'push'; }, /selection\.dispatch/],
         ['unexplained-not-compared', doc => { doc.notCompared = [{ surface: 'extension iframe' }]; }, /notCompared\[0\]\.reason/],
