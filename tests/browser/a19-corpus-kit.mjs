@@ -926,8 +926,8 @@ export async function selectWorldGlobally(page, worldNames) {
  * (`#option_start_new_chat`, the handler at script.js:11613). The element lives inside `#options`,
  * whose delegated handler is what a real press reaches, so the menu is opened first.
  */
-export async function startNewChat(page) {
-    return page.evaluate(async () => {
+export async function startNewChat(page, { confirmTimeoutMs = Number(process.env.A19_NEWCHAT_TIMEOUT_MS ?? '45000') || 45000 } = {}) {
+    return page.evaluate(async confirmTimeoutMs => {
         const script = await import('./script.js');
         const context = window.SillyTavern && window.SillyTavern.getContext ? window.SillyTavern.getContext() : null;
         const before = { chatId: context?.chatId ?? null, chatLength: (script.chat ?? []).length };
@@ -940,7 +940,7 @@ export async function startNewChat(page) {
         // THE CONTROL ASKS FOR CONFIRMATION ("Start new chat?") AND `doNewChat` ONLY RUNS WHEN THE POPUP
         // IS CONFIRMED. Without answering it the chat id never changes (measured). The confirm popup's
         // default is OK with "delete current chat" unchecked, which is the plain New Chat a user gets.
-        const confirmDeadline = Date.now() + 15000;
+        const confirmDeadline = Date.now() + confirmTimeoutMs;
         let confirmed = false;
         while (Date.now() < confirmDeadline) {
             // ONLY A VISIBLE CONFIRM BUTTON COUNTS. `#dialogue_popup_ok` is a PERMANENT hidden element in
@@ -966,7 +966,7 @@ export async function startNewChat(page) {
             await new Promise(resolve => setTimeout(resolve, 250));
         }
         return { ok: false, reason: 'the chat id did not change after New Chat', before, after: last, confirmed };
-    });
+    }, confirmTimeoutMs);
 }
 
 /**
@@ -1016,7 +1016,7 @@ export async function chatTurn(page, text) {
     if (!appended) {
         return { ok: false, reason: 'the real send produced no user message after two presses', sent, attempts, before, reply: { ok: false, reading: 'no user message appended' }, after: null };
     }
-    const reply = await waitForReply(page, { timeoutMs: 120000, requireText: true, baseline: before });
+    const reply = await waitForReply(page, { timeoutMs: Number(process.env.A19_REPLY_TIMEOUT_MS ?? '120000') || 120000, requireText: true, baseline: before });
     const after = await page.evaluate(async () => {
         const script = await import('./script.js');
         const chat = script.chat ?? [];
@@ -1051,8 +1051,10 @@ export async function fastChatTurn(page, text) {
     // THE COMPLETION SIGNAL IS THE PAGE'S OWN POST-SEND STATE: the chat grew by BOTH messages
     // (chatLength >= before + 2), the page is not generating, and the send button is not disabled.
     // 60 ms poll, 15 s bound: a turn against the deterministic JSON peer is sub-second, and a turn that
-    // has not completed in 15 s is a NAMED failure so the matrix can move on instead of stalling.
-    const deadline = startedMs + 15000;
+    // 60 ms poll; a turn that does not complete is a NAMED failure carrying the pre-click state.
+    // THE BOUND IS CONFIGURABLE: a shared CI runner is several times slower than this host.
+    const turnTimeoutMs = Number(process.env.A19_TURN_TIMEOUT_MS ?? '45000') || 45000;
+    const deadline = startedMs + turnTimeoutMs;
     let last = null;
     while (Date.now() < deadline) {
         last = await page.evaluate(async () => {
