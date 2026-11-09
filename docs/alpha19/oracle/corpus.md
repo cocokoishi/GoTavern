@@ -19,7 +19,7 @@ copy without holding it here.
 |---|---|
 | root (producer) | `C:\Users\koishi\Desktop\GoTavern\a19-oracle\corpus` |
 | origin / tier | `ui` / `full` |
-| pinned subject | SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a9165b5bce127` |
+| pinned subject | SillyTavern `1.19.0` @ `06bde939fb1e9c4c8d8641d810f0a916b5bce127` |
 | manifest file | `corpus-manifest-v2.json`, 198,074 bytes, sha256 `25caa60c871cde4348c22ed24baac18aaf6911ebc065d3e6ba74d95fcc61b1d9` |
 | tree digest | `treeSha256 = 06d68e057085abad28d4e3bfc19df71cf91d9ea612ad6907bd67b38784d3a2ba` |
 | files / bytes | 978 / 49,898,769 |
