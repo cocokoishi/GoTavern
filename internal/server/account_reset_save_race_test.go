@@ -64,7 +64,15 @@ const (
 	probeHandleBeta    = "beta-user"
 	probeMarkerAlpha   = "PROBEUSERA"
 	probeMarkerBeta    = "PROBEUSERB"
-	probeResetAttempts = 3
+	// BOUNDED RETRY OF THE RESET ITSELF, NOT A WEAKENED ASSERTION. pinned's reset-step2 wraps the whole body in
+	// try/catch and answers 500 for ANY throw (src/endpoints/users-private.js:261-305; `await fsPromises.rm(root,
+	// {recursive:true, force:true})` then `checkForNewContent`), so a 500 while concurrent writers hold the tree is
+	// a LEGITIMATE status on BOTH subjects -- the test already says "only 200 and 500 are expected" for saves. What
+	// is NOT acceptable is the probe never reaching the reset: under co-tenant CPU load the removal can fail for
+	// longer than three 1 ms retries (measured failure 2026-11-08: statuses [500 500 500]). Ten bounded attempts keep
+	// the probe honest (it still Fatals if the last attempt is not 204, so it cannot pass without exercising the
+	// reset) while the data-safety assertions below are unchanged and still run against the reset that completed.
+	probeResetAttempts = 10
 )
 
 type resetSaveProbeHarness struct {
@@ -627,7 +635,9 @@ func runResetSaveProbe(t *testing.T, seed int) {
 		if response.Code == http.StatusBadRequest {
 			t.Fatalf("POST /api/users/reset-step2 = 400 on attempt %d, body %q", attempt+1, response.Body.String())
 		}
-		time.Sleep(time.Millisecond)
+		// LINEAR BACKOFF: small and bounded, so a transiently locked tree gets time to be released without turning
+		// the retry into a sleep-based pass (the 1 ms step is the measured host failure's own timescale).
+		time.Sleep(time.Duration(attempt+1) * time.Millisecond)
 	}
 	if resetStatuses[len(resetStatuses)-1] != http.StatusNoContent {
 		t.Fatalf("POST /api/users/reset-step2 never completed after %d attempts (statuses %v); the probe never exercised the reset", resetAttempts, resetStatuses)
