@@ -149,7 +149,24 @@ control rows belong in a `vs-node.md` with per-route p50/p95, not in this file.
 4. Local numbers are Layer A; the release claim cites the Linux `GoTavern smoke metrics` paired gate.
 5. `unproven` stays `unproven`. Peak RSS now has ONE quiet-window paired row (10,000-card cumulative arm, §4) and is still Layer A; p99 over the real UI corpus, the Node control and real-provider latency have not been measured and must not be implied.
 
-## 8. 8-user concurrency + long-run trend — harness reuse plan (prepared, NOT run)
+## 8. 8-user concurrency + long-run trend — measured in the post-release window
+
+Both ran after v0.1.0-alpha.19 was published, on the quiet machine; full detail and the immutability proof are in
+[`raw/README-alpha19-window.md`](raw/README-alpha19-window.md). Subject: `gotavern-quiet.exe`
+sha256 `BF7F7FD6…`, product code identical to the released candidate `bbc5615`.
+
+- **8-user smoke** (`raw/eight-users.json`, 18.6 s): PASS — 8 accounts × 3 waves = 72 ops, 0 non-200, isolation
+  disk/cross-user and read-own both pass, 58.065 ops/s; `settingsSave` p50 285.5 / p95 344.0 / p99 361.5 ms,
+  `settingsGet` p50 187.2, `chatsSave` p50 246.6 / p99 452.5. No latency threshold was asserted (thresholds null);
+  delete/rename/import were not driven (the harness's own unproven list).
+- **10-minute corpus soak on the COPY** (`raw/soak-10min.json`, 606.3 s): 4,850 requests, 0 errors, 8.081 req/s,
+  p50 21.36 / p95 35.42 / p99 48.9 / max 224.48 ms; RSS peak 29.3 MB with segment slope −29,037 B/min;
+  **leak UNPROVEN** (RSS-only evidence, by the harness's own rule); 0 restarts (10-min run < restart interval);
+  integrity 1/1, fixture chat and probe card byte-identical. The ORIGINAL `a19-oracle\corpus` was never written
+  (manifest sha256 `150CC68C…` before and after).
+- **Not measured:** the 60-minute soak, the real-UI-corpus p99 journey, real-provider latency.
+
+The old reuse plan follows, kept because it documents the harness flags actually used.
 
 Reuse rather than write: `tests/perf/m5-eight-users.mjs` already drives ONE real binary, accounts enabled, EIGHT
 accounts with the pinned three-step session handshake, overlapping `settings/save`, `settings/get` and `chats/save`

@@ -91,9 +91,18 @@ Quote as: *"In one shared window on the development host, GoTavern booted in 1.1
 the 10-minute soak window flat on both sides; RSS was not measurable on this host (the harness reads Linux
 `/proc`), so no memory comparison is claimed."* Layer A, not the release gate.
 
+Also measured post-release (see `raw/README-alpha19-window.md`):
+- 8-user smoke: PASS, 8 accounts × 3 waves, 72 ops, 0 non-200, isolation checks pass, 58.065 ops/s, settingsSave
+  p50 285.5 ms / chatsSave p50 246.6 ms (no latency threshold asserted; delete/rename/import not driven).
+- 10-min corpus soak on the COPY: 4,850 requests / 0 errors, 8.081 req/s, p50 21.4 / p95 35.4 / p99 48.9 ms,
+  RSS peak 29.3 MB and flat, leak UNPROVEN (RSS-only), integrity checks pass, original corpus byte-identical.
+Quote the soak only as "no visible resource growth in 10 minutes", never as "no leak".
+
 May NOT say yet (not measured at this commit):
 - any long-run MEMORY comparison: the Node control artifact's RSS is `null` because the harness reads Linux
-  `/proc`, so there is no memory row from it;
+  `/proc`, so there is no memory row from it; the soak's RSS is a Windows single-process series, not a
+  Go-vs-Node comparison;
+- anything about restart behaviour (the 10-min run ended before its restart interval);
 - ≥8-user concurrency or long-run resource trend (harness reuse plan exists in `summary.md` §8, nothing ran);
 - p99 over the real-UI corpus, or any real-provider latency;
 - any boot-time improvement or regression (all boot rows are not separable);
