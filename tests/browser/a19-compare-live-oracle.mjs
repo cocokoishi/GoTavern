@@ -834,13 +834,16 @@ guard('browser-page-errors-equal', 'browser', () => {
 const CORE_DRIVE_EVENTS = ['main_api_changed', 'chatcompletion_source_changed', 'chat_id_changed', 'message_sent', 'user_message_rendered', 'generation_started', 'GENERATION_AFTER_COMMANDS', 'chat_completion_prompt_ready', 'stream_token_received', 'generation_ended', 'message_received', 'character_message_rendered'];
 const REQUIRED_ORDER = [
     // Pinned emits GENERATION_STARTED inside Generate() and MESSAGE_SENT when the user turn is committed, so the
-    // generation starts BEFORE the message event. Measured on BOTH subjects in self-check run5 (generation_started
-    // #6 vs message_sent #12; #3 vs #8) -- the earlier invariant had these two swapped and was my bug.
+    // generation starts BEFORE the message event (measured on both subjects in self-check run5).
     ['generation_started', 'GENERATION_AFTER_COMMANDS'],
     ['GENERATION_AFTER_COMMANDS', 'message_sent'],
     ['message_sent', 'user_message_rendered'],
-    ['user_message_rendered', 'chat_completion_prompt_ready'],
+    // chat_completion_prompt_ready is emitted during PROMPT ASSEMBLY, which the pinned frontend starts before the
+    // user message is rendered (measured corpus-v2 drive: prompt_ready #13 before user_message_rendered #43 on
+    // GoTavern and #40 vs #56 on pinned) -- the earlier edge here had the two swapped and was my bug.
     ['chat_completion_prompt_ready', 'stream_token_received'],
+    ['message_sent', 'stream_token_received'],
+    ['user_message_rendered', 'stream_token_received'],
     ['stream_token_received', 'generation_ended'],
     ['generation_ended', 'message_received'],
     ['message_received', 'character_message_rendered'],

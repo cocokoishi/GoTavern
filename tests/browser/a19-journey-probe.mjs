@@ -778,6 +778,17 @@ try {
     step('chat-chosen', chatChoice.candidate !== null && chatChoice.candidate !== undefined, chatChoice);
     const chatOpen = await openChatByName(page, characterName, chatChoice.candidate);
     step('chat-opened', chatOpen.ok === true, chatOpen);
+    leg.chatAtOpen = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        const context = window.SillyTavern?.getContext?.() ?? null;
+        return {
+            chatId: context?.chatId ?? null,
+            length: (script.chat ?? []).length,
+            names: (script.chat ?? []).map(message => message?.name ?? null).slice(0, 40),
+            name1: context?.name1 ?? null,
+            name2: context?.name2 ?? null,
+        };
+    });
 
     // SELECT THE CORPUS PRESET AND LOREBOOK THROUGH THE PRODUCT'S OWN CONTROLS.
     const preset = await selectPreset(page, presetArg);
@@ -829,7 +840,19 @@ try {
         });
         const preSendState = await page.evaluate(async () => {
             const script = await import('./script.js');
+            const context = window.SillyTavern?.getContext?.() ?? null;
+            // THE TOKEN COUNTER'S OWN VIEW: the frontend builds count inputs from this chat array and the
+            // context's name1/name2. A token-count difference between subjects must be explainable from THIS
+            // recorded state before it can be called a product difference.
             return {
+                chatForTokenizer: {
+                    chatId: context?.chatId ?? null,
+                    length: (script.chat ?? []).length,
+                    names: (script.chat ?? []).map(message => message?.name ?? null).slice(0, 40),
+                    name1: context?.name1 ?? null,
+                    name2: context?.name2 ?? null,
+                    characterName: context?.characters?.[context?.characterId]?.name ?? null,
+                },
                 swipeState: script.swipeState ?? null,
                 isExecutingCommandsFromChatInput: script.isExecutingCommandsFromChatInput ?? null,
                 thisEditMesId: script.this_edit_mes_id ?? null,
