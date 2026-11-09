@@ -6,7 +6,7 @@ are reported only when the ABBA separation rule holds; the release performance c
 `GoTavern smoke metrics` paired gate. Targets and claim rules: [`targets.md`](targets.md). Hotspot attribution:
 [`hotspots.md`](hotspots.md).
 
-## C1 — allocation-free member ordering for the ordered-JSON marshal (commit `<filled at commit>`)
+## C1 — allocation-free member ordering for the ordered-JSON marshal (commit e7be70f)
 
 **Approved scope:** `internal/server/image_metadata_index.go`, new `internal/server/a19_perf_pins_test.go`.
 **What changed:** `orderedNodeJSON.entries` now returns the object's own entry slice when no member key is a
@@ -100,7 +100,7 @@ iteration). The function now documents the read-only contract, and the cleanup l
 identical. The pinned differential test is the gate; the regression cannot return silently.
 
 
-## C4 — pre-sized response buffer for `/api/characters/all` (commit `<filled at commit>`)
+## C4 — pre-sized response buffer for `/api/characters/all` (commit 6509639)
 
 **Approved scope:** `internal/server/characters_read.go`, `internal/server/characters_json.go`.
 **What changed:** `serveCharactersAll` accumulates `3*cardTextBytes + 512` per listed card from the `json_data`
@@ -142,7 +142,7 @@ would fail there. Green. Also green: the whole targeted oracle subset
 **Regressions reported:** the earlier `2*len + 2048` estimate row (+3.1% on 1,000 cards) is kept as evidence
 above and was replaced, not hidden. No other arm regressed in the shipped estimate.
 
-## C5 — one escaper for the generic ordered-JSON routes (commit `<filled at commit>`)
+## C5 — one escaper for the generic ordered-JSON routes (commit 65834ec)
 
 **Approved scope:** `internal/server/image_metadata_index.go`; the C5 pin lives in
 `internal/server/a19_perf_pins_test.go`, and `internal/server/characters_scale_optimization_test.go` was changed
@@ -180,7 +180,7 @@ writer (`writeCharacterJSONString` is unchanged) and by `marshalOrderedNodeJSON`
 the provider-wire replay remain the guard, and the targeted oracle subset was re-run green (55.8 s for the C5 pin
 set + JSON tests).
 
-## C3 — one chats-root listing per `/api/characters/all` request (commit `<filled at commit>`)
+## C3 — one chats-root listing per `/api/characters/all` request (commit e39cf18)
 
 **Files:** `internal/server/characters_card.go` (listing + fallbacks), `internal/server/characters_read.go` (one
 listing per request), `internal/server/a19_perf_pins_test.go` (equivalence + root-failure tests).
@@ -227,7 +227,7 @@ FILE and asserting the listing reports `ok=false` and the projection equals the 
 
 
 
-## C2 — parse the runtime config.yaml once per process (commit `<filled at commit>`)
+## C2 — parse the runtime config.yaml once per process (commit 8a993e8)
 
 **Files:** `internal/server/pinned_chat_config.go` (per-path parsed-document cache) and the C2 tests in
 `internal/server/a19_perf_pins_test.go`. No new production file.
