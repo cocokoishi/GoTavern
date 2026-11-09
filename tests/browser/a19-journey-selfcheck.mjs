@@ -134,8 +134,11 @@ const attachHttpRecorder = page => {
             entry.responseBodyLength = body.length;
             entry.responseBodySha256 = sha256(body);
             // The response body TEXT too, for the same named normalisations (only for bodies small enough to be
-            // JSON state rather than a large asset; the digest still covers everything).
-            if (body.length <= 2 * 1024 * 1024 && /json|event-stream/.test(entry.contentType)) {
+            // JSON state rather than a large asset; the digest still covers everything). The /api surface includes
+            // SSE and routes whose Content-Type is only known after the body is read, so the scope is "any small
+            // same-origin /api response", not "only json/event-stream" -- the generate proxy's streamed body was
+            // recorded with a digest but no text because its Content-Type header arrived empty.
+            if (body.length <= 2 * 1024 * 1024 && typeof entry.path === 'string' && entry.path.startsWith('/api/')) {
                 try { entry.responseBodyText = body.toString('utf8'); } catch { entry.responseBodyText = null; }
             }
             if (entry.contentType.includes('text/event-stream')) {

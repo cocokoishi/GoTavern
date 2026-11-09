@@ -413,6 +413,9 @@ const ROUTE_SCOPED_RUN_CLOCK = new Map([
     ['POST /api/chats/recent', new Set(['last_mes'])],
     ['POST /api/stats/get', new Set(['timestamp'])],
     ['POST /api/stats/update', new Set(['timestamp'])],
+    // A GROUP's date_added is the moment THIS run created the group (measured run9: 1794200820667.4832 vs
+    // 1794200821259.2122, 591 ms apart), unlike a character's mtime-derived date_added, which stays compared.
+    ['POST /api/groups/all', new Set(['date_added'])],
 ]);
 const projectJsonForComparison = (value, routeRunClock = null) => {
     if (Array.isArray(value)) return value.map(item => projectJsonForComparison(item, routeRunClock));
@@ -459,7 +462,10 @@ const compareHTTPBody = (label, leftText, leftSha, rightText, rightSha, options)
     const leftEmpty = leftText === null || leftText === undefined || leftText === '';
     const rightEmpty = rightText === null || rightText === undefined || rightText === '';
     if (leftEmpty && rightEmpty) {
-        if (leftSha !== rightSha) return `${label}: both bodies are absent/empty but the recorded digests differ (${leftSha?.slice(0, 12)} vs ${rightSha?.slice(0, 12)})`;
+        // The recorder writes the digest of the empty body in some paths and no digest in others; both mean 0
+        // bytes. An ABSENT digest is therefore the empty-body digest, and any other digest is still a difference.
+        const emptyDigest = sha256(Buffer.from('', 'utf8'));
+        if ((leftSha ?? emptyDigest) !== (rightSha ?? emptyDigest)) return `${label}: both bodies are absent/empty but the recorded digests differ (${leftSha?.slice(0, 12)} vs ${rightSha?.slice(0, 12)})`;
         appliedNormalisations.add('empty-response-body-recording');
         return null;
     }
@@ -909,7 +915,12 @@ guard('http-bodies-equal', 'http', () => {
         const left = (legFor(phase, 'gotavern')?.layers?.http?.requests ?? []).filter(request => request.origin === 'subject');
         const right = (legFor(phase, 'pinned')?.layers?.http?.requests ?? []).filter(request => request.origin === 'subject');
         const keyOf = request => `${request.method} ${request.path}${request.query ?? ''}`;
-        const group = list => { const map = new Map(); for (const request of list) { const key = keyOf(request); if (!map.has(key)) map.set(key, []); map.get(key).push(request); } return map; };
+        // PAIRING IS BY REQUEST IDENTITY, NOT ARRIVAL ORDER: two isolated b runs issue the same requests in different
+        // interleavings (measured run9: the SAME 20 unique tokenizer request bodies arrived in a different order and
+        // with different multiplicity; index pairing compared different texts and reported phantom body diffs). Each
+        // key group is therefore ordered by the request body's OWN digest before pairing, so identical requests pair
+        // with each other and a genuine request-content difference still surfaces.
+        const group = list => { const map = new Map(); for (const request of list) { const key = keyOf(request); if (!map.has(key)) map.set(key, []); map.get(key).push(request); } for (const entries of map.values()) { entries.sort((left, right) => String(left.requestBodySha256 ?? '').localeCompare(String(right.requestBodySha256 ?? ''))); } return map; };
         const goGroups = group(left);
         const pinnedGroups = group(right);
         let duplicatesAllowed = 0;
