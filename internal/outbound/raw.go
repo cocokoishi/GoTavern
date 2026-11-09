@@ -169,18 +169,26 @@ func sendWireExactStreaming(ctx context.Context, request Request, timeout time.D
 	if timeout > 0 {
 		_ = connection.SetDeadline(time.Now().Add(timeout))
 	}
-	go func() {
-		<-ctx.Done()
+	// CANCELLATION WATCHDOG, nil-Done safe. The previous form was
+	// `go func(){ <-ctx.Done(); connection.Close() }()`: for a context with no Done channel (context.Background,
+	// and every context derived from it through WithValue/WithoutCancel) that receive blocks on a NIL channel
+	// forever -- one leaked goroutine per streaming send, measured as 50 leaked for 50 sends in alpha.19 and seen
+	// as dozens of `sendWireExactStreaming.func1 [chan receive (nil chan)]` in the full-suite goroutine dump.
+	// context.AfterFunc starts no goroutine for such a context and returns a stop function, so the watcher is
+	// released as soon as the response body reaches EOF or is closed. WHEN the connection is closed on
+	// cancellation is unchanged: a context cancelled while the stream is live still closes it.
+	stopWatcher := context.AfterFunc(ctx, func() {
 		_ = connection.Close()
-	}()
+	})
 
 	reader := bufio.NewReader(connection)
 	response, err := readResponseHead(reader)
 	if err != nil {
+		stopWatcher()
 		_ = connection.Close()
 		return nil, err
 	}
-	response.Stream = newBodyReader(reader, connection, response)
+	response.Stream = newBodyReader(reader, connection, response, stopWatcher)
 	return response, nil
 }
 
@@ -234,10 +242,17 @@ type bodyReader struct {
 	hasLength  bool
 	chunked    bool
 	done       bool
+	// stopWatcher releases the cancellation watcher registered by
+	// sendWireExactStreaming (context.AfterFunc). It is called once, when the
+	// body reaches its end or is closed: the watcher exists to close the
+	// connection if the caller cancels MID-STREAM, and after the stream there is
+	// nothing left for it to protect.
+	stopWatcher func() bool
+	watcherDone bool
 }
 
-func newBodyReader(reader *bufio.Reader, connection net.Conn, response *Response) *bodyReader {
-	body := &bodyReader{reader: reader, connection: connection, response: response}
+func newBodyReader(reader *bufio.Reader, connection net.Conn, response *Response, stopWatcher func() bool) *bodyReader {
+	body := &bodyReader{reader: reader, connection: connection, response: response, stopWatcher: stopWatcher}
 	if length := response.Header("Content-Length"); length != "" {
 		if parsed, err := strconv.ParseInt(strings.TrimSpace(length), 10, 64); err == nil && parsed >= 0 {
 			body.remaining = parsed
@@ -259,7 +274,7 @@ func (body *bodyReader) Read(target []byte) (int, error) {
 	}
 	if body.hasLength {
 		if body.remaining == 0 {
-			body.done = true
+			body.markDone()
 			return 0, io.EOF
 		}
 		if int64(len(target)) > body.remaining {
@@ -268,13 +283,13 @@ func (body *bodyReader) Read(target []byte) (int, error) {
 		count, err := body.reader.Read(target)
 		body.remaining -= int64(count)
 		if body.remaining == 0 && err == nil {
-			body.done = true
+			body.markDone()
 		}
 		if body.remaining > 0 && err != nil {
 			// The provider declared more bytes than it sent: the reply was cut
 			// off rather than finished.
 			body.response.Truncated = true
-			body.done = true
+			body.markDone()
 		}
 		return count, err
 	}
@@ -283,10 +298,10 @@ func (body *bodyReader) Read(target []byte) (int, error) {
 	// abnormal read error is a truncation.
 	count, err := body.reader.Read(target)
 	if errors.Is(err, io.EOF) {
-		body.done = true
+		body.markDone()
 	} else if err != nil {
 		body.response.Truncated = true
-		body.done = true
+		body.markDone()
 	}
 	return count, err
 }
@@ -298,7 +313,7 @@ func (body *bodyReader) readChunked(target []byte) (int, error) {
 			// A chunk header (or the terminal zero-length chunk) was expected,
 			// so the provider stopped mid-frame.
 			body.response.Truncated = true
-			body.done = true
+			body.markDone()
 			return 0, err
 		}
 		sizeLine = strings.TrimSpace(sizeLine)
@@ -308,11 +323,11 @@ func (body *bodyReader) readChunked(target []byte) (int, error) {
 		size, err := strconv.ParseInt(sizeLine, 16, 64)
 		if err != nil {
 			body.response.Truncated = true
-			body.done = true
+			body.markDone()
 			return 0, fmt.Errorf("malformed provider chunk size %q", sizeLine)
 		}
 		if size == 0 {
-			body.done = true
+			body.markDone()
 			return 0, io.EOF
 		}
 		body.remaining = size
@@ -324,14 +339,14 @@ func (body *bodyReader) readChunked(target []byte) (int, error) {
 	body.remaining -= int64(count)
 	if body.remaining > 0 && err != nil {
 		body.response.Truncated = true
-		body.done = true
+		body.markDone()
 		return count, err
 	}
 	if body.remaining == 0 {
 		// Consume the CRLF that terminates the chunk.
 		if _, err := body.reader.ReadString('\n'); err != nil {
 			body.response.Truncated = true
-			body.done = true
+			body.markDone()
 			if errors.Is(err, io.EOF) {
 				return count, nil
 			}
@@ -341,7 +356,18 @@ func (body *bodyReader) readChunked(target []byte) (int, error) {
 	return count, err
 }
 
-func (body *bodyReader) Close() error {
+// markDone records the end of the body and releases the cancellation watcher. The boolean result of the stop
+// function is deliberately ignored: it is false when the watcher already ran (the context was cancelled while
+// the stream was live), which is not an error.
+func (body *bodyReader) markDone() {
 	body.done = true
+	if body.stopWatcher != nil && !body.watcherDone {
+		body.watcherDone = true
+		body.stopWatcher()
+	}
+}
+
+func (body *bodyReader) Close() error {
+	body.markDone()
 	return body.connection.Close()
 }
