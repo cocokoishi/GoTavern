@@ -60,7 +60,22 @@ export async function censusTree(root, { excludePaths = [] } = {}) {
             const full = path.join(directory, entry.name);
             if (entry.isDirectory()) await walk(full);
             else if (entry.isFile()) {
-                const body = await fs.readFile(full);
+                // A CENSUS MUST NOT TAKE A SNAPSHOT MID-WRITE. Both subjects write state with a temp-file + atomic
+                // rename (pinned writes settings.json.<random> then renames), so a file listed by readdir can vanish
+                // between the listing and the read. Measured self-check run10: pinned's restart leg died with
+                // ENOENT on default-user/settings.json.<temp>. A bounded retry distinguishes that transient window
+                // from a file that is really gone (which is still a fact, and the driver diffs the census).
+                let body = null;
+                for (let attempt = 0; attempt < 5; attempt += 1) {
+                    try {
+                        body = await fs.readFile(full);
+                        break;
+                    } catch (error) {
+                        if (error.code !== 'ENOENT') throw error;
+                        await new Promise(resolve => setTimeout(resolve, 20));
+                    }
+                }
+                if (body === null) continue;
                 files.push({
                     path: path.relative(root, full).split(path.sep).join('/'),
                     bytes: body.length,
