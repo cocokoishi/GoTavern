@@ -231,7 +231,9 @@ func (runtime *accountRuntime) serveExtensionDiscover(w http.ResponseWriter, req
 		}
 		appendEntry("global", candidate)
 	}
-	respondOrderedNodeJSON(w, http.StatusOK, result)
+	// The pinned route ends in express res.send, which answers a fresh conditional request with 304; this call
+	// site is the ONE route the browser revalidates that needed it (tests/e2e/a19_conditional_get_test.go).
+	respondOrderedNodeJSONConditional(w, request, http.StatusOK, result)
 }
 
 func (runtime *accountRuntime) serveExtensionMove(w http.ResponseWriter, request *http.Request) {

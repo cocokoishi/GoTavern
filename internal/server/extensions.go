@@ -107,7 +107,9 @@ func registerExtensionsRoutes(mux *http.ServeMux, accounts *accountRuntime, notF
 			httpx.WriteStatusText(w, http.StatusNotFound)
 			return
 		}
-		if r.Method != http.MethodGet {
+		// Express's router serves HEAD for a GET route (and runs the same handler), so a HEAD request must reach
+		// the discover handler rather than fall through to the static 404. Measured: pinned answers HEAD ok.
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			serveStatic(w, r, notFoundPage, options)
 			return
 		}
@@ -288,4 +290,17 @@ func ensureExtensionDirectory(target string) error {
 		return err
 	}
 	return nil
+}
+
+// respondOrderedNodeJSONConditional is respondOrderedNodeJSON with the pinned stack's conditional-GET face in
+// front of it: express answers 304 for a fresh request (see httpx.WriteJSONBytesConditional and the measured
+// matrix in tests/e2e/a19_conditional_get_test.go). Only routes whose response the pinned client actually
+// revalidates use it; the recording writer itself is unchanged.
+func respondOrderedNodeJSONConditional(w http.ResponseWriter, r *http.Request, status int, value orderedNodeJSON) {
+	body, err := marshalOrderedNodeJSON(value)
+	if err != nil {
+		httpx.WriteStatusText(w, http.StatusInternalServerError)
+		return
+	}
+	httpx.WriteJSONBytesConditional(w, r, status, body)
 }

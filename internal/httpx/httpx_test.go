@@ -80,3 +80,84 @@ func TestWriteStatusTextCarriesTheStatusTextAndETag(t *testing.T) {
 		t.Fatalf("ETag = %q, want %q", got, expectedWeakETag(body))
 	}
 }
+
+// TestIsFreshMatchesPinnedExpressFreshness pins the rules measured against the pinned server with a raw
+// socket on 2026-11-08 (the matrix and the route are in tests/e2e/a19_conditional_get_test.go): a
+// conditional GET/HEAD is fresh when If-None-Match matches the response's weak tag (weak/strong forms are
+// equivalent, a token list is parsed, `*` matches any tag), a request Cache-Control with no-cache is never
+// fresh, and If-Modified-Since alone is not fresh because the JSON writer emits no Last-Modified.
+func TestIsFreshMatchesPinnedExpressFreshness(t *testing.T) {
+	const etag = `W/"20b-ZX5Nge4s+cqyRysIE8Nu06nh73A"`
+	build := func(method string, headers map[string]string) *http.Request {
+		request := httptest.NewRequest(method, "/api/extensions/discover", nil)
+		for name, value := range headers {
+			request.Header.Set(name, value)
+		}
+		return request
+	}
+	cases := []struct {
+		name    string
+		request *http.Request
+		want    bool
+	}{
+		{"matching weak", build(http.MethodGet, map[string]string{"If-None-Match": etag}), true},
+		{"matching strong form", build(http.MethodGet, map[string]string{"If-None-Match": `"20b-ZX5Nge4s+cqyRysIE8Nu06nh73A"`}), true},
+		{"multi-value list containing it", build(http.MethodGet, map[string]string{"If-None-Match": `"nope", ` + etag}), true},
+		{"wildcard", build(http.MethodGet, map[string]string{"If-None-Match": "*"}), true},
+		{"HEAD matching", build(http.MethodHead, map[string]string{"If-None-Match": etag}), true},
+		{"non-matching", build(http.MethodGet, map[string]string{"If-None-Match": `"nope"`}), false},
+		{"no conditional", build(http.MethodGet, nil), false},
+		{"request no-cache", build(http.MethodGet, map[string]string{"If-None-Match": etag, "Cache-Control": "no-cache"}), false},
+		{"request no-cache with other directives", build(http.MethodGet, map[string]string{"If-None-Match": etag, "Cache-Control": "max-age=0, no-cache"}), false},
+		{"request max-age=0 stays fresh", build(http.MethodGet, map[string]string{"If-None-Match": etag, "Cache-Control": "max-age=0"}), true},
+		{"If-Modified-Since alone", build(http.MethodGet, map[string]string{"If-Modified-Since": "Wed, 01 Jan 2031 00:00:00 GMT"}), false},
+		{"Pragma no-cache is ignored", build(http.MethodGet, map[string]string{"If-None-Match": etag, "Pragma": "no-cache"}), true},
+		{"POST with a validator is not fresh", build(http.MethodPost, map[string]string{"If-None-Match": etag}), false},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := IsFresh(testCase.request, etag); got != testCase.want {
+				t.Fatalf("IsFresh(%s %v) = %v, want %v", testCase.request.Method, testCase.request.Header, got, testCase.want)
+			}
+		})
+	}
+}
+
+// TestWriteJSONBytesConditionalKeepsThePinned304Face states that a 304 carries the ETag and NO representation
+// headers (measured pinned 304 face), while a non-fresh request gets the unchanged WriteJSONBytes bytes.
+func TestWriteJSONBytesConditionalKeepsThePinned304Face(t *testing.T) {
+	body := []byte(`[{"type":"system","name":"a"}]`)
+	freshRequest := httptest.NewRequest(http.MethodGet, "/api/extensions/discover", nil)
+	freshRequest.Header.Set("If-None-Match", WeakETag(body))
+	recorder := httptest.NewRecorder()
+	WriteJSONBytesConditional(recorder, freshRequest, http.StatusOK, body)
+	if recorder.Code != http.StatusNotModified {
+		t.Fatalf("fresh conditional request status = %d, want 304", recorder.Code)
+	}
+	if got := recorder.Body.String(); got != "" {
+		t.Fatalf("a 304 must carry no body; got %q", got)
+	}
+	if got := recorder.Header().Get("ETag"); got != WeakETag(body) {
+		t.Fatalf("a 304 must preserve the ETag %q; got %q", WeakETag(body), got)
+	}
+	if value, present := recorder.Header()["Content-Type"]; present {
+		t.Fatalf("a 304 must not carry Content-Type; got %q", value)
+	}
+	if value, present := recorder.Header()["Content-Length"]; present {
+		t.Fatalf("a 304 must not carry Content-Length; got %q", value)
+	}
+
+	staleRequest := httptest.NewRequest(http.MethodGet, "/api/extensions/discover", nil)
+	staleRequest.Header.Set("If-None-Match", `"nope"`)
+	stale := httptest.NewRecorder()
+	WriteJSONBytesConditional(stale, staleRequest, http.StatusOK, body)
+	if stale.Code != http.StatusOK {
+		t.Fatalf("non-fresh request status = %d, want 200", stale.Code)
+	}
+	if got := stale.Body.String(); got != string(body) {
+		t.Fatalf("non-fresh body = %q, want %q", got, string(body))
+	}
+	if got := stale.Header().Get("Content-Length"); got != fmt.Sprintf("%d", len(body)) {
+		t.Fatalf("non-fresh Content-Length = %q", got)
+	}
+}
