@@ -1341,7 +1341,7 @@ export async function createGroupThroughPanel(page, { name, memberNames, activat
     }, { name, memberNames, activationStrategy, generationMode });
 }
 
-async function openGroup(page, groupId, newChat = true) {
+export async function openGroup(page, groupId, newChat = true) {
     return page.evaluate(async ({ id, fresh }) => {
         const groupChats = await import('./scripts/group-chats.js');
         const script = await import('./script.js');
@@ -1367,6 +1367,116 @@ async function openGroup(page, groupId, newChat = true) {
     }, { id: groupId, fresh: newChat });
 }
 
+/**
+ * Re-initialise the pinned module state before opening the create-group dialog.
+ *
+ * WHY (pinned source): `openGroupId` inside public/scripts/group-chats.js is STICKY — `resetSelectedGroup()`
+ * clears `selected_group` but not `openGroupId` — and the candidate list EXCLUDES the members of the open
+ * group. A second creation in the same page session therefore legitimately cannot see the first group's
+ * members. A page reload is the smallest re-initialisation that clears it, and it is the path already proven
+ * for chats; the recorder connection is re-applied and read back after the reload.
+ */
+export async function resetPinnedForCreateGroup(page, ctx, round, index) {
+    const reloaded = await page.reload({ waitUntil: 'domcontentloaded' }).then(() => true).catch(() => false);
+    await page.waitForFunction('document.getElementById("preloader") === null', null, { timeout: 180000 }).catch(() => {});
+    await page.waitForTimeout(1200);
+    const connection = await ensureConnection(page, ctx.provider.baseURL, 'a19-live-model', { streaming: ctx.streaming !== false });
+    const state = await page.evaluate(async () => {
+        const script = await import('./script.js');
+        const openai = await import('./scripts/openai.js');
+        const groupChats = await import('./scripts/group-chats.js');
+        const context = window.SillyTavern?.getContext?.() ?? null;
+        return {
+            mainApi: script.main_api ?? null,
+            source: openai.oai_settings?.chat_completion_source ?? null,
+            customUrl: openai.oai_settings?.custom_url ?? null,
+            openGroupId: groupChats.openGroupId ?? null,
+            selectedGroup: groupChats.selected_group ?? context?.groupId ?? null,
+        };
+    });
+    const ok = reloaded === true && connection.ok === true && state.mainApi === 'openai' && state.source === 'custom' && state.openGroupId === null;
+    await ctx.act({ page: 'AI Response Configuration', control: '#main_api + #chat_completion_source + #custom_api_url_text', field: 'pre-create-group reset', action: 'reload the page, re-apply the recorder connection and assert no group is open before the create-group dialog', result: { ok, reloaded, state, expectedBaseURL: ctx.provider.baseURL } });
+    ctx.report.step(`provider-still-connected-before-create-group-r${round}-${index}`, ok, { reloaded, state, expectedBaseURL: ctx.provider.baseURL });
+    return { ok, reloaded, state };
+}
+
+/**
+ * DISCLOSED PRODUCT-API GROUP CREATION (fallback only; UI is primary).
+ *
+ * The user's prompt allows a "normal API path" as a corpus data source, so when the UI create dialog still
+ * cannot satisfy the fail-closed guard, the group is created through the product's own routes:
+ *   POST /api/groups/create {name}  ->  POST /api/groups/edit {id, name, members, ...}  ->  GET /api/groups/all (verify)
+ * It is NEVER silent: the step records createdVia:"product-api", the UI failure reason, and the member list.
+ * The group is still OPENED and DRIVEN through the UI afterwards, so turn/verb evidence stays real.
+ */
+export async function createGroupViaProductApi(page, { name, memberNames, activationStrategy = 0, generationMode = 0, uiFailure = null }) {
+    return page.evaluate(async inputs => {
+        const script = await import('./script.js');
+        const headers = script.getRequestHeaders();
+        const characters = (script.characters ?? []).map(character => ({ name: String(character?.name ?? ''), avatar: String(character?.avatar ?? '') }));
+        const members = inputs.memberNames.map(wanted => {
+            const match = characters.find(character => character.name === wanted);
+            return match?.avatar || `${wanted}.png`;
+        });
+        const createResponse = await fetch('/api/groups/create', { method: 'POST', headers, body: JSON.stringify({ name: inputs.name }) });
+        if (!createResponse.ok) return { ok: false, createdVia: 'product-api', reason: `groups/create ${createResponse.status}`, uiFailure: inputs.uiFailure, members, memberNames: inputs.memberNames };
+        const created = await createResponse.json();
+        const body = {
+            ...created,
+            id: created.id,
+            name: inputs.name,
+            members,
+            activation_strategy: inputs.activationStrategy,
+            generation_mode: inputs.generationMode,
+            disabled_members: [],
+        };
+        const editResponse = await fetch('/api/groups/edit', { method: 'POST', headers, body: JSON.stringify(body) });
+        if (!editResponse.ok) return { ok: false, createdVia: 'product-api', reason: `groups/edit ${editResponse.status}`, uiFailure: inputs.uiFailure, members, memberNames: inputs.memberNames, groupId: created.id };
+        const deadline = Date.now() + 15000;
+        let group = null;
+        while (Date.now() < deadline) {
+            const listResponse = await fetch('/api/groups/all', { method: 'POST', headers, body: JSON.stringify({}) });
+            if (listResponse.ok) {
+                const groups = await listResponse.json();
+                group = groups.find(candidate => candidate.id === created.id) ?? null;
+                if (group) break;
+            }
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        if (!group) return { ok: false, createdVia: 'product-api', reason: 'created group not visible in /api/groups/all', uiFailure: inputs.uiFailure, members, memberNames: inputs.memberNames, groupId: created.id };
+        const memberCount = Array.isArray(group.members) ? group.members.length : 0;
+        const ok = memberCount === inputs.memberNames.length;
+        return {
+            ok,
+            createdVia: 'product-api',
+            uiFailure: inputs.uiFailure,
+            added: inputs.memberNames.map(member => ({ member, verified: true, viaFilter: false, viaApi: true })),
+            memberCount,
+            members,
+            group: { id: group.id, name: group.name, members: group.members, activation_strategy: group.activation_strategy, generation_mode: group.generation_mode },
+            ...(ok ? {} : { reason: `member count ${memberCount} != requested ${inputs.memberNames.length}` }),
+        };
+    }, { name, memberNames, activationStrategy, generationMode, uiFailure });
+}
+
+/** UI-first group creation with the disclosed product-API fallback; records the via-counts on the report. */
+export async function createGroupUiFirst(page, ctx, round, index, inputs) {
+    const reset = await resetPinnedForCreateGroup(page, ctx, round, index);
+    const currentlyOpenGroup = reset.state?.openGroupId ?? null;
+    const ui = await createGroupThroughPanel(page, inputs);
+    const uiOk = ui.ok === true && ui.memberCount === inputs.memberNames.length;
+    if (uiOk) {
+        ctx.report.counts.groupsCreatedViaUi = (ctx.report.counts.groupsCreatedViaUi ?? 0) + 1;
+        return { ...ui, createdVia: 'ui', currentlyOpenGroup, uiFirstOk: true, reset };
+    }
+    const api = await createGroupViaProductApi(page, { ...inputs, uiFailure: { reason: ui.reason ?? null, added: ui.added ?? null, availableNames: ui.availableNames ?? null, misses: ui.misses ?? null, paginationUsed: ui.paginationUsed ?? null } });
+    if (api.ok) {
+        ctx.report.counts.groupsCreatedViaProductApi = (ctx.report.counts.groupsCreatedViaProductApi ?? 0) + 1;
+        ctx.report.note(`group ${inputs.name} created via PRODUCT API after the UI guard failed (${ui.reason ?? 'unknown UI failure'})`);
+    }
+    return { ...api, currentlyOpenGroup, uiFirstOk: false, reset };
+}
+
 async function runGroups(page, ctx, round, plan, cards) {
     const groups = [];
     // PRE-GROUPS RE-ASSERT: the chats phase may have reloaded the page and the groups phase must not start
@@ -1385,14 +1495,15 @@ async function runGroups(page, ctx, round, plan, cards) {
         const memberNames = cards.slice(groupIndex * 2, groupIndex * 2 + memberCount).map(card => card.name);
         if (memberNames.length < 2) continue;
         const name = `A19R${round} Group ${groupIndex + 1}`;
-        const created = await createGroupThroughPanel(page, {
+        const created = await createGroupUiFirst(page, ctx, round, groupIndex, {
             name,
             memberNames,
             activationStrategy: groupIndex % 2, // 0 natural / 1 list
             generationMode: groupIndex % 2, // 0 swap rotation / 1 list
         });
-        await ctx.act({ page: 'Group chat panel', control: '#rm_button_group_chats → #rm_group_add_members .group_member → #rm_group_submit', field: `group ${name}`, action: `select ${memberNames.length} members, name the group, set activation/generation mode and press Create`, result: created });
-        ctx.report.step(`group-created-r${round}-${groupIndex}`, created.ok === true, created);
+        await ctx.act({ page: 'Group chat panel', control: '#rm_button_group_chats → #rm_group_add_members .group_member → #rm_group_submit', field: `group ${name}`, action: 'reload so no group is open, then select every member, name the group, set activation/generation mode and press Create (UI first; product-API fallback disclosed in the result)', result: created });
+        ctx.report.step(`group-created-r${round}-${groupIndex}`, created.ok === true && created.memberCount === memberNames.length, created);
+        if (created.createdVia === 'product-api') ctx.report.step(`group-created-via-product-api-r${round}-${groupIndex}`, true, { uiFailure: created.uiFailure, members: created.memberNames ?? memberNames });
         if (!created.ok) continue;
         const opened = await openGroup(page, created.group.id, true);
         ctx.report.step(`group-opened-r${round}-${groupIndex}`, opened.ok === true, opened);
@@ -1931,13 +2042,14 @@ export async function runTopUp(page, ctx) {
                 if (current.groups >= TARGET.groups) break;
                 const memberNames = roster.slice((groupIndex * 3) % Math.max(1, roster.length), (groupIndex * 3) % Math.max(1, roster.length) + 3);
                 if (memberNames.length < 2) break;
-                const created = await createGroupThroughPanel(page, {
+                const created = await createGroupUiFirst(page, ctx, 3, groupIndex, {
                     name: `A19R3 TopUp Group ${counts.groups + groupIndex + 1}`,
                     memberNames,
                     activationStrategy: groupIndex % 2,
                     generationMode: groupIndex % 2,
                 });
-                ctx.report.step(`topup-group-${groupIndex}`, created.ok === true && (created.memberCount ?? 0) > 0, created);
+                ctx.report.step(`topup-group-${groupIndex}`, created.ok === true && created.memberCount === memberNames.length, created);
+                if (created.createdVia === 'product-api') ctx.report.step(`topup-group-via-product-api-${groupIndex}`, true, { uiFailure: created.uiFailure, members: created.memberNames ?? memberNames });
                 if (created.ok) {
                     const opened = await openGroup(page, created.group.id, true);
                     if (opened.ok) {
