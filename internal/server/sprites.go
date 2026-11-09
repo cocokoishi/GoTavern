@@ -16,5 +16,6 @@ func (runtime *accountRuntime) serveSpritesGet(w http.ResponseWriter, request *h
 	if values, exists := request.URL.Query()["name"]; exists {
 		name = strings.Join(values, ",")
 	}
-	respondJSON(w, http.StatusOK, startup.UserSprites(runtime.options.DataRoot, account.string("handle"), name))
+	// The frontend revalidates this route on load; express answers 304 for a fresh request (measured pinned).
+	respondJSONConditional(w, request, http.StatusOK, startup.UserSprites(runtime.options.DataRoot, account.string("handle"), name))
 }

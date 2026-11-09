@@ -290,8 +290,19 @@ func (runtime *accountRuntime) serveDataMaidView(w http.ResponseWriter, request 
 	// The pinned compression middleware appends Accept-Encoding to Vary only for a type it would
 	// compress, so a `text/plain` view carries "Origin, Accept-Encoding" while an `image/png` one
 	// carries "Origin" alone. respondBinary cannot be used here for exactly that reason.
+	etag := httpx.WeakETag(content)
+	// The pinned route ends in `res.send(fileBuffer)`, so Express answers 304 for a fresh conditional request.
+	// Its 304 carries the ETag and Vary: Origin with NO representation headers (the same measured res.send face as
+	// /api/extensions/discover, /api/sprites/get and /api/users/me; a direct probe of this route is unreachable
+	// without a valid signed token+hash, which is why that one face is mechanism-derived rather than probed).
+	if httpx.IsFresh(request, etag) {
+		w.Header().Set("ETag", etag)
+		w.Header().Set("Vary", "Origin")
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
 	w.Header().Set("Content-Length", strconv.Itoa(len(content)))
-	w.Header().Set("ETag", httpx.WeakETag(content))
+	w.Header().Set("ETag", etag)
 	if !pinnedCompressibleContentType(mediaType) {
 		w.Header().Set("Vary", "Origin")
 	}

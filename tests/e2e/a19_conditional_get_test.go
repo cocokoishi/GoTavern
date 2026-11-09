@@ -195,3 +195,79 @@ func TestA19ExtensionsDiscoverConditionalGetMatchesPinnedExpressFreshness(t *tes
 		}
 	})
 }
+
+// TestA19JSONGetRoutesHonourConditionalGet extends the discover measurement to the other GET JSON API routes the
+// pinned frontend revalidates. PINNED MEASURED (browser-level, 2026-11-08, same corpus): `GET /api/sprites/get?name=…`
+// and `GET /api/users/me` answer 200 with a weak ETag and JSON body, and a conditional request whose If-None-Match
+// matches answers **304** with NO Content-Type, NO Content-Length, the ETag preserved and `Vary: Origin` alone.
+// The mechanism is the same Express `res.send`/`req.fresh` rule measured on /api/extensions/discover; pinned's
+// users-public route is Express and the sprites route's response goes through `res.json`.
+func TestA19JSONGetRoutesHonourConditionalGet(t *testing.T) {
+	requireProductionTransport(t)
+	server := bootServer(t, nil)
+	defer server.stop()
+
+	routes := []struct {
+		name  string
+		route string
+	}{
+		{"sprites", "/api/sprites/get?name=Aiden%20Cross"},
+		{"users-me", "/api/users/me"},
+	}
+	for _, testCase := range routes {
+		t.Run(testCase.name, func(t *testing.T) {
+			first, firstBody, firstHeader := conditionalGetRoute(t, server.origin, http.MethodGet, testCase.route, nil)
+			if first.StatusCode != http.StatusOK {
+				t.Fatalf("GET %s = %d, want 200; headers %v", testCase.route, first.StatusCode, firstHeader)
+			}
+			etag := first.Header.Get("ETag")
+			if !pinnedWeakETagShape.MatchString(etag) {
+				t.Fatalf("GET %s ETag = %q; pinned emits a weak tag of the shape %q", testCase.route, etag, pinnedWeakETagShape.String())
+			}
+			if firstBody == "" {
+				t.Fatalf("GET %s returned an empty body; the fixture needs a body to revalidate", testCase.route)
+			}
+			response, body, header := conditionalGetRoute(t, server.origin, http.MethodGet, testCase.route, map[string]string{"If-None-Match": etag})
+			if response.StatusCode != http.StatusNotModified {
+				t.Fatalf("GET %s with If-None-Match: %s = %d (%d bytes), want 304 (pinned Express answers 304 when req.fresh); headers %v", testCase.route, etag, response.StatusCode, len(body), header)
+			}
+			if body != "" {
+				t.Fatalf("GET %s 304 carried %d bytes, want none", testCase.route, len(body))
+			}
+			assertNoRepresentationHeaders(t, testCase.route+" 304", header)
+			if got := response.Header.Get("ETag"); got != etag {
+				t.Fatalf("GET %s 304 ETag = %q, want %q", testCase.route, got, etag)
+			}
+			if got := response.Header.Get("Vary"); got != "Origin" {
+				t.Fatalf("GET %s 304 Vary = %q, want %q", testCase.route, got, "Origin")
+			}
+			stale, staleBody, _ := conditionalGetRoute(t, server.origin, http.MethodGet, testCase.route, map[string]string{"If-None-Match": `"nope"`})
+			if stale.StatusCode != http.StatusOK || staleBody != firstBody {
+				t.Fatalf("GET %s with a stale validator = %d (%d bytes), want 200 with the original body (%d bytes)", testCase.route, stale.StatusCode, len(staleBody), len(firstBody))
+			}
+		})
+	}
+}
+
+// conditionalGetRoute is conditionalGet for an arbitrary route.
+func conditionalGetRoute(t *testing.T, origin, method, route string, headers map[string]string) (*http.Response, string, http.Header) {
+	t.Helper()
+	request, err := http.NewRequest(method, origin+route, nil)
+	if err != nil {
+		t.Fatalf("build %s %s request: %v", method, route, err)
+	}
+	for name, value := range headers {
+		request.Header.Set(name, value)
+	}
+	client := &http.Client{Transport: &http.Transport{DisableKeepAlives: true}}
+	response, err := client.Do(request)
+	if err != nil {
+		t.Fatalf("%s %s: %v", method, route, err)
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatalf("read %s body: %v", route, err)
+	}
+	return response, string(body), response.Header.Clone()
+}
