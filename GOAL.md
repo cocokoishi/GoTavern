@@ -46,6 +46,18 @@ artifacts verified after publication (§16). No tag is created and no channel is
 and the evidence table names every gate run. `v0.1.0-alpha.16` and `v0.1.0-alpha.17` are already
 published and their tags are immutable.
 
+**Update, 2026-11-09: the current deliverable is `v0.1.0-alpha.19`, the real-interaction oracle release.**
+alpha.19 moves the compatibility evidence from synthetic-only to a tree that was actually used through the
+unmodified pinned UI: a Node-UI-Originated Complex User Corpus (30+ created cards, 8+ world books / 150+
+created entries, 10 materially different presets, 50+ chats / 1,000+ persisted messages, 5+ group chats,
+personas/themes/Quick Replies/Regex/STscript/variables and a pinned Tavern Helper / JS-Slash-Runner), a
+five-layer live oracle (browser / HTTP / provider wire / persistence / lifecycle+combination) replayed on
+both subjects in isolated copies, and a **fourteenth required release gate** that runs that oracle in CI at
+the candidate SHA with a mutation-tested evidence verifier. The product fixes the oracle found
+(conditional GET/304 on four JSON routes, the startup-only `config.yaml` parse, a streaming cancel-watchdog
+goroutine leak) and the measured performance rows ship with it. The strong drop-in bar in §14 is still **not**
+upgraded: the corpus is agent-created through the real UI, not a human's years-old private tree.
+
 alpha.18 is a **deep product-engineering release**, and the standard it is judged by is what a user can
 observe, not how much analysis was produced. It ships: (a) the completed root-cause analysis and a
 same-input, paired, reproducible improvement of the 10,000-card card-list and startup hotspot (profile,
@@ -487,6 +499,17 @@ bar stays unmet. No real, long-used user directory has been qualified: the local
 does not change this: it adds synthetic/adversarial depth and performance evidence, and it states in the
 same place that §14 stays unmet.
 
+**Update, 2026-11-09 (`v0.1.0-alpha.19` being prepared).** alpha.19 changes the KIND of evidence available
+without changing the verdict: the corpus it uses was created and used by an agent through the unmodified
+pinned UI (real import controls, world-book editor, preset UI, chat turns, group chats, Tavern Helper state),
+and the same tree is replayed on both subjects in the five-layer oracle — so §14's condition 1 has a real
+`ui`-origin tree for the first time, but the tree is agent-created rather than a real person's years-old
+private data, and conditions 2-5 still rest on that same corpus. The oracle also evidences restart/hand-back
+(both directions) and provider-wire byte equality on the corpus path. §14 therefore remains **NOT MET for the
+strong form**; the honest statement is "real UI usage, agent-authored corpus, five-layer equality on that
+corpus", with the corpus's own limits disclosed (396 UI-turn / 772 product-save-path messages, extension
+auto-enable, one recorded third-party egress request, `-race` only on Linux, darwin/arm64 unverified).
+
 The M0 audit of 2026-11-03 named two concrete reasons the sentence could not then be upgraded. Both
 were RE-MEASURED this round rather than quoted: (1) **response compression** — no longer a reason; the
 pinned compression contract is implemented (`internal/server/compression*.go`) and pinned against a
@@ -616,3 +639,56 @@ checkable, machine-consumed form is `docs/release-manifest.json` plus the unifie
 If any of 1-11 cannot be met, the release does not happen and the reason is recorded in
 `docs/alpha18/handoff-ledger.md` as `BLOCKED` with the failing requirement and the run that showed it. A
 formal release is a claim about the artifact, not about the intention.
+
+## 16.1 The `v0.1.0-alpha.19` release bar
+
+`v0.1.0-alpha.19` is the real-interaction oracle release. It may be tagged only when ALL of the following
+hold on ONE commit (the machine-consumed form is `docs/release-manifest.json` — now **14 required gates** —
+plus the unified evidence from `scripts/verify-release-gates.mjs` and the new gate's own verifier
+`scripts/verify-a19-evidence.mjs`):
+
+1. every one of the 14 required gates has a completed/success `workflow_dispatch` run whose `head_sha` is the
+   candidate, and the rebuilt evidence contract PASSES **14/14** at that one SHA, with the selections the
+   manifest records (CI `probes=full`, Browser `mode=all`, real-UI oracle `mode=all`, the multi-job gates'
+   full job selections);
+2. the fourteenth gate (`GoTavern real-UI oracle differential`, job `real-ui-oracle`, artifact
+   `a19-real-ui-oracle-evidence`) uploaded a `release-evidence.json` whose `headSha` is the candidate, whose
+   `pinnedCommit` is the pin, whose `corpus.origin` is `ui`, whose `corpus.manifestSha256` and
+   `corpus.detail.treeSha256` are 64-hex and whose `corpus.detail.manifestVerification` is true, whose five
+   layers are all `ok`/`match`, and whose normalisation list is either empty or every member carries the
+   five-member evidence (reason, pinnedEvidence, field, test, negativeCase);
+3. the verifier refuses a local-run or narrowed selection, a wrong candidate SHA, a wrong pinned commit, a
+   missing corpus digest, a layer `ok:false`, a broad normalisation and a malformed document — its self-test
+   proves each case (17/17) — and the comparator's teeth are demonstrated (mutating a leg artifact reds a
+   named guard, restored green);
+4. the real-UI corpus is committed as provenance only (manifest + report + `docs/alpha19/oracle/corpus.md`),
+   the original corpus bytes never enter the repository or an artifact, and its limits are stated in the same
+   place: created-vs-seeded counts, the UI-turn/product-save-path message split, extension auto-enable, the
+   recorded third-party version-check request, and the phases that did not run;
+5. the product fixes found by the oracle each have a RED reproducer and a GREEN after-fix run, and the
+   performance rows ship with a same-host ABBA artifact whose own same-binary self-test passes and whose
+   "not separable" rows are reported as not separable — the release performance claim still comes from the
+   same-SHA Linux `GoTavern smoke metrics` gate, and peak RSS is labelled one Layer A paired row, not a gate;
+6. `scripts/classify-version-tag.sh` classifies `v0.1.0-alpha.19` stable, its equality list gains the tag in
+   the same change, and `scripts/test-classify-version-tag.sh` proves the new tag stable while every
+   version-shaped neighbour (`v0.1.0-alpha.20`, `v0.1.0-alpha.190`, `v0.1.0-alpha.19-rc1`,
+   `v0.1.0-alpha.19+build.1`, `v0.1.0-alpha.18+build.1`, …) stays prerelease (79/79 cases);
+7. `docs/release-notes-v0.1.0-alpha.19.md` passes the curated-notes gate, names the tag, contains
+   `## Known limitations` and `## Checksums`, carries no placeholder, and states every unproven item (§14
+   status, the message split, extension coverage, Node control / 8-user / soak only to the extent they ran,
+   p99 on the real corpus, darwin/arm64, `-race` only on Linux);
+8. the release publishes with `draft=false`, `prerelease=false`, `latest=true`, six canonical archives plus
+   `checksums.txt`, and the release body carries the same-SHA evidence table;
+9. Docker `:v0.1.0-alpha.19` and `:latest` publish and resolve to the same digest while older images stay
+   unchanged;
+10. after publication the published bytes are verified INDEPENDENTLY (all six archives re-downloaded and
+    checksummed, the published binary's `version`, an unpacked run against a fresh directory with `/version`,
+    `/` and a data request plus a write/read closure, the installer smoke and the published-extension smoke,
+    and `releases/latest` pointing at alpha.19);
+11. no force push, no tag move (alpha.18 and older tags unchanged), no `--no-verify`, no private or corpus
+    content in any artifact;
+12. `GOAL.md` §14 remains **NOT MET** and no document upgrades it on an agent-created corpus.
+
+If any of 1-11 cannot be met, the release does not happen and the reason is recorded in
+`docs/alpha19/` as `BLOCKED` with the failing requirement and the run that showed it.
+
