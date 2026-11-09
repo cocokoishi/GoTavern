@@ -86,6 +86,11 @@ const attachHttpRecorder = page => {
     const pending = new Map();
     page.on('request', request => {
         const url = new URL(request.url());
+        // THE LIVE ORACLE'S HTTP LAYER IS THE /api SURFACE. Static frontend assets have their own gates and carry
+        // the recorded embedded-public validator divergence (docs/compat-matrix.md "Frontend static middleware");
+        // recording them here would compare a known, documented non-parity surface. A's real probe scopes the same
+        // way, so the two journeys record the same layer.
+        if (!url.pathname.startsWith('/api/')) return;
         const entry = {
             index: http.requests.length,
             method: request.method(),
@@ -271,7 +276,7 @@ const readIframes = page => page.evaluate(() => [...document.querySelectorAll('i
  * them the polling hook catches is a race with the page's own init (measured: the faster subject lost
  * `chatLoaded`/`settings_updated`). A bounded quiet window is what makes the boundary a measurement.
  */
-async function settleEvents(page, { quietMs = 800, maxMs = 6000, reset = false } = {}) {
+async function settleEvents(page, { quietMs = 1500, maxMs = 20000, reset = false } = {}) {
     const started = Date.now();
     let last = await page.evaluate(() => (window.__a19EventOrder ?? []).length);
     let lastChange = Date.now();
@@ -356,6 +361,9 @@ try {
         record('reply-arrived', reply?.ok === true, reply);
         const saved = await saveConditional(page);
         record('save-requested', saved?.ok === true, saved);
+        // THE DRIVE'S OWN EVENT SEQUENCE, captured BEFORE the reload. The reload resets the bus (its load-time
+        // events are a race, not a subject observation), so the compared sequence must be taken here.
+        browserLayer.driveEvents = await page.evaluate(() => window.__a19EventOrder ?? []);
         // A fresh page must read the chat the previous page wrote (the reload face of the persistence layer).
         // WAIT ON THE QUANTITY THE ASSERTION READS (a chat identity and length restored), not on openPage's
         // readiness flag: after a reload the chat loads asynchronously and an immediate read saw the welcome
@@ -411,7 +419,8 @@ try {
     if (browserLayer.finalChat.lastText) browserLayer.finalChat.lastTextSha256 = sha256(Buffer.from(browserLayer.finalChat.lastText, 'utf8'));
     browserLayer.finalChat.lastText = stripOwnOrigin(browserLayer.finalChat.lastText);
     await settleEvents(page);
-    browserLayer.eventOrder = await page.evaluate(() => window.__a19EventOrder ?? []);
+    const finalEvents = await page.evaluate(() => window.__a19EventOrder ?? []);
+    browserLayer.eventOrder = phase === 'drive' ? (browserLayer.driveEvents ?? finalEvents) : finalEvents;
     record('event-order-recorded', browserLayer.eventOrder.length > 0, { events: browserLayer.eventOrder.length });
     browserLayer.iframes = await readIframes(page);
 

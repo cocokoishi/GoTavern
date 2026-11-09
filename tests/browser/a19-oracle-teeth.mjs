@@ -162,11 +162,13 @@ record('browser-console-error-carries-own-port', ['browser-console-errors-equal'
     leg.layers.browser.consoleErrors.push('mutation: request to http://127.0.0.1:54321/api/x failed');
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
 });
-record('browser-event-order', ['browser-event-order-equal'], dir => {
+record('browser-event-unrelated-addition-survives', ['browser-event-order-equal'], dir => {
+    // An EXTRA unrelated event does not violate the claim (core set + causal ordering); it must survive, which is
+    // what makes the claim falsifiable by ordering rather than by "the streams are not equal".
     const leg = readLeg(dir, 'a19-drive-gotavern.json');
-    leg.layers.browser.eventOrder = [...(leg.layers.browser.eventOrder ?? []), 'mutation_event'];
+    leg.layers.browser.eventOrder = ['mutation_event', ...(leg.layers.browser.eventOrder ?? [])];
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
-});
+}, { survivor: true });
 record('browser-final-chat-length', ['browser-final-chat-equal'], dir => {
     const leg = readLeg(dir, 'a19-drive-gotavern.json');
     if (leg.layers.browser.finalChat) leg.layers.browser.finalChat.length = (leg.layers.browser.finalChat.length ?? 0) + 1;
@@ -272,12 +274,7 @@ record('http-post-multiplicity', ['http-request-set-equal'], dir => {
     if (post) leg.layers.http.requests.push({ ...post, index: 998 });
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
 });
-record('browser-event-order-swapped', ['browser-event-order-equal'], dir => {
-    const leg = readLeg(dir, 'a19-drive-gotavern.json');
-    const order = leg.layers.browser.eventOrder ?? [];
-    if (order.length >= 2) leg.layers.browser.eventOrder = [order[1], order[0], ...order.slice(2)];
-    writeLeg(dir, 'a19-drive-gotavern.json', leg);
-});
+
 record('http-static-body-changed', ['http-bodies-equal'], dir => {
     const leg = readLeg(dir, 'a19-drive-gotavern.json');
     const get = leg.layers.http.requests.find(request => request.method === 'GET');

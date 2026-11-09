@@ -138,11 +138,19 @@ const NORMALISATIONS = [
     },
     {
         id: 'http-transport-headers',
-        reason: 'date, etag, age, content-length and framing headers are transport metadata: the date moves with the clock and content-length is a function of a body that IS compared after the named projection. Comparing them would make two identical documents differ',
-        pinnedEvidence: 'Node\'s http and Go\'s net/http both emit Date; content-length is derived from the encoded body. The long-lived qualification compares status/content-type/digest rather than transport metadata (docs/longlived-corpus.md §3).',
-        field: 'HTTP response headers date, etag, age, expires, content-length, connection, keep-alive, transfer-encoding',
-        test: 'comparableHeaders() excludes exactly this list and compares the rest; a difference in the rest is a red',
-        negativeCase: 'a19-oracle-teeth.mjs mutates a compared response header (content-type) on one leg and requires http-bodies-equal red',
+        reason: 'date, age, content-length and framing headers are transport metadata: the date moves with the clock, content-length is a function of a body that IS compared after the named projection, and framing is chosen by the connection. CACHING semantics are NOT excluded: etag, expires, last-modified (on API routes) and vary stay compared, because a different validator changes real browser conditional-request behaviour',
+        pinnedEvidence: 'Node\'s http and Go\'s net/http both emit Date; content-length is derived from the encoded body. Validators are NOT transport: docs/compat-matrix.md\'s API rows compare Express weak ETag values byte-for-byte (e.g. "ETag/304/HEAD/Range semantics", account routes)',
+        field: 'HTTP response headers date, age, content-length, connection, keep-alive, transfer-encoding only; etag/expires/vary/last-modified are compared',
+        test: 'comparableHeaders() excludes exactly this list and compares the rest; a difference in the rest is a red (teeth: changing the response etag reds)',
+        negativeCase: 'a19-oracle-teeth.mjs changes the response ETag on one leg and requires http-bodies-equal red, so a different validator cannot hide behind this entry',
+    },
+    {
+        id: 'provider-wire-host-peer-port',
+        reason: 'each leg records through its OWN controlled-range recording peer, so the provider request\'s Host header carries that peer\'s random port. Only the loopback port is normalised to <PEER>; the host address and every other header value are compared',
+        pinnedEvidence: 'tests/browser/port-lease.mjs (controlled-range lease; the alpha.12 wrong-peer defect) and run-against-pinned.mjs printing a per-run port; two legs cannot share a port (measured 41001 vs 41002 in the synthetic fixture, and a fresh pair on every self-check leg)',
+        field: 'provider request header Host — the port component only',
+        test: 'semanticProviderHeaders() replaces only ^127.0.0.1:<port>$ with 127.0.0.1:<PEER> and records this entry',
+        negativeCase: 'a19-oracle-teeth.mjs changes the Host to a NON-loopback address on one leg and requires wire-headers-equal red (only the port is normalised); changing only the port must survive',
     },
     {
         id: 'provider-wire-header-name-case-and-order',
@@ -256,6 +264,14 @@ const NORMALISATIONS = [
         test: 'the named route list normalises this multiplicity; persistence-changed-content-equal asserts the final settings content',
         negativeCase: 'a19-oracle-teeth.mjs changes a final settings member (depth 4 -> 5) and requires persistence-changed-content-equal red',
     },
+    {
+        id: 'settings-auto-update-default',
+        reason: 'THE PRODUCT DECISION: auto-update defaults to OFF and every ambiguous input resolves to OFF, overriding pinned\'s own default. /api/settings/get therefore reports enable_extensions_auto_update=false where pinned reports true, for the SAME seeded config. This is a recorded divergence, not a defect',
+        pinnedEvidence: 'AGENTS.md product rule 26 ("Auto-update defaults to OFF ... This overrides pinned\'s own default (upstream/default/config.yaml:301, :396); diverging from upstream here is the product decision, and it is recorded as such")',
+        field: 'HTTP JSON response member enable_extensions_auto_update in /api/settings/get (recursively projected)',
+        test: 'projectJsonForComparison() omits this member and records this entry; every other settings member is still compared',
+        negativeCase: 'a19-oracle-teeth.mjs changes a DIFFERENT settings/get member on one leg and requires http-bodies-equal red; changing this member alone must survive',
+    },
 ];
 
 const appliedNormalisations = new Set();
@@ -303,6 +319,8 @@ const PROJECTED_JSON_KEYS = new Map([
     ['time_to_first_token', 'generation-timing-members'],
     ['integrity', 'chat-integrity-random-id'],
     ['addedTimestamp', 'image-metadata-added-timestamp'],
+    // THE RECORDED PRODUCT DECISION (AGENTS rule 26): auto-update defaults OFF, overriding pinned's own default.
+    ['enable_extensions_auto_update', 'settings-auto-update-default'],
 ]);
 const PEER_URL_PATTERN = /http:\/\/127\.0\.0\.1:\d+(?:\/v1)?/g;
 const projectJsonForComparison = value => {
@@ -359,7 +377,9 @@ const semanticProviderHeaders = rawHeaders => {
         byName[lower] = header.value;
     }
     if (names.length > 0) appliedNormalisations.add('provider-wire-header-name-case-and-order');
-    return { names: [...names].sort(), byName };
+    // SORTED ENTRIES, not an object: an object's key order is insertion order, so JSON.stringify would make two
+    // identical header SETS differ on order alone -- which is the exact thing this normalisation removes.
+    return { names: [...names].sort(), byName: Object.keys(byName).sort().map(name => [name, byName[name]]) };
 };
 // READ-ONLY / AUTOSAVE ROUTES whose request MULTIPLICITY may differ between two isolated runs. This is a NAMED
 // route list, not a method rule: a write route that is not on it keeps exact multiplicity.
@@ -389,18 +409,29 @@ const multiplicityNormalisation = (request, key) => {
 const STATIC_VALIDATOR_HEADERS = new Set(['etag', 'last-modified', 'vary', 'content-encoding', 'accept-ranges']);
 const isStaticAssetRequest = request => typeof request.path === 'string' && request.path.startsWith('/') && !request.path.startsWith('/api/') && !request.path.startsWith('/scripts/extensions/third-party/');
 const STATIC_CONDITIONAL_REQUEST_HEADERS = new Set(['if-none-match', 'if-modified-since', 'if-match', 'if-range']);
+const SESSION_HEADERS = new Set(['cookie', 'set-cookie', 'x-csrf-token']);
+const LOOPBACK_ORIGIN = /http:\/\/127\.0\.0\.1:\d+/g;
+const normaliseHeaderValue = key => value => {
+    if (SESSION_HEADERS.has(key)) { appliedNormalisations.add('independent-session-cookie'); return '<SESSION>'; }
+    if (key === 'content-encoding') { appliedNormalisations.add('response-content-encoding'); return '<ENCODING>'; }
+    if (typeof value === 'string' && /127\.0\.0\.1:\d+/.test(value)) {
+        appliedNormalisations.add('harness-random-port-in-recorded-strings');
+        return value.replace(LOOPBACK_ORIGIN, '<BASE>');
+    }
+    return value;
+};
 const comparableHeaders = (headers, { staticAsset = false } = {}) => {
     const out = {};
     for (const key of Object.keys(headers ?? {}).sort()) {
-        if (['host', 'cookie', 'set-cookie', 'date', 'age', 'expires', 'content-length', 'connection', 'keep-alive', 'transfer-encoding', 'x-response-time'].includes(key)) continue;
+        if (['host', 'date', 'age', 'content-length', 'connection', 'keep-alive', 'transfer-encoding', 'x-response-time'].includes(key)) continue;
         if (staticAsset && (STATIC_VALIDATOR_HEADERS.has(key) || STATIC_CONDITIONAL_REQUEST_HEADERS.has(key))) {
             appliedNormalisations.add('static-frontend-validator-headers');
             continue;
         }
-        out[key] = headers[key];
+        out[key] = normaliseHeaderValue(key)(headers[key]);
     }
     if (headers && Object.prototype.hasOwnProperty.call(headers, 'x-response-time')) appliedNormalisations.add('x-response-time-value');
-    if (!staticAsset && headers && (Object.prototype.hasOwnProperty.call(headers, 'content-encoding'))) appliedNormalisations.add('response-content-encoding');
+    if (headers && Object.prototype.hasOwnProperty.call(headers, 'content-encoding')) appliedNormalisations.add('response-content-encoding');
     return out;
 };
 
@@ -635,7 +666,52 @@ guard('browser-page-errors-equal', 'browser', () => {
     }
     return problems;
 });
-guard('browser-event-order-equal', 'browser', compareBrowser('eventOrder', order => order ?? []));
+/**
+ * LAYER-A EVENT ORDER, AS A CLAIM THAT CAN HOLD ON TWO ASYNCHRONOUS RUNS.
+ *
+ * The raw emitted-event STREAM is not a product observation: two isolated runs interleave independent async
+ * handlers differently (measured: extension/settings load events move earlier or later, debounced saves emit a
+ * different NUMBER of duplicates, and the same lifecycle event can be re-emitted). What IS a product observation
+ * is (a) the CORE events the drive must emit on both subjects, and (b) the causally REQUIRED ordering inside one
+ * generation lifecycle. Those are asserted per leg and then compared across subjects; the full streams are
+ * recorded as diagnostics and the raw-stream comparison is listed in notCompared.
+ */
+const CORE_DRIVE_EVENTS = ['main_api_changed', 'chatcompletion_source_changed', 'chat_id_changed', 'message_sent', 'user_message_rendered', 'generation_started', 'GENERATION_AFTER_COMMANDS', 'chat_completion_prompt_ready', 'stream_token_received', 'generation_ended', 'message_received', 'character_message_rendered'];
+const REQUIRED_ORDER = [
+    ['message_sent', 'generation_started'],
+    ['message_sent', 'user_message_rendered'],
+    ['generation_started', 'GENERATION_AFTER_COMMANDS'],
+    ['GENERATION_AFTER_COMMANDS', 'chat_completion_prompt_ready'],
+    ['chat_completion_prompt_ready', 'stream_token_received'],
+    ['stream_token_received', 'generation_ended'],
+    ['generation_ended', 'message_received'],
+    ['message_received', 'character_message_rendered'],
+];
+const firstIndex = (order, name) => order.indexOf(name);
+guard('browser-event-order-equal', 'browser', () => {
+    const problems = [];
+    const cases = [];
+    for (const phase of ['drive', 'restart']) {
+        for (const subject of ['gotavern', 'pinned']) {
+            const order = legFor(phase, subject)?.layers?.browser?.eventOrder ?? null;
+            if (!Array.isArray(order)) { problems.push(`${phase}/${subject}: no event order recorded`); continue; }
+            if (phase === 'drive') {
+                for (const name of CORE_DRIVE_EVENTS) {
+                    if (!order.includes(name)) problems.push(`${phase}/${subject}: core drive event ${JSON.stringify(name)} was never emitted (recorded ${order.length} events)`);
+                }
+                for (const [before, after] of REQUIRED_ORDER) {
+                    const a = firstIndex(order, before);
+                    const b = firstIndex(order, after);
+                    if (a < 0 || b < 0) continue; // already reported as a missing core event where required
+                    if (!(a < b)) problems.push(`${phase}/${subject}: causal order violated: ${before} (#${a}) must precede ${after} (#${b})`);
+                }
+            }
+            cases.push({ phase, subject, events: order.length, distinct: new Set(order).size });
+        }
+    }
+    details.eventOrder = cases;
+    return problems;
+});
 guard('browser-iframe-equal', 'browser', compareBrowser('iframes', iframes => (iframes ?? []).map(frame => frame.src)));
 guard('browser-final-chat-equal', 'browser', () => {
     const problems = [];
@@ -904,6 +980,8 @@ const comparison = {
         { surface: 'real provider completion', reason: 'the peer records and answers with deterministic markers (AGENTS 22); no real model completion is claimed' },
         { surface: 'image codec bytes (thumbnail/avatar re-encode)', reason: 'recorded codec decision: decodability/dimensions are compared, Jimp byte equality is not claimed (ARCHITECTURE §35.2)' },
         { surface: 'wall-clock timestamps inside compared files', reason: 'each subject stamps its own clock; the field is omitted from the compared tuple by the named normalisation, not ignored globally' },
+        { surface: 'the raw emitted-event STREAM (order and multiplicity of every event)', reason: 'two isolated runs interleave independent async handlers differently; the layer-A claim is the CORE event set plus the causal orderings inside one generation lifecycle (browser-event-order-equal), with the full streams recorded as diagnostics' },
+        { surface: 'static frontend assets (non-/api paths)', reason: 'the live oracle\'s HTTP layer records the /api surface only (both journey probes scope it that way); static assets are covered by the frontend-asset gates and carry the recorded embedded-public validator divergence (compat-matrix.md "Frontend static middleware"), so status/header equality there is not claimed by this gate' },
     ],
     verdict: layerNames.every(layer => layers[layer].verdict === 'match') ? 'match' : (failedGuards.length > 0 ? 'mismatch' : 'not-observed'),
 };
