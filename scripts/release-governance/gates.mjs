@@ -280,11 +280,20 @@ function memberAt(value, dottedPath) {
 //   * a source DISPROVES it     -> `narrowed-selection` (a definite observation, refused by name);
 //   * only unavailable sources  -> `selection-unverifiable` (refused: a selection that cannot be proved is not accepted
 //                                  silently, which is the whole point of this rail).
+// The order of outcomes matters, and a gate may declare SEVERAL proof sources:
+//   * every declared source that CAN be read is evaluated; a source that DISPROVES the full selection is a definite
+//     observation and refuses by name even if another source would have proved it (two disagreeing observations are
+//     not a green -- measured: before this rule, a corpus.origin="generator" artifact was accepted because its
+//     display title said mode=all);
+//   * with no disproval, at least one source must PROVE it (recording which one);
+//   * only unavailable sources -> `selection-unverifiable` (refused: a selection that cannot be proved is not
+//     accepted silently, which is the whole point of this rail).
 function checkSelectionRail(entry, run, sha, evidence) {
     const selection = entry.requiredSelection;
     if (!selection) return { ok: true, declared: false };
     const unavailable = [];
-    const failures = [];
+    const disprovals = [];
+    let provenBy = null;
     if (Array.isArray(selection.jobs) && selection.jobs.length > 0) {
         if (!Array.isArray(run.jobs)) {
             unavailable.push(`the job list for run ${run.id} was not retrieved`);
@@ -295,8 +304,8 @@ function checkSelectionRail(entry, run, sha, evidence) {
                 if (!job) bad.push(`${JSON.stringify(requiredJob)} absent`);
                 else if (job.status !== 'completed' || job.conclusion !== 'success') bad.push(`${JSON.stringify(requiredJob)} ${job.status}/${job.conclusion ?? 'no conclusion'}`);
             }
-            if (bad.length === 0) return { ok: true, declared: true, provenBy: 'jobs' };
-            failures.push(`required selection job(s) not green in run ${run.id}: ${bad.join(', ')}`);
+            if (bad.length === 0) provenBy = provenBy ?? 'jobs';
+            else disprovals.push(`required selection job(s) not green in run ${run.id}: ${bad.join(', ')}`);
         }
     }
     if (Array.isArray(selection.evidence) && selection.evidence.length > 0) {
@@ -306,8 +315,8 @@ function checkSelectionRail(entry, run, sha, evidence) {
             const bad = selection.evidence
                 .filter((member) => memberAt(evidence, member.path) !== member.equals)
                 .map((member) => `${member.path}=${JSON.stringify(memberAt(evidence, member.path))} (required ${JSON.stringify(member.equals)})`);
-            if (bad.length === 0) return { ok: true, declared: true, provenBy: 'evidence' };
-            failures.push(`embedded evidence does not prove the full selection: ${bad.join(', ')}`);
+            if (bad.length === 0) provenBy = provenBy ?? 'evidence';
+            else disprovals.push(`embedded evidence does not prove the full selection: ${bad.join(', ')}`);
         }
     }
     if (Array.isArray(selection.titleIncludes) && selection.titleIncludes.length > 0) {
@@ -316,13 +325,14 @@ function checkSelectionRail(entry, run, sha, evidence) {
             unavailable.push(`run ${run.id} carries no display title to read`);
         } else {
             const missing = selection.titleIncludes.filter((text) => !title.includes(text));
-            if (missing.length === 0) return { ok: true, declared: true, provenBy: 'display-title' };
-            failures.push(`run display title ${JSON.stringify(title)} does not contain ${missing.map((text) => JSON.stringify(text)).join(', ')}`);
+            if (missing.length === 0) provenBy = provenBy ?? 'display-title';
+            else disprovals.push(`run display title ${JSON.stringify(title)} does not contain ${missing.map((text) => JSON.stringify(text)).join(', ')}`);
         }
     }
-    if (failures.length > 0) {
-        return { ok: false, declared: true, verdict: 'narrowed-selection', detail: failures.join('; ') };
+    if (disprovals.length > 0) {
+        return { ok: false, declared: true, verdict: 'narrowed-selection', detail: disprovals.join('; ') };
     }
+    if (provenBy !== null) return { ok: true, declared: true, provenBy };
     return {
         ok: false,
         declared: true,

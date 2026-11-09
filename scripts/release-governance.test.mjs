@@ -1375,3 +1375,97 @@ test('manifest matching: a run whose API name is its run-name is matched by work
     assert.ok(narrowed.problems.some((problem) => /missing/.test(problem) && /push/.test(problem)), JSON.stringify(narrowed.problems));
 });
 
+// ===================================================================================================================
+// THE alpha.19 GATE, JUDGED BY THE REAL COMMITTED MANIFEST ENTRY. A gate whose rails are only asserted as JSON fields
+// has not been shown to ACCEPT a conforming artifact or to REFUSE a non-conforming one; these cases drive the real
+// evaluateGates path with a synthetic run/artifact so every rail is demonstrated in both directions before the
+// workflow is ever dispatched. The positive control is first, because a suite that only refuses proves nothing about
+// the shape a producer must write.
+// ===================================================================================================================
+test('gate 14: the real-UI oracle gate accepts a conforming artifact and refuses every contract mutation by name', () => {
+    const committed = JSON.parse(readFileSync(path.join(ROOT, 'docs', 'release-manifest.json'), 'utf8'));
+    const gate = committed.requiredGates.find((entry) => entry.workflow === 'GoTavern real-UI oracle differential');
+    assert.ok(gate, 'the committed manifest must carry the alpha.19 real-UI oracle gate');
+    const oneGate = { schemaVersion: 1, sameShaRequired: true, pinnedSha: PINNED, requiredGates: [gate] };
+    const baseEvidence = () => ({
+        schemaVersion: 1,
+        kind: 'a19-real-ui-oracle-v1',
+        headSha: SHA,
+        pinnedCommit: PINNED,
+        ok: true,
+        corpus: {
+            origin: 'ui',
+            manifestSha256: '1'.repeat(64),
+            files: 12,
+            bytes: 3456,
+            detail: { treeSha256: '2'.repeat(64), manifestVerification: true },
+        },
+        selection: { mode: 'all', dispatch: 'workflow_dispatch', corpusTier: 'full' },
+        layers: Object.fromEntries(['browser', 'http', 'providerWire', 'persistence', 'lifecycle'].map((layer) => [layer, { ok: true, verdict: 'match', guards: [] }])),
+        normalisations: [],
+        notCompared: [],
+        startedAt: '2026-10-31T00:00:00Z',
+        finishedAt: '2026-10-31T00:30:00Z',
+    });
+    const gateRun = (evidence = baseEvidence(), overrides = {}) => ({
+        ...run('GoTavern real-UI oracle differential', { id: 91 }),
+        display_title: 'GoTavern real-UI oracle differential mode=all',
+        jobs: [{ name: 'real-ui-oracle', status: 'completed', conclusion: 'success' }],
+        artifacts: [
+            {
+                name: 'a19-real-ui-oracle-evidence',
+                expired: false,
+                digest: `sha256:${'3'.repeat(64)}`,
+                created_at: '2026-10-31T00:01:00Z',
+                workflow_run: { id: 91, head_sha: SHA },
+                evidence,
+            },
+        ],
+        ...overrides,
+    });
+    const verdictOf = (evidence, overrides) => evaluateGates({ manifest: oneGate, sha: SHA, runs: [gateRun(evidence, overrides)] });
+
+    const accepted = verdictOf(baseEvidence());
+    assert.equal(accepted.ok, true, JSON.stringify(accepted.problems));
+
+    const mutations = [
+        ['browser layer mismatch', (evidence) => { evidence.layers.browser = { ok: false, verdict: 'mismatch' }; }, /layers\.browser/],
+        // A layer that is NOT a match must not carry ok:true. The generic release rail can only check the boolean, so a
+        // CONTRADICTORY document (ok:true + verdict:not-observed) is refused by the deeper evidence verifier that the
+        // workflow runs as its own step: `scripts/verify-a19-evidence.mjs --self-test` mutates exactly that shape and
+        // requires the named red. This case proves the boolean rail itself is load-bearing.
+        ['provider wire layer not a match', (evidence) => { evidence.layers.providerWire = { ok: false, verdict: 'not-observed' }; }, /layers\.providerWire/],
+        ['generated corpus', (evidence) => { evidence.corpus.origin = 'generator'; }, /corpus\.origin/],
+        ['narrowed selection member', (evidence) => { evidence.selection.mode = 'smoke'; }, /selection\.mode/],
+        ['wrong candidate head sha', (evidence) => { evidence.headSha = OTHER_SHA; }, /headSha/],
+        ['wrong pinned commit', (evidence) => { evidence.pinnedCommit = OTHER_SHA; }, /pinnedSha|pinnedCommit/],
+        ['manifest not verified against the walk', (evidence) => { evidence.corpus.detail.manifestVerification = false; }, /manifestVerification/],
+        ['malformed tree digest', (evidence) => { evidence.corpus.detail.treeSha256 = 'not-a-digest'; }, /corpus\.detail\.treeSha256/],
+        ['overall not ok', (evidence) => { evidence.ok = false; }, /ok/],
+    ];
+    for (const [name, mutate, expected] of mutations) {
+        const evidence = baseEvidence();
+        mutate(evidence);
+        const verdict = verdictOf(evidence);
+        assert.equal(verdict.ok, false, `${name}: a non-conforming artifact must be refused`);
+        assert.ok(verdict.problems.some((problem) => expected.test(problem)), `${name}: expected ${expected} in ${JSON.stringify(verdict.problems)}`);
+    }
+
+    // RUN-LEVEL RAILS. Each of these keeps the artifact documents conforming and breaks one property of the RUN or of
+    // the artifact's identity, which is a different class of refusal (and the class a green workflow can fake).
+    const runMutations = [
+        ['narrowed display title', {}, { display_title: 'GoTavern real-UI oracle differential mode=smoke' }, /narrowed-selection/],
+        ['wrong event', {}, { event: 'push' }, /missing/],
+        ['skipped required job', {}, { jobs: [{ name: 'real-ui-oracle', status: 'completed', conclusion: 'skipped' }] }, /job-not-green|skipped/],
+        ['absent required job', {}, { jobs: [] }, /missing-job/],
+        ['missing artifact', {}, { artifacts: [] }, /missing-artifact/],
+        ['stale artifact from another run', {}, { artifacts: [{ name: 'a19-real-ui-oracle-evidence', expired: false, digest: `sha256:${'3'.repeat(64)}`, created_at: '2026-10-31T00:01:00Z', workflow_run: { id: 92 }, evidence: baseEvidence() }] }, /stale-artifact/],
+        ['artifact digest not bound', {}, { artifacts: [{ name: 'a19-real-ui-oracle-evidence', expired: false, digest: 'sha256:short', created_at: '2026-10-31T00:01:00Z', workflow_run: { id: 91 }, evidence: baseEvidence() }] }, /artifact-digest/],
+    ];
+    for (const [name, , overrides, expected] of runMutations) {
+        const verdict = verdictOf(baseEvidence(), overrides);
+        assert.equal(verdict.ok, false, `${name}: a broken run rail must be refused`);
+        assert.ok(verdict.problems.some((problem) => expected.test(problem)), `${name}: expected ${expected} in ${JSON.stringify(verdict.problems)}`);
+    }
+});
+
