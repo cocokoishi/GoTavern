@@ -58,6 +58,7 @@ env:
   # 16 minutes for round 1 versus ~3.5 minutes locally, so the bounds are configurable and sized for CI. A timeout
   # is still a NAMED failure carrying the pre-click state — a larger bound never turns a red into a green.
   A19_TURN_TIMEOUT_MS: '60000'
+  A19_GROUP_TURN_TIMEOUT_MS: '180000'
   A19_REPLY_TIMEOUT_MS: '60000'
   A19_NEWCHAT_TIMEOUT_MS: '60000'
   A19_IMPORT_TIMEOUT_MS: '60000'
