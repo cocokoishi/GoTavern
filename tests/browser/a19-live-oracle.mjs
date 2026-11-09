@@ -42,6 +42,8 @@
 //   GOTAVERN_BINARY=<candidate> node tests/browser/a19-live-oracle.mjs \
 //     --corpus <immutable corpus> --out-dir <scratch run dir> [--corpus-manifest <sha256|json>] \
 //     [--journey tests/browser/a19-journey-selfcheck.mjs] [--phases drive,restart] [--skip-pinned]
+//     [--head-sha <candidate SHA>] [--mode all] [--corpus-tier <tier>]
+//   (--out-dir is accepted as an alias of --out.)
 // Env: GOTAVERN_REFERENCE (pinned checkout), PINNED_READY_MS (default 300000 locally), A19_CORPUS_ORIGIN.
 
 import fs from 'node:fs/promises';
@@ -100,6 +102,28 @@ async function assertNoDesktopBrowserCanLaunch(journeyPath) {
     return checks.map(check => path.relative(repoRoot, check.file));
 }
 
+/**
+ * REUSE THE PINNED SERVER'S COMPILED FRONTEND when a second pinned tree is booted.
+ *
+ * Pinned compiles its frontend into <dataRoot>/_webpack on the FIRST boot of a tree; measured on this host
+ * (2026-11-08) that compile alone was 151 s, and each hand-back direction needs a FRESH copy of the other
+ * subject's tree. `_webpack`/`_cache` are pinned build/cache artefacts (the persistence comparison already
+ * excludes them as a named normalisation), so copying them from an already-booted pinned tree is a harness
+ * warm start, not a change to the input data: the corpus files themselves are the verified copies.
+ */
+async function warmPinnedTreeFrom(target, sourceTree) {
+    const warmed = [];
+    for (const name of ['_webpack', '_cache']) {
+        const from = path.join(sourceTree, name);
+        try {
+            await fs.stat(from);
+            await fs.cp(from, path.join(target, name), { recursive: true });
+            warmed.push(name);
+        } catch { /* not compiled yet; the boot will pay the compile */ }
+    }
+    return warmed;
+}
+
 async function pinnedCommit(reference) {
     const result = spawnSync('git', ['-C', reference, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
     return result.status === 0 ? result.stdout.trim() : null;
@@ -119,26 +143,62 @@ async function verifyCorpusManifest(manifestPath, census) {
     const trimmed = text.trim();
     if (trimmed.startsWith('{')) {
         const document = JSON.parse(trimmed);
-        // A's finalize output is the authority; accept the three shapes it may use for the tree digest and
-        // the two count shapes, and REFUSE when a declared value disagrees with the walked census (a moved
-        // corpus must not be driven).
-        const declaredTree = document?.tree?.sha256 ?? document?.treeSha256 ?? document?.corpusTreeSha256 ?? document?.digest ?? document?.corpus?.treeSha256 ?? null;
+        // THE alpha.19 CORPUS MANIFEST SHAPE (Lead/A contract, 2026-11-08): schema
+        // "a19-corpus-manifest-v1", corpus.{origin,tier}, files, bytes, treeSha256, counts, inventory[].
+        // The treeSha256 is sha256 over the sorted `<sha256>  <path>` lines of EVERY file under the data
+        // root, with no trailing newline -- exactly what censusTree computes -- and the finalizer writes the
+        // manifest OUTSIDE the data root, so there is no self-referential entry to exclude.
+        const problems = [];
+        if (typeof document?.schema === 'string' && document.schema !== 'a19-corpus-manifest-v1') {
+            problems.push(`manifest schema is ${JSON.stringify(document.schema)}, expected "a19-corpus-manifest-v1"`);
+        }
+        const declaredTree = document?.treeSha256 ?? document?.tree?.sha256 ?? document?.corpusTreeSha256 ?? document?.digest ?? document?.corpus?.treeSha256 ?? null;
         const declaredFiles = document?.files ?? document?.fileCount ?? document?.counts?.files ?? document?.corpus?.files ?? document?.tree?.files ?? null;
         const declaredBytes = document?.bytes ?? document?.byteCount ?? document?.counts?.bytes ?? document?.corpus?.bytes ?? document?.tree?.bytes ?? null;
-        const problems = [];
-        if (declaredTree !== null && declaredTree !== census.treeSha256) problems.push(`declared tree digest ${declaredTree} != walked ${census.treeSha256}`);
-        if (declaredFiles !== null && Number(declaredFiles) !== census.fileCount) problems.push(`declared file count ${declaredFiles} != walked ${census.fileCount}`);
-        if (declaredBytes !== null && Number(declaredBytes) !== census.bytes) problems.push(`declared byte count ${declaredBytes} != walked ${census.bytes}`);
+        if (declaredTree === null) problems.push('the manifest JSON carries no treeSha256');
+        else if (declaredTree !== census.treeSha256) problems.push(`declared treeSha256 ${declaredTree} != walked ${census.treeSha256}`);
+        if (declaredFiles === null) problems.push('the manifest JSON carries no files count');
+        else if (Number(declaredFiles) !== census.fileCount) problems.push(`declared files ${declaredFiles} != walked ${census.fileCount}`);
+        if (declaredBytes === null) problems.push('the manifest JSON carries no bytes count');
+        else if (Number(declaredBytes) !== census.bytes) problems.push(`declared bytes ${declaredBytes} != walked ${census.bytes}`);
+        // THE INVENTORY IS CHECKED BOTH WAYS: a missing file, an extra file and a per-file sha256 mismatch are
+        // three different defects and each is named (a manifest that only counted would miss a swap).
+        let inventoryEntries = null;
+        if (Array.isArray(document?.inventory)) {
+            inventoryEntries = document.inventory.length;
+            const declared = new Map();
+            for (const entry of document.inventory) {
+                if (!entry || typeof entry.path !== 'string' || typeof entry.sha256 !== 'string') continue;
+                declared.set(entry.path.replace(/\\/g, '/'), { sha256: entry.sha256, bytes: Number(entry.bytes ?? -1) });
+            }
+            const walked = new Map(census.files.map(file => [file.path, file]));
+            for (const [filePath, file] of walked) {
+                const entry = declared.get(filePath);
+                if (!entry) problems.push(`inventory is missing ${filePath}`);
+                else if (entry.sha256 !== file.sha256) problems.push(`inventory sha256 differs for ${filePath}`);
+            }
+            for (const filePath of declared.keys()) {
+                if (!walked.has(filePath)) problems.push(`inventory lists a file the corpus does not have: ${filePath}`);
+            }
+        }
         return {
-            verified: declaredTree !== null && problems.length === 0,
+            // TRUE ONLY AFTER THE WHOLE COMPARISON PASSED; the Lead's verifier requires exactly boolean true.
+            verified: problems.length === 0 && declaredTree !== null,
             manifestPath,
             manifestSha256,
+            schema: document?.schema ?? null,
+            corpusOrigin: document?.corpus?.origin ?? null,
+            tier: document?.corpus?.tier ?? null,
             declaredTreeSha256: declaredTree,
             declaredFiles: declaredFiles === null ? null : Number(declaredFiles),
             declaredBytes: declaredBytes === null ? null : Number(declaredBytes),
+            inventoryEntries,
+            counts: document?.counts ?? null,
             observedTreeSha256: census.treeSha256,
+            observedFiles: census.fileCount,
+            observedBytes: census.bytes,
             problems,
-            reason: declaredTree === null ? 'the manifest JSON carries no recognisable tree digest member' : null,
+            reason: problems.length === 0 ? null : 'the manifest does not describe the walked corpus',
         };
     }
     const lines = trimmed.split('\n').map(line => line.trim()).filter(Boolean);
@@ -165,7 +225,7 @@ async function verifyCorpusManifest(manifestPath, census) {
  * provider-wire layer from the peer. A boot refusal or a journey failure is recorded in the leg and does
  * NOT abort the other legs (all legs must be attempted, or the repair loop pays for the same partial run).
  */
-async function runLeg({ subject, phase, tree, corpusCensus, journeyPath, outDir, goBinary, reference, pinnedCommitHash }) {
+async function runLeg({ subject, phase, tree, corpusCensus, persistenceBaseline, journeyPath, outDir, goBinary, reference, pinnedCommitHash }) {
     const startedAt = new Date().toISOString();
     const startedMs = Date.now();
     const reportPath = path.join(outDir, 'legs', `a19-${phase}-${subject}.json`);
@@ -190,7 +250,7 @@ async function runLeg({ subject, phase, tree, corpusCensus, journeyPath, outDir,
     ];
     try {
         if (subject === 'gotavern') {
-            const port = freePort();
+            const port = await freePort();
             const boot = await bootSubject({ argv: process.argv.slice(2), dataRoot: tree, port, external: false });
             leg.baseURL = boot.baseURL;
             leg.serverPid = boot.server?.pid ?? null;
@@ -206,7 +266,7 @@ async function runLeg({ subject, phase, tree, corpusCensus, journeyPath, outDir,
         } else {
             const forwarded = ['--data-root', tree, '--phase', phase, '--peer-url', peer.url, '--reply-prefix', peer.replyPrefix, '--subject', subject, '--report', reportPath];
             const child = await run(process.execPath, [path.join(here, 'run-against-pinned.mjs'), journeyPath, '--', ...forwarded], {
-                env: { ...process.env, GOTAVERN_REFERENCE: reference, PINNED_READY_MS: process.env.PINNED_READY_MS ?? '300000' },
+                env: { ...process.env, GOTAVERN_REFERENCE: reference, PINNED_READY_MS: process.env.PINNED_READY_MS ?? '600000' },
             });
             leg.steps.push({ name: 'journey', ok: child.code === 0, detail: { exitCode: child.code, elapsedMs: child.elapsedMs } });
             leg.baseURL = 'http://127.0.0.1:<pinned-port>';
@@ -236,7 +296,7 @@ async function runLeg({ subject, phase, tree, corpusCensus, journeyPath, outDir,
     }
     // The persistence layer's DIFF against the immutable corpus census: created/modified/deleted, named.
     if (leg.layers.persistence?.tree) {
-        leg.persistenceDiff = censusDiff(corpusCensus, leg.layers.persistence.tree);
+        leg.persistenceDiff = censusDiff(persistenceBaseline ?? corpusCensus, leg.layers.persistence.tree);
     }
     leg.pinnedCommit = subject === 'pinned' ? pinnedCommitHash : null;
     leg.finishedAt = new Date().toISOString();
@@ -263,15 +323,16 @@ async function main() {
     const outDir = path.resolve(argument('--out', argument('--out-dir', path.join(here, '.tmp-artifacts', 'a19-live-oracle'))));
     const headSha = argument('--head-sha', process.env.GITHUB_SHA ?? spawnSync('git', ['-C', repoRoot, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout?.trim() ?? '');
     const corpusTier = argument('--corpus-tier', null);
+    const journeyPath = path.resolve(argument('--journey', path.join(here, 'a19-journey-selfcheck.mjs')));
+    const manifestPath = argument('--corpus-manifest', null);
+    const corpusOrigin = argument('--corpus-origin', process.env.A19_CORPUS_ORIGIN ?? 'synthetic-stand-in');
+    // THE SELF-CHECK/CORPUS-ORIGIN DECISION COMES BEFORE THE MODE, which names it.
+    const selfCheck = corpusOrigin !== 'ui';
     // THE CI CONTRACT'S `--mode all`: the release artifact must say which oracle ran, and a narrowed mode
     // must never produce release evidence. Only `all` is accepted in release mode; the self-check has its
     // own mode name and never writes the release artifact.
     const mode = argument('--mode', selfCheck ? 'self-check' : 'all');
     if (mode !== 'all' && !selfCheck) throw new Error(`--mode ${JSON.stringify(mode)} is not accepted: release evidence requires --mode all (a narrowed oracle must not ship as the full one)`);
-    const journeyPath = path.resolve(argument('--journey', path.join(here, 'a19-journey-selfcheck.mjs')));
-    const manifestPath = argument('--corpus-manifest', null);
-    const corpusOrigin = argument('--corpus-origin', process.env.A19_CORPUS_ORIGIN ?? 'synthetic-stand-in');
-    const selfCheck = corpusOrigin !== 'ui';
     const skipPinned = hasFlag('--skip-pinned');
     const phases = (argument('--phases', 'drive,restart') ?? 'drive,restart').split(',').map(value => value.trim()).filter(Boolean);
     const goBinary = process.env.GOTAVERN_BINARY ?? '';
@@ -296,7 +357,7 @@ async function main() {
         corpusOrigin,
         startedAt: runStartedAt,
         finishedAt: null,
-        selection: { mode, dispatch: 'workflow_dispatch', corpusTier: corpusTier ?? (selfCheck ? 'self-check' : 'full'), journey: path.basename(journeyPath), phases, pinned: !skipPinned },
+        selection: { mode: selfCheck ? 'self-check' : mode, dispatch: process.env.GITHUB_EVENT_NAME ?? 'local', corpusTier: corpusTier ?? (selfCheck ? 'self-check' : 'full'), journey: path.basename(journeyPath), phases, pinned: !skipPinned },
         corpus: null,
         legs: [],
         layers: null,
@@ -316,23 +377,37 @@ async function main() {
     }
 
     // ---- 1. THE IMMUTABLE CORPUS.
-    const corpusCensus = await censusTree(corpusRoot);
-    if (corpusCensus.fileCount === 0) throw new Error(`the corpus at ${corpusRoot} is empty; nothing to drive`);
+    const fullCensus = await censusTree(corpusRoot);
+    if (fullCensus.fileCount === 0) throw new Error(`the corpus at ${corpusRoot} is empty; nothing to drive`);
+    // The corpus IDENTITY is the generator's own rule: a root `manifest.json` is governance, not content, so
+    // the declared tree digest excludes it (docs/longlived-corpus.md §1). The full census is still what the
+    // copies are verified against and what the persistence diff is taken from.
+    const corpusCensus = fullCensus.files.some(file => file.path === 'manifest.json')
+        ? await censusTree(corpusRoot, { excludePaths: ['manifest.json'] })
+        : fullCensus;
     const manifest = await verifyCorpusManifest(manifestPath, corpusCensus);
     // THE EVIDENCE-CONTRACT SHAPE: corpus.{origin,manifestSha256,files,bytes}; the walked identity and the
     // manifest verification detail ride along under `corpus.detail` for a reader.
     verdict.corpus = {
         origin: corpusOrigin,
         manifestSha256: manifest.manifestSha256 ?? sha256(Buffer.from(corpusCensus.treeSha256, 'utf8')),
-        files: corpusCensus.fileCount,
-        bytes: corpusCensus.bytes,
+        files: fullCensus.fileCount,
+        bytes: fullCensus.bytes,
         detail: {
             root: corpusRoot,
             treeSha256: corpusCensus.treeSha256,
+            fullTreeSha256: fullCensus.treeSha256,
+            digestExcludes: corpusCensus.digestExcludes,
             manifest: manifest.manifestPath ? path.basename(manifest.manifestPath) : null,
-            manifestVerification: manifest,
+            manifestVerification: manifest.verified === true,
+            manifestCheck: manifest,
         },
     };
+    // The manifest's own tier (A's finalize output) is the default; --corpus-tier overrides it.
+    verdict.selection.corpusTier = corpusTier ?? manifest.tier ?? (selfCheck ? 'self-check' : 'full');
+    if (!selfCheck && manifest.corpusOrigin !== null && manifest.corpusOrigin !== 'ui') {
+        throw new Error(`--corpus-origin ui was requested but the manifest declares corpus.origin=; a non-UI corpus is not the alpha.19 oracle`);
+    }
     if (!selfCheck && !(manifest.verified === true)) {
         throw new Error(`--corpus-origin ui requires a verified --corpus-manifest (a moved or unverified corpus must not be driven): ${JSON.stringify(manifest.problems ?? manifest.reason)}`);
     }
@@ -341,8 +416,8 @@ async function main() {
     const subjectsDir = path.join(outDir, 'subjects');
     const goTree = path.join(subjectsDir, 'gotavern');
     const pinnedTree = path.join(subjectsDir, 'pinned');
-    const goCensus = await copyCorpusVerified(corpusRoot, goTree, corpusCensus);
-    const pinnedCensus = await copyCorpusVerified(corpusRoot, pinnedTree, corpusCensus);
+    const goCensus = await copyCorpusVerified(corpusRoot, goTree, fullCensus);
+    const pinnedCensus = await copyCorpusVerified(corpusRoot, pinnedTree, fullCensus);
     verdict.copies = { gotavern: goCensus.treeSha256, pinned: pinnedCensus.treeSha256 };
 
     // ---- 3/4. THE LEGS, sequentially. A restart leg runs over the SAME tree its drive leg wrote.
@@ -354,7 +429,7 @@ async function main() {
                 continue;
             }
             const tree = subject === 'gotavern' ? goTree : pinnedTree;
-            const leg = await runLeg({ subject, phase, tree, corpusCensus, journeyPath, outDir, goBinary, reference, pinnedCommitHash });
+            const leg = await runLeg({ subject, phase, tree, corpusCensus, persistenceBaseline: fullCensus, journeyPath, outDir, goBinary, reference, pinnedCommitHash });
             legs[`${phase}-${subject}`] = leg;
             verdict.legs.push({
                 subject, phase, exitCode: leg.failure === null ? 0 : 1, elapsedMs: leg.elapsedMs,
@@ -376,6 +451,9 @@ async function main() {
         for (const direction of directions) {
             const tree = path.join(handbackDir, direction.name);
             await copyCorpusVerified(direction.source, tree, await censusTree(direction.source));
+            // Pinned compiles its frontend on a fresh tree; reuse the compiled tree from the drive leg so the
+            // hand-back measures the hand-back rather than paying a 150 s webpack build again.
+            if (direction.subject === 'pinned') await warmPinnedTreeFrom(tree, pinnedTree);
             const started = Date.now();
             const reportPath = path.join(outDir, 'legs', `a19-handback-${direction.subject}.json`);
             const peer = await startWirePeer({ replyPrefix: direction.prefix });
@@ -383,7 +461,7 @@ async function main() {
             let exitCode = 1;
             let refusal = null;
             if (direction.subject === 'gotavern') {
-                const port = freePort();
+                const port = await freePort();
                 const boot = await bootSubject({ argv: process.argv.slice(2), dataRoot: tree, port, external: false });
                 refusal = boot.bootRefusal;
                 if (!boot.bootRefusal) {
@@ -392,7 +470,7 @@ async function main() {
                     try { boot.server?.kill?.('SIGKILL'); } catch { /* gone */ }
                 }
             } else {
-                const child = await run(process.execPath, [path.join(here, 'run-against-pinned.mjs'), journeyPath, '--', ...journeyArgs], { env: { ...process.env, GOTAVERN_REFERENCE: reference, PINNED_READY_MS: process.env.PINNED_READY_MS ?? '300000' } });
+                const child = await run(process.execPath, [path.join(here, 'run-against-pinned.mjs'), journeyPath, '--', ...journeyArgs], { env: { ...process.env, GOTAVERN_REFERENCE: reference, PINNED_READY_MS: process.env.PINNED_READY_MS ?? '600000' } });
                 exitCode = child.code;
             }
             await peer.close().catch(() => {});
@@ -455,7 +533,7 @@ async function main() {
     }
 
     // ---- 8. THE IMMUTABLE INPUT DID NOT MOVE.
-    verdict.corpusUnchanged = await assertOriginalUnchanged(corpusCensus, corpusRoot);
+    verdict.corpusUnchanged = await assertOriginalUnchanged(fullCensus, corpusRoot);
     verdict.finishedAt = new Date().toISOString();
     const expectedPhases = skipPinned ? ['drive'] : phases;
     const legsDrove = Object.entries(legs).every(([key, leg]) => {

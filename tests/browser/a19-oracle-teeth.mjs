@@ -168,11 +168,26 @@ record('http-request-added', ['http-request-set-equal'], dir => {
     leg.layers.http.requests.push({ index: 999, method: 'GET', origin: 'subject', path: '/api/mutation-only', query: '', status: 200, responseBodySha256: 'x', responseBodyLength: 1 });
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
 });
-record('http-response-status', ['http-response-bodies-equal'], dir => {
+record('http-response-status', ['http-bodies-equal'], dir => {
     const leg = readLeg(dir, 'a19-restart-gotavern.json');
     const sameOrigin = (leg.layers.http.requests ?? []).filter(request => request.origin === 'subject');
     if (sameOrigin.length > 0) sameOrigin[0].status = 599;
     writeLeg(dir, 'a19-restart-gotavern.json', leg);
+});
+record('http-request-body', ['http-bodies-equal'], dir => {
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const sameOrigin = (leg.layers.http.requests ?? []).filter(request => request.origin === 'subject');
+    const withBody = sameOrigin.find(request => typeof request.requestBodyText === 'string') ?? sameOrigin[0];
+    if (withBody) withBody.requestBodyText = `${withBody.requestBodyText ?? ''} `;
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});
+record('http-compared-header', ['http-bodies-equal'], dir => {
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const sameOrigin = (leg.layers.http.requests ?? []).filter(request => request.origin === 'subject');
+    if (sameOrigin.length > 0) {
+        sameOrigin[0].requestHeaders = { ...(sameOrigin[0].requestHeaders ?? {}), 'content-type': 'application/x-mutation' };
+    }
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
 });
 record('persistence-created-file', ['persistence-created-set-equal'], dir => {
     const leg = readLeg(dir, 'a19-drive-gotavern.json');

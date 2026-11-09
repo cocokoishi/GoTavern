@@ -45,7 +45,8 @@ export async function readJson(file) {
  * sorted `<sha256>  <path>` lines the long-lived corpus uses, so two censuses are comparable and a copy's
  * identity is a measurement rather than a promise.
  */
-export async function censusTree(root) {
+export async function censusTree(root, { excludePaths = [] } = {}) {
+    const excluded = new Set(excludePaths);
     const files = [];
     const walk = async directory => {
         let entries;
@@ -70,12 +71,20 @@ export async function censusTree(root) {
     };
     await walk(root);
     files.sort((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0));
-    const lines = files.map(file => `${file.sha256}  ${file.path}`).join('\n');
+    // THE TREE DIGEST EXCLUDES A ROOT `manifest.json`, which is the corpus's own governance document and
+    // would make the identity self-referential (docs/longlived-corpus.md §1). `files`/`bytes` are the
+    // counted inventory; the digest is over the counted inventory minus the declared exclusions.
+    const digested = files.filter(file => !excluded.has(file.path));
+    const lines = digested.map(file => `${file.sha256}  ${file.path}`).join('\n');
+    const digestedBytes = digested.reduce((sum, file) => sum + file.bytes, 0);
     return {
         root,
         files,
         fileCount: files.length,
         bytes: files.reduce((sum, file) => sum + file.bytes, 0),
+        digestedFileCount: digested.length,
+        digestedBytes,
+        digestExcludes: [...excluded].sort(),
         treeSha256: sha256(lines),
     };
 }

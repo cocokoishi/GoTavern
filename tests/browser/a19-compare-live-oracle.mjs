@@ -120,6 +120,30 @@ const NORMALISATIONS = [
         test: 'browser-images-decoded compares decodability/dimensions and records pixelDigest; it never compares pixelDigest',
         negativeCase: 'a19-oracle-teeth.mjs flips one image decoded=false on one leg and requires browser-images-decoded red',
     },
+    {
+        id: 'wall-clock-json-members',
+        reason: 'a save payload or a chat-get response embeds each server-stamped send_date/create_date; two subjects cannot have the same clock and the user prompt permits an explicitly variable timestamp only when it is named. The members are OMITTED from the projected body, not the whole body from the comparison',
+        pinnedEvidence: 'docs/longlived-corpus.md §"Normalisation" row `disk.chatsAfter[].messages[].send_date` ("each server stamps its own wall clock. Omitted, not compared."); the same member appears in the chat JSONL and in the HTTP bodies that carry it',
+        field: 'layers.http.requests[].requestBodyText / responseBodyText, JSON members send_date and create_date (recursively)',
+        test: 'guard http-bodies-equal compares projectBodyForComparison(...) and adds this entry only when a member was actually omitted',
+        negativeCase: 'a19-oracle-teeth.mjs changes a compared chat message TEXT in the persistence layer and requires persistence-chat-semantics-equal red; the body projection is unchanged by construction because it strips only the two named keys',
+    },
+    {
+        id: 'independent-session-cookie',
+        reason: 'each leg is a separate server process and browser context, so the CSRF/session cookie values are independent session identifiers, which the user prompt names as an allowed non-semantic difference. The cookies are excluded from the header comparison; the REQUEST SEQUENCE and every other comparable header are still compared',
+        pinnedEvidence: 'src/middleware/csrf.js and src/users.js issue a per-session token (a different value in each isolated environment); tests/browser/seed-leg-config.mjs gives each leg its OWN config copy precisely because session state is per process',
+        field: 'HTTP request header `cookie` and response header `set-cookie`',
+        test: 'comparableHeaders() in this file excludes them; the same function compares every other header',
+        negativeCase: 'a19-oracle-teeth.mjs changes a compared request header (content-type) and requires http-bodies-equal red, so the exclusion is not "headers are not compared"',
+    },
+    {
+        id: 'http-transport-headers',
+        reason: 'date, etag, age, content-length and framing headers are transport metadata: the date moves with the clock and content-length is a function of a body that IS compared after the named projection. Comparing them would make two identical documents differ',
+        pinnedEvidence: 'Node\'s http and Go\'s net/http both emit Date; content-length is derived from the encoded body. The long-lived qualification compares status/content-type/digest rather than transport metadata (docs/longlived-corpus.md §3).',
+        field: 'HTTP response headers date, etag, age, expires, content-length, connection, keep-alive, transfer-encoding',
+        test: 'comparableHeaders() excludes exactly this list and compares the rest; a difference in the rest is a red',
+        negativeCase: 'a19-oracle-teeth.mjs mutates a compared response header (content-type) on one leg and requires http-bodies-equal red',
+    },
 ];
 
 const appliedNormalisations = new Set();
@@ -150,6 +174,41 @@ const assertNoUnstableField = (value, where, problems) => {
         appliedNormalisations.add('harness-random-port-in-recorded-strings');
         problems.push(`${where} still carries a host:port (${PORT_IN_STRING.exec(value)?.[0]}), so an unstable harness value survived into a compared field (AGENTS rule 18)`);
     }
+};
+
+// ---------------------------------------------------------------------------------------------------------
+// LAYER-B BODY / HEADER COMPARISON, WITH ITS NAMED NORMALISATIONS APPLIED (never a global ignore).
+// ---------------------------------------------------------------------------------------------------------
+
+// The JSON members whose value is a WALL CLOCK, not a subject behaviour. Applied to subject HTTP bodies
+// only (the provider wire is byte-oriented and is never parsed). docs/longlived-corpus.md §"Normalisation"
+// records the same decision for a chat message's send_date; these are the same values embedded in a save
+// payload or a chat-get response.
+const VOLATILE_JSON_KEYS = new Set(['send_date', 'create_date']);
+const projectJsonForComparison = value => {
+    if (Array.isArray(value)) return value.map(projectJsonForComparison);
+    if (value && typeof value === 'object') {
+        const projected = {};
+        for (const key of Object.keys(value).sort()) {
+            if (VOLATILE_JSON_KEYS.has(key)) { appliedNormalisations.add('wall-clock-json-members'); continue; }
+            projected[key] = projectJsonForComparison(value[key]);
+        }
+        return projected;
+    }
+    return typeof value === 'string' ? stripDiscriminator(value) : value;
+};
+const projectBodyForComparison = text => {
+    if (typeof text !== 'string') return null;
+    try { return sha256(Buffer.from(JSON.stringify(projectJsonForComparison(JSON.parse(text))), 'utf8')); } catch { return sha256(Buffer.from(stripDiscriminator(text), 'utf8')); }
+};
+const HEADER_KEYS_NOT_COMPARED = new Set(['host', 'cookie', 'set-cookie', 'date', 'etag', 'age', 'expires', 'content-length', 'connection', 'keep-alive', 'transfer-encoding']);
+const comparableHeaders = headers => {
+    const out = {};
+    for (const key of Object.keys(headers ?? {}).sort()) {
+        if (HEADER_KEYS_NOT_COMPARED.has(key)) continue;
+        out[key] = headers[key];
+    }
+    return out;
 };
 
 const EXCLUDED_PATH_PREFIXES = ['_webpack/', '_cache/', 'cookie-secret.txt', 'default-user/backups/', '_storage/', 'thumbnails/', 'default-user/stats.json', 'config.yaml'];
@@ -408,18 +467,37 @@ guard('http-request-set-equal', 'http', () => {
     }
     return problems;
 });
-guard('http-response-bodies-equal', 'http', () => {
+guard('http-bodies-equal', 'http', () => {
     const problems = [];
-    const byKey = leg => new Map((leg?.layers?.http?.requests ?? []).filter(request => request.origin === 'subject').map(request => [`${request.method} ${request.path}${request.query ?? ''}`, request]));
     for (const phase of ['drive', 'restart']) {
-        const left = byKey(legFor(phase, 'gotavern'));
-        const right = byKey(legFor(phase, 'pinned'));
-        for (const [key, entry] of left) {
-            const other = right.get(key);
-            if (!other) continue;
+        const left = (legFor(phase, 'gotavern')?.layers?.http?.requests ?? []).filter(request => request.origin === 'subject');
+        const right = (legFor(phase, 'pinned')?.layers?.http?.requests ?? []).filter(request => request.origin === 'subject');
+        if (left.length !== right.length) { problems.push(`${phase}: same-origin request counts differ (${left.length} vs ${right.length}), so bodies cannot be paired`); continue; }
+        for (let index = 0; index < left.length; index += 1) {
+            const entry = left[index];
+            const other = right[index];
+            const key = `${entry.method} ${entry.path}${entry.query ?? ''}`;
             if (entry.status !== other.status) problems.push(`${phase} ${key}: status ${entry.status} vs ${other.status}`);
-            if (entry.responseBodySha256 !== other.responseBodySha256) problems.push(`${phase} ${key}: body sha256 ${entry.responseBodySha256?.slice(0, 12)} (${entry.responseBodyLength} B) vs ${other.responseBodySha256?.slice(0, 12)} (${other.responseBodyLength} B)`);
+            if ((entry.contentType ?? '') !== (other.contentType ?? '')) problems.push(`${phase} ${key}: content-type ${JSON.stringify(entry.contentType)} vs ${JSON.stringify(other.contentType)}`);
+            // REQUEST BODY: projected (discriminator stripped, wall-clock members omitted) rather than raw,
+            // because the leg feeds each subject a different reply prefix and both stamp their own clock.
+            const leftRequest = projectBodyForComparison(entry.requestBodyText);
+            const rightRequest = projectBodyForComparison(other.requestBodyText);
+            if (leftRequest !== rightRequest) problems.push(`${phase} ${key}: request body differs after named normalisation (raw ${entry.requestBodySha256?.slice(0, 12)} vs ${other.requestBodySha256?.slice(0, 12)})`);
+            // RESPONSE BODY: same rule. A response whose body is a chat/state document embeds the reply text and
+            // its timestamps; a response that is not JSON falls back to the discriminator-stripped raw digest.
+            const leftResponse = projectBodyForComparison(entry.responseBodyText) ?? entry.responseBodySha256;
+            const rightResponse = projectBodyForComparison(other.responseBodyText) ?? other.responseBodySha256;
+            if (leftResponse !== rightResponse) problems.push(`${phase} ${key}: response body differs after named normalisation (raw ${entry.responseBodySha256?.slice(0, 12)} vs ${other.responseBodySha256?.slice(0, 12)})`);
             if (JSON.stringify(entry.sseFrameBytes ?? null) !== JSON.stringify(other.sseFrameBytes ?? null)) problems.push(`${phase} ${key}: SSE frame byte boundaries differ: ${JSON.stringify(entry.sseFrameBytes)} vs ${JSON.stringify(other.sseFrameBytes)}`);
+            // HEADERS: the comparable set (the transport/session members are named normalisations). The full
+            // header maps are recorded in `detail` so a red can be diagnosed without re-running.
+            const leftHeaders = comparableHeaders(entry.requestHeaders);
+            const rightHeaders = comparableHeaders(other.requestHeaders);
+            if (JSON.stringify(leftHeaders) !== JSON.stringify(rightHeaders)) problems.push(`${phase} ${key}: request headers differ: ${JSON.stringify(leftHeaders)} vs ${JSON.stringify(rightHeaders)}`);
+            const leftResponseHeaders = comparableHeaders(entry.responseHeaders);
+            const rightResponseHeaders = comparableHeaders(other.responseHeaders);
+            if (JSON.stringify(leftResponseHeaders) !== JSON.stringify(rightResponseHeaders)) problems.push(`${phase} ${key}: response headers differ: ${JSON.stringify(leftResponseHeaders)} vs ${JSON.stringify(rightResponseHeaders)}`);
         }
     }
     return problems;
@@ -466,11 +544,12 @@ guard('persistence-chat-semantics-equal', 'persistence', () => {
     for (const [file, messages] of left) {
         const other = right.get(file);
         if (!other) { problems.push(`chat ${file} exists only on the gotavern leg`); continue; }
-        const tuples = list => list.map(message => `${message.isUser === true ? 'assistant' : 'user'}|${message.name ?? ''}|${stripDiscriminator('')}${message.mesLength}|${message.mesSha256?.slice(0, 12)}`).join('\n');
-        void tuples;
-        const normalised = list => list.map(message => `${message.isUser === true ? 'assistant' : 'user'}|${message.name ?? ''}|${message.mesLength}|${message.mesSha256?.slice(0, 12)}`).join('\n');
+        // The compared tuple is role, author name, text length and the DISCRIMINATOR-STRIPPED text digest.
+        // The raw digest still differs by the per-subject prefix; the length does not, because both prefixes
+        // are the same length, so a length difference is a real difference.
+        const normalised = list => list.map(message => `${message.isUser === true ? 'assistant' : 'user'}|${message.name ?? ''}|${message.mesLength}|${message.mesSha256Stripped ?? message.mesSha256}`).join('\n');
         if (normalised(messages) !== normalised(other)) {
-            problems.push(`chat ${file}: message sequence differs (gotavern ${messages.length}, pinned ${other.length}); the raw per-message sha256 includes the per-subject discriminator, so the guard compares role/name/length and reports the sha256 for diagnosis`);
+            problems.push(`chat ${file}: message sequence differs (gotavern ${messages.length}, pinned ${other.length}); compared tuple is role|name|length|stripped-text-sha256`);
         }
     }
     return problems;

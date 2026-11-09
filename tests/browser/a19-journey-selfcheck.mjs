@@ -76,6 +76,7 @@ const record = (name, ok, detail = null) => {
 // survives in a compared field (AGENTS fixture rule 18: an unstable value must not survive in any field
 // that is compared). This is a RECORDING convention, not a comparison normalisation.
 const stripOwnOrigin = value => String(value ?? '').split(baseURL).join('<BASE>');
+const stripDiscriminator = value => String(value ?? '').replace(/A19(?:HB)?[GP]_/g, '<REPLY_PREFIX>');
 
 // -----------------------------------------------------------------------------------------------------
 // B. HTTP layer: every request/response the page made, with SSE byte boundaries.
@@ -92,6 +93,7 @@ const attachHttpRecorder = page => {
             path: url.pathname,
             query: url.search,
             requestHeaders: null,
+            requestBodyText: null,
             requestBodyLength: null,
             requestBodySha256: null,
             status: null,
@@ -101,6 +103,17 @@ const attachHttpRecorder = page => {
             contentType: '',
             sseFrameBytes: null,
         };
+        // THE REQUEST BODY, for the layer-B body comparison. Recorded as text (the page's own JSON) so the
+        // comparator can apply its NAMED normalisations (per-subject discriminator, wall-clock members) instead
+        // of comparing a digest that differs for harness reasons.
+        try {
+            const text = request.postData();
+            if (typeof text === 'string') {
+                entry.requestBodyText = text;
+                entry.requestBodyLength = Buffer.byteLength(text);
+                entry.requestBodySha256 = sha256(Buffer.from(text, 'utf8'));
+            }
+        } catch { /* no body on this request */ }
         pending.set(request, entry);
         http.requests.push(entry);
         request.allHeaders().then(headers => { entry.requestHeaders = headers; }).catch(() => {});
@@ -115,6 +128,11 @@ const attachHttpRecorder = page => {
             const body = await response.body();
             entry.responseBodyLength = body.length;
             entry.responseBodySha256 = sha256(body);
+            // The response body TEXT too, for the same named normalisations (only for bodies small enough to be
+            // JSON state rather than a large asset; the digest still covers everything).
+            if (body.length <= 2 * 1024 * 1024 && /json|event-stream/.test(entry.contentType)) {
+                try { entry.responseBodyText = body.toString('utf8'); } catch { entry.responseBodyText = null; }
+            }
             if (entry.contentType.includes('text/event-stream')) {
                 // THE SSE BYTE BOUNDARIES: the byte length of each `data:` frame, derived from the raw
                 // bytes (not from a parsed event) so two subjects' framing is compared, not inferred.
@@ -280,6 +298,9 @@ try {
     browserLayer.readiness = await readReadiness(page);
 
     // Images decode BEFORE any click: this is the "the page shows pictures" observation.
+    // WAIT FOR THE PAGE'S OWN IMAGES TO SETTLE before snapshotting: an image still loading is not a broken
+    // image, and comparing a mid-load set would make the two legs' timing look like a product difference.
+    await page.waitForFunction(() => [...document.images].every(image => image.complete === true), null, { timeout: 30000 }).catch(() => {});
     browserLayer.images = await readDecodedImages(page);
     record('images-recorded', browserLayer.images.length > 0, { images: browserLayer.images.length, decoded: browserLayer.images.filter(entry => entry.decoded).length });
 
@@ -297,20 +318,34 @@ try {
 
     if (phase === 'drive') {
         const marker = `A19_${subject.toUpperCase()}_SELFCHECK_${Date.now()}`;
-        const before = await page.evaluate(async () => {
-            const script = await import('./script.js');
-            return { chatLength: (script.chat ?? []).length };
-        });
         const send = await sendTurn(page, marker);
         record('turn-sent', send?.clicked === true, send);
-        const reply = await waitForReply(page, { timeoutMs: 120000, requireText: true, baseline: { chatLength: before.chatLength, lastTextLength: 0 } });
+        // THE BASELINE IS THE PAGE'S OWN, FROM IMMEDIATELY BEFORE THE CLICK. A hand-built baseline with
+        // lastTextLength:0 makes moved true on the first poll for any chat whose tail is non-empty -- the
+        // measured failure that made this leg reload a page mid-generation and abort the provider request.
+        const reply = await waitForReply(page, { timeoutMs: 120000, requireText: true, baseline: send?.baseline ?? null });
         record('reply-arrived', reply?.ok === true, reply);
         const saved = await saveConditional(page);
         record('save-requested', saved?.ok === true, saved);
         // A fresh page must read the chat the previous page wrote (the reload face of the persistence layer).
+        // WAIT ON THE QUANTITY THE ASSERTION READS (a chat identity and length restored), not on openPage's
+        // readiness flag: after a reload the chat loads asynchronously and an immediate read saw the welcome
+        // screen (measured: chatId null, length 2).
         const chatBeforeReload = await readFinalChat(page);
         await openPage(page, baseURL);
-        const chatAfterReload = await readFinalChat(page);
+        // A RELOADED PAGE DOES NOT REOPEN THE CHAT BY ITSELF (measured: chatId null, length 2), which is why the
+        // long-lived probe "reopens the card after each reload". A user clicks the card; this leg does the same.
+        const reloadRoster = await resolveRoster(page);
+        const reloadName = reloadRoster.names[0] ?? null;
+        const reloadOpened = await openCharacter(page, reloadName);
+        record('reload-character-opened', reloadOpened?.opened === true, reloadOpened);
+        const reloadDeadline = Date.now() + 60000;
+        let chatAfterReload = await readFinalChat(page);
+        while (Date.now() < reloadDeadline) {
+            if (chatAfterReload.chatId !== null && chatAfterReload.length >= chatBeforeReload.length) break;
+            await page.waitForTimeout(250);
+            chatAfterReload = await readFinalChat(page);
+        }
         browserLayer.lifecycleReload = {
             before: chatBeforeReload,
             after: chatAfterReload,
@@ -320,8 +355,21 @@ try {
         record('reload-read-back', browserLayer.lifecycleReload.sameChatId && chatAfterReload.length >= chatBeforeReload.length, browserLayer.lifecycleReload);
     } else {
         // The restart leg: a fresh SERVER process over the tree the drive leg wrote. The driver proves the
-        // process identity (pid differs); this leg proves the page reads the persisted chat back.
-        const chat = await readFinalChat(page);
+        // process identity (pid differs); this leg proves the page reads the persisted chat back BY OPENING
+        // the card again (a user does exactly that after a restart), not by trusting settings to resume it.
+        const restartRoster = await resolveRoster(page);
+        const restartName = restartRoster.names[0] ?? null;
+        const reopened = await openCharacter(page, restartName);
+        record('restart-character-opened', reopened?.opened === true, reopened);
+        // The resumed chat loads asynchronously after the card click; wait for the product's own chatId and
+        // length rather than reading the page in the middle of the load.
+        const resumeDeadline = Date.now() + 60000;
+        let chat = await readFinalChat(page);
+        while (Date.now() < resumeDeadline) {
+            if (chat.chatId !== null && chat.length > 0) break;
+            await page.waitForTimeout(250);
+            chat = await readFinalChat(page);
+        }
         browserLayer.restartResume = {
             chat,
             resumed: (chat.chatId ?? null) !== null && chat.length > 0,
@@ -345,6 +393,7 @@ try {
             isUser: message?.is_user === true,
             mesLength: String(message?.mes ?? '').length,
             mesSha256: sha256(Buffer.from(String(message?.mes ?? ''), 'utf8')),
+            mesSha256Stripped: sha256(Buffer.from(stripDiscriminator(String(message?.mes ?? '')), 'utf8')),
             name: message?.name ?? null,
             sendDate: message?.send_date ?? null,
         })) })),
