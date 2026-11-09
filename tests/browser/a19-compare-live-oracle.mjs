@@ -424,6 +424,18 @@ const ROUTE_SCOPED_RUN_CLOCK = new Map([
     // A GROUP's date_added is the moment THIS run created the group (measured run9: 1794200820667.4832 vs
     // 1794200821259.2122, 591 ms apart), unlike a character's mtime-derived date_added, which stays compared.
     ['POST /api/groups/all', new Set(['date_added'])],
+    // A character the journey EDITS has its file rewritten during each leg, so its mtime-derived date_added is that
+    // leg's clock; the rest of the corpus cards keep stable mtimes (their sub-millisecond part is handled by the
+    // mtime decision). Measured release run 2026-11-08: edited card date_added 1794204775623.7305 vs
+    // 1794205015221.9177 (239 s apart = the leg clocks).
+    ['POST /api/characters/all', new Set(['date_added'])],
+    // The connection configuration writes an api_key_custom secret through the frontend in each leg: the id is
+    // generated fresh and the label is the leg's own clock. Measured: labels "11/08/2026 10:12 PM" vs "10:16 PM".
+    ['POST /api/secrets/read', new Set(['id', 'label'])],
+    ['POST /api/secrets/write', new Set(['id', 'label'])],
+    // The persisted secrets file carries the same run-created entries (see the file route key used by the
+    // persistence guard).
+    ['file:default-user/secrets.json', new Set(['id', 'label'])],
 ]);
 const projectJsonForComparison = (value, routeRunClock = null) => {
     if (Array.isArray(value)) return value.map(item => projectJsonForComparison(item, routeRunClock));
@@ -931,7 +943,18 @@ guard('http-bodies-equal', 'http', () => {
         // for the routes where scheduling was measured (see the decision below), so a genuine request-content
         // difference still surfaces as a problem.
         // The autosave's REQUEST BODY is not compared (named decision), so it cannot be part of its identity.
-        const identityOf = request => `${request.method} ${request.path}${request.query ?? ''}|${request.path === '/api/settings/save' ? '' : (request.requestBodySha256 ?? '')}`;
+        // The identity uses the PROJECTED request-body digest: a body member that a NAMED decision normalises (the
+        // per-subject reply prefix, the per-leg peer URL, run clocks) must not turn the same logical request into two
+        // different identities. The raw digest is still compared per pair by compareHTTPBody, so a real difference
+        // on the same identity reds.
+        const identityOf = request => {
+            const bodyDigest = request.path === '/api/settings/save'
+                ? ''
+                : (request.requestBodyText === null || request.requestBodyText === undefined
+                    ? (request.requestBodySha256 ?? '')
+                    : projectBodyForComparison(request.requestBodyText));
+            return `${request.method} ${request.path}${request.query ?? ''}|${bodyDigest ?? ''}`;
+        };
         const group = list => { const map = new Map(); for (const request of list) { const identity = identityOf(request); const key = keyOf(request); if (!map.has(key)) map.set(key, new Map()); const byIdentity = map.get(key); if (!byIdentity.has(identity)) byIdentity.set(identity, []); byIdentity.get(identity).push(request); } return map; };
         const goGroups = group(left);
         const pinnedGroups = group(right);
@@ -1053,8 +1076,9 @@ guard('persistence-changed-content-equal', 'persistence', () => {
         const leftText = jsonText(legs.driveGotavern, entry.path);
         const rightText = jsonText(legs.drivePinned, entry.path);
         if (leftText !== null && rightText !== null) {
-            const leftProjected = projectBodyForComparison(leftText);
-            const rightProjected = projectBodyForComparison(rightText);
+            const fileKey = 'file:' + entry.path;
+            const leftProjected = projectBodyForComparison(leftText, { routeKey: fileKey });
+            const rightProjected = projectBodyForComparison(rightText, { routeKey: fileKey });
             if (leftProjected !== rightProjected) problems.push(`${entry.path}: content differs after named projection (raw ${entry.sha256.slice(0, 12)} vs ${otherSha.slice(0, 12)})`);
             continue;
         }

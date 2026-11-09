@@ -210,7 +210,23 @@ record('browser-event-core-missing', ['browser-event-order-equal'], dir => {
     leg.layers.browser.eventOrder = (leg.layers.browser.eventOrder ?? []).filter(name => name !== 'chat_completion_prompt_ready');
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
 });
-record('http-char-list-date-added-millisecond', ['http-bodies-equal'], dir => {
+record('http-char-list-content', ['http-bodies-equal'], dir => {
+    // characters/all date_added is a route-scoped run clock (the journey edits one card); a NON-clock member of the
+    // same response must still red.
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const entry = (leg.layers.http.requests ?? []).find(request => request.path === '/api/characters/all' && typeof request.responseBodyText === 'string');
+    if (entry) {
+        const body = JSON.parse(entry.responseBodyText);
+        body[0].name = 'mutated-character-name';
+        entry.responseBodyText = JSON.stringify(body);
+        entry.responseBodySha256 = 'e'.repeat(64);
+    }
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});
+record('http-char-list-run-clock-survives', ['http-bodies-equal'], dir => {
+    // The edited card's mtime-derived date_added IS the leg clock (measured 239 s apart in the release run), so a
+    // changed whole-millisecond timestamp on this route survives; the identity pairing and every other field remain
+    // compared.
     const leg = readLeg(dir, 'a19-drive-gotavern.json');
     const entry = (leg.layers.http.requests ?? []).find(request => request.path === '/api/characters/all' && typeof request.responseBodyText === 'string');
     if (entry) {
@@ -220,7 +236,7 @@ record('http-char-list-date-added-millisecond', ['http-bodies-equal'], dir => {
         entry.responseBodySha256 = 'e'.repeat(64);
     }
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
-});
+}, { survivor: true });
 record('http-char-list-submillisecond-survives', ['http-bodies-equal'], dir => {
     const leg = readLeg(dir, 'a19-drive-gotavern.json');
     const entry = (leg.layers.http.requests ?? []).find(request => request.path === '/api/characters/all' && typeof request.responseBodyText === 'string');

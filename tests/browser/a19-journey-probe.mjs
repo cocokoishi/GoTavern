@@ -184,6 +184,9 @@ async function settleHttp() {
 // BROWSER LAYER
 // -----------------------------------------------------------------------------------------------------------------
 const eventOrder = [];
+// CAPTURED BEFORE THE RELOAD: see the drive branch; the page init resets the buffer on navigation.
+let driveEventOrder = null;
+
 const consoleErrors = [];
 const consoleAll = [];
 const pageErrors = [];
@@ -875,6 +878,11 @@ try {
             const context = window.SillyTavern?.getContext?.() ?? null;
             return { chatId: context?.chatId ?? null, chatLength: (script.chat ?? []).length };
         });
+        // THE DRIVE'S OWN EVENT SEQUENCE, captured BEFORE the navigation: a reload creates a new event-bus instance
+        // and the page init resets the buffer, so reading only after the reload loses every event the journey's own
+        // actions emitted (measured release run 2026-11-08: both subjects recorded 12/13 post-reload events and NONE
+        // of the core drive events -- a capture defect, identical on both sides, not a product difference).
+        driveEventOrder = await page.evaluate(() => window.__a19EventOrder ?? []);
         await page.reload({ waitUntil: 'domcontentloaded' });
         const readyAfterReload = await waitForPageReady(page);
         // THE EVENT BUS IS A NEW INSTANCE AFTER A NAVIGATION: subscribe again, settle the load-time
@@ -951,13 +959,23 @@ try {
         selected: snapshot.selected,
         consoleErrors: snapshot.consoleErrors,
         pageErrors: snapshot.pageErrors,
-        eventOrder: snapshot.eventOrder,
+        eventOrder: phase === 'drive' ? (driveEventOrder ?? snapshot.eventOrder) : snapshot.eventOrder,
         finalChat: snapshot.finalChat,
         snapshots: [snapshot],
     };
     leg.layers.http = { requests: httpRequests };
 
     const tree = await censusTree(dataRoot);
+    // THE PRODUCT-SURFACE JSON DOCUMENTS, recorded as TEXT so the comparator applies its named JSON projections
+    // (run-created secrets, per-leg peer URL, generation timings) instead of comparing raw bytes that legitimately
+    // differ; a change outside those members still changes the projected digest.
+    const jsonFiles = [];
+    for (const relative of ['default-user/settings.json', 'default-user/image-metadata.json', 'default-user/secrets.json']) {
+        try {
+            const text = await fs.readFile(path.join(dataRoot, relative), 'utf8');
+            if (text.length <= 4 * 1024 * 1024) jsonFiles.push({ path: relative, text });
+        } catch { /* absent is a fact the guard reports by its absence */ }
+    }
     let corpusTreeSha256 = null;
     try {
         const manifest = JSON.parse(await fs.readFile(path.join(path.dirname(dataRoot), 'corpus-manifest.json'), 'utf8'));
@@ -974,6 +992,7 @@ try {
             lines: chat.lines,
         })),
         chatMessages: await readChatSemantics(),
+        jsonFiles,
     };
 
     // FAIL A STEP IF THE LAYERS IT CLAIMS ARE ABSENT: absence is reported, never treated as a pass.
