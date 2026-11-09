@@ -60,6 +60,10 @@ import { bootSubject, freePort } from './q20-leg-runtime.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '..', '..');
 
+// PER-LEG CEILING: a stalled page fails its own leg BY NAME (journey-timeout) instead of hanging the run. The
+// measured legs take 200-330 s; 15 minutes leaves headroom for a cold pinned webpack build.
+const LEG_TIMEOUT_MS = Number(process.env.A19_LEG_TIMEOUT_MS ?? 900000);
+
 function argument(name, fallback = null) {
     const index = process.argv.indexOf(name);
     if (index < 0) return fallback;
@@ -68,12 +72,22 @@ function argument(name, fallback = null) {
 }
 const hasFlag = name => process.argv.includes(name);
 
-function run(command, args, { cwd = repoRoot, env = process.env } = {}) {
+function run(command, args, { cwd = repoRoot, env = process.env, timeoutMs = 0 } = {}) {
     return new Promise(resolve => {
         const started = Date.now();
         const child = spawn(command, args, { cwd, env, stdio: 'inherit' });
-        child.on('error', error => resolve({ code: 1, error: String(error?.message ?? error), elapsedMs: Date.now() - started }));
-        child.on('exit', (code, signal) => resolve({ code: code ?? 1, signal, error: null, elapsedMs: Date.now() - started }));
+        // A LEG MUST FAIL BY NAME, NOT HANG THE RUN: the browser and the subjects are external processes, and a stalled
+        // page must become a recorded 'journey timeout' failure instead of an unattended process burning the night.
+        let timer = null;
+        const settle = result => { if (timer !== null) clearTimeout(timer); resolve(result); };
+        if (timeoutMs > 0) {
+            timer = setTimeout(() => {
+                try { child.kill('SIGKILL'); } catch { /* gone */ }
+                settle({ code: 124, signal: 'SIGKILL', error: null, timedOut: true, timeoutMs, elapsedMs: Date.now() - started });
+            }, timeoutMs);
+        }
+        child.on('error', error => settle({ code: 1, error: String(error?.message ?? error), timedOut: false, elapsedMs: Date.now() - started }));
+        child.on('exit', (code, signal) => settle({ code: code ?? 1, signal, error: null, timedOut: false, elapsedMs: Date.now() - started }));
     });
 }
 
@@ -259,16 +273,19 @@ async function runLeg({ subject, phase, tree, corpusCensus, persistenceBaseline,
                 leg.steps.push({ name: 'boot', ok: false, detail: boot.bootRefusal });
             } else {
                 leg.steps.push({ name: 'boot', ok: true, detail: { port, pid: boot.server?.pid ?? null, tokenizers: boot.tokenizers?.layout ?? null, tokenizersCopied: boot.tokenizers?.copied ?? null } });
-                const child = await run(process.execPath, [journeyPath, '--base-url', boot.baseURL, ...journeyArgs], { env: { ...process.env, PROBE_BASE_URL: boot.baseURL, PROBE_SERVER_PID: String(boot.server?.pid ?? ''), A19_TURN_MARKER: 'A19_SELFCHECK_TURN' } });
-                leg.steps.push({ name: 'journey', ok: child.code === 0, detail: { exitCode: child.code, elapsedMs: child.elapsedMs } });
+                const child = await run(process.execPath, [journeyPath, '--base-url', boot.baseURL, ...journeyArgs], { timeoutMs: LEG_TIMEOUT_MS, env: { ...process.env, PROBE_BASE_URL: boot.baseURL, PROBE_SERVER_PID: String(boot.server?.pid ?? ''), A19_TURN_MARKER: 'A19_SELFCHECK_TURN' } });
+                leg.steps.push({ name: child.timedOut ? 'journey-timeout' : 'journey', ok: child.code === 0, detail: { exitCode: child.code, timedOut: child.timedOut === true, elapsedMs: child.elapsedMs } });
+                if (child.timedOut) leg.failure = `journey timeout after ${child.timeoutMs} ms (leg ${phase}/${subject})`;
                 try { boot.server?.kill?.('SIGKILL'); } catch { /* already gone */ }
             }
         } else {
             const forwarded = ['--data-root', tree, '--phase', phase, '--peer-url', peer.url, '--reply-prefix', peer.replyPrefix, '--subject', subject, '--report', reportPath];
             const child = await run(process.execPath, [path.join(here, 'run-against-pinned.mjs'), journeyPath, '--', ...forwarded], {
+                timeoutMs: LEG_TIMEOUT_MS,
                 env: { ...process.env, GOTAVERN_REFERENCE: reference, PINNED_READY_MS: process.env.PINNED_READY_MS ?? '600000', A19_TURN_MARKER: 'A19_SELFCHECK_TURN' },
             });
-            leg.steps.push({ name: 'journey', ok: child.code === 0, detail: { exitCode: child.code, elapsedMs: child.elapsedMs } });
+            leg.steps.push({ name: child.timedOut ? 'journey-timeout' : 'journey', ok: child.code === 0, detail: { exitCode: child.code, timedOut: child.timedOut === true, elapsedMs: child.elapsedMs } });
+            if (child.timedOut) leg.failure = `journey timeout after ${child.timeoutMs} ms (leg ${phase}/${subject})`;
             leg.baseURL = 'http://127.0.0.1:<pinned-port>';
         }
     } catch (error) {
@@ -491,7 +508,7 @@ async function main() {
                 const boot = await bootSubject({ argv: process.argv.slice(2), dataRoot: tree, port, external: false });
                 refusal = boot.bootRefusal;
                 if (!boot.bootRefusal) {
-                    const child = await run(process.execPath, [journeyPath, '--base-url', boot.baseURL, ...journeyArgs], { env: { ...process.env, PROBE_BASE_URL: boot.baseURL, PROBE_SERVER_PID: String(boot.server?.pid ?? ''), A19_TURN_MARKER: 'A19_SELFCHECK_TURN' } });
+                    const child = await run(process.execPath, [journeyPath, '--base-url', boot.baseURL, ...journeyArgs], { timeoutMs: LEG_TIMEOUT_MS, env: { ...process.env, PROBE_BASE_URL: boot.baseURL, PROBE_SERVER_PID: String(boot.server?.pid ?? ''), A19_TURN_MARKER: 'A19_SELFCHECK_TURN' } });
                     exitCode = child.code;
                     try { boot.server?.kill?.('SIGKILL'); } catch { /* gone */ }
                 }

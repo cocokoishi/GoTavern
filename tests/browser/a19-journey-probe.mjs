@@ -186,8 +186,21 @@ function startHttpCapture(page) {
     });
 }
 
-async function settleHttp() {
-    await Promise.allSettled(pendingBodies.splice(0));
+async function settleHttp(timeoutMs = 5000) {
+    // A SINGLE BATCH IS NOT A SETTLE: responses that arrive while the batch is being read are missed, and reading a
+    // body after the page navigates is impossible (measured: unread bodies clustered at the reload boundary). Wait
+    // until no pending body has appeared for a quiet window, bounded, so a body is always read while its response is
+    // live.
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const batch = pendingBodies.splice(0);
+        if (batch.length === 0) {
+            await new Promise(resolve => setTimeout(resolve, 120));
+            if (pendingBodies.length === 0) return;
+            continue;
+        }
+        await Promise.allSettled(batch);
+    }
 }
 
 // -----------------------------------------------------------------------------------------------------------------

@@ -458,6 +458,9 @@ const ROUTE_SCOPED_RUN_CLOCK = new Map([
     // characters/get returns the same mtime-derived date_added / chat_size surface as characters/all, and the journey
     // edits that card (measured corpus-v2 run 4: date_added 1794208536525.2207 vs 1794208717239.0461 = leg clocks).
     ['POST /api/characters/get', new Set(['date_added', 'chat_size'])],
+    // the chat LISTING carries the same chat-file-derived members as chats/recent, plus the last-message clock; the
+    // message preview is discriminator-stripped and the file identity is compared.
+    ['POST /api/characters/chats', new Set(['last_mes', 'file_size'])],
     // The connection configuration writes an api_key_custom secret through the frontend in each leg: the id is
     // generated fresh and the label is the leg's own clock. Measured: labels "11/08/2026 10:12 PM" vs "10:16 PM".
     ['POST /api/secrets/read', new Set(['id', 'label'])],
