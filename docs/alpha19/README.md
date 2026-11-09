@@ -28,7 +28,7 @@ prompt verbatim, the measured starting state, the final goal and the acceptance 
 | real-UI oracle CI gate (workflow + manifest entry + governance rails + evidence verifier) | [`.github/workflows/real-ui-oracle.yml`](../../.github/workflows/real-ui-oracle.yml), [`evidence-contract.md`](evidence-contract.md), `docs/release-manifest.json` gate 14, [`scripts/verify-a19-evidence.mjs`](../../scripts/verify-a19-evidence.mjs) | **armed** (14 gates; governance 88/88; verifier 16/16); first dispatch pending A's finalizer + B's driver |
 | real-UI corpus (originals + manifest + action log) | outside the repo: `C:\Users\koishi\Desktop\GoTavern\a19-oracle` (A); summary will be copied here | in progress (smoke journey has created a real card/lorebook/chat through the pinned UI) |
 | five-layer differential | A's corpus + B's comparator | not started |
-| findings (RED/GREEN) | `findings/` | not started |
+| findings (RED/GREEN) | `findings/` | release-selection-rail defect found + fixed (RED observed, 89/89 green) |
 | performance | `perf/` (C) | not started |
 | same-SHA CI evidence | `same-sha-evidence.md` | not started |
 | release evidence | `release-evidence.md` | not started |
