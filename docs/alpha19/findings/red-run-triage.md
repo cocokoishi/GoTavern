@@ -22,7 +22,7 @@ external connection hangs, a leg fails for network weather. GoTavern's server is
 Facts from `gh run view 42478967874 --json ...`:
 
 - workflow `Third-party extension compatibility`, event `schedule`, branch `main`,
-  headSha `52883e8a048e4f29f6f574529d2491339106fe28`, conclusion `failure`.
+  headSha `52883e8`, conclusion `failure`.
 - failing job `soak` (id `128726625481`), step 12 `Thirty-minute all-20 soak (both subjects)`:
   started `2026-11-08T12:11:36Z`, failed `13:20:36Z`. Every other job is green
   (`shard (1..4)`, `corpus`, `overhead`, `aggregate`, `selftest`, `macos-arm64-recorded-limitation`).
@@ -60,7 +60,7 @@ pinned corpus extension `DangerDaza/Dooms-Enhancement-Suite`
 Facts from `gh run view 42477517830 --json ...`:
 
 - workflow `GoTavern published-extension smoke`, event `workflow_dispatch`, branch `main`,
-  headSha `81d70dc27e6165cca83bd4e4f37882395183b444`, conclusion `failure`.
+  headSha `81d70dc`, conclusion `failure`.
 - failing job `published-linux-artifact` (id `128722044527`), step 11
   `All-20 extension differential against the PUBLISHED binary`; the sibling
   `published-container` job is green.

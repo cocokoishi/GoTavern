@@ -9,8 +9,8 @@ Owner: Subagent B (compat-diff). Date: 2026-11-08, host `windows/arm64`, 2 logic
 | field | value | how |
 |---|---|---|
 | branch | `alpha19/program` | `git rev-parse --abbrev-ref HEAD` |
-| HEAD when the build started | `07af095d058f9a5d5dd1ca0f594c69f97874929c` | `git rev-parse HEAD` before the build |
-| HEAD after the build | `423b02a1d85e19c58b3681365e194d83e5461649` | Lead's docs-only commit landed during the build |
+| HEAD when the build started | `07af095` | `git rev-parse HEAD` before the build |
+| HEAD after the build | `423b02a` | Lead's docs-only commit landed during the build |
 | code difference between them | **none** | `git diff --name-only 07af095d 423b02a1` = 5 files, all `docs/alpha19/*`; `git diff --stat 07af095d 423b02a1 -- '*.go' '*.mjs'` empty |
 
 ## 2. Build
@@ -31,7 +31,7 @@ bytes   67,331,072
 
 ```
 GoTavern 0.0.0-dev
-SillyTavern baseline 1.19.0 (06bde939fb1e9c4c8d8641d810f0a9165bce127)
+SillyTavern baseline 1.19.0 (06bde939fb1e9c4c8d8641d810f0a916b5bce127)
 ```
 
 `0.0.0-dev` is expected: the version is injected from the tag by `release.yml`, and this is a local build
@@ -42,7 +42,7 @@ SillyTavern baseline 1.19.0 (06bde939fb1e9c4c8d8641d810f0a9165bce127)
 | field | value | how |
 |---|---|---|
 | checkout | `C:\Users\koishi\Desktop\GoTavern\SillyTavern` | `run-against-pinned.mjs` default resolution |
-| HEAD | `06bde939fb1e9c4c8d8641d810f0a9165bce127` | `git rev-parse HEAD` |
+| HEAD | `06bde939fb1e9c4c8d8641d810f0a916b5bce127` | `git rev-parse HEAD` |
 | tracked modifications | none (`git status --porcelain` yielded 0 lines) | `git status --porcelain` |
 
 The byte manifest for this tree is the Lead's `docs/alpha19/oracle-pin.sha256` / `oracle-pin.json`
