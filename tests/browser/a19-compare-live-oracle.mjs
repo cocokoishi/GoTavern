@@ -272,6 +272,22 @@ const NORMALISATIONS = [
         test: 'projectJsonForComparison() omits this member and records this entry; every other settings member is still compared',
         negativeCase: 'a19-oracle-teeth.mjs changes a DIFFERENT settings/get member on one leg and requires http-bodies-equal red; changing this member alone must survive',
     },
+    {
+        id: 'live-egress-body',
+        reason: 'a route that PASSES THROUGH a live third-party service returns data owned by that service, not by the subject; comparing bodies would compare two live responses. Its STATUS is still compared, so a broken passthrough is visible',
+        pinnedEvidence: 'AGENTS rule 14 ("A probe must not be able to reach the live network ... live third-party data") and the extension-corpus probe\'s liveEgress flag for /api/horde/; measured in self-check run5: /api/horde/text-models bodies differed between legs while status and content-type agreed',
+        field: 'HTTP response BODY of /api/horde/* only',
+        test: 'http-bodies-equal skips the response body for /api/horde/* and records this entry; status/content-type/headers are still compared',
+        negativeCase: 'a19-oracle-teeth.mjs changes a NON-horde response body and requires http-bodies-equal red',
+    },
+    {
+        id: 'etag-derived-from-projected-body',
+        reason: 'the weak ETag is a digest of the response BYTES. When a named projection made two bodies differ by design (auto-update decision, wall-clock members, per-leg peer URL) the byte-derived ETag MUST differ; comparing it would re-import the difference the named decision removed. When the raw bodies ARE byte-equal the ETag is still compared',
+        pinnedEvidence: 'internal/httpx/httpx.go:23-30 (WeakETag = sha1 over the exact bytes) and Express default weak etags; measured in self-check run5: settings/get body differed only by enable_extensions_auto_update, and its ETag differed accordingly',
+        field: 'HTTP response header etag, ONLY when the raw response body digests differ',
+        test: 'http-bodies-equal deletes etag from the compared set only when rawBodiesEqual is false, and records this entry',
+        negativeCase: 'a19-oracle-teeth.mjs changes the ETag on a pair whose raw bodies are EQUAL and requires http-bodies-equal red',
+    },
 ];
 
 const appliedNormalisations = new Set();
@@ -678,10 +694,13 @@ guard('browser-page-errors-equal', 'browser', () => {
  */
 const CORE_DRIVE_EVENTS = ['main_api_changed', 'chatcompletion_source_changed', 'chat_id_changed', 'message_sent', 'user_message_rendered', 'generation_started', 'GENERATION_AFTER_COMMANDS', 'chat_completion_prompt_ready', 'stream_token_received', 'generation_ended', 'message_received', 'character_message_rendered'];
 const REQUIRED_ORDER = [
-    ['message_sent', 'generation_started'],
-    ['message_sent', 'user_message_rendered'],
+    // Pinned emits GENERATION_STARTED inside Generate() and MESSAGE_SENT when the user turn is committed, so the
+    // generation starts BEFORE the message event. Measured on BOTH subjects in self-check run5 (generation_started
+    // #6 vs message_sent #12; #3 vs #8) -- the earlier invariant had these two swapped and was my bug.
     ['generation_started', 'GENERATION_AFTER_COMMANDS'],
-    ['GENERATION_AFTER_COMMANDS', 'chat_completion_prompt_ready'],
+    ['GENERATION_AFTER_COMMANDS', 'message_sent'],
+    ['message_sent', 'user_message_rendered'],
+    ['user_message_rendered', 'chat_completion_prompt_ready'],
     ['chat_completion_prompt_ready', 'stream_token_received'],
     ['stream_token_received', 'generation_ended'],
     ['generation_ended', 'message_received'],
@@ -791,10 +810,15 @@ guard('http-bodies-equal', 'http', () => {
                 if (statusPairIsStaticRevalidation) appliedNormalisations.add('static-frontend-validator-headers');
                 else if (entry.status !== other.status) problems.push(`${phase} ${key}: status ${entry.status} vs ${other.status}`);
                 if (!statusPairIsStaticRevalidation && (entry.contentType ?? '') !== (other.contentType ?? '')) problems.push(`${phase} ${key}: content-type ${JSON.stringify(entry.contentType)} vs ${JSON.stringify(other.contentType)}`);
+                // A LIVE THIRD-PARTY PASSTHROUGH is not a subject observation: the body comes from the live service
+                // (AGENTS rule 14: live egress is recorded with its status, and its body is never asserted). The
+                // recorded decision covers /api/horde/* only; every other route's body is compared.
+                const liveEgress = typeof entry.path === 'string' && entry.path.startsWith('/api/horde/');
+                if (liveEgress) appliedNormalisations.add('live-egress-body');
                 const leftRequest = projectBodyForComparison(entry.requestBodyText);
                 const rightRequest = projectBodyForComparison(other.requestBodyText);
                 if (leftRequest !== rightRequest) problems.push(`${phase} ${key}: request body differs after named normalisation (raw ${entry.requestBodySha256?.slice(0, 12)} vs ${other.requestBodySha256?.slice(0, 12)})`);
-                if (!statusPairIsStaticRevalidation) {
+                if (!statusPairIsStaticRevalidation && !liveEgress) {
                     const leftResponse = projectBodyForComparison(entry.responseBodyText) ?? entry.responseBodySha256;
                     const rightResponse = projectBodyForComparison(other.responseBodyText) ?? other.responseBodySha256;
                     if (leftResponse !== rightResponse) problems.push(`${phase} ${key}: response body differs after named normalisation (raw ${entry.responseBodySha256?.slice(0, 12)} vs ${other.responseBodySha256?.slice(0, 12)})`);
@@ -803,8 +827,18 @@ guard('http-bodies-equal', 'http', () => {
                 const leftHeaders = comparableHeaders(entry.requestHeaders, { staticAsset });
                 const rightHeaders = comparableHeaders(other.requestHeaders, { staticAsset });
                 if (JSON.stringify(leftHeaders) !== JSON.stringify(rightHeaders)) problems.push(`${phase} ${key}: request headers differ: ${JSON.stringify(leftHeaders)} vs ${JSON.stringify(rightHeaders)}`);
+                // ETag IS A FUNCTION OF THE RESPONSE BYTES. When the raw bodies are byte-equal the validators must be
+                // equal too; when a NAMED projection made the bodies differ by design (auto-update decision, wall
+                // clock members, per-leg peer URL), the byte-derived ETag necessarily differs and is compared by
+                // consequence only. The decision names that dependency and has a negative case.
+                const rawBodiesEqual = entry.responseBodySha256 === other.responseBodySha256;
                 const leftResponseHeaders = comparableHeaders(entry.responseHeaders, { staticAsset });
                 const rightResponseHeaders = comparableHeaders(other.responseHeaders, { staticAsset });
+                if (!rawBodiesEqual && (Object.prototype.hasOwnProperty.call(leftResponseHeaders, 'etag') || Object.prototype.hasOwnProperty.call(rightResponseHeaders, 'etag'))) {
+                    appliedNormalisations.add('etag-derived-from-projected-body');
+                    delete leftResponseHeaders.etag;
+                    delete rightResponseHeaders.etag;
+                }
                 if (JSON.stringify(leftResponseHeaders) !== JSON.stringify(rightResponseHeaders)) problems.push(`${phase} ${key}: response headers differ: ${JSON.stringify(leftResponseHeaders)} vs ${JSON.stringify(rightResponseHeaders)}`);
             }
             if (entries.length !== otherEntries.length) {

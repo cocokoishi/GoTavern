@@ -335,6 +335,9 @@ async function main() {
     const outDir = path.resolve(argument('--out', argument('--out-dir', path.join(here, '.tmp-artifacts', 'a19-live-oracle'))));
     const headSha = argument('--head-sha', process.env.GITHUB_SHA ?? spawnSync('git', ['-C', repoRoot, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout?.trim() ?? '');
     const corpusTier = argument('--corpus-tier', null);
+    // A RUN LABEL lets a plumbing/smoke run say so in its own artifact. It NEVER makes an artifact release-
+    // admissible: releaseAdmissible stays false and the label is part of the document.
+    const runLabel = argument('--run-label', null);
     const journeyPath = path.resolve(argument('--journey', path.join(here, 'a19-journey-selfcheck.mjs')));
     const manifestPath = argument('--corpus-manifest', null);
     const corpusOrigin = argument('--corpus-origin', process.env.A19_CORPUS_ORIGIN ?? 'synthetic-stand-in');
@@ -362,8 +365,11 @@ async function main() {
         schemaVersion: 1,
         kind: selfCheck ? 'harness-self-check' : 'a19-real-ui-oracle-v1',
         // THE LABEL IS PART OF THE ARTIFACT, and the driver refuses to drop it in self-check mode.
-        label: selfCheck ? 'harness self-check; synthetic stand-in, NOT the alpha.19 oracle' : 'alpha.19 real-UI oracle',
-        releaseAdmissible: !selfCheck,
+        label: selfCheck
+            ? 'harness self-check; synthetic stand-in, NOT the alpha.19 oracle'
+            : (runLabel ? `alpha.19 real-UI oracle PLUMBING RUN (${runLabel}); NOT alpha.19 release evidence` : 'alpha.19 real-UI oracle'),
+        runLabel,
+        releaseAdmissible: !selfCheck && !runLabel,
         headSha,
         pinnedCommit: pinnedCommitHash,
         corpusOrigin,
@@ -558,7 +564,7 @@ async function main() {
         && verdict.teeth?.ok === true;
     // ok:true is only ever written for RELEASE evidence; the self-check keeps its own truth but is not
     // admissible (releaseAdmissible:false and a distinct kind/file name above).
-    verdict.ok = !selfCheck && plumbingGreen;
+    verdict.ok = !selfCheck && !runLabel && plumbingGreen;
     verdict.plumbingGreen = plumbingGreen;
 
     const artifactName = selfCheck ? 'a19-self-check-verdict.json' : 'release-evidence.json';

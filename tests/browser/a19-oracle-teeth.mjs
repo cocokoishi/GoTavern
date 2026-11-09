@@ -162,6 +162,19 @@ record('browser-console-error-carries-own-port', ['browser-console-errors-equal'
     leg.layers.browser.consoleErrors.push('mutation: request to http://127.0.0.1:54321/api/x failed');
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
 });
+record('http-live-egress-etag-differs-survives', ['http-bodies-equal'], dir => {
+    // A live third-party passthrough body is not a subject observation, and its byte-derived ETag therefore moves
+    // with it; both rules must survive together (and the same mutation on a NON-horde route still reds -- see the
+    // body mutations above).
+    const leg = readLeg(dir, 'a19-drive-pinned.json');
+    const horde = (leg.layers.http.requests ?? []).find(request => String(request.path ?? '').startsWith('/api/horde/') && request.responseHeaders);
+    if (horde) {
+        horde.responseBodyText = '{"models":[99]}';
+        horde.responseBodySha256 = 'f'.repeat(64);
+        horde.responseHeaders = { ...horde.responseHeaders, etag: 'W/"mutated-live"' };
+    }
+    writeLeg(dir, 'a19-drive-pinned.json', leg);
+}, { survivor: true });
 record('browser-event-unrelated-addition-survives', ['browser-event-order-equal'], dir => {
     // An EXTRA unrelated event does not violate the claim (core set + causal ordering); it must survive, which is
     // what makes the claim falsifiable by ordering rather than by "the streams are not equal".
