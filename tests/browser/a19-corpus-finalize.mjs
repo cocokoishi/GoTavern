@@ -287,6 +287,7 @@ try {
         ? actionsArgument.split(',').map(entry => path.resolve(entry.trim())).filter(Boolean)
         : [];
     const createdEvidence = await countCreatedFromActions(actionFiles);
+    const groupCreation = { viaUi: Number(argumentValue(argv, '--groups-via-ui', '0') || 0), viaProductApi: Number(argumentValue(argv, '--groups-via-product-api', '0') || 0), note: 'UI-first group creation; product-API fallback (POST /api/groups/create + /api/groups/edit) is used only when the UI fail-closed guard refuses, and every such group is opened/driven through the UI afterwards' };
     const SEEDED_BASELINE = {
         characters: 1,
         worlds: 1,
@@ -322,6 +323,7 @@ try {
         actionCreated,
         messageSplit: { viaUiTurns: Math.max(0, chats.messages - savePathMessages), viaProductSavePath: savePathMessages, basis: 'persisted chat+group-chat JSONL user+assistant records; the product-save-path share is disclosed by the run that produced it' },
         actionLogs: { files: createdEvidence.files, records: createdEvidence.actionRecords },
+        groupCreation,
         inventory: files,
     };
     await fs.mkdir(path.dirname(outPath), { recursive: true });
