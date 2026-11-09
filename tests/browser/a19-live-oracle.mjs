@@ -390,9 +390,13 @@ async function main() {
         schemaVersion: 1,
         kind: selfCheck ? 'harness-self-check' : 'a19-real-ui-oracle-v1',
         // THE LABEL IS PART OF THE ARTIFACT, and the driver refuses to drop it in self-check mode.
+        // THE LABEL MUST AGREE WITH releaseAdmissible: a plumbing/smoke run says so and is never release evidence;
+        // a labelled release run records its label and REMAINS admissible.
         label: selfCheck
             ? 'harness self-check; synthetic stand-in, NOT the alpha.19 oracle'
-            : (runLabel ? `alpha.19 real-UI oracle PLUMBING RUN (${runLabel}); NOT alpha.19 release evidence` : 'alpha.19 real-UI oracle'),
+            : (plumbing
+                ? `alpha.19 real-UI oracle PLUMBING RUN (${runLabel ?? 'plumbing'}); NOT alpha.19 release evidence`
+                : (runLabel ? `alpha.19 real-UI oracle (${runLabel})` : 'alpha.19 real-UI oracle')),
         runLabel,
         releaseAdmissible: !selfCheck && !plumbing,
         headSha,
