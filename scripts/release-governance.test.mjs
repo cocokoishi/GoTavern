@@ -1208,11 +1208,11 @@ test('emitter: a failing wave is NOT publishable and writes no evidence file', a
 // ACTUAL display names the Actions API reports (never a matrix-generated name, which would make the manifest brittle).
 // ===================================================================================================================
 
-test('manifest: the applied alpha.18 rails are present on all thirteen gates', () => {
+test('manifest: the applied alpha.18 rails are present on all thirteen gates, and alpha.19 adds the real-UI oracle gate', () => {
     const committed = JSON.parse(readFileSync(path.join(ROOT, 'docs', 'release-manifest.json'), 'utf8'));
     assert.deepEqual(validateManifest(committed), []);
     assert.equal(committed.pinnedSha, PINNED, 'the release policy must name the pinned oracle commit');
-    assert.equal(committed.requiredGates.length, 13);
+    assert.equal(committed.requiredGates.length, 14);
     const byWorkflow = Object.fromEntries(committed.requiredGates.map((gate) => [gate.workflow, gate]));
     // Every gate proves its selection somehow; a gate with no selection requirement is the narrowed-dispatch hole.
     for (const gate of committed.requiredGates) {
@@ -1241,12 +1241,39 @@ test('manifest: the applied alpha.18 rails are present on all thirteen gates', (
         'Third-party extension compatibility',
         'GoTavern long-lived corpus qualification',
         'GoTavern Node stock tree round trip',
+        'GoTavern real-UI oracle differential',
     ]) {
         const gate = byWorkflow[workflow];
         assert.ok(gate.requiredArtifact, `${workflow}: no requiredArtifact`);
         assert.equal(gate.requireArtifactDigest, true, `${workflow}: artifact digest not bound`);
         assert.equal(gate.requiredArtifactFresh, true, `${workflow}: artifact freshness not bound`);
     }
+    // THE alpha.19 GATE. Its value is the selection and the content, not the workflow name: a narrowed dispatch, a
+    // generator corpus, or an artifact that does not carry five matched observable layers must not satisfy it. The
+    // applied rails are asserted by VALUE here so a later manifest edit cannot quietly relax one.
+    const realUi = byWorkflow['GoTavern real-UI oracle differential'];
+    assert.deepEqual(realUi.requiredJobs, ['real-ui-oracle']);
+    assert.deepEqual(realUi.requiredSelection, {
+        titleIncludes: ['mode=all'],
+        evidence: [
+            { path: 'selection.mode', equals: 'all' },
+            { path: 'corpus.origin', equals: 'ui' },
+        ],
+    });
+    assert.equal(realUi.requiredArtifact, 'a19-real-ui-oracle-evidence');
+    assert.equal(realUi.requiredPinnedSha, PINNED);
+    assert.equal(realUi.requiredEvidence.kind, 'a19-real-ui-oracle-v1');
+    assert.equal(realUi.requiredEvidence.pinnedShaField, 'pinnedCommit');
+    assert.deepEqual(realUi.requiredEvidence.requireTruthy, [
+        'ok',
+        'corpus.detail.manifestVerification',
+        'layers.browser.ok',
+        'layers.http.ok',
+        'layers.providerWire.ok',
+        'layers.persistence.ok',
+        'layers.lifecycle.ok',
+    ]);
+    assert.deepEqual(realUi.requiredEvidence.requireSha256, ['corpus.manifestSha256', 'corpus.detail.treeSha256']);
     // JOB NAMES MUST BE THE API DISPLAY NAMES. Matrix-generated names carry their values ("shard (1)",
     // "cross-platform (os, platform, binary)") and would break on a matrix change; the helper-state job's display name
     // is not its job id, which is the only place the mapping needs recording.

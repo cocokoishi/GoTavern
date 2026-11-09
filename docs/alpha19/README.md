@@ -8,12 +8,12 @@ prompt verbatim, the measured starting state, the final goal and the acceptance 
 
 | field | value |
 |---|---|
-| stage | **P0 — oracle + harness boot proven; P1 (real-UI corpus) in progress** |
+| stage | **P0 — oracle + harness boot proven, release gate armed (14 required gates); P1 (real-UI corpus) in progress** |
 | branch | `alpha19/program` (from `52883e8`) |
 | candidate | none yet |
 | subagents | `oracle-ui` (A), `compat-diff` (B), `perf-stability` (C) — exactly three, long-lived |
-| corpus | not yet produced (A in progress) |
-| CI gates | none dispatched for alpha.19 yet |
+| corpus | not yet finalized (A's smoke journey is producing real UI data; rounds in progress) |
+| CI gates | **14 required gates armed** in `docs/release-manifest.json`; the new gate has not been dispatched yet |
 
 ## Evidence index (live)
 
@@ -24,8 +24,9 @@ prompt verbatim, the measured starting state, the final goal and the acceptance 
 | oracle pin summary (commit, clean flag, file count, bytes, tree digest) | [`oracle-pin.json`](oracle-pin.json) | recorded |
 | pinned boot smoke (real `run-against-pinned.mjs` boot, `/version` identity, index bytes, readiness bound) | [`oracle/pinned-boot-smoke.json`](oracle/pinned-boot-smoke.json) | recorded |
 | decisions and rejected options | [`decision-log.md`](decision-log.md) | live |
-| alpha.19 evidence artifact contract (for the new CI gate) | [`evidence-contract.md`](evidence-contract.md) | drafted |
-| real-UI corpus (originals + manifest + action log) | outside the repo: `C:\Users\koishi\Desktop\GoTavern\a19-oracle` (A); summary will be copied here | in progress |
+| alpha.19 evidence artifact contract (for the new CI gate) | [`evidence-contract.md`](evidence-contract.md) | applied (verifier + gate rails) |
+| real-UI oracle CI gate (workflow + manifest entry + governance rails + evidence verifier) | [`.github/workflows/real-ui-oracle.yml`](../../.github/workflows/real-ui-oracle.yml), [`evidence-contract.md`](evidence-contract.md), `docs/release-manifest.json` gate 14, [`scripts/verify-a19-evidence.mjs`](../../scripts/verify-a19-evidence.mjs) | **armed** (14 gates; governance 88/88; verifier 16/16); first dispatch pending A's finalizer + B's driver |
+| real-UI corpus (originals + manifest + action log) | outside the repo: `C:\Users\koishi\Desktop\GoTavern\a19-oracle` (A); summary will be copied here | in progress (smoke journey has created a real card/lorebook/chat through the pinned UI) |
 | five-layer differential | A's corpus + B's comparator | not started |
 | findings (RED/GREEN) | `findings/` | not started |
 | performance | `perf/` (C) | not started |
