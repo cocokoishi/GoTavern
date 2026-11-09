@@ -461,14 +461,23 @@ func (value orderedNodeJSON) javascriptString() (string, error) {
 	}
 }
 
+// marshalNodeJSONString is the JSON string encoding for the GENERIC ordered-JSON routes (world info, chats,
+// image metadata). It used to build an encoding/json v2 encoder and then run two bytes.ReplaceAll passes over
+// its output; the character domain's escaper (writeCharacterJSONString) was differentially pinned to exactly
+// that output in alpha.18 (single-byte controls, \b\t\n\f\r, quote/backslash, U+2028/U+2029 emitted RAW,
+// invalid UTF-8 replaced with U+FFFD) and is now shared here, so the generic routes stop paying one encoder
+// allocation plus two whole-string copies per string. In alpha.19 the 4 MB world-info response spent 48.5 MB
+// (14.5% of its allocation window) in bytes.Replace for this path.
+//
+// KEEPING THE PIN HONEST: the differential test that proves this equivalence must compare against an
+// encoder-based REFERENCE, not against the production function itself. The reference lives in
+// a19_perf_pins_test.go (a19ReferenceMarshalNodeJSONStringEncoder) and characters_scale_optimization_test.go
+// was updated to use it, so the comparison still has teeth.
 func marshalNodeJSONString(value string) ([]byte, error) {
-	encoded, err := marshalNodeJSON(value)
-	if err != nil {
-		return nil, err
-	}
-	encoded = bytes.ReplaceAll(encoded, []byte(`\u2028`), []byte("\u2028"))
-	encoded = bytes.ReplaceAll(encoded, []byte(`\u2029`), []byte("\u2029"))
-	return encoded, nil
+	var body bytes.Buffer
+	body.Grow(len(value) + 2)
+	writeCharacterJSONString(&body, value)
+	return body.Bytes(), nil
 }
 
 func marshalECMAScriptNumber(value float64) ([]byte, error) {

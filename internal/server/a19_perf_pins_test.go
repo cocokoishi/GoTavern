@@ -576,3 +576,55 @@ func TestA19CharactersAllResponseBytesMatchReferenceForGeneratedLibraries(t *tes
 		})
 	}
 }
+
+// --- 4. C5: the generic JSON string escaper shares the pinned character-domain escaper ---------------------------
+
+// a19ReferenceMarshalNodeJSONStringEncoder is the PRE-CHANGE implementation of marshalNodeJSONString: an
+// encoding/json v2 encoder with SetEscapeHTML(false), then two bytes.ReplaceAll passes that un-escape
+// U+2028/U+2029 because JSON.stringify emits them raw. It lives in this test file so the differential test still
+// compares the production escaper against an ENCODER, not against itself (C5 makes the production function a
+// direct writer; a test that compared it with itself could never fail).
+func a19ReferenceMarshalNodeJSONStringEncoder(value string) ([]byte, error) {
+	encoded, err := marshalNodeJSON(value)
+	if err != nil {
+		return nil, err
+	}
+	encoded = bytes.ReplaceAll(encoded, []byte(`\u2028`), []byte("\u2028"))
+	encoded = bytes.ReplaceAll(encoded, []byte(`\u2029`), []byte("\u2029"))
+	return encoded, nil
+}
+
+// a19EscaperTortureStrings adds the cases the generic path sees that the alpha.18 character corpus already covers
+// plus the ones this lane must name explicitly. characterJSONStringCorpus (characters_scale_optimization_test.go)
+// supplies every C0 control byte, invalid UTF-8 bytes and a generated mixed stream.
+func a19EscaperTortureStrings() []string {
+	corpus := append([]string{}, characterJSONStringCorpus()...)
+	corpus = append(corpus,
+		`{"quoted":"a\"b","backslash":"a\\b","html":"<&>","newline":"a\nb"}`,
+		"lone-high-surrogate:\uFFFD", string([]byte{0xED, 0xA0, 0x80}), string([]byte{0xED, 0xBF, 0xBF}),
+		"line\u2028separator\u2029paragraph", "日本語テキスト", "😀🚀", "emoji😀in😀keys",
+		strings.Repeat("quote\"and\\backslash\n", 500), strings.Repeat("😀", 200), strings.Repeat("a", 4096),
+	)
+	return corpus
+}
+
+// TestA19GenericEscaperMatchesEncoderReference is the C5 byte-identity proof: the production
+// marshalNodeJSONString (now the direct, append-based escaper) must equal the pre-change encoding/json encoder
+// output for every torture string, including invalid UTF-8, lone surrogates, U+2028/U+2029, CJK, emoji, HTML
+// characters and quote/backslash/control-heavy documents.
+func TestA19GenericEscaperMatchesEncoderReference(t *testing.T) {
+	for index, input := range a19EscaperTortureStrings() {
+		reference, err := a19ReferenceMarshalNodeJSONStringEncoder(input)
+		if err != nil {
+			t.Fatalf("string %d: reference encoder: %v", index, err)
+		}
+		production, err := marshalNodeJSONString(input)
+		if err != nil {
+			t.Fatalf("string %d: marshalNodeJSONString: %v", index, err)
+		}
+		if !bytes.Equal(production, reference) {
+			t.Fatalf("string %d (%q): marshalNodeJSONString differs from the encoder reference: %s",
+				index, firstN(input, 80), a19FirstDifference(production, reference))
+		}
+	}
+}

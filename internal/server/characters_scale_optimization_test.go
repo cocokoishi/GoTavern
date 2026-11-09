@@ -64,14 +64,17 @@ func characterJSONStringCorpus() []string {
 
 func TestCharacterJSONStringEncodingMatchesReference(t *testing.T) {
 	for _, input := range characterJSONStringCorpus() {
-		reference, err := marshalNodeJSONString(input)
+		// The reference is the PRE-CHANGE encoder-based implementation, kept in a19_perf_pins_test.go. C5 makes
+		// marshalNodeJSONString use the direct escaper too, so comparing against marshalNodeJSONString here would
+		// compare the implementation with itself and could never fail; the reference keeps this test's teeth.
+		reference, err := a19ReferenceMarshalNodeJSONStringEncoder(input)
 		if err != nil {
 			t.Fatalf("reference encoder failed for %q: %v", input, err)
 		}
 		var fast bytes.Buffer
 		writeCharacterJSONString(&fast, input)
 		if !bytes.Equal(fast.Bytes(), reference) {
-			t.Fatalf("writeCharacterJSONString(%q) = %s, reference marshalNodeJSONString = %s",
+			t.Fatalf("writeCharacterJSONString(%q) = %s, reference encoder output = %s",
 				input, fast.Bytes(), reference)
 		}
 	}

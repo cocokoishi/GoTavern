@@ -113,3 +113,42 @@ would fail there. Green. Also green: the whole targeted oracle subset
 **Regressions reported:** the earlier `2*len + 2048` estimate row (+3.1% on 1,000 cards) is kept as evidence
 above and was replaced, not hidden. No other arm regressed in the shipped estimate.
 
+## C5 — one escaper for the generic ordered-JSON routes (commit `<filled at commit>`)
+
+**Approved scope:** `internal/server/image_metadata_index.go`; the C5 pin lives in
+`internal/server/a19_perf_pins_test.go`, and `internal/server/characters_scale_optimization_test.go` was changed
+only to keep its differential honest (see below — the reason is required by the approval and repeated in the
+commit message).
+**What changed:** `marshalNodeJSONString` — the string encoder behind `marshalOrderedNodeJSON`, i.e. world info,
+chats and image metadata — used to build an `encoding/json` v2 encoder and run **two `bytes.ReplaceAll` passes**
+over each encoded string. It now calls the alpha.18 direct, append-based escaper `writeCharacterJSONString`,
+which was differentially pinned to exactly that encoder output (single-byte controls, `\b\t\n\f\r`, quote and
+backslash, U+2028/U+2029 emitted raw, invalid UTF-8 replaced by U+FFFD).
+
+**Why an existing test file changed:** `TestCharacterJSONStringEncodingMatchesReference` used
+`marshalNodeJSONString` as its reference for `writeCharacterJSONString`. After C5 both are the same code, so that
+comparison would pass for any implementation and could never fail. The pre-change encoder implementation is now
+kept as `a19ReferenceMarshalNodeJSONStringEncoder` in this lane's pin file, the old test calls it, and a new
+`TestA19GenericEscaperMatchesEncoderReference` runs the same encoder reference over the alpha.18 corpus plus
+quote/backslash/HTML/control-heavy documents, CJK, emoji, lone-surrogate bytes and 4 KB strings.
+
+**Before/after allocation windows** (same harness, same generated trees, same host; windows are startup + one
+warmup + 5 profiled requests, focus on the handler; raw `.pb.gz` and top tables under
+[`profiles/c5-*-{world-get-4MB,chat-get}*`](profiles/)):
+
+| workload | window alloc_space BEFORE | window alloc_space AFTER | change | the removed line |
+|---|---:|---:|---:|---|
+| `/api/worldinfo/get`, one 4 MB world (6 requests) | **331.43 MB** | **256.46 MB** | **−22.6%** | `bytes.Replace` 48.02 MB (14.49%) → **0**; `marshalNodeJSONString` cumulative 71.1 MB → 7.6 MB |
+| `/api/chats/get`, one 2,000-message chat (6 requests) | **149.71 MB** | **115.45 MB** | **−22.9%** | `bytes.Replace` 14.35 MB (9.58%) → **0**; `encoding/json/v2.JoinOptions` 12.0 MB → 2.0 MB; `marshalNodeJSONString` cumulative 48.6 MB → 7.6 MB |
+
+Against [`targets.md`](targets.md): T8 asked for allocation −15% on the 4 MB world GET with a byte-identical
+response — met (−22.6%), and the response bytes are unchanged because the escaper is byte-equivalent by
+construction and by the two differential tests. The remaining bytes are the ordered-JSON decode and the response
+buffer, which C5 does not touch.
+
+**Regressions:** none measured on the two windows. The generic escaper is also used by the character-domain key
+writer (`writeCharacterJSONString` is unchanged) and by `marshalOrderedNodeJSON` callers; the C1 route bytes and
+the provider-wire replay remain the guard, and the targeted oracle subset was re-run green (55.8 s for the C5 pin
+set + JSON tests).
+
+
