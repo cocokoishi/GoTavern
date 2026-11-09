@@ -361,6 +361,15 @@ const NORMALISATIONS = [
         negativeCase: 'a19-oracle-teeth.mjs mutates a tokenizer count response body and requires http-bodies-equal red; dropping an unmatched tokenizer request must survive',
     },
     {
+        id: 'multipart-form-boundary',
+        reason: 'multipart/form-data bodies carry a browser-generated boundary token (------WebKitFormBoundary…); two legs, and two requests in one leg, generate different tokens for the SAME form, so raw bytes differ while every field value is identical. Only the boundary token is removed -- in the body and in the Content-Type header value -- and every form field is still compared',
+        pinnedEvidence: 'corpus-v2 run 4 2026-11-08: /api/characters/edit form bodies had boundaries 70cbdca2… vs 5108562096… (4 distinct boundaries over 2 legs x 2 requests) with identical parts; the form field values (ch_name, ch_description, avatar) are compared after boundary removal',
+        field: 'multipart boundary token in non-JSON request bodies and in the request Content-Type header value only',
+        test: 'projectBodyForComparison normalises ------WebKitFormBoundary<token> and comparableHeaders normalises boundary=… ; a changed form FIELD still changes the projected body',
+        negativeCase: 'a19-oracle-teeth.mjs changes a form field value and requires http-bodies-equal red; changing only the boundary must survive',
+    },
+    {
+
         id: 'derived-chat-file-size',
         reason: 'characters/all chat_size and chats/recent file_size are the byte size of the saved chat JSONL, which embeds the runs own wall-clock send_date values and generation-timing numbers whose DIGIT COUNTS vary between legs; the message content, role, author name and stripped-text digest are compared by persistence-chat-semantics-equal, so a different message still reds',
         pinnedEvidence: 'corpus-v2 drive 2026-11-08: the same chat JSONL was 4438 vs 4440 bytes and the first differing bytes were send_date "2026-11-09T06:41:53.793Z" vs "06:44:53.971Z"; persistence-chat-semantics-equal was green (roles/names/text lengths/stripped digests equal)',
@@ -446,6 +455,9 @@ const ROUTE_SCOPED_RUN_CLOCK = new Map([
     // 1794205015221.9177 (239 s apart = the leg clocks).
     ['POST /api/characters/all', new Set(['date_added', 'chat_size'])],
     ['POST /api/chats/recent', new Set(['last_mes', 'file_size'])],
+    // characters/get returns the same mtime-derived date_added / chat_size surface as characters/all, and the journey
+    // edits that card (measured corpus-v2 run 4: date_added 1794208536525.2207 vs 1794208717239.0461 = leg clocks).
+    ['POST /api/characters/get', new Set(['date_added', 'chat_size'])],
     // The connection configuration writes an api_key_custom secret through the frontend in each leg: the id is
     // generated fresh and the label is the leg's own clock. Measured: labels "11/08/2026 10:12 PM" vs "10:16 PM".
     ['POST /api/secrets/read', new Set(['id', 'label'])],
@@ -517,7 +529,14 @@ const compareHTTPBody = (label, leftText, leftSha, rightText, rightSha, options)
 const projectBodyForComparison = (text, { routeKey = null } = {}) => {
     try { return sha256(Buffer.from(JSON.stringify(projectJsonForComparison(JSON.parse(text), ROUTE_SCOPED_RUN_CLOCK.get(routeKey) ?? null)), 'utf8')); } catch {
         appliedNormalisations.add('per-leg-peer-endpoint');
-        return sha256(Buffer.from(stripDiscriminator(text).replace(PEER_URL_PATTERN, '<PEER>'), 'utf8'));
+        // MULTIPART BOUNDARIES ARE BROWSER-RANDOM: two legs (and two requests in one leg) generate different
+        // `------WebKitFormBoundary…` tokens for the same form, so the bytes differ while every field value is the
+        // same. Measured corpus-v2 run 4: characters/edit form bodies 70cbdca2… vs 5108562096…) with identical parts.
+        const withoutBoundary = Buffer.from(stripDiscriminator(text).replace(PEER_URL_PATTERN, '<PEER>'), 'utf8')
+            .toString('utf8')
+            .replace(/-{2,}WebKitFormBoundary[0-9A-Za-z]+/g, '<MULTIPART-BOUNDARY>');
+        if (withoutBoundary !== stripDiscriminator(text).replace(PEER_URL_PATTERN, '<PEER>')) appliedNormalisations.add('multipart-form-boundary');
+        return sha256(Buffer.from(withoutBoundary, 'utf8'));
     }
 };
 
@@ -563,6 +582,10 @@ const READ_MULTIPLICITY_ROUTES = [
     { match: path => path === '/api/characters/all', normalisation: 'http-readonly-multiplicity' },
     // The frontend's debounced settings save: how MANY saves a leg issues is autosave timing. The CONTENT of the
     // final persisted settings is compared by persistence-changed-content-equal, which has a teeth case.
+    // the character's chat listing is a READ fired by the chat-open panel; whether it runs once or twice (and whether a
+    // restart leg fires it at all) is scheduling. Measured corpus-v2 run 4: restart pinned issued 0, gotavern 1, with
+    // identical bodies.
+    { match: path => path === '/api/characters/chats', normalisation: 'http-read-multiplicity' },
     { match: path => path === '/api/settings/save', normalisation: 'http-autosave-multiplicity' },
 ];
 const multiplicityNormalisation = (request, key) => {
@@ -584,6 +607,12 @@ const STATIC_CONDITIONAL_REQUEST_HEADERS = new Set(['if-none-match', 'if-modifie
 const SESSION_HEADERS = new Set(['cookie', 'set-cookie', 'x-csrf-token']);
 const LOOPBACK_ORIGIN = /http:\/\/127\.0\.0\.1:\d+/g;
 const normaliseHeaderValue = key => value => {
+    // a multipart Content-Type carries the browser-random boundary; the fields inside are compared by the body
+    // normalisation, so only the boundary token is removed from the header value.
+    if (key === 'content-type' && typeof value === 'string' && value.includes('boundary=')) {
+        appliedNormalisations.add('multipart-form-boundary');
+        return value.replace(/boundary=([^;]+)/i, 'boundary=<MULTIPART-BOUNDARY>');
+    }
     if (SESSION_HEADERS.has(key)) { appliedNormalisations.add('independent-session-cookie'); return '<SESSION>'; }
     if (key === 'content-encoding') { appliedNormalisations.add('response-content-encoding'); return '<ENCODING>'; }
     if (typeof value === 'string' && /127\.0\.0\.1:\d+/.test(value)) {
@@ -972,7 +1001,7 @@ guard('http-bodies-equal', 'http', () => {
                 ? ''
                 : (request.requestBodyText === null || request.requestBodyText === undefined
                     ? (request.requestBodySha256 ?? '')
-                    : projectBodyForComparison(request.requestBodyText));
+                    : projectBodyForComparison(request.requestBodyText, { routeKey: `${request.method} ${request.path}${request.query ?? ''}` }));
             return `${request.method} ${request.path}${request.query ?? ''}|${bodyDigest ?? ''}`;
         };
         const group = list => { const map = new Map(); for (const request of list) { const identity = identityOf(request); const key = keyOf(request); if (!map.has(key)) map.set(key, new Map()); const byIdentity = map.get(key); if (!byIdentity.has(identity)) byIdentity.set(identity, []); byIdentity.get(identity).push(request); } return map; };
@@ -995,6 +1024,11 @@ guard('http-bodies-equal', 'http', () => {
                 // pinned for the same body answers {"token_count":23} on BOTH). Any other route's unmatched request reds.
                 if (leftEntries.length === 0 || rightEntries.length === 0) {
                     if (key.includes('/api/tokenizers/')) { appliedNormalisations.add('tokenizer-count-scheduling'); continue; }
+                    // A READ-ONLY LISTING that one leg scheduled and the other did not is the same named scheduling class as
+                    // a different read multiplicity; only routes in the recorded list qualify, everything else still reds.
+                    const sampled = leftEntries[0] ?? rightEntries[0];
+                    const readDecision = multiplicityNormalisation(sampled, key);
+                    if (readDecision !== null && readDecision !== undefined) { appliedNormalisations.add(readDecision); continue; }
                     const onlyOn = leftEntries.length === 0 ? 'pinned' : 'gotavern';
                     problems.push(`${phase} ${key}: a request present only on ${onlyOn}: ${identity.split('|').slice(1).join('|').slice(0, 16)}`);
                     continue;

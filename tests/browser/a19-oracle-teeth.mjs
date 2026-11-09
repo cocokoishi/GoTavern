@@ -182,7 +182,23 @@ record('http-tokenizer-body-unread-is-a-harness-error', ['http-bodies-equal'], d
     const entry = (leg.layers.http.requests ?? []).find(request => String(request.path) === '/api/tokenizers/openai/count');
     if (entry) { entry.responseBodyText = null; entry.responseBodySha256 = null; }
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
-});record('http-tokenizer-scheduling-survives', ['http-bodies-equal'], dir => {
+});record('http-multipart-boundary-survives', ['http-bodies-equal'], dir => {
+    // The browser-generated multipart boundary is a harness-random token; changing ONLY it must survive.
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const entry = (leg.layers.http.requests ?? []).find(request => String(request.requestHeaders?.['content-type'] ?? '').includes('multipart/form-data'));
+    if (entry) {
+        entry.requestBodyText = String(entry.requestBodyText).replace(/------WebKitFormBoundary[0-9A-Za-z]+/g, '------WebKitFormBoundaryMutatedBoundary');
+        entry.requestBodySha256 = 'a'.repeat(64);
+    }
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+}, { survivor: true });
+record('http-multipart-field-changed', ['http-bodies-equal'], dir => {
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const entry = (leg.layers.http.requests ?? []).find(request => String(request.requestHeaders?.['content-type'] ?? '').includes('multipart/form-data'));
+    if (entry) { entry.requestBodyText = String(entry.requestBodyText).replace('ch_name', 'ch_name_mutated'); entry.requestBodySha256 = 'a'.repeat(64); }
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});
+record('http-tokenizer-scheduling-survives', ['http-bodies-equal'], dir => {
     // A tokenizer count request present on only one leg is load-timing (which messages each pass held); the shared
     // identities' counts are still compared by the tokenizer-count-body tooth.
     const leg = readLeg(dir, 'a19-drive-pinned.json');
