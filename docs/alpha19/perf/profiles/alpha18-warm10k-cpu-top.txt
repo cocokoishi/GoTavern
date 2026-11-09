@@ -1,0 +1,44 @@
+﻿File: server.test.exe
+Build ID: C:\Users\koishi\AppData\Local\Temp\go-build3529737322\b001\server.test.exe2026-11-08 17:47:25.4144456 -0800 PST
+Type: cpu
+Time: 2026-11-08 17:47:27 PST
+Duration: 170.95s, Total samples = 164560ms (96.26%)
+Showing nodes accounting for 141270ms, 85.85% of 164560ms total
+Dropped 663 nodes (cum <= 822.80ms)
+Showing top 35 nodes out of 168
+      flat  flat%   sum%        cum   cum%
+  109160ms 66.33% 66.33%   109940ms 66.81%  runtime.cgocall
+   10740ms  6.53% 72.86%    10740ms  6.53%  runtime.asyncPreempt
+    3810ms  2.32% 75.18%     3810ms  2.32%  runtime.memclrNoHeapPointers
+    2800ms  1.70% 76.88%     2800ms  1.70%  runtime.memmove
+    2190ms  1.33% 78.21%     4930ms  3.00%  github.com/cocokoishi/gotavern/internal/server.writeCharacterJSONString
+    1360ms  0.83% 79.04%     1360ms  0.83%  runtime.sysUsedOS
+    1230ms  0.75% 79.78%     2080ms  1.26%  runtime.tryDeferToSpanScan
+    1150ms   0.7% 80.48%     1150ms   0.7%  runtime.osyield.func1
+     900ms  0.55% 81.03%      900ms  0.55%  runtime.preemptM
+     830ms   0.5% 81.53%     1510ms  0.92%  encoding/json/internal/jsonwire.ConsumeSimpleString (inline)
+     790ms  0.48% 82.01%     2850ms  1.73%  strings.(*Builder).WriteByte (inline)
+     730ms  0.44% 82.46%      830ms   0.5%  runtime.(*spanSet).push
+     600ms  0.36% 82.82%      910ms  0.55%  runtime.mallocgcSmallScanNoHeaderSC2
+     510ms  0.31% 83.13%     2110ms  1.28%  runtime.scanObject
+     470ms  0.29% 83.42%     9250ms  5.62%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+     470ms  0.29% 83.70%     1670ms  1.01%  runtime.scanObjectsSmall
+     440ms  0.27% 83.97%     8830ms  5.37%  runtime.mallocgc
+     430ms  0.26% 84.23%     1540ms  0.94%  internal/filepathlite.Clean
+     340ms  0.21% 84.44%     7080ms  4.30%  runtime.growslice
+     310ms  0.19% 84.63%     1090ms  0.66%  encoding/json/internal/jsonwire.ConsumeStringResumable
+     300ms  0.18% 84.81%     1100ms  0.67%  github.com/cocokoishi/gotavern/internal/server.javaScriptStringLength
+     200ms  0.12% 84.93%     3400ms  2.07%  encoding/json/jsontext.(*decoderState).ReadToken
+     180ms  0.11% 85.04%     8080ms  4.91%  github.com/cocokoishi/gotavern/internal/server.writeCharacterJSON
+     160ms 0.097% 85.14%    26500ms 16.10%  internal/poll.(*FD).execIO
+     150ms 0.091% 85.23%     3090ms  1.88%  github.com/cocokoishi/gotavern/internal/server.decodePngText
+     140ms 0.085% 85.31%     3690ms  2.24%  runtime.mallocgcSmallNoscan
+     140ms 0.085% 85.40%     1270ms  0.77%  runtime.slicebytetostring
+     110ms 0.067% 85.46%     2160ms  1.31%  runtime.(*mcentral).cacheSpan
+     100ms 0.061% 85.53%     1900ms  1.15%  github.com/cocokoishi/gotavern/internal/server.readFromV2
+     100ms 0.061% 85.59%     2010ms  1.22%  runtime.scanSpan
+      90ms 0.055% 85.64%     3530ms  2.15%  runtime.(*mcache).nextFree
+      90ms 0.055% 85.70%     1460ms  0.89%  strconv.ParseUint
+      90ms 0.055% 85.75%    34370ms 20.89%  syscall.CloseHandle
+      80ms 0.049% 85.80%     1740ms  1.06%  bytes.(*Buffer).WriteString
+      80ms 0.049% 85.85%    66630ms 40.49%  github.com/cocokoishi/gotavern/internal/server.(*accountRuntime).serveCharactersAll

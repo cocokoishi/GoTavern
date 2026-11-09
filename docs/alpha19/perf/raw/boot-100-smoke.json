@@ -1,0 +1,261 @@
+{
+  "harness": "tools/perf/a19-boot.mjs",
+  "environment": {
+    "git": {
+      "commit": "9a2590e258418515d771efe884980833c2c932ef",
+      "branch": "alpha19/program",
+      "dirty": true
+    },
+    "go": "go version go1.27.3 windows/arm64",
+    "node": "v24.19.0",
+    "os": {
+      "platform": "win32",
+      "arch": "arm64",
+      "release": "10.0.26100"
+    },
+    "cpu": {
+      "model": "virt-7.2",
+      "logicalCores": 2
+    },
+    "totalRamBytes": 12879790080,
+    "gomaxprocsEnv": null,
+    "loadLabel": "shared host: subagents A/B active (node/chrome observed); harness smoke test",
+    "cpuLoadPercentStart": 42.4
+  },
+  "subject": {
+    "path": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\bin\\gotavern-head.exe",
+    "sha256": "69895b4c661ad894782981de73830b173e91fc4c36c65225bd5a0d11b37dc555",
+    "sizeBytes": 60860928,
+    "version": "GoTavern 0.0.0-dev"
+  },
+  "parameters": {
+    "scale": "cards",
+    "cards": 100,
+    "imageBytes": 131072,
+    "cardBytes": 8192,
+    "chats": 10,
+    "chatBytes": 262144,
+    "worlds": 50,
+    "worldBytes": 32768,
+    "rounds": 1,
+    "requests": 4,
+    "dataRoute": "characters",
+    "pollMs": 2,
+    "workDir": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\boot",
+    "out": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\baseline\\boot-100-smoke.json",
+    "loadLabel": "shared host: subagents A/B active (node/chrome observed); harness smoke test",
+    "keepTrees": false
+  },
+  "tree": {
+    "scale": "cards",
+    "scaleArgs": [
+      "--cards",
+      "100",
+      "--image-bytes",
+      "131072",
+      "--card-bytes",
+      "8192"
+    ],
+    "generated": {
+      "generator": "tests/perf/fixturegen",
+      "scale": "cards",
+      "dataRoot": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\boot\\trees\\cards-r1-2026-11-09T02-00-42-856Z\\data",
+      "files": 102,
+      "bytes": 14210626,
+      "byArea": {
+        "characters": 100
+      }
+    },
+    "rounds": [
+      {
+        "round": 1,
+        "generated": {
+          "generator": "tests/perf/fixturegen",
+          "scale": "cards",
+          "dataRoot": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\boot\\trees\\cards-r1-2026-11-09T02-00-42-856Z\\data",
+          "files": 102,
+          "bytes": 14210626,
+          "byArea": {
+            "characters": 100
+          }
+        }
+      }
+    ]
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "coldBootMs": 850.378,
+      "warmBootMs": 121.36568,
+      "coldReady": {
+        "ok": true,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+        "pid": 18648,
+        "rssBytes": 20557824,
+        "peakRssBytes": 20611072,
+        "cpuUserMs": 31,
+        "cpuSystemMs": 78,
+        "handles": null,
+        "note": "pageFaults=5179 privateUsage=53415936"
+      },
+      "coldFinal": {
+        "ok": true,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+        "pid": 18648,
+        "rssBytes": 36671488,
+        "peakRssBytes": 37130240,
+        "cpuUserMs": 187,
+        "cpuSystemMs": 218,
+        "handles": null,
+        "note": "pageFaults=10629 privateUsage=68612096"
+      },
+      "warmReady": {
+        "ok": true,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+        "pid": 14464,
+        "rssBytes": 18894848,
+        "peakRssBytes": 18894848,
+        "cpuUserMs": 15,
+        "cpuSystemMs": 46,
+        "handles": null,
+        "note": "pageFaults=4745 privateUsage=52191232"
+      },
+      "coldRequests": [
+        {
+          "index": 0,
+          "cache": "cold",
+          "status": 200,
+          "bytes": 2329688,
+          "ms": 316.84116
+        },
+        {
+          "index": 1,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 2329688,
+          "ms": 69.09676
+        },
+        {
+          "index": 2,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 2329688,
+          "ms": 194.89584
+        },
+        {
+          "index": 3,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 2329688,
+          "ms": 84.80856
+        }
+      ],
+      "warmRequests": [
+        {
+          "index": 0,
+          "cache": "cold",
+          "status": 200,
+          "bytes": 2329688,
+          "ms": 152.0618
+        },
+        {
+          "index": 1,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 2329688,
+          "ms": 54.93668
+        },
+        {
+          "index": 2,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 2329688,
+          "ms": 66.70616
+        },
+        {
+          "index": 3,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 2329688,
+          "ms": 58.66356
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "summary": {
+    "coldBootMs": {
+      "count": 1,
+      "min": 850.378,
+      "p50": 850.378,
+      "p95": 850.378,
+      "p99": 850.378,
+      "max": 850.378,
+      "median": 850.378
+    },
+    "warmBootMs": {
+      "count": 1,
+      "min": 121.36568,
+      "p50": 121.36568,
+      "p95": 121.36568,
+      "p99": 121.36568,
+      "max": 121.36568,
+      "median": 121.36568
+    },
+    "coldRuntime": {
+      "cold": [
+        {
+          "ms": 316.84116,
+          "status": 200,
+          "bytes": 2329688
+        }
+      ],
+      "warmMs": {
+        "count": 3,
+        "min": 69.09676,
+        "p50": 84.80856,
+        "p95": 194.89584,
+        "p99": 194.89584,
+        "max": 194.89584,
+        "median": 84.80856
+      },
+      "statuses": [
+        200
+      ]
+    },
+    "warmRuntime": {
+      "cold": [
+        {
+          "ms": 152.0618,
+          "status": 200,
+          "bytes": 2329688
+        }
+      ],
+      "warmMs": {
+        "count": 3,
+        "min": 54.93668,
+        "p50": 58.66356,
+        "p95": 66.70616,
+        "p99": 66.70616,
+        "max": 66.70616,
+        "median": 58.66356
+      },
+      "statuses": [
+        200
+      ]
+    },
+    "coldPeakRssBytes": [
+      37130240
+    ],
+    "warmSteadyRssBytes": [
+      18894848
+    ],
+    "cpuLoadPercentEnd": 48.4
+  },
+  "notes": [
+    "Absolute milliseconds on this shared development host are comparable only WITHIN one run; loadLabel and the sampled CPU-load series are recorded.",
+    "Peak RSS is procstat PeakWorkingSetSize (Windows) / VmHWM (Linux); no B/op value is ever reported as RSS.",
+    "Windows stop is abrupt (TerminateProcess after child.kill); Windows cannot deliver SIGTERM to a console process.",
+    "Go allocation totals are not observable from outside the process; ns/op, B/op and allocs/op come from internal/server/bench_test.go."
+  ]
+}

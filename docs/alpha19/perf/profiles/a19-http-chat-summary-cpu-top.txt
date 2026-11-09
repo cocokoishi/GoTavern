@@ -1,0 +1,30 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: cpu
+Time: 2026-11-08 18:25:22 PST
+Duration: 201.99ms, Total samples = 100ms (49.51%)
+Active filters:
+   focus=serveCharactersChats
+Showing nodes accounting for 40ms, 40.00% of 100ms total
+      flat  flat%   sum%        cum   cum%
+      30ms 30.00% 30.00%       30ms 30.00%  runtime.asyncPreempt
+      10ms 10.00% 40.00%       10ms 10.00%  runtime.cgocall
+         0     0% 40.00%       40ms 40.00%  github.com/cocokoishi/gotavern/internal/server.(*accountRuntime).serveCharactersChats
+         0     0% 40.00%       30ms 30.00%  github.com/cocokoishi/gotavern/internal/server.getChatInfo
+         0     0% 40.00%       40ms 40.00%  github.com/cocokoishi/gotavern/internal/server.newHTTPHandlerWithRouteDomains.func22
+         0     0% 40.00%       40ms 40.00%  github.com/cocokoishi/gotavern/internal/server.pinnedCompressionMiddleware.func1
+         0     0% 40.00%       40ms 40.00%  github.com/cocokoishi/gotavern/internal/server.pinnedPanicBoundary.func1
+         0     0% 40.00%       40ms 40.00%  github.com/cocokoishi/gotavern/internal/server.pinnedResponseTimeMiddleware.func1
+         0     0% 40.00%       40ms 40.00%  github.com/cocokoishi/gotavern/internal/server.registerCharactersRoutes.func1.func1
+         0     0% 40.00%       30ms 30.00%  github.com/cocokoishi/gotavern/internal/server.scanChatSummary
+         0     0% 40.00%       30ms 30.00%  github.com/cocokoishi/gotavern/internal/server.scanChatSummaryReader
+         0     0% 40.00%       40ms 40.00%  net/http.(*ServeMux).ServeHTTP
+         0     0% 40.00%       40ms 40.00%  net/http.(*conn).serve
+         0     0% 40.00%       40ms 40.00%  net/http.HandlerFunc.ServeHTTP
+         0     0% 40.00%       40ms 40.00%  net/http.serverHandler.ServeHTTP
+         0     0% 40.00%       10ms 10.00%  os.Stat
+         0     0% 40.00%       10ms 10.00%  os.stat
+         0     0% 40.00%       10ms 10.00%  os.statNolog (inline)
+         0     0% 40.00%       10ms 10.00%  syscall.GetFileAttributesEx
+         0     0% 40.00%       10ms 10.00%  syscall.SyscallN
+         0     0% 40.00%       10ms 10.00%  syscall.syscalln

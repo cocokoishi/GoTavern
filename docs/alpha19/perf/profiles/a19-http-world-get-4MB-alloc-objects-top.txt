@@ -1,0 +1,28 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: alloc_objects
+Time: 2026-11-08 18:25:29 PST
+Active filters:
+   focus=serveWorldInfoGet
+Showing nodes accounting for 37461, 45.19% of 82898 total
+Dropped 31 nodes (cum <= 414)
+      flat  flat%   sum%        cum   cum%
+     32780 39.54% 39.54%      32780 39.54%  bytes.Replace
+      4681  5.65% 45.19%       4681  5.65%  encoding/json/v2.JoinOptions (inline)
+         0     0% 45.19%      32780 39.54%  bytes.ReplaceAll (inline)
+         0     0% 45.19%       4681  5.65%  encoding/json.(*Encoder).SetEscapeHTML
+         0     0% 45.19%      37555 45.30%  github.com/cocokoishi/gotavern/internal/server.(*accountRuntime).serveWorldInfoGet
+         0     0% 45.19%       4693  5.66%  github.com/cocokoishi/gotavern/internal/server.marshalNodeJSON
+         0     0% 45.19%      37473 45.20%  github.com/cocokoishi/gotavern/internal/server.marshalNodeJSONString
+         0     0% 45.19%      37491 45.23%  github.com/cocokoishi/gotavern/internal/server.marshalOrderedNodeJSON
+         0     0% 45.19%      37555 45.30%  github.com/cocokoishi/gotavern/internal/server.newHTTPHandlerWithRouteDomains.func22
+         0     0% 45.19%      37555 45.30%  github.com/cocokoishi/gotavern/internal/server.pinnedCompressionMiddleware.func1
+         0     0% 45.19%      37555 45.30%  github.com/cocokoishi/gotavern/internal/server.pinnedPanicBoundary.func1
+         0     0% 45.19%      37555 45.30%  github.com/cocokoishi/gotavern/internal/server.pinnedResponseTimeMiddleware.func1
+         0     0% 45.19%      37555 45.30%  github.com/cocokoishi/gotavern/internal/server.registerWorldInfoRoutes.func1.func1
+         0     0% 45.19%      37505 45.24%  github.com/cocokoishi/gotavern/internal/server.respondOrderedNodeJSON
+         0     0% 45.19%      37505 45.24%  github.com/cocokoishi/gotavern/internal/server.respondWorldInfoSend
+         0     0% 45.19%      37555 45.30%  net/http.(*ServeMux).ServeHTTP
+         0     0% 45.19%      37555 45.30%  net/http.(*conn).serve
+         0     0% 45.19%      37555 45.30%  net/http.HandlerFunc.ServeHTTP
+         0     0% 45.19%      37555 45.30%  net/http.serverHandler.ServeHTTP

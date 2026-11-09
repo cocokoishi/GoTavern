@@ -1,0 +1,35 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: alloc_space
+Time: 2026-11-08 18:25:20 PST
+Active filters:
+   focus=serveCharactersAll
+Showing nodes accounting for 149.26MB, 72.68% of 205.36MB total
+Dropped 10 nodes (cum <= 1.03MB)
+Showing top 25 nodes out of 73
+      flat  flat%   sum%        cum   cum%
+   53.52MB 26.06% 26.06%    53.52MB 26.06%  bytes.growSlice
+   30.13MB 14.67% 40.73%    30.13MB 14.67%  io.ReadAll
+   11.12MB  5.42% 46.15%    11.12MB  5.42%  github.com/cocokoishi/gotavern/internal/server.extractPngChunks
+    8.51MB  4.14% 50.29%     8.51MB  4.14%  encoding/json/jsontext.Token.String (inline)
+    7.01MB  3.42% 53.71%     7.01MB  3.42%  encoding/json/jsontext.(*decoderState).fetch
+    7.01MB  3.41% 57.12%    22.53MB 10.97%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+    5.54MB  2.70% 59.82%    80.36MB 39.13%  github.com/cocokoishi/gotavern/internal/server.processCharacterForDirEntry
+    3.51MB  1.71% 61.53%     3.51MB  1.71%  github.com/cocokoishi/gotavern/internal/server.(*orderedNodeJSON).setMember (inline)
+    3.36MB  1.64% 63.16%     3.36MB  1.64%  compress/flate.(*fastGen).addBlock
+    3.03MB  1.47% 64.64%     3.03MB  1.47%  strings.(*Builder).WriteByte (inline)
+       3MB  1.46% 66.10%     3.50MB  1.70%  strconv.syntaxError (inline)
+    2.86MB  1.39% 67.49%     2.86MB  1.39%  compress/flate.newFastEnc (inline)
+    2.56MB  1.25% 68.74%     5.95MB  2.90%  compress/flate.NewWriter
+       2MB  0.97% 69.71%     5.50MB  2.68%  github.com/cocokoishi/gotavern/internal/server.orderedNodeJSON.entries
+    1.50MB  0.73% 70.44%     1.50MB  0.73%  encoding/json/jsontext.NewDecoder (inline)
+    1.06MB  0.52% 70.96%     1.06MB  0.52%  os.init.func1
+       1MB  0.49% 71.45%     1.50MB  0.73%  syscall.FullPath
+       1MB  0.49% 71.94%        1MB  0.49%  syscall.UTF16FromString
+       1MB  0.49% 72.42%        1MB  0.49%  os.newFileStatFromFileIDBothDirInfo
+    0.53MB  0.26% 72.68%     3.39MB  1.65%  compress/flate.(*compressor).init
+         0     0% 72.68%    53.52MB 26.06%  bytes.(*Buffer).WriteString
+         0     0% 72.68%    53.52MB 26.06%  bytes.(*Buffer).grow
+         0     0% 72.68%     3.36MB  1.64%  compress/flate.(*Writer).Write
+         0     0% 72.68%     3.36MB  1.64%  compress/flate.(*compressor).deflateFast
+         0     0% 72.68%     3.36MB  1.64%  compress/flate.(*compressor).write

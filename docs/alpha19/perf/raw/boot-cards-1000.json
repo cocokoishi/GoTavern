@@ -1,0 +1,593 @@
+{
+  "harness": "tools/perf/a19-boot.mjs",
+  "environment": {
+    "git": {
+      "commit": "9a2590e258418515d771efe884980833c2c932ef",
+      "branch": "alpha19/program",
+      "dirty": true
+    },
+    "go": "go version go1.27.3 windows/arm64",
+    "node": "v24.19.0",
+    "os": {
+      "platform": "win32",
+      "arch": "arm64",
+      "release": "10.0.26100"
+    },
+    "cpu": {
+      "model": "virt-7.2",
+      "logicalCores": 2
+    },
+    "totalRamBytes": 12879790080,
+    "gomaxprocsEnv": null,
+    "loadLabel": "shared host: other alpha.19 lanes active (node/chrome/browser observed during run); absolute ms within-run only",
+    "cpuLoadPercentStart": 100
+  },
+  "subject": {
+    "path": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\bin\\gotavern-head.exe",
+    "sha256": "69895b4c661ad894782981de73830b173e91fc4c36c65225bd5a0d11b37dc555",
+    "sizeBytes": 60860928,
+    "version": "GoTavern 0.0.0-dev"
+  },
+  "parameters": {
+    "scale": "cards",
+    "cards": 1000,
+    "imageBytes": 32768,
+    "cardBytes": 8192,
+    "chats": 10,
+    "chatBytes": 262144,
+    "worlds": 50,
+    "worldBytes": 32768,
+    "rounds": 3,
+    "requests": 6,
+    "dataRoute": "characters",
+    "pollMs": 2,
+    "workDir": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\boot",
+    "out": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\baseline\\boot-cards-1000.json",
+    "loadLabel": "shared host: other alpha.19 lanes active (node/chrome/browser observed during run); absolute ms within-run only",
+    "keepTrees": false
+  },
+  "tree": {
+    "scale": "cards",
+    "scaleArgs": [
+      "--cards",
+      "1000",
+      "--image-bytes",
+      "32768",
+      "--card-bytes",
+      "8192"
+    ],
+    "generated": {
+      "generator": "tests/perf/fixturegen",
+      "scale": "cards",
+      "dataRoot": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\boot\\trees\\cards-r1-2026-11-09T02-01-14-294Z\\data",
+      "files": 1002,
+      "bytes": 43796626,
+      "byArea": {
+        "characters": 1000
+      }
+    },
+    "rounds": [
+      {
+        "round": 1,
+        "generated": {
+          "generator": "tests/perf/fixturegen",
+          "scale": "cards",
+          "dataRoot": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\boot\\trees\\cards-r1-2026-11-09T02-01-14-294Z\\data",
+          "files": 1002,
+          "bytes": 43796626,
+          "byArea": {
+            "characters": 1000
+          }
+        }
+      },
+      {
+        "round": 2,
+        "generated": {
+          "generator": "tests/perf/fixturegen",
+          "scale": "cards",
+          "dataRoot": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\boot\\trees\\cards-r2-2026-11-09T02-01-14-294Z\\data",
+          "files": 1002,
+          "bytes": 43796626,
+          "byArea": {
+            "characters": 1000
+          }
+        }
+      },
+      {
+        "round": 3,
+        "generated": {
+          "generator": "tests/perf/fixturegen",
+          "scale": "cards",
+          "dataRoot": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\boot\\trees\\cards-r3-2026-11-09T02-01-14-294Z\\data",
+          "files": 1002,
+          "bytes": 43796626,
+          "byArea": {
+            "characters": 1000
+          }
+        }
+      }
+    ]
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "coldBootMs": 510.31908,
+      "warmBootMs": 222.39808,
+      "coldReady": {
+        "ok": true,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+        "pid": 18656,
+        "rssBytes": 21417984,
+        "peakRssBytes": 21417984,
+        "cpuUserMs": 62,
+        "cpuSystemMs": 93,
+        "handles": null,
+        "note": "pageFaults=5480 privateUsage=54312960"
+      },
+      "coldFinal": {
+        "ok": true,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+        "pid": 18656,
+        "rssBytes": 156659712,
+        "peakRssBytes": 156659712,
+        "cpuUserMs": 1875,
+        "cpuSystemMs": 937,
+        "handles": null,
+        "note": "pageFaults=39283 privateUsage=188305408"
+      },
+      "warmReady": {
+        "ok": true,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+        "pid": 15712,
+        "rssBytes": 20889600,
+        "peakRssBytes": 20889600,
+        "cpuUserMs": 15,
+        "cpuSystemMs": 62,
+        "handles": null,
+        "note": "pageFaults=5229 privateUsage=53596160"
+      },
+      "coldRequests": [
+        {
+          "index": 0,
+          "cache": "cold",
+          "status": 200,
+          "bytes": 23296711,
+          "ms": 3811.87496
+        },
+        {
+          "index": 1,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296711,
+          "ms": 979.58436
+        },
+        {
+          "index": 2,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296711,
+          "ms": 895.92656
+        },
+        {
+          "index": 3,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296711,
+          "ms": 846.79748
+        },
+        {
+          "index": 4,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296711,
+          "ms": 774.1122
+        },
+        {
+          "index": 5,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296711,
+          "ms": 751.18532
+        }
+      ],
+      "warmRequests": [
+        {
+          "index": 0,
+          "cache": "cold",
+          "status": 200,
+          "bytes": 23296711,
+          "ms": 2094.03568
+        },
+        {
+          "index": 1,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296711,
+          "ms": 721.79036
+        },
+        {
+          "index": 2,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296711,
+          "ms": 1378.75064
+        },
+        {
+          "index": 3,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296711,
+          "ms": 1353.29124
+        },
+        {
+          "index": 4,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296711,
+          "ms": 884.18916
+        },
+        {
+          "index": 5,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296711,
+          "ms": 830.7094
+        }
+      ],
+      "errors": []
+    },
+    {
+      "round": 2,
+      "coldBootMs": 911.68716,
+      "warmBootMs": 168.39992,
+      "coldReady": {
+        "ok": true,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+        "pid": 11272,
+        "rssBytes": 22302720,
+        "peakRssBytes": 22368256,
+        "cpuUserMs": 15,
+        "cpuSystemMs": 109,
+        "handles": null,
+        "note": "pageFaults=5604 privateUsage=54894592"
+      },
+      "coldFinal": {
+        "ok": true,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+        "pid": 11272,
+        "rssBytes": 157143040,
+        "peakRssBytes": 161701888,
+        "cpuUserMs": 1875,
+        "cpuSystemMs": 781,
+        "handles": null,
+        "note": "pageFaults=40878 privateUsage=189018112"
+      },
+      "warmReady": {
+        "ok": true,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+        "pid": 19060,
+        "rssBytes": 21098496,
+        "peakRssBytes": 21098496,
+        "cpuUserMs": 46,
+        "cpuSystemMs": 62,
+        "handles": null,
+        "note": "pageFaults=5285 privateUsage=53940224"
+      },
+      "coldRequests": [
+        {
+          "index": 0,
+          "cache": "cold",
+          "status": 200,
+          "bytes": 23296736,
+          "ms": 2221.56872
+        },
+        {
+          "index": 1,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296736,
+          "ms": 1407.88392
+        },
+        {
+          "index": 2,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296736,
+          "ms": 1090.2942
+        },
+        {
+          "index": 3,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296736,
+          "ms": 1520.35064
+        },
+        {
+          "index": 4,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296736,
+          "ms": 841.53932
+        },
+        {
+          "index": 5,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296736,
+          "ms": 631.98528
+        }
+      ],
+      "warmRequests": [
+        {
+          "index": 0,
+          "cache": "cold",
+          "status": 200,
+          "bytes": 23296736,
+          "ms": 1303.53404
+        },
+        {
+          "index": 1,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296736,
+          "ms": 555.49328
+        },
+        {
+          "index": 2,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296736,
+          "ms": 602.48656
+        },
+        {
+          "index": 3,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296736,
+          "ms": 1154.07868
+        },
+        {
+          "index": 4,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296736,
+          "ms": 1464.63312
+        },
+        {
+          "index": 5,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296736,
+          "ms": 1137.1322
+        }
+      ],
+      "errors": []
+    },
+    {
+      "round": 3,
+      "coldBootMs": 662.23056,
+      "warmBootMs": 167.7542,
+      "coldReady": {
+        "ok": true,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+        "pid": 15832,
+        "rssBytes": 21504000,
+        "peakRssBytes": 21504000,
+        "cpuUserMs": 78,
+        "cpuSystemMs": 46,
+        "handles": null,
+        "note": "pageFaults=5477 privateUsage=54292480"
+      },
+      "coldFinal": {
+        "ok": true,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+        "pid": 15832,
+        "rssBytes": 143835136,
+        "peakRssBytes": 147558400,
+        "cpuUserMs": 1781,
+        "cpuSystemMs": 593,
+        "handles": null,
+        "note": "pageFaults=39448 privateUsage=175398912"
+      },
+      "warmReady": {
+        "ok": true,
+        "method": "windows:psapi!GetProcessMemoryInfo(WorkingSetSize,PeakWorkingSetSize) + kernel32!GetProcessTimes(UserTime,KernelTime); PROCESS_QUERY_LIMITED_INFORMATION",
+        "pid": 15044,
+        "rssBytes": 20541440,
+        "peakRssBytes": 20541440,
+        "cpuUserMs": 31,
+        "cpuSystemMs": 109,
+        "handles": null,
+        "note": "pageFaults=5146 privateUsage=53239808"
+      },
+      "coldRequests": [
+        {
+          "index": 0,
+          "cache": "cold",
+          "status": 200,
+          "bytes": 23296724,
+          "ms": 2513.52852
+        },
+        {
+          "index": 1,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296724,
+          "ms": 865.15972
+        },
+        {
+          "index": 2,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296724,
+          "ms": 813.92144
+        },
+        {
+          "index": 3,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296724,
+          "ms": 1000.30072
+        },
+        {
+          "index": 4,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296724,
+          "ms": 1159.16196
+        },
+        {
+          "index": 5,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296724,
+          "ms": 733.13788
+        }
+      ],
+      "warmRequests": [
+        {
+          "index": 0,
+          "cache": "cold",
+          "status": 200,
+          "bytes": 23296724,
+          "ms": 1656.79552
+        },
+        {
+          "index": 1,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296724,
+          "ms": 747.04428
+        },
+        {
+          "index": 2,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296724,
+          "ms": 1020.81668
+        },
+        {
+          "index": 3,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296724,
+          "ms": 1126.47832
+        },
+        {
+          "index": 4,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296724,
+          "ms": 1015.4482
+        },
+        {
+          "index": 5,
+          "cache": "warm",
+          "status": 200,
+          "bytes": 23296724,
+          "ms": 2124.28632
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "summary": {
+    "coldBootMs": {
+      "count": 3,
+      "min": 510.31908,
+      "p50": 662.23056,
+      "p95": 911.68716,
+      "p99": 911.68716,
+      "max": 911.68716,
+      "median": 662.23056
+    },
+    "warmBootMs": {
+      "count": 3,
+      "min": 167.7542,
+      "p50": 168.39992,
+      "p95": 222.39808,
+      "p99": 222.39808,
+      "max": 222.39808,
+      "median": 168.39992
+    },
+    "coldRuntime": {
+      "cold": [
+        {
+          "ms": 3811.87496,
+          "status": 200,
+          "bytes": 23296711
+        },
+        {
+          "ms": 2221.56872,
+          "status": 200,
+          "bytes": 23296736
+        },
+        {
+          "ms": 2513.52852,
+          "status": 200,
+          "bytes": 23296724
+        }
+      ],
+      "warmMs": {
+        "count": 15,
+        "min": 631.98528,
+        "p50": 865.15972,
+        "p95": 1520.35064,
+        "p99": 1520.35064,
+        "max": 1520.35064,
+        "median": 865.15972
+      },
+      "statuses": [
+        200
+      ]
+    },
+    "warmRuntime": {
+      "cold": [
+        {
+          "ms": 2094.03568,
+          "status": 200,
+          "bytes": 23296711
+        },
+        {
+          "ms": 1303.53404,
+          "status": 200,
+          "bytes": 23296736
+        },
+        {
+          "ms": 1656.79552,
+          "status": 200,
+          "bytes": 23296724
+        }
+      ],
+      "warmMs": {
+        "count": 15,
+        "min": 555.49328,
+        "p50": 1020.81668,
+        "p95": 2124.28632,
+        "p99": 2124.28632,
+        "max": 2124.28632,
+        "median": 1020.81668
+      },
+      "statuses": [
+        200
+      ]
+    },
+    "coldPeakRssBytes": [
+      156659712,
+      161701888,
+      147558400
+    ],
+    "warmSteadyRssBytes": [
+      20889600,
+      21098496,
+      20541440
+    ],
+    "cpuLoadPercentEnd": 100
+  },
+  "notes": [
+    "Absolute milliseconds on this shared development host are comparable only WITHIN one run; loadLabel and the sampled CPU-load series are recorded.",
+    "Peak RSS is procstat PeakWorkingSetSize (Windows) / VmHWM (Linux); no B/op value is ever reported as RSS.",
+    "Windows stop is abrupt (TerminateProcess after child.kill); Windows cannot deliver SIGTERM to a console process.",
+    "Go allocation totals are not observable from outside the process; ns/op, B/op and allocs/op come from internal/server/bench_test.go."
+  ]
+}

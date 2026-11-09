@@ -1,0 +1,41 @@
+﻿File: server.test.exe
+Build ID: C:\Users\koishi\AppData\Local\Temp\go-build3529737322\b001\server.test.exe2026-11-08 17:47:25.4144456 -0800 PST
+Type: cpu
+Time: 2026-11-08 17:47:27 PST
+Duration: 170.95s, Total samples = 164.56s (96.26%)
+Active filters:
+   focus=serveCharactersAll
+Showing nodes accounting for 52.65s, 31.99% of 164.56s total
+Dropped 364 nodes (cum <= 0.82s)
+Showing top 30 nodes out of 181
+      flat  flat%   sum%        cum   cum%
+    25.69s 15.61% 15.61%     26.20s 15.92%  runtime.cgocall
+     9.10s  5.53% 21.14%      9.10s  5.53%  runtime.asyncPreempt
+     3.77s  2.29% 23.43%      3.77s  2.29%  runtime.memclrNoHeapPointers
+     2.71s  1.65% 25.08%      2.71s  1.65%  runtime.memmove
+     2.19s  1.33% 26.41%      4.93s  3.00%  github.com/cocokoishi/gotavern/internal/server.writeCharacterJSONString
+     0.83s   0.5% 26.91%      1.51s  0.92%  encoding/json/internal/jsonwire.ConsumeSimpleString (inline)
+     0.79s  0.48% 27.39%      2.85s  1.73%  strings.(*Builder).WriteByte (inline)
+     0.66s   0.4% 27.80%      0.71s  0.43%  runtime.(*spanSet).push
+     0.60s  0.36% 28.16%      0.83s   0.5%  runtime.mallocgcSmallScanNoHeaderSC2
+     0.56s  0.34% 28.50%      0.56s  0.34%  crypto/sha1.sha1block
+     0.54s  0.33% 28.83%      0.54s  0.33%  runtime.nextFreeFast (inline)
+     0.47s  0.29% 29.11%      9.25s  5.62%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+     0.40s  0.24% 29.36%      0.80s  0.49%  runtime.mallocgcSmallScanNoHeaderSC5
+     0.36s  0.22% 29.58%      1.26s  0.77%  internal/filepathlite.Clean
+     0.36s  0.22% 29.79%      0.36s  0.22%  runtime.markBits.setMarked (inline)
+     0.33s   0.2% 30.00%      6.92s  4.21%  runtime.growslice
+     0.33s   0.2% 30.20%      8.03s  4.88%  runtime.mallocgc
+     0.33s   0.2% 30.40%      0.61s  0.37%  runtime.mallocgcTinySC2
+     0.31s  0.19% 30.58%      1.09s  0.66%  encoding/json/internal/jsonwire.ConsumeStringResumable
+     0.30s  0.18% 30.77%      1.10s  0.67%  github.com/cocokoishi/gotavern/internal/server.javaScriptStringLength
+     0.30s  0.18% 30.95%      0.47s  0.29%  unicode/utf8.DecodeRuneInString (inline)
+     0.26s  0.16% 31.11%      0.49s   0.3%  runtime.mapaccess2_faststr
+     0.24s  0.15% 31.25%      0.44s  0.27%  internal/filepathlite.(*lazybuf).append (inline)
+     0.23s  0.14% 31.39%      0.39s  0.24%  runtime.tryDeferToSpanScan
+     0.20s  0.12% 31.51%      3.40s  2.07%  encoding/json/jsontext.(*decoderState).ReadToken
+     0.18s  0.11% 31.62%      0.70s  0.43%  encoding/base64.(*Encoding).Decode
+     0.18s  0.11% 31.73%      8.08s  4.91%  github.com/cocokoishi/gotavern/internal/server.writeCharacterJSON
+     0.15s 0.091% 31.82%      3.09s  1.88%  github.com/cocokoishi/gotavern/internal/server.decodePngText
+     0.15s 0.091% 31.92%      8.58s  5.21%  internal/poll.(*FD).execIO
+     0.13s 0.079% 31.99%      0.38s  0.23%  encoding/json/internal/jsonwire.ConsumeStringResumable.func1 (inline)

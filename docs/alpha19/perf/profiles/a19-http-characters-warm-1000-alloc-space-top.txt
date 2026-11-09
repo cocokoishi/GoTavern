@@ -1,0 +1,35 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: alloc_space
+Time: 2026-11-08 18:25:14 PST
+Active filters:
+   focus=serveCharactersAll
+Showing nodes accounting for 740.80MB, 69.17% of 1071.04MB total
+Dropped 38 nodes (cum <= 5.36MB)
+Showing top 25 nodes out of 58
+      flat  flat%   sum%        cum   cum%
+  291.70MB 27.23% 27.23%   291.70MB 27.23%  bytes.growSlice
+   92.29MB  8.62% 35.85%    92.29MB  8.62%  io.ReadAll
+   56.66MB  5.29% 41.14%    56.66MB  5.29%  encoding/json/jsontext.(*decoderState).fetch
+   53.07MB  4.95% 46.10%    53.07MB  4.95%  encoding/json/jsontext.Token.String (inline)
+   49.84MB  4.65% 50.75%    49.84MB  4.65%  strings.(*Builder).WriteByte (inline)
+   42.83MB  4.00% 54.75%   418.30MB 39.05%  github.com/cocokoishi/gotavern/internal/server.processCharacterForDirEntry
+   32.87MB  3.07% 57.82%    32.87MB  3.07%  github.com/cocokoishi/gotavern/internal/server.extractPngChunks
+   30.57MB  2.85% 60.67%    30.57MB  2.85%  github.com/cocokoishi/gotavern/internal/server.(*orderedNodeJSON).setMember (inline)
+   25.52MB  2.38% 63.05%   140.75MB 13.14%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+   19.03MB  1.78% 64.83%    43.53MB  4.06%  github.com/cocokoishi/gotavern/internal/server.orderedNodeJSON.entries
+   18.50MB  1.73% 66.56%       22MB  2.05%  strconv.syntaxError (inline)
+   12.61MB  1.18% 67.74%    12.61MB  1.18%  encoding/base64.(*Encoding).DecodeString
+    4.54MB  0.42% 68.16%    17.15MB  1.60%  github.com/cocokoishi/gotavern/internal/server.decodeBase64UTF8
+    4.50MB  0.42% 68.58%   115.23MB 10.76%  encoding/json.(*Decoder).Token
+    3.50MB  0.33% 68.91%        5MB  0.47%  syscall.FullPath
+    1.28MB  0.12% 69.03%     4.14MB  0.39%  compress/flate.NewWriter (inline)
+       1MB 0.093% 69.12%   292.70MB 27.33%  bytes.(*Buffer).grow
+    0.50MB 0.047% 69.17%    14.02MB  1.31%  github.com/cocokoishi/gotavern/internal/server.readFromV2
+         0     0% 69.17%   291.70MB 27.23%  bytes.(*Buffer).WriteString
+         0     0% 69.17%     7.50MB   0.7%  compress/gzip.(*Writer).Write
+         0     0% 69.17%    57.66MB  5.38%  encoding/json/jsontext.(*Decoder).ReadToken (inline)
+         0     0% 69.17%    57.66MB  5.38%  encoding/json/jsontext.(*decoderState).ReadToken
+         0     0% 69.17%    56.66MB  5.29%  encoding/json/jsontext.(*decoderState).consumeString
+         0     0% 69.17%   765.06MB 71.43%  github.com/cocokoishi/gotavern/internal/server.(*accountRuntime).serveCharactersAll
+         0     0% 69.17%     7.50MB   0.7%  github.com/cocokoishi/gotavern/internal/server.(*pinnedCompressionWriter).Write

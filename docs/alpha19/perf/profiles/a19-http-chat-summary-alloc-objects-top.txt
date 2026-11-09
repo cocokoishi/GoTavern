@@ -1,0 +1,22 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: alloc_objects
+Time: 2026-11-08 18:25:23 PST
+Active filters:
+   focus=serveCharactersChats
+Showing nodes accounting for 24, 0.034% of 71039 total
+      flat  flat%   sum%        cum   cum%
+        17 0.024% 0.024%         24 0.034%  github.com/cocokoishi/gotavern/internal/server.scanChatSummaryReader
+         7 0.0099% 0.034%          7 0.0099%  github.com/cocokoishi/gotavern/internal/server.appendChatLineBytes (inline)
+         0     0% 0.034%         24 0.034%  github.com/cocokoishi/gotavern/internal/server.(*accountRuntime).serveCharactersChats
+         0     0% 0.034%         24 0.034%  github.com/cocokoishi/gotavern/internal/server.getChatInfo
+         0     0% 0.034%         24 0.034%  github.com/cocokoishi/gotavern/internal/server.newHTTPHandlerWithRouteDomains.func22
+         0     0% 0.034%         24 0.034%  github.com/cocokoishi/gotavern/internal/server.pinnedCompressionMiddleware.func1
+         0     0% 0.034%         24 0.034%  github.com/cocokoishi/gotavern/internal/server.pinnedPanicBoundary.func1
+         0     0% 0.034%         24 0.034%  github.com/cocokoishi/gotavern/internal/server.pinnedResponseTimeMiddleware.func1
+         0     0% 0.034%         24 0.034%  github.com/cocokoishi/gotavern/internal/server.registerCharactersRoutes.func1.func1
+         0     0% 0.034%         24 0.034%  github.com/cocokoishi/gotavern/internal/server.scanChatSummary
+         0     0% 0.034%         24 0.034%  net/http.(*ServeMux).ServeHTTP
+         0     0% 0.034%         24 0.034%  net/http.(*conn).serve
+         0     0% 0.034%         24 0.034%  net/http.HandlerFunc.ServeHTTP
+         0     0% 0.034%         24 0.034%  net/http.serverHandler.ServeHTTP

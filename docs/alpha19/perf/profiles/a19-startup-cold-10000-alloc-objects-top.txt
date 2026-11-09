@@ -1,0 +1,33 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: alloc_objects
+Time: 2026-11-08 18:22:02 PST
+Showing nodes accounting for 186024, 99.38% of 187184 total
+Dropped 26 nodes (cum <= 935)
+Showing top 25 nodes out of 49
+      flat  flat%   sum%        cum   cum%
+     40964 21.88% 21.88%      40964 21.88%  strings.(*Builder).WriteString (inline)
+     32768 17.51% 39.39%      73728 39.39%  github.com/cocokoishi/gotavern/internal/startup.marshalStatisticsString
+     32768 17.51% 56.90%      32768 17.51%  reflect.unsafe_New
+     16483  8.81% 65.70%      91392 48.82%  github.com/cocokoishi/gotavern/internal/startup.VerifyCharacterDiskCache
+     16385  8.75% 74.46%      16385  8.75%  encoding/hex.EncodeToString (inline)
+     14044  7.50% 81.96%      14044  7.50%  os.newFileStatFromFileIDBothDirInfo (inline)
+      8193  4.38% 86.33%      24578 13.13%  github.com/cocokoishi/gotavern/internal/startup.storeFilename
+      8192  4.38% 90.71%       8201  4.38%  bytes.(*Buffer).grow
+      8192  4.38% 95.09%       8192  4.38%  fmt.Sprintf
+      5461  2.92% 98.01%       5461  2.92%  runtime.mallocgc
+      2521  1.35% 99.35%       2521  1.35%  syscall.FullPath
+        40 0.021% 99.37%      73777 39.41%  github.com/cocokoishi/gotavern/internal/startup.marshalStatistics
+        10 0.0053% 99.38%      14054  7.51%  os.(*File).readdir
+         3 0.0016% 99.38%      78467 41.92%  github.com/cocokoishi/gotavern/internal/startup.(*statisticsTarget).recompute
+         0     0% 99.38%       8201  4.38%  bytes.(*Buffer).Write
+         0     0% 99.38%      40960 21.88%  encoding/json.(*Encoder).Encode
+         0     0% 99.38%      32768 17.51%  encoding/json/v2.MarshalEncode
+         0     0% 99.38%      32768 17.51%  encoding/json/v2.marshalEncode
+         0     0% 99.38%     180724 96.55%  github.com/cocokoishi/gotavern/internal/app.Start
+         0     0% 99.38%       8344  4.46%  github.com/cocokoishi/gotavern/internal/server.NewHTTPHandlerWithOptions
+         0     0% 99.38%       8344  4.46%  github.com/cocokoishi/gotavern/internal/server.newHTTPHandler
+         0     0% 99.38%       8344  4.46%  github.com/cocokoishi/gotavern/internal/server.newHTTPHandlerWithRouteDomains
+         0     0% 99.38%       8344  4.46%  github.com/cocokoishi/gotavern/internal/server.registerDomainRoutes (inline)
+         0     0% 99.38%       8192  4.38%  github.com/cocokoishi/gotavern/internal/server.registerSDRoutes
+         0     0% 99.38%       8192  4.38%  github.com/cocokoishi/gotavern/internal/server.registerSDRoutes.func1 (inline)

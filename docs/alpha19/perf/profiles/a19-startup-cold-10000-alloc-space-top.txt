@@ -1,0 +1,32 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: alloc_space
+Time: 2026-11-08 18:22:02 PST
+Showing nodes accounting for 34321.73kB, 100% of 34321.73kB total
+Showing top 25 nodes out of 75
+      flat  flat%   sum%        cum   cum%
+ 8597.14kB 25.05% 25.05%  8597.14kB 25.05%  bytes.growSlice
+ 5120.70kB 14.92% 39.97%  5120.70kB 14.92%  strings.(*Builder).WriteString (inline)
+ 4143.19kB 12.07% 52.04% 12919.19kB 37.64%  github.com/cocokoishi/gotavern/internal/startup.VerifyCharacterDiskCache
+ 2629.56kB  7.66% 59.70% 15938.80kB 46.44%  github.com/cocokoishi/gotavern/internal/startup.(*statisticsTarget).recompute
+ 2110.95kB  6.15% 65.85% 12244.14kB 35.67%  github.com/cocokoishi/gotavern/internal/startup.marshalStatistics
+ 1536.16kB  4.48% 70.33%  1536.16kB  4.48%  os.newFileStatFromFileIDBothDirInfo (inline)
+ 1184.27kB  3.45% 73.78%  1184.27kB  3.45%  runtime/pprof.StartCPUProfile
+ 1136.05kB  3.31% 77.09%  2672.21kB  7.79%  os.(*File).readdir
+ 1025.84kB  2.99% 80.08%  1025.84kB  2.99%  regexp/syntax.(*compiler).inst
+ 1024.12kB  2.98% 83.06%  2048.19kB  5.97%  github.com/cocokoishi/gotavern/internal/startup.storeFilename
+ 1024.06kB  2.98% 86.04%  1024.06kB  2.98%  encoding/hex.EncodeToString (inline)
+  688.56kB  2.01% 88.05%   688.56kB  2.01%  compress/flate.(*fastGen).addBlock
+  515.19kB  1.50% 89.55%   515.19kB  1.50%  unicode.map.init.2
+  513.69kB  1.50% 91.05%   513.69kB  1.50%  os.readFileContents
+  512.10kB  1.49% 92.54%   512.10kB  1.49%  syscall.FullPath
+  512.05kB  1.49% 94.03%   512.05kB  1.49%  runtime.mallocgc
+  512.03kB  1.49% 95.52%  9109.17kB 26.54%  bytes.(*Buffer).grow
+  512.03kB  1.49% 97.02%   512.03kB  1.49%  fmt.Sprintf
+  512.01kB  1.49% 98.51%  1536.05kB  4.48%  github.com/cocokoishi/gotavern/internal/startup.marshalStatisticsString
+  512.01kB  1.49%   100%   512.01kB  1.49%  reflect.unsafe_New
+         0     0%   100%  9109.17kB 26.54%  bytes.(*Buffer).Write
+         0     0%   100%   688.56kB  2.01%  compress/flate.(*Writer).Close
+         0     0%   100%   688.56kB  2.01%  compress/flate.(*compressor).close
+         0     0%   100%   688.56kB  2.01%  compress/flate.(*compressor).deflateFast
+         0     0%   100%   688.56kB  2.01%  compress/flate.(*fastEncL1).encode

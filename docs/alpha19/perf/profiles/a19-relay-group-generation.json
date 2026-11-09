@@ -1,0 +1,596 @@
+{
+  "label": "a19-relay-group-generation",
+  "mode": "relay",
+  "goVersion": "go1.27.3",
+  "goos": "windows",
+  "goarch": "arm64",
+  "gomaxprocs": 2,
+  "dataRoot": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\work-relaygroup\\data",
+  "configPath": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\work-relaygroup\\config.yaml",
+  "route": "/api/backends/chat-completions/generate",
+  "requests": 60,
+  "warmup": 2,
+  "relayMessages": 60,
+  "relayMessageBytes": 1024,
+  "providerPeer": "http://127.0.0.1:51480",
+  "startupMs": 597.858,
+  "readyMs": 2.012,
+  "startupStageLines": [
+    "gotavern: startup.command-line took 93ms (total 93ms)",
+    "gotavern: startup.data-startup took 273ms (total 366ms)",
+    "gotavern: startup.listeners took 131ms (total 497ms)",
+    "gotavern: startup.routes took 101ms (total 598ms)",
+    "gotavern: startup.ready took 0s (total 598ms)"
+  ],
+  "requestRows": [
+    {
+      "index": 0,
+      "kind": "warmup",
+      "status": 200,
+      "bytes": 411,
+      "ms": 66.724,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": false
+    },
+    {
+      "index": 1,
+      "kind": "warmup",
+      "status": 200,
+      "bytes": 411,
+      "ms": 176.212,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": false
+    },
+    {
+      "index": 0,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 139.573,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 1,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 162.952,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 2,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 3.778,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 3,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 132.954,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 4,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 26.629,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 5,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 65.461,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 6,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 50.43,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 7,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 4.575,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 8,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 94.131,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 9,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 107.747,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 10,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 6.07,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 11,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 24.32,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 12,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 32.997,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 13,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 4.05,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 14,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 36.771,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 15,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 4.029,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 16,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 73.175,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 17,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 9.584,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 18,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 71.846,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 19,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 17.058,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 20,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 59.848,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 21,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 4.03,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 22,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 93.391,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 23,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 4.056,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 24,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 77.305,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 25,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 14.404,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 26,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 4.027,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 27,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 49.043,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 28,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 8.111,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 29,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 15.147,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 30,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 7.831,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 31,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 3.535,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 32,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 53.227,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 33,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 4.591,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 34,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 37.585,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 35,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 4.046,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 36,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 32.391,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 37,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 32.006,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 38,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 47.105,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 39,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 4.048,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 40,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 35.029,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 41,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 46.876,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 42,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 5.478,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 43,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 43.676,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 44,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 22.623,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 45,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 57.484,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 46,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 48.075,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 47,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 20.47,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 48,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 106.615,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 49,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 9.641,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 50,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 66.354,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 51,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 35.067,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 52,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 175.093,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 53,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 39.982,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 54,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 15.054,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 55,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 104.668,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 56,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 107.57,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 57,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 46.064,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 58,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 55.689,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    },
+    {
+      "index": 59,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 411,
+      "ms": 75.386,
+      "route": "/api/backends/chat-completions/generate",
+      "inProfileWindow": true
+    }
+  ],
+  "cpuProfile": "a19-relay-group-generation-cpu.pb.gz",
+  "heapProfile": "a19-relay-group-generation-heap.pb.gz",
+  "cpuProfileRateHz": 100,
+  "notes": [
+    "CPU profile rate is Go's default 100 Hz; short windows carry few samples and are reported with their sample counts.",
+    "Heap profile carries alloc_space/alloc_objects (cumulative) and inuse_space/inuse_objects (after a forced GC at capture); the two are never mixed.",
+    "All OCUMULATIVE allocation totals include the startup path and the warmup requests; a warm-window claim is about the SHAPE of the profile, and the per-request allocation numbers come from internal/server/bench_test.go.",
+    "This helper calls internal/app.Start in-process; it is not the packaged binary and does not measure process exec/init cost (tools/perf/a19-boot.mjs does that)."
+  ],
+  "startedAt": "2026-11-09T02:25:36Z",
+  "finishedAt": "2026-11-09T02:25:40Z"
+}

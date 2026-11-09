@@ -1,0 +1,33 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: cpu
+Time: 2026-11-08 18:22:03 PST
+Duration: 866.83ms, Total samples = 740ms (85.37%)
+Showing nodes accounting for 740ms, 100% of 740ms total
+Showing top 25 nodes out of 175
+      flat  flat%   sum%        cum   cum%
+     270ms 36.49% 36.49%      270ms 36.49%  runtime.cgocall
+     100ms 13.51% 50.00%      100ms 13.51%  runtime.osyield.func1
+      80ms 10.81% 60.81%       80ms 10.81%  runtime.asyncPreempt
+      50ms  6.76% 67.57%       50ms  6.76%  runtime.preemptM
+      50ms  6.76% 74.32%      110ms 14.86%  runtime.schedule
+      40ms  5.41% 79.73%       50ms  6.76%  runtime.bgsweep
+      40ms  5.41% 85.14%       40ms  5.41%  runtime.getempty
+      20ms  2.70% 87.84%       80ms 10.81%  encoding/json/jsontext.(*decoderState).consumeValue
+      20ms  2.70% 90.54%       20ms  2.70%  runtime.memmove
+      10ms  1.35% 91.89%       10ms  1.35%  runtime.casgstatus
+      10ms  1.35% 93.24%       10ms  1.35%  runtime.lock2
+      10ms  1.35% 94.59%       10ms  1.35%  runtime.mapaccess2_fast64
+      10ms  1.35% 95.95%       10ms  1.35%  runtime.pidlegetSpinning
+      10ms  1.35% 97.30%       10ms  1.35%  runtime.scanObject
+      10ms  1.35% 98.65%       10ms  1.35%  runtime.sysUsedOS
+      10ms  1.35%   100%       10ms  1.35%  runtime.unlock2
+         0     0%   100%       10ms  1.35%  encoding/json.Unmarshal
+         0     0%   100%       80ms 10.81%  encoding/json.Valid
+         0     0%   100%       80ms 10.81%  encoding/json.checkValid
+         0     0%   100%       80ms 10.81%  encoding/json/jsontext.(*Decoder).ReadValue (inline)
+         0     0%   100%       80ms 10.81%  encoding/json/jsontext.(*decoderState).ReadValue
+         0     0%   100%       80ms 10.81%  encoding/json/jsontext.(*decoderState).consumeObject
+         0     0%   100%       10ms  1.35%  encoding/json/v2.Unmarshal
+         0     0%   100%       10ms  1.35%  encoding/json/v2.makeStructArshaler.func1
+         0     0%   100%       10ms  1.35%  encoding/json/v2.makeStructArshaler.func3

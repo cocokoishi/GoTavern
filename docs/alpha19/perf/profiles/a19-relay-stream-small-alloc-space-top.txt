@@ -1,0 +1,34 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: alloc_space
+Time: 2026-11-08 18:25:36 PST
+Active filters:
+   focus=serveChatCompletionGenerate
+Showing nodes accounting for 56.26MB, 71.57% of 78.62MB total
+Showing top 25 nodes out of 114
+      flat  flat%   sum%        cum   cum%
+      16MB 20.36% 20.36%    17.50MB 22.26%  gopkg.in/yaml%2ev3.(*parser).node
+    7.74MB  9.84% 30.20%     8.24MB 10.48%  github.com/cocokoishi/gotavern/internal/server.forwardPinnedChatCompletionStream
+       4MB  5.09% 35.29%        4MB  5.09%  reflect.mapassign_faststr0
+    3.50MB  4.45% 39.74%     3.50MB  4.45%  gopkg.in/yaml%2ev3.read
+    3.01MB  3.83% 43.57%     3.01MB  3.83%  bytes.growSlice
+       2MB  2.54% 46.11%        2MB  2.54%  encoding/json/v2.JoinOptions
+       2MB  2.54% 48.66%     5.01MB  6.37%  bytes.(*Buffer).grow
+       2MB  2.54% 51.20%        2MB  2.54%  gopkg.in/yaml%2ev3.(*decoder).scalar
+    1.50MB  1.91% 53.11%     1.50MB  1.91%  io.ReadAll
+    1.50MB  1.91% 55.02%     1.50MB  1.91%  strings.(*Builder).WriteString (inline)
+    1.50MB  1.91% 56.93%     1.50MB  1.91%  gopkg.in/yaml%2ev3.resolve
+    1.50MB  1.91% 58.84%     1.50MB  1.91%  reflect.unsafe_New
+       1MB  1.28% 60.11%        1MB  1.28%  os.readFileContents
+       1MB  1.27% 61.39%        1MB  1.27%  encoding/json/jsontext.(*decoderState).fetch
+       1MB  1.27% 62.66%        1MB  1.27%  bytes.Replace
+       1MB  1.27% 63.93%        1MB  1.27%  net/textproto.MIMEHeader.Set
+       1MB  1.27% 65.21%        1MB  1.27%  context.(*cancelCtx).Done
+       1MB  1.27% 66.48%        1MB  1.27%  reflect.makemap
+       1MB  1.27% 67.75%    16.50MB 20.99%  gopkg.in/yaml%2ev3.(*parser).scalar
+    0.50MB  0.64% 68.39%        2MB  2.55%  github.com/cocokoishi/gotavern/internal/startup.DirectoriesForUser
+    0.50MB  0.64% 69.02%     0.50MB  0.64%  gopkg.in/yaml%2ev3.yaml_insert_token
+    0.50MB  0.64% 69.66%        2MB  2.55%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+    0.50MB  0.64% 70.30%     0.50MB  0.64%  net/http.Header.Clone (inline)
+    0.50MB  0.64% 70.93%     0.50MB  0.64%  encoding/json/jsontext.Token.String (inline)
+    0.50MB  0.64% 71.57%     0.50MB  0.64%  net/http.NewRequestWithContext

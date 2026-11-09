@@ -1,0 +1,35 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: cpu
+Time: 2026-11-08 18:25:18 PST
+Duration: 2.22s, Total samples = 1.87s (84.10%)
+Active filters:
+   focus=serveCharactersAll
+Showing nodes accounting for 1.23s, 65.78% of 1.87s total
+Showing top 25 nodes out of 162
+      flat  flat%   sum%        cum   cum%
+     0.28s 14.97% 14.97%      0.28s 14.97%  runtime.asyncPreempt
+     0.19s 10.16% 25.13%      0.19s 10.16%  runtime.cgocall
+     0.16s  8.56% 33.69%      0.31s 16.58%  compress/flate.(*fastEncL6).encode
+     0.11s  5.88% 39.57%      0.25s 13.37%  github.com/cocokoishi/gotavern/internal/server.writeCharacterJSONString
+     0.06s  3.21% 42.78%      0.06s  3.21%  runtime.memmove
+     0.05s  2.67% 45.45%      0.05s  2.67%  runtime.findObject
+     0.04s  2.14% 47.59%      0.04s  2.14%  runtime.(*mspan).moveInlineMarks
+     0.04s  2.14% 49.73%      0.05s  2.67%  unicode/utf8.DecodeRuneInString (inline)
+     0.03s  1.60% 51.34%      0.03s  1.60%  compress/flate.loadLE64[go.shape.int32] (inline)
+     0.03s  1.60% 52.94%      0.42s 22.46%  github.com/cocokoishi/gotavern/internal/server.writeCharacterJSON
+     0.02s  1.07% 54.01%      0.02s  1.07%  crypto/sha1.sha1block
+     0.02s  1.07% 55.08%      0.03s  1.60%  encoding/json/internal/jsonwire.ConsumeSimpleString (inline)
+     0.02s  1.07% 56.15%      0.02s  1.07%  gcWriteBarrier
+     0.02s  1.07% 57.22%      0.08s  4.28%  github.com/cocokoishi/gotavern/internal/server.javaScriptStringLength
+     0.02s  1.07% 58.29%      0.02s  1.07%  hash/crc32.ieeeUpdate
+     0.02s  1.07% 59.36%      0.02s  1.07%  runtime.heapArenaOf (inline)
+     0.02s  1.07% 60.43%      0.02s  1.07%  runtime.mapaccess2_faststr
+     0.02s  1.07% 61.50%      0.03s  1.60%  runtime.scanblock
+     0.02s  1.07% 62.57%      0.04s  2.14%  runtime.tryDeferToSpanScan
+     0.01s  0.53% 63.10%      0.03s  1.60%  compress/flate.hashLen (inline)
+     0.01s  0.53% 63.64%      0.02s  1.07%  compress/flate.matchLen
+     0.01s  0.53% 64.17%      0.01s  0.53%  encoding/json/internal/jsonwire.ConsumeStringResumable.func1 (inline)
+     0.01s  0.53% 64.71%      0.01s  0.53%  encoding/json/jsontext.(*decoderState).PeekKind
+     0.01s  0.53% 65.24%      0.10s  5.35%  encoding/json/jsontext.(*decoderState).ReadToken
+     0.01s  0.53% 65.78%      0.02s  1.07%  encoding/json/jsontext.(*decoderState).consumeString

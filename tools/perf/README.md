@@ -8,6 +8,45 @@ never part of the shipped server.
 |---|---|
 | `fingerprint.mjs` | the build/behaviour fingerprint used by the perf lane |
 | `a18-soak.mjs` | **alpha.18 release qualification:** does a real binary survive an hour of mixed storage traffic with restarts, write→restart→read integrity, and an external card modification? |
+| `a19-boot.mjs` | **alpha.19 process-level:** spawn→first `GET /version` 200 with a **2 ms** readiness poll (cold and warm), readiness `procstat` RSS/peak-RSS/CPU, and cold/warm data-route latency. The A15 suite's 20 ms poll cannot resolve the alpha.18 165 ms warm-boot row, which is why this harness exists. |
+| `a19profile/` (Go) | **alpha.19 in-process profiles:** CPU/heap/allocation profiles of `internal/app.Start` (startup, with `GOTAVERN_STARTUP_TRACE=1` stage lines) and of **warm** request windows after warmup, for `/api/characters/all`, chats, world info and the streaming chat-completions relay. `internal/server/bench_test.go` cannot profile startup and cannot isolate the warm request path (its profile mixes one cold iteration with N-1 warm ones). |
+
+## `a19-boot.mjs` — process-level boot/RSS harness
+
+```powershell
+go build -trimpath -ldflags="-s -w" -o "$env:TEMP\a19\gotavern.exe" ./cmd/gotavern
+node tools/perf/a19-boot.mjs --binary "$env:TEMP\a19\gotavern.exe" --scale cards --cards 10000 `
+  --image-bytes 4096 --card-bytes 2048 --rounds 3 --requests 6 --data-route characters `
+  --work-dir "$env:TEMP\a19\boot" --out "$env:TEMP\a19\boot-10000.json" `
+  --load-label "quiet: no other lane running"
+```
+
+It builds `tests/perf/{fixturegen,procstat}` once (or reuses `--fixturegen/--procstat`), generates a FRESH tree
+per round, boots the real binary (`--dataRoot/--configPath/--port/--listenAddressIPv4 127.0.0.1`, `listen=false`,
+`browserLaunchEnabled=false`, `heartbeatInterval=0`), measures spawn→first 200 with a raw loopback socket (no
+fetch, no connection pool), samples `procstat` at readiness and after the requests, and records every request
+row. Cold and warm are separate boots on the same round's tree, and every artifact carries the host facts, the
+build sha256, the load label and a sampled CPU-load series. `--rounds` regenerates the tree each round so the
+cold row is always first-touch.
+
+## `a19profile/` — in-process startup and warm-window profiles
+
+```powershell
+go build -trimpath -o "$env:TEMP\a19\a19profile.exe" ./tools/perf/a19profile
+# startup (pprof starts BEFORE internal/app.Start; startup stage lines are captured)
+& "$env:TEMP\a19\a19profile.exe" --mode startup --data-root <tree>\data --config <tree>\config.yaml `
+  --out-dir <dir> --label startup-cold
+# warm request window: boot, warmup requests, THEN pprof around the profiled requests
+& "$env:TEMP\a19\a19profile.exe" --mode http --route characters --data-root <tree>\data --config <tree>\config.yaml `
+  --out-dir <dir> --label warm-cards --warmup 1 --requests 3
+# provider SSE relay through a deterministic in-process peer (perf only; NOT a correctness oracle)
+& "$env:TEMP\a19\a19profile.exe" --mode relay --data-root <tree>\data --config <tree>\config.yaml `
+  --out-dir <dir> --label relay --relay-messages 6 --relay-message-bytes 512 --requests 300 --warmup 2
+```
+
+Each run writes `<label>-cpu.pb.gz`, `<label>-heap.pb.gz` and `<label>.json` (startup stage lines, request
+rows, Go version, GOMAXPROCS, the mode parameters, and the profile filenames). Profiles are engineering
+evidence (Layer A when run locally); they are not release gates.
 
 ## `a18-soak.mjs` — 60-minute soak
 

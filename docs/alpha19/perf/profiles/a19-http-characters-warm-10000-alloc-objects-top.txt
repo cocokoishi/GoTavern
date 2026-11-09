@@ -1,0 +1,35 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\Desktop\GoTavern\a19-perf\bin\a19profile.exe2026-11-08 18:10:12.306961 -0800 PST
+Type: alloc_objects
+Time: 2026-11-08 18:24:55 PST
+Active filters:
+   focus=serveCharactersAll
+Showing nodes accounting for 10078033, 93.06% of 10830041 total
+Dropped 41 nodes (cum <= 54150)
+Showing top 25 nodes out of 80
+      flat  flat%   sum%        cum   cum%
+   2654325 24.51% 24.51%    4298211 39.69%  strconv.syntaxError (inline)
+   1643886 15.18% 39.69%    1643886 15.18%  internal/stringslite.Clone (inline)
+   1048589  9.68% 49.37%    2512844 23.20%  encoding/json.(*Decoder).Token
+   1026058  9.47% 58.84%    3538902 32.68%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+    886637  8.19% 67.03%     886637  8.19%  encoding/json/jsontext.Token.String (inline)
+    502449  4.64% 71.67%     626438  5.78%  github.com/cocokoishi/gotavern/internal/server.readFromV2
+    217165  2.01% 73.68%     315470  2.91%  encoding/json/jsontext.(*decoderState).fetch
+    205552  1.90% 75.57%    4804155 44.36%  github.com/cocokoishi/gotavern/internal/server.orderedNodeJSON.entries
+    180239  1.66% 77.24%     180239  1.66%  internal/reflectlite.unsafe_New
+    142558  1.32% 78.55%     142558  1.32%  strings.(*Builder).WriteString
+    135087  1.25% 79.80%     135087  1.25%  syscall.UTF16FromString
+    127960  1.18% 80.98%     127960  1.18%  syscall.UTF16ToString
+    126404  1.17% 82.15%     126404  1.17%  encoding/json/v2.JoinOptions
+    120153  1.11% 83.26%     300392  2.77%  internal/reflectlite.Swapper
+    117467  1.08% 84.34%     117467  1.08%  io.ReadAll
+    112420  1.04% 85.38%     112420  1.04%  github.com/cocokoishi/gotavern/internal/server.extractPngChunks
+    110438  1.02% 86.40%     110438  1.02%  github.com/cocokoishi/gotavern/internal/server.(*orderedNodeJSON).setMember (inline)
+    105886  0.98% 87.38%     260745  2.41%  syscall.FullPath
+     98305  0.91% 88.29%      98305  0.91%  encoding/json/jsontext.(*objectNameStack).copyQuotedBuffer
+     98305  0.91% 89.20%      98305  0.91%  encoding/json/jsontext.(*stateMachine).pushObject (inline)
+     98305  0.91% 90.10%      98305  0.91%  github.com/cocokoishi/gotavern/internal/server.nodeString
+     90465  0.84% 90.94%      90465  0.84%  strings.(*Builder).WriteByte
+     81922  0.76% 91.69%      81922  0.76%  encoding/json/jsontext.(*stateMachine).pushArray (inline)
+     81921  0.76% 92.45%      81921  0.76%  encoding/json/jsontext.(*objectNameStack).push (inline)
+     65537  0.61% 93.06%     131074  1.21%  github.com/cocokoishi/gotavern/internal/server.marshalECMAScriptNumber
