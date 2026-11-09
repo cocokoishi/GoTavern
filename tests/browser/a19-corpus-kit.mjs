@@ -1039,7 +1039,7 @@ export async function chatTurn(page, text) {
  * an assistant message with text), only the polling interval is tighter than the shared helper's 250 ms
  * because the recording peer answers instantly and the corpus has ~1000 turns.
  */
-export async function fastChatTurn(page, text) {
+export async function fastChatTurn(page, text, { timeoutMs } = {}) {
     const startedMs = Date.now();
     const before = await page.evaluate(async () => {
         const script = await import('./script.js');
@@ -1053,7 +1053,7 @@ export async function fastChatTurn(page, text) {
     // 60 ms poll, 15 s bound: a turn against the deterministic JSON peer is sub-second, and a turn that
     // 60 ms poll; a turn that does not complete is a NAMED failure carrying the pre-click state.
     // THE BOUND IS CONFIGURABLE: a shared CI runner is several times slower than this host.
-    const turnTimeoutMs = Number(process.env.A19_TURN_TIMEOUT_MS ?? '45000') || 45000;
+    const turnTimeoutMs = Number(timeoutMs ?? process.env.A19_TURN_TIMEOUT_MS ?? '45000') || 45000;
     const deadline = startedMs + turnTimeoutMs;
     let last = null;
     while (Date.now() < deadline) {

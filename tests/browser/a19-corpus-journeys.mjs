@@ -1477,6 +1477,75 @@ export async function createGroupUiFirst(page, ctx, round, index, inputs) {
     return { ...api, currentlyOpenGroup, uiFirstOk: false, reset };
 }
 
+/**
+ * GROUP TURN with a separate, configurable bound and ONE bounded retry.
+ *
+ * A group turn fans out to several members, so 60 s (the chat bound) is too tight on a shared runner; the
+ * pinned group completion handling can also stall AFTER the recorder answered (CI: request index 333 present,
+ * no assistant message appended within the bound, the other three turns of the same group fine). Raising the
+ * bound alone would leave the retry untested, so: separate bound `A19_GROUP_TURN_TIMEOUT_MS` (default 180 s),
+ * and on the timeout shape wait for `is_group_generating`/`isGenerating` to clear (≤30 s) then RESEND ONCE.
+ * The retry still has to satisfy fastChatTurn's real completion (chat grew by both messages, assistant tail);
+ * if it also times out the failure stays NAMED.
+ */
+export async function groupTurn(page, ctx, text) {
+    const groupTimeoutMs = Number(process.env.A19_GROUP_TURN_TIMEOUT_MS ?? '180000') || 180000;
+    const generatingState = async () => page.evaluate(async () => {
+        const script = await import('./script.js');
+        let isGenerating = null;
+        try {
+            isGenerating = typeof script.isGenerating === 'function' ? script.isGenerating() : null;
+        } catch {
+            isGenerating = null;
+        }
+        const context = window.SillyTavern?.getContext?.() ?? null;
+        return {
+            isGroupGenerating: script.is_group_generating ?? null,
+            isGenerating,
+            selectedGroup: context?.groupId ?? null,
+            chatLength: (script.chat ?? []).length,
+            isSendPress: script.is_send_press ?? null,
+        };
+    });
+    const waitGroupIdle = async timeoutMs => {
+        const deadline = Date.now() + timeoutMs;
+        let state = await generatingState();
+        while (Date.now() < deadline) {
+            if (state.isGroupGenerating !== true && state.isGenerating !== true) return { ok: true, state };
+            await page.waitForTimeout(250);
+            state = await generatingState();
+        }
+        return { ok: false, state };
+    };
+    const requestsBefore = (await ctx.provider.stats()).requests;
+    const beforeState = await generatingState();
+    const first = await fastChatTurn(page, text, { timeoutMs: groupTimeoutMs });
+    const requestsAfterFirst = (await ctx.provider.stats()).requests;
+    const attempts = [{ attempt: 1, ok: first.ok === true, timeoutMs: groupTimeoutMs, requestsBefore, requestsAfter: requestsAfterFirst, beforeState, elapsedMs: first.elapsedMs ?? null, after: first.after ?? null, isGroupGenerating: beforeState.isGroupGenerating }];
+    if (first.ok === true) {
+        return { ok: true, attempts, requestsBefore, requestsAfter: requestsAfterFirst, retried: false, boundMs: groupTimeoutMs };
+    }
+    // WAIT FOR THE GENERATION FLAG TO CLEAR BEFORE RESENDING (a resend while the page still believes it is
+    // generating would be swallowed by the same guard).
+    const idle = await waitGroupIdle(30000);
+    const retryBefore = await generatingState();
+    const retry = await fastChatTurn(page, text, { timeoutMs: groupTimeoutMs });
+    const requestsAfter = (await ctx.provider.stats()).requests;
+    attempts.push({ attempt: 2, ok: retry.ok === true, timeoutMs: groupTimeoutMs, idleCleared: idle.ok, requestsBefore: requestsAfterFirst, requestsAfter, beforeState: retryBefore, after: retry.after ?? null, elapsedMs: retry.elapsedMs ?? null });
+    const ok = retry.ok === true;
+    return {
+        ok,
+        attempts,
+        requestsBefore,
+        requestsAfter,
+        retried: true,
+        boundMs: groupTimeoutMs,
+        reason: ok ? null : `group turn did not complete after one retry within ${groupTimeoutMs} ms (named failure)`,
+        firstFailure: { reason: first.reason ?? null, after: first.after ?? null, before: first.before ?? null },
+        retryFailure: ok ? null : { reason: retry.reason ?? null, after: retry.after ?? null, before: retry.before ?? null },
+    };
+}
+
 async function runGroups(page, ctx, round, plan, cards) {
     const groups = [];
     // PRE-GROUPS RE-ASSERT: the chats phase may have reloaded the page and the groups phase must not start
@@ -1510,7 +1579,7 @@ async function runGroups(page, ctx, round, plan, cards) {
         let messages = 0;
         for (let turnIndex = 0; turnIndex < 4; turnIndex += 1) {
             const text = `A19 R${round} G${groupIndex + 1} T${turnIndex} 多人群聊 turn。`;
-            const turn = await fastChatTurn(page, text);
+            const turn = await groupTurn(page, ctx, text);
             if (turn.ok !== true) {
                 ctx.report.step(`group-turn-r${round}-${groupIndex}-${turnIndex}`, false, turn);
                 break;
@@ -2053,7 +2122,7 @@ export async function runTopUp(page, ctx) {
                 if (created.ok) {
                     const opened = await openGroup(page, created.group.id, true);
                     if (opened.ok) {
-                        const turn = await fastChatTurn(page, `A19 R3 TOPUP G${groupIndex + 1} T0 多人群聊 top-up turn。`);
+                        const turn = await groupTurn(page, ctx, `A19 R3 TOPUP G${groupIndex + 1} T0 多人群聊 top-up turn。`);
                         turns.attempted += 1;
                         if (turn.ok) turns.ok += 1; else turns.failed += 1;
                         turns.totalMs += turn.elapsedMs ?? 0;
