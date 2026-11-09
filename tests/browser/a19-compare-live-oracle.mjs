@@ -288,6 +288,38 @@ const NORMALISATIONS = [
         test: 'http-bodies-equal deletes etag from the compared set only when rawBodiesEqual is false, and records this entry',
         negativeCase: 'a19-oracle-teeth.mjs changes the ETag on a pair whose raw bodies are EQUAL and requires http-bodies-equal red',
     },
+    {
+        id: 'run-created-chat-name',
+        reason: 'the frontend names a chat the run itself creates "<character> - YYYY-MM-DD@HHhMMmSSsNNNms"; the name encodes the leg own wall clock, so two isolated runs minutes apart cannot agree on it. Everything else about the chat (messages, per-tree file identity, final chat surface) is compared',
+        pinnedEvidence: 'PINNED RUN TWICE over two copies of the same corpus (Lead negative-case rule): the active chat name was "Legacy Card (v2) - 2026-11-08@19h37m31s553ms" in run5 and "Legacy Card (v2) - 2026-11-08@20h09m29s437ms" in run6 for the same journey',
+        field: 'JSON member chat in character/group list responses, ONLY when its value matches the pinned run-created chat-name shape',
+        test: 'projectJsonForComparison() maps such a value to <RUN-CHAT> and records this entry; every other chat-named member is compared',
+        negativeCase: 'a19-oracle-teeth.mjs changes a NON-chat field in the same list response and requires http-bodies-equal red',
+    },
+    {
+        id: 'sub-millisecond-mtime-timestamps',
+        reason: 'date_added/date_last_chat are milliseconds derived from file mtimes. Both subjects read the same file, but converting the nanosecond mtime to a float and formatting it differs in the sub-millisecond digits between Go and JavaScript (measured 1794190102415.045 vs 1794190102415.0444 for one file). The value is compared at whole-millisecond precision, which is the precision the observable (a sort key) uses',
+        pinnedEvidence: 'measured 2026-11-08 self-check run6: same corpus, same preserved file mtime, pinned 1794190102415.0444 / GoTavern 1794190102415.045; the whole-millisecond part is identical',
+        field: 'JSON members date_added and date_last_chat in list responses, floored to whole milliseconds',
+        test: 'projectJsonForComparison() floors those numeric members and records this entry; a one-millisecond change still reds',
+        negativeCase: 'a19-oracle-teeth.mjs adds 1000 ms to date_added on one leg and requires http-bodies-equal red; changing only the sub-millisecond fraction must survive',
+    },
+    {
+        id: 'tokenizer-endpoint-load-race',
+        reason: 'while settings are still loading the frontend picks its token-count endpoint from the settings it has so far; one run counted one character name through /api/tokenizers/llama/encode instead of /api/tokenizers/openai/count. The token COUNT VALUES for the shared texts are still compared; the endpoint CHOICE during load is scheduling, not a product claim',
+        pinnedEvidence: 'measured 2026-11-08 across four self-check runs of the same corpus/journey: 1 llama/encode request in 67 tokenizer requests, only on one leg of one run; the other 66 used openai/count and every shared count value was identical',
+        field: 'the request MULTISET entry POST /api/tokenizers/llama/encode only',
+        test: 'http-request-set-equal and http-bodies-equal skip that exact route and record this entry; /api/tokenizers/openai/count bodies are compared, and its VALUE mutation reds',
+        negativeCase: 'a19-oracle-teeth.mjs changes an /api/tokenizers/openai/count response body and requires http-bodies-equal red',
+    },
+    {
+        id: 'autosave-request-bodies',
+        reason: 'the settings autosave is debounced and carries the frontend INTERMEDIATE state: asynchronous startup passes (the persona-initialisation pass) interleave differently between two legs, so a save issued while one leg is still initialising carries fields the other has already normalised. The FINAL persisted settings are compared byte-oriented (persistence-changed-content-equal), which is the user-visible state',
+        pinnedEvidence: 'measured 2026-11-08 self-check run6: /api/settings/save request bodies differed in power_user.persona_descriptions (depth 4/CORPUS_PERSONA on one leg, depth 2/empty on the other) while BOTH final settings.json trees were identical after projection and persistence-changed-content-equal was green',
+        field: 'the POST /api/settings/save REQUEST body only (the response and every final file are compared)',
+        test: 'http-bodies-equal skips the autosave request body and records this entry; the persistence layer compares the final settings documents',
+        negativeCase: 'a19-oracle-teeth.mjs changes the FINAL persisted settings (persona depth) and requires persistence-changed-content-equal red',
+    },
 ];
 
 const appliedNormalisations = new Set();
@@ -339,6 +371,15 @@ const PROJECTED_JSON_KEYS = new Map([
     ['enable_extensions_auto_update', 'settings-auto-update-default'],
 ]);
 const PEER_URL_PATTERN = /http:\/\/127\.0\.0\.1:\d+(?:\/v1)?/g;
+// A CHAT NAME the RUN ITSELF created: the frontend names a new chat "<character> - YYYY-MM-DD@HHhMMmSSsNNNms", so
+// the name embeds the leg's own wall clock. Two isolated runs minutes apart cannot agree on it, and everything else
+// about the chat (its messages, its file's identity inside each tree) is compared by the persistence layer.
+const RUN_CREATED_CHAT_NAME = /\d{4}-\d{2}-\d{2}@\d{2}h\d{2}m\d{2}s\d+ms/;
+// MILLISECOND TIMESTAMPS DERIVED FROM FILE MTIMES. Both subjects read the SAME file mtime, but Go formats the
+// nanosecond-to-float conversion differently in the last sub-millisecond digits (measured: pinned 1794190102415.0444
+// vs GoTavern 1794190102415.045 for one file). The value is compared at whole-millisecond precision, which the
+// observable (a sort key) actually uses; a change of one millisecond still reds.
+const SUB_MILLISECOND_TIMESTAMP_KEYS = new Set(['date_added', 'date_last_chat']);
 const projectJsonForComparison = value => {
     if (Array.isArray(value)) return value.map(projectJsonForComparison);
     if (value && typeof value === 'object') {
@@ -346,6 +387,16 @@ const projectJsonForComparison = value => {
         for (const key of Object.keys(value).sort()) {
             const normalisation = PROJECTED_JSON_KEYS.get(key);
             if (normalisation !== undefined) { appliedNormalisations.add(normalisation); continue; }
+            if (key === 'chat' && typeof value[key] === 'string' && RUN_CREATED_CHAT_NAME.test(value[key])) {
+                appliedNormalisations.add('run-created-chat-name');
+                projected[key] = '<RUN-CHAT>';
+                continue;
+            }
+            if (SUB_MILLISECOND_TIMESTAMP_KEYS.has(key) && typeof value[key] === 'number') {
+                appliedNormalisations.add('sub-millisecond-mtime-timestamps');
+                projected[key] = Math.floor(value[key]);
+                continue;
+            }
             projected[key] = projectJsonForComparison(value[key]);
         }
         return projected;
@@ -767,6 +818,11 @@ guard('http-request-set-equal', 'http', () => {
     const totals = { gotavern: left.length, pinned: right.length };
     const allKeys = new Set([...goCounts.keys(), ...pinnedCounts.keys()]);
     for (const key of allKeys) {
+        // THE FRONTEND'S TOKENIZER CHOICE DURING LOAD IS A RACE, NOT A SUBJECT SURFACE: with settings still loading,
+        // one leg's character-list token count went through /api/tokenizers/llama/encode once while every other run
+        // (and the other leg) used /api/tokenizers/openai/count; the token COUNT VALUES for the shared texts are
+        // compared (http-bodies-equal). Measured: 1 llama/encode request in 4 runs of the same corpus/journey.
+        if (key === 'POST /api/tokenizers/llama/encode') { appliedNormalisations.add('tokenizer-endpoint-load-race'); continue; }
         const go = goCounts.get(key) ?? 0;
         const pinned = pinnedCounts.get(key) ?? 0;
         if (go === 0) { problems.push(`request only on pinned: ${key}`); continue; }
@@ -796,6 +852,7 @@ guard('http-bodies-equal', 'http', () => {
         const pinnedGroups = group(right);
         let duplicatesAllowed = 0;
         for (const [key, entries] of goGroups) {
+            if (key === 'POST /api/tokenizers/llama/encode') { appliedNormalisations.add('tokenizer-endpoint-load-race'); continue; }
             const otherEntries = pinnedGroups.get(key) ?? [];
             if (otherEntries.length === 0) continue; // reported by http-request-set-equal
             const pairCount = Math.min(entries.length, otherEntries.length);
@@ -815,8 +872,10 @@ guard('http-bodies-equal', 'http', () => {
                 // recorded decision covers /api/horde/* only; every other route's body is compared.
                 const liveEgress = typeof entry.path === 'string' && entry.path.startsWith('/api/horde/');
                 if (liveEgress) appliedNormalisations.add('live-egress-body');
-                const leftRequest = projectBodyForComparison(entry.requestBodyText);
-                const rightRequest = projectBodyForComparison(other.requestBodyText);
+                const autosaveRequest = key === 'POST /api/settings/save';
+                if (autosaveRequest) appliedNormalisations.add('autosave-request-bodies');
+                const leftRequest = autosaveRequest ? null : projectBodyForComparison(entry.requestBodyText);
+                const rightRequest = autosaveRequest ? null : projectBodyForComparison(other.requestBodyText);
                 if (leftRequest !== rightRequest) problems.push(`${phase} ${key}: request body differs after named normalisation (raw ${entry.requestBodySha256?.slice(0, 12)} vs ${other.requestBodySha256?.slice(0, 12)})`);
                 if (!statusPairIsStaticRevalidation && !liveEgress) {
                     const leftResponse = projectBodyForComparison(entry.responseBodyText) ?? entry.responseBodySha256;

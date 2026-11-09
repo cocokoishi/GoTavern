@@ -175,7 +175,56 @@ record('http-live-egress-etag-differs-survives', ['http-bodies-equal'], dir => {
     }
     writeLeg(dir, 'a19-drive-pinned.json', leg);
 }, { survivor: true });
-record('browser-event-unrelated-addition-survives', ['browser-event-order-equal'], dir => {
+record('browser-event-causal-order', ['browser-event-order-equal'], dir => {
+    // The claim is the causal ordering inside one generation lifecycle: moving message_sent AFTER generation_ended
+    // must red (GENERATION_STARTED precedes MESSAGE_SENT on both subjects; see a19-compare-live-oracle.mjs).
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const order = (leg.layers.browser.eventOrder ?? []).filter(name => name !== 'message_sent');
+    const endIndex = order.indexOf('generation_ended');
+    order.splice(endIndex < 0 ? order.length : endIndex + 1, 0, 'message_sent');
+    leg.layers.browser.eventOrder = order;
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});
+record('browser-event-core-missing', ['browser-event-order-equal'], dir => {
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    leg.layers.browser.eventOrder = (leg.layers.browser.eventOrder ?? []).filter(name => name !== 'chat_completion_prompt_ready');
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});
+record('http-char-list-date-added-millisecond', ['http-bodies-equal'], dir => {
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const entry = (leg.layers.http.requests ?? []).find(request => request.path === '/api/characters/all' && typeof request.responseBodyText === 'string');
+    if (entry) {
+        const body = JSON.parse(entry.responseBodyText);
+        body[0].date_added = body[0].date_added + 1000;
+        entry.responseBodyText = JSON.stringify(body);
+        entry.responseBodySha256 = 'e'.repeat(64);
+    }
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});
+record('http-char-list-submillisecond-survives', ['http-bodies-equal'], dir => {
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const entry = (leg.layers.http.requests ?? []).find(request => request.path === '/api/characters/all' && typeof request.responseBodyText === 'string');
+    if (entry) {
+        const body = JSON.parse(entry.responseBodyText);
+        // +0.5 ms is representable in float64 at this magnitude (0.9999 rounds UP to the next integer).
+        body[0].date_added = Math.floor(body[0].date_added) + 0.5;
+        entry.responseBodyText = JSON.stringify(body);
+        entry.responseBodySha256 = 'd'.repeat(64);
+    }
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+}, { survivor: true });
+record('http-autosave-request-body-survives', ['http-bodies-equal'], dir => {
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const entry = (leg.layers.http.requests ?? []).find(request => request.path === '/api/settings/save');
+    if (entry) { entry.requestBodyText = '{"power_user":{"persona_descriptions":{"y":{"depth":9}}}}'; entry.requestBodySha256 = 'c'.repeat(64); }
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+}, { survivor: true });
+record('http-tokenizer-count-body', ['http-bodies-equal'], dir => {
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const entry = (leg.layers.http.requests ?? []).find(request => request.path === '/api/tokenizers/openai/count');
+    if (entry) { entry.responseBodyText = '{"token_count":10}'; entry.responseBodySha256 = 'b'.repeat(64); }
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});record('browser-event-unrelated-addition-survives', ['browser-event-order-equal'], dir => {
     // An EXTRA unrelated event does not violate the claim (core set + causal ordering); it must survive, which is
     // what makes the claim falsifiable by ordering rather than by "the streams are not equal".
     const leg = readLeg(dir, 'a19-drive-gotavern.json');
