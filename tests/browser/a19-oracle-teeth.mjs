@@ -68,6 +68,32 @@ function runComparator(dir) {
 const baselineDir = copyLegs(legsDir, path.join(scratch, 'baseline'));
 const baseline = runComparator(baselineDir);
 const results = [];
+// A MUTATION MUST TARGET A PAIRED OBSERVATION: a request present only on one leg is already covered by a named
+// scheduling decision, so mutating it proves nothing. This helper returns the first GoTavern entry whose raw request
+// body also exists on the pinned leg (and whose response body is readable when required).
+// A persistence mutation must target a file the leg reports as CHANGED: the guard compares changed product-surface
+// files, so mutating an unchanged file proves nothing.
+function mutateChangedJsonFile(dir, mutate) {
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const changed = new Set([...(leg.persistenceDiff?.created ?? []), ...(leg.persistenceDiff?.modified ?? [])].map(entry => entry.path));
+    const files = (leg.layers.persistence.jsonFiles ?? []).filter(file => changed.has(file.path));
+    const fallback = files.find(file => file.path.endsWith('image-metadata.json'));
+    const target = fallback ?? files[0];
+    if (!target) throw new Error('no CHANGED product-surface JSON file to mutate');
+    target.text = mutate(target.text, target.path);
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+}
+function pairedEntry(dir, { path = null, includesPath = null, requireResponseText = false } = {}) {
+    const go = readLeg(dir, 'a19-drive-gotavern.json');
+    const pin = readLeg(dir, 'a19-drive-pinned.json');
+    const pinnedBodies = new Set((pin.layers.http?.requests ?? []).filter(request => request.origin === 'subject').map(request => request.requestBodySha256 ?? ''));
+    const candidates = (go.layers.http?.requests ?? []).filter(request => request.origin === 'subject')
+        .filter(request => (path === null || request.path === path) && (includesPath === null || String(request.path).includes(includesPath)))
+        .filter(request => pinnedBodies.has(request.requestBodySha256 ?? ''))
+        .filter(request => !requireResponseText || (request.responseBodyText !== null && request.responseBodyText !== undefined && request.responseBodyText !== ''));
+    if (candidates.length === 0) throw new Error('no PAIRED observation matches the mutation target: a mutation that changes nothing must not count as a survivor');
+    return { leg: go, entry: candidates[0] };
+}
 const record = (name, expectedGuards, run, { survivor = false } = {}) => {
     const dir = copyLegs(baselineDir, path.join(scratch, `mutation-${results.length}`));
     const mutationError = run(dir);
@@ -178,9 +204,9 @@ record('http-live-egress-etag-differs-survives', ['http-bodies-equal'], dir => {
 record('http-tokenizer-body-unread-is-a-harness-error', ['http-bodies-equal'], dir => {
     // An unreadable body must NOT be normalised away: it flows into the comparison as a NAMED harness error and reds.
     // The recorder settles HTTP before navigating, so this state should be unreachable; the tooth proves the red.
-    const leg = readLeg(dir, 'a19-drive-gotavern.json');
-    const entry = (leg.layers.http.requests ?? []).find(request => String(request.path) === '/api/tokenizers/openai/count');
-    if (entry) { entry.responseBodyText = null; entry.responseBodySha256 = null; }
+    const { leg, entry } = pairedEntry(dir, { includesPath: '/api/tokenizers/', requireResponseText: true });
+    entry.responseBodyText = null;
+    entry.responseBodySha256 = null;
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
 });record('http-multipart-boundary-survives', ['http-bodies-equal'], dir => {
     // The browser-generated multipart boundary is a harness-random token; changing ONLY it must survive.
@@ -239,9 +265,8 @@ record('http-tokenizer-exactness-on-pinned', ['http-bodies-equal'], dir => {
 });
 record('http-other-gotavern-only-header', ['http-bodies-equal'], dir => {
     // "GoTavern-only headers are fine" is NOT a general rule: any OTHER name still reds.
-    const leg = readLeg(dir, 'a19-drive-gotavern.json');
-    const entry = (leg.layers.http.requests ?? []).find(request => request.path === '/api/tokenizers/openai/count');
-    if (entry) entry.responseHeaders = { ...(entry.responseHeaders ?? {}), 'x-gotavern-something-else': 'true' };
+    const { leg, entry } = pairedEntry(dir, { includesPath: '/api/tokenizers/' });
+    entry.responseHeaders = { ...(entry.responseHeaders ?? {}), 'x-gotavern-something-else': 'true' };
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
 });record('browser-event-causal-order', ['browser-event-order-equal'], dir => {
     // The claim is the causal ordering inside one generation lifecycle: moving message_sent AFTER generation_ended
@@ -304,9 +329,9 @@ record('http-autosave-request-body-survives', ['http-bodies-equal'], dir => {
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
 }, { survivor: true });
 record('http-tokenizer-count-body', ['http-bodies-equal'], dir => {
-    const leg = readLeg(dir, 'a19-drive-gotavern.json');
-    const entry = (leg.layers.http.requests ?? []).find(request => request.path === '/api/tokenizers/openai/count');
-    if (entry) { entry.responseBodyText = '{"token_count":10}'; entry.responseBodySha256 = 'b'.repeat(64); }
+    const { leg, entry } = pairedEntry(dir, { includesPath: '/api/tokenizers/', requireResponseText: true });
+    entry.responseBodyText = '{"token_count":10}';
+    entry.responseBodySha256 = 'b'.repeat(64);
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
 });record('browser-event-unrelated-addition-survives', ['browser-event-order-equal'], dir => {
     // An EXTRA unrelated event does not violate the claim (core set + causal ordering); it must survive, which is
@@ -401,7 +426,10 @@ record('wire-compared-header-value', ['wire-headers-equal'], dir => {
 });
 record('wire-header-name-removed', ['wire-headers-equal'], dir => {
     const leg = readLeg(dir, 'a19-drive-gotavern.json');
-    leg.layers.providerWire.requests[0].rawHeaders = leg.layers.providerWire.requests[0].rawHeaders.filter(header => String(header.name).toLowerCase() !== 'content-type');
+    const request = leg.layers.providerWire.requests.find(candidate => (candidate.rawHeaders ?? []).some(header => String(header.name).toLowerCase() === 'content-type')) ?? leg.layers.providerWire.requests[0];
+    const removable = (request.rawHeaders ?? []).find(header => ['content-type', 'accept', 'accept-encoding', 'connection'].includes(String(header.name).toLowerCase()));
+    if (removable === undefined) throw new Error('no removable provider header on the recorded request');
+    request.rawHeaders = request.rawHeaders.filter(header => header !== removable);
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
 });
 record('http-duplicate-get-survives', ['http-request-set-equal', 'http-bodies-equal'], dir => {
@@ -423,15 +451,29 @@ record('http-post-multiplicity', ['http-request-set-equal'], dir => {
 
 record('http-static-body-changed', ['http-bodies-equal'], dir => {
     const leg = readLeg(dir, 'a19-drive-gotavern.json');
-    const get = leg.layers.http.requests.find(request => request.method === 'GET');
-    if (get) get.responseBodySha256 = 'f'.repeat(64);
+    const get = leg.layers.http.requests.find(request => request.method === 'GET' && request.origin === 'subject' && typeof request.responseBodyText === 'string' && request.responseBodyText !== '');
+    if (!get) throw new Error('no recorded GET body to mutate');
+    // CHANGE THE VALUE, NOT THE WHITESPACE: appending whitespace is insignificant to JSON.parse, so it proves nothing.
+    try {
+        const parsed = JSON.parse(get.responseBodyText);
+        if (Array.isArray(parsed)) parsed.push({ type: 'mutated', name: 'MUTATION' });
+        else if (parsed && typeof parsed === 'object') parsed.mutation = true;
+        else throw new Error('scalar body');
+        get.responseBodyText = JSON.stringify(parsed);
+    } catch {
+        get.responseBodyText = String(get.responseBodyText).replace(/^(.{0,20})/, '$1MUTATION');
+    }
+    get.responseBodySha256 = 'f'.repeat(64);
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
 });
 record('http-static-revalidation-status-survives', ['http-bodies-equal'], dir => {
     // The RECORDED static divergence: pinned answers a conditional 304 where the embedded-asset install answers 200
     // for the same stored resource. The guard must accept the 200/304 pair and record the decision.
     const leg = readLeg(dir, 'a19-drive-pinned.json');
-    const get = leg.layers.http.requests.find(request => request.method === 'GET');
+    // The recorded static divergence exists only for STATIC (non-/api) assets; the real journey probe scopes layer B to
+    // /api, so on the release corpus there is no static pair and this survivor is a deliberate NO-OP (it must not turn a
+    // different guard red).
+    const get = leg.layers.http.requests.find(request => request.method === 'GET' && request.origin === 'subject' && !String(request.path).startsWith('/api/'));
     if (get) { get.status = 304; get.responseBodySha256 = null; get.responseBodyText = null; }
     writeLeg(dir, 'a19-drive-pinned.json', leg);
 }, { survivor: true });
@@ -444,16 +486,12 @@ record('persistence-image-metadata-timestamp-survives', ['persistence-changed-co
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
 }, { survivor: true });
 record('persistence-image-metadata-added-image', ['persistence-changed-content-equal'], dir => {
-    const leg = readLeg(dir, 'a19-drive-gotavern.json');
-    const metadata = (leg.layers.persistence.jsonFiles ?? []).find(file => file.path === 'default-user/image-metadata.json');
-    if (metadata) metadata.text = metadata.text.replace('"folders":[]', '"folders":[],"mutation":true');
-    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+    // A CHANGED product-surface JSON file must red when its content is mutated, whichever file the real journey changed.
+    mutateChangedJsonFile(dir, (text, path) => text.replace('{', '{"mutation_image":true,'));
 });
 record('persistence-final-setting-value', ['persistence-changed-content-equal'], dir => {
-    const leg = readLeg(dir, 'a19-drive-gotavern.json');
-    const settings = (leg.layers.persistence.jsonFiles ?? []).find(file => file.path === 'default-user/settings.json');
-    if (settings) settings.text = settings.text.replace('"depth":4', '"depth":5');
-    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+    // A DIFFERENT mutation on a changed product-surface JSON file, so this tooth cannot be satisfied by the image one.
+    mutateChangedJsonFile(dir, (text) => text.replace('{', '{"mutation_setting":5,'));
 });
 record('legs-missing-report', ['legs-present'], dir => {
     fs.rmSync(path.join(dir, 'a19-drive-pinned.json'));
