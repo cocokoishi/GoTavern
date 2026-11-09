@@ -320,6 +320,30 @@ const NORMALISATIONS = [
         test: 'http-bodies-equal skips the autosave request body and records this entry; the persistence layer compares the final settings documents',
         negativeCase: 'a19-oracle-teeth.mjs changes the FINAL persisted settings (persona depth) and requires persistence-changed-content-equal red',
     },
+    {
+        id: 'run-last-chat-timestamp',
+        reason: 'date_last_chat is the LAST-INTERACTION clock of the run, written while each leg drives its own copy of the journey; two legs minutes apart cannot agree on it. It is projected as run-state; the rest of the card/group list (identities, order, every other field) is compared',
+        pinnedEvidence: 'measured 2026-11-08 self-check run7: the same corpus, the same journey, date_last_chat 1794198448579 on GoTavern vs 1794198697183 on pinned (4 min apart, the legs run sequentially)',
+        field: 'JSON member date_last_chat in list responses',
+        test: 'projectJsonForComparison() maps it to <RUN-STATE> and records this entry; date_added keeps the whole-millisecond comparison',
+        negativeCase: 'a19-oracle-teeth.mjs changes a WHOLE millisecond of date_added and requires http-bodies-equal red (survivor: a date_last_chat change alone survives, proving the projection is scoped to that member)',
+    },
+    {
+        id: 'route-scoped-run-clock-members',
+        reason: 'a member whose NAME is generic but whose VALUE is the run clock on one route only: chats/recent.last_mes is the ISO time of the last message and stats.timestamp is the run start. Projecting them by name GLOBALLY would hide real differences on other routes, so the decision is scoped to the exact request keys where the clock was measured',
+        pinnedEvidence: 'measured 2026-11-08 self-check run7, two isolated legs: /api/chats/recent last_mes "2026-11-09T04:27:11.882Z" vs "2026-11-09T04:31:36.351Z"; /api/stats/get timestamp 1794198418985 vs 1794198694841',
+        field: 'JSON members last_mes (POST /api/chats/recent) and timestamp (POST /api/stats/get and /api/stats/update) only',
+        test: 'ROUTE_SCOPED_RUN_CLOCK maps the request key to the member set; projectBodyForComparison() receives the key and records this entry',
+        negativeCase: 'a19-oracle-teeth.mjs changes a NON-clock member of the same response and requires http-bodies-equal red',
+    },
+    {
+        id: 'tokenizer-exactness-headers',
+        reason: 'exactly TWO GoTavern-only response headers are a RECORDED, accepted delta: X-GoTavern-Tokenizer-Exact and X-GoTavern-Tokenizer-Layout say the tokenizer is exact and which layout served it. Pinned carries NEITHER. The decision removes ONLY these two names and ONLY when pinned does not carry them; any OTHER GoTavern-only response header, and either of these appearing on the PINNED side, still reds',
+        pinnedEvidence: 'docs/gap-sweep.md:185 ("pinned carries no exactness header, GoTavern is exact on every response") and internal/server/tokenizers_exactness_test.go; measured self-check run7: pinned responses carried neither header',
+        field: 'HTTP response headers x-gotavern-tokenizer-exact and x-gotavern-tokenizer-layout, only when absent on the pinned side',
+        test: 'http-bodies-equal removes exactly those two names from the GoTavern header set when pinned lacks them and records this entry; a pinned-side appearance is a problem',
+        negativeCase: 'a19-oracle-teeth.mjs adds a DIFFERENT GoTavern-only response header and requires http-bodies-equal red; adding either exactness header to the PINNED leg also reds',
+    },
 ];
 
 const appliedNormalisations = new Set();
@@ -377,11 +401,21 @@ const PEER_URL_PATTERN = /http:\/\/127\.0\.0\.1:\d+(?:\/v1)?/g;
 const RUN_CREATED_CHAT_NAME = /\d{4}-\d{2}-\d{2}@\d{2}h\d{2}m\d{2}s\d+ms/;
 // MILLISECOND TIMESTAMPS DERIVED FROM FILE MTIMES. Both subjects read the SAME file mtime, but Go formats the
 // nanosecond-to-float conversion differently in the last sub-millisecond digits (measured: pinned 1794190102415.0444
-// vs GoTavern 1794190102415.045 for one file). The value is compared at whole-millisecond precision, which the
+// vs GoTavern 1794190102415.045 for one file). The value is compared at whole-millisecond precision, which is the
 // observable (a sort key) actually uses; a change of one millisecond still reds.
-const SUB_MILLISECOND_TIMESTAMP_KEYS = new Set(['date_added', 'date_last_chat']);
-const projectJsonForComparison = value => {
-    if (Array.isArray(value)) return value.map(projectJsonForComparison);
+// date_last_chat is NOT in this set: it is the RUN's last-interaction clock and differs between legs by minutes
+// (measured run7: 1794198448579 vs 1794198697183), so it is projected as run-state by RUN_STATE_JSON_KEYS.
+const SUB_MILLISECOND_TIMESTAMP_KEYS = new Set(['date_added']);
+const RUN_STATE_JSON_KEYS = new Set(['date_last_chat']);
+// ROUTE-SCOPED wall-clock members: a field name that is meaningful on one route and stable on another must be
+// projected only where it is measured to be the run's own clock.
+const ROUTE_SCOPED_RUN_CLOCK = new Map([
+    ['POST /api/chats/recent', new Set(['last_mes'])],
+    ['POST /api/stats/get', new Set(['timestamp'])],
+    ['POST /api/stats/update', new Set(['timestamp'])],
+]);
+const projectJsonForComparison = (value, routeRunClock = null) => {
+    if (Array.isArray(value)) return value.map(item => projectJsonForComparison(item, routeRunClock));
     if (value && typeof value === 'object') {
         const projected = {};
         for (const key of Object.keys(value).sort()) {
@@ -392,12 +426,22 @@ const projectJsonForComparison = value => {
                 projected[key] = '<RUN-CHAT>';
                 continue;
             }
+            if (RUN_STATE_JSON_KEYS.has(key) && typeof value[key] === 'number') {
+                appliedNormalisations.add('run-last-chat-timestamp');
+                projected[key] = '<RUN-STATE>';
+                continue;
+            }
+            if (routeRunClock !== null && routeRunClock.has(key)) {
+                appliedNormalisations.add('route-scoped-run-clock-members');
+                projected[key] = '<RUN-CLOCK>';
+                continue;
+            }
             if (SUB_MILLISECOND_TIMESTAMP_KEYS.has(key) && typeof value[key] === 'number') {
                 appliedNormalisations.add('sub-millisecond-mtime-timestamps');
                 projected[key] = Math.floor(value[key]);
                 continue;
             }
-            projected[key] = projectJsonForComparison(value[key]);
+            projected[key] = projectJsonForComparison(value[key], routeRunClock);
         }
         return projected;
     }
@@ -408,9 +452,27 @@ const projectJsonForComparison = value => {
     }
     return value;
 };
-const projectBodyForComparison = text => {
-    if (typeof text !== 'string') return null;
-    try { return sha256(Buffer.from(JSON.stringify(projectJsonForComparison(JSON.parse(text))), 'utf8')); } catch {
+// A ZERO-LENGTH BODY AND AN ABSENT BODY ARE THE SAME WIRE (0 bytes): Playwright reports the first as "" and the
+// second as null, and the recorder cannot tell them apart. Only when BOTH sides are empty is that a named decision;
+// one side empty vs a present body, and two empty bodies whose recorded digests differ, are real differences.
+const compareHTTPBody = (label, leftText, leftSha, rightText, rightSha, options) => {
+    const leftEmpty = leftText === null || leftText === undefined || leftText === '';
+    const rightEmpty = rightText === null || rightText === undefined || rightText === '';
+    if (leftEmpty && rightEmpty) {
+        if (leftSha !== rightSha) return `${label}: both bodies are absent/empty but the recorded digests differ (${leftSha?.slice(0, 12)} vs ${rightSha?.slice(0, 12)})`;
+        appliedNormalisations.add('empty-response-body-recording');
+        return null;
+    }
+    if (leftEmpty !== rightEmpty) {
+        return `${label}: one body is absent/empty (${leftEmpty ? leftSha?.slice(0, 12) : rightSha?.slice(0, 12)}) and the other is not`;
+    }
+    const left = projectBodyForComparison(leftText, options);
+    const right = projectBodyForComparison(rightText, options);
+    if (left === right) return null;
+    return `${label}: body differs after named normalisation (raw ${leftSha?.slice(0, 12)} vs ${rightSha?.slice(0, 12)})`;
+};
+const projectBodyForComparison = (text, { routeKey = null } = {}) => {
+    try { return sha256(Buffer.from(JSON.stringify(projectJsonForComparison(JSON.parse(text), ROUTE_SCOPED_RUN_CLOCK.get(routeKey) ?? null)), 'utf8')); } catch {
         appliedNormalisations.add('per-leg-peer-endpoint');
         return sha256(Buffer.from(stripDiscriminator(text).replace(PEER_URL_PATTERN, '<PEER>'), 'utf8'));
     }
@@ -874,13 +936,13 @@ guard('http-bodies-equal', 'http', () => {
                 if (liveEgress) appliedNormalisations.add('live-egress-body');
                 const autosaveRequest = key === 'POST /api/settings/save';
                 if (autosaveRequest) appliedNormalisations.add('autosave-request-bodies');
-                const leftRequest = autosaveRequest ? null : projectBodyForComparison(entry.requestBodyText);
-                const rightRequest = autosaveRequest ? null : projectBodyForComparison(other.requestBodyText);
-                if (leftRequest !== rightRequest) problems.push(`${phase} ${key}: request body differs after named normalisation (raw ${entry.requestBodySha256?.slice(0, 12)} vs ${other.requestBodySha256?.slice(0, 12)})`);
+                if (!autosaveRequest) {
+                    const requestProblem = compareHTTPBody(`${phase} ${key}: request`, entry.requestBodyText, entry.requestBodySha256, other.requestBodyText, other.requestBodySha256, { routeKey: key });
+                    if (requestProblem !== null) problems.push(requestProblem);
+                }
                 if (!statusPairIsStaticRevalidation && !liveEgress) {
-                    const leftResponse = projectBodyForComparison(entry.responseBodyText) ?? entry.responseBodySha256;
-                    const rightResponse = projectBodyForComparison(other.responseBodyText) ?? other.responseBodySha256;
-                    if (leftResponse !== rightResponse) problems.push(`${phase} ${key}: response body differs after named normalisation (raw ${entry.responseBodySha256?.slice(0, 12)} vs ${other.responseBodySha256?.slice(0, 12)})`);
+                    const responseProblem = compareHTTPBody(`${phase} ${key}: response`, entry.responseBodyText, entry.responseBodySha256, other.responseBodyText, other.responseBodySha256, { routeKey: key });
+                    if (responseProblem !== null) problems.push(responseProblem);
                 }
                 if (JSON.stringify(entry.sseFrameBytes ?? null) !== JSON.stringify(other.sseFrameBytes ?? null)) problems.push(`${phase} ${key}: SSE frame byte boundaries differ: ${JSON.stringify(entry.sseFrameBytes)} vs ${JSON.stringify(other.sseFrameBytes)}`);
                 const leftHeaders = comparableHeaders(entry.requestHeaders, { staticAsset });
@@ -893,6 +955,18 @@ guard('http-bodies-equal', 'http', () => {
                 const rawBodiesEqual = entry.responseBodySha256 === other.responseBodySha256;
                 const leftResponseHeaders = comparableHeaders(entry.responseHeaders, { staticAsset });
                 const rightResponseHeaders = comparableHeaders(other.responseHeaders, { staticAsset });
+                // EXACTLY TWO RECORDED GoTavern-only response headers (see the registry entry). A pinned-side
+                // appearance is a product difference and reds; any other GoTavern-only header still reds below.
+                for (const name of ['x-gotavern-tokenizer-exact', 'x-gotavern-tokenizer-layout']) {
+                    if (Object.prototype.hasOwnProperty.call(rightResponseHeaders, name)) {
+                        problems.push(`${phase} ${key}: pinned carries the GoTavern-only header ${name}=${JSON.stringify(rightResponseHeaders[name])}; the recorded delta says pinned never does`);
+                        continue;
+                    }
+                    if (Object.prototype.hasOwnProperty.call(leftResponseHeaders, name)) {
+                        appliedNormalisations.add('tokenizer-exactness-headers');
+                        delete leftResponseHeaders[name];
+                    }
+                }
                 if (!rawBodiesEqual && (Object.prototype.hasOwnProperty.call(leftResponseHeaders, 'etag') || Object.prototype.hasOwnProperty.call(rightResponseHeaders, 'etag'))) {
                     appliedNormalisations.add('etag-derived-from-projected-body');
                     delete leftResponseHeaders.etag;

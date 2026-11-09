@@ -175,7 +175,27 @@ record('http-live-egress-etag-differs-survives', ['http-bodies-equal'], dir => {
     }
     writeLeg(dir, 'a19-drive-pinned.json', leg);
 }, { survivor: true });
-record('browser-event-causal-order', ['browser-event-order-equal'], dir => {
+record('http-tokenizer-exactness-headers-survives', ['http-bodies-equal'], dir => {
+    // The two RECORDED GoTavern-only headers may differ when pinned lacks them (the decision removes only those).
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const entry = (leg.layers.http.requests ?? []).find(request => request.path === '/api/tokenizers/openai/count');
+    if (entry) entry.responseHeaders = { ...(entry.responseHeaders ?? {}), 'x-gotavern-tokenizer-exact': 'true', 'x-gotavern-tokenizer-layout': 'src/tokenizers' };
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+}, { survivor: true });
+record('http-tokenizer-exactness-on-pinned', ['http-bodies-equal'], dir => {
+    // The delta is one-directional: pinned must NEVER carry these (if it does, it is a product difference).
+    const leg = readLeg(dir, 'a19-drive-pinned.json');
+    const entry = (leg.layers.http.requests ?? []).find(request => request.path === '/api/tokenizers/openai/count');
+    if (entry) entry.responseHeaders = { ...(entry.responseHeaders ?? {}), 'x-gotavern-tokenizer-exact': 'true' };
+    writeLeg(dir, 'a19-drive-pinned.json', leg);
+});
+record('http-other-gotavern-only-header', ['http-bodies-equal'], dir => {
+    // "GoTavern-only headers are fine" is NOT a general rule: any OTHER name still reds.
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const entry = (leg.layers.http.requests ?? []).find(request => request.path === '/api/tokenizers/openai/count');
+    if (entry) entry.responseHeaders = { ...(entry.responseHeaders ?? {}), 'x-gotavern-something-else': 'true' };
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});record('browser-event-causal-order', ['browser-event-order-equal'], dir => {
     // The claim is the causal ordering inside one generation lifecycle: moving message_sent AFTER generation_ended
     // must red (GENERATION_STARTED precedes MESSAGE_SENT on both subjects; see a19-compare-live-oracle.mjs).
     const leg = readLeg(dir, 'a19-drive-gotavern.json');
