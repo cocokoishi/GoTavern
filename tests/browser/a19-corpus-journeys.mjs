@@ -913,7 +913,7 @@ async function findChatFileWithMarker(dataRoot, marker) {
     }
     return null;
 }
-async function swipeLastMessage(page) {
+export async function swipeLastMessage(page) {
     return page.evaluate(async () => {
         const script = await import('./script.js');
         const chat = script.chat ?? [];
@@ -935,7 +935,7 @@ async function swipeLastMessage(page) {
     });
 }
 
-async function editLastMessage(page, text) {
+export async function editLastMessage(page, text) {
     return page.evaluate(async replacement => {
         const script = await import('./script.js');
         const chat = script.chat ?? [];
@@ -945,11 +945,16 @@ async function editLastMessage(page, text) {
         const edit = message.querySelector('.mes_edit');
         if (!edit) return { ok: false, reason: 'no .mes_edit control' };
         edit.click();
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const textarea = document.querySelector(`#chat .mes[mesid="${lastIndex}"] textarea.mes_textarea, #chat .mes[mesid="${lastIndex}"] textarea`);
-        if (!textarea) return { ok: false, reason: 'message edit textarea did not appear' };
-        textarea.value = replacement;
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        edit.click();
+        await new Promise(resolve => setTimeout(resolve, 600));
+        // PINNED EDITS THE MESSAGE IN A CONTENTEDITABLE `.mes_text`, NOT A TEXTAREA: the textarea
+        // selector never matched, so every edit failed while the panel was visibly in edit mode (measured).
+        const editable = document.querySelector(`#chat .mes[mesid="${lastIndex}"] .mes_text[contenteditable="true"]`)
+            ?? document.querySelector(`#chat .mes[mesid="${lastIndex}"] .mes_text`);
+        if (!editable) return { ok: false, reason: 'message edit surface did not appear' };
+        editable.focus();
+        editable.textContent = replacement;
+        editable.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: replacement }));
         const done = document.querySelector(`#chat .mes[mesid="${lastIndex}"] .mes_edit_done`);
         if (!done) return { ok: false, reason: 'no .mes_edit_done control' };
         done.click();
@@ -965,7 +970,7 @@ async function editLastMessage(page, text) {
     }, text);
 }
 
-async function deleteLastMessage(page) {
+export async function deleteLastMessage(page) {
     return page.evaluate(async () => {
         const script = await import('./script.js');
         const chatBefore = (script.chat ?? []).length;
@@ -980,9 +985,11 @@ async function deleteLastMessage(page) {
         const remove = target.querySelector('.mes_edit_delete') ?? target.querySelector('.mes_delete');
         if (!remove) return { ok: false, reason: 'no delete control' };
         remove.click();
-        await new Promise(resolve => setTimeout(resolve, 400));
-        const confirm = document.querySelector('.popup-button-ok, #dialogue_popup_ok');
-        if (confirm) confirm.click();
+        await new Promise(resolve => setTimeout(resolve, 500));
+        // ONLY A VISIBLE CONFIRM COUNTS: #dialogue_popup_ok is a permanent hidden element (same trap as New Chat).
+        const deletable = element => Boolean(element) && element.getClientRects().length > 0 && window.getComputedStyle(element).visibility !== 'hidden';
+        const deleteButtons = [...document.querySelectorAll('dialog.popup .popup-button-ok, .popup .popup-button-ok, #dialogue_popup_ok')].filter(deletable);
+        if (deleteButtons.length > 0) deleteButtons[deleteButtons.length - 1].click();
         const deadline = Date.now() + 20000;
         let observed = chatBefore;
         while (Date.now() < deadline) {
