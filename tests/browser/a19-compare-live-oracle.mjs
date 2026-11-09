@@ -344,6 +344,14 @@ const NORMALISATIONS = [
         test: 'http-bodies-equal removes exactly those two names from the GoTavern header set when pinned lacks them and records this entry; a pinned-side appearance is a problem',
         negativeCase: 'a19-oracle-teeth.mjs adds a DIFFERENT GoTavern-only response header and requires http-bodies-equal red; adding either exactness header to the PINNED leg also reds',
     },
+    {
+        id: 'tokenizer-count-multiplicity',
+        reason: 'the frontend asks for the same token count more or fewer times depending on which load/debounce path it takes; measured run9/run10: the same 20 unique tokenizer request bodies arrived 21 vs 32 times, in a different order. Identity pairing pairs identical requests and the COUNT VALUES of every identity are still compared; only the repeated occurrence count is scheduling',
+        pinnedEvidence: 'measured 2026-11-08 self-check runs 9 and 10: 21 vs 32 tokenizer-count occurrences over the SAME unique request-body set; every identity-paired response was identical (run9: 21/21 pairs, 0 response differences)',
+        field: 'layers.http.requests[] multiplicity for /api/tokenizers/* only',
+        test: 'http-bodies-equal records this entry when identical requests occur a different number of times; the request-set guard has its own named read-only multiplicity decision',
+        negativeCase: 'a19-oracle-teeth.mjs mutates a tokenizer count RESPONSE body and requires http-bodies-equal red (values stay compared); duplicating a non-tokenizer POST still reds via http-request-set-equal',
+    },
 ];
 
 const appliedNormalisations = new Set();
@@ -915,23 +923,43 @@ guard('http-bodies-equal', 'http', () => {
         const left = (legFor(phase, 'gotavern')?.layers?.http?.requests ?? []).filter(request => request.origin === 'subject');
         const right = (legFor(phase, 'pinned')?.layers?.http?.requests ?? []).filter(request => request.origin === 'subject');
         const keyOf = request => `${request.method} ${request.path}${request.query ?? ''}`;
-        // PAIRING IS BY REQUEST IDENTITY, NOT ARRIVAL ORDER: two isolated b runs issue the same requests in different
-        // interleavings (measured run9: the SAME 20 unique tokenizer request bodies arrived in a different order and
-        // with different multiplicity; index pairing compared different texts and reported phantom body diffs). Each
-        // key group is therefore ordered by the request body's OWN digest before pairing, so identical requests pair
-        // with each other and a genuine request-content difference still surfaces.
-        const group = list => { const map = new Map(); for (const request of list) { const key = keyOf(request); if (!map.has(key)) map.set(key, []); map.get(key).push(request); } for (const entries of map.values()) { entries.sort((left, right) => String(left.requestBodySha256 ?? '').localeCompare(String(right.requestBodySha256 ?? ''))); } return map; };
+        // PAIRING IS BY REQUEST IDENTITY (method + path + query + request-body digest), NOT ARRIVAL ORDER AND NOT
+        // key+index: two isolated runs issue the same requests in different interleavings and, for load/debounce
+        // driven routes, a different NUMBER of times. Measured run9/run10: the SAME 20 unique tokenizer request
+        // bodies arrived in a different order and with 21 vs 32 occurrences; index pairing compared different texts
+        // and reported phantom diffs. Identity maps pair identical requests; multiplicity differences are named ONLY
+        // for the routes where scheduling was measured (see the decision below), so a genuine request-content
+        // difference still surfaces as a problem.
+        // The autosave's REQUEST BODY is not compared (named decision), so it cannot be part of its identity.
+        const identityOf = request => `${request.method} ${request.path}${request.query ?? ''}|${request.path === '/api/settings/save' ? '' : (request.requestBodySha256 ?? '')}`;
+        const group = list => { const map = new Map(); for (const request of list) { const identity = identityOf(request); const key = keyOf(request); if (!map.has(key)) map.set(key, new Map()); const byIdentity = map.get(key); if (!byIdentity.has(identity)) byIdentity.set(identity, []); byIdentity.get(identity).push(request); } return map; };
         const goGroups = group(left);
         const pinnedGroups = group(right);
         let duplicatesAllowed = 0;
-        for (const [key, entries] of goGroups) {
+        for (const [key, identities] of goGroups) {
             if (key === 'POST /api/tokenizers/llama/encode') { appliedNormalisations.add('tokenizer-endpoint-load-race'); continue; }
-            const otherEntries = pinnedGroups.get(key) ?? [];
-            if (otherEntries.length === 0) continue; // reported by http-request-set-equal
-            const pairCount = Math.min(entries.length, otherEntries.length);
-            for (let index = 0; index < pairCount; index += 1) {
-                const entry = entries[index];
-                const other = otherEntries[index];
+            const otherIdentities = pinnedGroups.get(key) ?? null;
+            if (otherIdentities === null) continue; // reported by http-request-set-equal
+            const allIdentities = new Set([...identities.keys(), ...otherIdentities.keys()]);
+            for (const identity of allIdentities) {
+                const leftEntries = identities.get(identity) ?? [];
+                const rightEntries = otherIdentities.get(identity) ?? [];
+                if (leftEntries.length === 0) { problems.push(`${phase} ${key}: a request present only on pinned: ${identity.split('|').slice(1).join('|').slice(0, 16)}`); continue; }
+                if (rightEntries.length === 0) { problems.push(`${phase} ${key}: a request present only on gotavern: ${identity.split('|').slice(1).join('|').slice(0, 16)}`); continue; }
+                if (leftEntries.length !== rightEntries.length) {
+                    // The named multiplicity decisions apply first (GET scheduling, read-only routes, debounced
+                    // autosave); tokenizer counts additionally allow repeat-count scheduling (measured run9/run10).
+                    // Any OTHER route's multiplicity is a product-visible request difference and fails.
+                    const named = key.startsWith('/api/tokenizers/')
+                        ? 'tokenizer-count-multiplicity'
+                        : multiplicityNormalisation(leftEntries[0], key);
+                    if (named !== null && named !== undefined) appliedNormalisations.add(named);
+                    else problems.push(`${phase} ${key}: request multiplicity differs for identical requests: ${leftEntries.length} vs ${rightEntries.length}`);
+                }
+                const pairCount = Math.min(leftEntries.length, rightEntries.length);
+                for (let index = 0; index < pairCount; index += 1) {
+                const entry = leftEntries[index];
+                const other = rightEntries[index];
                 const staticAsset = isStaticAssetRequest(entry);
                 // THE RECORDED STATIC-ASSET DIVERGENCE: the release install has no physical public/ tree, so it
                 // carries no ETag/Last-Modified and answers 200 where pinned answers a conditional 304. Both mean
@@ -984,11 +1012,7 @@ guard('http-bodies-equal', 'http', () => {
                     delete rightResponseHeaders.etag;
                 }
                 if (JSON.stringify(leftResponseHeaders) !== JSON.stringify(rightResponseHeaders)) problems.push(`${phase} ${key}: response headers differ: ${JSON.stringify(leftResponseHeaders)} vs ${JSON.stringify(rightResponseHeaders)}`);
-            }
-            if (entries.length !== otherEntries.length) {
-                const normalisation = multiplicityNormalisation(entries[0], key);
-                if (normalisation !== null) { duplicatesAllowed += Math.abs(entries.length - otherEntries.length); appliedNormalisations.add(normalisation); }
-                else problems.push(`${phase} ${key}: multiplicity differs (${entries.length} vs ${otherEntries.length}) and no named decision covers this route`);
+                }
             }
         }
         if (duplicatesAllowed > 0) details[`${phase}GetDuplicates`] = duplicatesAllowed;
