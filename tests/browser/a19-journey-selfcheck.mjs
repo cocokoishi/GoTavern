@@ -265,6 +265,26 @@ const readIframes = page => page.evaluate(() => [...document.querySelectorAll('i
     src: (() => { try { return new URL(frame.src).pathname; } catch { return String(frame.getAttribute('src') ?? ''); } })(),
 })));
 
+/**
+ * Let the page's event bus go quiet, then (optionally) RESTART the log. The comparison covers the events the
+ * JOURNEY's actions emit; load-time and reload-time initialisation events are recorded separately because which of
+ * them the polling hook catches is a race with the page's own init (measured: the faster subject lost
+ * `chatLoaded`/`settings_updated`). A bounded quiet window is what makes the boundary a measurement.
+ */
+async function settleEvents(page, { quietMs = 800, maxMs = 6000, reset = false } = {}) {
+    const started = Date.now();
+    let last = await page.evaluate(() => (window.__a19EventOrder ?? []).length);
+    let lastChange = Date.now();
+    while (Date.now() - started < maxMs) {
+        await page.waitForTimeout(100);
+        const length = await page.evaluate(() => (window.__a19EventOrder ?? []).length);
+        if (length !== last) { last = length; lastChange = Date.now(); }
+        else if (Date.now() - lastChange >= quietMs) break;
+    }
+    if (reset) await page.evaluate(() => { window.__a19EventOrder = []; });
+    return last;
+}
+
 const readFinalChat = page => page.evaluate(async () => {
     const script = await import('./script.js');
     const context = window.SillyTavern?.getContext?.() ?? null;
@@ -296,6 +316,12 @@ try {
     const opened = await openPage(page, baseURL);
     record('page-loaded', opened === true, await readReadiness(page));
     browserLayer.readiness = await readReadiness(page);
+    // LOAD-TIME EVENTS ARE RECORDED BUT NOT COMPARED: which of them the polling hook catches is a race with the
+    // page's own init (measured: the faster subject lost `chatLoaded`/`settings_updated`). The comparison starts
+    // after readiness, so it covers the events the DRIVE emits, which is the claim layer E is about.
+    browserLayer.loadEvents = await page.evaluate(() => window.__a19EventOrder ?? []);
+    browserLayer.loadEventCount = browserLayer.loadEvents.length;
+    await settleEvents(page, { reset: true });
 
     // Images decode BEFORE any click: this is the "the page shows pictures" observation.
     // WAIT FOR THE PAGE'S OWN IMAGES TO SETTLE before snapshotting: an image still loading is not a broken
@@ -317,7 +343,10 @@ try {
     record('connection-configured', configured?.url === peerURL, configured);
 
     if (phase === 'drive') {
-        const marker = `A19_${subject.toUpperCase()}_SELFCHECK_${Date.now()}`;
+        // THE USER TURN IS SHARED INPUT: the same text must reach both subjects, or the persisted chat and the
+        // provider context differ for a HARNESS reason (rule 50). Only the peer's REPLY carries a per-subject
+        // discriminator. The driver passes A19_TURN_MARKER so a run can date its marker without changing that.
+        const marker = process.env.A19_TURN_MARKER ?? 'A19_SELFCHECK_TURN';
         const send = await sendTurn(page, marker);
         record('turn-sent', send?.clicked === true, send);
         // THE BASELINE IS THE PAGE'S OWN, FROM IMMEDIATELY BEFORE THE CLICK. A hand-built baseline with
@@ -339,6 +368,7 @@ try {
         const reloadName = reloadRoster.names[0] ?? null;
         const reloadOpened = await openCharacter(page, reloadName);
         record('reload-character-opened', reloadOpened?.opened === true, reloadOpened);
+        await settleEvents(page, { reset: true });
         const reloadDeadline = Date.now() + 60000;
         let chatAfterReload = await readFinalChat(page);
         while (Date.now() < reloadDeadline) {
@@ -380,15 +410,26 @@ try {
     browserLayer.finalChat = await readFinalChat(page);
     if (browserLayer.finalChat.lastText) browserLayer.finalChat.lastTextSha256 = sha256(Buffer.from(browserLayer.finalChat.lastText, 'utf8'));
     browserLayer.finalChat.lastText = stripOwnOrigin(browserLayer.finalChat.lastText);
+    await settleEvents(page);
     browserLayer.eventOrder = await page.evaluate(() => window.__a19EventOrder ?? []);
     record('event-order-recorded', browserLayer.eventOrder.length > 0, { events: browserLayer.eventOrder.length });
     browserLayer.iframes = await readIframes(page);
 
     // D. Persistence: the tree this leg's product wrote (the driver diffs it against the corpus census).
+    // THE PRODUCT-SURFACE JSON DOCUMENTS, recorded as TEXT so the comparator applies its named normalisations
+    // (per-leg peer endpoint, random ids) instead of comparing digests that differ for harness reasons.
+    const jsonFiles = [];
+    for (const relative of ['default-user/settings.json', 'default-user/image-metadata.json']) {
+        try {
+            const text = await fs.readFile(path.join(dataRoot, relative), 'utf8');
+            if (text.length <= 4 * 1024 * 1024) jsonFiles.push({ path: relative, text });
+        } catch { /* absent is a fact the guard reports by its absence */ }
+    }
     const chats = await readChatFiles(dataRoot);
     leg.layers.persistence = {
         tree: await censusTree(dataRoot),
         chats: chats.map(chat => ({ file: chat.file, bytes: chat.bytes, sha256: chat.sha256, lines: chat.lines })),
+        jsonFiles,
         chatMessages: chats.map(chat => ({ file: chat.file, messages: chat.messages.map(message => ({
             isUser: message?.is_user === true,
             mesLength: String(message?.mes ?? '').length,

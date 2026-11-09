@@ -259,14 +259,14 @@ async function runLeg({ subject, phase, tree, corpusCensus, persistenceBaseline,
                 leg.steps.push({ name: 'boot', ok: false, detail: boot.bootRefusal });
             } else {
                 leg.steps.push({ name: 'boot', ok: true, detail: { port, pid: boot.server?.pid ?? null, tokenizers: boot.tokenizers?.layout ?? null, tokenizersCopied: boot.tokenizers?.copied ?? null } });
-                const child = await run(process.execPath, [journeyPath, '--base-url', boot.baseURL, ...journeyArgs], { env: { ...process.env, PROBE_BASE_URL: boot.baseURL, PROBE_SERVER_PID: String(boot.server?.pid ?? '') } });
+                const child = await run(process.execPath, [journeyPath, '--base-url', boot.baseURL, ...journeyArgs], { env: { ...process.env, PROBE_BASE_URL: boot.baseURL, PROBE_SERVER_PID: String(boot.server?.pid ?? ''), A19_TURN_MARKER: 'A19_SELFCHECK_TURN' } });
                 leg.steps.push({ name: 'journey', ok: child.code === 0, detail: { exitCode: child.code, elapsedMs: child.elapsedMs } });
                 try { boot.server?.kill?.('SIGKILL'); } catch { /* already gone */ }
             }
         } else {
             const forwarded = ['--data-root', tree, '--phase', phase, '--peer-url', peer.url, '--reply-prefix', peer.replyPrefix, '--subject', subject, '--report', reportPath];
             const child = await run(process.execPath, [path.join(here, 'run-against-pinned.mjs'), journeyPath, '--', ...forwarded], {
-                env: { ...process.env, GOTAVERN_REFERENCE: reference, PINNED_READY_MS: process.env.PINNED_READY_MS ?? '600000' },
+                env: { ...process.env, GOTAVERN_REFERENCE: reference, PINNED_READY_MS: process.env.PINNED_READY_MS ?? '600000', A19_TURN_MARKER: 'A19_SELFCHECK_TURN' },
             });
             leg.steps.push({ name: 'journey', ok: child.code === 0, detail: { exitCode: child.code, elapsedMs: child.elapsedMs } });
             leg.baseURL = 'http://127.0.0.1:<pinned-port>';
@@ -465,7 +465,7 @@ async function main() {
                 const boot = await bootSubject({ argv: process.argv.slice(2), dataRoot: tree, port, external: false });
                 refusal = boot.bootRefusal;
                 if (!boot.bootRefusal) {
-                    const child = await run(process.execPath, [journeyPath, '--base-url', boot.baseURL, ...journeyArgs], { env: { ...process.env, PROBE_BASE_URL: boot.baseURL, PROBE_SERVER_PID: String(boot.server?.pid ?? '') } });
+                    const child = await run(process.execPath, [journeyPath, '--base-url', boot.baseURL, ...journeyArgs], { env: { ...process.env, PROBE_BASE_URL: boot.baseURL, PROBE_SERVER_PID: String(boot.server?.pid ?? ''), A19_TURN_MARKER: 'A19_SELFCHECK_TURN' } });
                     exitCode = child.code;
                     try { boot.server?.kill?.('SIGKILL'); } catch { /* gone */ }
                 }

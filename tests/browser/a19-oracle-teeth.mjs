@@ -68,24 +68,33 @@ function runComparator(dir) {
 const baselineDir = copyLegs(legsDir, path.join(scratch, 'baseline'));
 const baseline = runComparator(baselineDir);
 const results = [];
-const record = (name, expectedGuards, run) => {
+const record = (name, expectedGuards, run, { survivor = false } = {}) => {
     const dir = copyLegs(baselineDir, path.join(scratch, `mutation-${results.length}`));
     const mutationError = run(dir);
     if (mutationError) {
-        results.push({ name, ok: false, killedBy: [], error: mutationError });
+        results.push({ name, survivor, ok: false, killedBy: [], error: mutationError });
         return;
     }
     const { comparison } = runComparator(dir);
     const failed = comparison?.failedGuards ?? [];
-    const killed = expectedGuards.every(guardName => failed.includes(guardName));
+    const guardStatus = Object.fromEntries((comparison?.guards ?? []).map(entry => [entry.name, entry.ok]));
+    // A NORMAL mutation must turn each named guard red. A SURVIVOR mutation proves a normalisation is NARROW: the
+    // named guard must stay green even though the mutated field changed (and a normalisation must be recorded).
+    const ok = survivor
+        ? expectedGuards.every(guardName => guardStatus[guardName] === true)
+        : expectedGuards.every(guardName => failed.includes(guardName));
     results.push({
         name,
-        ok: killed,
+        survivor,
+        ok,
         expectedGuards,
         killedBy: failed,
+        guardStatus,
         baselineVerdict: baseline.comparison?.verdict ?? null,
         mutationVerdict: comparison?.verdict ?? null,
-        error: killed ? null : (failed.length === 0 ? 'SURVIVED: the comparator still reported match' : `wrong guard: expected ${expectedGuards.join('/')}, got ${failed.join('/')}`),
+        error: ok ? null : (survivor
+            ? `mutated field was NOT normalised away: expected ${expectedGuards.join('/')} to stay green, got ${JSON.stringify(expectedGuards.map(guardName => [guardName, guardStatus[guardName]]))}`
+            : (failed.length === 0 ? 'SURVIVED: the comparator still reported match' : `wrong guard: expected ${expectedGuards.join('/')}, got ${failed.join('/')}`)),
     });
 };
 
@@ -175,10 +184,16 @@ record('http-response-status', ['http-bodies-equal'], dir => {
     writeLeg(dir, 'a19-restart-gotavern.json', leg);
 });
 record('http-request-body', ['http-bodies-equal'], dir => {
+    // A BODY VALUE change, not whitespace: JSON parsing tolerates added whitespace, so a whitespace-only mutation
+    // would survive for the wrong reason (the projection would be unchanged). Adding a member changes the projected
+    // digest and must red.
     const leg = readLeg(dir, 'a19-drive-gotavern.json');
     const sameOrigin = (leg.layers.http.requests ?? []).filter(request => request.origin === 'subject');
     const withBody = sameOrigin.find(request => typeof request.requestBodyText === 'string') ?? sameOrigin[0];
-    if (withBody) withBody.requestBodyText = `${withBody.requestBodyText ?? ''} `;
+    if (withBody) {
+        try { const parsed = JSON.parse(withBody.requestBodyText); parsed.a19Mutation = true; withBody.requestBodyText = JSON.stringify(parsed); }
+        catch { withBody.requestBodyText = `${withBody.requestBodyText ?? ''}x`; }
+    }
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
 });
 record('http-compared-header', ['http-bodies-equal'], dir => {
@@ -219,6 +234,83 @@ record('lifecycle-reload-lost-messages', ['lifecycle-reload-preserves-chat'], di
     const leg = readLeg(dir, 'a19-drive-pinned.json');
     leg.layers.lifecycle.reload = { sameChatId: true, lengthPreserved: false };
     writeLeg(dir, 'a19-drive-pinned.json', leg);
+});
+record('wire-accept-encoding-value-survives', ['wire-headers-equal'], dir => {
+    // The ONE named value delta: Go advertises gzip, node-fetch advertised gzip, deflate, br. This mutation puts
+    // the captured value on the GoTavern leg and the guard must STAY GREEN (the normalisation is narrow).
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    for (const header of leg.layers.providerWire.requests[0].rawHeaders) {
+        if (String(header.name).toLowerCase() === 'accept-encoding') header.value = 'gzip, deflate, br';
+    }
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+}, { survivor: true });
+record('wire-compared-header-value', ['wire-headers-equal'], dir => {
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    for (const header of leg.layers.providerWire.requests[0].rawHeaders) {
+        if (String(header.name).toLowerCase() === 'authorization') header.value = 'Bearer mutation-token';
+    }
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});
+record('wire-header-name-removed', ['wire-headers-equal'], dir => {
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    leg.layers.providerWire.requests[0].rawHeaders = leg.layers.providerWire.requests[0].rawHeaders.filter(header => String(header.name).toLowerCase() !== 'content-type');
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});
+record('http-duplicate-get-survives', ['http-request-set-equal', 'http-bodies-equal'], dir => {
+    // Duplicate idempotent GETs are browser scheduling (the token-count cache race). The guard must stay green and
+    // the normalisation must be recorded; a UNIQUE extra GET is separately required to red (http-request-added).
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const get = leg.layers.http.requests.find(request => request.method === 'GET');
+    if (get) leg.layers.http.requests.push({ ...get, index: 999 });
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+}, { survivor: true });
+record('http-post-multiplicity', ['http-request-set-equal'], dir => {
+    // A WRITE route's multiplicity must stay exact; `/api/worldinfo/get` is a named read-only route and is covered
+    // by `http-readonly-multiplicity`, so the mutation targets the chat save.
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const post = leg.layers.http.requests.find(request => request.method === 'POST' && request.path === '/api/chats/save');
+    if (post) leg.layers.http.requests.push({ ...post, index: 998 });
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});
+record('browser-event-order-swapped', ['browser-event-order-equal'], dir => {
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const order = leg.layers.browser.eventOrder ?? [];
+    if (order.length >= 2) leg.layers.browser.eventOrder = [order[1], order[0], ...order.slice(2)];
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});
+record('http-static-body-changed', ['http-bodies-equal'], dir => {
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const get = leg.layers.http.requests.find(request => request.method === 'GET');
+    if (get) get.responseBodySha256 = 'f'.repeat(64);
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});
+record('http-static-revalidation-status-survives', ['http-bodies-equal'], dir => {
+    // The RECORDED static divergence: pinned answers a conditional 304 where the embedded-asset install answers 200
+    // for the same stored resource. The guard must accept the 200/304 pair and record the decision.
+    const leg = readLeg(dir, 'a19-drive-pinned.json');
+    const get = leg.layers.http.requests.find(request => request.method === 'GET');
+    if (get) { get.status = 304; get.responseBodySha256 = null; get.responseBodyText = null; }
+    writeLeg(dir, 'a19-drive-pinned.json', leg);
+}, { survivor: true });
+record('persistence-image-metadata-timestamp-survives', ['persistence-changed-content-equal'], dir => {
+    // PINNED-RUNS-TWICE evidence (self-check run 1 vs run 2) shows addedTimestamp is nondeterministic within pinned, so
+    // its mutation must SURVIVE; the file's pointers are still compared.
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const metadata = (leg.layers.persistence.jsonFiles ?? []).find(file => file.path === 'default-user/image-metadata.json');
+    if (metadata) metadata.text = metadata.text.replace('"addedTimestamp":111', '"addedTimestamp":999');
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+}, { survivor: true });
+record('persistence-image-metadata-added-image', ['persistence-changed-content-equal'], dir => {
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const metadata = (leg.layers.persistence.jsonFiles ?? []).find(file => file.path === 'default-user/image-metadata.json');
+    if (metadata) metadata.text = metadata.text.replace('"folders":[]', '"folders":[],"mutation":true');
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});
+record('persistence-final-setting-value', ['persistence-changed-content-equal'], dir => {
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const settings = (leg.layers.persistence.jsonFiles ?? []).find(file => file.path === 'default-user/settings.json');
+    if (settings) settings.text = settings.text.replace('"depth":4', '"depth":5');
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
 });
 record('legs-missing-report', ['legs-present'], dir => {
     fs.rmSync(path.join(dir, 'a19-drive-pinned.json'));

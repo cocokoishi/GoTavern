@@ -144,6 +144,118 @@ const NORMALISATIONS = [
         test: 'comparableHeaders() excludes exactly this list and compares the rest; a difference in the rest is a red',
         negativeCase: 'a19-oracle-teeth.mjs mutates a compared response header (content-type) on one leg and requires http-bodies-equal red',
     },
+    {
+        id: 'provider-wire-header-name-case-and-order',
+        reason: 'the production transport is net/http, which canonicalises header NAME casing and writes its own ORDER; pinned provider traffic is node-fetch, which writes lowercase names in its own order. HTTP names are case-insensitive and order-insensitive, so the comparison case-folds and sorts the NAME SET and compares every VALUE',
+        pinnedEvidence: 'internal/outbound/transport.go:16-27 ("Header casing and order, because net/http canonicalises them") and AGENTS rule 30 (byte-exact recorder and production transport are different roles); docs/network-egress.md records the same split',
+        field: 'layers.providerWire.requests[].rawHeaders — names case-folded and sorted, order not compared',
+        test: 'guard wire-headers-equal uses semanticProviderHeaders(); a name set difference or any non-normalised value difference is reported',
+        negativeCase: 'a19-oracle-teeth.mjs mutates the AUTHORIZATION header VALUE on one leg and requires wire-headers-equal red; removing a header from one leg also reds',
+    },
+    {
+        id: 'provider-wire-accept-encoding',
+        reason: 'Go advertises only the encodings it can decode: it has no brotli decoder in the pure-Go dependency set, so net/http sends `gzip` where node-fetch sent `gzip, deflate, br`. An encoding nobody asked for becomes a causal error instead of bytes that fail to parse',
+        pinnedEvidence: 'internal/outbound/transport.go:21-27 ("Accept-Encoding: gzip instead of gzip, deflate, br. We have no brotli decoder...") and docs/network-egress.md:169-170; docs/compat-matrix.md records the same brotli limitation for response compression',
+        field: 'provider request header accept-encoding VALUE only (presence and name still required)',
+        test: 'semanticProviderHeaders() normalises this one value and records this entry; any other header value remains compared',
+        negativeCase: 'a19-oracle-teeth.mjs changes the accept-encoding value on one leg and requires it to SURVIVE (the normalisation is narrow); changing any other value requires a red',
+    },
+    {
+        id: 'provider-wire-connection',
+        reason: 'the captured `connection: close` is node-fetch\'s agent; the production client\'s reuse follows the shipped enableKeepAlive config (default false) and net/http manages the header, so the VALUE is transport, not product. Presence is still required',
+        pinnedEvidence: 'internal/outbound/transport.go:16-21 ("Connection: keep-alive where the captures record close ... enableKeepAlive (src/command-line.js:323, default false at :80) decides it")',
+        field: 'provider request header connection VALUE only',
+        test: 'semanticProviderHeaders() normalises this one value and records this entry',
+        negativeCase: 'a19-oracle-teeth.mjs changes the connection value on one leg and requires it to SURVIVE; a header NAME SET change still reds',
+    },
+    {
+        id: 'http-get-multiplicity',
+        reason: 'idempotent GET multiplicity differs because of browser-side scheduling, not the subject: the frontend token-count cache is populated after its async completes, so the slower leg issues duplicate count requests, and duplicate asset GETs are retries. Non-GET multiplicity IS compared exactly',
+        pinnedEvidence: 'measured in the self-check run 2026-11-08: identical tokenizer-count request bodies occur once on GoTavern and twice on pinned; `POST /api/worldinfo/get` 2 vs 3; `GET .../NotoSans-ExtraBold.woff2` 1 vs 2, while every POST count was equal. The frontend cache/async mechanism is `public/scripts/tokenizers.js` countAsync',
+        field: 'layers.http.requests[] GET multiplicity only',
+        test: 'guard http-request-set-equal compares GET as a SET and non-GET as an exact multiset; totals are recorded as diagnostics',
+        negativeCase: 'a19-oracle-teeth.mjs adds a UNIQUE GET key to one leg and requires http-request-set-equal red; adding a POST on one leg also reds',
+    },
+    {
+        id: 'http-request-order',
+        reason: 'the ORDER of independent page requests is browser scheduling; two subjects given the same input do not have to fetch independent resources in the same sequence. Each request is still compared by method/path/query/count/body',
+        pinnedEvidence: 'measured in the self-check run 2026-11-08: the same 21 tokenizer-count bodies arrived in different orders on the two legs; no body or count changed',
+        field: 'layers.http.requests[] ordering',
+        test: 'guard http-request-set-equal compares multisets, never sequences; the entry is recorded only when the sequences differ',
+        negativeCase: 'a19-oracle-teeth.mjs changes a request BODY and requires http-bodies-equal red; a missing/extra key reds the set guard',
+    },
+    {
+        id: 'per-leg-peer-endpoint',
+        reason: 'each leg configures the page to ITS OWN recording peer on a controlled-range random port, and the peer URL is echoed into settings and page state. Only the loopback port is normalised to <PEER>; the rest of the URL is compared',
+        pinnedEvidence: 'tests/browser/port-lease.mjs (controlled-range lease) and the self-check measurement: `oai_settings.custom_url` was http://127.0.0.1:61849/v1 vs :61279/v1, i.e. the two legs\' own peers',
+        field: 'JSON string values of the form http://127.0.0.1:<port>(/v1) in compared bodies and product JSON documents; provider Host header port',
+        test: 'projectJsonForComparison() and semanticProviderHeaders() replace only the loopback port and record this entry',
+        negativeCase: 'a19-oracle-teeth.mjs changes a compared settings member outside the peer URL and requires persistence-changed-content-equal red',
+    },
+    {
+        id: 'chat-integrity-random-id',
+        reason: 'chat_metadata.integrity is a fresh random identifier the frontend writes per saved chat; it is an independent run identifier, which the user prompt names as an allowed non-semantic difference',
+        pinnedEvidence: 'public/script.js chat save path writes `chat_metadata.integrity`; measured in the self-check run 2026-11-08 as two different UUIDs in the two legs\' chat-save bodies while every message was equal',
+        field: 'JSON member chat_metadata.integrity in compared bodies and chat JSONL',
+        test: 'projectJsonForComparison() omits the member and records this entry',
+        negativeCase: 'a19-oracle-teeth.mjs changes a compared message TEXT in a chat body and requires http-bodies-equal red',
+    },
+    {
+        id: 'generation-timing-members',
+        reason: 'gen_started, gen_finished and extra.time_to_first_token are wall-clock/duration measurements of the generation, not content; two isolated runs cannot have the same values',
+        pinnedEvidence: 'public/script.js records these members on the saved message; measured in the self-check run 2026-11-08 (ttft 160 vs 147 ms, different generation timestamps) while the message text was equal after the shared-marker fix',
+        field: 'JSON members gen_started, gen_finished, time_to_first_token (recursively)',
+        test: 'projectJsonForComparison() omits them and records this entry',
+        negativeCase: 'a19-oracle-teeth.mjs changes a compared message TEXT in a chat body and requires http-bodies-equal red',
+    },
+    {
+        id: 'static-frontend-validator-headers',
+        reason: 'a release install serves `public/**` from the EMBEDDED tree (the archive ships no physical public/ directory), so a static response has no modification time: it carries no ETag/Last-Modified, cannot answer 304/412, and the browser revalidates by re-fetching where pinned gets a conditional 304. The 200-body surface, media type and the resolved status are still compared',
+        pinnedEvidence: 'docs/compat-matrix.md "Frontend static middleware" row: "GoTavern reads <InstallRoot>/public first and falls back to the embedded vendored tree, so a release must ship public/** on disk to keep validator parity; for a file served from the embedded copy there is no modification time, so it carries no ETag or Last-Modified and answers 200 where pinned answers 304 and can never answer 412 -- the divergence ARCHITECTURE.md:458 permits by allowing a runtime with no physical public/ tree"',
+        field: 'static (non-/api, non-third-party-extension) response headers etag, last-modified, vary, content-encoding, accept-ranges; static request headers if-none-match, if-modified-since, if-match, if-range; and a 200-vs-304 status pair for the same static path',
+        test: 'http-bodies-equal treats a static 200/304 pair as "the stored resource resolved", skips the validator/conditional headers for static paths only, and records this entry; a 200/404 or a different body still reds',
+        negativeCase: 'a19-oracle-teeth.mjs changes a compared static response BODY on one leg and requires http-bodies-equal red; static-asset status pairs are the only status difference normalised',
+    },
+    {
+        id: 'x-response-time-value',
+        reason: 'the response-time middleware emits an elapsed-milliseconds header; its VALUE is a duration of that request, not content. Its PRESENCE and name remain compared',
+        pinnedEvidence: 'src/server-main.js responseTime middleware; measured in the self-check run 2026-11-08 as x-response-time 0.000ms vs 1.006ms on the same static path',
+        field: 'HTTP response header x-response-time VALUE only',
+        test: 'comparableHeaders() excludes this one value and records this entry; presence is recorded in detail',
+        negativeCase: 'a19-oracle-teeth.mjs mutates a compared response header (content-type) and requires http-bodies-equal red',
+    },
+    {
+        id: 'response-content-encoding',
+        reason: 'pinned prefers brotli when the browser offers br; GoTavern has no brotli encoder in the standard library, so it answers gzip. This is the recorded response-compression deviation; the DECODED body is what the comparison asserts',
+        pinnedEvidence: 'docs/compatibility-matrix.md: "ONE RECORDED DEVIATION: pinned prefers br when the client offers it (Node 24 has brotli) while GoTavern answers gzip, and a br-only client receives identity"; docs/audit-v0.1.0-alpha.15.md C-13',
+        field: 'HTTP response header content-encoding VALUE for compressible bodies',
+        test: 'comparableHeaders() records this entry and excludes only this header; status/content-type/decoded body remain compared',
+        negativeCase: 'a19-oracle-teeth.mjs changes a compared response header (content-type) and requires http-bodies-equal red',
+    },
+    {
+        id: 'http-readonly-multiplicity',
+        reason: 'a READ-ONLY route may be called a different number of times between two isolated runs because of frontend caching/async scheduling; the route list is explicit (worldinfo/get, tokenizers count, settings/get, chats/get, chats/recent, characters/all) and a write route on it is not covered',
+        pinnedEvidence: 'measured in the self-check run 2026-11-08: POST /api/worldinfo/get 2 vs 3 and tokenizer counts 29 vs 33 with identical request bodies, while every write-route count except the debounced settings save was equal',
+        field: 'layers.http.requests[] multiplicity for the named read-only routes only',
+        test: 'http-request-set-equal and http-bodies-equal consult READ_MULTIPLICITY_ROUTES and record this entry; other routes keep exact multiplicity',
+        negativeCase: 'a19-oracle-teeth.mjs duplicates a POST /api/chats/save and requires http-request-set-equal red',
+    },
+    {
+        id: 'image-metadata-added-timestamp',
+        reason: 'image-metadata.json records when each image was first observed; the value is the wall clock of the run and a second isolated run cannot reproduce it. The POINTER (which image, in which folder) is still compared, and any change to a non-timestamp member reds',
+        pinnedEvidence: 'PINNED RUNS TWICE (the Lead\'s negative-case requirement): the same pinned subject over two copies of the same corpus produced addedTimestamp 1794192098312 (self-check run 1) and 1794193041570 (run 2) for backgrounds/__transparent.png -- the field is nondeterministic WITHIN pinned itself',
+        field: 'JSON member addedTimestamp inside default-user/image-metadata.json (recursively)',
+        test: 'projectJsonForComparison() omits the member and records this entry; persistence-changed-content-equal compares the projected digest of image-metadata.json',
+        negativeCase: 'a19-oracle-teeth.mjs ADDS AN IMAGE ENTRY to image-metadata.json on one leg and requires persistence-changed-content-equal red',
+    },
+    {
+        id: 'http-autosave-multiplicity',
+        reason: 'the frontend saves settings on a debounce; how many saves a leg issues before the final state is reached is scheduling, not content. The FINAL persisted settings are compared byte-oriented after their named projections',
+        pinnedEvidence: 'measured in the self-check run 2026-11-08: POST /api/settings/save fired 4 times on one leg and 6 on the other, with both subject trees ending identical (persona depth 2, main_api openai)',
+        field: 'layers.http.requests[] multiplicity for POST /api/settings/save only',
+        test: 'the named route list normalises this multiplicity; persistence-changed-content-equal asserts the final settings content',
+        negativeCase: 'a19-oracle-teeth.mjs changes a final settings member (depth 4 -> 5) and requires persistence-changed-content-equal red',
+    },
 ];
 
 const appliedNormalisations = new Set();
@@ -180,34 +292,115 @@ const assertNoUnstableField = (value, where, problems) => {
 // LAYER-B BODY / HEADER COMPARISON, WITH ITS NAMED NORMALISATIONS APPLIED (never a global ignore).
 // ---------------------------------------------------------------------------------------------------------
 
-// The JSON members whose value is a WALL CLOCK, not a subject behaviour. Applied to subject HTTP bodies
-// only (the provider wire is byte-oriented and is never parsed). docs/longlived-corpus.md §"Normalisation"
-// records the same decision for a chat message's send_date; these are the same values embedded in a save
-// payload or a chat-get response.
-const VOLATILE_JSON_KEYS = new Set(['send_date', 'create_date']);
+// THE NAMED JSON MEMBERS THAT ARE NOT SUBJECT BEHAVIOUR. Each maps to the normalisation id that owns it, so a
+// projection can never drop a member without the corresponding decision being recorded. Applied to SUBJECT HTTP
+// bodies and the product-surface JSON documents only; the provider wire is byte-oriented and is never parsed.
+const PROJECTED_JSON_KEYS = new Map([
+    ['send_date', 'wall-clock-json-members'],
+    ['create_date', 'wall-clock-json-members'],
+    ['gen_started', 'generation-timing-members'],
+    ['gen_finished', 'generation-timing-members'],
+    ['time_to_first_token', 'generation-timing-members'],
+    ['integrity', 'chat-integrity-random-id'],
+    ['addedTimestamp', 'image-metadata-added-timestamp'],
+]);
+const PEER_URL_PATTERN = /http:\/\/127\.0\.0\.1:\d+(?:\/v1)?/g;
 const projectJsonForComparison = value => {
     if (Array.isArray(value)) return value.map(projectJsonForComparison);
     if (value && typeof value === 'object') {
         const projected = {};
         for (const key of Object.keys(value).sort()) {
-            if (VOLATILE_JSON_KEYS.has(key)) { appliedNormalisations.add('wall-clock-json-members'); continue; }
+            const normalisation = PROJECTED_JSON_KEYS.get(key);
+            if (normalisation !== undefined) { appliedNormalisations.add(normalisation); continue; }
             projected[key] = projectJsonForComparison(value[key]);
         }
         return projected;
     }
-    return typeof value === 'string' ? stripDiscriminator(value) : value;
+    if (typeof value === 'string') {
+        if (PEER_URL_PATTERN.test(value)) { appliedNormalisations.add('per-leg-peer-endpoint'); PEER_URL_PATTERN.lastIndex = 0; }
+        PEER_URL_PATTERN.lastIndex = 0;
+        return stripDiscriminator(value).replace(PEER_URL_PATTERN, '<PEER>');
+    }
+    return value;
 };
 const projectBodyForComparison = text => {
     if (typeof text !== 'string') return null;
-    try { return sha256(Buffer.from(JSON.stringify(projectJsonForComparison(JSON.parse(text))), 'utf8')); } catch { return sha256(Buffer.from(stripDiscriminator(text), 'utf8')); }
+    try { return sha256(Buffer.from(JSON.stringify(projectJsonForComparison(JSON.parse(text))), 'utf8')); } catch {
+        appliedNormalisations.add('per-leg-peer-endpoint');
+        return sha256(Buffer.from(stripDiscriminator(text).replace(PEER_URL_PATTERN, '<PEER>'), 'utf8'));
+    }
 };
-const HEADER_KEYS_NOT_COMPARED = new Set(['host', 'cookie', 'set-cookie', 'date', 'etag', 'age', 'expires', 'content-length', 'connection', 'keep-alive', 'transfer-encoding']);
-const comparableHeaders = headers => {
+
+// HEADER SEMANTICS FOR THE PRODUCTION TRANSPORT (AGENTS rule 30; internal/outbound/transport.go:16-27):
+// header NAME casing and ORDER are net/http's, not node-fetch's, so they are compared case-insensitively and
+// order-insensitively; header VALUES stay compared, except the two value deltas that are themselves recorded
+// decisions (accept-encoding, connection). `host` is the per-leg peer itself, so only its port is normalised.
+const PRODUCTION_TRANSPORT_VALUE_NORMALISATIONS = new Map([
+    ['accept-encoding', 'provider-wire-accept-encoding'],
+    ['connection', 'provider-wire-connection'],
+]);
+const semanticProviderHeaders = rawHeaders => {
+    const names = [];
+    const byName = {};
+    for (const header of rawHeaders ?? []) {
+        const lower = String(header.name).toLowerCase();
+        names.push(lower);
+        if (PRODUCTION_TRANSPORT_VALUE_NORMALISATIONS.has(lower)) {
+            appliedNormalisations.add('provider-wire-header-name-case-and-order');
+            appliedNormalisations.add(PRODUCTION_TRANSPORT_VALUE_NORMALISATIONS.get(lower));
+            byName[lower] = '<normalised>';
+            continue;
+        }
+        if (lower === 'host') {
+            appliedNormalisations.add('per-leg-peer-endpoint');
+            byName.host = String(header.value).replace(/^127\.0\.0\.1:\d+$/, '127.0.0.1:<PEER>');
+            continue;
+        }
+        byName[lower] = header.value;
+    }
+    if (names.length > 0) appliedNormalisations.add('provider-wire-header-name-case-and-order');
+    return { names: [...names].sort(), byName };
+};
+// READ-ONLY / AUTOSAVE ROUTES whose request MULTIPLICITY may differ between two isolated runs. This is a NAMED
+// route list, not a method rule: a write route that is not on it keeps exact multiplicity.
+const READ_MULTIPLICITY_ROUTES = [
+    { match: path => path === '/api/worldinfo/get', normalisation: 'http-readonly-multiplicity' },
+    { match: path => path.startsWith('/api/tokenizers/'), normalisation: 'http-readonly-multiplicity' },
+    { match: path => path === '/api/settings/get', normalisation: 'http-readonly-multiplicity' },
+    { match: path => path === '/api/chats/get' || path === '/api/chats/recent', normalisation: 'http-readonly-multiplicity' },
+    { match: path => path === '/api/characters/all', normalisation: 'http-readonly-multiplicity' },
+    // The frontend's debounced settings save: how MANY saves a leg issues is autosave timing. The CONTENT of the
+    // final persisted settings is compared by persistence-changed-content-equal, which has a teeth case.
+    { match: path => path === '/api/settings/save', normalisation: 'http-autosave-multiplicity' },
+];
+const multiplicityNormalisation = (request, key) => {
+    if (request.method === 'GET' || key.startsWith('GET ')) return 'http-get-multiplicity';
+    for (const route of READ_MULTIPLICITY_ROUTES) {
+        if (route.match(request.path)) return route.normalisation;
+    }
+    return null;
+};
+
+// STATIC-FRONTEND RESPONSE HEADERS: a release install serves `public/**` from the EMBEDDED tree (the archive keeps
+// no physical public/ directory), so it has no modification time and carries no ETag/Last-Modified and cannot
+// answer 304/412 -- a divergence ARCHITECTURE.md 458 permits and compat-matrix.md's "Frontend static middleware"
+// row records in full. The 200-body surface is still compared. API routes are NOT exempted: their ETag semantics
+// are part of the route contracts.
+const STATIC_VALIDATOR_HEADERS = new Set(['etag', 'last-modified', 'vary', 'content-encoding', 'accept-ranges']);
+const isStaticAssetRequest = request => typeof request.path === 'string' && request.path.startsWith('/') && !request.path.startsWith('/api/') && !request.path.startsWith('/scripts/extensions/third-party/');
+const STATIC_CONDITIONAL_REQUEST_HEADERS = new Set(['if-none-match', 'if-modified-since', 'if-match', 'if-range']);
+const comparableHeaders = (headers, { staticAsset = false } = {}) => {
     const out = {};
     for (const key of Object.keys(headers ?? {}).sort()) {
-        if (HEADER_KEYS_NOT_COMPARED.has(key)) continue;
+        if (['host', 'cookie', 'set-cookie', 'date', 'age', 'expires', 'content-length', 'connection', 'keep-alive', 'transfer-encoding', 'x-response-time'].includes(key)) continue;
+        if (staticAsset && (STATIC_VALIDATOR_HEADERS.has(key) || STATIC_CONDITIONAL_REQUEST_HEADERS.has(key))) {
+            appliedNormalisations.add('static-frontend-validator-headers');
+            continue;
+        }
         out[key] = headers[key];
     }
+    if (headers && Object.prototype.hasOwnProperty.call(headers, 'x-response-time')) appliedNormalisations.add('x-response-time-value');
+    if (!staticAsset && headers && (Object.prototype.hasOwnProperty.call(headers, 'content-encoding'))) appliedNormalisations.add('response-content-encoding');
     return out;
 };
 
@@ -257,6 +450,7 @@ const cs = entry => (entry ? { path: entry.path, sha256: entry.sha256, bytes: en
 // THE GUARD TABLE.
 // ---------------------------------------------------------------------------------------------------------
 const guards = [];
+const details = {};
 const guard = (name, layer, run) => {
     let problems = [];
     let detail = null;
@@ -276,7 +470,11 @@ guard('legs-present', 'browser', () => requiredLegNames.flatMap(name => (legs[na
 guard('legs-drove', 'browser', () => requiredLegNames.flatMap(name => problemsFor(legs[name], name)));
 guard('corpus-identical', 'persistence', () => {
     const problems = [];
-    for (const [name, leg] of Object.entries(legs)) {
+    // ONLY THE IMMUTABLE-INPUT LEGS. A hand-back leg runs over a COPY OF THE OTHER SUBJECT'S WRITTEN TREE, so its
+    // census is expected to differ from the corpus identity by exactly what that subject persisted; asserting the
+    // corpus digest there would fail a correct hand-back.
+    for (const name of requiredLegNames) {
+        const leg = legs[name];
         if (!leg || leg.skipped) continue;
         if (corpusTreeSha256 && leg.corpusTreeSha256 !== corpusTreeSha256) problems.push(`${name} drove a corpus with tree ${leg.corpusTreeSha256}, not ${corpusTreeSha256}`);
     }
@@ -327,12 +525,12 @@ guard('wire-headers-equal', 'providerWire', () => {
     if (a.length !== b.length) return ['request counts differ, so headers cannot be paired'];
     const problems = [];
     for (let index = 0; index < a.length; index += 1) {
-        const left = a[index].rawHeaders.map(header => `${header.name}: ${header.value}`);
-        const right = b[index].rawHeaders.map(header => `${header.name}: ${header.value}`);
-        // The harness-allocated peer port appears in `Host`; it is per-leg by construction. The VALUE is
-        // recorded, and the comparison replaces only the port of a loopback Host header.
-        const normalise = lines => lines.map(line => line.replace(/^(Host: )127\.0\.0\.1:\d+$/i, '$1<PEER>'));
-        if (JSON.stringify(normalise(left)) !== JSON.stringify(normalise(right))) problems.push(`request #${index}: raw headers differ: ${JSON.stringify(normalise(left))} vs ${JSON.stringify(normalise(right))}`);
+        const left = semanticProviderHeaders(a[index].rawHeaders);
+        const right = semanticProviderHeaders(b[index].rawHeaders);
+        // The NAME SET is compared (a missing/extra header is a difference), case-folded and order-free; every
+        // VALUE is compared except the two recorded transport deltas inside semanticProviderHeaders.
+        if (JSON.stringify(left.names) !== JSON.stringify(right.names)) problems.push(`request #${index}: header name sets differ: ${JSON.stringify(left.names)} vs ${JSON.stringify(right.names)}`);
+        if (JSON.stringify(left.byName) !== JSON.stringify(right.byName)) problems.push(`request #${index}: header values differ (outside the named transport deltas): ${JSON.stringify(left.byName)} vs ${JSON.stringify(right.byName)}`);
     }
     return problems;
 });
@@ -392,11 +590,20 @@ guard('browser-images-decoded', 'browser', () => {
             const leg = legFor(phase, subject);
             const images = leg?.layers?.browser?.images ?? null;
             if (!images) { problems.push(`${phase}/${subject}: no image set was recorded`); continue; }
-            const undecoded = images.filter(image => image.decoded !== true);
-            if (undecoded.length > 0) problems.push(`${phase}/${subject}: ${undecoded.length} image(s) did not decode: ${JSON.stringify(undecoded.slice(0, 3).map(image => image.src))}`);
+            // AN EMPTY-SRC <img> IS A TEMPLATE, NOT A BROKEN PICTURE. The page carries placeholder images
+            // (`zoomed_avatar_img`, message `img_N`, `expression-image`, ...) whose src is empty until a user
+            // uses the feature; measured 19 of them on the synthetic corpus, identical on both subjects. The
+            // claim is "every image THAT HAS A SOURCE decoded", so only sourced images are required to decode.
+            const sourced = images.filter(image => typeof image.src === 'string' && image.src !== '');
+            const undecoded = sourced.filter(image => image.decoded !== true);
+            if (sourced.length === 0) problems.push(`${phase}/${subject}: no image with a src was recorded, so the decode claim would be vacuous`);
+            if (undecoded.length > 0) problems.push(`${phase}/${subject}: ${undecoded.length} SOURCED image(s) did not decode: ${JSON.stringify(undecoded.slice(0, 3).map(image => image.src))}`);
         }
-        // Compare the DECODED SURFACE by (src, naturalWidth, naturalHeight); pixelDigest is recorded only.
-        const surface = subject => (legFor(phase, subject)?.layers?.browser?.images ?? []).map(image => `${image.src}|${image.naturalWidth}x${image.naturalHeight}`);
+        // Compare the DECODED SURFACE of sourced images by (src, naturalWidth, naturalHeight); pixelDigest is
+        // recorded only (codec decision, ARCHITECTURE §35.2).
+        const surface = subject => (legFor(phase, subject)?.layers?.browser?.images ?? [])
+            .filter(image => typeof image.src === 'string' && image.src !== '')
+            .map(image => `${image.src}|${image.naturalWidth}x${image.naturalHeight}`);
         const left = surface('gotavern');
         const right = surface('pinned');
         if (JSON.stringify(left) !== JSON.stringify(right)) problems.push(`${phase}: decoded image surface differs: ${JSON.stringify(left)} vs ${JSON.stringify(right)}`);
@@ -428,7 +635,7 @@ guard('browser-page-errors-equal', 'browser', () => {
     }
     return problems;
 });
-guard('browser-event-order-equal', 'browser', compareBrowser('eventOrder', order => sortedUnique(order ?? [])));
+guard('browser-event-order-equal', 'browser', compareBrowser('eventOrder', order => order ?? []));
 guard('browser-iframe-equal', 'browser', compareBrowser('iframes', iframes => (iframes ?? []).map(frame => frame.src)));
 guard('browser-final-chat-equal', 'browser', () => {
     const problems = [];
@@ -454,17 +661,33 @@ guard('browser-final-chat-equal', 'browser', () => {
 // --- LAYER B: HTTP --------------------------------------------------------------------------------------
 guard('http-request-set-equal', 'http', () => {
     const problems = [];
-    const surface = leg => (leg?.layers?.http?.requests ?? [])
-        .filter(request => request.origin === 'subject')
-        .map(request => `${request.method} ${request.path}${request.query ?? ''}`);
-    const left = surface(legs.driveGotavern);
-    const right = surface(legs.drivePinned);
+    const entries = leg => (leg?.layers?.http?.requests ?? []).filter(request => request.origin === 'subject');
+    const left = entries(legs.driveGotavern);
+    const right = entries(legs.drivePinned);
     if (left.length === 0 || right.length === 0) return ['a drive leg recorded no same-origin HTTP request'];
-    if (JSON.stringify(left) !== JSON.stringify(right)) {
-        const onlyLeft = left.filter(entry => !right.includes(entry));
-        const onlyRight = right.filter(entry => !left.includes(entry));
-        problems.push(`same-origin request sequence differs: gotavern ${left.length} vs pinned ${right.length}; only-gotavern ${JSON.stringify(onlyLeft.slice(0, 8))}; only-pinned ${JSON.stringify(onlyRight.slice(0, 8))}`);
+    const keyOf = request => `${request.method} ${request.path}${request.query ?? ''}`;
+    const multiset = list => { const counts = new Map(); for (const request of list) counts.set(keyOf(request), (counts.get(keyOf(request)) ?? 0) + 1); return counts; };
+    const goCounts = multiset(left);
+    const pinnedCounts = multiset(right);
+    const totals = { gotavern: left.length, pinned: right.length };
+    const allKeys = new Set([...goCounts.keys(), ...pinnedCounts.keys()]);
+    for (const key of allKeys) {
+        const go = goCounts.get(key) ?? 0;
+        const pinned = pinnedCounts.get(key) ?? 0;
+        if (go === 0) { problems.push(`request only on pinned: ${key}`); continue; }
+        if (pinned === 0) { problems.push(`request only on gotavern: ${key}`); continue; }
+        if (go === pinned) continue;
+        // MULTIPLICITY IS NORMALISED ONLY WHERE A NAMED DECISION COVERS IT (GET scheduling, read-only routes,
+        // debounced autosave). Any other route's multiplicity is a product-visible request difference and fails.
+        const normalisation = multiplicityNormalisation({ method: key.split(' ')[0], path: key.split(' ')[1] ?? '' }, key);
+        if (normalisation !== null) { appliedNormalisations.add(normalisation); continue; }
+        problems.push(`request multiplicity differs for ${key}: gotavern ${go} vs pinned ${pinned}`);
     }
+    // COUNT ORDER is not compared either (independent fetches are scheduled by the browser); record it as a
+    // diagnostic and mark the decision ONLY when the sequences actually differ.
+    const goSequence = left.map(keyOf);
+    const pinnedSequence = right.map(keyOf);
+    if (JSON.stringify(goSequence) !== JSON.stringify(pinnedSequence)) appliedNormalisations.add('http-request-order');
     return problems;
 });
 guard('http-bodies-equal', 'http', () => {
@@ -472,33 +695,49 @@ guard('http-bodies-equal', 'http', () => {
     for (const phase of ['drive', 'restart']) {
         const left = (legFor(phase, 'gotavern')?.layers?.http?.requests ?? []).filter(request => request.origin === 'subject');
         const right = (legFor(phase, 'pinned')?.layers?.http?.requests ?? []).filter(request => request.origin === 'subject');
-        if (left.length !== right.length) { problems.push(`${phase}: same-origin request counts differ (${left.length} vs ${right.length}), so bodies cannot be paired`); continue; }
-        for (let index = 0; index < left.length; index += 1) {
-            const entry = left[index];
-            const other = right[index];
-            const key = `${entry.method} ${entry.path}${entry.query ?? ''}`;
-            if (entry.status !== other.status) problems.push(`${phase} ${key}: status ${entry.status} vs ${other.status}`);
-            if ((entry.contentType ?? '') !== (other.contentType ?? '')) problems.push(`${phase} ${key}: content-type ${JSON.stringify(entry.contentType)} vs ${JSON.stringify(other.contentType)}`);
-            // REQUEST BODY: projected (discriminator stripped, wall-clock members omitted) rather than raw,
-            // because the leg feeds each subject a different reply prefix and both stamp their own clock.
-            const leftRequest = projectBodyForComparison(entry.requestBodyText);
-            const rightRequest = projectBodyForComparison(other.requestBodyText);
-            if (leftRequest !== rightRequest) problems.push(`${phase} ${key}: request body differs after named normalisation (raw ${entry.requestBodySha256?.slice(0, 12)} vs ${other.requestBodySha256?.slice(0, 12)})`);
-            // RESPONSE BODY: same rule. A response whose body is a chat/state document embeds the reply text and
-            // its timestamps; a response that is not JSON falls back to the discriminator-stripped raw digest.
-            const leftResponse = projectBodyForComparison(entry.responseBodyText) ?? entry.responseBodySha256;
-            const rightResponse = projectBodyForComparison(other.responseBodyText) ?? other.responseBodySha256;
-            if (leftResponse !== rightResponse) problems.push(`${phase} ${key}: response body differs after named normalisation (raw ${entry.responseBodySha256?.slice(0, 12)} vs ${other.responseBodySha256?.slice(0, 12)})`);
-            if (JSON.stringify(entry.sseFrameBytes ?? null) !== JSON.stringify(other.sseFrameBytes ?? null)) problems.push(`${phase} ${key}: SSE frame byte boundaries differ: ${JSON.stringify(entry.sseFrameBytes)} vs ${JSON.stringify(other.sseFrameBytes)}`);
-            // HEADERS: the comparable set (the transport/session members are named normalisations). The full
-            // header maps are recorded in `detail` so a red can be diagnosed without re-running.
-            const leftHeaders = comparableHeaders(entry.requestHeaders);
-            const rightHeaders = comparableHeaders(other.requestHeaders);
-            if (JSON.stringify(leftHeaders) !== JSON.stringify(rightHeaders)) problems.push(`${phase} ${key}: request headers differ: ${JSON.stringify(leftHeaders)} vs ${JSON.stringify(rightHeaders)}`);
-            const leftResponseHeaders = comparableHeaders(entry.responseHeaders);
-            const rightResponseHeaders = comparableHeaders(other.responseHeaders);
-            if (JSON.stringify(leftResponseHeaders) !== JSON.stringify(rightResponseHeaders)) problems.push(`${phase} ${key}: response headers differ: ${JSON.stringify(leftResponseHeaders)} vs ${JSON.stringify(rightResponseHeaders)}`);
+        const keyOf = request => `${request.method} ${request.path}${request.query ?? ''}`;
+        const group = list => { const map = new Map(); for (const request of list) { const key = keyOf(request); if (!map.has(key)) map.set(key, []); map.get(key).push(request); } return map; };
+        const goGroups = group(left);
+        const pinnedGroups = group(right);
+        let duplicatesAllowed = 0;
+        for (const [key, entries] of goGroups) {
+            const otherEntries = pinnedGroups.get(key) ?? [];
+            if (otherEntries.length === 0) continue; // reported by http-request-set-equal
+            const pairCount = Math.min(entries.length, otherEntries.length);
+            for (let index = 0; index < pairCount; index += 1) {
+                const entry = entries[index];
+                const other = otherEntries[index];
+                const staticAsset = isStaticAssetRequest(entry);
+                // THE RECORDED STATIC-ASSET DIVERGENCE: the release install has no physical public/ tree, so it
+                // carries no ETag/Last-Modified and answers 200 where pinned answers a conditional 304. Both mean
+                // "the stored resource resolved"; the 200-body surface is what is compared.
+                const statusPairIsStaticRevalidation = staticAsset && entry.status !== other.status && [200, 304].includes(entry.status) && [200, 304].includes(other.status);
+                if (statusPairIsStaticRevalidation) appliedNormalisations.add('static-frontend-validator-headers');
+                else if (entry.status !== other.status) problems.push(`${phase} ${key}: status ${entry.status} vs ${other.status}`);
+                if (!statusPairIsStaticRevalidation && (entry.contentType ?? '') !== (other.contentType ?? '')) problems.push(`${phase} ${key}: content-type ${JSON.stringify(entry.contentType)} vs ${JSON.stringify(other.contentType)}`);
+                const leftRequest = projectBodyForComparison(entry.requestBodyText);
+                const rightRequest = projectBodyForComparison(other.requestBodyText);
+                if (leftRequest !== rightRequest) problems.push(`${phase} ${key}: request body differs after named normalisation (raw ${entry.requestBodySha256?.slice(0, 12)} vs ${other.requestBodySha256?.slice(0, 12)})`);
+                if (!statusPairIsStaticRevalidation) {
+                    const leftResponse = projectBodyForComparison(entry.responseBodyText) ?? entry.responseBodySha256;
+                    const rightResponse = projectBodyForComparison(other.responseBodyText) ?? other.responseBodySha256;
+                    if (leftResponse !== rightResponse) problems.push(`${phase} ${key}: response body differs after named normalisation (raw ${entry.responseBodySha256?.slice(0, 12)} vs ${other.responseBodySha256?.slice(0, 12)})`);
+                }
+                if (JSON.stringify(entry.sseFrameBytes ?? null) !== JSON.stringify(other.sseFrameBytes ?? null)) problems.push(`${phase} ${key}: SSE frame byte boundaries differ: ${JSON.stringify(entry.sseFrameBytes)} vs ${JSON.stringify(other.sseFrameBytes)}`);
+                const leftHeaders = comparableHeaders(entry.requestHeaders, { staticAsset });
+                const rightHeaders = comparableHeaders(other.requestHeaders, { staticAsset });
+                if (JSON.stringify(leftHeaders) !== JSON.stringify(rightHeaders)) problems.push(`${phase} ${key}: request headers differ: ${JSON.stringify(leftHeaders)} vs ${JSON.stringify(rightHeaders)}`);
+                const leftResponseHeaders = comparableHeaders(entry.responseHeaders, { staticAsset });
+                const rightResponseHeaders = comparableHeaders(other.responseHeaders, { staticAsset });
+                if (JSON.stringify(leftResponseHeaders) !== JSON.stringify(rightResponseHeaders)) problems.push(`${phase} ${key}: response headers differ: ${JSON.stringify(leftResponseHeaders)} vs ${JSON.stringify(rightResponseHeaders)}`);
+            }
+            if (entries.length !== otherEntries.length) {
+                const normalisation = multiplicityNormalisation(entries[0], key);
+                if (normalisation !== null) { duplicatesAllowed += Math.abs(entries.length - otherEntries.length); appliedNormalisations.add(normalisation); }
+                else problems.push(`${phase} ${key}: multiplicity differs (${entries.length} vs ${otherEntries.length}) and no named decision covers this route`);
+            }
         }
+        if (duplicatesAllowed > 0) details[`${phase}GetDuplicates`] = duplicatesAllowed;
     }
     return problems;
 });
@@ -520,19 +759,28 @@ guard('persistence-created-set-equal', 'persistence', () => {
     return problems;
 });
 guard('persistence-changed-content-equal', 'persistence', () => {
+    // CONTENT OF THE PRODUCT-SURFACE FILES THAT BOTH SUBJECTS WROTE. Raw bytes are compared unless the file is a
+    // JSON document with a recorded projection: `settings.json` and `image-metadata.json` legitimately embed the
+    // per-leg peer URL, random ids and generation timings, so their PROJECTED digest is compared and the named
+    // normalisations are recorded. A change outside those members still changes the projected digest and reds.
     const problems = [];
-    const digestByPath = leg => new Map((leg?.layers?.persistence?.tree?.files ?? []).map(file => [file.path, file.sha256]));
+    const jsonText = (leg, filePath) => (leg?.layers?.persistence?.jsonFiles ?? []).find(file => file.path === filePath)?.text ?? null;
     const changed = leg => (leg?.persistenceDiff ? [...leg.persistenceDiff.created, ...leg.persistenceDiff.modified] : []).filter(entry => !isExcludedPath(entry.path));
-    const left = changed(legs.driveGotavern);
     const rightChanged = new Map(changed(legs.drivePinned).map(entry => [entry.path, entry.sha256]));
-    const leftDigests = digestByPath(legs.driveGotavern);
-    for (const entry of left) {
-        if (entry.path.endsWith('.jsonl')) continue; // handled structurally below
+    for (const entry of changed(legs.driveGotavern)) {
+        if (entry.path.endsWith('.jsonl')) continue;
         if (!isProductSurface(entry.path)) continue;
         const otherSha = rightChanged.get(entry.path);
         if (otherSha === undefined) continue;
+        const leftText = jsonText(legs.driveGotavern, entry.path);
+        const rightText = jsonText(legs.drivePinned, entry.path);
+        if (leftText !== null && rightText !== null) {
+            const leftProjected = projectBodyForComparison(leftText);
+            const rightProjected = projectBodyForComparison(rightText);
+            if (leftProjected !== rightProjected) problems.push(`${entry.path}: content differs after named projection (raw ${entry.sha256.slice(0, 12)} vs ${otherSha.slice(0, 12)})`);
+            continue;
+        }
         if (entry.sha256 !== otherSha) problems.push(`${entry.path}: written bytes differ (${entry.sha256.slice(0, 12)} vs ${otherSha.slice(0, 12)})`);
-        void leftDigests;
     }
     return problems;
 });
@@ -644,6 +892,7 @@ const applied = NORMALISATIONS.filter(entry => appliedNormalisations.has(entry.i
 
 const comparison = {
     schema: 'a19-live-oracle-comparison-v1',
+    details,
     corpusOrigin,
     corpusTreeSha256,
     guards,
