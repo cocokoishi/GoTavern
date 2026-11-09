@@ -771,8 +771,38 @@ async function importPresets(page, ctx, round, plan, presetStartIndex) {
 async function openCardAndNewChat(page, cardName) {
     const opened = await openCharacter(page, cardName);
     if (opened.opened !== true) return { ok: false, stage: 'open-card', opened };
-    const newChat = await startNewChat(page);
-    if (newChat.ok !== true) return { ok: false, stage: 'new-chat', newChat, opened };
+    let newChat = await startNewChat(page);
+    if (newChat.ok !== true) {
+        // A SELECTED GROUP BLOCKS THE CHARACTER CHAT PATH. Measured on a fresh root: after the group phase
+        // (or a leftover group selection) `startNewChat` confirmed but the id did not change — the product is
+        // still on the group surface. Clear the selection through the owning module and retry once, exactly
+        // like a user returning to a character; the reset and the retry are both recorded.
+        const groupState = await page.evaluate(async () => {
+            const groupChats = await import('./scripts/group-chats.js');
+            const context = window.SillyTavern?.getContext?.() ?? null;
+            return { selectedGroup: groupChats.selected_group ?? context?.groupId ?? null };
+        });
+        if (groupState.selectedGroup !== null && groupState.selectedGroup !== undefined) {
+            const reset = await page.evaluate(async () => {
+                const groupChats = await import('./scripts/group-chats.js');
+                try {
+                    await groupChats.resetSelectedGroup();
+                    return { ok: true };
+                } catch (error) {
+                    return { ok: false, reason: String(error?.message ?? error) };
+                }
+            });
+            if (reset.ok) {
+                await page.waitForTimeout(500);
+                await openCharacter(page, cardName).catch(() => null);
+                const retry = await startNewChat(page);
+                if (retry.ok === true) return { ok: true, opened, newChat: retry, chatId: retry.after?.chatId ?? null, groupReset: true, retriedAfterGroupReset: true };
+                newChat = retry;
+            }
+            return { ok: false, stage: 'new-chat-after-group-reset', newChat, opened, groupState, reset };
+        }
+        return { ok: false, stage: 'new-chat', newChat, opened, groupState };
+    }
     return { ok: true, opened, newChat, chatId: newChat.after?.chatId ?? null };
 }
 
@@ -1109,21 +1139,52 @@ async function reloadAndReopen(page, cardName, chatFile) {
 
 async function createGroupThroughPanel(page, { name, memberNames, activationStrategy, generationMode }) {
     return page.evaluate(async inputs => {
-        const open = document.querySelector('#rm_button_group_chats');
-        if (!open) return { ok: false, reason: 'no #rm_button_group_chats control' };
-        open.click();
-        const deadline = Date.now() + 25000;
-        let available = [];
-        while (Date.now() < deadline) {
-            available = [...document.querySelectorAll('#rm_group_add_members .group_member')];
-            if (available.length > 0) break;
-            await new Promise(resolve => setTimeout(resolve, 200));
+        const normalise = value => String(value ?? '').replace(/\s+/g, ' ').trim();
+        // DETERMINISTIC OPEN: one click on the Group Chats control, then wait for the create dialog's member
+        // list. A second click is attempted only if the first produced no members (the drawer may have been
+        // already open from a previous group, in which case the click CLOSES it).
+        const openPanel = async () => {
+            const control = document.querySelector('#rm_button_group_chats');
+            if (!control) return false;
+            const present = () => document.querySelectorAll('#rm_group_add_members .group_member').length > 0;
+            if (!present()) {
+                control.click();
+                const deadline = Date.now() + 25000;
+                while (Date.now() < deadline) {
+                    if (present()) return true;
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+                return present();
+            }
+            return true;
+        };
+        let ready = await openPanel();
+        if (!ready) {
+            const control = document.querySelector('#rm_button_group_chats');
+            if (control) {
+                control.click();
+                const deadline = Date.now() + 25000;
+                while (Date.now() < deadline) {
+                    if (document.querySelectorAll('#rm_group_add_members .group_member').length > 0) { ready = true; break; }
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                }
+            }
         }
-        if (available.length === 0) return { ok: false, reason: 'the group panel listed no characters' };
+        if (!ready) return { ok: false, reason: 'the group panel listed no characters' };
+        // THE FILTER MUST BE EMPTY: a leftover members filter hides candidates, which is how a zero-member
+        // group could be submitted while the requested names were "available".
+        const filter = document.querySelector('#rm_group_members_filter');
+        if (filter) {
+            filter.value = '';
+            filter.dispatchEvent(new Event('input', { bubbles: true }));
+            filter.dispatchEvent(new Event('change', { bubbles: true }));
+            await new Promise(resolve => setTimeout(resolve, 250));
+        }
+        const memberBlocks = () => [...document.querySelectorAll('#rm_group_add_members .group_member')];
+        const availableNames = memberBlocks().map(element => normalise(element.querySelector('.ch_name')?.textContent ?? element.textContent));
         const added = [];
         for (const member of inputs.memberNames) {
-            const block = [...document.querySelectorAll('#rm_group_add_members .group_member')]
-                .find(element => String(element.querySelector('.ch_name')?.textContent ?? element.textContent).trim() === member);
+            const block = memberBlocks().find(element => normalise(element.querySelector('.ch_name')?.textContent ?? element.textContent) === normalise(member));
             if (block) {
                 // THE ADD ACTION IS THE BLOCK'S ACTION BUTTON ("data-action=add"), NOT THE BLOCK ITSELF:
                 // the document-delegated `onGroupActionClick` handler is what pushes into newGroupMembers.
@@ -1133,6 +1194,12 @@ async function createGroupThroughPanel(page, { name, memberNames, activationStra
                 added.push(member);
                 await new Promise(resolve => setTimeout(resolve, 400));
             }
+        }
+        // THE GUARD: NEVER SUBMIT A DIALOG THAT DID NOT ACCEPT EVERY REQUESTED MEMBER. A zero-member group was
+        // submitted in CI because the add buttons were clicked but the dialog had no rows for those names;
+        // the target counter then counted a group nobody could chat in.
+        if (added.length !== inputs.memberNames.length) {
+            return { ok: false, reason: 'the create-group dialog did not list every requested member', added, requested: inputs.memberNames, availableNames };
         }
         const setValue = (selector, value, events = ['input', 'change']) => {
             const field = document.querySelector(selector);
@@ -1145,7 +1212,7 @@ async function createGroupThroughPanel(page, { name, memberNames, activationStra
         if (inputs.activationStrategy !== undefined) setValue('#rm_group_activation_strategy', inputs.activationStrategy);
         if (inputs.generationMode !== undefined) setValue('#rm_group_generation_mode', inputs.generationMode);
         const submit = document.querySelector('#rm_group_submit');
-        if (!submit) return { ok: false, reason: 'no #rm_group_submit control', added };
+        if (!submit) return { ok: false, reason: 'no #rm_group_submit control', added, availableNames };
         submit.click();
         const createDeadline = Date.now() + 30000;
         let group = null;
@@ -1154,11 +1221,25 @@ async function createGroupThroughPanel(page, { name, memberNames, activationStra
             if (response.ok) {
                 const groups = await response.json();
                 group = groups.find(candidate => candidate.name === inputs.name) ?? null;
-                if (group) return { ok: true, added, memberCount: Array.isArray(group.members) ? group.members.length : 0, group: { id: group.id, name: group.name, members: group.members, activation_strategy: group.activation_strategy, generation_mode: group.generation_mode } };
+                if (group) break;
             }
             await new Promise(resolve => setTimeout(resolve, 300));
         }
-        return { ok: false, reason: 'the group never appeared in /api/groups/all', added };
+        if (!group) return { ok: false, reason: 'the group never appeared in /api/groups/all', added, availableNames };
+        const memberCount = Array.isArray(group.members) ? group.members.length : 0;
+        const summary = { id: group.id, name: group.name, members: group.members, activation_strategy: group.activation_strategy, generation_mode: group.generation_mode };
+        if (memberCount === 0) {
+            // AN EMPTY GROUP MUST NEVER ENTER THE CORPUS: delete it through the product's own route, then fail
+            // the step with the observed shape.
+            const headers = (await import('./script.js')).getRequestHeaders();
+            let deleted = false;
+            try {
+                const response = await fetch('/api/groups/delete', { method: 'POST', headers, body: JSON.stringify({ id: group.id }) });
+                deleted = response.ok;
+            } catch { deleted = false; }
+            return { ok: false, reason: 'the product created a ZERO-MEMBER group; it was deleted through /api/groups/delete', added, availableNames, deletedEmptyGroup: deleted, group: summary };
+        }
+        return { ok: true, added, memberCount, group: summary, availableNames };
     }, { name, memberNames, activationStrategy, generationMode });
 }
 
