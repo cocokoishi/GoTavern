@@ -226,3 +226,59 @@ FILE and asserting the listing reports `ok=false` and the projection equals the 
 
 
 
+
+## C2 — parse the runtime config.yaml once per process (commit `<filled at commit>`)
+
+**Files:** `internal/server/pinned_chat_config.go` (per-path parsed-document cache) and the C2 tests in
+`internal/server/a19_perf_pins_test.go`. No new production file.
+
+**What changed:** the provider-facing config reader (`pinnedChatConfigSource`) re-read and re-YAML-parsed
+config.yaml on EVERY `getConfigValue` call, several times per chat-completion request. It now parses each resolved
+candidate path once and caches the PARSED document for the process lifetime, which is what pinned does
+(`getConfig()`: `if (CACHED_CONFIG) return CACHED_CONFIG`, `src/util.js:61-73`). The environment override is still
+evaluated before the file on every call, and unreadable/malformed files still fall through to the next candidate, so
+the precedence and fallback order are unchanged.
+
+**THIS IS A PARITY FIX, NOT ONLY A PERF WIN.** The old per-request read meant GoTavern observed a config.yaml edit
+made while the server was running; pinned does not. Probe `tools/perf/a19-pinned-config-refresh.mjs` (+ artifacts):
+
+| leg | pinned (`c2-pinned-config-refresh.json`) | GoTavern PRE-C2 (`c2-gotavern-before.json`) | GoTavern POST-C2 (`c2-gotavern-after.json`) |
+|---|---|---|---|
+| 1. boot with `x-a19-probe: baseline` | `baseline` | `baseline` | `baseline` |
+| 2. MUTATE config.yaml to `mutated` while running, same request | **`baseline`** | **`mutated`** | **`baseline`** |
+| 3. control: restart with the mutated config | `mutated` | `mutated` | `mutated` |
+| verdict | STARTUP-ONLY | RUNTIME RE-READ (divergence) | STARTUP-ONLY (pinned parity) |
+
+The observed value is the outbound provider request header `x-a19-probe`, read from `requestOverrides` — a key
+pinned resolves through `getConfigValue` at REQUEST time (`src/additional-headers.js:203`), so a stale leg 2 shows
+the whole document is cached, not merely a module-load constant. Leg 3 in every run makes the probe non-vacuous:
+it proves the mutated value WOULD be observed by a fresh process. The GoTavern legs drive the kobold generate route,
+which builds its provider request through `pinnedApplyRequestOverrides` → `pinnedChatConfigValue`, the function this
+commit caches.
+
+**CPU profile** (relay mode, 300 profiled requests + 20 warmup, same `trees/base`; before = worktree at `2e10ef3`):
+
+| measurement | BEFORE (pre-C2) | AFTER (C2) |
+|---|---:|---:|
+| `pinnedChatConfigSource.fileValue` cumulative CPU | **0.29 s of 1.25 s samples (23.2%)** | not in the top list; `value`/`boolValue` **10 ms of 780 ms (1.28%)** |
+| `gopkg.in/yaml.v3` parser cumulative CPU | ~9.6% + the parse helpers (each 0.8-4.8%) | absent from the top list |
+| window duration | 1.17 s | 766 ms |
+
+The absolute window durations are load-dependent and are not the claim; the cumulative shares and the disappearance
+of the YAML parser from the profile are. Artifacts: `profiles/c2-before-relay-*`, `profiles/c2-after-relay-*`.
+
+**Behaviour change (recorded, not sneaked):** mutating config.yaml while GoTavern runs no longer changes
+provider-visible values; a restart is required, exactly as in pinned. This is asserted by
+`TestA19PinnedChatConfigIsStartupOnlyLikePinned` (read → mutate file → read again must return the startup value; a
+cleared cache then returns the mutated value, proving the file really changed) and
+`TestA19PinnedChatConfigEnvironmentOverrideWinsEveryRead` (the `SILLYTAVERN_<KEY>` override still wins on every
+call, including after the document is cached). **Teeth:** replacing the cache lookup with a per-read bypass turns
+the first test red on its named assertion (`read after mutating config.yaml = "runtime-value", want
+"startup-value"`); restoring the lookup is green, SHA-256 verified.
+
+**Regressions:** none measured. Allocations are unchanged by construction for the card routes (the cache only
+touches config reads); the config-sensitive targeted set is green (`requestOverrides`, `pinnedChat*`, tokenizer
+remote, claude/google/openai media, chat backup, characters oracle — 37 matched tests, 4.5 s). The 13 other
+`entries()`-era contracts are unaffected. **Not claimed:** ns/op (host load), and the cache is process-wide, so a
+test that rewrote the SAME config path mid-process would now observe the first parse — no such test exists in the
+tree (searched; the runtime-config tests build a fresh path per case).

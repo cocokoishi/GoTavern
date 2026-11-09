@@ -833,3 +833,75 @@ func TestA19ChatListingFallsBackWhenTheChatsRootCannotBeListed(t *testing.T) {
 		}
 	}
 }
+
+// --- 6. C2: pinned parses config.yaml once, so a config the process already read is NOT re-observed ---------------
+
+// TestA19PinnedChatConfigIsStartupOnlyLikePinned is the GoTavern leg2 control the pinned probe justifies
+// (docs/alpha19/perf/profiles/c2-pinned-config-refresh.json: leg1 baseline, leg2 STILL baseline after a live
+// config.yaml mutation, leg3 control mutated after restart). The test takes the same three steps at the reader:
+// read, mutate the file, read again -- the second read must return the value parsed at "startup". A cache that
+// stat-validated the file would return the mutated value and fail here, which is why C2 is start-up-only rather
+// than a freshness check; the restart-equivalent (cleared cache) proves the mutated file IS readable, so the
+// stale read is the contract and not a vacuous ""file unchanged"" result.
+func TestA19PinnedChatConfigIsStartupOnlyLikePinned(t *testing.T) {
+	resetPinnedChatConfigCacheForTesting()
+	t.Cleanup(resetPinnedChatConfigCacheForTesting)
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	writeConfig := func(marker string) {
+		t.Helper()
+		if err := os.WriteFile(configPath, []byte("promptPlaceholder: "+marker+"\n"), 0o600); err != nil {
+			t.Fatalf("write config.yaml: %v", err)
+		}
+	}
+	source := pinnedChatConfigSource{file: configPath}
+	value := func() string {
+		t.Helper()
+		got, ok := source.value([]string{"promptPlaceholder"})
+		if !ok {
+			t.Fatal("promptPlaceholder was not resolved from the written config.yaml")
+		}
+		text, ok := got.(string)
+		if !ok {
+			t.Fatalf("promptPlaceholder = %#v, want a string", got)
+		}
+		return text
+	}
+
+	writeConfig("startup-value")
+	if got := value(); got != "startup-value" {
+		t.Fatalf("first read = %q, want %q (the file was just written)", got, "startup-value")
+	}
+	writeConfig("runtime-value")
+	if got := value(); got != "startup-value" {
+		t.Fatalf("read after mutating config.yaml = %q, want %q: pinned observes the startup parse (probe leg2), so a "+
+			"runtime mutation must not change the provider-visible config. A value of \"runtime-value\" means the cache "+
+			"stat-validates the file, which is the divergence this test exists to forbid", got, "startup-value")
+	}
+
+	// Restart-equivalent: a new process would parse the file again. This proves the file really says "runtime-value"
+	// and the previous assertion was not reading a file that never changed.
+	resetPinnedChatConfigCacheForTesting()
+	if got := value(); got != "runtime-value" {
+		t.Fatalf("after a restart-equivalent cache clear the read = %q, want %q", got, "runtime-value")
+	}
+}
+
+// TestA19PinnedChatConfigEnvironmentOverrideWinsEveryRead pins the precedence the cache must not disturb: pinned's
+// getConfigValue reads SILLYTAVERN_<KEY> BEFORE the file on every call (src/util.js:88-98), so a cached document
+// may never shadow an environment override, including one that appears after the file was cached.
+func TestA19PinnedChatConfigEnvironmentOverrideWinsEveryRead(t *testing.T) {
+	resetPinnedChatConfigCacheForTesting()
+	t.Cleanup(resetPinnedChatConfigCacheForTesting)
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("promptPlaceholder: file-value\n"), 0o600); err != nil {
+		t.Fatalf("write config.yaml: %v", err)
+	}
+	source := pinnedChatConfigSource{file: configPath}
+	if got := source.stringValue([]string{"promptPlaceholder"}, "fallback"); got != "file-value" {
+		t.Fatalf("without an override = %q, want %q", got, "file-value")
+	}
+	t.Setenv("SILLYTAVERN_PROMPTPLACEHOLDER", "environment-value")
+	if got := source.stringValue([]string{"promptPlaceholder"}, "fallback"); got != "environment-value" {
+		t.Fatalf("with the environment override = %q, want %q: the parsed-config cache must not beat the environment", got, "environment-value")
+	}
+}

@@ -80,6 +80,13 @@ func TestPinnedThoughtSignaturesResolution(t *testing.T) {
 	}
 
 	unsetEnvForTest(t, "SILLYTAVERN_GEMINI_THOUGHTSIGNATURES")
+	// The rewrite below models a RESTART, not a live edit. Pinned parses config.yaml once per process
+	// (`getConfig()` caches CACHED_CONFIG, src/util.js:61-73) and does NOT observe a file rewritten while it
+	// runs -- observed, not derived: docs/alpha19/perf/profiles/c2-pinned-config-refresh.json leg 2 shows the
+	// old value after a live mutation, and leg 3's control shows the new value only after a restart. The
+	// process-level parse cache this arm exercises (C2) is therefore cleared here exactly as a new process
+	// would start empty; every assertion below is unchanged.
+	resetPinnedChatConfigCacheForTesting()
 	writeOpenRouterTestConfig(t, directories, "enableUserAccounts: true\n")
 	if !pinnedThoughtSignatures(pinnedChatConfigFromDirectories(directories)) {
 		t.Fatalf("an absent gemini section must take the pinned default, true (default/config.yaml:382)")
