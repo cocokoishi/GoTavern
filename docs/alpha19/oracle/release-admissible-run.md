@@ -10,7 +10,7 @@ the publish job. Nothing in this file is a CI verdict.
 | field | value |
 |---|---|
 | run | release-admissible run 6 (the first run with all five layers `match`) |
-| candidate code SHA | `dc436aa34c9f5238cda2c88f3fd74864f3d99923` (clean worktree `a19-release`, 0 dirty) |
+| candidate code SHA | `dc436aa` (short form; the full 40-hex SHA and the binary hash are in `a19-diff/release6/run-facts.txt`, and the same-SHA authority is the CI dispatch at the frozen candidate) (clean worktree `a19-release`, 0 dirty) |
 | subject binary | `b9c240cfc6453a402a0ba4f3d812b7d0e1b5c05ead6e6ae7a849b81c7f97d060` (67 MB, `-trimpath`) |
 | corpus | `a19-oracle/corpus` — 978 files / 49,898,769 B / tree `06d68e057085abad28d4e3bfc19df71cf91d9ea612ad6907bd67b38784d3a2ba` |
 | corpus manifest | `corpus-manifest-v2.json`, sha256 `25caa60c871cde4348c22ed24baac18aaf6911ebc065d3e6ba74d95fcc61b1d9` |
