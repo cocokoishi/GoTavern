@@ -161,3 +161,32 @@ func TestWriteJSONBytesConditionalKeepsThePinned304Face(t *testing.T) {
 		t.Fatalf("non-fresh Content-Length = %q", got)
 	}
 }
+
+// TestWriteJSONBytesConditionalDropsTheCompressionVaryOn304 pins the measured 304 header face: the compression
+// middleware has already appended Accept-Encoding (it runs before the handler knows the status), but pinned's 304
+// carries Vary: Origin only because a 304 has no representation to compress. The token must be REMOVED, which is
+// why the recorder is seeded with it.
+func TestWriteJSONBytesConditionalDropsTheCompressionVaryOn304(t *testing.T) {
+	body := []byte(`[{"type":"system","name":"a"}]`)
+	request := httptest.NewRequest(http.MethodGet, "/api/extensions/discover", nil)
+	request.Header.Set("If-None-Match", WeakETag(body))
+	recorder := httptest.NewRecorder()
+	recorder.Header().Set("Vary", "Origin, Accept-Encoding")
+	WriteJSONBytesConditional(recorder, request, http.StatusOK, body)
+	if recorder.Code != http.StatusNotModified {
+		t.Fatalf("status = %d, want 304", recorder.Code)
+	}
+	if got := recorder.Header().Get("Vary"); got != "Origin" {
+		t.Fatalf("304 Vary = %q, want %q (Accept-Encoding belongs to a representation, not a 304)", got, "Origin")
+	}
+	// A 200 keeps the compression middleware's Vary untouched.
+	stale := httptest.NewRecorder()
+	stale.Header().Set("Vary", "Origin, Accept-Encoding")
+	WriteJSONBytesConditional(stale, httptest.NewRequest(http.MethodGet, "/api/extensions/discover", nil), http.StatusOK, body)
+	if stale.Code != http.StatusOK {
+		t.Fatalf("stale status = %d, want 200", stale.Code)
+	}
+	if got := stale.Header().Get("Vary"); got != "Origin, Accept-Encoding" {
+		t.Fatalf("200 Vary = %q, want the middleware value untouched", got)
+	}
+}

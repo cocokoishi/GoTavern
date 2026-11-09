@@ -111,8 +111,37 @@ func WriteJSONBytesConditional(w http.ResponseWriter, r *http.Request, status in
 	etag := WeakETag(body)
 	if status == http.StatusOK && IsFresh(r, etag) {
 		w.Header().Set("ETag", etag)
+		// THE PINNED 304 FACE (raw-socket measurement, docs/alpha19/findings/layer-b-conditional-get.md):
+		// `Vary: Origin` only. The compression middleware appends Accept-Encoding to a REPRESENTATION it could
+		// compress; a 304 has none, so pinned's 304 does not carry that token. The middleware here has already
+		// appended it (it runs before the handler knows the status), so the token is removed to match.
+		dropAcceptEncodingVary(w.Header())
 		w.WriteHeader(http.StatusNotModified)
 		return
 	}
 	WriteJSONBytes(w, status, body)
+}
+
+// dropAcceptEncodingVary removes the Accept-Encoding token from Vary, leaving the other Vary tokens (and deleting
+// the header entirely when nothing else remains).
+func dropAcceptEncodingVary(header http.Header) {
+	values := header.Values("Vary")
+	if len(values) == 0 {
+		return
+	}
+	tokens := make([]string, 0, len(values))
+	for _, value := range values {
+		for _, token := range strings.Split(value, ",") {
+			token = strings.TrimSpace(token)
+			if token == "" || strings.EqualFold(token, "Accept-Encoding") {
+				continue
+			}
+			tokens = append(tokens, token)
+		}
+	}
+	if len(tokens) == 0 {
+		header.Del("Vary")
+		return
+	}
+	header.Set("Vary", strings.Join(tokens, ", "))
 }

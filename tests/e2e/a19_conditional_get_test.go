@@ -119,6 +119,11 @@ func TestA19ExtensionsDiscoverConditionalGetMatchesPinnedExpressFreshness(t *tes
 		if got := response.Header.Get("ETag"); got != etag {
 			t.Fatalf("a 304 must preserve the ETag %q; got %q", etag, got)
 		}
+		// Pinned's 304 face carries Vary: Origin ONLY (raw-socket measurement): the compression middleware's
+		// Accept-Encoding token describes a representation, and a 304 has none.
+		if got := response.Header.Get("Vary"); got != "Origin" {
+			t.Fatalf("304 Vary = %q, want %q (Accept-Encoding belongs to a representation, not a 304)", got, "Origin")
+		}
 	})
 
 	t.Run("strong form of the same tag is 304", func(t *testing.T) {
