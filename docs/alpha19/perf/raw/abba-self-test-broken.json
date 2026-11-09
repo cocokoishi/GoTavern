@@ -1,0 +1,387 @@
+{
+  "harness": "tools/perf/a19-abba.mjs",
+  "environment": {
+    "git": {
+      "commit": "16948f62b55977eaabb8f22ceaabad55373195bd",
+      "branch": "alpha19/program",
+      "dirty": true
+    },
+    "go": "go version go1.27.3 windows/arm64",
+    "node": "v24.19.0",
+    "os": {
+      "platform": "win32",
+      "arch": "arm64",
+      "release": "10.0.26100"
+    },
+    "cpu": {
+      "model": "virt-7.2",
+      "logicalCores": 2
+    },
+    "totalRamBytes": 12879790080,
+    "loadLabel": "shared host (A/B lanes running): self-test only",
+    "startedAt": "2026-11-09T05:57:38.562Z"
+  },
+  "subjects": [
+    {
+      "role": "baseline",
+      "name": "self",
+      "path": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\bin\\gotavern-abba-self.exe",
+      "sha256": "a780f72b54fec05d23d5c86882c2efbdc01f3519c2b3afec486e34514257d6a6",
+      "sizeBytes": 67363328,
+      "version": "GoTavern 0.0.0-dev"
+    },
+    {
+      "role": "candidate",
+      "name": "self-copy",
+      "path": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\bin\\gotavern-abba-self.exe",
+      "sha256": "a780f72b54fec05d23d5c86882c2efbdc01f3519c2b3afec486e34514257d6a6",
+      "sizeBytes": 67363328,
+      "version": "GoTavern 0.0.0-dev"
+    }
+  ],
+  "parameters": {
+    "baseline": "self",
+    "candidate": "self-copy",
+    "scale": "cards",
+    "cards": 10000,
+    "imageBytes": 4096,
+    "cardBytes": 2048,
+    "chats": 10,
+    "chatBytes": 262144,
+    "worlds": 50,
+    "worldBytes": 32768,
+    "rounds": 2,
+    "requests": 3,
+    "dataRoute": "characters",
+    "pollMs": 2,
+    "workDir": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\abba-self",
+    "out": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\profiles\\abba-self-test.json",
+    "loadLabel": "shared host (A/B lanes running): self-test only"
+  },
+  "order": [
+    {
+      "round": 1,
+      "order": [
+        "self",
+        "self-copy"
+      ]
+    },
+    {
+      "round": 2,
+      "order": [
+        "self-copy",
+        "self"
+      ]
+    }
+  ],
+  "rounds": [
+    {
+      "subject": "self",
+      "rounds": [
+        {
+          "round": 1,
+          "metrics": {
+            "coldBootMs": 3554.85824,
+            "warmBootMs": 251.90772,
+            "coldDataRequestMs": 9444.87156,
+            "warmDataP50Ms": 1936.44516,
+            "warmDataMaxMs": 1936.44516,
+            "coldReadyRssBytes": 29884416,
+            "coldPeakRssBytes": 366555136,
+            "warmReadyRssBytes": 28332032,
+            "statuses": [
+              200
+            ],
+            "errors": []
+          },
+          "artifactPath": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\abba-self\\runs\\round-1-self.json"
+        },
+        {
+          "round": 2,
+          "metrics": {
+            "coldBootMs": 889.36212,
+            "warmBootMs": 308.93492,
+            "coldDataRequestMs": 6751.57532,
+            "warmDataP50Ms": 1922.39992,
+            "warmDataMaxMs": 1922.39992,
+            "coldReadyRssBytes": 32120832,
+            "coldPeakRssBytes": 370872320,
+            "warmReadyRssBytes": 31240192,
+            "statuses": [
+              200
+            ],
+            "errors": []
+          },
+          "artifactPath": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\abba-self\\runs\\round-2-self.json"
+        }
+      ]
+    },
+    {
+      "subject": "self-copy",
+      "rounds": [
+        {
+          "round": 1,
+          "metrics": {
+            "coldBootMs": 1491.01384,
+            "warmBootMs": 271.28256,
+            "coldDataRequestMs": 14729.70436,
+            "warmDataP50Ms": 2133.77084,
+            "warmDataMaxMs": 2133.77084,
+            "coldReadyRssBytes": 31264768,
+            "coldPeakRssBytes": 361168896,
+            "warmReadyRssBytes": 33185792,
+            "statuses": [
+              200
+            ],
+            "errors": []
+          },
+          "artifactPath": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\abba-self\\runs\\round-1-self-copy.json"
+        },
+        {
+          "round": 2,
+          "metrics": {
+            "coldBootMs": 2048.89584,
+            "warmBootMs": 1664.26772,
+            "coldDataRequestMs": 19794.18736,
+            "warmDataP50Ms": 4159.7676,
+            "warmDataMaxMs": 4159.7676,
+            "coldReadyRssBytes": 30736384,
+            "coldPeakRssBytes": 366493696,
+            "warmReadyRssBytes": 29069312,
+            "statuses": [
+              200
+            ],
+            "errors": []
+          },
+          "artifactPath": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\abba-self\\runs\\round-2-self-copy.json"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "coldBootMs": {
+      "label": "spawn -> first GET /version 200, cold boot (lower is better)",
+      "baseline": {
+        "count": 2,
+        "min": 889.36212,
+        "median": 3554.85824,
+        "max": 3554.85824,
+        "series": [
+          889.36212,
+          3554.85824
+        ]
+      },
+      "candidate": {
+        "count": 2,
+        "min": 1491.01384,
+        "median": 2048.89584,
+        "max": 2048.89584,
+        "series": [
+          1491.01384,
+          2048.89584
+        ]
+      },
+      "classification": {
+        "verdict": "not-separable",
+        "detail": "the two per-round series overlap; report as no improvement inside noise"
+      }
+    },
+    "warmBootMs": {
+      "label": "spawn -> first GET /version 200, warm boot (lower is better)",
+      "baseline": {
+        "count": 2,
+        "min": 251.90772,
+        "median": 308.93492,
+        "max": 308.93492,
+        "series": [
+          251.90772,
+          308.93492
+        ]
+      },
+      "candidate": {
+        "count": 2,
+        "min": 271.28256,
+        "median": 1664.26772,
+        "max": 1664.26772,
+        "series": [
+          271.28256,
+          1664.26772
+        ]
+      },
+      "classification": {
+        "verdict": "baseline-better",
+        "detail": "every baseline observation is below every candidate observation"
+      }
+    },
+    "coldDataRequestMs": {
+      "label": "first data request, cold process cache (lower is better)",
+      "baseline": {
+        "count": 2,
+        "min": 6751.57532,
+        "median": 9444.87156,
+        "max": 9444.87156,
+        "series": [
+          6751.57532,
+          9444.87156
+        ]
+      },
+      "candidate": {
+        "count": 2,
+        "min": 14729.70436,
+        "median": 19794.18736,
+        "max": 19794.18736,
+        "series": [
+          14729.70436,
+          19794.18736
+        ]
+      },
+      "classification": {
+        "verdict": "baseline-better",
+        "detail": "every baseline observation is below every candidate observation"
+      }
+    },
+    "warmDataP50Ms": {
+      "label": "data request median over the warm repeats (lower is better)",
+      "baseline": {
+        "count": 2,
+        "min": 1922.39992,
+        "median": 1936.44516,
+        "max": 1936.44516,
+        "series": [
+          1922.39992,
+          1936.44516
+        ]
+      },
+      "candidate": {
+        "count": 2,
+        "min": 2133.77084,
+        "median": 4159.7676,
+        "max": 4159.7676,
+        "series": [
+          2133.77084,
+          4159.7676
+        ]
+      },
+      "classification": {
+        "verdict": "baseline-better",
+        "detail": "every baseline observation is below every candidate observation"
+      }
+    },
+    "warmDataMaxMs": {
+      "label": "data request max over the warm repeats (lower is better)",
+      "baseline": {
+        "count": 2,
+        "min": 1922.39992,
+        "median": 1936.44516,
+        "max": 1936.44516,
+        "series": [
+          1922.39992,
+          1936.44516
+        ]
+      },
+      "candidate": {
+        "count": 2,
+        "min": 2133.77084,
+        "median": 4159.7676,
+        "max": 4159.7676,
+        "series": [
+          2133.77084,
+          4159.7676
+        ]
+      },
+      "classification": {
+        "verdict": "baseline-better",
+        "detail": "every baseline observation is below every candidate observation"
+      }
+    },
+    "coldReadyRssBytes": {
+      "label": "RSS at cold readiness (lower is better)",
+      "baseline": {
+        "count": 2,
+        "min": 29884416,
+        "median": 32120832,
+        "max": 32120832,
+        "series": [
+          29884416,
+          32120832
+        ]
+      },
+      "candidate": {
+        "count": 2,
+        "min": 30736384,
+        "median": 31264768,
+        "max": 31264768,
+        "series": [
+          30736384,
+          31264768
+        ]
+      },
+      "classification": {
+        "verdict": "not-separable",
+        "detail": "the two per-round series overlap; report as no improvement inside noise"
+      }
+    },
+    "coldPeakRssBytes": {
+      "label": "PEAK RSS after the cold round (procstat; lower is better)",
+      "baseline": {
+        "count": 2,
+        "min": 366555136,
+        "median": 370872320,
+        "max": 370872320,
+        "series": [
+          366555136,
+          370872320
+        ]
+      },
+      "candidate": {
+        "count": 2,
+        "min": 361168896,
+        "median": 366493696,
+        "max": 366493696,
+        "series": [
+          361168896,
+          366493696
+        ]
+      },
+      "classification": {
+        "verdict": "candidate-better",
+        "detail": "every candidate observation is below every baseline observation"
+      }
+    },
+    "warmReadyRssBytes": {
+      "label": "RSS at warm readiness (lower is better)",
+      "baseline": {
+        "count": 2,
+        "min": 28332032,
+        "median": 31240192,
+        "max": 31240192,
+        "series": [
+          28332032,
+          31240192
+        ]
+      },
+      "candidate": {
+        "count": 2,
+        "min": 29069312,
+        "median": 33185792,
+        "max": 33185792,
+        "series": [
+          29069312,
+          33185792
+        ]
+      },
+      "classification": {
+        "verdict": "not-separable",
+        "detail": "the two per-round series overlap; report as no improvement inside noise"
+      }
+    }
+  },
+  "notes": [
+    "Process-level facts only: boot, RSS (procstat PeakWorkingSetSize/VmHWM), and HTTP latency. B/op and allocs/op are NOT measured here; they come from internal/server/bench_test.go and are deterministic.",
+    "Separation rule: a metric is only called an improvement when every candidate observation is better than every baseline observation over the paired rounds; otherwise it is reported as not separable.",
+    "Identical-subject self-test: point --baseline and --candidate at the SAME binary. A separation reported there is a harness defect.",
+    "Windows stop is abrupt (child.kill / taskkill); cold and warm are separate boots over the same round tree."
+  ],
+  "failures": [],
+  "finishedAt": "2026-11-09T06:04:22.859Z"
+}

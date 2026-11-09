@@ -6,9 +6,13 @@
 // cold and warm reported separately, CPU and memory separately, with the claim surviving the spread. A single
 // a19-boot run of one binary cannot make a paired claim: the host's load drifts between runs, and on this
 // 2-core host the drift is larger than most per-change deltas. This wrapper interleaves the two subjects round
-// by round (order flipped every round), runs the SAME a19-boot harness for both, and applies the alpha.18
-// separation rule: a change is only called an improvement when EVERY candidate observation is better than
-// EVERY baseline observation. Otherwise the row is reported as "not separable".
+// by round (order flipped every round), runs the SAME a19-boot harness for both, and applies a TWO-PART
+// separation rule: a change is only called an improvement when (a) EVERY candidate observation is better than
+// EVERY baseline observation and (b) neither subject's own repeats spread by more than 20% (A19_ABBA_MAX_SPREAD).
+// Otherwise the row is reported as "not separable". Part (b) is not decoration: the first self-test run of this
+// harness (two runs of the SAME binary, host shared with two other lanes) produced non-overlapping series and a
+// confident "baseline-better" verdict for identical subjects, because a load spike landed inside one subject's
+// repeats. A harness that can do that is broken, so the data-quality gate is part of the classification.
 //
 // It deliberately measures PROCESS-level facts only (boot, RSS, HTTP latency). Allocation totals (`B/op`,
 // `allocs/op`) are deterministic and come from internal/server/bench_test.go; this file never mixes the two.
@@ -150,16 +154,74 @@ function summarise(values) {
 }
 
 // lower-wins classification over the paired rounds. `left` is the baseline series, `right` the candidate.
-// Separable only when the two series do not overlap at all; equal values are NOT separable.
-function classify(left, right) {
+//
+// A NON-OVERLAP TEST ALONE IS NOT ENOUGH, and the harness's own self-test is what proved it: two runs of the
+// SAME binary on a host with a co-tenant load spike produced non-overlapping series (e.g. warm-data p50 1936/1922
+// ms against 2133/4159 ms) and the wrapper confidently reported "baseline-better" for identical subjects. The
+// order flip cannot cancel a spike that lands inside one subject's repeats, so the data itself has to be gated:
+// a metric is only separable when the two series do not overlap AND neither subject's own repeats spread by more
+// than `maxSpread` (relative, default 0.20). A metric that fails the spread gate is reported as not separable
+// with the measured spread in the detail, which is the honest reading: the host could not hold a condition still
+// long enough to support the claim. On a quiet host identical subjects spread far below the threshold and the
+// self-test passes; on a loaded host it now says "not separable" instead of inventing a winner.
+const MAX_WITHIN_SUBJECT_SPREAD = Number(process.env.A19_ABBA_MAX_SPREAD ?? 0.20);
+// A second, independent gate: a real claim must also be substantively larger than the drift between two runs of
+// the same binary. The first noise-gated self-test still reported a winner on coldReadyRssBytes for IDENTICAL
+// subjects (31.44 MB vs 32.94 MB, 4.8%) because RSS repeats are tight and their ranges merely did not overlap.
+// Anything below this effect floor is not claimable at process level on any host, so it is reported as not
+// separable with the measured difference named.
+const MIN_RELATIVE_EFFECT = Number(process.env.A19_ABBA_MIN_EFFECT ?? 0.05);
+
+function relativeSpread(values) {
+    if (values.length < 2) return 0;
+    const low = Math.min(...values);
+    const high = Math.max(...values);
+    if (low <= 0) return high > 0 ? Infinity : 0;
+    return (high - low) / low;
+}
+
+function classify(left, right, effectFloor = MIN_RELATIVE_EFFECT) {
     if (!left.length || left.length !== right.length) {
         return { verdict: 'incomplete', detail: 'series lengths differ or are empty' };
     }
+    const leftSpread = relativeSpread(left);
+    const rightSpread = relativeSpread(right);
+    const noiseSpread = Math.max(leftSpread, rightSpread);
+    const leftMedian = median(left);
+    const rightMedian = median(right);
+    const effect = leftMedian > 0 ? Math.abs(rightMedian - leftMedian) / leftMedian : 0;
+    const applyNoiseGate = verdict => {
+        if (noiseSpread > MAX_WITHIN_SUBJECT_SPREAD) {
+            return {
+                verdict: 'not-separable',
+                detail: `within-subject spread ${(noiseSpread * 100).toFixed(1)}% exceeds ${(MAX_WITHIN_SUBJECT_SPREAD * 100).toFixed(0)}%; the host did not hold still, so no direction is claimable`,
+                leftSpread,
+                rightSpread,
+                effect,
+            };
+        }
+        if (effect < effectFloor) {
+            return {
+                verdict: 'not-separable',
+                detail: `median difference ${(effect * 100).toFixed(1)}% is below the ${(effectFloor * 100).toFixed(0)}% effect floor; the row is not claimable`,
+                leftSpread,
+                rightSpread,
+                effect,
+            };
+        }
+        return {
+            verdict,
+            detail: `non-overlapping series, within-subject spread ${(noiseSpread * 100).toFixed(1)}%, median difference ${(effect * 100).toFixed(1)}%`,
+            leftSpread,
+            rightSpread,
+            effect,
+        };
+    };
     const allRightLower = right.every((value, index) => value < left[index]);
     const allLeftLower = left.every((value, index) => value < right[index]);
-    if (allRightLower) return { verdict: 'candidate-better', detail: 'every candidate observation is below every baseline observation' };
-    if (allLeftLower) return { verdict: 'baseline-better', detail: 'every baseline observation is below every candidate observation' };
-    return { verdict: 'not-separable', detail: 'the two per-round series overlap; report as no improvement inside noise' };
+    if (allRightLower) return applyNoiseGate('candidate-better');
+    if (allLeftLower) return applyNoiseGate('baseline-better');
+    return { verdict: 'not-separable', detail: 'the two per-round series overlap; report as no improvement inside noise', leftSpread, rightSpread };
 }
 
 function routeRows(bootRound, key) {
@@ -271,6 +333,15 @@ function main() {
     }
 
     const metricNames = ['coldBootMs', 'warmBootMs', 'coldDataRequestMs', 'warmDataP50Ms', 'warmDataMaxMs', 'coldReadyRssBytes', 'coldPeakRssBytes', 'warmReadyRssBytes'];
+    // RSS rows need a LARGER effect floor than latency rows: two consecutive runs of the SAME binary on this host
+    // produced peak-RSS medians 12.7% apart (368.7 MB vs 321.9 MB), so a 5% floor would let identical subjects be
+    // called a winner. The floor is per metric and stated in the artifact; a real RSS regression (a leak) is far
+    // above it. Until a quiet-window self-test comes out all-not-separable, peak RSS stays UNPROVEN anyway.
+    const effectFloors = {
+        coldReadyRssBytes: 0.15,
+        coldPeakRssBytes: 0.25,
+        warmReadyRssBytes: 0.15,
+    };
     const metricLabels = {
         coldBootMs: 'spawn -> first GET /version 200, cold boot (lower is better)',
         warmBootMs: 'spawn -> first GET /version 200, warm boot (lower is better)',
@@ -289,7 +360,8 @@ function main() {
             label: metricLabels[metric],
             baseline: summarise(baselineSeries),
             candidate: summarise(candidateSeries),
-            classification: classify(baselineSeries, candidateSeries),
+            classification: classify(baselineSeries, candidateSeries, effectFloors[metric] ?? MIN_RELATIVE_EFFECT),
+            effectFloor: effectFloors[metric] ?? MIN_RELATIVE_EFFECT,
         };
     }
     artifact.summary = summary;

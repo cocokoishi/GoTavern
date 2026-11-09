@@ -1,0 +1,471 @@
+{
+  "harness": "tools/perf/a19-abba.mjs",
+  "environment": {
+    "git": {
+      "commit": "1b24d6184a513ad76c6f62839bd3ef50efde5af0",
+      "branch": "alpha19/program",
+      "dirty": true
+    },
+    "go": "go version go1.27.3 windows/arm64",
+    "node": "v24.19.0",
+    "os": {
+      "platform": "win32",
+      "arch": "arm64",
+      "release": "10.0.26100"
+    },
+    "cpu": {
+      "model": "virt-7.2",
+      "logicalCores": 2
+    },
+    "totalRamBytes": 12879790080,
+    "loadLabel": "shared host (A/B lanes running): self-test only",
+    "startedAt": "2026-11-09T06:15:52.857Z"
+  },
+  "subjects": [
+    {
+      "role": "baseline",
+      "name": "self",
+      "path": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\bin\\gotavern-abba-self.exe",
+      "sha256": "a780f72b54fec05d23d5c86882c2efbdc01f3519c2b3afec486e34514257d6a6",
+      "sizeBytes": 67363328,
+      "version": "GoTavern 0.0.0-dev"
+    },
+    {
+      "role": "candidate",
+      "name": "self-copy",
+      "path": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\bin\\gotavern-abba-self.exe",
+      "sha256": "a780f72b54fec05d23d5c86882c2efbdc01f3519c2b3afec486e34514257d6a6",
+      "sizeBytes": 67363328,
+      "version": "GoTavern 0.0.0-dev"
+    }
+  ],
+  "parameters": {
+    "baseline": "self",
+    "candidate": "self-copy",
+    "scale": "cards",
+    "cards": 10000,
+    "imageBytes": 4096,
+    "cardBytes": 2048,
+    "chats": 10,
+    "chatBytes": 262144,
+    "worlds": 50,
+    "worldBytes": 32768,
+    "rounds": 3,
+    "requests": 3,
+    "dataRoute": "characters",
+    "pollMs": 2,
+    "workDir": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\abba-self",
+    "out": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\profiles\\abba-self-test-4.json",
+    "loadLabel": "shared host (A/B lanes running): self-test only"
+  },
+  "order": [
+    {
+      "round": 1,
+      "order": [
+        "self",
+        "self-copy"
+      ]
+    },
+    {
+      "round": 2,
+      "order": [
+        "self-copy",
+        "self"
+      ]
+    },
+    {
+      "round": 3,
+      "order": [
+        "self",
+        "self-copy"
+      ]
+    }
+  ],
+  "rounds": [
+    {
+      "subject": "self",
+      "rounds": [
+        {
+          "round": 1,
+          "metrics": {
+            "coldBootMs": 1638.65228,
+            "warmBootMs": 235.9652,
+            "coldDataRequestMs": 20885.52112,
+            "warmDataP50Ms": 2550.99148,
+            "warmDataMaxMs": 2550.99148,
+            "coldReadyRssBytes": 32133120,
+            "coldPeakRssBytes": 337776640,
+            "warmReadyRssBytes": 27058176,
+            "statuses": [
+              200
+            ],
+            "errors": []
+          },
+          "artifactPath": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\abba-self\\runs\\round-1-self.json"
+        },
+        {
+          "round": 2,
+          "metrics": {
+            "coldBootMs": 557.11372,
+            "warmBootMs": 386.57072,
+            "coldDataRequestMs": 7897.81044,
+            "warmDataP50Ms": 3003.32092,
+            "warmDataMaxMs": 3003.32092,
+            "coldReadyRssBytes": 31793152,
+            "coldPeakRssBytes": 365318144,
+            "warmReadyRssBytes": 27807744,
+            "statuses": [
+              200
+            ],
+            "errors": []
+          },
+          "artifactPath": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\abba-self\\runs\\round-2-self.json"
+        },
+        {
+          "round": 3,
+          "metrics": {
+            "coldBootMs": 696.02924,
+            "warmBootMs": 174.41192,
+            "coldDataRequestMs": 6036.72532,
+            "warmDataP50Ms": 1693.2172,
+            "warmDataMaxMs": 1693.2172,
+            "coldReadyRssBytes": 30281728,
+            "coldPeakRssBytes": 322097152,
+            "warmReadyRssBytes": 33914880,
+            "statuses": [
+              200
+            ],
+            "errors": []
+          },
+          "artifactPath": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\abba-self\\runs\\round-3-self.json"
+        }
+      ]
+    },
+    {
+      "subject": "self-copy",
+      "rounds": [
+        {
+          "round": 1,
+          "metrics": {
+            "coldBootMs": 497.95508,
+            "warmBootMs": 191.9524,
+            "coldDataRequestMs": 5811.20164,
+            "warmDataP50Ms": 8226.07356,
+            "warmDataMaxMs": 8226.07356,
+            "coldReadyRssBytes": 31334400,
+            "coldPeakRssBytes": 365187072,
+            "warmReadyRssBytes": 31682560,
+            "statuses": [
+              200
+            ],
+            "errors": []
+          },
+          "artifactPath": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\abba-self\\runs\\round-1-self-copy.json"
+        },
+        {
+          "round": 2,
+          "metrics": {
+            "coldBootMs": 4743.5732,
+            "warmBootMs": 239.86756,
+            "coldDataRequestMs": 15052.89596,
+            "warmDataP50Ms": 2408.99724,
+            "warmDataMaxMs": 2408.99724,
+            "coldReadyRssBytes": 30593024,
+            "coldPeakRssBytes": 362532864,
+            "warmReadyRssBytes": 36151296,
+            "statuses": [
+              200
+            ],
+            "errors": []
+          },
+          "artifactPath": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\abba-self\\runs\\round-2-self-copy.json"
+        },
+        {
+          "round": 3,
+          "metrics": {
+            "coldBootMs": 2748.83244,
+            "warmBootMs": 311.85076,
+            "coldDataRequestMs": 76176.5706,
+            "warmDataP50Ms": 2770.32536,
+            "warmDataMaxMs": 2770.32536,
+            "coldReadyRssBytes": 31121408,
+            "coldPeakRssBytes": 337068032,
+            "warmReadyRssBytes": 36093952,
+            "statuses": [
+              200
+            ],
+            "errors": []
+          },
+          "artifactPath": "C:\\Users\\koishi\\Desktop\\GoTavern\\a19-perf\\abba-self\\runs\\round-3-self-copy.json"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "coldBootMs": {
+      "label": "spawn -> first GET /version 200, cold boot (lower is better)",
+      "baseline": {
+        "count": 3,
+        "min": 557.11372,
+        "median": 696.02924,
+        "max": 1638.65228,
+        "series": [
+          557.11372,
+          696.02924,
+          1638.65228
+        ]
+      },
+      "candidate": {
+        "count": 3,
+        "min": 497.95508,
+        "median": 2748.83244,
+        "max": 4743.5732,
+        "series": [
+          497.95508,
+          2748.83244,
+          4743.5732
+        ]
+      },
+      "classification": {
+        "verdict": "not-separable",
+        "detail": "the two per-round series overlap; report as no improvement inside noise",
+        "leftSpread": 1.9413245827081769,
+        "rightSpread": 8.526106652029737
+      },
+      "effectFloor": 0.05
+    },
+    "warmBootMs": {
+      "label": "spawn -> first GET /version 200, warm boot (lower is better)",
+      "baseline": {
+        "count": 3,
+        "min": 174.41192,
+        "median": 235.9652,
+        "max": 386.57072,
+        "series": [
+          174.41192,
+          235.9652,
+          386.57072
+        ]
+      },
+      "candidate": {
+        "count": 3,
+        "min": 191.9524,
+        "median": 239.86756,
+        "max": 311.85076,
+        "series": [
+          191.9524,
+          239.86756,
+          311.85076
+        ]
+      },
+      "classification": {
+        "verdict": "not-separable",
+        "detail": "the two per-round series overlap; report as no improvement inside noise",
+        "leftSpread": 1.216423739845304,
+        "rightSpread": 0.6246254800669331
+      },
+      "effectFloor": 0.05
+    },
+    "coldDataRequestMs": {
+      "label": "first data request, cold process cache (lower is better)",
+      "baseline": {
+        "count": 3,
+        "min": 6036.72532,
+        "median": 7897.81044,
+        "max": 20885.52112,
+        "series": [
+          6036.72532,
+          7897.81044,
+          20885.52112
+        ]
+      },
+      "candidate": {
+        "count": 3,
+        "min": 5811.20164,
+        "median": 15052.89596,
+        "max": 76176.5706,
+        "series": [
+          5811.20164,
+          15052.89596,
+          76176.5706
+        ]
+      },
+      "classification": {
+        "verdict": "not-separable",
+        "detail": "the two per-round series overlap; report as no improvement inside noise",
+        "leftSpread": 2.4597434888755223,
+        "rightSpread": 12.108574666495311
+      },
+      "effectFloor": 0.05
+    },
+    "warmDataP50Ms": {
+      "label": "data request median over the warm repeats (lower is better)",
+      "baseline": {
+        "count": 3,
+        "min": 1693.2172,
+        "median": 2550.99148,
+        "max": 3003.32092,
+        "series": [
+          1693.2172,
+          2550.99148,
+          3003.32092
+        ]
+      },
+      "candidate": {
+        "count": 3,
+        "min": 2408.99724,
+        "median": 2770.32536,
+        "max": 8226.07356,
+        "series": [
+          2408.99724,
+          2770.32536,
+          8226.07356
+        ]
+      },
+      "classification": {
+        "verdict": "not-separable",
+        "detail": "the two per-round series overlap; report as no improvement inside noise",
+        "leftSpread": 0.7737363641238703,
+        "rightSpread": 2.414729341906593
+      },
+      "effectFloor": 0.05
+    },
+    "warmDataMaxMs": {
+      "label": "data request max over the warm repeats (lower is better)",
+      "baseline": {
+        "count": 3,
+        "min": 1693.2172,
+        "median": 2550.99148,
+        "max": 3003.32092,
+        "series": [
+          1693.2172,
+          2550.99148,
+          3003.32092
+        ]
+      },
+      "candidate": {
+        "count": 3,
+        "min": 2408.99724,
+        "median": 2770.32536,
+        "max": 8226.07356,
+        "series": [
+          2408.99724,
+          2770.32536,
+          8226.07356
+        ]
+      },
+      "classification": {
+        "verdict": "not-separable",
+        "detail": "the two per-round series overlap; report as no improvement inside noise",
+        "leftSpread": 0.7737363641238703,
+        "rightSpread": 2.414729341906593
+      },
+      "effectFloor": 0.05
+    },
+    "coldReadyRssBytes": {
+      "label": "RSS at cold readiness (lower is better)",
+      "baseline": {
+        "count": 3,
+        "min": 30281728,
+        "median": 31793152,
+        "max": 32133120,
+        "series": [
+          30281728,
+          31793152,
+          32133120
+        ]
+      },
+      "candidate": {
+        "count": 3,
+        "min": 30593024,
+        "median": 31121408,
+        "max": 31334400,
+        "series": [
+          30593024,
+          31121408,
+          31334400
+        ]
+      },
+      "classification": {
+        "verdict": "not-separable",
+        "detail": "the two per-round series overlap; report as no improvement inside noise",
+        "leftSpread": 0.061138915190044635,
+        "rightSpread": 0.024233498460302583
+      },
+      "effectFloor": 0.15
+    },
+    "coldPeakRssBytes": {
+      "label": "PEAK RSS after the cold round (procstat; lower is better)",
+      "baseline": {
+        "count": 3,
+        "min": 322097152,
+        "median": 337776640,
+        "max": 365318144,
+        "series": [
+          322097152,
+          337776640,
+          365318144
+        ]
+      },
+      "candidate": {
+        "count": 3,
+        "min": 337068032,
+        "median": 362532864,
+        "max": 365187072,
+        "series": [
+          337068032,
+          362532864,
+          365187072
+        ]
+      },
+      "classification": {
+        "verdict": "not-separable",
+        "detail": "the two per-round series overlap; report as no improvement inside noise",
+        "leftSpread": 0.13418619733713139,
+        "rightSpread": 0.08342244689641763
+      },
+      "effectFloor": 0.25
+    },
+    "warmReadyRssBytes": {
+      "label": "RSS at warm readiness (lower is better)",
+      "baseline": {
+        "count": 3,
+        "min": 27058176,
+        "median": 27807744,
+        "max": 33914880,
+        "series": [
+          27058176,
+          27807744,
+          33914880
+        ]
+      },
+      "candidate": {
+        "count": 3,
+        "min": 31682560,
+        "median": 36093952,
+        "max": 36151296,
+        "series": [
+          31682560,
+          36093952,
+          36151296
+        ]
+      },
+      "classification": {
+        "verdict": "not-separable",
+        "detail": "within-subject spread 25.3% exceeds 20%; the host did not hold still, so no direction is claimable",
+        "leftSpread": 0.25340599455040874,
+        "rightSpread": 0.14104718810601163,
+        "effect": 0.29798202975401383
+      },
+      "effectFloor": 0.15
+    }
+  },
+  "notes": [
+    "Process-level facts only: boot, RSS (procstat PeakWorkingSetSize/VmHWM), and HTTP latency. B/op and allocs/op are NOT measured here; they come from internal/server/bench_test.go and are deterministic.",
+    "Separation rule: a metric is only called an improvement when every candidate observation is better than every baseline observation over the paired rounds; otherwise it is reported as not separable.",
+    "Identical-subject self-test: point --baseline and --candidate at the SAME binary. A separation reported there is a harness defect.",
+    "Windows stop is abrupt (child.kill / taskkill); cold and warm are separate boots over the same round tree."
+  ],
+  "failures": [],
+  "finishedAt": "2026-11-09T06:26:02.721Z"
+}
