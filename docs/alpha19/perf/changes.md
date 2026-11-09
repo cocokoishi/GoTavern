@@ -71,6 +71,35 @@ verified identical (`380354846BAE2393…`) afterwards.
 text-completion streaming path, which C1 does not touch (C1 changes ordered-JSON member ordering only). The
 timeout is being classified against a clean worktree; the full-suite green is **not yet claimed**.
 
+### C1 follow-up — the `entries()` contract regression, found by the full suite and fixed
+
+The full suite (after C4/C5 and the streaming fixes) finished in 237 s with **exactly one failure**:
+`TestPinnedNodeImageMetadataCleanup`. Bisect in a clean `52883e8` worktree (only the named files swapped in):
+baseline **PASS**; +`image_metadata_index.go`@C1 **FAIL**; +C4 files **PASS**; +C5 file (contains C1) **FAIL** —
+so C1 caused it. The route kept `"../escape.webp":{"hash":"remove-outside"}` in `images` where pinned removes it.
+
+**Root cause:** `entries()` used to return a defensive COPY for objects. C1's fast path returns a read-only VIEW
+of the object's own member slice, which is correct for every read-only caller — but `image_metadata_cleanup.go`
+iterates `images.entries()` and calls `deleteImageMetadataKey(&images, key, index)` INSIDE the loop, and
+`deleteMember` shifts the shared backing array under `range`, so members were skipped. Pinned iterates
+`Object.keys(...)`, a snapshot, so the faithful translation is a private snapshot.
+
+**Call-site audit** (`entries()` has 13 call sites; all others are safe): read-only marshals/iterations —
+`characters_json.go` (writeCharacterJSON), `image_metadata_index.go` (marshalOrderedNodeJSON,
+marshalPrettyOrderedNodeJSON lives in image_metadata_folder_create.go, serveBackgroundFolders),
+`characters_write.go` (writeCharacterJSONIndent), `deepseek_chat.go` (pinnedJSONStringifyIndent4),
+`sd_generate_comfy.go` (sdComfyOutputValues), `characters_format.go` (convertWorldInfoToCharacterBook),
+`openai_models.go` (spreadWithModelID builds a NEW object), `backends_textgen_generate.go` (builds a NEW object),
+`image_metadata_all.go` (builds a NEW object), `image_metadata_folder_delete.go` (replaces VALUES in place; no
+length change) — and `image_metadata_cleanup.go` (the ONLY structural mutation of the same object during
+iteration). The function now documents the read-only contract, and the cleanup loop snapshots.
+
+**Teeth:** removing the snapshot line again turns `TestPinnedNodeImageMetadataCleanup` red on its named assertion
+(`cleanup index after mixed`); restoring the line is green. Transcript:
+[`profiles/c1-cleanup-fix-teeth.txt`](profiles/c1-cleanup-fix-teeth.txt), SHA-256 of the restored file verified
+identical. The pinned differential test is the gate; the regression cannot return silently.
+
+
 ## C4 — pre-sized response buffer for `/api/characters/all` (commit `<filled at commit>`)
 
 **Approved scope:** `internal/server/characters_read.go`, `internal/server/characters_json.go`.

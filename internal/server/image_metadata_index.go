@@ -256,8 +256,11 @@ func (value orderedNodeJSON) entries() ([]orderedNodeJSONEntry, bool) {
 		// FAST PATH (alpha.19): when no member key is an array index, `JSON.stringify` emits every member in
 		// insertion order, and the stable sort below would be the identity permutation. Returning the object's
 		// own slice avoids one copy plus a comparison-sort per object per marshal -- /api/characters/all
-		// marshals ~4-5 objects per card, and this was 44% of that route's allocation objects. Callers only
-		// READ the result (audited: every `.entries()` call site ranges over it), so no copy is needed.
+		// marshals ~4-5 objects per card, and this was 44% of that route's allocation objects. The result is a
+		// READ-ONLY VIEW: a caller that deletes or reorders members of THIS object while ranging over the result
+		// must snapshot the slice first (deleting shifts the shared backing array and the range skips members;
+		// image_metadata_cleanup.go does exactly that and now takes a snapshot, which is also what pinned's
+		// Object.keys() iteration does).
 		hasArrayIndex := false
 		for index := range value.object {
 			if _, isIndex := nodeArrayIndex(value.object[index].key); isIndex {
