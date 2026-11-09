@@ -558,6 +558,17 @@ func runResetSaveProbe(t *testing.T, seed int) {
 
 	var outcomeMu sync.Mutex
 	var outcomes []probeSaveOutcome
+	// THE WRITERS' FAILURES ARE RECORDED, NOT REPORTED FROM THE GOROUTINE.
+	//
+	// This is a TEST-RELIABILITY fix, not a product change. Measured on the Windows development host
+	// (2026-11-08, 2 of 5 runs): a writer that saw an unexpected status called t.Errorf from its goroutine,
+	// and when an earlier t.Fatalf in the body had already ended the subtest (the reset-status checks below)
+	// Go panicked with "Fail in goroutine after .../seedN has completed". That panic ABORTED THE TEST BINARY
+	// and DISCARDED the t.Fatalf message that said what actually happened -- evidence that reads as a failure
+	// but cannot say which assertion fired (AGENTS verification rule 7). The goroutine now appends to a
+	// mutex-guarded slice; the test goroutine asserts the recorded problems AFTER the joins, so the named
+	// assertion is the one a red reports. The data-safety assertions are unchanged.
+	var writeProblems []string
 	var writers sync.WaitGroup
 	for _, task := range tasks {
 		task := task
@@ -568,16 +579,29 @@ func runResetSaveProbe(t *testing.T, seed int) {
 				response := harness.post(task.handle, task.route, task.body)
 				outcomeMu.Lock()
 				outcomes = append(outcomes, probeSaveOutcome{route: task.route, handle: task.handle, status: response.Code})
+				if response.Code != http.StatusOK && response.Code != http.StatusInternalServerError {
+					writeProblems = append(writeProblems, fmt.Sprintf("%s: POST %s for %s = %d (only 200 and 500 are expected; body %q)",
+						task.label, task.route, task.handle, response.Code, response.Body.String()))
+				}
 				outcomeMu.Unlock()
 				if response.Code != http.StatusOK && response.Code != http.StatusInternalServerError {
-					t.Errorf("%s: POST %s for %s = %d (only 200 and 500 are expected; body %q)",
-						task.label, task.route, task.handle, response.Code, response.Body.String())
 					return
 				}
 				time.Sleep(time.Millisecond)
 			}
 		}()
 	}
+	// EVERY EXIT PATH JOINS THE STORM. A t.Fatalf in the body below returns from the subtest through
+	// runtime.Goexit, which runs defers, so this join runs there too; without it the writers outlive the
+	// subtest and any late report (or a future edit that reports from a goroutine) is the panic again.
+	// `stop` is closed through sync.Once because the normal path also closes it.
+	var stopOnce sync.Once
+	stopStorm := func() { stopOnce.Do(func() { close(stop) }) }
+	defer func() {
+		writers.Wait()
+		stopStorm()
+		readerDone.Wait()
+	}()
 
 	// Let several writes get in flight, then reset A through the REAL handler path
 	// (/api/users/reset-step1 + /api/users/reset-step2).
@@ -611,8 +635,16 @@ func runResetSaveProbe(t *testing.T, seed int) {
 	t.Logf("seed %d: reset A completed on attempt %d (statuses %v)", seed, resetAttempts, resetStatuses)
 
 	writers.Wait()
-	close(stop)
+	stopStorm()
 	readerDone.Wait()
+
+	// THE NAMED STATUS ASSERTION, reported from the test goroutine (see the writer comment above).
+	outcomeMu.Lock()
+	recordedWriteProblems := append([]string(nil), writeProblems...)
+	outcomeMu.Unlock()
+	for _, problem := range recordedWriteProblems {
+		t.Errorf("%s", problem)
+	}
 
 	if problem, found := readerLog.first(); found {
 		t.Fatalf("seed %d: %s", seed, problem)
