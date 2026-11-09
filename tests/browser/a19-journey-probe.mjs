@@ -905,6 +905,11 @@ try {
         await settleHttp();
         await saveConditional(page);
 
+        // A NAVIGATION DETACHES PENDING RESPONSES: the requests issued by the save (and the counter passes it triggers)
+        // are still in flight when the page reloads, and their bodies become unreadable (measured run 2: 3 GoTavern /
+        // 4 pinned unread bodies, ALL clustered at this boundary). Settle the HTTP layer BEFORE navigating so every
+        // body is read while the response is live.
+        await settleHttp();
         // PAGE RELOAD: the same chat must be open with its messages, WITHOUT the harness re-opening it.
         const beforeReload = await page.evaluate(async () => {
             const script = await import('./script.js');

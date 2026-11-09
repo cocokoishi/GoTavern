@@ -368,14 +368,6 @@ const NORMALISATIONS = [
         test: 'ROUTE_SCOPED_RUN_CLOCK projects those two members and records this entry; the chat semantics tuple and every other field are still compared',
         negativeCase: 'a19-oracle-teeth.mjs changes a chat MESSAGE TEXT and requires persistence-chat-semantics-equal red; changing only chat_size must survive',
     },
-    {
-        id: 'tokenizer-count-body-unavailable',
-        reason: 'the HTTP recorder reads response bodies asynchronously; a read that races a navigation (or a cached response being replaced) throws and the body stays null while status/content-type were already recorded. Measured corpus-v2 run 2: 2/152 GoTavern and 3/121 pinned tokenizer responses were unread, ALL with status 200 on the same route; every readable shared identity count is still compared',
-        pinnedEvidence: 'corpus-v2 run 2 2026-11-08: unread tokenizer bodies occurred on BOTH subjects; the same request body+model probed DIRECTLY on GoTavern and pinned answers {"token_count":23} on both; 169/169 readable shared identities had identical counts',
-        field: 'HTTP RESPONSE body of /api/tokenizers/* only, and ONLY when one side could not be read while statuses agree',
-        test: 'http-bodies-equal records this entry and skips the body comparison for that pair; all readable tokenizer bodies remain compared',
-        negativeCase: 'a19-oracle-teeth.mjs changes a READABLE /api/tokenizers/openai/count response body and requires http-bodies-equal red; deleting one body must survive',
-    },
 ];
 
 const appliedNormalisations = new Set();
@@ -1049,8 +1041,13 @@ guard('http-bodies-equal', 'http', () => {
                     const tokenizerBodyGap = key.includes('/api/tokenizers/')
                         && ((entry.responseBodyText === null || entry.responseBodyText === undefined || entry.responseBodyText === '')
                             !== (other.responseBodyText === null || other.responseBodyText === undefined || other.responseBodyText === ''));
-                    if (tokenizerBodyGap) appliedNormalisations.add('tokenizer-count-body-unavailable');
-                    else {
+                    if (tokenizerBodyGap) {
+                        // A BODY THE RECORDER COULD NOT READ IS A HARNESS ERROR: it must never flow into a comparison as
+                        // 'undefined' and must never be normalised away. Measured cause: responses still in flight when the
+                        // page navigated; the probe now settles HTTP before the reload, so this branch should be
+                        // unreachable -- if it fires, the run is red and NAMES itself.
+                        problems.push(phase + ' ' + key + ': harness-error: the recorder could not read the response body on one side (statuses ' + entry.status + '/' + other.status + '); a body must be captured while the response is live');
+                    } else {
                         const responseProblem = compareHTTPBody(`${phase} ${key}: response`, entry.responseBodyText, entry.responseBodySha256, other.responseBodyText, other.responseBodySha256, { routeKey: key });
                         if (responseProblem !== null) problems.push(responseProblem);
                     }
