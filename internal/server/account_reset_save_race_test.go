@@ -58,12 +58,12 @@ import (
 )
 
 const (
-	probeResetCode     = "424242"
-	probeCookieSecret  = "account-reset-save-race-secret"
-	probeHandleAlpha   = "alpha-user"
-	probeHandleBeta    = "beta-user"
-	probeMarkerAlpha   = "PROBEUSERA"
-	probeMarkerBeta    = "PROBEUSERB"
+	probeResetCode    = "424242"
+	probeCookieSecret = "account-reset-save-race-secret"
+	probeHandleAlpha  = "alpha-user"
+	probeHandleBeta   = "beta-user"
+	probeMarkerAlpha  = "PROBEUSERA"
+	probeMarkerBeta   = "PROBEUSERB"
 	// BOUNDED RETRY OF THE RESET ITSELF, NOT A WEAKENED ASSERTION. pinned's reset-step2 wraps the whole body in
 	// try/catch and answers 500 for ANY throw (src/endpoints/users-private.js:261-305; `await fsPromises.rm(root,
 	// {recursive:true, force:true})` then `checkForNewContent`), so a 500 while concurrent writers hold the tree is

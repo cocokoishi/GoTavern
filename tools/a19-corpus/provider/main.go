@@ -165,9 +165,9 @@ func main() {
 	}
 
 	script := map[string][]mockprovider.Response{
-		"GET /v1/models":             repeat(modelsResponse(), 64),
-		"GET /models":                repeat(modelsResponse(), 64),
-		"POST /v1/chat/completions":  buildReplies(*replies, *wire),
+		"GET /v1/models":            repeat(modelsResponse(), 64),
+		"GET /models":               repeat(modelsResponse(), 64),
+		"POST /v1/chat/completions": buildReplies(*replies, *wire),
 	}
 	recorder := mockprovider.NewKeyed(script)
 	address, err := recorder.Listen(*port)

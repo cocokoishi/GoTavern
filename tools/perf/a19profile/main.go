@@ -51,30 +51,30 @@ import (
 )
 
 type runArtifact struct {
-	Label       string            `json:"label"`
-	Mode        string            `json:"mode"`
-	GoVersion   string            `json:"goVersion"`
-	GOOS        string            `json:"goos"`
-	GOARCH      string            `json:"goarch"`
-	GOMAXPROCS  int               `json:"gomaxprocs"`
-	DataRoot    string            `json:"dataRoot"`
-	ConfigPath  string            `json:"configPath"`
-	Route       string            `json:"route,omitempty"`
-	Requests    int               `json:"requests,omitempty"`
-	Warmup      int               `json:"warmup,omitempty"`
-	RelayMessages      int        `json:"relayMessages,omitempty"`
-	RelayMessageBytes  int        `json:"relayMessageBytes,omitempty"`
-	ProviderPeer       string     `json:"providerPeer,omitempty"`
-	StartupMs   float64           `json:"startupMs"`
-	ReadyMs     float64           `json:"readyMs"`
-	Stages      []string          `json:"startupStageLines"`
-	RequestRows []requestRow      `json:"requestRows,omitempty"`
-	CPUProfile  string            `json:"cpuProfile"`
-	HeapProfile string            `json:"heapProfile"`
-	CPUHz       int               `json:"cpuProfileRateHz"`
-	Notes       []string          `json:"notes"`
-	StartedAt   string            `json:"startedAt"`
-	FinishedAt  string            `json:"finishedAt"`
+	Label             string       `json:"label"`
+	Mode              string       `json:"mode"`
+	GoVersion         string       `json:"goVersion"`
+	GOOS              string       `json:"goos"`
+	GOARCH            string       `json:"goarch"`
+	GOMAXPROCS        int          `json:"gomaxprocs"`
+	DataRoot          string       `json:"dataRoot"`
+	ConfigPath        string       `json:"configPath"`
+	Route             string       `json:"route,omitempty"`
+	Requests          int          `json:"requests,omitempty"`
+	Warmup            int          `json:"warmup,omitempty"`
+	RelayMessages     int          `json:"relayMessages,omitempty"`
+	RelayMessageBytes int          `json:"relayMessageBytes,omitempty"`
+	ProviderPeer      string       `json:"providerPeer,omitempty"`
+	StartupMs         float64      `json:"startupMs"`
+	ReadyMs           float64      `json:"readyMs"`
+	Stages            []string     `json:"startupStageLines"`
+	RequestRows       []requestRow `json:"requestRows,omitempty"`
+	CPUProfile        string       `json:"cpuProfile"`
+	HeapProfile       string       `json:"heapProfile"`
+	CPUHz             int          `json:"cpuProfileRateHz"`
+	Notes             []string     `json:"notes"`
+	StartedAt         string       `json:"startedAt"`
+	FinishedAt        string       `json:"finishedAt"`
 }
 
 type requestRow struct {
@@ -180,8 +180,12 @@ func main() {
 
 	if *mode == "startup" {
 		cpuFile, err := os.Create(cpuPath)
-		if err != nil { fail("create cpu profile: %v", err) }
-		if err := pprof.StartCPUProfile(cpuFile); err != nil { fail("start cpu profile: %v", err) }
+		if err != nil {
+			fail("create cpu profile: %v", err)
+		}
+		if err := pprof.StartCPUProfile(cpuFile); err != nil {
+			fail("start cpu profile: %v", err)
+		}
 		started := time.Now()
 		running, err := app.Start(app.StartOptions{
 			Args:             args,
@@ -214,22 +218,32 @@ func main() {
 		}
 		origin := fmt.Sprintf("http://127.0.0.1:%d", port)
 		client, err := newSession(origin)
-		if err != nil { fail("session: %v", err) }
+		if err != nil {
+			fail("session: %v", err)
+		}
 		artifact.ReadyMs = timeToReady(port)
 		request := requestForRoute(*route)
 		for index := 0; index < *warmup; index++ {
 			row, err := client.do(request)
-			if err != nil { fail("warmup request: %v", err) }
+			if err != nil {
+				fail("warmup request: %v", err)
+			}
 			row.Index = index
 			row.Kind = "warmup"
 			artifact.RequestRows = append(artifact.RequestRows, row)
 		}
 		cpuFile, err := os.Create(cpuPath)
-		if err != nil { fail("create cpu profile: %v", err) }
-		if err := pprof.StartCPUProfile(cpuFile); err != nil { fail("start cpu profile: %v", err) }
+		if err != nil {
+			fail("create cpu profile: %v", err)
+		}
+		if err := pprof.StartCPUProfile(cpuFile); err != nil {
+			fail("start cpu profile: %v", err)
+		}
 		for index := 0; index < *requests; index++ {
 			row, err := client.do(request)
-			if err != nil { fail("profiled request: %v", err) }
+			if err != nil {
+				fail("profiled request: %v", err)
+			}
 			row.Index = index
 			row.Kind = "profiled"
 			row.InWindow = true
@@ -304,7 +318,9 @@ func main() {
 	artifact.Stages = trace.lines
 	artifact.FinishedAt = time.Now().UTC().Format(time.RFC3339)
 	encoded, err := json.MarshalIndent(artifact, "", "  ")
-	if err != nil { fail("encode artifact: %v", err) }
+	if err != nil {
+		fail("encode artifact: %v", err)
+	}
 	if err := os.WriteFile(filepath.Join(*outDir, *label+".json"), append(encoded, '\n'), 0o644); err != nil {
 		fail("write artifact: %v", err)
 	}
@@ -349,9 +365,13 @@ func timeToReady(port int) float64 {
 func writeHeap(path string) {
 	runtime.GC()
 	file, err := os.Create(path)
-	if err != nil { fail("create heap profile: %v", err) }
+	if err != nil {
+		fail("create heap profile: %v", err)
+	}
 	defer func() { _ = file.Close() }()
-	if err := pprof.WriteHeapProfile(file); err != nil { fail("write heap profile: %v", err) }
+	if err := pprof.WriteHeapProfile(file); err != nil {
+		fail("write heap profile: %v", err)
+	}
 }
 
 func closeServer(running *app.RunningServer) {
@@ -393,14 +413,14 @@ type relayRequestMessage struct {
 }
 
 type relayRequestBodyShape struct {
-	ChatCompletionSource string               `json:"chat_completion_source"`
-	Model                string               `json:"model"`
+	ChatCompletionSource string                `json:"chat_completion_source"`
+	Model                string                `json:"model"`
 	Messages             []relayRequestMessage `json:"messages"`
-	MaxTokens            int                  `json:"max_tokens"`
-	Temperature          float64              `json:"temperature"`
-	ReverseProxy         string               `json:"reverse_proxy"`
-	ProxyPassword        string               `json:"proxy_password"`
-	Stream               bool                 `json:"stream"`
+	MaxTokens            int                   `json:"max_tokens"`
+	Temperature          float64               `json:"temperature"`
+	ReverseProxy         string                `json:"reverse_proxy"`
+	ProxyPassword        string                `json:"proxy_password"`
+	Stream               bool                  `json:"stream"`
 }
 
 // relayRequestBody builds the pinned request shape the frontend sends for a streaming generation against a

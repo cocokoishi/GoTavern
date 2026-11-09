@@ -35,7 +35,7 @@ func (c *control) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	case "/__mock/stats":
 		recording := c.recorder.Recording()
 		writeJSON(writer, 200, map[string]any{
-			"requests": len(recording.Requests),
+			"requests":  len(recording.Requests),
 			"nextIndex": nextIndex(recording),
 		})
 	case "/__mock/unused":
