@@ -250,19 +250,27 @@ const NORMALISATIONS = [
     },
     {
         id: 'image-metadata-added-timestamp',
-        reason: 'image-metadata.json records when each image was first observed; the value is the wall clock of the run and a second isolated run cannot reproduce it. The POINTER (which image, in which folder) is still compared, and any change to a non-timestamp member reds',
-        pinnedEvidence: 'PINNED RUNS TWICE (the Lead\'s negative-case requirement): the same pinned subject over two copies of the same corpus produced addedTimestamp 1794192098312 (self-check run 1) and 1794193041570 (run 2) for backgrounds/__transparent.png -- the field is nondeterministic WITHIN pinned itself',
-        field: 'JSON member addedTimestamp inside default-user/image-metadata.json (recursively)',
-        test: 'projectJsonForComparison() omits the member and records this entry; persistence-changed-content-equal compares the projected digest of image-metadata.json',
+        reason: 'image-metadata.json (on disk and served by POST /api/image-metadata/all) records when each image was first observed; the value is the wall clock of the run and a second isolated run cannot reproduce it. The POINTER (which image, in which folder), the image hash and every non-clock member are still compared',
+        pinnedEvidence: 'PINNED RUNS TWICE (the Lead\'s negative-case requirement): the same pinned subject over two copies of the same corpus produced addedTimestamp 1794192098312 (self-check run 1) and 1794193041570 (run 2) for backgrounds/__transparent.png -- the field is nondeterministic WITHIN pinned itself; async CI corpus run 12: drive response addedTimestamp 1794225576879 vs 1794225577457',
+        field: 'JSON member addedTimestamp inside default-user/image-metadata.json and in the POST /api/image-metadata/all response (recursively)',
+        test: 'projectJsonForComparison() omits the member and records this entry; http-bodies-equal and persistence-changed-content-equal compare the projected digests',
         negativeCase: 'a19-oracle-teeth.mjs ADDS AN IMAGE ENTRY to image-metadata.json on one leg and requires persistence-changed-content-equal red',
     },
     {
+        id: 'image-metadata-dominant-color-rounding',
+        reason: 'dominantColor is a DERIVED value: pinned computes it from Jimp\'s WASM decode plus a bilinear resize-to-1x1 (src/endpoints/image-metadata.js:85 getAverageColorWithJimp), GoTavern from its own image decoder (internal/server/image_metadata_generate.go jimpCompatibleAverageColor). For some photographic JPEGs the decoders land one code point apart and the derived colour inherits the difference. This is a DISCLOSED ±1-PER-CHANNEL EXCLUSION, scoped to this member on the image-metadata surfaces only: hash, aspectRatio, isAnimated, folderIds, thumbnailResolution and every other member are still compared exactly',
+        pinnedEvidence: 'the in-tree pinned capture .private-fixtures/run/tree-pinned-a/default-user/image-metadata.json carries the pinned values for the affected images (backgrounds/bedroom cyberpunk.jpg #233245, bedroom red #4d1f22, cityscape medieval night #433933, japan classroom side #928d90, japan path cherry blossom #9c8a77, landscape beach night #594d60, tavern day #5e4535), identical to the pinned leg of CI corpus run 12; the measured delta histogram is {1:7} over 24 images (all seven are JPEG, the three PNGs agree exactly), with no channel delta above 1 and no other differing member',
+        field: 'JSON member dominantColor inside default-user/image-metadata.json and the POST /api/image-metadata/all response only, and ONLY when every differing channel is within ±1',
+        test: 'dominantColourTolerantDifference() accepts the pair and records this entry only if every difference in the projected documents is a dominantColor channel delta of at most 1; a delta of 2, a malformed colour, or any other member difference still reds through the ordinary projection comparison',
+        negativeCase: 'a19-oracle-teeth.mjs changes a dominantColor by 2 channels or changes a NON-colour member (hash/aspectRatio) in the same image-metadata response and requires http-bodies-equal red; changing one dominantColor channel by 1 must survive',
+    },
+    {
         id: 'http-autosave-multiplicity',
-        reason: 'the frontend saves settings on a debounce; how many saves a leg issues before the final state is reached is scheduling, not content. The FINAL persisted settings are compared byte-oriented after their named projections',
-        pinnedEvidence: 'measured in the self-check run 2026-11-08: POST /api/settings/save fired 4 times on one leg and 6 on the other, with both subject trees ending identical (persona depth 2, main_api openai)',
-        field: 'layers.http.requests[] multiplicity for POST /api/settings/save only',
-        test: 'the named route list normalises this multiplicity; persistence-changed-content-equal asserts the final settings content',
-        negativeCase: 'a19-oracle-teeth.mjs changes a final settings member (depth 4 -> 5) and requires persistence-changed-content-equal red',
+        reason: 'the frontend saves settings and quick replies on a debounce; how many saves a leg issues before the final state is reached is scheduling, not content. The FINAL persisted settings and QuickReplies documents are compared byte-oriented after their named projections',
+        pinnedEvidence: 'measured in the self-check run 2026-11-08: POST /api/settings/save fired 4 times on one leg and 6 on the other, with both subject trees ending identical (persona depth 2, main_api openai); CI corpus run 12: POST /api/quick-replies/save fired 4 times on GoTavern and 5 on pinned with identical request bodies',
+        field: 'layers.http.requests[] multiplicity for POST /api/settings/save and POST /api/quick-replies/save only',
+        test: 'the named route list normalises this multiplicity; persistence-changed-content-equal asserts the final settings and QuickReplies content',
+        negativeCase: 'a19-oracle-teeth.mjs changes a final settings member (depth 4 -> 5) and requires persistence-changed-content-equal red; duplicating a quick-replies/save request must survive',
     },
     {
         id: 'settings-auto-update-default',
@@ -331,9 +339,9 @@ const NORMALISATIONS = [
     {
         id: 'route-scoped-run-clock-members',
         reason: 'a member whose NAME is generic but whose VALUE is the run clock on one route only: chats/recent.last_mes is the ISO time of the last message and stats.timestamp is the run start. Projecting them by name GLOBALLY would hide real differences on other routes, so the decision is scoped to the exact request keys where the clock was measured',
-        pinnedEvidence: 'measured 2026-11-08 self-check run7, two isolated legs: /api/chats/recent last_mes "2026-11-09T04:27:11.882Z" vs "2026-11-09T04:31:36.351Z"; /api/stats/get timestamp 1794198418985 vs 1794198694841',
-        field: 'JSON members last_mes (POST /api/chats/recent) and timestamp (POST /api/stats/get and /api/stats/update) only',
-        test: 'ROUTE_SCOPED_RUN_CLOCK maps the request key to the member set; projectBodyForComparison() receives the key and records this entry',
+        pinnedEvidence: 'measured 2026-11-08 self-check run7, two isolated legs: /api/chats/recent last_mes "2026-11-09T04:27:11.882Z" vs "2026-11-09T04:31:36.351Z"; /api/stats/get timestamp 1794198418985 vs 1794198694841; CI corpus run 12 image-metadata addedTimestamp 1794225576879 vs 1794225577457 and mtime 1794225576879.6094 vs 1794225577458.2578 over copies of the SAME corpus',
+        field: 'JSON members last_mes (POST /api/chats/recent), timestamp (POST /api/stats/get and /api/stats/update), and addedTimestamp/mtime (POST /api/image-metadata/all response and default-user/image-metadata.json file) only',
+        test: 'ROUTE_SCOPED_RUN_CLOCK maps the request/file key to the member set; projectBodyForComparison() receives the key and records this entry',
         negativeCase: 'a19-oracle-teeth.mjs changes a NON-clock member of the same response and requires http-bodies-equal red',
     },
     {
@@ -468,6 +476,13 @@ const ROUTE_SCOPED_RUN_CLOCK = new Map([
     // The persisted secrets file carries the same run-created entries (see the file route key used by the
     // persistence guard).
     ['file:default-user/secrets.json', new Set(['id', 'label'])],
+    // POST /api/image-metadata/all serves the GENERATED index: addedTimestamp is when THIS run first observed the
+    // image and mtime is the copied file's own modification time over the SAME corpus, so both are the leg's own
+    // clocks (measured corpus run 12 CI: addedTimestamp 1794225576879 vs 1794225577457; mtime
+    // 1794225576879.6094 vs 1794225577458.2578). The image identity (hash), aspectRatio, isAnimated, folderIds and
+    // thumbnailResolution stay compared, as does every non-clock member of the index.
+    ['POST /api/image-metadata/all', new Set(['addedTimestamp', 'mtime'])],
+    ['file:default-user/image-metadata.json', new Set(['addedTimestamp', 'mtime'])],
 ]);
 const projectJsonForComparison = (value, routeRunClock = null) => {
     if (Array.isArray(value)) return value.map(item => projectJsonForComparison(item, routeRunClock));
@@ -527,7 +542,55 @@ const compareHTTPBody = (label, leftText, leftSha, rightText, rightSha, options)
     const left = projectBodyForComparison(leftText, options);
     const right = projectBodyForComparison(rightText, options);
     if (left === right) return null;
+    // THE DERIVED IMAGE COLOUR, WITH A DISCLOSED ±1/CHANNEL EXCLUSION (decision
+    // `image-metadata-dominant-color-rounding`): pinned computes dominantColor from Jimp's WASM decode plus a
+    // bilinear resize-to-1x1, GoTavern from the Go decoder; for some photographic JPEGs the decoded pixels land
+    // one code point apart and the derived colour inherits it. Measured corpus run 12 CI: 7/24 images, delta
+    // exactly 1 per channel, histogram {1:7}, no larger delta and no other member differing. The tolerance is
+    // scoped to the image-metadata routes/files and to the `dominantColor` member only; anything else fails.
+    const tolerant = dominantColourTolerantDifference(projectValueForComparison(leftText, options), projectValueForComparison(rightText, options), options?.routeKey ?? null);
+    if (tolerant !== null) {
+        appliedNormalisations.add('image-metadata-dominant-color-rounding');
+        return null;
+    }
     return `${label}: body differs after named normalisation (raw ${leftSha?.slice(0, 12)} vs ${rightSha?.slice(0, 12)})`;
+};
+const projectValueForComparison = (text, options) => {
+    try { return projectJsonForComparison(JSON.parse(text), ROUTE_SCOPED_RUN_CLOCK.get(options?.routeKey ?? null) ?? null); } catch { return null; }
+};
+// DOMINANT-COLOUR TOLERANCE, scoped to the image-metadata surfaces (see the decision above). Returns the number
+// of tolerated differences, or null when the documents differ anywhere else or exceed ±1 per channel.
+const DOMINANT_COLOUR_KEY = 'dominantColor';
+const DOMINANT_COLOUR_ROUTES = new Set(['POST /api/image-metadata/all', 'POST /api/image-metadata', 'file:default-user/image-metadata.json']);
+const dominantColourTolerantDifference = (leftValue, rightValue, routeKey) => {
+    if (leftValue === null || rightValue === null || !DOMINANT_COLOUR_ROUTES.has(routeKey)) return null;
+    const differences = [];
+    const walk = (left, right, path) => {
+        if (differences.length > 64) return;
+        if (Array.isArray(left) || Array.isArray(right)) {
+            if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) { differences.push({ path: `${path}[]` }); return; }
+            left.forEach((item, index) => walk(item, right[index], `${path}[${index}]`));
+            return;
+        }
+        if (left && right && typeof left === 'object' && typeof right === 'object') {
+            for (const key of new Set([...Object.keys(left), ...Object.keys(right)])) walk(left[key], right[key], path ? `${path}.${key}` : key);
+            return;
+        }
+        if (JSON.stringify(left) !== JSON.stringify(right)) differences.push({ path, left, right });
+    };
+    walk(leftValue, rightValue, '');
+    if (differences.length === 0) return null;
+    const channels = value => (typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
+        ? [1, 3, 5].map(index => parseInt(value.slice(index, index + 2), 16))
+        : null);
+    for (const difference of differences) {
+        if (difference.path !== DOMINANT_COLOUR_KEY && !difference.path.endsWith(`.${DOMINANT_COLOUR_KEY}`)) return null;
+        const leftChannels = channels(difference.left);
+        const rightChannels = channels(difference.right);
+        if (!leftChannels || !rightChannels) return null;
+        if (Math.max(...leftChannels.map((value, index) => Math.abs(value - rightChannels[index]))) > 1) return null;
+    }
+    return differences.length;
 };
 const projectBodyForComparison = (text, { routeKey = null } = {}) => {
     try { return sha256(Buffer.from(JSON.stringify(projectJsonForComparison(JSON.parse(text), ROUTE_SCOPED_RUN_CLOCK.get(routeKey) ?? null)), 'utf8')); } catch {
@@ -590,6 +653,11 @@ const READ_MULTIPLICITY_ROUTES = [
     // identical bodies.
     { match: path => path === '/api/characters/chats', normalisation: 'http-read-multiplicity' },
     { match: path => path === '/api/settings/save', normalisation: 'http-autosave-multiplicity' },
+    // THE SAME DEBOUNCED AUTOSAVE DRIVES QUICK REPLIES: the frontend persists the QuickReplies settings on its own
+    // debounce, so two isolated legs issue a different NUMBER of saves with identical bodies (measured corpus run
+    // 12 CI: 4 vs 5 saves). The final persisted QuickReplies document is still compared byte-oriented by
+    // persistence-changed-content-equal; only the save COUNT is scheduling.
+    { match: path => path === '/api/quick-replies/save', normalisation: 'http-autosave-multiplicity' },
 ];
 const multiplicityNormalisation = (request, key) => {
     if (request.method === 'GET' || key.startsWith('GET ')) return 'http-get-multiplicity';
@@ -1162,7 +1230,13 @@ guard('persistence-changed-content-equal', 'persistence', () => {
             const fileKey = 'file:' + entry.path;
             const leftProjected = projectBodyForComparison(leftText, { routeKey: fileKey });
             const rightProjected = projectBodyForComparison(rightText, { routeKey: fileKey });
-            if (leftProjected !== rightProjected) problems.push(`${entry.path}: content differs after named projection (raw ${entry.sha256.slice(0, 12)} vs ${otherSha.slice(0, 12)})`);
+            if (leftProjected !== rightProjected) {
+                // The same disclosed ±1/channel dominantColor exclusion the HTTP response applies: this file is a
+                // compared product-surface document and the colour is derived from decoded pixels.
+                const tolerant = dominantColourTolerantDifference(projectValueForComparison(leftText, { routeKey: fileKey }), projectValueForComparison(rightText, { routeKey: fileKey }), fileKey);
+                if (tolerant !== null) { appliedNormalisations.add('image-metadata-dominant-color-rounding'); continue; }
+                problems.push(`${entry.path}: content differs after named projection (raw ${entry.sha256.slice(0, 12)} vs ${otherSha.slice(0, 12)})`);
+            }
             continue;
         }
         if (entry.sha256 !== otherSha) problems.push(`${entry.path}: written bytes differ (${entry.sha256.slice(0, 12)} vs ${otherSha.slice(0, 12)})`);

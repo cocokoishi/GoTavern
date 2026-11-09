@@ -489,6 +489,61 @@ record('persistence-image-metadata-added-image', ['persistence-changed-content-e
     // A CHANGED product-surface JSON file must red when its content is mutated, whichever file the real journey changed.
     mutateChangedJsonFile(dir, (text, path) => text.replace('{', '{"mutation_image":true,'));
 });
+record('persistence-image-metadata-mtime-survives', ['persistence-changed-content-equal'], dir => {
+    // mtime is the copied image file's own modification time over the SAME corpus, i.e. the leg's clock (CI corpus
+    // run 12: 1794225576879.6094 vs 1794225577458.2578). The route-scoped projection must normalise it.
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const metadata = (leg.layers.persistence.jsonFiles ?? []).find(file => file.path === 'default-user/image-metadata.json');
+    if (metadata) metadata.text = metadata.text.replace('"mtime":1794225576879.6094', '"mtime":1794225577999.5');
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+}, { survivor: true });
+record('http-image-metadata-clock-survives', ['http-bodies-equal'], dir => {
+    // addedTimestamp and mtime in the /api/image-metadata/all RESPONSE are the run's observation clocks; the
+    // route-scoped projection must remove both while hash/aspectRatio/dominantColor stay compared.
+    const { leg, entry } = pairedEntry(dir, { path: '/api/image-metadata/all', requireResponseText: true });
+    const body = JSON.parse(entry.responseBodyText);
+    const image = body.images['backgrounds/x.png'];
+    image.addedTimestamp = 999999;
+    image.mtime = 1794225577999.5;
+    entry.responseBodyText = JSON.stringify(body);
+    entry.responseBodySha256 = 'a'.repeat(64);
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+}, { survivor: true });
+record('http-image-metadata-dominant-color-one-channel-survives', ['http-bodies-equal'], dir => {
+    // DISCLOSED ±1 EXCLUSION: one channel of dominantColor may differ because pinned and Go decode JPEGs with
+    // different codecs; any larger delta or any other member must still red (the next two teeth).
+    const { leg, entry } = pairedEntry(dir, { path: '/api/image-metadata/all', requireResponseText: true });
+    const body = JSON.parse(entry.responseBodyText);
+    body.images['backgrounds/x.png'].dominantColor = '#243346';
+    entry.responseBodyText = JSON.stringify(body);
+    entry.responseBodySha256 = 'b'.repeat(64);
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+}, { survivor: true });
+record('http-image-metadata-dominant-color-two-channels-reds', ['http-bodies-equal'], dir => {
+    const { leg, entry } = pairedEntry(dir, { path: '/api/image-metadata/all', requireResponseText: true });
+    const body = JSON.parse(entry.responseBodyText);
+    body.images['backgrounds/x.png'].dominantColor = '#253447';
+    entry.responseBodyText = JSON.stringify(body);
+    entry.responseBodySha256 = 'c'.repeat(64);
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});
+record('http-image-metadata-other-member-reds', ['http-bodies-equal'], dir => {
+    // The exclusion is scoped to dominantColor: a changed hash/aspectRatio in the same document must red.
+    const { leg, entry } = pairedEntry(dir, { path: '/api/image-metadata/all', requireResponseText: true });
+    const body = JSON.parse(entry.responseBodyText);
+    body.images['backgrounds/x.png'].aspectRatio = 1.25;
+    entry.responseBodyText = JSON.stringify(body);
+    entry.responseBodySha256 = 'd'.repeat(64);
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+});
+record('http-quick-replies-multiplicity-survives', ['http-request-set-equal', 'http-bodies-equal'], dir => {
+    // The quick-replies autosave debounce may issue a different NUMBER of identical saves; the final persisted
+    // QuickReplies document is still compared by the persistence guard.
+    const leg = readLeg(dir, 'a19-drive-gotavern.json');
+    const entry = (leg.layers.http.requests ?? []).find(request => request.origin === 'subject' && request.path === '/api/quick-replies/save');
+    if (entry) leg.layers.http.requests = [...leg.layers.http.requests, { ...entry, index: 998 }];
+    writeLeg(dir, 'a19-drive-gotavern.json', leg);
+}, { survivor: true });
 record('persistence-final-setting-value', ['persistence-changed-content-equal'], dir => {
     // A DIFFERENT mutation on a changed product-surface JSON file, so this tooth cannot be satisfied by the image one.
     mutateChangedJsonFile(dir, (text) => text.replace('{', '{"mutation_setting":5,'));
