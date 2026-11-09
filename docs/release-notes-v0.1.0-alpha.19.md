@@ -48,8 +48,12 @@ an ordered-JSON fast path that avoids a per-object copy and stable sort when no 
 pre-sized response buffer, one chats-root listing per character-list request instead of one per card, the
 differentially-pinned JSON escaper shared on the generic ordered-JSON routes, and the startup-only config cache.
 Each change carries a before/after profile and a byte-identity test against the pre-change writer; rejected
-attempts are recorded rather than hidden. Local numbers are Layer A; the release performance claim is the Linux
-`GoTavern smoke metrics` paired gate.
+attempts are recorded rather than hidden. A same-host ABBA run against the clean alpha.18 tree measured the
+process-level half: warm `GET /api/characters/all` p50 on 10,000 cards 1,692.26 → 1,139.65 ms (−32.7%, every
+candidate round below every baseline round), warm data-request max −32.9%, and cold peak RSS 628.07 → 361.89 MB
+(−42.4%); the ABBA wrapper's own same-binary self-test passes (all metrics not-separable), and metrics it cannot
+separate are reported as not separable rather than as wins. Local numbers are Layer A; the release performance
+claim is the Linux `GoTavern smoke metrics` paired gate.
 
 **Stability.** The 39-minute package-test hang was root-caused to a test peer that answered without reading the
 request body (RST discarded unread bytes → a legitimate truncation → pinned-parity stall against an unbounded client
@@ -69,14 +73,17 @@ release-admissible oracle run and its artifact paths are recorded in `docs/alpha
 - **`GOAL.md` §14 is not upgraded by this release.** The corpus is a tree the agent actually used through the real
   UI, but it is not a real person's years-old private directory. The §14 conditions are recorded honestly in
   `docs/alpha19/`; the strong drop-in bar remains NOT MET until a real user directory is qualified.
-- **Message provenance is mixed and disclosed.** Of 1,157 persisted messages, 385 were produced through real UI
+- **Message provenance is mixed and disclosed.** Of 1,168 persisted messages, 396 were produced through real UI
   turns and 772 were appended through the product's own `saveChatConditional` path (the prompt allows normal API
   paths as a data source). The manifest carries the split; the corpus is not claimed to be 100% UI-turn-originated.
 - **Peer coverage.** The installed pinned Tavern Helper / JS-Slash-Runner state is exercised, but this round does
   not re-run the whole third-party extension corpus beyond its existing dedicated gate, and arbitrary Node server
   plugins remain the documented ecosystem exclusion.
-- **Performance scope.** Peak RSS is not proven for this round; local ABBA/Node-control numbers are Layer A; the
-  ≥8-user and long-run resource evidence is recorded only to the extent it ran.
+- **Performance scope.** Peak RSS now has one paired Layer A observation (cold peak −42.4%) but it is not the
+  release claim; boot-latency and readiness-RSS rows were not separable on this host and are reported as not
+  separable. The Node control, ≥8-user concurrency and long-run soak steps are recorded only to the extent they
+  ran; p99 on the real-UI corpus is not measured. Local ABBA numbers are Layer A; the release claim is the Linux
+  `GoTavern smoke metrics` gate.
 - **Platforms.** `-race` is unavailable on the Windows development host (the Linux CI `race` job is the
   concurrency gate); darwin/arm64 runtime remains the previously recorded downgrade, not a pass.
 
