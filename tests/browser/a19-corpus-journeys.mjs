@@ -1175,8 +1175,9 @@ async function openGroup(page, groupId, newChat = true) {
         while (Date.now() < deadline) {
             const context = window.SillyTavern?.getContext?.() ?? null;
             last = {
-                // THE CONTEXT IS THE PRODUCT'S OWN READER for the selected group; the module binding can lag.
-                selectedGroup: context?.groupId ?? script.selected_group ?? null,
+                // `script.selected_group` does not exist (live binding lives in scripts/group-chats.js);
+                // the context reader is the product's own, and the owning module is the fallback.
+                selectedGroup: context?.groupId ?? groupChats.selected_group ?? null,
                 chatId: context?.chatId ?? null,
                 chatLength: (script.chat ?? []).length,
             };
@@ -1251,7 +1252,16 @@ async function runGroups(page, ctx, round, plan, cards) {
             let last = null;
             while (Date.now() < deadline) {
                 const script = await import('./script.js');
-                last = { selectedGroup: script.selected_group ?? null, chatLength: (script.chat ?? []).length };
+                const groupChatsModule = await import('./scripts/group-chats.js');
+                // `selected_group` is a LIVE BINDING exported by public/scripts/group-chats.js (L92), NOT
+                // re-exported by script.js: `script.selected_group` is always undefined and `?? null` made
+                // this observation unfailably false (B read it in pinned source; the group WAS open —
+                // chatLength 13/14 proved it). Read the owning module, and prefer the product's context.
+                const groupContext = window.SillyTavern?.getContext?.() ?? null;
+                last = {
+                    selectedGroup: groupChatsModule.selected_group ?? groupContext?.groupId ?? null,
+                    chatLength: (script.chat ?? []).length,
+                };
                 if (last.selectedGroup == id && last.chatLength > 0) return { ok: true, ...last };
                 await new Promise(resolve => setTimeout(resolve, 250));
             }
