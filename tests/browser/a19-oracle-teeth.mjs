@@ -489,12 +489,34 @@ record('persistence-image-metadata-added-image', ['persistence-changed-content-e
     // A CHANGED product-surface JSON file must red when its content is mutated, whichever file the real journey changed.
     mutateChangedJsonFile(dir, (text, path) => text.replace('{', '{"mutation_image":true,'));
 });
+// IMAGE-METADATA MUTATION HELPERS: the corpus is BUILT PER RUN, so the image keys, the colour values and the clock
+// values are NOT stable fixtures. A mutation must find a REAL entry in the recorded document (the first image with a
+// well-formed dominantColor, else the first image), never a hard-coded name or value: a mutation that silently does
+// nothing would count as a survivor and prove nothing (the exact failure this file exists to prevent).
+const pickMetadataImage = (document, { requireColour = false } = {}) => {
+    const images = document && typeof document === 'object' ? document.images : null;
+    if (!images || typeof images !== 'object') throw new Error('the recorded image-metadata document carried no images object');
+    const keys = Object.keys(images).filter(key => images[key] && typeof images[key] === 'object');
+    if (keys.length === 0) throw new Error('the recorded image-metadata document carried no image entry');
+    const key = keys.find(name => !requireColour || /^#[0-9a-f]{6}$/i.test(String(images[name].dominantColor ?? ''))) ?? keys[0];
+    return images[key];
+};
+const shiftColourChannels = (colour, delta) => {
+    const match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(colour ?? ''));
+    if (!match) throw new Error(`the recorded dominantColor ${JSON.stringify(colour)} is not a #RRGGBB value`);
+    return '#' + match.slice(1).map(channel => ((parseInt(channel, 16) + delta + 256) % 256).toString(16).padStart(2, '0')).join('');
+};
 record('persistence-image-metadata-mtime-survives', ['persistence-changed-content-equal'], dir => {
-    // mtime is the copied image file's own modification time over the SAME corpus, i.e. the leg's clock (CI corpus
-    // run 12: 1794225576879.6094 vs 1794225577458.2578). The route-scoped projection must normalise it.
+    // mtime is the copied image file's own modification time over the SAME corpus, i.e. the leg's clock. The
+    // route-scoped projection must normalise it; the VALUE is per-run, so it is shifted from whatever was recorded.
     const leg = readLeg(dir, 'a19-drive-gotavern.json');
     const metadata = (leg.layers.persistence.jsonFiles ?? []).find(file => file.path === 'default-user/image-metadata.json');
-    if (metadata) metadata.text = metadata.text.replace('"mtime":1794225576879.6094', '"mtime":1794225577999.5');
+    if (metadata) {
+        const document = JSON.parse(metadata.text);
+        const image = pickMetadataImage(document);
+        image.mtime = (Number(image.mtime) || 0) + 12345.5;
+        metadata.text = JSON.stringify(document);
+    }
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
 }, { survivor: true });
 record('http-image-metadata-clock-survives', ['http-bodies-equal'], dir => {
@@ -502,7 +524,7 @@ record('http-image-metadata-clock-survives', ['http-bodies-equal'], dir => {
     // route-scoped projection must remove both while hash/aspectRatio/dominantColor stay compared.
     const { leg, entry } = pairedEntry(dir, { path: '/api/image-metadata/all', requireResponseText: true });
     const body = JSON.parse(entry.responseBodyText);
-    const image = body.images['backgrounds/x.png'];
+    const image = pickMetadataImage(body);
     image.addedTimestamp = 999999;
     image.mtime = 1794225577999.5;
     entry.responseBodyText = JSON.stringify(body);
@@ -514,7 +536,8 @@ record('http-image-metadata-dominant-color-one-channel-survives', ['http-bodies-
     // different codecs; any larger delta or any other member must still red (the next two teeth).
     const { leg, entry } = pairedEntry(dir, { path: '/api/image-metadata/all', requireResponseText: true });
     const body = JSON.parse(entry.responseBodyText);
-    body.images['backgrounds/x.png'].dominantColor = '#243346';
+    const image = pickMetadataImage(body, { requireColour: true });
+    image.dominantColor = shiftColourChannels(image.dominantColor, 1);
     entry.responseBodyText = JSON.stringify(body);
     entry.responseBodySha256 = 'b'.repeat(64);
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
@@ -522,7 +545,8 @@ record('http-image-metadata-dominant-color-one-channel-survives', ['http-bodies-
 record('http-image-metadata-dominant-color-two-channels-reds', ['http-bodies-equal'], dir => {
     const { leg, entry } = pairedEntry(dir, { path: '/api/image-metadata/all', requireResponseText: true });
     const body = JSON.parse(entry.responseBodyText);
-    body.images['backgrounds/x.png'].dominantColor = '#253447';
+    const image = pickMetadataImage(body, { requireColour: true });
+    image.dominantColor = shiftColourChannels(image.dominantColor, 2);
     entry.responseBodyText = JSON.stringify(body);
     entry.responseBodySha256 = 'c'.repeat(64);
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
@@ -531,7 +555,8 @@ record('http-image-metadata-other-member-reds', ['http-bodies-equal'], dir => {
     // The exclusion is scoped to dominantColor: a changed hash/aspectRatio in the same document must red.
     const { leg, entry } = pairedEntry(dir, { path: '/api/image-metadata/all', requireResponseText: true });
     const body = JSON.parse(entry.responseBodyText);
-    body.images['backgrounds/x.png'].aspectRatio = 1.25;
+    const image = pickMetadataImage(body);
+    image.aspectRatio = 1.25;
     entry.responseBodyText = JSON.stringify(body);
     entry.responseBodySha256 = 'd'.repeat(64);
     writeLeg(dir, 'a19-drive-gotavern.json', leg);
