@@ -8,7 +8,7 @@ prompt verbatim, the measured starting state, the final goal and the acceptance 
 
 | field | value |
 |---|---|
-| stage | **P0 — baseline frozen, P1 (real-UI corpus) in progress** |
+| stage | **P0 — oracle + harness boot proven; P1 (real-UI corpus) in progress** |
 | branch | `alpha19/program` (from `52883e8`) |
 | candidate | none yet |
 | subagents | `oracle-ui` (A), `compat-diff` (B), `perf-stability` (C) — exactly three, long-lived |
@@ -22,6 +22,7 @@ prompt verbatim, the measured starting state, the final goal and the acceptance 
 | charter / prompt / goal | [`CHARTER.md`](CHARTER.md) | frozen |
 | oracle pin manifest (SHA256 of `public/**`, `src/**`, `default/**`, `server.js`, `package*.json`) | [`oracle-pin.sha256`](oracle-pin.sha256) | recorded |
 | oracle pin summary (commit, clean flag, file count, bytes, tree digest) | [`oracle-pin.json`](oracle-pin.json) | recorded |
+| pinned boot smoke (real `run-against-pinned.mjs` boot, `/version` identity, index bytes, readiness bound) | [`oracle/pinned-boot-smoke.json`](oracle/pinned-boot-smoke.json) | recorded |
 | decisions and rejected options | [`decision-log.md`](decision-log.md) | live |
 | alpha.19 evidence artifact contract (for the new CI gate) | [`evidence-contract.md`](evidence-contract.md) | drafted |
 | real-UI corpus (originals + manifest + action log) | outside the repo: `C:\Users\koishi\Desktop\GoTavern\a19-oracle` (A); summary will be copied here | in progress |

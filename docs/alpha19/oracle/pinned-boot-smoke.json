@@ -1,0 +1,43 @@
+{
+    "schema":  "a19-pinned-boot-smoke-v1",
+    "generatedAt":  "2026-11-08T17:53:39.2844407-08:00",
+    "purpose":  "Prove the pinned SillyTavern oracle boots on this host through the existing harness, and record the readiness bound the alpha.19 CI gate must use.",
+    "command":  "node run-against-pinned.mjs \u003ctemp child\u003e (cwd tests/browser)",
+    "pinnedCommit":  "06bde939fb1e9c4c8d8641d810f0a916b5bce127",
+    "dataRootClass":  "temporary, auto-deleted by the wrapper",
+    "attempts":  [
+                     {
+                         "deadlineMs":  90000,
+                         "outcome":  "timeout before ready while the server was still compiling frontend libraries; no child output",
+                         "conclusion":  "the default 90s bound is NOT sufficient on this host under load"
+                     },
+                     {
+                         "deadlineMs":  300000,
+                         "outcome":  "ready",
+                         "totalWrapperMs":  144821,
+                         "childExit":  0,
+                         "versionStatus":  200,
+                         "versionBody":  {
+                                             "commitDate":  "2026-09-14 21:01:34 +0200",
+                                             "isLatest":  true,
+                                             "agent":  "SillyTavern:1.19.0:Cohee#1207",
+                                             "pkgVersion":  "1.19.0",
+                                             "gitBranch":  "release",
+                                             "gitRevision":  "06bde939f"
+                                         },
+                         "indexStatus":  200,
+                         "indexBytes":  734703
+                     }
+                 ],
+    "host":  {
+                 "go":  "go version go1.27.3 windows/arm64",
+                 "logicalCores":  2,
+                 "node":  "v24.19.0",
+                 "os":  "Windows 11 24H2 arm64",
+                 "note":  "three long-lived subagents were running concurrently during the measurement"
+             },
+    "implications":  [
+                         "the real-UI oracle CI job must set PINNED_READY_MS to at least 300000 locally and must cache the pinned node_modules; readiness is identity-bound (version + listener pid), not response.ok",
+                         "the alpha.19 corpus builder must tolerate a cold pinned frontend compile (tens of seconds) without treating it as failure"
+                     ]
+}
