@@ -69,6 +69,14 @@ func (runtime *accountRuntime) serveCharactersAll(w http.ResponseWriter, request
 		return
 	}
 	characters := make([]orderedNodeJSON, 0, len(entries))
+	// The response repeats each card's text as `json_data` and again as the projected fields, so the card text
+	// length is a direct lower bound on that card's contribution. Measured bodies: 10,000 cards / 2 KB text =
+	// 58,887,196 B (2.88x the text), 1,000 cards / 8 KB text = 23,296,711 B (2.84x), 100 cards / 8 KB text =
+	// 2,329,662 B (2.84x). `3*len + 512` therefore reserves ~5-8% above the measured bodies, which removes
+	// bytes.Buffer's geometric growth (the largest single allocation line in the warm profile) without a
+	// pathological over-reserve; a card whose text escapes more than 3x still grows correctly (the estimate is
+	// a capacity hint only and CANNOT change emitted bytes).
+	estimatedBodyBytes := 0
 	for _, entry := range entries {
 		if !strings.HasSuffix(entry.Name(), ".png") {
 			continue
@@ -76,9 +84,14 @@ func (runtime *accountRuntime) serveCharactersAll(w http.ResponseWriter, request
 		character := processCharacterForDirEntry(entry, directories, lazyLoadCharacters)
 		if jsTruthy(nodeGet(character, "name")) {
 			characters = append(characters, character)
+			cardTextBytes := 0
+			if cardText, isString := nodeGet(character, "json_data").stringValue(); isString {
+				cardTextBytes = len(cardText)
+			}
+			estimatedBodyBytes += 3*cardTextBytes + 512
 		}
 	}
-	body, err := marshalCharacterJSON(nodeArray(characters...))
+	body, err := marshalCharacterJSONPreallocated(nodeArray(characters...), estimatedBodyBytes)
 	if err != nil {
 		serveCharactersOverflow(w, errors.Is(err, errJavaScriptRange))
 		return

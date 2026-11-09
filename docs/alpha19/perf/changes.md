@@ -70,3 +70,46 @@ verified identical (`380354846BAE2393…`) afterwards.
 `internal/outbound.sendWireExactStreaming`); the same test passes isolated in 0.02 s and the hang is in the
 text-completion streaming path, which C1 does not touch (C1 changes ordered-JSON member ordering only). The
 timeout is being classified against a clean worktree; the full-suite green is **not yet claimed**.
+
+## C4 — pre-sized response buffer for `/api/characters/all` (commit `<filled at commit>`)
+
+**Approved scope:** `internal/server/characters_read.go`, `internal/server/characters_json.go`.
+**What changed:** `serveCharactersAll` accumulates `3*cardTextBytes + 512` per listed card from the `json_data`
+string it already holds, and `marshalCharacterJSONPreallocated` calls `bytes.Buffer.Grow` with that estimate
+before the same `writeCharacterJSON` walk. Capacity only: no byte of output changes, proven by the route-level
+byte-equality test below.
+
+**Calibration of the estimate** (measured response bodies, [`raw/boot-cards-*.json`](raw/)): 10,000 cards /
+2 KB text → 58,887,196 B = 2.88× the text; 1,000 cards / 8 KB text → 23,296,711 B = 2.84×; 100 cards / 8 KB text
+→ 2,329,662 B = 2.84×. The first attempt used `2*len + 2048`, which UNDER-estimated the 8 KB-card rows
+(18.4 MB reserve for a 23.3 MB body) and therefore paid one geometric growth: it **regressed** the 1,000-card
+arm by +3.1% B/op (159,709,717 → 164,674,989). That row is kept as [`raw/c4-attempt1-2x-estimate-inprocess.txt`](raw/c4-attempt1-2x-estimate-inprocess.txt).
+The shipped estimate `3*len + 512` reserves 5-8% above the measured bodies and removes the growth.
+
+**Before/after allocation rows** (C1 is the "before" for this change; baseline-before-both is in the C1 section;
+raw after [`raw/c4-after-inprocess.txt`](raw/c4-after-inprocess.txt)):
+
+| arm | C1 B/op | C4 B/op | C4 change | C1 allocs/op | C4 allocs/op |
+|---|---:|---:|---:|---:|---:|
+| `cards_100_128KB_image` | 27,957,050 | 24,181,629 | **−13.5%** | 18,465 | 18,448 |
+| `cards_1000_32KB_image` | 159,709,717 | 134,470,965 | **−15.8%** | 180,969 | 180,950 |
+| `cards_10000_4KB_image` | 541,274,656 | 406,486,229 | **−24.9%** | 1,753,661 | 1,753,641 |
+| `cards_100_640KB_image` | 89,908,144 | 83,169,664 | **−7.5%** | 18,737 | 18,726 |
+| `BenchmarkCharactersAllCold` | 801,197,144 | 666,431,621 | **−16.8%** | 2,060,330 | 2,060,316 |
+
+**Cumulative C1+C4 against the pre-change baseline:** 10,000 cards 619,914,794 → **406,486,229 B/op (−34.4%)**
+and 3,193,663 → **1,753,641 allocs/op (−45.1%)**; 1,000 cards 167,573,736 → **134,470,965 (−19.8%)**, allocs
+324,973 → 180,950 (−44.3%); 100 cards 28,743,157 → 24,181,629 (−15.9%); cold 10,000 879,836,722 → 666,431,621
+(−24.2%). Target check: T7 asked for window alloc_space −8% with no peak-RSS regression; the allocation half is
+met, the **peak-RSS half is UNPROVEN** until the process-level ABBA (the reserve is a transient capacity of
+~5-8% above the body, so a small peak-RSS movement is possible and must be measured, not assumed).
+
+**Byte identity:** `TestA19CharactersAllResponseBytesMatchReferenceForGeneratedLibraries` compares the route's
+response at 1/100/1,000/10,000 cards against both the production marshal and the pre-change reference writer
+(the reference path uses a plain, un-sized `bytes.Buffer`), so a capacity hint that changed one emitted byte
+would fail there. Green. Also green: the whole targeted oracle subset
+`go test ./internal/server -run 'TestA19|TestCharactersAll|TestCharacterCardCache|TestCharacterJSONStringEncoding|TestChatCompletionGenerateMatchesProviderWireCapture' -count=1` (61.75 s).
+
+**Regressions reported:** the earlier `2*len + 2048` estimate row (+3.1% on 1,000 cards) is kept as evidence
+above and was replaced, not hidden. No other arm regressed in the shipped estimate.
+
