@@ -232,6 +232,9 @@ function selfTest() {
         ['manifest-not-verified', doc => { doc.corpus.detail.manifestVerification = false; }, /corpus\.detail\.manifestVerification/],
         ['narrowed-selection', doc => { doc.selection.mode = 'browser-only'; }, /selection\.mode/],
         ['push-run-selection', doc => { doc.selection.dispatch = 'push'; }, /selection\.dispatch/],
+        // A LOCAL RUN MUST NEVER BE ACCEPTED AS RELEASE EVIDENCE: the producer writes 'local' when it was not
+        // dispatched by the release workflow, and the verifier must refuse that exact value (the Lead's gate).
+        ['local-run-selection', doc => { doc.selection.dispatch = 'local'; }, /selection\.dispatch/],
         ['unexplained-not-compared', doc => { doc.notCompared = [{ surface: 'extension iframe' }]; }, /notCompared\[0\]\.reason/],
         ['finished-before-started', doc => { doc.finishedAt = '2026-11-07T23:00:00.000Z'; }, /finishedAt is before startedAt/],
     ];
