@@ -54,6 +54,13 @@ env:
   # development host under load). Do not lower this to make a red go away.
   PINNED_READY_MS: '300000'
   A19_SCRATCH: ${{ github.workspace }}/.a19-scratch
+  # SHARED-RUNNER BUDGETS. The builder's UI-turn bound was 15 s on the development host; a Linux shared runner took
+  # 16 minutes for round 1 versus ~3.5 minutes locally, so the bounds are configurable and sized for CI. A timeout
+  # is still a NAMED failure carrying the pre-click state — a larger bound never turns a red into a green.
+  A19_TURN_TIMEOUT_MS: '60000'
+  A19_REPLY_TIMEOUT_MS: '60000'
+  A19_NEWCHAT_TIMEOUT_MS: '60000'
+  A19_IMPORT_TIMEOUT_MS: '60000'
 
 jobs:
   real-ui-oracle:
@@ -301,6 +308,26 @@ jobs:
           else
             echo "no release-evidence.json was produced" >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      # A RED WITHOUT ITS LEG REPORT IS UNREADABLE, and this gate already lost one diagnosis that way (wave 3's
+      # corpus build failed with the round report, action log and console state only in the runner's temp dir). This
+      # upload is `always()` and separate from the fixed-name evidence artifact; browser trace zips are deliberately
+      # excluded (they can be hundreds of MB), the round reports/action logs/screenshots are what a red needs.
+      - name: Upload the corpus build artefacts (always, so a red is readable)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a19-real-ui-oracle-scratch
+          path: |
+            .a19-scratch/rounds/*.log
+            .a19-scratch/round*/*.json
+            .a19-scratch/round*/actions-*.jsonl
+            .a19-scratch/round*/*.png
+            .a19-scratch/corpus-summary*.log
+            ${{ runner.temp }}/a19-evidence/**
+          if-no-files-found: warn
+          retention-days: 14
+          include-hidden-files: true
 
       # FIXED NAME + MEMBER AT THE ARTIFACT ROOT. `scripts/release-governance/artifact-evidence.mjs` reads exactly
       # `release-evidence.json`; uploading `dir/*` makes that file the root member. `error`, not `warn`: a green job
