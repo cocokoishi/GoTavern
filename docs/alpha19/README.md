@@ -8,12 +8,12 @@ prompt verbatim, the measured starting state, the final goal and the acceptance 
 
 | field | value |
 |---|---|
-| stage | **P2 five-layer release-admissible run in progress (harness decisions converging); gate 14 armed; P3 perf measured on a quiet window** |
-| branch | `alpha19/program` (from `52883e8`) |
-| candidate | not frozen yet (suite-green SHA `78272e7`; release-admissible runs at `f311b1a` / `aad6cc5`) |
+| stage | **RELEASED — `v0.1.0-alpha.19` published 2026-11-09T19:08:48Z** |
+| tag / candidate | annotated `v0.1.0-alpha.19` (object `50d0c3aa…`) peels to `bbc5615` |
+| release | https://github.com/cocokoishi/GoTavern/releases/tag/v0.1.0-alpha.19 — `draft=false`, `prerelease=false`, latest, 6 archives + `checksums.txt` |
 | subagents | `oracle-ui` (A), `compat-diff` (B), `perf-stability` (C) — exactly three, long-lived |
-| corpus | **v2 finalized and committed as provenance**: 978 files / 49,898,769 B / tree `06d68e05…`; created 32 cards, 9 worlds/154 entries, 10 presets, 51 chats, 5 groups, 1 extension; 1,168 messages (396 UI turns + 772 product-save-path, disclosed) |
-| CI gates | **14 required gates armed**; none dispatched yet |
+| corpus | **v2 finalized and committed as provenance**: 978 files / 49,898,769 B / tree `06d68e05…`; created 32 cards, 9 worlds/154 entries, 10 presets, 51 chats, 5 groups, 1 extension; 1,168 messages (396 UI turns + 772 product-save-path, disclosed). The CI gate regenerates its own corpus per run. |
+| CI gates | **14/14 green at the released candidate** (verifier PASS; table in [`same-sha-evidence.md`](same-sha-evidence.md)) |
 
 ## Evidence index (live)
 
@@ -25,13 +25,13 @@ prompt verbatim, the measured starting state, the final goal and the acceptance 
 | pinned boot smoke (real `run-against-pinned.mjs` boot, `/version` identity, index bytes, readiness bound) | [`oracle/pinned-boot-smoke.json`](oracle/pinned-boot-smoke.json) | recorded |
 | decisions and rejected options | [`decision-log.md`](decision-log.md) | live |
 | alpha.19 evidence artifact contract (for the new CI gate) | [`evidence-contract.md`](evidence-contract.md) | applied (verifier + gate rails) |
-| real-UI oracle CI gate (workflow + manifest entry + governance rails + evidence verifier) | [`.github/workflows/real-ui-oracle.yml`](../../.github/workflows/real-ui-oracle.yml), [`evidence-contract.md`](evidence-contract.md), `docs/release-manifest.json` gate 14, [`scripts/verify-a19-evidence.mjs`](../../scripts/verify-a19-evidence.mjs) | **armed** (14 gates; governance 89/89; verifier 17/17); first dispatch pending the local admissible run |
+| real-UI oracle CI gate (workflow + manifest entry + governance rails + evidence verifier) | [`.github/workflows/real-ui-oracle.yml`](../../.github/workflows/real-ui-oracle.yml), [`evidence-contract.md`](evidence-contract.md), `docs/release-manifest.json` gate 14, [`scripts/verify-a19-evidence.mjs`](../../scripts/verify-a19-evidence.mjs) | **PASS in CI at the released candidate** (run 42647718786; 5/5 layers match, 26 normalisations, 6 notCompared, 57/57 teeth) |
 | real-UI corpus (v2 manifest + provenance) | outside: `a19-oracle/manifest/corpus-manifest-v2.json` (sha256 `25caa60c…`, tree `06d68e05…`); committed copy + [`oracle/corpus.md`](oracle/corpus.md) | finalized (Lead re-hashed 978/978 files) |
-| five-layer differential | B's `a19-live-oracle.mjs` release-admissible run | harness decisions converging (run #2 residual: recorder body-read + secrets projection); no product mismatch claimed |
+| five-layer differential | [`oracle/release-admissible-run.md`](oracle/release-admissible-run.md) (local Layer A) + the CI run above | released candidate PASS |
 | findings (RED/GREEN) | `findings/` | 7 records: release-selection-rail, layer-b-conditional-get, reset-save-test-flake, self-check-runs, abba self-test, tokenizer scheduling/derived sizes, plus product fixes in commit history |
-| performance | `perf/` (C) | C1/C4/C3/C5/C2 measured; cumulative summary + ABBA self-test (passed) + cumulative A/B rows committed; Node-control/8-user/soak pending a window |
-| same-SHA CI evidence | `same-sha-evidence.md` | not started (filled from the dispatch) |
-| release evidence | `release-evidence.md` | not started (filled after publication) |
+| performance | `perf/` (C) | C1/C4/C3/C5/C2 measured; cumulative summary + ABBA self-test (passed) + cumulative A/B rows + Node control committed; 8-user/soak did not run |
+| same-SHA CI evidence | [`same-sha-evidence.md`](same-sha-evidence.md) | **14/14 PASS** at the released candidate |
+| release evidence | [`release-evidence.md`](release-evidence.md) | published + independently verified |
 
 ## How to verify the oracle pin (any machine)
 

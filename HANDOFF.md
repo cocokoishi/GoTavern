@@ -10,7 +10,26 @@ this repository at `../SillyTavern` and is READ-ONLY.
 
 ---
 
-## Latest checkpoint - 2026-11-07: `v0.1.0-alpha.18` — THE DEEP PRODUCT-ENGINEERING RELEASE
+## Latest checkpoint - 2026-11-09: `v0.1.0-alpha.19` — THE REAL-INTERACTION ORACLE RELEASE
+
+`v0.1.0-alpha.19` is **PUBLISHED**: the annotated tag `v0.1.0-alpha.19` (object `50d0c3aa`) peels to the gated
+candidate `bbc5615`, and `GoTavern Release` run **42679494601** created
+https://github.com/cocokoishi/GoTavern/releases/tag/v0.1.0-alpha.19 at 2026-11-09T19:02:20Z with `draft=false`,
+`prerelease=false`, `latest=true`, the six canonical archives plus `checksums.txt`, and the same-SHA 14-gate table
+appended to its body. The fail-closed verifier passed **14/14** at that commit; the new fourteenth gate
+(`GoTavern real-UI oracle differential`, run 42647718786) reported all five layers `match`, 26 named
+normalisations, 6 not-compared surfaces and 57/57 comparator teeth over a UI-originated corpus generated inside
+that run. Evidence: [`docs/alpha19/same-sha-evidence.md`](docs/alpha19/same-sha-evidence.md),
+[`docs/alpha19/release-evidence.md`](docs/alpha19/release-evidence.md). The SillyTavern `1.19.0` baseline
+(`06bde939fb1e9c4c8d8641d810f0a916b5bce127`) is unchanged and `GOAL.md` §14 remains **NOT MET** (the corpus is
+agent-authored real UI usage, not a real user's years-old directory). Status at this checkpoint is
+**PUBLISHED, after a PASS**, with the honest unproven list kept in the release notes and
+`docs/alpha19/perf/summary.md` (peak RSS is one Layer A paired row, not the gate; long-run memory trend, ≥8-user
+concurrency and corpus p99 unmeasured; darwin/arm64 and windows/arm64 recorded as platform limitations).
+
+---
+
+## Checkpoint history - 2026-11-07: `v0.1.0-alpha.18` — THE DEEP PRODUCT-ENGINEERING RELEASE
 
 `v0.1.0-alpha.18` is the product round that closes the gaps alpha.17 recorded without changing them, and it is
 **PUBLISHED**: the annotated tag `v0.1.0-alpha.18` (object `bc1289be`) peels to the gated candidate

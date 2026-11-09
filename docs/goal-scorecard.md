@@ -1,5 +1,16 @@
 # The evidence ledger: one row per user question, and the run that proves it
 
+**alpha.19 note (2026-11-09, `v0.1.0-alpha.19` published).** No row below is upgraded by alpha.19: the
+baseline, contract and per-question states are unchanged, and `GOAL.md` §14 stays NOT MET (the UI-originated
+corpus is agent-authored, not a real user's years-old directory). alpha.19 adds a fourteenth required release
+gate (the five-layer real-UI oracle, run 42647718786: all layers `match`, 26 normalisations, 6 not-compared
+surfaces, 57/57 teeth) plus the corpus provenance in `docs/alpha19/oracle/`, the product fixes it found
+(conditional GET/304 on four JSON routes, startup-only config parse, a streaming cancel-watchdog leak) and the
+measured performance record in `docs/alpha19/perf/` (Layer A: 10k-card B/op −35.0%, allocs −45.7%, warm
+characters/all p50 −32.7%, cold peak RSS −42.4%; the release claim remains the Linux `GoTavern smoke metrics`
+gate). Same-SHA evidence: [`alpha19/same-sha-evidence.md`](alpha19/same-sha-evidence.md); publication record:
+[`alpha19/release-evidence.md`](alpha19/release-evidence.md).
+
 **alpha.16 note (2026-11-07).** The rows below are the `v0.1.0-alpha.15` record and remain admissible for
 every capability they name: alpha.16 keeps the same baseline and contract, and its final pass closed five
 confirmed defects (D-H1 provider config path, C-H1 rate-limit memory, C-H6 heartbeat shutdown, C-H7 CLI claim,

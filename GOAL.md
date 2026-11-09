@@ -46,7 +46,8 @@ artifacts verified after publication (§16). No tag is created and no channel is
 and the evidence table names every gate run. `v0.1.0-alpha.16` and `v0.1.0-alpha.17` are already
 published and their tags are immutable.
 
-**Update, 2026-11-09: the current deliverable is `v0.1.0-alpha.19`, the real-interaction oracle release.**
+**Update, 2026-11-09: the current deliverable is `v0.1.0-alpha.19`, the real-interaction oracle release
+(PUBLISHED 2026-11-09).**
 alpha.19 moves the compatibility evidence from synthetic-only to a tree that was actually used through the
 unmodified pinned UI: a Node-UI-Originated Complex User Corpus (30+ created cards, 8+ world books / 150+
 created entries, 10 materially different presets, 50+ chats / 1,000+ persisted messages, 5+ group chats,
@@ -499,16 +500,20 @@ bar stays unmet. No real, long-used user directory has been qualified: the local
 does not change this: it adds synthetic/adversarial depth and performance evidence, and it states in the
 same place that §14 stays unmet.
 
-**Update, 2026-11-09 (`v0.1.0-alpha.19` being prepared).** alpha.19 changes the KIND of evidence available
+**Update, 2026-11-09 (`v0.1.0-alpha.19` PUBLISHED).** alpha.19 changes the KIND of evidence available
 without changing the verdict: the corpus it uses was created and used by an agent through the unmodified
 pinned UI (real import controls, world-book editor, preset UI, chat turns, group chats, Tavern Helper state),
 and the same tree is replayed on both subjects in the five-layer oracle — so §14's condition 1 has a real
 `ui`-origin tree for the first time, but the tree is agent-created rather than a real person's years-old
 private data, and conditions 2-5 still rest on that same corpus. The oracle also evidences restart/hand-back
-(both directions) and provider-wire byte equality on the corpus path. §14 therefore remains **NOT MET for the
-strong form**; the honest statement is "real UI usage, agent-authored corpus, five-layer equality on that
-corpus", with the corpus's own limits disclosed (396 UI-turn / 772 product-save-path messages, extension
-auto-enable, one recorded third-party egress request, `-race` only on Linux, darwin/arm64 unverified).
+(both directions) and provider-wire byte equality on the corpus path. The new fourteenth release gate
+(`GoTavern real-UI oracle differential`) passed at the published candidate `bbc5615` with all five layers
+`match`, 26 named normalisations, 6 not-compared surfaces and 57/57 comparator teeth; the same-SHA wave is
+recorded in `docs/alpha19/same-sha-evidence.md`. §14 therefore remains **NOT MET for the strong form**; the
+honest statement is "real UI usage, agent-authored corpus, five-layer equality on that corpus", with the
+corpus's own limits disclosed (396 UI-turn / 772 product-save-path messages in the locally built corpus,
+extension auto-enabled at load, one recorded third-party egress request, `-race` only on Linux, darwin/arm64
+and windows/arm64 recorded as build-only/platform limitations).
 
 The M0 audit of 2026-11-03 named two concrete reasons the sentence could not then be upgraded. Both
 were RE-MEASURED this round rather than quoted: (1) **response compression** — no longer a reason; the
