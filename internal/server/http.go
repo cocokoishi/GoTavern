@@ -802,13 +802,13 @@ func serveVersion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "version response unavailable", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Content-Length", fmt.Sprint(len(body)))
-	w.Header().Set("ETag", httpx.WeakETag(body))
-	w.WriteHeader(http.StatusOK)
-	if r.Method != http.MethodHead {
-		_, _ = w.Write(body)
-	}
+	// Pinned's route is `response.send(data)` (src/server-main.js:272-275), the same Express send path
+	// whose measured 304 face is recorded in docs/alpha19/findings/layer-b-conditional-get.md: a fresh
+	// conditional GET/HEAD gets 304 with the ETag preserved and NO representation headers. The frontend
+	// fetches /version on every page load (public/script.js:504), so this is the last browser-requested
+	// GET route that revalidates (alpha.20 audit A20-H measured that the other four are already
+	// conditional and that /csrf-token's body -- a fresh token -- can never be fresh).
+	httpx.WriteJSONBytesConditional(w, r, http.StatusOK, body)
 }
 
 // serveStatic is the shared "no route matched" responder: the final catch-all
