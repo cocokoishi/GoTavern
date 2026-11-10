@@ -1,7 +1,7 @@
 # GoTavern v0.1.0-alpha.20 — the source-audit and performance release
 
 `v0.1.0-alpha.20` is the release in which the compatibility work is driven by **reading the real production
-code** rather than only by test suites: seven defects found by source audit are fixed with reproducers, the two
+code** rather than only by test suites: nine defects found by source audit are fixed with reproducers, the two
 compatibility gaps alpha.18/19 recorded as unimplemented (the pinned `chat_metadata.integrity` guard and the
 group-save auto-backup) are closed, the JSON hot path is rewritten to serialize with one buffer (measured
 allocation reductions of 47.8%–81.1%), and the product page is shortened to a real landing page with a rebuilt,
@@ -10,7 +10,7 @@ fourteen required release gates all run at one commit.
 
 ## What changed
 
-**Seven source-audit fixes, each with a real reproducer and a RED→GREEN record.**
+**Nine source-audit fixes, each with a real reproducer and a RED→GREEN record.**
 
 - **The SD/text-completion socket-close interrupt fired after every completed request.** Go cancels the request
   context when the handler returns, so a bare watcher fired the pinned cancel *after a success*; A1111's
@@ -36,6 +36,11 @@ fourteen required release gates all run at one commit.
   `400 {"error":"integrity"}` unless `body.force` is truthy; the whole pass/fail table is implemented
   (missing/empty/legacy files pass, an unparseable first line fails, BOM stripped, strict `===`, JavaScript
   truthiness for `force`, config read once at boot).
+- **`/version` was the last browser-requested GET without Express’s 304 face.** It is fetched on every page
+  load; a matching validator now answers 304, while an unmatched tag or `Cache-Control: no-cache` still gets 200.
+- **Chat-backup downloads bypassed pinned’s `send()` contract.** They now carry the STAT ETag, `Last-Modified`,
+  `Accept-Ranges`, `Cache-Control` and Range/206 behaviour pinned produces, instead of a content-hash ETag and
+  no range support.
 - **Group saves never scheduled the pinned auto-backup.** Pinned's `/api/chats/group/save` goes through the same
   `trySaveChat`, so it schedules the same throttled `chat_<key>_<timestamp>.jsonl` backup; both save routes now
   share the handler's one boot-time backup manager.
