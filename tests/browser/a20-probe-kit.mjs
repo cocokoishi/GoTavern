@@ -65,17 +65,18 @@ export async function waitForPort(port, timeoutMs = 30000) {
     return false;
 }
 
-/** Choose a port by binding 0 and closing. The caller still retries on bind failure. */
+/**
+ * Choose a port through the shared lease (tests/browser/port-lease.mjs).
+ *
+ * This used to bind 0 and close, then hand the NUMBER to a process started later — the
+ * alpha.12 defect class the third-party gate's static check refuses: an in-process peer
+ * can take the port in the window and the probe drives the wrong server. allocatePort
+ * picks a free port from the lease range and records it, so every probe that boots a
+ * subject shares one allocator.
+ */
 export async function freePort() {
-    const { createServer } = await import('node:net');
-    return new Promise((resolve, reject) => {
-        const server = createServer();
-        server.on('error', reject);
-        server.listen(0, '127.0.0.1', () => {
-            const port = server.address().port;
-            server.close(() => resolve(port));
-        });
-    });
+    const { allocatePort } = await import('./port-lease.mjs');
+    return allocatePort();
 }
 
 /**
