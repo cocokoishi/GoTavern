@@ -13,6 +13,12 @@ live in working notes, never here. Severity: Critical / High / Medium / Low.
 | A20-E | High | chats: group save never scheduled the pinned backup | **FIXED** (`fb24983`, Lead) | [A20-E](A20-E-group-save-backup.md) |
 | A20-F | Medium | characters: the card base64 decoder rejected payloads pinned's lenient `Buffer.from(text,'base64')` reads (URL-safe `-`/`_`, interior junk, `=` handling, lone leftover char) | **FIXED** (`138d177`, source-audit lane) | [A20-F](A20-F-card-base64.md) |
 | A20-G | High | characters: avatar edit/replace/delete never invalidated the cached thumbnail (stale avatar rendered; delete+recreate showed the deleted character's face) | **FIXED** (`0afe330`, source-audit lane) | [A20-G](A20-G.md) |
+| A20-H | Low | `/version` was the last browser-requested GET that always answered 200 where pinned's `send()` answers 304 on a matching validator | **FIXED** (`f606e94`, source-audit lane) | [A20-H](A20-H.md) |
+| A20-I | Low | chat-backup download used a content-hash ETag and no `Last-Modified`/`Accept-Ranges`/`Range`/`Cache-Control` where pinned's `res.download`→`send()` uses its STAT ETag contract; the recorded oracle value already existed but the comparator only asserted ETag presence | **FIXED** (`17db9ac`, source-audit lane; gate-blind-spot noted) | [A20-I](A20-I.md) |
+
+Audit notes on cleared areas, inherited properties and boundaries (world-info ordering is frontend-only in the
+pinned baseline; extension install/update audited at parity; access-log growth is pinned's own Set) are in
+[`notes-inherited-and-boundaries.md`](notes-inherited-and-boundaries.md).
 
 ## Integration notes
 
