@@ -1,0 +1,38 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\AppData\Local\Temp\a20\a19profile.exe2026-11-09 17:03:32.2477967 -0800 PST
+Type: alloc_space
+Time: 2026-11-09 17:36:41 PST
+Showing nodes accounting for 1776MB, 96.59% of 1838.77MB total
+Dropped 122 nodes (cum <= 9.19MB)
+Showing top 30 nodes out of 55
+      flat  flat%   sum%        cum   cum%
+  630.14MB 34.27% 34.27%   630.14MB 34.27%  io.ReadAll
+  253.91MB 13.81% 48.08%   253.91MB 13.81%  bytes.growSlice
+  202.96MB 11.04% 59.12%   202.96MB 11.04%  github.com/cocokoishi/gotavern/internal/server.(*orderedNodeJSON).setMember (inline)
+  178.63MB  9.71% 68.83%   349.70MB 19.02%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+   88.16MB  4.79% 73.63%    88.16MB  4.79%  strings.(*Builder).WriteByte (inline)
+   75.05MB  4.08% 77.71%    75.55MB  4.11%  encoding/json/jsontext.(*decoderState).fetch
+   74.02MB  4.03% 81.73%    74.02MB  4.03%  encoding/json/jsontext.Token.String (inline)
+   73.64MB  4.01% 85.74%  1062.02MB 57.76%  github.com/cocokoishi/gotavern/internal/server.processCharacterForDirEntry
+   71.23MB  3.87% 89.61%    71.23MB  3.87%  github.com/cocokoishi/gotavern/internal/server.extractPngChunks
+   19.54MB  1.06% 90.67%    19.54MB  1.06%  encoding/base64.(*Encoding).DecodeString
+      18MB  0.98% 91.65%    35.51MB  1.93%  syscall.FullPath
+      18MB  0.98% 92.63%   171.07MB  9.30%  encoding/json.(*Decoder).Token
+   12.52MB  0.68% 93.31%    32.07MB  1.74%  github.com/cocokoishi/gotavern/internal/server.decodeBase64UTF8
+   12.50MB  0.68% 93.99%    12.50MB  0.68%  syscall.UTF16FromString
+   12.50MB  0.68% 94.67%    12.50MB  0.68%  strings.(*Builder).WriteString (inline)
+      12MB  0.65% 95.33%       12MB  0.65%  encoding/json/jsontext.NewDecoder (inline)
+    8.50MB  0.46% 95.79%    91.60MB  4.98%  github.com/cocokoishi/gotavern/internal/server.readFromV2
+    6.50MB  0.35% 96.14%    17.50MB  0.95%  github.com/cocokoishi/gotavern/internal/server.marshalNodeJSON
+       4MB  0.22% 96.36%   257.91MB 14.03%  bytes.(*Buffer).grow
+    3.68MB   0.2% 96.56%  1350.44MB 73.44%  github.com/cocokoishi/gotavern/internal/server.(*accountRuntime).serveCharactersAll
+    0.50MB 0.027% 96.59%    12.50MB  0.68%  encoding/json.NewDecoder
+         0     0% 96.59%   253.91MB 13.81%  bytes.(*Buffer).Grow (inline)
+         0     0% 96.59%    79.05MB  4.30%  encoding/json/jsontext.(*Decoder).ReadToken (inline)
+         0     0% 96.59%    79.05MB  4.30%  encoding/json/jsontext.(*decoderState).ReadToken
+         0     0% 96.59%    72.55MB  3.95%  encoding/json/jsontext.(*decoderState).consumeString
+         0     0% 96.59%    10.74MB  0.58%  github.com/cocokoishi/gotavern/internal/app.Start
+         0     0% 96.59%    35.51MB  1.93%  github.com/cocokoishi/gotavern/internal/server.characterCardCachePath
+         0     0% 96.59%   367.70MB 20.00%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSON
+         0     0% 96.59%    83.16MB  4.52%  github.com/cocokoishi/gotavern/internal/server.decodePngText
+         0     0% 96.59%   131.36MB  7.14%  github.com/cocokoishi/gotavern/internal/server.finishCharacterProjection

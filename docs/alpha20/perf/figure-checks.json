@@ -1,0 +1,192 @@
+{
+  "tool": "tools/check-figure-a11y.mjs",
+  "generatedAt": "2026-11-10T02:04:22.709Z",
+  "browser": "msedge.exe",
+  "baseline": {
+    "runId": "42012475880",
+    "commit": "f1396cec6a26719501801846577f26d0cca0156b"
+  },
+  "checks": [
+    {
+      "id": "FIGURE-XML-SYNTAX",
+      "ok": true,
+      "message": "benchmark.svg does not parse as XML: "
+    },
+    {
+      "id": "FIGURE-XML-SYNTAX",
+      "ok": true,
+      "message": "benchmark-light.svg does not parse as XML: "
+    },
+    {
+      "id": "FIGURE-TEXT-CONTAINED",
+      "ok": true,
+      "message": "benchmark.svg at 1200px: 0 text node(s) outside the viewBox: []"
+    },
+    {
+      "id": "FIGURE-NO-OVERFLOW",
+      "ok": true,
+      "message": "benchmark.svg at 1200px: the rendered drawing overflows its container"
+    },
+    {
+      "id": "FIGURE-TYPE-FLOOR",
+      "ok": true,
+      "message": "benchmark.svg: smallest declared type is 13px, below the 13px floor"
+    },
+    {
+      "id": "FIGURE-TEXT-CONTAINED",
+      "ok": true,
+      "message": "benchmark.svg at 720px: 0 text node(s) outside the viewBox: []"
+    },
+    {
+      "id": "FIGURE-NO-OVERFLOW",
+      "ok": true,
+      "message": "benchmark.svg at 720px: the rendered drawing overflows its container"
+    },
+    {
+      "id": "FIGURE-MOBILE-HERO",
+      "ok": true,
+      "message": "benchmark.svg: at 720 CSS px the largest hero number renders at 24px, below the 18px at-a-glance floor"
+    },
+    {
+      "id": "FIGURE-TEXT-CONTAINED",
+      "ok": true,
+      "message": "benchmark.svg at 360px: 0 text node(s) outside the viewBox: []"
+    },
+    {
+      "id": "FIGURE-NO-OVERFLOW",
+      "ok": true,
+      "message": "benchmark.svg at 360px: the rendered drawing overflows its container"
+    },
+    {
+      "id": "FIGURE-TEXT-CONTAINED",
+      "ok": true,
+      "message": "benchmark-light.svg at 1200px: 0 text node(s) outside the viewBox: []"
+    },
+    {
+      "id": "FIGURE-NO-OVERFLOW",
+      "ok": true,
+      "message": "benchmark-light.svg at 1200px: the rendered drawing overflows its container"
+    },
+    {
+      "id": "FIGURE-TYPE-FLOOR",
+      "ok": true,
+      "message": "benchmark-light.svg: smallest declared type is 13px, below the 13px floor"
+    },
+    {
+      "id": "FIGURE-TEXT-CONTAINED",
+      "ok": true,
+      "message": "benchmark-light.svg at 720px: 0 text node(s) outside the viewBox: []"
+    },
+    {
+      "id": "FIGURE-NO-OVERFLOW",
+      "ok": true,
+      "message": "benchmark-light.svg at 720px: the rendered drawing overflows its container"
+    },
+    {
+      "id": "FIGURE-MOBILE-HERO",
+      "ok": true,
+      "message": "benchmark-light.svg: at 720 CSS px the largest hero number renders at 24px, below the 18px at-a-glance floor"
+    },
+    {
+      "id": "FIGURE-TEXT-CONTAINED",
+      "ok": true,
+      "message": "benchmark-light.svg at 360px: 0 text node(s) outside the viewBox: []"
+    },
+    {
+      "id": "FIGURE-NO-OVERFLOW",
+      "ok": true,
+      "message": "benchmark-light.svg at 360px: the rendered drawing overflows its container"
+    },
+    {
+      "id": "FIGURE-NO-OVERFLOW",
+      "ok": true,
+      "message": "the headless render did not measure benchmark.svg:1200"
+    },
+    {
+      "id": "FIGURE-NO-OVERFLOW",
+      "ok": true,
+      "message": "the headless render did not measure benchmark.svg:720"
+    },
+    {
+      "id": "FIGURE-NO-OVERFLOW",
+      "ok": true,
+      "message": "the headless render did not measure benchmark.svg:360"
+    },
+    {
+      "id": "FIGURE-NO-OVERFLOW",
+      "ok": true,
+      "message": "the headless render did not measure benchmark-light.svg:1200"
+    },
+    {
+      "id": "FIGURE-NO-OVERFLOW",
+      "ok": true,
+      "message": "the headless render did not measure benchmark-light.svg:720"
+    },
+    {
+      "id": "FIGURE-NO-OVERFLOW",
+      "ok": true,
+      "message": "the headless render did not measure benchmark-light.svg:360"
+    },
+    {
+      "id": "FIGURE-PAIR-DESC",
+      "ok": true,
+      "message": "the dark and light variants do not carry an identical <desc>"
+    },
+    {
+      "id": "FIGURE-DESC-VALUES",
+      "ok": true,
+      "message": "dark <desc> does not restate [] recomputed from tests/perf/q22-baseline.json"
+    },
+    {
+      "id": "FIGURE-DESC-VALUES",
+      "ok": true,
+      "message": "light <desc> does not restate [] recomputed from tests/perf/q22-baseline.json"
+    },
+    {
+      "id": "README-PICTURE-BLOCK",
+      "ok": true,
+      "message": "README has no <picture> block"
+    },
+    {
+      "id": "README-PICTURE-BLOCK",
+      "ok": true,
+      "message": "the <picture> block must contain exactly one <source> (the dark variant)"
+    },
+    {
+      "id": "README-PICTURE-BLOCK",
+      "ok": true,
+      "message": "the <picture> block must contain exactly one <img> (the light variant)"
+    },
+    {
+      "id": "README-PICTURE-BLOCK",
+      "ok": true,
+      "message": "the <source> does not select the dark variant with prefers-color-scheme: dark"
+    },
+    {
+      "id": "README-PICTURE-BLOCK",
+      "ok": true,
+      "message": "the block does not reference both committed variants"
+    },
+    {
+      "id": "README-ALT-VALUES",
+      "ok": true,
+      "message": "the <img> has no alt text"
+    },
+    {
+      "id": "README-ALT-VALUES",
+      "ok": true,
+      "message": "the alt text does not carry [] recomputed from the artifact"
+    },
+    {
+      "id": "README-MARKDOWN-SAFE",
+      "ok": true,
+      "message": "the README <picture> block contains an element GitHub strips or that can carry script/style"
+    },
+    {
+      "id": "README-PICTURE-BLOCK",
+      "ok": true,
+      "message": "the <img> does not declare width=\"1200\" (the natural 16:9 size)"
+    }
+  ],
+  "failures": []
+}

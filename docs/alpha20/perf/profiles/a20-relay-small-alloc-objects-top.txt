@@ -1,0 +1,38 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\AppData\Local\Temp\a20\a19profile.exe2026-11-09 17:03:32.2477967 -0800 PST
+Type: alloc_objects
+Time: 2026-11-09 17:36:53 PST
+Showing nodes accounting for 125591, 98.64% of 127318 total
+Dropped 34 nodes (cum <= 636)
+Showing top 30 nodes out of 125
+      flat  flat%   sum%        cum   cum%
+     16385 12.87% 12.87%      16385 12.87%  strings.(*Builder).WriteString (inline)
+     10923  8.58% 21.45%      10923  8.58%  net.(*Resolver).internetAddrList.func1
+      9810  7.71% 29.15%       9810  7.71%  bytes.growSlice
+      9621  7.56% 36.71%       9877  7.76%  github.com/cocokoishi/gotavern/internal/server.decodeOrderedNodeJSONValue
+      8937  7.02% 43.73%       8937  7.02%  net/http.Header.Clone (inline)
+      8192  6.43% 50.16%      18002 14.14%  bytes.(*Buffer).grow
+      8192  6.43% 56.60%       8192  6.43%  sync.NewCond (inline)
+      6554  5.15% 61.75%       6554  5.15%  net/http.readTransfer
+      5461  4.29% 66.04%       5461  4.29%  net/http.parsePattern
+      5461  4.29% 70.32%       5461  4.29%  runtime.mallocgc
+      4681  3.68% 74.00%      16760 13.16%  net/http.(*Transport).dialConn
+      4681  3.68% 77.68%       4681  3.68%  regexp/syntax.simplify1 (inline)
+      3641  2.86% 80.54%       3641  2.86%  net/url.parse
+      3277  2.57% 83.11%       7958  6.25%  regexp.compile
+      2979  2.34% 85.45%       2979  2.34%  net/http.(*Transport).getConn
+      2979  2.34% 87.79%       2979  2.34%  net/http/cookiejar.(*Jar).cookies
+      2731  2.15% 89.94%       2731  2.15%  net/http.readCookies
+      2557  2.01% 91.94%       2557  2.01%  net/textproto.readMIMEHeader
+      2048  1.61% 93.55%       2048  1.61%  github.com/cocokoishi/gotavern/internal/server.pinnedChatCompletionRequestFraming
+      1820  1.43% 94.98%       1820  1.43%  reflect.mapassign_faststr0
+      1366  1.07% 96.06%       1366  1.07%  github.com/cocokoishi/gotavern/internal/server.(*orderedNodeJSON).setMember
+      1227  0.96% 97.02%       1227  0.96%  io.ReadAll
+       745  0.59% 97.60%        745  0.59%  net/textproto.MIMEHeader.Set
+       642   0.5% 98.11%        642   0.5%  bufio.NewWriterSize (inline)
+       429  0.34% 98.45%       1174  0.92%  github.com/cocokoishi/gotavern/internal/server.forwardPinnedChatCompletionStream
+       228  0.18% 98.62%      16613 13.05%  github.com/cocokoishi/gotavern/internal/startup.DirectoriesForUser
+        24 0.019% 98.64%       9056  7.11%  main.main
+         0     0% 98.64%       8192  6.43%  bufio.(*Reader).ReadLine
+         0     0% 98.64%       8192  6.43%  bufio.(*Reader).ReadSlice
+         0     0% 98.64%       8192  6.43%  bufio.(*Reader).fill

@@ -1,0 +1,21 @@
+﻿merge ok at bc04037
+product files vs origin/main: internal/server/a20_marshal_byte_identity_test.go,internal/server/a20_perf_bench_test.go,internal/server/image_metadata_index.go,internal/server/testdata/a20-ordered-json-golden.jsonl,internal/server/worldinfo.go
+HEAD bc0403774a4ec7638c4dd9e39e8d55d2d3a972a0
+before sha256 245A74DBEDFFB7B3B8469A6BBECC2B8A5ADA21DEABAB08C9D0065D8F44FC422A 60891648
+after  sha256 81CF0DC8CBB2FAF78AC149243D5173F5DCB46D81DE2B69037F7565634C33A9C3 60913664
+abba world4MB-before-r1 exit=0 10.5s
+abba world4MB-after-r1 exit=0 9.5s
+abba world4MB-after-r2 exit=0 3.9s
+abba world4MB-before-r2 exit=0 5s
+abba world4MB-before-r3 exit=0 3.6s
+abba world4MB-after-r3 exit=0 4.5s
+abba chat2000msg-before-r1 exit=0 1.9s
+abba chat2000msg-after-r1 exit=0 1.7s
+abba chat2000msg-after-r2 exit=0 1.8s
+abba chat2000msg-before-r2 exit=0 3.6s
+abba chat2000msg-before-r3 exit=0 2.4s
+abba chat2000msg-after-r3 exit=0 2s
+boot before r1 exit=0 72.5s
+boot after r1 exit=0 66.6s
+full suite exit=0
+eight-users exit=0

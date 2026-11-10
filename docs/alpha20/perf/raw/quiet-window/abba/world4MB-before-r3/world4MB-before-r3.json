@@ -1,0 +1,404 @@
+{
+  "label": "world4MB-before-r3",
+  "mode": "http",
+  "goVersion": "go1.27.3",
+  "goos": "windows",
+  "goarch": "arm64",
+  "gomaxprocs": 2,
+  "dataRoot": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\trees\\world-4mb\\data",
+  "configPath": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\trees\\world-4mb\\config.yaml",
+  "route": "world-get",
+  "requests": 40,
+  "warmup": 1,
+  "startupMs": 63.279,
+  "readyMs": 2.018,
+  "startupStageLines": [
+    "gotavern: startup.command-line took 2ms (total 2ms)",
+    "gotavern: startup.data-startup took 28ms (total 30ms)",
+    "gotavern: startup.listeners took 26ms (total 56ms)",
+    "gotavern: startup.routes took 5ms (total 61ms)",
+    "gotavern: startup.ready took 2ms (total 63ms)"
+  ],
+  "requestRows": [
+    {
+      "index": 0,
+      "kind": "warmup",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 87.991,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": false
+    },
+    {
+      "index": 0,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 110.972,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 1,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 74.719,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 2,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 87.292,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 3,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 62.464,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 4,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 106.709,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 5,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 82.039,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 6,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 81.875,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 7,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 58.661,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 8,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 85.53,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 9,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 92.311,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 10,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 63.769,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 11,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 86.741,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 12,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 118.291,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 13,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 86.939,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 14,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 91.345,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 15,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 70.414,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 16,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 83.979,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 17,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 79.863,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 18,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 85.39,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 19,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 115.44,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 20,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 58.858,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 21,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 74.315,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 22,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 85.213,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 23,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 86.775,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 24,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 120.671,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 25,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 60.544,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 26,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 77.105,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 27,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 89.486,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 28,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 108.931,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 29,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 56.055,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 30,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 100.593,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 31,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 78.032,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 32,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 103.173,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 33,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 78.138,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 34,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 83.528,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 35,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 83.638,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 36,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 83.898,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 37,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 63.094,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 38,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 83.249,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 39,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 4194304,
+      "ms": 88.018,
+      "route": "/api/worldinfo/get",
+      "inProfileWindow": true
+    }
+  ],
+  "cpuProfile": "world4MB-before-r3-cpu.pb.gz",
+  "heapProfile": "world4MB-before-r3-heap.pb.gz",
+  "cpuProfileRateHz": 100,
+  "notes": [
+    "CPU profile rate is Go's default 100 Hz; short windows carry few samples and are reported with their sample counts.",
+    "Heap profile carries alloc_space/alloc_objects (cumulative) and inuse_space/inuse_objects (after a forced GC at capture); the two are never mixed.",
+    "All OCUMULATIVE allocation totals include the startup path and the warmup requests; a warm-window claim is about the SHAPE of the profile, and the per-request allocation numbers come from internal/server/bench_test.go.",
+    "This helper calls internal/app.Start in-process; it is not the packaged binary and does not measure process exec/init cost (tools/perf/a19-boot.mjs does that)."
+  ],
+  "startedAt": "2026-11-10T02:44:27Z",
+  "finishedAt": "2026-11-10T02:44:31Z"
+}

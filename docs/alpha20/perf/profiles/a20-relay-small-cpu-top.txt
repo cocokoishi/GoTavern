@@ -1,0 +1,39 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\AppData\Local\Temp\a20\a19profile.exe2026-11-09 17:03:32.2477967 -0800 PST
+Type: cpu
+Time: 2026-11-09 17:36:47 PST
+Duration: 5.32s, Total samples = 3s (56.41%)
+Showing nodes accounting for 2.75s, 91.67% of 3s total
+Dropped 100 nodes (cum <= 0.01s)
+Showing top 30 nodes out of 235
+      flat  flat%   sum%        cum   cum%
+     1.62s 54.00% 54.00%      1.65s 55.00%  runtime.cgocall
+     0.23s  7.67% 61.67%      0.23s  7.67%  runtime.osyield.func1
+     0.16s  5.33% 67.00%      0.16s  5.33%  runtime.asyncPreempt
+     0.11s  3.67% 70.67%      0.11s  3.67%  runtime.netpoll
+     0.10s  3.33% 74.00%      0.10s  3.33%  runtime.preemptM
+     0.05s  1.67% 75.67%      0.07s  2.33%  runtime.lock2
+     0.04s  1.33% 77.00%      0.04s  1.33%  runtime.step
+     0.04s  1.33% 78.33%      0.06s  2.00%  vendor/golang.org/x/net/http/httpguts.isASCII
+     0.03s  1.00% 79.33%      0.06s  2.00%  github.com/cocokoishi/gotavern/internal/outbound.sendProductionStreaming
+     0.03s  1.00% 80.33%      0.03s  1.00%  internal/runtime/maps.memHashAES
+     0.03s  1.00% 81.33%      0.03s  1.00%  net/textproto.validHeaderFieldByte (inline)
+     0.03s  1.00% 82.33%      0.03s  1.00%  runtime.exitsyscall
+     0.02s  0.67% 83.00%      0.04s  1.33%  bufio.(*Reader).Peek
+     0.02s  0.67% 83.67%      0.02s  0.67%  bytes.(*Buffer).WriteString
+     0.02s  0.67% 84.33%      0.10s  3.33%  bytes.growSlice
+     0.02s  0.67% 85.00%      0.02s  0.67%  internal/poll.runtime_pollOpen
+     0.02s  0.67% 85.67%      0.02s  0.67%  net.ipToSockaddrInet4
+     0.02s  0.67% 86.33%      0.02s  0.67%  runtime.getGCMask (inline)
+     0.02s  0.67% 87.00%      0.05s  1.67%  runtime.mapassign_faststr
+     0.02s  0.67% 87.67%      0.02s  0.67%  runtime.unlock2
+     0.02s  0.67% 88.33%      0.02s  0.67%  strings.(*Replacer).build
+     0.02s  0.67% 89.00%      0.03s  1.00%  time.Now
+     0.01s  0.33% 89.33%      0.02s  0.67%  encoding/json/internal/jsonopts.GetOption[go.shape.bool]
+     0.01s  0.33% 89.67%      0.30s 10.00%  github.com/cocokoishi/gotavern/internal/server.(*accountRuntime).serveChatCompletionGenerate
+     0.01s  0.33% 90.00%      0.04s  1.33%  github.com/cocokoishi/gotavern/internal/server.marshalNodeJSONString
+     0.01s  0.33% 90.33%      0.48s 16.00%  net/http.HandlerFunc.ServeHTTP
+     0.01s  0.33% 90.67%      0.03s  1.00%  net/http.readRequestLimit.func1
+     0.01s  0.33% 91.00%      0.03s  1.00%  runtime.(*mcache).refill
+     0.01s  0.33% 91.33%      0.05s  1.67%  runtime.mallocgc
+     0.01s  0.33% 91.67%      0.02s  0.67%  runtime.mapdelete_faststr

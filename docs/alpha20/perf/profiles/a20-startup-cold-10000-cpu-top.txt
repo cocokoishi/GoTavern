@@ -1,0 +1,38 @@
+﻿File: a19profile.exe
+Build ID: C:\Users\koishi\AppData\Local\Temp\a20\a19profile.exe2026-11-09 17:03:32.2477967 -0800 PST
+Type: cpu
+Time: 2026-11-09 17:35:55 PST
+Duration: 1.25s, Total samples = 1.06s (84.80%)
+Showing nodes accounting for 1.06s, 100% of 1.06s total
+Showing top 30 nodes out of 190
+      flat  flat%   sum%        cum   cum%
+     0.54s 50.94% 50.94%      0.54s 50.94%  runtime.cgocall
+     0.07s  6.60% 57.55%      0.07s  6.60%  runtime.scanObject
+     0.07s  6.60% 64.15%      0.07s  6.60%  runtime.unlock2
+     0.05s  4.72% 68.87%      0.05s  4.72%  runtime.osyield.func1
+     0.03s  2.83% 71.70%      0.03s  2.83%  runtime.acquirem
+     0.03s  2.83% 74.53%      0.03s  2.83%  runtime.makeslice
+     0.03s  2.83% 77.36%      0.03s  2.83%  runtime.mapassign_faststr
+     0.03s  2.83% 80.19%      0.03s  2.83%  runtime.semawakeup
+     0.02s  1.89% 82.08%      0.10s  9.43%  runtime.goschedImpl
+     0.02s  1.89% 83.96%      0.03s  2.83%  runtime.lock2
+     0.02s  1.89% 85.85%      0.02s  1.89%  runtime.mallocgcTinySlowPath
+     0.02s  1.89% 87.74%      0.02s  1.89%  runtime.memclrNoHeapPointers
+     0.01s  0.94% 88.68%      0.01s  0.94%  crypto/internal/fips140/sha256.(*Digest).Write
+     0.01s  0.94% 89.62%      0.01s  0.94%  encoding/json/v2.MarshalEncode
+     0.01s  0.94% 90.57%      0.01s  0.94%  internal/filepathlite.(*lazybuf).append
+     0.01s  0.94% 91.51%      0.01s  0.94%  internal/runtime/atomic.(*Uint32).CompareAndSwap (inline)
+     0.01s  0.94% 92.45%      0.01s  0.94%  internal/runtime/atomic.(*Uintptr).Add (inline)
+     0.01s  0.94% 93.40%      0.07s  6.60%  os.(*File).readdir
+     0.01s  0.94% 94.34%      0.01s  0.94%  runtime.(*inlineUnwinder).srcFunc (inline)
+     0.01s  0.94% 95.28%      0.01s  0.94%  runtime.preemptM
+     0.01s  0.94% 96.23%      0.01s  0.94%  runtime.sysUsedOS
+     0.01s  0.94% 97.17%      0.02s  1.89%  runtime.tracebackPCs
+     0.01s  0.94% 98.11%      0.01s  0.94%  runtime.typePointers.next
+     0.01s  0.94% 99.06%      0.02s  1.89%  sync.(*Pool).Put
+     0.01s  0.94%   100%      0.01s  0.94%  sync.(*Pool).pin
+         0     0%   100%      0.03s  2.83%  bytes.(*Buffer).Write
+         0     0%   100%      0.03s  2.83%  bytes.(*Buffer).grow
+         0     0%   100%      0.01s  0.94%  crypto/sha256.Sum256
+         0     0%   100%      0.06s  5.66%  encoding/json.(*Encoder).Encode
+         0     0%   100%      0.01s  0.94%  encoding/json/jsontext.(*encoderState).reset

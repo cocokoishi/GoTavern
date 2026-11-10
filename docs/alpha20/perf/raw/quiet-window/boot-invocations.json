@@ -1,0 +1,16 @@
+[
+    {
+        "subject":  "before",
+        "round":  1,
+        "exit":  0,
+        "out":  "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\quiet\\boot-before-r1.json",
+        "seconds":  72.5
+    },
+    {
+        "subject":  "after",
+        "round":  1,
+        "exit":  0,
+        "out":  "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\quiet\\boot-after-r1.json",
+        "seconds":  66.6
+    }
+]

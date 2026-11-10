@@ -1,0 +1,404 @@
+{
+  "label": "chat2000msg-before-r2",
+  "mode": "http",
+  "goVersion": "go1.27.3",
+  "goos": "windows",
+  "goarch": "arm64",
+  "gomaxprocs": 2,
+  "dataRoot": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\trees\\chats-large\\data",
+  "configPath": "C:\\Users\\koishi\\AppData\\Local\\Temp\\a20\\trees\\chats-large\\config.yaml",
+  "route": "chat-get",
+  "requests": 40,
+  "warmup": 1,
+  "startupMs": 92.185,
+  "readyMs": 2.012,
+  "startupStageLines": [
+    "gotavern: startup.command-line took 2ms (total 2ms)",
+    "gotavern: startup.data-startup took 31ms (total 33ms)",
+    "gotavern: startup.listeners took 46ms (total 79ms)",
+    "gotavern: startup.routes took 11ms (total 90ms)",
+    "gotavern: startup.ready took 2ms (total 92ms)"
+  ],
+  "requestRows": [
+    {
+      "index": 0,
+      "kind": "warmup",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 37.581,
+      "route": "/api/chats/get",
+      "inProfileWindow": false
+    },
+    {
+      "index": 0,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 62.759,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 1,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 25.495,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 2,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 61.217,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 3,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 34.414,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 4,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 34.633,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 5,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 64.247,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 6,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 27.022,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 7,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 33.867,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 8,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 57.153,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 9,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 28.549,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 10,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 60.219,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 11,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 28.854,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 12,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 34.953,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 13,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 60.694,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 14,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 28.632,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 15,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 41.875,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 16,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 51.592,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 17,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 31.707,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 18,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 63.332,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 19,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 35.255,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 20,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 42.558,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 21,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 44.464,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 22,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 27.867,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 23,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 45.905,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 24,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 40.883,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 25,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 32.102,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 26,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 57.876,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 27,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 24.63,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 28,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 27.705,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 29,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 65.62,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 30,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 26.536,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 31,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 84.816,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 32,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 118.113,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 33,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 314.199,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 34,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 233.194,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 35,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 261.399,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 36,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 113.983,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 37,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 221.411,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 38,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 296.616,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    },
+    {
+      "index": 39,
+      "kind": "profiled",
+      "status": 200,
+      "bytes": 807776,
+      "ms": 277.619,
+      "route": "/api/chats/get",
+      "inProfileWindow": true
+    }
+  ],
+  "cpuProfile": "chat2000msg-before-r2-cpu.pb.gz",
+  "heapProfile": "chat2000msg-before-r2-heap.pb.gz",
+  "cpuProfileRateHz": 100,
+  "notes": [
+    "CPU profile rate is Go's default 100 Hz; short windows carry few samples and are reported with their sample counts.",
+    "Heap profile carries alloc_space/alloc_objects (cumulative) and inuse_space/inuse_objects (after a forced GC at capture); the two are never mixed.",
+    "All OCUMULATIVE allocation totals include the startup path and the warmup requests; a warm-window claim is about the SHAPE of the profile, and the per-request allocation numbers come from internal/server/bench_test.go.",
+    "This helper calls internal/app.Start in-process; it is not the packaged binary and does not measure process exec/init cost (tools/perf/a19-boot.mjs does that)."
+  ],
+  "startedAt": "2026-11-10T02:44:41Z",
+  "finishedAt": "2026-11-10T02:44:44Z"
+}

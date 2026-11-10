@@ -77,13 +77,19 @@ const baselineDocPath = path.resolve(argument('--baseline-doc', path.join(ROOT, 
 const generatorPath = path.resolve(argument('--generator', path.join(ROOT, 'tools', 'benchmark-svg.mjs')));
 const alpha18Dir = path.join(ROOT, 'docs', 'alpha18');
 const perfLaneDir = path.join(alpha18Dir, 'perf');
-const RELEASE_VERSION = argument('--release', 'v0.1.0-alpha.18');
+const RELEASE_VERSION = argument('--release', 'v0.1.0-alpha.19');
 const RELEASES_LATEST = 'https://github.com/cocokoishi/GoTavern/releases/latest';
 // Known-stale release tokens: text that was true once and must never be presented as the current release.
 // It may still appear in a historical sentence ("was the previous release"), never as "current"/"latest".
 const STALE_VERSION_TOKENS = ['v0.1.0-alpha.13', 'alpha.13', 'v0.1.0-alpha.15', 'alpha.15'];
 const RELEASE_TOKEN_PATTERN = /\bv?0\.1\.0-alpha\.\d+\b|\balpha\.\d+\b/g;
 const README_BUDGET = { minBytes: 10000, maxBytes: 14000, minLines: 100, maxLines: 160, minNonBlank: 100, maxNonBlank: 150 };
+// THE FIRST-SCREEN CHARACTER BUDGET (alpha.20). The README gate above constrains the WHOLE file, which let
+// the alpha.19 first screen grow to 11,170 characters (everything above "## Release status", newline-normalised,
+// measured at commit 7d1178e) while a reader had to scroll past a compatibility audit and an install manual
+// before seeing the product. alpha.20's contract is a >= 40% reduction of that measured baseline, so this
+// ceiling is 60% of it. Detail belongs below "## Release status" or in docs/, not in the first screen.
+const FIRST_SCREEN_BUDGET = { alpha19Characters: 11170, maxCharacters: 6702 };
 
 const problems = [];
 function problem(assertion, file, line, message) {
@@ -314,6 +320,12 @@ if (readme !== null) {
     }
     const firstScreen = lines.slice(0, firstScreenEnd < 0 ? lines.length : firstScreenEnd).join('\n');
     const firstScreenProblem = (assertion, message, line = null) => problem(assertion, readmePath, line, `first screen: ${message}`);
+    // The FIRST-SCREEN BUDGET is a character count, not a byte count, because the contract is about how much
+    // a reader has to read before the product; newline normalisation keeps a CRLF checkout from failing it.
+    const firstScreenCharacters = firstScreen.replace(/\r\n/g, '\n').length;
+    if (firstScreenCharacters > FIRST_SCREEN_BUDGET.maxCharacters) {
+        problem('README-FIRST-SCREEN-BUDGET', readmePath, firstScreenEnd < 0 ? null : firstScreenEnd + 1, `first screen is ${firstScreenCharacters} characters; the alpha.20 budget is ${FIRST_SCREEN_BUDGET.maxCharacters} (60% of the alpha.19 ${FIRST_SCREEN_BUDGET.alpha19Characters}-character first screen, a >=40% reduction). Move detail below the "## Release status" boundary or into docs/`);
+    }
     // (a) the ONE figure, in both variants, selected by GitHub's colour scheme.
     if (!firstScreen.includes('<picture')) firstScreenProblem('README-FIGURE-PAIR', 'has no <picture> element, so the figure cannot be the one image of the first screen');
     if (!firstScreen.includes('prefers-color-scheme')) firstScreenProblem('README-FIGURE-PAIR', 'does not choose the figure variant with prefers-color-scheme, so the dark/light pair cannot be selected by GitHub');
@@ -551,7 +563,7 @@ if (provenanceText !== null) {
     expectContains('PROVENANCE-PAIR', provenancePath, provenanceText, 'benchmark-light.svg', 'provenance must name the light figure variant next to the dark one');
     expectContains('PROVENANCE-CANVAS', provenancePath, provenanceText, '1200', 'provenance must state the shared canvas size');
     expectContains('PROVENANCE-CONTRAST', provenancePath, provenanceText, 'contrast', 'provenance must record the contrast audit');
-    expectContains('PROVENANCE-TYPE-FLOOR', provenancePath, provenanceText, '12 px', 'provenance must state the minimum type size at 1:1');
+    expectContains('PROVENANCE-TYPE-FLOOR', provenancePath, provenanceText, '13 px', 'provenance must state the minimum type size at 1:1');
     expectContains('PROVENANCE-REGEN', provenancePath, provenanceText, '--out-light', 'the update procedure must regenerate BOTH variants');
 }
 

@@ -1,0 +1,316 @@
+{
+  "rows": [
+    {
+      "route": "world4MB",
+      "subject": "before",
+      "round": 1,
+      "requests": 40,
+      "p50": 97.71,
+      "p95": 409.75,
+      "max": 786.89,
+      "min": 59.27,
+      "startupMs": 531.367
+    },
+    {
+      "route": "world4MB",
+      "subject": "after",
+      "round": 1,
+      "requests": 40,
+      "p50": 89.46,
+      "p95": 277.49,
+      "max": 406.38,
+      "min": 50.66,
+      "startupMs": 191.49
+    },
+    {
+      "route": "world4MB",
+      "subject": "after",
+      "round": 2,
+      "requests": 40,
+      "p50": 81.6,
+      "p95": 316.88,
+      "max": 392.48,
+      "min": 48.39,
+      "startupMs": 86.056
+    },
+    {
+      "route": "world4MB",
+      "subject": "before",
+      "round": 2,
+      "requests": 40,
+      "p50": 92.53,
+      "p95": 341.1,
+      "max": 357.3,
+      "min": 60.16,
+      "startupMs": 88.256
+    },
+    {
+      "route": "world4MB",
+      "subject": "before",
+      "round": 3,
+      "requests": 40,
+      "p50": 83.98,
+      "p95": 118.29,
+      "max": 120.67,
+      "min": 56.05,
+      "startupMs": 63.279
+    },
+    {
+      "route": "world4MB",
+      "subject": "after",
+      "round": 3,
+      "requests": 40,
+      "p50": 85.14,
+      "p95": 350.3,
+      "max": 511.75,
+      "min": 43.86,
+      "startupMs": 79.338
+    },
+    {
+      "route": "chat2000msg",
+      "subject": "before",
+      "round": 1,
+      "requests": 40,
+      "p50": 40.56,
+      "p95": 65.7,
+      "max": 66.01,
+      "min": 24.45,
+      "startupMs": 78.067
+    },
+    {
+      "route": "chat2000msg",
+      "subject": "after",
+      "round": 1,
+      "requests": 40,
+      "p50": 31.82,
+      "p95": 62.3,
+      "max": 67.48,
+      "min": 20.45,
+      "startupMs": 80.788
+    },
+    {
+      "route": "chat2000msg",
+      "subject": "after",
+      "round": 2,
+      "requests": 40,
+      "p50": 33.31,
+      "p95": 64.23,
+      "max": 81.35,
+      "min": 21.16,
+      "startupMs": 88.306
+    },
+    {
+      "route": "chat2000msg",
+      "subject": "before",
+      "round": 2,
+      "requests": 40,
+      "p50": 45.91,
+      "p95": 296.62,
+      "max": 314.2,
+      "min": 24.63,
+      "startupMs": 92.185
+    },
+    {
+      "route": "chat2000msg",
+      "subject": "before",
+      "round": 3,
+      "requests": 40,
+      "p50": 43.57,
+      "p95": 143.04,
+      "max": 159.08,
+      "min": 23.37,
+      "startupMs": 93.382
+    },
+    {
+      "route": "chat2000msg",
+      "subject": "after",
+      "round": 3,
+      "requests": 40,
+      "p50": 38.49,
+      "p95": 89.09,
+      "max": 118.84,
+      "min": 20.74,
+      "startupMs": 120.199
+    }
+  ],
+  "aggregate": {
+    "world4MB/before": {
+      "rounds": 3,
+      "p50Median": 92.53,
+      "p95Median": 341.1,
+      "maxMedian": 357.3,
+      "p50Series": [
+        97.71,
+        92.53,
+        83.98
+      ],
+      "p95Series": [
+        409.75,
+        341.1,
+        118.29
+      ],
+      "startupSeries": [
+        531.367,
+        88.256,
+        63.279
+      ]
+    },
+    "world4MB/after": {
+      "rounds": 3,
+      "p50Median": 85.14,
+      "p95Median": 316.88,
+      "maxMedian": 406.38,
+      "p50Series": [
+        89.46,
+        81.6,
+        85.14
+      ],
+      "p95Series": [
+        277.49,
+        316.88,
+        350.3
+      ],
+      "startupSeries": [
+        191.49,
+        86.056,
+        79.338
+      ]
+    },
+    "chat2000msg/before": {
+      "rounds": 3,
+      "p50Median": 43.57,
+      "p95Median": 143.04,
+      "maxMedian": 159.08,
+      "p50Series": [
+        40.56,
+        45.91,
+        43.57
+      ],
+      "p95Series": [
+        65.7,
+        296.62,
+        143.04
+      ],
+      "startupSeries": [
+        78.067,
+        92.185,
+        93.382
+      ]
+    },
+    "chat2000msg/after": {
+      "rounds": 3,
+      "p50Median": 33.31,
+      "p95Median": 64.23,
+      "maxMedian": 81.35,
+      "p50Series": [
+        31.82,
+        33.31,
+        38.49
+      ],
+      "p95Series": [
+        62.3,
+        64.23,
+        89.09
+      ],
+      "startupSeries": [
+        80.788,
+        88.306,
+        120.199
+      ]
+    }
+  },
+  "effect": {
+    "world4MB": {
+      "p50DeltaPct": -8,
+      "p95DeltaPct": -7.1,
+      "before": {
+        "rounds": 3,
+        "p50Median": 92.53,
+        "p95Median": 341.1,
+        "maxMedian": 357.3,
+        "p50Series": [
+          97.71,
+          92.53,
+          83.98
+        ],
+        "p95Series": [
+          409.75,
+          341.1,
+          118.29
+        ],
+        "startupSeries": [
+          531.367,
+          88.256,
+          63.279
+        ]
+      },
+      "after": {
+        "rounds": 3,
+        "p50Median": 85.14,
+        "p95Median": 316.88,
+        "maxMedian": 406.38,
+        "p50Series": [
+          89.46,
+          81.6,
+          85.14
+        ],
+        "p95Series": [
+          277.49,
+          316.88,
+          350.3
+        ],
+        "startupSeries": [
+          191.49,
+          86.056,
+          79.338
+        ]
+      }
+    },
+    "chat2000msg": {
+      "p50DeltaPct": -23.5,
+      "p95DeltaPct": -55.1,
+      "before": {
+        "rounds": 3,
+        "p50Median": 43.57,
+        "p95Median": 143.04,
+        "maxMedian": 159.08,
+        "p50Series": [
+          40.56,
+          45.91,
+          43.57
+        ],
+        "p95Series": [
+          65.7,
+          296.62,
+          143.04
+        ],
+        "startupSeries": [
+          78.067,
+          92.185,
+          93.382
+        ]
+      },
+      "after": {
+        "rounds": 3,
+        "p50Median": 33.31,
+        "p95Median": 64.23,
+        "maxMedian": 81.35,
+        "p50Series": [
+          31.82,
+          33.31,
+          38.49
+        ],
+        "p95Series": [
+          62.3,
+          64.23,
+          89.09
+        ],
+        "startupSeries": [
+          80.788,
+          88.306,
+          120.199
+        ]
+      }
+    }
+  }
+}
