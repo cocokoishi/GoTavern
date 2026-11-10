@@ -1,0 +1,230 @@
+{
+  "schema": "a20-differential-teeth-v1",
+  "generatedAt": "2026-11-10T04:04:26.727Z",
+  "artifacts": {
+    "chat": {
+      "file": "chat-integrity/differential.json",
+      "sha256": "473e2facfe26a5e353235000057c7ef0720e3f841ebd514eb5112dda3a98f24a"
+    },
+    "group": {
+      "file": "group-save-backup/differential.json",
+      "sha256": "5435e88059a2e44811af08d98905dac98fea01bdfae284b7d360150658c63a5d"
+    }
+  },
+  "baseline": {
+    "chat": "MATCH",
+    "group": "MATCH"
+  },
+  "mutations": [
+    {
+      "mutation": "status-flip",
+      "matrix": "chat-integrity",
+      "expected": "red (mutation must be detected)",
+      "observed": "DIFFERENT",
+      "status": "KILLED",
+      "scenario": "A3-mismatch-no-force",
+      "field": "status",
+      "problems": [
+        {
+          "scenario": "A3-mismatch-no-force",
+          "field": "status",
+          "reason": "field differs"
+        }
+      ]
+    },
+    {
+      "mutation": "response-body-flip",
+      "matrix": "chat-integrity",
+      "expected": "red (mutation must be detected)",
+      "observed": "DIFFERENT",
+      "status": "KILLED",
+      "scenario": "A8-non-array",
+      "field": "bodyText",
+      "problems": [
+        {
+          "scenario": "A8-non-array",
+          "field": "bodyText",
+          "reason": "field differs"
+        }
+      ]
+    },
+    {
+      "mutation": "chat-file-sha-flip",
+      "matrix": "chat-integrity",
+      "expected": "red (mutation must be detected)",
+      "observed": "DIFFERENT",
+      "status": "KILLED",
+      "scenario": "A1-new-file",
+      "field": "chatFile",
+      "problems": [
+        {
+          "scenario": "A1-new-file",
+          "field": "chatFile",
+          "reason": "field differs"
+        }
+      ]
+    },
+    {
+      "mutation": "backup-content-flip",
+      "matrix": "chat-integrity",
+      "expected": "red (mutation must be detected)",
+      "observed": "DIFFERENT",
+      "status": "KILLED",
+      "scenario": "T1-backup-tuple",
+      "field": "backups",
+      "problems": [
+        {
+          "scenario": "T1-backup-tuple",
+          "field": "backups",
+          "reason": "field differs"
+        }
+      ]
+    },
+    {
+      "mutation": "backup-name-flip",
+      "matrix": "chat-integrity",
+      "expected": "red (mutation must be detected)",
+      "observed": "DIFFERENT",
+      "status": "KILLED",
+      "scenario": "T1-backup-tuple",
+      "field": "backups",
+      "problems": [
+        {
+          "scenario": "T1-backup-tuple",
+          "field": "backups",
+          "reason": "field differs"
+        }
+      ]
+    },
+    {
+      "mutation": "timestamp-normalisation-negative-case",
+      "matrix": "chat-integrity",
+      "expected": "green (two wall-clock timestamps normalise equal; a non-timestamp change is covered by backup-name-flip)",
+      "observed": "MATCH",
+      "status": "KILLED",
+      "scenario": "T1-backup-tuple",
+      "field": "backups",
+      "problems": []
+    },
+    {
+      "mutation": "scenario-dropped",
+      "matrix": "chat-integrity",
+      "expected": "red (mutation must be detected)",
+      "observed": "DIFFERENT",
+      "status": "KILLED",
+      "scenario": "A10-corrupt-first-line",
+      "field": "*",
+      "problems": [
+        {
+          "scenario": "A10-corrupt-first-line",
+          "field": "*",
+          "reason": "scenario missing on the GoTavern leg"
+        }
+      ]
+    },
+    {
+      "mutation": "scenario-added",
+      "matrix": "chat-integrity",
+      "expected": "red (mutation must be detected)",
+      "observed": "DIFFERENT",
+      "status": "KILLED",
+      "scenario": "A99-invented",
+      "field": "*",
+      "problems": [
+        {
+          "scenario": "A99-invented",
+          "field": "*",
+          "reason": "scenario present only on the GoTavern leg"
+        }
+      ]
+    },
+    {
+      "mutation": "backup-tuple-added",
+      "matrix": "chat-integrity",
+      "expected": "red (mutation must be detected)",
+      "observed": "DIFFERENT",
+      "status": "KILLED",
+      "scenario": "A1-new-file",
+      "field": "backups",
+      "problems": [
+        {
+          "scenario": "A1-new-file",
+          "field": "backups",
+          "reason": "field differs"
+        }
+      ]
+    },
+    {
+      "mutation": "retention-changed",
+      "matrix": "group-save-backup",
+      "expected": "red (mutation must be detected)",
+      "observed": "DIFFERENT",
+      "status": "KILLED",
+      "scenario": "G10-retention-shared-quota",
+      "field": "retention",
+      "problems": [
+        {
+          "scenario": "G10-retention-shared-quota",
+          "field": "retention",
+          "reason": "field differs"
+        }
+      ]
+    },
+    {
+      "mutation": "readback-count-changed",
+      "matrix": "chat-integrity",
+      "expected": "red (mutation must be detected)",
+      "observed": "DIFFERENT",
+      "status": "KILLED",
+      "scenario": "D1-restart-readback",
+      "field": "messageCount",
+      "problems": [
+        {
+          "scenario": "D1-restart-readback",
+          "field": "messageCount",
+          "reason": "field differs"
+        }
+      ]
+    },
+    {
+      "mutation": "readback-count-changed-group",
+      "matrix": "group-save-backup",
+      "expected": "red (mutation must be detected)",
+      "observed": "DIFFERENT",
+      "status": "KILLED",
+      "scenario": "G9-restart-readback",
+      "field": "messageCount",
+      "problems": [
+        {
+          "scenario": "G9-restart-readback",
+          "field": "messageCount",
+          "reason": "field differs"
+        }
+      ]
+    },
+    {
+      "mutation": "readback-first-message-changed",
+      "matrix": "group-save-backup",
+      "expected": "red (mutation must be detected)",
+      "observed": "DIFFERENT",
+      "status": "KILLED",
+      "scenario": "G9-restart-readback",
+      "field": "firstMessage",
+      "problems": [
+        {
+          "scenario": "G9-restart-readback",
+          "field": "firstMessage",
+          "reason": "field differs"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total": 13,
+    "killed": 13,
+    "survived": 0
+  },
+  "pristineArtifactsUnchanged": true,
+  "verdict": "ok",
+  "note": "Each mutation is applied to a fresh deep copy of the recorded GoTavern leg; the recorded artifact file is never written. A SURVIVED row means the comparator or the artifact shape is not discriminating, and is reported by name."
+}
